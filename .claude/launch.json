@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Original Demo",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["/Users/andrew/Desktop/Original/run.py", "--demo", "--frontend-dir", "/Users/andrew/Desktop/Original/demo", "--skip-seed", "--port", "8001"],
+      "port": 8001
+    }
+  ]
+}

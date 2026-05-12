@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Original — Systematic Theology I</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --green-deepest: #0f1e17;
+      --green-deep:    #162b22;
+      --green-mid:     #1e3d2f;
+      --green-hover:   #243d30;
+      --green-border:  rgba(255,255,255,0.07);
+      --cream:         #f7f3ea;
+      --cream-warm:    #ede8d8;
+      --cream-border:  #e2dccf;
+      --surface:       #ffffff;
+      --gold:          #c9a028;
+      --gold-light:    rgba(201,160,40,0.12);
+      --gold-muted:    rgba(201,160,40,0.35);
+      --amber:         #9b6420;
+      --text-primary:  #1a130a;
+      --text-secondary:#5a4030;
+      --text-muted:    #8a7060;
+      --text-cream:    #f7f3ea;
+      --text-cream-dim:rgba(247,243,234,0.55);
+      --flag-red:      #c0392b;
+      --flag-red-bg:   rgba(192,57,43,0.08);
+      --flag-amber:    #c9a028;
+      --flag-amber-bg: rgba(201,160,40,0.1);
+      --flag-green:    #2a6b45;
+      --flag-green-bg: rgba(42,107,69,0.1);
+      --sidebar-w:     264px;
+      --radius:        6px;
+      --shadow-sm:     0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md:     0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.05);
+    }
+    html, body { height: 100%; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: var(--cream); color: var(--text-primary); display: flex; overflow: hidden; font-size: 14px; line-height: 1.5; }
+
+    /* SIDEBAR — identical to dashboard */
+    .sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); height: 100vh; background: var(--green-deep); display: flex; flex-direction: column; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; border-right: 1px solid var(--green-border); }
+    .sidebar-logo { padding: 1.5rem 1.5rem 1.25rem; border-bottom: 1px solid var(--green-border); }
+    .logo-mark { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.35rem; }
+    .logo-icon { width: 30px; height: 30px; border: 1px solid var(--gold-muted); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .logo-icon svg { width: 14px; height: 14px; stroke: var(--gold); }
+    .logo-wordmark { font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 600; color: var(--text-cream); letter-spacing: 0.06em; }
+    .logo-school { font-family: 'EB Garamond', serif; font-size: 0.78rem; font-style: italic; color: var(--text-cream-dim); letter-spacing: 0.03em; padding-left: 2.8rem; }
+    .sidebar-nav { flex: 1; padding: 1rem 0; overflow-y: auto; }
+    .nav-section-label { font-size: 0.65rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-cream-dim); padding: 0.6rem 1.5rem 0.3rem; margin-top: 0.5rem; }
+    .nav-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 1.5rem; color: rgba(247,243,234,0.65); text-decoration: none; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: color 0.15s, background 0.15s; position: relative; border-left: 2px solid transparent; letter-spacing: 0.01em; }
+    .nav-item:hover { color: var(--text-cream); background: var(--green-hover); }
+    .nav-item.active { color: var(--text-cream); border-left-color: var(--gold); background: rgba(201,160,40,0.08); }
+    .nav-item svg { width: 16px; height: 16px; stroke: currentColor; flex-shrink: 0; opacity: 0.85; }
+    .nav-badge { margin-left: auto; background: var(--gold); color: var(--green-deepest); font-size: 0.65rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 20px; }
+    .sidebar-user { border-top: 1px solid var(--green-border); padding: 1rem 1.25rem; display: flex; align-items: center; gap: 0.75rem; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--green-mid); border: 1px solid var(--gold-muted); display: flex; align-items: center; justify-content: center; font-family: 'Playfair Display', serif; font-size: 0.8rem; color: var(--gold); flex-shrink: 0; }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: 0.825rem; font-weight: 500; color: var(--text-cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-role { font-size: 0.72rem; color: var(--text-cream-dim); font-style: italic; font-family: 'EB Garamond', serif; }
+    .user-settings { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: var(--text-cream-dim); cursor: pointer; border-radius: 4px; transition: color 0.15s, background 0.15s; }
+    .user-settings:hover { color: var(--text-cream); background: var(--green-hover); }
+    .user-settings svg { width: 15px; height: 15px; stroke: currentColor; }
+
+    /* MAIN */
+    .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    .topbar { background: var(--cream); border-bottom: 1px solid var(--cream-border); padding: 0 2rem; height: 56px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+    .topbar-left { display: flex; align-items: center; gap: 0.5rem; }
+    .breadcrumb { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--text-muted); }
+    .breadcrumb a { color: var(--text-muted); text-decoration: none; transition: color 0.15s; }
+    .breadcrumb a:hover { color: var(--amber); }
+    .breadcrumb-sep { color: var(--cream-border); }
+    .breadcrumb-current { font-weight: 500; color: var(--text-secondary); }
+    .topbar-right { display: flex; align-items: center; gap: 0.75rem; }
+    .semester-badge { font-family: 'EB Garamond', serif; font-size: 0.85rem; font-style: italic; color: var(--text-muted); background: var(--cream-warm); border: 1px solid var(--cream-border); padding: 0.3rem 0.85rem; border-radius: 20px; }
+    .topbar-icon-btn { width: 32px; height: 32px; border-radius: var(--radius); border: 1px solid var(--cream-border); background: var(--surface); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; position: relative; color: var(--text-secondary); }
+    .topbar-icon-btn:hover { border-color: var(--gold-muted); box-shadow: var(--shadow-sm); }
+    .topbar-icon-btn svg { width: 15px; height: 15px; stroke: currentColor; }
+    .notif-dot { position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; background: var(--gold); border-radius: 50%; border: 1.5px solid var(--cream); }
+
+    .page-body { flex: 1; overflow-y: auto; padding: 2rem 2rem 3rem; }
+
+    /* COURSE HEADER */
+    .course-header {
+      background: var(--surface);
+      border: 1px solid var(--cream-border);
+      border-radius: var(--radius);
+      padding: 1.5rem 1.75rem;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1.5rem;
+    }
+    .course-header-left {}
+    .course-overline {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: 0.4rem;
+      font-style: italic;
+      font-family: 'EB Garamond', serif;
+    }
+    .course-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+      margin-bottom: 0.35rem;
+    }
+    .course-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+    }
+    .course-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+    }
+    .course-meta-item svg { width: 13px; height: 13px; stroke: currentColor; flex-shrink: 0; }
+    .course-header-stats {
+      display: flex;
+      gap: 2rem;
+      flex-shrink: 0;
+    }
+    .ch-stat { text-align: right; }
+    .ch-stat-value {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+    .ch-stat-value.flag-value { color: var(--amber); }
+    .ch-stat-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+
+    /* TABS */
+    .tab-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      margin-bottom: 1.25rem;
+      border-bottom: 1px solid var(--cream-border);
+    }
+    .tab {
+      padding: 0.65rem 1rem;
+      font-size: 0.825rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+      text-decoration: none;
+    }
+    .tab:hover { color: var(--text-primary); }
+    .tab.active { color: var(--text-primary); border-bottom-color: var(--gold); }
+    .tab-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--cream-warm);
+      border: 1px solid var(--cream-border);
+      color: var(--text-muted);
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 0.1rem 0.45rem;
+      border-radius: 20px;
+      margin-left: 0.4rem;
+    }
+    .tab.active .tab-count { background: var(--gold-light); border-color: var(--gold-muted); color: var(--amber); }
+
+    /* FILTER ROW */
+    .filter-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      gap: 1rem;
+    }
+    .filter-left { display: flex; align-items: center; gap: 0.5rem; }
+    .filter-chip {
+      padding: 0.35rem 0.85rem;
+      border-radius: 20px;
+      font-size: 0.775rem;
+      font-weight: 500;
+      border: 1px solid var(--cream-border);
+      background: var(--surface);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-chip:hover { border-color: var(--gold-muted); color: var(--text-primary); }
+    .filter-chip.active { background: var(--gold-light); border-color: var(--gold-muted); color: var(--amber); }
+    .search-input {
+      display: flex; align-items: center; gap: 0.5rem;
+      border: 1px solid var(--cream-border);
+      border-radius: var(--radius);
+      padding: 0.4rem 0.75rem;
+      background: var(--surface);
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      width: 200px;
+    }
+    .search-input svg { width: 13px; height: 13px; stroke: var(--text-muted); flex-shrink: 0; }
+    .search-input input { border: none; outline: none; background: transparent; font-size: 0.8rem; color: var(--text-primary); width: 100%; font-family: 'Inter', sans-serif; }
+    .search-input input::placeholder { color: var(--text-muted); }
+
+    /* STUDENT TABLE */
+    .section-card { background: var(--surface); border: 1px solid var(--cream-border); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; }
+    .student-table { width: 100%; }
+    .student-table-head {
+      display: grid;
+      grid-template-columns: 2fr 100px 100px 140px 90px 80px;
+      padding: 0.65rem 1.4rem;
+      background: var(--cream);
+      border-bottom: 1px solid var(--cream-border);
+    }
+    .th { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
+    .th.right { text-align: right; }
+    .th.center { text-align: center; }
+
+    .student-row {
+      display: grid;
+      grid-template-columns: 2fr 100px 100px 140px 90px 80px;
+      padding: 0.9rem 1.4rem;
+      border-bottom: 1px solid var(--cream-border);
+      align-items: center;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      transition: background 0.12s;
+    }
+    .student-row:last-child { border-bottom: none; }
+    .student-row:hover { background: var(--cream); }
+
+    .student-ident { display: flex; align-items: center; gap: 0.75rem; }
+    .student-initials {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--cream-warm);
+      border: 1px solid var(--cream-border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Playfair Display', serif;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+    .student-initials.flagged { background: var(--flag-amber-bg); border-color: rgba(201,160,40,0.3); color: var(--amber); }
+    .student-initials.high-flag { background: var(--flag-red-bg); border-color: rgba(192,57,43,0.2); color: var(--flag-red); }
+    .student-name { font-weight: 500; font-size: 0.875rem; color: var(--text-primary); }
+    .student-email { font-size: 0.72rem; color: var(--text-muted); font-family: 'EB Garamond', serif; font-style: italic; }
+
+    .td { font-size: 0.825rem; color: var(--text-secondary); }
+    .td.right { text-align: right; }
+    .td.center { text-align: center; }
+
+    .baseline-status {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      font-size: 0.75rem; font-weight: 500;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+    }
+    .baseline-status.established { background: var(--flag-green-bg); color: var(--flag-green); border: 1px solid rgba(42,107,69,0.2); }
+    .baseline-status.partial     { background: var(--flag-amber-bg); color: var(--amber); border: 1px solid rgba(201,160,40,0.25); }
+    .baseline-status.none        { background: var(--flag-red-bg); color: var(--flag-red); border: 1px solid rgba(192,57,43,0.2); }
+    .status-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+    .deviation-meter {
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .dev-bar {
+      flex: 1; height: 4px;
+      background: var(--cream-border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .dev-fill {
+      height: 100%; border-radius: 2px;
+    }
+    .dev-fill.low    { background: var(--flag-green); }
+    .dev-fill.medium { background: var(--amber); }
+    .dev-fill.high   { background: var(--flag-red); }
+    .dev-score {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      min-width: 28px;
+      text-align: right;
+    }
+    .dev-score.high { color: var(--flag-red); font-weight: 600; }
+    .dev-score.medium { color: var(--amber); font-weight: 600; }
+
+    .flag-pill { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+    .flag-pill.flagged { background: var(--flag-amber-bg); color: var(--amber); border: 1px solid rgba(201,160,40,0.25); }
+    .flag-pill.high-flag { background: var(--flag-red-bg); color: var(--flag-red); border: 1px solid rgba(192,57,43,0.2); }
+    .flag-pill.clear { background: var(--flag-green-bg); color: var(--flag-green); border: 1px solid rgba(42,107,69,0.2); }
+    .flag-pill.none { background: var(--cream-warm); color: var(--text-muted); border: 1px solid var(--cream-border); }
+
+    .btn { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.5rem 1.1rem; border-radius: var(--radius); font-size: 0.825rem; font-weight: 500; cursor: pointer; transition: all 0.15s; text-decoration: none; border: none; letter-spacing: 0.01em; }
+    .btn svg { width: 14px; height: 14px; stroke: currentColor; }
+    .btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--cream-border); }
+    .btn-ghost:hover { background: var(--surface); border-color: var(--gold-muted); color: var(--text-primary); }
+    .btn-primary { background: var(--green-deep); color: var(--text-cream); border: 1px solid var(--green-deep); }
+    .btn-primary:hover { background: var(--green-mid); border-color: var(--gold-muted); }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--cream-border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <span class="logo-wordmark">Original</span>
+    </div>
+    <div class="logo-school">Southern Baptist Theological Seminary</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Overview</div>
+    <a class="nav-item" href="original-dashboard.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </a>
+    <a class="nav-item active" href="original-course.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      Courses
+    </a>
+    <a class="nav-item" href="original-students.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Students
+    </a>
+    <div class="nav-section-label">Review</div>
+    <a class="nav-item" href="original-flagged.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      Flagged
+      <span class="nav-badge">5</span>
+    </a>
+    <a class="nav-item" href="original-submit.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Submit Writing</a>
+    <a class="nav-item" href="original-reports.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Reports</a>
+        <div class="nav-section-label">Pipeline</div>
+    <a class="nav-item" href="original-features.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Feature Profile</a>
+    <a class="nav-item" href="original-quantum.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>Quantum State</a>
+    <a class="nav-item" href="original-decomposition.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Interference</a>
+    <div class="nav-section-label">Institution</div>
+    <a class="nav-item" href="original-admin.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Admin</a>
+    <a class="nav-item" href="original-settings.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">AC</div>
+    <div class="user-info">
+      <div class="user-name">Dr. Andrew Clark</div>
+      <div class="user-role">Instructor</div>
+    </div>
+    <div class="user-settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="breadcrumb">
+        <a href="original-dashboard.html">Original</a>
+        <span class="breadcrumb-sep">/</span>
+        <a href="original-dashboard.html">Courses</a>
+        <span class="breadcrumb-sep">/</span>
+        <span class="breadcrumb-current">Systematic Theology I</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="semester-badge">Spring 2026</div>
+      <div class="topbar-icon-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+      <div class="topbar-icon-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="notif-dot"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-body">
+
+    <!-- Course header -->
+    <div class="course-header">
+      <div class="course-header-left">
+        <div class="course-overline">THEO 501 · Spring 2026</div>
+        <h1 class="course-title">Systematic Theology I</h1>
+        <div class="course-meta-row">
+          <span class="course-meta-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Mon / Wed · 9:00–10:30am
+          </span>
+          <span class="course-meta-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            Boyce Hall 204
+          </span>
+          <span class="course-meta-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            14 students enrolled
+          </span>
+        </div>
+      </div>
+      <div class="course-header-stats">
+        <div class="ch-stat">
+          <div class="ch-stat-value">86%</div>
+          <div class="ch-stat-label">Baseline</div>
+        </div>
+        <div class="ch-stat">
+          <div class="ch-stat-value">38</div>
+          <div class="ch-stat-label">Submissions</div>
+        </div>
+        <div class="ch-stat">
+          <div class="ch-stat-value flag-value">3</div>
+          <div class="ch-stat-label">Flagged</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <a class="tab active" href="#" onclick="switchTab('students');return false;" id="tab-btn-students">
+        Students
+        <span class="tab-count">14</span>
+      </a>
+      <a class="tab" href="#" onclick="switchTab('submissions');return false;" id="tab-btn-submissions">
+        Submissions
+        <span class="tab-count">38</span>
+      </a>
+      <a class="tab" href="#" onclick="switchTab('flagged');return false;" id="tab-btn-flagged">
+        Flagged
+        <span class="tab-count">3</span>
+      </a>
+      <a class="tab" href="#" onclick="switchTab('settings');return false;" id="tab-btn-settings">Settings</a>
+    </div>
+
+    <div id="panel-students" class="tab-panel">
+    <!-- Filter row -->
+    <div class="filter-row">
+      <div class="filter-left">
+        <div class="filter-chip active" onclick="filterStudents(this,'all')">All</div>
+        <div class="filter-chip" onclick="filterStudents(this,'flagged')">Flagged</div>
+        <div class="filter-chip" onclick="filterStudents(this,'no-baseline')">No baseline</div>
+        <div class="filter-chip" onclick="filterStudents(this,'clear')">Clear</div>
+      </div>
+      <div class="search-input">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="course-student-search" placeholder="Search students…" oninput="filterStudents()" />
+      </div>
+    </div>
+
+    <!-- Student table -->
+    <div class="section-card">
+      <div class="student-table-head">
+        <div class="th">Student</div>
+        <div class="th center">Submissions</div>
+        <div class="th center">Baseline</div>
+        <div class="th">Deviation</div>
+        <div class="th center">Last Activity</div>
+        <div class="th right">Status</div>
+      </div>
+
+      <!-- Row — high flag -->
+      <a class="student-row" href="original-student.html" data-status="flagged" data-name="james whitfield" data-email="jwhitfield@sbts.edu">
+        <div class="student-ident">
+          <div class="student-initials high-flag">JW</div>
+          <div>
+            <div class="student-name">James Whitfield</div>
+            <div class="student-email">jwhitfield@sbts.edu</div>
+          </div>
+        </div>
+        <div class="td center">4</div>
+        <div class="td center"><span class="baseline-status established"><span class="status-dot"></span>Strong</span></div>
+        <div class="td">
+          <div class="deviation-meter">
+            <div class="dev-bar"><div class="dev-fill high" style="width:91%"></div></div>
+            <span class="dev-score high">0.91</span>
+          </div>
+        </div>
+        <div class="td center" style="font-style:italic;font-family:'EB Garamond',serif;color:var(--text-muted);">Mar 14</div>
+        <div class="td right"><span class="flag-pill high-flag">⚑ High</span></div>
+      </a>
+
+      <!-- Row — flagged -->
+      <a class="student-row" href="original-student.html" data-status="flagged" data-name="sarah okonkwo" data-email="sokonkwo@sbts.edu">
+        <div class="student-ident">
+          <div class="student-initials flagged">SO</div>
+          <div>
+            <div class="student-name">Sarah Okonkwo</div>
+            <div class="student-email">sokonkwo@sbts.edu</div>
+          </div>
+        </div>
+        <div class="td center">3</div>
+        <div class="td center"><span class="baseline-status established"><span class="status-dot"></span>Strong</span></div>
+        <div class="td">
+          <div class="deviation-meter">
+            <div class="dev-bar"><div class="dev-fill high" style="width:84%"></div></div>
+            <span class="dev-score high">0.84</span>
+          </div>
+        </div>
+        <div class="td center" style="font-style:italic;font-family:'EB Garamond',serif;color:var(--text-muted);">Mar 12</div>
+        <div class="td right"><span class="flag-pill high-flag">⚑ High</span></div>
+      </a>
+
+      <!-- Row — medium flag -->
+      <a class="student-row" href="original-student.html" data-status="flagged" data-name="daniel osei" data-email="dosei@sbts.edu">
+        <div class="student-ident">
+          <div class="student-initials flagged">DO</div>
+          <div>
+            <div class="student-name">Daniel Osei</div>
+            <div class="student-email">dosei@sbts.edu</div>
+          </div>
+        </div>
+        <div class="td center">4</div>
+        <div class="td center"><span class="baseline-status established"><span class="status-dot"></span>Strong</span></div>
+        <div class="td">
+          <div class="deviation-meter">
+            <div class="dev-bar"><div class="dev-fill medium" style="width:71%"></div></div>
+            <span class="dev-score medium">0.71</span>
+          </div>
+        </div>
+        <div class="td center" style="font-style:italic;font-family:'EB Garamond',serif;color:var(--text-muted);">Mar 8</div>
+        <div class="td right"><span class="flag-pill flagged">⚑ Review</span></div>
+      </a>
+
+      <!-- Row — clear -->
+      <a class="student-row" href="original-student.html" data-status="clear" data-name="lydia mercer" data-email="lmercer@sbts.edu">
+        <div class="student-ident">
+          <div class="student-initials">LM</div>
+          <div>
+            <div class="student-name">Lydia Mercer</div>
+            <div class="student-email">lmercer@sbts.edu</div>
+          </div>
+        </div>
+        <div class="td center">4</div>
+        <div class="td center"><span class="baseline-status established"><span class="status-dot"></span>Strong</span></div>
+        <div class="td">
+          <div class="deviation-meter">
+            <div class="dev-bar"><div class="dev-fill low" style="width:18%"></div></div>
+            <span class="dev-score">0.18</span>
+          </div>
+        </div>
+        <div class="td center" style="font-style:italic;font-family:'EB Garamond',serif;color:var(--text-muted);">Mar 13</div>
+        <div class="td right"><span class="flag-pill clear">✓ Clear</span></div>
+      </a>
+
+      <!-- Row — clear -->
+      <a class="student-row" href="original-student.html" data-status="clear" data-name="thomas kang" data-email="tkang@sbts.edu">
+        <div class="student-ident">
+          <div class="student-initials">TK</div>
+          <div>
+            <div class="student-name">Thomas Kang</div>
+            <div class="student-email">tkang@sbts.edu</div>
+          </div>
+        </div>
+        <div class="td center">3</div>
+        <div class="td center"><span class="baseline-status established"><span class="status-dot"></span>Strong</span></div>
+        <div class="td">
+          <div class="deviation-meter">
+            <div class="dev-bar"><div class="dev-fill low" style="width:22%"></div></div>
+            <span class="dev-score">0.22</span>
+          </div>
+        </div>
+        <div class="td center" style="font-style:italic;font-family:'EB Garamond',serif;color:var(--text-muted);">Mar 11</div>
+        <div class="td right"><span class="flag-pill clear">✓ Clear</span></div>
+      </a>
+
+      <!-- Row — partial baseline -->
+      <a class="student-row" href="original-student.html" data-status="building" data-name="rebecca booth" data-email="rbooth@sbts.edu">
+        <div class="student-ident">
+          <div class="student-initials">RB</div>
+          <div>
+            <div class="student-name">Rebecca Booth</div>
+            <div class="student-email">rbooth@sbts.edu</div>
+          </div>
+        </div>
+        <div class="td center">2</div>
+        <div class="td center"><span class="baseline-status partial"><span class="status-dot"></span>Building</span></div>
+        <div class="td">
+          <div class="deviation-meter">
+            <div class="dev-bar"><div class="dev-fill low" style="width:31%"></div></div>
+            <span class="dev-score">0.31</span>
+          </div>
+        </div>
+        <div class="td center" style="font-style:italic;font-family:'EB Garamond',serif;color:var(--text-muted);">Mar 10</div>
+        <div class="td right"><span class="flag-pill none">Partial</span></div>
+      </a>
+
+      <!-- Row — no baseline -->
+      <a class="student-row" href="original-student.html" data-status="no-baseline" data-name="nathan prescott" data-email="nprescott@sbts.edu">
+        <div class="student-ident">
+          <div class="student-initials">NP</div>
+          <div>
+            <div class="student-name">Nathan Prescott</div>
+            <div class="student-email">nprescott@sbts.edu</div>
+          </div>
+        </div>
+        <div class="td center">1</div>
+        <div class="td center"><span class="baseline-status none"><span class="status-dot"></span>Not set</span></div>
+        <div class="td">
+          <div style="font-size:0.75rem;color:var(--text-muted);font-style:italic;font-family:'EB Garamond',serif;">Insufficient data</div>
+        </div>
+        <div class="td center" style="font-style:italic;font-family:'EB Garamond',serif;color:var(--text-muted);">Mar 4</div>
+        <div class="td right"><span class="flag-pill none">—</span></div>
+      </a>
+
+      <!-- Row — clear -->
+      <a class="student-row" href="original-student.html" data-status="clear" data-name="abigail monroe" data-email="amonroe@sbts.edu">
+        <div class="student-ident">
+          <div class="student-initials">AM</div>
+          <div>
+            <div class="student-name">Abigail Monroe</div>
+            <div class="student-email">amonroe@sbts.edu</div>
+          </div>
+        </div>
+        <div class="td center">4</div>
+        <div class="td center"><span class="baseline-status established"><span class="status-dot"></span>Strong</span></div>
+        <div class="td">
+          <div class="deviation-meter">
+            <div class="dev-bar"><div class="dev-fill low" style="width:14%"></div></div>
+            <span class="dev-score">0.14</span>
+          </div>
+        </div>
+        <div class="td center" style="font-style:italic;font-family:'EB Garamond',serif;color:var(--text-muted);">Mar 13</div>
+        <div class="td right"><span class="flag-pill clear">✓ Clear</span></div>
+      </a>
+
+    </div><!-- /section-card -->
+    </div><!-- /panel-students -->
+
+    <!-- SUBMISSIONS PANEL -->
+    <div id="panel-submissions" class="tab-panel" style="display:none;">
+      <div class="section-card" style="margin-bottom:1rem;">
+        <div class="filter-row">
+          <div class="filter-left">
+            <div class="filter-chip active" onclick="filterSubmissions(this,'all')">All (38)</div>
+            <div class="filter-chip" onclick="filterSubmissions(this,'flagged')">&#x2691; Flagged (3)</div>
+            <div class="filter-chip" onclick="filterSubmissions(this,'clear')">&#x2713; Clear (29)</div>
+            <div class="filter-chip" onclick="filterSubmissions(this,'other')">No baseline (6)</div>
+          </div>
+          <div class="search-input">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="course-sub-search" placeholder="Search submissions&hellip;" oninput="filterSubmissions()" />
+          </div>
+        </div>
+      </div>
+      <div class="section-card">
+        <div class="student-table-head" style="grid-template-columns:2fr 140px 90px 140px 90px 80px;">
+          <div class="th">Submission</div>
+          <div class="th">Student</div>
+          <div class="th center">Words</div>
+          <div class="th">Deviation</div>
+          <div class="th center">Submitted</div>
+          <div class="th right">Status</div>
+        </div>
+
+        <a class="student-row" href="original-review.html" style="grid-template-columns:2fr 140px 90px 140px 90px 80px;" data-status="flagged" data-title="christology final paper" data-student="james whitfield">
+          <div><div style="font-size:0.875rem;font-weight:500;color:var(--text-primary);margin-bottom:1px;">Christology Final Paper</div><div style="font-size:0.75rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;">Week 10 Summative</div></div>
+          <div class="td" style="font-size:0.825rem;">James Whitfield</div>
+          <div class="td center" style="font-size:0.825rem;">2,847</div>
+          <div class="td"><div class="deviation-meter"><div class="dev-bar"><div class="dev-fill high" style="width:91%"></div></div><span class="dev-score high">0.91</span></div></div>
+          <div class="td center" style="font-size:0.75rem;font-style:italic;font-family:'EB Garamond',serif;color:var(--text-muted);">Mar 14</div>
+          <div class="td right"><span class="flag-pill high-flag">&#x2691; High</span></div>
+        </a>
+
+        <a class="student-row" href="original-review.html" style="grid-template-columns:2fr 140px 90px 140px 90px 80px;" data-status="flagged" data-title="soteriology research paper" data-student="sarah okonkwo">
+          <div><div style="font-size:0.875rem;font-weight:500;color:var(--text-primary);margin-bottom:1px;">Soteriology Research Paper</div><div style="font-size:0.75rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;">Week 8 Assignment</div></div>
+          <div class="td" style="font-size:0.825rem;">Sarah Okonkwo</div>
+          <div class="td center" style="font-size:0.825rem;">3,104</div>
+          <div class="td"><div class="deviation-meter"><div class="dev-bar"><div class="dev-fill high" style="width:84%"></div></div><span class="dev-score high">0.84</span></div></div>
+          <div class="td center" style="font-size:0.75rem;font-style:italic;font-family:'EB Garamond',serif;color:var(--text-muted);">Mar 12</div>
+          <div class="td right"><span class="flag-pill high-flag">&#x2691; High</span></div>
+        </a>
+
+        <a class="student-row" href="original-review.html" style="grid-template-columns:2fr 140px 90px 140px 90px 80px;" data-status="flagged" data-title="pneumatology essay" data-student="daniel osei">
+          <div><div style="font-size:0.875rem;font-weight:500;color:var(--text-primary);margin-bottom:1px;">Pneumatology Essay</div><div style="font-size:0.75rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;">Week 9 Assignment</div></div>
+          <div class="td" style="font-size:0.825rem;">Daniel Osei</div>
+          <div class="td center" style="font-size:0.825rem;">2,391</div>
+          <div class="td"><div class="deviation-meter"><div class="dev-bar"><div class="dev-fill medium" style="width:71%"></div></div><span class="dev-score medium">0.71</span></div></div>
+          <div class="td center" style="font-size:0.75rem;font-style:italic;font-family:'EB Garamond',serif;color:var(--text-muted);">Mar 8</div>
+          <div class="td right"><span class="flag-pill flagged">&#x2691; Review</span></div>
+        </a>
+
+        <a class="student-row" href="original-review.html" style="grid-template-columns:2fr 140px 90px 140px 90px 80px;" data-status="clear" data-title="trinity reflection" data-student="thomas kang">
+          <div><div style="font-size:0.875rem;font-weight:500;color:var(--text-primary);margin-bottom:1px;">Trinity Reflection</div><div style="font-size:0.75rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;">Week 7 Reflection</div></div>
+          <div class="td" style="font-size:0.825rem;">Thomas Kang</div>
+          <div class="td center" style="font-size:0.825rem;">1,204</div>
+          <div class="td"><div class="deviation-meter"><div class="dev-bar"><div class="dev-fill low" style="width:22%"></div></div><span class="dev-score">0.22</span></div></div>
+          <div class="td center" style="font-size:0.75rem;font-style:italic;font-family:'EB Garamond',serif;color:var(--text-muted);">Mar 11</div>
+          <div class="td right"><span class="flag-pill clear">&#x2713; Clear</span></div>
+        </a>
+
+        <a class="student-row" href="original-review.html" style="grid-template-columns:2fr 140px 90px 140px 90px 80px;" data-status="clear" data-title="christology week 7 reflection" data-student="lydia mercer">
+          <div><div style="font-size:0.875rem;font-weight:500;color:var(--text-primary);margin-bottom:1px;">Christology Week 7 Reflection</div><div style="font-size:0.75rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;">Week 7 Reflection</div></div>
+          <div class="td" style="font-size:0.825rem;">Lydia Mercer</div>
+          <div class="td center" style="font-size:0.825rem;">1,087</div>
+          <div class="td"><div class="deviation-meter"><div class="dev-bar"><div class="dev-fill low" style="width:18%"></div></div><span class="dev-score">0.18</span></div></div>
+          <div class="td center" style="font-size:0.75rem;font-style:italic;font-family:'EB Garamond',serif;color:var(--text-muted);">Mar 13</div>
+          <div class="td right"><span class="flag-pill clear">&#x2713; Clear</span></div>
+        </a>
+
+        <a class="student-row" href="original-review.html" style="grid-template-columns:2fr 140px 90px 140px 90px 80px;" data-status="flagged" data-title="soteriology week 5 essay" data-student="james whitfield">
+          <div><div style="font-size:0.875rem;font-weight:500;color:var(--text-primary);margin-bottom:1px;">Soteriology Week 5 Essay</div><div style="font-size:0.75rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;">Week 5 Assignment</div></div>
+          <div class="td" style="font-size:0.825rem;">James Whitfield</div>
+          <div class="td center" style="font-size:0.825rem;">1,632</div>
+          <div class="td"><div class="deviation-meter"><div class="dev-bar"><div class="dev-fill medium" style="width:61%"></div></div><span class="dev-score medium">0.61</span></div></div>
+          <div class="td center" style="font-size:0.75rem;font-style:italic;font-family:'EB Garamond',serif;color:var(--text-muted);">Feb 28</div>
+          <div class="td right"><span class="flag-pill flagged">&#x2691; Watch</span></div>
+        </a>
+
+        <a class="student-row" href="original-review.html" style="grid-template-columns:2fr 140px 90px 140px 90px 80px;" data-status="clear" data-title="ecclesiology reflection" data-student="abigail monroe">
+          <div><div style="font-size:0.875rem;font-weight:500;color:var(--text-primary);margin-bottom:1px;">Ecclesiology Reflection</div><div style="font-size:0.75rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;">Week 6 Reflection</div></div>
+          <div class="td" style="font-size:0.825rem;">Abigail Monroe</div>
+          <div class="td center" style="font-size:0.825rem;">1,311</div>
+          <div class="td"><div class="deviation-meter"><div class="dev-bar"><div class="dev-fill low" style="width:14%"></div></div><span class="dev-score">0.14</span></div></div>
+          <div class="td center" style="font-size:0.75rem;font-style:italic;font-family:'EB Garamond',serif;color:var(--text-muted);">Mar 13</div>
+          <div class="td right"><span class="flag-pill clear">&#x2713; Clear</span></div>
+        </a>
+
+        <div class="student-row" style="grid-template-columns:2fr 140px 90px 140px 90px 80px;cursor:default;background:var(--cream);border-radius:0 0 var(--radius) var(--radius);">
+          <div style="font-size:0.78rem;color:var(--text-muted);font-style:italic;font-family:'EB Garamond',serif;padding:0.5rem 0;grid-column:1/-1;">Showing 7 of 38 submissions &mdash; use search or filters to refine</div>
+        </div>
+
+      </div>
+    </div><!-- /panel-submissions -->
+
+    <!-- FLAGGED PANEL -->
+    <div id="panel-flagged" class="tab-panel" style="display:none;">
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.25rem;">
+        <div class="section-card" style="padding:1.25rem 1.5rem;display:flex;align-items:center;gap:1rem;">
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--flag-red-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--flag-red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+          </div>
+          <div>
+            <div style="font-size:1.5rem;font-family:'Playfair Display',serif;font-weight:600;color:var(--flag-red);line-height:1;">2</div>
+            <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">High severity flags</div>
+          </div>
+        </div>
+        <div class="section-card" style="padding:1.25rem 1.5rem;display:flex;align-items:center;gap:1rem;">
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--flag-amber-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--flag-amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+          </div>
+          <div>
+            <div style="font-size:1.5rem;font-family:'Playfair Display',serif;font-weight:600;color:var(--amber);line-height:1;">1</div>
+            <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">Review-level flags</div>
+          </div>
+        </div>
+        <div class="section-card" style="padding:1.25rem 1.5rem;display:flex;align-items:center;gap:1rem;">
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--flag-green-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--flag-green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div>
+            <div style="font-size:1.5rem;font-family:'Playfair Display',serif;font-weight:600;color:var(--flag-green);line-height:1;">0</div>
+            <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">Resolved this week</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <a class="student-row" href="original-review.html" style="grid-template-columns:auto 1fr 130px 90px 80px;align-items:start;padding:1.25rem 1.5rem;">
+          <div style="width:42px;height:42px;border-radius:50%;background:var(--flag-red-bg);border:2px solid var(--flag-red);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Playfair Display',serif;font-weight:600;color:var(--flag-red);font-size:0.85rem;margin-right:1rem;">JW</div>
+          <div>
+            <div style="font-weight:600;font-size:0.9rem;color:var(--text-primary);margin-bottom:2px;">James Whitfield &mdash; Christology Final Paper</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;margin-bottom:6px;">Submitted Mar 14 &middot; 2,847 words &middot; Week 10 Summative</div>
+            <div style="font-size:0.78rem;color:var(--text-secondary);line-height:1.5;">17 destructive interference features detected. Modal verb ratio, discourse marker density, and cohesion device ratio all indicate significant departure from established baseline voice.</div>
+          </div>
+          <div class="td"><div class="deviation-meter"><div class="dev-bar"><div class="dev-fill high" style="width:91%"></div></div><span class="dev-score high">0.91</span></div></div>
+          <div class="td center" style="font-size:0.75rem;font-style:italic;font-family:'EB Garamond',serif;color:var(--text-muted);">Mar 14</div>
+          <div class="td right"><span class="flag-pill high-flag">&#x2691; High</span></div>
+        </a>
+
+        <div style="height:1px;background:var(--cream-border);margin:0 1.5rem;"></div>
+
+        <a class="student-row" href="original-review.html" style="grid-template-columns:auto 1fr 130px 90px 80px;align-items:start;padding:1.25rem 1.5rem;">
+          <div style="width:42px;height:42px;border-radius:50%;background:var(--flag-red-bg);border:2px solid var(--flag-red);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Playfair Display',serif;font-weight:600;color:var(--flag-red);font-size:0.85rem;margin-right:1rem;">SO</div>
+          <div>
+            <div style="font-weight:600;font-size:0.9rem;color:var(--text-primary);margin-bottom:2px;">Sarah Okonkwo &mdash; Soteriology Research Paper</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;margin-bottom:6px;">Submitted Mar 12 &middot; 3,104 words &middot; Week 8 Assignment</div>
+            <div style="font-size:0.78rem;color:var(--text-secondary);line-height:1.5;">15 destructive interference features detected. Elevated sentence opener variety and hedging density diverge markedly from the student&rsquo;s three-submission baseline profile.</div>
+          </div>
+          <div class="td"><div class="deviation-meter"><div class="dev-bar"><div class="dev-fill high" style="width:84%"></div></div><span class="dev-score high">0.84</span></div></div>
+          <div class="td center" style="font-size:0.75rem;font-style:italic;font-family:'EB Garamond',serif;color:var(--text-muted);">Mar 12</div>
+          <div class="td right"><span class="flag-pill high-flag">&#x2691; High</span></div>
+        </a>
+
+        <div style="height:1px;background:var(--cream-border);margin:0 1.5rem;"></div>
+
+        <a class="student-row" href="original-review.html" style="grid-template-columns:auto 1fr 130px 90px 80px;align-items:start;padding:1.25rem 1.5rem;">
+          <div style="width:42px;height:42px;border-radius:50%;background:var(--flag-amber-bg);border:2px solid var(--flag-amber);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Playfair Display',serif;font-weight:600;color:var(--amber);font-size:0.85rem;margin-right:1rem;">DO</div>
+          <div>
+            <div style="font-weight:600;font-size:0.9rem;color:var(--text-primary);margin-bottom:2px;">Daniel Osei &mdash; Pneumatology Essay</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;margin-bottom:6px;">Submitted Mar 8 &middot; 2,391 words &middot; Week 9 Assignment</div>
+            <div style="font-size:0.78rem;color:var(--text-secondary);line-height:1.5;">11 destructive interference features detected. Moderate deviation warranting review &mdash; transition density and first-person ratio outside baseline range but no extreme outliers.</div>
+          </div>
+          <div class="td"><div class="deviation-meter"><div class="dev-bar"><div class="dev-fill medium" style="width:71%"></div></div><span class="dev-score medium">0.71</span></div></div>
+          <div class="td center" style="font-size:0.75rem;font-style:italic;font-family:'EB Garamond',serif;color:var(--text-muted);">Mar 8</div>
+          <div class="td right"><span class="flag-pill flagged">&#x2691; Review</span></div>
+        </a>
+      </div>
+    </div><!-- /panel-flagged -->
+
+    <!-- SETTINGS PANEL -->
+    <div id="panel-settings" class="tab-panel" style="display:none;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+
+        <div class="section-card" style="padding:1.5rem;">
+          <div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;color:var(--text-primary);margin-bottom:0.25rem;">Detection Thresholds</div>
+          <div style="font-size:0.78rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;margin-bottom:1.25rem;">Score boundaries that trigger flag levels for this course</div>
+          <div style="margin-bottom:1rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;">
+              <div style="font-size:0.825rem;font-weight:500;color:var(--text-secondary);">High flag threshold</div>
+              <div style="font-size:0.825rem;font-weight:600;color:var(--flag-red);">&ge; 0.75</div>
+            </div>
+            <div style="height:6px;background:var(--cream-border);border-radius:3px;overflow:hidden;"><div style="height:100%;width:75%;background:var(--flag-red);border-radius:3px;"></div></div>
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">Triggers immediate notification and High flag</div>
+          </div>
+          <div style="margin-bottom:1rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;">
+              <div style="font-size:0.825rem;font-weight:500;color:var(--text-secondary);">Review flag threshold</div>
+              <div style="font-size:0.825rem;font-weight:600;color:var(--flag-amber);">&ge; 0.55</div>
+            </div>
+            <div style="height:6px;background:var(--cream-border);border-radius:3px;overflow:hidden;"><div style="height:100%;width:55%;background:var(--flag-amber);border-radius:3px;"></div></div>
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">Queues for manual review by instructor</div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;">
+              <div style="font-size:0.825rem;font-weight:500;color:var(--text-secondary);">Baseline minimum submissions</div>
+              <div style="font-size:0.825rem;font-weight:600;color:var(--text-primary);">3 required</div>
+            </div>
+            <div style="font-size:0.72rem;color:var(--text-muted);">Number of submissions needed to establish a student&rsquo;s voice profile</div>
+          </div>
+        </div>
+
+        <div class="section-card" style="padding:1.5rem;">
+          <div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;color:var(--text-primary);margin-bottom:0.25rem;">Notifications</div>
+          <div style="font-size:0.78rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;margin-bottom:1.25rem;">When and how you receive alerts for this course</div>
+          <div style="display:flex;flex-direction:column;gap:0.875rem;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div><div style="font-size:0.825rem;font-weight:500;color:var(--text-secondary);">High flag &mdash; immediate email</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:1px;">Send email when score &ge; 0.75</div></div>
+              <div style="width:36px;height:20px;background:var(--flag-green);border-radius:10px;position:relative;cursor:pointer;flex-shrink:0;"><div style="width:16px;height:16px;background:white;border-radius:50%;position:absolute;top:2px;right:2px;box-shadow:0 1px 3px rgba(0,0,0,0.2);"></div></div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div><div style="font-size:0.825rem;font-weight:500;color:var(--text-secondary);">Review flag &mdash; daily digest</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:1px;">Batch review alerts into one daily email</div></div>
+              <div style="width:36px;height:20px;background:var(--flag-green);border-radius:10px;position:relative;cursor:pointer;flex-shrink:0;"><div style="width:16px;height:16px;background:white;border-radius:50%;position:absolute;top:2px;right:2px;box-shadow:0 1px 3px rgba(0,0,0,0.2);"></div></div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div><div style="font-size:0.825rem;font-weight:500;color:var(--text-secondary);">Baseline established</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:1px;">Notify when a student reaches baseline</div></div>
+              <div style="width:36px;height:20px;background:var(--cream-border);border-radius:10px;position:relative;cursor:pointer;flex-shrink:0;"><div style="width:16px;height:16px;background:white;border-radius:50%;position:absolute;top:2px;left:2px;box-shadow:0 1px 3px rgba(0,0,0,0.2);"></div></div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div><div style="font-size:0.825rem;font-weight:500;color:var(--text-secondary);">Weekly summary report</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:1px;">Course-level summary every Monday</div></div>
+              <div style="width:36px;height:20px;background:var(--flag-green);border-radius:10px;position:relative;cursor:pointer;flex-shrink:0;"><div style="width:16px;height:16px;background:white;border-radius:50%;position:absolute;top:2px;right:2px;box-shadow:0 1px 3px rgba(0,0,0,0.2);"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card" style="padding:1.5rem;">
+          <div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;color:var(--text-primary);margin-bottom:0.25rem;">Analysis Pipeline</div>
+          <div style="font-size:0.78rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;margin-bottom:1.25rem;">Feature tiers active for this course&rsquo;s analysis</div>
+          <div style="display:flex;flex-direction:column;gap:0.75rem;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;background:var(--flag-green-bg);border:1px solid rgba(42,107,69,0.2);border-radius:var(--radius);">
+              <div><div style="font-size:0.825rem;font-weight:600;color:var(--flag-green);">Tier 1 &mdash; Surface Features</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">9 lexical &amp; syntactic features</div></div>
+              <span class="flag-pill clear" style="font-size:0.7rem;">Active</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;background:var(--flag-green-bg);border:1px solid rgba(42,107,69,0.2);border-radius:var(--radius);">
+              <div><div style="font-size:0.825rem;font-weight:600;color:var(--flag-green);">Tier 2 &mdash; Discourse Features</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">13 cohesion &amp; argumentation features</div></div>
+              <span class="flag-pill clear" style="font-size:0.7rem;">Active</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;background:var(--flag-green-bg);border:1px solid rgba(42,107,69,0.2);border-radius:var(--radius);">
+              <div><div style="font-size:0.825rem;font-weight:600;color:var(--flag-green);">Tier 3 &mdash; Rhetorical Features</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">12 style &amp; rhetorical device features</div></div>
+              <span class="flag-pill clear" style="font-size:0.7rem;">Active</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card" style="padding:1.5rem;">
+          <div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;color:var(--text-primary);margin-bottom:0.25rem;">Course Information</div>
+          <div style="font-size:0.78rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;margin-bottom:1.25rem;">Metadata and roster for this course section</div>
+          <div style="display:flex;flex-direction:column;gap:0.75rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:0.625rem;border-bottom:1px solid var(--cream-border);"><div style="font-size:0.8rem;color:var(--text-muted);">Course code</div><div style="font-size:0.825rem;font-weight:500;color:var(--text-primary);">THEO 501</div></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:0.625rem;border-bottom:1px solid var(--cream-border);"><div style="font-size:0.8rem;color:var(--text-muted);">Semester</div><div style="font-size:0.825rem;font-weight:500;color:var(--text-primary);">Spring 2025</div></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:0.625rem;border-bottom:1px solid var(--cream-border);"><div style="font-size:0.8rem;color:var(--text-muted);">Instructor</div><div style="font-size:0.825rem;font-weight:500;color:var(--text-primary);">Dr. R. Harmon</div></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:0.625rem;border-bottom:1px solid var(--cream-border);"><div style="font-size:0.8rem;color:var(--text-muted);">Enrolled students</div><div style="font-size:0.825rem;font-weight:500;color:var(--text-primary);">14</div></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-size:0.8rem;color:var(--text-muted);">LMS integration</div><div style="display:flex;align-items:center;gap:0.4rem;font-size:0.825rem;font-weight:500;color:var(--flag-green);"><span style="width:7px;height:7px;background:var(--flag-green);border-radius:50%;display:inline-block;"></span>Canvas synced</div></div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /panel-settings -->
+
+  </div><!-- /page-body -->
+
+</div><!-- /main -->
+
+
+<script>
+  // ── Tab switching ──────────────────────────────────────────────
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    var btn = document.getElementById('tab-btn-' + name);
+    if (btn) btn.classList.add('active');
+    document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+    var panel = document.getElementById('panel-' + name);
+    if (panel) panel.style.display = '';
+  }
+
+  // ── Students panel — filter chips + search ─────────────────────
+  let studentFilter = 'all';
+
+  function filterStudents(chip, type) {
+    if (chip && type) {
+      document.querySelectorAll('#panel-students .filter-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      studentFilter = type;
+    }
+    const query = (document.getElementById('course-student-search') || {value:''}).value.toLowerCase().trim();
+    const rows = document.querySelectorAll('#panel-students .student-row');
+    rows.forEach(row => {
+      const status = row.dataset.status || '';
+      const name   = row.dataset.name  || '';
+      const email  = row.dataset.email || '';
+      const matchQ = !query || name.includes(query) || email.includes(query);
+      let matchF = true;
+      if      (studentFilter === 'flagged')      matchF = status === 'flagged';
+      else if (studentFilter === 'no-baseline')  matchF = status === 'no-baseline' || status === 'building';
+      else if (studentFilter === 'clear')        matchF = status === 'clear';
+      row.style.display = (matchQ && matchF) ? '' : 'none';
+    });
+  }
+
+  // ── Submissions panel — filter chips + search ──────────────────
+  let subFilter = 'all';
+
+  function filterSubmissions(chip, type) {
+    if (chip && type) {
+      document.querySelectorAll('#panel-submissions .filter-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      subFilter = type;
+    }
+    const query = (document.getElementById('course-sub-search') || {value:''}).value.toLowerCase().trim();
+    const rows = document.querySelectorAll('#panel-submissions .student-row[data-status]');
+    rows.forEach(row => {
+      const status  = row.dataset.status  || '';
+      const title   = row.dataset.title   || '';
+      const student = row.dataset.student || '';
+      const matchQ  = !query || title.includes(query) || student.includes(query);
+      const matchF  = subFilter === 'all' || status === subFilter;
+      row.style.display = (matchQ && matchF) ? '' : 'none';
+    });
+  }
+</script>
+</body>
+</html>

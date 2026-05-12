@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Original — Context Audit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-mark">Ω</div>
+      <div>
+        <div class="sidebar-brand-name">Original</div>
+        <div style="font-size:0.7rem;color:rgba(247,243,234,0.55)">Authorship Verification</div>
+      </div>
+    </div>
+    <div class="sidebar-section">Workspace</div>
+    <a class="nav-item" href="professor.html">Professor</a>
+    <a class="nav-item" href="admin.html">Admin</a>
+    <div class="sidebar-section">Research</div>
+    <a class="nav-item" href="lab.html">Lab</a>
+    <a class="nav-item active" href="admin-context.html">Context Audit</a>
+    <a class="nav-item" href="playground.html">Playground</a>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title">Original&nbsp;/&nbsp;<strong>Context Audit</strong></div>
+      <div style="font-size:0.78rem;color:var(--text-muted)" id="lastRefresh">—</div>
+    </div>
+
+    <div class="content">
+
+      <!-- ── Stats cards ────────────────────────────────────────────────── -->
+      <div class="card">
+        <div class="card-title">Manifest audit roll-ups</div>
+        <div class="card-subtitle">Aggregated counts across every adaptive scoring run that built a context manifest.</div>
+        <div class="card-grid" id="statsGrid">
+          <div class="stat-card"><div class="stat-card-label">Total manifests</div><div class="stat-card-value" id="statTotal">—</div></div>
+          <div class="stat-card"><div class="stat-card-label">Mean divergence</div><div class="stat-card-value" id="statMeanDiv">—</div></div>
+          <div class="stat-card"><div class="stat-card-label">Most-fired flag</div><div class="stat-card-value" id="statTopFlag">—</div></div>
+          <div class="stat-card"><div class="stat-card-label">Most-recent action</div><div class="stat-card-value" id="statTopAction">—</div></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:18px">
+          <div>
+            <div style="font-weight:600;font-size:0.85rem;margin-bottom:8px">By action</div>
+            <div id="byActionBars"></div>
+          </div>
+          <div>
+            <div style="font-weight:600;font-size:0.85rem;margin-bottom:8px">By directive flag</div>
+            <div id="byFlagBars"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Manifest list with filters ─────────────────────────────────── -->
+      <div class="card">
+        <div class="card-title">Manifest audit log</div>
+        <div class="card-subtitle">Paginated view of every adaptive scoring run.</div>
+        <div style="display:flex;gap:14px;margin-bottom:14px;flex-wrap:wrap">
+          <div>
+            <label class="label">Action</label>
+            <select id="filterAction" class="select" style="width:160px">
+              <option value="">(any)</option>
+              <option>no_action</option>
+              <option>monitor</option>
+              <option>schedule_conversation</option>
+              <option>escalate</option>
+            </select>
+          </div>
+          <div>
+            <label class="label">Flag</label>
+            <select id="filterFlag" class="select" style="width:200px">
+              <option value="">(any)</option>
+              <option>software_mediated</option>
+              <option>code_switched</option>
+              <option>topic_novelty_high</option>
+            </select>
+          </div>
+          <div>
+            <label class="label">Student ID</label>
+            <input id="filterStudent" type="text" class="input" placeholder="(any)" style="width:160px"/>
+          </div>
+          <div style="align-self:flex-end">
+            <button class="btn" onclick="loadManifests()">Apply</button>
+          </div>
+        </div>
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Submission</th>
+              <th>Student</th>
+              <th>When</th>
+              <th>Action</th>
+              <th>Divergence</th>
+              <th>Length</th>
+              <th>Flags</th>
+              <th>Anchors</th>
+            </tr>
+          </thead>
+          <tbody id="manifestBody">
+            <tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:32px">No manifests yet — adaptive scoring runs land here.</td></tr>
+          </tbody>
+        </table>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px">
+          <div id="manifestCount" style="color:var(--text-muted);font-size:0.78rem">—</div>
+          <div>
+            <button class="btn" id="prevPage" onclick="changePage(-1)">Prev</button>
+            <button class="btn" id="nextPage" onclick="changePage(1)">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Corrections feed ───────────────────────────────────────────── -->
+      <div class="card">
+        <div class="card-title">Corrections feed</div>
+        <div class="card-subtitle">Instructor feedback that drives the retrain loop in the Lab.</div>
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Submission</th>
+              <th>Student</th>
+              <th>Original action</th>
+              <th>Verdict was</th>
+              <th>Corrected to</th>
+              <th>Reviewer</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="correctionsBody">
+            <tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:32px">No corrections yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+const API = '';
+let PAGE_OFFSET = 0;
+const PAGE_SIZE = 50;
+
+async function init() {
+  await Promise.all([loadStats(), loadManifests(), loadCorrections()]);
+  document.getElementById('lastRefresh').textContent = `Refreshed ${new Date().toLocaleTimeString()}`;
+  setInterval(async () => {
+    await Promise.all([loadStats(), loadCorrections()]);
+    document.getElementById('lastRefresh').textContent = `Refreshed ${new Date().toLocaleTimeString()}`;
+  }, 15000);
+}
+
+async function loadStats() {
+  try {
+    const r = await fetch(API + '/admin/manifests/stats');
+    const data = await r.json();
+    document.getElementById('statTotal').textContent = data.total;
+    document.getElementById('statMeanDiv').textContent =
+      data.mean_divergence !== null && data.mean_divergence !== undefined
+        ? data.mean_divergence.toFixed(3) : '—';
+    const flags = Object.entries(data.by_flag || {}).sort((a,b) => b[1]-a[1]);
+    const actions = Object.entries(data.by_action || {}).sort((a,b) => b[1]-a[1]);
+    document.getElementById('statTopFlag').textContent =
+      flags.length ? `${flags[0][0]} (${flags[0][1]})` : '—';
+    document.getElementById('statTopAction').textContent =
+      actions.length ? `${actions[0][0]} (${actions[0][1]})` : '—';
+    renderBars('byActionBars', actions, data.total, 'chip-neutral');
+    renderBars('byFlagBars', flags, data.total, 'chip-flag');
+  } catch (e) {
+    console.error('stats failed', e);
+  }
+}
+
+function renderBars(elId, entries, total, chipClass) {
+  const el = document.getElementById(elId);
+  if (!entries.length) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-style:italic;font-family:\'EB Garamond\',serif">none</div>';
+    return;
+  }
+  const max = Math.max(...entries.map(e => e[1]));
+  el.innerHTML = entries.map(([k, v]) => {
+    const pct = max > 0 ? (v / max * 100) : 0;
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:0.78rem">
+      <span class="chip ${chipClass}" style="min-width:160px;justify-content:flex-start">${k}</span>
+      <div style="flex:1;background:var(--cream-warm);border-radius:99px;height:8px;overflow:hidden">
+        <div style="height:100%;background:var(--gold);width:${pct}%"></div>
+      </div>
+      <span style="min-width:40px;text-align:right;color:var(--text-muted)">${v}</span>
+    </div>`;
+  }).join('');
+}
+
+async function loadManifests() {
+  const params = new URLSearchParams();
+  params.set('limit', PAGE_SIZE);
+  params.set('offset', PAGE_OFFSET);
+  const a = document.getElementById('filterAction').value;
+  const f = document.getElementById('filterFlag').value;
+  const s = document.getElementById('filterStudent').value.trim();
+  if (a) params.set('action', a);
+  if (f) params.set('flag', f);
+  if (s) params.set('student_id', s);
+  try {
+    const r = await fetch(API + '/admin/manifests?' + params.toString());
+    const data = await r.json();
+    renderManifestTable(data.items || []);
+    document.getElementById('manifestCount').textContent =
+      `${data.items.length} of ${data.total} (offset ${data.offset})`;
+    document.getElementById('prevPage').disabled = (PAGE_OFFSET === 0);
+    document.getElementById('nextPage').disabled = (PAGE_OFFSET + PAGE_SIZE >= data.total);
+  } catch (e) {
+    document.getElementById('manifestBody').innerHTML =
+      `<tr><td colspan="8" style="color:var(--flag-red);text-align:center;padding:24px">Load failed: ${e.message}</td></tr>`;
+  }
+}
+
+function renderManifestTable(items) {
+  const body = document.getElementById('manifestBody');
+  if (!items.length) {
+    body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:32px">No matches.</td></tr>';
+    return;
+  }
+  body.innerHTML = items.map(m => {
+    const flags = (m.flags || []).map(f => `<span class="chip chip-flag">${f}</span>`).join('');
+    const anchors = (m.anchor_tiers || []).map(a => `<span class="chip chip-anchor">T${a}</span>`).join('');
+    const div = m.divergence_score !== null && m.divergence_score !== undefined
+      ? m.divergence_score.toFixed(3) : '—';
+    const action = m.action || '<span style="color:var(--text-muted)">—</span>';
+    return `<tr>
+      <td><code>${m.submission_id}</code></td>
+      <td>${m.student_id}</td>
+      <td>${shortDate(m.created_at)}</td>
+      <td>${action}</td>
+      <td><strong>${div}</strong></td>
+      <td>${m.length_regime}</td>
+      <td>${flags || '<span style="color:var(--text-muted)">—</span>'}</td>
+      <td>${anchors}</td>
+    </tr>`;
+  }).join('');
+}
+
+function changePage(delta) {
+  PAGE_OFFSET = Math.max(0, PAGE_OFFSET + delta * PAGE_SIZE);
+  loadManifests();
+}
+
+async function loadCorrections() {
+  try {
+    const r = await fetch(API + '/admin/corrections?limit=50');
+    const data = await r.json();
+    renderCorrectionsTable(data.items || []);
+  } catch (e) {
+    document.getElementById('correctionsBody').innerHTML =
+      `<tr><td colspan="8" style="color:var(--flag-red);text-align:center;padding:24px">Load failed: ${e.message}</td></tr>`;
+  }
+}
+
+function renderCorrectionsTable(items) {
+  const body = document.getElementById('correctionsBody');
+  if (!items.length) {
+    body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:32px">No corrections yet.</td></tr>';
+    return;
+  }
+  body.innerHTML = items.map(c => `<tr>
+    <td>${shortDate(c.created_at)}</td>
+    <td><code>${c.submission_id}</code></td>
+    <td>${c.student_id || '<span style="color:var(--text-muted)">—</span>'}</td>
+    <td>${c.original_action || '—'}</td>
+    <td>${c.is_correct ? '<span class="chip chip-anchor">correct</span>' : '<span class="chip chip-mute">wrong</span>'}</td>
+    <td>${c.corrected_action || c.corrected_verdict || '<span style="color:var(--text-muted)">—</span>'}</td>
+    <td>${c.reviewer || '<span style="color:var(--text-muted)">—</span>'}</td>
+    <td style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.notes || ''}</td>
+  </tr>`).join('');
+}
+
+function shortDate(s) {
+  if (!s) return '—';
+  return s.replace('T', ' ').replace('Z', '');
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

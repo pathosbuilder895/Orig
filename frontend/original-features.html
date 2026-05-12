@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Original — Feature Profile</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+    :root{
+      --green-deepest:#0f1e17;--green-deep:#162b22;--green-mid:#1e3d2f;
+      --green-hover:#243d30;--green-border:rgba(255,255,255,0.07);
+      --cream:#f7f3ea;--cream-warm:#ede8d8;--cream-border:#e2dccf;
+      --surface:#ffffff;--gold:#c9a028;--gold-light:rgba(201,160,40,0.12);
+      --gold-muted:rgba(201,160,40,0.35);--amber:#935e1c;
+      --text-primary:#1a130a;--text-secondary:#5a4030;--text-muted:#6d5a4a;
+      --text-cream:#f7f3ea;--text-cream-dim:rgba(247,243,234,0.55);
+      --flag-red:#c0392b;--flag-red-bg:rgba(192,57,43,0.08);
+      --flag-green:#2a6b45;--flag-green-bg:rgba(42,107,69,0.1);
+      --tier1:#2a6b9a;--tier1-bg:rgba(42,107,154,0.08);
+      --tier2:#6b4a9a;--tier2-bg:rgba(107,74,154,0.08);
+      --tier3:#2a6b45;--tier3-bg:rgba(42,107,69,0.08);
+      --tier4:#9a6b2a;--tier4-bg:rgba(154,107,42,0.08);
+      --tier5:#2a6b8a;--tier5-bg:rgba(42,107,138,0.08);
+      --tier6:#8a2a6b;--tier6-bg:rgba(138,42,107,0.08);
+      --tier7:#2a4f8a;--tier7-bg:rgba(42,79,138,0.08);
+      --tierc:#4a4a4a;--tierc-bg:rgba(74,74,74,0.08);
+      --sidebar-w:264px;--radius:6px;
+      --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+    }
+    html,body{height:100%;}
+    body{font-family:'Inter',system-ui,sans-serif;background:var(--cream);color:var(--text-primary);display:flex;overflow:hidden;font-size:14px;line-height:1.5;}
+    .sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);height:100vh;background:var(--green-deep);display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:100;border-right:1px solid var(--green-border);}
+    .sidebar-logo{padding:1.5rem 1.5rem 1.25rem;border-bottom:1px solid var(--green-border);}
+    .logo-mark{display:flex;align-items:center;gap:0.75rem;margin-bottom:0.35rem;}
+    .logo-icon{width:30px;height:30px;border:1px solid var(--gold-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .logo-icon svg{width:14px;height:14px;stroke:var(--gold);}
+    .logo-wordmark{font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;color:var(--text-cream);letter-spacing:0.06em;}
+    .logo-school{font-family:'EB Garamond',serif;font-size:0.78rem;font-style:italic;color:var(--text-cream-dim);letter-spacing:0.03em;padding-left:2.8rem;}
+    .sidebar-nav{flex:1;padding:1rem 0;overflow-y:auto;}
+    .nav-section-label{font-size:0.65rem;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-cream-dim);padding:0.6rem 1.5rem 0.3rem;margin-top:0.5rem;}
+    .nav-item{display:flex;align-items:center;gap:0.75rem;padding:0.6rem 1.5rem;color:rgba(247,243,234,0.65);text-decoration:none;font-size:0.875rem;font-weight:500;cursor:pointer;transition:color 0.15s,background 0.15s;border-left:2px solid transparent;letter-spacing:0.01em;}
+    .nav-item:hover{color:var(--text-cream);background:var(--green-hover);}
+    .nav-item.active{color:var(--text-cream);border-left-color:var(--gold);background:rgba(201,160,40,0.08);}
+    .nav-item svg{width:16px;height:16px;stroke:currentColor;flex-shrink:0;opacity:0.85;}
+    .nav-badge{margin-left:auto;background:var(--gold);color:var(--green-deepest);font-size:0.65rem;font-weight:700;padding:0.15rem 0.45rem;border-radius:20px;}
+    .sidebar-user{border-top:1px solid var(--green-border);padding:1rem 1.25rem;display:flex;align-items:center;gap:0.75rem;}
+    .user-avatar{width:32px;height:32px;border-radius:50%;background:var(--green-mid);border:1px solid var(--gold-muted);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:0.8rem;color:var(--gold);flex-shrink:0;}
+    .user-name{font-size:0.825rem;font-weight:500;color:var(--text-cream);}
+    .user-role{font-size:0.72rem;color:var(--text-cream-dim);font-style:italic;font-family:'EB Garamond',serif;}
+    .user-settings{width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--text-cream-dim);cursor:pointer;}
+    .user-settings svg{width:15px;height:15px;stroke:currentColor;}
+    .main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+    .topbar{background:var(--cream);border-bottom:1px solid var(--cream-border);padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+    .breadcrumb{display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;color:var(--text-muted);}
+    .breadcrumb a{color:var(--text-muted);text-decoration:none;}
+    .breadcrumb a:hover{color:var(--amber);}
+    .breadcrumb-sep{color:var(--cream-border);}
+    .breadcrumb-current{font-weight:500;color:var(--text-secondary);}
+    .topbar-right{display:flex;align-items:center;gap:0.75rem;}
+    .semester-badge{font-family:'EB Garamond',serif;font-size:0.85rem;font-style:italic;color:var(--text-muted);background:var(--cream-warm);border:1px solid var(--cream-border);padding:0.3rem 0.85rem;border-radius:20px;}
+    .page-body{flex:1;overflow-y:auto;padding:2rem 2rem 3rem;}
+
+    /* Page header */
+    .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.75rem;}
+    .page-title-group h1{font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:600;color:var(--text-primary);margin-bottom:0.25rem;}
+    .page-subtitle{font-size:0.875rem;color:var(--text-muted);}
+    .header-actions{display:flex;gap:0.75rem;align-items:center;}
+    .btn{padding:0.5rem 1.1rem;border-radius:var(--radius);font-size:0.825rem;font-weight:500;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:0.45rem;transition:all 0.15s;border:none;}
+    .btn-ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--cream-border);}
+    .btn-ghost:hover{background:var(--cream-warm);}
+    .btn-primary{background:var(--green-deep);color:var(--text-cream);}
+    .btn-primary:hover{background:var(--green-mid);}
+    .btn svg{width:14px;height:14px;stroke:currentColor;}
+
+    /* Layout */
+    .features-layout{display:grid;grid-template-columns:1fr 300px;gap:1.5rem;align-items:start;}
+
+    /* Tier cards */
+    .tier-card{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);box-shadow:var(--shadow-sm);margin-bottom:1.25rem;overflow:hidden;}
+    .tier-head{padding:1rem 1.4rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
+    .tier-head:hover{background:var(--cream);}
+    .tier-head-left{display:flex;align-items:center;gap:0.875rem;}
+    .tier-pill{font-size:0.68rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:0.2rem 0.6rem;border-radius:20px;}
+    .tier-pill.t1{background:var(--tier1-bg);color:var(--tier1);}
+    .tier-pill.t2{background:var(--tier2-bg);color:var(--tier2);}
+    .tier-pill.t3{background:var(--tier3-bg);color:var(--tier3);}
+    .tier-pill.t4{background:var(--tier4-bg);color:var(--tier4);}
+    .tier-pill.t5{background:var(--tier5-bg);color:var(--tier5);}
+    .tier-pill.t6{background:var(--tier6-bg);color:var(--tier6);}
+    .tier-pill.t7{background:var(--tier7-bg);color:var(--tier7);}
+    .tier-pill.tc{background:var(--tierc-bg);color:var(--tierc);}
+    .tier-name{font-family:'Playfair Display',serif;font-size:0.975rem;font-weight:600;color:var(--text-primary);}
+    .tier-count{font-size:0.78rem;color:var(--text-muted);}
+    .tier-chevron{width:16px;height:16px;stroke:var(--text-muted);transition:transform 0.2s;}
+    .tier-card.open .tier-chevron{transform:rotate(180deg);}
+    .tier-body{display:none;border-top:1px solid var(--cream-border);}
+    .tier-card.open .tier-body{display:block;}
+
+    /* Legend row */
+    .feature-legend{display:grid;grid-template-columns:200px 1fr 1fr 80px;gap:0.5rem;padding:0.6rem 1.4rem;background:var(--cream);border-bottom:1px solid var(--cream-border);font-size:0.72rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);}
+
+    /* Feature rows */
+    .feature-row{display:grid;grid-template-columns:200px 1fr 1fr 80px;gap:0.5rem;align-items:center;padding:0.6rem 1.4rem;border-bottom:1px solid rgba(0,0,0,0.03);}
+    .feature-row:last-child{border-bottom:none;}
+    .feature-row:hover{background:var(--cream);}
+    .feature-label{font-size:0.8rem;color:var(--text-secondary);font-family:'Inter',sans-serif;}
+    .feature-label code{font-size:0.72rem;color:var(--text-muted);display:block;margin-top:0.1rem;}
+    .bar-track{height:8px;background:var(--cream-warm);border-radius:4px;overflow:visible;position:relative;}
+    .bar-fill{height:8px;border-radius:4px;transition:width 0.6s ease;position:absolute;top:0;left:0;}
+    .bar-fill.baseline{background:rgba(22,43,34,0.3);}
+    .bar-fill.submission{background:var(--gold);}
+    .bar-fill.sub-flag{background:var(--flag-red);}
+    .feature-val{font-size:0.8rem;color:var(--text-secondary);text-align:right;font-variant-numeric:tabular-nums;}
+    .flag-icon{display:inline-flex;width:16px;height:16px;border-radius:50%;align-items:center;justify-content:center;font-size:0.6rem;flex-shrink:0;}
+    .flag-icon.destructive{background:var(--flag-red-bg);color:var(--flag-red);}
+    .flag-icon.ok{background:var(--flag-green-bg);color:var(--flag-green);}
+
+    /* Legend swatch */
+    .legend-row{display:flex;align-items:center;gap:1rem;padding:0.75rem 1.4rem;background:var(--cream);border-bottom:1px solid var(--cream-border);}
+    .swatch-item{display:flex;align-items:center;gap:0.4rem;font-size:0.775rem;color:var(--text-muted);}
+    .swatch{width:24px;height:6px;border-radius:3px;}
+    .swatch.baseline{background:rgba(22,43,34,0.3);}
+    .swatch.submission{background:var(--gold);}
+    .swatch.sub-flag{background:var(--flag-red);}
+
+    /* Right sidebar */
+    .sidebar-panel{display:flex;flex-direction:column;gap:1.25rem;}
+    .stat-card{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden;}
+    .stat-card-head{padding:0.85rem 1.2rem;border-bottom:1px solid var(--cream-border);display:flex;align-items:center;justify-content:space-between;}
+    .stat-card-title{font-size:0.8rem;font-weight:600;color:var(--text-secondary);letter-spacing:0.04em;text-transform:uppercase;}
+    .stat-card-body{padding:1rem 1.2rem;}
+    .tier-stat{display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--cream-border);}
+    .tier-stat:last-child{border-bottom:none;}
+    .tier-stat-label{display:flex;align-items:center;gap:0.5rem;font-size:0.825rem;color:var(--text-secondary);}
+    .tier-dot{width:8px;height:8px;border-radius:50%;}
+    .tier-dot.t1{background:var(--tier1);}
+    .tier-dot.t2{background:var(--tier2);}
+    .tier-dot.t3{background:var(--tier3);}
+    .tier-dot.t4{background:var(--tier4);}
+    .tier-dot.t5{background:var(--tier5);}
+    .tier-dot.t6{background:var(--tier6);}
+    .tier-dot.t7{background:var(--tier7);}
+    .tier-dot.tc{background:var(--tierc);}
+    .tier-stat-val{font-size:0.825rem;font-weight:600;color:var(--text-primary);}
+
+    /* Student info card */
+    .student-strip{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:1.25rem 1.4rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;}
+    .student-id{display:flex;align-items:center;gap:1rem;}
+    .student-avatar{width:42px;height:42px;border-radius:50%;background:var(--green-deep);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold);border:1px solid var(--gold-muted);flex-shrink:0;}
+    .student-name{font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;color:var(--text-primary);}
+    .student-meta{font-size:0.8rem;color:var(--text-muted);}
+    .submission-tag{display:flex;align-items:center;gap:0.6rem;}
+    .risk-badge{padding:0.3rem 0.75rem;border-radius:20px;font-size:0.75rem;font-weight:600;letter-spacing:0.04em;}
+    .risk-badge.flag{background:#fff3cd;color:#9b6420;border:1px solid rgba(201,160,40,0.4);}
+    .submission-meta{font-size:0.8rem;color:var(--text-muted);}
+
+    /* Toggle bar */
+    .view-toggle{display:flex;background:var(--cream-warm);border:1px solid var(--cream-border);border-radius:var(--radius);padding:3px;gap:2px;margin-bottom:1.5rem;width:fit-content;}
+    .view-toggle-btn{padding:0.35rem 0.9rem;border-radius:4px;font-size:0.8rem;font-weight:500;color:var(--text-muted);cursor:pointer;transition:all 0.15s;background:transparent;border:none;}
+    .view-toggle-btn.active{background:var(--surface);color:var(--text-primary);box-shadow:var(--shadow-sm);}
+  </style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 3L4 9v12h16V9L12 3z" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 21V12h6v9" stroke-width="1.5" stroke-linejoin="round"/></svg>
+      </div>
+      <span class="logo-wordmark">Original</span>
+    </div>
+    <div class="logo-school">Southern Baptist Theological Seminary</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Monitor</div>
+    <a href="original-dashboard.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" stroke-width="1.5" stroke-linejoin="round"/><rect x="14" y="3" width="7" height="7" stroke-width="1.5" stroke-linejoin="round"/><rect x="3" y="14" width="7" height="7" stroke-width="1.5" stroke-linejoin="round"/><rect x="14" y="14" width="7" height="7" stroke-width="1.5" stroke-linejoin="round"/></svg>Dashboard</a>
+    <a href="original-flagged.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" stroke-width="1.5" stroke-linejoin="round"/><line x1="4" y1="22" x2="4" y2="15" stroke-width="1.5"/></svg>Flagged<span class="nav-badge">3</span></a>
+    <div class="nav-section-label">Manage</div>
+    <a href="original-students.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke-width="1.5" stroke-linecap="round"/><circle cx="9" cy="7" r="4" stroke-width="1.5"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke-width="1.5" stroke-linecap="round"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke-width="1.5" stroke-linecap="round"/></svg>Students</a>
+    <a href="original-course.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" stroke-width="1.5" stroke-linejoin="round"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" stroke-width="1.5" stroke-linejoin="round"/></svg>Courses</a>
+    <a href="original-submit.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke-width="1.5" stroke-linecap="round"/><polyline points="17 8 12 3 7 8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="3" x2="12" y2="15" stroke-width="1.5" stroke-linecap="round"/></svg>Submit Writing</a>
+    <div class="nav-section-label">Analyse</div>
+    <a href="original-features.html" class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Feature Profile</a>
+    <a href="original-quantum.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>Quantum State</a>
+    <a href="original-decomposition.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Interference</a>
+    <a href="original-reports.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="1.5" stroke-linejoin="round"/><polyline points="14 2 14 8 20 8" stroke-width="1.5" stroke-linejoin="round"/></svg>Reports</a>
+    <div class="nav-section-label">System</div>
+    <a href="original-admin.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke-width="1.5"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke-width="1.5"/></svg>Admin</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">RH</div>
+    <div style="flex:1;min-width:0;">
+      <div class="user-name">Dr. Rachel Hendricks</div>
+      <div class="user-role">Professor of Theology</div>
+    </div>
+    <div class="user-settings"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke-width="1.5"/></svg></div>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <div class="breadcrumb">
+      <a href="original-students.html">Students</a>
+      <span class="breadcrumb-sep">›</span>
+      <a href="original-student.html">James Whitfield</a>
+      <span class="breadcrumb-sep">›</span>
+      <a href="original-review.html">Review</a>
+      <span class="breadcrumb-sep">›</span>
+      <span class="breadcrumb-current">Feature Profile</span>
+    </div>
+    <div class="topbar-right">
+      <span class="semester-badge">Spring 2026</span>
+      <a href="original-decomposition.html" class="btn btn-primary" style="font-size:0.8rem;">
+        <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Interference Analysis
+      </a>
+    </div>
+  </div>
+
+  <div class="page-body">
+    <!-- Student strip -->
+    <div class="student-strip">
+      <div class="student-id">
+        <div class="student-avatar">JW</div>
+        <div>
+          <div class="student-name">James Whitfield</div>
+          <div class="student-meta">THEO 301 · Systematic Theology II · Spring 2026</div>
+        </div>
+      </div>
+      <div class="submission-tag">
+        <div>
+          <div class="submission-meta" style="text-align:right;">Submission analysed</div>
+          <div class="submission-meta" style="font-size:0.75rem;color:var(--text-muted);text-align:right;">Hypostatic Union Essay · 24 Mar 2026</div>
+        </div>
+        <div class="risk-badge flag">FLAG</div>
+      </div>
+    </div>
+
+    <div class="page-header">
+      <div class="page-title-group">
+        <h1>Feature Profile</h1>
+        <div class="page-subtitle">62 stylometric features across seven tiers — baseline vs. submission comparison</div>
+      </div>
+      <div class="header-actions">
+        <div class="view-toggle">
+          <button class="view-toggle-btn active" onclick="setView('compare')">Compare</button>
+          <button class="view-toggle-btn" onclick="setView('baseline')">Baseline only</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="features-layout">
+      <div class="features-main">
+
+        <!-- Tier 1 -->
+        <div class="tier-card open" id="tier1">
+          <div class="tier-head" onclick="toggleTier('tier1')">
+            <div class="tier-head-left">
+              <span class="tier-pill t1">Tier 1</span>
+              <span class="tier-name">Surface Stylometrics</span>
+              <span class="tier-count">9 features · avg word &amp; sentence patterns</span>
+            </div>
+            <svg class="tier-chevron" viewBox="0 0 24 24" fill="none"><polyline points="18 15 12 9 6 15" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <div class="tier-body">
+            <div class="legend-row">
+              <div class="swatch-item"><div class="swatch baseline"></div>Baseline</div>
+              <div class="swatch-item"><div class="swatch submission"></div>Submission (within range)</div>
+              <div class="swatch-item"><div class="swatch sub-flag"></div>Submission (outside range)</div>
+            </div>
+            <div class="feature-legend"><div>Feature</div><div>Baseline</div><div>Submission</div><div>Delta</div></div>
+            <div id="tier1-rows"></div>
+          </div>
+        </div>
+
+        <!-- Tier 2 -->
+        <div class="tier-card open" id="tier2">
+          <div class="tier-head" onclick="toggleTier('tier2')">
+            <div class="tier-head-left">
+              <span class="tier-pill t2">Tier 2</span>
+              <span class="tier-name">Discourse Analysis</span>
+              <span class="tier-count">13 features · connective tissue &amp; organisation</span>
+            </div>
+            <svg class="tier-chevron" viewBox="0 0 24 24" fill="none"><polyline points="18 15 12 9 6 15" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <div class="tier-body">
+            <div class="legend-row">
+              <div class="swatch-item"><div class="swatch baseline"></div>Baseline</div>
+              <div class="swatch-item"><div class="swatch submission"></div>Submission (within range)</div>
+              <div class="swatch-item"><div class="swatch sub-flag"></div>Submission (outside range)</div>
+            </div>
+            <div class="feature-legend"><div>Feature</div><div>Baseline</div><div>Submission</div><div>Delta</div></div>
+            <div id="tier2-rows"></div>
+          </div>
+        </div>
+
+        <!-- Tier 3 -->
+        <div class="tier-card open" id="tier3">
+          <div class="tier-head" onclick="toggleTier('tier3')">
+            <div class="tier-head-left">
+              <span class="tier-pill t3">Tier 3</span>
+              <span class="tier-name">Rhetorical Fingerprint</span>
+              <span class="tier-count">12 features · epistemic posture &amp; register</span>
+            </div>
+            <svg class="tier-chevron" viewBox="0 0 24 24" fill="none"><polyline points="18 15 12 9 6 15" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <div class="tier-body">
+            <div class="legend-row">
+              <div class="swatch-item"><div class="swatch baseline"></div>Baseline</div>
+              <div class="swatch-item"><div class="swatch submission"></div>Submission (within range)</div>
+              <div class="swatch-item"><div class="swatch sub-flag"></div>Submission (outside range)</div>
+            </div>
+            <div class="feature-legend"><div>Feature</div><div>Baseline</div><div>Submission</div><div>Delta</div></div>
+            <div id="tier3-rows"></div>
+          </div>
+        </div>
+
+        <!-- Tier 4 -->
+        <div class="tier-card open" id="tier4">
+          <div class="tier-head" onclick="toggleTier('tier4')">
+            <div class="tier-head-left">
+              <span class="tier-pill t4">Tier 4</span>
+              <span class="tier-name">Character &amp; Punctuation</span>
+              <span class="tier-count">7 features · character n-gram entropy &amp; punct. habits · weight ×1.3</span>
+            </div>
+            <svg class="tier-chevron" viewBox="0 0 24 24" fill="none"><polyline points="18 15 12 9 6 15" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <div class="tier-body">
+            <div class="legend-row">
+              <div class="swatch-item"><div class="swatch baseline"></div>Baseline</div>
+              <div class="swatch-item"><div class="swatch submission"></div>Submission (within range)</div>
+              <div class="swatch-item"><div class="swatch sub-flag"></div>Submission (outside range)</div>
+            </div>
+            <div class="feature-legend"><div>Feature</div><div>Baseline</div><div>Submission</div><div>Delta</div></div>
+            <div id="tier4-rows"></div>
+          </div>
+        </div>
+
+        <!-- Tier 5 -->
+        <div class="tier-card open" id="tier5">
+          <div class="tier-head" onclick="toggleTier('tier5')">
+            <div class="tier-head-left">
+              <span class="tier-pill t5">Tier 5</span>
+              <span class="tier-name">POS &amp; Shallow Syntax</span>
+              <span class="tier-count">7 features · part-of-speech patterns &amp; clause depth · weight ×1.2</span>
+            </div>
+            <svg class="tier-chevron" viewBox="0 0 24 24" fill="none"><polyline points="18 15 12 9 6 15" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <div class="tier-body">
+            <div class="legend-row">
+              <div class="swatch-item"><div class="swatch baseline"></div>Baseline</div>
+              <div class="swatch-item"><div class="swatch submission"></div>Submission (within range)</div>
+              <div class="swatch-item"><div class="swatch sub-flag"></div>Submission (outside range)</div>
+            </div>
+            <div class="feature-legend"><div>Feature</div><div>Baseline</div><div>Submission</div><div>Delta</div></div>
+            <div id="tier5-rows"></div>
+          </div>
+        </div>
+
+        <!-- Tier 6 -->
+        <div class="tier-card open" id="tier6">
+          <div class="tier-head" onclick="toggleTier('tier6')">
+            <div class="tier-head-left">
+              <span class="tier-pill t6">Tier 6</span>
+              <span class="tier-name">Idiosyncratic Patterns</span>
+              <span class="tier-count">6 features · contractions, citation style, abbreviations · weight ×1.4</span>
+            </div>
+            <svg class="tier-chevron" viewBox="0 0 24 24" fill="none"><polyline points="18 15 12 9 6 15" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <div class="tier-body">
+            <div class="legend-row">
+              <div class="swatch-item"><div class="swatch baseline"></div>Baseline</div>
+              <div class="swatch-item"><div class="swatch submission"></div>Submission (within range)</div>
+              <div class="swatch-item"><div class="swatch sub-flag"></div>Submission (outside range)</div>
+            </div>
+            <div class="feature-legend"><div>Feature</div><div>Baseline</div><div>Submission</div><div>Delta</div></div>
+            <div id="tier6-rows"></div>
+          </div>
+        </div>
+
+        <!-- Tier 7 -->
+        <div class="tier-card open" id="tier7">
+          <div class="tier-head" onclick="toggleTier('tier7')">
+            <div class="tier-head-left">
+              <span class="tier-pill t7">Tier 7</span>
+              <span class="tier-name">AI Detection Markers</span>
+              <span class="tier-count">6 features · burstiness, perplexity proxy, hedge clustering · weight ×1.1</span>
+            </div>
+            <svg class="tier-chevron" viewBox="0 0 24 24" fill="none"><polyline points="18 15 12 9 6 15" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <div class="tier-body">
+            <div class="legend-row">
+              <div class="swatch-item"><div class="swatch baseline"></div>Baseline</div>
+              <div class="swatch-item"><div class="swatch submission"></div>Submission (within range)</div>
+              <div class="swatch-item"><div class="swatch sub-flag"></div>Submission (outside range)</div>
+            </div>
+            <div class="feature-legend"><div>Feature</div><div>Baseline</div><div>Submission</div><div>Delta</div></div>
+            <div id="tier7-rows"></div>
+          </div>
+        </div>
+
+        <!-- Comparison (meta) features -->
+        <div class="tier-card open" id="tiercomp">
+          <div class="tier-head" onclick="toggleTier('tiercomp')">
+            <div class="tier-head-left">
+              <span class="tier-pill tc">Comparison</span>
+              <span class="tier-name">Profile Divergence</span>
+              <span class="tier-count">2 features · KL-divergence vs. baseline profiles · weight ×1.2</span>
+            </div>
+            <svg class="tier-chevron" viewBox="0 0 24 24" fill="none"><polyline points="18 15 12 9 6 15" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <div class="tier-body">
+            <div class="legend-row">
+              <div class="swatch-item"><div class="swatch baseline"></div>Baseline profile</div>
+              <div class="swatch-item"><div class="swatch submission"></div>Submission (low divergence)</div>
+              <div class="swatch-item"><div class="swatch sub-flag"></div>Submission (high divergence)</div>
+            </div>
+            <div class="feature-legend"><div>Feature</div><div>Baseline (0)</div><div>Submission</div><div>Delta</div></div>
+            <div id="tiercomp-rows"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right panel -->
+      <div class="sidebar-panel">
+
+        <div class="stat-card">
+          <div class="stat-card-head">
+            <span class="stat-card-title">Tier Summary</span>
+          </div>
+          <div class="stat-card-body">
+            <div class="tier-stat">
+              <div class="tier-stat-label"><div class="tier-dot t1"></div>Surface</div>
+              <div class="tier-stat-val" id="t1-flagged" style="color:var(--text-muted);"></div>
+            </div>
+            <div class="tier-stat">
+              <div class="tier-stat-label"><div class="tier-dot t2"></div>Discourse</div>
+              <div class="tier-stat-val" id="t2-flagged" style="color:var(--text-muted);"></div>
+            </div>
+            <div class="tier-stat">
+              <div class="tier-stat-label"><div class="tier-dot t3"></div>Rhetorical</div>
+              <div class="tier-stat-val" id="t3-flagged" style="color:var(--text-muted);"></div>
+            </div>
+            <div class="tier-stat">
+              <div class="tier-stat-label"><div class="tier-dot t4"></div>Char/Punct</div>
+              <div class="tier-stat-val" id="t4-flagged" style="color:var(--text-muted);"></div>
+            </div>
+            <div class="tier-stat">
+              <div class="tier-stat-label"><div class="tier-dot t5"></div>POS/Syntax</div>
+              <div class="tier-stat-val" id="t5-flagged" style="color:var(--text-muted);"></div>
+            </div>
+            <div class="tier-stat">
+              <div class="tier-stat-label"><div class="tier-dot t6"></div>Idiosyncratic</div>
+              <div class="tier-stat-val" id="t6-flagged" style="color:var(--text-muted);"></div>
+            </div>
+            <div class="tier-stat">
+              <div class="tier-stat-label"><div class="tier-dot t7"></div>AI Markers</div>
+              <div class="tier-stat-val" id="t7-flagged" style="color:var(--text-muted);"></div>
+            </div>
+            <div class="tier-stat">
+              <div class="tier-stat-label"><div class="tier-dot tc"></div>Divergence</div>
+              <div class="tier-stat-val" id="tc-flagged" style="color:var(--text-muted);"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card-head"><span class="stat-card-title">Deviation Score</span></div>
+          <div class="stat-card-body" style="text-align:center;padding:1.5rem 1.2rem;">
+            <div style="font-family:'Playfair Display',serif;font-size:2.4rem;font-weight:600;color:var(--amber);line-height:1;">0.5949</div>
+            <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">deviation score</div>
+            <div style="margin:1.25rem auto;width:80px;height:80px;position:relative;">
+              <svg viewBox="0 0 80 80" width="80" height="80">
+                <circle cx="40" cy="40" r="34" fill="none" stroke="#e2dccf" stroke-width="8"/>
+                <circle cx="40" cy="40" r="34" fill="none" stroke="#c9a028" stroke-width="8"
+                  stroke-dasharray="213.6" stroke-dashoffset="86.8"
+                  transform="rotate(-90 40 40)" stroke-linecap="round"/>
+              </svg>
+              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:0.75rem;color:var(--amber);font-weight:600;">FLAG</div>
+            </div>
+            <div style="font-size:0.8rem;color:var(--text-muted);">Authorship P: <strong style="color:var(--text-primary);">40.5%</strong></div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card-head"><span class="stat-card-title">Baseline Quality</span></div>
+          <div class="stat-card-body">
+            <div style="display:flex;justify-content:space-between;font-size:0.825rem;margin-bottom:0.5rem;">
+              <span style="color:var(--text-secondary);">Samples</span>
+              <strong>3 authenticated</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.825rem;margin-bottom:0.5rem;">
+              <span style="color:var(--text-secondary);">Purity</span>
+              <strong>0.297</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.825rem;margin-bottom:0.75rem;">
+              <span style="color:var(--text-secondary);">Confidence</span>
+              <strong style="color:var(--amber);">Moderate</strong>
+            </div>
+            <div style="background:var(--cream);border:1px solid var(--cream-border);border-radius:4px;padding:0.6rem 0.75rem;font-size:0.78rem;color:var(--text-muted);">
+              Baseline strengthens after 5+ authenticated samples.
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card-head"><span class="stat-card-title">Navigation</span></div>
+          <div class="stat-card-body" style="display:flex;flex-direction:column;gap:0.6rem;">
+            <a href="original-quantum.html" class="btn btn-ghost" style="justify-content:flex-start;width:100%;">
+              <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32" stroke="currentColor" stroke-width="1.5"/></svg>
+              Quantum State
+            </a>
+            <a href="original-decomposition.html" class="btn btn-ghost" style="justify-content:flex-start;width:100%;">
+              <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Interference Analysis
+            </a>
+            <a href="original-review.html" class="btn btn-ghost" style="justify-content:flex-start;width:100%;">
+              <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Back to Review
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Feature data (normalised values 0–1) ────────────────────────────────────
+const FEATURES = {
+  tier1: {
+    label: "Surface Stylometrics",
+    features: [
+      { name:"Type-Token Ratio",        code:"type_token_ratio",         base:0.668, sub:0.714, desc:"Lexical diversity" },
+      { name:"Hapax Legomena Rate",      code:"hapax_legomena_rate",      base:0.530, sub:0.548, desc:"Once-occurring word rate" },
+      { name:"Mean Sentence Length",     code:"mean_sentence_length",     base:0.762, sub:0.701, desc:"Avg words per sentence" },
+      { name:"Sentence Length Variance", code:"sentence_length_variance", base:0.581, sub:0.502, desc:"Sentence length spread" },
+      { name:"Function Word Ratio",      code:"function_word_ratio",      base:0.461, sub:0.438, desc:"Grammatical word frequency" },
+      { name:"Passive Voice Ratio",      code:"passive_voice_ratio",      base:0.182, sub:0.382, desc:"Passive constructions / sentences" },
+      { name:"Modal Verb Ratio",         code:"modal_verb_ratio",         base:0.284, sub:0.000, desc:"Modal verbs / verb-like tokens", flagged:true },
+      { name:"Stop Word Ratio",          code:"stop_word_ratio",          base:0.438, sub:0.422, desc:"High-frequency words" },
+      { name:"Avg Word Length",          code:"avg_word_length",          base:0.502, sub:0.638, desc:"Characters per word token" },
+    ]
+  },
+  tier2: {
+    label: "Discourse Analysis",
+    features: [
+      { name:"Discourse Marker Density", code:"discourse_marker_density",   base:0.646, sub:0.000, desc:"Connectives per 100 words", flagged:true },
+      { name:"Additive Ratio",           code:"additive_ratio",             base:0.143, sub:0.112, desc:"Additive markers / all markers" },
+      { name:"Adversative Ratio",        code:"adversative_ratio",          base:0.571, sub:0.384, desc:"However / but / yet markers" },
+      { name:"Causal Ratio",             code:"causal_ratio",               base:0.286, sub:0.211, desc:"Therefore / because / thus" },
+      { name:"Temporal Ratio",           code:"temporal_ratio",             base:0.000, sub:0.000, desc:"First / then / finally" },
+      { name:"Thematic Progression",     code:"thematic_progression_score", base:0.512, sub:0.430, desc:"Linear vs. constant-theme flow" },
+      { name:"Pronoun Ref. Density",     code:"pronoun_reference_density",  base:0.622, sub:0.489, desc:"Anaphoric pronouns per sentence" },
+      { name:"Lexical Chain Density",    code:"lexical_chain_density",      base:0.448, sub:0.612, desc:"Repeated content words / sentence" },
+      { name:"Paragraph Topic Pos.",     code:"paragraph_topic_position",   base:0.833, sub:1.000, desc:"Fronted topic sentences" },
+      { name:"Avg Paragraph Length",     code:"avg_paragraph_length",       base:0.688, sub:0.500, desc:"Mean sentences per paragraph" },
+      { name:"Sentence Opener Variety",  code:"sentence_opener_variety",    base:0.822, sub:0.000, desc:"Shannon entropy of openers", flagged:true },
+      { name:"Cohesion Device Ratio",    code:"cohesion_device_ratio",      base:0.732, sub:0.000, desc:"All cohesion devices / words", flagged:true },
+      { name:"Transition Density",       code:"transition_density",         base:0.522, sub:0.000, desc:"Explicit transitions / boundaries", flagged:true },
+    ]
+  },
+  tier3: {
+    label: "Rhetorical Fingerprint",
+    features: [
+      { name:"Epistemic Certainty",      code:"epistemic_certainty_ratio",    base:0.667, sub:0.924, desc:"Assert / (assert + hedge)" },
+      { name:"Hedging Density",          code:"hedging_density",              base:0.693, sub:0.102, desc:"Hedge markers per 100 words", flagged:true },
+      { name:"Assertion Density",        code:"assertion_density",            base:0.828, sub:1.000, desc:"Strong assertion markers / 100w" },
+      { name:"Source Integration Style", code:"source_integration_style",     base:0.250, sub:0.400, desc:"Cite-move → synthesise scale" },
+      { name:"Counter-Argument Ratio",   code:"counter_argument_ratio",       base:0.182, sub:0.095, desc:"Adversative sentences / total" },
+      { name:"Claim Density",            code:"claim_density",                base:0.322, sub:0.612, desc:"Toulmin claim markers / 100w" },
+      { name:"Question Ratio",           code:"question_ratio",               base:0.182, sub:0.000, desc:"Interrogative sentences / total", flagged:true },
+      { name:"Imperative Density",       code:"imperative_density",           base:0.044, sub:0.022, desc:"Imperative constructions / 100w" },
+      { name:"First-Person Ratio",       code:"first_person_ratio",           base:0.714, sub:0.000, desc:"1st-person / all pronouns", flagged:true },
+      { name:"Authority Appeal Density", code:"appeal_to_authority_density",  base:0.388, sub:0.924, desc:"Citation/authority language / 100w" },
+      { name:"Conclusion Strategy",      code:"conclusion_strategy_score",    base:0.250, sub:0.500, desc:"Summary → implication → open" },
+      { name:"Theological Register",     code:"theological_register_score",   base:0.622, sub:0.882, desc:"Seminary vocabulary density" },
+    ]
+  },
+  tier4: {
+    label: "Character & Punctuation",
+    features: [
+      { name:"Char Trigram Entropy",     code:"char_trigram_entropy",         base:0.712, sub:0.508, desc:"Shannon entropy of char 3-grams", flagged:true },
+      { name:"Punctuation Diversity",    code:"punctuation_diversity",        base:0.654, sub:0.612, desc:"Shannon entropy of punct marks" },
+      { name:"Comma Rate",               code:"comma_rate",                   base:0.541, sub:0.488, desc:"Commas per 100 words" },
+      { name:"Semicolon+Colon Rate",     code:"semicolon_colon_rate",         base:0.288, sub:0.100, desc:"Semicolons & colons per 100 words" },
+      { name:"Parenthetical Rate",       code:"parenthetical_rate",           base:0.412, sub:0.398, desc:"Parentheticals per 100 words" },
+      { name:"Dash Rate",                code:"dash_rate",                    base:0.108, sub:0.000, desc:"Em/en-dashes per 100 words", flagged:true },
+      { name:"Quotation Rate",           code:"quote_rate",                   base:0.622, sub:0.580, desc:"Quote marks per 100 words" },
+    ]
+  },
+  tier5: {
+    label: "POS & Shallow Syntax",
+    features: [
+      { name:"POS Bigram Entropy",       code:"pos_bigram_entropy",           base:0.688, sub:0.632, desc:"Shannon entropy of POS bigrams" },
+      { name:"POS Trigram Entropy",      code:"pos_trigram_entropy",          base:0.712, sub:0.658, desc:"Shannon entropy of POS trigrams" },
+      { name:"Noun-Verb Ratio",          code:"noun_verb_ratio",              base:0.542, sub:0.498, desc:"Nouns / verbs in document" },
+      { name:"Adjective Rate",           code:"adjective_rate",               base:0.488, sub:0.422, desc:"Adjectives per 100 tokens" },
+      { name:"Adverb Rate",              code:"adverb_rate",                  base:0.312, sub:0.000, desc:"Adverbs per 100 tokens", flagged:true },
+      { name:"Subordination Ratio",      code:"subordination_ratio",          base:0.598, sub:0.544, desc:"Subordinating conjunctions / sentence" },
+      { name:"Mean Clause Depth",        code:"clause_depth_mean",            base:0.448, sub:0.388, desc:"Average dependency tree depth" },
+    ]
+  },
+  tier6: {
+    label: "Idiosyncratic Patterns",
+    features: [
+      { name:"Contraction Rate",         code:"contraction_rate",             base:0.022, sub:0.198, desc:"Contractions per 100 words", flagged:true },
+      { name:"Sent-Initial Conj Rate",   code:"sentence_initial_conjunction_rate", base:0.088, sub:0.082, desc:"Fraction of sentences starting with conjunction" },
+      { name:"That/Which Ratio",         code:"that_which_ratio",             base:0.712, sub:0.688, desc:"'that' / ('that' + 'which')" },
+      { name:"Citation Consistency",     code:"citation_style_consistency",   base:0.128, sub:0.000, desc:"Entropy of citation format variants", flagged:true },
+      { name:"List Marker Pref.",        code:"list_marker_preference",       base:0.500, sub:0.500, desc:"Preference encoding for list styles" },
+      { name:"Abbreviation Tendency",    code:"abbreviation_tendency",        base:0.688, sub:0.612, desc:"Abbreviated / full-form ratio" },
+    ]
+  },
+  tier7: {
+    label: "AI Detection Markers",
+    features: [
+      { name:"Burstiness",               code:"burstiness",                   base:0.588, sub:0.188, desc:"Sentence-length variance-to-mean ratio", flagged:true },
+      { name:"Perplexity Proxy",         code:"perplexity_proxy",             base:0.612, sub:0.888, desc:"Word-level surprisal (higher = more surprising)" },
+      { name:"Repetition Gap Entropy",   code:"repetition_gap_entropy",       base:0.724, sub:0.912, desc:"Shannon entropy of inter-repetition distances" },
+      { name:"Transition Predictability",code:"transition_predictability",    base:0.388, sub:0.812, desc:"Cosine sim of consecutive sentence vectors", flagged:true },
+      { name:"Vocab Introduction Rate",  code:"vocabulary_introduction_rate", base:0.542, sub:0.488, desc:"AUC of new-word introduction curve" },
+      { name:"Hedge Clustering",         code:"filler_hedge_cluster_rate",    base:0.448, sub:0.722, desc:"Gini coefficient of hedge-word positions" },
+    ]
+  },
+  tiercomp: {
+    label: "Profile Divergence",
+    features: [
+      { name:"Char Trigram Divergence",  code:"char_trigram_profile_divergence",   base:0.000, sub:0.622, desc:"KL-divergence of char trigram profiles", flagged:true },
+      { name:"Func Word Divergence",     code:"function_word_profile_divergence",  base:0.000, sub:0.488, desc:"KL-divergence of function word distributions" },
+    ]
+  }
+};
+
+let currentView = 'compare';
+
+function setView(v) {
+  currentView = v;
+  document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderAll();
+}
+
+function renderFeatureRows(containerId, features) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+
+  features.forEach(f => {
+    const delta = ((f.sub - f.base) / (f.base + 0.001) * 100).toFixed(0);
+    const deltaSign = delta > 0 ? '+' : '';
+    const isFlagged = f.flagged || false;
+    const subColor = isFlagged ? '#c0392b' : '#c9a028';
+    const subClass = isFlagged ? 'bar-fill submission sub-flag' : 'bar-fill submission';
+
+    const row = document.createElement('div');
+    row.className = 'feature-row';
+    row.innerHTML = `
+      <div class="feature-label">
+        <span style="font-weight:500;color:${isFlagged ? 'var(--flag-red)' : 'var(--text-primary)'};">${f.name}</span>
+        <div style="display:flex;align-items:center;gap:0.4rem;margin-top:1px;">
+          <code style="font-size:0.65rem;">${f.code}</code>
+          <span style="font-size:0.68rem;color:var(--text-muted);font-style:italic;">${f.desc}</span>
+        </div>
+      </div>
+      <div>
+        <div class="bar-track" style="height:6px;background:#e2dccf;border-radius:3px;position:relative;">
+          <div class="bar-fill baseline" style="width:${(f.base*100).toFixed(1)}%;"></div>
+        </div>
+        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">${f.base.toFixed(3)}</div>
+      </div>
+      <div style="${currentView === 'baseline' ? 'opacity:0.3;' : ''}">
+        <div class="bar-track" style="height:6px;background:#e2dccf;border-radius:3px;position:relative;">
+          <div class="${subClass}" style="width:${(f.sub*100).toFixed(1)}%;"></div>
+        </div>
+        <div style="font-size:0.72rem;color:${isFlagged ? 'var(--flag-red)' : 'var(--text-muted)'};margin-top:2px;">${f.sub.toFixed(3)}</div>
+      </div>
+      <div class="feature-val" style="color:${isFlagged ? 'var(--flag-red)' : (delta > 0 ? 'var(--amber)' : 'var(--flag-green)')};">
+        ${isFlagged && currentView !== 'baseline' ? '<span style="display:block;font-size:0.62rem;background:rgba(192,57,43,0.1);color:var(--flag-red);border:1px solid rgba(192,57,43,0.2);border-radius:3px;padding:0.1rem 0.35rem;margin-bottom:3px;font-weight:600;letter-spacing:0.04em;">FLAG</span>' : ''}
+        ${currentView === 'baseline' ? '—' : deltaSign + delta + '%'}
+      </div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function renderAll() {
+  renderFeatureRows('tier1-rows',   FEATURES.tier1.features);
+  renderFeatureRows('tier2-rows',   FEATURES.tier2.features);
+  renderFeatureRows('tier3-rows',   FEATURES.tier3.features);
+  renderFeatureRows('tier4-rows',   FEATURES.tier4.features);
+  renderFeatureRows('tier5-rows',   FEATURES.tier5.features);
+  renderFeatureRows('tier6-rows',   FEATURES.tier6.features);
+  renderFeatureRows('tier7-rows',   FEATURES.tier7.features);
+  renderFeatureRows('tiercomp-rows',FEATURES.tiercomp.features);
+  updateSummary();
+}
+
+function updateSummary() {
+  const tiers = [
+    { key:'tier1', id:'t1' },
+    { key:'tier2', id:'t2' },
+    { key:'tier3', id:'t3' },
+    { key:'tier4', id:'t4' },
+    { key:'tier5', id:'t5' },
+    { key:'tier6', id:'t6' },
+    { key:'tier7', id:'t7' },
+    { key:'tiercomp', id:'tc' },
+  ];
+  const fmt = (c,t) => c > 0
+    ? `<span style="color:var(--flag-red);">${c} of ${t} flagged</span>`
+    : `<span style="color:var(--flag-green);">${t} of ${t} clear</span>`;
+
+  tiers.forEach(({ key, id }) => {
+    const features = FEATURES[key] && FEATURES[key].features || [];
+    const total = features.length;
+    const flagged = features.filter(f => f.flagged).length;
+    const el = document.getElementById(`${id}-flagged`);
+    if (el) el.innerHTML = fmt(flagged, total);
+  });
+}
+
+function toggleTier(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+// Init
+renderAll();
+</script>
+<script src="api-client.js"></script>
+</body>
+</html>

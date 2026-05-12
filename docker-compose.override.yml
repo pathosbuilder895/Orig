@@ -1,0 +1,20 @@
+# docker-compose.override.yml — LOCAL DEV overrides.
+#
+# Docker Compose automatically merges this file when you run:
+#   docker compose up --build
+#
+# For PRODUCTION, skip this file explicitly:
+#   docker compose -f docker-compose.yml up
+#
+# This file overrides env_file to use .env.dev so your production
+# .env stays untouched.
+
+services:
+  api:
+    # Sequences merge by appending — without !override, both .env and .env.dev
+    # would load (production secrets + dev). !override replaces the list entirely.
+    env_file: !override
+      - .env.dev
+    environment:
+      DATABASE_URL: postgresql://original:original@postgres:5432/original_db
+      REDIS_URL: redis://redis:6379/0

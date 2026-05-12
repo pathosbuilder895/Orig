@@ -1,0 +1,59 @@
+# Environment and secrets
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Docker
+postgres_data/
+redis_data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Databases (local dev only)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Env dev (keep .env.example)
+.env.dev
+
+# Pytest temp dirs
+pytest-cache-files-*/
+
+# Node
+node_modules/
+
+# Claude Code local settings (contains machine-specific absolute paths)
+.claude/settings.local.json
+
+# Personal notes / internal comms (not source code)
+standup-*.md
+outreach-brief-*.md
+content-checkin-*.md
+weekly-review-*.md
+THIS-WEEK-ACTION-SUMMARY.txt

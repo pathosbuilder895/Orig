@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Original — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --green-deepest: #0f1e17;
+      --green-deep:    #162b22;
+      --green-mid:     #1e3d2f;
+      --green-hover:   #243d30;
+      --green-border:  rgba(255,255,255,0.07);
+
+      --cream:         #f7f3ea;
+      --cream-warm:    #ede8d8;
+      --cream-border:  #e2dccf;
+      --surface:       #ffffff;
+
+      --gold:          #c9a028;
+      --gold-light:    rgba(201,160,40,0.12);
+      --gold-muted:    rgba(201,160,40,0.35);
+      --amber:         #9b6420;
+
+      --text-primary:  #1a130a;
+      --text-secondary:#5a4030;
+      --text-muted:    #8a7060;
+      --text-cream:    #f7f3ea;
+      --text-cream-dim:rgba(247,243,234,0.55);
+
+      --flag-red:      #c0392b;
+      --flag-red-bg:   rgba(192,57,43,0.08);
+      --flag-amber:    #c9a028;
+      --flag-amber-bg: rgba(201,160,40,0.1);
+      --flag-green:    #2a6b45;
+      --flag-green-bg: rgba(42,107,69,0.1);
+
+      --sidebar-w:     264px;
+      --radius:        6px;
+      --shadow-sm:     0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md:     0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--cream);
+      color: var(--text-primary);
+      display: flex;
+      overflow: hidden;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ─── SIDEBAR ─────────────────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      height: 100vh;
+      background: var(--green-deep);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      left: 0; top: 0; bottom: 0;
+      z-index: 100;
+      border-right: 1px solid var(--green-border);
+    }
+
+    .sidebar-logo {
+      padding: 1.5rem 1.5rem 1.25rem;
+      border-bottom: 1px solid var(--green-border);
+    }
+    .logo-mark {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.35rem;
+    }
+    .logo-icon {
+      width: 30px; height: 30px;
+      border: 1px solid var(--gold-muted);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .logo-icon svg {
+      width: 14px; height: 14px;
+      stroke: var(--gold);
+    }
+    .logo-wordmark {
+      font-family: 'Playfair Display', serif;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-cream);
+      letter-spacing: 0.06em;
+    }
+    .logo-school {
+      font-family: 'EB Garamond', serif;
+      font-size: 0.78rem;
+      font-style: italic;
+      color: var(--text-cream-dim);
+      letter-spacing: 0.03em;
+      padding-left: 2.8rem;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 1rem 0;
+      overflow-y: auto;
+    }
+    .nav-section-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-cream-dim);
+      padding: 0.6rem 1.5rem 0.3rem;
+      margin-top: 0.5rem;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.6rem 1.5rem;
+      color: rgba(247,243,234,0.65);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s;
+      position: relative;
+      border-left: 2px solid transparent;
+      letter-spacing: 0.01em;
+    }
+    .nav-item:hover {
+      color: var(--text-cream);
+      background: var(--green-hover);
+    }
+    .nav-item.active {
+      color: var(--text-cream);
+      border-left-color: var(--gold);
+      background: rgba(201,160,40,0.08);
+    }
+    .nav-item svg {
+      width: 16px; height: 16px;
+      stroke: currentColor;
+      flex-shrink: 0;
+      opacity: 0.85;
+    }
+    .nav-badge {
+      margin-left: auto;
+      background: var(--gold);
+      color: var(--green-deepest);
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.15rem 0.45rem;
+      border-radius: 20px;
+      letter-spacing: 0.02em;
+    }
+
+    .sidebar-user {
+      border-top: 1px solid var(--green-border);
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .user-avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--green-mid);
+      border: 1px solid var(--gold-muted);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Playfair Display', serif;
+      font-size: 0.8rem;
+      color: var(--gold);
+      flex-shrink: 0;
+    }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name {
+      font-size: 0.825rem;
+      font-weight: 500;
+      color: var(--text-cream);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .user-role {
+      font-size: 0.72rem;
+      color: var(--text-cream-dim);
+      font-style: italic;
+      font-family: 'EB Garamond', serif;
+    }
+    .user-settings {
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-cream-dim);
+      cursor: pointer;
+      border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .user-settings:hover { color: var(--text-cream); background: var(--green-hover); }
+    .user-settings svg { width: 15px; height: 15px; stroke: currentColor; }
+
+    /* ─── MAIN LAYOUT ──────────────────────────────────────── */
+    .main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ─── TOPBAR ───────────────────────────────────────────── */
+    .topbar {
+      background: var(--cream);
+      border-bottom: 1px solid var(--cream-border);
+      padding: 0 2rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .breadcrumb-sep { color: var(--cream-border); }
+    .breadcrumb-current {
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .semester-badge {
+      font-family: 'EB Garamond', serif;
+      font-size: 0.85rem;
+      font-style: italic;
+      color: var(--text-muted);
+      background: var(--cream-warm);
+      border: 1px solid var(--cream-border);
+      padding: 0.3rem 0.85rem;
+      border-radius: 20px;
+      letter-spacing: 0.02em;
+    }
+    .topbar-icon-btn {
+      width: 32px; height: 32px;
+      border-radius: var(--radius);
+      border: 1px solid var(--cream-border);
+      background: var(--surface);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      position: relative;
+      color: var(--text-secondary);
+    }
+    .topbar-icon-btn:hover { border-color: var(--gold-muted); box-shadow: var(--shadow-sm); }
+    .topbar-icon-btn svg { width: 15px; height: 15px; stroke: currentColor; }
+    .notif-dot {
+      position: absolute;
+      top: 6px; right: 6px;
+      width: 6px; height: 6px;
+      background: var(--gold);
+      border-radius: 50%;
+      border: 1.5px solid var(--cream);
+    }
+
+    /* ─── PAGE BODY ────────────────────────────────────────── */
+    .page-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem 2rem 3rem;
+    }
+
+    /* ─── PAGE HEADER ──────────────────────────────────────── */
+    .page-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 1.75rem;
+    }
+    .page-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.6rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+    }
+    .page-subtitle {
+      font-family: 'EB Garamond', serif;
+      font-size: 0.95rem;
+      font-style: italic;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+    .page-actions { display: flex; align-items: center; gap: 0.75rem; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.45rem;
+      padding: 0.5rem 1.1rem;
+      border-radius: var(--radius);
+      font-size: 0.825rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-decoration: none;
+      border: none;
+      letter-spacing: 0.01em;
+    }
+    .btn svg { width: 14px; height: 14px; stroke: currentColor; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--cream-border);
+    }
+    .btn-ghost:hover { background: var(--surface); border-color: var(--gold-muted); color: var(--text-primary); }
+    .btn-primary {
+      background: var(--green-deep);
+      color: var(--text-cream);
+      border: 1px solid var(--green-deep);
+    }
+    .btn-primary:hover { background: var(--green-mid); border-color: var(--gold-muted); }
+
+    /* ─── STAT CARDS ───────────────────────────────────────── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--cream-border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.4rem;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 2px;
+    }
+    .stat-card.stat-default::before { background: var(--cream-border); }
+    .stat-card.stat-flagged::before { background: var(--gold); }
+    .stat-card.stat-clear::before   { background: var(--flag-green); }
+    .stat-card.stat-pending::before { background: var(--amber); }
+
+    .stat-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 0.6rem;
+    }
+    .stat-value {
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+    .stat-card.stat-flagged .stat-value { color: var(--amber); }
+    .stat-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-style: italic;
+      font-family: 'EB Garamond', serif;
+    }
+    .stat-meta strong { color: var(--text-secondary); font-style: normal; font-weight: 500; }
+
+    /* ─── MAIN GRID ────────────────────────────────────────── */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    /* ─── SECTION CARD ─────────────────────────────────────── */
+    .section-card {
+      background: var(--surface);
+      border: 1px solid var(--cream-border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.1rem 1.4rem;
+      border-bottom: 1px solid var(--cream-border);
+    }
+    .section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.005em;
+    }
+    .section-title-meta {
+      font-family: 'EB Garamond', serif;
+      font-size: 0.8rem;
+      font-style: italic;
+      color: var(--text-muted);
+      margin-left: 0.5rem;
+      font-weight: 400;
+    }
+    .section-action {
+      font-size: 0.775rem;
+      color: var(--amber);
+      cursor: pointer;
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+    .section-action:hover { color: var(--text-primary); }
+
+    /* ─── COURSE TABLE ─────────────────────────────────────── */
+    .course-table { width: 100%; }
+    .course-table-head {
+      display: grid;
+      grid-template-columns: 1fr 80px 90px 90px 80px;
+      padding: 0.6rem 1.4rem;
+      background: var(--cream);
+      border-bottom: 1px solid var(--cream-border);
+    }
+    .th {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .th.right { text-align: right; }
+
+    .course-row {
+      display: grid;
+      grid-template-columns: 1fr 80px 90px 90px 80px;
+      padding: 0.95rem 1.4rem;
+      border-bottom: 1px solid var(--cream-border);
+      cursor: pointer;
+      transition: background 0.12s;
+      align-items: center;
+      text-decoration: none;
+      color: inherit;
+    }
+    .course-row:last-child { border-bottom: none; }
+    .course-row:hover { background: var(--cream); }
+
+    .course-name-cell {}
+    .course-name {
+      font-weight: 500;
+      color: var(--text-primary);
+      font-size: 0.875rem;
+      margin-bottom: 0.2rem;
+    }
+    .course-code {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+    }
+
+    .td { font-size: 0.825rem; color: var(--text-secondary); }
+    .td.right { text-align: right; }
+    .td.center { text-align: center; }
+
+    .baseline-bar-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .baseline-bar {
+      flex: 1;
+      height: 4px;
+      background: var(--cream-border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .baseline-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--flag-green);
+      transition: width 0.3s ease;
+    }
+    .baseline-fill.partial { background: var(--amber); }
+    .baseline-fill.low     { background: var(--flag-red); }
+    .baseline-pct {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      min-width: 28px;
+      text-align: right;
+    }
+
+    .flag-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    .flag-pill.flagged {
+      background: var(--flag-amber-bg);
+      color: var(--amber);
+      border: 1px solid rgba(201,160,40,0.25);
+    }
+    .flag-pill.clear {
+      background: var(--flag-green-bg);
+      color: var(--flag-green);
+      border: 1px solid rgba(42,107,69,0.2);
+    }
+    .flag-pill.dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      padding: 0;
+    }
+
+    /* ─── FLAG PANEL ───────────────────────────────────────── */
+    .flag-panel {}
+    .flag-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      padding: 1rem 1.4rem;
+      border-bottom: 1px solid var(--cream-border);
+      cursor: pointer;
+      transition: background 0.12s;
+      text-decoration: none;
+      color: inherit;
+    }
+    .flag-item:last-child { border-bottom: none; }
+    .flag-item:hover { background: var(--cream); }
+
+    .flag-item-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .flag-student {
+      font-weight: 500;
+      font-size: 0.85rem;
+      color: var(--text-primary);
+    }
+    .flag-score {
+      font-family: 'Playfair Display', serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--amber);
+    }
+    .flag-score.high { color: var(--flag-red); }
+    .flag-detail {
+      font-size: 0.775rem;
+      color: var(--text-muted);
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+    }
+    .flag-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .flag-course-tag {
+      font-size: 0.68rem;
+      background: var(--cream-warm);
+      border: 1px solid var(--cream-border);
+      padding: 0.15rem 0.5rem;
+      border-radius: 20px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .flag-date {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+    }
+
+    /* ─── EMPTY / COMING SOON STATE ────────────────────────── */
+    .empty-state {
+      padding: 2.5rem;
+      text-align: center;
+    }
+    .empty-state p {
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    /* ─── DIVIDER ──────────────────────────────────────────── */
+    .gold-rule {
+      display: flex; align-items: center; gap: 0.75rem;
+      margin: 1.5rem 0;
+    }
+    .gold-rule::before, .gold-rule::after {
+      content: ''; flex: 1; height: 1px;
+      background: var(--cream-border);
+    }
+    .gold-rule-mark {
+      width: 5px; height: 5px;
+      background: var(--gold);
+      transform: rotate(45deg);
+      flex-shrink: 0;
+    }
+
+    /* ─── SCROLLBAR ─────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--cream-border); border-radius: 2px; }
+
+    /* ─── RESPONSIVE ─────────────────────────────────────────── */
+    @media (max-width: 1200px) {
+      .main-grid { grid-template-columns: 1fr; }
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 900px) {
+      .stats-row { grid-template-columns: 1fr 1fr; }
+      .course-table-head,
+      .course-row { grid-template-columns: 1fr 70px 70px; }
+      .course-table-head .th:nth-child(4),
+      .course-table-head .th:nth-child(5),
+      .course-row .td:nth-child(4),
+      .course-row .td:nth-child(5) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════════════ -->
+<aside class="sidebar">
+
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <span class="logo-wordmark">Original</span>
+    </div>
+    <div class="logo-school">Southern Baptist Theological Seminary</div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Overview</div>
+
+    <a class="nav-item active" href="original-dashboard.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+      </svg>
+      Dashboard
+    </a>
+
+    <a class="nav-item" href="original-course.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+      </svg>
+      Courses
+    </a>
+
+    <a class="nav-item" href="original-students.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+      Students
+    </a>
+
+    <div class="nav-section-label">Review</div>
+
+    <a class="nav-item" href="original-flagged.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      Flagged
+      <span class="nav-badge">5</span>
+    </a>
+
+    <a class="nav-item" href="original-submit.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      Submit Writing
+    </a>
+
+    <a class="nav-item" href="original-reports.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+        <line x1="6" y1="20" x2="6" y2="14"/>
+      </svg>
+      Reports
+    </a>
+
+        <div class="nav-section-label">Pipeline</div>
+    <a class="nav-item" href="original-features.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Feature Profile</a>
+    <a class="nav-item" href="original-quantum.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>Quantum State</a>
+    <a class="nav-item" href="original-decomposition.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Interference</a>
+    <div class="nav-section-label">Institution</div>
+
+    <a class="nav-item" href="original-admin.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+      Admin
+    </a>
+
+    <a class="nav-item" href="original-settings.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+      Settings
+    </a>
+  </nav>
+
+  <div class="sidebar-user">
+    <div class="user-avatar">AC</div>
+    <div class="user-info">
+      <div class="user-name">Dr. Andrew Clark</div>
+      <div class="user-role">Instructor</div>
+    </div>
+    <div class="user-settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
+      </svg>
+    </div>
+  </div>
+
+</aside>
+
+<!-- ═══════════════════════════════════════════════
+     MAIN
+═══════════════════════════════════════════════ -->
+<div class="main">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="breadcrumb">
+        <span>Original</span>
+        <span class="breadcrumb-sep">/</span>
+        <span class="breadcrumb-current">Dashboard</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="semester-badge">Spring 2026</div>
+      <div class="topbar-icon-btn" title="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </div>
+      <div class="topbar-icon-btn" title="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <span class="notif-dot"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE BODY -->
+  <div class="page-body">
+
+    <!-- Page header -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Spring 2026 — 4 active courses</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-ghost">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Import Submissions
+        </button>
+        <button class="btn btn-primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          New Course
+        </button>
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="stats-row">
+      <div class="stat-card stat-default">
+        <div class="stat-label">Total Students</div>
+        <div class="stat-value">48</div>
+        <div class="stat-meta">across <strong>4 courses</strong> this term</div>
+      </div>
+      <div class="stat-card stat-flagged">
+        <div class="stat-label">Flagged</div>
+        <div class="stat-value">5</div>
+        <div class="stat-meta"><strong>3 high-deviation</strong> · 2 pending review</div>
+      </div>
+      <div class="stat-card stat-clear">
+        <div class="stat-label">Baseline Coverage</div>
+        <div class="stat-value">76<span style="font-size:1.1rem;font-weight:400;">%</span></div>
+        <div class="stat-meta"><strong>37 of 48</strong> students established</div>
+      </div>
+      <div class="stat-card stat-pending">
+        <div class="stat-label">Submissions This Term</div>
+        <div class="stat-value">124</div>
+        <div class="stat-meta"><strong>12 received</strong> in the last 7 days</div>
+      </div>
+    </div>
+
+    <!-- Main grid -->
+    <div class="main-grid">
+
+      <!-- Courses -->
+      <div class="section-card">
+        <div class="section-head">
+          <div>
+            <span class="section-title">Courses</span>
+            <span class="section-title-meta">Spring 2026</span>
+          </div>
+          <a href="original-course.html" class="section-action">View all →</a>
+        </div>
+
+        <!-- Table head -->
+        <div class="course-table-head">
+          <div class="th">Course</div>
+          <div class="th center">Students</div>
+          <div class="th center">Submissions</div>
+          <div class="th">Baseline</div>
+          <div class="th right">Flags</div>
+        </div>
+
+        <!-- Row 1 -->
+        <a class="course-row" href="original-course.html">
+          <div class="course-name-cell">
+            <div class="course-name">Systematic Theology I</div>
+            <div class="course-code">THEO 501 · M/W 9–10:30am</div>
+          </div>
+          <div class="td center">14</div>
+          <div class="td center">38</div>
+          <div class="td">
+            <div class="baseline-bar-wrap">
+              <div class="baseline-bar"><div class="baseline-fill" style="width:86%"></div></div>
+              <span class="baseline-pct">86%</span>
+            </div>
+          </div>
+          <div class="td right">
+            <span class="flag-pill flagged">⚑ 3</span>
+          </div>
+        </a>
+
+        <!-- Row 2 -->
+        <a class="course-row" href="original-course.html">
+          <div class="course-name-cell">
+            <div class="course-name">Church History I</div>
+            <div class="course-code">HIST 410 · T/Th 11am–12:30pm</div>
+          </div>
+          <div class="td center">11</div>
+          <div class="td center">29</div>
+          <div class="td">
+            <div class="baseline-bar-wrap">
+              <div class="baseline-bar"><div class="baseline-fill" style="width:100%"></div></div>
+              <span class="baseline-pct">100%</span>
+            </div>
+          </div>
+          <div class="td right">
+            <span class="flag-pill clear">✓ Clear</span>
+          </div>
+        </a>
+
+        <!-- Row 3 -->
+        <a class="course-row" href="original-course.html">
+          <div class="course-name-cell">
+            <div class="course-name">Hermeneutics</div>
+            <div class="course-code">BIBL 301 · M/W 2–3:30pm</div>
+          </div>
+          <div class="td center">13</div>
+          <div class="td center">31</div>
+          <div class="td">
+            <div class="baseline-bar-wrap">
+              <div class="baseline-bar"><div class="baseline-fill partial" style="width:62%"></div></div>
+              <span class="baseline-pct">62%</span>
+            </div>
+          </div>
+          <div class="td right">
+            <span class="flag-pill flagged">⚑ 2</span>
+          </div>
+        </a>
+
+        <!-- Row 4 -->
+        <a class="course-row" href="original-course.html">
+          <div class="course-name-cell">
+            <div class="course-name">Old Testament Survey</div>
+            <div class="course-code">OT 201 · F 9am–12pm</div>
+          </div>
+          <div class="td center">10</div>
+          <div class="td center">26</div>
+          <div class="td">
+            <div class="baseline-bar-wrap">
+              <div class="baseline-bar"><div class="baseline-fill partial" style="width:50%"></div></div>
+              <span class="baseline-pct">50%</span>
+            </div>
+          </div>
+          <div class="td right">
+            <span class="flag-pill clear">✓ Clear</span>
+          </div>
+        </a>
+
+      </div>
+
+      <!-- Flags panel -->
+      <div class="section-card">
+        <div class="section-head">
+          <div>
+            <span class="section-title">Recent Flags</span>
+          </div>
+          <a href="original-flagged.html" class="section-action">Review all →</a>
+        </div>
+
+        <div class="flag-panel">
+
+          <a class="flag-item" href="original-review.html">
+            <div class="flag-item-top">
+              <span class="flag-student">James Whitfield</span>
+              <span class="flag-score high">0.91</span>
+            </div>
+            <div class="flag-detail">TTR drop 38% · Sentence length +71% · Low function word ratio</div>
+            <div class="flag-meta">
+              <span class="flag-course-tag">THEO 501</span>
+              <span class="flag-date">Mar 14 · Final Essay</span>
+            </div>
+          </a>
+
+          <a class="flag-item" href="original-review.html">
+            <div class="flag-item-top">
+              <span class="flag-student">Sarah Okonkwo</span>
+              <span class="flag-score high">0.84</span>
+            </div>
+            <div class="flag-detail">Hapax rate drop 44% · Unusual nominalization density</div>
+            <div class="flag-meta">
+              <span class="flag-course-tag">THEO 501</span>
+              <span class="flag-date">Mar 12 · Week 9 Response</span>
+            </div>
+          </a>
+
+          <a class="flag-item" href="original-review.html">
+            <div class="flag-item-top">
+              <span class="flag-student">Marcus Delaney</span>
+              <span class="flag-score">0.76</span>
+            </div>
+            <div class="flag-detail">Modal verb ratio shifted · Passive voice density elevated</div>
+            <div class="flag-meta">
+              <span class="flag-course-tag">BIBL 301</span>
+              <span class="flag-date">Mar 11 · Exegesis Paper</span>
+            </div>
+          </a>
+
+          <a class="flag-item" href="original-review.html">
+            <div class="flag-item-top">
+              <span class="flag-student">Elena Vasquez</span>
+              <span class="flag-score">0.73</span>
+            </div>
+            <div class="flag-detail">Stop word frequency dropped · TTR elevated above baseline</div>
+            <div class="flag-meta">
+              <span class="flag-course-tag">BIBL 301</span>
+              <span class="flag-date">Mar 9 · Critical Analysis</span>
+            </div>
+          </a>
+
+          <a class="flag-item" href="original-review.html">
+            <div class="flag-item-top">
+              <span class="flag-student">Daniel Osei</span>
+              <span class="flag-score">0.71</span>
+            </div>
+            <div class="flag-detail">Hedging language absent · Metadiscourse markers below baseline</div>
+            <div class="flag-meta">
+              <span class="flag-course-tag">THEO 501</span>
+              <span class="flag-date">Mar 8 · Research Paper</span>
+            </div>
+          </a>
+
+        </div>
+      </div>
+
+    </div><!-- /main-grid -->
+  </div><!-- /page-body -->
+</div><!-- /main -->
+
+</body>
+</html>

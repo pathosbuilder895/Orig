@@ -1,0 +1,6 @@
+[project]
+name = "original"
+version = "0.0.0"
+description = "Original API — stylometric authorship detection"
+readme = "README.md"
+requires-python = ">=3.10"

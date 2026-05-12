@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Original — Integrations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --green-deepest:#0f1e17; --green-deep:#162b22; --green-mid:#1e3d2f;
+      --green-hover:#243d30; --green-border:rgba(255,255,255,0.07);
+      --cream:#f7f3ea; --cream-warm:#ede8d8; --cream-border:#e2dccf; --surface:#ffffff;
+      --gold:#c9a028; --gold-light:rgba(201,160,40,0.12); --gold-muted:rgba(201,160,40,0.35); --amber:#9b6420;
+      --text-primary:#1a130a; --text-secondary:#5a4030; --text-muted:#8a7060;
+      --text-cream:#f7f3ea; --text-cream-dim:rgba(247,243,234,0.55);
+      --flag-red:#c0392b; --flag-red-bg:rgba(192,57,43,0.08);
+      --flag-amber:#c9a028; --flag-amber-bg:rgba(201,160,40,0.1);
+      --flag-green:#2a6b45; --flag-green-bg:rgba(42,107,69,0.1);
+      --sidebar-w:264px; --radius:6px;
+      --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md:0 4px 12px rgba(0,0,0,0.08),0 2px 4px rgba(0,0,0,0.05);
+    }
+    html, body { height:100%; }
+    body { font-family:'Inter',system-ui,sans-serif; background:var(--cream); color:var(--text-primary); display:flex; overflow:hidden; font-size:14px; line-height:1.5; }
+
+    /* SIDEBAR */
+    .sidebar { width:var(--sidebar-w); min-width:var(--sidebar-w); height:100vh; background:var(--green-deep); display:flex; flex-direction:column; position:fixed; left:0;top:0;bottom:0; z-index:100; border-right:1px solid var(--green-border); }
+    .sidebar-logo { padding:1.5rem 1.5rem 1.25rem; border-bottom:1px solid var(--green-border); }
+    .logo-mark { display:flex;align-items:center;gap:0.75rem;margin-bottom:0.35rem; }
+    .logo-icon { width:30px;height:30px;border:1px solid var(--gold-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+    .logo-icon svg { width:14px;height:14px;stroke:var(--gold); }
+    .logo-wordmark { font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;color:var(--text-cream);letter-spacing:0.06em; }
+    .logo-school { font-family:'EB Garamond',serif;font-size:0.78rem;font-style:italic;color:var(--text-cream-dim);letter-spacing:0.03em;padding-left:2.8rem; }
+    .sidebar-nav { flex:1;padding:1rem 0;overflow-y:auto; }
+    .nav-section-label { font-size:0.65rem;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-cream-dim);padding:0.6rem 1.5rem 0.3rem;margin-top:0.5rem; }
+    .nav-item { display:flex;align-items:center;gap:0.75rem;padding:0.6rem 1.5rem;color:rgba(247,243,234,0.65);text-decoration:none;font-size:0.875rem;font-weight:500;cursor:pointer;transition:color 0.15s,background 0.15s;border-left:2px solid transparent;letter-spacing:0.01em; }
+    .nav-item:hover { color:var(--text-cream);background:var(--green-hover); }
+    .nav-item.active { color:var(--text-cream);border-left-color:var(--gold);background:rgba(201,160,40,0.08); }
+    .nav-item svg { width:16px;height:16px;stroke:currentColor;flex-shrink:0;opacity:0.85; }
+    .nav-badge { margin-left:auto;background:var(--gold);color:var(--green-deepest);font-size:0.65rem;font-weight:700;padding:0.15rem 0.45rem;border-radius:20px; }
+    .sidebar-user { border-top:1px solid var(--green-border);padding:1rem 1.25rem;display:flex;align-items:center;gap:0.75rem; }
+    .user-avatar { width:32px;height:32px;border-radius:50%;background:var(--green-mid);border:1px solid var(--gold-muted);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:0.8rem;color:var(--gold);flex-shrink:0; }
+    .user-info { flex:1;min-width:0; }
+    .user-name { font-size:0.825rem;font-weight:500;color:var(--text-cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .user-role { font-size:0.72rem;color:var(--text-cream-dim);font-style:italic;font-family:'EB Garamond',serif; }
+    .user-settings { width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--text-cream-dim);cursor:pointer;border-radius:4px;transition:color 0.15s,background 0.15s; }
+    .user-settings:hover { color:var(--text-cream);background:var(--green-hover); }
+    .user-settings svg { width:15px;height:15px;stroke:currentColor; }
+
+    /* MAIN */
+    .main { margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden; }
+    .topbar { background:var(--cream);border-bottom:1px solid var(--cream-border);padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0; }
+    .topbar-left { display:flex;align-items:center;gap:0.5rem; }
+    .breadcrumb { display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;color:var(--text-muted); }
+    .breadcrumb a { color:var(--text-muted);text-decoration:none; }
+    .breadcrumb a:hover { color:var(--text-secondary); }
+    .breadcrumb-sep { color:var(--cream-border); }
+    .breadcrumb-current { font-weight:500;color:var(--text-secondary); }
+    .topbar-right { display:flex;align-items:center;gap:0.75rem; }
+    .semester-badge { font-family:'EB Garamond',serif;font-size:0.85rem;font-style:italic;color:var(--text-muted);background:var(--cream-warm);border:1px solid var(--cream-border);padding:0.3rem 0.85rem;border-radius:20px; }
+    .topbar-icon-btn { width:32px;height:32px;border-radius:var(--radius);border:1px solid var(--cream-border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:border-color 0.15s;position:relative;color:var(--text-secondary); }
+    .topbar-icon-btn:hover { border-color:var(--gold-muted); }
+    .topbar-icon-btn svg { width:15px;height:15px;stroke:currentColor; }
+    .notif-dot { position:absolute;top:6px;right:6px;width:6px;height:6px;background:var(--gold);border-radius:50%;border:1.5px solid var(--cream); }
+    .page-body { flex:1;overflow-y:auto;padding:2rem 2rem 4rem; }
+
+    /* PAGE HEADER */
+    .page-header { display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:2rem; }
+    .page-header-left {}
+    .page-eyebrow { font-family:'EB Garamond',serif;font-size:0.85rem;font-style:italic;color:var(--text-muted);letter-spacing:0.04em;margin-bottom:0.25rem; }
+    .page-title { font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:600;color:var(--text-primary);letter-spacing:-0.01em; }
+
+    /* INTEGRATION GRID */
+    .integrations-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;margin-bottom:2rem; }
+
+    .int-card {
+      background:var(--surface);border:1px solid var(--cream-border);
+      border-radius:var(--radius);box-shadow:var(--shadow-sm);
+      overflow:hidden;cursor:pointer;
+      transition:box-shadow 0.15s,border-color 0.15s;
+    }
+    .int-card:hover { box-shadow:var(--shadow-md);border-color:var(--gold-muted); }
+    .int-card.active-int { border-color:var(--gold-muted); }
+
+    .int-card-head { padding:1.25rem;border-bottom:1px solid var(--cream-border);display:flex;align-items:flex-start;justify-content:space-between;gap:1rem; }
+    .int-logo { width:44px;height:44px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid var(--cream-border); }
+    .int-logo svg { width:22px;height:22px; }
+    .int-logo.canvas-logo { background:#e03f2d;border-color:#c03020; }
+    .int-logo.renweb-logo { background:#1d4c8c;border-color:#163a6e; }
+    .int-logo.email-logo { background:var(--green-deep);border-color:var(--green-mid); }
+    .int-logo.lti-logo { background:#2c3e50;border-color:#1a252f; }
+    .int-logo.api-logo { background:var(--green-deepest);border-color:var(--green-border); }
+    .int-logo.webhook-logo { background:#5e35b1;border-color:#4527a0; }
+
+    .int-status-pill { font-size:0.68rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:20px;white-space:nowrap;flex-shrink:0; }
+    .int-status-pill.connected { background:var(--flag-green-bg);color:var(--flag-green);border:1px solid rgba(42,107,69,0.2); }
+    .int-status-pill.configuring { background:var(--gold-light);color:var(--amber);border:1px solid var(--gold-muted); }
+    .int-status-pill.available { background:var(--cream-warm);color:var(--text-muted);border:1px solid var(--cream-border); }
+    .int-status-pill.beta { background:rgba(94,53,177,0.08);color:#5e35b1;border:1px solid rgba(94,53,177,0.2); }
+
+    .int-card-body { padding:1.1rem 1.25rem; }
+    .int-name { font-family:'Playfair Display',serif;font-size:0.95rem;font-weight:600;color:var(--text-primary);margin-bottom:0.25rem; }
+    .int-desc { font-size:0.8rem;color:var(--text-muted);line-height:1.5; }
+
+    .int-card-footer { padding:0.85rem 1.25rem;border-top:1px solid var(--cream-border);background:var(--cream);display:flex;align-items:center;justify-content:space-between; }
+    .int-footer-note { font-size:0.72rem;color:var(--text-muted);font-style:italic;font-family:'EB Garamond',serif; }
+
+    /* DETAIL PANEL */
+    .detail-panel { display:none; }
+    .detail-panel.show { display:block; }
+
+    .detail-card { background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);box-shadow:var(--shadow-md);overflow:hidden;margin-bottom:1.5rem; }
+    .detail-head {
+      padding:1.25rem 1.5rem;border-bottom:1px solid var(--cream-border);
+      display:flex;align-items:center;gap:1.25rem;
+    }
+    .detail-head-logo { width:48px;height:48px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+    .detail-title { font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:600;color:var(--text-primary); }
+    .detail-sub { font-size:0.8rem;color:var(--text-muted);margin-top:0.15rem; }
+    .detail-head-right { margin-left:auto;display:flex;align-items:center;gap:0.75rem; }
+
+    .detail-body { padding:1.5rem; }
+    .detail-section { margin-bottom:1.75rem; }
+    .detail-section:last-child { margin-bottom:0; }
+    .detail-section-title { font-size:0.72rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:1px solid var(--cream-border); }
+
+    /* STATUS BANNER */
+    .status-banner { display:flex;align-items:center;gap:0.9rem;padding:0.9rem 1.1rem;border-radius:var(--radius);margin-bottom:1.25rem;border:1px solid; }
+    .status-banner.green { background:var(--flag-green-bg);border-color:rgba(42,107,69,0.2); }
+    .status-banner.amber { background:var(--gold-light);border-color:var(--gold-muted); }
+    .status-banner .status-dot { width:10px;height:10px;border-radius:50%;flex-shrink:0; }
+    .status-banner.green .status-dot { background:var(--flag-green); }
+    .status-banner.amber .status-dot { background:var(--gold);animation:pulse 1.2s ease-in-out infinite alternate; }
+    @keyframes pulse { from{opacity:0.4}to{opacity:1} }
+    .status-banner-text { flex:1;font-size:0.825rem; }
+    .status-banner.green .status-banner-text { color:var(--flag-green); }
+    .status-banner.amber .status-banner-text { color:var(--amber); }
+    .status-banner-title { font-weight:600;margin-bottom:0.1rem; }
+    .status-banner-sub { font-size:0.775rem;opacity:0.8; }
+    .status-banner-time { font-size:0.72rem;opacity:0.65;font-family:'EB Garamond',serif;font-style:italic;white-space:nowrap; }
+
+    /* CONFIG FIELDS */
+    .config-row { display:flex;align-items:center;gap:0.75rem;padding:0.75rem 0;border-bottom:1px solid var(--cream-border); }
+    .config-row:last-child { border-bottom:none; }
+    .config-label { width:180px;font-size:0.8rem;font-weight:500;color:var(--text-secondary);flex-shrink:0; }
+    .config-value { flex:1;font-size:0.8rem;color:var(--text-primary);font-family:'EB Garamond',serif; }
+    .config-value code { font-family:monospace;font-size:0.78rem;background:var(--cream-warm);border:1px solid var(--cream-border);padding:0.15rem 0.4rem;border-radius:3px;color:var(--text-primary); }
+    .config-action { font-size:0.75rem;color:var(--amber);cursor:pointer;font-weight:500;white-space:nowrap; }
+    .config-action:hover { color:var(--text-primary); }
+
+    /* SYNC STATS */
+    .sync-stats-row { display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.25rem; }
+    .sync-stat { background:var(--cream);border:1px solid var(--cream-border);border-radius:var(--radius);padding:0.85rem 1rem; }
+    .sync-stat-label { font-size:0.68rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.3rem; }
+    .sync-stat-val { font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:600;color:var(--text-primary); }
+    .sync-stat-sub { font-size:0.72rem;color:var(--text-muted);font-style:italic;font-family:'EB Garamond',serif;margin-top:0.15rem; }
+
+    /* PERMISSION TOGGLES */
+    .perm-row { display:flex;align-items:flex-start;gap:0.75rem;padding:0.75rem 0;border-bottom:1px solid var(--cream-border); }
+    .perm-row:last-child { border-bottom:none; }
+    .perm-text { flex:1; }
+    .perm-label { font-size:0.825rem;font-weight:500;color:var(--text-primary);margin-bottom:0.1rem; }
+    .perm-desc { font-size:0.75rem;color:var(--text-muted);line-height:1.4; }
+    .toggle { position:relative;width:36px;height:20px;flex-shrink:0;cursor:pointer; }
+    .toggle input { opacity:0;width:0;height:0;position:absolute; }
+    .toggle-track { position:absolute;inset:0;background:var(--cream-border);border-radius:10px;transition:background 0.2s; }
+    .toggle input:checked + .toggle-track { background:var(--flag-green); }
+    .toggle-thumb { position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:transform 0.2s; }
+    .toggle input:checked ~ .toggle-thumb { transform:translateX(16px); }
+
+    /* SYNC LOG */
+    .sync-log { }
+    .log-row { display:flex;align-items:flex-start;gap:0.75rem;padding:0.7rem 0;border-bottom:1px solid var(--cream-border);font-size:0.8rem; }
+    .log-row:last-child { border-bottom:none; }
+    .log-icon { width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px; }
+    .log-icon.ok { background:var(--flag-green-bg); }
+    .log-icon.ok svg { stroke:var(--flag-green);width:10px;height:10px;stroke-width:2.5; }
+    .log-icon.warn { background:var(--flag-amber-bg); }
+    .log-icon.warn svg { stroke:var(--amber);width:10px;height:10px;stroke-width:2.5; }
+    .log-icon.info { background:var(--gold-light); }
+    .log-icon.info svg { stroke:var(--amber);width:10px;height:10px; }
+    .log-text { flex:1;color:var(--text-secondary);line-height:1.45; }
+    .log-text strong { color:var(--text-primary);font-weight:500; }
+    .log-time { font-size:0.72rem;color:var(--text-muted);font-style:italic;font-family:'EB Garamond',serif;white-space:nowrap; }
+
+    /* STEP PROGRESS for configuring */
+    .setup-steps { }
+    .setup-step { display:flex;gap:1rem;padding:0.85rem 0;border-bottom:1px solid var(--cream-border); }
+    .setup-step:last-child { border-bottom:none; }
+    .step-icon { width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.72rem;font-weight:700; }
+    .step-icon.done-s { background:var(--flag-green);color:#fff; }
+    .step-icon.doing { background:var(--gold);color:var(--green-deepest); }
+    .step-icon.todo { background:var(--cream-warm);color:var(--text-muted);border:1px solid var(--cream-border); }
+    .setup-step-title { font-size:0.85rem;font-weight:500;color:var(--text-primary);margin-bottom:0.15rem; }
+    .setup-step-sub { font-size:0.775rem;color:var(--text-muted);line-height:1.45; }
+    .setup-step-tag { display:inline-block;font-size:0.68rem;font-weight:600;padding:0.15rem 0.5rem;border-radius:3px;margin-top:0.3rem; }
+    .setup-step-tag.done-t { background:var(--flag-green-bg);color:var(--flag-green); }
+    .setup-step-tag.active-t { background:var(--gold-light);color:var(--amber); }
+    .setup-step-tag.pending-t { background:var(--cream-warm);color:var(--text-muted);border:1px solid var(--cream-border); }
+
+    /* FORM */
+    .form-label-sm { display:block;font-size:0.72rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.35rem; }
+    .form-input { width:100%;padding:0.6rem 0.9rem;border:1px solid var(--cream-border);background:var(--surface);border-radius:var(--radius);font-size:0.875rem;color:var(--text-primary);font-family:'Inter',sans-serif;transition:border-color 0.15s,box-shadow 0.15s;outline:none; }
+    .form-input:focus { border-color:var(--gold-muted);box-shadow:0 0 0 3px var(--gold-light); }
+    .form-input[readonly] { background:var(--cream);color:var(--text-muted);cursor:default; }
+    .form-row { margin-bottom:1rem; }
+    .form-row:last-child { margin-bottom:0; }
+    .form-row-two { display:grid;grid-template-columns:1fr 1fr;gap:1rem; }
+
+    /* BUTTONS */
+    .btn { display:inline-flex;align-items:center;gap:0.45rem;padding:0.6rem 1.25rem;border-radius:var(--radius);font-size:0.825rem;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;transition:all 0.15s;border:none;letter-spacing:0.01em;text-decoration:none; }
+    .btn svg { width:14px;height:14px;stroke:currentColor; }
+    .btn-primary { background:var(--green-deep);color:var(--text-cream); }
+    .btn-primary:hover { background:var(--green-mid); }
+    .btn-gold { background:var(--gold);color:var(--green-deepest); }
+    .btn-gold:hover { background:#d4aa2e; }
+    .btn-ghost { background:transparent;color:var(--text-secondary);border:1px solid var(--cream-border); }
+    .btn-ghost:hover { background:var(--cream-warm); }
+    .btn-sm { padding:0.4rem 0.85rem;font-size:0.775rem; }
+    .btn-danger { background:var(--flag-red);color:#fff; }
+    .btn-danger:hover { background:#a93226; }
+
+    .notice-box { display:flex;gap:0.75rem;background:var(--gold-light);border:1px solid var(--gold-muted);border-radius:var(--radius);padding:0.9rem 1rem;margin-bottom:1.25rem; }
+    .notice-box svg { width:16px;height:16px;stroke:var(--amber);flex-shrink:0;margin-top:1px; }
+    .notice-box-text { font-size:0.8rem;color:var(--amber);line-height:1.5; }
+    .notice-box-text strong { font-weight:600; }
+
+    /* TAB BAR */
+    .tab-bar { display:flex;gap:0;border-bottom:1px solid var(--cream-border);margin-bottom:2rem; }
+    .tab { padding:0.6rem 1.2rem;font-size:0.825rem;font-weight:500;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s;letter-spacing:0.01em; }
+    .tab:hover { color:var(--text-secondary); }
+    .tab.active { color:var(--text-primary);font-weight:600;border-bottom-color:var(--gold); }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+      <span class="logo-wordmark">Original</span>
+    </div>
+    <div class="logo-school">Southern Baptist Theological Seminary</div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section-label">Instructor</div>
+    <a href="original-dashboard.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard</a>
+    <a href="original-students.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Students</a>
+    <a href="original-course.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>Courses</a>
+    <a href="original-flagged.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>Flagged<span class="nav-badge">5</span></a>
+    <a href="original-submit.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Submit Writing</a>
+    <div class="nav-section-label">Analysis</div>
+    <a href="original-features.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Feature Profile</a>
+    <a href="original-quantum.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>Quantum State</a>
+    <a href="original-decomposition.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Interference</a>
+    <a href="original-reports.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Reports</a>
+    <div class="nav-section-label">Administration</div>
+    <a href="original-admin.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Admin</a>
+    <a href="original-integrations.html" class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 012 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>Integrations</a>
+    <div class="nav-section-label">Account</div>
+    <a href="original-settings.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
+  </div>
+  <div class="sidebar-user">
+    <div class="user-avatar">MP</div>
+    <div class="user-info"><div class="user-name">Michael Patterson</div><div class="user-role">Administrator</div></div>
+    <a href="original-settings.html" class="user-settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></a>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="breadcrumb">
+        <a href="original-admin.html">Admin</a>
+        <span class="breadcrumb-sep">›</span>
+        <span class="breadcrumb-current">Integrations</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="semester-badge">Spring 2025</span>
+      <div class="topbar-icon-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <span class="notif-dot"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-body">
+
+    <div class="page-header">
+      <div class="page-header-left">
+        <div class="page-eyebrow">Administration</div>
+        <h1 class="page-title">Integrations</h1>
+      </div>
+      <button class="btn btn-ghost" onclick="window.history.back()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><polyline points="15 18 9 12 15 6"/></svg>
+        Back to Admin
+      </button>
+    </div>
+
+    <!-- Integration cards -->
+    <div class="integrations-grid">
+
+      <!-- Canvas -->
+      <div class="int-card active-int" id="canvas-card" onclick="showDetail('canvas')">
+        <div class="int-card-head">
+          <div class="int-logo canvas-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="white"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8l4 4-4 4"/></svg>
+          </div>
+          <span class="int-status-pill" id="canvas-card-pill">Loading…</span>
+        </div>
+        <div class="int-card-body">
+          <div class="int-name">Canvas LMS</div>
+          <div class="int-desc">Automatically sync course rosters, assignments, and submission events from Canvas into Original.</div>
+        </div>
+        <div class="int-card-footer">
+          <span class="int-footer-note">Last sync: 4 min ago</span>
+          <button class="btn btn-ghost btn-sm">Configure</button>
+        </div>
+      </div>
+
+      <!-- RenWeb / FACTS -->
+      <div class="int-card" onclick="showDetail('renweb')">
+        <div class="int-card-head">
+          <div class="int-logo renweb-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="white"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 17h7M17.5 14v7"/></svg>
+          </div>
+          <span class="int-status-pill configuring">Configuring</span>
+        </div>
+        <div class="int-card-body">
+          <div class="int-name">RenWeb / FACTS SIS</div>
+          <div class="int-desc">Pull student identity and enrollment data directly from FACTS to auto-populate student rosters.</div>
+        </div>
+        <div class="int-card-footer">
+          <span class="int-footer-note">Setup in progress — 2 steps remaining</span>
+          <button class="btn btn-gold btn-sm">Continue Setup</button>
+        </div>
+      </div>
+
+      <!-- Email -->
+      <div class="int-card" onclick="showDetail('email')">
+        <div class="int-card-head">
+          <div class="int-logo email-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="white"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          </div>
+          <span class="int-status-pill available">Not connected</span>
+        </div>
+        <div class="int-card-body">
+          <div class="int-name">Email Notifications</div>
+          <div class="int-desc">Send automated alerts to instructors when submissions are flagged or baselines are ready.</div>
+        </div>
+        <div class="int-card-footer">
+          <span class="int-footer-note">SMTP or SendGrid supported</span>
+          <button class="btn btn-primary btn-sm">Connect</button>
+        </div>
+      </div>
+
+      <!-- LTI -->
+      <div class="int-card" onclick="showDetail('lti')">
+        <div class="int-card-head">
+          <div class="int-logo lti-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="white"><path d="M18 3a3 3 0 00-3 3v12a3 3 0 003 3 3 3 0 003-3 3 3 0 00-3-3H6a3 3 0 00-3 3 3 3 0 003 3 3 3 0 003-3V6a3 3 0 00-3-3 3 3 0 00-3 3 3 3 0 003 3h12a3 3 0 003-3 3 3 0 00-3-3z"/></svg>
+          </div>
+          <span class="int-status-pill available">Available</span>
+        </div>
+        <div class="int-card-body">
+          <div class="int-name">LTI 1.3 Connector</div>
+          <div class="int-desc">Embed Original as a learning tool directly inside any LTI-compatible LMS, including Moodle and Blackboard.</div>
+        </div>
+        <div class="int-card-footer">
+          <span class="int-footer-note">Compatible with LTI 1.3 / Advantage</span>
+          <button class="btn btn-primary btn-sm">Set Up</button>
+        </div>
+      </div>
+
+      <!-- API -->
+      <div class="int-card" onclick="showDetail('api')">
+        <div class="int-card-head">
+          <div class="int-logo api-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="#c9a028"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          </div>
+          <span class="int-status-pill available">Available</span>
+        </div>
+        <div class="int-card-body">
+          <div class="int-name">REST API</div>
+          <div class="int-desc">Programmatic access to submit writing, retrieve scores, and manage baselines from any external system.</div>
+        </div>
+        <div class="int-card-footer">
+          <span class="int-footer-note">API keys issued per institution</span>
+          <button class="btn btn-ghost btn-sm">View Docs</button>
+        </div>
+      </div>
+
+      <!-- Webhooks -->
+      <div class="int-card" onclick="showDetail('webhook')">
+        <div class="int-card-head">
+          <div class="int-logo webhook-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="white"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          </div>
+          <span class="int-status-pill beta">Beta</span>
+        </div>
+        <div class="int-card-body">
+          <div class="int-name">Webhooks</div>
+          <div class="int-desc">Push real-time events — flags, decisions, baseline completions — to your own endpoints for custom workflows.</div>
+        </div>
+        <div class="int-card-footer">
+          <span class="int-footer-note">Event-driven, HMAC-signed payloads</span>
+          <button class="btn btn-ghost btn-sm">Configure</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── CANVAS DETAIL ──────────────────────────────────────── -->
+    <div class="detail-panel show" id="detail-canvas">
+      <div class="detail-card">
+        <div class="detail-head">
+          <div class="detail-head-logo int-logo canvas-logo" style="width:48px;height:48px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="white"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8l4 4-4 4"/></svg>
+          </div>
+          <div>
+            <div class="detail-title">Canvas LMS</div>
+            <div class="detail-sub" id="canvas-head-sub">Instructure Canvas</div>
+          </div>
+          <div class="detail-head-right">
+            <span class="int-status-pill" id="canvas-status-pill">Loading…</span>
+            <button class="btn btn-ghost btn-sm" id="canvas-disconnect-btn" style="display:none" onclick="disconnectCanvas()">Disconnect</button>
+            <button class="btn btn-primary btn-sm" id="canvas-connect-btn" style="display:none" onclick="showConnectModal()">Connect Canvas</button>
+          </div>
+        </div>
+
+        <div class="detail-body">
+          <div class="status-banner green">
+            <div class="status-dot"></div>
+            <div class="status-banner-text">
+              <div class="status-banner-title">Sync healthy — all systems operational</div>
+              <div class="status-banner-sub">Roster and assignment data flowing normally from sbts.instructure.com</div>
+            </div>
+            <div class="status-banner-time">Last synced 4 min ago</div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="tab-bar">
+            <div class="tab active" onclick="switchTab(event,'canvas','overview')">Overview</div>
+            <div class="tab" onclick="switchTab(event,'canvas','permissions')">Permissions</div>
+            <div class="tab" onclick="switchTab(event,'canvas','sync-log')">Sync Log</div>
+            <div class="tab" onclick="switchTab(event,'canvas','config')">Configuration</div>
+          </div>
+
+          <div class="tab-panel active" id="canvas-overview">
+            <div class="sync-stats-row">
+              <div class="sync-stat">
+                <div class="sync-stat-label">Courses synced</div>
+                <div class="sync-stat-val">14</div>
+                <div class="sync-stat-sub">All active courses</div>
+              </div>
+              <div class="sync-stat">
+                <div class="sync-stat-label">Students imported</div>
+                <div class="sync-stat-val">182</div>
+                <div class="sync-stat-sub">From Canvas rosters</div>
+              </div>
+              <div class="sync-stat">
+                <div class="sync-stat-label">Assignments mapped</div>
+                <div class="sync-stat-val">47</div>
+                <div class="sync-stat-sub">Eligible for analysis</div>
+              </div>
+              <div class="sync-stat">
+                <div class="sync-stat-label">Submissions received</div>
+                <div class="sync-stat-val">124</div>
+                <div class="sync-stat-sub">Via Canvas webhooks</div>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <div class="detail-section-title">Connection Details</div>
+              <div class="config-row">
+                <div class="config-label">Canvas instance URL</div>
+                <div class="config-value" id="canvas-reg-url">—</div>
+                <span class="config-action">Edit</span>
+              </div>
+              <div class="config-row">
+                <div class="config-label">Authentication</div>
+                <div class="config-value">LTI 1.3 / OAuth 2.0 — Developer Key</div>
+              </div>
+              <div class="config-row" id="canvas-client-row">
+                <div class="config-label">Client ID</div>
+                <div class="config-value"><code id="canvas-client-id">—</code></div>
+              </div>
+              <div class="config-row">
+                <div class="config-label">Sync frequency</div>
+                <div class="config-value">Every 15 minutes — roster + assignments</div>
+                <span class="config-action">Change</span>
+              </div>
+              <div class="config-row">
+                <div class="config-label">Webhook secret</div>
+                <div class="config-value"><code>wh_••••••••••••2b9d</code></div>
+                <span class="config-action">Regenerate</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-panel" id="canvas-permissions">
+            <div class="notice-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <div class="notice-box-text"><strong>FERPA Notice:</strong> Original only reads data necessary for stylometric analysis. No submission text is stored in Canvas or transmitted outside your institution's data boundary.</div>
+            </div>
+            <div class="detail-section">
+              <div class="detail-section-title">Data Permissions — what Canvas shares with Original</div>
+              <div class="perm-row">
+                <div class="perm-text"><div class="perm-label">Course roster (student names + IDs)</div><div class="perm-desc">Required to link submissions to student profiles and baseline fingerprints.</div></div>
+                <label class="toggle"><input type="checkbox" checked disabled /><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+              </div>
+              <div class="perm-row">
+                <div class="perm-text"><div class="perm-label">Assignment metadata</div><div class="perm-desc">Assignment names, due dates, and rubric data to contextualise submitted work.</div></div>
+                <label class="toggle"><input type="checkbox" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+              </div>
+              <div class="perm-row">
+                <div class="perm-text"><div class="perm-label">Submission text (on instructor trigger)</div><div class="perm-desc">The full text of a submission is only pulled when an instructor initiates analysis.</div></div>
+                <label class="toggle"><input type="checkbox" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+              </div>
+              <div class="perm-row">
+                <div class="perm-text"><div class="perm-label">Submission timestamps</div><div class="perm-desc">Used to match submission timing to known student activity patterns.</div></div>
+                <label class="toggle"><input type="checkbox" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+              </div>
+              <div class="perm-row">
+                <div class="perm-text"><div class="perm-label">Write scores back to Canvas Gradebook</div><div class="perm-desc">Optionally post a stylometric score annotation alongside grades. Disabled by default.</div></div>
+                <label class="toggle"><input type="checkbox" /><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-panel" id="canvas-sync-log">
+            <div class="detail-section">
+              <div class="detail-section-title">Recent Sync Events</div>
+              <div class="sync-log">
+                <div class="log-row"><div class="log-icon ok"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div><div class="log-text"><strong>Roster sync complete</strong> — 182 students, 14 courses updated</div><div class="log-time">Today, 09:41</div></div>
+                <div class="log-row"><div class="log-icon ok"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div><div class="log-text"><strong>Submission received</strong> — James Whitfield · THEO 501 · Research Paper</div><div class="log-time">Today, 09:22</div></div>
+                <div class="log-row"><div class="log-icon ok"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div><div class="log-text"><strong>Assignment sync</strong> — 3 new assignments imported from HIST 410</div><div class="log-time">Today, 09:00</div></div>
+                <div class="log-row"><div class="log-icon warn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><div class="log-text"><strong>Webhook retry</strong> — submission event for Marcus Reyes delayed, retried successfully after 12s</div><div class="log-time">Yesterday, 16:48</div></div>
+                <div class="log-row"><div class="log-icon ok"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div><div class="log-text"><strong>OAuth token refreshed</strong> — automatic rotation successful</div><div class="log-time">Yesterday, 08:00</div></div>
+                <div class="log-row"><div class="log-icon info"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><div class="log-text"><strong>Scheduled maintenance</strong> — Canvas API was unavailable for 4 minutes at 02:00 UTC; sync queued and completed</div><div class="log-time">Mar 14, 02:04</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-panel" id="canvas-config">
+            <div class="detail-section">
+              <div class="detail-section-title">Registration Details</div>
+              <div class="form-row">
+                <label class="form-label-sm">Canvas Platform URL (issuer)</label>
+                <input class="form-input" type="text" id="cfg-platform-iss" placeholder="https://seminary.instructure.com" />
+              </div>
+              <div class="form-row">
+                <label class="form-label-sm">Client ID</label>
+                <input class="form-input" type="text" id="cfg-client-id" placeholder="From Canvas Developer Key" />
+              </div>
+              <div class="form-row">
+                <label class="form-label-sm">Deployment ID <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+                <input class="form-input" type="text" id="cfg-deployment-id" placeholder="Leave blank to match all deployments" />
+              </div>
+              <div class="form-row">
+                <label class="form-label-sm">Canvas Auth Endpoint</label>
+                <input class="form-input" type="text" id="cfg-auth-endpoint" placeholder="https://seminary.instructure.com/api/lti/authorize_redirect" />
+              </div>
+              <div class="form-row">
+                <label class="form-label-sm">Canvas JWKS URL</label>
+                <input class="form-input" type="text" id="cfg-jwks-url" placeholder="https://seminary.instructure.com/api/lti/security/jwks" />
+              </div>
+              <div class="form-row">
+                <label class="form-label-sm">Registration label</label>
+                <input class="form-input" type="text" id="cfg-label" placeholder="Canvas" />
+              </div>
+            </div>
+            <div id="canvas-save-msg" style="display:none;padding:0.6rem 0.9rem;border-radius:4px;font-size:0.8rem;margin-bottom:0.75rem;"></div>
+            <div style="display:flex;gap:0.75rem;justify-content:flex-end;padding-top:1rem;border-top:1px solid var(--cream-border);">
+              <button class="btn btn-ghost" id="canvas-save-btn" onclick="saveCanvasConfig()">Save Changes</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ── RENWEB DETAIL ──────────────────────────────────────── -->
+    <div class="detail-panel" id="detail-renweb">
+      <div class="detail-card">
+        <div class="detail-head">
+          <div class="detail-head-logo int-logo renweb-logo" style="width:48px;height:48px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="white"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 17h7M17.5 14v7"/></svg>
+          </div>
+          <div>
+            <div class="detail-title">RenWeb / FACTS SIS</div>
+            <div class="detail-sub">Student Information System — SBTS</div>
+          </div>
+          <div class="detail-head-right">
+            <span class="int-status-pill configuring">Configuring</span>
+            <button class="btn btn-gold btn-sm">Continue Setup</button>
+          </div>
+        </div>
+
+        <div class="detail-body">
+          <div class="status-banner amber">
+            <div class="status-dot"></div>
+            <div class="status-banner-text">
+              <div class="status-banner-title">Setup in progress — 2 steps remaining</div>
+              <div class="status-banner-sub">API credentials verified. Awaiting field mapping and test import.</div>
+            </div>
+            <div class="status-banner-time">Started Mar 12</div>
+          </div>
+
+          <div class="detail-section">
+            <div class="detail-section-title">Setup Progress</div>
+            <div class="setup-steps">
+              <div class="setup-step">
+                <div class="step-icon done-s"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" width="12" height="12"><polyline points="20 6 9 17 4 12" stroke="white"/></svg></div>
+                <div>
+                  <div class="setup-step-title">API credentials</div>
+                  <div class="setup-step-sub">FACTS API key and school code entered and verified. Connection to SBTS FACTS instance confirmed.</div>
+                  <span class="setup-step-tag done-t">Complete</span>
+                </div>
+              </div>
+              <div class="setup-step">
+                <div class="step-icon done-s"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" width="12" height="12"><polyline points="20 6 9 17 4 12" stroke="white"/></svg></div>
+                <div>
+                  <div class="setup-step-title">Student data preview</div>
+                  <div class="setup-step-sub">Sample import of 10 student records reviewed and approved by administrator.</div>
+                  <span class="setup-step-tag done-t">Complete</span>
+                </div>
+              </div>
+              <div class="setup-step">
+                <div class="step-icon doing">3</div>
+                <div>
+                  <div class="setup-step-title">Field mapping</div>
+                  <div class="setup-step-sub">Map FACTS student fields (ID, name, email, enrollment status) to Original's student schema. Required before full import.</div>
+                  <span class="setup-step-tag active-t">In Progress</span>
+                </div>
+              </div>
+              <div class="setup-step">
+                <div class="step-icon todo">4</div>
+                <div>
+                  <div class="setup-step-title">Full import & sync schedule</div>
+                  <div class="setup-step-sub">Run the initial full roster import and configure automatic nightly sync to keep student records current.</div>
+                  <span class="setup-step-tag pending-t">Pending</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <div class="detail-section-title">Field Mapping — FACTS → Original</div>
+            <div class="config-row"><div class="config-label">Student ID</div><div class="config-value"><code>FACTS: student_id</code> → <code>Original: student_uid</code></div><span class="config-action">Edit</span></div>
+            <div class="config-row"><div class="config-label">Full name</div><div class="config-value"><code>FACTS: first_name + last_name</code> → <code>Original: display_name</code></div><span class="config-action">Edit</span></div>
+            <div class="config-row"><div class="config-label">Email address</div><div class="config-value"><code>FACTS: email_address</code> → <code>Original: email</code></div><span class="config-action">Edit</span></div>
+            <div class="config-row"><div class="config-label">Enrollment status</div><div class="config-value"><code>FACTS: enrollment_status</code> → <code>Original: is_active</code></div><span class="config-action">Edit</span></div>
+            <div class="config-row"><div class="config-label">Grade level</div><div class="config-value" style="color:var(--text-muted);font-style:italic;">Not mapped — optional</div><span class="config-action" style="color:var(--flag-green)">Map field</span></div>
+          </div>
+
+          <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+            <button class="btn btn-ghost">Save Draft</button>
+            <button class="btn btn-gold">Confirm Mapping → Run Import</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ── EMAIL DETAIL ──────────────────────────────────────── -->
+    <div class="detail-panel" id="detail-email">
+      <div class="detail-card">
+        <div class="detail-head">
+          <div class="detail-head-logo int-logo email-logo" style="width:48px;height:48px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="white"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          </div>
+          <div><div class="detail-title">Email Notifications</div><div class="detail-sub">Automated alerts for flagged submissions and baseline updates</div></div>
+          <div class="detail-head-right">
+            <span class="int-status-pill available">Not connected</span>
+          </div>
+        </div>
+        <div class="detail-body">
+          <div class="notice-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <div class="notice-box-text">Connect an SMTP server or SendGrid account to enable automated email alerts. Instructors can configure their own notification preferences in <strong>Settings → Notifications</strong>.</div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-section-title">Connection Method</div>
+            <div class="form-row">
+              <label class="form-label-sm">Provider</label>
+              <select style="width:100%;padding:0.6rem 0.9rem;border:1px solid var(--cream-border);border-radius:var(--radius);font-size:0.875rem;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238a7060' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 0.75rem center;padding-right:2.5rem;">
+                <option>SMTP (custom server)</option>
+                <option>SendGrid</option>
+                <option>Amazon SES</option>
+                <option>Postmark</option>
+              </select>
+            </div>
+            <div class="form-row-two">
+              <div class="form-row" style="margin-bottom:0"><label class="form-label-sm">SMTP Host</label><input class="form-input" type="text" placeholder="mail.sbts.edu" /></div>
+              <div class="form-row" style="margin-bottom:0"><label class="form-label-sm">Port</label><input class="form-input" type="number" placeholder="587" /></div>
+            </div>
+            <div class="form-row-two" style="margin-top:1rem;">
+              <div class="form-row" style="margin-bottom:0"><label class="form-label-sm">Username</label><input class="form-input" type="text" placeholder="original@sbts.edu" /></div>
+              <div class="form-row" style="margin-bottom:0"><label class="form-label-sm">Password</label><input class="form-input" type="password" placeholder="••••••••••" /></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+            <button class="btn btn-ghost">Send Test Email</button>
+            <button class="btn btn-primary">Save & Connect</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- placeholders for LTI / API / Webhook detail panels -->
+    <div class="detail-panel" id="detail-lti">
+      <div class="detail-card">
+        <div class="detail-head">
+          <div class="detail-head-logo int-logo lti-logo" style="width:48px;height:48px;"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="white"><path d="M18 3a3 3 0 00-3 3v12a3 3 0 003 3 3 3 0 003-3 3 3 0 00-3-3H6a3 3 0 00-3 3 3 3 0 003 3 3 3 0 003-3V6a3 3 0 00-3-3 3 3 0 00-3 3 3 3 0 003 3h12a3 3 0 003-3 3 3 0 00-3-3z"/></svg></div>
+          <div><div class="detail-title">LTI 1.3 Connector</div><div class="detail-sub">Embed Original inside any LTI-compatible LMS</div></div>
+          <div class="detail-head-right"><span class="int-status-pill available">Available</span></div>
+        </div>
+        <div class="detail-body">
+          <div class="notice-box"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><div class="notice-box-text">LTI 1.3 integration allows Original to be launched as an embedded tool from Moodle, Blackboard, D2L, and other platforms. You will need to register Original as an external tool in your LMS and paste the provided credentials here.</div></div>
+          <div class="detail-section">
+            <div class="detail-section-title">Original's LTI Credentials — provide these to your LMS</div>
+            <div class="config-row"><div class="config-label">OIDC Initiation URL</div><div class="config-value"><code id="lti-initiation-url"></code></div><span class="config-action" onclick="copyText('lti-initiation-url')">Copy</span></div>
+            <div class="config-row"><div class="config-label">Launch / Redirect URI</div><div class="config-value"><code id="lti-launch-url"></code></div><span class="config-action" onclick="copyText('lti-launch-url')">Copy</span></div>
+            <div class="config-row"><div class="config-label">JWKS URL</div><div class="config-value"><code id="lti-jwks-url"></code></div><span class="config-action" onclick="copyText('lti-jwks-url')">Copy</span></div>
+            <div class="config-row"><div class="config-label">Tool Configuration JSON</div><div class="config-value"><code id="lti-config-url"></code></div><span class="config-action" onclick="copyText('lti-config-url')">Copy</span></div>
+          </div>
+          <div style="display:flex;gap:0.75rem;justify-content:flex-end;"><button class="btn btn-primary" onclick="window.open(document.getElementById('lti-config-url').textContent,'_blank')">View Config JSON →</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-panel" id="detail-api">
+      <div class="detail-card">
+        <div class="detail-head">
+          <div class="detail-head-logo int-logo api-logo" style="width:48px;height:48px;"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="#c9a028"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
+          <div><div class="detail-title">REST API</div><div class="detail-sub">Programmatic access for custom integrations</div></div>
+          <div class="detail-head-right"><button class="btn btn-gold btn-sm">Generate API Key</button></div>
+        </div>
+        <div class="detail-body">
+          <div class="detail-section">
+            <div class="detail-section-title">Institution API Keys</div>
+            <div class="config-row"><div class="config-label">Primary key</div><div class="config-value"><code>orig_live_••••••••••••••••4c2e</code></div><span class="config-action">Rotate</span></div>
+            <div class="config-row"><div class="config-label">Test key</div><div class="config-value"><code>orig_test_••••••••••••••••8b1f</code></div><span class="config-action">Regenerate</span></div>
+            <div class="config-row"><div class="config-label">Rate limit</div><div class="config-value">1,000 requests / hour</div><span class="config-action">Increase</span></div>
+            <div class="config-row"><div class="config-label">API version</div><div class="config-value">v2 (current) · v1 deprecated Mar 2026</div></div>
+          </div>
+          <div style="display:flex;gap:0.75rem;justify-content:flex-end;"><button class="btn btn-ghost">View API Docs ↗</button><button class="btn btn-primary">Manage Keys</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-panel" id="detail-webhook">
+      <div class="detail-card">
+        <div class="detail-head">
+          <div class="detail-head-logo int-logo webhook-logo" style="width:48px;height:48px;"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke="white"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg></div>
+          <div><div class="detail-title">Webhooks</div><div class="detail-sub">Event-driven real-time push to your endpoints</div></div>
+          <div class="detail-head-right"><span class="int-status-pill beta">Beta</span><button class="btn btn-primary btn-sm">Add Endpoint</button></div>
+        </div>
+        <div class="detail-body">
+          <div class="notice-box"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><div class="notice-box-text"><strong>Beta feature:</strong> Webhooks are functional but the payload schema may change before general availability. Pin your implementation to a specific event version to avoid breakage.</div></div>
+          <div class="detail-section">
+            <div class="detail-section-title">Available Events</div>
+            <div class="config-row"><div class="config-label"><code style="font-size:0.78rem">submission.flagged</code></div><div class="config-value">Fires when a submission exceeds the flag threshold</div></div>
+            <div class="config-row"><div class="config-label"><code style="font-size:0.78rem">submission.cleared</code></div><div class="config-value">Fires when a reviewer clears a flagged submission</div></div>
+            <div class="config-row"><div class="config-label"><code style="font-size:0.78rem">baseline.established</code></div><div class="config-value">Fires when a student's baseline reaches 3 samples</div></div>
+            <div class="config-row"><div class="config-label"><code style="font-size:0.78rem">review.decision</code></div><div class="config-value">Fires when an instructor records a review decision</div></div>
+          </div>
+          <p style="font-size:0.8rem;color:var(--text-muted);font-style:italic;font-family:'EB Garamond',serif;">No endpoints configured yet. Click <strong>Add Endpoint</strong> to register a URL.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let _canvasReg = null;   // active LTI registration or null
+
+  // ── Navigation ────────────────────────────────────────────────────────────
+  function showDetail(id) {
+    document.querySelectorAll('.detail-panel').forEach(p => p.classList.remove('show'));
+    document.getElementById('detail-' + id).classList.add('show');
+    document.getElementById('detail-' + id).scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function switchTab(e, integration, tab) {
+    const parent = e.target.closest('.detail-body');
+    parent.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    e.target.classList.add('active');
+    parent.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    parent.querySelector('#' + integration + '-' + tab).classList.add('active');
+  }
+
+  // ── Auth helper ────────────────────────────────────────────────────────────
+  function getToken() {
+    try { return JSON.parse(localStorage.getItem('original_auth') || '{}').access_token || ''; }
+    catch { return ''; }
+  }
+
+  async function apiFetch(path, opts = {}) {
+    const token = getToken();
+    const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const resp = await fetch(path, { ...opts, headers });
+    if (!resp.ok) throw Object.assign(new Error(resp.statusText), { status: resp.status });
+    return resp.status === 204 ? null : resp.json();
+  }
+
+  // ── LTI URL helpers ────────────────────────────────────────────────────────
+  function ltiBase() { return window.location.origin; }
+
+  function populateLTICredentials() {
+    const base = ltiBase();
+    document.getElementById('lti-initiation-url').textContent = base + '/lti/login';
+    document.getElementById('lti-launch-url').textContent     = base + '/lti/launch';
+    document.getElementById('lti-jwks-url').textContent       = base + '/lti/jwks';
+    document.getElementById('lti-config-url').textContent     = base + '/lti/config';
+  }
+
+  function copyText(elemId) {
+    const text = document.getElementById(elemId).textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const el = document.getElementById(elemId).closest('.config-row').querySelector('.config-action');
+      const orig = el.textContent;
+      el.textContent = 'Copied!';
+      setTimeout(() => el.textContent = orig, 1500);
+    });
+  }
+
+  // ── Canvas registration loading ────────────────────────────────────────────
+  async function loadCanvasRegistration() {
+    try {
+      const regs = await apiFetch('/api/v1/admin/canvas/registrations');
+      const active = regs.find(r => r.is_active) || regs[0] || null;
+      _canvasReg = active;
+      renderCanvasStatus(active);
+    } catch (err) {
+      if (err.status === 403 || err.status === 401) {
+        // Not an admin — show read-only view with "contact admin" note
+        renderCanvasStatus(null, true);
+      } else {
+        renderCanvasStatus(null);
+      }
+    }
+  }
+
+  function renderCanvasStatus(reg, noAccess = false) {
+    const pill     = document.getElementById('canvas-status-pill');
+    const cardPill = document.getElementById('canvas-card-pill');
+    const headSub  = document.getElementById('canvas-head-sub');
+    const discBtn  = document.getElementById('canvas-disconnect-btn');
+    const connBtn  = document.getElementById('canvas-connect-btn');
+
+    if (reg) {
+      // Connected
+      pill.className = 'int-status-pill connected';
+      pill.textContent = 'Connected';
+      cardPill.className = 'int-status-pill connected';
+      cardPill.textContent = 'Connected';
+      document.getElementById('canvas-card').classList.add('active-int');
+      headSub.textContent = 'Instructure Canvas — ' + reg.platform_iss.replace('https://','');
+      discBtn.style.display = '';
+      connBtn.style.display = 'none';
+
+      // Overview details
+      document.getElementById('canvas-reg-url').textContent = reg.platform_iss;
+      document.getElementById('canvas-client-id').textContent = reg.client_id;
+
+      // Pre-fill config form
+      document.getElementById('cfg-platform-iss').value = reg.platform_iss;
+      document.getElementById('cfg-client-id').value = reg.client_id;
+      document.getElementById('cfg-deployment-id').value = reg.deployment_id || '';
+      document.getElementById('cfg-auth-endpoint').value = reg.auth_endpoint;
+      document.getElementById('cfg-jwks-url').value = reg.jwks_url;
+      document.getElementById('cfg-label').value = reg.label || 'Canvas';
+    } else {
+      // Not connected
+      pill.className = 'int-status-pill available';
+      pill.textContent = 'Not connected';
+      cardPill.className = 'int-status-pill available';
+      cardPill.textContent = 'Not connected';
+      document.getElementById('canvas-card').classList.remove('active-int');
+      headSub.textContent = 'Instructure Canvas';
+      discBtn.style.display = 'none';
+      connBtn.style.display = noAccess ? 'none' : '';
+    }
+  }
+
+  // ── Save Canvas config ─────────────────────────────────────────────────────
+  async function saveCanvasConfig() {
+    const btn = document.getElementById('canvas-save-btn');
+    const msg = document.getElementById('canvas-save-msg');
+    const payload = {
+      platform_iss:   document.getElementById('cfg-platform-iss').value.trim(),
+      platform_type:  'canvas',
+      client_id:      document.getElementById('cfg-client-id').value.trim(),
+      deployment_id:  document.getElementById('cfg-deployment-id').value.trim() || null,
+      auth_endpoint:  document.getElementById('cfg-auth-endpoint').value.trim(),
+      jwks_url:       document.getElementById('cfg-jwks-url').value.trim(),
+      label:          document.getElementById('cfg-label').value.trim() || 'Canvas',
+    };
+
+    if (!payload.platform_iss || !payload.client_id || !payload.auth_endpoint || !payload.jwks_url) {
+      showMsg(msg, 'error', 'Platform URL, Client ID, Auth Endpoint, and JWKS URL are required.');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    try {
+      let reg;
+      if (_canvasReg) {
+        reg = await apiFetch('/api/v1/admin/canvas/registrations/' + _canvasReg.id, {
+          method: 'PUT', body: JSON.stringify(payload),
+        });
+      } else {
+        reg = await apiFetch('/api/v1/admin/canvas/registrations', {
+          method: 'POST', body: JSON.stringify(payload),
+        });
+      }
+      _canvasReg = reg;
+      renderCanvasStatus(reg);
+      showMsg(msg, 'success', 'Canvas registration saved successfully.');
+    } catch (err) {
+      showMsg(msg, 'error', 'Save failed: ' + (err.message || 'unknown error'));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save Changes';
+    }
+  }
+
+  // ── Disconnect Canvas ──────────────────────────────────────────────────────
+  async function disconnectCanvas() {
+    if (!_canvasReg) return;
+    if (!confirm('Disconnect Canvas? Webhooks and LTI launches will stop working until you reconnect.')) return;
+    try {
+      await apiFetch('/api/v1/admin/canvas/registrations/' + _canvasReg.id, {
+        method: 'PUT',
+        body: JSON.stringify({ ..._canvasReg, is_active: false }),
+      });
+      _canvasReg = null;
+      renderCanvasStatus(null);
+    } catch (err) {
+      alert('Could not disconnect: ' + err.message);
+    }
+  }
+
+  // ── Connect modal (quick shortcut to config tab) ───────────────────────────
+  function showConnectModal() {
+    switchTab({ target: document.querySelector('#detail-canvas .tab-bar .tab:last-child') }, 'canvas', 'config');
+    document.querySelector('#detail-canvas .tab-bar .tab:last-child').click();
+  }
+
+  // ── Utility ────────────────────────────────────────────────────────────────
+  function showMsg(el, type, text) {
+    el.style.display = '';
+    el.style.background = type === 'success' ? 'var(--flag-green-bg)' : 'var(--flag-red-bg)';
+    el.style.color = type === 'success' ? 'var(--flag-green)' : 'var(--flag-red)';
+    el.style.border = '1px solid ' + (type === 'success' ? 'rgba(42,107,69,0.2)' : 'rgba(192,57,43,0.2)');
+    el.textContent = text;
+    if (type === 'success') setTimeout(() => el.style.display = 'none', 4000);
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    populateLTICredentials();
+    loadCanvasRegistration();
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Original — Sign In</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: #f7f3ea;
+      color: #1a130a;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-card {
+      background: #fff;
+      border: 1px solid #e2dccf;
+      border-radius: 12px;
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    }
+    .logo {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .logo h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #1a130a;
+      letter-spacing: -0.02em;
+    }
+    .logo p {
+      font-size: 0.85rem;
+      color: #8b7355;
+      margin-top: 0.25rem;
+    }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #5a4030;
+      margin-bottom: 0.35rem;
+    }
+    input[type="email"], input[type="password"] {
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      border: 1px solid #d4cbbf;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      color: #1a130a;
+      background: #fdfcfa;
+      transition: border-color 0.15s;
+      margin-bottom: 1rem;
+    }
+    input:focus {
+      outline: none;
+      border-color: #1a6fb5;
+      box-shadow: 0 0 0 3px rgba(26,111,181,0.12);
+    }
+    button[type="submit"] {
+      width: 100%;
+      padding: 0.7rem;
+      background: #1a6fb5;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button[type="submit"]:hover { background: #155a94; }
+    button[type="submit"]:disabled {
+      background: #b0c4d8;
+      cursor: not-allowed;
+    }
+    .error-msg {
+      background: #fdf2f2;
+      border: 1px solid rgba(192,57,43,0.3);
+      border-radius: 6px;
+      padding: 0.6rem 0.85rem;
+      font-size: 0.85rem;
+      color: #8b1c14;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    .error-msg.visible { display: block; }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="logo">
+      <h1>Original</h1>
+      <p>Authorship Verification Platform</p>
+    </div>
+
+    <div id="error" class="error-msg" role="alert" aria-live="assertive"></div>
+
+    <form id="login-form">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" required autocomplete="email" autofocus>
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required autocomplete="current-password">
+
+      <button type="submit" id="submit-btn">Sign In</button>
+    </form>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    (function () {
+      // If already authenticated, redirect to dashboard
+      if (OriginalAuth.isAuthenticated()) {
+        window.location.href = 'original-dashboard.html';
+        return;
+      }
+
+      var form = document.getElementById('login-form');
+      var errorDiv = document.getElementById('error');
+      var submitBtn = document.getElementById('submit-btn');
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        errorDiv.classList.remove('visible');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Signing in…';
+
+        var email = document.getElementById('email').value;
+        var password = document.getElementById('password').value;
+
+        OriginalAuth.login(email, password)
+          .then(function () {
+            // Redirect to saved URL or dashboard
+            var redirect = null;
+            try { redirect = sessionStorage.getItem('_original_redirect'); } catch (_e) {}
+            if (redirect) {
+              try { sessionStorage.removeItem('_original_redirect'); } catch (_e) {}
+              window.location.href = redirect;
+            } else {
+              window.location.href = 'original-dashboard.html';
+            }
+          })
+          .catch(function (err) {
+            errorDiv.textContent = err.message || 'Login failed. Check your credentials.';
+            errorDiv.classList.add('visible');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Sign In';
+          });
+      });
+    })();
+  </script>
+</body>
+</html>

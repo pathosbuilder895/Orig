@@ -1,0 +1,240 @@
+{
+  "original_calibration_summary": {
+    "total_authors": 5,
+    "total_essays_scored": 15,
+    "total_baseline_samples": 15,
+    "avg_scoring_time_ms": 454.98,
+    "auc": 0.88
+  },
+  "weighted_totals": {
+    "original": 4.65,
+    "turnitin": 2.3,
+    "gptzero": 1.9,
+    "originality_ai": 1.88
+  },
+  "original_advantages": [
+    "Authorship Verification: Original leads (5.0/5 vs best competitor 1.0/5)",
+    "Ghostwriting Detection: Original leads (5.0/5 vs best competitor 1.0/5)",
+    "Pedagogical Integration: Original leads (5.0/5 vs best competitor 2.5/5)",
+    "False Positive Handling: Original leads (4.5/5 vs best competitor 3.0/5)",
+    "Longitudinal Tracking: Original leads (5.0/5 vs best competitor 1.5/5)",
+    "Privacy & Data Sovereignty: Original leads (5.0/5 vs best competitor 2.5/5)",
+    "Cost Efficiency: Original leads (5.0/5 vs best competitor 3.5/5)"
+  ],
+  "original_gaps": [
+    "AI Content Detection: Turnitin Similarity + AI Writing Detection leads (4.5/5 vs Original 3.5/5)",
+    "LMS Integration Depth: Turnitin Similarity + AI Writing Detection leads (5.0/5 vs Original 3.5/5)"
+  ],
+  "sales_positioning": "Original is the only academic integrity tool that verifies authorship at the individual student level. While competitors like Turnitin excel at detecting copied text and AI-generated content, none can answer the fundamental question: 'Did this specific student write this specific paper?' Original's 62-feature stylometric engine with quantum density matrix scoring provides a mathematically rigorous answer, with an AUC of 0.88 in calibration testing. For seminary and theological education, where academic integrity is inseparable from character formation, Original offers a pastoral approach with graduated recommendations rather than punitive flags. Weighted capability score: Original 4.65/5.0 vs best competitor (Turnitin Similarity + AI Writing Detection) 2.3/5.0.",
+  "dimensions": [
+    {
+      "dimension": "Authorship Verification",
+      "weight": 0.2,
+      "original_score": 5.0,
+      "original_rationale": "Core differentiator \u2014 per-student quantum density matrix baseline with 62 features",
+      "competitor_scores": {
+        "turnitin": 1.0,
+        "gptzero": 1.0,
+        "originality_ai": 1.0
+      },
+      "competitor_rationales": {
+        "turnitin": "No per-student baseline capability",
+        "gptzero": "Binary AI/human only",
+        "originality_ai": "No authorship verification"
+      }
+    },
+    {
+      "dimension": "AI Content Detection",
+      "weight": 0.15,
+      "original_score": 3.5,
+      "original_rationale": "Tier 7 features provide signal but not primary focus; augmented by stylometric deviation",
+      "competitor_scores": {
+        "turnitin": 4.5,
+        "gptzero": 4.0,
+        "originality_ai": 4.0
+      },
+      "competitor_rationales": {
+        "turnitin": "Dedicated AI detection module, regularly updated",
+        "gptzero": "Primary function, good accuracy on English text",
+        "originality_ai": "Solid AI classifier with regular updates"
+      }
+    },
+    {
+      "dimension": "Ghostwriting Detection",
+      "weight": 0.15,
+      "original_score": 5.0,
+      "original_rationale": "Unique capability \u2014 stylometric baseline detects any author change regardless of method",
+      "competitor_scores": {
+        "turnitin": 1.0,
+        "gptzero": 1.0,
+        "originality_ai": 1.0
+      },
+      "competitor_rationales": {
+        "turnitin": "Cannot detect human ghostwriting",
+        "gptzero": "Cannot distinguish human authors",
+        "originality_ai": "Cannot detect human ghostwriting"
+      }
+    },
+    {
+      "dimension": "Pedagogical Integration",
+      "weight": 0.15,
+      "original_score": 5.0,
+      "original_rationale": "Four-tier graduated recommendations designed for pastoral seminary context",
+      "competitor_scores": {
+        "turnitin": 2.5,
+        "gptzero": 1.5,
+        "originality_ai": 1.5
+      },
+      "competitor_rationales": {
+        "turnitin": "Similarity report with highlighted matches",
+        "gptzero": "Score only, no recommendations",
+        "originality_ai": "Score only, no recommendations"
+      }
+    },
+    {
+      "dimension": "False Positive Handling",
+      "weight": 0.1,
+      "original_score": 4.5,
+      "original_rationale": "Built-in bias analysis, demographic fairness constraints, conservative thresholds",
+      "competitor_scores": {
+        "turnitin": 3.0,
+        "gptzero": 2.0,
+        "originality_ai": 2.5
+      },
+      "competitor_rationales": {
+        "turnitin": "Institutional processes, some ESL concerns",
+        "gptzero": "Known ESL false positive issues",
+        "originality_ai": "Binary threshold, no fairness analysis"
+      }
+    },
+    {
+      "dimension": "Longitudinal Tracking",
+      "weight": 0.1,
+      "original_score": 5.0,
+      "original_rationale": "Trajectory analysis with chronological feature vector regression",
+      "competitor_scores": {
+        "turnitin": 1.5,
+        "gptzero": 1.0,
+        "originality_ai": 1.0
+      },
+      "competitor_rationales": {
+        "turnitin": "Stores history but no developmental analysis",
+        "gptzero": "No longitudinal capability",
+        "originality_ai": "No longitudinal capability"
+      }
+    },
+    {
+      "dimension": "Privacy & Data Sovereignty",
+      "weight": 0.05,
+      "original_score": 5.0,
+      "original_rationale": "Self-hosted, institution owns all data, no third-party storage",
+      "competitor_scores": {
+        "turnitin": 2.0,
+        "gptzero": 2.5,
+        "originality_ai": 2.5
+      },
+      "competitor_rationales": {
+        "turnitin": "Cloud-stored, FERPA concerns raised",
+        "gptzero": "Cloud API, text sent externally",
+        "originality_ai": "Cloud API, text sent externally"
+      }
+    },
+    {
+      "dimension": "LMS Integration Depth",
+      "weight": 0.05,
+      "original_score": 3.5,
+      "original_rationale": "LTI 1.3 complete but newer than Turnitin's established integration",
+      "competitor_scores": {
+        "turnitin": 5.0,
+        "gptzero": 2.5,
+        "originality_ai": 1.5
+      },
+      "competitor_rationales": {
+        "turnitin": "Gold standard LMS integration",
+        "gptzero": "Basic Canvas LTI",
+        "originality_ai": "API only, limited LMS"
+      }
+    },
+    {
+      "dimension": "Cost Efficiency",
+      "weight": 0.05,
+      "original_score": 5.0,
+      "original_rationale": "Self-hosted infrastructure cost only, no per-student licensing",
+      "competitor_scores": {
+        "turnitin": 2.0,
+        "gptzero": 3.5,
+        "originality_ai": 3.0
+      },
+      "competitor_rationales": {
+        "turnitin": "Expensive institutional license",
+        "gptzero": "Free tier available, moderate paid plans",
+        "originality_ai": "Pay-per-scan, variable cost"
+      }
+    }
+  ],
+  "competitor_profiles": {
+    "turnitin": {
+      "product_name": "Turnitin Similarity + AI Writing Detection",
+      "detection_method": "Text-matching database + AI classifier",
+      "published_metrics": {
+        "ai_detection_accuracy": 0.98,
+        "false_positive_rate": 0.01,
+        "coverage": "200M+ student papers, journals, web",
+        "languages_supported": 30
+      },
+      "known_limitations": [
+        "Cannot detect paraphrased AI content reliably",
+        "Text-matching misses original ghostwritten work",
+        "No per-student baseline \u2014 compares against corpus only",
+        "Binary output (match % or AI %) \u2014 no nuanced recommendation",
+        "Requires institutional subscription ($3-10/student/year)",
+        "Students can pre-check with free tools to evade",
+        "High false positive rate on ESL/non-native writers reported in studies"
+      ],
+      "pricing_model": "Per-student institutional license",
+      "integration": "Canvas, Blackboard, Moodle, D2L (deep LMS integration)"
+    },
+    "gptzero": {
+      "product_name": "GPTZero",
+      "detection_method": "Perplexity + burstiness AI classifier",
+      "published_metrics": {
+        "ai_detection_accuracy": 0.95,
+        "false_positive_rate": 0.02,
+        "coverage": "AI text detection only \u2014 no plagiarism",
+        "languages_supported": 1
+      },
+      "known_limitations": [
+        "AI-detection only \u2014 does not verify authorship",
+        "No student baseline \u2014 treats each submission independently",
+        "Perplexity-based \u2014 can be fooled by adding 'burstiness' noise",
+        "Does not handle mixed human+AI content well (binary classification)",
+        "Accuracy drops significantly on shorter texts (<250 words)",
+        "No pedagogical recommendation \u2014 just AI probability score",
+        "Cannot distinguish between different human authors"
+      ],
+      "pricing_model": "Free tier + paid plans ($10-15/mo educator)",
+      "integration": "Canvas (basic), API, Chrome extension"
+    },
+    "originality_ai": {
+      "product_name": "Originality.ai",
+      "detection_method": "AI classifier + plagiarism text-matching",
+      "published_metrics": {
+        "ai_detection_accuracy": 0.96,
+        "false_positive_rate": 0.03,
+        "coverage": "AI detection + web plagiarism scan",
+        "languages_supported": 15
+      },
+      "known_limitations": [
+        "No per-student authorship baseline",
+        "Combines AI detection and plagiarism into single score",
+        "Pay-per-scan model can get expensive at scale",
+        "No longitudinal tracking of student writing development",
+        "Limited LMS integration (no native Canvas integration)",
+        "Cannot detect human ghostwriting",
+        "No pedagogical scaffolding or recommendation engine"
+      ],
+      "pricing_model": "Pay-per-scan ($0.01/100 words) or subscription",
+      "integration": "API, Chrome extension, WordPress plugin"
+    }
+  }
+}

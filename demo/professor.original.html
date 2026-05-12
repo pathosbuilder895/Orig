@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Original — Professor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#EEF2F8;
+  --surface:#FFFFFF;
+  --surface-2:#F7F9FC;
+  --border:rgba(0,0,0,0.07);
+  --shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 16px rgba(0,0,0,0.06);
+  --shadow-md:0 4px 8px rgba(0,0,0,0.06),0 12px 32px rgba(0,0,0,0.08);
+  --blue:#2563EB;
+  --blue-l:#EBF2FF;
+  --blue-m:#BFDBFE;
+  --gold:#B8860B;
+  --gold-l:#FEF9EC;
+  --green:#059669;
+  --green-l:#ECFDF5;
+  --amber:#D97706;
+  --amber-l:#FFFBEB;
+  --red:#DC2626;
+  --red-l:#FEF2F2;
+  --text:#0F172A;
+  --text-muted:#64748B;
+  --text-dim:#94A3B8;
+  --radius:16px;
+  --radius-sm:10px;
+}
+html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+
+/* ── Layout ── */
+.layout{display:flex;height:100vh}
+
+/* ── Icon Sidebar ── */
+.sidebar{
+  width:72px;flex-shrink:0;
+  background:var(--surface);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  align-items:center;padding:20px 0;
+  z-index:10;
+  box-shadow:2px 0 12px rgba(0,0,0,0.04);
+}
+.s-logo{
+  width:42px;height:42px;border-radius:12px;
+  background:linear-gradient(135deg,#1e3a8a,var(--blue));
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:28px;
+  box-shadow:0 4px 12px rgba(37,99,235,0.3);
+}
+.s-logo svg{width:20px;height:20px}
+.s-nav{display:flex;flex-direction:column;gap:6px;flex:1}
+.s-btn{
+  width:44px;height:44px;border-radius:12px;
+  border:none;background:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.15rem;transition:all 0.15s;color:var(--text-muted);
+  position:relative;
+}
+.s-btn:hover{background:var(--bg);color:var(--text)}
+.s-btn.active{background:var(--blue);color:#fff;box-shadow:0 4px 12px rgba(37,99,235,0.35)}
+.s-divider{width:32px;height:1px;background:var(--border);margin:8px 0}
+.s-avatar{
+  width:36px;height:36px;border-radius:50%;
+  background:linear-gradient(135deg,#4338CA,#7C3AED);
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.72rem;font-weight:700;color:#fff;
+  border:2px solid var(--surface);
+  box-shadow:0 2px 8px rgba(0,0,0,0.12);
+  cursor:pointer;
+}
+
+/* ── Main ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* Header */
+.main-header{
+  padding:20px 24px 0;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  flex-shrink:0;
+}
+.header-greeting{font-size:0.72rem;color:var(--text-dim);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px}
+.header-name{font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;letter-spacing:-0.03em;line-height:1.1}
+.header-sub{font-size:0.82rem;color:var(--text-muted);margin-top:3px}
+.header-right{display:flex;align-items:center;gap:10px;padding-top:4px}
+.header-search{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 14px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:24px;font-size:0.82rem;color:var(--text-muted);
+  box-shadow:var(--shadow);cursor:pointer;
+}
+.header-search svg{width:14px;height:14px;flex-shrink:0}
+.header-icon-btn{
+  width:38px;height:38px;border-radius:50%;
+  background:var(--surface);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.95rem;cursor:pointer;
+  box-shadow:var(--shadow);
+}
+
+/* Student pills row */
+.student-row{
+  padding:16px 24px 0;
+  display:flex;gap:10px;overflow-x:auto;
+  scrollbar-width:none;flex-shrink:0;
+}
+.student-row::-webkit-scrollbar{display:none}
+.s-pill{
+  display:flex;align-items:center;gap:9px;
+  padding:8px 14px;border-radius:24px;
+  background:var(--surface);border:1.5px solid var(--border);
+  cursor:pointer;transition:all 0.15s;white-space:nowrap;
+  box-shadow:var(--shadow);
+}
+.s-pill:hover{border-color:rgba(37,99,235,0.3);background:#F0F5FF}
+.s-pill.active{border-color:var(--blue);background:var(--blue-l);box-shadow:0 0 0 3px rgba(37,99,235,0.1)}
+.s-pill-avatar{
+  width:26px;height:26px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.62rem;font-weight:700;flex-shrink:0;
+}
+.s-pill-name{font-size:0.8rem;font-weight:500}
+.s-pill-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* Content area */
+.content{flex:1;overflow-y:auto;padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px}
+.content::-webkit-scrollbar{width:4px}
+.content::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.1);border-radius:2px}
+
+/* Score input card */
+.input-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:20px 22px;
+  box-shadow:var(--shadow);
+}
+.input-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.input-card-header h3{font-size:0.92rem;font-weight:600}
+.input-card-header p{font-size:0.78rem;color:var(--text-muted)}
+.input-notice{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 14px;margin-bottom:12px;
+  background:var(--blue-l);border-radius:var(--radius-sm);
+  font-size:0.78rem;color:#1E40AF;
+}
+.submission-textarea{
+  width:100%;min-height:130px;
+  padding:14px 16px;
+  background:var(--surface-2);border:1.5px solid var(--border);
+  border-radius:var(--radius-sm);
+  font-family:'Inter',sans-serif;font-size:0.85rem;line-height:1.7;
+  color:var(--text);resize:vertical;outline:none;
+  transition:border-color 0.2s,box-shadow 0.2s;
+}
+.submission-textarea::placeholder{color:var(--text-dim)}
+.submission-textarea:focus{border-color:rgba(37,99,235,0.4);box-shadow:0 0 0 3px rgba(37,99,235,0.08)}
+.input-footer{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+.word-count{font-size:0.72rem;color:var(--text-dim)}
+.btn-row{display:flex;gap:8px}
+.btn-analyze{
+  padding:10px 22px;
+  background:linear-gradient(135deg,#1D4ED8,var(--blue));
+  border:none;border-radius:var(--radius-sm);
+  font-family:'Inter',sans-serif;font-size:0.84rem;font-weight:600;
+  color:#fff;cursor:pointer;
+  box-shadow:0 4px 12px rgba(37,99,235,0.3);
+  transition:all 0.15s;
+}
+.btn-analyze:hover{box-shadow:0 6px 18px rgba(37,99,235,0.4);transform:translateY(-1px)}
+.btn-analyze:active{transform:none}
+.btn-analyze:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.btn-sample{
+  padding:10px 16px;border-radius:var(--radius-sm);
+  background:var(--surface-2);border:1px solid var(--border);
+  font-family:'Inter',sans-serif;font-size:0.82rem;font-weight:500;
+  color:var(--text-muted);cursor:pointer;transition:all 0.15s;
+}
+.btn-sample:hover{background:var(--bg);color:var(--text)}
+
+/* Loading */
+.loading-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:28px;box-shadow:var(--shadow);
+  display:none;text-align:center;
+}
+.loading-card.show{display:block}
+.loading-spinner{
+  width:40px;height:40px;border:3px solid var(--blue-m);
+  border-top-color:var(--blue);border-radius:50%;
+  animation:spin 0.8s linear infinite;margin:0 auto 14px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-card p{font-size:0.85rem;color:var(--text-muted);margin-bottom:14px}
+.load-steps{display:flex;flex-direction:column;gap:7px;text-align:left;max-width:300px;margin:0 auto}
+.load-step{
+  display:flex;align-items:center;gap:9px;
+  font-size:0.75rem;color:var(--text-dim);
+  padding:6px 10px;border-radius:8px;
+  transition:all 0.3s;
+}
+.load-step.done{color:var(--green);background:var(--green-l)}
+.load-step .ls-icon{font-size:0.8rem;flex-shrink:0}
+
+/* Metric cards (iHealth style) */
+.metrics-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.metric-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:18px 20px;
+  box-shadow:var(--shadow);
+  opacity:0;transform:translateY(10px);
+  transition:opacity 0.4s,transform 0.4s;
+}
+.metric-card.show{opacity:1;transform:none}
+.metric-card:nth-child(1){transition-delay:0.05s}
+.metric-card:nth-child(2){transition-delay:0.12s}
+.metric-card:nth-child(3){transition-delay:0.19s}
+.metric-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.metric-icon{font-size:1rem}
+.metric-title{font-size:0.78rem;font-weight:600;color:var(--text-muted)}
+.metric-sub{font-size:0.68rem;color:var(--text-dim);margin-left:auto}
+.metric-body{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
+.sparkline-wrap{flex:1;height:36px}
+.sparkline-wrap svg{width:100%;height:100%}
+.metric-value{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;letter-spacing:-0.04em;line-height:1;white-space:nowrap}
+
+/* Recommendation badge */
+.rec-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:18px 22px;
+  box-shadow:var(--shadow);
+  display:flex;align-items:center;gap:16px;
+  opacity:0;transform:translateY(10px);
+  transition:opacity 0.4s 0.3s,transform 0.4s 0.3s;
+}
+.rec-card.show{opacity:1;transform:none}
+.rec-icon{font-size:2rem;flex-shrink:0}
+.rec-text h4{font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px}
+.rec-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 14px;border-radius:20px;
+  font-size:0.85rem;font-weight:600;
+}
+.rec-badge::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor}
+.rec-badge.no_action{background:var(--green-l);color:var(--green)}
+.rec-badge.monitor{background:var(--blue-l);color:var(--blue)}
+.rec-badge.schedule_conversation{background:var(--amber-l);color:var(--amber)}
+.rec-badge.escalate{background:var(--red-l);color:var(--red)}
+.rec-actions{margin-left:auto;display:flex;gap:8px}
+.action-btn{
+  padding:8px 16px;border-radius:var(--radius-sm);
+  font-family:'Inter',sans-serif;font-size:0.78rem;font-weight:500;
+  cursor:pointer;border:1.5px solid var(--border);
+  background:var(--surface-2);color:var(--text-muted);
+  transition:all 0.15s;
+}
+.action-btn:hover{background:var(--bg);color:var(--text)}
+.action-btn.warn{border-color:rgba(217,119,6,0.3);background:var(--amber-l);color:var(--amber)}
+.action-btn.danger{border-color:rgba(220,38,38,0.3);background:var(--red-l);color:var(--red)}
+
+/* Tier bars card */
+.tiers-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:18px 22px;
+  box-shadow:var(--shadow);
+  opacity:0;transform:translateY(10px);
+  transition:opacity 0.4s 0.45s,transform 0.4s 0.45s;
+}
+.tiers-card.show{opacity:1;transform:none}
+.section-label{font-size:0.72rem;font-weight:600;color:var(--text-dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:14px}
+.tier-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.tier-row:last-child{margin-bottom:0}
+.tier-name{font-size:0.78rem;color:var(--text-muted);width:170px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tier-track{flex:1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden}
+.tier-fill{height:100%;border-radius:3px;transition:width 1.2s cubic-bezier(0.16,1,0.3,1);width:0}
+.tier-val{font-size:0.78rem;font-weight:600;width:32px;text-align:right}
+
+/* Features card */
+.features-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:18px 22px;
+  box-shadow:var(--shadow);
+  opacity:0;transform:translateY(10px);
+  transition:opacity 0.4s 0.6s,transform 0.4s 0.6s;
+}
+.features-card.show{opacity:1;transform:none}
+.feat-row{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 0;border-bottom:1px solid var(--bg);
+  opacity:0;transform:translateX(-6px);transition:all 0.3s;
+}
+.feat-row:last-child{border-bottom:none}
+.feat-row.show{opacity:1;transform:none}
+.feat-tier{font-size:0.62rem;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--bg);color:var(--text-dim);flex-shrink:0}
+.feat-name{flex:1;font-size:0.83rem;font-weight:500}
+.feat-dir{font-size:0.74rem;color:var(--text-muted)}
+.feat-delta{font-size:0.82rem;font-weight:700;width:38px;text-align:right}
+
+/* History / Baseline tabs within content */
+.tab-panel{display:none}
+.tab-panel.active{display:flex;flex-direction:column;gap:14px}
+
+/* ── Right 3D Panel ── */
+.panel-3d{
+  width:340px;flex-shrink:0;
+  background:linear-gradient(160deg,#EEF2FF 0%,#E0EAFF 50%,#D4E4FF 100%);
+  border-left:1px solid rgba(37,99,235,0.1);
+  display:flex;flex-direction:column;
+  overflow:hidden;position:relative;
+}
+.panel-3d-header{
+  padding:20px 22px 0;flex-shrink:0;
+}
+.panel-3d-label{font-size:0.68rem;font-weight:600;color:rgba(37,99,235,0.5);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px}
+.panel-3d-title{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:700;color:#1E3A8A;letter-spacing:-0.02em}
+.panel-3d-sub{font-size:0.75rem;color:rgba(37,99,235,0.5);margin-top:2px}
+
+/* Student info in panel */
+.panel-student{
+  padding:14px 22px 0;flex-shrink:0;
+  display:flex;align-items:center;gap:10px;
+}
+.panel-s-avatar{
+  width:38px;height:38px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.78rem;font-weight:700;flex-shrink:0;
+  border:2px solid rgba(255,255,255,0.8);
+  box-shadow:0 2px 8px rgba(0,0,0,0.1);
+}
+.panel-s-name{font-size:0.9rem;font-weight:600;color:#1E3A8A}
+.panel-s-meta{font-size:0.73rem;color:rgba(37,99,235,0.5)}
+
+/* ── THE 3D QUANTUM SPHERE ── */
+.q-stage{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  position:relative;padding-bottom:10px;
+  overflow:visible;
+}
+
+/* Ambient glow behind sphere */
+.q-glow{
+  position:absolute;
+  width:200px;height:200px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(37,99,235,0.18) 0%,transparent 70%);
+  pointer-events:none;
+}
+
+/* The 3D scene */
+.q-scene{
+  perspective:700px;
+  width:240px;height:240px;
+  position:relative;
+}
+.q-object{
+  width:100%;height:100%;
+  position:relative;
+  transform-style:preserve-3d;
+}
+
+/* Core sphere */
+.q-core{
+  position:absolute;
+  width:100px;height:100px;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  border-radius:50%;
+  background:radial-gradient(circle at 36% 32%,
+    rgba(255,255,255,0.95) 0%,
+    rgba(191,219,254,0.9) 20%,
+    rgba(37,99,235,0.85) 50%,
+    rgba(15,40,120,1) 100%
+  );
+  box-shadow:
+    0 0 50px rgba(37,99,235,0.45),
+    0 0 100px rgba(37,99,235,0.15),
+    inset -8px -8px 20px rgba(0,0,0,0.25),
+    inset 6px 6px 14px rgba(255,255,255,0.35);
+  z-index:5;
+}
+.q-core::after{
+  content:'ρ';
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Playfair Display',serif;
+  font-size:2rem;font-weight:700;
+  color:rgba(255,255,255,0.8);
+  text-shadow:0 0 12px rgba(255,255,255,0.5);
+}
+
+/* Orbital rings */
+.q-ring{
+  position:absolute;
+  inset:0;
+  border-radius:50%;
+  transform-style:preserve-3d;
+}
+.q-ring-1{
+  border:2px solid rgba(37,99,235,0.5);
+  transform:rotateX(72deg) rotateY(12deg);
+  animation:orbit1 13s linear infinite;
+}
+.q-ring-2{
+  width:180px;height:180px;
+  top:50%;left:50%;margin:-90px 0 0 -90px;
+  border:1.5px solid rgba(184,134,11,0.5);
+  transform:rotateX(30deg) rotateY(75deg);
+  animation:orbit2 19s linear infinite;
+}
+.q-ring-3{
+  width:220px;height:220px;
+  top:50%;left:50%;margin:-110px 0 0 -110px;
+  border:1.5px solid rgba(5,150,105,0.4);
+  transform:rotateX(52deg) rotateY(-38deg);
+  animation:orbit3 26s linear infinite;
+}
+@keyframes orbit1{from{transform:rotateX(72deg) rotateY(12deg)}to{transform:rotateX(72deg) rotateY(372deg)}}
+@keyframes orbit2{from{transform:rotateX(30deg) rotateY(75deg)}to{transform:rotateX(30deg) rotateY(435deg)}}
+@keyframes orbit3{from{transform:rotateX(52deg) rotateY(-38deg)}to{transform:rotateX(52deg) rotateY(322deg)}}
+
+/* Dots on rings */
+.q-dot{
+  position:absolute;
+  width:9px;height:9px;border-radius:50%;
+  transform:translate(-50%,-50%);
+  box-shadow:0 0 10px var(--dc,#2563EB), 0 0 3px var(--dc,#2563EB);
+  background:var(--dc,#2563EB);
+  border:1.5px solid rgba(255,255,255,0.7);
+}
+
+/* Pedestal (like iHealth) */
+.q-pedestal{
+  flex-shrink:0;
+  padding-bottom:20px;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+}
+.ped-disk{
+  border-radius:50%;background:rgba(255,255,255,0.4);
+  backdrop-filter:blur(4px);
+  border:1px solid rgba(255,255,255,0.6);
+}
+.ped-disk-1{width:130px;height:14px;box-shadow:0 4px 16px rgba(37,99,235,0.08)}
+.ped-disk-2{width:100px;height:10px;opacity:0.7}
+.ped-disk-3{width:72px;height:7px;opacity:0.45}
+
+/* Panel legend */
+.panel-legend{
+  padding:0 22px 16px;flex-shrink:0;
+  display:flex;flex-wrap:wrap;gap:8px;
+}
+.legend-pill{
+  display:flex;align-items:center;gap:6px;
+  padding:5px 10px;border-radius:20px;
+  background:rgba(255,255,255,0.5);
+  border:1px solid rgba(255,255,255,0.7);
+  font-size:0.7rem;font-weight:500;color:#1E3A8A;
+}
+.legend-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* Panel traits */
+.panel-traits{
+  padding:0 22px 20px;flex-shrink:0;
+}
+.panel-traits-label{font-size:0.68rem;font-weight:600;color:rgba(37,99,235,0.5);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px}
+.trait-row{
+  display:flex;align-items:center;gap:8px;margin-bottom:8px;
+}
+.trait-row:last-child{margin-bottom:0}
+.trait-bar-bg{flex:1;height:4px;background:rgba(37,99,235,0.12);border-radius:2px;overflow:hidden}
+.trait-bar-fill{height:100%;border-radius:2px;transition:width 1.2s cubic-bezier(0.16,1,0.3,1)}
+.trait-label{font-size:0.72rem;color:#3B5BDB;width:120px;flex-shrink:0}
+.trait-pct{font-size:0.72rem;font-weight:600;color:#1E3A8A;width:30px;text-align:right}
+
+/* Deviation indicator in panel (shows after scoring) */
+.panel-deviation{
+  margin:0 22px 16px;
+  padding:12px 16px;
+  background:rgba(255,255,255,0.6);
+  border-radius:var(--radius-sm);
+  border:1px solid rgba(255,255,255,0.8);
+  display:none;
+}
+.panel-deviation.show{display:block}
+.pd-label{font-size:0.68rem;font-weight:600;color:rgba(37,99,235,0.5);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px}
+.pd-row{display:flex;align-items:center;justify-content:space-between}
+.pd-score{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;letter-spacing:-0.04em}
+.pd-action{font-size:0.75rem;font-weight:500}
+
+/* Tabs top */
+.tabs-header{
+  padding:14px 24px 0;
+  border-bottom:1px solid var(--border);
+  display:flex;gap:0;flex-shrink:0;
+  background:var(--surface);
+}
+.tab-btn{
+  padding:11px 16px;
+  font-size:0.82rem;font-weight:500;
+  color:var(--text-muted);
+  border:none;background:none;cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-1px;
+  transition:color 0.15s,border-color 0.15s;
+}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:600}
+
+/* History items */
+.hist-item{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px 18px;
+  display:flex;align-items:center;gap:14px;
+  box-shadow:var(--shadow);
+}
+.hist-ring{
+  width:44px;height:44px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.78rem;font-weight:700;
+  border:2.5px solid currentColor;flex-shrink:0;
+}
+.hist-title{font-size:0.85rem;font-weight:500;margin-bottom:2px}
+.hist-meta{font-size:0.73rem;color:var(--text-muted)}
+.hist-badge{
+  margin-left:auto;
+  padding:4px 10px;border-radius:20px;
+  font-size:0.72rem;font-weight:500;
+  display:flex;align-items:center;gap:5px;flex-shrink:0;
+}
+.hist-badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}
+.hist-badge.no_action{background:var(--green-l);color:var(--green)}
+.hist-badge.monitor{background:var(--blue-l);color:var(--blue)}
+.hist-badge.schedule_conversation{background:var(--amber-l);color:var(--amber)}
+.hist-badge.escalate{background:var(--red-l);color:var(--red)}
+
+/* Baseline grid */
+.baseline-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.base-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:16px 18px;
+  box-shadow:var(--shadow);
+}
+.base-num{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--gold);margin-bottom:4px}
+.base-title{font-size:0.82rem;font-weight:500;margin-bottom:2px}
+.base-date{font-size:0.72rem;color:var(--text-muted)}
+.base-words{font-size:0.72rem;color:var(--text-dim);margin-top:6px}
+.add-base-btn{
+  width:100%;padding:12px;border-radius:var(--radius);
+  background:none;border:1.5px dashed rgba(37,99,235,0.3);
+  font-family:'Inter',sans-serif;font-size:0.82rem;font-weight:500;
+  color:rgba(37,99,235,0.5);cursor:pointer;transition:all 0.15s;
+}
+.add-base-btn:hover{background:var(--blue-l);border-color:var(--blue);color:var(--blue)}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ── Icon Sidebar ── -->
+  <aside class="sidebar">
+    <div class="s-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+      </svg>
+    </div>
+    <div class="s-nav">
+      <button class="s-btn active" title="Dashboard">📊</button>
+      <button class="s-btn" title="Students">👥</button>
+      <button class="s-btn" title="Reports">📄</button>
+      <div class="s-divider"></div>
+      <button class="s-btn" title="Canvas LTI">🔗</button>
+      <button class="s-btn" title="Settings">⚙️</button>
+    </div>
+    <div class="s-avatar" title="Prof. Adeyemi">JA</div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <div class="main">
+
+    <!-- Header -->
+    <div class="main-header">
+      <div>
+        <div class="header-greeting">Good afternoon</div>
+        <div class="header-name">Prof. Adeyemi</div>
+        <div class="header-sub">TH501 Systematic Theology &nbsp;·&nbsp; 5 students &nbsp;·&nbsp; Spring 2026</div>
+      </div>
+      <div class="header-right">
+        <div class="header-search">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m14 14 3 3"/></svg>
+          Search…
+        </div>
+        <div class="header-icon-btn">🔔</div>
+        <div class="header-icon-btn">📅</div>
+        <a href="admin.html" style="text-decoration:none"><div class="header-icon-btn" title="Admin view">🏛️</div></a>
+      </div>
+    </div>
+
+    <!-- Student pills -->
+    <div class="student-row" id="studentRow"></div>
+
+    <!-- Tabs -->
+    <div class="tabs-header">
+      <button class="tab-btn active" onclick="switchTab('score')">Analyze Submission</button>
+      <button class="tab-btn" onclick="switchTab('history')">History</button>
+      <button class="tab-btn" onclick="switchTab('baselines')">Baselines</button>
+    </div>
+
+    <!-- Content -->
+    <div class="content" id="mainContent">
+
+      <!-- SCORE TAB -->
+      <div class="tab-panel active" id="tab-score">
+
+        <div class="input-card">
+          <div class="input-card-header">
+            <div>
+              <h3>Analyze Submission</h3>
+              <p>Paste the student's submitted work and compare against their baseline profile</p>
+            </div>
+          </div>
+          <div class="input-notice">
+            💡 Original extracts <strong>74 stylometric features</strong> across 7 tiers and projects onto the student's quantum density matrix ρ
+          </div>
+          <textarea class="submission-textarea" id="subText" rows="6"
+            placeholder="Paste the student's submitted text here…"
+            oninput="onTextInput()"></textarea>
+          <div class="input-footer">
+            <span class="word-count" id="wordCount">0 words</span>
+            <div class="btn-row">
+              <button class="btn-sample" onclick="loadSample()">Load sample</button>
+              <button class="btn-analyze" id="analyzeBtn" onclick="runAnalysis()">Analyze Writing</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading-card" id="loadingCard">
+          <div class="loading-spinner"></div>
+          <p>Extracting stylometric features…</p>
+          <div class="load-steps" id="loadSteps">
+            <div class="load-step" id="ls1"><span class="ls-icon">📏</span> Surface stylometrics (TTR, sentence length, hapax…)</div>
+            <div class="load-step" id="ls2"><span class="ls-icon">🔗</span> Discourse &amp; cohesion analysis…</div>
+            <div class="load-step" id="ls3"><span class="ls-icon">⛪</span> Rhetorical register &amp; theological vocabulary…</div>
+            <div class="load-step" id="ls4"><span class="ls-icon">🔤</span> Character &amp; punctuation fingerprint…</div>
+            <div class="load-step" id="ls5"><span class="ls-icon">🧠</span> POS/syntax &amp; idiosyncratic patterns…</div>
+            <div class="load-step" id="ls6"><span class="ls-icon">⚛️</span> Projecting onto density matrix ρ…</div>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div id="resultsWrap" style="display:none;display:flex;flex-direction:column;gap:14px">
+
+          <!-- Metric cards (iHealth style) -->
+          <div class="metrics-row">
+            <div class="metric-card" id="mc1">
+              <div class="metric-header">
+                <span class="metric-icon">📐</span>
+                <span class="metric-title">Deviation Score</span>
+                <span class="metric-sub">vs. baseline</span>
+              </div>
+              <div class="metric-body">
+                <div class="sparkline-wrap" id="sparkline1"></div>
+                <div class="metric-value" id="mcVal1" style="color:var(--amber)">0.71</div>
+              </div>
+            </div>
+            <div class="metric-card" id="mc2">
+              <div class="metric-header">
+                <span class="metric-icon">✍️</span>
+                <span class="metric-title">Authorship Probability</span>
+                <span class="metric-sub">Born rule P(ξ|ρ)</span>
+              </div>
+              <div class="metric-body">
+                <div class="sparkline-wrap" id="sparkline2"></div>
+                <div class="metric-value" id="mcVal2" style="color:var(--red)">31%</div>
+              </div>
+            </div>
+            <div class="metric-card" id="mc3">
+              <div class="metric-header">
+                <span class="metric-icon">📈</span>
+                <span class="metric-title">Trajectory Conformance</span>
+                <span class="metric-sub">growth pattern</span>
+              </div>
+              <div class="metric-body">
+                <div class="sparkline-wrap" id="sparkline3"></div>
+                <div class="metric-value" id="mcVal3" style="color:var(--blue)">42%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recommendation -->
+          <div class="rec-card" id="recCard">
+            <div class="rec-icon">💬</div>
+            <div class="rec-text">
+              <h4>Recommended Action</h4>
+              <span class="rec-badge schedule_conversation" id="recBadge">Schedule Conversation</span>
+            </div>
+            <div class="rec-actions">
+              <button class="action-btn" onclick="alert('No action recorded.')">No Action</button>
+              <button class="action-btn warn" onclick="alert('Conversation scheduled.')">Schedule Talk</button>
+              <button class="action-btn danger" onclick="alert('Escalated for formal review.')">Escalate</button>
+            </div>
+          </div>
+
+          <!-- Tiers -->
+          <div class="tiers-card" id="tiersCard">
+            <div class="section-label">Deviation by Feature Tier</div>
+            <div id="tierRows"></div>
+          </div>
+
+          <!-- Features -->
+          <div class="features-card" id="featsCard">
+            <div class="section-label">Top Contributing Features</div>
+            <div id="featRows"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- HISTORY TAB -->
+      <div class="tab-panel" id="tab-history"></div>
+
+      <!-- BASELINES TAB -->
+      <div class="tab-panel" id="tab-baselines"></div>
+
+    </div>
+  </div>
+
+  <!-- ── 3D Right Panel ── -->
+  <aside class="panel-3d">
+    <div class="panel-3d-header">
+      <div class="panel-3d-label">Quantum Profile</div>
+      <div class="panel-3d-title" id="panelStudentName">Marcus Whitfield</div>
+      <div class="panel-3d-sub">Writing density matrix ρ</div>
+    </div>
+
+    <div class="panel-student">
+      <div class="panel-s-avatar" id="panelAvatar" style="background:#BFDBFE;color:#1E40AF">MW</div>
+      <div>
+        <div class="panel-s-name" id="panelName">Marcus Whitfield</div>
+        <div class="panel-s-meta" id="panelMeta">5 baselines · purity 0.78</div>
+      </div>
+    </div>
+
+    <!-- THE 3D SPHERE -->
+    <div class="q-stage">
+      <div class="q-glow"></div>
+      <div class="q-scene">
+        <div class="q-object">
+          <div class="q-core"></div>
+
+          <!-- Ring 1: Blue — Surface/Syntax -->
+          <div class="q-ring q-ring-1">
+            <div class="q-dot" style="--dc:#2563EB;top:0%;left:50%"></div>
+            <div class="q-dot" style="--dc:#2563EB;top:50%;left:100%"></div>
+            <div class="q-dot" style="--dc:#2563EB;top:100%;left:50%"></div>
+            <div class="q-dot" style="--dc:#93C5FD;top:50%;left:0%"></div>
+          </div>
+
+          <!-- Ring 2: Gold — Rhetorical/Theological -->
+          <div class="q-ring q-ring-2">
+            <div class="q-dot" style="--dc:#D97706;top:14.6%;left:85.4%"></div>
+            <div class="q-dot" style="--dc:#D97706;top:85.4%;left:14.6%"></div>
+            <div class="q-dot" style="--dc:#FCD34D;top:14.6%;left:14.6%"></div>
+          </div>
+
+          <!-- Ring 3: Green — Discourse/Idiosyncratic -->
+          <div class="q-ring q-ring-3">
+            <div class="q-dot" style="--dc:#059669;top:0%;left:50%"></div>
+            <div class="q-dot" style="--dc:#059669;top:100%;left:50%"></div>
+            <div class="q-dot" style="--dc:#34D399;top:50%;left:0%"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Pedestal (like iHealth) -->
+    <div class="q-pedestal">
+      <div class="ped-disk ped-disk-1"></div>
+      <div class="ped-disk ped-disk-2"></div>
+      <div class="ped-disk ped-disk-3"></div>
+    </div>
+
+    <!-- Deviation display (appears after scoring) -->
+    <div class="panel-deviation" id="panelDeviation">
+      <div class="pd-label">Latest Submission</div>
+      <div class="pd-row">
+        <div class="pd-score" id="pdScore" style="color:var(--amber)">0.71</div>
+        <div class="pd-action" id="pdAction" style="color:var(--amber)">Schedule Conversation</div>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="panel-legend">
+      <div class="legend-pill"><div class="legend-dot" style="background:#2563EB"></div>Surface / Syntax</div>
+      <div class="legend-pill"><div class="legend-dot" style="background:#D97706"></div>Rhetorical</div>
+      <div class="legend-pill"><div class="legend-dot" style="background:#059669"></div>Discourse</div>
+    </div>
+
+    <!-- Trait bars -->
+    <div class="panel-traits">
+      <div class="panel-traits-label">Voice Profile</div>
+      <div class="trait-row">
+        <span class="trait-label">Theological register</span>
+        <div class="trait-bar-bg"><div class="trait-bar-fill" id="ptb1" style="background:#2563EB;width:0%"></div></div>
+        <span class="trait-pct">84%</span>
+      </div>
+      <div class="trait-row">
+        <span class="trait-label">Source integration</span>
+        <div class="trait-bar-bg"><div class="trait-bar-fill" id="ptb2" style="background:#D97706;width:0%"></div></div>
+        <span class="trait-pct">78%</span>
+      </div>
+      <div class="trait-row">
+        <span class="trait-label">Epistemic certainty</span>
+        <div class="trait-bar-bg"><div class="trait-bar-fill" id="ptb3" style="background:#2563EB;width:0%"></div></div>
+        <span class="trait-pct">67%</span>
+      </div>
+      <div class="trait-row">
+        <span class="trait-label">Sentence consistency</span>
+        <div class="trait-bar-bg"><div class="trait-bar-fill" id="ptb4" style="background:#059669;width:0%"></div></div>
+        <span class="trait-pct">71%</span>
+      </div>
+    </div>
+
+  </aside>
+
+</div>
+
+<script>
+/* ── Mock data ── */
+const STUDENTS = [
+  {id:'1',name:'Marcus Whitfield',ini:'MW',color:'#BFDBFE',tc:'#1E40AF',dot:'#DC2626',baselines:5,status:'flagged'},
+  {id:'2',name:'Sarah Chen',      ini:'SC',color:'#E9D5FF',tc:'#6D28D9',dot:'#D97706',baselines:4,status:'monitor'},
+  {id:'3',name:'James Okafor',    ini:'JO',color:'#D1FAE5',tc:'#065F46',dot:'#059669',baselines:3,status:'clear'},
+  {id:'4',name:'Emily Torres',    ini:'ET',color:'#FEF9C3',tc:'#92400E',dot:'#059669',baselines:6,status:'clear'},
+  {id:'5',name:'David Osei',      ini:'DO',color:'#DBEAFE',tc:'#1E40AF',dot:'#059669',baselines:3,status:'clear'},
+];
+const RESULT = {
+  deviation:0.71, prob:0.31, traj:0.42,
+  action:'schedule_conversation',
+  tiers:[
+    {name:'Surface Stylometrics',   s:0.65, c:'#2563EB'},
+    {name:'Discourse Analysis',     s:0.48, c:'#7C3AED'},
+    {name:'Rhetorical Register',    s:0.82, c:'#DC2626'},
+    {name:'Char & Punctuation',     s:0.71, c:'#D97706'},
+    {name:'POS & Syntax',           s:0.59, c:'#2563EB'},
+    {name:'Idiosyncratic Patterns', s:0.74, c:'#B8860B'},
+    {name:'AI Detection Markers',   s:0.38, c:'#059669'},
+  ],
+  feats:[
+    {name:'Theological Register',     tier:'T3', dev:0.82, dir:'↓ well below baseline', c:'#DC2626'},
+    {name:'Sentence Length Variance', tier:'T1', dev:0.65, dir:'↑ higher than baseline', c:'#D97706'},
+    {name:'Citation Style Pattern',   tier:'T6', dev:0.58, dir:'≠ different pattern',    c:'#D97706'},
+    {name:'Epistemic Certainty',      tier:'T3', dev:0.52, dir:'↓ below baseline',       c:'#D97706'},
+    {name:'Hapax Legomena Rate',      tier:'T1', dev:0.44, dir:'↓ below baseline',       c:'#B8860B'},
+  ],
+};
+const HIST=[
+  {title:'Research Paper: Justification by Faith',date:'Mar 28, 2026',score:0.71,action:'schedule_conversation'},
+  {title:'Exegesis: Romans 8:1–17',               date:'Mar 12, 2026',score:0.38,action:'monitor'},
+  {title:'Reflection: Barth\'s Church Dogmatics', date:'Feb 24, 2026',score:0.22,action:'no_action'},
+  {title:'Midterm Essay: Covenant Theology',      date:'Feb 10, 2026',score:0.19,action:'no_action'},
+];
+const BASES=[
+  {n:'01',title:'In-class Essay: Christology',      date:'Jan 15, 2026',words:642},
+  {n:'02',title:'In-class Essay: Pneumatology',     date:'Jan 29, 2026',words:718},
+  {n:'03',title:'Canvas Submission (Authenticated)',date:'Feb 5, 2026', words:891},
+  {n:'04',title:'In-class Essay: Eschatology',      date:'Feb 19, 2026',words:774},
+  {n:'05',title:'Handwritten + Transcribed',        date:'Mar 4, 2026', words:603},
+];
+const SAMPLE=`The concept of justification by faith represents a foundational element in Protestant theology. The reformers, particularly Luther, emphasized that salvation comes through faith alone and not through works. This understanding transformed Christian thought and practice across Europe during the sixteenth century. Modern scholarship continues to debate the precise relationship between faith, works, and grace in the Pauline corpus.
+
+Paul's argument in Romans follows a logical progression from universal human sinfulness to divine redemption through Christ. The apostle demonstrates that both Jews and Gentiles stand equally condemned before God, establishing the need for a righteousness that comes from outside human effort. This righteousness, Paul argues, is received through faith in Jesus Christ and credited to the believer's account.`;
+
+/* ── State ── */
+let active = STUDENTS[0];
+
+/* ── Sparklines ── */
+function sparkSVG(pts, color, h=36) {
+  const w=120, pad=4;
+  const ys=pts.map(p=>p[1]), xs=pts.map(p=>p[0]);
+  const minY=Math.min(...ys), maxY=Math.max(...ys);
+  const rangeY=maxY-minY||1, maxX=Math.max(...xs)||1;
+  const map=pts.map(p=>[
+    pad+(p[0]/maxX)*(w-pad*2),
+    pad+(1-(p[1]-minY)/rangeY)*(h-pad*2)
+  ]);
+  const poly=map.map(p=>p.join(',')).join(' ');
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline points="${poly}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+    <circle cx="${map[map.length-1][0]}" cy="${map[map.length-1][1]}" r="3.5" fill="${color}"/>
+  </svg>`;
+}
+
+/* ── Render students ── */
+function renderStudents() {
+  const row = document.getElementById('studentRow');
+  row.innerHTML = '';
+  STUDENTS.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'student-pill s-pill' + (s.id===active.id?' active':'');
+    div.innerHTML = `
+      <div class="s-pill-avatar" style="background:${s.color};color:${s.tc}">${s.ini}</div>
+      <span class="s-pill-name">${s.name}</span>
+      <div class="s-pill-dot" style="background:${s.dot}"></div>`;
+    div.onclick = () => selectStudent(s);
+    row.appendChild(div);
+  });
+}
+
+/* ── Select student ── */
+function selectStudent(s) {
+  active = s;
+  renderStudents();
+  renderHistory();
+  renderBaselines();
+  // Update panel
+  document.getElementById('panelStudentName').textContent = s.name;
+  document.getElementById('panelName').textContent = s.name;
+  document.getElementById('panelMeta').textContent = `${s.baselines} baselines · purity 0.78`;
+  const av = document.getElementById('panelAvatar');
+  av.textContent = s.ini;
+  av.style.background = s.color;
+  av.style.color = s.tc;
+  // Clear results
+  document.getElementById('resultsWrap').style.display = 'none';
+  document.getElementById('subText').value = '';
+  document.getElementById('wordCount').textContent = '0 words';
+  document.getElementById('panelDeviation').classList.remove('show');
+}
+
+/* ── Word count ── */
+function onTextInput() {
+  const txt = document.getElementById('subText').value.trim();
+  const w = txt ? txt.split(/\s+/).length : 0;
+  document.getElementById('wordCount').textContent = `${w} word${w!==1?'s':''}`;
+}
+function loadSample() {
+  document.getElementById('subText').value = SAMPLE;
+  onTextInput();
+}
+
+/* ── Tab switch ── */
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>{
+    b.classList.toggle('active',['score','history','baselines'][i]===name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+}
+
+/* ── History ── */
+function renderHistory() {
+  const el = document.getElementById('tab-history');
+  el.innerHTML = '';
+  const colors = {no_action:'var(--green)',monitor:'var(--blue)',schedule_conversation:'var(--amber)',escalate:'var(--red)'};
+  const labels = {no_action:'No Action',monitor:'Monitor',schedule_conversation:'Discuss',escalate:'Escalate'};
+  HIST.forEach(h => {
+    const c = colors[h.action];
+    el.innerHTML += `<div class="hist-item">
+      <div class="hist-ring" style="color:${c};border-color:${c}">${h.score.toFixed(2)}</div>
+      <div><div class="hist-title">${h.title}</div><div class="hist-meta">${h.date}</div></div>
+      <div class="hist-badge ${h.action}">${labels[h.action]}</div>
+    </div>`;
+  });
+}
+
+/* ── Baselines ── */
+function renderBaselines() {
+  const el = document.getElementById('tab-baselines');
+  el.innerHTML = '<div class="baseline-grid" id="bGrid"></div><button class="add-base-btn" onclick="alert(\'Add authenticated baseline\')">+ Add Authenticated Baseline</button>';
+  const g = document.getElementById('bGrid');
+  BASES.forEach(b => {
+    g.innerHTML += `<div class="base-card">
+      <div class="base-num">${b.n}</div>
+      <div class="base-title">${b.title}</div>
+      <div class="base-date">${b.date}</div>
+      <div class="base-words">${b.words} words</div>
+    </div>`;
+  });
+}
+
+/* ── Analysis ── */
+async function runAnalysis() {
+  if(document.getElementById('subText').value.trim().length<30){
+    alert('Paste text or click "Load sample"'); return;
+  }
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('loadingCard').classList.add('show');
+  document.getElementById('resultsWrap').style.display = 'none';
+
+  const steps = ['ls1','ls2','ls3','ls4','ls5','ls6'];
+  for(let s of steps){ await delay(380); document.getElementById(s).classList.add('done'); }
+  await delay(300);
+
+  document.getElementById('loadingCard').classList.remove('show');
+  steps.forEach(id=>document.getElementById(id).classList.remove('done'));
+  document.getElementById('analyzeBtn').disabled = false;
+
+  renderResults(RESULT);
+}
+function delay(ms){return new Promise(r=>setTimeout(r,ms))}
+
+/* ── Render results ── */
+function renderResults(r) {
+  const wrap = document.getElementById('resultsWrap');
+  wrap.style.display = 'flex';
+
+  // Sparklines
+  document.getElementById('sparkline1').innerHTML = sparkSVG(
+    [[0,0.22],[1,0.19],[2,0.38],[3,0.71]],
+    r.deviation>0.55?'#D97706':'#059669');
+  document.getElementById('sparkline2').innerHTML = sparkSVG(
+    [[0,0.85],[1,0.88],[2,0.72],[3,0.31]],
+    '#DC2626');
+  document.getElementById('sparkline3').innerHTML = sparkSVG(
+    [[0,0.80],[1,0.75],[2,0.60],[3,0.42]],
+    '#2563EB');
+
+  // Animate metric cards
+  ['mc1','mc2','mc3'].forEach(id=>{
+    setTimeout(()=>document.getElementById(id).classList.add('show'),50);
+  });
+
+  // Recommendation
+  setTimeout(()=>document.getElementById('recCard').classList.add('show'),250);
+
+  // Tiers
+  setTimeout(()=>{
+    document.getElementById('tiersCard').classList.add('show');
+    const el = document.getElementById('tierRows');
+    el.innerHTML = '';
+    r.tiers.forEach((t,i)=>{
+      el.innerHTML+=`<div class="tier-row">
+        <span class="tier-name">${t.name}</span>
+        <div class="tier-track"><div class="tier-fill" id="tf${i}" style="background:${t.c}"></div></div>
+        <span class="tier-val" style="color:${t.c}">${t.s.toFixed(2)}</span>
+      </div>`;
+      setTimeout(()=>{
+        const b=document.getElementById('tf'+i);
+        if(b) b.style.width=(t.s*100)+'%';
+      },500+i*60);
+    });
+  },400);
+
+  // Features
+  setTimeout(()=>{
+    document.getElementById('featsCard').classList.add('show');
+    const el = document.getElementById('featRows');
+    el.innerHTML='';
+    r.feats.forEach((f,i)=>{
+      el.innerHTML+=`<div class="feat-row" id="fr${i}">
+        <span class="feat-tier">${f.tier}</span>
+        <span class="feat-name">${f.name}</span>
+        <span class="feat-dir">${f.dir}</span>
+        <span class="feat-delta" style="color:${f.c}">+${f.dev.toFixed(2)}</span>
+      </div>`;
+      setTimeout(()=>{
+        const row=document.getElementById('fr'+i);
+        if(row) row.classList.add('show');
+      },900+i*90);
+    });
+  },600);
+
+  // Panel
+  const pd = document.getElementById('panelDeviation');
+  pd.classList.add('show');
+  const actionLabels={no_action:'No Action',monitor:'Monitor',schedule_conversation:'Schedule Conversation',escalate:'Escalate'};
+  const actionColors={no_action:'var(--green)',monitor:'var(--blue)',schedule_conversation:'var(--amber)',escalate:'var(--red)'};
+  document.getElementById('pdScore').textContent = r.deviation.toFixed(2);
+  document.getElementById('pdScore').style.color = actionColors[r.action];
+  document.getElementById('pdAction').textContent = actionLabels[r.action];
+  document.getElementById('pdAction').style.color = actionColors[r.action];
+}
+
+/* ── Init ── */
+window.addEventListener('DOMContentLoaded',()=>{
+  renderStudents();
+  renderHistory();
+  renderBaselines();
+  // Animate panel trait bars
+  setTimeout(()=>{
+    [['ptb1',84],['ptb2',78],['ptb3',67],['ptb4',71]].forEach(([id,v])=>{
+      const b=document.getElementById(id);
+      if(b) b.style.width=v+'%';
+    });
+  },300);
+});
+</script>
+</body>
+</html>

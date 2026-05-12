@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Original — James Whitfield</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --green-deepest:#0f1e17; --green-deep:#162b22; --green-mid:#1e3d2f;
+      --green-hover:#243d30; --green-border:rgba(255,255,255,0.07);
+      --cream:#f7f3ea; --cream-warm:#ede8d8; --cream-border:#e2dccf;
+      --surface:#ffffff; --gold:#c9a028; --gold-light:rgba(201,160,40,0.12);
+      --gold-muted:rgba(201,160,40,0.35); --amber:#9b6420;
+      --text-primary:#1a130a; --text-secondary:#5a4030;
+      --text-muted:#8a7060; --text-cream:#f7f3ea;
+      --text-cream-dim:rgba(247,243,234,0.55);
+      --flag-red:#c0392b; --flag-red-bg:rgba(192,57,43,0.08);
+      --flag-amber:#c9a028; --flag-amber-bg:rgba(201,160,40,0.1);
+      --flag-green:#2a6b45; --flag-green-bg:rgba(42,107,69,0.1);
+      --sidebar-w:264px; --radius:6px;
+      --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+    }
+    html,body{height:100%;}
+    body{font-family:'Inter',system-ui,sans-serif;background:var(--cream);color:var(--text-primary);display:flex;overflow:hidden;font-size:14px;line-height:1.5;}
+
+    /* Shared sidebar — same as other pages */
+    .sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);height:100vh;background:var(--green-deep);display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:100;border-right:1px solid var(--green-border);}
+    .sidebar-logo{padding:1.5rem 1.5rem 1.25rem;border-bottom:1px solid var(--green-border);}
+    .logo-mark{display:flex;align-items:center;gap:0.75rem;margin-bottom:0.35rem;}
+    .logo-icon{width:30px;height:30px;border:1px solid var(--gold-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .logo-icon svg{width:14px;height:14px;stroke:var(--gold);}
+    .logo-wordmark{font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;color:var(--text-cream);letter-spacing:0.06em;}
+    .logo-school{font-family:'EB Garamond',serif;font-size:0.78rem;font-style:italic;color:var(--text-cream-dim);letter-spacing:0.03em;padding-left:2.8rem;}
+    .sidebar-nav{flex:1;padding:1rem 0;overflow-y:auto;}
+    .nav-section-label{font-size:0.65rem;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-cream-dim);padding:0.6rem 1.5rem 0.3rem;margin-top:0.5rem;}
+    .nav-item{display:flex;align-items:center;gap:0.75rem;padding:0.6rem 1.5rem;color:rgba(247,243,234,0.65);text-decoration:none;font-size:0.875rem;font-weight:500;cursor:pointer;transition:color 0.15s,background 0.15s;border-left:2px solid transparent;letter-spacing:0.01em;}
+    .nav-item:hover{color:var(--text-cream);background:var(--green-hover);}
+    .nav-item.active{color:var(--text-cream);border-left-color:var(--gold);background:rgba(201,160,40,0.08);}
+    .nav-item svg{width:16px;height:16px;stroke:currentColor;flex-shrink:0;opacity:0.85;}
+    .nav-badge{margin-left:auto;background:var(--gold);color:var(--green-deepest);font-size:0.65rem;font-weight:700;padding:0.15rem 0.45rem;border-radius:20px;}
+    .sidebar-user{border-top:1px solid var(--green-border);padding:1rem 1.25rem;display:flex;align-items:center;gap:0.75rem;}
+    .user-avatar{width:32px;height:32px;border-radius:50%;background:var(--green-mid);border:1px solid var(--gold-muted);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:0.8rem;color:var(--gold);flex-shrink:0;}
+    .user-info{flex:1;min-width:0;}
+    .user-name{font-size:0.825rem;font-weight:500;color:var(--text-cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .user-role{font-size:0.72rem;color:var(--text-cream-dim);font-style:italic;font-family:'EB Garamond',serif;}
+    .user-settings{width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--text-cream-dim);cursor:pointer;border-radius:4px;}
+    .user-settings svg{width:15px;height:15px;stroke:currentColor;}
+
+    .main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+    .topbar{background:var(--cream);border-bottom:1px solid var(--cream-border);padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+    .breadcrumb{display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;color:var(--text-muted);}
+    .breadcrumb a{color:var(--text-muted);text-decoration:none;transition:color 0.15s;}
+    .breadcrumb a:hover{color:var(--amber);}
+    .breadcrumb-sep{color:var(--cream-border);}
+    .breadcrumb-current{font-weight:500;color:var(--text-secondary);}
+    .topbar-right{display:flex;align-items:center;gap:0.75rem;}
+    .semester-badge{font-family:'EB Garamond',serif;font-size:0.85rem;font-style:italic;color:var(--text-muted);background:var(--cream-warm);border:1px solid var(--cream-border);padding:0.3rem 0.85rem;border-radius:20px;}
+    .topbar-icon-btn{width:32px;height:32px;border-radius:var(--radius);border:1px solid var(--cream-border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:border-color 0.15s;position:relative;color:var(--text-secondary);}
+    .topbar-icon-btn svg{width:15px;height:15px;stroke:currentColor;}
+    .notif-dot{position:absolute;top:6px;right:6px;width:6px;height:6px;background:var(--gold);border-radius:50%;border:1.5px solid var(--cream);}
+
+    .page-body{flex:1;overflow-y:auto;padding:2rem 2rem 3rem;}
+
+    /* STUDENT HEADER */
+    .student-header{
+      display:flex;align-items:flex-start;gap:1.5rem;
+      background:var(--surface);border:1px solid var(--cream-border);
+      border-radius:var(--radius);padding:1.5rem 1.75rem;
+      margin-bottom:1.5rem;box-shadow:var(--shadow-sm);
+    }
+    .student-avatar-lg{
+      width:56px;height:56px;border-radius:50%;
+      background:var(--flag-red-bg);
+      border:2px solid rgba(192,57,43,0.2);
+      display:flex;align-items:center;justify-content:center;
+      font-family:'Playfair Display',serif;font-size:1.2rem;
+      color:var(--flag-red);flex-shrink:0;
+    }
+    .student-header-info{flex:1;}
+    .student-header-name{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:600;color:var(--text-primary);margin-bottom:0.25rem;}
+    .student-header-meta{display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap;}
+    .student-meta-item{font-size:0.8rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;display:flex;align-items:center;gap:0.3rem;}
+    .student-meta-item svg{width:12px;height:12px;stroke:currentColor;}
+    .student-header-right{display:flex;flex-direction:column;align-items:flex-end;gap:0.5rem;flex-shrink:0;}
+    .alert-badge{
+      display:inline-flex;align-items:center;gap:0.4rem;
+      background:var(--flag-red-bg);border:1px solid rgba(192,57,43,0.2);
+      color:var(--flag-red);padding:0.4rem 0.9rem;border-radius:20px;
+      font-size:0.775rem;font-weight:600;
+    }
+    .alert-badge svg{width:13px;height:13px;stroke:currentColor;}
+    .deviation-display{text-align:right;}
+    .deviation-label{font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:0.2rem;}
+    .deviation-number{font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:600;color:var(--flag-red);}
+    .deviation-sub{font-size:0.72rem;color:var(--text-muted);font-style:italic;font-family:'EB Garamond',serif;}
+
+    /* GRID */
+    .profile-grid{display:grid;grid-template-columns:1fr 340px;gap:1.5rem;align-items:start;}
+
+    .section-card{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:1.5rem;}
+    .section-card:last-child{margin-bottom:0;}
+    .section-head{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.4rem;border-bottom:1px solid var(--cream-border);}
+    .section-title{font-family:'Playfair Display',serif;font-size:0.95rem;font-weight:600;color:var(--text-primary);}
+    .section-action{font-size:0.775rem;color:var(--amber);cursor:pointer;text-decoration:none;font-weight:500;}
+    .section-action:hover{color:var(--text-primary);}
+
+    /* FINGERPRINT FEATURES */
+    .features-list{padding:1rem 1.4rem;}
+    .feature-row{
+      display:grid;grid-template-columns:160px 1fr 60px 70px;
+      align-items:center;gap:0.75rem;
+      padding:0.65rem 0;
+      border-bottom:1px solid var(--cream-border);
+    }
+    .feature-row:last-child{border-bottom:none;}
+    .feature-name{font-size:0.8rem;font-weight:500;color:var(--text-secondary);}
+    .feature-bar-wrap{display:flex;align-items:center;gap:0.5rem;}
+    .feature-bar{height:6px;background:var(--cream-border);border-radius:3px;overflow:hidden;flex:1;}
+    .feature-fill{height:100%;border-radius:3px;background:var(--flag-green);}
+    .feature-fill.shifted{background:var(--flag-red);}
+    .feature-value{font-size:0.78rem;color:var(--text-secondary);font-weight:500;text-align:right;}
+    .feature-delta{font-size:0.72rem;text-align:right;font-weight:600;}
+    .feature-delta.negative{color:var(--flag-red);}
+    .feature-delta.positive{color:var(--flag-green);}
+    .feature-delta.neutral{color:var(--text-muted);}
+    .feature-section-label{
+      font-size:0.65rem;font-weight:600;letter-spacing:0.15em;
+      text-transform:uppercase;color:var(--text-muted);
+      padding:0.75rem 0 0.25rem;grid-column:1/-1;
+    }
+
+    /* DEVIATION CHART (CSS-based sparkline) */
+    .deviation-chart{padding:1.25rem 1.4rem;}
+    .chart-container{position:relative;height:80px;margin-bottom:0.75rem;}
+    .chart-svg{width:100%;height:100%;overflow:visible;}
+    .chart-x-labels{display:flex;justify-content:space-between;padding:0 2px;}
+    .chart-x-label{font-size:0.68rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;}
+    .threshold-label{position:absolute;right:0;font-size:0.65rem;color:var(--amber);font-weight:600;letter-spacing:0.05em;}
+
+    /* SUBMISSION HISTORY */
+    .submission-list{padding:0;}
+    .submission-item{
+      display:flex;align-items:flex-start;gap:0.85rem;
+      padding:0.9rem 1.4rem;border-bottom:1px solid var(--cream-border);
+      cursor:pointer;text-decoration:none;color:inherit;transition:background 0.12s;
+    }
+    .submission-item:last-child{border-bottom:none;}
+    .submission-item:hover{background:var(--cream);}
+    .sub-indicator{
+      width:8px;height:8px;border-radius:50%;
+      margin-top:0.35rem;flex-shrink:0;
+    }
+    .sub-indicator.flagged{background:var(--flag-red);}
+    .sub-indicator.clear{background:var(--flag-green);}
+    .sub-indicator.baseline{background:var(--gold);}
+    .sub-body{flex:1;}
+    .sub-title{font-size:0.85rem;font-weight:500;color:var(--text-primary);}
+    .sub-meta{font-size:0.75rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;margin-top:0.15rem;}
+    .sub-right{display:flex;flex-direction:column;align-items:flex-end;gap:0.3rem;flex-shrink:0;}
+    .sub-score{font-family:'Playfair Display',serif;font-size:0.9rem;font-weight:600;}
+    .sub-score.flagged{color:var(--flag-red);}
+    .sub-score.clear{color:var(--flag-green);}
+    .sub-score.baseline{color:var(--gold);}
+    .sub-badge{font-size:0.68rem;padding:0.15rem 0.5rem;border-radius:20px;font-weight:600;}
+    .sub-badge.flagged{background:var(--flag-red-bg);color:var(--flag-red);border:1px solid rgba(192,57,43,0.2);}
+    .sub-badge.clear{background:var(--flag-green-bg);color:var(--flag-green);border:1px solid rgba(42,107,69,0.2);}
+    .sub-badge.baseline{background:var(--gold-light);color:var(--amber);border:1px solid var(--gold-muted);}
+
+    /* BASELINE SUMMARY */
+    .baseline-summary{padding:1.25rem 1.4rem;}
+    .bs-intro{font-family:'EB Garamond',serif;font-size:0.9rem;font-style:italic;color:var(--text-muted);margin-bottom:1rem;line-height:1.6;}
+    .bs-sample-count{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;}
+    .bs-count-value{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:600;color:var(--text-primary);}
+    .bs-count-label{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--text-muted);margin-top:0.1rem;}
+    .bs-established{font-size:0.72rem;color:var(--flag-green);font-weight:600;display:flex;align-items:center;gap:0.3rem;}
+    .bs-feature-mini{margin-bottom:0.6rem;}
+    .bs-feature-label{display:flex;justify-content:space-between;margin-bottom:0.25rem;}
+    .bs-feature-name{font-size:0.75rem;color:var(--text-secondary);}
+    .bs-feature-val{font-size:0.75rem;font-weight:600;color:var(--text-primary);}
+    .bs-bar{height:5px;background:var(--cream-border);border-radius:2px;overflow:hidden;}
+    .bs-fill{height:100%;border-radius:2px;background:var(--flag-green);}
+
+    .btn{display:inline-flex;align-items:center;gap:0.45rem;padding:0.5rem 1.1rem;border-radius:var(--radius);font-size:0.825rem;font-weight:500;cursor:pointer;transition:all 0.15s;text-decoration:none;border:none;letter-spacing:0.01em;}
+    .btn svg{width:14px;height:14px;stroke:currentColor;}
+    .btn-ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--cream-border);}
+    .btn-ghost:hover{background:var(--surface);border-color:var(--gold-muted);color:var(--text-primary);}
+    .btn-danger{background:var(--flag-red-bg);color:var(--flag-red);border:1px solid rgba(192,57,43,0.25);}
+    .btn-danger:hover{background:rgba(192,57,43,0.14);}
+
+    ::-webkit-scrollbar{width:4px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:var(--cream-border);border-radius:2px;}
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <span class="logo-wordmark">Original</span>
+    </div>
+    <div class="logo-school">Southern Baptist Theological Seminary</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Overview</div>
+    <a class="nav-item" href="original-dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard</a>
+    <a class="nav-item active" href="original-course.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Courses</a>
+    <a class="nav-item" href="original-students.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Students</a>
+    <div class="nav-section-label">Review</div>
+    <a class="nav-item" href="original-flagged.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Flagged<span class="nav-badge">5</span></a>
+    <a class="nav-item" href="original-submit.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Submit Writing</a>
+    <a class="nav-item" href="original-reports.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Reports</a>
+        <div class="nav-section-label">Pipeline</div>
+    <a class="nav-item" href="original-features.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Feature Profile</a>
+    <a class="nav-item" href="original-quantum.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>Quantum State</a>
+    <a class="nav-item" href="original-decomposition.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Interference</a>
+    <div class="nav-section-label">Institution</div>
+    <a class="nav-item" href="original-admin.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Admin</a>
+    <a class="nav-item" href="original-settings.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">AC</div>
+    <div class="user-info"><div class="user-name">Dr. Andrew Clark</div><div class="user-role">Instructor</div></div>
+    <div class="user-settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="breadcrumb">
+        <a href="original-dashboard.html">Original</a>
+        <span class="breadcrumb-sep">/</span>
+        <a href="original-course.html">THEO 501</a>
+        <span class="breadcrumb-sep">/</span>
+        <span class="breadcrumb-current">James Whitfield</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="semester-badge">Spring 2026</div>
+      <div class="topbar-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+      <div class="topbar-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-dot"></span></div>
+    </div>
+  </div>
+
+  <div class="page-body">
+
+    <!-- Student header -->
+    <div class="student-header">
+      <div class="student-avatar-lg">JW</div>
+      <div class="student-header-info">
+        <h1 class="student-header-name">James Whitfield</h1>
+        <div class="student-header-meta">
+          <span class="student-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>jwhitfield@sbts.edu</span>
+          <span class="student-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Systematic Theology I · THEO 501</span>
+          <span class="student-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Enrolled Spring 2026 · 4 submissions</span>
+        </div>
+      </div>
+      <div class="student-header-right">
+        <div class="alert-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          High Deviation Flagged
+        </div>
+        <div class="deviation-display">
+          <div class="deviation-label">Latest deviation</div>
+          <div class="deviation-number">0.91</div>
+          <div class="deviation-sub">Final Essay · Mar 14</div>
+        </div>
+        <div style="display:flex;gap:0.5rem;margin-top:0.25rem;">
+          <a href="original-submit.html" style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.45rem 0.9rem;border-radius:4px;font-size:0.775rem;font-weight:600;font-family:'Inter',sans-serif;background:var(--green-deep);color:var(--text-cream);text-decoration:none;transition:background 0.15s;border:none;cursor:pointer;" onmouseover="this.style.background='#1e3d2f'" onmouseout="this.style.background='#162b22'">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" width="13" height="13" stroke="currentColor"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Submit
+          </a>
+          <a href="original-baseline.html" style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.45rem 0.9rem;border-radius:4px;font-size:0.775rem;font-weight:600;font-family:'Inter',sans-serif;background:transparent;color:var(--amber);border:1px solid var(--gold-muted);text-decoration:none;transition:all 0.15s;cursor:pointer;" onmouseover="this.style.background='rgba(201,160,40,0.08)'" onmouseout="this.style.background='transparent'">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" width="13" height="13" stroke="currentColor"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+            Baseline
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profile grid -->
+    <div class="profile-grid">
+
+      <!-- LEFT COLUMN -->
+      <div>
+
+        <!-- Stylometric fingerprint -->
+        <div class="section-card">
+          <div class="section-head">
+            <span class="section-title">Stylometric Fingerprint</span>
+            <span style="font-size:0.75rem;color:var(--text-muted);font-style:italic;font-family:'EB Garamond',serif;">Baseline vs. Latest Submission</span>
+          </div>
+          <div class="features-list">
+
+            <div class="feature-row">
+              <div class="feature-name" style="color:var(--text-muted);font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;">Lexical</div>
+              <div></div><div></div><div></div>
+            </div>
+
+            <div class="feature-row">
+              <div class="feature-name">Type-Token Ratio</div>
+              <div class="feature-bar-wrap">
+                <div class="feature-bar"><div class="feature-fill shifted" style="width:41%"></div></div>
+              </div>
+              <div class="feature-value">0.41 <span style="color:var(--text-muted);font-size:0.7rem;">/ 0.72</span></div>
+              <div class="feature-delta negative">−43%</div>
+            </div>
+
+            <div class="feature-row">
+              <div class="feature-name">Hapax Legomena Rate</div>
+              <div class="feature-bar-wrap">
+                <div class="feature-bar"><div class="feature-fill shifted" style="width:28%"></div></div>
+              </div>
+              <div class="feature-value">0.28 <span style="color:var(--text-muted);font-size:0.7rem;">/ 0.49</span></div>
+              <div class="feature-delta negative">−43%</div>
+            </div>
+
+            <div class="feature-row">
+              <div class="feature-name">Unique Word Count</div>
+              <div class="feature-bar-wrap">
+                <div class="feature-bar"><div class="feature-fill" style="width:68%;background:var(--amber)"></div></div>
+              </div>
+              <div class="feature-value">412 <span style="color:var(--text-muted);font-size:0.7rem;">/ 384</span></div>
+              <div class="feature-delta positive">+7%</div>
+            </div>
+
+            <div class="feature-row">
+              <div class="feature-name" style="color:var(--text-muted);font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;padding-top:0.5rem;">Syntactic</div>
+              <div></div><div></div><div></div>
+            </div>
+
+            <div class="feature-row">
+              <div class="feature-name">Mean Sentence Length</div>
+              <div class="feature-bar-wrap">
+                <div class="feature-bar"><div class="feature-fill shifted" style="width:75%"></div></div>
+              </div>
+              <div class="feature-value">31.2 <span style="color:var(--text-muted);font-size:0.7rem;">/ 18.3</span></div>
+              <div class="feature-delta negative">+71%</div>
+            </div>
+
+            <div class="feature-row">
+              <div class="feature-name">Sentence Length Var.</div>
+              <div class="feature-bar-wrap">
+                <div class="feature-bar"><div class="feature-fill" style="width:62%;background:var(--amber)"></div></div>
+              </div>
+              <div class="feature-value">4.1 <span style="color:var(--text-muted);font-size:0.7rem;">/ 5.8</span></div>
+              <div class="feature-delta negative">−29%</div>
+            </div>
+
+            <div class="feature-row">
+              <div class="feature-name" style="color:var(--text-muted);font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;padding-top:0.5rem;">Grammatical</div>
+              <div></div><div></div><div></div>
+            </div>
+
+            <div class="feature-row">
+              <div class="feature-name">Function Word Ratio</div>
+              <div class="feature-bar-wrap">
+                <div class="feature-bar"><div class="feature-fill shifted" style="width:29%"></div></div>
+              </div>
+              <div class="feature-value">0.29 <span style="color:var(--text-muted);font-size:0.7rem;">/ 0.44</span></div>
+              <div class="feature-delta negative">−34%</div>
+            </div>
+
+            <div class="feature-row">
+              <div class="feature-name">Passive Voice Ratio</div>
+              <div class="feature-bar-wrap">
+                <div class="feature-bar"><div class="feature-fill shifted" style="width:58%"></div></div>
+              </div>
+              <div class="feature-value">0.31 <span style="color:var(--text-muted);font-size:0.7rem;">/ 0.12</span></div>
+              <div class="feature-delta negative">+158%</div>
+            </div>
+
+            <div class="feature-row">
+              <div class="feature-name">Modal Verb Ratio</div>
+              <div class="feature-bar-wrap">
+                <div class="feature-bar"><div class="feature-fill" style="width:42%"></div></div>
+              </div>
+              <div class="feature-value">0.08 <span style="color:var(--text-muted);font-size:0.7rem;">/ 0.09</span></div>
+              <div class="feature-delta neutral">−11%</div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Deviation over time -->
+        <div class="section-card">
+          <div class="section-head">
+            <span class="section-title">Deviation History</span>
+            <span style="font-size:0.75rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;">Per submission · Spring 2026</span>
+          </div>
+          <div class="deviation-chart">
+            <div class="chart-container">
+              <span class="threshold-label" style="top:30%">Flag threshold</span>
+              <svg class="chart-svg" viewBox="0 0 400 80" preserveAspectRatio="none">
+                <!-- Grid lines -->
+                <line x1="0" y1="20" x2="400" y2="20" stroke="#e2dccf" stroke-width="1" stroke-dasharray="4,4"/>
+                <line x1="0" y1="40" x2="400" y2="40" stroke="#e2dccf" stroke-width="1" stroke-dasharray="4,4"/>
+                <line x1="0" y1="60" x2="400" y2="60" stroke="#e2dccf" stroke-width="1" stroke-dasharray="4,4"/>
+                <!-- Threshold line at 0.65 -->
+                <line x1="0" y1="28" x2="400" y2="28" stroke="#c9a028" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.6"/>
+                <!-- Area fill -->
+                <path d="M 0 72 L 100 68 L 200 65 L 300 50 L 400 8 L 400 80 L 0 80 Z" fill="rgba(192,57,43,0.06)"/>
+                <!-- Line -->
+                <polyline points="0,72 100,68 200,65 300,50 400,8" fill="none" stroke="#c0392b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- Data points -->
+                <circle cx="0"   cy="72" r="4" fill="#2a6b45" stroke="white" stroke-width="1.5"/>
+                <circle cx="100" cy="68" r="4" fill="#2a6b45" stroke="white" stroke-width="1.5"/>
+                <circle cx="200" cy="65" r="4" fill="#c9a028" stroke="white" stroke-width="1.5"/>
+                <circle cx="300" cy="50" r="4" fill="#c9a028" stroke="white" stroke-width="1.5"/>
+                <circle cx="400" cy="8"  r="5" fill="#c0392b" stroke="white" stroke-width="1.5"/>
+                <!-- Value labels -->
+                <text x="0"   y="84" font-size="8" fill="#8a7060" text-anchor="middle">0.10</text>
+                <text x="100" y="84" font-size="8" fill="#8a7060" text-anchor="middle">0.17</text>
+                <text x="200" y="84" font-size="8" fill="#9b6420" text-anchor="middle">0.42</text>
+                <text x="300" y="84" font-size="8" fill="#9b6420" text-anchor="middle">0.61</text>
+                <text x="400" y="84" font-size="8" fill="#c0392b" text-anchor="middle" font-weight="600">0.91</text>
+              </svg>
+            </div>
+            <div class="chart-x-labels">
+              <span class="chart-x-label">Jan 24</span>
+              <span class="chart-x-label">Feb 7</span>
+              <span class="chart-x-label">Feb 21</span>
+              <span class="chart-x-label">Mar 8</span>
+              <span class="chart-x-label">Mar 14</span>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /left -->
+
+      <!-- RIGHT COLUMN -->
+      <div>
+
+        <!-- Baseline summary -->
+        <div class="section-card">
+          <div class="section-head">
+            <span class="section-title">Baseline Profile</span>
+            <span style="font-size:0.72rem;background:var(--flag-green-bg);color:var(--flag-green);border:1px solid rgba(42,107,69,0.2);padding:0.15rem 0.5rem;border-radius:20px;font-weight:600;">Strong</span>
+          </div>
+          <div class="baseline-summary">
+            <div class="bs-intro">Built from 3 authenticated writing samples across the Fall 2025 and Spring 2026 terms.</div>
+            <div class="bs-sample-count">
+              <div>
+                <div class="bs-count-value">3</div>
+                <div class="bs-count-label">Baseline samples</div>
+              </div>
+              <div class="bs-established">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>
+                Established
+              </div>
+            </div>
+            <div class="bs-feature-mini">
+              <div class="bs-feature-label"><span class="bs-feature-name">Avg Type-Token Ratio</span><span class="bs-feature-val">0.72</span></div>
+              <div class="bs-bar"><div class="bs-fill" style="width:72%"></div></div>
+            </div>
+            <div class="bs-feature-mini">
+              <div class="bs-feature-label"><span class="bs-feature-name">Avg Sentence Length</span><span class="bs-feature-val">18.3 words</span></div>
+              <div class="bs-bar"><div class="bs-fill" style="width:46%"></div></div>
+            </div>
+            <div class="bs-feature-mini">
+              <div class="bs-feature-label"><span class="bs-feature-name">Hapax Legomena Rate</span><span class="bs-feature-val">0.49</span></div>
+              <div class="bs-bar"><div class="bs-fill" style="width:49%"></div></div>
+            </div>
+            <div class="bs-feature-mini">
+              <div class="bs-feature-label"><span class="bs-feature-name">Function Word Ratio</span><span class="bs-feature-val">0.44</span></div>
+              <div class="bs-bar"><div class="bs-fill" style="width:44%"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pipeline Analysis shortcuts -->
+        <div class="section-card">
+          <div class="section-head" style="padding:1rem 1.25rem 0.75rem;">
+            <span class="section-title">Pipeline Analysis</span>
+            <span style="font-size:0.72rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;">Latest flagged submission</span>
+          </div>
+          <div style="padding:0 1.25rem 1.1rem;display:flex;flex-direction:column;gap:0.5rem;">
+
+            <a href="original-features.html" style="text-decoration:none;display:flex;align-items:center;gap:0.75rem;padding:0.65rem 0.85rem;background:var(--cream);border:1px solid var(--cream-border);border-radius:var(--radius);transition:border-color 0.15s;" onmouseover="this.style.borderColor='var(--gold-muted)'" onmouseout="this.style.borderColor='var(--cream-border)'">
+              <div style="width:28px;height:28px;flex-shrink:0;border-radius:5px;background:rgba(201,160,40,0.1);display:flex;align-items:center;justify-content:center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:0.8rem;font-weight:600;color:var(--text-primary);">Feature Profile</div>
+                <div style="font-size:0.7rem;color:var(--text-muted);">34 features · 17 destructive</div>
+              </div>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </a>
+
+            <a href="original-quantum.html" style="text-decoration:none;display:flex;align-items:center;gap:0.75rem;padding:0.65rem 0.85rem;background:var(--cream);border:1px solid var(--cream-border);border-radius:var(--radius);transition:border-color 0.15s;" onmouseover="this.style.borderColor='var(--gold-muted)'" onmouseout="this.style.borderColor='var(--cream-border)'">
+              <div style="width:28px;height:28px;flex-shrink:0;border-radius:5px;background:rgba(201,160,40,0.1);display:flex;align-items:center;justify-content:center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:0.8rem;font-weight:600;color:var(--text-primary);">Quantum State</div>
+                <div style="font-size:0.7rem;color:var(--text-muted);">Density matrix · Purity 0.297</div>
+              </div>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </a>
+
+            <a href="original-decomposition.html" style="text-decoration:none;display:flex;align-items:center;gap:0.75rem;padding:0.65rem 0.85rem;background:var(--cream);border:1px solid var(--cream-border);border-radius:var(--radius);transition:border-color 0.15s;" onmouseover="this.style.borderColor='var(--gold-muted)'" onmouseout="this.style.borderColor='var(--cream-border)'">
+              <div style="width:28px;height:28px;flex-shrink:0;border-radius:5px;background:rgba(192,57,43,0.08);display:flex;align-items:center;justify-content:center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--flag-red)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:0.8rem;font-weight:600;color:var(--text-primary);">Interference Analysis</div>
+                <div style="font-size:0.7rem;color:var(--flag-red);font-weight:500;">Score 0.5949 · FLAG</div>
+              </div>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </a>
+
+          </div>
+        </div>
+
+        <!-- Submission history -->
+        <div class="section-card">
+          <div class="section-head">
+            <span class="section-title">Submission History</span>
+            <a href="original-course.html" class="section-action">All →</a>
+          </div>
+          <div class="submission-list">
+
+            <a class="submission-item" href="original-review.html">
+              <div class="sub-indicator flagged"></div>
+              <div class="sub-body">
+                <div class="sub-title">Final Essay — Christology</div>
+                <div class="sub-meta">Mar 14, 2026 · 2,840 words</div>
+              </div>
+              <div class="sub-right">
+                <span class="sub-score flagged">0.91</span>
+                <span class="sub-badge flagged">Flagged</span>
+              </div>
+            </a>
+
+            <a class="submission-item" href="original-review.html">
+              <div class="sub-indicator clear" style="background:var(--amber)"></div>
+              <div class="sub-body">
+                <div class="sub-title">Research Paper — Soteriology</div>
+                <div class="sub-meta">Mar 8, 2026 · 1,920 words</div>
+              </div>
+              <div class="sub-right">
+                <span class="sub-score" style="color:var(--amber)">0.61</span>
+                <span class="sub-badge" style="background:var(--flag-amber-bg);color:var(--amber);border:1px solid rgba(201,160,40,0.25);">Watch</span>
+              </div>
+            </a>
+
+            <a class="submission-item" href="original-review.html">
+              <div class="sub-indicator clear"></div>
+              <div class="sub-body">
+                <div class="sub-title">Week 5 Reflection</div>
+                <div class="sub-meta">Feb 21, 2026 · 680 words</div>
+              </div>
+              <div class="sub-right">
+                <span class="sub-score clear">0.42</span>
+                <span class="sub-badge clear">Clear</span>
+              </div>
+            </a>
+
+            <a class="submission-item" href="original-review.html">
+              <div class="sub-indicator baseline"></div>
+              <div class="sub-body">
+                <div class="sub-title">Week 3 Reflection <span style="font-size:0.65rem;color:var(--amber);font-weight:600;margin-left:0.4rem;">BASELINE</span></div>
+                <div class="sub-meta">Feb 7, 2026 · 720 words</div>
+              </div>
+              <div class="sub-right">
+                <span class="sub-score baseline">0.17</span>
+                <span class="sub-badge baseline">Baseline</span>
+              </div>
+            </a>
+
+            <a class="submission-item" href="original-review.html">
+              <div class="sub-indicator baseline"></div>
+              <div class="sub-body">
+                <div class="sub-title">Week 1 Reflection <span style="font-size:0.65rem;color:var(--amber);font-weight:600;margin-left:0.4rem;">BASELINE</span></div>
+                <div class="sub-meta">Jan 24, 2026 · 640 words</div>
+              </div>
+              <div class="sub-right">
+                <span class="sub-score baseline">0.10</span>
+                <span class="sub-badge baseline">Baseline</span>
+              </div>
+            </a>
+
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.5rem;">
+          <a class="btn btn-danger" href="original-review.html">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+            Review Flagged Submission
+          </a>
+          <button class="btn btn-ghost" onclick="openCanvasImport()">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 17h7M17.5 14v7"/></svg>
+            Import from Canvas
+          </button>
+          <button class="btn btn-ghost">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export Profile
+          </button>
+        </div>
+
+      </div><!-- /right -->
+
+    </div><!-- /profile-grid -->
+  </div>
+</div>
+
+<!-- ── Canvas Import Modal ─────────────────────────────────────────────────── -->
+<div id="canvas-import-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(15,30,23,0.55);backdrop-filter:blur(3px);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,0.18);width:min(680px,95vw);max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
+
+    <!-- Modal header -->
+    <div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e2dccf;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:600;color:#1a130a;">Import Baseline from Canvas</div>
+        <div style="font-size:0.78rem;color:#8a7060;font-family:'EB Garamond',serif;font-style:italic;margin-top:0.1rem;">Select verified writing samples to add to this student's baseline profile</div>
+      </div>
+      <button onclick="closeCanvasImport()" style="background:none;border:none;cursor:pointer;padding:0.4rem;border-radius:4px;color:#8a7060;" onmouseover="this.style.background='#f7f3ea'" onmouseout="this.style.background='none'">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Canvas credentials bar -->
+    <div style="padding:0.9rem 1.5rem;background:#f7f3ea;border-bottom:1px solid #e2dccf;display:flex;gap:0.75rem;flex-shrink:0;">
+      <div style="flex:1;">
+        <label style="font-size:0.7rem;font-weight:600;color:#5a4030;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:0.3rem;">Canvas Course ID</label>
+        <input id="ci-course-id" type="text" placeholder="e.g. 12345" style="width:100%;padding:0.45rem 0.7rem;border:1px solid #e2dccf;border-radius:4px;font-size:0.85rem;font-family:'Inter',sans-serif;" />
+      </div>
+      <div style="flex:1;">
+        <label style="font-size:0.7rem;font-weight:600;color:#5a4030;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:0.3rem;">Canvas User ID</label>
+        <input id="ci-user-id" type="text" placeholder="e.g. 987" style="width:100%;padding:0.45rem 0.7rem;border:1px solid #e2dccf;border-radius:4px;font-size:0.85rem;font-family:'Inter',sans-serif;" />
+      </div>
+      <div style="display:flex;align-items:flex-end;">
+        <button id="ci-fetch-btn" onclick="fetchCanvasSubmissions()" style="padding:0.45rem 1rem;background:#162b22;color:#f7f3ea;border:none;border-radius:4px;font-size:0.8rem;font-weight:600;cursor:pointer;white-space:nowrap;" onmouseover="this.style.background='#1e3d2f'" onmouseout="this.style.background='#162b22'">Load submissions</button>
+      </div>
+    </div>
+
+    <!-- Submission list -->
+    <div id="ci-list" style="flex:1;overflow-y:auto;padding:1rem 1.5rem;min-height:120px;">
+      <div id="ci-list-placeholder" style="display:flex;align-items:center;justify-content:center;height:100px;color:#8a7060;font-family:'EB Garamond',serif;font-style:italic;font-size:0.95rem;">Enter a Course ID and User ID above to load submissions.</div>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:1rem 1.5rem;border-top:1px solid #e2dccf;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#fff;">
+      <div id="ci-selection-count" style="font-size:0.8rem;color:#8a7060;"></div>
+      <div style="display:flex;gap:0.6rem;">
+        <button onclick="closeCanvasImport()" style="padding:0.45rem 1rem;background:transparent;border:1px solid #e2dccf;border-radius:4px;font-size:0.8rem;cursor:pointer;color:#5a4030;" onmouseover="this.style.background='#f7f3ea'" onmouseout="this.style.background='transparent'">Cancel</button>
+        <button id="ci-import-btn" onclick="importSelectedSamples()" disabled style="padding:0.45rem 1rem;background:#c9a028;color:#0f1e17;border:none;border-radius:4px;font-size:0.8rem;font-weight:600;cursor:pointer;opacity:0.5;" onmouseover="if(!this.disabled)this.style.opacity='0.85'" onmouseout="if(!this.disabled)this.style.opacity='1'">Import Selected</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Canvas Import Modal ────────────────────────────────────────────────────
+  // Read student ID from URL params (e.g. original-student.html?id=...)
+  const _studentId = new URLSearchParams(window.location.search).get('id') || 'unknown';
+  let _canvasSubmissions = [];
+  let _selectedIds = new Set();
+
+  function getToken() {
+    try { return JSON.parse(localStorage.getItem('original_auth') || '{}').access_token || ''; } catch { return ''; }
+  }
+
+  async function apiFetch(path, opts = {}) {
+    const token = getToken();
+    const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const resp = await fetch(path, { ...opts, headers });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.detail || resp.statusText);
+    }
+    return resp.json();
+  }
+
+  function openCanvasImport() {
+    document.getElementById('canvas-import-modal').style.display = 'flex';
+    _selectedIds.clear();
+    _canvasSubmissions = [];
+    document.getElementById('ci-list').innerHTML = '<div id="ci-list-placeholder" style="display:flex;align-items:center;justify-content:center;height:100px;color:#8a7060;font-family:\'EB Garamond\',serif;font-style:italic;font-size:0.95rem;">Enter a Course ID and User ID above to load submissions.</div>';
+    updateImportBtn();
+  }
+
+  function closeCanvasImport() {
+    document.getElementById('canvas-import-modal').style.display = 'none';
+  }
+
+  function updateImportBtn() {
+    const btn = document.getElementById('ci-import-btn');
+    const count = _selectedIds.size;
+    btn.disabled = count === 0;
+    btn.style.opacity = count === 0 ? '0.4' : '1';
+    btn.textContent = count > 0 ? `Import ${count} Sample${count > 1 ? 's' : ''}` : 'Import Selected';
+    document.getElementById('ci-selection-count').textContent = count > 0 ? `${count} submission${count > 1 ? 's' : ''} selected` : '';
+  }
+
+  async function fetchCanvasSubmissions() {
+    const courseId = document.getElementById('ci-course-id').value.trim();
+    const userId   = document.getElementById('ci-user-id').value.trim();
+    if (!courseId || !userId) { alert('Please enter both Course ID and User ID.'); return; }
+
+    const btn = document.getElementById('ci-fetch-btn');
+    btn.textContent = 'Loading…'; btn.disabled = true;
+    document.getElementById('ci-list').innerHTML = '<div style="text-align:center;padding:2rem;color:#8a7060;">Loading Canvas submissions…</div>';
+
+    try {
+      const data = await apiFetch(`/canvas/baseline/${_studentId}/list-canvas-submissions`, {
+        method: 'POST',
+        body: JSON.stringify({ canvas_course_id: courseId, canvas_user_id: userId }),
+      });
+      _canvasSubmissions = data.submissions || [];
+      renderSubmissionList(_canvasSubmissions);
+    } catch (err) {
+      document.getElementById('ci-list').innerHTML = `<div style="text-align:center;padding:2rem;color:#c0392b;font-size:0.85rem;">Could not load submissions: ${err.message}</div>`;
+    } finally {
+      btn.textContent = 'Load submissions'; btn.disabled = false;
+    }
+  }
+
+  function renderSubmissionList(subs) {
+    const list = document.getElementById('ci-list');
+    if (!subs.length) {
+      list.innerHTML = '<div style="text-align:center;padding:2rem;color:#8a7060;font-family:\'EB Garamond\',serif;font-style:italic;">No eligible text submissions found for this student.</div>';
+      return;
+    }
+    list.innerHTML = subs.map(s => {
+      const already = s.already_imported;
+      return `
+        <label style="display:flex;align-items:flex-start;gap:0.75rem;padding:0.85rem 0;border-bottom:1px solid #f0ebe0;cursor:${already ? 'default' : 'pointer'};">
+          <input type="checkbox" value="${s.canvas_submission_id}"
+            ${already ? 'disabled checked' : ''}
+            onchange="toggleSub('${s.canvas_submission_id}', this.checked)"
+            style="margin-top:3px;accent-color:#c9a028;flex-shrink:0;" />
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:0.85rem;font-weight:600;color:#1a130a;">${escHtml(s.assignment_name)}</div>
+            <div style="font-size:0.75rem;color:#8a7060;margin-top:0.15rem;">
+              ${s.word_count.toLocaleString()} words
+              ${s.submitted_at ? ' · ' + new Date(s.submitted_at).toLocaleDateString() : ''}
+              ${already ? ' <span style="color:#2a6b45;font-weight:600;">· Already imported</span>' : ''}
+            </div>
+            <div style="font-size:0.78rem;color:#5a4030;margin-top:0.35rem;line-height:1.4;font-family:\'EB Garamond\',serif;font-style:italic;">"${escHtml(s.preview)}"</div>
+          </div>
+        </label>`;
+    }).join('');
+  }
+
+  function toggleSub(id, checked) {
+    if (checked) _selectedIds.add(id); else _selectedIds.delete(id);
+    updateImportBtn();
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  async function importSelectedSamples() {
+    const courseId = document.getElementById('ci-course-id').value.trim();
+    const userId   = document.getElementById('ci-user-id').value.trim();
+    const btn = document.getElementById('ci-import-btn');
+    btn.disabled = true; btn.textContent = 'Importing…';
+
+    try {
+      const result = await apiFetch(`/canvas/baseline/${_studentId}/import-baseline`, {
+        method: 'POST',
+        body: JSON.stringify({
+          canvas_course_id: courseId,
+          canvas_user_id:   userId,
+          submission_ids:   [..._selectedIds],
+        }),
+      });
+      const msg = `Imported ${result.imported} sample${result.imported !== 1 ? 's' : ''}` +
+        (result.skipped  ? `, ${result.skipped} skipped` : '') +
+        (result.errors.length ? `, ${result.errors.length} error${result.errors.length > 1 ? 's' : ''}` : '') + '.';
+      closeCanvasImport();
+      // Brief success toast
+      const toast = document.createElement('div');
+      toast.textContent = msg;
+      Object.assign(toast.style, { position:'fixed',bottom:'1.5rem',left:'50%',transform:'translateX(-50%)',
+        background:'#162b22',color:'#f7f3ea',padding:'0.7rem 1.4rem',borderRadius:'6px',
+        fontSize:'0.85rem',fontFamily:'\'Inter\',sans-serif',zIndex:'2000',boxShadow:'0 4px 20px rgba(0,0,0,0.2)' });
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3500);
+      // Reload page to show new samples
+      if (result.imported > 0) setTimeout(() => location.reload(), 1200);
+    } catch (err) {
+      alert('Import failed: ' + err.message);
+      btn.disabled = false; updateImportBtn();
+    }
+  }
+
+  // Close modal on backdrop click
+  document.getElementById('canvas-import-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeCanvasImport();
+  });
+</script>
+
+</body>
+</html>

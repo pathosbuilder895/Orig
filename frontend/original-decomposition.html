@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Original — Interference Analysis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+    :root{
+      --green-deepest:#0f1e17;--green-deep:#162b22;--green-mid:#1e3d2f;
+      --green-hover:#243d30;--green-border:rgba(255,255,255,0.07);
+      --cream:#f7f3ea;--cream-warm:#ede8d8;--cream-border:#e2dccf;
+      --surface:#ffffff;--gold:#c9a028;--gold-light:rgba(201,160,40,0.12);
+      --gold-muted:rgba(201,160,40,0.35);--amber:#935e1c;
+      --text-primary:#1a130a;--text-secondary:#5a4030;--text-muted:#6d5a4a;
+      --text-cream:#f7f3ea;--text-cream-dim:rgba(247,243,234,0.55);
+      --destr:#c0392b;--destr-bg:rgba(192,57,43,0.07);--destr-border:rgba(192,57,43,0.2);
+      --constr:#2a6b45;--constr-bg:rgba(42,107,69,0.07);--constr-border:rgba(42,107,69,0.2);
+      --sidebar-w:264px;--radius:6px;
+      --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+    }
+    html,body{height:100%;}
+    body{font-family:'Inter',system-ui,sans-serif;background:var(--cream);color:var(--text-primary);display:flex;overflow:hidden;font-size:14px;}
+    .sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);height:100vh;background:var(--green-deep);display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:100;border-right:1px solid var(--green-border);}
+    .sidebar-logo{padding:1.5rem 1.5rem 1.25rem;border-bottom:1px solid var(--green-border);}
+    .logo-mark{display:flex;align-items:center;gap:0.75rem;margin-bottom:0.35rem;}
+    .logo-icon{width:30px;height:30px;border:1px solid var(--gold-muted);display:flex;align-items:center;justify-content:center;}
+    .logo-icon svg{width:14px;height:14px;stroke:var(--gold);}
+    .logo-wordmark{font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;color:var(--text-cream);letter-spacing:0.06em;}
+    .logo-school{font-family:'EB Garamond',serif;font-size:0.78rem;font-style:italic;color:var(--text-cream-dim);letter-spacing:0.03em;padding-left:2.8rem;}
+    .sidebar-nav{flex:1;padding:1rem 0;overflow-y:auto;}
+    .nav-section-label{font-size:0.65rem;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-cream-dim);padding:0.6rem 1.5rem 0.3rem;margin-top:0.5rem;}
+    .nav-item{display:flex;align-items:center;gap:0.75rem;padding:0.6rem 1.5rem;color:rgba(247,243,234,0.65);text-decoration:none;font-size:0.875rem;font-weight:500;cursor:pointer;transition:color 0.15s,background 0.15s;border-left:2px solid transparent;}
+    .nav-item:hover{color:var(--text-cream);background:var(--green-hover);}
+    .nav-item.active{color:var(--text-cream);border-left-color:var(--gold);background:rgba(201,160,40,0.08);}
+    .nav-item svg{width:16px;height:16px;stroke:currentColor;flex-shrink:0;}
+    .nav-badge{margin-left:auto;background:var(--gold);color:var(--green-deepest);font-size:0.65rem;font-weight:700;padding:0.15rem 0.45rem;border-radius:20px;}
+    .sidebar-user{border-top:1px solid var(--green-border);padding:1rem 1.25rem;display:flex;align-items:center;gap:0.75rem;}
+    .user-avatar{width:32px;height:32px;border-radius:50%;background:var(--green-mid);border:1px solid var(--gold-muted);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:0.8rem;color:var(--gold);}
+    .user-name{font-size:0.825rem;font-weight:500;color:var(--text-cream);}
+    .user-role{font-size:0.72rem;color:var(--text-cream-dim);font-style:italic;font-family:'EB Garamond',serif;}
+    .main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+    .topbar{background:var(--cream);border-bottom:1px solid var(--cream-border);padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+    .breadcrumb{display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;color:var(--text-muted);}
+    .breadcrumb a{color:var(--text-muted);text-decoration:none;}
+    .breadcrumb a:hover{color:var(--amber);}
+    .breadcrumb-sep{color:var(--cream-border);}
+    .breadcrumb-current{font-weight:500;color:var(--text-secondary);}
+    .topbar-right{display:flex;align-items:center;gap:0.75rem;}
+    .semester-badge{font-family:'EB Garamond',serif;font-size:0.85rem;font-style:italic;color:var(--text-muted);background:var(--cream-warm);border:1px solid var(--cream-border);padding:0.3rem 0.85rem;border-radius:20px;}
+    .page-body{flex:1;overflow-y:auto;padding:2rem 2rem 3rem;}
+    .btn{padding:0.5rem 1.1rem;border-radius:var(--radius);font-size:0.825rem;font-weight:500;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:0.45rem;transition:all 0.15s;border:none;}
+    .btn-ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--cream-border);}
+    .btn-ghost:hover{background:var(--cream-warm);}
+    .btn-primary{background:var(--green-deep);color:var(--text-cream);}
+    .btn svg{width:14px;height:14px;stroke:currentColor;}
+
+    /* Layout */
+    .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.75rem;}
+    .page-header h1{font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:600;}
+    .page-subtitle{font-size:0.875rem;color:var(--text-muted);margin-top:0.25rem;}
+    .layout{display:grid;grid-template-columns:1fr 310px;gap:1.5rem;align-items:start;}
+
+    /* Score strip */
+    .score-strip{background:var(--green-deep);border-radius:var(--radius);padding:1.25rem 1.75rem;margin-bottom:1.5rem;display:grid;grid-template-columns:repeat(5,1fr);gap:1.5rem;color:var(--text-cream);}
+    .score-metric{text-align:center;}
+    .score-val{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:600;line-height:1;margin-bottom:0.2rem;}
+    .score-label{font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-cream-dim);}
+    .risk-chip{display:inline-block;padding:0.15rem 0.6rem;border-radius:20px;font-size:0.825rem;font-weight:700;}
+    .risk-chip.flag{background:#9b6420;color:#fff8e7;}
+
+    /* Card */
+    .card{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:1.25rem;}
+    .card:last-child{margin-bottom:0;}
+    .card-head{padding:0.875rem 1.25rem;border-bottom:1px solid var(--cream-border);display:flex;align-items:center;justify-content:space-between;}
+    .card-title{font-size:0.825rem;font-weight:600;color:var(--text-secondary);letter-spacing:0.04em;text-transform:uppercase;}
+    .card-subtitle{font-size:0.775rem;color:var(--text-muted);}
+    .card-body{padding:1.25rem;}
+
+    /* Tornado chart */
+    .tornado-wrap{padding:0 0.5rem;}
+    .tornado-row{display:flex;align-items:center;gap:0;margin:3px 0;}
+    .tornado-label{width:200px;font-size:0.78rem;color:var(--text-secondary);text-align:right;padding-right:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;}
+    .tornado-label.destructive{color:var(--destr);}
+    .tornado-axis{width:1px;background:var(--cream-border);height:100%;flex-shrink:0;}
+    .tornado-bar-right{flex:1;height:22px;display:flex;align-items:center;}
+    .tornado-bar-left{flex:1;height:22px;display:flex;align-items:center;justify-content:flex-end;}
+    .tornado-fill{height:14px;border-radius:2px;transition:width 0.7s ease;}
+    .tornado-fill.destr{background:linear-gradient(90deg,#c0392b,#e74c3c);border-radius:0 2px 2px 0;}
+    .tornado-fill.constr{background:linear-gradient(90deg,#27ae60,#2a6b45);border-radius:2px 0 0 2px;}
+    .tornado-val{font-size:0.72rem;padding:0 6px;font-variant-numeric:tabular-nums;white-space:nowrap;}
+    .tornado-val.d{color:var(--destr);}
+    .tornado-val.c{color:var(--constr);}
+    .center-line{width:2px;background:var(--cream-border);height:100%;flex-shrink:0;position:relative;}
+
+    /* Filter pills */
+    .filter-row{display:flex;gap:0.4rem;margin-bottom:1rem;flex-wrap:wrap;}
+    .filter-pill{padding:0.3rem 0.75rem;border-radius:20px;font-size:0.775rem;font-weight:500;cursor:pointer;border:1px solid var(--cream-border);background:var(--surface);color:var(--text-muted);transition:all 0.15s;}
+    .filter-pill:hover{background:var(--cream-warm);}
+    .filter-pill.active{background:var(--green-deep);color:var(--text-cream);border-color:var(--green-deep);}
+    .filter-pill.destr-pill.active{background:var(--destr);border-color:var(--destr);}
+    .filter-pill.constr-pill.active{background:var(--constr);border-color:var(--constr);}
+
+    /* Feature detail cards */
+    .signal-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-top:1.25rem;}
+    .signal-card{border-radius:var(--radius);padding:0.9rem 1rem;border:1px solid;}
+    .signal-card.destructive{background:var(--destr-bg);border-color:var(--destr-border);}
+    .signal-card.constructive{background:var(--constr-bg);border-color:var(--constr-border);}
+    .signal-name{font-size:0.825rem;font-weight:600;margin-bottom:0.15rem;}
+    .signal-card.destructive .signal-name{color:var(--destr);}
+    .signal-card.constructive .signal-name{color:var(--constr);}
+    .signal-code{font-size:0.7rem;color:var(--text-muted);font-family:'Courier New',monospace;margin-bottom:0.5rem;}
+    .signal-vals{display:flex;gap:0.75rem;margin-bottom:0.5rem;}
+    .signal-val{display:flex;flex-direction:column;gap:0.1rem;}
+    .signal-val-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);}
+    .signal-val-num{font-size:0.9rem;font-weight:600;}
+    .signal-delta{font-size:0.78rem;padding:0.15rem 0.5rem;border-radius:20px;font-weight:600;width:fit-content;}
+    .signal-delta.big-d{background:var(--destr-bg);color:var(--destr);}
+    .signal-delta.big-c{background:var(--constr-bg);color:var(--constr);}
+    .signal-interp{font-size:0.775rem;color:var(--text-muted);line-height:1.4;margin-top:0.4rem;}
+
+    /* Summary prose */
+    .signal-prose{padding:1.1rem 1.25rem;background:var(--cream-warm);border-top:1px solid var(--cream-border);font-size:0.85rem;color:var(--text-secondary);line-height:1.6;font-family:'EB Garamond',serif;}
+    .signal-prose strong{color:var(--text-primary);font-weight:600;}
+
+    /* Right sidebar stat cards */
+    .stat-mini{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:1rem 1.1rem;margin-bottom:0.75rem;}
+    .stat-mini:last-child{margin-bottom:0;}
+    .stat-mini-label{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:0.25rem;}
+    .stat-mini-val{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:600;line-height:1;}
+  </style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3L4 9v12h16V9L12 3z" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 21V12h6v9" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
+      <span class="logo-wordmark">Original</span>
+    </div>
+    <div class="logo-school">Southern Baptist Theological Seminary</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Monitor</div>
+    <a href="original-dashboard.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" stroke-width="1.5"/><rect x="14" y="3" width="7" height="7" stroke-width="1.5"/><rect x="3" y="14" width="7" height="7" stroke-width="1.5"/><rect x="14" y="14" width="7" height="7" stroke-width="1.5"/></svg>Dashboard</a>
+    <a href="original-flagged.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" stroke-width="1.5"/><line x1="4" y1="22" x2="4" y2="15" stroke-width="1.5"/></svg>Flagged<span class="nav-badge">3</span></a>
+    <div class="nav-section-label">Manage</div>
+    <a href="original-students.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke-width="1.5"/><circle cx="9" cy="7" r="4" stroke-width="1.5"/></svg>Students</a>
+    <a href="original-course.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" stroke-width="1.5"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" stroke-width="1.5"/></svg>Courses</a>
+    <a href="original-submit.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke-width="1.5"/><polyline points="17 8 12 3 7 8" stroke-width="1.5"/><line x1="12" y1="3" x2="12" y2="15" stroke-width="1.5"/></svg>Submit Writing</a>
+    <div class="nav-section-label">Analyse</div>
+    <a href="original-features.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Feature Profile</a>
+    <a href="original-quantum.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>Quantum State</a>
+    <a href="original-decomposition.html" class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Interference</a>
+    <a href="original-reports.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-width="1.5"/><polyline points="14 2 14 8 20 8" stroke-width="1.5"/></svg>Reports</a>
+    <div class="nav-section-label">System</div>
+    <a href="original-admin.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke-width="1.5"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke-width="1.5"/></svg>Admin</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">RH</div>
+    <div style="flex:1;min-width:0;">
+      <div class="user-name">Dr. Rachel Hendricks</div>
+      <div class="user-role">Professor of Theology</div>
+    </div>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <div class="breadcrumb">
+      <a href="original-students.html">Students</a>
+      <span class="breadcrumb-sep">›</span>
+      <a href="original-student.html">James Whitfield</a>
+      <span class="breadcrumb-sep">›</span>
+      <a href="original-review.html">Review</a>
+      <span class="breadcrumb-sep">›</span>
+      <span class="breadcrumb-current">Interference Analysis</span>
+    </div>
+    <div class="topbar-right">
+      <span class="semester-badge">Spring 2026</span>
+      <a href="original-review.html" class="btn btn-ghost" style="font-size:0.8rem;">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Review Summary
+      </a>
+    </div>
+  </div>
+
+  <div class="page-body">
+
+    <!-- Score strip -->
+    <div class="score-strip">
+      <div class="score-metric">
+        <div class="score-val">0.5949</div>
+        <div class="score-label">Deviation Score</div>
+      </div>
+      <div class="score-metric">
+        <div class="score-val"><span class="risk-chip flag">FLAG</span></div>
+        <div class="score-label">Risk Level</div>
+      </div>
+      <div class="score-metric">
+        <div class="score-val">40.5%</div>
+        <div class="score-label">Authorship Prob.</div>
+      </div>
+      <div class="score-metric">
+        <div class="score-val" id="n-destr" style="color:#e74c3c;">—</div>
+        <div class="score-label">Destructive Features</div>
+      </div>
+      <div class="score-metric">
+        <div class="score-val" id="n-constr" style="color:#27ae60;">—</div>
+        <div class="score-label">Constructive Features</div>
+      </div>
+    </div>
+
+    <div class="page-header">
+      <div>
+        <h1>Interference Analysis</h1>
+        <div class="page-subtitle">Hypostatic Union Essay · James Whitfield · 24 Mar 2026 · 312 words</div>
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="main-col">
+
+        <!-- Tornado chart -->
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Feature Interference Decomposition</div>
+              <div class="card-subtitle">ψᵢ × (ξᵢ − ψᵢ) — contribution of each feature to the deviation signal</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="filter-row">
+              <button class="filter-pill active" onclick="setFilter('all',this)">All 34</button>
+              <button class="filter-pill destr-pill" onclick="setFilter('destr',this)">Destructive only</button>
+              <button class="filter-pill constr-pill" onclick="setFilter('constr',this)">Constructive only</button>
+              <button class="filter-pill" onclick="setFilter('t1',this)">Surface</button>
+              <button class="filter-pill" onclick="setFilter('t2',this)">Discourse</button>
+              <button class="filter-pill" onclick="setFilter('t3',this)">Rhetorical</button>
+            </div>
+            <div id="tornado"></div>
+          </div>
+          <!-- Interpretive prose -->
+          <div class="signal-prose">
+            The submission exhibits a cluster of <strong>discourse-suppression signals</strong> — the student's characteristic use of connective markers, cohesion devices, and sentence opener variety has collapsed to near-zero.
+            Combined with the complete absence of <strong>first-person voice</strong> and <strong>hedging expressions</strong>, the interference profile is consistent with text generated by an AI language model responding to a theological prompt,
+            rather than authentic developmental writing from this student. The <strong>authority-appeal density</strong> is anomalously elevated — the submission cites sources and theological authorities at a rate 2.4× the student's baseline,
+            another characteristic of AI-generated formal theological prose.
+          </div>
+        </div>
+
+        <!-- Top signal cards -->
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Primary Signals — Most Destructive Features</div>
+            <div class="card-subtitle">Features with contribution below −0.04</div>
+          </div>
+          <div class="card-body">
+            <div class="signal-grid" id="signal-cards"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right panel -->
+      <div>
+
+        <div class="stat-mini">
+          <div class="stat-mini-label">Deviation Score</div>
+          <div class="stat-mini-val" style="color:var(--amber);">0.5949</div>
+          <div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.2rem;">FLAG · 40.5% authorship P</div>
+        </div>
+
+        <div class="stat-mini" style="margin-top:0.75rem;">
+          <div class="stat-mini-label">Tier Breakdown</div>
+          <div style="margin-top:0.5rem;display:flex;flex-direction:column;gap:0.4rem;" id="tier-breakdown"></div>
+        </div>
+
+        <div class="card" style="margin-top:1.25rem;">
+          <div class="card-head"><div class="card-title">Interpretation Guide</div></div>
+          <div class="card-body" style="font-size:0.8rem;color:var(--text-secondary);line-height:1.6;">
+            <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;">
+              <div style="width:12px;height:12px;background:var(--destr);border-radius:2px;flex-shrink:0;margin-top:2px;"></div>
+              <div><strong>Destructive features</strong> (red): Submission falls significantly below the student's baseline value. The author uses less of this feature than their established pattern.</div>
+            </div>
+            <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;">
+              <div style="width:12px;height:12px;background:var(--constr);border-radius:2px;flex-shrink:0;margin-top:2px;"></div>
+              <div><strong>Constructive features</strong> (green): Submission aligns with or exceeds baseline. Not necessarily concerning; may reflect topic-appropriate variation.</div>
+            </div>
+            <div style="background:var(--cream);border:1px solid var(--cream-border);border-radius:4px;padding:0.6rem 0.75rem;font-size:0.775rem;color:var(--text-muted);">
+              A FLAG result alone is not grounds for sanctions. Use this report as the basis for a conversation with the student. Consistent patterns across multiple submissions are more diagnostic than a single result.
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:1.25rem;">
+          <div class="card-head"><div class="card-title">Next Steps</div></div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:0.6rem;">
+            <a href="original-features.html" class="btn btn-ghost" style="justify-content:flex-start;width:100%;font-size:0.8rem;">
+              <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3 9h18M9 3v18" stroke="currentColor" stroke-width="1.5"/></svg>
+              Feature Profile
+            </a>
+            <a href="original-quantum.html" class="btn btn-ghost" style="justify-content:flex-start;width:100%;font-size:0.8rem;">
+              <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72" stroke="currentColor" stroke-width="1.5"/></svg>
+              Quantum State
+            </a>
+            <a href="original-baseline.html" class="btn btn-ghost" style="justify-content:flex-start;width:100%;font-size:0.8rem;">
+              <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Add Baseline Sample
+            </a>
+            <a href="original-review.html" class="btn btn-primary" style="justify-content:flex-start;width:100%;font-size:0.8rem;">
+              <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Review Summary
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Interference data (contribution = ψᵢ × (ξᵢ − ψᵢ)) ─────────────────────
+const SIGNALS = [
+  // Tier 1 — Surface
+  { name:"Modal Verb Ratio",          code:"s_modal_verb_ratio",           contrib: -0.0911, base:0.284, sub:0.000, tier:'t1', interp:"Student regularly uses modal verbs for epistemic hedging; absent in submission." },
+  { name:"Passive Voice Ratio",       code:"s_passive_voice_ratio",        contrib: -0.0255, base:0.182, sub:0.382, tier:'t1', interp:"Submission uses passive at 2× the baseline rate — formal register signal." },
+  { name:"Sentence Length Variance",  code:"s_sentence_length_variance",   contrib: -0.0142, base:0.581, sub:0.502, tier:'t1', interp:"Student's natural rhythm includes more sentence variety." },
+  { name:"Type-Token Ratio",          code:"s_type_token_ratio",           contrib: +0.0307, base:0.668, sub:0.714, tier:'t1', interp:"Vocabulary diversity slightly elevated — consistent with AI generation." },
+  { name:"Avg Word Length",           code:"s_avg_word_length",            contrib: +0.0270, base:0.502, sub:0.638, tier:'t1', interp:"Submission uses longer, more latinate words than the student's baseline." },
+  { name:"Function Word Ratio",       code:"s_function_word_ratio",        contrib: -0.0106, base:0.461, sub:0.438, tier:'t1', interp:"Slightly lower function word ratio than baseline." },
+  { name:"Stop Word Ratio",           code:"s_stop_word_ratio",            contrib: -0.0075, base:0.438, sub:0.422, tier:'t1', interp:"Minor deviation, within expected range." },
+  { name:"Hapax Legomena Rate",       code:"s_hapax_legomena_rate",        contrib: +0.0095, base:0.530, sub:0.548, tier:'t1', interp:"Marginally higher proportion of once-occurring words." },
+  { name:"Mean Sentence Length",      code:"s_mean_sentence_length",       contrib: -0.0181, base:0.762, sub:0.701, tier:'t1', interp:"Slightly shorter sentences than baseline — unusual for formal submission." },
+
+  // Tier 2 — Discourse
+  { name:"Discourse Marker Density",  code:"d_discourse_marker_density",   contrib: -0.0911, base:0.646, sub:0.000, tier:'t2', interp:"Student's connective-marker density collapses to zero — no but/however/therefore." },
+  { name:"Cohesion Device Ratio",     code:"d_cohesion_device_ratio",      contrib: -0.0911, base:0.732, sub:0.000, tier:'t2', interp:"All cohesion devices absent — anaphor chains and marker density both zero." },
+  { name:"Transition Density",        code:"d_transition_density",         contrib: -0.0911, base:0.522, sub:0.000, tier:'t2', interp:"No explicit inter-sentence transitions — highly abnormal for this student." },
+  { name:"Sentence Opener Variety",   code:"d_sentence_opener_variety",    contrib: -0.0822, base:0.822, sub:0.000, tier:'t2', interp:"Shannon entropy of sentence openers collapses — uniform syntactic structure." },
+  { name:"Causal Ratio",              code:"d_causal_ratio",               contrib: -0.0130, base:0.286, sub:0.211, tier:'t2', interp:"Fewer causal markers than baseline." },
+  { name:"Adversative Ratio",         code:"d_adversative_ratio",          contrib: -0.0183, base:0.571, sub:0.384, tier:'t2', interp:"Student uses fewer but/however than typical." },
+  { name:"Pronoun Ref. Density",      code:"d_pronoun_reference_density",  contrib: -0.0134, base:0.622, sub:0.489, tier:'t2', interp:"Lower anaphoric reference density — less cohesive prose." },
+  { name:"Avg Paragraph Length",      code:"d_avg_paragraph_length",       contrib: -0.0133, base:0.688, sub:0.500, tier:'t2', interp:"Shorter paragraphs than student's baseline." },
+  { name:"Thematic Progression",      code:"d_thematic_progression_score", contrib: -0.0083, base:0.512, sub:0.430, tier:'t2', interp:"Less chaining progression than baseline." },
+  { name:"Additive Ratio",            code:"d_additive_ratio",             contrib: -0.0044, base:0.143, sub:0.112, tier:'t2', interp:"Marginally lower additive marker use." },
+  { name:"Temporal Ratio",            code:"d_temporal_ratio",             contrib: +0.0000, base:0.000, sub:0.000, tier:'t2', interp:"No temporal markers in either baseline or submission." },
+  { name:"Lexical Chain Density",     code:"d_lexical_chain_density",      contrib: +0.0073, base:0.448, sub:0.612, tier:'t2', interp:"Submission has higher lexical repetition — possibly due to theological term reuse." },
+  { name:"Para. Topic Position",      code:"d_paragraph_topic_position",   contrib: +0.0139, base:0.833, sub:1.000, tier:'t2', interp:"All paragraphs in submission begin with a topic sentence — highly structured." },
+
+  // Tier 3 — Rhetorical
+  { name:"First-Person Ratio",        code:"r_first_person_ratio",         contrib: -0.0911, base:0.714, sub:0.000, tier:'t3', interp:"Student's authentic voice is strongly first-person; submission contains none." },
+  { name:"Question Ratio",            code:"r_question_ratio",             contrib: -0.0333, base:0.182, sub:0.000, tier:'t3', interp:"Student asks rhetorical questions for pastoral effect; submission does not." },
+  { name:"Hedging Density",           code:"r_hedging_density",            contrib: -0.0411, base:0.693, sub:0.102, tier:'t3', interp:"Hedge markers nearly absent; student typically writes with epistemic tentativeness." },
+  { name:"Counter-Argument Ratio",    code:"r_counter_argument_ratio",     contrib: -0.0158, base:0.182, sub:0.095, tier:'t3', interp:"Submission engages less with opposing positions than student's baseline." },
+  { name:"Source Integration Style",  code:"r_source_integration_style",   contrib: +0.0038, base:0.250, sub:0.400, tier:'t3', interp:"Slightly more synthesis — higher than baseline but not diagnostic alone." },
+  { name:"Claim Density",             code:"r_claim_density",              contrib: +0.0938, base:0.322, sub:0.612, tier:'t3', interp:"Heavy use of claim markers (therefore/thus) — denser argumentation than baseline." },
+  { name:"Epistemic Certainty",       code:"r_epistemic_certainty_ratio",  contrib: +0.0218, base:0.667, sub:0.924, tier:'t3', interp:"Far more assertive than student's baseline — certainty without tentativeness." },
+  { name:"Assertion Density",         code:"r_assertion_density",          contrib: +0.0441, base:0.828, sub:1.000, tier:'t3', interp:"Maximum assertion density; student's baseline is notably lower." },
+  { name:"Theological Register",      code:"r_theological_register_score", contrib: +0.0162, base:0.622, sub:0.882, tier:'t3', interp:"Dense theological vocabulary — beyond student's established seminary register." },
+  { name:"Authority Appeal Density",  code:"r_appeal_to_authority_density",contrib: +0.0366, base:0.388, sub:0.924, tier:'t3', interp:"2.4× the student's baseline — saturated citation/authority language." },
+  { name:"Conclusion Strategy",       code:"r_conclusion_strategy_score",  contrib: +0.0063, base:0.250, sub:0.500, tier:'t3', interp:"Implication-focused conclusion, slightly above student's typical pattern." },
+  { name:"Imperative Density",        code:"r_imperative_density",         contrib: -0.0006, base:0.044, sub:0.022, tier:'t3', interp:"Minimal difference." },
+];
+
+// Sort by contribution (most destructive first)
+SIGNALS.sort((a,b) => a.contrib - b.contrib);
+
+let activeFilter = 'all';
+
+function setFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  renderTornado();
+}
+
+function renderTornado() {
+  const container = document.getElementById('tornado');
+  container.innerHTML = '';
+
+  const data = SIGNALS.filter(s => {
+    if (activeFilter === 'destr') return s.contrib < 0;
+    if (activeFilter === 'constr') return s.contrib > 0;
+    if (activeFilter === 't1') return s.tier === 't1';
+    if (activeFilter === 't2') return s.tier === 't2';
+    if (activeFilter === 't3') return s.tier === 't3';
+    return true;
+  });
+
+  const maxAbs = Math.max(...SIGNALS.map(s => Math.abs(s.contrib)));
+
+  const wrap = document.createElement('div');
+  wrap.className = 'tornado-wrap';
+
+  data.forEach(s => {
+    const row = document.createElement('div');
+    row.className = 'tornado-row';
+    const pct = Math.abs(s.contrib) / maxAbs * 100;
+    const isDestr = s.contrib < 0;
+
+    row.innerHTML = `
+      <div class="tornado-label ${isDestr ? 'destructive' : ''}" title="${s.name}">${s.name}</div>
+      <div style="width:1px;background:var(--cream-border);height:22px;flex-shrink:0;"></div>
+      <div style="flex:1;display:flex;align-items:center;position:relative;">
+        ${isDestr
+          ? `<div class="tornado-fill destr" style="width:${pct.toFixed(1)}%;"></div>
+             <span class="tornado-val d" style="margin-left:6px;">${s.contrib.toFixed(4)}</span>`
+          : `<div class="tornado-fill constr" style="width:${pct.toFixed(1)}%;border-radius:2px 0 0 2px;transform:scaleX(-1);transform-origin:left;display:none;"></div>
+             <div class="tornado-fill" style="width:${pct.toFixed(1)}%;background:linear-gradient(90deg,#27ae60,#2a6b45);border-radius:2px;"></div>
+             <span class="tornado-val c" style="margin-left:6px;">+${s.contrib.toFixed(4)}</span>`
+        }
+      </div>
+    `;
+    wrap.appendChild(row);
+  });
+
+  container.appendChild(wrap);
+}
+
+function renderSignalCards() {
+  const container = document.getElementById('signal-cards');
+  const top = SIGNALS.filter(s => s.contrib < -0.04).slice(0, 8);
+  container.innerHTML = top.map(s => `
+    <div class="signal-card destructive">
+      <div class="signal-name">${s.name}</div>
+      <div class="signal-code">${s.code}</div>
+      <div class="signal-vals">
+        <div class="signal-val">
+          <div class="signal-val-label">Baseline</div>
+          <div class="signal-val-num">${s.base.toFixed(3)}</div>
+        </div>
+        <div class="signal-val">
+          <div class="signal-val-label">Submission</div>
+          <div class="signal-val-num" style="color:var(--destr);">${s.sub.toFixed(3)}</div>
+        </div>
+      </div>
+      <div class="signal-delta big-d">Δ ${((s.sub - s.base) / (s.base + 0.001) * 100).toFixed(0)}%</div>
+      <div class="signal-interp">${s.interp}</div>
+    </div>
+  `).join('');
+}
+
+function renderTierBreakdown() {
+  const tiers = {t1:{label:'Surface',destr:0,constr:0,tot:0},t2:{label:'Discourse',destr:0,constr:0,tot:0},t3:{label:'Rhetorical',destr:0,constr:0,tot:0}};
+  const colors = {t1:'#2a6b9a',t2:'#6b4a9a',t3:'#2a6b45'};
+  SIGNALS.forEach(s => {
+    tiers[s.tier].tot++;
+    if (s.contrib < -0.01) tiers[s.tier].destr++;
+    else if (s.contrib > 0.01) tiers[s.tier].constr++;
+  });
+  const container = document.getElementById('tier-breakdown');
+  container.innerHTML = Object.entries(tiers).map(([k, t]) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;">
+        <div style="width:8px;height:8px;border-radius:50%;background:${colors[k]};"></div>
+        ${t.label}
+      </div>
+      <div style="font-size:0.78rem;">
+        <span style="color:var(--destr);font-weight:600;">${t.destr} ↓</span>
+        &nbsp;·&nbsp;
+        <span style="color:var(--constr);font-weight:600;">${t.constr} ↑</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateCounts() {
+  const n_d = SIGNALS.filter(s => s.contrib < -0.01).length;
+  const n_c = SIGNALS.filter(s => s.contrib > 0.01).length;
+  document.getElementById('n-destr').textContent = n_d;
+  document.getElementById('n-constr').textContent = n_c;
+}
+
+// Init
+renderTornado();
+renderSignalCards();
+renderTierBreakdown();
+updateCounts();
+</script>
+<script src="api-client.js"></script>
+</body>
+</html>

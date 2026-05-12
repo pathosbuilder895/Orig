@@ -1,0 +1,1069 @@
+{
+  "summary": {
+    "total_authors": 5,
+    "total_essays_scored": 15,
+    "total_baseline_samples": 15,
+    "avg_scoring_time_ms": 454.98,
+    "auc": 0.88
+  },
+  "threshold_metrics": {
+    "no_action": {
+      "threshold": 0.4,
+      "true_positives": 0,
+      "false_positives": 10,
+      "true_negatives": 5,
+      "false_negatives": 0,
+      "tpr": 0.0,
+      "fpr": 1.0,
+      "precision": 0.3333,
+      "accuracy": 0.3333
+    },
+    "monitor": {
+      "threshold": 0.55,
+      "true_positives": 2,
+      "false_positives": 8,
+      "true_negatives": 5,
+      "false_negatives": 0,
+      "tpr": 1.0,
+      "fpr": 0.8,
+      "precision": 0.3846,
+      "accuracy": 0.4667
+    },
+    "escalate": {
+      "threshold": 0.75,
+      "true_positives": 10,
+      "false_positives": 0,
+      "true_negatives": 4,
+      "false_negatives": 1,
+      "tpr": 0.9091,
+      "fpr": 0.0,
+      "precision": 1.0,
+      "accuracy": 0.9333
+    }
+  },
+  "per_label_stats": {
+    "authentic": {
+      "count": 10,
+      "mean_deviation": 0.6305,
+      "std_deviation": 0.072,
+      "min_deviation": 0.5026,
+      "max_deviation": 0.7495
+    },
+    "ghostwritten": {
+      "count": 5,
+      "mean_deviation": 0.7666,
+      "std_deviation": 0.0773,
+      "min_deviation": 0.6204,
+      "max_deviation": 0.8508
+    }
+  },
+  "tier_importance": {
+    "tier0": 0.0039,
+    "tier1": 0.0325,
+    "tier11": 0.033,
+    "tier13": 0.0214,
+    "tier14": 0.0248,
+    "tier15": 0.0074,
+    "tier16": 0.0105,
+    "tier2": 0.0187,
+    "tier3": 0.0048,
+    "tier4": 0.0028,
+    "tier5": 0.023,
+    "tier6": 0.0179,
+    "tier7": 0.0303,
+    "tier8": 0.082,
+    "tier9": 0.0369
+  },
+  "roc_points": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.1
+    ],
+    [
+      0.0,
+      0.1
+    ],
+    [
+      0.0,
+      0.1
+    ],
+    [
+      0.0,
+      0.1
+    ],
+    [
+      0.0,
+      0.1
+    ],
+    [
+      0.0,
+      0.1
+    ],
+    [
+      0.0,
+      0.1
+    ],
+    [
+      0.0,
+      0.2
+    ],
+    [
+      0.0,
+      0.2
+    ],
+    [
+      0.0,
+      0.2
+    ],
+    [
+      0.0,
+      0.2
+    ],
+    [
+      0.0,
+      0.2
+    ],
+    [
+      0.0,
+      0.2
+    ],
+    [
+      0.0,
+      0.2
+    ],
+    [
+      0.0,
+      0.2
+    ],
+    [
+      0.0,
+      0.2
+    ],
+    [
+      0.0,
+      0.3
+    ],
+    [
+      0.0,
+      0.3
+    ],
+    [
+      0.0,
+      0.3
+    ],
+    [
+      0.0,
+      0.4
+    ],
+    [
+      0.0,
+      0.4
+    ],
+    [
+      0.0,
+      0.4
+    ],
+    [
+      0.0,
+      0.4
+    ],
+    [
+      0.2,
+      0.4
+    ],
+    [
+      0.2,
+      0.4
+    ],
+    [
+      0.2,
+      0.5
+    ],
+    [
+      0.2,
+      0.6
+    ],
+    [
+      0.2,
+      0.6
+    ],
+    [
+      0.2,
+      0.6
+    ],
+    [
+      0.2,
+      0.6
+    ],
+    [
+      0.2,
+      0.6
+    ],
+    [
+      0.2,
+      0.6
+    ],
+    [
+      0.2,
+      0.6
+    ],
+    [
+      0.2,
+      0.7
+    ],
+    [
+      0.2,
+      0.7
+    ],
+    [
+      0.2,
+      0.7
+    ],
+    [
+      0.2,
+      0.8
+    ],
+    [
+      0.2,
+      0.8
+    ],
+    [
+      0.2,
+      0.8
+    ],
+    [
+      0.2,
+      0.9
+    ],
+    [
+      0.2,
+      0.9
+    ],
+    [
+      0.2,
+      0.9
+    ],
+    [
+      0.2,
+      0.9
+    ],
+    [
+      0.2,
+      0.9
+    ],
+    [
+      0.2,
+      0.9
+    ],
+    [
+      0.2,
+      0.9
+    ],
+    [
+      0.2,
+      0.9
+    ],
+    [
+      0.2,
+      0.9
+    ],
+    [
+      0.2,
+      0.9
+    ],
+    [
+      0.2,
+      1.0
+    ],
+    [
+      0.2,
+      1.0
+    ],
+    [
+      0.2,
+      1.0
+    ],
+    [
+      0.2,
+      1.0
+    ],
+    [
+      0.2,
+      1.0
+    ],
+    [
+      0.2,
+      1.0
+    ],
+    [
+      0.4,
+      1.0
+    ],
+    [
+      0.6,
+      1.0
+    ],
+    [
+      0.6,
+      1.0
+    ],
+    [
+      0.8,
+      1.0
+    ],
+    [
+      0.8,
+      1.0
+    ],
+    [
+      0.8,
+      1.0
+    ],
+    [
+      0.8,
+      1.0
+    ],
+    [
+      0.8,
+      1.0
+    ],
+    [
+      0.8,
+      1.0
+    ],
+    [
+      0.8,
+      1.0
+    ],
+    [
+      0.8,
+      1.0
+    ],
+    [
+      0.8,
+      1.0
+    ],
+    [
+      0.8,
+      1.0
+    ],
+    [
+      0.8,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0
+    ]
+  ],
+  "individual_results": [
+    {
+      "filename": "seminary_01_prayer.txt",
+      "author_id": "seminary_01",
+      "label": "authentic",
+      "deviation_score": 0.5409,
+      "authorship_probability": 0.8243,
+      "recommended_action": "monitor",
+      "is_same_author": true,
+      "word_count": 310,
+      "scoring_time_ms": 643.56,
+      "notes": "Synthetic analytical-style essay, variation 0"
+    },
+    {
+      "filename": "seminary_01_sin.txt",
+      "author_id": "seminary_01",
+      "label": "authentic",
+      "deviation_score": 0.6374,
+      "authorship_probability": 0.8243,
+      "recommended_action": "schedule_conversation",
+      "is_same_author": true,
+      "word_count": 327,
+      "scoring_time_ms": 380.2,
+      "notes": "Synthetic analytical-style essay, variation 1"
+    },
+    {
+      "filename": "ghost_001.txt",
+      "author_id": "seminary_01",
+      "label": "ghostwritten",
+      "deviation_score": 0.7969,
+      "authorship_probability": 0.7624,
+      "recommended_action": "escalate",
+      "is_same_author": false,
+      "word_count": 460,
+      "scoring_time_ms": 492.06,
+      "notes": "Ghostwritten: actual style is catholic, submitted under seminary_01 baseline"
+    },
+    {
+      "filename": "seminary_02_prayer.txt",
+      "author_id": "seminary_02",
+      "label": "authentic",
+      "deviation_score": 0.7032,
+      "authorship_probability": 0.7881,
+      "recommended_action": "schedule_conversation",
+      "is_same_author": true,
+      "word_count": 419,
+      "scoring_time_ms": 468.51,
+      "notes": "Synthetic rhetorical-style essay, variation 0"
+    },
+    {
+      "filename": "seminary_02_sin.txt",
+      "author_id": "seminary_02",
+      "label": "authentic",
+      "deviation_score": 0.6868,
+      "authorship_probability": 0.8332,
+      "recommended_action": "schedule_conversation",
+      "is_same_author": true,
+      "word_count": 410,
+      "scoring_time_ms": 437.24,
+      "notes": "Synthetic rhetorical-style essay, variation 1"
+    },
+    {
+      "filename": "ghost_002.txt",
+      "author_id": "seminary_02",
+      "label": "ghostwritten",
+      "deviation_score": 0.8508,
+      "authorship_probability": 0.7574,
+      "recommended_action": "escalate",
+      "is_same_author": false,
+      "word_count": 328,
+      "scoring_time_ms": 417.9,
+      "notes": "Ghostwritten: actual style is reformed, submitted under seminary_02 baseline"
+    },
+    {
+      "filename": "seminary_04_prayer.txt",
+      "author_id": "seminary_04",
+      "label": "authentic",
+      "deviation_score": 0.5839,
+      "authorship_probability": 0.8524,
+      "recommended_action": "monitor",
+      "is_same_author": true,
+      "word_count": 434,
+      "scoring_time_ms": 490.03,
+      "notes": "Synthetic systematic-style essay, variation 0"
+    },
+    {
+      "filename": "seminary_04_sin.txt",
+      "author_id": "seminary_04",
+      "label": "authentic",
+      "deviation_score": 0.7495,
+      "authorship_probability": 0.7618,
+      "recommended_action": "schedule_conversation",
+      "is_same_author": true,
+      "word_count": 401,
+      "scoring_time_ms": 302.7,
+      "notes": "Synthetic systematic-style essay, variation 1"
+    },
+    {
+      "filename": "ghost_004.txt",
+      "author_id": "seminary_04",
+      "label": "ghostwritten",
+      "deviation_score": 0.7794,
+      "authorship_probability": 0.7671,
+      "recommended_action": "escalate",
+      "is_same_author": false,
+      "word_count": 403,
+      "scoring_time_ms": 471.6,
+      "notes": "Ghostwritten: actual style is baptist, submitted under seminary_04 baseline"
+    },
+    {
+      "filename": "seminary_05_prayer.txt",
+      "author_id": "seminary_05",
+      "label": "authentic",
+      "deviation_score": 0.6003,
+      "authorship_probability": 0.7998,
+      "recommended_action": "schedule_conversation",
+      "is_same_author": true,
+      "word_count": 403,
+      "scoring_time_ms": 511.08,
+      "notes": "Synthetic narrative-style essay, variation 0"
+    },
+    {
+      "filename": "seminary_05_sin.txt",
+      "author_id": "seminary_05",
+      "label": "authentic",
+      "deviation_score": 0.6298,
+      "authorship_probability": 0.8265,
+      "recommended_action": "schedule_conversation",
+      "is_same_author": true,
+      "word_count": 400,
+      "scoring_time_ms": 459.22,
+      "notes": "Synthetic narrative-style essay, variation 1"
+    },
+    {
+      "filename": "ghost_005.txt",
+      "author_id": "seminary_05",
+      "label": "ghostwritten",
+      "deviation_score": 0.6204,
+      "authorship_probability": 0.7957,
+      "recommended_action": "schedule_conversation",
+      "is_same_author": false,
+      "word_count": 395,
+      "scoring_time_ms": 439.77,
+      "notes": "Ghostwritten: actual style is wesleyan, submitted under seminary_05 baseline"
+    },
+    {
+      "filename": "seminary_03_prayer.txt",
+      "author_id": "seminary_03",
+      "label": "authentic",
+      "deviation_score": 0.5026,
+      "authorship_probability": 0.8478,
+      "recommended_action": "monitor",
+      "is_same_author": true,
+      "word_count": 396,
+      "scoring_time_ms": 454.46,
+      "notes": "Synthetic pastoral-style essay, variation 0"
+    },
+    {
+      "filename": "seminary_03_sin.txt",
+      "author_id": "seminary_03",
+      "label": "authentic",
+      "deviation_score": 0.6709,
+      "authorship_probability": 0.8136,
+      "recommended_action": "schedule_conversation",
+      "is_same_author": true,
+      "word_count": 395,
+      "scoring_time_ms": 432.54,
+      "notes": "Synthetic pastoral-style essay, variation 1"
+    },
+    {
+      "filename": "ghost_003.txt",
+      "author_id": "seminary_03",
+      "label": "ghostwritten",
+      "deviation_score": 0.7857,
+      "authorship_probability": 0.7303,
+      "recommended_action": "escalate",
+      "is_same_author": false,
+      "word_count": 419,
+      "scoring_time_ms": 423.84,
+      "notes": "Ghostwritten: actual style is lutheran, submitted under seminary_03 baseline"
+    }
+  ]
+}

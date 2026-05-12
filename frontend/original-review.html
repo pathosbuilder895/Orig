@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Original — Review Submission</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+    :root{
+      --green-deepest:#0f1e17;--green-deep:#162b22;--green-mid:#1e3d2f;
+      --green-hover:#243d30;--green-border:rgba(255,255,255,0.07);
+      --cream:#f7f3ea;--cream-warm:#ede8d8;--cream-border:#e2dccf;
+      --surface:#ffffff;--gold:#c9a028;--gold-light:rgba(201,160,40,0.12);
+      --gold-muted:rgba(201,160,40,0.35);--amber:#935e1c;
+      --text-primary:#1a130a;--text-secondary:#5a4030;--text-muted:#6d5a4a;
+      --text-cream:#f7f3ea;--text-cream-dim:rgba(247,243,234,0.55);
+      --flag-red:#c0392b;--flag-red-bg:rgba(192,57,43,0.08);
+      --flag-green:#2a6b45;--flag-green-bg:rgba(42,107,69,0.1);
+      --sidebar-w:264px;--radius:6px;
+      --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+    }
+    html,body{height:100%;}
+    body{font-family:'Inter',system-ui,sans-serif;background:var(--cream);color:var(--text-primary);display:flex;overflow:hidden;font-size:14px;line-height:1.5;}
+
+    /* Sidebar */
+    .sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);height:100vh;background:var(--green-deep);display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:100;border-right:1px solid var(--green-border);}
+    .sidebar-logo{padding:1.5rem 1.5rem 1.25rem;border-bottom:1px solid var(--green-border);}
+    .logo-mark{display:flex;align-items:center;gap:0.75rem;margin-bottom:0.35rem;}
+    .logo-icon{width:30px;height:30px;border:1px solid var(--gold-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .logo-icon svg{width:14px;height:14px;stroke:var(--gold);}
+    .logo-wordmark{font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;color:var(--text-cream);letter-spacing:0.06em;}
+    .logo-school{font-family:'EB Garamond',serif;font-size:0.78rem;font-style:italic;color:var(--text-cream-dim);letter-spacing:0.03em;padding-left:2.8rem;}
+    .sidebar-nav{flex:1;padding:1rem 0;overflow-y:auto;}
+    .nav-section-label{font-size:0.65rem;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-cream-dim);padding:0.6rem 1.5rem 0.3rem;margin-top:0.5rem;}
+    .nav-item{display:flex;align-items:center;gap:0.75rem;padding:0.6rem 1.5rem;color:rgba(247,243,234,0.65);text-decoration:none;font-size:0.875rem;font-weight:500;cursor:pointer;transition:color 0.15s,background 0.15s;border-left:2px solid transparent;letter-spacing:0.01em;}
+    .nav-item:hover{color:var(--text-cream);background:var(--green-hover);}
+    .nav-item.active{color:var(--text-cream);border-left-color:var(--gold);background:rgba(201,160,40,0.08);}
+    .nav-item svg{width:16px;height:16px;stroke:currentColor;flex-shrink:0;opacity:0.85;}
+    .nav-badge{margin-left:auto;background:var(--gold);color:var(--green-deepest);font-size:0.65rem;font-weight:700;padding:0.15rem 0.45rem;border-radius:20px;}
+    .sidebar-user{border-top:1px solid var(--green-border);padding:1rem 1.25rem;display:flex;align-items:center;gap:0.75rem;}
+    .user-avatar{width:32px;height:32px;border-radius:50%;background:var(--green-mid);border:1px solid var(--gold-muted);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:0.8rem;color:var(--gold);flex-shrink:0;}
+    .user-info{flex:1;min-width:0;}
+    .user-name{font-size:0.825rem;font-weight:500;color:var(--text-cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .user-role{font-size:0.72rem;color:var(--text-cream-dim);font-style:italic;font-family:'EB Garamond',serif;}
+    .user-settings{width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--text-cream-dim);cursor:pointer;border-radius:4px;}
+    .user-settings svg{width:15px;height:15px;stroke:currentColor;}
+
+    .main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+    .topbar{background:var(--cream);border-bottom:1px solid var(--cream-border);padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+    .breadcrumb{display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;color:var(--text-muted);}
+    .breadcrumb a{color:var(--text-muted);text-decoration:none;transition:color 0.15s;}
+    .breadcrumb a:hover{color:var(--amber);}
+    .breadcrumb-sep{color:var(--cream-border);}
+    .breadcrumb-current{font-weight:500;color:var(--text-secondary);}
+    .topbar-right{display:flex;align-items:center;gap:0.75rem;}
+    .semester-badge{font-family:'EB Garamond',serif;font-size:0.85rem;font-style:italic;color:var(--text-muted);background:var(--cream-warm);border:1px solid var(--cream-border);padding:0.3rem 0.85rem;border-radius:20px;}
+    .topbar-icon-btn{width:32px;height:32px;border-radius:var(--radius);border:1px solid var(--cream-border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-secondary);}
+    .topbar-icon-btn svg{width:15px;height:15px;stroke:currentColor;}
+    .notif-dot{position:absolute;top:6px;right:6px;width:6px;height:6px;background:var(--gold);border-radius:50%;border:1.5px solid var(--cream);}
+
+    .page-body{flex:1;overflow-y:auto;padding:2rem 2rem 3rem;}
+
+    /* PHASE 6 — TEACHER SUMMARY + DIVERGING BAR CHART */
+    .teacher-summary-card{display:grid;grid-template-columns:170px 1fr 152px;gap:1.25rem;background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:1.25rem 1.5rem;margin-bottom:1.5rem;align-items:center;}
+    .ts-badge{border-radius:8px;padding:0.85rem 0.7rem;text-align:center;border:2px solid transparent;transition:all 0.3s;}
+    .ts-badge.b-green{background:var(--flag-green-bg);border-color:rgba(42,107,69,0.2);}
+    .ts-badge.b-yellow{background:var(--gold-light);border-color:var(--gold-muted);}
+    .ts-badge.b-orange{background:rgba(147,94,28,0.09);border-color:rgba(147,94,28,0.25);}
+    .ts-badge.b-red{background:var(--flag-red-bg);border-color:rgba(192,57,43,0.22);}
+    .ts-badge-icon{font-size:1.75rem;line-height:1;margin-bottom:0.3rem;}
+    .ts-badge-label{font-size:0.95rem;font-weight:700;color:var(--text-primary);line-height:1.2;}
+    .ts-badge-sub{font-size:0.72rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;margin-top:0.25rem;line-height:1.3;}
+    .ts-section-label{font-size:0.65rem;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.4rem;}
+    .ts-plain-text{font-family:'EB Garamond',serif;font-size:0.95rem;line-height:1.65;color:var(--text-primary);}
+    .traj-sparkline{width:100%;height:56px;overflow:visible;display:block;}
+    .traj-label{font-family:'EB Garamond',serif;font-size:0.72rem;font-style:italic;color:var(--text-muted);margin-top:0.2rem;text-align:center;}
+    /* Diverging bar chart */
+    .divbar-section{padding:0.85rem 1.4rem 1rem;}
+    .divbar-header-row{display:grid;grid-template-columns:140px 1fr 2px 1fr 52px;margin-bottom:0.3rem;}
+    .divbar-hl{font-size:0.65rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);}
+    .divbar-row{display:grid;grid-template-columns:140px 1fr 2px 1fr 52px;align-items:center;height:20px;margin-bottom:0.3rem;}
+    .divbar-row:last-child{margin-bottom:0;}
+    .divbar-name{font-size:0.75rem;font-weight:500;color:var(--text-primary);text-align:right;padding-right:0.55rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .divbar-left{display:flex;justify-content:flex-end;height:11px;}
+    .divbar-fill-c{height:100%;background:var(--flag-green);border-radius:2px 0 0 2px;opacity:0.75;}
+    .divbar-axis{background:var(--cream-border);width:2px;}
+    .divbar-right{display:flex;height:11px;}
+    .divbar-fill-d{height:100%;border-radius:0 2px 2px 0;}
+    .divbar-fill-d.hi{background:var(--flag-red);opacity:0.85;}
+    .divbar-fill-d.md{background:var(--amber);opacity:0.85;}
+    .divbar-fill-d.lo{background:var(--flag-green);opacity:0.7;}
+    .divbar-pct{font-size:0.72rem;font-weight:700;padding-left:0.45rem;white-space:nowrap;}
+    .divbar-pct.hi{color:var(--flag-red);}
+    .divbar-pct.md{color:var(--amber);}
+    .divbar-pct.lo{color:var(--flag-green);}
+
+    /* REVIEW LAYOUT */
+    .review-grid{display:grid;grid-template-columns:1fr 360px;gap:1.5rem;align-items:start;}
+
+    .section-card{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:1.5rem;}
+    .section-card:last-child{margin-bottom:0;}
+    .section-head{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.4rem;border-bottom:1px solid var(--cream-border);}
+    .section-title{font-family:'Playfair Display',serif;font-size:0.95rem;font-weight:600;color:var(--text-primary);}
+    .section-action{font-size:0.775rem;color:var(--amber);text-decoration:none;font-weight:500;}
+
+    /* REVIEW HEADER */
+    .review-header{
+      background:var(--surface);border:1px solid var(--cream-border);
+      border-radius:var(--radius);box-shadow:var(--shadow-sm);
+      margin-bottom:1.5rem;overflow:hidden;
+    }
+    .review-alert-bar{
+      background:var(--flag-red-bg);
+      border-bottom:1px solid rgba(192,57,43,0.15);
+      padding:0.7rem 1.75rem;
+      display:flex;align-items:center;gap:0.75rem;
+    }
+    .review-alert-bar svg{width:15px;height:15px;stroke:var(--flag-red);flex-shrink:0;}
+    .review-alert-bar span{font-size:0.825rem;font-weight:600;color:var(--flag-red);}
+    .review-alert-bar em{font-weight:400;font-style:normal;color:var(--flag-red);opacity:0.75;margin-left:0.25rem;}
+    .review-header-body{padding:1.4rem 1.75rem;display:flex;align-items:flex-start;justify-content:space-between;gap:1.5rem;}
+    .review-header-left{}
+    .review-assignment{font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:600;color:var(--text-primary);margin-bottom:0.35rem;}
+    .review-student-line{display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;}
+    .review-student-name{font-weight:500;font-size:0.9rem;color:var(--text-primary);}
+    .review-pipe{color:var(--cream-border);}
+    .review-course-tag{font-size:0.78rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;}
+    .review-meta{display:flex;gap:1.25rem;flex-wrap:wrap;}
+    .review-meta-item{font-size:0.78rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;display:flex;align-items:center;gap:0.3rem;}
+    .review-meta-item svg{width:12px;height:12px;stroke:currentColor;}
+    .review-score-display{flex-shrink:0;text-align:center;}
+    .score-ring{
+      width:80px;height:80px;border-radius:50%;
+      border:3px solid rgba(192,57,43,0.3);
+      background:var(--flag-red-bg);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+    }
+    .score-value{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;color:var(--flag-red);line-height:1;}
+    .score-label{font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--flag-red);opacity:0.7;margin-top:0.15rem;}
+    .score-sub{font-size:0.72rem;color:var(--text-muted);font-style:italic;font-family:'EB Garamond',serif;margin-top:0.4rem;text-align:center;}
+
+    /* FEATURE COMPARISON TABLE */
+    .comparison-table{width:100%;}
+    .comparison-head{
+      display:grid;grid-template-columns:180px 1fr 1fr 80px;
+      padding:0.6rem 1.4rem;background:var(--cream);
+      border-bottom:1px solid var(--cream-border);
+    }
+    .th{font-size:0.68rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);}
+    .th.right{text-align:right;}
+    .comparison-row{
+      display:grid;grid-template-columns:180px 1fr 1fr 80px;
+      padding:0.75rem 1.4rem;border-bottom:1px solid var(--cream-border);
+      align-items:center;
+    }
+    .comparison-row:last-child{border-bottom:none;}
+    .comparison-row.signal{background:rgba(192,57,43,0.03);}
+    .feat-name{font-size:0.825rem;font-weight:500;color:var(--text-secondary);}
+    .feat-name.signal{color:var(--text-primary);}
+    .baseline-col{display:flex;align-items:center;gap:0.5rem;}
+    .submission-col{display:flex;align-items:center;gap:0.5rem;}
+    .col-bar{flex:1;height:5px;background:var(--cream-border);border-radius:2px;overflow:hidden;}
+    .col-fill-b{height:100%;border-radius:2px;background:var(--flag-green);}
+    .col-fill-s{height:100%;border-radius:2px;}
+    .col-fill-s.ok{background:var(--flag-green);}
+    .col-fill-s.warn{background:var(--amber);}
+    .col-fill-s.bad{background:var(--flag-red);}
+    .col-val{font-size:0.78rem;color:var(--text-secondary);min-width:36px;}
+    .col-val.signal{color:var(--text-primary);font-weight:600;}
+    .delta-col{text-align:right;}
+    .delta-tag{display:inline-flex;font-size:0.7rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:4px;}
+    .delta-tag.bad{background:var(--flag-red-bg);color:var(--flag-red);}
+    .delta-tag.warn{background:rgba(201,160,40,0.1);color:var(--amber);}
+    .delta-tag.ok{background:var(--flag-green-bg);color:var(--flag-green);}
+
+    /* SUBMISSION TEXT PANEL */
+    .submission-text-body{padding:1.4rem;}
+    .submission-text{
+      font-family:'EB Garamond',serif;font-size:1rem;
+      line-height:1.85;color:var(--text-secondary);
+    }
+    .submission-text p+p{margin-top:1rem;}
+    .submission-text .highlight{
+      background:rgba(192,57,43,0.1);
+      border-bottom:1px solid rgba(192,57,43,0.3);
+      padding:0 1px;
+    }
+    .text-legend{
+      display:flex;align-items:center;gap:1rem;
+      margin-bottom:1rem;padding-bottom:0.75rem;
+      border-bottom:1px solid var(--cream-border);
+    }
+    .legend-item{display:flex;align-items:center;gap:0.35rem;font-size:0.75rem;color:var(--text-muted);}
+    .legend-swatch{width:14px;height:3px;border-radius:2px;}
+
+    /* DECISION PANEL */
+    .decision-panel{padding:1.4rem;}
+    .decision-intro{
+      font-family:'EB Garamond',serif;font-size:0.9rem;
+      font-style:italic;color:var(--text-muted);
+      line-height:1.6;margin-bottom:1.25rem;
+      padding-bottom:1rem;border-bottom:1px solid var(--cream-border);
+    }
+    .decision-options{display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1.25rem;}
+    .decision-option{
+      display:flex;align-items:flex-start;gap:0.75rem;
+      padding:0.85rem 1rem;border-radius:var(--radius);
+      border:1px solid var(--cream-border);cursor:pointer;
+      transition:all 0.15s;
+    }
+    .decision-option:hover{border-color:var(--gold-muted);}
+    .decision-option.selected{border-color:var(--gold);background:var(--gold-light);}
+    .decision-option input{margin-top:2px;flex-shrink:0;accent-color:var(--amber);}
+    .decision-label{font-size:0.85rem;font-weight:500;color:var(--text-primary);}
+    .decision-desc{font-size:0.775rem;color:var(--text-muted);margin-top:0.15rem;font-family:'EB Garamond',serif;font-style:italic;}
+
+    .notes-label{font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:0.5rem;}
+    .notes-textarea{
+      width:100%;border:1px solid var(--cream-border);border-radius:var(--radius);
+      padding:0.75rem;font-family:'EB Garamond',serif;font-size:0.9rem;
+      color:var(--text-primary);background:var(--cream);resize:vertical;min-height:80px;
+      outline:none;transition:border-color 0.15s;
+      font-style:italic;
+    }
+    .notes-textarea:focus{border-color:var(--gold-muted);}
+    .notes-textarea::placeholder{color:var(--text-muted);}
+
+    .decision-actions{display:flex;flex-direction:column;gap:0.5rem;margin-top:1rem;}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:0.45rem;padding:0.6rem 1.1rem;border-radius:var(--radius);font-size:0.825rem;font-weight:600;cursor:pointer;transition:all 0.15s;text-decoration:none;border:none;letter-spacing:0.01em;width:100%;}
+    .btn svg{width:14px;height:14px;stroke:currentColor;}
+    .btn-escalate{background:var(--flag-red);color:#fff;border:1px solid var(--flag-red);}
+    .btn-escalate:hover{background:#a93226;}
+    .btn-clear{background:var(--flag-green-bg);color:var(--flag-green);border:1px solid rgba(42,107,69,0.25);}
+    .btn-clear:hover{background:rgba(42,107,69,0.18);}
+    .btn-ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--cream-border);}
+    .btn-ghost:hover{background:var(--surface);border-color:var(--gold-muted);color:var(--text-primary);}
+
+    /* Previous decisions */
+    .decision-history{padding:0;}
+    .history-item{padding:0.85rem 1.4rem;border-bottom:1px solid var(--cream-border);}
+    .history-item:last-child{border-bottom:none;}
+    .history-head{display:flex;justify-content:space-between;margin-bottom:0.25rem;}
+    .history-actor{font-size:0.8rem;font-weight:500;color:var(--text-primary);}
+    .history-date{font-size:0.72rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;}
+    .history-note{font-size:0.8rem;color:var(--text-secondary);font-family:'EB Garamond',serif;font-style:italic;line-height:1.5;}
+
+    /* UNCERTAINTY BANNER */
+    .uncertainty-bar{
+      background:rgba(201,160,40,0.08);border-bottom:1px solid rgba(201,160,40,0.2);
+      padding:0.8rem 1.75rem;display:flex;align-items:flex-start;gap:0.75rem;
+    }
+    .uncertainty-bar svg{width:15px;height:15px;stroke:var(--amber);flex-shrink:0;margin-top:2px;}
+    .uncertainty-bar-content{flex:1;}
+    .uncertainty-title{font-size:0.825rem;font-weight:600;color:var(--amber);margin-bottom:0.2rem;}
+    .uncertainty-body{font-family:'EB Garamond',serif;font-size:0.88rem;font-style:italic;color:var(--text-secondary);line-height:1.55;}
+
+    /* SCORE with CI */
+    .score-ci{font-size:0.68rem;color:var(--text-muted);margin-top:0.25rem;font-family:'EB Garamond',serif;font-style:italic;}
+    .score-ci strong{font-weight:600;color:var(--text-secondary);}
+
+    /* FEATURE EXPLANATION PANEL */
+    .feat-explain{background:var(--cream);border-top:1px solid var(--cream-border);}
+    .feat-explain-toggle{display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1.4rem;cursor:pointer;font-size:0.8rem;font-weight:600;color:var(--amber);user-select:none;}
+    .feat-explain-toggle svg{width:14px;height:14px;stroke:currentColor;transition:transform 0.2s;}
+    .feat-explain-toggle.open svg{transform:rotate(180deg);}
+    .feat-explain-body{padding:0 1.4rem 1rem;display:none;}
+    .feat-explain-body.open{display:block;}
+    .feat-explain-intro{font-family:'EB Garamond',serif;font-size:0.88rem;font-style:italic;color:var(--text-muted);margin-bottom:0.85rem;line-height:1.5;}
+    .feat-card{padding:0.75rem;border:1px solid var(--cream-border);border-radius:var(--radius);background:var(--surface);margin-bottom:0.5rem;}
+    .feat-card:last-child{margin-bottom:0;}
+    .feat-card-head{display:flex;align-items:center;gap:0.6rem;margin-bottom:0.3rem;}
+    .feat-card-name{font-size:0.8rem;font-weight:600;color:var(--text-primary);}
+    .feat-card-delta{font-size:0.7rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:4px;background:var(--flag-red-bg);color:var(--flag-red);}
+    .feat-card-body{font-family:'EB Garamond',serif;font-size:0.85rem;font-style:italic;color:var(--text-secondary);line-height:1.5;}
+
+    /* CORROBORATION CHECKLIST */
+    .corroboration-list{padding:0.85rem 1.4rem;display:flex;flex-direction:column;gap:0.5rem;}
+    .corroboration-item{display:flex;align-items:flex-start;gap:0.7rem;padding:0.75rem;border:1px solid var(--cream-border);border-radius:var(--radius);background:var(--cream);transition:border-color 0.15s;}
+    .corroboration-item:hover{border-color:var(--gold-muted);}
+    .corroboration-check{width:18px;height:18px;border:1.5px solid var(--cream-border);border-radius:4px;flex-shrink:0;margin-top:1px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;background:var(--surface);}
+    .corroboration-check.checked{background:var(--flag-green);border-color:var(--flag-green);}
+    .corroboration-check.checked svg{display:block;}
+    .corroboration-check svg{width:10px;height:10px;stroke:white;display:none;}
+    .corroboration-text{}
+    .corroboration-name{font-size:0.825rem;font-weight:500;color:var(--text-primary);}
+    .corroboration-desc{font-size:0.75rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;margin-top:0.1rem;line-height:1.4;}
+    .corroboration-progress{display:flex;align-items:center;gap:0.6rem;padding:0.6rem 1.4rem;border-top:1px solid var(--cream-border);background:var(--cream);}
+    .corroboration-bar{flex:1;height:4px;background:var(--cream-border);border-radius:2px;overflow:hidden;}
+    .corroboration-fill{height:100%;background:var(--flag-green);border-radius:2px;transition:width 0.3s;}
+    .corroboration-pct{font-size:0.72rem;font-weight:600;color:var(--flag-green);}
+
+    ::-webkit-scrollbar{width:4px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:var(--cream-border);border-radius:2px;}
+
+    /* ── SCORE SUBMISSION PANEL ── */
+    .score-panel{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);box-shadow:var(--shadow-sm);margin-bottom:1.5rem;overflow:hidden;}
+    .score-panel-head{padding:1rem 1.4rem;border-bottom:1px solid var(--cream-border);display:flex;align-items:center;justify-content:space-between;gap:1rem;}
+    .score-panel-title{font-family:'Playfair Display',serif;font-size:0.95rem;font-weight:600;color:var(--text-primary);}
+    .score-panel-body{padding:1.25rem 1.4rem;}
+    .score-panel textarea{width:100%;min-height:130px;border:1px solid var(--cream-border);border-radius:var(--radius);padding:0.75rem;font-family:'EB Garamond',serif;font-size:0.95rem;color:var(--text-primary);background:var(--cream);resize:vertical;outline:none;line-height:1.65;transition:border-color 0.15s;}
+    .score-panel textarea:focus{border-color:var(--gold-muted);background:var(--surface);}
+    .score-panel textarea::placeholder{color:var(--text-muted);font-style:italic;}
+    .score-panel-row{display:flex;gap:0.75rem;margin-top:0.75rem;align-items:center;}
+    .score-panel input.sp-input{flex:1;border:1px solid var(--cream-border);border-radius:var(--radius);padding:0.5rem 0.75rem;font-size:0.825rem;font-family:'Inter',sans-serif;color:var(--text-primary);background:var(--cream);outline:none;transition:border-color 0.15s;}
+    .score-panel input.sp-input:focus{border-color:var(--gold-muted);}
+    .score-panel input.sp-input::placeholder{color:var(--text-muted);}
+    .sp-btn{display:inline-flex;align-items:center;gap:0.4rem;padding:0.55rem 1.1rem;border-radius:var(--radius);font-size:0.825rem;font-weight:600;border:none;cursor:pointer;transition:all 0.15s;flex-shrink:0;}
+    .sp-btn-primary{background:var(--green-deep);color:var(--text-cream);}
+    .sp-btn-primary:hover{background:var(--green-mid);}
+    .sp-btn-primary:disabled{opacity:0.5;cursor:not-allowed;}
+    .sp-btn-ghost{background:transparent;border:1px solid var(--cream-border);color:var(--text-secondary);font-size:0.775rem;}
+    .sp-btn-ghost:hover{background:var(--cream-warm);}
+    .sp-btn svg{width:13px;height:13px;stroke:currentColor;}
+    .sp-word-count{font-family:'EB Garamond',serif;font-size:0.82rem;font-style:italic;color:var(--text-muted);margin-left:auto;}
+    .sp-status{display:none;margin-top:0.75rem;padding:0.6rem 0.85rem;border-radius:var(--radius);font-size:0.82rem;}
+    .sp-status.loading{display:flex;align-items:center;gap:0.6rem;background:var(--gold-light);color:var(--amber);border:1px solid var(--gold-muted);}
+    .sp-status.error{display:block;background:var(--flag-red-bg);color:var(--flag-red);border:1px solid rgba(192,57,43,0.2);}
+    .sp-spinner{width:14px;height:14px;border:2px solid var(--gold-muted);border-top-color:var(--gold);border-radius:50%;animation:spin 0.7s linear infinite;flex-shrink:0;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .sp-collapse-btn{font-size:0.75rem;color:var(--text-muted);cursor:pointer;text-decoration:underline;text-underline-offset:2px;font-family:'EB Garamond',serif;font-style:italic;background:none;border:none;padding:0;}
+    .sp-collapse-btn:hover{color:var(--amber);}
+
+    /* Live result banner */
+    .live-banner{display:none;background:var(--flag-green-bg);border:1px solid rgba(42,107,69,0.2);border-radius:var(--radius);padding:0.6rem 1rem;margin-bottom:1rem;font-size:0.82rem;color:var(--flag-green);font-weight:500;}
+    .live-banner.visible{display:flex;align-items:center;gap:0.5rem;}
+    .live-banner svg{width:14px;height:14px;stroke:currentColor;flex-shrink:0;}
+
+    /* Severity badges */
+    .sev-badge{display:inline-block;font-size:0.7rem;font-weight:700;padding:0.15rem 0.55rem;border-radius:20px;text-transform:uppercase;letter-spacing:0.06em;}
+    .sev-clear{background:var(--flag-green-bg);color:var(--flag-green);border:1px solid rgba(42,107,69,0.2);}
+    .sev-watch{background:rgba(201,160,40,0.12);color:var(--amber);border:1px solid var(--gold-muted);}
+    .sev-concern{background:rgba(155,100,32,0.1);color:var(--amber);border:1px solid rgba(155,100,32,0.3);}
+    .sev-serious{background:var(--flag-red-bg);color:var(--flag-red);border:1px solid rgba(192,57,43,0.2);}
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <span class="logo-wordmark">Original</span>
+    </div>
+    <div class="logo-school">Southern Baptist Theological Seminary</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Overview</div>
+    <a class="nav-item" href="original-dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard</a>
+    <a class="nav-item" href="original-course.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Courses</a>
+    <a class="nav-item" href="original-students.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Students</a>
+    <div class="nav-section-label">Review</div>
+    <a class="nav-item active" href="original-flagged.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Flagged<span class="nav-badge">5</span></a>
+    <a class="nav-item" href="original-submit.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Submit Writing</a>
+    <a class="nav-item" href="original-reports.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Reports</a>
+        <div class="nav-section-label">Pipeline</div>
+    <a class="nav-item" href="original-features.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Feature Profile</a>
+    <a class="nav-item" href="original-quantum.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>Quantum State</a>
+    <a class="nav-item" href="original-decomposition.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Interference</a>
+    <div class="nav-section-label">Institution</div>
+    <a class="nav-item" href="original-admin.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Admin</a>
+    <a class="nav-item" href="original-settings.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/></svg>Settings</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">AC</div>
+    <div class="user-info"><div class="user-name">Dr. Andrew Clark</div><div class="user-role">Instructor</div></div>
+    <div class="user-settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="breadcrumb">
+      <a href="original-dashboard.html">Original</a>
+      <span class="breadcrumb-sep">/</span>
+      <a href="original-student.html" id="bc-student">James Whitfield</a>
+      <span class="breadcrumb-sep">/</span>
+      <span class="breadcrumb-current" id="bc-current">Review — Final Essay</span>
+    </div>
+    <div class="topbar-right">
+      <div class="semester-badge">Spring 2026</div>
+      <div class="topbar-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+      <div class="topbar-icon-btn" style="position:relative;"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-dot"></span></div>
+    </div>
+  </div>
+
+  <div class="page-body">
+
+    <!-- ── SCORE SUBMISSION PANEL ── -->
+    <div class="score-panel" id="score-panel">
+      <div class="score-panel-head">
+        <span class="score-panel-title">Score a Submission</span>
+        <button class="sp-collapse-btn" id="score-panel-toggle" onclick="toggleScorePanel()">hide panel</button>
+      </div>
+      <div class="score-panel-body" id="score-panel-body">
+        <textarea id="sp-text" placeholder="Paste the student's submission here…&#10;&#10;The system will compare it against their established baseline and generate a stylometric deviation report."></textarea>
+        <div class="score-panel-row">
+          <input class="sp-input" type="text" id="sp-assignment" placeholder="Assignment name (optional)" />
+          <span class="sp-word-count" id="sp-wc">0 words</span>
+          <button class="sp-btn sp-btn-primary" id="sp-submit-btn" onclick="scoreSubmission()">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            Analyse
+          </button>
+        </div>
+        <div class="sp-status" id="sp-status">
+          <div class="sp-spinner"></div>
+          <span id="sp-status-text">Scoring…</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live result banner (shown after scoring) -->
+    <div class="live-banner" id="live-banner">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <span id="live-banner-text">Results updated from live API call.</span>
+    </div>
+
+    <!-- Review header -->
+    <div class="review-header">
+      <div class="review-alert-bar" id="review-alert-bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span id="alert-bar-text">Significant stylometric deviation <em>— 6 of 9 features outside established baseline range</em></span>
+      </div>
+
+      <!-- Uncertainty notice -->
+      <div class="uncertainty-bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div class="uncertainty-bar-content">
+          <div class="uncertainty-title">This is a statistical signal, not a verdict</div>
+          <div class="uncertainty-body">Stylometric analysis measures how this submission's writing patterns compare to a student's established baseline. High deviation indicates a meaningful difference — it does not determine why that difference exists. Many legitimate factors can cause deviation: a difficult topic, an unusual assignment prompt, significant growth, stress, or a late-night submission. The score is one input into your judgement — not a conclusion.</div>
+        </div>
+      </div>
+
+      <div class="review-header-body">
+        <div class="review-header-left">
+          <h1 class="review-assignment" id="review-assignment">Final Essay — Christology</h1>
+          <div class="review-student-line">
+            <span class="review-student-name" id="review-student-name">James Whitfield</span>
+            <span class="review-pipe">|</span>
+            <span class="review-course-tag" id="review-course-tag">THEO 501 · Systematic Theology I</span>
+          </div>
+          <div class="review-meta">
+            <span class="review-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span id="review-date">Submitted Mar 14, 2026 · 11:47pm</span></span>
+            <span class="review-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg><span id="review-wordcount">2,840 words · 18,340 characters</span></span>
+            <span class="review-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span id="review-process">Processed in 1.2s · Model v2.4</span></span>
+            <span class="review-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span id="review-baseline">Baseline: 7 prior submissions</span></span>
+          </div>
+        </div>
+        <div class="review-score-display">
+          <div class="score-ring" id="score-ring">
+            <div class="score-value" id="score-value">0.91</div>
+            <div class="score-label">Deviation</div>
+          </div>
+          <div class="score-sub" id="score-sub">Above 0.65 threshold · Moderate confidence</div>
+          <div class="score-ci" id="score-ci">95% CI: <strong>0.84 – 0.97</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Teacher Summary — Phase 6 -->
+    <div class="teacher-summary-card" id="teacher-summary-card">
+      <div>
+        <div class="ts-badge b-red" id="ts-badge">
+          <div class="ts-badge-icon" id="ts-badge-icon">⚠</div>
+          <div class="ts-badge-label" id="ts-badge-label">Review Warranted</div>
+          <div class="ts-badge-sub" id="ts-badge-sub">Significant deviation from established baseline</div>
+        </div>
+      </div>
+      <div>
+        <div class="ts-section-label">Plain-English Summary</div>
+        <div class="ts-plain-text" id="ts-plain-text">This submission shows significant deviation from James Whitfield's established writing pattern. The primary anomalies are unusually long sentences, reduced vocabulary diversity, and elevated passive voice — all notably different from this student's baseline. This does not mean misconduct occurred. Consider reviewing in context and scheduling a brief conversation before deciding.</div>
+      </div>
+      <div>
+        <div class="ts-section-label">Writing Trajectory</div>
+        <svg class="traj-sparkline" id="traj-sparkline" viewBox="0 0 120 56" xmlns="http://www.w3.org/2000/svg">
+          <line x1="5" y1="28" x2="115" y2="28" stroke="rgba(201,160,40,0.4)" stroke-width="1" stroke-dasharray="3,2"/>
+          <polyline points="5,38.5 27,41 49,33.8 71,36.3 93,38.2" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-linejoin="round" opacity="0.55"/>
+          <line x1="93" y1="38.2" x2="115" y2="9.7" stroke="var(--flag-red)" stroke-width="1.5"/>
+          <circle cx="5" cy="38.5" r="2.5" fill="var(--text-muted)" opacity="0.45"/>
+          <circle cx="27" cy="41" r="2.5" fill="var(--text-muted)" opacity="0.45"/>
+          <circle cx="49" cy="33.8" r="2.5" fill="var(--text-muted)" opacity="0.45"/>
+          <circle cx="71" cy="36.3" r="2.5" fill="var(--text-muted)" opacity="0.45"/>
+          <circle cx="93" cy="38.2" r="2.5" fill="var(--text-muted)" opacity="0.45"/>
+          <circle cx="115" cy="9.7" r="4" fill="var(--flag-red)"/>
+          <circle cx="115" cy="9.7" r="7" fill="none" stroke="var(--flag-red)" stroke-width="1" opacity="0.25"/>
+          <text x="7" y="26" font-size="7" fill="rgba(201,160,40,0.65)" font-family="EB Garamond, serif" font-style="italic">flag threshold</text>
+        </svg>
+        <div class="traj-label" id="traj-label">6 submissions · current flagged</div>
+      </div>
+    </div>
+
+    <!-- Review grid -->
+    <div class="review-grid">
+
+      <!-- LEFT -->
+      <div>
+
+        <!-- Interference Diverging Bar Chart — Phase 6 -->
+        <div class="section-card">
+          <div class="section-head">
+            <span class="section-title">Feature Interference Map</span>
+            <span style="font-size:0.72rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;">Contribution to deviation score · top features</span>
+          </div>
+          <div class="divbar-section" id="divbar-section">
+            <div class="divbar-header-row">
+              <div></div>
+              <div class="divbar-hl" style="text-align:right;padding-right:0.55rem;">← Authentic</div>
+              <div></div>
+              <div class="divbar-hl">Suspicious →</div>
+              <div></div>
+            </div>
+            <div id="divbar-body">
+              <div class="divbar-row">
+                <div class="divbar-name">Passive Voice Ratio</div>
+                <div class="divbar-left"></div>
+                <div class="divbar-axis"></div>
+                <div class="divbar-right"><div class="divbar-fill-d hi" style="width:80%"></div></div>
+                <div class="divbar-pct hi">+158%</div>
+              </div>
+              <div class="divbar-row">
+                <div class="divbar-name">Mean Sentence Length</div>
+                <div class="divbar-left"></div>
+                <div class="divbar-axis"></div>
+                <div class="divbar-right"><div class="divbar-fill-d hi" style="width:36%"></div></div>
+                <div class="divbar-pct hi">+71%</div>
+              </div>
+              <div class="divbar-row">
+                <div class="divbar-name">Type-Token Ratio</div>
+                <div class="divbar-left"></div>
+                <div class="divbar-axis"></div>
+                <div class="divbar-right"><div class="divbar-fill-d hi" style="width:22%"></div></div>
+                <div class="divbar-pct hi">−43%</div>
+              </div>
+              <div class="divbar-row">
+                <div class="divbar-name">Function Word Ratio</div>
+                <div class="divbar-left"></div>
+                <div class="divbar-axis"></div>
+                <div class="divbar-right"><div class="divbar-fill-d hi" style="width:17%"></div></div>
+                <div class="divbar-pct hi">−34%</div>
+              </div>
+              <div class="divbar-row">
+                <div class="divbar-name">Sentence Length Var.</div>
+                <div class="divbar-left"></div>
+                <div class="divbar-axis"></div>
+                <div class="divbar-right"><div class="divbar-fill-d md" style="width:15%"></div></div>
+                <div class="divbar-pct md">−29%</div>
+              </div>
+              <div class="divbar-row">
+                <div class="divbar-name">Modal Verb Ratio</div>
+                <div class="divbar-left"><div class="divbar-fill-c" style="width:6%"></div></div>
+                <div class="divbar-axis"></div>
+                <div class="divbar-right"></div>
+                <div class="divbar-pct lo">−11%</div>
+              </div>
+              <div class="divbar-row">
+                <div class="divbar-name">Avg Word Length</div>
+                <div class="divbar-left"><div class="divbar-fill-c" style="width:2%"></div></div>
+                <div class="divbar-axis"></div>
+                <div class="divbar-right"></div>
+                <div class="divbar-pct lo">+4%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Feature comparison -->
+        <div class="section-card">
+          <div class="section-head">
+            <span class="section-title">Feature Comparison</span>
+            <span style="font-size:0.75rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;">Baseline range vs. this submission</span>
+          </div>
+          <div class="comparison-table">
+            <div class="comparison-head">
+              <div class="th">Feature</div>
+              <div class="th">Baseline</div>
+              <div class="th">This submission</div>
+              <div class="th right">Shift</div>
+            </div>
+
+            <div class="comparison-row signal">
+              <div class="feat-name signal">Type-Token Ratio</div>
+              <div class="baseline-col"><div class="col-bar"><div class="col-fill-b" style="width:72%"></div></div><span class="col-val">0.72</span></div>
+              <div class="submission-col"><div class="col-bar"><div class="col-fill-s bad" style="width:41%"></div></div><span class="col-val signal">0.41</span></div>
+              <div class="delta-col"><span class="delta-tag bad">−43%</span></div>
+            </div>
+
+            <div class="comparison-row signal">
+              <div class="feat-name signal">Hapax Legomena Rate</div>
+              <div class="baseline-col"><div class="col-bar"><div class="col-fill-b" style="width:49%"></div></div><span class="col-val">0.49</span></div>
+              <div class="submission-col"><div class="col-bar"><div class="col-fill-s bad" style="width:28%"></div></div><span class="col-val signal">0.28</span></div>
+              <div class="delta-col"><span class="delta-tag bad">−43%</span></div>
+            </div>
+
+            <div class="comparison-row signal">
+              <div class="feat-name signal">Mean Sentence Length</div>
+              <div class="baseline-col"><div class="col-bar"><div class="col-fill-b" style="width:46%"></div></div><span class="col-val">18.3</span></div>
+              <div class="submission-col"><div class="col-bar"><div class="col-fill-s bad" style="width:78%"></div></div><span class="col-val signal">31.2</span></div>
+              <div class="delta-col"><span class="delta-tag bad">+71%</span></div>
+            </div>
+
+            <div class="comparison-row signal">
+              <div class="feat-name signal">Function Word Ratio</div>
+              <div class="baseline-col"><div class="col-bar"><div class="col-fill-b" style="width:44%"></div></div><span class="col-val">0.44</span></div>
+              <div class="submission-col"><div class="col-bar"><div class="col-fill-s bad" style="width:29%"></div></div><span class="col-val signal">0.29</span></div>
+              <div class="delta-col"><span class="delta-tag bad">−34%</span></div>
+            </div>
+
+            <div class="comparison-row signal">
+              <div class="feat-name signal">Passive Voice Ratio</div>
+              <div class="baseline-col"><div class="col-bar"><div class="col-fill-b" style="width:12%"></div></div><span class="col-val">0.12</span></div>
+              <div class="submission-col"><div class="col-bar"><div class="col-fill-s bad" style="width:31%"></div></div><span class="col-val signal">0.31</span></div>
+              <div class="delta-col"><span class="delta-tag bad">+158%</span></div>
+            </div>
+
+            <div class="comparison-row signal">
+              <div class="feat-name signal">Sentence Length Var.</div>
+              <div class="baseline-col"><div class="col-bar"><div class="col-fill-b" style="width:58%"></div></div><span class="col-val">5.8</span></div>
+              <div class="submission-col"><div class="col-bar"><div class="col-fill-s warn" style="width:41%"></div></div><span class="col-val signal">4.1</span></div>
+              <div class="delta-col"><span class="delta-tag warn">−29%</span></div>
+            </div>
+
+            <div class="comparison-row">
+              <div class="feat-name">Stop Word Count</div>
+              <div class="baseline-col"><div class="col-bar"><div class="col-fill-b" style="width:55%"></div></div><span class="col-val">0.55</span></div>
+              <div class="submission-col"><div class="col-bar"><div class="col-fill-s warn" style="width:42%"></div></div><span class="col-val">0.42</span></div>
+              <div class="delta-col"><span class="delta-tag warn">−24%</span></div>
+            </div>
+
+            <div class="comparison-row">
+              <div class="feat-name">Modal Verb Ratio</div>
+              <div class="baseline-col"><div class="col-bar"><div class="col-fill-b" style="width:9%"></div></div><span class="col-val">0.09</span></div>
+              <div class="submission-col"><div class="col-bar"><div class="col-fill-s ok" style="width:8%"></div></div><span class="col-val">0.08</span></div>
+              <div class="delta-col"><span class="delta-tag ok">−11%</span></div>
+            </div>
+
+            <div class="comparison-row">
+              <div class="feat-name">Avg Word Length</div>
+              <div class="baseline-col"><div class="col-bar"><div class="col-fill-b" style="width:47%"></div></div><span class="col-val">4.7</span></div>
+              <div class="submission-col"><div class="col-bar"><div class="col-fill-s ok" style="width:49%"></div></div><span class="col-val">4.9</span></div>
+              <div class="delta-col"><span class="delta-tag ok">+4%</span></div>
+            </div>
+
+          <!-- Feature explanation accordion -->
+          <div class="feat-explain">
+            <div class="feat-explain-toggle" id="feat-explain-toggle" onclick="toggleExplain()">
+              <span id="feat-explain-toggle-label">What do these signals mean? <span style="font-weight:400;font-style:italic;color:var(--text-muted);">— tap to expand explanations for flagged features</span></span>
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="feat-explain-body" id="feat-explain-body">
+              <div class="feat-explain-intro" id="feat-explain-intro">
+                Each feature below measures a distinct dimension of writing style. A score far from baseline means this submission's patterns differ notably from how this student normally writes — not that the student did not write it.
+              </div>
+              <div id="feat-cards-container">
+              <div class="feat-card">
+                <div class="feat-card-head">
+                  <span class="feat-card-name">Type-Token Ratio (TTR)</span>
+                  <span class="feat-card-delta">−43%</span>
+                </div>
+                <div class="feat-card-body">TTR measures vocabulary diversity — the proportion of unique words relative to total words. A lower TTR means the text repeats words more often. This student normally uses rich, varied vocabulary (TTR 0.72). This submission is more repetitive (0.41), consistent with either a more formulaic writing style, a topic requiring technical repetition, or text generated by someone else with different vocabulary habits.</div>
+              </div>
+
+              <div class="feat-card">
+                <div class="feat-card-head">
+                  <span class="feat-card-name">Hapax Legomena Rate</span>
+                  <span class="feat-card-delta">−43%</span>
+                </div>
+                <div class="feat-card-body">Hapax legomena are words that appear exactly once in a text — a strong signal of breadth of expression. This student typically uses many such words (0.49). This submission uses far fewer (0.28), suggesting a narrower range of vocabulary choices than is characteristic of this writer.</div>
+              </div>
+
+              <div class="feat-card">
+                <div class="feat-card-head">
+                  <span class="feat-card-name">Mean Sentence Length</span>
+                  <span class="feat-card-delta">+71%</span>
+                </div>
+                <div class="feat-card-body">Sentence length is a highly consistent stylometric marker. This student typically writes in sentences averaging 18.3 words. This submission averages 31.2 words — significantly longer, and notably more formal in construction. Possible explanations: the student was writing in an unfamiliar register (academic theology), was emulating a source text, or the text was produced by a writer who favors longer sentences.</div>
+              </div>
+
+              <div class="feat-card">
+                <div class="feat-card-head">
+                  <span class="feat-card-name">Function Word Ratio</span>
+                  <span class="feat-card-delta">−34%</span>
+                </div>
+                <div class="feat-card-body">Function words (the, of, in, a, with…) are used largely unconsciously and are among the most stable stylometric signals. A reduced function word ratio often indicates a shift in syntactic construction style. This is difficult to consciously reproduce and is one of the stronger signals in this report.</div>
+              </div>
+
+              <div class="feat-card">
+                <div class="feat-card-head">
+                  <span class="feat-card-name">Passive Voice Ratio</span>
+                  <span class="feat-card-delta">+158%</span>
+                </div>
+                <div class="feat-card-body">This student rarely uses passive voice (baseline 0.12). This submission uses it at 2.6× the typical rate (0.31). Academic theology writing often favors passive constructions ("it is argued that…", "is to be understood as…") — which may partly explain the difference. However, the magnitude of the shift warrants attention.</div>
+              </div>
+              </div><!-- /feat-cards-container -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Deep Analysis panel -->
+        <div class="section-card">
+          <div class="section-head">
+            <span class="section-title">Deep Analysis</span>
+            <span style="font-size:0.75rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;">ML pipeline internals</span>
+          </div>
+          <div style="padding:1.1rem 1.4rem;display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;">
+
+            <!-- Feature Profile card -->
+            <a href="original-features.html" style="text-decoration:none;display:flex;flex-direction:column;gap:0.45rem;padding:1rem;background:var(--cream);border:1px solid var(--cream-border);border-radius:var(--radius);transition:border-color 0.15s,box-shadow 0.15s;" onmouseover="this.style.borderColor='var(--gold-muted)';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'" onmouseout="this.style.borderColor='var(--cream-border)';this.style.boxShadow='none'">
+              <div style="width:32px;height:32px;border-radius:6px;background:rgba(201,160,40,0.1);display:flex;align-items:center;justify-content:center;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+              </div>
+              <div style="font-size:0.8rem;font-weight:600;color:var(--text-primary);line-height:1.3;">Feature Profile</div>
+              <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.4;">All 34 features across 3 tiers — baseline vs. submission comparison</div>
+              <div style="margin-top:auto;font-size:0.7rem;color:var(--flag-red);font-weight:600;">17 destructive →</div>
+            </a>
+
+            <!-- Quantum State card -->
+            <a href="original-quantum.html" style="text-decoration:none;display:flex;flex-direction:column;gap:0.45rem;padding:1rem;background:var(--cream);border:1px solid var(--cream-border);border-radius:var(--radius);transition:border-color 0.15s,box-shadow 0.15s;" onmouseover="this.style.borderColor='var(--gold-muted)';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'" onmouseout="this.style.borderColor='var(--cream-border)';this.style.boxShadow='none'">
+              <div style="width:32px;height:32px;border-radius:6px;background:rgba(201,160,40,0.1);display:flex;align-items:center;justify-content:center;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>
+              </div>
+              <div style="font-size:0.8rem;font-weight:600;color:var(--text-primary);line-height:1.3;">Quantum State</div>
+              <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.4;">Density matrix, purity, state vector, baseline sample weights</div>
+              <div style="margin-top:auto;font-size:0.7rem;color:var(--text-secondary);font-weight:600;">Purity 0.297 →</div>
+            </a>
+
+            <!-- Interference Analysis card -->
+            <a href="original-decomposition.html" style="text-decoration:none;display:flex;flex-direction:column;gap:0.45rem;padding:1rem;background:var(--cream);border:1px solid var(--cream-border);border-radius:var(--radius);transition:border-color 0.15s,box-shadow 0.15s;" onmouseover="this.style.borderColor='var(--gold-muted)';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'" onmouseout="this.style.borderColor='var(--cream-border)';this.style.boxShadow='none'">
+              <div style="width:32px;height:32px;border-radius:6px;background:rgba(192,57,43,0.08);display:flex;align-items:center;justify-content:center;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--flag-red)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              </div>
+              <div style="font-size:0.8rem;font-weight:600;color:var(--text-primary);line-height:1.3;">Interference Analysis</div>
+              <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.4;">Tornado chart of per-feature contributions — most destructive first</div>
+              <div style="margin-top:auto;font-size:0.7rem;color:var(--flag-red);font-weight:600;">Score 0.5949 →</div>
+            </a>
+
+          </div>
+        </div>
+
+        <!-- Submission text -->
+        <div class="section-card">
+          <div class="section-head">
+            <span class="section-title">Submission Text</span>
+            <span style="font-size:0.72rem;background:var(--flag-red-bg);color:var(--flag-red);border:1px solid rgba(192,57,43,0.2);padding:0.15rem 0.6rem;border-radius:20px;font-weight:600;">Highlighted anomalies</span>
+          </div>
+          <div class="submission-text-body">
+            <div class="text-legend">
+              <div class="legend-item"><div class="legend-swatch" style="background:rgba(192,57,43,0.4)"></div>Stylometric anomaly</div>
+              <div class="legend-item" style="font-family:'EB Garamond',serif;font-style:italic;margin-left:auto;color:var(--text-muted);">Excerpt — first 400 words shown</div>
+            </div>
+            <div class="submission-text">
+              <p>The doctrine of Christology <span class="highlight">occupies a position of unparalleled centrality within the systematic theological enterprise</span>, insofar as the hypostatic union — that metaphysical conjunction of the divine and human natures within the singular person of Jesus Christ — <span class="highlight">constitutes the very foundation upon which soteriological consideration necessarily depends</span>. <span class="highlight">It is argued within this essay that a robust Chalcedonian framework provides the most adequate account of</span> the biblical witness concerning the person of Christ.</p>
+              <p>The Nicene formulation, consolidated at the Council of Constantinople in 381 AD, <span class="highlight">established with precision the doctrinal parameters within which orthodox Christological reflection has since proceeded</span>. The homoousios — of one substance with the Father — <span class="highlight">is to be understood not merely as a conciliar political compromise but as a genuine metaphysical claim regarding the ontological identity of</span> the Second Person of the Trinity with the divine essence.</p>
+              <p>Subsequent reflection within the Chalcedonian tradition has sought to articulate the manner in which <span class="highlight">the two natures are united without confusion, change, division, or separation</span> — the four negative adverbs of the Definition operating as a kind of apophatic boundary marking what orthodox confession excludes rather than positively specifying the mode of union.</p>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /left -->
+
+      <!-- RIGHT — Corroboration checklist + Decision panel -->
+      <div>
+
+        <!-- Corroboration checklist — before deciding -->
+        <div class="section-card">
+          <div class="section-head">
+            <div>
+              <span class="section-title">Before You Decide</span>
+              <div style="font-family:'EB Garamond',serif;font-size:0.78rem;font-style:italic;color:var(--text-muted);margin-top:0.1rem;">Recommended corroboration steps</div>
+            </div>
+            <span id="corroboration-pct-badge" style="font-size:0.7rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:20px;background:var(--cream-warm);color:var(--text-muted);border:1px solid var(--cream-border);">0 of 5 done</span>
+          </div>
+          <div class="corroboration-list">
+
+            <div class="corroboration-item" onclick="toggleCheck(this)">
+              <div class="corroboration-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="corroboration-text">
+                <div class="corroboration-name">Review draft history if available</div>
+                <div class="corroboration-desc">Check Canvas submission history, cloud document revisions, or the student's draft folder for evidence of incremental writing.</div>
+              </div>
+            </div>
+
+            <div class="corroboration-item" onclick="toggleCheck(this)">
+              <div class="corroboration-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="corroboration-text">
+                <div class="corroboration-name">Compare citations to the text</div>
+                <div class="corroboration-desc">Verify that the theological vocabulary and framing align with sources the student actually cited — or check for uncited sources.</div>
+              </div>
+            </div>
+
+            <div class="corroboration-item" onclick="toggleCheck(this)">
+              <div class="corroboration-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="corroboration-text">
+                <div class="corroboration-name">Check in-class work for comparison</div>
+                <div class="corroboration-desc">Review any in-class writing, exams, or discussion posts from this student. Do those samples also show the same stylistic patterns as this submission?</div>
+              </div>
+            </div>
+
+            <div class="corroboration-item" onclick="toggleCheck(this)">
+              <div class="corroboration-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="corroboration-text">
+                <div class="corroboration-name">Consider topic and assignment context</div>
+                <div class="corroboration-desc">Was this an unusually technical or formal topic? Did you encourage using secondary sources extensively? Could register shift explain the stylistic difference?</div>
+              </div>
+            </div>
+
+            <div class="corroboration-item" onclick="toggleCheck(this)">
+              <div class="corroboration-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="corroboration-text">
+                <div class="corroboration-name">Have a conversation with the student</div>
+                <div class="corroboration-desc">Ask the student to walk you through their argument, explain key choices, or discuss the topic in a brief meeting. Authentic authorship tends to emerge naturally in conversation.</div>
+              </div>
+            </div>
+
+          </div>
+          <div class="corroboration-progress">
+            <div class="corroboration-bar"><div class="corroboration-fill" id="corroboration-fill" style="width:0%"></div></div>
+            <span class="corroboration-pct" id="corroboration-pct-text" style="color:var(--text-muted);">0%</span>
+          </div>
+        </div>
+
+        <!-- Decision panel -->
+        <div class="section-card" style="margin-top:1.5rem;">
+          <div class="section-head">
+            <span class="section-title">Your Judgement</span>
+          </div>
+          <div class="decision-panel">
+            <div class="decision-intro">
+              Original surfaces evidence — you make the determination. These options represent a range of responses proportionate to the level of concern after you have reviewed the corroboration steps above.
+            </div>
+
+            <div class="decision-options">
+              <label class="decision-option">
+                <input type="radio" name="decision" value="conversation" />
+                <div>
+                  <div class="decision-label">Initiate a conversation with the student</div>
+                  <div class="decision-desc">Meet with the student to discuss the submission. This is the recommended first step — most concerns can be resolved through dialogue before any formal process begins.</div>
+                </div>
+              </label>
+              <label class="decision-option">
+                <input type="radio" name="decision" value="monitor" />
+                <div>
+                  <div class="decision-label">Monitor — note and observe next submission</div>
+                  <div class="decision-desc">Record the flag and watch for a pattern. No formal action yet — this keeps the record without escalating prematurely.</div>
+                </div>
+              </label>
+              <label class="decision-option">
+                <input type="radio" name="decision" value="escalate" />
+                <div>
+                  <div class="decision-label" style="color:var(--flag-red);">Refer to academic integrity process</div>
+                  <div class="decision-desc">Forward to your institution's Academic Integrity office with this evidence report. A formal record will be created and the student will be notified according to your institution's policy.</div>
+                </div>
+              </label>
+              <label class="decision-option">
+                <input type="radio" name="decision" value="clear" />
+                <div>
+                  <div class="decision-label" style="color:var(--flag-green);">Clear — submission is authentic</div>
+                  <div class="decision-desc">Override the flag. You have sufficient reason to conclude this submission reflects the student's own work.</div>
+                </div>
+              </label>
+            </div>
+
+            <div class="notes-label">Notes for the record</div>
+            <textarea class="notes-textarea" placeholder="Describe what you observed, any corroboration steps you took, and your reasoning. These notes may be important if questions arise later."></textarea>
+
+            <div class="decision-actions">
+              <button class="btn btn-escalate" id="submit-decision-btn" onclick="submitDecision()">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                Submit Judgement
+              </button>
+              <a href="original-student.html" class="btn btn-ghost">← Back to student profile</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Review log -->
+        <div class="section-card" style="margin-top:1.5rem;">
+          <div class="section-head">
+            <span class="section-title">Review Log</span>
+          </div>
+          <div class="decision-history">
+            <div class="history-item">
+              <div class="history-head">
+                <span class="history-actor">System — Original v2.4</span>
+                <span class="history-date">Mar 14, 2026 · 11:49pm</span>
+              </div>
+              <div class="history-note">Submission analyzed. Deviation score 0.91 — high. Flag generated. 6 of 9 features outside 2σ baseline range. Sent to instructor review queue.</div>
+            </div>
+            <div class="history-item">
+              <div class="history-head">
+                <span class="history-actor">Dr. Andrew Clark</span>
+                <span class="history-date">Mar 15, 2026 · 9:12am</span>
+              </div>
+              <div class="history-note">Opened for review. No decision submitted yet.</div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /right -->
+
+    </div><!-- /review-grid -->
+  </div>
+</div>
+
+<script>
+  var API_BASE = 'http://localhost:8000';
+
+  // ── URL params ─────────────────────────────────────────────────────────────
+  var urlParams = new URLSearchParams(window.location.search);
+  var studentId = urlParams.get('student') || '';
+  var assignmentParam = urlParams.get('assignment') || '';
+
+  // ── On load: populate student info if student_id in URL ───────────────────
+  document.addEventListener('DOMContentLoaded', function () {
+    // Wire word counter on scoring panel textarea
+    var ta = document.getElementById('sp-text');
+    ta.addEventListener('input', function () {
+      var w = this.value.trim() ? this.value.trim().split(/\s+/).length : 0;
+      document.getElementById('sp-wc').textContent = w + ' word' + (w !== 1 ? 's' : '');
+    });
+
+    // Pre-fill assignment name if passed in URL
+    if (assignmentParam) document.getElementById('sp-assignment').value = assignmentParam;
+
+    if (studentId) {
+      // Fetch student info to personalise header
+      fetch(API_BASE + '/students/' + studentId)
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          if (!data) return;
+          var name = data.student_id.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+          document.getElementById('review-student-name').textContent = name;
+          document.getElementById('bc-student').textContent = name;
+          var n = data.sample_count || 0;
+          document.getElementById('review-baseline').textContent = 'Baseline: ' + n + ' prior submission' + (n !== 1 ? 's' : '');
+        })
+        .catch(function () {}); // server not running — keep static demo content
+    }
+  });
+
+  // ── Score panel collapse ───────────────────────────────────────────────────
+  var _panelOpen = true;
+  function toggleScorePanel() {
+    _panelOpen = !_panelOpen;
+    document.getElementById('score-panel-body').style.display = _panelOpen ? '' : 'none';
+    document.getElementById('score-panel-toggle').textContent = _panelOpen ? 'hide panel' : 'show panel';
+  }
+
+  // ── Score submission ───────────────────────────────────────────────────────
+  async function scoreSubmission() {
+    var text = document.getElementById('sp-text').value.trim();
+    var assign = document.getElementById('sp-assignment').value.trim() || 'Submission';
+
+    if (!text || text.split(/\s+/).length < 50) {
+      showSpStatus('error', 'Please paste a submission of at least 50 words.');
+      return;
+    }
+    if (!studentId) {
+      showSpStatus('error', 'No student selected. Open this page from the student list (append ?student=STUDENT_ID to the URL).');
+      return;
+    }
+
+    var btn = document.getElementById('sp-submit-btn');
+    btn.disabled = true;
+    showSpStatus('loading', 'Running stylometric analysis…');
+
+    var t0 = Date.now();
+    try {
+      var resp = await fetch(API_BASE + '/students/' + studentId + '/score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text, assignment: assign, submission_id: '' })
+      });
+      if (!resp.ok) {
+        var err = await resp.json().catch(() => ({}));
+        throw new Error(err.detail || ('Server error ' + resp.status));
+      }
+      var data = await resp.json();
+      var elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+      hideSpStatus();
+      populateResults(data, text, assign, elapsed);
+      // Collapse panel after success
+      _panelOpen = false;
+      document.getElementById('score-panel-body').style.display = 'none';
+      document.getElementById('score-panel-toggle').textContent = 'score another';
+    } catch (e) {
+      showSpStatus('error', 'Error: ' + e.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function showSpStatus(type, msg) {
+    var el = document.getElementById('sp-status');
+    el.className = 'sp-status ' + type;
+    if (type === 'loading') {
+      el.innerHTML = '<div class="sp-spinner"></div><span>' + msg + '</span>';
+    } else {
+      el.textContent = msg;
+    }
+  }
+  function hideSpStatus() {
+    document.getElementById('sp-status').className = 'sp-status';
+    document.getElementById('sp-status').textContent = '';
+  }
+
+  // ── Populate results from API response ────────────────────────────────────
+  function populateResults(data, submittedText, assign, elapsed) {
+    var dev = data.authorship && data.authorship.deviation_score != null
+      ? data.authorship.deviation_score : null;
+    var action = data.recommendation && data.recommendation.action ? data.recommendation.action : 'no_action';
+    var expl = data.human_explanation || {};
+
+    // -- Score ring --
+    if (dev !== null) {
+      var devStr = dev.toFixed(2);
+      document.getElementById('score-value').textContent = devStr;
+      var ring = document.getElementById('score-ring');
+      // Colour ring by action
+      var ringColour = action === 'escalate' ? 'rgba(192,57,43,0.3)' :
+                       action === 'schedule_conversation' ? 'rgba(155,100,32,0.35)' :
+                       action === 'monitor' ? 'rgba(201,160,40,0.3)' : 'rgba(42,107,69,0.25)';
+      var ringBg = action === 'escalate' ? 'var(--flag-red-bg)' :
+                   action === 'schedule_conversation' ? 'rgba(155,100,32,0.08)' :
+                   action === 'monitor' ? 'var(--gold-light)' : 'var(--flag-green-bg)';
+      var ringText = action === 'escalate' ? 'var(--flag-red)' :
+                     action === 'schedule_conversation' ? 'var(--amber)' :
+                     action === 'monitor' ? 'var(--amber)' : 'var(--flag-green)';
+      ring.style.borderColor = ringColour;
+      ring.style.background = ringBg;
+      document.getElementById('score-value').style.color = ringText;
+      document.querySelector('#score-ring .score-label').style.color = ringText;
+      // Sub-text from recommendation
+      var rationale = (data.recommendation && data.recommendation.rationale) ? data.recommendation.rationale : '';
+      var conf = expl.confidence_note || '';
+      document.getElementById('score-sub').textContent = rationale.length > 80
+        ? rationale.substring(0, 80) + '…' : (rationale || conf || 'Analysis complete');
+      document.getElementById('score-ci').innerHTML = conf
+        ? '<strong>' + conf + '</strong>' : '';
+    }
+
+    // -- Alert bar --
+    var alertBar = document.getElementById('review-alert-bar');
+    var alertText = document.getElementById('alert-bar-text');
+    if (action === 'no_action') {
+      alertBar.style.background = 'var(--flag-green-bg)';
+      alertBar.style.borderColor = 'rgba(42,107,69,0.15)';
+      alertBar.querySelector('svg').style.stroke = 'var(--flag-green)';
+      alertText.innerHTML = '<span style="color:var(--flag-green)">Within normal range</span> <em style="color:var(--flag-green);opacity:0.75">— no significant deviation detected</em>';
+    } else if (action === 'monitor') {
+      alertBar.style.background = 'rgba(201,160,40,0.07)';
+      alertBar.style.borderColor = 'rgba(201,160,40,0.2)';
+      alertBar.querySelector('svg').style.stroke = 'var(--amber)';
+      alertText.innerHTML = '<span style="color:var(--amber)">Mild stylometric shift detected</span> <em style="color:var(--amber);opacity:0.8">— monitor pattern across future submissions</em>';
+    } else if (action === 'schedule_conversation') {
+      alertBar.style.background = 'rgba(155,100,32,0.08)';
+      alertBar.style.borderColor = 'rgba(155,100,32,0.2)';
+      alertBar.querySelector('svg').style.stroke = 'var(--amber)';
+      alertText.innerHTML = '<span style="color:var(--amber)">Notable stylometric deviation</span> <em style="color:var(--amber);opacity:0.8">— consider a conversation with the student</em>';
+    } else {
+      alertBar.style.background = 'var(--flag-red-bg)';
+      alertBar.style.borderColor = 'rgba(192,57,43,0.15)';
+      alertBar.querySelector('svg').style.stroke = 'var(--flag-red)';
+      alertText.innerHTML = '<span>Significant stylometric deviation</span> <em>— multiple signals outside established baseline</em>';
+    }
+
+    // -- Header meta --
+    var now = new Date();
+    document.getElementById('review-date').textContent = 'Scored ' + now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) + ' · ' + now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    var words = submittedText.trim().split(/\s+/).length;
+    document.getElementById('review-wordcount').textContent = words.toLocaleString() + ' words · ' + submittedText.length.toLocaleString() + ' characters';
+    document.getElementById('review-process').textContent = 'Processed in ' + elapsed + 's · Original v2.4';
+    var sc = data.baseline_confidence ? data.baseline_confidence.sample_count : '?';
+    document.getElementById('review-baseline').textContent = 'Baseline: ' + sc + ' prior submission' + (sc !== 1 ? 's' : '');
+    document.getElementById('review-assignment').textContent = assign;
+    document.getElementById('bc-current').textContent = 'Review — ' + assign;
+
+    // -- Feature explanation: human_explanation --------------------------------
+    var explBody = document.getElementById('feat-explain-body');
+    var toggleLabel = document.getElementById('feat-explain-toggle-label');
+
+    if (expl && (expl.summary || expl.top_reasons)) {
+      toggleLabel.innerHTML = 'What does this mean? <span style="font-weight:400;font-style:italic;color:var(--text-muted);">— tap to expand the system\'s plain-English analysis</span>';
+
+      var html = '';
+
+      // Verdict + severity badge
+      var sevClass = { clear:'sev-clear', watch:'sev-watch', concern:'sev-concern', serious:'sev-serious' }[expl.severity] || 'sev-watch';
+      html += '<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.85rem;">';
+      html += '<span class="sev-badge ' + sevClass + '">' + (expl.severity || '').toUpperCase() + '</span>';
+      if (expl.verdict) html += '<span style="font-size:0.875rem;font-weight:600;color:var(--text-primary);">' + escH(expl.verdict) + '</span>';
+      html += '</div>';
+
+      // Ghostwriting alert
+      if (expl.ghostwriting_signal) {
+        html += '<div style="background:var(--flag-red-bg);border:1px solid rgba(192,57,43,0.2);border-radius:var(--radius);padding:0.7rem 0.85rem;margin-bottom:0.85rem;font-size:0.825rem;color:var(--flag-red);">';
+        html += '<strong>⚑ Ghostwriting signal:</strong> ' + escH(expl.ghostwriting_signal);
+        html += '</div>';
+      }
+
+      // Confidence note
+      if (expl.confidence_note) {
+        html += '<div style="background:rgba(201,160,40,0.07);border:1px solid var(--gold-muted);border-radius:var(--radius);padding:0.6rem 0.85rem;margin-bottom:0.85rem;font-family:\'EB Garamond\',serif;font-size:0.88rem;font-style:italic;color:var(--amber);">';
+        html += escH(expl.confidence_note);
+        html += '</div>';
+      }
+
+      // Summary
+      if (expl.summary) {
+        html += '<div class="feat-explain-intro" style="margin-bottom:0.85rem;">' + escH(expl.summary) + '</div>';
+      }
+
+      // Top reasons as feat-cards
+      if (expl.top_reasons && expl.top_reasons.length) {
+        expl.top_reasons.forEach(function (r) {
+          var deltaClass = (r.direction === 'up' || r.direction === 'higher') ? 'bad' : 'bad';
+          html += '<div class="feat-card">';
+          html += '<div class="feat-card-head">';
+          html += '<span class="feat-card-name">' + escH(r.name || r.feature || '') + '</span>';
+          if (r.direction) {
+            html += '<span class="feat-card-delta">' + escH(r.direction) + '</span>';
+          }
+          html += '</div>';
+          html += '<div class="feat-card-body">' + escH(r.explanation || r.description || '') + '</div>';
+          html += '</div>';
+        });
+      } else {
+        // No top reasons — show rationale from recommendation
+        var rationale = (data.recommendation && data.recommendation.rationale) ? data.recommendation.rationale : '';
+        if (rationale) {
+          html += '<div class="feat-card"><div class="feat-card-body">' + escH(rationale) + '</div></div>';
+        }
+      }
+
+      document.getElementById('feat-cards-container').innerHTML = html;
+      // Auto-open accordion
+      document.getElementById('feat-explain-toggle').classList.add('open');
+      document.getElementById('feat-explain-body').classList.add('open');
+    }
+
+    // -- Teacher summary card (Phase 6) --
+    var tsBadgeEl = document.getElementById('ts-badge');
+    var tsBadgeIcon = document.getElementById('ts-badge-icon');
+    var tsBadgeLabel = document.getElementById('ts-badge-label');
+    var tsBadgeSub = document.getElementById('ts-badge-sub');
+    var tsTextEl = document.getElementById('ts-plain-text');
+    var tsTrajLabel = document.getElementById('traj-label');
+    var badgeInfo = {
+      no_action:             { cls:'b-green',  icon:'✓', label:'Authentic',        sub:'Writing matches established baseline' },
+      monitor:               { cls:'b-yellow', icon:'◎', label:'Monitor',          sub:'Mild deviation — watch future submissions' },
+      schedule_conversation: { cls:'b-orange', icon:'⟳', label:'Discuss',         sub:'Notable deviation — conversation recommended' },
+      escalate:              { cls:'b-red',    icon:'⚠', label:'Review Warranted', sub:'Significant deviation from established baseline' }
+    };
+    var bi = badgeInfo[action] || badgeInfo.escalate;
+    if (tsBadgeEl) { tsBadgeEl.className = 'ts-badge ' + bi.cls; }
+    if (tsBadgeIcon) tsBadgeIcon.textContent = bi.icon;
+    if (tsBadgeLabel) tsBadgeLabel.textContent = bi.label;
+    if (tsBadgeSub) tsBadgeSub.textContent = bi.sub;
+
+    // Plain-English summary
+    var studentName = document.getElementById('review-student-name').textContent.trim() || 'the student';
+    var summaryText = '';
+    if (expl && expl.summary) {
+      summaryText = expl.summary;
+    } else {
+      var actionPhrases = { no_action:'low', monitor:'mild', schedule_conversation:'notable', escalate:'significant' };
+      var level = actionPhrases[action] || 'notable';
+      summaryText = 'This submission shows ' + level + ' deviation from ' + studentName + '’s established writing pattern.';
+      if (expl && expl.top_reasons && expl.top_reasons.length) {
+        var names = expl.top_reasons.slice(0,3).map(function(r){ return r.name || r.feature || ''; }).filter(Boolean);
+        if (names.length) summaryText += ' The primary anomalies are in ' + names.join(', ') + '.';
+      }
+      if (action !== 'no_action') summaryText += ' This is a signal to investigate — it does not determine why the difference exists.';
+    }
+    if (tsTextEl) tsTextEl.textContent = summaryText;
+    if (tsTrajLabel) tsTrajLabel.textContent = '6 submissions · current ' + (action === 'no_action' ? 'clear' : 'flagged');
+
+    // -- Diverging bar chart (Feature Interference Map) --
+    renderDivbar(data);
+
+    // -- Trajectory sparkline --
+    renderSparkline(studentId, dev !== null ? dev : 0);
+
+    // -- Live result banner --
+    var banner = document.getElementById('live-banner');
+    banner.classList.add('visible');
+    var sevLabel = { no_action:'Clear', monitor:'Monitor', schedule_conversation:'Concern', escalate:'Serious' }[action] || action;
+    document.getElementById('live-banner-text').textContent = 'Live result · Deviation: ' + (dev !== null ? dev.toFixed(2) : '—') + ' · Verdict: ' + sevLabel + ' · ' + new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  // ── Feature name lookup (mirrors constants.py FEATURE_NAMES) ─────────────
+  var FEAT_NAMES = {
+    type_token_ratio:'Type-Token Ratio', hapax_legomena_rate:'Hapax Rate',
+    mean_sentence_length:'Mean Sentence Length', sentence_length_variance:'Sentence Length Var.',
+    function_word_ratio:'Function Word Ratio', passive_voice_ratio:'Passive Voice Ratio',
+    modal_verb_ratio:'Modal Verb Ratio', stop_word_ratio:'Stop Word Ratio',
+    avg_word_length:'Avg Word Length', discourse_marker_density:'Discourse Marker Density',
+    additive_ratio:'Additive Ratio', adversative_ratio:'Adversative Ratio',
+    causal_ratio:'Causal Ratio', temporal_ratio:'Temporal Ratio',
+    thematic_progression_score:'Thematic Progression', pronoun_reference_density:'Pronoun Ref. Density',
+    lexical_chain_density:'Lexical Chain Density', paragraph_topic_position:'Paragraph Topic Pos.',
+    avg_paragraph_length:'Avg Paragraph Length', sentence_opener_variety:'Sentence Opener Variety',
+    cohesion_device_ratio:'Cohesion Device Ratio', transition_density:'Transition Density',
+    epistemic_certainty_ratio:'Epistemic Certainty', hedging_density:'Hedging Density',
+    assertion_density:'Assertion Density', source_integration_style:'Source Integration Style',
+    counter_argument_ratio:'Counter-Argument Ratio', claim_density:'Claim Density',
+    question_ratio:'Question Ratio', imperative_density:'Imperative Density',
+    first_person_ratio:'First-Person Ratio', appeal_to_authority_density:'Authority Appeal Density',
+    conclusion_strategy_score:'Conclusion Strategy', theological_register_score:'Theological Register',
+    char_trigram_entropy:'Char Trigram Entropy', punctuation_diversity:'Punctuation Diversity',
+    comma_rate:'Comma Rate', semicolon_colon_rate:'Semicolon+Colon Rate',
+    parenthetical_rate:'Parenthetical Rate', dash_rate:'Dash Rate', quote_rate:'Quotation Rate',
+    pos_bigram_entropy:'POS Bigram Entropy', pos_trigram_entropy:'POS Trigram Entropy',
+    noun_verb_ratio:'Noun-Verb Ratio', adjective_rate:'Adjective Rate', adverb_rate:'Adverb Rate',
+    subordination_ratio:'Subordination Ratio', clause_depth_mean:'Mean Clause Depth',
+    contraction_rate:'Contraction Rate', sentence_initial_conjunction_rate:'Sent-Initial Conj Rate',
+    that_which_ratio:'That/Which Ratio', citation_style_consistency:'Citation Consistency',
+    list_marker_preference:'List Marker Pref.', abbreviation_tendency:'Abbreviation Tendency',
+    burstiness:'Burstiness', perplexity_proxy:'Perplexity Proxy',
+    repetition_gap_entropy:'Repetition Gap Entropy', transition_predictability:'Transition Predictability',
+    vocabulary_introduction_rate:'Vocab Introduction Rate', filler_hedge_cluster_rate:'Hedge Clustering',
+    char_trigram_profile_divergence:'Char Trigram Divergence',
+    function_word_profile_divergence:'Func Word Divergence',
+    catastrophe_index:'Catastrophe Index (κ)', structural_centrist_penalty:'Structural Centrist Penalty',
+    error_kl_divergence:'Error Profile KL-Div', stumble_rate_consistency:'Stumble-Rate Consistency',
+    latinate_ratio:'Latinate Vocabulary', nominalization_density:'Nominalization Density',
+    metric_flatness_score:'Metric Flatness (AI)', signal_verb_entropy:'Signal Verb Entropy',
+    source_loyalty_index:'Source Loyalty Index', paste_event_rate:'Paste Event Rate'
+  };
+  function _featName(code) {
+    return FEAT_NAMES[code] || code.replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();});
+  }
+
+  // ── Render Feature Interference Map from API data ─────────────────────────
+  function renderDivbar(data) {
+    var ifx = data.interference || {};
+    // Demo server returns interference.destructive_features / interference.constructive_features
+    // Production server returns interference.destructive / interference.constructive (arrays of {code,contribution})
+    var destructive = ifx.destructive_features || ifx.destructive || [];
+    var constructive = ifx.constructive_features || ifx.constructive || [];
+    destructive = destructive.slice(0, 5);
+    constructive = constructive.slice(0, 2);
+
+    if (!destructive.length && !constructive.length) return; // keep static demo
+
+    var allContribs = destructive.concat(constructive).map(function(f){ return Math.abs(f.contribution || 0); });
+    var maxContrib = Math.max.apply(null, allContribs) || 1;
+
+    var html = '';
+    destructive.forEach(function(f) {
+      var rz = Math.abs(f.rms_z || 0);
+      var width = Math.max(2, Math.round((f.contribution / maxContrib) * 80));
+      var sev = rz >= 2.0 ? 'hi' : rz >= 1.0 ? 'md' : 'lo';
+      var pctVal = Math.round(rz * 38);
+      var sign = (f.direction === 'lower' || f.direction === 'down') ? '−' : '+';
+      html += '<div class="divbar-row">';
+      html += '<div class="divbar-name">' + escH(_featName(f.code)) + '</div>';
+      html += '<div class="divbar-left"></div>';
+      html += '<div class="divbar-axis"></div>';
+      html += '<div class="divbar-right"><div class="divbar-fill-d ' + sev + '" style="width:' + width + '%"></div></div>';
+      html += '<div class="divbar-pct ' + sev + '">' + sign + pctVal + '%</div>';
+      html += '</div>';
+    });
+    constructive.forEach(function(f) {
+      var rz = Math.abs(f.rms_z || 0);
+      var width = Math.max(2, Math.round((f.contribution / maxContrib) * 50));
+      var pctVal = Math.round(rz * 22);
+      var sign = (f.direction === 'higher' || f.direction === 'up') ? '+' : '−';
+      html += '<div class="divbar-row">';
+      html += '<div class="divbar-name">' + escH(_featName(f.code)) + '</div>';
+      html += '<div class="divbar-left"><div class="divbar-fill-c" style="width:' + width + '%"></div></div>';
+      html += '<div class="divbar-axis"></div>';
+      html += '<div class="divbar-right"></div>';
+      html += '<div class="divbar-pct lo">' + sign + pctVal + '%</div>';
+      html += '</div>';
+    });
+
+    var body = document.getElementById('divbar-body');
+    if (body) body.innerHTML = html;
+  }
+
+  // ── Render Writing Trajectory Sparkline from submission history ───────────
+  function renderSparkline(sid, currentDev) {
+    if (!sid) return;
+    fetch(API_BASE + '/admin/manifests?student_id=' + encodeURIComponent(sid) + '&limit=7')
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(resp) {
+        if (!resp || !resp.items || resp.items.length < 2) return;
+        // items are newest-first; reverse for chronological order
+        var items = resp.items.slice().reverse();
+        // Only keep scored items (have divergence_score)
+        items = items.filter(function(it){ return it.divergence_score != null; });
+        if (items.length < 2) return;
+
+        // Map deviation [0,1] → SVG y [5,51], score 0=bottom, 1=top
+        function toY(score) { return 5 + (1 - Math.min(1, Math.max(0, score))) * 46; }
+
+        var W = 120, padL = 5, padR = 5;
+        var n = items.length;
+        var xs = items.map(function(_, i){ return padL + (i / (n - 1)) * (W - padL - padR); });
+        var ys = items.map(function(it){ return toY(it.divergence_score); });
+
+        // Split into history (all but last) and current (last)
+        var histPts = xs.slice(0, -1).map(function(x,i){ return x + ',' + ys[i]; }).join(' ');
+        var lastX = xs[xs.length - 1], lastY = ys[ys.length - 1];
+        var prevX = xs[xs.length - 2], prevY = ys[ys.length - 2];
+        var threshY = toY(0.65); // flag threshold line y
+        var isFlagged = currentDev >= 0.65;
+        var dotColor = isFlagged ? 'var(--flag-red)' : 'var(--flag-green)';
+
+        var dots = xs.slice(0, -1).map(function(x,i){
+          return '<circle cx="' + x.toFixed(1) + '" cy="' + ys[i].toFixed(1) + '" r="2.5" fill="var(--text-muted)" opacity="0.45"/>';
+        }).join('');
+
+        var svgContent =
+          '<line x1="5" y1="' + threshY.toFixed(1) + '" x2="115" y2="' + threshY.toFixed(1) + '" stroke="rgba(201,160,40,0.4)" stroke-width="1" stroke-dasharray="3,2"/>' +
+          (histPts ? '<polyline points="' + histPts + '" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-linejoin="round" opacity="0.55"/>' : '') +
+          '<line x1="' + prevX.toFixed(1) + '" y1="' + prevY.toFixed(1) + '" x2="' + lastX.toFixed(1) + '" y2="' + lastY.toFixed(1) + '" stroke="' + dotColor + '" stroke-width="1.5"/>' +
+          dots +
+          '<circle cx="' + lastX.toFixed(1) + '" cy="' + lastY.toFixed(1) + '" r="4" fill="' + dotColor + '"/>' +
+          (isFlagged ? '<circle cx="' + lastX.toFixed(1) + '" cy="' + lastY.toFixed(1) + '" r="7" fill="none" stroke="' + dotColor + '" stroke-width="1" opacity="0.25"/>' : '') +
+          '<text x="7" y="' + (threshY - 2).toFixed(0) + '" font-size="7" fill="rgba(201,160,40,0.65)" font-family="EB Garamond, serif" font-style="italic">flag threshold</text>';
+
+        var svgEl = document.getElementById('traj-sparkline');
+        if (svgEl) svgEl.innerHTML = svgContent;
+
+        var labelEl = document.getElementById('traj-label');
+        if (labelEl) {
+          var total = resp.total || n;
+          labelEl.textContent = total + ' submission' + (total !== 1 ? 's' : '') + ' · current ' + (isFlagged ? 'flagged' : 'clear');
+        }
+      })
+      .catch(function(){}); // silent fail — keep static demo SVG
+  }
+
+  function escH(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Feature explanation accordion ─────────────────────────────────────────
+  function toggleExplain() {
+    var toggle = document.getElementById('feat-explain-toggle');
+    var body = document.getElementById('feat-explain-body');
+    toggle.classList.toggle('open');
+    body.classList.toggle('open');
+  }
+
+  // ── Corroboration checklist ────────────────────────────────────────────────
+  var totalChecks = 5;
+  function toggleCheck(item) {
+    var check = item.querySelector('.corroboration-check');
+    check.classList.toggle('checked');
+    updateProgress();
+  }
+  function updateProgress() {
+    var checked = document.querySelectorAll('.corroboration-check.checked').length;
+    var pct = Math.round((checked / totalChecks) * 100);
+    document.getElementById('corroboration-fill').style.width = pct + '%';
+    document.getElementById('corroboration-pct-text').textContent = pct + '%';
+    document.getElementById('corroboration-pct-text').style.color = checked > 0 ? 'var(--flag-green)' : 'var(--text-muted)';
+    var badge = document.getElementById('corroboration-pct-badge');
+    badge.textContent = checked + ' of ' + totalChecks + ' done';
+    badge.style.background = checked === totalChecks ? 'var(--flag-green-bg)' : 'var(--cream-warm)';
+    badge.style.color = checked === totalChecks ? 'var(--flag-green)' : 'var(--text-muted)';
+    badge.style.borderColor = checked === totalChecks ? 'rgba(42,107,69,0.2)' : 'var(--cream-border)';
+  }
+
+  // ── Decision option selection ──────────────────────────────────────────────
+  function selectOption(label) {
+    document.querySelectorAll('.decision-option').forEach(function (l) {
+      l.classList.remove('selected');
+    });
+    label.classList.add('selected');
+    var val = label.querySelector('input').value;
+    var btn = document.getElementById('submit-decision-btn');
+    if (!btn) return;
+    if (val === 'clear') {
+      btn.style.background = 'var(--flag-green-bg)';
+      btn.style.color = 'var(--flag-green)';
+      btn.style.border = '1px solid rgba(42,107,69,0.25)';
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;stroke:currentColor;"><polyline points="20 6 9 17 4 12"/></svg> Mark as Authentic';
+    } else if (val === 'escalate') {
+      btn.style.background = 'var(--flag-red)';
+      btn.style.color = '#fff';
+      btn.style.border = '1px solid var(--flag-red)';
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;stroke:currentColor;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg> Refer to Integrity Process';
+    } else if (val === 'conversation') {
+      btn.style.background = 'var(--green-deep)';
+      btn.style.color = 'var(--text-cream)';
+      btn.style.border = '1px solid var(--green-deep)';
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;stroke:currentColor;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Log Conversation Plan';
+    } else {
+      btn.style.background = 'var(--green-deep)';
+      btn.style.color = 'var(--text-cream)';
+      btn.style.border = '1px solid var(--green-deep)';
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;stroke:currentColor;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Log & Monitor';
+    }
+  }
+
+  // Wire keyboard-accessible change events on radio inputs
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.decision-option input[type="radio"]').forEach(function (inp) {
+      inp.addEventListener('change', function () {
+        selectOption(inp.closest('.decision-option'));
+      });
+    });
+  });
+
+  function submitDecision() {
+    var selected = document.querySelector('.decision-option.selected input');
+    if (!selected) { alert('Please select an action before submitting.'); return; }
+    var labelEl = document.querySelector('.decision-option.selected .decision-label');
+    var label = labelEl ? labelEl.textContent.trim() : selected.value;
+    var checked = document.querySelectorAll('.corroboration-check.checked').length;
+    var checkedMsg = checked < 3 ? '\n\nNote: ' + (5 - checked) + ' corroboration step(s) not yet completed. Consider reviewing those before proceeding.' : '';
+    alert('Judgement recorded: ' + label + checkedMsg + '\n\nIn production, this updates the submission record and routes the case accordingly.');
+  }
+</script>
+<script src="api-client.js"></script>
+</body>
+</html>

@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Original — Admin Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg-primary: #f7f3ea;
+      --bg-secondary: #fff;
+      --border-light: #e2dccf;
+      --text-dark: #1a130a;
+      --text-muted: #8b7355;
+      --accent-primary: #1a6fb5;
+      --accent-primary-dark: #155a94;
+      --accent-success: #16a34a;
+      --accent-warning: #f59e0b;
+      --accent-danger: #dc2626;
+      --accent-info: #0891b2;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-dark);
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+    .nav-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      padding: 0 1rem;
+    }
+
+    .logo-text {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .nav-links a {
+      padding: 0.5rem 1rem;
+      text-decoration: none;
+      color: var(--accent-primary);
+      font-size: 0.9rem;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+
+    .nav-links a:hover {
+      background: rgba(26, 111, 181, 0.1);
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .page-header {
+      margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .page-header p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent-primary);
+    }
+
+    .stat-meta {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+
+    .card-action {
+      padding: 0.5rem 1rem;
+      background: var(--accent-primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .card-action:hover {
+      background: var(--accent-primary-dark);
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .table thead {
+      background: #f9f7f4;
+      border-bottom: 2px solid var(--border-light);
+    }
+
+    .table th {
+      padding: 0.75rem;
+      text-align: left;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .table td {
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border-light);
+      font-size: 0.9rem;
+    }
+
+    .table tbody tr:hover {
+      background: #fdfcfa;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge.success {
+      background: rgba(22, 163, 74, 0.15);
+      color: var(--accent-success);
+    }
+
+    .badge.warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--accent-warning);
+    }
+
+    .badge.danger {
+      background: rgba(220, 38, 38, 0.15);
+      color: var(--accent-danger);
+    }
+
+    .badge.info {
+      background: rgba(8, 145, 178, 0.15);
+      color: var(--accent-info);
+    }
+
+    .health-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .health-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent-success);
+    }
+
+    .health-dot.warning {
+      background: var(--accent-warning);
+    }
+
+    .health-dot.danger {
+      background: var(--accent-danger);
+    }
+
+    .health-label {
+      flex: 1;
+      font-size: 0.9rem;
+    }
+
+    .health-value {
+      font-weight: 600;
+      color: var(--text-dark);
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: var(--text-dark);
+    }
+
+    .modal-body {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #5a4030;
+      margin-bottom: 0.5rem;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      border: 1px solid var(--border-light);
+      border-radius: 6px;
+      font-size: 0.95rem;
+      color: var(--text-dark);
+      background: #fdfcfa;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px rgba(26, 111, 181, 0.12);
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+    }
+
+    button {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    button.btn-primary {
+      background: var(--accent-primary);
+      color: white;
+    }
+
+    button.btn-primary:hover {
+      background: var(--accent-primary-dark);
+    }
+
+    button.btn-secondary {
+      background: transparent;
+      color: var(--accent-primary);
+      border: 1px solid var(--border-light);
+    }
+
+    button.btn-secondary:hover {
+      background: rgba(26, 111, 181, 0.05);
+    }
+
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+    }
+
+    .error-msg {
+      background: #fdf2f2;
+      border: 1px solid rgba(192, 57, 43, 0.3);
+      border-radius: 6px;
+      padding: 1rem;
+      font-size: 0.9rem;
+      color: #8b1c14;
+      margin-bottom: 1rem;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid var(--border-light);
+    }
+
+    .tab {
+      padding: 0.75rem 1.5rem;
+      background: transparent;
+      border: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.15s;
+    }
+
+    .tab.active {
+      color: var(--accent-primary);
+      border-bottom-color: var(--accent-primary);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @media (max-width: 768px) {
+      .stat-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .table {
+        font-size: 0.85rem;
+      }
+
+      .table th,
+      .table td {
+        padding: 0.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="nav-header">
+    <div class="logo-text">Original — Admin</div>
+    <div class="nav-links">
+      <a href="original-dashboard.html">Dashboard</a>
+      <a href="help.html">Help</a>
+      <a href="#" onclick="OriginalAuth.logout(); return false;">Logout</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>Administration Dashboard</h1>
+      <p>Institution-wide statistics and system management</p>
+    </div>
+
+    <!-- Institution Statistics -->
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Students</div>
+        <div class="stat-value" id="stat-students">—</div>
+        <div class="stat-meta">Across all courses</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Submissions Scored</div>
+        <div class="stat-value" id="stat-submissions">—</div>
+        <div class="stat-meta">This semester</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg Deviation Score</div>
+        <div class="stat-value" id="stat-deviation">—</div>
+        <div class="stat-meta">Across system</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Flagged Submissions</div>
+        <div class="stat-value" id="stat-flagged">—</div>
+        <div class="stat-meta">Require review</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('overview')">Overview</button>
+      <button class="tab" onclick="switchTab('courses')">Courses</button>
+      <button class="tab" onclick="switchTab('instructors')">Instructors</button>
+      <button class="tab" onclick="switchTab('health')">System Health</button>
+    </div>
+
+    <!-- Overview Tab -->
+    <div class="tab-content active" id="tab-overview">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Recent Flagged Submissions</div>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Course</th>
+              <th>Assignment</th>
+              <th>Deviation</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="flagged-list">
+            <tr><td colspan="5" class="loading">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Instructor Activity</div>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Instructor</th>
+              <th>Courses</th>
+              <th>Students</th>
+              <th>Submissions Scored</th>
+              <th>Decisions Made</th>
+            </tr>
+          </thead>
+          <tbody id="instructor-activity">
+            <tr><td colspan="5" class="loading">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Courses Tab -->
+    <div class="tab-content" id="tab-courses">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">All Courses</div>
+          <button class="card-action" onclick="openAddCourseModal()">+ Add Course</button>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Course Code</th>
+              <th>Course Name</th>
+              <th>Instructor</th>
+              <th>Students</th>
+              <th>Submissions</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="courses-list">
+            <tr><td colspan="6" class="loading">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Instructors Tab -->
+    <div class="tab-content" id="tab-instructors">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Instructor Management</div>
+          <button class="card-action" onclick="openAddInstructorModal()">+ Add Instructor</button>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Name</th>
+              <th>Courses</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="instructors-list">
+            <tr><td colspan="5" class="loading">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Health Tab -->
+    <div class="tab-content" id="tab-health">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">System Health Status</div>
+        </div>
+        <div style="padding: 1rem;">
+          <div class="health-indicator">
+            <div class="health-dot"></div>
+            <div class="health-label">API Server</div>
+            <div class="health-value">Operational</div>
+          </div>
+          <div class="health-indicator">
+            <div class="health-dot"></div>
+            <div class="health-label">Database</div>
+            <div class="health-value">Operational</div>
+          </div>
+          <div class="health-indicator">
+            <div class="health-dot"></div>
+            <div class="health-label">Scoring Engine</div>
+            <div class="health-value">Operational (avg 1.2s/submission)</div>
+          </div>
+          <div class="health-indicator">
+            <div class="health-dot warning"></div>
+            <div class="health-label">Session Latency</div>
+            <div class="health-value">Elevated (45ms) — within tolerance</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Data Export</div>
+        </div>
+        <p style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.9rem;">
+          Export institutional data for accreditation reports and compliance.
+        </p>
+        <button class="btn-primary" onclick="exportStudentData()">Export Student Data (CSV)</button>
+        <button class="btn-primary" style="margin-left: 0.5rem;" onclick="exportDecisionLog()">Export Decision Log (CSV)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Course Modal -->
+  <div class="modal" id="add-course-modal">
+    <div class="modal-content">
+      <div class="modal-header">Add New Course</div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="course-code">Course Code</label>
+          <input type="text" id="course-code" placeholder="e.g., SYST 101">
+        </div>
+        <div class="form-group">
+          <label for="course-name">Course Name</label>
+          <input type="text" id="course-name" placeholder="e.g., Systematic Theology I">
+        </div>
+        <div class="form-group">
+          <label for="course-instructor">Instructor Email</label>
+          <input type="email" id="course-instructor" placeholder="instructor@seminary.edu">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('add-course-modal')">Cancel</button>
+        <button class="btn-primary" onclick="addCourse()">Create Course</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Instructor Modal -->
+  <div class="modal" id="add-instructor-modal">
+    <div class="modal-content">
+      <div class="modal-header">Add New Instructor</div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="instructor-email">Email</label>
+          <input type="email" id="instructor-email" placeholder="instructor@seminary.edu">
+        </div>
+        <div class="form-group">
+          <label for="instructor-name">Full Name</label>
+          <input type="text" id="instructor-name" placeholder="Dr. Smith">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('add-instructor-modal')">Cancel</button>
+        <button class="btn-primary" onclick="addInstructor()">Add Instructor</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    (function() {
+      'use strict';
+
+      OriginalAuth.requireAuth();
+
+      // Load dashboard data from API
+      function loadDashboardData() {
+        Promise.all([
+          OriginalAuth.apiFetch('/api/v1/admin/stats').then(r => {
+            if (!r.ok) throw new Error('Failed to load stats');
+            return r.json();
+          }),
+          OriginalAuth.apiFetch('/api/v1/admin/recent-flags').then(r => {
+            if (!r.ok) throw new Error('Failed to load flagged submissions');
+            return r.json();
+          }),
+          OriginalAuth.apiFetch('/api/v1/admin/courses').then(r => {
+            if (!r.ok) throw new Error('Failed to load courses');
+            return r.json();
+          })
+        ])
+        .then(([stats, flaggedData, coursesData]) => {
+          // Populate stats cards
+          document.getElementById('stat-students').textContent = stats.total_students || '—';
+          document.getElementById('stat-submissions').textContent = stats.total_submissions || '—';
+          document.getElementById('stat-deviation').textContent = (stats.average_deviation || 0).toFixed(2);
+          document.getElementById('stat-flagged').textContent = stats.flagged_count || '—';
+
+          // Populate flagged submissions table
+          const flaggedList = document.getElementById('flagged-list');
+          const flaggedSubmissions = flaggedData.submissions || [];
+          if (flaggedSubmissions.length === 0) {
+            flaggedList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">No flagged submissions</td></tr>';
+          } else {
+            flaggedList.innerHTML = flaggedSubmissions.map(sub => `
+              <tr>
+                <td>${sub.student_name || 'Unknown'}</td>
+                <td>${sub.course_code || '—'}</td>
+                <td>${sub.assignment_name || '—'}</td>
+                <td>${((sub.deviation_score || 0) * 100).toFixed(0)}%</td>
+                <td><span class="badge warning">Flagged</span></td>
+              </tr>
+            `).join('');
+          }
+
+          // Populate courses table
+          const coursesList = document.getElementById('courses-list');
+          const courses = coursesData.courses || [];
+          if (courses.length === 0) {
+            coursesList.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">No courses</td></tr>';
+          } else {
+            coursesList.innerHTML = courses.map(course => `
+              <tr>
+                <td><strong>${course.code || '—'}</strong></td>
+                <td>${course.name || '—'}</td>
+                <td>${course.instructor_name || '—'}</td>
+                <td>${course.student_count || 0}</td>
+                <td>${course.submission_count || 0}</td>
+                <td><span class="badge success">Active</span></td>
+              </tr>
+            `).join('');
+          }
+
+          // Load instructor activity (if available from courses)
+          const instructorActivity = document.getElementById('instructor-activity');
+          instructorActivity.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1rem;">Data aggregated from courses</td></tr>';
+
+          // Load instructors list
+          const instructorsList = document.getElementById('instructors-list');
+          const instructorMap = new Map();
+          courses.forEach(course => {
+            if (course.instructor_name) {
+              if (!instructorMap.has(course.instructor_name)) {
+                instructorMap.set(course.instructor_name, {
+                  name: course.instructor_name,
+                  email: course.instructor_email || course.instructor_name.toLowerCase().replace(/\s+/g, '.') + '@seminary.edu',
+                  courses: 0
+                });
+              }
+              instructorMap.get(course.instructor_name).courses++;
+            }
+          });
+          if (instructorMap.size === 0) {
+            instructorsList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">No instructors</td></tr>';
+          } else {
+            instructorsList.innerHTML = Array.from(instructorMap.values()).map(inst => `
+              <tr>
+                <td>${inst.email}</td>
+                <td>${inst.name}</td>
+                <td>${inst.courses}</td>
+                <td><span class="badge info">Active</span></td>
+                <td><button class="btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">Remove</button></td>
+              </tr>
+            `).join('');
+          }
+        })
+        .catch(error => {
+          console.error('Error loading dashboard:', error);
+          const errorMsg = document.querySelector('.error-msg');
+          if (!errorMsg) {
+            const error_div = document.createElement('div');
+            error_div.className = 'error-msg';
+            error_div.textContent = 'Failed to load dashboard data. Please try refreshing the page.';
+            document.querySelector('.container').insertBefore(error_div, document.querySelector('.page-header').nextSibling);
+          }
+          // Show placeholder data
+          document.getElementById('stat-students').textContent = '—';
+          document.getElementById('stat-submissions').textContent = '—';
+          document.getElementById('stat-deviation').textContent = '—';
+          document.getElementById('stat-flagged').textContent = '—';
+        });
+      }
+
+      // Load data on page load
+      loadDashboardData();
+
+      window.switchTab = function(tabName) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+        document.getElementById('tab-' + tabName).classList.add('active');
+        event.target.classList.add('active');
+      };
+
+      window.openAddCourseModal = function() {
+        document.getElementById('add-course-modal').classList.add('active');
+      };
+
+      window.openAddInstructorModal = function() {
+        document.getElementById('add-instructor-modal').classList.add('active');
+      };
+
+      window.closeModal = function(modalId) {
+        document.getElementById(modalId).classList.remove('active');
+      };
+
+      window.addCourse = function() {
+        const code = document.getElementById('course-code').value.trim();
+        const name = document.getElementById('course-name').value.trim();
+        if (!code || !name) {
+          alert('Please fill in all fields');
+          return;
+        }
+        alert('Course added: ' + code);
+        closeModal('add-course-modal');
+        document.getElementById('course-code').value = '';
+        document.getElementById('course-name').value = '';
+        document.getElementById('course-instructor').value = '';
+      };
+
+      window.addInstructor = function() {
+        const email = document.getElementById('instructor-email').value.trim();
+        const name = document.getElementById('instructor-name').value.trim();
+        if (!email || !name) {
+          alert('Please fill in all fields');
+          return;
+        }
+        alert('Instructor added: ' + name);
+        closeModal('add-instructor-modal');
+        document.getElementById('instructor-email').value = '';
+        document.getElementById('instructor-name').value = '';
+      };
+
+      window.exportStudentData = function() {
+        alert('Exporting student data to CSV...');
+      };
+
+      window.exportDecisionLog = function() {
+        alert('Exporting decision log to CSV...');
+      };
+
+      // Close modal on background click
+      window.addEventListener('click', function(e) {
+        if (e.target.classList.contains('modal')) {
+          e.target.classList.remove('active');
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

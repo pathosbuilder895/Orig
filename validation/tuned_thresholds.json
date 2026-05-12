@@ -1,0 +1,79 @@
+{
+  "tuned_thresholds": {
+    "no_action": {
+      "name": "no_action",
+      "value": 0.814,
+      "tpr": 1.0,
+      "fpr": 0.9722,
+      "precision": 0.1026,
+      "accuracy": 0.125,
+      "f1": 0.186,
+      "constraint_satisfied": true,
+      "constraint": "FNR < 5% (miss < 5% of non-authentic)"
+    },
+    "monitor": {
+      "name": "monitor",
+      "value": 0.989,
+      "tpr": 1.0,
+      "fpr": 0.3611,
+      "precision": 0.2353,
+      "accuracy": 0.675,
+      "f1": 0.381,
+      "constraint_satisfied": false,
+      "constraint": "FPR < 10% and TPR > 80%"
+    },
+    "escalate": {
+      "name": "escalate",
+      "value": 0.001,
+      "tpr": 0.0,
+      "fpr": 1.0,
+      "precision": 0.1,
+      "accuracy": 0.1,
+      "f1": 0.1818,
+      "constraint_satisfied": false,
+      "constraint": "FPR < 2% (minimise false accusations)"
+    }
+  },
+  "original_thresholds": {
+    "no_action": 0.4,
+    "monitor": 0.55,
+    "escalate": 0.75
+  },
+  "improvement_summary": {
+    "no_action": {
+      "old_threshold": 0.4,
+      "new_threshold": 0.814,
+      "delta": 0.414,
+      "old_fpr": 1.0,
+      "new_fpr": 0.9722,
+      "old_accuracy": 0.1,
+      "new_accuracy": 0.125
+    },
+    "monitor": {
+      "old_threshold": 0.55,
+      "new_threshold": 0.989,
+      "delta": 0.439,
+      "old_fpr": 1.0,
+      "new_fpr": 0.3611,
+      "old_accuracy": 0.1,
+      "new_accuracy": 0.675
+    },
+    "escalate": {
+      "old_threshold": 0.75,
+      "new_threshold": 0.001,
+      "delta": -0.749,
+      "old_fpr": 1.0,
+      "new_fpr": 1.0,
+      "old_accuracy": 0.1,
+      "new_accuracy": 0.1
+    }
+  },
+  "optimal_f1_threshold": 0.989,
+  "equal_error_rate": 0.2778,
+  "eer_threshold": 0.998,
+  "recommended_config": {
+    "no_action": 0.814,
+    "monitor": 0.989,
+    "escalate": 0.001
+  }
+}

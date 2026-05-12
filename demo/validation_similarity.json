@@ -1,0 +1,89 @@
+{
+  "authors": [
+    "Hamilton",
+    "Madison",
+    "Jay",
+    "Paine",
+    "Burke",
+    "Lincoln",
+    "Douglass"
+  ],
+  "author_ids": [
+    "hamilton",
+    "madison",
+    "jay",
+    "paine",
+    "burke",
+    "lincoln",
+    "douglass"
+  ],
+  "matrix": [
+    [
+      0.9558,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      1.0,
+      0.9672,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      0.9963,
+      null,
+      0.9856,
+      null,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      0.9882,
+      null,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      0.9976,
+      null,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      0.9806,
+      null
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      0.9126
+    ]
+  ],
+  "min": 0.9963,
+  "max": 1.0,
+  "interpretation": "lower deviation = more stylistically similar to baseline author",
+  "note": "diagonal (same author) excluded from min/max range"
+}
