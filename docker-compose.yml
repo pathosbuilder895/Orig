@@ -1,0 +1,75 @@
+# docker-compose.yml — Production base configuration.
+#
+# For LOCAL DEV: just run `docker compose up --build`.
+# Docker automatically merges docker-compose.override.yml (dev settings).
+#
+# For PRODUCTION: run `docker compose -f docker-compose.yml up` (skips override)
+# and make sure your .env has real secrets.
+#
+# Fixed project name → predictable container names (e.g. original-postgres-1) for
+# backup scripts and ops.
+
+name: original
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://original:${POSTGRES_PASSWORD:-original}@postgres:5432/original_db
+      REDIS_URL: redis://redis:6379/0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - original
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: original
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-original}
+      POSTGRES_DB: original_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # Use container env so we never probe the wrong DB (default is username-only).
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - original
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - original
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  original:
+    driver: bridge

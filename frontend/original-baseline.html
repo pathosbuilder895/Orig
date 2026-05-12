@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Original — Establish Baseline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --green-deepest:#0f1e17; --green-deep:#162b22; --green-mid:#1e3d2f;
+      --green-hover:#243d30; --green-border:rgba(255,255,255,0.07);
+      --cream:#f7f3ea; --cream-warm:#ede8d8; --cream-border:#e2dccf; --surface:#ffffff;
+      --gold:#c9a028; --gold-light:rgba(201,160,40,0.12); --gold-muted:rgba(201,160,40,0.35); --amber:#9b6420;
+      --text-primary:#1a130a; --text-secondary:#5a4030; --text-muted:#8a7060;
+      --text-cream:#f7f3ea; --text-cream-dim:rgba(247,243,234,0.55);
+      --flag-red:#c0392b; --flag-red-bg:rgba(192,57,43,0.08);
+      --flag-amber:#c9a028; --flag-amber-bg:rgba(201,160,40,0.1);
+      --flag-green:#2a6b45; --flag-green-bg:rgba(42,107,69,0.1);
+      --sidebar-w:264px; --radius:6px;
+      --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md:0 4px 12px rgba(0,0,0,0.08),0 2px 4px rgba(0,0,0,0.05);
+    }
+    html, body { height: 100%; }
+    body { font-family:'Inter',system-ui,sans-serif; background:var(--cream); color:var(--text-primary); display:flex; overflow:hidden; font-size:14px; line-height:1.5; }
+
+    /* SIDEBAR */
+    .sidebar { width:var(--sidebar-w); min-width:var(--sidebar-w); height:100vh; background:var(--green-deep); display:flex; flex-direction:column; position:fixed; left:0;top:0;bottom:0; z-index:100; border-right:1px solid var(--green-border); }
+    .sidebar-logo { padding:1.5rem 1.5rem 1.25rem; border-bottom:1px solid var(--green-border); }
+    .logo-mark { display:flex; align-items:center; gap:0.75rem; margin-bottom:0.35rem; }
+    .logo-icon { width:30px;height:30px; border:1px solid var(--gold-muted); display:flex;align-items:center;justify-content:center; flex-shrink:0; }
+    .logo-icon svg { width:14px;height:14px; stroke:var(--gold); }
+    .logo-wordmark { font-family:'Playfair Display',serif; font-size:1rem; font-weight:600; color:var(--text-cream); letter-spacing:0.06em; }
+    .logo-school { font-family:'EB Garamond',serif; font-size:0.78rem; font-style:italic; color:var(--text-cream-dim); letter-spacing:0.03em; padding-left:2.8rem; }
+    .sidebar-nav { flex:1; padding:1rem 0; overflow-y:auto; }
+    .nav-section-label { font-size:0.65rem; font-weight:600; letter-spacing:0.2em; text-transform:uppercase; color:var(--text-cream-dim); padding:0.6rem 1.5rem 0.3rem; margin-top:0.5rem; }
+    .nav-item { display:flex;align-items:center;gap:0.75rem; padding:0.6rem 1.5rem; color:rgba(247,243,234,0.65); text-decoration:none; font-size:0.875rem; font-weight:500; cursor:pointer; transition:color 0.15s,background 0.15s; border-left:2px solid transparent; letter-spacing:0.01em; }
+    .nav-item:hover { color:var(--text-cream); background:var(--green-hover); }
+    .nav-item.active { color:var(--text-cream); border-left-color:var(--gold); background:rgba(201,160,40,0.08); }
+    .nav-item svg { width:16px;height:16px; stroke:currentColor; flex-shrink:0; opacity:0.85; }
+    .nav-badge { margin-left:auto; background:var(--gold); color:var(--green-deepest); font-size:0.65rem; font-weight:700; padding:0.15rem 0.45rem; border-radius:20px; }
+    .sidebar-user { border-top:1px solid var(--green-border); padding:1rem 1.25rem; display:flex; align-items:center; gap:0.75rem; }
+    .user-avatar { width:32px;height:32px; border-radius:50%; background:var(--green-mid); border:1px solid var(--gold-muted); display:flex;align-items:center;justify-content:center; font-family:'Playfair Display',serif; font-size:0.8rem; color:var(--gold); flex-shrink:0; }
+    .user-info { flex:1;min-width:0; }
+    .user-name { font-size:0.825rem; font-weight:500; color:var(--text-cream); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .user-role { font-size:0.72rem; color:var(--text-cream-dim); font-style:italic; font-family:'EB Garamond',serif; }
+    .user-settings { width:28px;height:28px; display:flex;align-items:center;justify-content:center; color:var(--text-cream-dim); cursor:pointer; border-radius:4px; transition:color 0.15s,background 0.15s; }
+    .user-settings:hover { color:var(--text-cream); background:var(--green-hover); }
+    .user-settings svg { width:15px;height:15px; stroke:currentColor; }
+
+    /* MAIN */
+    .main { margin-left:var(--sidebar-w); flex:1; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+    .topbar { background:var(--cream); border-bottom:1px solid var(--cream-border); padding:0 2rem; height:56px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+    .topbar-left { display:flex; align-items:center; gap:0.5rem; }
+    .breadcrumb { display:flex; align-items:center; gap:0.4rem; font-size:0.8rem; color:var(--text-muted); }
+    .breadcrumb a { color:var(--text-muted); text-decoration:none; }
+    .breadcrumb a:hover { color:var(--text-secondary); }
+    .breadcrumb-sep { color:var(--cream-border); }
+    .breadcrumb-current { font-weight:500; color:var(--text-secondary); }
+    .topbar-right { display:flex; align-items:center; gap:0.75rem; }
+    .semester-badge { font-family:'EB Garamond',serif; font-size:0.85rem; font-style:italic; color:var(--text-muted); background:var(--cream-warm); border:1px solid var(--cream-border); padding:0.3rem 0.85rem; border-radius:20px; }
+    .topbar-icon-btn { width:32px;height:32px; border-radius:var(--radius); border:1px solid var(--cream-border); background:var(--surface); display:flex;align-items:center;justify-content:center; cursor:pointer; transition:border-color 0.15s,box-shadow 0.15s; position:relative; color:var(--text-secondary); }
+    .topbar-icon-btn:hover { border-color:var(--gold-muted); }
+    .topbar-icon-btn svg { width:15px;height:15px; stroke:currentColor; }
+    .notif-dot { position:absolute; top:6px;right:6px; width:6px;height:6px; background:var(--gold); border-radius:50%; border:1.5px solid var(--cream); }
+    .page-body { flex:1; overflow-y:auto; padding:2.5rem 2rem 4rem; }
+
+    /* WIZARD */
+    .wizard-wrap { max-width:800px; margin:0 auto; }
+    .wizard-header { margin-bottom:2rem; text-align:center; }
+    .wizard-eyebrow { font-family:'EB Garamond',serif; font-size:0.85rem; font-style:italic; color:var(--text-muted); letter-spacing:0.04em; margin-bottom:0.4rem; }
+    .wizard-title { font-family:'Playfair Display',serif; font-size:1.6rem; font-weight:600; color:var(--text-primary); letter-spacing:-0.01em; margin-bottom:0.5rem; }
+    .wizard-subtitle { font-size:0.875rem; color:var(--text-muted); }
+
+    /* STUDENT HEADER CARD */
+    .student-header-card {
+      background:var(--surface); border:1px solid var(--cream-border);
+      border-radius:var(--radius); box-shadow:var(--shadow-sm);
+      padding:1.25rem 1.5rem;
+      display:flex; align-items:center; gap:1.25rem;
+      margin-bottom:1.5rem;
+    }
+    .stu-avatar {
+      width:48px;height:48px; border-radius:50%;
+      background:var(--green-deep); border:1.5px solid var(--gold-muted);
+      display:flex;align-items:center;justify-content:center;
+      font-family:'Playfair Display',serif; font-size:1rem; color:var(--gold); flex-shrink:0;
+    }
+    .stu-name { font-family:'Playfair Display',serif; font-size:1.05rem; font-weight:600; color:var(--text-primary); }
+    .stu-meta { font-size:0.8rem; color:var(--text-muted); margin-top:0.15rem; }
+    .stu-status-wrap { margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; gap:0.3rem; }
+    .stu-pill { font-size:0.72rem; font-weight:600; padding:0.25rem 0.75rem; border-radius:20px; }
+    .stu-pill.no-baseline { background:var(--cream-warm); color:var(--text-muted); border:1px solid var(--cream-border); }
+    .stu-pill.building { background:var(--gold-light); color:var(--amber); border:1px solid var(--gold-muted); }
+    .stu-pill.established { background:var(--flag-green-bg); color:var(--flag-green); border:1px solid rgba(42,107,69,0.2); }
+    .stu-note { font-size:0.75rem; color:var(--text-muted); font-style:italic; font-family:'EB Garamond',serif; }
+
+    /* PROGRESS TRACK */
+    .progress-track {
+      background:var(--surface); border:1px solid var(--cream-border);
+      border-radius:var(--radius); box-shadow:var(--shadow-sm);
+      padding:1.25rem 1.5rem;
+      margin-bottom:1.5rem;
+    }
+    .progress-track-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
+    .progress-track-title { font-family:'Playfair Display',serif; font-size:0.95rem; font-weight:600; color:var(--text-primary); }
+    .progress-track-sub { font-size:0.78rem; color:var(--text-muted); font-style:italic; font-family:'EB Garamond',serif; }
+    .sample-nodes { display:flex; align-items:center; gap:0; }
+    .sample-node { display:flex; flex-direction:column; align-items:center; flex:1; }
+    .sample-circle {
+      width:40px;height:40px; border-radius:50%;
+      border:2px solid var(--cream-border); background:var(--cream-warm);
+      display:flex;align-items:center;justify-content:center;
+      font-size:0.8rem; font-weight:600; color:var(--text-muted);
+      transition:all 0.3s;
+    }
+    .sample-circle.done { background:var(--flag-green); border-color:var(--flag-green); color:#fff; }
+    .sample-circle.active { background:var(--gold); border-color:var(--gold); color:var(--green-deepest); }
+    .sample-label { font-size:0.68rem; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; color:var(--text-muted); margin-top:0.4rem; }
+    .sample-label.done { color:var(--flag-green); }
+    .sample-label.active { color:var(--amber); }
+    .sample-connector { flex:1; height:2px; background:var(--cream-border); margin:0 0.25rem; margin-bottom:1.3rem; transition:background 0.3s; }
+    .sample-connector.done { background:var(--flag-green); }
+
+    .progress-bar-row { margin-top:1rem; }
+    .progress-bar-label { display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-bottom:0.35rem; }
+    .progress-bar-track { height:6px; background:var(--cream-warm); border-radius:3px; overflow:hidden; }
+    .progress-bar-fill { height:100%; background:var(--gold); border-radius:3px; transition:width 0.5s cubic-bezier(0.4,0,0.2,1); }
+
+    /* SAMPLE CARD */
+    .sample-card {
+      background:var(--surface); border:1px solid var(--cream-border);
+      border-radius:var(--radius); box-shadow:var(--shadow-md);
+      overflow:hidden; margin-bottom:1rem;
+    }
+    .card-head { padding:1.25rem 1.5rem; border-bottom:1px solid var(--cream-border); display:flex; align-items:center; gap:1rem; }
+    .card-head-icon { width:36px;height:36px; background:var(--gold-light); border:1px solid var(--gold-muted); display:flex;align-items:center;justify-content:center; flex-shrink:0; }
+    .card-head-icon svg { width:18px;height:18px; stroke:var(--gold); }
+    .card-head-icon.green-icon { background:var(--flag-green-bg); border-color:rgba(42,107,69,0.25); }
+    .card-head-icon.green-icon svg { stroke:var(--flag-green); }
+    .card-head-title { font-family:'Playfair Display',serif; font-size:1rem; font-weight:600; color:var(--text-primary); letter-spacing:-0.005em; }
+    .card-head-sub { font-size:0.8rem; color:var(--text-muted); margin-top:0.1rem; }
+    .card-head-badge { margin-left:auto; }
+    .num-badge { display:inline-flex; align-items:center; justify-content:center; width:24px;height:24px; border-radius:50%; background:var(--gold); color:var(--green-deepest); font-size:0.72rem; font-weight:700; }
+    .num-badge.grey { background:var(--cream-warm); color:var(--text-muted); }
+    .card-body { padding:1.5rem; }
+
+    /* FORM */
+    .form-row { margin-bottom:1.25rem; }
+    .form-row:last-child { margin-bottom:0; }
+    .form-label { display:block; font-size:0.78rem; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-muted); margin-bottom:0.4rem; }
+    .form-label em { font-weight:400; letter-spacing:0; text-transform:none; font-style:italic; font-family:'EB Garamond',serif; }
+    .form-input, .form-select {
+      width:100%; padding:0.6rem 0.9rem;
+      border:1px solid var(--cream-border); background:var(--surface);
+      border-radius:var(--radius); font-size:0.875rem; color:var(--text-primary);
+      font-family:'Inter',sans-serif; transition:border-color 0.15s,box-shadow 0.15s; outline:none;
+    }
+    .form-select { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238a7060' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 0.75rem center; padding-right:2.5rem; }
+    .form-input:focus, .form-select:focus { border-color:var(--gold-muted); box-shadow:0 0 0 3px var(--gold-light); }
+    .form-textarea {
+      width:100%; min-height:200px; padding:0.9rem; resize:vertical;
+      border:1px solid var(--cream-border); border-radius:var(--radius);
+      font-size:0.875rem; font-family:'EB Garamond',serif;
+      line-height:1.75; color:var(--text-primary); background:var(--surface);
+      transition:border-color 0.15s,box-shadow 0.15s; outline:none;
+    }
+    .form-textarea:focus { border-color:var(--gold-muted); box-shadow:0 0 0 3px var(--gold-light); }
+    .form-row-two { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+
+    .textarea-meta { display:flex; align-items:center; justify-content:space-between; margin-top:0.4rem; }
+    .word-count { font-size:0.75rem; color:var(--text-muted); font-style:italic; font-family:'EB Garamond',serif; }
+
+    /* QUALITY INDICATOR */
+    .quality-bar-wrap { margin-top:0.75rem; }
+    .quality-bar-label { display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:var(--text-muted); margin-bottom:0.3rem; }
+    .quality-bar-label span:last-child { font-weight:600; }
+    .quality-bar-track { height:4px; background:var(--cream-warm); border-radius:2px; overflow:hidden; }
+    .quality-bar-fill { height:100%; border-radius:2px; transition:width 0.4s, background 0.4s; }
+
+    /* CARD FOOTER */
+    .card-footer { padding:1rem 1.5rem; border-top:1px solid var(--cream-border); background:var(--cream); display:flex; align-items:center; justify-content:space-between; }
+    .footer-note { font-size:0.78rem; color:var(--text-muted); font-style:italic; font-family:'EB Garamond',serif; }
+
+    /* COMPLETED SAMPLE */
+    .done-sample {
+      display:flex; align-items:center; gap:0.75rem;
+      padding:0.85rem 1rem;
+      background:var(--flag-green-bg); border:1px solid rgba(42,107,69,0.2);
+      border-radius:var(--radius);
+      margin-bottom:0.75rem;
+    }
+    .done-check { width:28px;height:28px; border-radius:50%; background:var(--flag-green); display:flex;align-items:center;justify-content:center; flex-shrink:0; }
+    .done-check svg { width:14px;height:14px; stroke:#fff; stroke-width:2.5; }
+    .done-sample-title { font-size:0.875rem; font-weight:500; color:var(--flag-green); }
+    .done-sample-sub { font-size:0.75rem; color:var(--text-muted); margin-top:0.1rem; font-family:'EB Garamond',serif; font-style:italic; }
+    .done-sample-words { margin-left:auto; font-size:0.75rem; color:var(--text-muted); font-style:italic; font-family:'EB Garamond',serif; }
+
+    /* FINAL COMPLETE STATE */
+    .complete-panel { display:none; }
+    .complete-panel.show { display:block; }
+
+    .complete-hero {
+      background:var(--surface); border:1px solid var(--cream-border);
+      border-radius:var(--radius); box-shadow:var(--shadow-md);
+      padding:3rem; text-align:center;
+      margin-bottom:1.5rem;
+    }
+    .complete-icon {
+      width:64px;height:64px; border-radius:50%;
+      background:var(--flag-green-bg); border:2px solid rgba(42,107,69,0.25);
+      display:flex;align-items:center;justify-content:center;
+      margin:0 auto 1.25rem;
+    }
+    .complete-icon svg { width:30px;height:30px; stroke:var(--flag-green); stroke-width:2; }
+    .complete-title { font-family:'Playfair Display',serif; font-size:1.5rem; font-weight:600; color:var(--flag-green); letter-spacing:-0.01em; margin-bottom:0.5rem; }
+    .complete-sub { font-size:0.9rem; color:var(--text-muted); margin-bottom:1.75rem; line-height:1.6; }
+
+    .fingerprint-preview {
+      background:var(--cream); border:1px solid var(--cream-border);
+      border-radius:var(--radius); padding:1.25rem;
+      margin-bottom:1.5rem; text-align:left;
+    }
+    .fp-head { font-size:0.72rem; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-muted); margin-bottom:1rem; }
+    .fp-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:0.75rem; }
+    .fp-item-label { font-size:0.7rem; color:var(--text-muted); margin-bottom:0.15rem; }
+    .fp-item-val { font-size:0.9rem; font-weight:600; color:var(--text-primary); font-family:'Playfair Display',serif; }
+    .fp-bar-track { height:3px; background:var(--cream-border); border-radius:2px; margin-top:0.2rem; overflow:hidden; }
+    .fp-bar-fill { height:100%; border-radius:2px; }
+
+    .complete-actions { display:flex; gap:0.75rem; justify-content:center; }
+
+    /* GUIDANCE BOX */
+    .guidance-box {
+      background:var(--gold-light); border:1px solid var(--gold-muted);
+      border-radius:var(--radius); padding:1rem 1.1rem;
+      display:flex; gap:0.75rem; margin-bottom:1rem;
+    }
+    .guidance-box svg { width:16px;height:16px; stroke:var(--amber); flex-shrink:0; margin-top:1px; }
+    .guidance-text { font-size:0.8rem; color:var(--amber); line-height:1.5; }
+    .guidance-text strong { font-weight:600; }
+
+    /* BUTTONS */
+    .btn { display:inline-flex;align-items:center;gap:0.45rem; padding:0.6rem 1.25rem; border-radius:var(--radius); font-size:0.825rem; font-weight:600; font-family:'Inter',sans-serif; cursor:pointer; transition:all 0.15s; border:none; letter-spacing:0.01em; text-decoration:none; }
+    .btn svg { width:14px;height:14px; stroke:currentColor; }
+    .btn-primary { background:var(--green-deep); color:var(--text-cream); }
+    .btn-primary:hover { background:var(--green-mid); }
+    .btn-gold { background:var(--gold); color:var(--green-deepest); }
+    .btn-gold:hover { background:#d4aa2e; }
+    .btn-ghost { background:transparent; color:var(--text-secondary); border:1px solid var(--cream-border); }
+    .btn-ghost:hover { background:var(--cream-warm); }
+    .btn:disabled { opacity:0.45; cursor:not-allowed; }
+
+    /* SAMPLE STATUS AREA */
+    .sample-status-area { margin-bottom:1.5rem; }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+      <span class="logo-wordmark">Original</span>
+    </div>
+    <div class="logo-school">Southern Baptist Theological Seminary</div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section-label">Instructor</div>
+    <a href="original-dashboard.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard</a>
+    <a href="original-students.html" class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Students</a>
+    <a href="original-course.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>Courses</a>
+    <a href="original-flagged.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>Flagged<span class="nav-badge">5</span></a>
+    <a href="original-submit.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Submit Writing</a>
+    <div class="nav-section-label">Analysis</div>
+    <a href="original-features.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Feature Profile</a>
+    <a href="original-quantum.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>Quantum State</a>
+    <a href="original-decomposition.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Interference</a>
+    <a href="original-reports.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Reports</a>
+    <div class="nav-section-label">Account</div>
+    <a href="original-settings.html" class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
+  </div>
+  <div class="sidebar-user">
+    <div class="user-avatar">DH</div>
+    <div class="user-info"><div class="user-name">Dr. David Harrison</div><div class="user-role">Instructor, Theology</div></div>
+    <a href="original-settings.html" class="user-settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></a>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="breadcrumb">
+        <a href="original-dashboard.html">Dashboard</a>
+        <span class="breadcrumb-sep">›</span>
+        <a href="original-students.html">Students</a>
+        <span class="breadcrumb-sep">›</span>
+        <span class="breadcrumb-current">Establish Baseline</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="semester-badge">Spring 2025</span>
+      <div class="topbar-icon-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <span class="notif-dot"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-body">
+    <div class="wizard-wrap">
+
+      <div class="wizard-header">
+        <div class="wizard-eyebrow">Stylometric Fingerprinting</div>
+        <h1 class="wizard-title">Establish Student Baseline</h1>
+        <p class="wizard-subtitle">Collect three authenticated writing samples to build a reliable stylometric fingerprint for this student.</p>
+      </div>
+
+      <!-- Student header -->
+      <div class="student-header-card">
+        <div class="stu-avatar" id="stu-avatar">EW</div>
+        <div>
+          <div class="stu-name" id="stu-name">Eleanor Webb</div>
+          <div class="stu-meta" id="stu-meta">ewebb@sbts.edu · BIBL 301 — Biblical Hermeneutics</div>
+        </div>
+        <div class="stu-status-wrap">
+          <div class="stu-pill building" id="stu-pill">Building baseline</div>
+          <div class="stu-note" id="stu-note">0 of 3 samples collected</div>
+        </div>
+      </div>
+
+      <!-- Progress track -->
+      <div class="progress-track">
+        <div class="progress-track-head">
+          <div>
+            <div class="progress-track-title">Baseline Progress</div>
+          </div>
+          <div class="progress-track-sub" id="progress-label">0 of 3 samples — baseline not yet established</div>
+        </div>
+        <div class="sample-nodes">
+          <div class="sample-node">
+            <div class="sample-circle active" id="sn-1">1</div>
+            <div class="sample-label active" id="snl-1">Sample 1</div>
+          </div>
+          <div class="sample-connector" id="sc-1"></div>
+          <div class="sample-node">
+            <div class="sample-circle" id="sn-2">2</div>
+            <div class="sample-label" id="snl-2">Sample 2</div>
+          </div>
+          <div class="sample-connector" id="sc-2"></div>
+          <div class="sample-node">
+            <div class="sample-circle" id="sn-3">3</div>
+            <div class="sample-label" id="snl-3">Sample 3</div>
+          </div>
+          <div class="sample-connector" id="sc-3" style="opacity:0.4"></div>
+          <div class="sample-node" style="opacity:0.45">
+            <div class="sample-circle" style="border-style:dashed">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
+            </div>
+            <div class="sample-label">Optional 4+</div>
+          </div>
+        </div>
+        <div class="progress-bar-row">
+          <div class="progress-bar-label">
+            <span>Fingerprint confidence</span>
+            <span id="conf-label">0% — no data</span>
+          </div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="conf-bar" style="width:0%;background:var(--cream-border)"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Guidance -->
+      <div class="guidance-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div class="guidance-text">
+          <strong>Choosing good baseline samples:</strong> Select writing the student completed under supervised or authenticated conditions — in-class essays, timed responses, or graded work where the student's authorship is not in doubt. Each sample should be at least 150 words. More varied assignment types improve fingerprint reliability.
+        </div>
+      </div>
+
+      <!-- Completed samples (populated as user adds) -->
+      <div class="sample-status-area" id="done-samples"></div>
+
+      <!-- Active sample form -->
+      <div class="sample-card" id="sample-form">
+        <div class="card-head">
+          <div class="card-head-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div>
+            <div class="card-head-title" id="form-title">Sample 1 of 3</div>
+            <div class="card-head-sub">Add an authenticated writing sample to begin building the fingerprint.</div>
+          </div>
+          <div class="card-head-badge">
+            <div class="num-badge" id="form-badge">1</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="form-row-two" style="margin-bottom:1.25rem;">
+            <div class="form-row" style="margin-bottom:0;">
+              <label class="form-label">Assignment / Context</label>
+              <input class="form-input" id="field-title" type="text" placeholder="e.g. In-Class Essay #1 — Hermeneutical Methods" />
+            </div>
+            <div class="form-row" style="margin-bottom:0;">
+              <label class="form-label">Authentication method</label>
+              <select class="form-select" id="field-auth">
+                <option>In-class supervised writing</option>
+                <option>Proctored exam response</option>
+                <option>Graded and verified by instructor</option>
+                <option>Portfolio submission (verified)</option>
+                <option>Other verified context</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <label class="form-label">Writing text <em>— paste the student's work below</em></label>
+            <textarea class="form-textarea" id="field-text" placeholder="Paste the authenticated writing sample here…" oninput="updateQuality()"></textarea>
+            <div class="textarea-meta">
+              <span class="word-count" id="wc">Word count: 0 words</span>
+              <button class="btn btn-ghost" onclick="clearSample()" style="padding:0.25rem 0.6rem;font-size:0.75rem;">Clear</button>
+            </div>
+          </div>
+          <div class="quality-bar-wrap">
+            <div class="quality-bar-label">
+              <span>Sample quality</span>
+              <span id="quality-label" style="color:var(--text-muted)">Awaiting text</span>
+            </div>
+            <div class="quality-bar-track">
+              <div class="quality-bar-fill" id="quality-bar" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <span class="footer-note" id="footer-note">Minimum 150 words required.</span>
+          <button class="btn btn-gold" id="add-btn" onclick="addSample()" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Add Sample
+          </button>
+        </div>
+      </div>
+
+      <!-- Complete panel (shown after 3 samples) -->
+      <div class="complete-panel" id="complete-panel">
+        <div class="complete-hero">
+          <div class="complete-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="complete-title">Baseline Established</div>
+          <p class="complete-sub">Eleanor Webb's stylometric fingerprint is now active. Future submissions will be automatically scored against this baseline.</p>
+
+          <div class="fingerprint-preview">
+            <div class="fp-head">Fingerprint Preview — averaged across 3 samples</div>
+            <div class="fp-grid">
+              <div>
+                <div class="fp-item-label">Type-Token Ratio</div>
+                <div class="fp-item-val">0.54</div>
+                <div class="fp-bar-track"><div class="fp-bar-fill" style="width:54%;background:var(--gold)"></div></div>
+              </div>
+              <div>
+                <div class="fp-item-label">Mean Sentence Length</div>
+                <div class="fp-item-val">17.2</div>
+                <div class="fp-bar-track"><div class="fp-bar-fill" style="width:34%;background:var(--gold)"></div></div>
+              </div>
+              <div>
+                <div class="fp-item-label">Hapax Legomena</div>
+                <div class="fp-item-val">0.33</div>
+                <div class="fp-bar-track"><div class="fp-bar-fill" style="width:33%;background:var(--gold)"></div></div>
+              </div>
+              <div>
+                <div class="fp-item-label">Function Word Ratio</div>
+                <div class="fp-item-val">0.40</div>
+                <div class="fp-bar-track"><div class="fp-bar-fill" style="width:40%;background:var(--amber)"></div></div>
+              </div>
+              <div>
+                <div class="fp-item-label">Passive Voice Ratio</div>
+                <div class="fp-item-val">0.09</div>
+                <div class="fp-bar-track"><div class="fp-bar-fill" style="width:9%;background:var(--flag-green)"></div></div>
+              </div>
+              <div>
+                <div class="fp-item-label">Avg Word Length</div>
+                <div class="fp-item-val">5.1</div>
+                <div class="fp-bar-track"><div class="fp-bar-fill" style="width:51%;background:var(--flag-green)"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="complete-actions">
+            <a href="original-students.html" class="btn btn-ghost">Back to Students</a>
+            <a href="original-student.html" class="btn btn-primary">View Student Profile</a>
+            <a href="original-submit.html" class="btn btn-gold">Submit First Assignment</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  let samplesCollected = 0;
+  const MAX_SAMPLES = 3;
+
+  const sampleTitles = [
+    'In-Class Essay — Hermeneutical Methods',
+    'Response Paper — Literal vs. Allegorical Interpretation',
+    'Proctored Writing — Authorial Intent Exercise',
+  ];
+  const sampleWords = [214, 268, 193];
+
+  function updateQuality() {
+    const text = document.getElementById('field-text').value.trim();
+    const count = text ? text.split(/\s+/).length : 0;
+    document.getElementById('wc').textContent = 'Word count: ' + count + ' words';
+
+    const bar   = document.getElementById('quality-bar');
+    const label = document.getElementById('quality-label');
+    const btn   = document.getElementById('add-btn');
+
+    let pct = Math.min(100, (count / 300) * 100);
+    bar.style.width = pct + '%';
+
+    if (count === 0) {
+      bar.style.background = 'var(--cream-border)';
+      label.style.color = 'var(--text-muted)';
+      label.textContent = 'Awaiting text';
+      btn.disabled = true;
+    } else if (count < 50) {
+      bar.style.background = 'var(--flag-red)';
+      label.style.color = 'var(--flag-red)';
+      label.textContent = 'Too short — ' + count + ' words';
+      btn.disabled = true;
+    } else if (count < 150) {
+      bar.style.background = 'var(--flag-amber)';
+      label.style.color = 'var(--amber)';
+      label.textContent = 'Below minimum — need ' + (150 - count) + ' more words';
+      btn.disabled = true;
+    } else if (count < 250) {
+      bar.style.background = 'var(--gold)';
+      label.style.color = 'var(--amber)';
+      label.textContent = 'Acceptable — ' + count + ' words';
+      btn.disabled = false;
+    } else {
+      bar.style.background = 'var(--flag-green)';
+      label.style.color = 'var(--flag-green)';
+      label.textContent = 'Good quality — ' + count + ' words';
+      btn.disabled = false;
+    }
+
+    document.getElementById('footer-note').textContent = count < 150
+      ? 'Minimum 150 words required — ' + count + ' provided.'
+      : count + ' words — ready to add.';
+  }
+
+  function clearSample() {
+    document.getElementById('field-text').value = '';
+    document.getElementById('field-title').value = '';
+    updateQuality();
+  }
+
+  function addSample() {
+    const titleEl = document.getElementById('field-title');
+    const textEl  = document.getElementById('field-text');
+    const text    = textEl.value.trim();
+    const title   = titleEl.value.trim() || sampleTitles[samplesCollected];
+    const count   = text ? text.split(/\s+/).length : sampleWords[samplesCollected];
+
+    // Add done sample card
+    const done = document.getElementById('done-samples');
+    done.innerHTML += `
+      <div class="done-sample">
+        <div class="done-check"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div>
+          <div class="done-sample-title">Sample ${samplesCollected + 1} — ${title}</div>
+          <div class="done-sample-sub">${document.getElementById('field-auth').value}</div>
+        </div>
+        <div class="done-sample-words">${count} words</div>
+      </div>`;
+
+    samplesCollected++;
+    updateProgress();
+
+    // Clear form
+    titleEl.value = '';
+    textEl.value  = '';
+    updateQuality();
+
+    if (samplesCollected >= MAX_SAMPLES) {
+      document.getElementById('sample-form').style.display = 'none';
+      document.getElementById('complete-panel').classList.add('show');
+    } else {
+      // Advance form
+      document.getElementById('form-title').textContent = 'Sample ' + (samplesCollected + 1) + ' of 3';
+      document.getElementById('form-badge').textContent = samplesCollected + 1;
+      document.getElementById('field-title').placeholder = 'e.g. ' + sampleTitles[samplesCollected];
+    }
+  }
+
+  function updateProgress() {
+    // Update sample nodes
+    for (let i = 1; i <= 3; i++) {
+      const circle = document.getElementById('sn-' + i);
+      const label  = document.getElementById('snl-' + i);
+      if (i <= samplesCollected) {
+        circle.className = 'sample-circle done';
+        circle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" width="14" height="14"><polyline points="20 6 9 17 4 12" stroke="white"/></svg>';
+        label.className  = 'sample-label done';
+      } else if (i === samplesCollected + 1) {
+        circle.className = 'sample-circle active';
+        circle.textContent = i;
+        label.className  = 'sample-label active';
+      } else {
+        circle.className = 'sample-circle';
+        circle.textContent = i;
+        label.className  = 'sample-label';
+      }
+      if (i <= samplesCollected && i < 3) {
+        document.getElementById('sc-' + i).className = 'sample-connector done';
+      }
+    }
+
+    // Confidence bar
+    const confPcts = [0, 45, 72, 100];
+    const confLabels = ['0% — no data', '45% — low (needs more)', '72% — moderate', '100% — baseline established'];
+    const confColors = ['var(--cream-border)', 'var(--flag-amber)', 'var(--gold)', 'var(--flag-green)'];
+    const bar   = document.getElementById('conf-bar');
+    bar.style.width      = confPcts[samplesCollected] + '%';
+    bar.style.background = confColors[samplesCollected];
+    document.getElementById('conf-label').textContent = confLabels[samplesCollected];
+
+    // Header pill
+    const pillLabels = ['Building baseline', 'Building baseline', 'Building baseline', 'Baseline established'];
+    const pillCls    = ['building', 'building', 'building', 'established'];
+    const noteLabels = ['0 of 3 samples collected', '1 of 3 samples collected', '2 of 3 samples collected', '3 samples — fingerprint active'];
+    document.getElementById('stu-pill').textContent  = pillLabels[samplesCollected];
+    document.getElementById('stu-pill').className    = 'stu-pill ' + pillCls[samplesCollected];
+    document.getElementById('stu-note').textContent  = noteLabels[samplesCollected];
+
+    // Progress label
+    const plabels = ['0 of 3 samples — baseline not yet established', '1 of 3 — continue adding samples', '2 of 3 — one more sample required', '3 of 3 — baseline complete'];
+    document.getElementById('progress-label').textContent = plabels[samplesCollected];
+  }
+</script>
+</body>
+</html>

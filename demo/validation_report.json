@@ -1,0 +1,1371 @@
+{
+  "summary": {
+    "total_authors": 8,
+    "total_essays_scored": 40,
+    "total_baseline_samples": 55,
+    "avg_scoring_time_ms": 3680.57,
+    "auc": 0.7778
+  },
+  "threshold_metrics": {
+    "no_action": {
+      "threshold": 0.4,
+      "true_positives": 0,
+      "false_positives": 36,
+      "true_negatives": 4,
+      "false_negatives": 0,
+      "tpr": 0.0,
+      "fpr": 1.0,
+      "precision": 0.1,
+      "accuracy": 0.1
+    },
+    "monitor": {
+      "threshold": 0.55,
+      "true_positives": 0,
+      "false_positives": 36,
+      "true_negatives": 4,
+      "false_negatives": 0,
+      "tpr": 0.0,
+      "fpr": 1.0,
+      "precision": 0.1,
+      "accuracy": 0.1
+    },
+    "escalate": {
+      "threshold": 0.75,
+      "true_positives": 0,
+      "false_positives": 36,
+      "true_negatives": 4,
+      "false_negatives": 0,
+      "tpr": 0.0,
+      "fpr": 1.0,
+      "precision": 0.1,
+      "accuracy": 0.1
+    }
+  },
+  "per_label_stats": {
+    "authentic": {
+      "count": 36,
+      "mean_deviation": 0.9566,
+      "std_deviation": 0.0551,
+      "min_deviation": 0.8136,
+      "max_deviation": 1.0
+    },
+    "ghostwritten": {
+      "count": 4,
+      "mean_deviation": 0.9972,
+      "std_deviation": 0.0035,
+      "min_deviation": 0.9912,
+      "max_deviation": 1.0
+    }
+  },
+  "tier_importance": {
+    "tier0": 0.0052,
+    "tier1": 0.0504,
+    "tier11": 0.0243,
+    "tier12": 0.0087,
+    "tier13": 0.0106,
+    "tier14": 0.0216,
+    "tier15": 0.0039,
+    "tier16": 0.0114,
+    "tier17": 0.0133,
+    "tier2": 0.0191,
+    "tier3": 0.0117,
+    "tier4": 0.0116,
+    "tier5": 0.0202,
+    "tier6": 0.0263,
+    "tier7": 0.0369,
+    "tier8": 0.0423,
+    "tier9": 0.0286
+  },
+  "roc_points": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.027777777777777776
+    ],
+    [
+      0.0,
+      0.05555555555555555
+    ],
+    [
+      0.0,
+      0.05555555555555555
+    ],
+    [
+      0.0,
+      0.05555555555555555
+    ],
+    [
+      0.0,
+      0.05555555555555555
+    ],
+    [
+      0.0,
+      0.05555555555555555
+    ],
+    [
+      0.0,
+      0.08333333333333333
+    ],
+    [
+      0.0,
+      0.1111111111111111
+    ],
+    [
+      0.0,
+      0.1111111111111111
+    ],
+    [
+      0.0,
+      0.1111111111111111
+    ],
+    [
+      0.0,
+      0.1388888888888889
+    ],
+    [
+      0.0,
+      0.1388888888888889
+    ],
+    [
+      0.0,
+      0.1388888888888889
+    ],
+    [
+      0.0,
+      0.1388888888888889
+    ],
+    [
+      0.0,
+      0.1388888888888889
+    ],
+    [
+      0.0,
+      0.1388888888888889
+    ],
+    [
+      0.0,
+      0.1388888888888889
+    ],
+    [
+      0.0,
+      0.1388888888888889
+    ],
+    [
+      0.0,
+      0.1388888888888889
+    ],
+    [
+      0.0,
+      0.16666666666666666
+    ],
+    [
+      0.0,
+      0.19444444444444445
+    ],
+    [
+      0.0,
+      0.19444444444444445
+    ],
+    [
+      0.0,
+      0.2222222222222222
+    ],
+    [
+      0.0,
+      0.2222222222222222
+    ],
+    [
+      0.0,
+      0.2222222222222222
+    ],
+    [
+      0.0,
+      0.2222222222222222
+    ],
+    [
+      0.0,
+      0.25
+    ],
+    [
+      0.0,
+      0.3055555555555556
+    ],
+    [
+      0.0,
+      0.3055555555555556
+    ],
+    [
+      0.0,
+      0.3055555555555556
+    ],
+    [
+      0.0,
+      0.4166666666666667
+    ],
+    [
+      0.0,
+      0.4166666666666667
+    ],
+    [
+      0.0,
+      0.4722222222222222
+    ],
+    [
+      0.0,
+      0.5
+    ],
+    [
+      0.0,
+      0.5833333333333334
+    ],
+    [
+      0.0,
+      0.6388888888888888
+    ],
+    [
+      0.25,
+      0.6666666666666666
+    ],
+    [
+      0.75,
+      0.8611111111111112
+    ],
+    [
+      1.0,
+      1.0
+    ]
+  ],
+  "individual_results": [
+    {
+      "filename": "fed_hamilton_85.txt",
+      "author_id": "hamilton",
+      "label": "authentic",
+      "deviation_score": 1.0,
+      "authorship_probability": 0.8741,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 5620,
+      "scoring_time_ms": 11195.94,
+      "notes": "HAMILTON undisputed"
+    },
+    {
+      "filename": "fed_hamilton_27.txt",
+      "author_id": "hamilton",
+      "label": "authentic",
+      "deviation_score": 0.9806,
+      "authorship_probability": 0.8474,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 1457,
+      "scoring_time_ms": 5096.65,
+      "notes": "HAMILTON undisputed"
+    },
+    {
+      "filename": "fed_hamilton_13.txt",
+      "author_id": "hamilton",
+      "label": "authentic",
+      "deviation_score": 0.924,
+      "authorship_probability": 0.9249,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 967,
+      "scoring_time_ms": 4525.24,
+      "notes": "HAMILTON undisputed"
+    },
+    {
+      "filename": "fed_hamilton_59.txt",
+      "author_id": "hamilton",
+      "label": "authentic",
+      "deviation_score": 0.9618,
+      "authorship_probability": 0.8981,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 1918,
+      "scoring_time_ms": 5374.38,
+      "notes": "HAMILTON undisputed"
+    },
+    {
+      "filename": "fed_hamilton_35.txt",
+      "author_id": "hamilton",
+      "label": "authentic",
+      "deviation_score": 0.9124,
+      "authorship_probability": 0.9116,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 2258,
+      "scoring_time_ms": 6069.16,
+      "notes": "HAMILTON undisputed"
+    },
+    {
+      "filename": "paine_037.txt",
+      "author_id": "paine",
+      "label": "authentic",
+      "deviation_score": 0.9494,
+      "authorship_probability": 0.7949,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 856,
+      "scoring_time_ms": 2425.35,
+      "notes": "Thomas Paine [SCORING]"
+    },
+    {
+      "filename": "paine_015.txt",
+      "author_id": "paine",
+      "label": "authentic",
+      "deviation_score": 1.0,
+      "authorship_probability": 0.7745,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 1027,
+      "scoring_time_ms": 2923.73,
+      "notes": "Thomas Paine [SCORING]"
+    },
+    {
+      "filename": "paine_079.txt",
+      "author_id": "paine",
+      "label": "authentic",
+      "deviation_score": 0.9917,
+      "authorship_probability": 0.8466,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 819,
+      "scoring_time_ms": 2756.66,
+      "notes": "Thomas Paine [SCORING]"
+    },
+    {
+      "filename": "paine_071.txt",
+      "author_id": "paine",
+      "label": "authentic",
+      "deviation_score": 0.9999,
+      "authorship_probability": 0.7095,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 816,
+      "scoring_time_ms": 2841.68,
+      "notes": "Thomas Paine [SCORING]"
+    },
+    {
+      "filename": "paine_066.txt",
+      "author_id": "paine",
+      "label": "authentic",
+      "deviation_score": 1.0,
+      "authorship_probability": 0.7454,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 809,
+      "scoring_time_ms": 2789.45,
+      "notes": "Thomas Paine [SCORING]"
+    },
+    {
+      "filename": "fed_disputed_62.txt",
+      "author_id": "disputed_vs_madison",
+      "label": "authentic",
+      "deviation_score": 0.8491,
+      "authorship_probability": 0.8693,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 2391,
+      "scoring_time_ms": 5880.58,
+      "notes": "DISPUTED paper \u2014 modern consensus: Madison"
+    },
+    {
+      "filename": "fed_disputed_50.txt",
+      "author_id": "disputed_vs_madison",
+      "label": "authentic",
+      "deviation_score": 0.9609,
+      "authorship_probability": 0.91,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 1112,
+      "scoring_time_ms": 4352.59,
+      "notes": "DISPUTED paper \u2014 modern consensus: Madison"
+    },
+    {
+      "filename": "fed_disputed_49.txt",
+      "author_id": "disputed_vs_madison",
+      "label": "authentic",
+      "deviation_score": 0.9404,
+      "authorship_probability": 0.9114,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 1654,
+      "scoring_time_ms": 4994.4,
+      "notes": "DISPUTED paper \u2014 modern consensus: Madison"
+    },
+    {
+      "filename": "fed_disputed_53.txt",
+      "author_id": "disputed_vs_madison",
+      "label": "authentic",
+      "deviation_score": 0.8136,
+      "authorship_probability": 0.9289,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 2172,
+      "scoring_time_ms": 5337.8,
+      "notes": "DISPUTED paper \u2014 modern consensus: Madison"
+    },
+    {
+      "filename": "fed_disputed_52.txt",
+      "author_id": "disputed_vs_madison",
+      "label": "authentic",
+      "deviation_score": 0.8598,
+      "authorship_probability": 0.9239,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 1852,
+      "scoring_time_ms": 5160.27,
+      "notes": "DISPUTED paper \u2014 modern consensus: Madison"
+    },
+    {
+      "filename": "douglass_170.txt",
+      "author_id": "douglass",
+      "label": "authentic",
+      "deviation_score": 0.8407,
+      "authorship_probability": 0.8199,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 922,
+      "scoring_time_ms": 2168.25,
+      "notes": "Frederick Douglass [SCORING]"
+    },
+    {
+      "filename": "douglass_035.txt",
+      "author_id": "douglass",
+      "label": "authentic",
+      "deviation_score": 0.9479,
+      "authorship_probability": 0.8139,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 814,
+      "scoring_time_ms": 2251.71,
+      "notes": "Frederick Douglass [SCORING]"
+    },
+    {
+      "filename": "douglass_013.txt",
+      "author_id": "douglass",
+      "label": "authentic",
+      "deviation_score": 0.9792,
+      "authorship_probability": 0.8326,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 852,
+      "scoring_time_ms": 2151.1,
+      "notes": "Frederick Douglass [SCORING]"
+    },
+    {
+      "filename": "douglass_077.txt",
+      "author_id": "douglass",
+      "label": "authentic",
+      "deviation_score": 0.8141,
+      "authorship_probability": 0.8418,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 1333,
+      "scoring_time_ms": 2828.84,
+      "notes": "Frederick Douglass [SCORING]"
+    },
+    {
+      "filename": "douglass_069.txt",
+      "author_id": "douglass",
+      "label": "authentic",
+      "deviation_score": 0.9813,
+      "authorship_probability": 0.7823,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 1057,
+      "scoring_time_ms": 2537.02,
+      "notes": "Frederick Douglass [SCORING]"
+    },
+    {
+      "filename": "fed_jay_05.txt",
+      "author_id": "jay",
+      "label": "authentic",
+      "deviation_score": 0.9972,
+      "authorship_probability": 0.9108,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 1347,
+      "scoring_time_ms": 2343.93,
+      "notes": "JAY undisputed"
+    },
+    {
+      "filename": "fed_jay_64.txt",
+      "author_id": "jay",
+      "label": "authentic",
+      "deviation_score": 0.9741,
+      "authorship_probability": 0.9102,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 2315,
+      "scoring_time_ms": 3468.79,
+      "notes": "JAY undisputed"
+    },
+    {
+      "filename": "fed_hamilton_23.txt",
+      "author_id": "jay",
+      "label": "ghostwritten",
+      "deviation_score": 0.9981,
+      "authorship_probability": 0.8983,
+      "recommended_action": "escalate",
+      "is_same_author": false,
+      "word_count": 1805,
+      "scoring_time_ms": 2872.84,
+      "notes": "HAMILTON paper scored against Jay baseline (cross-author test)"
+    },
+    {
+      "filename": "fed_hamilton_24.txt",
+      "author_id": "jay",
+      "label": "ghostwritten",
+      "deviation_score": 0.9912,
+      "authorship_probability": 0.8912,
+      "recommended_action": "escalate",
+      "is_same_author": false,
+      "word_count": 2008,
+      "scoring_time_ms": 3170.06,
+      "notes": "HAMILTON paper scored against Jay baseline (cross-author test)"
+    },
+    {
+      "filename": "fed_hamilton_25.txt",
+      "author_id": "jay",
+      "label": "ghostwritten",
+      "deviation_score": 0.9995,
+      "authorship_probability": 0.8865,
+      "recommended_action": "escalate",
+      "is_same_author": false,
+      "word_count": 1991,
+      "scoring_time_ms": 3090.27,
+      "notes": "HAMILTON paper scored against Jay baseline (cross-author test)"
+    },
+    {
+      "filename": "lincoln_088.txt",
+      "author_id": "lincoln",
+      "label": "authentic",
+      "deviation_score": 0.9645,
+      "authorship_probability": 0.7987,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 835,
+      "scoring_time_ms": 1820.1,
+      "notes": "Abraham Lincoln [SCORING]"
+    },
+    {
+      "filename": "lincoln_021.txt",
+      "author_id": "lincoln",
+      "label": "authentic",
+      "deviation_score": 1.0,
+      "authorship_probability": 0.7847,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 823,
+      "scoring_time_ms": 1474.53,
+      "notes": "Abraham Lincoln [SCORING]"
+    },
+    {
+      "filename": "lincoln_010.txt",
+      "author_id": "lincoln",
+      "label": "authentic",
+      "deviation_score": 0.9707,
+      "authorship_probability": 0.7811,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 851,
+      "scoring_time_ms": 1989.05,
+      "notes": "Abraham Lincoln [SCORING]"
+    },
+    {
+      "filename": "lincoln_101.txt",
+      "author_id": "lincoln",
+      "label": "authentic",
+      "deviation_score": 0.9826,
+      "authorship_probability": 0.7882,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 808,
+      "scoring_time_ms": 1993.42,
+      "notes": "Abraham Lincoln [SCORING]"
+    },
+    {
+      "filename": "lincoln_042.txt",
+      "author_id": "lincoln",
+      "label": "authentic",
+      "deviation_score": 0.9853,
+      "authorship_probability": 0.799,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 838,
+      "scoring_time_ms": 1860.11,
+      "notes": "Abraham Lincoln [SCORING]"
+    },
+    {
+      "filename": "fed_hamilton_26.txt",
+      "author_id": "madison",
+      "label": "ghostwritten",
+      "deviation_score": 1.0,
+      "authorship_probability": 0.8678,
+      "recommended_action": "escalate",
+      "is_same_author": false,
+      "word_count": 2388,
+      "scoring_time_ms": 5802.73,
+      "notes": "HAMILTON paper scored against Madison baseline (cross-author test)"
+    },
+    {
+      "filename": "fed_madison_44.txt",
+      "author_id": "madison",
+      "label": "authentic",
+      "deviation_score": 1.0,
+      "authorship_probability": 0.8747,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 2905,
+      "scoring_time_ms": 6173.32,
+      "notes": "MADISON undisputed"
+    },
+    {
+      "filename": "fed_madison_43.txt",
+      "author_id": "madison",
+      "label": "authentic",
+      "deviation_score": 1.0,
+      "authorship_probability": 0.8726,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 3444,
+      "scoring_time_ms": 6950.76,
+      "notes": "MADISON undisputed"
+    },
+    {
+      "filename": "fed_madison_47.txt",
+      "author_id": "madison",
+      "label": "authentic",
+      "deviation_score": 0.961,
+      "authorship_probability": 0.915,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 2750,
+      "scoring_time_ms": 6095.64,
+      "notes": "MADISON undisputed"
+    },
+    {
+      "filename": "fed_madison_46.txt",
+      "author_id": "madison",
+      "label": "authentic",
+      "deviation_score": 0.9078,
+      "authorship_probability": 0.8965,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 2620,
+      "scoring_time_ms": 5874.85,
+      "notes": "MADISON undisputed"
+    },
+    {
+      "filename": "burke_170.txt",
+      "author_id": "burke",
+      "label": "authentic",
+      "deviation_score": 1.0,
+      "authorship_probability": 0.509,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 978,
+      "scoring_time_ms": 1390.12,
+      "notes": "Edmund Burke [SCORING]"
+    },
+    {
+      "filename": "burke_035.txt",
+      "author_id": "burke",
+      "label": "authentic",
+      "deviation_score": 1.0,
+      "authorship_probability": 0.6767,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 893,
+      "scoring_time_ms": 1487.23,
+      "notes": "Edmund Burke [SCORING]"
+    },
+    {
+      "filename": "burke_013.txt",
+      "author_id": "burke",
+      "label": "authentic",
+      "deviation_score": 0.9993,
+      "authorship_probability": 0.8115,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 908,
+      "scoring_time_ms": 1796.61,
+      "notes": "Edmund Burke [SCORING]"
+    },
+    {
+      "filename": "burke_077.txt",
+      "author_id": "burke",
+      "label": "authentic",
+      "deviation_score": 0.9885,
+      "authorship_probability": 0.8047,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 814,
+      "scoring_time_ms": 1777.28,
+      "notes": "Edmund Burke [SCORING]"
+    },
+    {
+      "filename": "burke_069.txt",
+      "author_id": "burke",
+      "label": "authentic",
+      "deviation_score": 1.0,
+      "authorship_probability": 0.8295,
+      "recommended_action": "escalate",
+      "is_same_author": true,
+      "word_count": 937,
+      "scoring_time_ms": 2130.39,
+      "notes": "Edmund Burke [SCORING]"
+    }
+  ]
+}

@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Original — AI Writing Detection & Stylometric Analysis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --navy: #1e3a5f;
+            --gold: #c9a84c;
+            --white: #ffffff;
+            --light-gray: #f8f9fa;
+            --dark-gray: #2c3e50;
+            --border-gray: #e0e0e0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            color: var(--dark-gray);
+            background-color: var(--white);
+            line-height: 1.6;
+        }
+
+        /* ===== NAVBAR ===== */
+        nav {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background-color: var(--white);
+            border-bottom: 1px solid var(--border-gray);
+            padding: 1rem 2rem;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--navy);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo::after {
+            content: '•';
+            color: var(--gold);
+            font-size: 1.8rem;
+            line-height: 1;
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--dark-gray);
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--gold);
+        }
+
+        .cta-button {
+            background-color: var(--gold);
+            color: var(--navy);
+            padding: 0.6rem 1.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background-color 0.3s, transform 0.2s;
+            cursor: pointer;
+            border: none;
+            font-size: 0.95rem;
+        }
+
+        .cta-button:hover {
+            background-color: #b8942d;
+            transform: translateY(-2px);
+        }
+
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            cursor: pointer;
+            gap: 0.4rem;
+        }
+
+        .hamburger span {
+            width: 25px;
+            height: 3px;
+            background-color: var(--navy);
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        /* ===== HERO SECTION ===== */
+        .hero {
+            background: linear-gradient(135deg, var(--navy) 0%, #2d5a8c 100%);
+            background-image:
+                linear-gradient(135deg, var(--navy) 0%, #2d5a8c 100%),
+                repeating-linear-gradient(0deg, transparent, transparent 35px, rgba(255,255,255,.05) 35px, rgba(255,255,255,.05) 70px);
+            color: var(--white);
+            padding: 6rem 2rem;
+            text-align: center;
+        }
+
+        .hero-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            line-height: 1.2;
+        }
+
+        .hero .subheadline {
+            font-size: 1.2rem;
+            margin-bottom: 2.5rem;
+            line-height: 1.8;
+            opacity: 0.95;
+        }
+
+        .hero-ctas {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .cta-primary {
+            background-color: var(--gold);
+            color: var(--navy);
+            padding: 0.9rem 2rem;
+            border-radius: 4px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background-color 0.3s, transform 0.2s;
+            cursor: pointer;
+            border: none;
+            font-size: 1rem;
+        }
+
+        .cta-primary:hover {
+            background-color: #b8942d;
+            transform: translateY(-2px);
+        }
+
+        .cta-secondary {
+            background-color: transparent;
+            color: var(--gold);
+            padding: 0.9rem 2rem;
+            border-radius: 4px;
+            font-weight: 600;
+            text-decoration: none;
+            border: 2px solid var(--gold);
+            transition: background-color 0.3s, color 0.3s;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .cta-secondary:hover {
+            background-color: var(--gold);
+            color: var(--navy);
+        }
+
+        /* ===== PROBLEM SECTION ===== */
+        .problem {
+            background-color: var(--light-gray);
+            padding: 5rem 2rem;
+        }
+
+        .problem-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .problem h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 3rem;
+            color: var(--navy);
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .comparison-card {
+            background-color: var(--white);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .comparison-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+
+        .comparison-tool {
+            font-weight: 600;
+            color: var(--gold);
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+
+        .comparison-them {
+            background-color: #fff0f0;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            border-left: 4px solid #e74c3c;
+        }
+
+        .comparison-original {
+            background-color: #f0f8ff;
+            padding: 1rem;
+            border-radius: 4px;
+            border-left: 4px solid var(--navy);
+        }
+
+        .comparison-them::before {
+            content: 'Traditional: ';
+            font-weight: 600;
+            color: #c0392b;
+        }
+
+        .comparison-original::before {
+            content: 'Original: ';
+            font-weight: 600;
+            color: var(--navy);
+        }
+
+        /* ===== HOW IT WORKS SECTION ===== */
+        .how-it-works {
+            background-color: var(--white);
+            padding: 5rem 2rem;
+        }
+
+        .how-it-works-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .how-it-works h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 3rem;
+            color: var(--navy);
+        }
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .step {
+            text-align: center;
+        }
+
+        .step-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: var(--gold);
+        }
+
+        .step h3 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--navy);
+            margin-bottom: 0.5rem;
+        }
+
+        .step p {
+            color: var(--dark-gray);
+            line-height: 1.7;
+        }
+
+        /* ===== 12 TIERS SECTION ===== */
+        .tiers {
+            background-color: var(--navy);
+            padding: 5rem 2rem;
+            color: var(--white);
+        }
+
+        .tiers-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .tiers h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 3rem;
+            color: var(--white);
+        }
+
+        .tiers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .tier-card {
+            background-color: rgba(255,255,255,0.08);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid rgba(201, 168, 76, 0.3);
+            transition: transform 0.3s, background-color 0.3s;
+        }
+
+        .tier-card:hover {
+            transform: translateY(-4px);
+            background-color: rgba(255,255,255,0.12);
+        }
+
+        .tier-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--gold);
+            margin-bottom: 0.5rem;
+        }
+
+        .tier-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.8rem;
+            color: var(--white);
+        }
+
+        .tier-description {
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.85);
+            line-height: 1.6;
+        }
+
+        /* ===== IRONIC GUARANTEE SECTION ===== */
+        .guarantee {
+            background-color: var(--light-gray);
+            padding: 5rem 2rem;
+        }
+
+        .guarantee-container {
+            max-width: 900px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .guarantee h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            color: var(--navy);
+        }
+
+        .guarantee p {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            margin-bottom: 2rem;
+            color: var(--dark-gray);
+        }
+
+        .guarantee-quote {
+            font-size: 1.4rem;
+            font-style: italic;
+            color: var(--navy);
+            padding: 2rem;
+            background-color: var(--white);
+            border-left: 5px solid var(--gold);
+            margin-top: 2rem;
+            border-radius: 4px;
+        }
+
+        /* ===== FOR INSTITUTIONS SECTION ===== */
+        .for-institutions {
+            background-color: var(--white);
+            padding: 5rem 2rem;
+        }
+
+        .for-institutions-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .for-institutions h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 3rem;
+            color: var(--navy);
+        }
+
+        .audience-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .audience-card {
+            background-color: var(--light-gray);
+            padding: 2rem;
+            border-radius: 8px;
+            border-top: 4px solid var(--gold);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .audience-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+
+        .audience-card h3 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--navy);
+            margin-bottom: 1rem;
+        }
+
+        .audience-card p {
+            color: var(--dark-gray);
+            line-height: 1.7;
+        }
+
+        /* ===== REQUEST ACCESS FORM SECTION ===== */
+        .request-access {
+            background-color: var(--navy);
+            padding: 5rem 2rem;
+            color: var(--white);
+        }
+
+        .request-access-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .request-access h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 4px;
+            background-color: rgba(255,255,255,0.1);
+            color: var(--white);
+            font-family: 'Inter', system-ui, sans-serif;
+            font-size: 1rem;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        .form-group input::placeholder,
+        .form-group textarea::placeholder {
+            color: rgba(255,255,255,0.6);
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            background-color: rgba(255,255,255,0.15);
+            border-color: var(--gold);
+        }
+
+        .form-group select {
+            cursor: pointer;
+        }
+
+        .form-group select option {
+            background-color: var(--navy);
+            color: var(--white);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .form-submit {
+            width: 100%;
+            background-color: var(--gold);
+            color: var(--navy);
+            padding: 0.9rem;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        .form-submit:hover {
+            background-color: #b8942d;
+            transform: translateY(-2px);
+        }
+
+        .form-submit:active {
+            transform: translateY(0);
+        }
+
+        .form-disclaimer {
+            text-align: center;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.7);
+        }
+
+        /* ===== FOOTER ===== */
+        footer {
+            background-color: var(--dark-gray);
+            color: var(--white);
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-logo {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .footer-tagline {
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .footer-links a:hover {
+            color: var(--gold);
+        }
+
+        .footer-copyright {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.6);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 1rem;
+        }
+
+        /* ===== RESPONSIVE DESIGN ===== */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .hamburger {
+                display: flex;
+            }
+
+            .hero h1 {
+                font-size: 2.2rem;
+            }
+
+            .hero .subheadline {
+                font-size: 1rem;
+            }
+
+            .hero-ctas {
+                flex-direction: column;
+                gap: 0.8rem;
+            }
+
+            .cta-primary,
+            .cta-secondary {
+                width: 100%;
+            }
+
+            .problem h2,
+            .how-it-works h2,
+            .tiers h2,
+            .guarantee h2,
+            .for-institutions h2,
+            .request-access h2 {
+                font-size: 2rem;
+            }
+
+            .tiers-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+
+            .guarantee-quote {
+                font-size: 1.2rem;
+                padding: 1.5rem;
+            }
+
+            .footer-links {
+                gap: 1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            nav {
+                padding: 1rem;
+            }
+
+            .nav-container {
+                padding: 0;
+            }
+
+            .logo {
+                font-size: 1.2rem;
+            }
+
+            .hero {
+                padding: 3rem 1rem;
+            }
+
+            .hero h1 {
+                font-size: 1.8rem;
+            }
+
+            .hero .subheadline {
+                font-size: 0.95rem;
+            }
+
+            .problem,
+            .how-it-works,
+            .tiers,
+            .guarantee,
+            .for-institutions,
+            .request-access {
+                padding: 3rem 1rem;
+            }
+
+            .comparison-grid,
+            .steps-grid,
+            .audience-grid {
+                gap: 1rem;
+            }
+
+            .tiers-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- NAV BAR -->
+    <nav>
+        <div class="nav-container">
+            <div class="logo">Original</div>
+            <ul class="nav-links">
+                <li><a href="#how-it-works">How It Works</a></li>
+                <li><a href="#for-institutions">For Institutions</a></li>
+                <li><a href="#pricing">Pricing</a></li>
+                <li><a href="#sign-in">Sign In</a></li>
+            </ul>
+            <button class="cta-button">Request Access</button>
+            <div class="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <section class="hero">
+        <div class="hero-container">
+            <h1>Your Students Can't Fake Being Themselves.</h1>
+            <p class="subheadline">Original uses 103 stylometric features to build a unique writing fingerprint for every student — making AI-assisted cheating detectable not by what was written, but by who wrote it.</p>
+            <div class="hero-ctas">
+                <a href="professor.html" class="cta-primary">See a Live Demo</a>
+                <a href="#how-it-works" class="cta-secondary">Read the Research</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- PROBLEM SECTION -->
+    <section class="problem">
+        <div class="problem-container">
+            <h2>Every Other Tool Looks at the Writing. We Look at the Writer.</h2>
+            <div class="comparison-grid">
+                <div class="comparison-card">
+                    <div class="comparison-tool">Turnitin</div>
+                    <div class="comparison-them">Matches text against database</div>
+                    <div class="comparison-original">Matches writing against the student</div>
+                </div>
+                <div class="comparison-card">
+                    <div class="comparison-tool">GPTZero</div>
+                    <div class="comparison-them">Detects AI-sounding prose</div>
+                    <div class="comparison-original">Detects deviation from personal baseline</div>
+                </div>
+                <div class="comparison-card">
+                    <div class="comparison-tool">Copy.ai Detection</div>
+                    <div class="comparison-them">Flags generic patterns</div>
+                    <div class="comparison-original">Flags identity divergence across 103 dimensions</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- HOW IT WORKS SECTION -->
+    <section class="how-it-works" id="how-it-works">
+        <div class="how-it-works-container">
+            <h2>Three Steps to Academic Integrity</h2>
+            <div class="steps-grid">
+                <div class="step">
+                    <div class="step-icon">①</div>
+                    <h3>Build the Baseline</h3>
+                    <p>Student submits 3–5 early papers. Original extracts 103 stylometric features: sentence rhythm, vocabulary range, error patterns, argument structure, and more.</p>
+                </div>
+                <div class="step">
+                    <div class="step-icon">②</div>
+                    <h3>Analyze New Work</h3>
+                    <p>Every new submission is scored against the student's personal baseline using a quantum density matrix — a mathematical representation of their writing identity.</p>
+                </div>
+                <div class="step">
+                    <div class="step-icon">③</div>
+                    <h3>Flag Real Deviations</h3>
+                    <p>If the new work diverges statistically from their baseline, Original flags it — with a breakdown by tier showing which dimensions diverged and by how much.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 12 TIERS SECTION -->
+    <section class="tiers">
+        <div class="tiers-container">
+            <h2>103 Features Across 17 Dimensions of Writing Identity</h2>
+            <div class="tiers-grid">
+                <div class="tier-card">
+                    <div class="tier-number">T1</div>
+                    <div class="tier-name">Surface Texture</div>
+                    <div class="tier-description">Character-level patterns, whitespace, and formatting choices.</div>
+                </div>
+                <div class="tier-card">
+                    <div class="tier-number">T2</div>
+                    <div class="tier-name">Discourse Flow</div>
+                    <div class="tier-description">Paragraph transitions and topical coherence patterns.</div>
+                </div>
+                <div class="tier-card">
+                    <div class="tier-number">T3</div>
+                    <div class="tier-name">Rhetorical Structure</div>
+                    <div class="tier-description">Argument organization and persuasive technique signatures.</div>
+                </div>
+                <div class="tier-card">
+                    <div class="tier-number">T4</div>
+                    <div class="tier-name">Character & Punctuation</div>
+                    <div class="tier-description">Punctuation habits and special character usage patterns.</div>
+                </div>
+                <div class="tier-card">
+                    <div class="tier-number">T5</div>
+                    <div class="tier-name">POS & Syntax</div>
+                    <div class="tier-description">Part-of-speech patterns and syntactic complexity profiles.</div>
+                </div>
+                <div class="tier-card">
+                    <div class="tier-number">T6</div>
+                    <div class="tier-name">Idiosyncratic Markers</div>
+                    <div class="tier-description">Personal quirks and distinctive linguistic habits.</div>
+                </div>
+                <div class="tier-card">
+                    <div class="tier-number">T7</div>
+                    <div class="tier-name">AI Detection Signals</div>
+                    <div class="tier-description">Vocabulary artificiality and repetition patterns indicative of synthesis.</div>
+                </div>
+                <div class="tier-card">
+                    <div class="tier-number">T8</div>
+                    <div class="tier-name">Prosodic Rhythm</div>
+                    <div class="tier-description">Sentence-level stress patterns, cadence variation, and rhythmic fingerprint.</div>
+                </div>
+                <div class="tier-card">
+                    <div class="tier-number">T9</div>
+                    <div class="tier-name">Cognitive Sequencing</div>
+                    <div class="tier-description">Order of idea presentation, argument scaffolding, and conceptual flow.</div>
+                </div>
+                <div class="tier-card">
+                    <div class="tier-number">T10</div>
+                    <div class="tier-name">Semantic Gravity</div>
+                    <div class="tier-description">Abstraction-level shifts, grounding moves, and conceptual density.</div>
+                </div>
+                <div class="tier-card">
+                    <div class="tier-number">T11</div>
+                    <div class="tier-name">Error Ecology</div>
+                    <div class="tier-description">Systematic error patterns (comma splices, adjective chains) as authenticity fingerprint.</div>
+                </div>
+                <div class="tier-card">
+                    <div class="tier-number">T12</div>
+                    <div class="tier-name">Tension Arc</div>
+                    <div class="tier-description">Catastrophe index κ: structural unresolved tension across document paragraphs.</div>
+                </div>
+                <div class="tier-card">
+                    <div class="tier-number">T13</div>
+                    <div class="tier-name">Prosodic Depth</div>
+                    <div class="tier-description">Clausula types, vowel sonority, breath-group regularity, arc resolution.</div>
+                </div>
+                <div class="tier-card">
+                    <div class="tier-number">T14</div>
+                    <div class="tier-name">Error Topology</div>
+                    <div class="tier-description">Article omission, pronoun ambiguity, comma splices — positional error fingerprint.</div>
+                </div>
+                <div class="tier-card">
+                    <div class="tier-number">T15</div>
+                    <div class="tier-name">Lexical Architecture</div>
+                    <div class="tier-description">Polysyndeton, chiasmus, Latinate ratio, nominalization — structural vocabulary habits.</div>
+                </div>
+                <div class="tier-card">
+                    <div class="tier-number">T16</div>
+                    <div class="tier-name">Citation Fingerprint</div>
+                    <div class="tier-description">Signal verb entropy, source loyalty, ibid. habit, paraphrase density.</div>
+                </div>
+                <div class="tier-card">
+                    <div class="tier-number">T17</div>
+                    <div class="tier-name">Behavioral Biometrics</div>
+                    <div class="tier-description">Keystroke rhythm, burst typing, deletion rate — live-proctor identity signal.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- IRONIC GUARANTEE SECTION -->
+    <section class="guarantee">
+        <div class="guarantee-container">
+            <h2>The Ironic Guarantee</h2>
+            <p>Original generates personalized writing prompts calibrated to each student's own baseline. To successfully fool Original, a student would need to write in their own voice, match their own error patterns, maintain their own rhythmic fingerprint, and structure arguments the way they personally do. In other words: they'd have to do the work themselves. That's not a bug. That's the system working.</p>
+            <div class="guarantee-quote">"Cheating Original is indistinguishable from doing the work."</div>
+        </div>
+    </section>
+
+    <!-- FOR INSTITUTIONS SECTION -->
+    <section class="for-institutions" id="for-institutions">
+        <div class="for-institutions-container">
+            <h2>Built for Your Institution</h2>
+            <div class="audience-grid">
+                <div class="audience-card">
+                    <h3>Professors</h3>
+                    <p>Flag suspicious submissions instantly. See exactly which dimensions diverged. Schedule a conversation with one click.</p>
+                </div>
+                <div class="audience-card">
+                    <h3>Students</h3>
+                    <p>Build your writing identity over time. Get personalized feedback. Know your work is protected.</p>
+                </div>
+                <div class="audience-card">
+                    <h3>Deans & Administrators</h3>
+                    <p>Institution-wide integrity dashboard. Canvas LTI integration. CSV export for Turnitin comparison.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- REQUEST ACCESS FORM SECTION -->
+    <section class="request-access">
+        <div class="request-access-container">
+            <h2>Join the Early Access Program</h2>
+            <form id="accessForm">
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input type="text" id="name" name="name" placeholder="Your full name" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" placeholder="you@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="institution">Institution</label>
+                    <input type="text" id="institution" name="institution" placeholder="University or School Name" required>
+                </div>
+                <div class="form-group">
+                    <label for="role">Role</label>
+                    <select id="role" name="role" required>
+                        <option value="">Select your role...</option>
+                        <option value="professor">Professor</option>
+                        <option value="department-head">Department Head</option>
+                        <option value="dean">Dean</option>
+                        <option value="administrator">Administrator</option>
+                        <option value="student">Student</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="challenge">What's your biggest academic integrity challenge?</label>
+                    <textarea id="challenge" name="challenge" placeholder="Tell us what you're trying to solve..." required></textarea>
+                </div>
+                <button type="submit" class="form-submit">Request Access</button>
+                <div class="form-disclaimer">We're onboarding institutions on a rolling basis. You'll hear back within 48 hours.</div>
+            </form>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-container">
+            <div class="footer-logo">Original</div>
+            <div class="footer-tagline">Writing is identity.</div>
+            <div class="footer-links">
+                <a href="#privacy">Privacy</a>
+                <a href="#terms">Terms</a>
+                <a href="#contact">Contact</a>
+            </div>
+            <div class="footer-copyright">© 2026 Original. All rights reserved.</div>
+        </div>
+    </footer>
+
+    <script>
+        // Smooth scroll for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+
+        // Form submission handler (no backend, just show confirmation)
+        document.getElementById('accessForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            alert(`Thank you, ${formData.get('name')}! We've received your request. You'll hear from us within 48 hours.`);
+            this.reset();
+        });
+
+        // Hamburger menu toggle (for future mobile nav enhancement)
+        const hamburger = document.querySelector('.hamburger');
+        if (hamburger) {
+            hamburger.addEventListener('click', function() {
+                const navLinks = document.querySelector('.nav-links');
+                if (navLinks) {
+                    navLinks.style.display = navLinks.style.display === 'flex' ? 'none' : 'flex';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

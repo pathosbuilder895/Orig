@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Original — Reports</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+    :root{
+      --green-deepest:#0f1e17;--green-deep:#162b22;--green-mid:#1e3d2f;
+      --green-hover:#243d30;--green-border:rgba(255,255,255,0.07);
+      --cream:#f7f3ea;--cream-warm:#ede8d8;--cream-border:#e2dccf;
+      --surface:#ffffff;--gold:#c9a028;--gold-light:rgba(201,160,40,0.12);
+      --gold-muted:rgba(201,160,40,0.35);--amber:#9b6420;
+      --text-primary:#1a130a;--text-secondary:#5a4030;--text-muted:#8a7060;
+      --text-cream:#f7f3ea;--text-cream-dim:rgba(247,243,234,0.55);
+      --flag-red:#c0392b;--flag-red-bg:rgba(192,57,43,0.08);
+      --flag-green:#2a6b45;--flag-green-bg:rgba(42,107,69,0.1);
+      --sidebar-w:264px;--radius:6px;
+      --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+    }
+    html,body{height:100%;}
+    body{font-family:'Inter',system-ui,sans-serif;background:var(--cream);color:var(--text-primary);display:flex;overflow:hidden;font-size:14px;line-height:1.5;}
+
+    .sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);height:100vh;background:var(--green-deep);display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:100;border-right:1px solid var(--green-border);}
+    .sidebar-logo{padding:1.5rem 1.5rem 1.25rem;border-bottom:1px solid var(--green-border);}
+    .logo-mark{display:flex;align-items:center;gap:0.75rem;margin-bottom:0.35rem;}
+    .logo-icon{width:30px;height:30px;border:1px solid var(--gold-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .logo-icon svg{width:14px;height:14px;stroke:var(--gold);}
+    .logo-wordmark{font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;color:var(--text-cream);letter-spacing:0.06em;}
+    .logo-school{font-family:'EB Garamond',serif;font-size:0.78rem;font-style:italic;color:var(--text-cream-dim);letter-spacing:0.03em;padding-left:2.8rem;}
+    .sidebar-nav{flex:1;padding:1rem 0;overflow-y:auto;}
+    .nav-section-label{font-size:0.65rem;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-cream-dim);padding:0.6rem 1.5rem 0.3rem;margin-top:0.5rem;}
+    .nav-item{display:flex;align-items:center;gap:0.75rem;padding:0.6rem 1.5rem;color:rgba(247,243,234,0.65);text-decoration:none;font-size:0.875rem;font-weight:500;cursor:pointer;transition:color 0.15s,background 0.15s;border-left:2px solid transparent;letter-spacing:0.01em;}
+    .nav-item:hover{color:var(--text-cream);background:var(--green-hover);}
+    .nav-item.active{color:var(--text-cream);border-left-color:var(--gold);background:rgba(201,160,40,0.08);}
+    .nav-item svg{width:16px;height:16px;stroke:currentColor;flex-shrink:0;opacity:0.85;}
+    .nav-badge{margin-left:auto;background:var(--gold);color:var(--green-deepest);font-size:0.65rem;font-weight:700;padding:0.15rem 0.45rem;border-radius:20px;}
+    .sidebar-user{border-top:1px solid var(--green-border);padding:1rem 1.25rem;display:flex;align-items:center;gap:0.75rem;}
+    .user-avatar{width:32px;height:32px;border-radius:50%;background:var(--green-mid);border:1px solid var(--gold-muted);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:0.8rem;color:var(--gold);flex-shrink:0;}
+    .user-info{flex:1;min-width:0;}
+    .user-name{font-size:0.825rem;font-weight:500;color:var(--text-cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .user-role{font-size:0.72rem;color:var(--text-cream-dim);font-style:italic;font-family:'EB Garamond',serif;}
+    .user-settings{width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--text-cream-dim);cursor:pointer;border-radius:4px;}
+    .user-settings svg{width:15px;height:15px;stroke:currentColor;}
+
+    .main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+    .topbar{background:var(--cream);border-bottom:1px solid var(--cream-border);padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+    .breadcrumb{display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;color:var(--text-muted);}
+    .breadcrumb a{color:var(--text-muted);text-decoration:none;transition:color 0.15s;}
+    .breadcrumb a:hover{color:var(--amber);}
+    .breadcrumb-sep{color:var(--cream-border);}
+    .breadcrumb-current{font-weight:500;color:var(--text-secondary);}
+    .topbar-right{display:flex;align-items:center;gap:0.75rem;}
+    .semester-badge{font-family:'EB Garamond',serif;font-size:0.85rem;font-style:italic;color:var(--text-muted);background:var(--cream-warm);border:1px solid var(--cream-border);padding:0.3rem 0.85rem;border-radius:20px;}
+    .topbar-icon-btn{width:32px;height:32px;border-radius:var(--radius);border:1px solid var(--cream-border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-secondary);position:relative;}
+    .topbar-icon-btn svg{width:15px;height:15px;stroke:currentColor;}
+    .notif-dot{position:absolute;top:6px;right:6px;width:6px;height:6px;background:var(--gold);border-radius:50%;border:1.5px solid var(--cream);}
+
+    .page-body{flex:1;overflow-y:auto;padding:2rem 2rem 3rem;}
+    .page-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:1.75rem;}
+    .page-title{font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:600;color:var(--text-primary);letter-spacing:-0.01em;}
+    .page-subtitle{font-family:'EB Garamond',serif;font-size:0.95rem;font-style:italic;color:var(--text-muted);margin-top:0.2rem;}
+    .page-actions{display:flex;gap:0.75rem;}
+    .btn{display:inline-flex;align-items:center;gap:0.45rem;padding:0.5rem 1.1rem;border-radius:var(--radius);font-size:0.825rem;font-weight:500;cursor:pointer;transition:all 0.15s;text-decoration:none;border:none;letter-spacing:0.01em;}
+    .btn svg{width:14px;height:14px;stroke:currentColor;}
+    .btn-ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--cream-border);}
+    .btn-ghost:hover{background:var(--surface);border-color:var(--gold-muted);color:var(--text-primary);}
+    .btn-primary{background:var(--green-deep);color:var(--text-cream);border:1px solid var(--green-deep);}
+    .btn-primary:hover{background:var(--green-mid);}
+
+    /* RANGE TABS */
+    .range-tabs{display:inline-flex;border:1px solid var(--cream-border);border-radius:var(--radius);overflow:hidden;background:var(--surface);}
+    .range-tab{padding:0.4rem 1rem;font-size:0.775rem;font-weight:500;color:var(--text-muted);cursor:pointer;transition:all 0.15s;border:none;background:transparent;}
+    .range-tab.active{background:var(--green-deep);color:var(--text-cream);}
+    .range-tab:hover:not(.active){background:var(--cream-warm);color:var(--text-primary);}
+
+    /* SUMMARY STATS */
+    .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.75rem;}
+    .stat-card{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:1.1rem 1.25rem;box-shadow:var(--shadow-sm);position:relative;overflow:hidden;}
+    .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+    .stat-card.t-default::before{background:var(--cream-border);}
+    .stat-card.t-gold::before{background:var(--gold);}
+    .stat-card.t-green::before{background:var(--flag-green);}
+    .stat-card.t-red::before{background:var(--flag-red);}
+    .stat-label{font-size:0.68rem;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.5rem;}
+    .stat-value{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:600;color:var(--text-primary);line-height:1;margin-bottom:0.3rem;}
+    .stat-card.t-gold .stat-value{color:var(--amber);}
+    .stat-card.t-red .stat-value{color:var(--flag-red);}
+    .stat-trend{display:flex;align-items:center;gap:0.35rem;font-size:0.72rem;}
+    .trend-up{color:var(--flag-red);}
+    .trend-down{color:var(--flag-green);}
+    .trend-neutral{color:var(--text-muted);}
+    .stat-trend svg{width:12px;height:12px;stroke:currentColor;}
+
+    /* CHART CARDS */
+    .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;}
+    .chart-card{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden;}
+    .chart-head{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.4rem;border-bottom:1px solid var(--cream-border);}
+    .chart-title{font-family:'Playfair Display',serif;font-size:0.95rem;font-weight:600;color:var(--text-primary);}
+    .chart-meta{font-family:'EB Garamond',serif;font-size:0.78rem;font-style:italic;color:var(--text-muted);}
+    .chart-body{padding:1.25rem 1.4rem;}
+
+    /* SVG CHARTS */
+    .chart-svg{width:100%;overflow:visible;}
+    .chart-legend{display:flex;gap:1.25rem;margin-top:0.75rem;}
+    .legend-item{display:flex;align-items:center;gap:0.4rem;font-size:0.72rem;color:var(--text-muted);}
+    .legend-swatch{width:12px;height:3px;border-radius:2px;}
+
+    /* BASELINE COVERAGE BY COURSE */
+    .coverage-list{padding:0.75rem 1.4rem;display:flex;flex-direction:column;gap:0.75rem;}
+    .coverage-row{display:grid;grid-template-columns:1fr 50px 100px;align-items:center;gap:0.75rem;}
+    .coverage-label{font-size:0.825rem;font-weight:500;color:var(--text-secondary);}
+    .coverage-pct{font-size:0.825rem;font-weight:600;color:var(--text-primary);text-align:right;}
+    .cov-bar{height:6px;background:var(--cream-border);border-radius:3px;overflow:hidden;}
+    .cov-fill{height:100%;border-radius:3px;}
+
+    /* DECISION OUTCOMES TABLE */
+    .outcomes-table{width:100%;}
+    .outcomes-head{display:grid;grid-template-columns:1.5fr 1fr 1fr 80px 80px;padding:0.6rem 1.4rem;background:var(--cream);border-bottom:1px solid var(--cream-border);}
+    .th{font-size:0.68rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);}
+    .th.right{text-align:right;}.th.center{text-align:center;}
+    .outcomes-row{display:grid;grid-template-columns:1.5fr 1fr 1fr 80px 80px;padding:0.8rem 1.4rem;border-bottom:1px solid var(--cream-border);align-items:center;}
+    .outcomes-row:last-child{border-bottom:none;}
+    .td{font-size:0.825rem;color:var(--text-secondary);}
+    .td.right{text-align:right;}.td.center{text-align:center;}
+    .outcome-pill{display:inline-flex;align-items:center;gap:0.25rem;font-size:0.7rem;font-weight:600;padding:0.15rem 0.55rem;border-radius:20px;}
+    .outcome-pill.escalated{background:var(--flag-red-bg);color:var(--flag-red);border:1px solid rgba(192,57,43,0.2);}
+    .outcome-pill.cleared{background:var(--flag-green-bg);color:var(--flag-green);border:1px solid rgba(42,107,69,0.2);}
+    .outcome-pill.monitoring{background:rgba(201,160,40,0.1);color:var(--amber);border:1px solid rgba(201,160,40,0.25);}
+    .outcome-pill.pending{background:var(--cream-warm);color:var(--text-muted);border:1px solid var(--cream-border);}
+
+    /* FULL-WIDTH CHART CARD */
+    .chart-card-full{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:1.5rem;}
+
+    ::-webkit-scrollbar{width:4px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:var(--cream-border);border-radius:2px;}
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+      <span class="logo-wordmark">Original</span>
+    </div>
+    <div class="logo-school">Southern Baptist Theological Seminary</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Overview</div>
+    <a class="nav-item" href="original-dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard</a>
+    <a class="nav-item" href="original-course.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Courses</a>
+    <a class="nav-item" href="original-students.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Students</a>
+    <div class="nav-section-label">Review</div>
+    <a class="nav-item" href="original-flagged.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Flagged<span class="nav-badge">5</span></a>
+    <a class="nav-item active" href="original-reports.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Reports</a>
+        <div class="nav-section-label">Pipeline</div>
+    <a class="nav-item" href="original-features.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Feature Profile</a>
+    <a class="nav-item" href="original-quantum.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>Quantum State</a>
+    <a class="nav-item" href="original-decomposition.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Interference</a>
+    <div class="nav-section-label">Institution</div>
+    <a class="nav-item" href="original-admin.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Admin</a>
+    <a class="nav-item" href="original-settings.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">AC</div>
+    <div class="user-info"><div class="user-name">Dr. Andrew Clark</div><div class="user-role">Instructor</div></div>
+    <div class="user-settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="breadcrumb">
+      <a href="original-dashboard.html">Original</a>
+      <span class="breadcrumb-sep">/</span>
+      <span class="breadcrumb-current">Reports</span>
+    </div>
+    <div class="topbar-right">
+      <div class="semester-badge">Spring 2026</div>
+      <div class="range-tabs">
+        <button class="range-tab" onclick="switchRange(this)">7d</button>
+        <button class="range-tab" onclick="switchRange(this)">30d</button>
+        <button class="range-tab active" onclick="switchRange(this)">This term</button>
+        <button class="range-tab" onclick="switchRange(this)">All time</button>
+      </div>
+      <div class="topbar-icon-btn" style="position:relative;"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-dot"></span></div>
+    </div>
+  </div>
+
+  <div class="page-body">
+
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Reports</h1>
+        <p class="page-subtitle">Spring 2026 · Jan 13 – May 2</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-ghost">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export PDF
+        </button>
+        <button class="btn btn-primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Email Summary
+        </button>
+      </div>
+    </div>
+
+    <!-- Summary stats -->
+    <div class="stats-row">
+      <div class="stat-card t-default">
+        <div class="stat-label">Submissions Analyzed</div>
+        <div class="stat-value">124</div>
+        <div class="stat-trend trend-neutral"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>On pace with last term</div>
+      </div>
+      <div class="stat-card t-gold">
+        <div class="stat-label">Flag Rate</div>
+        <div class="stat-value">9.7<span style="font-size:1.1rem;font-weight:400;">%</span></div>
+        <div class="stat-trend trend-up"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>+2.1% vs last term</div>
+      </div>
+      <div class="stat-card t-green">
+        <div class="stat-label">Clear Rate</div>
+        <div class="stat-value">58<span style="font-size:1.1rem;font-weight:400;">%</span></div>
+        <div class="stat-trend trend-down" style="color:var(--flag-green);"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>Of flags cleared on review</div>
+      </div>
+      <div class="stat-card t-red">
+        <div class="stat-label">Escalated</div>
+        <div class="stat-value">2</div>
+        <div class="stat-trend trend-neutral"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>Referred to Academic Integrity</div>
+      </div>
+    </div>
+
+    <!-- Flag trend + baseline coverage -->
+    <div class="chart-grid">
+
+      <!-- Flag trend over time -->
+      <div class="chart-card">
+        <div class="chart-head">
+          <span class="chart-title">Deviation Flags Over Time</span>
+          <span class="chart-meta">Weekly · Spring 2026</span>
+        </div>
+        <div class="chart-body">
+          <svg class="chart-svg" viewBox="0 0 340 120" height="120">
+            <!-- Grid -->
+            <line x1="0" y1="20" x2="340" y2="20" stroke="#e2dccf" stroke-width="1" stroke-dasharray="3,4"/>
+            <line x1="0" y1="50" x2="340" y2="50" stroke="#e2dccf" stroke-width="1" stroke-dasharray="3,4"/>
+            <line x1="0" y1="80" x2="340" y2="80" stroke="#e2dccf" stroke-width="1" stroke-dasharray="3,4"/>
+            <!-- Y labels -->
+            <text x="0" y="18" font-size="8" fill="#8a7060">6</text>
+            <text x="0" y="48" font-size="8" fill="#8a7060">4</text>
+            <text x="0" y="78" font-size="8" fill="#8a7060">2</text>
+            <!-- Bars -->
+            <rect x="18"  y="110" width="18" height="0"  fill="var(--flag-green)" rx="2" opacity="0.6"/>
+            <rect x="58"  y="110" width="18" height="0"  fill="var(--flag-green)" rx="2" opacity="0.6"/>
+            <rect x="98"  y="95"  width="18" height="15" fill="var(--amber)"      rx="2" opacity="0.7"/>
+            <rect x="138" y="80"  width="18" height="30" fill="var(--amber)"      rx="2" opacity="0.7"/>
+            <rect x="178" y="65"  width="18" height="45" fill="var(--amber)"      rx="2" opacity="0.8"/>
+            <rect x="218" y="50"  width="18" height="60" fill="var(--flag-red)"   rx="2" opacity="0.7"/>
+            <rect x="258" y="35"  width="18" height="75" fill="var(--flag-red)"   rx="2" opacity="0.8"/>
+            <rect x="298" y="20"  width="18" height="90" fill="var(--flag-red)"   rx="2"/>
+            <!-- X labels -->
+            <text x="27"  y="118" font-size="7.5" fill="#8a7060" text-anchor="middle">Jan 20</text>
+            <text x="67"  y="118" font-size="7.5" fill="#8a7060" text-anchor="middle">Feb 3</text>
+            <text x="107" y="118" font-size="7.5" fill="#8a7060" text-anchor="middle">Feb 17</text>
+            <text x="147" y="118" font-size="7.5" fill="#8a7060" text-anchor="middle">Mar 3</text>
+            <text x="187" y="118" font-size="7.5" fill="#8a7060" text-anchor="middle">Mar 17</text>
+            <text x="227" y="118" font-size="7.5" fill="#8a7060" text-anchor="middle">Mar 31</text>
+            <text x="267" y="118" font-size="7.5" fill="#8a7060" text-anchor="middle">Apr 14</text>
+            <text x="307" y="118" font-size="7.5" fill="#8a7060" text-anchor="middle">Apr 28</text>
+          </svg>
+          <div style="font-family:'EB Garamond',serif;font-size:0.78rem;font-style:italic;color:var(--text-muted);margin-top:0.5rem;">Flag volume tends to rise near high-stakes deadlines — reflective of broader academic pressure, not detection sensitivity changes.</div>
+        </div>
+      </div>
+
+      <!-- Deviation score distribution -->
+      <div class="chart-card">
+        <div class="chart-head">
+          <span class="chart-title">Score Distribution</span>
+          <span class="chart-meta">All 124 submissions</span>
+        </div>
+        <div class="chart-body">
+          <svg class="chart-svg" viewBox="0 0 340 120" height="120">
+            <line x1="0" y1="20" x2="340" y2="20" stroke="#e2dccf" stroke-width="1" stroke-dasharray="3,4"/>
+            <line x1="0" y1="55" x2="340" y2="55" stroke="#e2dccf" stroke-width="1" stroke-dasharray="3,4"/>
+            <line x1="0" y1="90" x2="340" y2="90" stroke="#e2dccf" stroke-width="1" stroke-dasharray="3,4"/>
+            <!-- Flag threshold -->
+            <line x1="220" y1="0" x2="220" y2="105" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.8"/>
+            <text x="223" y="10" font-size="7.5" fill="var(--amber)" font-weight="600">0.65</text>
+            <!-- Bell curve approximation using bars -->
+            <rect x="10"  y="88" width="28" height="12"  fill="var(--flag-green)" rx="2" opacity="0.6"/>
+            <rect x="44"  y="75" width="28" height="25"  fill="var(--flag-green)" rx="2" opacity="0.65"/>
+            <rect x="78"  y="52" width="28" height="48"  fill="var(--flag-green)" rx="2" opacity="0.7"/>
+            <rect x="112" y="30" width="28" height="70"  fill="var(--flag-green)" rx="2" opacity="0.75"/>
+            <rect x="146" y="20" width="28" height="80"  fill="var(--flag-green)" rx="2" opacity="0.8"/>
+            <rect x="180" y="45" width="28" height="55"  fill="var(--flag-green)" rx="2" opacity="0.7"/>
+            <!-- Flagged zone -->
+            <rect x="214" y="70" width="28" height="30"  fill="var(--amber)"    rx="2" opacity="0.75"/>
+            <rect x="248" y="82" width="28" height="18"  fill="var(--flag-red)" rx="2" opacity="0.75"/>
+            <rect x="282" y="90" width="28" height="10"  fill="var(--flag-red)" rx="2" opacity="0.85"/>
+            <!-- X labels -->
+            <text x="24"  y="112" font-size="7.5" fill="#8a7060" text-anchor="middle">0–0.1</text>
+            <text x="92"  y="112" font-size="7.5" fill="#8a7060" text-anchor="middle">0.2–0.3</text>
+            <text x="160" y="112" font-size="7.5" fill="#8a7060" text-anchor="middle">0.4–0.5</text>
+            <text x="228" y="112" font-size="7.5" fill="#8a7060" text-anchor="middle">0.6–0.7</text>
+            <text x="296" y="112" font-size="7.5" fill="#8a7060" text-anchor="middle">0.8–1.0</text>
+          </svg>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-swatch" style="background:var(--flag-green)"></div>Clear (≤0.65)</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:var(--amber)"></div>Watch (0.65–0.80)</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:var(--flag-red)"></div>High risk (>0.80)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Baseline coverage + feature signals -->
+    <div class="chart-grid">
+
+      <!-- Baseline coverage by course -->
+      <div class="chart-card">
+        <div class="chart-head">
+          <span class="chart-title">Baseline Coverage by Course</span>
+          <span class="chart-meta">Students with established profiles</span>
+        </div>
+        <div class="coverage-list">
+          <div class="coverage-row">
+            <span class="coverage-label">Church History I</span>
+            <span class="coverage-pct" style="color:var(--flag-green);">100%</span>
+            <div class="cov-bar"><div class="cov-fill" style="width:100%;background:var(--flag-green);"></div></div>
+          </div>
+          <div class="coverage-row">
+            <span class="coverage-label">Systematic Theology I</span>
+            <span class="coverage-pct" style="color:var(--flag-green);">86%</span>
+            <div class="cov-bar"><div class="cov-fill" style="width:86%;background:var(--flag-green);"></div></div>
+          </div>
+          <div class="coverage-row">
+            <span class="coverage-label">Hermeneutics</span>
+            <span class="coverage-pct" style="color:var(--amber);">62%</span>
+            <div class="cov-bar"><div class="cov-fill" style="width:62%;background:var(--amber);"></div></div>
+          </div>
+          <div class="coverage-row">
+            <span class="coverage-label">Old Testament Survey</span>
+            <span class="coverage-pct" style="color:var(--amber);">50%</span>
+            <div class="cov-bar"><div class="cov-fill" style="width:50%;background:var(--amber);"></div></div>
+          </div>
+          <div style="padding:0.75rem 0 0;border-top:1px solid var(--cream-border);margin-top:0.25rem;">
+            <div style="font-family:'EB Garamond',serif;font-size:0.82rem;font-style:italic;color:var(--text-muted);">Courses with &lt;3 samples per student cannot yet generate reliable deviation scores. Encourage early submissions to build baselines.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top triggered features -->
+      <div class="chart-card">
+        <div class="chart-head">
+          <span class="chart-title">Most-Triggered Features</span>
+          <span class="chart-meta">Across all flagged submissions</span>
+        </div>
+        <div class="chart-body">
+          <svg class="chart-svg" viewBox="0 0 300 160" height="160">
+            <!-- Horizontal bar chart — 8 most destructive pipeline features -->
+            <!-- Feature labels -->
+            <text x="0" y="16"  font-size="8.5" fill="var(--text-secondary)" font-weight="500">Modal Verb Ratio</text>
+            <text x="0" y="36"  font-size="8.5" fill="var(--text-secondary)" font-weight="500">Discourse Marker Density</text>
+            <text x="0" y="56"  font-size="8.5" fill="var(--text-secondary)" font-weight="500">Cohesion Device Ratio</text>
+            <text x="0" y="76"  font-size="8.5" fill="var(--text-secondary)" font-weight="500">Transition Density</text>
+            <text x="0" y="96"  font-size="8.5" fill="var(--text-secondary)" font-weight="500">First-Person Ratio</text>
+            <text x="0" y="116" font-size="8.5" fill="var(--text-secondary)" font-weight="500">Sentence Opener Variety</text>
+            <text x="0" y="136" font-size="8.5" fill="var(--text-secondary)" font-weight="500">Hedging Density</text>
+            <text x="0" y="156" font-size="8.5" fill="var(--text-secondary)" font-weight="500">Question Ratio</text>
+            <!-- Bars -->
+            <rect x="155" y="5"   width="130" height="10" fill="var(--flag-red)"     rx="2" opacity="0.85"/>
+            <rect x="155" y="25"  width="120" height="10" fill="var(--flag-red)"     rx="2" opacity="0.80"/>
+            <rect x="155" y="45"  width="112" height="10" fill="var(--flag-red)"     rx="2" opacity="0.75"/>
+            <rect x="155" y="65"  width="103" height="10" fill="var(--flag-red)"     rx="2" opacity="0.70"/>
+            <rect x="155" y="85"  width="94"  height="10" fill="var(--flag-red)"     rx="2" opacity="0.65"/>
+            <rect x="155" y="105" width="84"  height="10" fill="var(--amber)"        rx="2" opacity="0.75"/>
+            <rect x="155" y="125" width="65"  height="10" fill="var(--amber)"        rx="2" opacity="0.65"/>
+            <rect x="155" y="145" width="47"  height="10" fill="var(--cream-border)" rx="2"/>
+            <!-- Count labels -->
+            <text x="289" y="14"  font-size="8" fill="var(--flag-red)"   font-weight="700">14</text>
+            <text x="279" y="34"  font-size="8" fill="var(--flag-red)"   font-weight="700">13</text>
+            <text x="271" y="54"  font-size="8" fill="var(--flag-red)"   font-weight="700">12</text>
+            <text x="262" y="74"  font-size="8" fill="var(--flag-red)"   font-weight="700">11</text>
+            <text x="253" y="94"  font-size="8" fill="var(--flag-red)"   font-weight="700">10</text>
+            <text x="243" y="114" font-size="8" fill="var(--amber)"      font-weight="700">9</text>
+            <text x="224" y="134" font-size="8" fill="var(--amber)"      font-weight="700">7</text>
+            <text x="206" y="154" font-size="8" fill="var(--text-muted)" font-weight="600">5</text>
+          </svg>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Decision outcomes table -->
+    <div class="chart-card-full">
+      <div class="chart-head">
+        <span class="chart-title">Decision Outcomes</span>
+        <span class="chart-meta">All reviewed flags · Spring 2026</span>
+      </div>
+      <div class="outcomes-table">
+        <div class="outcomes-head">
+          <div class="th">Student</div>
+          <div class="th">Assignment</div>
+          <div class="th">Course</div>
+          <div class="th center">Score</div>
+          <div class="th center">Outcome</div>
+        </div>
+        <div class="outcomes-row"><div class="td" style="font-weight:500;color:var(--text-primary);">Tyler Grant</div><div class="td">Midterm Essay — Church & State</div><div class="td">HIST 410</div><div class="td center" style="color:var(--flag-red);font-weight:600;">0.88</div><div class="td center"><span class="outcome-pill escalated">Escalated</span></div></div>
+        <div class="outcomes-row"><div class="td" style="font-weight:500;color:var(--text-primary);">Amy Chen</div><div class="td">Weekly Reflection — Week 6</div><div class="td">OT 201</div><div class="td center" style="color:var(--flag-red);font-weight:600;">0.82</div><div class="td center"><span class="outcome-pill escalated">Escalated</span></div></div>
+        <div class="outcomes-row"><div class="td" style="font-weight:500;color:var(--text-primary);">Owen Ellis</div><div class="td">Analysis — Reformation Theology</div><div class="td">HIST 410</div><div class="td center" style="color:var(--amber);font-weight:600;">0.69</div><div class="td center"><span class="outcome-pill cleared">Cleared</span></div></div>
+        <div class="outcomes-row"><div class="td" style="font-weight:500;color:var(--text-primary);">Priya Nair</div><div class="td">Week 4 Response</div><div class="td">BIBL 301</div><div class="td center" style="color:var(--amber);font-weight:600;">0.67</div><div class="td center"><span class="outcome-pill cleared">Cleared</span></div></div>
+        <div class="outcomes-row"><div class="td" style="font-weight:500;color:var(--text-primary);">Marcus Delaney</div><div class="td">Week 7 Reflection</div><div class="td">BIBL 301</div><div class="td center" style="color:var(--amber);font-weight:600;">0.68</div><div class="td center"><span class="outcome-pill monitoring">Monitoring</span></div></div>
+        <div class="outcomes-row"><div class="td" style="font-weight:500;color:var(--text-primary);color:var(--text-muted);">James Whitfield</div><div class="td">Final Essay — Christology</div><div class="td">THEO 501</div><div class="td center" style="color:var(--flag-red);font-weight:600;">0.91</div><div class="td center"><span class="outcome-pill pending">Pending</span></div></div>
+        <div class="outcomes-row"><div class="td" style="font-weight:500;color:var(--text-primary);color:var(--text-muted);">Sarah Okonkwo</div><div class="td">Week 9 Response — Soteriology</div><div class="td">THEO 501</div><div class="td center" style="color:var(--flag-red);font-weight:600;">0.84</div><div class="td center"><span class="outcome-pill pending">Pending</span></div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  function switchRange(tab) {
+    document.querySelectorAll('.range-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+  }
+</script>
+</body>
+</html>

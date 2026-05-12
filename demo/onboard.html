@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Original — Set Up a Class</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ox:#002147;--blue:#1B4F8A;--blue-l:#E8EFF7;--blue-m:#B8CDE3;
+  --gold:#8A6914;--gold-l:#FBF5E6;
+  --green:#1A6B45;--green-l:#E6F5EE;
+  --red:#B91C1C;--red-l:#FEF2F2;
+  --bg:#F0F4F9;--surface:#FFFFFF;--border:rgba(0,33,71,0.10);
+  --text:#0A1628;--muted:#4A6080;--dim:#8FA3BC;
+  --radius:14px;--shadow:0 1px 4px rgba(0,33,71,0.07),0 6px 24px rgba(0,33,71,0.08);
+}
+html,body{min-height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text)}
+body{display:flex;flex-direction:column;align-items:center;padding:40px 16px 80px}
+
+/* header */
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:36px}
+.brand-mark{
+  width:44px;height:44px;border-radius:12px;
+  background:linear-gradient(135deg,var(--ox),var(--blue));
+  display:flex;align-items:center;justify-content:center;
+}
+.brand-mark svg{width:22px;height:22px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round}
+.brand-name{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;color:var(--ox)}
+.brand-tag{font-size:0.75rem;color:var(--muted);margin-top:1px}
+
+/* progress bar */
+.progress-wrap{width:100%;max-width:560px;margin-bottom:28px}
+.progress-track{height:4px;background:var(--blue-m);border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;background:var(--blue);border-radius:4px;transition:width 0.4s ease}
+.step-labels{display:flex;justify-content:space-between;margin-top:8px}
+.step-label{font-size:0.72rem;color:var(--dim);font-weight:500;transition:color 0.2s}
+.step-label.active{color:var(--blue)}
+.step-label.done{color:var(--green)}
+
+/* card */
+.card{
+  width:100%;max-width:560px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:36px 36px 28px;
+  box-shadow:var(--shadow);
+}
+.card-step{font-size:0.72rem;font-weight:600;color:var(--blue);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px}
+.card-title{font-family:'Playfair Display',serif;font-size:1.55rem;font-weight:700;color:var(--ox);margin-bottom:6px}
+.card-sub{font-size:0.85rem;color:var(--muted);margin-bottom:28px;line-height:1.5}
+
+/* fields */
+.field{margin-bottom:18px}
+.field label{display:block;font-size:0.8rem;font-weight:600;color:var(--text);margin-bottom:6px}
+.field input,.field textarea,.field select{
+  width:100%;padding:11px 14px;
+  background:var(--bg);border:1.5px solid var(--border);
+  border-radius:10px;font-family:'Inter',sans-serif;font-size:0.88rem;color:var(--text);
+  outline:none;transition:border-color 0.2s,box-shadow 0.2s;
+}
+.field input:focus,.field textarea:focus,.field select:focus{
+  border-color:var(--blue);box-shadow:0 0 0 3px rgba(27,79,138,0.10);background:#fff;
+}
+.field textarea{min-height:130px;resize:vertical;line-height:1.6}
+.field .hint{font-size:0.74rem;color:var(--dim);margin-top:5px}
+.field-row{display:flex;gap:12px}
+.field-row .field{flex:1}
+
+/* code preview */
+.code-preview{
+  display:inline-block;padding:4px 10px;
+  background:var(--blue-l);border-radius:6px;
+  font-size:0.78rem;font-weight:600;color:var(--blue);
+  font-family:monospace;letter-spacing:0.05em;
+}
+
+/* buttons */
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)}
+.btn{
+  padding:11px 28px;border-radius:10px;
+  font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;
+  cursor:pointer;transition:all 0.15s;border:none;
+}
+.btn-back{background:var(--bg);color:var(--muted);border:1.5px solid var(--border)}
+.btn-back:hover{background:#e8edf4;color:var(--text)}
+.btn-next{
+  background:linear-gradient(135deg,var(--ox),var(--blue));
+  color:#fff;box-shadow:0 4px 12px rgba(0,33,71,0.22);
+}
+.btn-next:hover{box-shadow:0 6px 18px rgba(0,33,71,0.30);transform:translateY(-1px)}
+.btn-next:active{transform:none}
+.btn-next:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+
+/* roster preview tags */
+.roster-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;min-height:30px}
+.rtag{
+  display:flex;align-items:center;gap:6px;
+  padding:4px 10px 4px 6px;border-radius:20px;
+  background:var(--blue-l);border:1px solid var(--blue-m);
+  font-size:0.78rem;font-weight:500;color:var(--blue);
+}
+.rtag-avatar{
+  width:20px;height:20px;border-radius:50%;
+  background:var(--blue);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.6rem;font-weight:700;flex-shrink:0;
+}
+
+/* Launch step */
+.launch-section{margin-bottom:24px}
+.launch-section h4{font-size:0.82rem;font-weight:600;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:12px}
+.class-code-display{
+  display:flex;align-items:center;gap:14px;
+  padding:16px 20px;background:var(--ox);border-radius:12px;margin-bottom:20px;
+}
+.class-code-display .big-code{
+  font-family:monospace;font-size:2rem;font-weight:700;color:#fff;letter-spacing:0.12em;
+}
+.class-code-display .code-label{font-size:0.75rem;color:var(--blue-m);line-height:1.4;flex:1}
+.btn-copy-code{
+  padding:8px 16px;border-radius:8px;
+  background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);
+  color:#fff;font-size:0.8rem;font-weight:600;cursor:pointer;
+  transition:background 0.15s;white-space:nowrap;
+}
+.btn-copy-code:hover{background:rgba(255,255,255,0.2)}
+
+.student-link-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;background:var(--bg);border:1px solid var(--border);
+  border-radius:10px;margin-bottom:8px;
+}
+.sli-avatar{
+  width:32px;height:32px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.68rem;font-weight:700;color:#fff;flex-shrink:0;
+}
+.sli-info{flex:1;min-width:0}
+.sli-name{font-size:0.85rem;font-weight:600}
+.sli-url{
+  font-size:0.72rem;color:var(--muted);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;font-family:monospace;
+}
+.btn-copy-link{
+  padding:5px 12px;border-radius:7px;
+  background:var(--blue-l);border:1px solid var(--blue-m);
+  color:var(--blue);font-size:0.75rem;font-weight:600;cursor:pointer;
+  white-space:nowrap;transition:all 0.15s;
+}
+.btn-copy-link:hover{background:var(--blue);color:#fff}
+.btn-copy-all{
+  width:100%;padding:12px;border-radius:10px;
+  background:var(--green-l);border:1.5px solid var(--green);
+  color:var(--green);font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;
+  cursor:pointer;margin-top:4px;margin-bottom:16px;transition:all 0.15s;
+}
+.btn-copy-all:hover{background:var(--green);color:#fff}
+
+.launch-links{display:flex;gap:10px;margin-top:4px}
+.btn-open{
+  flex:1;padding:13px;border-radius:10px;
+  font-family:'Inter',sans-serif;font-size:0.88rem;font-weight:600;
+  cursor:pointer;transition:all 0.15s;text-align:center;text-decoration:none;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn-open-prof{
+  background:linear-gradient(135deg,var(--ox),var(--blue));
+  color:#fff;border:none;box-shadow:0 4px 12px rgba(0,33,71,0.22);
+}
+.btn-open-prof:hover{box-shadow:0 6px 18px rgba(0,33,71,0.30);transform:translateY(-1px)}
+.btn-open-student{
+  background:var(--surface);border:1.5px solid var(--border);color:var(--text);
+}
+.btn-open-student:hover{background:var(--bg)}
+
+.notice-banner{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:12px 16px;border-radius:10px;
+  background:var(--gold-l);border:1px solid rgba(138,105,20,0.2);
+  font-size:0.8rem;color:var(--gold);line-height:1.5;margin-top:16px;
+}
+.notice-banner svg{width:16px;height:16px;flex-shrink:0;margin-top:1px;stroke:var(--gold);fill:none;stroke-width:2;stroke-linecap:round}
+
+/* Copied flash */
+.copied-flash{
+  position:fixed;bottom:32px;left:50%;transform:translateX(-50%);
+  padding:10px 20px;background:var(--ox);color:#fff;
+  border-radius:20px;font-size:0.82rem;font-weight:600;
+  opacity:0;transition:opacity 0.2s;pointer-events:none;z-index:999;
+}
+.copied-flash.show{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="brand">
+  <div class="brand-mark">
+    <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+  </div>
+  <div>
+    <div class="brand-name">Original</div>
+    <div class="brand-tag">Class Setup Wizard</div>
+  </div>
+</div>
+
+<!-- Progress -->
+<div class="progress-wrap">
+  <div class="progress-track">
+    <div class="progress-fill" id="progressFill" style="width:25%"></div>
+  </div>
+  <div class="step-labels">
+    <span class="step-label active" id="sl1">1 · School</span>
+    <span class="step-label" id="sl2">2 · Course</span>
+    <span class="step-label" id="sl3">3 · Roster</span>
+    <span class="step-label" id="sl4">4 · Launch</span>
+  </div>
+</div>
+
+<!-- Step 1: School -->
+<div class="card" id="step1">
+  <div class="card-step">Step 1 of 4</div>
+  <div class="card-title">Your Institution</div>
+  <div class="card-sub">Tell us about the school so student IDs and links are namespaced correctly.</div>
+
+  <div class="field">
+    <label>Institution Name</label>
+    <input type="text" id="schoolName" placeholder="e.g. Southern Baptist Theological Seminary" autocomplete="off">
+  </div>
+  <div class="field-row">
+    <div class="field">
+      <label>Short Code <span style="font-weight:400;color:var(--dim)">(auto-generated)</span></label>
+      <input type="text" id="schoolCode" placeholder="e.g. sbts" maxlength="10" autocomplete="off">
+      <div class="hint">Lowercase letters only — used in student IDs</div>
+    </div>
+    <div class="field">
+      <label>Preview ID</label>
+      <div style="padding:11px 14px;background:var(--bg);border-radius:10px;font-size:0.85rem">
+        <span class="code-preview" id="idPreview">sbts_student_name</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-next" onclick="goStep(2)">Continue →</button>
+  </div>
+</div>
+
+<!-- Step 2: Course -->
+<div class="card" id="step2" style="display:none">
+  <div class="card-step">Step 2 of 4</div>
+  <div class="card-title">Course Details</div>
+  <div class="card-sub">This information appears in students' writing dashboards.</div>
+
+  <div class="field-row">
+    <div class="field">
+      <label>Course Name</label>
+      <input type="text" id="courseName" placeholder="e.g. Systematic Theology" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Course Code</label>
+      <input type="text" id="courseCode" placeholder="e.g. TH501" maxlength="10" autocomplete="off">
+    </div>
+  </div>
+  <div class="field-row">
+    <div class="field">
+      <label>Semester / Term</label>
+      <input type="text" id="courseSemester" placeholder="e.g. Spring 2026" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Professor Name</label>
+      <input type="text" id="profName" placeholder="e.g. Dr. Sarah Mitchell" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-back" onclick="goStep(1)">← Back</button>
+    <button class="btn btn-next" onclick="goStep(3)">Continue →</button>
+  </div>
+</div>
+
+<!-- Step 3: Roster -->
+<div class="card" id="step3" style="display:none">
+  <div class="card-step">Step 3 of 4</div>
+  <div class="card-title">Student Roster</div>
+  <div class="card-sub">Add students by name, or drop a CSV file from your LMS/spreadsheet.</div>
+
+  <!-- CSV drop zone -->
+  <div id="csvDropZone"
+       style="border:2px dashed rgba(27,79,138,0.3);border-radius:10px;padding:18px 16px;
+              text-align:center;cursor:pointer;margin-bottom:16px;background:var(--bg);
+              transition:all 0.2s"
+       ondragover="event.preventDefault();this.style.borderColor='var(--blue)';this.style.background='var(--blue-l)'"
+       ondragleave="this.style.borderColor='rgba(27,79,138,0.3)';this.style.background='var(--bg)'"
+       ondrop="onCsvDrop(event)"
+       onclick="document.getElementById('csvFileInput').click()">
+    <div style="font-size:1.3rem;margin-bottom:4px">📋</div>
+    <div style="font-size:0.84rem;font-weight:500;color:var(--muted)">Drop a CSV file here, or click to browse</div>
+    <div style="font-size:0.74rem;color:var(--dim);margin-top:3px">
+      Columns: <code>external_id, full_name, email</code> (any order, header required)
+    </div>
+    <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="onCsvPick(event)">
+  </div>
+  <div id="csvStatus" style="font-size:0.78rem;color:var(--muted);margin-bottom:10px;min-height:18px"></div>
+
+  <div class="field">
+    <label>Student Names <span style="font-weight:400;color:var(--dim)">(or type directly)</span></label>
+    <textarea id="rosterText" placeholder="James Whitfield&#10;Sarah Okonkwo&#10;Daniel Osei&#10;Lydia Mercer&#10;Marcus Chen" oninput="previewRoster()"></textarea>
+    <div class="hint">First and last name, one per line · CSV import fills this automatically</div>
+  </div>
+
+  <div id="rosterPreview" class="roster-tags"></div>
+
+  <div class="btn-row">
+    <button class="btn btn-back" onclick="goStep(2)">← Back</button>
+    <button class="btn btn-next" onclick="goStep(4)">Generate Links →</button>
+  </div>
+</div>
+
+<!-- Step 4: Launch -->
+<div class="card" id="step4" style="display:none">
+  <div class="card-step">Step 4 of 4</div>
+  <div class="card-title">Ready to Launch</div>
+  <div class="card-sub">Share these links with your students — each link opens their personal writing dashboard.</div>
+
+  <div class="launch-section">
+    <h4>Class Code</h4>
+    <div class="class-code-display">
+      <div>
+        <div class="big-code" id="classCodeDisplay">TH5010</div>
+        <div class="code-label">Students can enter this code on the student page to find their profile</div>
+      </div>
+      <button class="btn-copy-code" onclick="copyClassCode()">Copy Code</button>
+    </div>
+  </div>
+
+  <div class="launch-section">
+    <h4>Student Links</h4>
+    <div id="studentLinks"></div>
+    <button class="btn-copy-all" onclick="copyAllLinks()">Copy All Links</button>
+  </div>
+
+  <div class="launch-links">
+    <a class="btn-open btn-open-prof" id="profLink" href="professor.html" target="_blank">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Open Professor View
+    </a>
+    <a class="btn-open btn-open-student" id="firstStudentLink" href="student.html" target="_blank">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Preview Student View
+    </a>
+  </div>
+
+  <div class="notice-banner">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span>Student profiles are created automatically when a student first opens their link and submits a baseline paper. No account creation needed — students start writing immediately.</span>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-back" onclick="goStep(3)">← Back</button>
+    <button class="btn btn-next" onclick="startOver()">Set Up Another Class</button>
+  </div>
+</div>
+
+<div class="copied-flash" id="copiedFlash">Copied!</div>
+
+<script>
+/* ── State ── */
+let state = {
+  school: { name: '', code: '' },
+  course: { name: '', code: '', semester: '', prof: '' },
+  roster: [],   // [{name, id, color}]
+  classCode: '',
+};
+
+const AVATAR_COLORS = [
+  '#1B4F8A','#1A6B45','#7C3AED','#B45309','#0E7490',
+  '#9D174D','#065F46','#1D4ED8','#92400E','#6D28D9',
+];
+
+/* ── Utilities ── */
+function toId(name, schoolCode) {
+  const clean = name.toLowerCase()
+    .replace(/[^a-z\s]/g, '')
+    .trim()
+    .split(/\s+/);
+  const last  = clean[clean.length - 1] || 'student';
+  const first = clean[0]?.[0] || 'x';
+  return `${schoolCode}_${last}_${first}`;
+}
+
+function initials(name) {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] || '') + (parts[parts.length-1]?.[0] || '')).toUpperCase();
+}
+
+function generateClassCode(courseCode, semester) {
+  const base = (courseCode + semester).replace(/[^A-Z0-9]/gi, '').toUpperCase();
+  const num  = Math.floor(Math.random() * 90 + 10);
+  return (base.slice(0, 4) + num).toUpperCase();
+}
+
+function flash(msg = 'Copied!') {
+  const el = document.getElementById('copiedFlash');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 1800);
+}
+
+/* ── Step navigation ── */
+function goStep(n) {
+  // Validate
+  if (n === 2) {
+    const name = document.getElementById('schoolName').value.trim();
+    if (!name) { document.getElementById('schoolName').focus(); return; }
+    const code = document.getElementById('schoolCode').value.trim() ||
+                 name.toLowerCase().replace(/[^a-z]/g,'').slice(0,6);
+    document.getElementById('schoolCode').value = code;
+    state.school = { name, code };
+  }
+  if (n === 3) {
+    const name     = document.getElementById('courseName').value.trim();
+    const code     = document.getElementById('courseCode').value.trim();
+    const semester = document.getElementById('courseSemester').value.trim();
+    const prof     = document.getElementById('profName').value.trim();
+    if (!name || !code) {
+      document.getElementById(!name ? 'courseName' : 'courseCode').focus(); return;
+    }
+    state.course = { name, code, semester, prof };
+  }
+  if (n === 4) {
+    buildLaunch();
+  }
+
+  // Show/hide steps
+  [1,2,3,4].forEach(i => {
+    document.getElementById('step'+i).style.display = i===n ? 'block' : 'none';
+  });
+
+  // Progress
+  const pct = { 1:25, 2:50, 3:75, 4:100 };
+  document.getElementById('progressFill').style.width = pct[n] + '%';
+  ['sl1','sl2','sl3','sl4'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.classList.toggle('active', i+1 === n);
+    el.classList.toggle('done', i+1 < n);
+  });
+}
+
+/* ── School code auto-generate ── */
+document.addEventListener('DOMContentLoaded', () => {
+  const nameInput = document.getElementById('schoolName');
+  const codeInput = document.getElementById('schoolCode');
+  const preview   = document.getElementById('idPreview');
+
+  function updateCode() {
+    const auto = nameInput.value.toLowerCase().replace(/[^a-z]/g,'').slice(0,6);
+    if (!codeInput.dataset.manual) codeInput.value = auto;
+    const code = codeInput.value || 'school';
+    preview.textContent = `${code}_lastname_f`;
+  }
+  nameInput.addEventListener('input', updateCode);
+  codeInput.addEventListener('input', () => {
+    codeInput.dataset.manual = '1';
+    const code = codeInput.value || 'school';
+    document.getElementById('idPreview').textContent = `${code}_lastname_f`;
+  });
+});
+
+/* ── CSV roster import ── */
+function onCsvDrop(event) {
+  event.preventDefault();
+  const zone = document.getElementById('csvDropZone');
+  zone.style.borderColor = 'rgba(27,79,138,0.3)';
+  zone.style.background = 'var(--bg)';
+  const file = event.dataTransfer.files[0];
+  if (file) _processCsvFile(file);
+}
+function onCsvPick(event) {
+  const file = event.target.files[0];
+  if (file) _processCsvFile(file);
+  event.target.value = '';
+}
+function _processCsvFile(file) {
+  const status = document.getElementById('csvStatus');
+  if (!file.name.toLowerCase().endsWith('.csv')) {
+    status.textContent = '⚠ Please drop a .csv file.';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const text = e.target.result;
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) { status.textContent = '⚠ CSV has no data rows.'; return; }
+
+      // Parse header
+      const header = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/["']/g,''));
+      const nameIdx = header.findIndex(h => ['full_name','name','student name','student_name'].includes(h));
+
+      if (nameIdx === -1) {
+        status.textContent = '⚠ No "full_name" or "name" column found. Check column headers.';
+        return;
+      }
+
+      const names = [];
+      for (let i = 1; i < lines.length; i++) {
+        // Simple CSV split (handles quoted fields)
+        const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g,''));
+        const name = cols[nameIdx] || '';
+        if (name) names.push(name);
+      }
+
+      if (names.length === 0) { status.textContent = '⚠ No names found in CSV.'; return; }
+
+      // Fill the textarea and trigger preview
+      document.getElementById('rosterText').value = names.join('\n');
+      previewRoster();
+      status.textContent = `✓ Imported ${names.length} student${names.length === 1 ? '' : 's'} from ${file.name}`;
+    } catch(err) {
+      status.textContent = `⚠ Could not parse CSV: ${err.message}`;
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ── Roster preview ── */
+function previewRoster() {
+  const lines = document.getElementById('rosterText').value
+    .split('\n').map(l => l.trim()).filter(Boolean);
+  const container = document.getElementById('rosterPreview');
+  container.innerHTML = lines.map((name, i) => `
+    <div class="rtag">
+      <div class="rtag-avatar" style="background:${AVATAR_COLORS[i % AVATAR_COLORS.length]}">${initials(name)}</div>
+      ${name}
+    </div>`).join('');
+}
+
+/* ── Build launch step ── */
+function buildLaunch() {
+  const lines = document.getElementById('rosterText').value
+    .split('\n').map(l => l.trim()).filter(Boolean);
+
+  state.roster = lines.map((name, i) => ({
+    name,
+    id:    toId(name, state.school.code),
+    color: AVATAR_COLORS[i % AVATAR_COLORS.length],
+  }));
+
+  state.classCode = generateClassCode(state.course.code, state.course.semester);
+
+  // Save to localStorage (picked up by professor.html and student.html)
+  const storageKey = 'original_roster';
+  const rosterData = {
+    school:    state.school,
+    course:    state.course,
+    classCode: state.classCode,
+    students:  state.roster,
+    createdAt: new Date().toISOString(),
+  };
+  localStorage.setItem(storageKey, JSON.stringify(rosterData));
+
+  // Render class code
+  document.getElementById('classCodeDisplay').textContent = state.classCode;
+
+  // Render student links
+  const base = `${location.protocol}//${location.host}`;
+  const linksEl = document.getElementById('studentLinks');
+  linksEl.innerHTML = '';
+
+  state.roster.forEach(s => {
+    const url = `${base}/demo/student.html?student=${encodeURIComponent(s.id)}`;
+    linksEl.innerHTML += `
+      <div class="student-link-item">
+        <div class="sli-avatar" style="background:${s.color}">${initials(s.name)}</div>
+        <div class="sli-info">
+          <div class="sli-name">${s.name}</div>
+          <div class="sli-url">${url}</div>
+        </div>
+        <button class="btn-copy-link" onclick="navigator.clipboard.writeText('${url}').then(()=>flash('Copied!'))">Copy</button>
+      </div>`;
+  });
+
+  // Set open links
+  document.getElementById('profLink').href = 'professor.html';
+  if (state.roster.length > 0) {
+    const firstUrl = `${base}/demo/student.html?student=${encodeURIComponent(state.roster[0].id)}`;
+    document.getElementById('firstStudentLink').href = firstUrl;
+  }
+}
+
+/* ── Copy actions ── */
+function copyClassCode() {
+  navigator.clipboard.writeText(state.classCode).then(() => flash('Class code copied!'));
+}
+
+function copyAllLinks() {
+  const base = `${location.protocol}//${location.host}`;
+  const text = state.roster.map(s => {
+    const url = `${base}/demo/student.html?student=${encodeURIComponent(s.id)}`;
+    return `${s.name}: ${url}`;
+  }).join('\n');
+  navigator.clipboard.writeText(text).then(() => flash('All links copied!'));
+}
+
+function startOver() {
+  state = { school:{name:'',code:''}, course:{name:'',code:'',semester:'',prof:''}, roster:[], classCode:'' };
+  ['schoolName','schoolCode','courseName','courseCode','courseSemester','profName','rosterText']
+    .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('rosterPreview').innerHTML = '';
+  delete document.getElementById('schoolCode').dataset.manual;
+  goStep(1);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Original — Teacher Onboarding</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg-primary: #f7f3ea;
+      --bg-secondary: #fff;
+      --border-light: #e2dccf;
+      --text-dark: #1a130a;
+      --text-muted: #8b7355;
+      --accent-primary: #1a6fb5;
+      --accent-primary-dark: #155a94;
+      --accent-success: #16a34a;
+      --accent-warning: #f59e0b;
+      --accent-danger: #dc2626;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-dark);
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+    .nav-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      padding: 0 1rem;
+    }
+
+    .logo-text {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .nav-links a {
+      padding: 0.5rem 1rem;
+      text-decoration: none;
+      color: var(--accent-primary);
+      font-size: 0.9rem;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+
+    .nav-links a:hover {
+      background: rgba(26, 111, 181, 0.1);
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .wizard-header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .wizard-header h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .wizard-header p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .step-indicators {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      justify-content: center;
+    }
+
+    .step-indicator {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      text-align: center;
+    }
+
+    .step-indicator-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 0.9rem;
+      background: #e8e4d8;
+      color: var(--text-dark);
+      border: 2px solid var(--border-light);
+      transition: all 0.2s;
+    }
+
+    .step-indicator.active .step-indicator-circle {
+      background: var(--accent-primary);
+      color: white;
+      border-color: var(--accent-primary);
+    }
+
+    .step-indicator.completed .step-indicator-circle {
+      background: var(--accent-success);
+      color: white;
+      border-color: var(--accent-success);
+    }
+
+    .step-indicator-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      max-width: 60px;
+    }
+
+    .step-indicator.active .step-indicator-label {
+      color: var(--accent-primary);
+    }
+
+    .step-content {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 2rem;
+      display: none;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .step-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .step-title {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: var(--text-dark);
+    }
+
+    .step-subtitle {
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      font-size: 0.95rem;
+    }
+
+    .step-body {
+      margin-bottom: 1.5rem;
+    }
+
+    .info-box {
+      background: #f9f7f4;
+      border-left: 4px solid var(--accent-primary);
+      padding: 1rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      color: var(--text-dark);
+      line-height: 1.5;
+    }
+
+    .provenance-options {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .provenance-item {
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      padding: 1rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .provenance-item:hover {
+      border-color: var(--accent-primary);
+      background: rgba(26, 111, 181, 0.05);
+    }
+
+    .provenance-item.selected {
+      border-color: var(--accent-primary);
+      background: rgba(26, 111, 181, 0.08);
+    }
+
+    .provenance-item-title {
+      font-weight: 600;
+      color: var(--text-dark);
+      margin-bottom: 0.25rem;
+    }
+
+    .provenance-item-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .text-area {
+      width: 100%;
+      min-height: 120px;
+      padding: 0.75rem;
+      border: 1px solid var(--border-light);
+      border-radius: 6px;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.95rem;
+      resize: vertical;
+      color: var(--text-dark);
+    }
+
+    .text-area:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px rgba(26, 111, 181, 0.12);
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #5a4030;
+      margin-bottom: 0.5rem;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    select {
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      border: 1px solid var(--border-light);
+      border-radius: 6px;
+      font-size: 0.95rem;
+      color: var(--text-dark);
+      background: #fdfcfa;
+      transition: border-color 0.15s;
+      margin-bottom: 1rem;
+    }
+
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px rgba(26, 111, 181, 0.12);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 1rem;
+      justify-content: space-between;
+      margin-top: 2rem;
+    }
+
+    button {
+      padding: 0.7rem 1.5rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    button.btn-primary {
+      background: var(--accent-primary);
+      color: white;
+      flex: 1;
+    }
+
+    button.btn-primary:hover:not(:disabled) {
+      background: var(--accent-primary-dark);
+    }
+
+    button.btn-primary:disabled {
+      background: #b0c4d8;
+      cursor: not-allowed;
+    }
+
+    button.btn-secondary {
+      background: transparent;
+      color: var(--accent-primary);
+      border: 1px solid var(--border-light);
+    }
+
+    button.btn-secondary:hover:not(:disabled) {
+      background: rgba(26, 111, 181, 0.05);
+      border-color: var(--accent-primary);
+    }
+
+    .success-checkmark {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      background: var(--accent-success);
+      color: white;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 20px;
+      font-size: 0.75rem;
+      margin-right: 0.5rem;
+    }
+
+    .summary-list {
+      list-style: none;
+      margin: 1rem 0;
+    }
+
+    .summary-list li {
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border-light);
+      color: var(--text-dark);
+    }
+
+    .summary-list li:last-child {
+      border-bottom: none;
+    }
+
+    .completion-message {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+      color: var(--text-dark);
+    }
+
+    .completion-message h3 {
+      color: var(--accent-success);
+      margin-bottom: 0.5rem;
+    }
+
+    .completion-message p {
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    .error-msg {
+      background: #fdf2f2;
+      border: 1px solid rgba(192, 57, 43, 0.3);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-size: 0.85rem;
+      color: #8b1c14;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    .error-msg.visible {
+      display: block;
+    }
+
+    .input-group {
+      margin-bottom: 1rem;
+    }
+
+    @media (max-width: 640px) {
+      .step-content {
+        padding: 1.5rem;
+      }
+
+      .step-indicators {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+
+      .button-group {
+        flex-direction: column-reverse;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="nav-header">
+    <div class="logo-text">Original</div>
+    <div class="nav-links">
+      <a href="original-dashboard.html">Dashboard</a>
+      <a href="#" onclick="OriginalAuth.logout(); return false;">Logout</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="wizard-header">
+      <h1>Get Started</h1>
+      <p>4-step setup to start using Original in your course</p>
+    </div>
+
+    <div class="step-indicators">
+      <div class="step-indicator active" data-step="1">
+        <div class="step-indicator-circle">1</div>
+        <div class="step-indicator-label">Connect Course</div>
+      </div>
+      <div class="step-indicator" data-step="2">
+        <div class="step-indicator-circle">2</div>
+        <div class="step-indicator-label">Baselines</div>
+      </div>
+      <div class="step-indicator" data-step="3">
+        <div class="step-indicator-circle">3</div>
+        <div class="step-indicator-label">First Score</div>
+      </div>
+      <div class="step-indicator" data-step="4">
+        <div class="step-indicator-circle">4</div>
+        <div class="step-indicator-label">Review</div>
+      </div>
+    </div>
+
+    <!-- Step 1: Connect Course -->
+    <div class="step-content active" data-step="1">
+      <div class="step-title">Connect Your Course</div>
+      <div class="step-subtitle">Tell us about your course and students</div>
+      <div class="step-body">
+        <div id="error-step-1" class="error-msg"></div>
+
+        <div class="info-box">
+          <strong>Canvas Integration:</strong> We can automatically import your roster, or you can add students manually.
+        </div>
+
+        <div>
+          <label for="integration-method">How would you like to add students?</label>
+          <select id="integration-method" onchange="toggleIntegrationMethod()">
+            <option value="manual">Add manually</option>
+            <option value="canvas">Connect Canvas (if available)</option>
+          </select>
+        </div>
+
+        <div id="canvas-section" style="display: none;">
+          <div class="input-group">
+            <label for="canvas-token">Canvas API Token</label>
+            <input type="password" id="canvas-token" placeholder="Your Canvas API token">
+          </div>
+          <div class="input-group">
+            <label for="canvas-course-id">Canvas Course ID</label>
+            <input type="text" id="canvas-course-id" placeholder="e.g., 12345">
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label for="course-name">Course Name</label>
+          <input type="text" id="course-name" placeholder="e.g., Systematic Theology I">
+        </div>
+
+        <div class="input-group">
+          <label for="course-code">Course Code</label>
+          <input type="text" id="course-code" placeholder="e.g., SYST 101">
+        </div>
+
+        <div class="input-group">
+          <label for="student-count">Expected number of students</label>
+          <input type="text" id="student-count" placeholder="e.g., 25">
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button class="btn-secondary" onclick="scrollToTop()">Back</button>
+        <button class="btn-primary" onclick="stepNext(1)">Continue</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Add Baseline Samples -->
+    <div class="step-content" data-step="2">
+      <div class="step-title">Submit Baseline Essays</div>
+      <div class="step-subtitle">Help Original learn each student's authentic voice</div>
+      <div class="step-body">
+        <div id="error-step-2" class="error-msg"></div>
+
+        <div class="info-box">
+          <strong>What is a baseline?</strong> A baseline is an essay you know is definitely from the student. Original uses 3+ baselines to build a writing fingerprint for each student.
+        </div>
+
+        <div class="info-box" style="border-left-color: var(--accent-warning);">
+          <strong>Three types:</strong>
+          <ul style="margin-left: 1rem; margin-top: 0.5rem;">
+            <li><strong>Proctored:</strong> Written in class under supervision (strongest baseline)</li>
+            <li><strong>Verified:</strong> Confirmed authentic by student or parent (medium strength)</li>
+            <li><strong>Unverified:</strong> Assumed authentic from earlier assignments (weakest)</li>
+          </ul>
+        </div>
+
+        <div>
+          <label for="baseline-count">How many baseline essays per student?</label>
+          <input type="number" id="baseline-count" min="3" max="10" value="3" placeholder="Recommended: 3">
+        </div>
+
+        <div>
+          <label>Baseline Type (for first baseline)</label>
+          <div class="provenance-options">
+            <div class="provenance-item selected" onclick="selectProvenance(this, 'proctored')">
+              <div class="provenance-item-title">Proctored (Strongest)</div>
+              <div class="provenance-item-desc">Written in class with supervision. Most reliable for building fingerprint.</div>
+            </div>
+            <div class="provenance-item" onclick="selectProvenance(this, 'verified')">
+              <div class="provenance-item-title">Verified (Medium)</div>
+              <div class="provenance-item-desc">Student confirmed as their authentic work via email or in-person.</div>
+            </div>
+            <div class="provenance-item" onclick="selectProvenance(this, 'unverified')">
+              <div class="provenance-item-title">Unverified (Weak)</div>
+              <div class="provenance-item-desc">Previous assignments assumed to be the student's work. Use as backup.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label for="baseline-assignment">Assignment Name</label>
+          <input type="text" id="baseline-assignment" placeholder="e.g., Intro Essay">
+        </div>
+
+        <div class="input-group">
+          <label for="baseline-text">Sample Essay Text</label>
+          <textarea id="baseline-text" class="text-area" placeholder="Paste a student baseline essay here (min 200 words)"></textarea>
+        </div>
+
+        <button class="btn-primary" style="width: 100%; margin-bottom: 1rem;" onclick="addBaselineAndNext()">Add This Baseline & Continue</button>
+        <p style="text-align: center; font-size: 0.85rem; color: var(--text-muted);">You can add more baselines later through the dashboard</p>
+      </div>
+
+      <div class="button-group">
+        <button class="btn-secondary" onclick="stepPrev(2)">Back</button>
+        <button class="btn-primary" onclick="stepNext(2)">Skip for Now</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Score First Submission -->
+    <div class="step-content" data-step="3">
+      <div class="step-title">Score Your First Submission</div>
+      <div class="step-subtitle">See how Original works in practice</div>
+      <div class="step-body">
+        <div id="error-step-3" class="error-msg"></div>
+
+        <div class="info-box">
+          <strong>Ready?</strong> You'll score a sample submission now. This is a live demonstration of Original's capability. After seeing the results, you'll understand how to interpret flags and make decisions.
+        </div>
+
+        <div class="input-group">
+          <label for="submission-assignment">Assignment</label>
+          <input type="text" id="submission-assignment" placeholder="e.g., Midterm Essay">
+        </div>
+
+        <div class="input-group">
+          <label for="submission-text">Submission Text</label>
+          <textarea id="submission-text" class="text-area" placeholder="Paste a submission to score (min 200 words)"></textarea>
+        </div>
+
+        <button class="btn-primary" style="width: 100%;" id="score-btn" onclick="scoreAndNext()">Score This Submission</button>
+      </div>
+
+      <div class="button-group">
+        <button class="btn-secondary" onclick="stepPrev(3)">Back</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Understanding Results -->
+    <div class="step-content" data-step="4">
+      <div class="step-title">Reading Your Results</div>
+      <div class="step-subtitle">A quick tour of the Results page before you begin</div>
+      <div class="step-body">
+
+        <div class="completion-message">
+          <h3>✓ Setup Complete</h3>
+          <p>Original is ready. Here's how to read the results page when a submission is flagged.</p>
+        </div>
+
+        <div style="margin-top: 1.75rem; display: flex; flex-direction: column; gap: 0.85rem;">
+
+          <div style="display: flex; gap: 1rem; align-items: flex-start; padding: 1rem; background: #f9f7f4; border-radius: 8px; border-left: 4px solid var(--accent-primary);">
+            <div style="font-size: 1.4rem; flex-shrink: 0; line-height: 1.3;">🟢🟡🟠🔴</div>
+            <div>
+              <div style="font-weight: 700; color: var(--text-dark); margin-bottom: 0.3rem; font-size: 0.9rem;">Authorship Confidence Badge</div>
+              <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">The large colored badge at the top of every review. <strong>Green = Authentic</strong>, <strong>Yellow = Monitor</strong>, <strong>Orange = Discuss</strong>, <strong>Red = Review Warranted</strong>. Your at-a-glance verdict — but read the plain-English summary first.</div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 1rem; align-items: flex-start; padding: 1rem; background: #f9f7f4; border-radius: 8px; border-left: 4px solid var(--accent-primary);">
+            <div style="font-size: 1.4rem; flex-shrink: 0; line-height: 1.3;">📝</div>
+            <div>
+              <div style="font-weight: 700; color: var(--text-dark); margin-bottom: 0.3rem; font-size: 0.9rem;">Plain-English Summary</div>
+              <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">Next to the badge, Original describes what it found in plain language — which specific features deviated from the student's baseline. Always read this before looking at numbers.</div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 1rem; align-items: flex-start; padding: 1rem; background: #f9f7f4; border-radius: 8px; border-left: 4px solid var(--accent-primary);">
+            <div style="font-size: 1.4rem; flex-shrink: 0; line-height: 1.3;">📊</div>
+            <div>
+              <div style="font-weight: 700; color: var(--text-dark); margin-bottom: 0.3rem; font-size: 0.9rem;">Feature Interference Map</div>
+              <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">A bar chart showing which features are suspicious (red → right) vs. authentic (green ← left). Longer red bars = bigger anomalies. Each bar links to a plain-English explanation.</div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 1rem; align-items: flex-start; padding: 1rem; background: #f9f7f4; border-radius: 8px; border-left: 4px solid var(--accent-primary);">
+            <div style="font-size: 1.4rem; flex-shrink: 0; line-height: 1.3;">📈</div>
+            <div>
+              <div style="font-weight: 700; color: var(--text-dark); margin-bottom: 0.3rem; font-size: 0.9rem;">Writing Trajectory</div>
+              <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">A sparkline showing the student's last 6 submissions. Gradual drift = natural growth. A sudden jump at the end is the key pattern to investigate.</div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 1rem; align-items: flex-start; padding: 1rem; background: #f9f7f4; border-radius: 8px; border-left: 4px solid var(--accent-success);">
+            <div style="font-size: 1.4rem; flex-shrink: 0; line-height: 1.3;">⚖️</div>
+            <div>
+              <div style="font-weight: 700; color: var(--text-dark); margin-bottom: 0.3rem; font-size: 0.9rem;">Your Judgement — You Always Decide</div>
+              <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">Original never accuses. Use the 5-step corroboration checklist, then choose: <strong>Clear, Monitor, Discuss, or Escalate</strong>. Your decision and notes are saved permanently.</div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="info-box" style="margin-top: 1.25rem; border-left-color: var(--accent-success);">
+          Need a reminder later? The <a href="help.html" style="color: var(--accent-primary); font-weight: 600;">Help page</a> explains every element of the results page in detail.
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button class="btn-secondary" onclick="stepPrev(4)">Back</button>
+        <button class="btn-primary" onclick="completeOnboarding()">Go to Dashboard →</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    (function() {
+      'use strict';
+
+      OriginalAuth.requireAuth();
+
+      let currentStep = 1;
+      let selectedProvenance = 'proctored';
+      let studentId = null;
+
+      window.toggleIntegrationMethod = function() {
+        const method = document.getElementById('integration-method').value;
+        document.getElementById('canvas-section').style.display = method === 'canvas' ? 'block' : 'none';
+      };
+
+      window.selectProvenance = function(el, value) {
+        document.querySelectorAll('.provenance-item').forEach(e => e.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedProvenance = value;
+      };
+
+      window.scrollToTop = function() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      window.stepNext = function(from) {
+        if (from === 1) {
+          const courseName = document.getElementById('course-name').value.trim();
+          if (!courseName) {
+            showError('error-step-1', 'Please enter a course name');
+            return;
+          }
+        }
+        setStep(from + 1);
+      };
+
+      window.stepPrev = function(from) {
+        setStep(from - 1);
+      };
+
+      window.addBaselineAndNext = function() {
+        const text = document.getElementById('baseline-text').value.trim();
+        const assignment = document.getElementById('baseline-assignment').value.trim() || 'Baseline Essay';
+        const errorDiv = document.getElementById('error-step-2');
+
+        if (!text || text.split(/\s+/).length < 200) {
+          showError('error-step-2', 'Please provide at least 200 words');
+          return;
+        }
+
+        if (!studentId) {
+          showError('error-step-2', 'Error: No student selected. Please go back to Step 1.');
+          return;
+        }
+
+        errorDiv.classList.remove('visible');
+        const btn = event.target;
+        btn.disabled = true;
+        btn.textContent = 'Adding baseline...';
+
+        OriginalAuth.apiFetch(`/api/v1/submissions/${studentId}/baseline`, {
+          method: 'POST',
+          body: JSON.stringify({
+            text: text,
+            assignment: assignment,
+            provenance: selectedProvenance,
+            submitted_at: new Date().toISOString()
+          })
+        })
+        .then(resp => {
+          if (!resp.ok) return resp.json().then(e => { throw new Error(e.detail || 'Failed'); });
+          return resp.json();
+        })
+        .then(() => {
+          setStep(3);
+        })
+        .catch(err => {
+          showError('error-step-2', err.message);
+          btn.disabled = false;
+          btn.textContent = 'Add This Baseline & Continue';
+        });
+      };
+
+      window.scoreAndNext = function() {
+        const text = document.getElementById('submission-text').value.trim();
+        const assignment = document.getElementById('submission-assignment').value.trim() || 'Submission';
+        const errorDiv = document.getElementById('error-step-3');
+
+        if (!text || text.split(/\s+/).length < 200) {
+          showError('error-step-3', 'Please provide at least 200 words');
+          return;
+        }
+
+        if (!studentId) {
+          showError('error-step-3', 'Error: No student selected. Please go back to Step 1.');
+          return;
+        }
+
+        errorDiv.classList.remove('visible');
+        const btn = document.getElementById('score-btn');
+        btn.disabled = true;
+        btn.textContent = 'Scoring...';
+
+        OriginalAuth.apiFetch(`/api/v1/submissions/${studentId}/score`, {
+          method: 'POST',
+          body: JSON.stringify({
+            text: text,
+            assignment: assignment
+          })
+        })
+        .then(resp => {
+          if (!resp.ok) return resp.json().then(e => { throw new Error(e.detail || 'Failed'); });
+          return resp.json();
+        })
+        .then(() => {
+          setStep(4);
+        })
+        .catch(err => {
+          showError('error-step-3', err.message);
+          btn.disabled = false;
+          btn.textContent = 'Score This Submission';
+        });
+      };
+
+      window.completeOnboarding = function() {
+        window.location.href = 'original-dashboard.html';
+      };
+
+      function setStep(n) {
+        if (n < 1 || n > 4) return;
+        currentStep = n;
+
+        document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+        document.querySelector(`.step-content[data-step="${n}"]`).classList.add('active');
+
+        document.querySelectorAll('.step-indicator').forEach((el, i) => {
+          el.classList.remove('active', 'completed');
+          const stepNum = parseInt(el.getAttribute('data-step'));
+          if (stepNum === n) el.classList.add('active');
+          else if (stepNum < n) el.classList.add('completed');
+        });
+
+        scrollToTop();
+      }
+
+      function showError(id, msg) {
+        const div = document.getElementById(id);
+        div.textContent = msg;
+        div.classList.add('visible');
+      }
+    })();
+  </script>
+</body>
+</html>

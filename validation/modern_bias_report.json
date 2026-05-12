@@ -1,0 +1,53 @@
+{
+  "total_authentic_samples": 10,
+  "overall_fairness": false,
+  "summary": "native_english: FAIL\n  - native vs non_native: medium effect (d=0.652, p=0.3032)",
+  "dimensions": {
+    "native_english": {
+      "dimension": "native_english",
+      "is_fair": false,
+      "fairness_notes": [
+        "native vs non_native: medium effect (d=0.652, p=0.3032)"
+      ],
+      "max_fpr_ratio": 1.0,
+      "anova_f": null,
+      "anova_p": null,
+      "eta_squared": null,
+      "groups": {
+        "native": {
+          "n": 6,
+          "mean_deviation": 0.6503,
+          "std_deviation": 0.0713,
+          "median_deviation": 0.6621,
+          "fpr_at_thresholds": {
+            "no_action": 1.0,
+            "monitor": 0.8333,
+            "escalate": 0.0
+          }
+        },
+        "non_native": {
+          "n": 4,
+          "mean_deviation": 0.6009,
+          "std_deviation": 0.062,
+          "median_deviation": 0.615,
+          "fpr_at_thresholds": {
+            "no_action": 1.0,
+            "monitor": 0.75,
+            "escalate": 0.0
+          }
+        }
+      },
+      "pairwise_comparisons": [
+        {
+          "group_a": "native",
+          "group_b": "non_native",
+          "cohens_d": 0.6519,
+          "t_statistic": 1.0296,
+          "p_value": 0.3032,
+          "is_significant": false,
+          "effect_magnitude": "medium"
+        }
+      ]
+    }
+  }
+}

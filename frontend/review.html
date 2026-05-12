@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Original — Submission Review</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg-primary: #f7f3ea;
+      --bg-secondary: #fff;
+      --border-light: #e2dccf;
+      --text-dark: #1a130a;
+      --text-muted: #8b7355;
+      --accent-primary: #1a6fb5;
+      --accent-primary-dark: #155a94;
+      --accent-success: #16a34a;
+      --accent-warning: #f59e0b;
+      --accent-danger: #dc2626;
+      --accent-info: #0891b2;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-dark);
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+    .nav-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      padding: 0 1rem;
+    }
+
+    .logo-text {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .nav-links a {
+      padding: 0.5rem 1rem;
+      text-decoration: none;
+      color: var(--accent-primary);
+      font-size: 0.9rem;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+
+    .nav-links a:hover {
+      background: rgba(26, 111, 181, 0.1);
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .page-header {
+      margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+      font-size: 1.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .page-header p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .badge-container {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .confidence-badge {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .badge-circle {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: white;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    }
+
+    .badge-circle.green {
+      background: var(--accent-success);
+    }
+
+    .badge-circle.yellow {
+      background: var(--accent-warning);
+    }
+
+    .badge-circle.orange {
+      background: #f97316;
+    }
+
+    .badge-circle.red {
+      background: var(--accent-danger);
+    }
+
+    .badge-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-dark);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .summary-text {
+      background: #f9f7f4;
+      border-left: 4px solid var(--accent-primary);
+      padding: 1.5rem;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: var(--text-dark);
+      margin-bottom: 1.5rem;
+    }
+
+    .summary-text strong {
+      color: var(--text-dark);
+      font-weight: 600;
+    }
+
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: var(--text-dark);
+    }
+
+    .diverging-chart {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      font-size: 0.85rem;
+    }
+
+    .diverging-chart-label {
+      min-width: 140px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .diverging-chart-bars {
+      display: flex;
+      flex: 1;
+      height: 24px;
+      border-radius: 4px;
+      overflow: hidden;
+      background: #f3f0eb;
+      gap: 2px;
+    }
+
+    .chart-bar-constructive {
+      background: var(--accent-success);
+      height: 100%;
+    }
+
+    .chart-bar-destructive {
+      background: var(--accent-danger);
+      height: 100%;
+    }
+
+    .diverging-chart-value {
+      min-width: 50px;
+      text-align: right;
+      color: var(--text-dark);
+      font-weight: 600;
+    }
+
+    .sparkline-container {
+      position: relative;
+      height: 60px;
+      margin: 1rem 0;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .action-box {
+      background: #f9f7f4;
+      border-left: 4px solid var(--accent-primary);
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin: 1.5rem 0;
+    }
+
+    .action-box.danger {
+      border-left-color: var(--accent-danger);
+      background: #fef2f2;
+    }
+
+    .action-box.warning {
+      border-left-color: var(--accent-warning);
+      background: #fffbeb;
+    }
+
+    .action-box h4 {
+      margin-bottom: 0.5rem;
+      color: var(--text-dark);
+    }
+
+    .action-box p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .action-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .decision-btn {
+      padding: 0.8rem;
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      background: var(--bg-secondary);
+      color: var(--text-dark);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: left;
+    }
+
+    .decision-btn:hover {
+      border-color: var(--accent-primary);
+      background: rgba(26, 111, 181, 0.05);
+    }
+
+    .decision-btn.selected {
+      background: var(--accent-primary);
+      color: white;
+      border-color: var(--accent-primary);
+    }
+
+    .decision-btn-label {
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .decision-btn-desc {
+      font-size: 0.8rem;
+      opacity: 0.8;
+    }
+
+    .notes-area {
+      width: 100%;
+      min-height: 80px;
+      padding: 0.75rem;
+      border: 1px solid var(--border-light);
+      border-radius: 6px;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 0.9rem;
+      margin: 1rem 0;
+      color: var(--text-dark);
+    }
+
+    .notes-area:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px rgba(26, 111, 181, 0.12);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+      margin-top: 1.5rem;
+    }
+
+    button {
+      padding: 0.7rem 1.5rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    button.btn-primary {
+      background: var(--accent-primary);
+      color: white;
+    }
+
+    button.btn-primary:hover:not(:disabled) {
+      background: var(--accent-primary-dark);
+    }
+
+    button.btn-secondary {
+      background: transparent;
+      color: var(--accent-primary);
+      border: 1px solid var(--border-light);
+    }
+
+    button.btn-secondary:hover {
+      background: rgba(26, 111, 181, 0.05);
+      border-color: var(--accent-primary);
+    }
+
+    .meta-info {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      padding: 0.75rem;
+      background: #fdfcfa;
+      border-radius: 6px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+    }
+
+    .error-msg {
+      background: #fdf2f2;
+      border: 1px solid rgba(192, 57, 43, 0.3);
+      border-radius: 6px;
+      padding: 1rem;
+      font-size: 0.9rem;
+      color: #8b1c14;
+      margin-bottom: 1rem;
+    }
+
+    /* ── Tension Arc card ─────────────────────────────────────────────── */
+    .tension-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .tension-metric {
+      background: #fdfcfa;
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+    }
+
+    .tension-metric-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+    }
+
+    .tension-metric-value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+
+    .arc-flag-badge {
+      display: inline-block;
+      padding: 0.3rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.75rem;
+    }
+
+    .arc-flag-badge.authentic  { background: #dcfce7; color: #166534; }
+    .arc-flag-badge.ai_typical { background: #fee2e2; color: #991b1b; }
+    .arc-flag-badge.review     { background: #fef3c7; color: #92400e; }
+    .arc-flag-badge.insufficient_length { background: #f3f4f6; color: #6b7280; }
+
+    .arc-flag-reason {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 1rem;
+    }
+
+    .auth-signal-bar-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .auth-signal-track {
+      flex: 1;
+      height: 8px;
+      background: #f3f0eb;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .auth-signal-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: var(--accent-success);
+      transition: width 0.4s ease;
+    }
+
+    .auth-signal-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    #tension-chart-canvas {
+      width: 100%;
+      height: 80px;
+      display: block;
+    }
+
+    .tension-chart-wrap {
+      position: relative;
+      margin-top: 0.75rem;
+    }
+
+    .tension-axis-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    @media (max-width: 768px) {
+      .badge-circle {
+        width: 80px;
+        height: 80px;
+        font-size: 1.75rem;
+      }
+
+      .action-buttons {
+        grid-template-columns: 1fr;
+      }
+
+      .button-group {
+        flex-direction: column-reverse;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="nav-header">
+    <div class="logo-text">Original</div>
+    <div class="nav-links">
+      <a href="original-dashboard.html">Dashboard</a>
+      <a href="help.html">Help</a>
+      <a href="#" onclick="OriginalAuth.logout(); return false;">Logout</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>Submission Review</h1>
+      <p>Detailed authorship analysis for <span id="student-name">this submission</span></p>
+    </div>
+
+    <div id="loading" class="loading">Loading submission data...</div>
+    <div id="error" class="error-msg" style="display: none;"></div>
+
+    <div id="content" style="display: none;">
+      <!-- Confidence Badge & Summary -->
+      <div class="badge-container">
+        <div class="confidence-badge">
+          <div class="badge-circle" id="badge-circle">85%</div>
+          <div class="badge-label" id="badge-label">LIKELY AUTHENTIC</div>
+        </div>
+        <div class="summary-text" id="summary-text">
+          This submission shows moderate deviation from the student's established pattern.
+        </div>
+      </div>
+
+      <!-- Meta Information -->
+      <div class="meta-info" id="meta-info">
+        Assignment: <strong id="meta-assignment">—</strong> | Scored: <strong id="meta-scored">—</strong>
+      </div>
+
+      <!-- Interference Decomposition -->
+      <div class="card">
+        <div class="card-title">Writing Pattern Analysis</div>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.9rem;">
+          Top features that align with and diverge from this student's typical writing.
+        </p>
+
+        <div style="margin-bottom: 1rem;">
+          <div style="font-weight: 600; color: var(--text-dark); margin-bottom: 0.5rem; font-size: 0.9rem;">
+            Constructive Features (Authentic)
+          </div>
+          <div id="constructive-features"></div>
+        </div>
+
+        <div>
+          <div style="font-weight: 600; color: var(--text-dark); margin-bottom: 0.5rem; font-size: 0.9rem;">
+            Destructive Features (Anomalies)
+          </div>
+          <div id="destructive-features"></div>
+        </div>
+      </div>
+
+      <!-- Trajectory -->
+      <div class="card">
+        <div class="card-title">Writing Trajectory</div>
+        <p style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.9rem;">
+          How this submission compares to the student's overall writing evolution.
+        </p>
+        <div class="sparkline-container">
+          <svg id="trajectory-chart"></svg>
+        </div>
+        <div id="trajectory-text" style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem;"></div>
+      </div>
+
+      <!-- Recommended Action -->
+      <div class="card">
+        <div class="card-title">Recommended Action</div>
+        <div id="action-box" class="action-box">
+          <h4 id="action-recommendation">Monitor</h4>
+          <p id="action-rationale">
+            This submission warrants careful review but does not require immediate escalation.
+          </p>
+        </div>
+      </div>
+
+      <!-- Writing Rhythm Analysis (Tension Arc) -->
+      <div class="card" id="tension-section" style="display:none;">
+        <div class="card-title">Writing Rhythm Analysis</div>
+        <p style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.9rem;">
+          Measures natural tension and resolution patterns in this submission.
+          Human writing shows irregular, unresolved tension peaks; AI writing is
+          characteristically flat and fully-resolving.
+        </p>
+
+        <!-- Arc flag badge + reason -->
+        <div id="arc-flag-badge" class="arc-flag-badge" style="display:none;"></div>
+        <div id="arc-flag-reason" class="arc-flag-reason"></div>
+
+        <!-- Key metrics -->
+        <div class="tension-metrics">
+          <div class="tension-metric">
+            <div class="tension-metric-label">Catastrophe Index κ</div>
+            <div class="tension-metric-value" id="kappa-value">—</div>
+          </div>
+          <div class="tension-metric">
+            <div class="tension-metric-label">Max Tension</div>
+            <div class="tension-metric-value" id="max-tension-value">—</div>
+          </div>
+          <div class="tension-metric">
+            <div class="tension-metric-label">Mean Tension</div>
+            <div class="tension-metric-value" id="mean-tension-value">—</div>
+          </div>
+          <div class="tension-metric">
+            <div class="tension-metric-label">Resolution μ(ρ)</div>
+            <div class="tension-metric-value" id="mu-rho-value">—</div>
+          </div>
+        </div>
+
+        <!-- Authenticity signal bar (vs student's own baseline κ) -->
+        <div id="auth-signal-wrap" class="auth-signal-bar-wrap" style="display:none;">
+          <div class="auth-signal-label" style="min-width:130px;">Baseline match</div>
+          <div class="auth-signal-track">
+            <div class="auth-signal-fill" id="auth-signal-fill" style="width:0%;"></div>
+          </div>
+          <div class="auth-signal-label" id="auth-signal-pct">—</div>
+        </div>
+
+        <!-- Tension waveform chart -->
+        <div class="tension-chart-wrap">
+          <canvas id="tension-chart-canvas"></canvas>
+          <div class="tension-axis-label">
+            <span>Sentence 1</span>
+            <span id="tension-axis-end">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Decision Recording -->
+      <div class="card">
+        <div class="card-title">Record Your Decision</div>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.9rem;">
+          What action will you take on this submission?
+        </p>
+
+        <div class="action-buttons">
+          <div class="decision-btn" onclick="selectAction('clear')">
+            <div class="decision-btn-label">✓ Clear</div>
+            <div class="decision-btn-desc">Authentic. Accept submission.</div>
+          </div>
+          <div class="decision-btn" onclick="selectAction('monitor')">
+            <div class="decision-btn-label">⊕ Monitor</div>
+            <div class="decision-btn-desc">Accepted but watch student.</div>
+          </div>
+          <div class="decision-btn" onclick="selectAction('schedule_conversation')">
+            <div class="decision-btn-label">⟳ Conversation</div>
+            <div class="decision-btn-desc">Talk with student first.</div>
+          </div>
+          <div class="decision-btn" onclick="selectAction('escalate')">
+            <div class="decision-btn-label">! Escalate</div>
+            <div class="decision-btn-desc">Likely violation. Escalate.</div>
+          </div>
+        </div>
+
+        <label style="display: block; margin-top: 1.5rem; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #5a4030; margin-bottom: 0.5rem;">
+          Optional Notes
+        </label>
+        <textarea id="notes" class="notes-area" placeholder="Document your reasoning for accreditation or future reference..."></textarea>
+
+        <div class="button-group">
+          <button class="btn-secondary" onclick="window.history.back()">Cancel</button>
+          <button class="btn-primary" onclick="recordDecision()" id="record-btn">Record Decision</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    (function() {
+      'use strict';
+
+      OriginalAuth.requireAuth();
+
+      let currentSubmissionId = null;
+      let currentStudentId = null;
+      let selectedAction = null;
+      let scoreData = null;
+
+      // Get submission ID from URL
+      const params = new URLSearchParams(window.location.search);
+      currentSubmissionId = params.get('submission_id');
+      currentStudentId = params.get('student_id');
+
+      if (!currentSubmissionId || !currentStudentId) {
+        document.getElementById('error').textContent = 'Missing submission or student ID';
+        document.getElementById('error').style.display = 'block';
+        document.getElementById('loading').style.display = 'none';
+        return;
+      }
+
+      // Load submission data
+      OriginalAuth.apiFetch(`/api/v1/submissions/${currentStudentId}/submissions/${currentSubmissionId}`)
+        .then(resp => {
+          if (!resp.ok) throw new Error('Failed to load submission');
+          return resp.json();
+        })
+        .then(data => {
+          scoreData = data;
+          renderResults(data);
+        })
+        .catch(err => {
+          document.getElementById('error').textContent = 'Error loading submission: ' + err.message;
+          document.getElementById('error').style.display = 'block';
+          document.getElementById('loading').style.display = 'none';
+        });
+
+      function renderResults(data) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+
+        // Badge and summary
+        const deviation = data.deviation_score || 0;
+        const badge = document.getElementById('badge-circle');
+        const label = document.getElementById('badge-label');
+        const confidence = Math.round((1 - deviation) * 100);
+
+        badge.textContent = confidence + '%';
+        badge.className = 'badge-circle ' + getBadgeColor(deviation);
+        label.textContent = getActionLabel(data.recommended_action);
+
+        // Summary text
+        const summary = generateSummary(data);
+        document.getElementById('summary-text').textContent = summary;
+
+        // Meta info
+        document.getElementById('meta-assignment').textContent = data.assignment || 'Unknown';
+        document.getElementById('meta-scored').textContent = new Date(data.scored_at).toLocaleDateString();
+        document.getElementById('student-name').textContent = data.student_id;
+
+        // Interference decomposition
+        renderInterference(data.interference || {});
+
+        // Trajectory
+        renderTrajectory(data.trajectory || {});
+
+        // Action recommendation
+        renderActionRecommendation(data.recommended_action, data.rationale);
+
+        // Tension Arc (optional — only present when NLP models ran successfully)
+        if (data.tension_arc) {
+          renderTensionArc(data.tension_arc);
+        }
+      }
+
+      function renderInterference(interference) {
+        const constructiveDiv = document.getElementById('constructive-features');
+        const destructiveDiv = document.getElementById('destructive-features');
+
+        const constructive = interference.constructive_features || [];
+        const destructive = interference.destructive_features || [];
+
+        constructiveDiv.innerHTML = constructive.map(f => {
+          const contribution = (f.contribution * 100).toFixed(1);
+          const barWidth = Math.min(100, Math.abs(f.contribution) * 300);
+          return `
+            <div class="diverging-chart">
+              <div class="diverging-chart-label">${f.code}</div>
+              <div class="diverging-chart-bars">
+                <div class="chart-bar-constructive" style="width: ${barWidth}px;"></div>
+              </div>
+              <div class="diverging-chart-value">${contribution}%</div>
+            </div>
+          `;
+        }).join('');
+
+        destructiveDiv.innerHTML = destructive.map(f => {
+          const contribution = (Math.abs(f.contribution) * 100).toFixed(1);
+          const barWidth = Math.min(100, Math.abs(f.contribution) * 300);
+          return `
+            <div class="diverging-chart">
+              <div class="diverging-chart-label">${f.code}</div>
+              <div class="diverging-chart-bars">
+                <div class="chart-bar-destructive" style="width: ${barWidth}px;"></div>
+              </div>
+              <div class="diverging-chart-value">${contribution}%</div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function renderTrajectory(trajectory) {
+        const direction = trajectory.direction || 'lateral';
+        const alignment = (trajectory.alignment || 0) * 100;
+        const text = `Direction: ${direction.toUpperCase()} | Alignment: ${alignment.toFixed(1)}%`;
+        document.getElementById('trajectory-text').textContent = text;
+
+        // Simple sparkline
+        const svg = document.getElementById('trajectory-chart');
+        svg.innerHTML = `
+          <polyline points="10,50 50,45 90,50 130,40 170,55"
+                    style="fill:none;stroke:#1a6fb5;stroke-width:2;" />
+        `;
+      }
+
+      function renderActionRecommendation(action, rationale) {
+        const box = document.getElementById('action-box');
+        const recommend = document.getElementById('action-recommendation');
+        const rationaleDiv = document.getElementById('action-rationale');
+
+        const actionMap = {
+          'no_action': { label: 'Accept', color: 'success' },
+          'monitor': { label: 'Monitor', color: 'warning' },
+          'schedule_conversation': { label: 'Schedule Conversation', color: 'warning' },
+          'escalate': { label: 'Escalate', color: 'danger' }
+        };
+
+        const actionInfo = actionMap[action] || { label: 'Review', color: '' };
+        recommend.textContent = actionInfo.label;
+        rationaleDiv.textContent = rationale || 'Please review submission.';
+
+        box.className = 'action-box ' + actionInfo.color;
+      }
+
+      window.selectAction = function(action) {
+        selectedAction = action;
+        document.querySelectorAll('.decision-btn').forEach(btn => btn.classList.remove('selected'));
+        event.target.closest('.decision-btn').classList.add('selected');
+      };
+
+      window.recordDecision = function() {
+        if (!selectedAction) {
+          alert('Please select an action');
+          return;
+        }
+
+        const notes = document.getElementById('notes').value;
+        const btn = document.getElementById('record-btn');
+        btn.disabled = true;
+        btn.textContent = 'Recording...';
+
+        OriginalAuth.apiFetch(`/api/v1/submissions/${currentStudentId}/submissions/${currentSubmissionId}/decision`, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: selectedAction,
+            notes: notes
+          })
+        })
+        .then(resp => {
+          if (!resp.ok) throw new Error('Failed to record decision');
+          return resp.json();
+        })
+        .then(() => {
+          window.location.href = 'original-dashboard.html?tab=recent';
+        })
+        .catch(err => {
+          alert('Error: ' + err.message);
+          btn.disabled = false;
+          btn.textContent = 'Record Decision';
+        });
+      };
+
+      function getBadgeColor(deviation) {
+        if (deviation < 0.3) return 'green';
+        if (deviation < 0.55) return 'yellow';
+        if (deviation < 0.75) return 'orange';
+        return 'red';
+      }
+
+      function getActionLabel(action) {
+        const map = {
+          'no_action': 'LIKELY AUTHENTIC',
+          'monitor': 'MONITOR CLOSELY',
+          'schedule_conversation': 'REVIEW WITH STUDENT',
+          'escalate': 'FLAG FOR ESCALATION'
+        };
+        return map[action] || 'REVIEW NEEDED';
+      }
+
+      function renderTensionArc(arc) {
+        document.getElementById('tension-section').style.display = 'block';
+
+        // Arc flag badge
+        const badgeEl = document.getElementById('arc-flag-badge');
+        badgeEl.style.display = 'inline-block';
+        badgeEl.className = 'arc-flag-badge ' + arc.arc_flag;
+        const flagLabels = {
+          authentic: '✓ Authentic Human Rhythm',
+          ai_typical: '⚠ AI-Typical Pattern',
+          review: '? Inconclusive — Review',
+          insufficient_length: '— Text Too Short',
+        };
+        badgeEl.textContent = flagLabels[arc.arc_flag] || arc.arc_flag;
+
+        document.getElementById('arc-flag-reason').textContent = arc.arc_flag_reason || '';
+
+        // Key metrics
+        document.getElementById('kappa-value').textContent = arc.catastrophe_index.toFixed(3);
+        document.getElementById('max-tension-value').textContent = arc.max_tension.toFixed(3);
+        document.getElementById('mean-tension-value').textContent = arc.mean_tension.toFixed(3);
+        document.getElementById('mu-rho-value').textContent = arc.resolution_ratio_mean.toFixed(2);
+
+        // Authenticity signal bar (only if student has a baseline κ)
+        if (arc.authenticity_signal !== null && arc.authenticity_signal !== undefined) {
+          const signalPct = Math.max(0, Math.min(100, arc.authenticity_signal * 100));
+          const fillEl = document.getElementById('auth-signal-fill');
+          fillEl.style.width = signalPct.toFixed(1) + '%';
+          fillEl.style.background = signalPct >= 70
+            ? 'var(--accent-success)' : signalPct >= 50
+            ? 'var(--accent-warning)' : 'var(--accent-danger)';
+          document.getElementById('auth-signal-pct').textContent = signalPct.toFixed(0) + '%';
+          document.getElementById('auth-signal-wrap').style.display = 'flex';
+        }
+
+        // Tension waveform chart (pure Canvas — no Chart.js dependency)
+        const series = arc.tension_series || [];
+        if (series.length > 1) {
+          const canvas = document.getElementById('tension-chart-canvas');
+          const W = canvas.parentElement.offsetWidth || 600;
+          const H = 80;
+          canvas.width = W;
+          canvas.height = H;
+          const ctx = canvas.getContext('2d');
+          const pad = { left: 4, right: 4, top: 6, bottom: 6 };
+          const drawW = W - pad.left - pad.right;
+          const drawH = H - pad.top - pad.bottom;
+
+          // Background
+          ctx.fillStyle = '#fdfcfa';
+          ctx.fillRect(0, 0, W, H);
+
+          // Threshold reference line at 0.18 (ai_typical boundary)
+          const refY = pad.top + drawH * (1 - 0.18);
+          ctx.setLineDash([3, 3]);
+          ctx.strokeStyle = '#d1c9bb';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(pad.left, refY);
+          ctx.lineTo(W - pad.right, refY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Tension line
+          const flagColor = {
+            authentic: '#16a34a',
+            ai_typical: '#dc2626',
+            review: '#f59e0b',
+            insufficient_length: '#9ca3af',
+          }[arc.arc_flag] || '#1a6fb5';
+
+          ctx.beginPath();
+          series.forEach((v, i) => {
+            const x = pad.left + (i / (series.length - 1)) * drawW;
+            const y = pad.top + drawH * (1 - Math.min(1, Math.max(0, v)));
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+          });
+          ctx.strokeStyle = flagColor;
+          ctx.lineWidth = 2;
+          ctx.lineJoin = 'round';
+          ctx.stroke();
+
+          document.getElementById('tension-axis-end').textContent =
+            'Sentence ' + series.length;
+        }
+      }
+
+      function generateSummary(data) {
+        const deviation = data.deviation_score || 0;
+        const studentId = data.student_id || 'this student';
+
+        if (deviation < 0.3) {
+          return `This submission closely matches ${studentId}'s established writing patterns. The deviation score is low, and most features align with their baseline.`;
+        } else if (deviation < 0.55) {
+          return `This submission shows moderate deviation from ${studentId}'s writing baseline. Some features vary, but the overall pattern suggests authenticity.`;
+        } else if (deviation < 0.75) {
+          return `This submission contains significant deviations from ${studentId}'s baseline. Multiple unusual features detected. Recommend a conversation with the student.`;
+        } else {
+          return `This submission shows substantial deviation from ${studentId}'s established writing patterns. Significant anomalies detected across multiple features. Recommend escalation for further review.`;
+        }
+      }
+    })();
+  </script>
+</body>
+</html>

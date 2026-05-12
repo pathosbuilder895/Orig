@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Original — Flagged Submissions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+    :root{
+      --green-deepest:#0f1e17;--green-deep:#162b22;--green-mid:#1e3d2f;
+      --green-hover:#243d30;--green-border:rgba(255,255,255,0.07);
+      --cream:#f7f3ea;--cream-warm:#ede8d8;--cream-border:#e2dccf;
+      --surface:#ffffff;--gold:#c9a028;--gold-light:rgba(201,160,40,0.12);
+      --gold-muted:rgba(201,160,40,0.35);--amber:#9b6420;
+      --text-primary:#1a130a;--text-secondary:#5a4030;--text-muted:#8a7060;
+      --text-cream:#f7f3ea;--text-cream-dim:rgba(247,243,234,0.55);
+      --flag-red:#c0392b;--flag-red-bg:rgba(192,57,43,0.08);
+      --flag-green:#2a6b45;--flag-green-bg:rgba(42,107,69,0.1);
+      --flag-amber-bg:rgba(201,160,40,0.1);
+      --sidebar-w:264px;--radius:6px;
+      --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md:0 4px 12px rgba(0,0,0,0.08);
+    }
+    html,body{height:100%;}
+    body{font-family:'Inter',system-ui,sans-serif;background:var(--cream);color:var(--text-primary);display:flex;overflow:hidden;font-size:14px;line-height:1.5;}
+
+    /* ── SIDEBAR ── */
+    .sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);height:100vh;background:var(--green-deep);display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:100;border-right:1px solid var(--green-border);}
+    .sidebar-logo{padding:1.5rem 1.5rem 1.25rem;border-bottom:1px solid var(--green-border);}
+    .logo-mark{display:flex;align-items:center;gap:0.75rem;margin-bottom:0.35rem;}
+    .logo-icon{width:30px;height:30px;border:1px solid var(--gold-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .logo-icon svg{width:14px;height:14px;stroke:var(--gold);}
+    .logo-wordmark{font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;color:var(--text-cream);letter-spacing:0.06em;}
+    .logo-school{font-family:'EB Garamond',serif;font-size:0.78rem;font-style:italic;color:var(--text-cream-dim);letter-spacing:0.03em;padding-left:2.8rem;}
+    .sidebar-nav{flex:1;padding:1rem 0;overflow-y:auto;}
+    .nav-section-label{font-size:0.65rem;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-cream-dim);padding:0.6rem 1.5rem 0.3rem;margin-top:0.5rem;}
+    .nav-item{display:flex;align-items:center;gap:0.75rem;padding:0.6rem 1.5rem;color:rgba(247,243,234,0.65);text-decoration:none;font-size:0.875rem;font-weight:500;cursor:pointer;transition:color 0.15s,background 0.15s;border-left:2px solid transparent;letter-spacing:0.01em;}
+    .nav-item:hover{color:var(--text-cream);background:var(--green-hover);}
+    .nav-item.active{color:var(--text-cream);border-left-color:var(--gold);background:rgba(201,160,40,0.08);}
+    .nav-item svg{width:16px;height:16px;stroke:currentColor;flex-shrink:0;opacity:0.85;}
+    .nav-badge{margin-left:auto;background:var(--gold);color:var(--green-deepest);font-size:0.65rem;font-weight:700;padding:0.15rem 0.45rem;border-radius:20px;}
+    .sidebar-user{border-top:1px solid var(--green-border);padding:1rem 1.25rem;display:flex;align-items:center;gap:0.75rem;}
+    .user-avatar{width:32px;height:32px;border-radius:50%;background:var(--green-mid);border:1px solid var(--gold-muted);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:0.8rem;color:var(--gold);flex-shrink:0;}
+    .user-info{flex:1;min-width:0;}
+    .user-name{font-size:0.825rem;font-weight:500;color:var(--text-cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .user-role{font-size:0.72rem;color:var(--text-cream-dim);font-style:italic;font-family:'EB Garamond',serif;}
+    .user-settings{width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--text-cream-dim);cursor:pointer;border-radius:4px;}
+    .user-settings svg{width:15px;height:15px;stroke:currentColor;}
+
+    /* ── MAIN SHELL ── */
+    .main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+    .topbar{background:var(--cream);border-bottom:1px solid var(--cream-border);padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+    .breadcrumb{display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;color:var(--text-muted);}
+    .breadcrumb a{color:var(--text-muted);text-decoration:none;transition:color 0.15s;}
+    .breadcrumb a:hover{color:var(--amber);}
+    .breadcrumb-sep{color:var(--cream-border);}
+    .breadcrumb-current{font-weight:500;color:var(--text-secondary);}
+    .topbar-right{display:flex;align-items:center;gap:0.75rem;}
+    .semester-badge{font-family:'EB Garamond',serif;font-size:0.85rem;font-style:italic;color:var(--text-muted);background:var(--cream-warm);border:1px solid var(--cream-border);padding:0.3rem 0.85rem;border-radius:20px;}
+    .topbar-icon-btn{width:32px;height:32px;border-radius:var(--radius);border:1px solid var(--cream-border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-secondary);position:relative;}
+    .topbar-icon-btn svg{width:15px;height:15px;stroke:currentColor;}
+    .notif-dot{position:absolute;top:6px;right:6px;width:6px;height:6px;background:var(--gold);border-radius:50%;border:1.5px solid var(--cream);}
+
+    /* ── SPLIT LAYOUT ── */
+    .split-view{flex:1;display:grid;grid-template-columns:1fr 420px;overflow:hidden;}
+    .list-pane{overflow-y:auto;border-right:1px solid var(--cream-border);display:flex;flex-direction:column;}
+    .detail-pane{overflow-y:auto;background:var(--surface);}
+
+    /* ── LIST PANE HEADER ── */
+    .list-header{padding:1.5rem 1.5rem 0;flex-shrink:0;}
+    .list-title-row{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:1rem;}
+    .list-title{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:600;color:var(--text-primary);letter-spacing:-0.01em;}
+    .list-subtitle{font-family:'EB Garamond',serif;font-size:0.875rem;font-style:italic;color:var(--text-muted);}
+    .btn{display:inline-flex;align-items:center;gap:0.4rem;padding:0.45rem 1rem;border-radius:var(--radius);font-size:0.8rem;font-weight:500;cursor:pointer;transition:all 0.15s;text-decoration:none;border:none;letter-spacing:0.01em;}
+    .btn svg{width:13px;height:13px;stroke:currentColor;}
+    .btn-ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--cream-border);}
+    .btn-ghost:hover{background:var(--cream-warm);border-color:var(--gold-muted);color:var(--text-primary);}
+    .btn-primary{background:var(--green-deep);color:var(--text-cream);border:1px solid var(--green-deep);}
+    .btn-primary:hover{background:var(--green-mid);}
+
+    /* ── FILTER BAR ── */
+    .filter-bar{display:flex;align-items:center;gap:0.5rem;padding:0 1.5rem 1rem;flex-wrap:wrap;flex-shrink:0;border-bottom:1px solid var(--cream-border);}
+    .filter-chip{padding:0.3rem 0.8rem;border-radius:20px;font-size:0.75rem;font-weight:500;border:1px solid var(--cream-border);background:var(--surface);color:var(--text-secondary);cursor:pointer;transition:all 0.15s;white-space:nowrap;}
+    .filter-chip:hover{border-color:var(--gold-muted);color:var(--text-primary);}
+    .filter-chip.active{background:var(--gold-light);border-color:var(--gold-muted);color:var(--amber);}
+    .filter-chip.red.active{background:var(--flag-red-bg);border-color:rgba(192,57,43,0.25);color:var(--flag-red);}
+    .filter-chip.green.active{background:var(--flag-green-bg);border-color:rgba(42,107,69,0.2);color:var(--flag-green);}
+    .filter-sep{width:1px;height:18px;background:var(--cream-border);margin:0 0.25rem;}
+    .filter-search{display:flex;align-items:center;gap:0.4rem;border:1px solid var(--cream-border);border-radius:var(--radius);padding:0.3rem 0.7rem;background:var(--surface);margin-left:auto;}
+    .filter-search svg{width:12px;height:12px;stroke:var(--text-muted);flex-shrink:0;}
+    .filter-search input{border:none;outline:none;background:transparent;font-size:0.775rem;color:var(--text-primary);width:140px;font-family:'Inter',sans-serif;}
+    .filter-search input::placeholder{color:var(--text-muted);}
+
+    /* ── FLAG LIST ── */
+    .flag-list{flex:1;}
+    .flag-list-item{
+      display:flex;flex-direction:column;gap:0.4rem;
+      padding:1rem 1.5rem;
+      border-bottom:1px solid var(--cream-border);
+      cursor:pointer;
+      transition:background 0.12s;
+      position:relative;
+    }
+    .flag-list-item:hover{background:var(--cream-warm);}
+    .flag-list-item.selected{background:var(--gold-light);border-left:2px solid var(--gold);}
+    .flag-list-item.selected:hover{background:var(--gold-light);}
+    .flag-item-row1{display:flex;align-items:center;justify-content:space-between;gap:0.5rem;}
+    .flag-student-name{font-weight:600;font-size:0.875rem;color:var(--text-primary);}
+    .flag-score-badge{
+      font-family:'Playfair Display',serif;font-size:0.9rem;font-weight:700;
+      min-width:38px;text-align:center;padding:0.1rem 0.5rem;border-radius:4px;
+    }
+    .flag-score-badge.high{color:var(--flag-red);background:var(--flag-red-bg);}
+    .flag-score-badge.medium{color:var(--amber);background:var(--flag-amber-bg);}
+    .flag-score-badge.watch{color:var(--text-secondary);background:var(--cream-warm);}
+    .flag-item-row2{display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;}
+    .flag-assignment{font-size:0.825rem;color:var(--text-secondary);}
+    .flag-course-tag{font-size:0.68rem;background:var(--cream-warm);border:1px solid var(--cream-border);padding:0.1rem 0.45rem;border-radius:20px;color:var(--text-muted);font-weight:500;}
+    .flag-item-row3{display:flex;align-items:center;justify-content:space-between;}
+    .flag-signals{font-size:0.72rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;}
+    .flag-status-tag{font-size:0.68rem;font-weight:600;padding:0.15rem 0.5rem;border-radius:20px;}
+    .flag-status-tag.pending{background:var(--flag-amber-bg);color:var(--amber);border:1px solid rgba(201,160,40,0.25);}
+    .flag-status-tag.reviewed{background:var(--cream-warm);color:var(--text-muted);border:1px solid var(--cream-border);}
+    .flag-status-tag.escalated{background:var(--flag-red-bg);color:var(--flag-red);border:1px solid rgba(192,57,43,0.2);}
+    .flag-status-tag.cleared{background:var(--flag-green-bg);color:var(--flag-green);border:1px solid rgba(42,107,69,0.2);}
+    .flag-date{font-size:0.7rem;color:var(--text-muted);}
+
+    /* ── SECTION DIVIDER ── */
+    .list-section-divider{
+      padding:0.4rem 1.5rem;
+      font-size:0.65rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;
+      color:var(--text-muted);background:var(--cream);
+      border-bottom:1px solid var(--cream-border);
+      sticky:top:0;
+    }
+
+    /* ── DETAIL PANE ── */
+    .detail-empty{
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      height:100%;padding:3rem;text-align:center;
+    }
+    .detail-empty-icon{
+      width:52px;height:52px;border-radius:50%;
+      background:var(--cream);border:1px solid var(--cream-border);
+      display:flex;align-items:center;justify-content:center;
+      margin-bottom:1rem;
+    }
+    .detail-empty-icon svg{width:22px;height:22px;stroke:var(--text-muted);}
+    .detail-empty h3{font-family:'Playfair Display',serif;font-size:1rem;font-weight:500;color:var(--text-secondary);margin-bottom:0.4rem;}
+    .detail-empty p{font-family:'EB Garamond',serif;font-size:0.875rem;font-style:italic;color:var(--text-muted);}
+
+    .detail-content{padding:1.5rem;display:none;}
+    .detail-content.visible{display:block;}
+
+    .detail-header{margin-bottom:1.25rem;}
+    .detail-alert{
+      display:flex;align-items:center;gap:0.6rem;
+      background:var(--flag-red-bg);border:1px solid rgba(192,57,43,0.15);
+      border-radius:var(--radius);padding:0.65rem 1rem;
+      margin-bottom:1rem;
+    }
+    .detail-alert svg{width:14px;height:14px;stroke:var(--flag-red);flex-shrink:0;}
+    .detail-alert span{font-size:0.8rem;font-weight:600;color:var(--flag-red);}
+    .detail-assignment{font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:600;color:var(--text-primary);margin-bottom:0.3rem;}
+    .detail-meta-row{display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:0.75rem;}
+    .detail-meta{font-size:0.775rem;color:var(--text-muted);display:flex;align-items:center;gap:0.3rem;font-family:'EB Garamond',serif;font-style:italic;}
+    .detail-meta svg{width:11px;height:11px;stroke:currentColor;}
+    .detail-score-row{display:flex;align-items:center;gap:1rem;padding:0.9rem 1rem;background:var(--cream);border-radius:var(--radius);border:1px solid var(--cream-border);}
+    .detail-score-num{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;color:var(--flag-red);line-height:1;}
+    .detail-score-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--text-muted);margin-top:0.15rem;}
+    .detail-score-bar-wrap{flex:1;}
+    .detail-score-bar{height:8px;background:var(--cream-border);border-radius:4px;overflow:hidden;margin-bottom:0.35rem;}
+    .detail-score-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--flag-green) 0%,var(--amber) 50%,var(--flag-red) 80%);}
+    .detail-score-marker{position:relative;height:0;}
+    .detail-threshold-labels{display:flex;justify-content:space-between;font-size:0.65rem;color:var(--text-muted);}
+
+    .detail-section-title{font-size:0.68rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.6rem;margin-top:1.1rem;}
+
+    .signal-list{display:flex;flex-direction:column;gap:0.4rem;margin-bottom:0.5rem;}
+    .signal-item{display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0.75rem;background:var(--cream);border-radius:var(--radius);border:1px solid var(--cream-border);}
+    .signal-name{font-size:0.8rem;font-weight:500;color:var(--text-primary);}
+    .signal-delta{font-size:0.78rem;font-weight:700;padding:0.1rem 0.45rem;border-radius:4px;}
+    .signal-delta.bad{background:var(--flag-red-bg);color:var(--flag-red);}
+    .signal-delta.warn{background:var(--flag-amber-bg);color:var(--amber);}
+
+    .detail-actions{display:flex;flex-direction:column;gap:0.5rem;margin-top:1.25rem;}
+    .btn-full{width:100%;justify-content:center;}
+    .btn-escalate{background:var(--flag-red);color:#fff;border:1px solid var(--flag-red);}
+    .btn-escalate:hover{background:#a93226;}
+    .btn-clear{background:var(--flag-green-bg);color:var(--flag-green);border:1px solid rgba(42,107,69,0.25);}
+    .btn-clear:hover{background:rgba(42,107,69,0.18);}
+    .btn-review{background:var(--green-deep);color:var(--text-cream);border:1px solid var(--green-deep);}
+    .btn-review:hover{background:var(--green-mid);}
+
+    ::-webkit-scrollbar{width:4px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:var(--cream-border);border-radius:2px;}
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+      <span class="logo-wordmark">Original</span>
+    </div>
+    <div class="logo-school">Southern Baptist Theological Seminary</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Overview</div>
+    <a class="nav-item" href="original-dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard</a>
+    <a class="nav-item" href="original-course.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Courses</a>
+    <a class="nav-item" href="original-students.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Students</a>
+    <div class="nav-section-label">Review</div>
+    <a class="nav-item active" href="original-flagged.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Flagged<span class="nav-badge">5</span></a>
+    <a class="nav-item" href="original-reports.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Reports</a>
+        <div class="nav-section-label">Pipeline</div>
+    <a class="nav-item" href="original-features.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Feature Profile</a>
+    <a class="nav-item" href="original-quantum.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>Quantum State</a>
+    <a class="nav-item" href="original-decomposition.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Interference</a>
+    <div class="nav-section-label">Institution</div>
+    <a class="nav-item" href="original-admin.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Admin</a>
+    <a class="nav-item" href="original-settings.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">AC</div>
+    <div class="user-info"><div class="user-name">Dr. Andrew Clark</div><div class="user-role">Instructor</div></div>
+    <div class="user-settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="breadcrumb">
+      <a href="original-dashboard.html">Original</a>
+      <span class="breadcrumb-sep">/</span>
+      <span class="breadcrumb-current">Flagged</span>
+    </div>
+    <div class="topbar-right">
+      <div class="semester-badge">Spring 2026</div>
+      <div class="topbar-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+      <div class="topbar-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-dot"></span></div>
+    </div>
+  </div>
+
+  <!-- SPLIT VIEW -->
+  <div class="split-view">
+
+    <!-- LIST PANE -->
+    <div class="list-pane">
+      <div class="list-header">
+        <div class="list-title-row">
+          <div>
+            <div class="list-title">Flagged <span style="font-family:'EB Garamond',serif;font-weight:400;font-style:italic;font-size:1.1rem;color:var(--amber);">12</span></div>
+            <div class="list-subtitle">5 pending your review — Spring 2026</div>
+          </div>
+          <button class="btn btn-ghost">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export
+          </button>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <div class="filter-chip active" onclick="filterBy(this,'all')" data-filter="all">All <span style="opacity:0.6;">12</span></div>
+        <div class="filter-chip red" onclick="filterBy(this,'pending')">Pending <span style="opacity:0.6;">5</span></div>
+        <div class="filter-chip" onclick="filterBy(this,'escalated')">Escalated <span style="opacity:0.6;">2</span></div>
+        <div class="filter-chip green" onclick="filterBy(this,'cleared')">Cleared <span style="opacity:0.6;">5</span></div>
+        <div class="filter-sep"></div>
+        <div class="filter-chip red" onclick="filterBy(this,'high')">⚑ High risk</div>
+        <div class="filter-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="flag-search" placeholder="Search student or course…" oninput="searchFlags()" />
+        </div>
+      </div>
+
+      <div class="flag-list" id="flag-list">
+
+        <div class="list-section-divider">Pending review</div>
+
+        <!-- Item 1 — selected by default -->
+        <div class="flag-list-item selected" onclick="selectFlag(this, 'whitfield')" data-status="pending">
+          <div class="flag-item-row1">
+            <span class="flag-student-name">James Whitfield</span>
+            <span class="flag-score-badge high">0.91</span>
+          </div>
+          <div class="flag-item-row2">
+            <span class="flag-assignment">Final Essay — Christology</span>
+            <span class="flag-course-tag">THEO 501</span>
+          </div>
+          <div class="flag-item-row3">
+            <span class="flag-signals">TTR −43% · Sent length +71% · Passive +158%</span>
+            <span class="flag-status-tag pending">Pending</span>
+          </div>
+          <div class="flag-date" style="font-size:0.68rem;color:var(--text-muted);margin-top:0.1rem;">Mar 14, 2026</div>
+        </div>
+
+        <div class="flag-list-item" onclick="selectFlag(this,'okonkwo')" data-status="pending">
+          <div class="flag-item-row1">
+            <span class="flag-student-name">Sarah Okonkwo</span>
+            <span class="flag-score-badge high">0.84</span>
+          </div>
+          <div class="flag-item-row2">
+            <span class="flag-assignment">Week 9 Response — Soteriology</span>
+            <span class="flag-course-tag">THEO 501</span>
+          </div>
+          <div class="flag-item-row3">
+            <span class="flag-signals">Hapax −44% · Nominalization density elevated</span>
+            <span class="flag-status-tag pending">Pending</span>
+          </div>
+          <div class="flag-date" style="font-size:0.68rem;color:var(--text-muted);margin-top:0.1rem;">Mar 12, 2026</div>
+        </div>
+
+        <div class="flag-list-item" onclick="selectFlag(this,'delaney')" data-status="pending">
+          <div class="flag-item-row1">
+            <span class="flag-student-name">Marcus Delaney</span>
+            <span class="flag-score-badge medium">0.76</span>
+          </div>
+          <div class="flag-item-row2">
+            <span class="flag-assignment">Exegesis Paper — Romans 9</span>
+            <span class="flag-course-tag">BIBL 301</span>
+          </div>
+          <div class="flag-item-row3">
+            <span class="flag-signals">Modal verb shift · Passive voice elevated</span>
+            <span class="flag-status-tag pending">Pending</span>
+          </div>
+          <div class="flag-date" style="font-size:0.68rem;color:var(--text-muted);margin-top:0.1rem;">Mar 11, 2026</div>
+        </div>
+
+        <div class="flag-list-item" onclick="selectFlag(this,'vasquez')" data-status="pending">
+          <div class="flag-item-row1">
+            <span class="flag-student-name">Elena Vasquez</span>
+            <span class="flag-score-badge medium">0.73</span>
+          </div>
+          <div class="flag-item-row2">
+            <span class="flag-assignment">Critical Analysis — Hermeneutical Method</span>
+            <span class="flag-course-tag">BIBL 301</span>
+          </div>
+          <div class="flag-item-row3">
+            <span class="flag-signals">Stop word drop · TTR elevated above baseline</span>
+            <span class="flag-status-tag pending">Pending</span>
+          </div>
+          <div class="flag-date" style="font-size:0.68rem;color:var(--text-muted);margin-top:0.1rem;">Mar 9, 2026</div>
+        </div>
+
+        <div class="flag-list-item" onclick="selectFlag(this,'osei')" data-status="pending">
+          <div class="flag-item-row1">
+            <span class="flag-student-name">Daniel Osei</span>
+            <span class="flag-score-badge medium">0.71</span>
+          </div>
+          <div class="flag-item-row2">
+            <span class="flag-assignment">Research Paper — Pneumatology</span>
+            <span class="flag-course-tag">THEO 501</span>
+          </div>
+          <div class="flag-item-row3">
+            <span class="flag-signals">Hedging absent · Metadiscourse below baseline</span>
+            <span class="flag-status-tag pending">Pending</span>
+          </div>
+          <div class="flag-date" style="font-size:0.68rem;color:var(--text-muted);margin-top:0.1rem;">Mar 8, 2026</div>
+        </div>
+
+        <div class="list-section-divider">Escalated</div>
+
+        <div class="flag-list-item" onclick="selectFlag(this,'grant')" data-status="escalated">
+          <div class="flag-item-row1">
+            <span class="flag-student-name">Tyler Grant</span>
+            <span class="flag-score-badge high">0.88</span>
+          </div>
+          <div class="flag-item-row2">
+            <span class="flag-assignment">Midterm Essay — Church & State</span>
+            <span class="flag-course-tag">HIST 410</span>
+          </div>
+          <div class="flag-item-row3">
+            <span class="flag-signals">6 of 9 features outside baseline range</span>
+            <span class="flag-status-tag escalated">Escalated</span>
+          </div>
+          <div class="flag-date" style="font-size:0.68rem;color:var(--text-muted);margin-top:0.1rem;">Feb 28, 2026</div>
+        </div>
+
+        <div class="flag-list-item" onclick="selectFlag(this,'chen')" data-status="escalated">
+          <div class="flag-item-row1">
+            <span class="flag-student-name">Amy Chen</span>
+            <span class="flag-score-badge high">0.82</span>
+          </div>
+          <div class="flag-item-row2">
+            <span class="flag-assignment">Weekly Reflection — Week 6</span>
+            <span class="flag-course-tag">OT 201</span>
+          </div>
+          <div class="flag-item-row3">
+            <span class="flag-signals">TTR collapse · Function word ratio halved</span>
+            <span class="flag-status-tag escalated">Escalated</span>
+          </div>
+          <div class="flag-date" style="font-size:0.68rem;color:var(--text-muted);margin-top:0.1rem;">Feb 24, 2026</div>
+        </div>
+
+        <div class="list-section-divider">Cleared</div>
+
+        <div class="flag-list-item" style="opacity:0.65;" onclick="selectFlag(this,'ellis')" data-status="cleared">
+          <div class="flag-item-row1">
+            <span class="flag-student-name">Owen Ellis</span>
+            <span class="flag-score-badge watch">0.69</span>
+          </div>
+          <div class="flag-item-row2">
+            <span class="flag-assignment">Analysis Paper — Reformation Theology</span>
+            <span class="flag-course-tag">HIST 410</span>
+          </div>
+          <div class="flag-item-row3">
+            <span class="flag-signals">Cleared by Dr. Holt — family emergency documented</span>
+            <span class="flag-status-tag cleared">Cleared</span>
+          </div>
+          <div class="flag-date" style="font-size:0.68rem;color:var(--text-muted);margin-top:0.1rem;">Feb 19, 2026</div>
+        </div>
+
+      </div>
+    </div><!-- /list-pane -->
+
+    <!-- DETAIL PANE -->
+    <div class="detail-pane">
+
+      <!-- Empty state (hidden when item selected) -->
+      <div class="detail-empty" id="detail-empty" style="display:none;">
+        <div class="detail-empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>
+        </div>
+        <h3>Select a flag to review</h3>
+        <p>Click any item in the list to see the full analysis and take action.</p>
+      </div>
+
+      <!-- Detail for Whitfield (shown by default) -->
+      <div class="detail-content visible" id="detail-whitfield">
+        <div class="detail-header">
+          <div class="detail-alert">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>
+            <span>High deviation — 6 of 9 features outside 2σ baseline range</span>
+          </div>
+          <div class="detail-assignment">Final Essay — Christology</div>
+          <div class="detail-meta-row">
+            <span class="detail-meta"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>James Whitfield</span>
+            <span class="detail-meta"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>THEO 501</span>
+            <span class="detail-meta"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Mar 14, 2026</span>
+            <span class="detail-meta"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>2,840 words</span>
+          </div>
+          <div class="detail-score-row">
+            <div>
+              <div class="detail-score-num">0.91</div>
+              <div class="detail-score-label">Deviation score</div>
+            </div>
+            <div class="detail-score-bar-wrap">
+              <div class="detail-score-bar">
+                <div class="detail-score-fill" style="width:100%"></div>
+              </div>
+              <div class="detail-threshold-labels">
+                <span>0.0</span><span style="color:var(--amber);">0.65 flag</span><span style="color:var(--flag-red);">0.80 high</span><span>1.0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-section-title">Primary signals</div>
+        <div class="signal-list">
+          <div class="signal-item"><span class="signal-name">Type-Token Ratio</span><span class="signal-delta bad">−43%</span></div>
+          <div class="signal-item"><span class="signal-name">Mean Sentence Length</span><span class="signal-delta bad">+71%</span></div>
+          <div class="signal-item"><span class="signal-name">Hapax Legomena Rate</span><span class="signal-delta bad">−43%</span></div>
+          <div class="signal-item"><span class="signal-name">Passive Voice Ratio</span><span class="signal-delta bad">+158%</span></div>
+          <div class="signal-item"><span class="signal-name">Function Word Ratio</span><span class="signal-delta bad">−34%</span></div>
+          <div class="signal-item"><span class="signal-name">Sentence Length Variance</span><span class="signal-delta warn">−29%</span></div>
+        </div>
+
+        <div class="detail-section-title">Actions</div>
+        <div class="detail-actions">
+          <a href="original-review.html" class="btn btn-review btn-full">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            Open Full Review
+          </a>
+          <a href="original-student.html" class="btn btn-ghost btn-full">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            View Student Profile
+          </a>
+          <button class="btn btn-escalate btn-full" onclick="quickAction('escalate','whitfield')">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+            Escalate for Formal Review
+          </button>
+          <button class="btn btn-clear btn-full" onclick="quickAction('clear','whitfield')">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Clear — Mark as Authentic
+          </button>
+        </div>
+      </div>
+
+      <!-- Generic detail panels for other items -->
+      <div class="detail-content" id="detail-okonkwo">
+        <div class="detail-header">
+          <div class="detail-alert"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg><span>High deviation — 5 of 9 features outside baseline range</span></div>
+          <div class="detail-assignment">Week 9 Response — Soteriology</div>
+          <div class="detail-meta-row"><span class="detail-meta">Sarah Okonkwo</span><span class="detail-meta">THEO 501</span><span class="detail-meta">Mar 12, 2026</span></div>
+          <div class="detail-score-row"><div><div class="detail-score-num">0.84</div><div class="detail-score-label">Deviation score</div></div><div class="detail-score-bar-wrap"><div class="detail-score-bar"><div class="detail-score-fill" style="width:100%"></div></div><div class="detail-threshold-labels"><span>0.0</span><span style="color:var(--amber);">0.65 flag</span><span style="color:var(--flag-red);">0.80 high</span><span>1.0</span></div></div></div>
+        </div>
+        <div class="detail-section-title">Primary signals</div>
+        <div class="signal-list">
+          <div class="signal-item"><span class="signal-name">Hapax Legomena Rate</span><span class="signal-delta bad">−44%</span></div>
+          <div class="signal-item"><span class="signal-name">Nominalization Density</span><span class="signal-delta bad">+89%</span></div>
+          <div class="signal-item"><span class="signal-name">Type-Token Ratio</span><span class="signal-delta bad">−31%</span></div>
+          <div class="signal-item"><span class="signal-name">Function Word Ratio</span><span class="signal-delta warn">−22%</span></div>
+        </div>
+        <div class="detail-section-title">Actions</div>
+        <div class="detail-actions"><a href="original-review.html" class="btn btn-review btn-full"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Open Full Review</a><button class="btn btn-escalate btn-full" onclick="quickAction('escalate','okonkwo')">Escalate for Formal Review</button><button class="btn btn-clear btn-full" onclick="quickAction('clear','okonkwo')">Clear — Mark as Authentic</button></div>
+      </div>
+
+      <div class="detail-content" id="detail-delaney">
+        <div class="detail-header">
+          <div class="detail-alert" style="background:var(--flag-amber-bg);border-color:rgba(201,160,40,0.2);"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--amber)"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg><span style="color:var(--amber);">Moderate deviation — 4 of 9 features outside baseline range</span></div>
+          <div class="detail-assignment">Exegesis Paper — Romans 9</div>
+          <div class="detail-meta-row"><span class="detail-meta">Marcus Delaney</span><span class="detail-meta">BIBL 301</span><span class="detail-meta">Mar 11, 2026</span></div>
+          <div class="detail-score-row"><div><div class="detail-score-num" style="color:var(--amber);">0.76</div><div class="detail-score-label">Deviation score</div></div><div class="detail-score-bar-wrap"><div class="detail-score-bar"><div class="detail-score-fill" style="width:76%"></div></div><div class="detail-threshold-labels"><span>0.0</span><span style="color:var(--amber);">0.65 flag</span><span style="color:var(--flag-red);">0.80 high</span><span>1.0</span></div></div></div>
+        </div>
+        <div class="detail-section-title">Primary signals</div>
+        <div class="signal-list">
+          <div class="signal-item"><span class="signal-name">Modal Verb Ratio</span><span class="signal-delta warn">−38%</span></div>
+          <div class="signal-item"><span class="signal-name">Passive Voice Ratio</span><span class="signal-delta warn">+67%</span></div>
+          <div class="signal-item"><span class="signal-name">Mean Sentence Length</span><span class="signal-delta warn">+34%</span></div>
+        </div>
+        <div class="detail-section-title">Actions</div>
+        <div class="detail-actions"><a href="original-review.html" class="btn btn-review btn-full">Open Full Review</a><button class="btn btn-escalate btn-full" onclick="quickAction('escalate','delaney')">Escalate for Formal Review</button><button class="btn btn-clear btn-full" onclick="quickAction('clear','delaney')">Clear — Mark as Authentic</button></div>
+      </div>
+
+      <div class="detail-content" id="detail-vasquez">
+        <div class="detail-header">
+          <div class="detail-alert" style="background:var(--flag-amber-bg);border-color:rgba(201,160,40,0.2);"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--amber)"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg><span style="color:var(--amber);">Moderate deviation — 4 of 9 features outside range</span></div>
+          <div class="detail-assignment">Critical Analysis — Hermeneutical Method</div>
+          <div class="detail-meta-row"><span class="detail-meta">Elena Vasquez</span><span class="detail-meta">BIBL 301</span><span class="detail-meta">Mar 9, 2026</span></div>
+          <div class="detail-score-row"><div><div class="detail-score-num" style="color:var(--amber);">0.73</div><div class="detail-score-label">Deviation score</div></div><div class="detail-score-bar-wrap"><div class="detail-score-bar"><div class="detail-score-fill" style="width:73%"></div></div><div class="detail-threshold-labels"><span>0.0</span><span style="color:var(--amber);">0.65 flag</span><span style="color:var(--flag-red);">0.80 high</span><span>1.0</span></div></div></div>
+        </div>
+        <div class="detail-section-title">Primary signals</div>
+        <div class="signal-list">
+          <div class="signal-item"><span class="signal-name">Stop Word Frequency</span><span class="signal-delta bad">−41%</span></div>
+          <div class="signal-item"><span class="signal-name">Type-Token Ratio</span><span class="signal-delta warn">+28%</span></div>
+          <div class="signal-item"><span class="signal-name">Unique Word Count</span><span class="signal-delta warn">+19%</span></div>
+        </div>
+        <div class="detail-section-title">Actions</div>
+        <div class="detail-actions"><a href="original-review.html" class="btn btn-review btn-full">Open Full Review</a><button class="btn btn-escalate btn-full" onclick="quickAction('escalate','vasquez')">Escalate</button><button class="btn btn-clear btn-full" onclick="quickAction('clear','vasquez')">Clear</button></div>
+      </div>
+
+      <div class="detail-content" id="detail-osei">
+        <div class="detail-header">
+          <div class="detail-alert" style="background:var(--flag-amber-bg);border-color:rgba(201,160,40,0.2);"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--amber)"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg><span style="color:var(--amber);">Moderate deviation — rhetorical pattern shift</span></div>
+          <div class="detail-assignment">Research Paper — Pneumatology</div>
+          <div class="detail-meta-row"><span class="detail-meta">Daniel Osei</span><span class="detail-meta">THEO 501</span><span class="detail-meta">Mar 8, 2026</span></div>
+          <div class="detail-score-row"><div><div class="detail-score-num" style="color:var(--amber);">0.71</div><div class="detail-score-label">Deviation score</div></div><div class="detail-score-bar-wrap"><div class="detail-score-bar"><div class="detail-score-fill" style="width:71%"></div></div><div class="detail-threshold-labels"><span>0.0</span><span style="color:var(--amber);">0.65 flag</span><span style="color:var(--flag-red);">0.80 high</span><span>1.0</span></div></div></div>
+        </div>
+        <div class="detail-section-title">Primary signals</div>
+        <div class="signal-list">
+          <div class="signal-item"><span class="signal-name">Hedging Language Density</span><span class="signal-delta bad">−52%</span></div>
+          <div class="signal-item"><span class="signal-name">Metadiscourse Markers</span><span class="signal-delta warn">−33%</span></div>
+        </div>
+        <div class="detail-section-title">Actions</div>
+        <div class="detail-actions"><a href="original-review.html" class="btn btn-review btn-full">Open Full Review</a><button class="btn btn-escalate btn-full" onclick="quickAction('escalate','osei')">Escalate</button><button class="btn btn-clear btn-full" onclick="quickAction('clear','osei')">Clear</button></div>
+      </div>
+
+      <div class="detail-content" id="detail-grant">
+        <div class="detail-header">
+          <div class="detail-alert"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg><span>Escalated to Academic Integrity — Feb 28</span></div>
+          <div class="detail-assignment">Midterm Essay — Church & State</div>
+          <div class="detail-meta-row"><span class="detail-meta">Tyler Grant</span><span class="detail-meta">HIST 410</span><span class="detail-meta">Feb 28, 2026</span></div>
+          <div class="detail-score-row"><div><div class="detail-score-num">0.88</div><div class="detail-score-label">Deviation score</div></div><div class="detail-score-bar-wrap"><div class="detail-score-bar"><div class="detail-score-fill" style="width:88%"></div></div><div class="detail-threshold-labels"><span>0.0</span><span style="color:var(--amber);">0.65 flag</span><span style="color:var(--flag-red);">0.80 high</span><span>1.0</span></div></div></div>
+        </div>
+        <div style="padding:0.75rem 1rem;background:var(--flag-red-bg);border-radius:var(--radius);font-family:'EB Garamond',serif;font-style:italic;font-size:0.875rem;color:var(--flag-red);margin-top:0.5rem;">Referred to Academic Integrity Office on Mar 2, 2026. Case reference: AI-2026-004. Awaiting outcome.</div>
+        <div class="detail-section-title">Primary signals</div>
+        <div class="signal-list"><div class="signal-item"><span class="signal-name">Type-Token Ratio</span><span class="signal-delta bad">−48%</span></div><div class="signal-item"><span class="signal-name">Function Word Ratio</span><span class="signal-delta bad">−39%</span></div><div class="signal-item"><span class="signal-name">Sentence Length</span><span class="signal-delta bad">+83%</span></div></div>
+      </div>
+
+      <div class="detail-content" id="detail-chen">
+        <div class="detail-header">
+          <div class="detail-alert"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg><span>Escalated to Academic Integrity — Feb 25</span></div>
+          <div class="detail-assignment">Weekly Reflection — Week 6</div>
+          <div class="detail-meta-row"><span class="detail-meta">Amy Chen</span><span class="detail-meta">OT 201</span><span class="detail-meta">Feb 24, 2026</span></div>
+          <div class="detail-score-row"><div><div class="detail-score-num">0.82</div><div class="detail-score-label">Deviation score</div></div><div class="detail-score-bar-wrap"><div class="detail-score-bar"><div class="detail-score-fill" style="width:82%"></div></div><div class="detail-threshold-labels"><span>0.0</span><span style="color:var(--amber);">0.65 flag</span><span style="color:var(--flag-red);">0.80 high</span><span>1.0</span></div></div></div>
+        </div>
+        <div style="padding:0.75rem 1rem;background:var(--flag-red-bg);border-radius:var(--radius);font-family:'EB Garamond',serif;font-style:italic;font-size:0.875rem;color:var(--flag-red);margin-top:0.5rem;">Escalated Feb 25. Student meeting scheduled for Mar 18. Case reference: AI-2026-005.</div>
+      </div>
+
+      <div class="detail-content" id="detail-ellis">
+        <div class="detail-header">
+          <div class="detail-alert" style="background:var(--flag-green-bg);border-color:rgba(42,107,69,0.2);"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--flag-green)"><polyline points="20 6 9 17 4 12"/></svg><span style="color:var(--flag-green);">Cleared by Dr. Holt — Feb 21, 2026</span></div>
+          <div class="detail-assignment">Analysis Paper — Reformation Theology</div>
+          <div class="detail-meta-row"><span class="detail-meta">Owen Ellis</span><span class="detail-meta">HIST 410</span><span class="detail-meta">Feb 19, 2026</span></div>
+          <div class="detail-score-row"><div><div class="detail-score-num" style="color:var(--text-muted);">0.69</div><div class="detail-score-label">Deviation score</div></div><div class="detail-score-bar-wrap"><div class="detail-score-bar"><div class="detail-score-fill" style="width:69%"></div></div><div class="detail-threshold-labels"><span>0.0</span><span style="color:var(--amber);">0.65 flag</span><span style="color:var(--flag-red);">0.80 high</span><span>1.0</span></div></div></div>
+        </div>
+        <div style="padding:0.75rem 1rem;background:var(--flag-green-bg);border-radius:var(--radius);font-family:'EB Garamond',serif;font-style:italic;font-size:0.875rem;color:var(--flag-green);margin-top:0.5rem;">Dr. Holt noted: student had a documented family emergency during the submission period. Work assessed as authentic through an in-person oral review.</div>
+      </div>
+
+    </div><!-- /detail-pane -->
+  </div><!-- /split-view -->
+</div>
+
+<script>
+  function selectFlag(el, id) {
+    // Update list selection
+    document.querySelectorAll('.flag-list-item').forEach(i => i.classList.remove('selected'));
+    el.classList.add('selected');
+    // Show correct detail panel
+    document.querySelectorAll('.detail-content').forEach(d => d.classList.remove('visible'));
+    const panel = document.getElementById('detail-' + id);
+    if (panel) panel.classList.add('visible');
+    document.getElementById('detail-empty').style.display = 'none';
+  }
+
+  function searchFlags() {
+    const q = (document.getElementById('flag-search') || {value:''}).value.toLowerCase().trim();
+    const activeChip = document.querySelector('.filter-chip.active');
+    const activeType = activeChip ? (activeChip.getAttribute('data-filter') || 'all') : 'all';
+    applyFlagFilters(activeType, q);
+  }
+
+  function filterBy(chip, type) {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    chip.setAttribute('data-filter', type);
+    const q = (document.getElementById('flag-search') || {value:''}).value.toLowerCase().trim();
+    applyFlagFilters(type, q);
+  }
+
+  function applyFlagFilters(type, query) {
+    const items = document.querySelectorAll('.flag-list-item');
+    items.forEach(item => {
+      const status = item.dataset.status || '';
+      const name   = (item.querySelector('.flag-student-name') || {textContent:''}).textContent.toLowerCase();
+      const course = (item.querySelector('.flag-course-tag')   || {textContent:''}).textContent.toLowerCase();
+      const assign = (item.querySelector('.flag-assignment')   || {textContent:''}).textContent.toLowerCase();
+
+      // Status filter
+      let matchF = true;
+      if      (type === 'pending')   matchF = status === 'pending';
+      else if (type === 'escalated') matchF = status === 'escalated';
+      else if (type === 'cleared')   matchF = status === 'cleared';
+      else if (type === 'high') {
+        const badge = item.querySelector('.flag-score-badge');
+        matchF = badge ? parseFloat(badge.textContent) >= 0.80 : false;
+      }
+
+      // Search filter
+      const matchQ = !query || name.includes(query) || course.includes(query) || assign.includes(query);
+
+      item.style.display = (matchF && matchQ) ? '' : 'none';
+    });
+  }
+
+  function quickAction(action, id) {
+    const msgs = {
+      escalate: 'Escalated to Academic Integrity Office.\n\nA formal case record has been created.',
+      clear: 'Submission cleared and marked as authentic.\n\nThe flag has been dismissed.'
+    };
+    alert(msgs[action]);
+  }
+</script>
+</body>
+</html>

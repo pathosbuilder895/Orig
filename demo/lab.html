@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Original — Calibration Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-mark">Ω</div>
+      <div>
+        <div class="sidebar-brand-name">Original</div>
+        <div style="font-size:0.7rem;color:rgba(247,243,234,0.55)">Authorship Verification</div>
+      </div>
+    </div>
+    <div class="sidebar-section">Workspace</div>
+    <a class="nav-item" href="professor.html">Professor</a>
+    <a class="nav-item" href="admin.html">Admin</a>
+    <div class="sidebar-section">Research</div>
+    <a class="nav-item active" href="lab.html">Lab</a>
+    <a class="nav-item" href="admin-context.html">Context Audit</a>
+    <a class="nav-item" href="playground.html">Playground</a>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title">Original&nbsp;/&nbsp;<strong>Calibration Lab</strong></div>
+      <div id="activeThresholds" style="font-size:0.78rem;color:var(--text-muted)">Loading active thresholds…</div>
+    </div>
+
+    <div class="content">
+
+      <!-- ── Run controls ───────────────────────────────────────────────── -->
+      <div class="card">
+        <div class="card-title">Run a calibration</div>
+        <div class="card-subtitle">
+          Select a dataset and click <strong>Run</strong>. Calibrations execute in the background;
+          the runs table below polls every few seconds for status.
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:14px;align-items:end">
+          <div>
+            <label class="label">Dataset</label>
+            <select id="datasetSelect" class="select"></select>
+            <div id="datasetDescription" style="margin-top:6px;font-size:0.72rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic"></div>
+          </div>
+          <div>
+            <label class="label">Run label (optional)</label>
+            <input id="runLabel" type="text" class="input" placeholder="e.g. PR-8 baseline" />
+          </div>
+          <div>
+            <label class="label">Max scoring per author</label>
+            <input id="maxScoring" type="number" class="input" min="1" max="500" placeholder="(no cap)" />
+          </div>
+          <div>
+            <button id="runBtn" class="btn btn-primary">Run</button>
+          </div>
+        </div>
+        <div id="runStatus" style="margin-top:14px;font-size:0.85rem"></div>
+      </div>
+
+      <!-- ── Runs table ─────────────────────────────────────────────────── -->
+      <div class="card">
+        <div class="card-title">Runs</div>
+        <div class="card-subtitle">
+          History of all calibrations. Click a row to see suggestions + apply tuned thresholds.
+        </div>
+        <table class="tbl" id="runsTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Started</th>
+              <th>Dataset</th>
+              <th>Label</th>
+              <th>Status</th>
+              <th>AUC</th>
+              <th>Essays</th>
+              <th>Authors</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="runsBody">
+            <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:32px">No runs yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ── Detail panel ───────────────────────────────────────────────── -->
+      <div id="detailPanel" style="display:none">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div class="card-title" id="detailTitle">Run #—</div>
+              <div class="card-subtitle" id="detailSubtitle">—</div>
+            </div>
+            <button class="btn" onclick="closeDetail()">Close</button>
+          </div>
+          <div class="card-grid">
+            <div class="stat-card">
+              <div class="stat-card-label">AUC</div>
+              <div class="stat-card-value" id="detailAuc">—</div>
+              <div class="stat-card-sub" id="detailAucSub">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-label">Essays</div>
+              <div class="stat-card-value" id="detailEssays">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-label">Authors</div>
+              <div class="stat-card-value" id="detailAuthors">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-label">F1 optimal</div>
+              <div class="stat-card-value" id="detailF1">—</div>
+              <div class="stat-card-sub" id="detailF1Sub">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Suggestions -->
+        <div class="card">
+          <div class="card-title">What might improve this</div>
+          <div class="card-subtitle" id="suggestionsSubtitle">
+            Loading suggestions…
+          </div>
+          <div id="suggestionsList"></div>
+          <div id="applyForm" style="display:none;margin-top:18px;padding-top:14px;border-top:1px solid var(--cream-border)">
+            <div style="font-weight:600;margin-bottom:10px">Apply tuned thresholds</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px">
+              <div>
+                <label class="label">no_action</label>
+                <input id="applyNoAction" type="number" step="0.01" min="0" max="1" class="input"/>
+              </div>
+              <div>
+                <label class="label">monitor</label>
+                <input id="applyMonitor" type="number" step="0.01" min="0" max="1" class="input"/>
+              </div>
+              <div>
+                <label class="label">escalate</label>
+                <input id="applyEscalate" type="number" step="0.01" min="0" max="1" class="input"/>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+              <div>
+                <label class="label">Verdict — authentic below</label>
+                <input id="applyVerdictAuth" type="number" step="0.01" min="0" max="1" class="input"/>
+              </div>
+              <div>
+                <label class="label">Verdict — anomalous at-or-above</label>
+                <input id="applyVerdictAnom" type="number" step="0.01" min="0" max="1" class="input"/>
+              </div>
+            </div>
+            <div style="margin-bottom:14px">
+              <label class="label">Notes</label>
+              <input id="applyNotes" type="text" class="input" placeholder="e.g. After PR-8 multi-author run, optimised for FPR < 5%"/>
+            </div>
+            <button class="btn btn-gold" onclick="applyThresholds()">Apply thresholds</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const API = '';   // same-origin
+let CURRENT_RUN_ID = null;
+let POLL_HANDLE = null;
+
+// ── Initial load ──────────────────────────────────────────────────────────
+async function init() {
+  await loadDatasets();
+  await loadActiveThresholds();
+  await loadRuns();
+  // Poll runs every 5s — picks up status flips on running calibrations.
+  setInterval(loadRuns, 5000);
+}
+
+async function loadDatasets() {
+  const sel = document.getElementById('datasetSelect');
+  const desc = document.getElementById('datasetDescription');
+  try {
+    const r = await fetch(API + '/admin/lab/datasets');
+    const data = await r.json();
+    sel.innerHTML = data.map(d => `<option value="${d.label}">${d.name}</option>`).join('');
+    function updateDesc() {
+      const d = data.find(x => x.label === sel.value);
+      desc.textContent = d ? d.description : '';
+    }
+    sel.addEventListener('change', updateDesc);
+    updateDesc();
+  } catch (e) {
+    sel.innerHTML = '<option>(failed to load datasets)</option>';
+  }
+}
+
+async function loadActiveThresholds() {
+  try {
+    const r = await fetch(API + '/admin/tuned-thresholds');
+    const data = await r.json();
+    const div = document.getElementById('activeThresholds');
+    if (data) {
+      div.textContent =
+        `Active: no_action ${data.no_action} · monitor ${data.monitor} · escalate ${data.escalate} · ${data.source}`;
+    } else {
+      div.textContent = 'Active: defaults (no tuned thresholds applied)';
+    }
+  } catch (e) {
+    document.getElementById('activeThresholds').textContent = '(active thresholds unavailable)';
+  }
+}
+
+async function loadRuns() {
+  try {
+    const r = await fetch(API + '/admin/calibration/runs?limit=50');
+    const data = await r.json();
+    renderRunsTable(data.items || []);
+  } catch (e) {
+    document.getElementById('runsBody').innerHTML =
+      `<tr><td colspan="9" style="color:var(--flag-red);text-align:center;padding:24px">Failed to load runs: ${e.message}</td></tr>`;
+  }
+}
+
+function renderRunsTable(runs) {
+  const body = document.getElementById('runsBody');
+  if (!runs.length) {
+    body.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:32px">No runs yet. Click <strong>Run</strong> above to start one.</td></tr>';
+    return;
+  }
+  body.innerHTML = runs.map(r => {
+    const statusClass = `status-${r.status}`;
+    const statusEl = r.status === 'running'
+      ? `<span class="${statusClass}"><span class="spinner"></span>running</span>`
+      : `<span class="${statusClass}">${r.status}</span>`;
+    const auc = r.auc !== null && r.auc !== undefined ? r.auc.toFixed(4) : '—';
+    const action = r.status === 'completed'
+      ? `<button class="btn" onclick="openDetail(${r.id})">Inspect</button>`
+      : '';
+    return `<tr>
+      <td><code>${r.id}</code></td>
+      <td>${shortDate(r.started_at)}</td>
+      <td>${r.dataset_label}</td>
+      <td>${r.run_label || '<span style="color:var(--text-muted)">—</span>'}</td>
+      <td>${statusEl}</td>
+      <td><strong>${auc}</strong></td>
+      <td>${r.n_essays_scored ?? '—'}</td>
+      <td>${r.n_authors ?? '—'}</td>
+      <td style="text-align:right">${action}</td>
+    </tr>`;
+  }).join('');
+}
+
+function shortDate(s) {
+  if (!s) return '—';
+  return s.replace('T', ' ').replace('Z', '');
+}
+
+// ── Trigger a run ──────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('runBtn').addEventListener('click', triggerRun);
+  init();
+});
+
+async function triggerRun() {
+  const btn = document.getElementById('runBtn');
+  const status = document.getElementById('runStatus');
+  btn.disabled = true;
+  status.innerHTML = '<span class="spinner"></span> Submitting…';
+  const body = {
+    dataset_label: document.getElementById('datasetSelect').value,
+    run_label:     document.getElementById('runLabel').value || null,
+    max_scoring:   parseInt(document.getElementById('maxScoring').value) || null,
+  };
+  try {
+    const r = await fetch(API + '/admin/calibration/run', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    status.innerHTML = `<span class="status-running"><span class="spinner"></span>Run #${data.run_id} queued — see runs table below for progress.</span>`;
+    await loadRuns();
+  } catch (e) {
+    status.innerHTML = `<span style="color:var(--flag-red)">Failed: ${e.message}</span>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Run detail + suggestions ───────────────────────────────────────────────
+async function openDetail(runId) {
+  CURRENT_RUN_ID = runId;
+  const panel = document.getElementById('detailPanel');
+  panel.style.display = 'block';
+  panel.scrollIntoView({behavior: 'smooth', block: 'start'});
+  document.getElementById('detailTitle').textContent = `Run #${runId}`;
+  document.getElementById('detailSubtitle').textContent = 'Loading…';
+  document.getElementById('suggestionsList').innerHTML = '';
+  document.getElementById('suggestionsSubtitle').textContent = 'Loading suggestions…';
+  try {
+    const [run, suggestions] = await Promise.all([
+      fetch(API + `/admin/calibration/runs/${runId}`).then(r => r.json()),
+      fetch(API + `/admin/calibration/runs/${runId}/suggestions`).then(r => r.json()),
+    ]);
+    renderRunDetail(run, suggestions);
+  } catch (e) {
+    document.getElementById('suggestionsList').innerHTML =
+      `<div style="color:var(--flag-red)">Failed to load: ${e.message}</div>`;
+  }
+}
+
+function closeDetail() {
+  document.getElementById('detailPanel').style.display = 'none';
+  CURRENT_RUN_ID = null;
+}
+
+function renderRunDetail(run, sug) {
+  document.getElementById('detailSubtitle').textContent =
+    `${run.dataset_label} · started ${shortDate(run.started_at)} · ${run.report?.summary?.avg_scoring_time_ms?.toFixed(0) || '—'} ms avg`;
+  document.getElementById('detailAuc').textContent = run.auc?.toFixed(4) ?? '—';
+  document.getElementById('detailAucSub').textContent = qualityLabel(run.auc);
+  document.getElementById('detailEssays').textContent = run.n_essays_scored ?? '—';
+  document.getElementById('detailAuthors').textContent = run.n_authors ?? '—';
+  const f1 = sug.summary?.f1_optimal;
+  if (f1) {
+    document.getElementById('detailF1').textContent = f1.threshold.toFixed(3);
+    document.getElementById('detailF1Sub').textContent =
+      `F1 ${f1.f1.toFixed(2)} · TPR ${(f1.tpr*100).toFixed(0)}% · FPR ${(f1.fpr*100).toFixed(0)}%`;
+  } else {
+    document.getElementById('detailF1').textContent = '—';
+    document.getElementById('detailF1Sub').textContent = 'insufficient data';
+  }
+
+  // Suggestions
+  document.getElementById('suggestionsSubtitle').textContent =
+    `${sug.summary.n_high_confidence} high-confidence of ${sug.summary.n_total} total`;
+  document.getElementById('suggestionsList').innerHTML = sug.suggestions.length
+    ? sug.suggestions.map(renderSuggestion).join('')
+    : '<div style="color:var(--text-muted);font-style:italic;font-family:\'EB Garamond\',serif">No suggestions — current configuration looks well-calibrated.</div>';
+
+  // Pre-fill apply form with the highest-confidence threshold suggestion.
+  const thresh = sug.suggestions.find(s => s.type === 'threshold_no_action');
+  if (thresh) {
+    document.getElementById('applyForm').style.display = 'block';
+    document.getElementById('applyNoAction').value = thresh.suggested_value;
+    const monitor = sug.suggestions.find(s => s.type === 'threshold_monitor');
+    const escalate = sug.suggestions.find(s => s.type === 'threshold_escalate');
+    // Fallback values must stay within [0, 1] — when no_action is already
+    // near 1.0 the additive defaults would overflow. Clamp to the legal
+    // range so the apply form passes the API's Pydantic validation.
+    const clamp01 = v => Math.max(0, Math.min(1, v));
+    document.getElementById('applyMonitor').value =
+      monitor?.suggested_value ?? clamp01(thresh.suggested_value + 0.15);
+    document.getElementById('applyEscalate').value =
+      escalate?.suggested_value ?? clamp01(thresh.suggested_value + 0.30);
+    const verdict = sug.suggestions.find(s => s.type === 'verdict_authentic_below');
+    if (verdict) {
+      document.getElementById('applyVerdictAuth').value = verdict.suggested_value;
+    }
+  } else {
+    document.getElementById('applyForm').style.display = 'none';
+  }
+}
+
+function renderSuggestion(s) {
+  const cls = s.confidence >= 0.7 ? 'high-confidence' : (s.confidence < 0.5 ? 'low-confidence' : '');
+  const delta = (s.current_value !== null && s.suggested_value !== null && s.suggested_value !== undefined)
+    ? `<span style="color:var(--text-muted)">${s.current_value}</span> → <strong>${s.suggested_value}</strong>`
+    : '';
+  const meta = [];
+  if (delta) meta.push(`<span>${delta}</span>`);
+  if (s.expected_improvement) {
+    if (s.expected_improvement.f1) meta.push(`<span>F1 <strong>${s.expected_improvement.f1.toFixed(2)}</strong></span>`);
+    if (s.expected_improvement.tpr !== undefined) meta.push(`<span>TPR <strong>${(s.expected_improvement.tpr*100).toFixed(0)}%</strong></span>`);
+    if (s.expected_improvement.fpr !== undefined) meta.push(`<span>FPR <strong>${(s.expected_improvement.fpr*100).toFixed(0)}%</strong></span>`);
+  }
+  meta.push(`<span>conf <strong>${s.confidence.toFixed(2)}</strong></span>`);
+  return `<div class="suggestion ${cls}">
+    <div class="suggestion-title">${s.title}</div>
+    <div class="suggestion-rationale">${s.rationale}</div>
+    <div class="suggestion-meta">${meta.join('')}</div>
+  </div>`;
+}
+
+function qualityLabel(auc) {
+  if (auc === null || auc === undefined) return '—';
+  if (auc >= 0.85) return 'Strong discrimination';
+  if (auc >= 0.70) return 'Moderate discrimination';
+  return 'Weak discrimination';
+}
+
+async function applyThresholds() {
+  if (!CURRENT_RUN_ID) return;
+  const body = {
+    no_action: parseFloat(document.getElementById('applyNoAction').value),
+    monitor:   parseFloat(document.getElementById('applyMonitor').value),
+    escalate:  parseFloat(document.getElementById('applyEscalate').value),
+  };
+  const va = document.getElementById('applyVerdictAuth').value;
+  const vn = document.getElementById('applyVerdictAnom').value;
+  if (va) body.verdict_authentic_below = parseFloat(va);
+  if (vn) body.verdict_anomalous_at_or_above = parseFloat(vn);
+  const notes = document.getElementById('applyNotes').value;
+  if (notes) body.notes = notes;
+  try {
+    const r = await fetch(API + `/admin/calibration/runs/${CURRENT_RUN_ID}/apply`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    await loadActiveThresholds();
+    alert('Tuned thresholds applied. The active set is now sourced from this run.');
+  } catch (e) {
+    alert(`Failed to apply: ${e.message}`);
+  }
+}
+</script>
+</body>
+</html>

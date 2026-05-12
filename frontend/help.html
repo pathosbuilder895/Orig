@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Original — Help & Documentation</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg-primary: #f7f3ea;
+      --bg-secondary: #fff;
+      --border-light: #e2dccf;
+      --text-dark: #1a130a;
+      --text-muted: #8b7355;
+      --accent-primary: #1a6fb5;
+      --accent-primary-dark: #155a94;
+      --accent-success: #16a34a;
+      --accent-warning: #f59e0b;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-dark);
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+    .nav-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      padding: 0 1rem;
+    }
+
+    .logo-text {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .nav-links a {
+      padding: 0.5rem 1rem;
+      text-decoration: none;
+      color: var(--accent-primary);
+      font-size: 0.9rem;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+
+    .nav-links a:hover {
+      background: rgba(26, 111, 181, 0.1);
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .page-header {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .page-header h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      color: var(--text-dark);
+    }
+
+    .page-header p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .search-box {
+      position: relative;
+      margin-bottom: 2rem;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: var(--text-dark);
+    }
+
+    .search-box input:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px rgba(26, 111, 181, 0.12);
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .content-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 1.5rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-decoration: none;
+    }
+
+    .content-card:hover {
+      border-color: var(--accent-primary);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      transform: translateY(-2px);
+    }
+
+    .content-card-icon {
+      font-size: 2rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .content-card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: var(--text-dark);
+    }
+
+    .content-card-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .section {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .section-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: var(--text-dark);
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid var(--border-light);
+    }
+
+    .section-subtitle {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      line-height: 1.6;
+    }
+
+    .definition {
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      background: #f9f7f4;
+      border-radius: 8px;
+    }
+
+    .definition-term {
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 0.5rem;
+    }
+
+    .definition-text {
+      color: var(--text-muted);
+      line-height: 1.6;
+      font-size: 0.9rem;
+    }
+
+    .accordion {
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+
+    .accordion-item {
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .accordion-item:last-child {
+      border-bottom: none;
+    }
+
+    .accordion-header {
+      padding: 1rem;
+      background: #f9f7f4;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background 0.15s;
+      font-weight: 600;
+      color: var(--text-dark);
+      user-select: none;
+    }
+
+    .accordion-header:hover {
+      background: #f3f0eb;
+    }
+
+    .accordion-icon {
+      font-size: 1.2rem;
+      transition: transform 0.2s;
+    }
+
+    .accordion-item.active .accordion-icon {
+      transform: rotate(180deg);
+    }
+
+    .accordion-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+
+    .accordion-item.active .accordion-content {
+      max-height: 500px;
+    }
+
+    .accordion-body {
+      padding: 1rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      font-size: 0.9rem;
+    }
+
+    .callout {
+      padding: 1rem;
+      border-left: 4px solid var(--accent-primary);
+      background: rgba(26, 111, 181, 0.05);
+      border-radius: 4px;
+      margin: 1rem 0;
+    }
+
+    .callout.warning {
+      border-left-color: var(--accent-warning);
+      background: rgba(245, 158, 11, 0.05);
+    }
+
+    .callout.success {
+      border-left-color: var(--accent-success);
+      background: rgba(22, 163, 74, 0.05);
+    }
+
+    .callout-title {
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: var(--text-dark);
+    }
+
+    .callout-text {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    code {
+      background: #f3f0eb;
+      padding: 0.2rem 0.4rem;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      color: var(--accent-primary);
+    }
+
+    ul, ol {
+      margin-left: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    li {
+      margin-bottom: 0.5rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+
+    strong {
+      color: var(--text-dark);
+      font-weight: 600;
+    }
+
+    @media (max-width: 640px) {
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .section {
+        padding: 1.5rem;
+      }
+
+      .page-header h1 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="nav-header">
+    <div class="logo-text">Original</div>
+    <div class="nav-links">
+      <a href="original-dashboard.html">Dashboard</a>
+      <a href="#" onclick="OriginalAuth.logout(); return false;">Logout</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>Help & Documentation</h1>
+      <p>Everything you need to know about Original and how to use it effectively</p>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="content-grid">
+      <a href="#writing-fingerprint" class="content-card">
+        <div class="content-card-icon">👆</div>
+        <div class="content-card-title">Writing Fingerprint</div>
+        <div class="content-card-desc">What makes up a baseline and how Original learns from it</div>
+      </a>
+      <a href="#deviation-score" class="content-card">
+        <div class="content-card-icon">📊</div>
+        <div class="content-card-title">Deviation Score</div>
+        <div class="content-card-desc">Understanding what the numbers mean</div>
+      </a>
+      <a href="#when-to-flag" class="content-card">
+        <div class="content-card-icon">⚠️</div>
+        <div class="content-card-title">When to Flag</div>
+        <div class="content-card-desc">Making the right call on submissions</div>
+      </a>
+      <a href="#reading-results" class="content-card">
+        <div class="content-card-icon">📋</div>
+        <div class="content-card-title">Reading Your Results</div>
+        <div class="content-card-desc">How to interpret the badge, chart, and trajectory</div>
+      </a>
+      <a href="#faq" class="content-card">
+        <div class="content-card-icon">❓</div>
+        <div class="content-card-title">FAQ</div>
+        <div class="content-card-desc">Common questions and answers</div>
+      </a>
+    </div>
+
+    <!-- Section 0: Reading Results -->
+    <div class="section" id="reading-results">
+      <div class="section-title">Reading Your Results Page</div>
+      <div class="section-subtitle">
+        Every submission review opens a results page with four key elements. Here's exactly what each one tells you — and what to do with that information.
+      </div>
+
+      <div class="definition">
+        <div class="definition-term">🟢 🟡 🟠 🔴 Authorship Confidence Badge</div>
+        <div class="definition-text">
+          The large colored badge at the top-left of the summary card is Original's single recommended action. It maps to four thresholds:
+          <ul style="margin-top:0.5rem;">
+            <li><strong style="color:#166534;">Green — Authentic:</strong> Deviation is low. Writing closely matches the student's established baseline. No action needed.</li>
+            <li><strong style="color:#92400e;">Yellow — Monitor:</strong> Mild deviation. Accept the submission but keep an eye on future work.</li>
+            <li><strong style="color:#7c2d12;">Orange — Discuss:</strong> Notable deviation. A brief conversation with the student is recommended before closing the review.</li>
+            <li><strong style="color:#991b1b;">Red — Review Warranted:</strong> Significant deviation from the baseline. Escalation or formal inquiry is appropriate.</li>
+          </ul>
+          The badge updates automatically from the analysis — you do not set it manually.
+        </div>
+      </div>
+
+      <div class="definition">
+        <div class="definition-term">📝 Plain-English Summary</div>
+        <div class="definition-text">
+          Below the badge heading you'll see a one- or two-sentence plain-English description of the key finding — for example, <em>"Passive voice usage was 158% above baseline. Sentence length variance was also elevated."</em> This summary is generated from the same data as the numeric deviation score, but written for human readability. Use it to quickly understand <em>why</em> the score landed where it did, and as a starting point for your conversation with the student.
+        </div>
+      </div>
+
+      <div class="definition">
+        <div class="definition-term">📊 Feature Interference Map (Diverging Bar Chart)</div>
+        <div class="definition-text">
+          The "Feature Interference Map" shows up to seven writing features arranged as a two-sided bar chart. Features that deviate in a suspicious direction (more passive voice, lower vocabulary diversity) grow as <strong>red bars to the right</strong>. Features that align with the student's baseline or deviate in an authentic direction appear as <strong>green bars to the left</strong>. The length of each bar reflects the percentage deviation from baseline for that feature. Use this chart to identify which specific aspects of writing changed most — that's what to ask the student about.
+        </div>
+      </div>
+
+      <div class="definition">
+        <div class="definition-term">📈 Writing Trajectory Sparkline</div>
+        <div class="definition-text">
+          The small line chart in the top-right of the summary card shows the student's deviation scores over their last six submissions. The dashed horizontal line marks the flag threshold (65% deviation). Prior submissions appear as a gray line; the current submission is shown as a <strong>red dot</strong> if it crosses the threshold, or a blue dot if it doesn't. A single elevated dot is less concerning than a rising trend across several submissions. If you see a pattern of increasing deviation, consider reviewing older submissions for context.
+        </div>
+      </div>
+
+      <div class="callout">
+        <div class="callout-title">The Results Page is a Starting Point, Not a Verdict</div>
+        <div class="callout-text">
+          Every element on the results page — badge, summary, chart, and trajectory — is designed to help you ask better questions, not to answer them for you. Original surfaces patterns; you supply context, professional judgment, and institutional procedure.
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 1: Writing Fingerprint -->
+    <div class="section" id="writing-fingerprint">
+      <div class="section-title">What is a Writing Fingerprint?</div>
+      <div class="section-subtitle">
+        A writing fingerprint is a student's unique and consistent writing style. Just like fingerprints are unique to individuals, writing patterns—including word choice, sentence structure, punctuation habits, and rhetorical strategies—are distinctive to each writer.
+      </div>
+
+      <div class="definition">
+        <div class="definition-term">How does Original measure it?</div>
+        <div class="definition-text">
+          Original analyzes 34 linguistic features across 7 tiers, from basic measures like word and sentence length to sophisticated analyses like rhetorical pattern frequency and theological register (for seminary contexts). It then builds a statistical model of what "normal" looks like for each student.
+        </div>
+      </div>
+
+      <div class="definition">
+        <div class="definition-term">Why 3+ baseline essays?</div>
+        <div class="definition-text">
+          One or two samples aren't enough to capture a student's range and growth. With 3–5 baselines spanning different assignments and time periods, Original builds a robust profile that accounts for natural variation while still detecting major deviations.
+        </div>
+      </div>
+
+      <div class="callout">
+        <div class="callout-title">Tip: Baseline Quality Matters</div>
+        <div class="callout-text">
+          Baselines should be texts you are <strong>certain</strong> the student wrote (proctored essays, verified work, or prior assignments from the student's file). Weak baselines lead to weak fingerprints and less reliable flags.
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: Deviation Score -->
+    <div class="section" id="deviation-score">
+      <div class="section-title">Understanding the Deviation Score</div>
+      <div class="section-subtitle">
+        The deviation score is a 0–100% measure of how much a submission differs from a student's baseline writing pattern.
+      </div>
+
+      <div class="definition">
+        <div class="definition-term">What does each range mean?</div>
+        <div class="definition-text">
+          <ul>
+            <li><strong>0–30%:</strong> Very close match. Likely authentic. Minor variations expected.</li>
+            <li><strong>31–55%:</strong> Moderate deviation. Common as students grow and adapt style. Review context.</li>
+            <li><strong>56–75%:</strong> Significant deviation. Multiple features unusual. Recommend conversation with student.</li>
+            <li><strong>76–100%:</strong> Substantial deviation. Major red flags. Escalation recommended.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="definition">
+        <div class="definition-term">Why is my score higher this week?</div>
+        <div class="definition-text">
+          Students' writing naturally evolves. A student discussing a new theological topic might use more formal language. A timed exam might feel rushed and more colloquial. A co-written group section might stand out. Original detects these shifts, but context matters. Always talk to the student before escalating.
+        </div>
+      </div>
+
+      <div class="callout warning">
+        <div class="callout-title">Important: Deviation ≠ Guilt</div>
+        <div class="callout-text">
+          A high deviation score is a signal to investigate, not proof of misconduct. Natural explanations include improved knowledge, new writing context, emotional state, or deliberate stylistic choice. Have a conversation first.
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3: When to Flag -->
+    <div class="section" id="when-to-flag">
+      <div class="section-title">Making a Decision: Clear, Monitor, Discuss, Escalate</div>
+      <div class="section-subtitle">
+        Original recommends one of four actions. Here's how to interpret and respond to each.
+      </div>
+
+      <div class="definition">
+        <div class="definition-term">✓ Clear</div>
+        <div class="definition-text">
+          Accept the submission. Deviation is low, and the writing pattern matches the student's baseline. No further action needed. Document the decision for your records.
+        </div>
+      </div>
+
+      <div class="definition">
+        <div class="definition-term">⊕ Monitor</div>
+        <div class="definition-text">
+          Accept the submission, but watch this student's future work more closely. The deviation is moderate, and context suggests authenticity, but note the trend. If the next few submissions also show elevated deviation, escalate then.
+        </div>
+      </div>
+
+      <div class="definition">
+        <div class="definition-term">⟳ Schedule Conversation</div>
+        <div class="definition-text">
+          Before making a final call, talk to the student. Ask about the assignment, any unusual circumstances, or intentional style changes. Most of the time, students have a reasonable explanation. This conversation is also a gentle signal that you're paying attention.
+        </div>
+      </div>
+
+      <div class="definition">
+        <div class="definition-term">! Escalate</div>
+        <div class="definition-text">
+          The deviation is substantial, and multiple anomalies were detected. This submission warrants formal investigation. Escalate to your department chair, academic dean, or honor board per your institution's policy.
+        </div>
+      </div>
+
+      <div class="callout success">
+        <div class="callout-title">Best Practice: Document Everything</div>
+        <div class="callout-text">
+          When you make a decision, add notes in Original. Record why you chose Clear instead of Monitor, or what the student said that convinced you of authenticity. These notes protect both you and the student and create an audit trail.
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 4: FAQ -->
+    <div class="section" id="faq">
+      <div class="section-title">Frequently Asked Questions</div>
+
+      <div class="accordion">
+        <div class="accordion-item">
+          <div class="accordion-header">
+            Can students game the system by copying others?
+            <span class="accordion-icon">▼</span>
+          </div>
+          <div class="accordion-content">
+            <div class="accordion-body">
+              Not easily. If a student copies from another source or peer, Original detects the anomaly: their baseline shows one style, but the submission shows a different voice entirely. However, if plagiarism matches the *student's own baseline* (e.g., they submit old work), Original alone won't catch it. Use Original alongside other tools: manual review, plagiarism checkers like Turnitin, and professional judgment.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item">
+          <div class="accordion-header">
+            Is this fair to ESL students?
+            <span class="accordion-icon">▼</span>
+          </div>
+          <div class="accordion-content">
+            <div class="accordion-body">
+              Original is <strong>more fair</strong> to ESL students. Traditional plagiarism detection sometimes flags ESL work as suspicious just because it's different. Original's approach: "Here's what *this student's* typical pattern is. Does this submission match *that*?" ESL students who write consistently in their own voice—with their own quirks, patterns, and growth—will have low deviation. A sudden dramatic shift (copying from native-English source) will be detected. The fairness comes from comparing each student to their own baseline, not to an institutional "standard English" norm.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item">
+          <div class="accordion-header">
+            What if a student's writing naturally changes a lot?
+            <span class="accordion-icon">▼</span>
+          </div>
+          <div class="accordion-content">
+            <div class="accordion-body">
+              That's fine—and Original accounts for it. The system looks at the *range* of normal for that student. If you feed Original baselines from different types of assignments (timed, reflective, formal) and different topics, the model learns that student's natural variation. When a submission falls within that range, deviation is low. If it falls *outside* that range, that's when we investigate. Natural growth and style adaptation won't hurt you—inconsistency with a student's own established patterns will.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item">
+          <div class="accordion-header">
+            How should I handle a student who gets better mid-semester?
+            <span class="accordion-icon">▼</span>
+          </div>
+          <div class="accordion-content">
+            <div class="accordion-body">
+              A student's writing should improve over time. If they show growth in depth, clarity, and theological reasoning, that's great. Original will detect a gradual shift in their writing patterns, but as long as the shift is *their own voice becoming stronger*, the baseline will adapt, and deviation will remain low. Only if they suddenly submit something that feels like a different person wrote it—not just better, but *different*—should you investigate.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item">
+          <div class="accordion-header">
+            How do I know if Original is working correctly?
+            <span class="accordion-icon">▼</span>
+          </div>
+          <div class="accordion-content">
+            <div class="accordion-body">
+              Test it. Take a baseline essay you're 100% sure is the student's work, run it through as a submission, and check the deviation. It should be very low (0–20%). If it's high, your baseline might be weak. After 3–4 weeks of use, you should feel the system's patterns: baseline submissions score low, known good work scores low, and suspicious submissions score high. If this isn't happening, reach out to support.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item">
+          <div class="accordion-header">
+            What if I accidentally submit a baseline essay twice as a submission?
+            <span class="accordion-icon">▼</span>
+          </div>
+          <div class="accordion-content">
+            <div class="accordion-body">
+              The deviation will be near zero (very high match—it's the exact same text). That's not suspicious; it's expected. Mark it as Clear. If it happens often by accident, be more careful with file management. If you suspect a student submitted a baseline essay as new work, that's worth investigating separately (e.g., checking dates, talking to the student).
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item">
+          <div class="accordion-header">
+            How is theological register different for seminaries?
+            <span class="accordion-icon">▼</span>
+          </div>
+          <div class="accordion-content">
+            <div class="accordion-body">
+              Seminary students develop unique theological voices. Some write from a confessional perspective, others critically. Some use dense biblical language, others favor analytical terms. Original's "theological register" feature captures whether a student tends toward confessional, critical, or balanced theological discourse. A shift here is detected and flagged. This allows the system to be sensitive to seminary-specific writing norms without penalizing the rich diversity of theological voices.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item">
+          <div class="accordion-header">
+            Can I delete a baseline or submission?
+            <span class="accordion-icon">▼</span>
+          </div>
+          <div class="accordion-content">
+            <div class="accordion-body">
+              Baselines and decisions are immutable for compliance and audit reasons. You cannot delete them. If a baseline is weak or you submitted it by mistake, add a note explaining why, then simply add more strong baselines. The system will learn from the stronger samples. Submissions and their scores are also permanent—this protects institutional records and student rights.
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item">
+          <div class="accordion-header">
+            What should I do if a student claims the system is unfair?
+            <span class="accordion-icon">▼</span>
+          </div>
+          <div class="accordion-content">
+            <div class="accordion-body">
+              Listen. Show them their writing profile and deviation score in context. Explain that Original is comparing their submission to their own baseline, not to an external standard. Invite them to see their own writing fingerprint. If they believe a baseline was mislabeled or that a submission flag is wrong, help them gather evidence. Original is a tool to assist human judgment, not replace it. If they have a legitimate concern, escalate to your administration. The student always has recourse through your institution's academic integrity procedures.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Support -->
+    <div class="section">
+      <div class="section-title">Still Have Questions?</div>
+      <p style="color: var(--text-muted); line-height: 1.6; margin-bottom: 1rem;">
+        Original is designed to be transparent and fair. If you have questions about a specific submission, a student's profile, or how Original works, reach out to your institution's Original administrator or support team.
+      </p>
+      <p style="color: var(--text-muted); line-height: 1.6;">
+        For technical issues or feature requests, contact <code>support@original.verifiedauth.io</code>.
+      </p>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    (function() {
+      'use strict';
+
+      OriginalAuth.requireAuth();
+
+      // Accordion functionality
+      document.querySelectorAll('.accordion-header').forEach(header => {
+        header.addEventListener('click', function() {
+          const item = this.closest('.accordion-item');
+          item.classList.toggle('active');
+        });
+      });
+
+      // Smooth scroll to sections
+      document.querySelectorAll('a[href^="#"]').forEach(link => {
+        link.addEventListener('click', function(e) {
+          const target = document.querySelector(this.getAttribute('href'));
+          if (target) {
+            e.preventDefault();
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

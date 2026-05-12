@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Andrew Clark</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --deep-green:   #162b22;
+      --mid-green:    #2a5240;
+      --light-green:  #3d7a5e;
+      --cream:        #f7f3ea;
+      --warm-cream:   #ede8d8;
+      --gold:         #c9a028;
+      --amber:        #9b6420;
+      --wood:         #7a4e2d;
+      --dark-wood:    #3d1f0e;
+      --river:        #2e5f72;
+      --river-light:  #4a8fa5;
+      --text:         #1a0e06;
+      --text-muted:   #5a4030;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'EB Garamond', Georgia, serif;
+      background: var(--cream);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* ─── NAV ─────────────────────────────────────────── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      padding: 1.1rem 3rem;
+      display: flex; justify-content: space-between; align-items: center;
+      background: rgba(22, 43, 34, 0.96);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(201,160,40,0.18);
+    }
+    .nav-brand {
+      font-family: 'Playfair Display', serif;
+      font-size: 1rem; font-weight: 600;
+      color: var(--cream); letter-spacing: 0.08em;
+      text-decoration: none;
+    }
+    .nav-links { display: flex; gap: 2rem; list-style: none; }
+    .nav-links a {
+      font-family: 'EB Garamond', serif;
+      font-size: 1rem; font-style: italic;
+      color: rgba(247,243,234,0.6); text-decoration: none;
+      letter-spacing: 0.05em;
+      transition: color 0.3s;
+    }
+    .nav-links a:hover { color: var(--gold); }
+
+    /* ─── HERO ────────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      background: var(--deep-green);
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      text-align: center;
+      padding: 8rem 2rem 5rem;
+      position: relative; overflow: hidden;
+    }
+
+    /* Wood-ring halo — bottom-left */
+    .hero-ring-bl {
+      position: absolute;
+      width: 700px; height: 700px;
+      border-radius: 50%;
+      left: -220px; bottom: -280px;
+      background: radial-gradient(ellipse at center,
+        transparent 60px,
+        rgba(201,160,40,0.07) 61px, rgba(201,160,40,0.07) 63px,
+        transparent 64px, transparent 110px,
+        rgba(201,160,40,0.055) 111px, rgba(201,160,40,0.055) 113px,
+        transparent 114px, transparent 165px,
+        rgba(201,160,40,0.04) 166px, rgba(201,160,40,0.04) 168px,
+        transparent 169px, transparent 225px,
+        rgba(201,160,40,0.03) 226px, rgba(201,160,40,0.03) 228px,
+        transparent 229px, transparent 290px,
+        rgba(201,160,40,0.02) 291px, rgba(201,160,40,0.02) 293px,
+        transparent 294px
+      );
+      pointer-events: none;
+    }
+
+    /* Wood-ring halo — top-right */
+    .hero-ring-tr {
+      position: absolute;
+      width: 500px; height: 500px;
+      border-radius: 50%;
+      right: -140px; top: 40px;
+      background: radial-gradient(ellipse at center,
+        transparent 40px,
+        rgba(201,160,40,0.06) 41px, rgba(201,160,40,0.06) 43px,
+        transparent 44px, transparent 80px,
+        rgba(201,160,40,0.045) 81px, rgba(201,160,40,0.045) 83px,
+        transparent 84px, transparent 125px,
+        rgba(201,160,40,0.035) 126px, rgba(201,160,40,0.035) 128px,
+        transparent 129px, transparent 175px,
+        rgba(201,160,40,0.025) 176px, rgba(201,160,40,0.025) 178px,
+        transparent 179px
+      );
+      pointer-events: none;
+    }
+
+    /* Grain overlay on hero */
+    .hero-grain {
+      position: absolute; inset: 0; pointer-events: none;
+      background-image:
+        repeating-linear-gradient(91deg,
+          transparent 0, transparent 4px,
+          rgba(201,160,40,0.022) 4px, rgba(201,160,40,0.022) 5px
+        ),
+        repeating-linear-gradient(89deg,
+          transparent 0, transparent 14px,
+          rgba(201,160,40,0.012) 14px, rgba(201,160,40,0.012) 16px
+        );
+    }
+
+    .hero-content {
+      position: relative; z-index: 2;
+      max-width: 800px;
+    }
+
+    .hero-eyebrow {
+      font-size: 0.78rem; font-style: italic;
+      color: var(--gold);
+      letter-spacing: 0.32em; text-transform: uppercase;
+      margin-bottom: 2.5rem;
+    }
+
+    .hero-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2.4rem, 5.5vw, 4.2rem);
+      font-weight: 500; line-height: 1.15;
+      color: var(--cream);
+      margin-bottom: 1.5rem;
+    }
+    .hero-title em { font-style: italic; color: rgba(247,243,234,0.6); }
+
+    .hero-rule {
+      width: 64px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      margin: 0 auto 2rem;
+    }
+
+    .hero-body {
+      font-size: clamp(1.1rem, 2vw, 1.25rem);
+      line-height: 1.85; color: rgba(247,243,234,0.68);
+      max-width: 620px; margin: 0 auto 1.5rem;
+    }
+
+    .hero-sub {
+      font-size: 1rem; font-style: italic;
+      color: rgba(247,243,234,0.4);
+      letter-spacing: 0.04em;
+    }
+
+    .scroll-cue {
+      position: absolute; bottom: 2.5rem; left: 50%;
+      transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+      opacity: 0.4; animation: bob 2.2s ease-in-out infinite;
+    }
+    .scroll-cue span {
+      font-size: 0.68rem; letter-spacing: 0.28em; text-transform: uppercase;
+      color: var(--cream);
+    }
+    .scroll-cue svg { width: 18px; stroke: var(--cream); }
+    @keyframes bob {
+      0%,100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(7px); }
+    }
+
+    /* ─── TRANSITION: hero → river ───────────────────── */
+    .hero-foot {
+      height: 80px; background: var(--deep-green);
+      clip-path: ellipse(55% 100% at 50% 0%);
+      margin-top: -1px;
+    }
+
+    /* ─── RIVER SECTION ───────────────────────────────── */
+    .river-section {
+      background: var(--warm-cream);
+      position: relative; overflow: hidden;
+      padding: 5rem 0 8rem;
+    }
+
+    /* Grain on warm-cream */
+    .river-section::before {
+      content: '';
+      position: absolute; inset: 0; pointer-events: none;
+      background-image:
+        repeating-linear-gradient(90deg,
+          transparent 0, transparent 6px,
+          rgba(107,63,30,0.022) 6px, rgba(107,63,30,0.022) 7px
+        ),
+        repeating-linear-gradient(88deg,
+          transparent 0, transparent 18px,
+          rgba(107,63,30,0.012) 18px, rgba(107,63,30,0.012) 20px
+        );
+      z-index: 0;
+    }
+
+    .river-inner {
+      position: relative; z-index: 2;
+      max-width: 1100px; margin: 0 auto; padding: 0 2rem;
+    }
+
+    .river-heading {
+      text-align: center; margin-bottom: 5rem;
+    }
+    .river-label {
+      font-size: 0.76rem; font-style: italic; color: var(--amber);
+      letter-spacing: 0.3em; text-transform: uppercase; margin-bottom: 0.9rem;
+    }
+    .river-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.7rem, 3vw, 2.4rem);
+      font-weight: 500; color: var(--deep-green); line-height: 1.3;
+    }
+
+    /* ── The landscape: river + trees + cards ── */
+    .landscape {
+      position: relative;
+    }
+
+    /* SVG river down the spine */
+    .river-svg {
+      position: absolute;
+      left: 50%; top: 0; bottom: 0;
+      transform: translateX(-50%);
+      width: 130px;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+      overflow: visible;
+    }
+
+    /* Trees */
+    .forest {
+      position: absolute; top: 0; bottom: 0;
+      width: 160px; pointer-events: none; z-index: 1;
+    }
+    .forest-left  { left: 0; }
+    .forest-right { right: 0; transform: scaleX(-1); }
+
+    /* Cards flow */
+    .cards-flow {
+      position: relative; z-index: 3;
+      display: flex; flex-direction: column;
+      gap: 5.5rem; padding: 1rem 0 3rem;
+    }
+
+    .waypoint {
+      display: flex; align-items: center;
+      opacity: 0; transform: translateY(28px);
+      transition: opacity 0.75s ease, transform 0.75s ease;
+    }
+    .waypoint.visible { opacity: 1; transform: translateY(0); }
+
+    .waypoint:nth-child(odd)  { justify-content: flex-start;  padding-left: 5%; }
+    .waypoint:nth-child(even) { justify-content: flex-end;    padding-right: 5%; }
+
+    /* App card */
+    .app-card {
+      width: min(400px, 85%);
+      background: var(--cream);
+      border: 1px solid rgba(107,63,30,0.14);
+      border-left: 3px solid var(--gold);
+      padding: 2.2rem 2.4rem 1.8rem;
+      position: relative; overflow: hidden;
+      text-decoration: none; display: block; color: inherit;
+      box-shadow: 0 2px 18px rgba(22,43,34,0.07);
+      transition: transform 0.3s ease, box-shadow 0.3s ease, border-left-color 0.3s ease;
+    }
+    .app-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 40px rgba(22,43,34,0.13);
+      border-left-color: var(--amber);
+    }
+    /* Grain on card */
+    .app-card::after {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background-image: repeating-linear-gradient(91.5deg,
+        transparent 0, transparent 7px,
+        rgba(107,63,30,0.018) 7px, rgba(107,63,30,0.018) 8px
+      );
+    }
+
+    .card-num {
+      font-size: 0.68rem; font-style: italic;
+      color: var(--gold); letter-spacing: 0.25em;
+      text-transform: uppercase; margin-bottom: 0.6rem;
+    }
+    .card-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.75rem; font-weight: 600;
+      color: var(--deep-green); line-height: 1.1;
+      margin-bottom: 0.55rem;
+    }
+    .card-hook {
+      font-size: 1rem; font-style: italic; color: var(--amber);
+      line-height: 1.45; margin-bottom: 0.9rem;
+    }
+    .card-desc {
+      font-size: 0.97rem; line-height: 1.72;
+      color: var(--text-muted); margin-bottom: 1.4rem;
+    }
+    .card-cta {
+      display: inline-flex; align-items: center; gap: 0.45rem;
+      font-size: 0.82rem; font-style: italic;
+      letter-spacing: 0.12em; color: var(--deep-green);
+    }
+    .card-cta svg { width: 13px; stroke: currentColor; transition: transform 0.3s; }
+    .app-card:hover .card-cta svg { transform: translateX(4px); }
+
+    /* Placeholder card */
+    .placeholder {
+      opacity: 0.38; cursor: default;
+    }
+    .placeholder:hover {
+      transform: none;
+      box-shadow: 0 2px 18px rgba(22,43,34,0.07);
+      border-left-color: var(--gold);
+    }
+    .badge {
+      display: inline-block;
+      font-size: 0.65rem; letter-spacing: 0.22em;
+      text-transform: uppercase; font-style: normal;
+      color: var(--amber);
+      border: 1px solid rgba(155,100,32,0.35);
+      padding: 0.22rem 0.6rem;
+    }
+
+    /* ─── FOOTER ──────────────────────────────────────── */
+    footer {
+      background: var(--deep-green);
+      padding: 3.5rem 2rem;
+      text-align: center;
+      border-top: 1px solid rgba(201,160,40,0.15);
+      position: relative; overflow: hidden;
+    }
+    footer::before {
+      content: '';
+      position: absolute; inset: 0; pointer-events: none;
+      background-image: repeating-linear-gradient(91deg,
+        transparent 0, transparent 4px,
+        rgba(201,160,40,0.018) 4px, rgba(201,160,40,0.018) 5px
+      );
+    }
+    .footer-line {
+      font-size: 0.88rem; font-style: italic;
+      color: rgba(247,243,234,0.35);
+      letter-spacing: 0.04em;
+      position: relative; z-index: 1;
+    }
+    .footer-mark {
+      width: 40px; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(201,160,40,0.4), transparent);
+      margin: 1.2rem auto 0;
+    }
+
+    /* ─── RESPONSIVE ──────────────────────────────────── */
+    @media (max-width: 800px) {
+      nav { padding: 1rem 1.5rem; }
+      .forest { display: none; }
+      .river-svg { display: none; }
+      .waypoint:nth-child(odd),
+      .waypoint:nth-child(even) {
+        justify-content: center;
+        padding: 0 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══ NAV ═══════════════════════════════════════════ -->
+<nav>
+  <a href="index.html" class="nav-brand">Andrew Clark</a>
+  <ul class="nav-links">
+    <li><a href="#apps">Apps</a></li>
+    <li><a href="#about">About</a></li>
+  </ul>
+</nav>
+
+<!-- ═══ HERO ══════════════════════════════════════════ -->
+<section class="hero">
+  <div class="hero-ring-bl"></div>
+  <div class="hero-ring-tr"></div>
+  <div class="hero-grain"></div>
+
+  <div class="hero-content">
+    <p class="hero-eyebrow">Toward what is real</p>
+
+    <h1 class="hero-title">
+      Discovery doesn't happen<br>
+      <em>in comfort.</em>
+    </h1>
+
+    <div class="hero-rule"></div>
+
+    <p class="hero-body">
+      It happens at the edge of struggle — wrestling with difficult
+      material long enough to make a connection no one else will see.
+      These apps exist to protect that space. Not to replace the struggle,
+      but to honour it.
+    </p>
+
+    <p class="hero-sub">
+      Moving us from synthetic pleasure toward authentic telos.
+    </p>
+  </div>
+
+  <div class="scroll-cue" aria-hidden="true">
+    <span>Explore</span>
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"
+         stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 5v14M5 12l7 7 7-7"/>
+    </svg>
+  </div>
+</section>
+
+<!-- Organic transition -->
+<div style="height:60px;background:var(--deep-green);
+     clip-path:ellipse(55% 100% at 50% 0%);margin-top:-1px;
+     background:var(--warm-cream);position:relative;z-index:5;">
+</div>
+
+<!-- ═══ RIVER / APPS ═══════════════════════════════════ -->
+<section class="river-section" id="apps">
+  <div class="river-inner">
+
+    <div class="river-heading">
+      <p class="river-label">The work</p>
+      <h2 class="river-title">Apps built at the edge of struggle</h2>
+    </div>
+
+    <div class="landscape">
+
+      <!-- ── Forest: left ── -->
+      <div class="forest forest-left" aria-hidden="true">
+        <svg viewBox="0 0 160 2200" xmlns="http://www.w3.org/2000/svg"
+             preserveAspectRatio="xMidYMin meet" width="160" height="100%">
+          <!-- Tree 1 -->
+          <rect x="30" y="1730" width="18" height="70" rx="3" fill="#5a3618"/>
+          <line x1="35" y1="1730" x2="35" y2="1800" stroke="#7a5030" stroke-width="1" opacity="0.5"/>
+          <line x1="39" y1="1730" x2="39" y2="1800" stroke="#7a5030" stroke-width="0.7" opacity="0.35"/>
+          <ellipse cx="39" cy="1710" rx="32" ry="22" fill="#162b22"/>
+          <ellipse cx="39" cy="1692" rx="26" ry="18" fill="#1e4032"/>
+          <ellipse cx="39" cy="1676" rx="18" ry="14" fill="#2a5240"/>
+          <ellipse cx="39" cy="1662" rx="11" ry="10" fill="#3d7a5e"/>
+
+          <!-- Tree 2 (taller) -->
+          <rect x="90" y="1600" width="22" height="90" rx="3" fill="#4a2c12"/>
+          <line x1="96" y1="1600" x2="96" y2="1690" stroke="#6b4020" stroke-width="1.2" opacity="0.5"/>
+          <line x1="101" y1="1600" x2="101" y2="1690" stroke="#6b4020" stroke-width="0.8" opacity="0.3"/>
+          <ellipse cx="101" cy="1578" rx="38" ry="26" fill="#162b22"/>
+          <ellipse cx="101" cy="1556" rx="30" ry="21" fill="#1e4032"/>
+          <ellipse cx="101" cy="1536" rx="20" ry="16" fill="#2a5240"/>
+          <ellipse cx="101" cy="1520" rx="12" ry="11" fill="#3d7a5e"/>
+
+          <!-- Tree 3 -->
+          <rect x="10" y="1060" width="16" height="60" rx="3" fill="#5a3618"/>
+          <line x1="14" y1="1060" x2="14" y2="1120" stroke="#7a5030" stroke-width="0.8" opacity="0.45"/>
+          <ellipse cx="18" cy="1044" rx="28" ry="19" fill="#162b22"/>
+          <ellipse cx="18" cy="1028" rx="22" ry="16" fill="#2a5240"/>
+          <ellipse cx="18" cy="1014" rx="14" ry="11" fill="#3d7a5e"/>
+
+          <!-- Tree 4 (large) -->
+          <rect x="70" y="880" width="26" height="100" rx="4" fill="#3d2010"/>
+          <line x1="78" y1="880" x2="78" y2="980" stroke="#5a3618" stroke-width="1.5" opacity="0.5"/>
+          <line x1="83" y1="880" x2="83" y2="980" stroke="#5a3618" stroke-width="1" opacity="0.3"/>
+          <line x1="88" y1="880" x2="88" y2="980" stroke="#5a3618" stroke-width="0.7" opacity="0.2"/>
+          <ellipse cx="83" cy="856" rx="44" ry="30" fill="#162b22"/>
+          <ellipse cx="83" cy="830" rx="36" ry="24" fill="#1e4032"/>
+          <ellipse cx="83" cy="808" rx="25" ry="19" fill="#2a5240"/>
+          <ellipse cx="83" cy="790" rx="15" ry="13" fill="#3d7a5e"/>
+
+          <!-- Tree 5 -->
+          <rect x="20" y="420" width="20" height="80" rx="3" fill="#4a2c12"/>
+          <line x1="26" y1="420" x2="26" y2="500" stroke="#6b4020" stroke-width="1" opacity="0.4"/>
+          <line x1="30" y1="420" x2="30" y2="500" stroke="#6b4020" stroke-width="0.7" opacity="0.25"/>
+          <ellipse cx="30" cy="402" rx="34" ry="23" fill="#162b22"/>
+          <ellipse cx="30" cy="382" rx="28" ry="20" fill="#1e4032"/>
+          <ellipse cx="30" cy="364" rx="19" ry="15" fill="#2a5240"/>
+          <ellipse cx="30" cy="350" rx="11" ry="10" fill="#3d7a5e"/>
+
+          <!-- Tree 6 (slender) -->
+          <rect x="110" y="260" width="14" height="55" rx="2" fill="#5a3618"/>
+          <line x1="114" y1="260" x2="114" y2="315" stroke="#7a5030" stroke-width="0.8" opacity="0.4"/>
+          <ellipse cx="117" cy="246" rx="24" ry="17" fill="#1e4032"/>
+          <ellipse cx="117" cy="232" rx="18" ry="13" fill="#2a5240"/>
+          <ellipse cx="117" cy="220" rx="11" ry="9" fill="#3d7a5e"/>
+        </svg>
+      </div>
+
+      <!-- ── Forest: right ── -->
+      <div class="forest forest-right" aria-hidden="true">
+        <svg viewBox="0 0 160 2200" xmlns="http://www.w3.org/2000/svg"
+             preserveAspectRatio="xMidYMin meet" width="160" height="100%">
+          <!-- Mirror of left forest, slightly offset for variety -->
+          <rect x="50" y="1760" width="20" height="75" rx="3" fill="#5a3618"/>
+          <line x1="56" y1="1760" x2="56" y2="1835" stroke="#7a5030" stroke-width="1" opacity="0.45"/>
+          <line x1="60" y1="1760" x2="60" y2="1835" stroke="#7a5030" stroke-width="0.7" opacity="0.3"/>
+          <ellipse cx="60" cy="1742" rx="35" ry="23" fill="#162b22"/>
+          <ellipse cx="60" cy="1722" rx="28" ry="19" fill="#1e4032"/>
+          <ellipse cx="60" cy="1706" rx="19" ry="14" fill="#2a5240"/>
+          <ellipse cx="60" cy="1692" rx="11" ry="10" fill="#3d7a5e"/>
+
+          <rect x="110" y="1560" width="24" height="95" rx="3" fill="#4a2c12"/>
+          <line x1="118" y1="1560" x2="118" y2="1655" stroke="#6b4020" stroke-width="1.2" opacity="0.45"/>
+          <line x1="122" y1="1560" x2="122" y2="1655" stroke="#6b4020" stroke-width="0.8" opacity="0.28"/>
+          <ellipse cx="122" cy="1536" rx="40" ry="28" fill="#162b22"/>
+          <ellipse cx="122" cy="1512" rx="32" ry="22" fill="#1e4032"/>
+          <ellipse cx="122" cy="1492" rx="22" ry="17" fill="#2a5240"/>
+          <ellipse cx="122" cy="1476" rx="13" ry="11" fill="#3d7a5e"/>
+
+          <rect x="20" y="1100" width="18" height="65" rx="3" fill="#5a3618"/>
+          <line x1="26" y1="1100" x2="26" y2="1165" stroke="#7a5030" stroke-width="0.9" opacity="0.4"/>
+          <ellipse cx="29" cy="1083" rx="30" ry="20" fill="#162b22"/>
+          <ellipse cx="29" cy="1066" rx="24" ry="17" fill="#2a5240"/>
+          <ellipse cx="29" cy="1051" rx="15" ry="12" fill="#3d7a5e"/>
+
+          <rect x="80" y="860" width="28" height="105" rx="4" fill="#3d2010"/>
+          <line x1="90" y1="860" x2="90" y2="965" stroke="#5a3618" stroke-width="1.5" opacity="0.48"/>
+          <line x1="94" y1="860" x2="94" y2="965" stroke="#5a3618" stroke-width="1" opacity="0.28"/>
+          <ellipse cx="94" cy="834" rx="46" ry="32" fill="#162b22"/>
+          <ellipse cx="94" cy="806" rx="37" ry="26" fill="#1e4032"/>
+          <ellipse cx="94" cy="782" rx="26" ry="20" fill="#2a5240"/>
+          <ellipse cx="94" cy="762" rx="15" ry="13" fill="#3d7a5e"/>
+
+          <rect x="30" y="400" width="22" height="82" rx="3" fill="#4a2c12"/>
+          <line x1="37" y1="400" x2="37" y2="482" stroke="#6b4020" stroke-width="1" opacity="0.38"/>
+          <line x1="41" y1="400" x2="41" y2="482" stroke="#6b4020" stroke-width="0.7" opacity="0.22"/>
+          <ellipse cx="41" cy="380" rx="36" ry="25" fill="#162b22"/>
+          <ellipse cx="41" cy="358" rx="29" ry="21" fill="#1e4032"/>
+          <ellipse cx="41" cy="339" rx="20" ry="16" fill="#2a5240"/>
+          <ellipse cx="41" cy="324" rx="12" ry="10" fill="#3d7a5e"/>
+
+          <rect x="120" y="240" width="15" height="58" rx="2" fill="#5a3618"/>
+          <line x1="124" y1="240" x2="124" y2="298" stroke="#7a5030" stroke-width="0.8" opacity="0.38"/>
+          <ellipse cx="128" cy="226" rx="26" ry="18" fill="#1e4032"/>
+          <ellipse cx="128" cy="210" rx="19" ry="14" fill="#2a5240"/>
+          <ellipse cx="128" cy="198" rx="12" ry="9" fill="#3d7a5e"/>
+        </svg>
+      </div>
+
+      <!-- ── River SVG ── -->
+      <svg class="river-svg" viewBox="0 0 130 1000"
+           preserveAspectRatio="none"
+           xmlns="http://www.w3.org/2000/svg"
+           aria-hidden="true">
+        <defs>
+          <linearGradient id="riverGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stop-color="#2e5f72" stop-opacity="0.6"/>
+            <stop offset="50%"  stop-color="#3a7a8e" stop-opacity="0.5"/>
+            <stop offset="100%" stop-color="#2e5f72" stop-opacity="0.6"/>
+          </linearGradient>
+          <!-- Ripple animation -->
+          <animate id="rippleAnim"/>
+        </defs>
+
+        <!-- River body: winding S-path -->
+        <path d="
+          M 55 0
+          C 30 80,  100 160, 65 250
+          C 30 340, 100 420, 65 510
+          C 30 600, 100 680, 65 770
+          C 30 860, 100 940, 65 1000
+        "
+          fill="none" stroke="url(#riverGrad)"
+          stroke-width="28" stroke-linecap="round"
+          opacity="0.55"
+        />
+
+        <!-- Lighter highlight to suggest current -->
+        <path d="
+          M 60 0
+          C 38 80,  95 160, 68 250
+          C 38 340, 95 420, 68 510
+          C 38 600, 95 680, 68 770
+          C 38 860, 95 940, 68 1000
+        "
+          fill="none" stroke="#6ab4c8"
+          stroke-width="5" stroke-linecap="round"
+          opacity="0.2"
+          stroke-dasharray="12 18"
+        >
+          <animateTransform attributeName="transform"
+            type="translate" from="0 -30" to="0 30"
+            dur="3s" repeatCount="indefinite"/>
+        </path>
+      </svg>
+
+      <!-- ── App Cards ── -->
+      <div class="cards-flow">
+
+        <!-- I: Original -->
+        <div class="waypoint">
+          <a href="original.html" class="app-card">
+            <p class="card-num">I</p>
+            <h3 class="card-name">Original</h3>
+            <p class="card-hook">Not whether it's AI — but whether it's you.</p>
+            <p class="card-desc">
+              Stylometric analysis that protects the space of authentic
+              intellectual struggle. Original doesn't ask if AI was used.
+              It asks if the work is unmistakably yours.
+            </p>
+            <span class="card-cta">
+              Discover Original
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </span>
+          </a>
+        </div>
+
+        <!-- II: Typewriter -->
+        <div class="waypoint">
+          <a href="typewriter.html" class="app-card">
+            <p class="card-num">II</p>
+            <h3 class="card-name">Typewriter</h3>
+            <p class="card-hook">Writing as thinking. Not writing as producing.</p>
+            <p class="card-desc">
+              A writing environment stripped of distraction, designed to
+              protect the slow work of thinking through prose —
+              one sentence at a time.
+            </p>
+            <span class="card-cta">
+              Discover Typewriter
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </span>
+          </a>
+        </div>
+
+        <!-- III: Placeholder -->
+        <div class="waypoint">
+          <div class="app-card placeholder">
+            <p class="card-num">III</p>
+            <h3 class="card-name">Coming</h3>
+            <p class="card-hook">Something is taking root here.</p>
+            <p class="card-desc">
+              Another tool in service of genuine effort. The work
+              of building it is itself the thing.
+            </p>
+            <span class="badge">In development</span>
+          </div>
+        </div>
+
+        <!-- IV: Placeholder -->
+        <div class="waypoint">
+          <div class="app-card placeholder">
+            <p class="card-num">IV</p>
+            <h3 class="card-name">Coming</h3>
+            <p class="card-hook">Something is taking root here.</p>
+            <p class="card-desc">
+              Another tool in service of genuine effort. The work
+              of building it is itself the thing.
+            </p>
+            <span class="badge">In development</span>
+          </div>
+        </div>
+
+        <!-- V: Placeholder -->
+        <div class="waypoint">
+          <div class="app-card placeholder">
+            <p class="card-num">V</p>
+            <h3 class="card-name">Coming</h3>
+            <p class="card-hook">Something is taking root here.</p>
+            <p class="card-desc">
+              Another tool in service of genuine effort. The work
+              of building it is itself the thing.
+            </p>
+            <span class="badge">In development</span>
+          </div>
+        </div>
+
+      </div><!-- /cards-flow -->
+    </div><!-- /landscape -->
+  </div><!-- /river-inner -->
+</section>
+
+<!-- ═══ FOOTER ═════════════════════════════════════════ -->
+<footer id="about">
+  <p class="footer-line">
+    Andrew Clark — apps that move us from synthetic pleasure toward authentic telos
+  </p>
+  <div class="footer-mark"></div>
+</footer>
+
+<script>
+  // Scroll-triggered card entrance
+  const waypoints = document.querySelectorAll('.waypoint');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  waypoints.forEach((w, i) => {
+    w.style.transitionDelay = `${i * 0.08}s`;
+    io.observe(w);
+  });
+
+  // Nav transparency on scroll
+  const nav = document.querySelector('nav');
+  window.addEventListener('scroll', () => {
+    nav.style.background = window.scrollY > 60
+      ? 'rgba(22,43,34,0.97)'
+      : 'rgba(22,43,34,0.96)';
+  }, { passive: true });
+</script>
+
+</body>
+</html>

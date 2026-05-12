@@ -1,0 +1,431 @@
+# OWASP ZAP Security Test Configuration for Original API
+#
+# This configuration file defines security scan parameters for testing
+# the Original Authorship Verification Platform API.
+#
+# Usage:
+#   zaproxy -cmd -configfile security_test_config.yaml -url http://localhost:8000
+#
+# Documentation: https://www.zaproxy.org/docs/desktop/cmdline/
+#
+
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# ZAP Configuration
+# ──────────────────────────────────────────────────────────────────────────────
+
+zapOptions:
+  # Proxy Settings (if needed)
+  proxyChain:
+    enabled: false
+    # host: proxy.example.com
+    # port: 8080
+    # username: user
+    # password: pass
+
+  # Connection Timeout (milliseconds)
+  connectionTimeout: 60000
+
+  # Default User Agent
+  userAgent: "Original Security Scanner/1.0"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Scan Parameters
+# ──────────────────────────────────────────────────────────────────────────────
+
+scan:
+  # Contexts (test scopes)
+  contexts:
+    - name: "Original API"
+      description: "Original Authorship Verification Platform API"
+
+      # Include URLs (regex patterns)
+      include:
+        - "^http://localhost:8000/api/.*"
+        - "^http://localhost:8000/health"
+        - "^https://api.original.edu/api/.*"
+
+      # Exclude URLs (regex patterns) — testing only, not auth endpoints
+      exclude:
+        - "^http://localhost:8000/docs.*"
+        - "^http://localhost:8000/openapi.*"
+        - "^http://localhost:8000/metrics.*"
+
+  # Authentication
+  authentication:
+    type: "http"  # http, cookie, or custom
+    method: "bearer"  # Bearer token auth
+
+    # For bearer token, ZAP needs a valid token
+    # Configure this with actual JWT from test environment
+    credentials:
+      - name: "Test User Token"
+        # This would be injected at runtime with actual JWT
+        # pattern: "Authorization: Bearer {token}"
+
+  # Session Management
+  sessionManagement:
+    type: "cookie"
+    parameters:
+      cookieName: "jwt"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Spider Configuration (URL Discovery)
+# ──────────────────────────────────────────────────────────────────────────────
+
+spider:
+  maxDepth: 2           # How deep to crawl
+  maxChildren: 0        # 0 = unlimited
+  threadCount: 5        # Number of parallel threads
+  timeout: 300000       # Milliseconds
+  clickableElements: false
+  parseForms: true
+  parseComments: false
+  parseRobots: false
+  parseSitemaps: false
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Scanner Configuration (Active Scanning)
+# ──────────────────────────────────────────────────────────────────────────────
+
+scanner:
+  # Enabled vulnerability checks
+  enabledScans:
+    - "Cross Site Scripting (DOM)"
+    - "Cross Site Scripting (Reflected)"
+    - "Cross Site Scripting (Stored)"
+    - "SQL Injection"
+    - "XML External Entity (XXE)"
+    - "Cross-Site Request Forgery (CSRF)"
+    - "Path Traversal"
+    - "Directory Browsing"
+    - "Local File Inclusion"
+    - "Remote File Inclusion"
+    - "Insecure HTTP Methods"
+    - "Authentication Bypass"
+    - "Weak Session Tokens"
+
+  # Disabled (too noisy for API testing)
+  disabledScans:
+    - "Cloudflare Email Address Disclosure"
+    - "Comment HTML/JavaScript"
+
+  # Scan policy: balanced (Low = fast, Medium = balanced, High = thorough)
+  threadPerHost: 4
+  delayInMs: 0
+
+  # Target scope
+  scope:
+    includeUrl: true
+    excludeUrl: false
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Passive Checks (Non-intrusive Scanning)
+# ──────────────────────────────────────────────────────────────────────────────
+
+passiveChecks:
+  enabled: true
+  checks:
+    - "Cookie without Secure flag"
+    - "Cookie without HttpOnly flag"
+    - "Missing Security Headers"
+    - "Insecure Content-Security-Policy"
+    - "Insecure CORS Configuration"
+    - "Server information disclosure (via headers)"
+    - "Weak SSL/TLS configuration"
+    - "Unvalidated Redirects"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Report Generation
+# ──────────────────────────────────────────────────────────────────────────────
+
+report:
+  # Report format: html, md, json, sarif
+  format: "html"
+
+  # Report output file
+  output: "./zap-report.html"
+
+  # Report title
+  title: "Original API Security Scan Report"
+
+  # Include request/response details
+  includeDetails: true
+
+  # Include chart/graphs
+  includeCharts: true
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Original-Specific API Endpoints to Test
+# ──────────────────────────────────────────────────────────────────────────────
+
+# These endpoints should be tested for security vulnerabilities:
+
+endpoints:
+  # Authentication Endpoints
+  - path: "/api/v1/auth/login"
+    method: "POST"
+    description: "Login endpoint — test for brute force, SQL injection"
+    includeInScan: true
+
+  - path: "/api/v1/auth/refresh"
+    method: "POST"
+    description: "Token refresh — test for CSRF, token reuse"
+    includeInScan: true
+
+  - path: "/api/v1/auth/logout"
+    method: "POST"
+    description: "Logout endpoint"
+    includeInScan: true
+
+  # Student Data Endpoints
+  - path: "/api/v1/students/me"
+    method: "GET"
+    description: "Get current student — test for information disclosure"
+    includeInScan: true
+
+  - path: "/api/v1/students/{student_id}"
+    method: "GET"
+    description: "Get student by ID — test RBAC, ID enumeration"
+    includeInScan: true
+
+  # Submission Endpoints
+  - path: "/api/v1/submissions"
+    method: "POST"
+    description: "Create submission — test file upload, size limits"
+    includeInScan: true
+
+  - path: "/api/v1/submissions"
+    method: "GET"
+    description: "List submissions — test RBAC, pagination"
+    includeInScan: true
+
+  - path: "/api/v1/submissions/{submission_id}"
+    method: "GET"
+    description: "Get submission — test access control"
+    includeInScan: true
+
+  - path: "/api/v1/submissions/{submission_id}/score"
+    method: "GET"
+    description: "Get scoring results — test data exposure"
+    includeInScan: true
+
+  # Baseline Endpoints
+  - path: "/api/v1/baselines"
+    method: "POST"
+    description: "Create baseline — test input validation"
+    includeInScan: true
+
+  - path: "/api/v1/baselines"
+    method: "GET"
+    description: "List baselines — test RBAC"
+    includeInScan: true
+
+  - path: "/api/v1/baselines/{baseline_id}"
+    method: "GET"
+    description: "Get baseline — test access control"
+    includeInScan: true
+
+  - path: "/api/v1/baselines/{baseline_id}"
+    method: "DELETE"
+    description: "Delete baseline — test authorization"
+    includeInScan: true
+
+  # Course Endpoints
+  - path: "/api/v1/courses"
+    method: "GET"
+    description: "List courses — test RBAC"
+    includeInScan: true
+
+  - path: "/api/v1/courses/{course_id}"
+    method: "GET"
+    description: "Get course — test access control"
+    includeInScan: true
+
+  - path: "/api/v1/courses/{course_id}/students"
+    method: "GET"
+    description: "List course students — test RBAC"
+    includeInScan: true
+
+  # Admin Endpoints
+  - path: "/api/v1/admin/users"
+    method: "GET"
+    description: "List users (admin only) — test authentication"
+    includeInScan: true
+
+  - path: "/api/v1/admin/institutions"
+    method: "GET"
+    description: "List institutions (admin only)"
+    includeInScan: true
+
+  - path: "/api/v1/admin/settings"
+    method: "GET"
+    description: "Get settings (admin only)"
+    includeInScan: true
+
+  # Health/Status Endpoints
+  - path: "/health"
+    method: "GET"
+    description: "Health check — ensure public access"
+    includeInScan: true
+
+  - path: "/api/v1/status"
+    method: "GET"
+    description: "API status"
+    includeInScan: true
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Security Headers Verification
+# ──────────────────────────────────────────────────────────────────────────────
+
+expectedSecurityHeaders:
+  # Strict Transport Security (HSTS)
+  - name: "Strict-Transport-Security"
+    pattern: "max-age=\\d+.*"
+    severity: "High"  # High if missing
+
+  # Content Security Policy (CSP)
+  - name: "Content-Security-Policy"
+    pattern: ".*"
+    severity: "Medium"
+
+  # X-Content-Type-Options (prevent MIME-sniffing)
+  - name: "X-Content-Type-Options"
+    pattern: "nosniff"
+    severity: "Medium"
+
+  # X-Frame-Options (prevent clickjacking)
+  - name: "X-Frame-Options"
+    pattern: "DENY|SAMEORIGIN"
+    severity: "Medium"
+
+  # X-XSS-Protection
+  - name: "X-XSS-Protection"
+    pattern: "1.*mode=block"
+    severity: "Low"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Authentication Testing
+# ──────────────────────────────────────────────────────────────────────────────
+
+authenticationTests:
+  # JWT Token validation
+  - name: "JWT Token Expiration"
+    description: "Verify tokens expire as configured"
+    enabled: true
+
+  - name: "JWT Token Signature Validation"
+    description: "Verify signatures are validated"
+    enabled: true
+
+  - name: "JWT Token Refresh"
+    description: "Verify refresh token flow works correctly"
+    enabled: true
+
+  # Session Management
+  - name: "Session Fixation"
+    description: "Verify sessions cannot be fixed by attacker"
+    enabled: true
+
+  - name: "CSRF Protection"
+    description: "Verify CSRF tokens are enforced"
+    enabled: true
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Access Control Testing (RBAC)
+# ──────────────────────────────────────────────────────────────────────────────
+
+accessControlTests:
+  # Student Access Control
+  - name: "Students cannot access other students' data"
+    description: "Verify student isolation"
+    endpoint: "/api/v1/students/{other_student_id}"
+    expectedStatus: 403
+    enabled: true
+
+  - name: "Students cannot access other submissions"
+    description: "Verify submission isolation"
+    endpoint: "/api/v1/submissions/{other_student_submission_id}"
+    expectedStatus: 403
+    enabled: true
+
+  # Teacher Access Control
+  - name: "Teachers can only access their course students"
+    description: "Verify teacher RBAC"
+    endpoint: "/api/v1/courses/{other_teacher_course_id}/students"
+    expectedStatus: 403
+    enabled: true
+
+  # Admin Access Control
+  - name: "Only admins can access /api/v1/admin/*"
+    description: "Verify admin endpoint protection"
+    endpoint: "/api/v1/admin/users"
+    expectedStatus: 403
+    whenUnauthenticated: true
+    enabled: true
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Input Validation Testing
+# ──────────────────────────────────────────────────────────────────────────────
+
+inputValidationTests:
+  enabled: true
+  tests:
+    # SQL Injection
+    - name: "SQL Injection in submissions"
+      payload: "'; DROP TABLE submissions; --"
+      endpoint: "/api/v1/submissions"
+      severity: "Critical"
+
+    # XSS
+    - name: "XSS in student name"
+      payload: "<script>alert('xss')</script>"
+      parameter: "name"
+      severity: "High"
+
+    # Path Traversal
+    - name: "Path traversal in file upload"
+      payload: "../../etc/passwd"
+      endpoint: "/api/v1/submissions"
+      severity: "High"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Severity Levels and Reporting
+# ──────────────────────────────────────────────────────────────────────────────
+
+reportingRules:
+  # Critical: Show all findings
+  Critical: "FAIL"
+
+  # High: Fail report if found
+  High: "FAIL"
+
+  # Medium: Warn but pass
+  Medium: "WARN"
+
+  # Low: Info only
+  Low: "INFO"
+
+  # Informational: Ignore
+  Informational: "IGNORE"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Known False Positives / Exceptions
+# ──────────────────────────────────────────────────────────────────────────────
+
+falsePositives:
+  - title: "Absence of Anti-CSRF Tokens"
+    reason: "API uses bearer token authentication instead of CSRF tokens"
+    enabled: true
+
+  - title: "Weak CORS Configuration"
+    reason: "CORS configured per institutional security policy"
+    enabled: false  # Set to true if applicable
+
+  - title: "Information Disclosure in Error Messages"
+    reason: "Error messages necessary for API clients; validated for sensitive data"
+    enabled: false
+
+# ──────────────────────────────────────────────────────────────────────────────
+# End of Configuration
+# ──────────────────────────────────────────────────────────────────────────────

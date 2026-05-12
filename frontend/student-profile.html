@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Original — Your Writing Profile</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg-primary: #f7f3ea;
+      --bg-secondary: #fff;
+      --border-light: #e2dccf;
+      --text-dark: #1a130a;
+      --text-muted: #8b7355;
+      --accent-primary: #1a6fb5;
+      --accent-success: #16a34a;
+      --accent-warning: #f59e0b;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-dark);
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+    .nav-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      padding: 0 1rem;
+    }
+
+    .logo-text {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .nav-links a {
+      padding: 0.5rem 1rem;
+      text-decoration: none;
+      color: var(--accent-primary);
+      font-size: 0.9rem;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+
+    .nav-links a:hover {
+      background: rgba(26, 111, 181, 0.1);
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .intro-banner {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .intro-banner h1 {
+      font-size: 1.75rem;
+      margin-bottom: 0.75rem;
+      color: var(--text-dark);
+    }
+
+    .intro-banner p {
+      color: var(--text-muted);
+      line-height: 1.6;
+      font-size: 0.95rem;
+    }
+
+    .intro-banner em {
+      display: block;
+      margin-top: 1rem;
+      color: var(--accent-primary);
+      font-style: italic;
+    }
+
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      color: var(--text-dark);
+    }
+
+    .card-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+    }
+
+    .radar-container {
+      position: relative;
+      width: 100%;
+      max-width: 400px;
+      height: 350px;
+      margin: 0 auto;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 200px;
+      margin: 1rem 0;
+    }
+
+    .line-chart {
+      width: 100%;
+      height: 100%;
+    }
+
+    .submission-score {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem;
+      background: #f9f7f4;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+    }
+
+    .submission-info {
+      flex: 1;
+    }
+
+    .submission-date {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .submission-assignment {
+      font-weight: 600;
+      color: var(--text-dark);
+    }
+
+    .submission-score-badge {
+      background: var(--accent-success);
+      color: white;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+      min-width: 70px;
+    }
+
+    .submission-score-badge.moderate {
+      background: var(--accent-warning);
+    }
+
+    .message-box {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-top: 1rem;
+    }
+
+    .message-box h4 {
+      color: var(--accent-success);
+      margin-bottom: 0.5rem;
+    }
+
+    .message-box p {
+      color: var(--text-dark);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .feature-item {
+      background: #f9f7f4;
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .feature-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent-primary);
+      margin-bottom: 0.25rem;
+    }
+
+    .feature-name {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+    }
+
+    .error-msg {
+      background: #fdf2f2;
+      border: 1px solid rgba(192, 57, 43, 0.3);
+      border-radius: 6px;
+      padding: 1rem;
+      font-size: 0.9rem;
+      color: #8b1c14;
+      margin-bottom: 1rem;
+    }
+
+    @media (max-width: 640px) {
+      .intro-banner {
+        padding: 1.5rem;
+      }
+
+      .intro-banner h1 {
+        font-size: 1.5rem;
+      }
+
+      .radar-container {
+        max-width: 100%;
+      }
+
+      .submission-score {
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .submission-score-badge {
+        width: 100%;
+      }
+
+      .feature-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="nav-header">
+    <div class="logo-text">Original</div>
+    <div class="nav-links">
+      <a href="help.html">Help</a>
+      <a href="#" onclick="OriginalAuth.logout(); return false;">Logout</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="intro-banner">
+      <h1>Your Writing Profile</h1>
+      <p>
+        Every writer has a unique fingerprint — your vocabulary choices, sentence rhythms, and stylistic habits
+        are as individual as your handwriting. Original maps those patterns from your verified work so your
+        authentic voice is always recognized and protected.
+      </p>
+      <div style="margin-top:1rem;padding:0.85rem 1.1rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:0.875rem;color:#166534;line-height:1.5;">
+        <strong>Original assists — it never accuses.</strong> Your instructor makes every decision.
+        Write naturally and authentically: that's exactly what this system is designed to recognize and reward.
+      </div>
+    </div>
+
+    <div id="loading" class="loading">Loading your profile...</div>
+    <div id="error" class="error-msg" style="display: none;"></div>
+
+    <div id="content" style="display: none;">
+      <!-- Writing Profile Radar Chart -->
+      <div class="card">
+        <div class="card-title">Your Writing Fingerprint</div>
+        <div class="card-subtitle">
+          Key characteristics of your writing style. A complete profile helps Original work more accurately.
+        </div>
+        <div class="radar-container">
+          <svg id="radar-chart"></svg>
+        </div>
+        <div class="message-box">
+          <h4>What does this mean?</h4>
+          <p>
+            This radar shows your typical patterns across 7 dimensions of writing style:
+            lexical richness, syntactic complexity, discourse markers, punctuation, formality,
+            rhetorical patterns, and theological register (for seminary context).
+          </p>
+        </div>
+      </div>
+
+      <!-- Writing Trajectory -->
+      <div class="card">
+        <div class="card-title">Your Writing Over Time</div>
+        <div class="card-subtitle">
+          How your writing has evolved across your submissions this semester.
+        </div>
+        <div class="chart-container">
+          <svg id="trajectory-chart"></svg>
+        </div>
+      </div>
+
+      <!-- Key Features -->
+      <div class="card">
+        <div class="card-title">Your Top 5 Features</div>
+        <div class="card-subtitle">
+          The most distinctive aspects of your writing style.
+        </div>
+        <div class="feature-grid" id="top-features">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Submission Scores -->
+      <div class="card">
+        <div class="card-title">Your Submission Scores</div>
+        <div class="card-subtitle">
+          Confidence that each submission matches your writing baseline.
+        </div>
+        <div id="submission-list">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Encouragement -->
+      <div class="message-box">
+        <h4>Keep writing authentically</h4>
+        <p>
+          The best way to help Original work is to write naturally. Don't worry about being flagged if you write from your own experience and voice — that's exactly what this system is designed to recognize.
+          <br><br>
+          Questions about your profile or scores? Check the <strong>Help</strong> section or reach out to your instructor.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    (function() {
+      'use strict';
+
+      OriginalAuth.requireAuth();
+
+      const user = OriginalAuth.getUser();
+      if (!user || !user.email) {
+        document.getElementById('error').textContent = 'Not authenticated. Please log in.';
+        document.getElementById('error').style.display = 'block';
+        return;
+      }
+
+      // Get student ID from URL parameter
+      const params = new URLSearchParams(window.location.search);
+      const studentId = params.get('student');
+
+      if (!studentId) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').textContent = 'No student selected. Please provide a ?student=ID parameter.';
+        document.getElementById('error').style.display = 'block';
+        return;
+      }
+
+      // Load student profile data from API
+      let profileData = {
+        baseline_vector: {},
+        submissions: []
+      };
+
+      function loadProfileData() {
+        return Promise.all([
+          OriginalAuth.apiFetch(`/api/v1/students/${studentId}/baseline`).then(r => {
+            if (!r.ok) throw new Error('Failed to load baseline');
+            return r.json();
+          }).catch(err => {
+            console.warn('Could not load baseline:', err);
+            return { baseline_samples: [] };
+          }),
+          OriginalAuth.apiFetch(`/api/v1/submissions/${studentId}/submissions`).then(r => {
+            if (!r.ok) throw new Error('Failed to load submissions');
+            return r.json();
+          }).catch(err => {
+            console.warn('Could not load submissions:', err);
+            return { submissions: [] };
+          }),
+          OriginalAuth.apiFetch(`/api/v1/students/${studentId}`).then(r => {
+            if (!r.ok) throw new Error('Failed to load student info');
+            return r.json();
+          }).catch(err => {
+            console.warn('Could not load student info:', err);
+            return { name: 'Student' };
+          }),
+          OriginalAuth.apiFetch(`/api/v1/students/${studentId}/state`).then(r => {
+            if (!r.ok) throw new Error('Failed to load student state');
+            return r.json();
+          }).catch(err => {
+            console.warn('Could not load student state:', err);
+            return { feature_tiers: {} };
+          })
+        ])
+        .then(([baseline, submissionsResp, studentInfo, stateData]) => {
+          // Process baseline vector from samples
+          if (baseline.baseline_samples && baseline.baseline_samples.length > 0) {
+            const features = ['lexical_diversity', 'avg_sentence_length', 'discourse_markers', 'punctuation_complexity', 'formality_register', 'rhetorical_patterns', 'theological_register_score'];
+            const aggregated = {};
+            features.forEach(feature => {
+              const values = baseline.baseline_samples
+                .map(s => s[feature])
+                .filter(v => v !== undefined && v !== null);
+              aggregated[feature] = values.length > 0 ? values.reduce((a, b) => a + b) / values.length : 0.5;
+            });
+            profileData.baseline_vector = aggregated;
+          } else if (stateData.feature_tiers) {
+            profileData.baseline_vector = stateData.feature_tiers;
+          } else {
+            // Fallback baseline if no data
+            profileData.baseline_vector = {
+              'lexical_diversity': 0.5,
+              'avg_sentence_length': 0.5,
+              'discourse_markers': 0.5,
+              'punctuation_complexity': 0.5,
+              'formality_register': 0.5,
+              'rhetorical_patterns': 0.5,
+              'theological_register_score': 0.5
+            };
+          }
+
+          // Process submissions
+          if (submissionsResp.submissions && submissionsResp.submissions.length > 0) {
+            profileData.submissions = submissionsResp.submissions.map(sub => ({
+              assignment: sub.assignment_name || 'Assignment',
+              date: sub.submitted_at || sub.date || new Date().toISOString().split('T')[0],
+              confidence: sub.authenticity_score !== undefined ? sub.authenticity_score : (sub.confidence || 0.85)
+            }));
+          } else {
+            profileData.submissions = [];
+          }
+
+          return profileData;
+        });
+      }
+
+      // Render radar chart
+      function renderRadar() {
+        const svg = document.getElementById('radar-chart');
+        const size = 300;
+        const center = size / 2;
+        const maxRadius = center - 40;
+        const featureKeys = Object.keys(profileData.baseline_vector);
+        const featureCount = featureKeys.length;
+
+        let svg_content = `<svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">`;
+
+        // Concentric circles
+        for (let i = 1; i <= 5; i++) {
+          const r = (maxRadius * i) / 5;
+          svg_content += `<circle cx="${center}" cy="${center}" r="${r}" fill="none" stroke="#e2dccf" stroke-width="1"/>`;
+        }
+
+        // Axes
+        for (let i = 0; i < featureCount; i++) {
+          const angle = (i / featureCount) * Math.PI * 2 - Math.PI / 2;
+          const x = center + maxRadius * Math.cos(angle);
+          const y = center + maxRadius * Math.sin(angle);
+          svg_content += `<line x1="${center}" y1="${center}" x2="${x}" y2="${y}" stroke="#d4cbbf" stroke-width="1"/>`;
+        }
+
+        // Data polygon
+        let points = '';
+        for (let i = 0; i < featureCount; i++) {
+          const angle = (i / featureCount) * Math.PI * 2 - Math.PI / 2;
+          const value = profileData.baseline_vector[featureKeys[i]] || 0.5;
+          const r = maxRadius * value;
+          const x = center + r * Math.cos(angle);
+          const y = center + r * Math.sin(angle);
+          points += `${x},${y} `;
+        }
+        svg_content += `<polygon points="${points}" fill="rgba(26,111,181,0.2)" stroke="#1a6fb5" stroke-width="2"/>`;
+
+        // Labels
+        for (let i = 0; i < featureCount; i++) {
+          const angle = (i / featureCount) * Math.PI * 2 - Math.PI / 2;
+          const labelRadius = maxRadius + 35;
+          const x = center + labelRadius * Math.cos(angle);
+          const y = center + labelRadius * Math.sin(angle);
+          const label = featureKeys[i].split('_').slice(0, 2).join(' ');
+          svg_content += `<text x="${x}" y="${y}" text-anchor="middle" font-size="11" fill="#8b7355" font-weight="500">${label}</text>`;
+        }
+
+        svg_content += `</svg>`;
+        svg.outerHTML = svg_content;
+      }
+
+      // Render trajectory chart
+      function renderTrajectory() {
+        const svg = document.getElementById('trajectory-chart');
+        const width = 800;
+        const height = 200;
+        const padding = 40;
+        const chartWidth = width - 2 * padding;
+        const chartHeight = height - 2 * padding;
+
+        const submissions = profileData.submissions;
+        const maxValue = 1.0;
+        const minValue = submissions.length > 0 ? Math.min(...submissions.map(s => s.confidence)) : 0.8;
+        const minDisplay = Math.max(0.5, minValue - 0.1);
+        const maxDisplay = Math.min(1.0, maxValue);
+        const range = maxDisplay - minDisplay;
+
+        let svg_content = `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">`;
+
+        // Grid lines
+        for (let i = 0; i <= 5; i++) {
+          const y = padding + (chartHeight / 5) * i;
+          const value = (maxDisplay - (range / 5) * i).toFixed(2);
+          svg_content += `<line x1="${padding}" y1="${y}" x2="${width - padding}" y2="${y}" stroke="#f3f0eb" stroke-width="1"/>`;
+          svg_content += `<text x="${padding - 5}" y="${y + 4}" text-anchor="end" font-size="10" fill="#8b7355">${value}</text>`;
+        }
+
+        // Data points and line
+        let points = '';
+        if (submissions.length > 0) {
+          submissions.forEach((sub, i) => {
+            const x = padding + (chartWidth / Math.max(1, submissions.length - 1)) * i;
+            const normalizedVal = (sub.confidence - minDisplay) / range;
+            const y = padding + chartHeight * (1 - normalizedVal);
+            points += `${x},${y} `;
+
+            svg_content += `<circle cx="${x}" cy="${y}" r="4" fill="#1a6fb5" stroke="white" stroke-width="2"/>`;
+          });
+
+          svg_content += `<polyline points="${points}" fill="none" stroke="#1a6fb5" stroke-width="2" stroke-linejoin="round"/>`;
+        } else {
+          svg_content += `<text x="${width / 2}" y="${height / 2}" text-anchor="middle" font-size="14" fill="#8b7355">No submission data</text>`;
+        }
+
+        svg_content += `</svg>`;
+        svg.outerHTML = svg_content;
+      }
+
+      // Render top features
+      function renderTopFeatures() {
+        const container = document.getElementById('top-features');
+        const entries = Object.entries(profileData.baseline_vector).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+        if (entries.length === 0) {
+          container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 1rem;">No feature data available</div>';
+          return;
+        }
+
+        container.innerHTML = entries.map(([key, value]) => {
+          const label = key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+          const percent = Math.round(value * 100);
+          return `
+            <div class="feature-item">
+              <div class="feature-value">${percent}%</div>
+              <div class="feature-name">${label}</div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Render submissions
+      function renderSubmissions() {
+        const container = document.getElementById('submission-list');
+        if (profileData.submissions.length === 0) {
+          container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem;">No submissions yet</div>';
+          return;
+        }
+        container.innerHTML = profileData.submissions.map(sub => {
+          const percent = Math.round(sub.confidence * 100);
+          const badgeClass = sub.confidence >= 0.9 ? '' : 'moderate';
+          const date = new Date(sub.date).toLocaleDateString();
+          return `
+            <div class="submission-score">
+              <div class="submission-info">
+                <div class="submission-assignment">${sub.assignment}</div>
+                <div class="submission-date">${date}</div>
+              </div>
+              <div class="submission-score-badge ${badgeClass}">${percent}% Authentic</div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Load data and render
+      loadProfileData()
+        .then(() => {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('content').style.display = 'block';
+
+          renderRadar();
+          renderTrajectory();
+          renderTopFeatures();
+          renderSubmissions();
+        })
+        .catch(error => {
+          console.error('Error loading profile:', error);
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('error').textContent = 'Failed to load your profile. Please try refreshing the page.';
+          document.getElementById('error').style.display = 'block';
+        });
+    })();
+  </script>
+</body>
+</html>

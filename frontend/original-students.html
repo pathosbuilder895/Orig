@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Original — Students</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+    :root{
+      --green-deepest:#0f1e17;--green-deep:#162b22;--green-mid:#1e3d2f;
+      --green-hover:#243d30;--green-border:rgba(255,255,255,0.07);
+      --cream:#f7f3ea;--cream-warm:#ede8d8;--cream-border:#e2dccf;
+      --surface:#ffffff;--gold:#c9a028;--gold-light:rgba(201,160,40,0.12);
+      --gold-muted:rgba(201,160,40,0.35);--amber:#9b6420;
+      --text-primary:#1a130a;--text-secondary:#5a4030;--text-muted:#8a7060;
+      --text-cream:#f7f3ea;--text-cream-dim:rgba(247,243,234,0.55);
+      --flag-red:#c0392b;--flag-red-bg:rgba(192,57,43,0.08);
+      --flag-green:#2a6b45;--flag-green-bg:rgba(42,107,69,0.1);
+      --flag-amber-bg:rgba(201,160,40,0.1);
+      --sidebar-w:264px;--radius:6px;
+      --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+    }
+    html,body{height:100%;}
+    body{font-family:'Inter',system-ui,sans-serif;background:var(--cream);color:var(--text-primary);display:flex;overflow:hidden;font-size:14px;line-height:1.5;}
+
+    /* ── SIDEBAR (shared) ── */
+    .sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);height:100vh;background:var(--green-deep);display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:100;border-right:1px solid var(--green-border);}
+    .sidebar-logo{padding:1.5rem 1.5rem 1.25rem;border-bottom:1px solid var(--green-border);}
+    .logo-mark{display:flex;align-items:center;gap:0.75rem;margin-bottom:0.35rem;}
+    .logo-icon{width:30px;height:30px;border:1px solid var(--gold-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .logo-icon svg{width:14px;height:14px;stroke:var(--gold);}
+    .logo-wordmark{font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;color:var(--text-cream);letter-spacing:0.06em;}
+    .logo-school{font-family:'EB Garamond',serif;font-size:0.78rem;font-style:italic;color:var(--text-cream-dim);letter-spacing:0.03em;padding-left:2.8rem;}
+    .sidebar-nav{flex:1;padding:1rem 0;overflow-y:auto;}
+    .nav-section-label{font-size:0.65rem;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-cream-dim);padding:0.6rem 1.5rem 0.3rem;margin-top:0.5rem;}
+    .nav-item{display:flex;align-items:center;gap:0.75rem;padding:0.6rem 1.5rem;color:rgba(247,243,234,0.65);text-decoration:none;font-size:0.875rem;font-weight:500;cursor:pointer;transition:color 0.15s,background 0.15s;border-left:2px solid transparent;letter-spacing:0.01em;}
+    .nav-item:hover{color:var(--text-cream);background:var(--green-hover);}
+    .nav-item.active{color:var(--text-cream);border-left-color:var(--gold);background:rgba(201,160,40,0.08);}
+    .nav-item svg{width:16px;height:16px;stroke:currentColor;flex-shrink:0;opacity:0.85;}
+    .nav-badge{margin-left:auto;background:var(--gold);color:var(--green-deepest);font-size:0.65rem;font-weight:700;padding:0.15rem 0.45rem;border-radius:20px;}
+    .sidebar-user{border-top:1px solid var(--green-border);padding:1rem 1.25rem;display:flex;align-items:center;gap:0.75rem;}
+    .user-avatar{width:32px;height:32px;border-radius:50%;background:var(--green-mid);border:1px solid var(--gold-muted);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:0.8rem;color:var(--gold);flex-shrink:0;}
+    .user-info{flex:1;min-width:0;}
+    .user-name{font-size:0.825rem;font-weight:500;color:var(--text-cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .user-role{font-size:0.72rem;color:var(--text-cream-dim);font-style:italic;font-family:'EB Garamond',serif;}
+    .user-settings{width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--text-cream-dim);cursor:pointer;border-radius:4px;}
+    .user-settings svg{width:15px;height:15px;stroke:currentColor;}
+
+    /* ── MAIN ── */
+    .main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+    .topbar{background:var(--cream);border-bottom:1px solid var(--cream-border);padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+    .breadcrumb{display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;color:var(--text-muted);}
+    .breadcrumb a{color:var(--text-muted);text-decoration:none;transition:color 0.15s;}
+    .breadcrumb a:hover{color:var(--amber);}
+    .breadcrumb-sep{color:var(--cream-border);}
+    .breadcrumb-current{font-weight:500;color:var(--text-secondary);}
+    .topbar-right{display:flex;align-items:center;gap:0.75rem;}
+    .semester-badge{font-family:'EB Garamond',serif;font-size:0.85rem;font-style:italic;color:var(--text-muted);background:var(--cream-warm);border:1px solid var(--cream-border);padding:0.3rem 0.85rem;border-radius:20px;}
+    .topbar-icon-btn{width:32px;height:32px;border-radius:var(--radius);border:1px solid var(--cream-border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-secondary);position:relative;}
+    .topbar-icon-btn svg{width:15px;height:15px;stroke:currentColor;}
+    .notif-dot{position:absolute;top:6px;right:6px;width:6px;height:6px;background:var(--gold);border-radius:50%;border:1.5px solid var(--cream);}
+
+    .page-body{flex:1;overflow-y:auto;padding:0;}
+
+    /* ── STICKY HEADER ── */
+    .sticky-head{
+      position:sticky;top:0;z-index:10;
+      background:var(--cream);
+      border-bottom:1px solid var(--cream-border);
+      padding:1.5rem 2rem 0;
+    }
+    .page-header-row{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:1.25rem;}
+    .page-title{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:600;color:var(--text-primary);letter-spacing:-0.01em;}
+    .page-title span{font-family:'EB Garamond',serif;font-size:1.1rem;font-weight:400;font-style:italic;color:var(--amber);margin-left:0.5rem;}
+    .page-subtitle{font-family:'EB Garamond',serif;font-size:0.875rem;font-style:italic;color:var(--text-muted);}
+    .header-actions{display:flex;gap:0.75rem;align-items:center;}
+
+    /* ── TOOLBAR ── */
+    .toolbar{display:flex;align-items:center;gap:0.5rem;padding-bottom:1rem;flex-wrap:wrap;}
+    .search-box{display:flex;align-items:center;gap:0.5rem;border:1px solid var(--cream-border);border-radius:var(--radius);padding:0.45rem 0.85rem;background:var(--surface);flex:1;max-width:320px;}
+    .search-box svg{width:13px;height:13px;stroke:var(--text-muted);flex-shrink:0;}
+    .search-box input{border:none;outline:none;background:transparent;font-size:0.825rem;color:var(--text-primary);width:100%;font-family:'Inter',sans-serif;}
+    .search-box input::placeholder{color:var(--text-muted);}
+    .filter-sep{width:1px;height:20px;background:var(--cream-border);margin:0 0.1rem;}
+    .filter-chip{padding:0.35rem 0.85rem;border-radius:20px;font-size:0.75rem;font-weight:500;border:1px solid var(--cream-border);background:var(--surface);color:var(--text-secondary);cursor:pointer;transition:all 0.15s;white-space:nowrap;}
+    .filter-chip:hover{border-color:var(--gold-muted);color:var(--text-primary);}
+    .filter-chip.active{background:var(--gold-light);border-color:var(--gold-muted);color:var(--amber);}
+    .filter-chip.fc-red.active{background:var(--flag-red-bg);border-color:rgba(192,57,43,0.25);color:var(--flag-red);}
+    .filter-chip.fc-green.active{background:var(--flag-green-bg);border-color:rgba(42,107,69,0.2);color:var(--flag-green);}
+    .sort-select{border:1px solid var(--cream-border);border-radius:var(--radius);padding:0.4rem 0.7rem;font-size:0.775rem;color:var(--text-secondary);background:var(--surface);outline:none;cursor:pointer;font-family:'Inter',sans-serif;margin-left:auto;}
+    .sort-select:focus{border-color:var(--gold-muted);}
+
+    /* ── TABLE ── */
+    .table-wrap{padding:1.5rem 2rem 3rem;}
+    .section-card{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden;}
+
+    .student-head{
+      display:grid;
+      grid-template-columns: 2.2fr 1.1fr 90px 120px 110px 80px 48px;
+      padding:0.65rem 1.4rem;
+      background:var(--cream);
+      border-bottom:1px solid var(--cream-border);
+    }
+    .th{font-size:0.68rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;gap:0.3rem;user-select:none;}
+    .th:hover{color:var(--text-secondary);}
+    .th.sorted{color:var(--amber);}
+    .th svg{width:11px;height:11px;stroke:currentColor;opacity:0.6;}
+    .th.right{justify-content:flex-end;}
+    .th.center{justify-content:center;}
+
+    .student-row{
+      display:grid;
+      grid-template-columns: 2.2fr 1.1fr 90px 120px 110px 80px 48px;
+      padding:0.85rem 1.4rem;
+      border-bottom:1px solid var(--cream-border);
+      align-items:center;
+      transition:background 0.12s;
+      cursor:pointer;
+    }
+    .student-row:last-child{border-bottom:none;}
+    .student-row:hover{background:var(--cream);}
+    .student-row.flagged-row{border-left:2px solid var(--flag-red);}
+    .student-row.watch-row{border-left:2px solid var(--amber);}
+
+    .student-ident{display:flex;align-items:center;gap:0.75rem;}
+    .s-avatar{
+      width:34px;height:34px;border-radius:50%;
+      background:var(--cream-warm);border:1px solid var(--cream-border);
+      display:flex;align-items:center;justify-content:center;
+      font-family:'Playfair Display',serif;font-size:0.78rem;
+      color:var(--text-secondary);flex-shrink:0;
+    }
+    .s-avatar.av-red{background:var(--flag-red-bg);border-color:rgba(192,57,43,0.2);color:var(--flag-red);}
+    .s-avatar.av-amber{background:var(--flag-amber-bg);border-color:rgba(201,160,40,0.25);color:var(--amber);}
+    .s-name{font-weight:500;font-size:0.875rem;color:var(--text-primary);}
+    .s-email{font-size:0.72rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;}
+
+    .td{font-size:0.825rem;color:var(--text-secondary);}
+    .td.right{text-align:right;}
+    .td.center{text-align:center;}
+    .course-tags{display:flex;flex-wrap:wrap;gap:0.3rem;}
+    .course-tag{font-size:0.67rem;background:var(--cream-warm);border:1px solid var(--cream-border);padding:0.1rem 0.45rem;border-radius:20px;color:var(--text-muted);font-weight:500;white-space:nowrap;}
+
+    .baseline-pill{display:inline-flex;align-items:center;gap:0.3rem;font-size:0.72rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:20px;}
+    .baseline-pill.strong{background:var(--flag-green-bg);color:var(--flag-green);border:1px solid rgba(42,107,69,0.2);}
+    .baseline-pill.building{background:var(--flag-amber-bg);color:var(--amber);border:1px solid rgba(201,160,40,0.25);}
+    .baseline-pill.none{background:var(--flag-red-bg);color:var(--flag-red);border:1px solid rgba(192,57,43,0.2);}
+    .bp-dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0;}
+
+    .dev-cell{display:flex;align-items:center;gap:0.5rem;}
+    .dev-bar{flex:1;height:4px;background:var(--cream-border);border-radius:2px;overflow:hidden;}
+    .dev-fill{height:100%;border-radius:2px;}
+    .dev-fill.low{background:var(--flag-green);}
+    .dev-fill.mid{background:var(--amber);}
+    .dev-fill.high{background:var(--flag-red);}
+    .dev-num{font-size:0.72rem;min-width:28px;text-align:right;}
+    .dev-num.high{color:var(--flag-red);font-weight:700;}
+    .dev-num.mid{color:var(--amber);font-weight:600;}
+    .dev-num.low{color:var(--text-muted);}
+    .dev-num.none{color:var(--text-muted);}
+
+    .flag-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+    .flag-dot.high{background:var(--flag-red);}
+    .flag-dot.mid{background:var(--amber);}
+    .flag-dot.clear{background:var(--flag-green);}
+    .flag-dot.none{background:var(--cream-border);}
+
+    .row-action{
+      width:28px;height:28px;border-radius:4px;
+      border:1px solid var(--cream-border);background:transparent;
+      display:flex;align-items:center;justify-content:center;
+      cursor:pointer;color:var(--text-muted);
+      transition:all 0.15s;
+      text-decoration:none;
+    }
+    .row-action:hover{border-color:var(--gold-muted);color:var(--amber);background:var(--gold-light);}
+    .row-action svg{width:13px;height:13px;stroke:currentColor;}
+
+    /* ── BUTTONS ── */
+    .btn{display:inline-flex;align-items:center;gap:0.45rem;padding:0.5rem 1.1rem;border-radius:var(--radius);font-size:0.825rem;font-weight:500;cursor:pointer;transition:all 0.15s;text-decoration:none;border:none;letter-spacing:0.01em;}
+    .btn svg{width:14px;height:14px;stroke:currentColor;}
+    .btn-ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--cream-border);}
+    .btn-ghost:hover{background:var(--surface);border-color:var(--gold-muted);color:var(--text-primary);}
+    .btn-primary{background:var(--green-deep);color:var(--text-cream);border:1px solid var(--green-deep);}
+    .btn-primary:hover{background:var(--green-mid);}
+
+    /* ── EMPTY STATE ── */
+    .empty-state{padding:4rem 2rem;text-align:center;}
+    .empty-state h3{font-family:'Playfair Display',serif;font-size:1rem;font-weight:500;color:var(--text-secondary);margin-bottom:0.35rem;}
+    .empty-state p{font-family:'EB Garamond',serif;font-size:0.875rem;font-style:italic;color:var(--text-muted);}
+
+    /* ── SUMMARY STRIP ── */
+    .summary-strip{
+      display:grid;grid-template-columns:repeat(5,1fr);
+      gap:0;border-bottom:1px solid var(--cream-border);
+      background:var(--surface);
+    }
+    .strip-stat{
+      padding:0.8rem 1.4rem;
+      border-right:1px solid var(--cream-border);
+    }
+    .strip-stat:last-child{border-right:none;}
+    .strip-label{font-size:0.65rem;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.2rem;}
+    .strip-value{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:600;color:var(--text-primary);}
+    .strip-value.amber{color:var(--amber);}
+    .strip-value.red{color:var(--flag-red);}
+    .strip-value.green{color:var(--flag-green);}
+
+    ::-webkit-scrollbar{width:4px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:var(--cream-border);border-radius:2px;}
+
+    /* ── ADD STUDENT MODAL ── */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(15,30,23,0.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem;}
+    .modal-backdrop.hidden{display:none;}
+    .modal{background:var(--surface);border:1px solid var(--cream-border);border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,0.18);width:100%;max-width:560px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;}
+    .modal-head{padding:1.4rem 1.75rem 1rem;border-bottom:1px solid var(--cream-border);display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-shrink:0;}
+    .modal-title{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:600;color:var(--text-primary);line-height:1.3;}
+    .modal-subtitle{font-family:'EB Garamond',serif;font-size:0.85rem;font-style:italic;color:var(--text-muted);margin-top:0.2rem;}
+    .modal-close{width:28px;height:28px;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-muted);border-radius:4px;flex-shrink:0;}
+    .modal-close:hover{background:var(--cream-warm);color:var(--text-primary);}
+    .modal-close svg{width:16px;height:16px;stroke:currentColor;}
+    .modal-body{padding:1.4rem 1.75rem;flex:1;}
+    .modal-footer{padding:1rem 1.75rem;border-top:1px solid var(--cream-border);display:flex;gap:0.75rem;justify-content:flex-end;flex-shrink:0;}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:0.85rem;margin-bottom:0.85rem;}
+    .form-row.single{grid-template-columns:1fr;}
+    .form-group{display:flex;flex-direction:column;gap:0.35rem;}
+    .form-label{font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);}
+    .form-label span{color:var(--flag-red);margin-left:0.15rem;}
+    .form-input,.form-select,.form-textarea{width:100%;border:1px solid var(--cream-border);border-radius:var(--radius);padding:0.55rem 0.85rem;font-size:0.875rem;font-family:'Inter',sans-serif;color:var(--text-primary);background:var(--cream);outline:none;transition:border-color 0.15s;}
+    .form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--gold-muted);background:var(--surface);}
+    .form-input::placeholder,.form-textarea::placeholder{color:var(--text-muted);}
+    .form-textarea{resize:vertical;min-height:120px;font-size:0.875rem;line-height:1.6;}
+    .form-hint{font-family:'EB Garamond',serif;font-size:0.8rem;font-style:italic;color:var(--text-muted);margin-top:0.2rem;}
+    .form-divider{border:none;border-top:1px solid var(--cream-border);margin:1.1rem 0;}
+    .form-section-label{font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:var(--text-muted);margin-bottom:0.85rem;}
+    .modal-status{display:none;padding:0.65rem 0.85rem;border-radius:var(--radius);font-size:0.82rem;margin-bottom:1rem;}
+    .modal-status.error{display:block;background:var(--flag-red-bg);color:var(--flag-red);border:1px solid rgba(192,57,43,0.2);}
+    .modal-status.success{display:block;background:var(--flag-green-bg);color:var(--flag-green);border:1px solid rgba(42,107,69,0.2);}
+    .modal-status.loading{display:block;background:var(--gold-light);color:var(--amber);border:1px solid var(--gold-muted);}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:0.45rem;padding:0.6rem 1.1rem;border-radius:var(--radius);font-size:0.825rem;font-weight:600;cursor:pointer;transition:all 0.15s;text-decoration:none;border:none;letter-spacing:0.01em;}
+    .btn svg{width:14px;height:14px;stroke:currentColor;}
+    .btn-primary{background:var(--green-deep);color:var(--text-cream);border:1px solid var(--green-deep);}
+    .btn-primary:hover{background:var(--green-mid);}
+    .btn-primary:disabled{opacity:0.5;cursor:not-allowed;}
+    .btn-ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--cream-border);}
+    .btn-ghost:hover{background:var(--cream-warm);border-color:var(--gold-muted);color:var(--text-primary);}
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+      <span class="logo-wordmark">Original</span>
+    </div>
+    <div class="logo-school">Southern Baptist Theological Seminary</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Overview</div>
+    <a class="nav-item" href="original-dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard</a>
+    <a class="nav-item" href="original-course.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Courses</a>
+    <a class="nav-item active" href="original-students.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Students</a>
+    <div class="nav-section-label">Review</div>
+    <a class="nav-item" href="original-flagged.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Flagged<span class="nav-badge">5</span></a>
+    <a class="nav-item" href="original-reports.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Reports</a>
+        <div class="nav-section-label">Pipeline</div>
+    <a class="nav-item" href="original-features.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Feature Profile</a>
+    <a class="nav-item" href="original-quantum.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>Quantum State</a>
+    <a class="nav-item" href="original-decomposition.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Interference</a>
+    <div class="nav-section-label">Institution</div>
+    <a class="nav-item" href="original-admin.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Admin</a>
+    <a class="nav-item" href="original-settings.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">AC</div>
+    <div class="user-info"><div class="user-name">Dr. Andrew Clark</div><div class="user-role">Instructor</div></div>
+    <div class="user-settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="breadcrumb">
+      <a href="original-dashboard.html">Original</a>
+      <span class="breadcrumb-sep">/</span>
+      <span class="breadcrumb-current">Students</span>
+    </div>
+    <div class="topbar-right">
+      <div class="semester-badge">Spring 2026</div>
+      <div class="topbar-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+      <div class="topbar-icon-btn" style="position:relative;"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-dot"></span></div>
+    </div>
+  </div>
+
+  <div class="page-body">
+
+    <!-- Sticky header + toolbar -->
+    <div class="sticky-head">
+      <div class="page-header-row">
+        <div>
+          <h1 class="page-title">Students <span id="count-display">48</span></h1>
+          <p class="page-subtitle">All enrolled students · Spring 2026 · 4 courses</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-ghost">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export
+          </button>
+          <button class="btn btn-primary" onclick="openAddStudentModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Student
+          </button>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="search-input" placeholder="Search by name or email…" oninput="filterTable()" />
+        </div>
+        <div class="filter-sep"></div>
+        <div class="filter-chip active" onclick="setFilter(this,'all')">All</div>
+        <div class="filter-chip fc-red" onclick="setFilter(this,'flagged')">⚑ Flagged</div>
+        <div class="filter-chip" onclick="setFilter(this,'no-baseline')">No baseline</div>
+        <div class="filter-chip fc-green" onclick="setFilter(this,'clear')">Clear</div>
+        <div class="filter-sep"></div>
+        <div class="filter-chip" onclick="setFilter(this,'theo501')">THEO 501</div>
+        <div class="filter-chip" onclick="setFilter(this,'hist410')">HIST 410</div>
+        <div class="filter-chip" onclick="setFilter(this,'bibl301')">BIBL 301</div>
+        <div class="filter-chip" onclick="setFilter(this,'ot201')">OT 201</div>
+        <select class="sort-select" onchange="sortTable(this.value)">
+          <option value="name">Sort: Name A–Z</option>
+          <option value="deviation">Sort: Deviation ↓</option>
+          <option value="submissions">Sort: Submissions ↓</option>
+          <option value="recent">Sort: Last active</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <div class="section-card">
+
+        <!-- Summary strip -->
+        <div class="summary-strip">
+          <div class="strip-stat"><div class="strip-label">Total</div><div class="strip-value" id="total-count">48</div></div>
+          <div class="strip-stat"><div class="strip-label">Baseline established</div><div class="strip-value green">37</div></div>
+          <div class="strip-stat"><div class="strip-label">Building baseline</div><div class="strip-value amber">7</div></div>
+          <div class="strip-stat"><div class="strip-label">No baseline</div><div class="strip-value red">4</div></div>
+          <div class="strip-stat"><div class="strip-label">Currently flagged</div><div class="strip-value amber">5</div></div>
+        </div>
+
+        <!-- Table head -->
+        <div class="student-head">
+          <div class="th sorted" onclick="sortTable('name')">Student <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></div>
+          <div class="th" onclick="sortTable('course')">Courses</div>
+          <div class="th center" onclick="sortTable('submissions')">Submissions</div>
+          <div class="th" onclick="sortTable('baseline')">Baseline</div>
+          <div class="th" onclick="sortTable('deviation')">Latest deviation</div>
+          <div class="th right" onclick="sortTable('recent')">Last active</div>
+          <div class="th"></div>
+        </div>
+
+        <!-- Table body -->
+        <div id="student-table-body">
+
+          <!-- Flagged: James Whitfield -->
+          <a class="student-row flagged-row" href="original-student.html" data-name="james whitfield" data-courses="theo501" data-status="flagged" data-deviation="0.91" data-submissions="4" data-date="20260314">
+            <div class="student-ident">
+              <div class="s-avatar av-red">JW</div>
+              <div><div class="s-name">James Whitfield</div><div class="s-email">jwhitfield@sbts.edu</div></div>
+            </div>
+            <div class="td"><div class="course-tags"><span class="course-tag">THEO 501</span></div></div>
+            <div class="td center">4</div>
+            <div class="td"><span class="baseline-pill strong"><span class="bp-dot"></span>Strong</span></div>
+            <div class="td"><div class="dev-cell"><div class="dev-bar"><div class="dev-fill high" style="width:91%"></div></div><span class="dev-num high">0.91</span></div></div>
+            <div class="td right" style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.78rem;">Mar 14</div>
+            <div class="td"><a href="original-student.html" class="row-action" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a></div>
+          </a>
+
+          <!-- Flagged: Sarah Okonkwo -->
+          <a class="student-row flagged-row" href="original-student.html" data-name="sarah okonkwo" data-courses="theo501" data-status="flagged" data-deviation="0.84" data-submissions="3" data-date="20260312">
+            <div class="student-ident">
+              <div class="s-avatar av-red">SO</div>
+              <div><div class="s-name">Sarah Okonkwo</div><div class="s-email">sokonkwo@sbts.edu</div></div>
+            </div>
+            <div class="td"><div class="course-tags"><span class="course-tag">THEO 501</span></div></div>
+            <div class="td center">3</div>
+            <div class="td"><span class="baseline-pill strong"><span class="bp-dot"></span>Strong</span></div>
+            <div class="td"><div class="dev-cell"><div class="dev-bar"><div class="dev-fill high" style="width:84%"></div></div><span class="dev-num high">0.84</span></div></div>
+            <div class="td right" style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.78rem;">Mar 12</div>
+            <div class="td"><a href="original-student.html" class="row-action" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a></div>
+          </a>
+
+          <!-- Flagged: Marcus Delaney -->
+          <a class="student-row watch-row" href="original-student.html" data-name="marcus delaney" data-courses="bibl301" data-status="flagged" data-deviation="0.76" data-submissions="4" data-date="20260311">
+            <div class="student-ident">
+              <div class="s-avatar av-amber">MD</div>
+              <div><div class="s-name">Marcus Delaney</div><div class="s-email">mdelaney@sbts.edu</div></div>
+            </div>
+            <div class="td"><div class="course-tags"><span class="course-tag">BIBL 301</span></div></div>
+            <div class="td center">4</div>
+            <div class="td"><span class="baseline-pill strong"><span class="bp-dot"></span>Strong</span></div>
+            <div class="td"><div class="dev-cell"><div class="dev-bar"><div class="dev-fill mid" style="width:76%"></div></div><span class="dev-num mid">0.76</span></div></div>
+            <div class="td right" style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.78rem;">Mar 11</div>
+            <div class="td"><a href="original-student.html" class="row-action" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a></div>
+          </a>
+
+          <!-- Flagged: Elena Vasquez -->
+          <a class="student-row watch-row" href="original-student.html" data-name="elena vasquez" data-courses="bibl301" data-status="flagged" data-deviation="0.73" data-submissions="3" data-date="20260309">
+            <div class="student-ident">
+              <div class="s-avatar av-amber">EV</div>
+              <div><div class="s-name">Elena Vasquez</div><div class="s-email">evasquez@sbts.edu</div></div>
+            </div>
+            <div class="td"><div class="course-tags"><span class="course-tag">BIBL 301</span></div></div>
+            <div class="td center">3</div>
+            <div class="td"><span class="baseline-pill strong"><span class="bp-dot"></span>Strong</span></div>
+            <div class="td"><div class="dev-cell"><div class="dev-bar"><div class="dev-fill mid" style="width:73%"></div></div><span class="dev-num mid">0.73</span></div></div>
+            <div class="td right" style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.78rem;">Mar 9</div>
+            <div class="td"><a href="original-student.html" class="row-action" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a></div>
+          </a>
+
+          <!-- Flagged: Daniel Osei -->
+          <a class="student-row watch-row" href="original-student.html" data-name="daniel osei" data-courses="theo501" data-status="flagged" data-deviation="0.71" data-submissions="4" data-date="20260308">
+            <div class="student-ident">
+              <div class="s-avatar av-amber">DO</div>
+              <div><div class="s-name">Daniel Osei</div><div class="s-email">dosei@sbts.edu</div></div>
+            </div>
+            <div class="td"><div class="course-tags"><span class="course-tag">THEO 501</span></div></div>
+            <div class="td center">4</div>
+            <div class="td"><span class="baseline-pill strong"><span class="bp-dot"></span>Strong</span></div>
+            <div class="td"><div class="dev-cell"><div class="dev-bar"><div class="dev-fill mid" style="width:71%"></div></div><span class="dev-num mid">0.71</span></div></div>
+            <div class="td right" style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.78rem;">Mar 8</div>
+            <div class="td"><a href="original-student.html" class="row-action" onclick="event.stopPropagation()"><svg viewBox="0 0 24 apa 1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a></div>
+          </a>
+
+          <!-- Clear: Lydia Mercer -->
+          <a class="student-row" href="original-student.html" data-name="lydia mercer" data-courses="theo501" data-status="clear" data-deviation="0.18" data-submissions="4" data-date="20260313">
+            <div class="student-ident">
+              <div class="s-avatar">LM</div>
+              <div><div class="s-name">Lydia Mercer</div><div class="s-email">lmercer@sbts.edu</div></div>
+            </div>
+            <div class="td"><div class="course-tags"><span class="course-tag">THEO 501</span></div></div>
+            <div class="td center">4</div>
+            <div class="td"><span class="baseline-pill strong"><span class="bp-dot"></span>Strong</span></div>
+            <div class="td"><div class="dev-cell"><div class="dev-bar"><div class="dev-fill low" style="width:18%"></div></div><span class="dev-num low">0.18</span></div></div>
+            <div class="td right" style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.78rem;">Mar 13</div>
+            <div class="td"><a href="original-student.html" class="row-action" onclick="event.stopPropagation()"><svg viewBox="0 0 24 0" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a></div>
+          </a>
+
+          <!-- Clear: Abigail Monroe -->
+          <a class="student-row" href="original-student.html" data-name="abigail monroe" data-courses="theo501" data-status="clear" data-deviation="0.14" data-submissions="4" data-date="20260313">
+            <div class="student-ident">
+              <div class="s-avatar">AM</div>
+              <div><div class="s-name">Abigail Monroe</div><div class="s-email">amonroe@sbts.edu</div></div>
+            </div>
+            <div class="td"><div class="course-tags"><span class="course-tag">THEO 501</span></div></div>
+            <div class="td center">4</div>
+            <div class="td"><span class="baseline-pill strong"><span class="bp-dot"></span>Strong</span></div>
+            <div class="td"><div class="dev-cell"><div class="dev-bar"><div class="dev-fill low" style="width:14%"></div></div><span class="dev-num low">0.14</span></div></div>
+            <div class="td right" style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.78rem;">Mar 13</div>
+            <div class="td"><a href="original-student.html" class="row-action" onclick="event.stopPropagation()"><svg viewBox="0 0 24 0" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a></div>
+          </a>
+
+          <!-- Clear: Thomas Kang -->
+          <a class="student-row" href="original-student.html" data-name="thomas kang" data-courses="theo501" data-status="clear" data-deviation="0.22" data-submissions="3" data-date="20260311">
+            <div class="student-ident">
+              <div class="s-avatar">TK</div>
+              <div><div class="s-name">Thomas Kang</div><div class="s-email">tkang@sbts.edu</div></div>
+            </div>
+            <div class="td"><div class="course-tags"><span class="course-tag">THEO 501</span></div></div>
+            <div class="td center">3</div>
+            <div class="td"><span class="baseline-pill strong"><span class="bp-dot"></span>Strong</span></div>
+            <div class="td"><div class="dev-cell"><div class="dev-bar"><div class="dev-fill low" style="width:22%"></div></div><span class="dev-num low">0.22</span></div></div>
+            <div class="td right" style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.78rem;">Mar 11</div>
+            <div class="td"><a href="original-student.html" class="row-action" onclick="event.stopPropagation()"><svg viewBox="0 0 24 0" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a></div>
+          </a>
+
+          <!-- Building baseline: Rebecca Booth -->
+          <a class="student-row" href="original-student.html" data-name="rebecca booth" data-courses="theo501" data-status="building" data-deviation="0.31" data-submissions="2" data-date="20260310">
+            <div class="student-ident">
+              <div class="s-avatar">RB</div>
+              <div><div class="s-name">Rebecca Booth</div><div class="s-email">rbooth@sbts.edu</div></div>
+            </div>
+            <div class="td"><div class="course-tags"><span class="course-tag">THEO 501</span></div></div>
+            <div class="td center">2</div>
+            <div class="td"><span class="baseline-pill building"><span class="bp-dot"></span>Building</span></div>
+            <div class="td"><div class="dev-cell"><div class="dev-bar"><div class="dev-fill low" style="width:31%"></div></div><span class="dev-num low">0.31</span></div></div>
+            <div class="td right" style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.78rem;">Mar 10</div>
+            <div class="td"><a href="original-student.html" class="row-action" onclick="event.stopPropagation()"><svg viewBox="0 0 24 0" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a></div>
+          </a>
+
+          <!-- No baseline: Nathan Prescott -->
+          <a class="student-row" href="original-student.html" data-name="nathan prescott" data-courses="theo501" data-status="no-baseline" data-deviation="0" data-submissions="1" data-date="20260304">
+            <div class="student-ident">
+              <div class="s-avatar">NP</div>
+              <div><div class="s-name">Nathan Prescott</div><div class="s-email">nprescott@sbts.edu</div></div>
+            </div>
+            <div class="td"><div class="course-tags"><span class="course-tag">THEO 501</span></div></div>
+            <div class="td center">1</div>
+            <div class="td"><span class="baseline-pill none"><span class="bp-dot"></span>Not set</span></div>
+            <div class="td" style="font-family:'EB Garamond',serif;font-style:italic;font-size:0.78rem;color:var(--text-muted);">Insufficient data</div>
+            <div class="td right" style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.78rem;">Mar 4</div>
+            <div class="td"><a href="original-baseline.html" class="row-action" onclick="event.stopPropagation()" title="Establish baseline" style="background:var(--gold-light);border-color:var(--gold-muted);color:var(--amber);"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></a></div>
+          </a>
+
+          <!-- HIST 410 students -->
+          <a class="student-row" href="original-student.html" data-name="owen ellis" data-courses="hist410" data-status="clear" data-deviation="0.29" data-submissions="4" data-date="20260313">
+            <div class="student-ident">
+              <div class="s-avatar">OE</div>
+              <div><div class="s-name">Owen Ellis</div><div class="s-email">oellis@sbts.edu</div></div>
+            </div>
+            <div class="td"><div class="course-tags"><span class="course-tag">HIST 410</span></div></div>
+            <div class="td center">4</div>
+            <div class="td"><span class="baseline-pill strong"><span class="bp-dot"></span>Strong</span></div>
+            <div class="td"><div class="dev-cell"><div class="dev-bar"><div class="dev-fill low" style="width:29%"></div></div><span class="dev-num low">0.29</span></div></div>
+            <div class="td right" style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.78rem;">Mar 13</div>
+            <div class="td"><a href="original-student.html" class="row-action" onclick="event.stopPropagation()"><svg viewBox="0 0 24 0" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a></div>
+          </a>
+
+          <a class="student-row" href="original-student.html" data-name="priya nair" data-courses="hist410 bibl301" data-status="clear" data-deviation="0.35" data-submissions="6" data-date="20260312">
+            <div class="student-ident">
+              <div class="s-avatar">PN</div>
+              <div><div class="s-name">Priya Nair</div><div class="s-email">pnair@sbts.edu</div></div>
+            </div>
+            <div class="td"><div class="course-tags"><span class="course-tag">HIST 410</span><span class="course-tag">BIBL 301</span></div></div>
+            <div class="td center">6</div>
+            <div class="td"><span class="baseline-pill strong"><span class="bp-dot"></span>Strong</span></div>
+            <div class="td"><div class="dev-cell"><div class="dev-bar"><div class="dev-fill low" style="width:35%"></div></div><span class="dev-num low">0.35</span></div></div>
+            <div class="td right" style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.78rem;">Mar 12</div>
+            <div class="td"><a href="original-student.html" class="row-action" onclick="event.stopPropagation()"><svg viewBox="0 0 24 0" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a></div>
+          </a>
+
+          <a class="student-row" href="original-student.html" data-name="tyler grant" data-courses="hist410" data-status="flagged" data-deviation="0.88" data-submissions="3" data-date="20260228">
+            <div class="student-ident">
+              <div class="s-avatar av-red">TG</div>
+              <div><div class="s-name">Tyler Grant</div><div class="s-email">tgrant@sbts.edu</div></div>
+            </div>
+            <div class="td"><div class="course-tags"><span class="course-tag">HIST 410</span></div></div>
+            <div class="td center">3</div>
+            <div class="td"><span class="baseline-pill strong"><span class="bp-dot"></span>Strong</span></div>
+            <div class="td"><div class="dev-cell"><div class="dev-bar"><div class="dev-fill high" style="width:88%"></div></div><span class="dev-num high">0.88</span></div></div>
+            <div class="td right" style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.78rem;">Feb 28</div>
+            <div class="td"><a href="original-student.html" class="row-action" onclick="event.stopPropagation()"><svg viewBox="0 0 24 0" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a></div>
+          </a>
+
+          <!-- OT 201 students -->
+          <a class="student-row" href="original-student.html" data-name="amy chen" data-courses="ot201" data-status="flagged" data-deviation="0.82" data-submissions="3" data-date="20260224">
+            <div class="student-ident">
+              <div class="s-avatar av-red">AC</div>
+              <div><div class="s-name">Amy Chen</div><div class="s-email">achen@sbts.edu</div></div>
+            </div>
+            <div class="td"><div class="course-tags"><span class="course-tag">OT 201</span></div></div>
+            <div class="td center">3</div>
+            <div class="td"><span class="baseline-pill strong"><span class="bp-dot"></span>Strong</span></div>
+            <div class="td"><div class="dev-cell"><div class="dev-bar"><div class="dev-fill high" style="width:82%"></div></div><span class="dev-num high">0.82</span></div></div>
+            <div class="td right" style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.78rem;">Feb 24</div>
+            <div class="td"><a href="original-student.html" class="row-action" onclick="event.stopPropagation()"><svg viewBox="0 0 24 0" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a></div>
+          </a>
+
+          <a class="student-row" href="original-student.html" data-name="samuel wright" data-courses="ot201" data-status="clear" data-deviation="0.21" data-submissions="4" data-date="20260310">
+            <div class="student-ident">
+              <div class="s-avatar">SW</div>
+              <div><div class="s-name">Samuel Wright</div><div class="s-email">swright@sbts.edu</div></div>
+            </div>
+            <div class="td"><div class="course-tags"><span class="course-tag">OT 201</span></div></div>
+            <div class="td center">4</div>
+            <div class="td"><span class="baseline-pill strong"><span class="bp-dot"></span>Strong</span></div>
+            <div class="td"><div class="dev-cell"><div class="dev-bar"><div class="dev-fill low" style="width:21%"></div></div><span class="dev-num low">0.21</span></div></div>
+            <div class="td right" style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.78rem;">Mar 10</div>
+            <div class="td"><a href="original-student.html" class="row-action" onclick="event.stopPropagation()"><svg viewBox="0 0 24 0" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a></div>
+          </a>
+
+          <a class="student-row" href="original-student.html" data-name="grace adeyemi" data-courses="ot201" data-status="building" data-deviation="0" data-submissions="2" data-date="20260307">
+            <div class="student-ident">
+              <div class="s-avatar">GA</div>
+              <div><div class="s-name">Grace Adeyemi</div><div class="s-email">gadeyemi@sbts.edu</div></div>
+            </div>
+            <div class="td"><div class="course-tags"><span class="course-tag">OT 201</span></div></div>
+            <div class="td center">2</div>
+            <div class="td"><span class="baseline-pill building"><span class="bp-dot"></span>Building</span></div>
+            <div class="td" style="font-family:'EB Garamond',serif;font-style:italic;font-size:0.78rem;color:var(--text-muted);">Insufficient data</div>
+            <div class="td right" style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.78rem;">Mar 7</div>
+            <div class="td"><a href="original-student.html" class="row-action" onclick="event.stopPropagation()"><svg viewBox="0 0 24 0" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a></div>
+          </a>
+
+        </div>
+
+        <!-- Empty state (shown when filters return nothing) -->
+        <div class="empty-state" id="empty-state" style="display:none;">
+          <h3>No students match this filter</h3>
+          <p>Try a different search term or clear your filters.</p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD STUDENT MODAL -->
+<div class="modal-backdrop hidden" id="add-student-modal" onclick="handleBackdropClick(event)">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="modal-title">Add New Student</div>
+        <div class="modal-subtitle">Create a student profile and establish their first baseline sample.</div>
+      </div>
+      <button class="modal-close" onclick="closeAddStudentModal()" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div id="modal-status" class="modal-status"></div>
+
+      <div class="form-section-label">Student Information</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="student-first">First name <span>*</span></label>
+          <input class="form-input" type="text" id="student-first" placeholder="e.g. James" autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="student-last">Last name <span>*</span></label>
+          <input class="form-input" type="text" id="student-last" placeholder="e.g. Whitfield" autocomplete="off" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="student-email">Institutional email <span>*</span></label>
+          <input class="form-input" type="email" id="student-email" placeholder="e.g. jwhitfield@sbts.edu" autocomplete="off" />
+          <div class="form-hint">Used to generate the student's unique ID.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="student-course">Course</label>
+          <select class="form-select" id="student-course">
+            <option value="THEO 501">THEO 501 — Systematic Theology I</option>
+            <option value="HIST 410">HIST 410 — Church History Survey</option>
+            <option value="BIBL 301">BIBL 301 — Biblical Hermeneutics</option>
+            <option value="OT 201">OT 201 — Old Testament Survey</option>
+          </select>
+        </div>
+      </div>
+
+      <hr class="form-divider" />
+      <div class="form-section-label">First Baseline Sample <span style="font-weight:400;text-transform:none;letter-spacing:0;font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);"> — paste one verified writing sample to begin building their profile</span></div>
+      <div class="form-row single">
+        <div class="form-group">
+          <label class="form-label" for="student-assignment">Assignment name</label>
+          <input class="form-input" type="text" id="student-assignment" placeholder="e.g. Week 2 Discussion Post" />
+        </div>
+      </div>
+      <div class="form-row single">
+        <div class="form-group">
+          <label class="form-label" for="student-text">Writing sample <span>*</span></label>
+          <textarea class="form-textarea" id="student-text" placeholder="Paste at least 150 words of verified writing from this student. In-class essays, discussion posts, or proctored exams work best.&#10;&#10;The system needs authentic writing to build a baseline — the more samples, the more reliable the analysis." style="min-height:150px;"></textarea>
+          <div class="form-hint" id="word-count-hint">0 words — aim for at least 150</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAddStudentModal()">Cancel</button>
+      <button class="btn btn-primary" id="add-student-submit" onclick="submitAddStudent()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+        Add Student
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = 'http://localhost:8000';
+
+  // ── ADD STUDENT MODAL ──────────────────────────────────────────────────────
+  function openAddStudentModal() {
+    document.getElementById('add-student-modal').classList.remove('hidden');
+    document.getElementById('student-first').focus();
+    setModalStatus('', '');
+  }
+
+  function closeAddStudentModal() {
+    document.getElementById('add-student-modal').classList.add('hidden');
+    // Clear form
+    ['student-first','student-last','student-email','student-assignment','student-text'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    setModalStatus('', '');
+    document.getElementById('word-count-hint').textContent = '0 words — aim for at least 150';
+  }
+
+  function handleBackdropClick(e) {
+    if (e.target === document.getElementById('add-student-modal')) closeAddStudentModal();
+  }
+
+  function setModalStatus(type, msg) {
+    var el = document.getElementById('modal-status');
+    el.className = 'modal-status' + (type ? ' ' + type : '');
+    el.textContent = msg;
+  }
+
+  // Live word count on textarea
+  document.addEventListener('DOMContentLoaded', function () {
+    var textarea = document.getElementById('student-text');
+    if (textarea) {
+      textarea.addEventListener('input', function () {
+        var words = this.value.trim() ? this.value.trim().split(/\s+/).length : 0;
+        var hint = document.getElementById('word-count-hint');
+        hint.textContent = words + ' word' + (words !== 1 ? 's' : '') + (words < 150 ? ' — aim for at least 150' : ' ✓');
+        hint.style.color = words >= 150 ? 'var(--flag-green)' : 'var(--text-muted)';
+      });
+    }
+  });
+
+  function deriveStudentId(email) {
+    // e.g. jwhitfield@sbts.edu → jwhitfield_sbts
+    return email.toLowerCase().replace(/@[^@]+$/, '').replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_');
+  }
+
+  function getInitials(first, last) {
+    return ((first[0] || '') + (last[0] || '')).toUpperCase();
+  }
+
+  async function submitAddStudent() {
+    var first  = document.getElementById('student-first').value.trim();
+    var last   = document.getElementById('student-last').value.trim();
+    var email  = document.getElementById('student-email').value.trim();
+    var course = document.getElementById('student-course').value;
+    var assign = document.getElementById('student-assignment').value.trim() || 'Baseline Sample';
+    var text   = document.getElementById('student-text').value.trim();
+
+    if (!first || !last) { setModalStatus('error', 'Please enter the student\'s first and last name.'); return; }
+    if (!email || !email.includes('@')) { setModalStatus('error', 'Please enter a valid institutional email address.'); return; }
+    if (!text || text.split(/\s+/).length < 50) { setModalStatus('error', 'Please paste a writing sample of at least 50 words to begin building the baseline.'); return; }
+
+    var studentId = deriveStudentId(email);
+    var btn = document.getElementById('add-student-submit');
+    btn.disabled = true;
+    setModalStatus('loading', 'Analysing baseline sample and creating student profile…');
+
+    try {
+      var resp = await fetch(API_BASE + '/students/' + studentId + '/baseline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text, provenance: 'verified', assignment: assign, submitted_at: new Date().toISOString().slice(0,10) })
+      });
+
+      if (!resp.ok) {
+        var err = await resp.json().catch(() => ({}));
+        throw new Error(err.detail || ('Server error ' + resp.status));
+      }
+
+      setModalStatus('success', 'Student profile created. Baseline sample recorded.');
+
+      // Add row to table
+      addStudentRow({ first, last, email, course, studentId });
+
+      setTimeout(closeAddStudentModal, 1200);
+    } catch (e) {
+      setModalStatus('error', 'Could not reach the server: ' + e.message + '. Is Original running on port 8000?');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function addStudentRow(s) {
+    var tbody = document.getElementById('student-table-body');
+    var initials = getInitials(s.first, s.last);
+    var courseKey = s.course.toLowerCase().replace(/\s+/g, '');
+    var today = new Date();
+    var dateStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    var dateSort = today.getFullYear() + ('0'+(today.getMonth()+1)).slice(-2) + ('0'+today.getDate()).slice(-2);
+
+    var row = document.createElement('a');
+    row.className = 'student-row';
+    row.href = 'original-student.html?student=' + s.studentId;
+    row.dataset.name = (s.first + ' ' + s.last).toLowerCase();
+    row.dataset.courses = courseKey;
+    row.dataset.status = 'building';
+    row.dataset.deviation = '0';
+    row.dataset.submissions = '1';
+    row.dataset.date = dateSort;
+    row.innerHTML = `
+      <div class="student-ident">
+        <div class="s-avatar">${initials}</div>
+        <div><div class="s-name">${s.first} ${s.last}</div><div class="s-email">${s.email}</div></div>
+      </div>
+      <div class="td"><div class="course-tags"><span class="course-tag">${s.course}</span></div></div>
+      <div class="td center">1</div>
+      <div class="td"><span class="baseline-pill building"><span class="bp-dot"></span>Building</span></div>
+      <div class="td" style="font-family:'EB Garamond',serif;font-style:italic;font-size:0.78rem;color:var(--text-muted);">Insufficient data</div>
+      <div class="td right" style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.78rem;">${dateStr}</div>
+      <div class="td"><a href="original-review.html?student=${s.studentId}" class="row-action" onclick="event.stopPropagation()" title="Score submission"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a></div>
+    `;
+
+    // Insert at top of table body (before first row)
+    tbody.insertBefore(row, tbody.firstChild);
+    filterTable(); // re-apply current filter
+
+    // Update total count badge
+    var totalEl = document.getElementById('total-count');
+    if (totalEl) totalEl.textContent = parseInt(totalEl.textContent || '0') + 1;
+  }
+
+  let currentFilter = 'all';
+
+  function setFilter(chip, type) {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    currentFilter = type;
+    filterTable();
+  }
+
+  function filterTable() {
+    const query = document.getElementById('search-input').value.toLowerCase().trim();
+    const rows = document.querySelectorAll('#student-table-body .student-row');
+    let visible = 0;
+
+    rows.forEach(row => {
+      const name    = row.dataset.name || '';
+      const courses = row.dataset.courses || '';
+      const status  = row.dataset.status || '';
+
+      const matchSearch = !query || name.includes(query);
+      let matchFilter = true;
+
+      if (currentFilter === 'flagged')     matchFilter = status === 'flagged';
+      else if (currentFilter === 'no-baseline') matchFilter = status === 'no-baseline' || status === 'building';
+      else if (currentFilter === 'clear')  matchFilter = status === 'clear';
+      else if (currentFilter === 'theo501') matchFilter = courses.includes('theo501');
+      else if (currentFilter === 'hist410') matchFilter = courses.includes('hist410');
+      else if (currentFilter === 'bibl301') matchFilter = courses.includes('bibl301');
+      else if (currentFilter === 'ot201')   matchFilter = courses.includes('ot201');
+
+      const show = matchSearch && matchFilter;
+      row.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+
+    document.getElementById('empty-state').style.display = visible === 0 ? 'block' : 'none';
+    document.getElementById('count-display').textContent = visible;
+  }
+
+  function sortTable(key) {
+    document.querySelectorAll('.th').forEach(t => t.classList.remove('sorted'));
+    const tbody = document.getElementById('student-table-body');
+    const rows  = Array.from(tbody.querySelectorAll('.student-row'));
+
+    rows.sort((a, b) => {
+      if (key === 'name')        return (a.dataset.name||'').localeCompare(b.dataset.name||'');
+      if (key === 'deviation')   return parseFloat(b.dataset.deviation||0) - parseFloat(a.dataset.deviation||0);
+      if (key === 'submissions') return parseInt(b.dataset.submissions||0) - parseInt(a.dataset.submissions||0);
+      if (key === 'recent')      return parseInt(b.dataset.date||0) - parseInt(a.dataset.date||0);
+      return 0;
+    });
+
+    rows.forEach(r => tbody.appendChild(r));
+  }
+</script>
+</body>
+</html>

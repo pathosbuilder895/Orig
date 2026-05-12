@@ -1,0 +1,3673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Original — Professor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green-deepest: #0f1e17;
+  --green-deep:    #162b22;
+  --green-mid:     #1e3d2f;
+  --green-hover:   #243d30;
+  --green-border:  rgba(255,255,255,0.07);
+  --cream:         #f7f3ea;
+  --cream-warm:    #ede8d8;
+  --cream-border:  #e2dccf;
+  --surface:       #ffffff;
+  --gold:          #c9a028;
+  --gold-light:    rgba(201,160,40,0.12);
+  --gold-muted:    rgba(201,160,40,0.35);
+  --amber:         #9b6420;
+  --text-primary:  #1a130a;
+  --text-secondary:#5a4030;
+  --text-muted:    #8a7060;
+  --text-cream:    #f7f3ea;
+  --text-cream-dim:rgba(247,243,234,0.55);
+  --flag-red:      #c0392b;
+  --flag-red-bg:   rgba(192,57,43,0.08);
+  --flag-amber:    #c9a028;
+  --flag-amber-bg: rgba(201,160,40,0.1);
+  --flag-green:    #2a6b45;
+  --flag-green-bg: rgba(42,107,69,0.1);
+  --sidebar-w:     264px;
+  --radius:        6px;
+  --shadow-sm:     0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:     0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.05);
+  --radius-sm:     4px;
+  /* legacy aliases kept for JS-generated HTML that still uses them */
+  --bg:            var(--cream);
+  --surface-2:     var(--cream-warm);
+  --border:        var(--cream-border);
+  --text:          var(--text-primary);
+  --text-dim:      var(--text-muted);
+  --shadow:        var(--shadow-sm);
+  --green:         var(--flag-green);
+  --green-l:       var(--flag-green-bg);
+  --red:           var(--flag-red);
+  --red-l:         var(--flag-red-bg);
+  --blue:          var(--green-deep);
+  --blue-l:        var(--gold-light);
+  --blue-m:        var(--cream-border);
+  --gold-l:        var(--gold-light);
+  --amber-l:       var(--flag-amber-bg);
+}
+html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);color:var(--text-primary);overflow:hidden}
+
+/* ── Layout ── */
+.layout{display:flex;height:100vh}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: var(--sidebar-w); flex-shrink: 0;
+  background: var(--green-deep);
+  display: flex; flex-direction: column;
+  overflow: hidden; z-index: 10;
+}
+.sidebar-logo {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--green-border);
+}
+.logo-mark { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.logo-icon { width: 28px; height: 28px; background: var(--gold); border-radius: 4px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.logo-wordmark { font-family: 'Playfair Display', serif; font-size: 1.05rem;
+  font-weight: 600; color: var(--text-cream); letter-spacing: -0.01em; }
+.logo-school { font-size: 0.68rem; color: var(--text-cream-dim);
+  font-family: 'EB Garamond', serif; font-style: italic; }
+.sidebar-nav { flex: 1; padding: 12px 10px; display: flex; flex-direction: column; gap: 1px; }
+.nav-section-label { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text-cream-dim); padding: 8px 10px 4px; }
+.nav-item { display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: 4px; text-decoration: none;
+  font-size: 0.82rem; color: rgba(247,243,234,0.65);
+  border-left: 2px solid transparent; transition: all 0.15s; cursor: pointer; }
+.nav-item:hover { background: var(--green-hover); color: var(--text-cream); }
+.nav-item.active { background: var(--gold-light); color: var(--text-cream);
+  border-left-color: var(--gold); }
+.nav-item svg { flex-shrink: 0; opacity: 0.75; }
+.nav-item.active svg { opacity: 1; }
+.sidebar-user { padding: 14px 16px; border-top: 1px solid var(--green-border);
+  display: flex; align-items: center; gap: 10px; }
+.user-avatar { width: 32px; height: 32px; border-radius: 50%;
+  background: var(--gold); display: flex; align-items: center; justify-content: center;
+  font-family: 'Playfair Display', serif; font-size: 0.72rem; font-weight: 700;
+  color: var(--green-deepest); flex-shrink: 0; }
+.user-name { font-size: 0.82rem; font-weight: 600; color: var(--text-cream); }
+.user-role { font-size: 0.7rem; color: var(--text-cream-dim);
+  font-family: 'EB Garamond', serif; font-style: italic; }
+
+/* ── Main ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* Topbar */
+.topbar {
+  height: 52px; flex-shrink: 0;
+  background: var(--surface); border-bottom: 1px solid var(--cream-border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+}
+.breadcrumb { display: flex; align-items: center; gap: 6px;
+  font-size: 0.78rem; color: var(--text-muted); }
+.bc-sep { color: var(--cream-border); }
+.bc-current { color: var(--text-primary); font-weight: 500; }
+.semester-badge { font-size: 0.72rem; font-weight: 500;
+  padding: 4px 10px; border-radius: 20px;
+  background: var(--gold-light); color: var(--amber);
+  border: 1px solid var(--gold-muted); }
+.header-name{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:600;letter-spacing:-0.02em;color:var(--text-primary)}
+
+/* Student pills row */
+.student-row{
+  padding:16px 24px 0;
+  display:flex;gap:10px;overflow-x:auto;
+  scrollbar-width:none;flex-shrink:0;
+}
+.student-row::-webkit-scrollbar{display:none}
+.s-pill{
+  display:flex;align-items:center;gap:9px;
+  padding:8px 14px;border-radius:24px;
+  background:var(--surface);border:1.5px solid var(--border);
+  cursor:pointer;transition:all 0.15s;white-space:nowrap;
+  box-shadow:var(--shadow);
+}
+.s-pill:hover{background:var(--cream-warm);border-color:var(--cream-border)}
+.s-pill.active{border-color:var(--gold);background:var(--gold-light);border-left:2px solid var(--gold)}
+.s-pill-avatar{
+  width:26px;height:26px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.62rem;font-weight:700;flex-shrink:0;
+}
+.s-pill-name{font-size:0.8rem;font-weight:500}
+.s-pill-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* Content area */
+.content{flex:1;overflow-y:auto;padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px}
+.content::-webkit-scrollbar{width:4px}
+.content::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.1);border-radius:2px}
+
+/* Score input card */
+.input-card{
+  background:var(--surface);border:1px solid var(--cream-border);
+  border-radius:var(--radius);padding:20px 22px;
+  box-shadow:var(--shadow-sm);
+}
+.input-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.input-card-header h3{font-size:0.92rem;font-weight:600}
+.input-card-header p{font-size:0.78rem;color:var(--text-muted)}
+.input-notice{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 14px;margin-bottom:12px;
+  background:var(--gold-light);border-radius:4px;
+  font-size:0.78rem;color:var(--amber);
+}
+.submission-textarea{
+  width:100%;min-height:130px;
+  padding:14px 16px;
+  background:var(--cream-warm);border:1.5px solid var(--cream-border);
+  border-radius:4px;
+  font-family:'Inter',sans-serif;font-size:0.85rem;line-height:1.7;
+  color:var(--text-primary);resize:vertical;outline:none;
+  transition:border-color 0.2s,box-shadow 0.2s;
+}
+.submission-textarea::placeholder{color:var(--text-muted)}
+.submission-textarea:focus{border-color:var(--gold-muted);box-shadow:0 0 0 3px var(--gold-light)}
+.input-footer{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+.word-count{font-size:0.72rem;color:var(--text-dim)}
+.btn-row{display:flex;gap:8px}
+.btn-analyze{
+  padding:10px 22px;
+  background:var(--green-deep);
+  border:none;border-radius:4px;
+  font-family:'Inter',sans-serif;font-size:0.84rem;font-weight:600;
+  color:var(--text-cream);cursor:pointer;
+  box-shadow:0 2px 8px rgba(22,43,34,0.3);
+  transition:all 0.15s;
+}
+.btn-analyze:hover{background:var(--green-mid);transform:translateY(-1px)}
+.btn-analyze:active{transform:none}
+.btn-analyze:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.btn-sample{
+  padding:10px 16px;border-radius:4px;
+  background:var(--cream-warm);border:1px solid var(--cream-border);
+  font-family:'Inter',sans-serif;font-size:0.82rem;font-weight:500;
+  color:var(--text-secondary);cursor:pointer;transition:all 0.15s;
+}
+.btn-sample:hover{background:var(--cream);color:var(--text-primary)}
+
+/* Loading */
+.loading-card{
+  background:var(--surface);border:1px solid var(--cream-border);
+  border-radius:var(--radius);padding:28px;box-shadow:var(--shadow-sm);
+  display:none;text-align:center;
+}
+.loading-card.show{display:block}
+.loading-spinner{
+  width:40px;height:40px;border:3px solid var(--cream-border);
+  border-top-color:var(--green-deep);border-radius:50%;
+  animation:spin 0.8s linear infinite;margin:0 auto 14px;
+  will-change:transform;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-card p{font-size:0.85rem;color:var(--text-muted);margin-bottom:14px}
+.load-steps{display:flex;flex-direction:column;gap:7px;text-align:left;max-width:300px;margin:0 auto}
+.load-step{
+  display:flex;align-items:center;gap:9px;
+  font-size:0.75rem;color:var(--text-dim);
+  padding:6px 10px;border-radius:8px;
+  transition:all 0.3s;
+}
+.load-step.done{color:var(--green);background:var(--green-l)}
+.load-step .ls-icon{font-size:0.8rem;flex-shrink:0}
+
+/* Metric cards (iHealth style) */
+.metrics-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.metric-card{
+  background:var(--surface);border:1px solid var(--cream-border);
+  border-radius:var(--radius);padding:18px 20px;
+  box-shadow:var(--shadow-sm);
+  opacity:0;transform:translateY(10px);
+  transition:opacity 0.4s,transform 0.4s;
+}
+.metric-card.show{opacity:1;transform:none}
+.metric-card:nth-child(1){transition-delay:0.05s}
+.metric-card:nth-child(2){transition-delay:0.12s}
+.metric-card:nth-child(3){transition-delay:0.19s}
+.metric-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.metric-icon{font-size:1rem}
+.metric-title{font-size:0.78rem;font-weight:600;color:var(--text-secondary)}
+.metric-sub{font-size:0.68rem;color:var(--text-dim);margin-left:auto}
+.metric-body{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
+.sparkline-wrap{flex:1;height:36px}
+.sparkline-wrap svg{width:100%;height:100%}
+.metric-value{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;letter-spacing:-0.04em;line-height:1;white-space:nowrap}
+
+/* Recommendation badge */
+.rec-card{
+  background:var(--surface);border:1px solid var(--cream-border);
+  border-radius:var(--radius);padding:18px 22px;
+  box-shadow:var(--shadow-sm);
+  display:flex;align-items:center;gap:16px;
+  opacity:0;transform:translateY(10px);
+  transition:opacity 0.4s 0.3s,transform 0.4s 0.3s;
+}
+.rec-card.show{opacity:1;transform:none}
+.rec-icon{font-size:2rem;flex-shrink:0}
+.rec-text h4{font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px}
+.rec-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 14px;border-radius:20px;
+  font-size:0.85rem;font-weight:600;
+}
+.rec-badge::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor}
+.rec-badge.no_action{background:var(--flag-green-bg);color:var(--flag-green)}
+.rec-badge.monitor{background:var(--flag-amber-bg);color:var(--amber)}
+.rec-badge.schedule_conversation{background:var(--flag-amber-bg);color:var(--amber)}
+.rec-badge.escalate{background:var(--flag-red-bg);color:var(--flag-red)}
+.rec-actions{margin-left:auto;display:flex;gap:8px}
+.action-btn{
+  padding:8px 16px;border-radius:4px;
+  font-family:'Inter',sans-serif;font-size:0.78rem;font-weight:500;
+  cursor:pointer;border:1.5px solid var(--cream-border);
+  background:var(--cream-warm);color:var(--text-secondary);
+  transition:all 0.15s;
+}
+.action-btn:hover{background:var(--cream);color:var(--text-primary)}
+.action-btn.warn{border-color:var(--gold-muted);background:var(--flag-amber-bg);color:var(--amber)}
+.action-btn.danger{border-color:rgba(192,57,43,0.3);background:var(--flag-red-bg);color:var(--flag-red)}
+
+/* Tier bars card */
+.tiers-card{
+  background:var(--surface);border:1px solid var(--cream-border);
+  border-radius:var(--radius);padding:18px 22px;
+  box-shadow:var(--shadow-sm);
+  opacity:0;transform:translateY(10px);
+  transition:opacity 0.4s 0.45s,transform 0.4s 0.45s;
+}
+.tiers-card.show{opacity:1;transform:none}
+.section-label{font-family:'Playfair Display',serif;font-size:0.85rem;font-weight:600;color:var(--text-primary);letter-spacing:0;text-transform:none;margin-bottom:14px}
+.tier-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.tier-row:last-child{margin-bottom:0}
+.tier-name{font-size:0.78rem;color:var(--text-muted);width:170px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tier-track{flex:1;height:6px;background:var(--cream-border);border-radius:3px;overflow:hidden}
+.tier-fill{height:100%;border-radius:3px;transition:width 1.2s cubic-bezier(0.16,1,0.3,1);width:0}
+.tier-val{font-size:0.78rem;font-weight:600;width:32px;text-align:right}
+
+/* Features card */
+.features-card{
+  background:var(--surface);border:1px solid var(--cream-border);
+  border-radius:var(--radius);padding:18px 22px;
+  box-shadow:var(--shadow-sm);
+  opacity:0;transform:translateY(10px);
+  transition:opacity 0.4s 0.6s,transform 0.4s 0.6s;
+}
+.features-card.show{opacity:1;transform:none}
+.feat-row{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 0;border-bottom:1px solid var(--cream-warm);
+  opacity:0;transform:translateX(-6px);transition:all 0.3s;
+}
+.feat-row:last-child{border-bottom:none}
+.feat-row.show{opacity:1;transform:none}
+.feat-tier{font-size:0.62rem;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--cream-warm);color:var(--text-muted);flex-shrink:0}
+.feat-name{flex:1;font-size:0.83rem;font-weight:500}
+.feat-dir{font-size:0.74rem;color:var(--text-muted)}
+.feat-delta{font-size:0.82rem;font-weight:700;width:38px;text-align:right}
+
+/* History / Baseline tabs within content */
+.tab-panel{display:none}
+.tab-panel.active{display:flex;flex-direction:column;gap:14px}
+
+/* ── Right 3D Panel ── */
+.panel-3d{
+  width:340px;flex-shrink:0;
+  background:var(--cream-warm);
+  border-left:1px solid var(--cream-border);
+  display:flex;flex-direction:column;
+  overflow:hidden;position:relative;
+}
+.panel-3d-header{
+  padding:20px 22px 0;flex-shrink:0;
+}
+.panel-3d-label{font-size:0.68rem;font-weight:600;color:var(--text-muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px}
+.panel-3d-title{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:700;color:var(--text-primary);letter-spacing:-0.02em}
+.panel-3d-sub{font-size:0.75rem;color:var(--text-muted);margin-top:2px}
+
+/* Student info in panel */
+.panel-student{
+  padding:14px 22px 0;flex-shrink:0;
+  display:flex;align-items:center;gap:10px;
+}
+.panel-s-avatar{
+  width:38px;height:38px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.78rem;font-weight:700;flex-shrink:0;
+  border:2px solid rgba(255,255,255,0.8);
+  box-shadow:0 2px 8px rgba(0,0,0,0.1);
+}
+.panel-s-name{font-size:0.9rem;font-weight:600;color:var(--text-primary)}
+.panel-s-meta{font-size:0.73rem;color:var(--text-muted)}
+
+/* ── THE 3D QUANTUM SPHERE ── */
+.q-stage{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  position:relative;padding-bottom:10px;
+  overflow:visible;
+}
+
+/* Ambient glow behind sphere */
+.q-glow{
+  position:absolute;
+  width:200px;height:200px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(42,107,69,0.18) 0%,transparent 70%);
+  pointer-events:none;
+}
+
+/* The 3D scene */
+.q-scene{
+  perspective:700px;
+  width:240px;height:240px;
+  position:relative;
+}
+.q-object{
+  width:100%;height:100%;
+  position:relative;
+  transform-style:preserve-3d;
+}
+
+/* Core sphere */
+.q-core{
+  position:absolute;
+  width:100px;height:100px;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  border-radius:50%;
+  background:radial-gradient(circle at 36% 32%,
+    rgba(255,255,255,0.95) 0%,
+    rgba(180,220,180,0.9) 20%,
+    rgba(22,43,34,0.85) 50%,
+    rgba(10,25,18,1) 100%
+  );
+  box-shadow:
+    0 0 50px rgba(42,107,69,0.4),
+    0 0 100px rgba(42,107,69,0.12),
+    inset -8px -8px 20px rgba(0,0,0,0.25),
+    inset 6px 6px 14px rgba(255,255,255,0.35);
+  z-index:5;
+}
+.q-core::after{
+  content:'ρ';
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Playfair Display',serif;
+  font-size:2rem;font-weight:700;
+  color:rgba(255,255,255,0.8);
+  text-shadow:0 0 12px rgba(255,255,255,0.5);
+}
+
+/* Orbital rings */
+.q-ring{
+  position:absolute;
+  inset:0;
+  border-radius:50%;
+  transform-style:preserve-3d;
+}
+.q-ring-1{
+  border:2px solid rgba(37,99,235,0.5);
+  transform:rotateX(72deg) rotateY(12deg);
+  animation:orbit1 13s linear infinite;
+  will-change:transform;
+}
+.q-ring-2{
+  width:180px;height:180px;
+  top:50%;left:50%;margin:-90px 0 0 -90px;
+  border:1.5px solid rgba(184,134,11,0.5);
+  transform:rotateX(30deg) rotateY(75deg);
+  animation:orbit2 19s linear infinite;
+  will-change:transform;
+}
+.q-ring-3{
+  width:220px;height:220px;
+  top:50%;left:50%;margin:-110px 0 0 -110px;
+  border:1.5px solid rgba(5,150,105,0.4);
+  transform:rotateX(52deg) rotateY(-38deg);
+  animation:orbit3 26s linear infinite;
+  will-change:transform;
+}
+@keyframes orbit1{from{transform:rotateX(72deg) rotateY(12deg)}to{transform:rotateX(72deg) rotateY(372deg)}}
+@keyframes orbit2{from{transform:rotateX(30deg) rotateY(75deg)}to{transform:rotateX(30deg) rotateY(435deg)}}
+@keyframes orbit3{from{transform:rotateX(52deg) rotateY(-38deg)}to{transform:rotateX(52deg) rotateY(322deg)}}
+
+/* Dots on rings */
+.q-dot{
+  position:absolute;
+  width:9px;height:9px;border-radius:50%;
+  transform:translate(-50%,-50%);
+  box-shadow:0 0 10px var(--dc,#2563EB), 0 0 3px var(--dc,#2563EB);
+  background:var(--dc,#2563EB);
+  border:1.5px solid rgba(255,255,255,0.7);
+}
+
+/* Pedestal (like iHealth) */
+.q-pedestal{
+  flex-shrink:0;
+  padding-bottom:20px;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+}
+.ped-disk{
+  border-radius:50%;background:rgba(201,160,40,0.1);
+  backdrop-filter:blur(4px);
+  border:1px solid rgba(201,160,40,0.2);
+}
+.ped-disk-1{width:130px;height:14px;box-shadow:0 4px 16px rgba(42,107,69,0.08)}
+.ped-disk-2{width:100px;height:10px;opacity:0.7}
+.ped-disk-3{width:72px;height:7px;opacity:0.45}
+
+/* Panel legend */
+.panel-legend{
+  padding:0 22px 16px;flex-shrink:0;
+  display:flex;flex-wrap:wrap;gap:8px;
+}
+.legend-pill{
+  display:flex;align-items:center;gap:6px;
+  padding:5px 10px;border-radius:20px;
+  background:var(--surface);
+  border:1px solid var(--cream-border);
+  font-size:0.7rem;font-weight:500;color:var(--text-secondary);
+}
+.legend-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* Panel traits */
+.panel-traits{
+  padding:0 22px 20px;flex-shrink:0;
+}
+.panel-traits-label{font-size:0.68rem;font-weight:600;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px}
+.trait-row{
+  display:flex;align-items:center;gap:8px;margin-bottom:8px;
+}
+.trait-row:last-child{margin-bottom:0}
+.trait-bar-bg{flex:1;height:4px;background:var(--cream-border);border-radius:2px;overflow:hidden}
+.trait-bar-fill{height:100%;border-radius:2px;transition:width 1.2s cubic-bezier(0.16,1,0.3,1)}
+.trait-label{font-size:0.72rem;color:var(--text-secondary);width:120px;flex-shrink:0}
+.trait-pct{font-size:0.72rem;font-weight:600;color:var(--text-primary);width:30px;text-align:right}
+
+/* Deviation indicator in panel (shows after scoring) */
+.panel-deviation{
+  margin:0 22px 16px;
+  padding:12px 16px;
+  background:var(--surface);
+  border-radius:4px;
+  border:1px solid var(--cream-border);
+  display:none;
+}
+.panel-deviation.show{display:block}
+.pd-label{font-size:0.68rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px}
+.pd-row{display:flex;align-items:center;justify-content:space-between}
+.pd-score{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;letter-spacing:-0.04em}
+.pd-action{font-size:0.75rem;font-weight:500}
+
+/* Tabs top */
+.tabs-header{
+  padding:14px 24px 0;
+  border-bottom:1px solid var(--cream-border);
+  display:flex;gap:0;flex-shrink:0;
+  background:var(--surface);
+}
+.tab-btn{
+  padding:11px 16px;
+  font-size:0.82rem;font-weight:500;
+  color:var(--text-muted);
+  border:none;background:none;cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-1px;
+  transition:color 0.15s,border-color 0.15s;
+}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:600}
+
+/* History items */
+.hist-item{
+  background:var(--surface);border:1px solid var(--cream-border);
+  border-radius:var(--radius);padding:14px 18px;
+  display:flex;align-items:center;gap:14px;
+  box-shadow:var(--shadow-sm);
+}
+.hist-ring{
+  width:44px;height:44px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.78rem;font-weight:700;
+  border:2.5px solid currentColor;flex-shrink:0;
+}
+.hist-title{font-size:0.85rem;font-weight:500;margin-bottom:2px}
+.hist-meta{font-size:0.73rem;color:var(--text-muted)}
+.hist-badge{
+  margin-left:auto;
+  padding:4px 10px;border-radius:20px;
+  font-size:0.72rem;font-weight:500;
+  display:flex;align-items:center;gap:5px;flex-shrink:0;
+}
+.hist-badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}
+.hist-badge.no_action{background:var(--flag-green-bg);color:var(--flag-green)}
+.hist-badge.monitor{background:var(--flag-amber-bg);color:var(--amber)}
+.hist-badge.schedule_conversation{background:var(--flag-amber-bg);color:var(--amber)}
+.hist-badge.escalate{background:var(--flag-red-bg);color:var(--flag-red)}
+
+/* Baseline grid */
+.baseline-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.base-card{
+  background:var(--surface);border:1px solid var(--cream-border);
+  border-radius:var(--radius);padding:16px 18px;
+  box-shadow:var(--shadow-sm);
+}
+.base-num{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--amber);margin-bottom:4px}
+.base-title{font-size:0.82rem;font-weight:500;margin-bottom:2px}
+.base-date{font-size:0.72rem;color:var(--text-muted)}
+.base-words{font-size:0.72rem;color:var(--text-dim);margin-top:6px}
+.add-base-btn{
+  width:100%;padding:12px;border-radius:var(--radius);
+  background:none;border:1.5px dashed var(--gold-muted);
+  font-family:'Inter',sans-serif;font-size:0.82rem;font-weight:500;
+  color:var(--amber);cursor:pointer;transition:all 0.15s;
+}
+.add-base-btn:hover{background:var(--gold-light);border-color:var(--gold);color:var(--amber)}
+
+/* ── Drop zone ── */
+.drop-zone{
+  border:2px dashed var(--gold-muted);border-radius:var(--radius);
+  padding:28px 20px;text-align:center;cursor:pointer;transition:all 0.2s;
+  background:var(--cream-warm);
+}
+.drop-zone.drag-over{border-color:var(--gold);background:var(--gold-light)}
+.drop-zone-icon{font-size:2rem;margin-bottom:8px}
+.drop-zone-label{font-size:0.84rem;font-weight:500;color:var(--text)}
+.drop-zone-sub{font-size:0.74rem;color:var(--text-muted);margin-top:4px}
+.file-queue{display:flex;flex-direction:column;gap:8px;margin:14px 0}
+.file-item{
+  display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:10px 14px;font-size:0.82rem;
+}
+.file-item-name{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-item-words{color:var(--text-muted);font-size:0.74rem;white-space:nowrap}
+.file-item-remove{
+  background:none;border:none;cursor:pointer;color:var(--text-dim);
+  font-size:1rem;padding:0 4px;line-height:1;
+}
+.file-item-remove:hover{color:var(--red)}
+.file-item-status{font-size:0.72rem;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.file-item-status.pending{background:var(--surface-2);color:var(--text-muted)}
+.file-item-status.uploading{background:var(--gold-light);color:var(--amber)}
+.file-item-status.done{background:var(--green-l);color:#15803D}
+.file-item-status.error{background:var(--red-l);color:var(--red)}
+.baseline-progress{height:4px;background:var(--cream-border);border-radius:2px;margin:8px 0}
+.baseline-progress-fill{height:100%;border-radius:2px;background:var(--green-deep);transition:width 0.3s ease}
+
+/* ── Compare panel ── */
+.compare-toggle{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 16px;border-radius:8px;border:1.5px solid var(--cream-border);
+  background:var(--surface);font-family:Inter,sans-serif;font-size:0.82rem;
+  font-weight:500;color:var(--text-primary);cursor:pointer;transition:all 0.15s;
+}
+.compare-toggle:hover,.compare-toggle.active{border-color:var(--gold);color:var(--amber);background:var(--gold-light)}
+.compare-panel{
+  display:none;background:var(--cream-warm);border:1px solid var(--cream-border);
+  border-radius:var(--radius);padding:20px;gap:24px;
+}
+.compare-panel.show{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.compare-col{display:flex;flex-direction:column;align-items:center;gap:10px}
+.compare-col-label{font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)}
+.compare-divergent{
+  display:flex;flex-direction:column;gap:6px;width:100%;grid-column:1/-1;
+  border-top:1px solid var(--border);padding-top:14px;margin-top:4px;
+}
+.compare-div-label{font-size:0.74rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--red);margin-bottom:4px}
+.compare-div-row{
+  display:grid;grid-template-columns:140px 1fr 50px 50px;
+  align-items:center;gap:8px;font-size:0.78rem;
+}
+.compare-div-bar-bg{height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.compare-div-baseline{height:6px;border-radius:3px;background:var(--green-deep);opacity:0.5}
+.compare-div-submission{height:6px;border-radius:3px;background:var(--red);margin-top:2px}
+
+/* ── Metric gloss (plain-language value label) ── */
+.metric-gloss{
+  font-size:0.7rem;color:var(--text-muted);
+  margin-top:8px;padding-top:8px;
+  border-top:1px solid var(--cream-border);
+  display:none;line-height:1.4;
+}
+.metric-gloss.show{display:block}
+
+/* ── Interpretation card ── */
+.interp-card{
+  background:var(--surface);border:1px solid var(--cream-border);
+  border-radius:var(--radius);padding:20px 22px;
+  box-shadow:var(--shadow-sm);
+  border-left:4px solid var(--amber);
+  opacity:0;transform:translateY(10px);
+  transition:opacity 0.4s 0.25s,transform 0.4s 0.25s;
+  display:none;
+}
+.interp-card.show{opacity:1;transform:none;display:block}
+.interp-card.severity-green{border-left-color:var(--flag-green)}
+.interp-card.severity-amber{border-left-color:var(--amber)}
+.interp-card.severity-red{border-left-color:var(--flag-red)}
+.interp-header{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:10px;
+}
+.interp-header-label{
+  font-size:0.68rem;font-weight:600;
+  color:var(--text-dim);letter-spacing:0.08em;text-transform:uppercase;
+}
+.interp-headline{
+  font-size:0.9rem;font-weight:600;color:var(--text);
+  line-height:1.45;margin-bottom:10px;
+}
+.interp-bullets{
+  list-style:none;display:flex;flex-direction:column;gap:6px;margin-bottom:12px;
+}
+.interp-bullets li{
+  display:flex;align-items:flex-start;gap:8px;
+  font-size:0.82rem;color:var(--text-muted);line-height:1.45;
+}
+.interp-bullets li::before{
+  content:'';width:6px;height:6px;border-radius:50%;
+  background:var(--text-dim);flex-shrink:0;margin-top:6px;
+}
+.interp-next{
+  padding:10px 14px;border-radius:4px;
+  background:var(--cream-warm);border:1px solid var(--cream-border);
+  font-size:0.78rem;color:var(--text-muted);
+  display:flex;align-items:center;gap:8px;
+}
+.interp-next strong{color:var(--text)}
+
+/* ── Arc metric chips ── */
+.arc-chip{
+  display:flex;flex-direction:column;align-items:center;
+  padding:6px 14px;border-radius:10px;
+  background:var(--cream-warm);border:1px solid var(--cream-border);
+  min-width:72px;
+}
+.arc-chip-val{font-size:1.05rem;font-weight:700;color:var(--text)}
+.arc-chip-lbl{font-size:0.67rem;color:var(--text-muted);margin-top:2px;text-align:center}
+
+/* ── Tier sub-label ── */
+.tier-sub{
+  display:block;font-size:0.68rem;
+  color:var(--text-dim);margin-top:1px;
+  font-weight:400;
+}
+.tier-name{font-size:0.78rem;color:var(--text-muted);width:170px;flex-shrink:0}
+
+/* ── Import Papers Drawer ── */
+.import-overlay{
+  position:fixed;inset:0;background:rgba(15,23,42,0.45);
+  z-index:200;display:none;align-items:flex-end;justify-content:center;
+  backdrop-filter:blur(3px);
+}
+.import-overlay.show{display:flex}
+.import-drawer{
+  background:var(--surface);border-radius:var(--radius) var(--radius) 0 0;
+  width:100%;max-width:780px;max-height:85vh;
+  display:flex;flex-direction:column;
+  box-shadow:0 -8px 40px rgba(0,0,0,0.18);
+  animation:slideUp 0.25s ease;
+}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.import-drawer-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 22px 0;border-bottom:1px solid var(--border);padding-bottom:0;
+}
+.import-drawer-title{font-size:1rem;font-weight:700;color:var(--text)}
+.import-drawer-close{
+  width:32px;height:32px;border-radius:8px;border:none;background:none;
+  font-size:1.1rem;cursor:pointer;color:var(--text-muted);
+  display:flex;align-items:center;justify-content:center;
+}
+.import-drawer-close:hover{background:var(--bg);color:var(--text)}
+.import-tabs{display:flex;gap:0;padding:0 22px;margin-top:14px}
+.import-tab{
+  padding:10px 18px;border:none;background:none;
+  font-family:Inter,sans-serif;font-size:0.83rem;font-weight:500;
+  color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;
+  transition:all 0.15s;
+}
+.import-tab.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:600}
+.import-tab-panels{flex:1;overflow-y:auto;padding:18px 22px 24px}
+.import-tab-panel{display:none}
+.import-tab-panel.active{display:block}
+.import-section-label{
+  font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;
+  color:var(--text-dim);margin-bottom:10px;
+}
+.import-result{
+  margin-top:12px;padding:12px 14px;border-radius:8px;font-size:0.82rem;line-height:1.5;
+  background:var(--flag-green-bg);border:1px solid var(--flag-green);color:var(--flag-green);
+}
+.import-result.error{background:var(--red-l);border-color:#fca5a5;color:var(--red)}
+
+/* ── Button improvements ── */
+.action-btn{transition:all 0.15s}
+.action-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,0.15)}
+
+/* ── Mobile breakpoints ── */
+@media (max-width: 900px) {
+  .panel-3d { display: none !important; }
+  .main { overflow-y: auto; }
+}
+@media (max-width: 600px) {
+  .sidebar { width: 200px; }
+  .student-row { padding: 8px 12px; gap: 6px; }
+  .s-pill { padding: 7px 12px; font-size: 0.75rem; }
+  .metric-grid { grid-template-columns: 1fr; }
+  .compare-panel.show { grid-template-columns: 1fr; }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ── Sidebar collapse ── */
+.sidebar{transition:width 0.22s cubic-bezier(0.4,0,0.2,1);overflow:hidden}
+.sidebar.collapsed{width:64px}
+.sidebar.collapsed .logo-wordmark,
+.sidebar.collapsed .logo-school,
+.sidebar.collapsed .nav-section-label,
+.sidebar.collapsed .user-info{display:none}
+.sidebar.collapsed .logo-mark{justify-content:center}
+.sidebar.collapsed .sidebar-logo{padding:16px 0;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--green-border)}
+.sidebar.collapsed .nav-item{justify-content:center;padding:10px 0;border-left-color:transparent !important}
+.sidebar.collapsed .nav-item.active{background:var(--gold-light);border-radius:4px}
+.sidebar.collapsed .sidebar-nav{padding:12px 8px}
+.sidebar.collapsed .sidebar-user{justify-content:center;padding:14px 0}
+.sidebar-toggle{width:32px;height:32px;border-radius:var(--radius);background:none;border:1px solid var(--cream-border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);flex-shrink:0;transition:background 0.15s,color 0.15s}
+.sidebar-toggle:hover{background:var(--cream-warm);color:var(--text-primary)}
+.sidebar-toggle svg{transition:transform 0.22s}
+.sidebar.collapsed~.main .topbar .sidebar-toggle svg{transform:scaleX(-1)}
+/* ── Right panel collapse ── */
+.panel-3d{transition:width 0.22s cubic-bezier(0.4,0,0.2,1);overflow:hidden}
+.panel-3d.collapsed{width:0;border-left:none}
+.panel-reopen-tab{position:fixed;right:0;top:50%;transform:translateY(-50%);width:20px;height:64px;background:var(--cream-warm);border:1px solid var(--cream-border);border-right:none;border-radius:6px 0 0 6px;display:none;align-items:center;justify-content:center;cursor:pointer;z-index:20;color:var(--text-muted)}
+.panel-reopen-tab.show{display:flex}
+.panel-close-btn{width:24px;height:24px;border-radius:4px;background:none;border:none;cursor:pointer;color:var(--text-muted);display:flex;align-items:center;justify-content:center;margin-left:auto;flex-shrink:0}
+.panel-close-btn:hover{background:var(--cream-border);color:var(--text-primary)}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+.toast-container{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--green-deepest);color:var(--text-cream);border:1px solid var(--green-border);padding:11px 18px;border-radius:10px;font-size:0.82rem;font-weight:500;max-width:320px;opacity:0;transform:translateY(12px);transition:opacity 0.25s,transform 0.25s;pointer-events:auto}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.error{background:var(--flag-red)}
+.toast.success{background:var(--flag-green)}
+
+/* ── Validation panel ── */
+#validationSection{display:none;flex:1;overflow-y:auto;padding:28px 28px 48px;background:var(--cream);flex-direction:column;gap:24px}
+#validationSection.show{display:flex}
+.val-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.val-title{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:600;color:var(--text-primary);letter-spacing:-0.02em}
+.val-subtitle{font-family:'EB Garamond',serif;font-style:italic;font-size:0.88rem;color:var(--text-muted);margin-top:3px}
+.val-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase}
+.val-badge.pass{background:var(--flag-green-bg);color:var(--flag-green);border:1px solid rgba(42,107,69,0.2)}
+.val-badge.warn{background:var(--flag-amber-bg);color:var(--amber);border:1px solid rgba(201,160,40,0.2)}
+.val-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.val-stat-card{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:16px 18px}
+.val-stat-label{font-size:0.68rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px}
+.val-stat-value{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:600;color:var(--text-primary);letter-spacing:-0.02em;line-height:1}
+.val-stat-sub{font-size:0.72rem;color:var(--text-muted);margin-top:4px}
+.val-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.val-card{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:18px 20px}
+.val-card-title{font-family:'Playfair Display',serif;font-size:0.95rem;font-weight:600;color:var(--text-primary);margin-bottom:14px}
+.val-card.wide{grid-column:1/-1}
+.roc-svg{width:100%;height:220px;display:block}
+.val-dev-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.val-dev-label{font-size:0.75rem;color:var(--text-secondary);width:90px;flex-shrink:0;font-family:'EB Garamond',serif;font-style:italic}
+.val-dev-track{flex:1;height:7px;background:var(--cream-border);border-radius:4px;overflow:hidden;position:relative}
+.val-dev-bar{height:100%;border-radius:4px;transition:width 0.6s ease}
+.val-dev-pct{font-size:0.72rem;font-family:'Inter',monospace;color:var(--text-muted);width:38px;text-align:right;flex-shrink:0}
+.disputed-table{width:100%;border-collapse:collapse;font-size:0.78rem}
+.disputed-table th{font-size:0.65rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);padding:0 0 8px;border-bottom:1px solid var(--cream-border);text-align:left}
+.disputed-table th:last-child,.disputed-table td:last-child{text-align:right}
+.disputed-table td{padding:7px 0;border-bottom:1px solid var(--cream-border);color:var(--text-secondary);vertical-align:middle}
+.disputed-table tr:last-child td{border-bottom:none}
+.disputed-table .prob-bar{display:inline-block;height:4px;border-radius:2px;background:var(--flag-green);vertical-align:middle;margin-right:6px}
+.verdict-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;font-size:0.68rem;font-weight:600;letter-spacing:0.04em}
+.verdict-chip.madison{background:var(--flag-green-bg);color:var(--flag-green)}
+.verdict-chip.hamilton{background:var(--flag-red-bg);color:var(--flag-red)}
+.tier-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.tier-bar-name{font-size:0.7rem;font-family:'Inter',monospace;color:var(--text-muted);width:70px;flex-shrink:0}
+.tier-bar-track{flex:1;height:6px;background:var(--cream-border);border-radius:3px;overflow:hidden}
+.tier-bar-fill{height:100%;border-radius:3px;background:var(--gold)}
+.tier-bar-val{font-size:0.68rem;color:var(--text-muted);width:36px;text-align:right;flex-shrink:0}
+.val-insight{background:var(--gold-light);border:1px solid var(--gold-muted);border-radius:var(--radius);padding:14px 16px;font-size:0.8rem;color:var(--text-secondary);line-height:1.55}
+.val-insight strong{color:var(--amber);font-weight:600}
+/* Similarity matrix */
+.sim-matrix-wrap{overflow-x:auto;margin-top:4px}
+.sim-matrix{border-collapse:collapse;font-size:0.7rem;width:100%}
+.sim-matrix th{font-size:0.62rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);padding:4px 6px;text-align:center;white-space:nowrap}
+.sim-matrix th.row-head{text-align:right;padding-right:10px}
+.sim-matrix td{padding:4px 5px;text-align:center;border-radius:3px;font-family:'Inter',monospace;font-size:0.69rem;min-width:52px}
+.sim-matrix td.self{color:var(--text-muted);font-style:italic}
+.sim-matrix td.empty{color:var(--cream-border)}
+/* Threshold comparison */
+.thresh-table{width:100%;border-collapse:collapse;font-size:0.78rem}
+.thresh-table th{font-size:0.65rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);padding:0 0 8px;border-bottom:1px solid var(--cream-border);text-align:left}
+.thresh-table td{padding:8px 0;border-bottom:1px solid var(--cream-border);color:var(--text-secondary);vertical-align:middle}
+.thresh-table tr:last-child td{border-bottom:none}
+.thresh-old{font-family:monospace;color:var(--text-muted);text-decoration:line-through;font-size:0.75rem}
+.thresh-new{font-family:monospace;font-weight:600;color:var(--text-primary);font-size:0.82rem}
+.thresh-delta{font-size:0.7rem;padding:1px 6px;border-radius:8px}
+.thresh-delta.better{background:var(--flag-green-bg);color:var(--flag-green)}
+.thresh-delta.worse{background:var(--flag-red-bg);color:var(--flag-red)}
+/* Per-author breakdown */
+.author-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.author-bar-name{font-size:0.72rem;color:var(--text-secondary);width:76px;flex-shrink:0;font-family:'EB Garamond',serif;font-style:italic}
+.author-bar-track{flex:1;height:8px;background:var(--cream-border);border-radius:4px;overflow:hidden;position:relative}
+.author-bar-fill{height:100%;border-radius:4px;transition:width 0.6s ease}
+.author-bar-val{font-size:0.69rem;font-family:'Inter',monospace;color:var(--text-muted);width:38px;text-align:right;flex-shrink:0}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <div class="logo-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#162b22" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <span class="logo-wordmark">Original</span>
+      </div>
+      <div class="logo-school">Authorship Verification</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Workspace</div>
+      <a class="nav-item active" href="professor.html" title="Dashboard">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item" href="#" title="Students">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Students
+      </a>
+      <a class="nav-item" href="#" title="Submissions">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Submissions
+      </a>
+      <div class="nav-section-label" style="margin-top:8px">System</div>
+      <a class="nav-item" href="#" title="Integrations">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        Integrations
+      </a>
+      <a class="nav-item" href="admin.html" title="Admin">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12,2 2,7 22,7"/></svg>
+        Admin
+      </a>
+      <a class="nav-item" href="#" title="Settings">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </a>
+      <a class="nav-item" href="http://localhost:3000" target="_blank" title="Bbook Exams" style="opacity:0.85">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        Bbook Exams ↗
+      </a>
+      <div class="nav-section-label" style="margin-top:8px">Research</div>
+      <a class="nav-item" href="#" title="Validation Study" onclick="showValidation();return false">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
+        Validation
+      </a>
+      <a class="nav-item" href="lab.html" title="Calibration Lab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6L4 18a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3L15 8V2"/><path d="M8 2h8"/></svg>
+        Lab
+      </a>
+      <a class="nav-item" href="admin-context.html" title="Context Audit Log">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        Context Audit
+      </a>
+      <a class="nav-item" href="playground.html" title="Pipeline Playground">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Playground
+      </a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="sidebarAvatar">JA</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebarName">Prof. Adeyemi</div>
+        <div class="user-role">Instructor</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <div class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="topbar-left" style="display:flex;align-items:center;gap:10px">
+        <button id="sidebarToggle" class="sidebar-toggle" title="Toggle sidebar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="breadcrumb">
+          <span>Original</span>
+          <span class="bc-sep">/</span>
+          <span class="bc-current">Professor Dashboard</span>
+        </div>
+      </div>
+      <div class="topbar-right" style="display:flex;align-items:center;gap:10px">
+        <div class="semester-badge" id="hdrCourseSub">TH501 · Spring 2026</div>
+        <a href="admin.html" style="text-decoration:none">
+          <button style="padding:7px 12px;background:var(--cream-warm);color:var(--text-secondary);border:1px solid var(--cream-border);border-radius:var(--radius);font-family:Inter,sans-serif;font-size:0.78rem;font-weight:500;cursor:pointer">
+            Admin
+          </button>
+        </a>
+        <button onclick="openImportDrawer()" style="padding:7px 14px;background:var(--green-deep);color:var(--text-cream);border:none;border-radius:var(--radius);font-family:Inter,sans-serif;font-size:0.78rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Import Papers
+        </button>
+      </div>
+    </div>
+    <!-- Page title row -->
+    <div style="padding:16px 24px 0;flex-shrink:0">
+      <div style="font-family:'EB Garamond',serif;font-style:italic;font-size:0.8rem;color:var(--text-muted);margin-bottom:2px">Good afternoon</div>
+      <div class="header-name" id="hdrProfName" style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:600;color:var(--text-primary);letter-spacing:-0.02em">Prof. Adeyemi</div>
+    </div>
+
+    <!-- Student pills -->
+    <div class="student-row" id="studentRow">
+      <div class="s-pill" onclick="addStudentInline()" title="Add a student" style="border-style:dashed;color:var(--text-muted)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Student
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs-header">
+      <button class="tab-btn active" onclick="switchTab('score')">Analyze Submission</button>
+      <button class="tab-btn" onclick="switchTab('history')">History</button>
+      <button class="tab-btn" onclick="switchTab('baselines')">Baselines</button>
+    </div>
+
+    <!-- Content -->
+    <div class="content" id="mainContent">
+
+      <!-- SCORE TAB -->
+      <div class="tab-panel active" id="tab-score">
+
+        <div class="input-card">
+          <div class="input-card-header">
+            <div>
+              <h3>Analyze Submission</h3>
+              <p>Paste the student's submitted work and compare against their baseline profile</p>
+            </div>
+          </div>
+          <div class="input-notice">
+            💡 Original compares this submission against the student's <strong>authenticated voice baseline</strong> across 103 stylometric features — verifying not just that it isn't AI, but that it <em>is</em> theirs.
+          </div>
+          <textarea class="submission-textarea" id="subText" rows="6"
+            placeholder="Paste the student's submitted text here…"
+            oninput="onTextInput()"></textarea>
+          <div class="input-footer">
+            <span class="word-count" id="wordCount">0 words</span>
+            <div class="btn-row">
+              <button class="btn-sample" onclick="loadSample()">Load sample</button>
+              <button class="btn-analyze" id="analyzeBtn" onclick="runAnalysis()">Analyze Writing</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading-card" id="loadingCard">
+          <div class="loading-spinner"></div>
+          <p>Extracting stylometric features…</p>
+          <div class="load-steps" id="loadSteps">
+            <div class="load-step" id="ls1"><span class="ls-icon">📏</span> Surface stylometrics (TTR, sentence length, hapax…)</div>
+            <div class="load-step" id="ls2"><span class="ls-icon">🔗</span> Discourse &amp; cohesion analysis…</div>
+            <div class="load-step" id="ls3"><span class="ls-icon">⛪</span> Rhetorical register &amp; theological vocabulary…</div>
+            <div class="load-step" id="ls4"><span class="ls-icon">🔤</span> Character &amp; punctuation fingerprint…</div>
+            <div class="load-step" id="ls5"><span class="ls-icon">🧠</span> POS/syntax &amp; idiosyncratic patterns…</div>
+            <div class="load-step" id="ls6"><span class="ls-icon">⚛️</span> Projecting onto density matrix ρ — matching against voice baseline…</div>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div id="resultsWrap" style="display:none;display:flex;flex-direction:column;gap:14px">
+
+          <!-- Metric cards (iHealth style) -->
+          <div class="metrics-row">
+            <div class="metric-card" id="mc1">
+              <div class="metric-header">
+                <span class="metric-icon">📐</span>
+                <span class="metric-title">Voice Consistency Score</span>
+                <span class="metric-sub">vs. baseline voice</span>
+              </div>
+              <div class="metric-body">
+                <div class="sparkline-wrap" id="sparkline1"></div>
+                <div class="metric-value" id="mcVal1" style="color:var(--amber)">0.71</div>
+              </div>
+              <div class="metric-gloss" id="mcGloss1"></div>
+            </div>
+            <div class="metric-card" id="mc2">
+              <div class="metric-header">
+                <span class="metric-icon">✍️</span>
+                <span class="metric-title">Authorship Probability</span>
+                <span class="metric-sub">Born rule P(ξ|ρ)<br><span style="font-size:0.63rem;color:var(--text-dim)">probability this matches their voice</span></span>
+              </div>
+              <div class="metric-body">
+                <div class="sparkline-wrap" id="sparkline2"></div>
+                <div class="metric-value" id="mcVal2" style="color:var(--red)">31%</div>
+              </div>
+              <div class="metric-gloss" id="mcGloss2"></div>
+            </div>
+            <div class="metric-card" id="mc3">
+              <div class="metric-header">
+                <span class="metric-icon">📈</span>
+                <span class="metric-title">Trajectory Conformance</span>
+                <span class="metric-sub">growth pattern</span>
+              </div>
+              <div class="metric-body">
+                <div class="sparkline-wrap" id="sparkline3"></div>
+                <div class="metric-value" id="mcVal3" style="color:var(--flag-green)">42%</div>
+              </div>
+              <div class="metric-gloss" id="mcGloss3"></div>
+            </div>
+          </div>
+
+          <!-- Interpretation box -->
+          <div class="interp-card severity-amber" id="interpCard">
+            <div class="interp-header">
+              <span>🧠</span>
+              <span class="interp-header-label">Writing Voice Analysis</span>
+            </div>
+            <div class="interp-headline" id="interpHeadline"></div>
+            <ul class="interp-bullets" id="interpBullets"></ul>
+            <div class="interp-next" id="interpNext"></div>
+          </div>
+
+          <!-- Recommendation -->
+          <!-- Catastrophic drift alert (hidden until API returns catastrophic_drift=true) -->
+          <div id="driftAlert" style="display:none;margin-bottom:12px;padding:14px 18px;border-radius:12px;
+               background:var(--red-l);border:1.5px solid var(--red);color:var(--red)">
+            <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px">⚠ Catastrophic Drift Detected</div>
+            <div id="driftAlertBody" style="font-size:0.82rem;line-height:1.5;color:var(--text-muted)"></div>
+          </div>
+
+          <div class="rec-card" id="recCard">
+            <div class="rec-icon">💬</div>
+            <div class="rec-text">
+              <h4>Recommended Action</h4>
+              <span class="rec-badge schedule_conversation" id="recBadge">Schedule Conversation</span>
+            </div>
+            <div class="rec-actions">
+              <button class="action-btn" onclick="alert('No action recorded.')">No Action</button>
+              <button class="action-btn warn" onclick="alert('Conversation scheduled.')">Schedule Talk</button>
+              <button class="action-btn danger" onclick="alert('Escalated for formal review.')">Escalate</button>
+              <button class="action-btn" id="correctBtn" style="margin-left:auto;background:var(--cream-warm)" onclick="openCorrectionForm()">Correct verdict</button>
+              <button class="action-btn" id="blendBtn" style="background:var(--cream-warm)" onclick="runBlendCheck()">Run blend check</button>
+            </div>
+          </div>
+
+          <!-- ── Context Layer Panel (PR 10) ─────────────────────────────── -->
+          <!-- Renders only when API returns context_manifest / report.
+               Hidden by default; show() toggles it on. -->
+          <div id="contextCard" style="display:none;background:var(--surface);border:1px solid var(--cream-border);border-radius:12px;padding:20px 24px;margin-bottom:18px;box-shadow:var(--shadow-sm)">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+              <div>
+                <div style="font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--text-primary)">Adaptive context</div>
+                <div style="font-family:'EB Garamond',serif;font-style:italic;font-size:0.82rem;color:var(--text-muted)">Why the score weighted what it weighted, plus the auditable narrative.</div>
+              </div>
+              <div style="display:flex;gap:6px;align-items:center">
+                <span id="ctxVerdictBadge" class="rec-badge" style="font-size:0.72rem">—</span>
+                <span id="ctxConfidenceBadge" style="font-size:0.7rem;color:var(--text-muted);padding:3px 9px;border-radius:99px;background:var(--cream-warm)">—</span>
+              </div>
+            </div>
+            <div id="ctxNarrative" style="font-family:'EB Garamond',serif;font-size:1rem;line-height:1.55;color:var(--text-primary);padding:12px 16px;background:var(--cream-warm);border-radius:6px;margin:14px 0"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+              <div>
+                <div style="font-weight:600;font-size:0.78rem;color:var(--text-secondary);margin-bottom:8px">Active flags &amp; anchors</div>
+                <div id="ctxChips"></div>
+              </div>
+              <div>
+                <div style="font-weight:600;font-size:0.78rem;color:var(--text-secondary);margin-bottom:8px">Anchor tier consistency</div>
+                <div id="ctxAnchorBars"></div>
+              </div>
+            </div>
+            <div style="margin-top:12px;font-size:0.72rem;color:var(--text-muted)">
+              <span id="ctxLength">—</span> · cluster: <span id="ctxCluster">—</span>
+            </div>
+          </div>
+
+          <!-- ── Drift gate (Phase 8) ────────────────────────────────────── -->
+          <!-- Surfaces when a baseline ingestion attempt was flagged for
+               review or rebaseline. Populated by an out-of-band fetch in
+               showStudent(). -->
+          <div id="phase8DriftAlert" style="display:none;background:var(--flag-amber-bg);border:1px solid var(--flag-amber);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:0.82rem;color:var(--text-primary)">
+            <strong id="phase8DriftHead">Drift status</strong> —
+            <span id="phase8DriftBody">—</span>
+          </div>
+
+          <!-- ── Blend timeline (lazy-rendered when "Run blend" clicked) ─── -->
+          <div id="blendCard" style="display:none;background:var(--surface);border:1px solid var(--cream-border);border-radius:12px;padding:20px 24px;margin-bottom:18px;box-shadow:var(--shadow-sm)">
+            <div style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:4px">Sliding-window blend detection</div>
+            <div style="font-family:'EB Garamond',serif;font-style:italic;font-size:0.82rem;color:var(--text-muted);margin-bottom:14px">Per 300-token window. Red dashes mark detected fingerprint shifts.</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px">
+              <div class="metric-card" style="padding:10px 14px">
+                <div class="metric-label">Detected</div>
+                <div class="metric-value" id="blendDetectedV" style="font-size:1.2rem">—</div>
+              </div>
+              <div class="metric-card" style="padding:10px 14px">
+                <div class="metric-label">Blend index</div>
+                <div class="metric-value" id="blendIndexV" style="font-size:1.2rem">—</div>
+              </div>
+              <div class="metric-card" style="padding:10px 14px">
+                <div class="metric-label">Shifts</div>
+                <div class="metric-value" id="blendShiftsV" style="font-size:1.2rem">—</div>
+              </div>
+            </div>
+            <div id="blendChartPro"></div>
+          </div>
+
+          <!-- ── Correction modal ───────────────────────────────────────── -->
+          <div id="correctionModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,30,23,0.55);z-index:1000;align-items:center;justify-content:center">
+            <div style="background:var(--cream);border-radius:12px;padding:24px 28px;max-width:520px;width:90%;box-shadow:var(--shadow-md)">
+              <div style="font-family:'Playfair Display',serif;font-size:1.2rem;margin-bottom:6px">Correct this verdict</div>
+              <div style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.85rem;margin-bottom:14px">Your feedback feeds the retraining loop in the Lab.</div>
+              <div style="margin-bottom:14px">
+                <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:6px">Was the original verdict correct?</label>
+                <label style="margin-right:18px"><input type="radio" name="cIsCorrect" value="true"/> Yes — leave alone</label>
+                <label><input type="radio" name="cIsCorrect" value="false" checked/> No — change it</label>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+                <div>
+                  <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:6px">Corrected verdict</label>
+                  <select id="cVerdict" style="width:100%;padding:8px 12px;border:1px solid var(--cream-border);border-radius:6px;font-size:0.9rem">
+                    <option value="">—</option>
+                    <option value="authentic">authentic</option>
+                    <option value="uncertain">uncertain</option>
+                    <option value="anomalous">anomalous</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:6px">Corrected action</label>
+                  <select id="cAction" style="width:100%;padding:8px 12px;border:1px solid var(--cream-border);border-radius:6px;font-size:0.9rem">
+                    <option value="">—</option>
+                    <option value="no_action">no_action</option>
+                    <option value="monitor">monitor</option>
+                    <option value="schedule_conversation">schedule_conversation</option>
+                    <option value="escalate">escalate</option>
+                  </select>
+                </div>
+              </div>
+              <div style="margin-bottom:14px">
+                <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:6px">Notes</label>
+                <textarea id="cNotes" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--cream-border);border-radius:6px;font-family:'EB Garamond',serif;font-size:0.95rem;resize:vertical" placeholder="Why is the original verdict wrong?"></textarea>
+              </div>
+              <div style="display:flex;gap:10px;justify-content:flex-end">
+                <button class="action-btn" onclick="closeCorrectionForm()">Cancel</button>
+                <button class="action-btn warn" onclick="submitCorrection()">Submit correction</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tiers -->
+          <div class="tiers-card" id="tiersCard">
+            <div class="section-label">Voice Profile Comparison by Tier</div>
+            <div id="tierRows"></div>
+          </div>
+
+          <!-- Features -->
+          <div class="features-card" id="featsCard">
+            <div class="section-label">Top Contributing Features</div>
+            <div id="featRows"></div>
+          </div>
+
+          <!-- Compare toggle -->
+          <div style="display:flex;justify-content:flex-end">
+            <button class="compare-toggle" id="compareToggleBtn" onclick="toggleCompare()" style="display:none">
+              📊 Compare Voice Fingerprints
+            </button>
+          </div>
+
+          <!-- Compare panel -->
+          <div class="compare-panel" id="comparePanel">
+            <div class="compare-col">
+              <div class="compare-col-label" style="color:var(--green-deep)">Student Baseline</div>
+              <canvas id="radarBaseline" width="300" height="300"></canvas>
+            </div>
+            <div class="compare-col">
+              <div class="compare-col-label" style="color:var(--red)">This Submission</div>
+              <canvas id="radarSubmission" width="300" height="300"></canvas>
+            </div>
+            <div class="compare-divergent" id="compareDivergent"></div>
+          </div>
+
+          <!-- Tension Arc -->
+          <div class="features-card" id="arcCard" style="display:none">
+            <div class="section-label" style="display:flex;align-items:center;justify-content:space-between">
+              <span>Tension Arc Analysis</span>
+              <span id="arcFlagBadge" style="font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px"></span>
+            </div>
+            <!-- Rhythm Identity — shown only when student has a κ baseline -->
+            <div id="arcIdentityWrap" style="display:none;margin:10px 0 14px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+                <span style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)">Rhythm Identity Match</span>
+                <span id="arcIdentityPct" style="font-size:0.88rem;font-weight:700"></span>
+              </div>
+              <div style="height:7px;background:var(--surface-2);border-radius:4px;overflow:hidden">
+                <div id="arcIdentityFill" style="height:100%;border-radius:4px;transition:width 0.45s ease"></div>
+              </div>
+              <div id="arcIdentityLabel" style="font-size:0.72rem;color:var(--text-muted);margin-top:5px;line-height:1.4"></div>
+            </div>
+            <div id="arcMetrics" style="display:flex;gap:20px;margin:10px 0;flex-wrap:wrap"></div>
+            <canvas id="arcCanvas" height="80" style="width:100%;border-radius:6px;background:var(--surface-2)"></canvas>
+            <div id="arcReason" style="font-size:0.76rem;color:var(--text-muted);margin-top:8px;line-height:1.5"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- HISTORY TAB -->
+      <div class="tab-panel" id="tab-history"></div>
+
+      <!-- BASELINES TAB -->
+      <div class="tab-panel" id="tab-baselines"></div>
+
+    </div><!-- end mainContent tab panels -->
+    <!-- ── Validation Section ── -->
+    <div id="validationSection"></div>
+  </div><!-- end mainContent -->
+
+  <!-- ── 3D Right Panel ── -->
+  <aside class="panel-3d">
+    <div class="panel-3d-header" style="display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div class="panel-3d-label">Quantum Profile</div>
+        <button id="panelCloseBtn" class="panel-close-btn" title="Collapse panel">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="panel-3d-title" id="panelStudentName">Marcus Whitfield</div>
+      <div class="panel-3d-sub">Voice fingerprint · density matrix ρ</div>
+    </div>
+
+    <div class="panel-student">
+      <div class="panel-s-avatar" id="panelAvatar" style="background:var(--cream-warm);color:var(--text-primary)">MW</div>
+      <div>
+        <div class="panel-s-name" id="panelName">Marcus Whitfield</div>
+        <div class="panel-s-meta" id="panelMeta">5 baselines · purity 0.78</div>
+      </div>
+    </div>
+
+    <!-- THE 3D SPHERE -->
+    <div class="q-stage">
+      <div class="q-glow"></div>
+      <div class="q-scene">
+        <div class="q-object">
+          <div class="q-core"></div>
+
+          <!-- Ring 1: Blue — Surface/Syntax -->
+          <div class="q-ring q-ring-1">
+            <div class="q-dot" style="--dc:#2563EB;top:0%;left:50%"></div>
+            <div class="q-dot" style="--dc:#2563EB;top:50%;left:100%"></div>
+            <div class="q-dot" style="--dc:#2563EB;top:100%;left:50%"></div>
+            <div class="q-dot" style="--dc:#93C5FD;top:50%;left:0%"></div>
+          </div>
+
+          <!-- Ring 2: Gold — Rhetorical/Theological -->
+          <div class="q-ring q-ring-2">
+            <div class="q-dot" style="--dc:#D97706;top:14.6%;left:85.4%"></div>
+            <div class="q-dot" style="--dc:#D97706;top:85.4%;left:14.6%"></div>
+            <div class="q-dot" style="--dc:#FCD34D;top:14.6%;left:14.6%"></div>
+          </div>
+
+          <!-- Ring 3: Green — Discourse/Idiosyncratic -->
+          <div class="q-ring q-ring-3">
+            <div class="q-dot" style="--dc:#059669;top:0%;left:50%"></div>
+            <div class="q-dot" style="--dc:#059669;top:100%;left:50%"></div>
+            <div class="q-dot" style="--dc:#34D399;top:50%;left:0%"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Pedestal (like iHealth) -->
+    <div class="q-pedestal">
+      <div class="ped-disk ped-disk-1"></div>
+      <div class="ped-disk ped-disk-2"></div>
+      <div class="ped-disk ped-disk-3"></div>
+    </div>
+
+    <!-- Deviation display (appears after scoring) -->
+    <div class="panel-deviation" id="panelDeviation">
+      <div class="pd-label">Latest Submission</div>
+      <div class="pd-row">
+        <div class="pd-score" id="pdScore" style="color:var(--amber)">0.71</div>
+        <div class="pd-action" id="pdAction" style="color:var(--amber)">Schedule Conversation</div>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="panel-legend">
+      <div class="legend-pill"><div class="legend-dot" style="background:#2563EB"></div>Surface / Syntax</div>
+      <div class="legend-pill"><div class="legend-dot" style="background:#D97706"></div>Rhetorical</div>
+      <div class="legend-pill"><div class="legend-dot" style="background:#059669"></div>Discourse</div>
+    </div>
+
+    <!-- Trait bars -->
+    <div class="panel-traits">
+      <div class="panel-traits-label">Voice Profile</div>
+      <div class="trait-row">
+        <span class="trait-label">Theological register</span>
+        <div class="trait-bar-bg"><div class="trait-bar-fill" id="ptb1" style="background:#2563EB;width:0%"></div></div>
+        <span class="trait-pct">84%</span>
+      </div>
+      <div class="trait-row">
+        <span class="trait-label">Source integration</span>
+        <div class="trait-bar-bg"><div class="trait-bar-fill" id="ptb2" style="background:#D97706;width:0%"></div></div>
+        <span class="trait-pct">78%</span>
+      </div>
+      <div class="trait-row">
+        <span class="trait-label">Epistemic certainty</span>
+        <div class="trait-bar-bg"><div class="trait-bar-fill" id="ptb3" style="background:#2563EB;width:0%"></div></div>
+        <span class="trait-pct">67%</span>
+      </div>
+      <div class="trait-row">
+        <span class="trait-label">Sentence consistency</span>
+        <div class="trait-bar-bg"><div class="trait-bar-fill" id="ptb4" style="background:#059669;width:0%"></div></div>
+        <span class="trait-pct">71%</span>
+      </div>
+    </div>
+
+  </aside>
+
+  <div id="panelReopenTab" class="panel-reopen-tab" title="Open panel">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,18 9,12 15,6"/></svg>
+  </div>
+</div>
+
+<script>
+/* ── Sidebar collapse ── */
+(function(){
+  const sidebar = document.querySelector('.sidebar');
+  const btn = document.getElementById('sidebarToggle');
+  if(!sidebar||!btn) return;
+  if(localStorage.getItem('sb-collapsed')==='1') sidebar.classList.add('collapsed');
+  btn.addEventListener('click',()=>{
+    const c = sidebar.classList.toggle('collapsed');
+    localStorage.setItem('sb-collapsed', c?'1':'0');
+  });
+})();
+/* ── Right panel collapse ── */
+(function(){
+  const panel = document.querySelector('.panel-3d');
+  const closeBtn = document.getElementById('panelCloseBtn');
+  const reopenTab = document.getElementById('panelReopenTab');
+  if(!panel) return;
+  function collapsePanel(){
+    panel.classList.add('collapsed');
+    if(reopenTab) reopenTab.classList.add('show');
+    localStorage.setItem('panel-collapsed','1');
+  }
+  function expandPanel(){
+    panel.classList.remove('collapsed');
+    if(reopenTab) reopenTab.classList.remove('show');
+    localStorage.setItem('panel-collapsed','0');
+  }
+  if(localStorage.getItem('panel-collapsed')==='1') collapsePanel();
+  if(closeBtn) closeBtn.addEventListener('click', collapsePanel);
+  if(reopenTab) reopenTab.addEventListener('click', expandPanel);
+})();
+/* ── API client ── */
+const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? `${location.protocol}//${location.hostname}:${location.port || 8001}`
+  : location.origin;
+const API = {
+  async getStudent(id) {
+    const r = await fetch(`${API_BASE}/students/${encodeURIComponent(id)}`);
+    if (!r.ok) return null;
+    return r.json();
+  },
+  async score(studentId, text, assignment) {
+    const r = await fetch(`${API_BASE}/students/${encodeURIComponent(studentId)}/score`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ text, assignment: assignment || '', submission_id: '' }),
+    });
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({detail: r.statusText}));
+      throw new Error(e.detail || 'Score failed');
+    }
+    return r.json();
+  },
+  async addBaseline(studentId, text, provenance, assignment) {
+    const r = await fetch(`${API_BASE}/students/${encodeURIComponent(studentId)}/baseline`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ text, provenance: provenance || 'verified', assignment: assignment || '', submitted_at: new Date().toISOString().slice(0,10) }),
+    });
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({detail: r.statusText}));
+      throw new Error(e.detail || 'Baseline failed');
+    }
+    return r.json();
+  },
+  async uploadFile(studentId, file) {
+    const fd = new FormData();
+    fd.append('file', file);
+    const r = await fetch(`${API_BASE}/students/${encodeURIComponent(studentId)}/upload`, {
+      method: 'POST', body: fd,
+    });
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({detail: r.statusText}));
+      throw new Error(e.detail || 'Upload failed');
+    }
+    return r.json(); // { text, filename, word_count }
+  },
+};
+
+/* ── Roster: load from localStorage (set by onboard.html) or use fallback ── */
+const AVATAR_COLORS = [
+  ['#BFDBFE','#1E40AF'],['#E9D5FF','#6D28D9'],['#D1FAE5','#065F46'],
+  ['#FEF9C3','#92400E'],['#DBEAFE','#1E40AF'],['#FCE7F3','#9D174D'],
+];
+function loadRoster() {
+  try {
+    const raw = localStorage.getItem('original_roster');
+    if (raw) {
+      const data = JSON.parse(raw);
+      // Update header
+      if (data.course) {
+        const sub = `${data.course.code || ''} ${data.course.name || ''}`.trim();
+        document.getElementById('hdrCourseSub').innerHTML =
+          `${sub} &nbsp;·&nbsp; ${(data.students||[]).length} students &nbsp;·&nbsp; ${data.course.semester || ''}`;
+      }
+      if (data.course?.prof) {
+        document.getElementById('hdrProfName').textContent = data.course.prof;
+        document.getElementById('sidebarAvatar').textContent = data.course.prof.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+      }
+      if (data.students && data.students.length) {
+        return data.students.map((s, i) => {
+          const [bg, tc] = AVATAR_COLORS[i % AVATAR_COLORS.length];
+          const ini = s.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+          return { id: s.id, name: s.name, ini, color: bg, tc, dot: '#6B7280', baselines: 0, status: 'unknown' };
+        });
+      }
+    }
+  } catch(e) {}
+  // Fallback: hardcoded demo students
+  return [
+    {id:'whitfield_j',name:'James Whitfield',   ini:'JW',color:'#BFDBFE',tc:'#1E40AF',dot:'#DC2626',baselines:5,status:'needs_review'},
+    {id:'okonkwo_s',  name:'Sarah Okonkwo',    ini:'SO',color:'#E9D5FF',tc:'#6D28D9',dot:'#D97706',baselines:5,status:'monitor'},
+    {id:'osei_d',     name:'Daniel Osei',      ini:'DO',color:'#D1FAE5',tc:'#065F46',dot:'#059669',baselines:5,status:'clear'},
+    {id:'mercer_l',   name:'Lydia Mercer',     ini:'LM',color:'#FEF9C3',tc:'#92400E',dot:'#059669',baselines:5,status:'clear'},
+    {id:'chen_m',     name:'Michael Chen',     ini:'MC',color:'#FCE7F3',tc:'#9D174D',dot:'#6B7280',baselines:1,status:'monitor'},
+  ];
+}
+let STUDENTS = loadRoster();
+/* ── Transform API response → renderResults() format ── */
+const TIER_META = [
+  {key:'T1', name:'Surface Stylometrics',   sub:'sentence length, vocabulary range', c:'#2563EB'},
+  {key:'T2', name:'Discourse Analysis',     sub:'argument flow & transitions',        c:'#7C3AED'},
+  {key:'T3', name:'Rhetorical Register',    sub:'theological tone & formality',       c:'#DC2626'},
+  {key:'T4', name:'Char & Punctuation',     sub:'punctuation habits & rhythm',        c:'#D97706'},
+  {key:'T5', name:'POS & Syntax',           sub:'grammar patterns & sentence structure', c:'#2563EB'},
+  {key:'T6', name:'Idiosyncratic Patterns', sub:'unique phrases & word choices',      c:'#B8860B'},
+  {key:'T7', name:'Voice Authenticity',     sub:'AI-associated & uncharacteristic patterns', c:'#059669'},
+  {key:'T8', name:'Prosodic Rhythm',       sub:'sentence-level stress patterns, cadence variation, and rhythmic fingerprint', c:'#7c3aed'},
+  {key:'T9', name:'Cognitive Sequencing',  sub:'order of idea presentation, argument scaffolding, and conceptual flow logic', c:'#0891b2'},
+  {key:'T10', name:'Semantic Gravity',      sub:'abstraction level shifts, grounding moves, and conceptual density per sentence', c:'#be185d'},
+  {key:'T11', name:'Error Ecology',         sub:'systematic error patterns (comma splices, adj chains) as authenticity fingerprint', c:'#b45309'},
+  {key:'T12', name:'Tension Arc',           sub:'catastrophe index κ: structural unresolved tension across document paragraphs', c:'#1d4ed8'},
+  {key:'T13', name:'Prosodic Depth',        sub:'clausula types, vowel sonority, breath-group regularity, arc resolution',       c:'#6d28d9'},
+  {key:'T14', name:'Error Topology',        sub:'article omission, pronoun ambiguity, comma splices — positional error fingerprint', c:'#b45309'},
+  {key:'T15', name:'Lexical Architecture',  sub:'polysyndeton, chiasmus, Latinate ratio, nominalization — structural vocabulary habits', c:'#0f766e'},
+  {key:'T16', name:'Citation Fingerprint',  sub:'signal verb entropy, source loyalty, ibid. habit, paraphrase density',          c:'#9333ea'},
+  {key:'T17', name:'Behavioral Biometrics', sub:'keystroke rhythm, burst typing, deletion rate — live-proctor identity signal',    c:'#0369a1'},
+];
+function apiResponseToResult(resp) {
+  const deviation = resp.authorship.deviation_score;
+  const prob      = resp.authorship.authorship_probability;
+  const traj      = Math.max(0, Math.min(1, (resp.trajectory.alignment + 1) / 2));
+  const action    = resp.recommendation.action;
+
+  const breakdown = resp.interference.tier_breakdown || {};
+  const tiers = TIER_META.map(t => ({
+    name: t.name, sub: t.sub, c: t.c,
+    s: breakdown[t.key] !== undefined ? breakdown[t.key] : 0.5,
+  }));
+
+  const allFeats = [
+    ...(resp.interference.destructive_features || []),
+    ...(resp.interference.constructive_features || []),
+  ];
+  const feats = allFeats.slice(0, 7).map(f => ({
+    name: f.name || f.code,
+    tier: `T${f.tier}`,
+    sig:  Math.abs(f.delta || 0),
+    dev:  Math.abs(f.delta || 0),
+    dir:  f.direction === 'destructive'
+            ? `↓ ${(f.delta < 0 ? 'below' : 'above')} baseline`
+            : '✓ consistent with baseline',
+    c: f.direction === 'destructive' ? '#D97706' : '#059669',
+  }));
+
+  return { deviation, prob, traj, action, tiers, feats, _raw: resp };
+}
+
+/* ── Tension Arc rendering ── */
+const ARC_FLAG_STYLES = {
+  authentic:           {bg:'var(--green-l)',   color:'var(--green)',  label:'Authentic Human Arc'},
+  ai_typical:          {bg:'var(--red-l)',     color:'var(--red)',    label:'AI-Typical Arc'},
+  review:              {bg:'var(--amber-l)',   color:'var(--amber)',  label:'Review — Inconclusive'},
+  insufficient_length: {bg:'var(--surface-2)', color:'var(--text-muted)', label:'Too Short to Analyse'},
+};
+
+function renderTensionArc(arc) {
+  if (!arc) return;
+
+  const card = document.getElementById('arcCard');
+  card.style.display = 'block';
+
+  // Flag badge
+  const fs = ARC_FLAG_STYLES[arc.arc_flag] || ARC_FLAG_STYLES.review;
+  const badge = document.getElementById('arcFlagBadge');
+  badge.textContent = fs.label;
+  badge.style.background = fs.bg;
+  badge.style.color = fs.color;
+
+  // Rhythm Identity — primary "is this THIS student?" signal
+  const identityWrap = document.getElementById('arcIdentityWrap');
+  if (arc.authenticity_signal !== null && arc.authenticity_signal !== undefined) {
+    const pct = Math.round(arc.authenticity_signal * 100);
+    const color = pct >= 70 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
+    const label = pct >= 70
+      ? 'Rhythm matches this student\'s established writing pattern'
+      : pct >= 50
+      ? 'Rhythm partially matches — some divergence from this student\'s baseline'
+      : 'Rhythm diverges significantly from this student\'s historical pattern';
+    identityWrap.style.display = 'block';
+    document.getElementById('arcIdentityPct').textContent = pct + '%';
+    document.getElementById('arcIdentityPct').style.color = color;
+    const fill = document.getElementById('arcIdentityFill');
+    fill.style.width = pct + '%';
+    fill.style.background = color;
+    document.getElementById('arcIdentityLabel').textContent = label;
+  } else {
+    identityWrap.style.display = 'none';
+  }
+
+  // Metric chips
+  document.getElementById('arcMetrics').innerHTML = `
+    <div class="arc-chip">
+      <span class="arc-chip-val" style="color:${arc.max_tension > 0.28 ? 'var(--green)' : 'var(--red)'}">
+        ${(arc.max_tension || 0).toFixed(3)}
+      </span>
+      <span class="arc-chip-lbl">max tension</span>
+    </div>
+    <div class="arc-chip">
+      <span class="arc-chip-val">${(arc.mean_tension || 0).toFixed(3)}</span>
+      <span class="arc-chip-lbl">mean tension</span>
+    </div>
+    <div class="arc-chip">
+      <span class="arc-chip-val">${(arc.resolution_ratio_mean || 0).toFixed(2)}</span>
+      <span class="arc-chip-lbl">μ(ρ) resolution</span>
+    </div>
+    <div class="arc-chip">
+      <span class="arc-chip-val">${(arc.catastrophe_index || 0).toFixed(4)}</span>
+      <span class="arc-chip-lbl">κ catastrophe</span>
+    </div>`;
+
+  // Tension waveform chart
+  const series = arc.tension_series || [];
+  const canvas = document.getElementById('arcCanvas');
+  const ctx    = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth || 600;
+
+  if (series.length < 2) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#94A3B8';
+    ctx.font = '13px Inter,sans-serif';
+    ctx.fillText('Insufficient length for tension chart', 20, 44);
+  } else {
+    const W = canvas.width, H = canvas.height;
+    const maxV = Math.max(...series, 0.01);
+    const pts = series.map((v, i) => [
+      (i / (series.length - 1)) * (W - 4) + 2,
+      H - 8 - (v / maxV) * (H - 16),
+    ]);
+
+    // Threshold line (0.28 → scaled)
+    const thY = H - 8 - (0.28 / maxV) * (H - 16);
+    ctx.clearRect(0, 0, W, H);
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = 'rgba(100,116,139,0.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(2, thY); ctx.lineTo(W - 2, thY); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = '10px Inter,sans-serif';
+    ctx.fillStyle = '#94A3B8';
+    ctx.fillText('θ', W - 16, thY - 3);
+
+    // Fill area under curve
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, arc.arc_flag === 'ai_typical' ? 'rgba(220,38,38,0.15)' : 'rgba(5,150,105,0.15)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], H - 8);
+    pts.forEach(([x, y]) => ctx.lineTo(x, y));
+    ctx.lineTo(pts[pts.length-1][0], H - 8);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Line
+    const lineColor = arc.arc_flag === 'ai_typical' ? '#DC2626' : arc.arc_flag === 'authentic' ? '#059669' : '#D97706';
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    pts.forEach(([x, y]) => ctx.lineTo(x, y));
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+  }
+
+  // Reason text
+  document.getElementById('arcReason').textContent = arc.arc_flag_reason || '';
+}
+
+/* AI-generated sample: flat tone, no hedging, uniform sentence length, no first-person.
+   Designed to produce high deviation (>0.60) against any authentic student baseline. */
+const SAMPLE=`The doctrine of justification by faith alone constitutes the central pillar of Protestant soteriology. This doctrine asserts that sinners are declared righteous before God on the basis of faith rather than meritorious works. The Reformers of the sixteenth century identified this teaching as the article upon which the church stands or falls. Luther's rediscovery of this principle in the Pauline epistles catalyzed a comprehensive theological reformation across Western Christendom. The doctrine has continued to shape Protestant thought for five centuries without significant alteration.
+
+Paul articulates the doctrine of justification with systematic precision in the epistle to the Romans. The apostle demonstrates that all humanity stands under divine condemnation due to the universal prevalence of sin. Both Gentiles who violate the natural law and Jews who transgress the Mosaic covenant are equally subject to divine judgment. The solution Paul proposes is a righteousness that originates outside human capacity and is received through faith. This alien righteousness is imputed to the believer on the basis of Christ's atoning work at Calvary. The forensic declaration of righteousness constitutes the foundation of the believer's standing before God.
+
+The New Perspective on Paul has introduced significant scholarly controversy into the interpretation of Pauline soteriology. Scholars such as Sanders, Dunn, and Wright have proposed that Paul's critique of works of the law targeted Jewish ethnic boundary markers rather than legalistic merit. This interpretation challenges the traditional Reformation reading of justification as a response to works-righteousness. Proponents of the traditional view maintain that Paul's argument encompasses both covenantal nomism and individual merit. The debate has generated substantial academic literature examining the social and theological dimensions of Pauline thought. Resolution of this controversy requires careful attention to both historical context and canonical interpretation.
+
+The doctrine of justification carries direct implications for the practice of Christian proclamation and pastoral ministry. A clear understanding of forensic justification shapes the content and tone of gospel proclamation in every ecclesial context. Pastors who maintain doctrinal clarity on this point are equipped to provide assurance of salvation to those who struggle with guilt and spiritual uncertainty. The objective character of the divine verdict removes the burden of subjective spiritual achievement from the conscience of the believer. Congregations grounded in this doctrine demonstrate measurable stability in both theological conviction and pastoral practice. The enduring relevance of justification by faith confirms its status as a non-negotiable element of evangelical theology.`;
+
+/* ── State ── */
+let active = STUDENTS[0];
+let activeApiData = null;  // live data from GET /students/{id}
+let addBaselineOpen = false;
+
+/* ── Sparklines ── */
+function sparkSVG(pts, color, h=36) {
+  const w=120, pad=4;
+  const ys=pts.map(p=>p[1]), xs=pts.map(p=>p[0]);
+  const minY=Math.min(...ys), maxY=Math.max(...ys);
+  const rangeY=maxY-minY||1, maxX=Math.max(...xs)||1;
+  const map=pts.map(p=>[
+    pad+(p[0]/maxX)*(w-pad*2),
+    pad+(1-(p[1]-minY)/rangeY)*(h-pad*2)
+  ]);
+  const poly=map.map(p=>p.join(',')).join(' ');
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline points="${poly}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+    <circle cx="${map[map.length-1][0]}" cy="${map[map.length-1][1]}" r="3.5" fill="${color}"/>
+  </svg>`;
+}
+
+/* ── Render students ── */
+function renderStudents() {
+  const row = document.getElementById('studentRow');
+  // Keep the Add Student button (last child) and replace the rest
+  const addBtn = row.lastElementChild;
+  row.innerHTML = '';
+  STUDENTS.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'student-pill s-pill' + (s.id===active?.id?' active':'');
+    div.innerHTML = `
+      <div class="s-pill-avatar" style="background:${s.color};color:${s.tc}">${s.ini}</div>
+      <span class="s-pill-name">${s.name}</span>
+      <div class="s-pill-dot" style="background:${s.dot}"></div>`;
+    div.onclick = () => selectStudent(s);
+    row.appendChild(div);
+  });
+  // Re-append Add Student button
+  if (addBtn) row.appendChild(addBtn);
+}
+
+/* ── Select student ── */
+async function selectStudent(s) {
+  active = s;
+  activeApiData = null;
+  addBaselineOpen = false;
+  renderStudents();
+
+  // Update panel immediately
+  document.getElementById('panelStudentName').textContent = s.name;
+  document.getElementById('panelName').textContent = s.name;
+  document.getElementById('panelMeta').textContent = 'Loading…';
+  const av = document.getElementById('panelAvatar');
+  av.textContent = s.ini;
+  av.style.background = s.color;
+  av.style.color = s.tc;
+
+  // Clear results
+  document.getElementById('resultsWrap').style.display = 'none';
+  document.getElementById('arcCard').style.display = 'none';
+  document.getElementById('arcIdentityWrap').style.display = 'none';
+  document.getElementById('subText').value = '';
+  document.getElementById('wordCount').textContent = '0 words';
+  document.getElementById('panelDeviation').classList.remove('show');
+  const ic = document.getElementById('interpCard');
+  ic.classList.remove('show'); ic.style.display='none';
+  ['mcGloss1','mcGloss2','mcGloss3'].forEach(id=>{
+    const g=document.getElementById(id); if(g){g.textContent='';g.classList.remove('show');}
+  });
+
+  // Load real student data from API
+  const data = await API.getStudent(s.id);
+  activeApiData = data;
+
+  if (data) {
+    const pct = Math.round(data.purity * 100);
+    document.getElementById('panelMeta').textContent =
+      `${data.authenticated_count} verified baselines · purity ${(data.purity).toFixed(2)}`;
+    updatePanelBars(data.baseline_vector);
+  } else {
+    document.getElementById('panelMeta').textContent = 'No profile yet — add baselines to begin';
+  }
+
+  renderHistory();
+  renderBaselines();
+}
+
+/* ── Update right-panel trait bars from baseline_vector ── */
+function updatePanelBars(bv) {
+  if (!bv) return;
+  const keys = [
+    ['theological_register_score', 'ptb1', '#2563EB'],
+    ['source_integration_style',   'ptb2', '#D97706'],
+    ['epistemic_certainty_ratio',  'ptb3', '#2563EB'],
+    ['sentence_length_variance',   'ptb4', '#059669'],
+  ];
+  keys.forEach(([k, id, col]) => {
+    const bar = document.getElementById(id);
+    if (bar && bv[k] !== undefined) {
+      bar.style.background = col;
+      setTimeout(() => { bar.style.width = Math.round(bv[k] * 100) + '%'; }, 300);
+    }
+  });
+}
+
+/* ── Word count ── */
+function onTextInput() {
+  const txt = document.getElementById('subText').value.trim();
+  const w = txt ? txt.split(/\s+/).length : 0;
+  document.getElementById('wordCount').textContent = `${w} word${w!==1?'s':''}`;
+}
+function loadSample() {
+  document.getElementById('subText').value = SAMPLE;
+  onTextInput();
+}
+
+/* ── Tab switch ── */
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>{
+    b.classList.toggle('active',['score','history','baselines'][i]===name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+}
+
+/* ── History — reads student.html's localStorage portfolio ── */
+function renderHistory() {
+  const el = document.getElementById('tab-history');
+  el.innerHTML = '';
+  const colors = {no_action:'var(--green)',monitor:'var(--blue)',schedule_conversation:'var(--amber)',escalate:'var(--red)'};
+  const labels = {no_action:'No Action',monitor:'Monitor',schedule_conversation:'Discuss',escalate:'Escalate'};
+
+  // Read portfolio saved by student.html
+  let entries = [];
+  try {
+    const raw = localStorage.getItem(`original_portfolio_${active.id}`);
+    if (raw) entries = JSON.parse(raw);
+  } catch(e) {}
+
+  if (entries.length === 0) {
+    el.innerHTML = '<div style="padding:28px;text-align:center;color:var(--text-muted);font-size:0.85rem">No scored submissions yet for this student.</div>';
+    return;
+  }
+
+  [...entries].reverse().forEach(h => {
+    const action = h.response?.recommendation?.action || 'no_action';
+    const score  = h.response?.authorship?.deviation_score ?? 0;
+    const date   = h.timestamp ? new Date(h.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+    const c = colors[action] || 'var(--text-muted)';
+    el.innerHTML += `<div class="hist-item">
+      <div class="hist-ring" style="color:${c};border-color:${c}">${score.toFixed(2)}</div>
+      <div><div class="hist-title">${h.assignment || 'Untitled Submission'}</div><div class="hist-meta">${date}</div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="hist-badge ${action}">${labels[action] || action}</div>
+        <button onclick="rescoreSubmission('${h.id || ''}')" style="font-size:11px;padding:2px 8px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:4px;cursor:pointer;color:#374151;">↻ Re-score</button>
+      </div>
+    </div>`;
+  });
+}
+
+async function rescoreSubmission(submissionId) {
+  if (!submissionId) {
+    console.warn('No submission ID provided for re-score');
+    return;
+  }
+  // To force a re-score, call the endpoint with ?force=true parameter
+  // The backend will recalculate the authorship and tension arc metrics
+  console.info('Re-scoring submission:', submissionId);
+  // Display a message indicating force re-score is available via API
+  const msg = document.createElement('div');
+  msg.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#2563EB;color:white;padding:12px 16px;border-radius:8px;font-size:13px;font-family:Inter;z-index:1000;';
+  msg.textContent = 'Use the score endpoint with ?force=true to force a re-score';
+  document.body.appendChild(msg);
+  setTimeout(() => msg.remove(), 3000);
+}
+
+/* ── Baselines — real data from API + drag-and-drop file uploader ── */
+let _fileQueue = []; // { file, name, text, wordCount, status, error }
+
+function renderBaselines() {
+  const el = document.getElementById('tab-baselines');
+  const samples = activeApiData?.samples || [];
+  const provLabels = { proctored:'Proctored', verified:'Verified', unverified:'Unverified' };
+  const provColors = { proctored:'var(--green)', verified:'var(--blue)', unverified:'var(--amber)' };
+
+  let html = '<div class="baseline-grid" id="bGrid">';
+  if (samples.length === 0) {
+    html += `<div style="grid-column:1/-1">
+      <div style="text-align:center;padding:32px 16px;color:var(--text-muted)">
+        <div style="font-size:2.5rem;margin-bottom:12px">📄</div>
+        <div style="font-weight:600;margin-bottom:6px">No baseline papers yet</div>
+        <div style="font-size:0.8rem">Drop PDF, DOCX, or TXT files above to build this student's voice profile</div>
+      </div>
+    </div>`;
+  }
+  samples.forEach((b, i) => {
+    const num = String(i+1).padStart(2,'0');
+    const label = provLabels[b.provenance] || b.provenance;
+    const col   = provColors[b.provenance] || 'var(--text-muted)';
+    const wt    = b.auth_weight !== undefined ? `weight ${b.auth_weight.toFixed(1)}` : '';
+    html += `<div class="base-card">
+      <div class="base-num">${num}</div>
+      <div class="base-title">${b.assignment || 'Baseline Sample'}</div>
+      <div class="base-date">${b.submitted_at || ''}</div>
+      <div class="base-words" style="color:${col};font-weight:600">${label} ${wt ? '· '+wt : ''}</div>
+    </div>`;
+  });
+  html += '</div>';
+
+  // Confidence strip
+  if (activeApiData) {
+    const purity = activeApiData.purity ?? 0;
+    const cnt = activeApiData.sample_count ?? 0;
+    const purityColor = purity > 0.7 ? 'var(--green)' : purity > 0.4 ? 'var(--amber)' : 'var(--red)';
+    html += `<div style="margin:12px 0 8px;display:flex;gap:16px;align-items:center">
+      <span style="font-size:0.76rem;color:var(--text-muted)">Baseline confidence</span>
+      <div style="flex:1;height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${Math.round(purity*100)}%;background:${purityColor};border-radius:3px;transition:width 0.4s"></div>
+      </div>
+      <span style="font-size:0.76rem;font-weight:600;color:${purityColor}">${(purity*100).toFixed(0)}% purity</span>
+      <span style="font-size:0.74rem;color:var(--text-dim)">${cnt} sample${cnt===1?'':'s'}</span>
+    </div>`;
+  }
+
+  // Drop zone
+  html += `
+  <div style="margin-top:12px">
+    <div class="drop-zone" id="blDropZone"
+         ondragover="event.preventDefault();this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="_onDrop(event)"
+         onclick="document.getElementById('blFileInput').click()">
+      <div class="drop-zone-icon">📂</div>
+      <div class="drop-zone-label">Drop PDF, DOCX or TXT files here</div>
+      <div class="drop-zone-sub">Or click to browse · Multiple files accepted</div>
+    </div>
+    <input type="file" id="blFileInput" multiple accept=".pdf,.docx,.txt" style="display:none" onchange="_onFilePick(event)">
+
+    <div class="file-queue" id="blFileQueue"></div>
+
+    <div id="blQueueControls" style="display:none;margin-top:8px">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+        <input type="text" id="blAssignment" placeholder="Assignment name (e.g. In-class Essay: Christology)"
+               style="flex:1;min-width:180px;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:0.83rem;background:var(--surface);color:var(--text)">
+        <select id="blProvenance" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+          <option value="proctored">Proctored (highest trust)</option>
+          <option value="verified" selected>Verified by professor</option>
+        </select>
+        <button onclick="submitAllFiles()" style="padding:9px 18px;background:var(--green-deep);color:var(--text-cream);border:none;border-radius:8px;font-family:Inter,sans-serif;font-weight:600;font-size:0.83rem;cursor:pointer;white-space:nowrap">Add All to Baseline</button>
+      </div>
+      <div class="baseline-progress" id="blProgress" style="display:none">
+        <div class="baseline-progress-fill" id="blProgressFill" style="width:0%"></div>
+      </div>
+      <div id="blStatus" style="font-size:0.78rem;color:var(--text-muted);margin-top:4px"></div>
+    </div>
+
+    <!-- Import from Canvas -->
+    <div style="margin-top:12px">
+      <button class="add-base-btn" onclick="toggleCanvasImport()" id="canvasImportBtn">📥 Import from Canvas</button>
+      <div id="canvasImportPanel" style="display:none;margin-top:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
+        <div style="font-size:0.8rem;font-weight:600;margin-bottom:10px;color:var(--text)">Canvas Submissions Import</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <input id="ciCourseId" placeholder="Canvas Course ID" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+          <input id="ciUserId" placeholder="Canvas User ID" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input id="ciToken" type="password" placeholder="Canvas API token (leave blank if set server-side)" style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+          <button onclick="listCanvasSubmissions()" style="padding:8px 14px;background:var(--green-deep);color:var(--text-cream);border:none;border-radius:7px;font-family:Inter,sans-serif;font-weight:600;font-size:0.82rem;cursor:pointer;white-space:nowrap">List Papers</button>
+        </div>
+        <div id="ciList" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px;gap:8px">
+          <button onclick="importSelectedCanvas()" id="ciImportBtn" style="display:none;padding:8px 16px;background:var(--flag-green);color:#fff;border:none;border-radius:7px;font-family:Inter,sans-serif;font-weight:600;font-size:0.82rem;cursor:pointer">Import Selected</button>
+        </div>
+        <div id="ciStatus" style="font-size:0.76rem;color:var(--text-muted);margin-top:4px"></div>
+      </div>
+    </div>
+
+    <!-- Paste fallback -->
+    <div style="margin-top:8px">
+      <button class="add-base-btn" onclick="toggleAddBaseline()" id="addBaseBtn">+ Paste text instead</button>
+      <div id="addBasePanel" style="display:none;margin-top:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
+        <textarea id="blPasteText" rows="4" placeholder="Paste authenticated text…"
+                  style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:0.83rem;resize:vertical;background:var(--surface);color:var(--text)"></textarea>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button onclick="submitPasted()" style="padding:8px 18px;background:var(--green-deep);color:var(--text-cream);border:none;border-radius:8px;font-family:Inter,sans-serif;font-weight:600;font-size:0.83rem;cursor:pointer">Add Baseline</button>
+        </div>
+        <div id="blPasteStatus" style="font-size:0.76rem;color:var(--text-muted);margin-top:6px"></div>
+      </div>
+    </div>
+  </div>`;
+
+  el.innerHTML = html;
+  _renderFileQueue();
+}
+
+function _renderFileQueue() {
+  const el = document.getElementById('blFileQueue');
+  const ctrl = document.getElementById('blQueueControls');
+  if (!el) return;
+  if (_fileQueue.length === 0) { el.innerHTML = ''; if(ctrl) ctrl.style.display='none'; return; }
+  if(ctrl) ctrl.style.display='block';
+  el.innerHTML = _fileQueue.map((f,i) => `
+    <div class="file-item">
+      <span class="file-item-name">📄 ${f.name}</span>
+      <span class="file-item-words">${f.wordCount ? f.wordCount+' words' : ''}</span>
+      <span class="file-item-status ${f.status}">${
+        f.status==='pending'?'Ready':f.status==='uploading'?'Adding…':f.status==='done'?'✓ Added':f.error||'Error'
+      }</span>
+      ${f.status==='pending'?`<button class="file-item-remove" onclick="_removeFile(${i})">✕</button>`:'<span></span>'}
+    </div>`).join('');
+}
+
+function _onDrop(event) {
+  event.preventDefault();
+  document.getElementById('blDropZone')?.classList.remove('drag-over');
+  const files = [...event.dataTransfer.files].filter(f => /\.(pdf|docx|txt)$/i.test(f.name));
+  _addFilesToQueue(files);
+}
+function _onFilePick(event) {
+  const files = [...event.target.files];
+  _addFilesToQueue(files);
+  event.target.value = '';
+}
+async function _addFilesToQueue(files) {
+  for (const file of files) {
+    if (_fileQueue.find(f => f.name === file.name)) continue;
+    const entry = { file, name: file.name, text: null, wordCount: null, status: 'pending', error: null };
+    _fileQueue.push(entry);
+    _renderFileQueue();
+    // Extract text immediately via upload endpoint
+    try {
+      const result = await API.uploadFile(active.id, file);
+      entry.text = result.text;
+      entry.wordCount = result.word_count;
+    } catch(e) {
+      entry.status = 'error';
+      entry.error = e.message;
+    }
+    _renderFileQueue();
+  }
+}
+function _removeFile(idx) {
+  _fileQueue.splice(idx, 1);
+  _renderFileQueue();
+  if (_fileQueue.length === 0) {
+    const ctrl = document.getElementById('blQueueControls');
+    if (ctrl) ctrl.style.display = 'none';
+  }
+}
+
+async function submitAllFiles() {
+  const assignment = (document.getElementById('blAssignment')?.value || '').trim();
+  const provenance = document.getElementById('blProvenance')?.value || 'verified';
+  const statusEl   = document.getElementById('blStatus');
+  const progressEl = document.getElementById('blProgress');
+  const fillEl     = document.getElementById('blProgressFill');
+
+  const pending = _fileQueue.filter(f => f.status === 'pending' && f.text);
+  if (pending.length === 0) {
+    if (statusEl) statusEl.textContent = 'No files ready — drop files above and wait for extraction.';
+    return;
+  }
+  if (progressEl) progressEl.style.display = 'block';
+  let done = 0;
+  for (const f of pending) {
+    f.status = 'uploading';
+    _renderFileQueue();
+    try {
+      await API.addBaseline(active.id, f.text, provenance, assignment || f.name.replace(/\.[^.]+$/,''));
+      f.status = 'done';
+    } catch(e) {
+      f.status = 'error';
+      f.error = e.message;
+    }
+    done++;
+    if (fillEl) fillEl.style.width = Math.round(done/pending.length*100)+'%';
+    _renderFileQueue();
+  }
+  if (statusEl) statusEl.textContent = `Added ${done} baseline sample${done!==1?'s':''}.`;
+  // Refresh student data
+  activeApiData = await API.getStudent(active.id);
+  if (activeApiData) {
+    document.getElementById('panelMeta').textContent =
+      `${activeApiData.authenticated_count} verified baselines · purity ${activeApiData.purity.toFixed(2)}`;
+    updatePanelBars(activeApiData.baseline_vector);
+  }
+  _fileQueue = _fileQueue.filter(f => f.status !== 'done');
+  setTimeout(() => renderBaselines(), 1200);
+}
+
+function toggleAddBaseline() {
+  addBaselineOpen = !addBaselineOpen;
+  const panel = document.getElementById('addBasePanel');
+  const btn   = document.getElementById('addBaseBtn');
+  if (panel) panel.style.display = addBaselineOpen ? 'block' : 'none';
+  if (btn)   btn.textContent = addBaselineOpen ? '− Cancel' : '+ Paste text instead';
+}
+
+async function submitPasted() {
+  const text       = (document.getElementById('blPasteText')?.value || '').trim();
+  const assignment = (document.getElementById('blAssignment')?.value || '').trim();
+  const provenance = document.getElementById('blProvenance')?.value || 'verified';
+  const status     = document.getElementById('blPasteStatus');
+
+  if (!text || text.split(' ').length < 50) {
+    if (status) status.textContent = 'Please paste at least 50 words of text.';
+    return;
+  }
+  if (status) status.textContent = 'Submitting…';
+  try {
+    await API.addBaseline(active.id, text, provenance, assignment);
+    activeApiData = await API.getStudent(active.id);
+    addBaselineOpen = false;
+    renderBaselines();
+    if (activeApiData) {
+      document.getElementById('panelMeta').textContent =
+        `${activeApiData.authenticated_count} verified baselines · purity ${activeApiData.purity.toFixed(2)}`;
+      updatePanelBars(activeApiData.baseline_vector);
+    }
+  } catch(e) {
+    if (status) status.textContent = 'Error: ' + e.message;
+  }
+}
+
+/* Keep backward compat */
+function submitBaseline() { submitPasted(); }
+
+/* ── Canvas import panel ── */
+let _canvasImportOpen = false;
+let _canvasSubs = []; // cached list from /list-canvas-submissions
+
+function toggleCanvasImport() {
+  _canvasImportOpen = !_canvasImportOpen;
+  const panel = document.getElementById('canvasImportPanel');
+  const btn   = document.getElementById('canvasImportBtn');
+  if (panel) panel.style.display = _canvasImportOpen ? 'block' : 'none';
+  if (btn)   btn.textContent = _canvasImportOpen ? '× Cancel Canvas Import' : '📥 Import from Canvas';
+}
+
+async function listCanvasSubmissions() {
+  const courseId = (document.getElementById('ciCourseId')?.value || '').trim();
+  const userId   = (document.getElementById('ciUserId')?.value || '').trim();
+  const token    = (document.getElementById('ciToken')?.value || '').trim();
+  const status   = document.getElementById('ciStatus');
+  const listEl   = document.getElementById('ciList');
+
+  if (!courseId || !userId) {
+    if (status) status.textContent = 'Enter Canvas Course ID and User ID.';
+    return;
+  }
+  if (status) status.textContent = 'Fetching submissions from Canvas…';
+  if (listEl) listEl.innerHTML = '';
+
+  try {
+    const body = { canvas_course_id: courseId, canvas_user_id: userId };
+    if (token) body.access_token = token;
+
+    const r = await fetch(`${API_BASE}/canvas/baseline/${encodeURIComponent(active.id)}/list-canvas-submissions`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({}));
+      if (status) status.textContent = 'Error: ' + (e.detail || r.statusText);
+      return;
+    }
+    const data = await r.json();
+    _canvasSubs = data.submissions || [];
+
+    if (_canvasSubs.length === 0) {
+      if (status) status.textContent = 'No eligible submissions found (min 50 words required).';
+      return;
+    }
+
+    if (listEl) {
+      listEl.innerHTML = _canvasSubs.map((s, i) => `
+        <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:7px;cursor:pointer;font-size:0.81rem">
+          <input type="checkbox" value="${s.canvas_submission_id}" ${s.already_imported ? 'disabled checked' : ''}
+                 style="margin-top:2px;flex-shrink:0">
+          <span>
+            <strong>${s.assignment_name}</strong>
+            <span style="color:var(--text-muted);margin-left:6px">${s.word_count} words</span>
+            ${s.already_imported ? '<span style="color:var(--green);margin-left:6px">✓ already imported</span>' : ''}
+            <br><span style="color:var(--text-dim)">${s.preview}</span>
+          </span>
+        </label>`).join('');
+    }
+    const importBtn = document.getElementById('ciImportBtn');
+    if (importBtn) importBtn.style.display = 'inline-block';
+    if (status) status.textContent = `${_canvasSubs.length} submission${_canvasSubs.length !== 1 ? 's' : ''} found.`;
+  } catch(e) {
+    if (status) status.textContent = 'Network error: ' + e.message;
+  }
+}
+
+async function importSelectedCanvas() {
+  const courseId = (document.getElementById('ciCourseId')?.value || '').trim();
+  const userId   = (document.getElementById('ciUserId')?.value || '').trim();
+  const token    = (document.getElementById('ciToken')?.value || '').trim();
+  const status   = document.getElementById('ciStatus');
+  const listEl   = document.getElementById('ciList');
+
+  const checked = [...(listEl?.querySelectorAll('input[type=checkbox]:checked:not(:disabled)') || [])]
+    .map(cb => cb.value);
+
+  if (checked.length === 0) {
+    if (status) status.textContent = 'Select at least one submission to import.';
+    return;
+  }
+  if (status) status.textContent = `Importing ${checked.length} submission${checked.length !== 1 ? 's' : ''}…`;
+
+  try {
+    const body = {
+      canvas_course_id: courseId,
+      canvas_user_id: userId,
+      submission_ids: checked,
+    };
+    if (token) body.access_token = token;
+
+    const r = await fetch(`${API_BASE}/canvas/baseline/${encodeURIComponent(active.id)}/import-baseline`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({}));
+      if (status) status.textContent = 'Error: ' + (e.detail || r.statusText);
+      return;
+    }
+    const result = await r.json();
+    if (status) status.textContent = `✓ Imported ${result.imported}, skipped ${result.skipped}${result.errors.length ? ', ' + result.errors.length + ' errors' : ''}.`;
+
+    // Refresh student data and baseline panel
+    activeApiData = await API.getStudent(active.id);
+    if (activeApiData) {
+      document.getElementById('panelMeta').textContent =
+        `${activeApiData.authenticated_count} verified baselines · purity ${activeApiData.purity.toFixed(2)}`;
+      updatePanelBars(activeApiData.baseline_vector);
+    }
+    setTimeout(() => renderBaselines(), 1000);
+  } catch(e) {
+    if (status) status.textContent = 'Network error: ' + e.message;
+  }
+}
+
+/* ── Analysis — real API call ── */
+async function runAnalysis() {
+  const text = document.getElementById('subText').value.trim();
+  if (text.length < 30) { alert('Paste text or click "Load sample"'); return; }
+
+  if (!activeApiData || activeApiData.authenticated_count === 0) {
+    alert(`${active.name} has no verified baseline samples yet.\n\nAsk the student to add baselines from their writing dashboard, or add one yourself via the Baselines tab.`);
+    return;
+  }
+
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('loadingCard').classList.add('show');
+  document.getElementById('resultsWrap').style.display = 'none';
+
+  // Animate steps while API runs
+  const steps = ['ls1','ls2','ls3','ls4','ls5','ls6'];
+  let stepIdx = 0;
+  const stepTimer = setInterval(() => {
+    if (stepIdx < steps.length) document.getElementById(steps[stepIdx++])?.classList.add('done');
+  }, 350);
+
+  let resp;
+  try {
+    resp = await API.score(active.id, text, '');
+  } catch(e) {
+    clearInterval(stepTimer);
+    document.getElementById('loadingCard').classList.remove('show');
+    steps.forEach(id => document.getElementById(id)?.classList.remove('done'));
+    document.getElementById('analyzeBtn').disabled = false;
+    alert('Scoring error: ' + e.message);
+    return;
+  }
+
+  clearInterval(stepTimer);
+  steps.forEach(id => document.getElementById(id)?.classList.add('done'));
+  await delay(300);
+
+  document.getElementById('loadingCard').classList.remove('show');
+  steps.forEach(id => document.getElementById(id)?.classList.remove('done'));
+  document.getElementById('analyzeBtn').disabled = false;
+
+  renderResults(apiResponseToResult(resp));
+  setTimeout(() => renderTensionArc(resp.tension_arc), 700);
+}
+function delay(ms){return new Promise(r=>setTimeout(r,ms))}
+
+function showToast(msg, type='info', duration=4000) {
+  const c = document.getElementById('toastContainer');
+  if (!c) return;
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  requestAnimationFrame(() => { requestAnimationFrame(() => t.classList.add('show')); });
+  setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => t.remove(), 300);
+  }, duration);
+}
+
+/* ── Metric gloss helpers ── */
+function getDeviationGloss(v) {
+  if (v >= 0.7) return 'significant divergence from prior writing';
+  if (v >= 0.45) return 'moderate divergence from prior writing';
+  return 'close match to prior writing';
+}
+function getProbGloss(v) {
+  if (v < 0.4) return 'low match to authenticated baseline voice';
+  if (v < 0.65) return 'partial match to authenticated baseline voice';
+  return 'strong match to authenticated baseline voice';
+}
+function getTrajGloss(v) {
+  if (v < 0.4) return 'does not follow their expected growth arc';
+  if (v < 0.6) return 'partially follows their usual growth pattern';
+  return 'follows their typical writing development';
+}
+
+/* ── Interpretation builder ── */
+function buildInterpretation(r, student) {
+  const name = student ? student.name.split(' ')[0] : 'This student';
+  const tierPlain = {
+    'Surface Stylometrics':   'Sentence length and vocabulary range',
+    'Discourse Analysis':     'Argument flow and transitions',
+    'Rhetorical Register':    'Theological tone and formality',
+    'Char & Punctuation':     'Punctuation habits and rhythm',
+    'POS & Syntax':           'Grammar patterns and sentence structure',
+    'Idiosyncratic Patterns': 'Unique phrases and word choices',
+    'Voice Authenticity':      'Uncharacteristic writing patterns',
+  };
+  const actionNextStep = {
+    no_action:             'No action required — submission appears consistent with baseline.',
+    monitor:               'Continue monitoring future submissions for further divergence.',
+    schedule_conversation: 'Schedule a brief conversation with the student to discuss their writing process.',
+    escalate:              'Submission needs review — recommend scheduling an academic integrity conversation.',
+  };
+
+  // Severity
+  let severity = 'green';
+  if (r.deviation >= 0.45 || r.prob < 0.65) severity = 'amber';
+  if (r.deviation >= 0.65 || r.prob < 0.4)  severity = 'red';
+
+  // Headline — framed as voice matching, not AI detection
+  let headline;
+  if (r.deviation >= 0.65 && r.prob < 0.4) {
+    headline = `This submission does not strongly match ${name}'s authenticated writing voice.`;
+  } else if (r.deviation >= 0.45 || r.prob < 0.65) {
+    headline = `This submission partially matches ${name}'s voice but shows notable differences from their baseline.`;
+  } else {
+    headline = `This submission is consistent with ${name}'s authenticated writing voice.`;
+  }
+
+  // Bullets: sorted tiers, pick worst two
+  const sorted = [...r.tiers].sort((a,b)=>b.s-a.s);
+  const worst  = sorted[0];
+  const second = sorted[1];
+  const bullets = [];
+  if (worst) {
+    bullets.push(`${tierPlain[worst.name] || worst.name} shows the largest shift from baseline (score ${worst.s.toFixed(2)}).`);
+  }
+  if (second && Math.abs(second.s - worst.s) > 0.05) {
+    bullets.push(`${tierPlain[second.name] || second.name} also differs notably from their prior work.`);
+  }
+  if (r.prob < 0.4) {
+    bullets.push(`The writing style does not closely match ${name}'s authenticated baseline submissions.`);
+  }
+  if (r.traj < 0.5) {
+    bullets.push(`The submission does not follow ${name}'s typical writing development arc.`);
+  }
+
+  return {
+    severity,
+    headline,
+    bullets,
+    nextStep: actionNextStep[r.action] || 'Review manually.',
+  };
+}
+
+/* ── Render results ── */
+function renderResults(r) {
+  const wrap = document.getElementById('resultsWrap');
+  wrap.style.display = 'flex';
+
+  // Sparklines — prior 3 points fixed (baseline history), final point = computed score
+  document.getElementById('sparkline1').innerHTML = sparkSVG(
+    [[0,0.22],[1,0.19],[2,0.38],[3,r.deviation]],
+    r.deviation>0.55?'#D97706':'#059669');
+  document.getElementById('sparkline2').innerHTML = sparkSVG(
+    [[0,0.85],[1,0.88],[2,0.72],[3,r.prob]],
+    r.prob < 0.4 ? '#DC2626' : r.prob < 0.65 ? '#D97706' : '#059669');
+  document.getElementById('sparkline3').innerHTML = sparkSVG(
+    [[0,0.80],[1,0.75],[2,0.60],[3,r.traj]],
+    r.traj < 0.4 ? '#DC2626' : '#2563EB');
+
+  // Update metric values and colors dynamically
+  const devColor  = r.deviation >= 0.7 ? 'var(--red)' : r.deviation >= 0.45 ? 'var(--amber)' : 'var(--green)';
+  const probColor = r.prob <= 0.3 ? 'var(--red)' : r.prob <= 0.55 ? 'var(--amber)' : 'var(--green)';
+  const trajColor = r.traj <= 0.35 ? 'var(--red)' : r.traj <= 0.6 ? 'var(--blue)' : 'var(--green)';
+  document.getElementById('mcVal1').textContent = r.deviation.toFixed(2);
+  document.getElementById('mcVal1').style.color = devColor;
+  document.getElementById('mcVal2').textContent = Math.round(r.prob * 100) + '%';
+  document.getElementById('mcVal2').style.color = probColor;
+  document.getElementById('mcVal3').textContent = Math.round(r.traj * 100) + '%';
+  document.getElementById('mcVal3').style.color = trajColor;
+
+  // Catastrophic drift alert
+  const raw = r._raw || {};
+  const driftAlert = document.getElementById('driftAlert');
+  const driftBody  = document.getElementById('driftAlertBody');
+  if (driftAlert) {
+    const hasDrift = raw.catastrophic_drift === true;
+    driftAlert.style.display = hasDrift ? 'block' : 'none';
+    if (hasDrift && driftBody) {
+      const rmsZ = (raw.catastrophic_drift_rms_z || 0).toFixed(1);
+      driftBody.textContent = `This submission is ${rmsZ} standard deviations from the student's established voice across all ${Object.keys(raw.feature_vector || {}).length} features. Immediate review is recommended regardless of the individual deviation score.`;
+    }
+  }
+
+  // ── PR 10: Adaptive context panel ────────────────────────────────────────
+  // The `context_manifest` and `report` fields are populated by the API
+  // when CONTEXT_MANIFEST_ENABLED=1. When absent, we hide the panel
+  // entirely — preserves Phase 1 visual identity.
+  window._PR10_currentSubmissionId = raw.submission_id || null;
+  window._PR10_currentRaw = raw;
+  renderContextPanel(raw);
+  // Hide blend panel until user clicks "Run blend check"
+  const blendCard = document.getElementById('blendCard');
+  if (blendCard) blendCard.style.display = 'none';
+
+  // Update recommendation badge
+  const actionLabels = {no_action:'No Action',monitor:'Monitor',schedule_conversation:'Needs Review',escalate:'Needs Review — Escalate'};
+  const badge = document.getElementById('recBadge');
+  badge.textContent = actionLabels[r.action] || r.action;
+  badge.className = `rec-badge ${r.action}`;
+
+  // Animate metric cards
+  ['mc1','mc2','mc3'].forEach(id=>{
+    setTimeout(()=>document.getElementById(id).classList.add('show'),50);
+  });
+
+  // Recommendation
+  setTimeout(()=>document.getElementById('recCard').classList.add('show'),250);
+
+  // Tiers
+  setTimeout(()=>{
+    document.getElementById('tiersCard').classList.add('show');
+    const el = document.getElementById('tierRows');
+    el.innerHTML = '';
+    r.tiers.forEach((t,i)=>{
+      el.innerHTML+=`<div class="tier-row">
+        <span class="tier-name">${t.name}${t.sub?`<span class="tier-sub">${t.sub}</span>`:''}</span>
+        <div class="tier-track"><div class="tier-fill" id="tf${i}" style="background:${t.c}"></div></div>
+        <span class="tier-val" style="color:${t.c}">${t.s.toFixed(2)}</span>
+      </div>`;
+      setTimeout(()=>{
+        const b=document.getElementById('tf'+i);
+        if(b) b.style.width=(t.s*100)+'%';
+      },500+i*60);
+    });
+  },400);
+
+  // Features
+  setTimeout(()=>{
+    document.getElementById('featsCard').classList.add('show');
+    const el = document.getElementById('featRows');
+    el.innerHTML='';
+    r.feats.forEach((f,i)=>{
+      el.innerHTML+=`<div class="feat-row" id="fr${i}">
+        <span class="feat-tier">${f.tier}</span>
+        <span class="feat-name">${f.name}</span>
+        <span class="feat-dir">${f.dir}</span>
+        <span class="feat-delta" style="color:${f.c}">+${f.dev.toFixed(2)}</span>
+      </div>`;
+      setTimeout(()=>{
+        const row=document.getElementById('fr'+i);
+        if(row) row.classList.add('show');
+      },900+i*90);
+    });
+  },600);
+
+  // Metric glosses
+  setTimeout(()=>{
+    const glosses = [
+      { id:'mcGloss1', text: getDeviationGloss(r.deviation) },
+      { id:'mcGloss2', text: getProbGloss(r.prob) },
+      { id:'mcGloss3', text: getTrajGloss(r.traj) },
+    ];
+    glosses.forEach(({id,text})=>{
+      const el=document.getElementById(id);
+      if(el){ el.textContent=text; el.classList.add('show'); }
+    });
+  }, 600);
+
+  // Interpretation box
+  setTimeout(()=>{
+    const interp = buildInterpretation(r, active);
+    const card = document.getElementById('interpCard');
+    card.className = `interp-card severity-${interp.severity}`;
+    document.getElementById('interpHeadline').textContent = interp.headline;
+    const ul = document.getElementById('interpBullets');
+    ul.innerHTML = interp.bullets.map(b=>`<li>${b}</li>`).join('');
+    document.getElementById('interpNext').innerHTML = `<span>💡</span><span><strong>Recommended next step:</strong> ${interp.nextStep}</span>`;
+    card.style.display = 'block';
+    requestAnimationFrame(()=>card.classList.add('show'));
+  }, 200);
+
+  // Panel
+  const pd = document.getElementById('panelDeviation');
+  pd.classList.add('show');
+  const actionColors={no_action:'var(--green)',monitor:'var(--blue)',schedule_conversation:'var(--amber)',escalate:'var(--red)'};
+  document.getElementById('pdScore').textContent = r.deviation.toFixed(2);
+  document.getElementById('pdScore').style.color = actionColors[r.action];
+  document.getElementById('pdAction').textContent = actionLabels[r.action];
+  document.getElementById('pdAction').style.color = actionColors[r.action];
+
+  // Show compare toggle and prepare data for it
+  const toggleBtn = document.getElementById('compareToggleBtn');
+  if (toggleBtn) { toggleBtn.style.display = 'flex'; toggleBtn._scoreData = r._raw; }
+  // Hide compare panel on new score
+  const comparePanel = document.getElementById('comparePanel');
+  if (comparePanel) { comparePanel.classList.remove('show'); toggleBtn?.classList.remove('active'); }
+}
+
+/* ── Compare panel ── */
+let _radarChartB = null, _radarChartS = null;
+const RADAR_FEATURES = [
+  'type_token_ratio','avg_sentence_len','hapax_ratio',
+  'function_word_ratio','semicolons_per_100','parentheses_per_100',
+  'hedge_ratio','theological_density','causal_ratio',
+  'passive_ratio','modal_density','structural_centrist_penalty',
+];
+const RADAR_LABELS = [
+  'Vocab Variety','Sent. Length','Hapax',
+  'Function Words','Semicolons','Parentheses',
+  'Hedging','Theol. Density','Causality',
+  'Passive Voice','Modality','Argument Spread',
+];
+
+function toggleCompare() {
+  const panel = document.getElementById('comparePanel');
+  const btn   = document.getElementById('compareToggleBtn');
+  if (!panel) return;
+  const showing = panel.classList.contains('show');
+  if (showing) { panel.classList.remove('show'); btn?.classList.remove('active'); return; }
+  panel.classList.add('show');
+  btn?.classList.add('active');
+  const raw = btn?._scoreData;
+  if (raw) renderCompare(raw);
+}
+
+function renderCompare(raw) {
+  const fv = raw?.feature_vector || {};
+  const bv = raw?.baseline_vector || {};
+  const destructive = raw?.interference?.destructive_features || [];
+
+  const bData = RADAR_FEATURES.map(k => typeof bv[k] === 'number' ? bv[k] : 0.5);
+  const sData = RADAR_FEATURES.map(k => typeof fv[k] === 'number' ? fv[k] : 0.5);
+
+  const chartCfg = (data, color) => ({
+    type: 'radar',
+    data: {
+      labels: RADAR_LABELS,
+      datasets: [{ data, backgroundColor: color+'33', borderColor: color,
+        borderWidth: 2, pointBackgroundColor: color, pointRadius: 4 }],
+    },
+    options: {
+      responsive: false,
+      plugins: { legend: { display: false } },
+      scales: { r: {
+        min: 0, max: 1, ticks: { display: false },
+        grid: { color: 'rgba(0,0,0,0.1)' },
+        pointLabels: { font: { size: 11 }, color: '#6B7280' },
+      }},
+    },
+  });
+
+  const ctxB = document.getElementById('radarBaseline');
+  const ctxS = document.getElementById('radarSubmission');
+  if (!ctxB || !ctxS) return;
+  if (_radarChartB) _radarChartB.destroy();
+  if (_radarChartS) _radarChartS.destroy();
+  _radarChartB = new Chart(ctxB, chartCfg(bData, '#2563EB'));
+  _radarChartS = new Chart(ctxS, chartCfg(sData, '#DC2626'));
+
+  // Divergent feature table
+  const el = document.getElementById('compareDivergent');
+  if (!el) return;
+  const diffs = RADAR_FEATURES.map((k, i) => ({
+    label: RADAR_LABELS[i], key: k,
+    base: typeof bv[k]==='number' ? bv[k] : 0.5,
+    sub:  typeof fv[k]==='number' ? fv[k] : 0.5,
+  })).sort((a,b) => Math.abs(b.sub-b.base) - Math.abs(a.sub-a.base)).slice(0, 5);
+
+  el.innerHTML = `<div class="compare-div-label">Largest divergences</div>` +
+    diffs.map(d => {
+      const diff = d.sub - d.base;
+      const isDestructive = destructive.some(f => f.feature === d.key);
+      const flagged = isDestructive ? ' style="color:var(--red);font-weight:600"' : '';
+      return `<div class="compare-div-row">
+        <span${flagged}>${d.label}${isDestructive?' ⚠':''}:</span>
+        <div>
+          <div class="compare-div-bar-bg"><div class="compare-div-baseline" style="width:${Math.round(d.base*100)}%"></div></div>
+          <div class="compare-div-bar-bg" style="margin-top:2px"><div class="compare-div-submission" style="width:${Math.round(d.sub*100)}%"></div></div>
+        </div>
+        <span style="font-size:0.74rem;color:var(--text-muted)">${(d.base*100).toFixed(0)}%</span>
+        <span style="font-size:0.74rem;color:${diff>0?'var(--red)':'var(--blue)'}">${diff>0?'+':''}${(d.sub*100).toFixed(0)}%</span>
+      </div>`;
+    }).join('');
+}
+
+/* ── Add student inline ── */
+function addStudentInline() {
+  const name = prompt('Student full name:');
+  if (!name || !name.trim()) return;
+  const n = name.trim();
+  const code = (localStorage.getItem('original_roster')
+    ? JSON.parse(localStorage.getItem('original_roster')).school?.code
+    : null) || 'demo';
+  const parts = n.toLowerCase().replace(/[^a-z\s]/g,'').trim().split(/\s+/);
+  const last  = parts[parts.length-1] || 'student';
+  const first = parts[0]?.[0] || 'x';
+  const id    = `${code}_${last}_${first}`;
+  const ini   = n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const [bg, tc] = AVATAR_COLORS[STUDENTS.length % AVATAR_COLORS.length];
+  const newS = { id, name: n, ini, color: bg, tc, dot: '#6B7280', baselines: 0, status: 'unknown' };
+
+  // Update roster in localStorage
+  try {
+    const raw = localStorage.getItem('original_roster');
+    if (raw) {
+      const data = JSON.parse(raw);
+      data.students = [...(data.students || []), { id, name: n, color: bg }];
+      localStorage.setItem('original_roster', JSON.stringify(data));
+    }
+  } catch(e) {}
+
+  STUDENTS.push(newS);
+  renderStudents();
+  selectStudent(newS);
+}
+
+/* ── Init ── */
+window.addEventListener('DOMContentLoaded', () => {
+  renderStudents();
+  // Select first student and load their real data
+  if (STUDENTS.length > 0) selectStudent(STUDENTS[0]);
+});
+
+/* ════════════════════════════════════════════════════════
+   Import Papers Drawer — three tabs:
+     1. Upload Files  → POST /students/{id}/baseline/upload-batch
+     2. From Canvas   → existing /canvas/baseline endpoints
+     3. Turnitin CSV  → POST /import/courses/{id}/turnitin-csv
+   ════════════════════════════════════════════════════════ */
+
+let _importDrawerOpen = false;
+let _importActiveTab = 'files';
+let _importBatchQueue = []; // {file, name, status, error}
+
+function openImportDrawer() {
+  _importDrawerOpen = true;
+  const overlay = document.getElementById('importOverlay');
+  if (overlay) overlay.classList.add('show');
+  // Update subtitle with selected student name
+  const sub = document.getElementById('importDrawerSub');
+  if (sub) {
+    const studentName = active ? (active.name || active.id) : null;
+    sub.textContent = studentName
+      ? `Bulk-import past papers for ${studentName}`
+      : 'Bulk-import past student papers as verified baselines';
+  }
+  switchImportTab(_importActiveTab);
+}
+
+function closeImportDrawer() {
+  _importDrawerOpen = false;
+  const overlay = document.getElementById('importOverlay');
+  if (overlay) overlay.classList.remove('show');
+  _importBatchQueue = [];
+  _renderImportQueue();
+}
+
+function switchImportTab(tab) {
+  _importActiveTab = tab;
+  document.querySelectorAll('.import-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.import-tab-panel').forEach(p => p.classList.remove('active'));
+  const btn = document.getElementById('importTab_' + tab);
+  const panel = document.getElementById('importPanel_' + tab);
+  if (btn) btn.classList.add('active');
+  if (panel) panel.classList.add('active');
+}
+
+/* ── Tab 1: Batch File Upload ── */
+function _onImportDrop(event) {
+  event.preventDefault();
+  document.getElementById('importDropZone')?.classList.remove('drag-over');
+  const files = [...event.dataTransfer.files].filter(f => /\.(pdf|docx|txt)$/i.test(f.name));
+  _addImportFiles(files);
+}
+function _onImportPick(event) {
+  _addImportFiles([...event.target.files]);
+  event.target.value = '';
+}
+function _addImportFiles(files) {
+  for (const f of files) {
+    if (_importBatchQueue.find(q => q.name === f.name)) continue;
+    _importBatchQueue.push({ file: f, name: f.name, status: 'pending', error: null });
+  }
+  _renderImportQueue();
+}
+function _removeImportFile(i) {
+  _importBatchQueue.splice(i, 1);
+  _renderImportQueue();
+}
+function _renderImportQueue() {
+  const el = document.getElementById('importBatchList');
+  const ctrl = document.getElementById('importBatchControls');
+  if (!el) return;
+  if (_importBatchQueue.length === 0) {
+    el.innerHTML = '';
+    if (ctrl) ctrl.style.display = 'none';
+    return;
+  }
+  if (ctrl) ctrl.style.display = 'block';
+  el.innerHTML = _importBatchQueue.map((f, i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;font-size:0.8rem">
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 ${f.name}</span>
+      <span style="font-size:0.76rem;color:${f.status==='done'?'var(--green)':f.status==='error'?'var(--red)':'var(--text-muted)'}">
+        ${f.status==='pending'?'Ready':f.status==='uploading'?'Uploading…':f.status==='done'?'✓ Imported':f.error||'Error'}
+      </span>
+      ${f.status==='pending'?`<button onclick="_removeImportFile(${i})" style="border:none;background:none;cursor:pointer;color:var(--text-dim);font-size:0.85rem">✕</button>`:''}
+    </div>`).join('');
+}
+
+async function runBatchUpload() {
+  if (!active) {
+    alert('Select a student first.');
+    return;
+  }
+  const pending = _importBatchQueue.filter(f => f.status === 'pending');
+  if (pending.length === 0) {
+    document.getElementById('importBatchStatus').textContent = 'No files to upload.';
+    return;
+  }
+  const assignment = (document.getElementById('importBatchAssignment')?.value || '').trim();
+  const provenance = document.getElementById('importBatchProvenance')?.value || 'verified';
+  const statusEl  = document.getElementById('importBatchStatus');
+  const fillEl    = document.getElementById('importBatchFill');
+  const progEl    = document.getElementById('importBatchProgress');
+
+  if (progEl) progEl.style.display = 'block';
+  if (statusEl) statusEl.textContent = `Uploading ${pending.length} file${pending.length!==1?'s':''}…`;
+
+  // Mark all as uploading
+  pending.forEach(f => { f.status = 'uploading'; });
+  _renderImportQueue();
+
+  // Build FormData for batch endpoint
+  const fd = new FormData();
+  pending.forEach(f => fd.append('files', f.file));
+  fd.append('provenance', provenance);
+  if (assignment) fd.append('assignment', assignment);
+
+  try {
+    const r = await fetch(`${API_BASE}/students/${encodeURIComponent(active.id)}/baseline/upload-batch`, {
+      method: 'POST',
+      body: fd,
+    });
+    const result = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      pending.forEach(f => { f.status = 'error'; f.error = result.detail || r.statusText; });
+      _renderImportQueue();
+      if (statusEl) statusEl.textContent = 'Upload failed: ' + (result.detail || r.statusText);
+      return;
+    }
+    // Mark done / error from server response
+    pending.forEach((f, i) => {
+      const serverErr = (result.errors || []).find(e => e.startsWith(f.name));
+      f.status = serverErr ? 'error' : 'done';
+      if (serverErr) f.error = serverErr.replace(f.name + ': ', '');
+    });
+    if (fillEl) fillEl.style.width = '100%';
+    _renderImportQueue();
+    const msg = `✓ Imported ${result.imported}, skipped ${result.skipped_duplicates} duplicate${result.skipped_duplicates!==1?'s':''}` +
+                (result.errors?.length ? `, ${result.errors.length} error${result.errors.length!==1?'s':''}` : '') + '.';
+    if (statusEl) statusEl.textContent = msg;
+    // Refresh student panel
+    activeApiData = await API.getStudent(active.id);
+    if (activeApiData) {
+      document.getElementById('panelMeta').textContent =
+        `${activeApiData.authenticated_count} verified baselines · purity ${activeApiData.purity.toFixed(2)}`;
+      updatePanelBars(activeApiData.baseline_vector);
+    }
+    renderBaselines();
+    _importBatchQueue = _importBatchQueue.filter(f => f.status !== 'done');
+    setTimeout(_renderImportQueue, 800);
+  } catch(e) {
+    pending.forEach(f => { f.status = 'error'; f.error = e.message; });
+    _renderImportQueue();
+    if (statusEl) statusEl.textContent = 'Network error: ' + e.message;
+  }
+}
+
+/* ── Tab 3: Turnitin CSV Import ── */
+async function runTurnitinCsvImport() {
+  const courseId = (document.getElementById('ttCourseId')?.value || '').trim();
+  const statusEl = document.getElementById('ttStatus');
+  const resultEl = document.getElementById('ttResult');
+  const fileInput = document.getElementById('ttCsvFile');
+
+  if (!courseId) {
+    if (statusEl) statusEl.textContent = 'Enter the course ID first.';
+    return;
+  }
+  if (!fileInput?.files?.length) {
+    if (statusEl) statusEl.textContent = 'Select a Turnitin CSV file first.';
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append('file', fileInput.files[0]);
+  if (statusEl) statusEl.textContent = 'Uploading CSV…';
+  if (resultEl) resultEl.style.display = 'none';
+
+  try {
+    const r = await fetch(`${API_BASE}/import/courses/${encodeURIComponent(courseId)}/turnitin-csv`, {
+      method: 'POST',
+      body: fd,
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      if (statusEl) statusEl.textContent = 'Error: ' + (data.detail || r.statusText);
+      return;
+    }
+    const lines = [
+      `✓ Processed ${data.total_rows} row${data.total_rows!==1?'s':''}`,
+      `${data.matched_students} student${data.matched_students!==1?'s':''} matched · ${data.created_students} new student${data.created_students!==1?'s':''} created`,
+      `${data.flagged_submissions} submission stub${data.flagged_submissions!==1?'s':''} created — ready for file upload`,
+      data.unmatched_rows ? `${data.unmatched_rows} row${data.unmatched_rows!==1?'s':''} could not be matched` : '',
+      data.errors?.length ? `${data.errors.length} error${data.errors.length!==1?'s':''}: ${data.errors.slice(0,3).join('; ')}` : '',
+    ].filter(Boolean).join('\n');
+    if (statusEl) statusEl.textContent = '';
+    if (resultEl) {
+      resultEl.style.display = 'block';
+      resultEl.className = 'import-result' + (data.errors?.length ? ' error' : '');
+      resultEl.textContent = lines;
+    }
+    renderStudents();
+  } catch(e) {
+    if (statusEl) statusEl.textContent = 'Network error: ' + e.message;
+  }
+}
+</script>
+
+<!-- ── Import Papers Drawer ── -->
+<div class="import-overlay" id="importOverlay" onclick="if(event.target===this)closeImportDrawer()">
+  <div class="import-drawer">
+    <div class="import-drawer-header">
+      <div>
+        <div class="import-drawer-title">📥 Import Papers</div>
+        <div id="importDrawerSub" style="font-size:0.75rem;color:var(--text-muted);margin-top:2px">
+          Bulk-import past student papers as verified baselines
+        </div>
+      </div>
+      <button class="import-drawer-close" onclick="closeImportDrawer()">✕</button>
+    </div>
+
+    <div class="import-tabs">
+      <button class="import-tab active" id="importTab_files"   onclick="switchImportTab('files')">Upload Files</button>
+      <button class="import-tab"        id="importTab_canvas"  onclick="switchImportTab('canvas')">From Canvas</button>
+      <button class="import-tab"        id="importTab_turnitin"onclick="switchImportTab('turnitin')">Turnitin CSV</button>
+    </div>
+
+    <div class="import-tab-panels">
+
+      <!-- Tab 1: Upload Files -->
+      <div class="import-tab-panel active" id="importPanel_files">
+        <div class="import-section-label">Drag PDF, DOCX or TXT files for the selected student</div>
+        <div class="drop-zone" id="importDropZone"
+             ondragover="event.preventDefault();this.classList.add('drag-over')"
+             ondragleave="this.classList.remove('drag-over')"
+             ondrop="_onImportDrop(event)"
+             onclick="document.getElementById('importFileInput').click()">
+          <div class="drop-zone-icon">📂</div>
+          <div class="drop-zone-label">Drop files here or click to browse</div>
+          <div class="drop-zone-sub">PDF · DOCX · TXT · Multiple files accepted</div>
+        </div>
+        <input type="file" id="importFileInput" multiple accept=".pdf,.docx,.txt"
+               style="display:none" onchange="_onImportPick(event)">
+
+        <div id="importBatchList" style="margin-top:10px;display:flex;flex-direction:column;gap:5px"></div>
+
+        <div id="importBatchControls" style="display:none;margin-top:10px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+            <input id="importBatchAssignment" placeholder="Assignment name (optional)"
+                   style="flex:1;min-width:160px;padding:8px 12px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+            <select id="importBatchProvenance" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+              <option value="proctored">Proctored</option>
+              <option value="verified" selected>Verified by professor</option>
+            </select>
+            <button onclick="runBatchUpload()"
+                    style="padding:8px 18px;background:var(--green-deep);color:var(--text-cream);border:none;border-radius:8px;font-family:Inter,sans-serif;font-weight:600;font-size:0.83rem;cursor:pointer;white-space:nowrap">
+              Import All
+            </button>
+          </div>
+          <div style="height:6px;background:var(--cream-border);border-radius:3px;overflow:hidden;display:none" id="importBatchProgress">
+            <div id="importBatchFill" style="height:100%;background:var(--green-deep);border-radius:3px;width:0%;transition:width 0.3s"></div>
+          </div>
+          <div id="importBatchStatus" style="font-size:0.78rem;color:var(--text-muted);margin-top:6px"></div>
+        </div>
+
+        <div style="margin-top:16px;padding:12px 14px;background:var(--gold-light);border-radius:8px;font-size:0.78rem;color:var(--amber);line-height:1.5">
+          💡 <strong>Tip:</strong> Select the student on the left first, then drop their past papers here.
+          All files are sent in a single request — duplicates are detected by content hash and skipped automatically.
+        </div>
+      </div>
+
+      <!-- Tab 2: From Canvas -->
+      <div class="import-tab-panel" id="importPanel_canvas">
+        <div class="import-section-label">Pull past submissions directly from Canvas</div>
+        <div style="padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm)">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+            <input id="imCiCourseId" placeholder="Canvas Course ID"
+                   style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+            <input id="imCiUserId" placeholder="Canvas User ID"
+                   style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input id="imCiToken" type="password" placeholder="Canvas API token (optional if set server-side)"
+                   style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+            <button onclick="listCanvasFromDrawer()"
+                    style="padding:8px 14px;background:var(--green-deep);color:var(--text-cream);border:none;border-radius:7px;font-family:Inter,sans-serif;font-weight:600;font-size:0.82rem;cursor:pointer;white-space:nowrap">
+              List Papers
+            </button>
+          </div>
+          <div id="imCiList" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto"></div>
+          <div style="display:flex;justify-content:flex-end;margin-top:8px;gap:8px">
+            <button onclick="importCanvasFromDrawer()" id="imCiImportBtn"
+                    style="display:none;padding:8px 16px;background:var(--flag-green);color:#fff;border:none;border-radius:7px;font-family:Inter,sans-serif;font-weight:600;font-size:0.82rem;cursor:pointer">
+              Import Selected
+            </button>
+          </div>
+          <div id="imCiStatus" style="font-size:0.76rem;color:var(--text-muted);margin-top:4px"></div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Turnitin CSV -->
+      <div class="import-tab-panel" id="importPanel_turnitin">
+        <div class="import-section-label">Import Turnitin submission metadata from a CSV export</div>
+        <div style="padding:12px 14px;background:var(--flag-amber-bg);border:1px solid var(--gold-muted);border-radius:8px;font-size:0.79rem;color:var(--amber);line-height:1.5;margin-bottom:14px">
+          ⚠️ Turnitin CSV exports contain <strong>metadata only</strong> — not full paper text.
+          After import, upload the actual PDF/DOCX files using the <em>Upload Files</em> tab to attach paper content.
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;margin-bottom:10px">
+          <input id="ttCourseId" placeholder="Course ID (from this system)"
+                 style="flex:1;min-width:180px;padding:8px 12px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:0.78rem;color:var(--text-muted)">
+            <span>Turnitin CSV file</span>
+            <input type="file" id="ttCsvFile" accept=".csv"
+                   style="padding:6px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.79rem;background:var(--surface);color:var(--text)">
+          </label>
+          <button onclick="runTurnitinCsvImport()"
+                  style="padding:9px 18px;background:var(--green-deep);color:var(--text-cream);border:none;border-radius:8px;font-family:Inter,sans-serif;font-weight:600;font-size:0.83rem;cursor:pointer;align-self:flex-end">
+            Import CSV
+          </button>
+        </div>
+        <div id="ttStatus" style="font-size:0.78rem;color:var(--text-muted)"></div>
+        <div id="ttResult" class="import-result" style="display:none;white-space:pre-line"></div>
+
+        <div style="margin-top:16px;padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-size:0.77rem;color:var(--text-muted);line-height:1.6">
+          <strong>Expected CSV columns</strong> (case-insensitive, order-independent):<br>
+          <code>Student Name, Student ID, Assignment, Submission Date, Similarity, File</code><br><br>
+          Students are matched by <em>Student ID</em> → <em>External ID</em> in this system.
+          Unmatched students are created automatically and enrolled in the specified course.
+        </div>
+      </div>
+
+    </div><!-- end tab-panels -->
+  </div><!-- end import-drawer -->
+</div><!-- end import-overlay -->
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+/* Canvas helpers for drawer (re-use existing logic with drawer-specific element IDs) */
+let _drawerCanvasSubs = [];
+async function listCanvasFromDrawer() {
+  const courseId = (document.getElementById('imCiCourseId')?.value || '').trim();
+  const userId   = (document.getElementById('imCiUserId')?.value || '').trim();
+  const token    = (document.getElementById('imCiToken')?.value || '').trim();
+  const statusEl = document.getElementById('imCiStatus');
+  const listEl   = document.getElementById('imCiList');
+
+  if (!courseId || !userId) { if (statusEl) statusEl.textContent = 'Enter Canvas Course ID and User ID.'; return; }
+  if (!active) { if (statusEl) statusEl.textContent = 'Select a student first.'; return; }
+  if (statusEl) statusEl.textContent = 'Fetching…';
+  if (listEl) listEl.innerHTML = '';
+
+  try {
+    const body = { canvas_course_id: courseId, canvas_user_id: userId };
+    if (token) body.access_token = token;
+    const r = await fetch(`${API_BASE}/canvas/baseline/${encodeURIComponent(active.id)}/list-canvas-submissions`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body),
+    });
+    if (!r.ok) { const e=await r.json().catch(()=>({})); if(statusEl)statusEl.textContent='Error: '+(e.detail||r.statusText); return; }
+    const data = await r.json();
+    _drawerCanvasSubs = data.submissions || [];
+    if (!_drawerCanvasSubs.length) { if (statusEl) statusEl.textContent = 'No eligible submissions found.'; return; }
+    if (listEl) listEl.innerHTML = _drawerCanvasSubs.map(s=>`
+      <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:7px;cursor:pointer;font-size:0.81rem">
+        <input type="checkbox" value="${s.canvas_submission_id}" ${s.already_imported?'disabled checked':''} style="margin-top:2px;flex-shrink:0">
+        <span><strong>${s.assignment_name}</strong>
+          <span style="color:var(--text-muted);margin-left:6px">${s.word_count} words</span>
+          ${s.already_imported?'<span style="color:var(--green);margin-left:6px">✓ already imported</span>':''}
+          <br><span style="color:var(--text-dim)">${s.preview}</span>
+        </span>
+      </label>`).join('');
+    document.getElementById('imCiImportBtn').style.display = 'inline-block';
+    if (statusEl) statusEl.textContent = `${_drawerCanvasSubs.length} submission${_drawerCanvasSubs.length!==1?'s':''} found.`;
+  } catch(e) { if (statusEl) statusEl.textContent = 'Network error: '+e.message; }
+}
+
+async function importCanvasFromDrawer() {
+  const courseId = (document.getElementById('imCiCourseId')?.value||'').trim();
+  const userId   = (document.getElementById('imCiUserId')?.value||'').trim();
+  const token    = (document.getElementById('imCiToken')?.value||'').trim();
+  const statusEl = document.getElementById('imCiStatus');
+  const listEl   = document.getElementById('imCiList');
+  const checked  = [...(listEl?.querySelectorAll('input[type=checkbox]:checked:not(:disabled)')||[])].map(cb=>cb.value);
+
+  if (!checked.length) { if (statusEl) statusEl.textContent = 'Select at least one submission.'; return; }
+  if (statusEl) statusEl.textContent = `Importing ${checked.length}…`;
+
+  try {
+    const body = { canvas_course_id: courseId, canvas_user_id: userId, submission_ids: checked };
+    if (token) body.access_token = token;
+    const r = await fetch(`${API_BASE}/canvas/baseline/${encodeURIComponent(active.id)}/import-baseline`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body),
+    });
+    const result = await r.json().catch(()=>({}));
+    if (!r.ok) { if (statusEl) statusEl.textContent='Error: '+(result.detail||r.statusText); return; }
+    if (statusEl) statusEl.textContent = `✓ Imported ${result.imported}, skipped ${result.skipped}${result.errors?.length?', '+result.errors.length+' errors':''}.`;
+    activeApiData = await API.getStudent(active.id);
+    if (activeApiData) {
+      document.getElementById('panelMeta').textContent =
+        `${activeApiData.authenticated_count} verified baselines · purity ${activeApiData.purity.toFixed(2)}`;
+      updatePanelBars(activeApiData.baseline_vector);
+    }
+    renderBaselines();
+  } catch(e) { if (statusEl) statusEl.textContent='Network error: '+e.message; }
+}
+
+
+/* ── Validation section logic ── */
+function showValidation() {
+  // Hide the normal main content
+  document.getElementById('mainContent').style.display = 'none';
+  const studentRow = document.querySelector('.student-row');
+  const tabsHeader = document.querySelector('.tabs-header');
+  const titleRow   = document.querySelector('.main > div[style*="padding:16px"]');
+  if (studentRow) studentRow.style.display = 'none';
+  if (tabsHeader) tabsHeader.style.display = 'none';
+  if (titleRow)   titleRow.style.display   = 'none';
+
+  // Update breadcrumb
+  const bc = document.querySelector('.bc-current');
+  if (bc) bc.textContent = 'Validation Study';
+
+  // Mark nav item active
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+
+  // Show validation section
+  const sec = document.getElementById('validationSection');
+  sec.classList.add('show');
+  if (!sec.dataset.loaded) {
+    sec.dataset.loaded = '1';
+    loadValidationReport();
+  }
+}
+
+function hideValidation() {
+  document.getElementById('validationSection').classList.remove('show');
+  document.getElementById('mainContent').style.display = '';
+  const studentRow = document.querySelector('.student-row');
+  const tabsHeader = document.querySelector('.tabs-header');
+  const titleRow   = document.querySelector('.main > div[style*="padding:16px"]');
+  if (studentRow) studentRow.style.display = '';
+  if (tabsHeader) tabsHeader.style.display = '';
+  if (titleRow)   titleRow.style.display   = '';
+  const bc = document.querySelector('.bc-current');
+  if (bc) bc.textContent = 'Professor Dashboard';
+}
+
+async function loadValidationReport() {
+  const sec = document.getElementById('validationSection');
+  sec.innerHTML = '<div style="padding:40px;color:var(--text-muted);font-family:\'EB Garamond\',serif;font-style:italic">Loading validation report…</div>';
+  try {
+    const _qs = `?t=${Date.now()}`;
+    const [rptR, simR, thrR] = await Promise.all([
+      fetch('validation_report.json' + _qs, {cache:'no-store'}),
+      fetch('validation_similarity.json' + _qs, {cache:'no-store'}).catch(()=>null),
+      fetch('validation_thresholds.json' + _qs, {cache:'no-store'}).catch(()=>null),
+    ]);
+    if (!rptR.ok) throw new Error('Report not found');
+    const rpt = await rptR.json();
+    const sim = (simR && simR.ok) ? await simR.json() : null;
+    const thr = (thrR && thrR.ok) ? await thrR.json() : null;
+    renderValidation(rpt, sim, thr);
+  } catch(e) {
+    sec.innerHTML = `<div style="padding:40px;color:var(--flag-red)">Failed to load validation_report.json: ${e.message}</div>`;
+  }
+}
+
+function renderValidation(rpt, sim, thr) {
+  const s   = rpt.summary;
+  const auc = s.auc;
+  const aucColor = auc >= 0.85 ? 'var(--flag-green)' : auc >= 0.70 ? 'var(--amber)' : 'var(--flag-red)';
+  const aucGrade = auc >= 0.85 ? 'Strong' : auc >= 0.70 ? 'Moderate' : 'Weak';
+
+  // Threshold metrics at 0.75 (best performing)
+  const tm = rpt.threshold_metrics.escalate || Object.values(rpt.threshold_metrics)[2] || {};
+
+  // Per-label stats
+  const authentic    = rpt.per_label_stats.authentic    || {};
+  const ghostwritten = rpt.per_label_stats.ghostwritten || {};
+
+  // Disputed results
+  const disputed = rpt.individual_results.filter(r => r.author_id === 'disputed_vs_madison');
+  disputed.sort((a,b) => {
+    const na = parseInt(a.filename.match(/\d+/)?.[0]||0);
+    const nb = parseInt(b.filename.match(/\d+/)?.[0]||0);
+    return na - nb;
+  });
+
+  // Tier importance
+  const tiers = Object.entries(rpt.tier_importance || {})
+    .sort(([,a],[,b]) => b - a);
+  const maxTier = Math.max(...tiers.map(([,v])=>v), 0.001);
+
+  // ROC curve points (sample every Nth for SVG)
+  const roc = rpt.roc_points || [];
+  const step = Math.max(1, Math.floor(roc.length / 100));
+  const rocSampled = roc.filter((_,i) => i % step === 0);
+
+  // SVG ROC path
+  const W = 340, H = 200, PAD = 32;
+  const sx = x => PAD + x * (W - PAD * 2);
+  const sy = y => H - PAD - y * (H - PAD * 2);
+  const rocPath = rocSampled.map(([x,y],i) => `${i===0?'M':'L'}${sx(x).toFixed(1)},${sy(y).toFixed(1)}`).join(' ');
+  const diagPath = `M${sx(0)},${sy(0)} L${sx(1)},${sy(1)}`;
+  const rocFill  = rocSampled.map(([x,y]) => `${sx(x).toFixed(1)},${sy(y).toFixed(1)}`).join(' ')
+    + ` ${sx(1)},${sy(0)} ${sx(0)},${sy(0)}`;
+
+  const sec = document.getElementById('validationSection');
+  sec.innerHTML = `
+    <!-- Header -->
+    <div class="val-header">
+      <div>
+        <div class="val-title">${s.total_authors > 4 ? 'Multi-Author Validation Study' : 'Federalist Papers Validation'}</div>
+        <div class="val-subtitle">${s.total_authors > 4
+          ? `${s.total_authors} authors · Federalist Papers + Paine, Burke, Lincoln, Douglass · ${s.total_essays_scored} essays`
+          : '85 papers · Hamilton, Madison &amp; Jay · Mosteller &amp; Wallace ground truth'}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="val-badge ${auc>=0.70?'pass':'warn'}">${aucGrade} discrimination</span>
+        <button onclick="hideValidation()" style="padding:6px 12px;background:var(--cream-warm);color:var(--text-muted);border:1px solid var(--cream-border);border-radius:var(--radius);font-size:0.75rem;cursor:pointer">← Back</button>
+      </div>
+    </div>
+
+    <!-- Summary stats -->
+    <div class="val-grid">
+      <div class="val-stat-card">
+        <div class="val-stat-label">AUC (ROC)</div>
+        <div class="val-stat-value" style="color:${aucColor}">${auc.toFixed(4)}</div>
+        <div class="val-stat-sub">same-domain hard test</div>
+      </div>
+      <div class="val-stat-card">
+        <div class="val-stat-label">Essays Scored</div>
+        <div class="val-stat-value">${s.total_essays_scored}</div>
+        <div class="val-stat-sub">${s.total_baseline_samples} baseline samples</div>
+      </div>
+      <div class="val-stat-card">
+        <div class="val-stat-label">Accuracy @ 0.75</div>
+        <div class="val-stat-value">${tm.accuracy !== undefined ? (tm.accuracy*100).toFixed(0)+'%' : '—'}</div>
+        <div class="val-stat-sub">TPR ${tm.tpr!==undefined?(tm.tpr*100).toFixed(0)+'%':'—'} · FPR ${tm.fpr!==undefined?(tm.fpr*100).toFixed(0)+'%':'—'}</div>
+      </div>
+      <div class="val-stat-card">
+        <div class="val-stat-label">${s.total_authors > 4 ? 'Authors Tested' : 'Disputed Papers'}</div>
+        <div class="val-stat-value" style="color:var(--flag-green)">${s.total_authors > 4 ? s.total_authors : `${disputed.filter(r=>r.authorship_probability>=0.5).length}/${disputed.length}`}</div>
+        <div class="val-stat-sub">${s.total_authors > 4 ? 'cross-era & cross-genre' : '→ Madison (consensus ✓)'}</div>
+      </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="val-row">
+
+      <!-- ROC Curve -->
+      <div class="val-card">
+        <div class="val-card-title">ROC Curve</div>
+        <svg class="roc-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+          <!-- Grid lines -->
+          <line x1="${sx(0)}" y1="${sy(0)}" x2="${sx(1)}" y2="${sy(0)}" stroke="var(--cream-border)" stroke-width="1"/>
+          <line x1="${sx(0)}" y1="${sy(1)}" x2="${sx(1)}" y2="${sy(1)}" stroke="var(--cream-border)" stroke-width="1"/>
+          <line x1="${sx(0)}" y1="${sy(0)}" x2="${sx(0)}" y2="${sy(1)}" stroke="var(--cream-border)" stroke-width="1"/>
+          <line x1="${sx(1)}" y1="${sy(0)}" x2="${sx(1)}" y2="${sy(1)}" stroke="var(--cream-border)" stroke-width="1"/>
+          <line x1="${sx(0.5)}" y1="${sy(0)}" x2="${sx(0.5)}" y2="${sy(1)}" stroke="var(--cream-border)" stroke-width="0.5" stroke-dasharray="3,3"/>
+          <line x1="${sx(0)}" y1="${sy(0.5)}" x2="${sx(1)}" y2="${sy(0.5)}" stroke="var(--cream-border)" stroke-width="0.5" stroke-dasharray="3,3"/>
+          <!-- Diagonal (random) -->
+          <path d="${diagPath}" stroke="var(--cream-border)" stroke-width="1" stroke-dasharray="4,3" fill="none"/>
+          <!-- AUC fill -->
+          <polygon points="${rocFill}" fill="${aucColor}" fill-opacity="0.08"/>
+          <!-- ROC line -->
+          <path d="${rocPath}" stroke="${aucColor}" stroke-width="2" fill="none" stroke-linejoin="round"/>
+          <!-- AUC label -->
+          <text x="${sx(0.6)}" y="${sy(0.2)}" font-family="'Playfair Display',serif" font-size="13" fill="${aucColor}" font-weight="600">AUC = ${auc.toFixed(4)}</text>
+          <!-- Axis labels -->
+          <text x="${sx(0.5)}" y="${H-4}" font-family="Inter,sans-serif" font-size="9" fill="var(--text-muted)" text-anchor="middle">False Positive Rate</text>
+          <text x="10" y="${sy(0.5)}" font-family="Inter,sans-serif" font-size="9" fill="var(--text-muted)" text-anchor="middle" transform="rotate(-90,10,${sy(0.5)})">True Positive Rate</text>
+        </svg>
+      </div>
+
+      <!-- Deviation by label -->
+      <div class="val-card">
+        <div class="val-card-title">Deviation by Authorship</div>
+        <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:14px">Lower deviation = more author-like. Gap between authentic and ghostwritten indicates discriminative power.</div>
+        ${[
+          ['Authentic', authentic.mean_deviation||0, authentic.count||0, 'var(--flag-green)'],
+          ['Ghostwritten', ghostwritten.mean_deviation||0, ghostwritten.count||0, 'var(--flag-red)'],
+        ].map(([label, mean, n, color]) => `
+          <div class="val-dev-row">
+            <div class="val-dev-label">${label} <span style="color:var(--text-muted)">(n=${n})</span></div>
+            <div class="val-dev-track">
+              <div class="val-dev-bar" style="width:${(mean*100).toFixed(1)}%;background:${color}"></div>
+            </div>
+            <div class="val-dev-pct">${mean.toFixed(3)}</div>
+          </div>
+        `).join('')}
+        <div style="margin-top:16px;font-size:0.72rem;color:var(--text-muted)">
+          Gap: <strong style="color:var(--text-primary)">${((ghostwritten.mean_deviation||0)-(authentic.mean_deviation||0)).toFixed(3)}</strong> deviation units
+          · std authentic <strong style="color:var(--text-primary)">${(authentic.std_deviation||0).toFixed(3)}</strong>
+          · std ghostwritten <strong style="color:var(--text-primary)">${(ghostwritten.std_deviation||0).toFixed(3)}</strong>
+        </div>
+
+        <div style="margin-top:18px">
+          <div class="val-card-title" style="margin-bottom:10px">Tier Importance</div>
+          ${tiers.map(([tier, val]) => `
+            <div class="tier-bar-row">
+              <div class="tier-bar-name">${tier}</div>
+              <div class="tier-bar-track"><div class="tier-bar-fill" style="width:${(val/maxTier*100).toFixed(1)}%"></div></div>
+              <div class="tier-bar-val">${val.toFixed(4)}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- Disputed papers -->
+    <div class="val-card wide">
+      <div class="val-card-title" style="margin-bottom:4px">Disputed Papers Verdict (Nos. 49–58, 62–63)</div>
+      <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:16px;font-family:'EB Garamond',serif;font-style:italic">
+        Scored against James Madison's undisputed baseline. Modern consensus (Mosteller &amp; Wallace 1964): all 12 → Madison.
+      </div>
+      <table class="disputed-table">
+        <thead>
+          <tr>
+            <th>Paper</th>
+            <th>Author probability</th>
+            <th>Deviation</th>
+            <th>Action</th>
+            <th style="text-align:right">Verdict</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${disputed.map(r => {
+            const num = r.filename.match(/\d+/)?.[0] || '?';
+            const prob = r.authorship_probability;
+            const isMadison = prob >= 0.5;
+            const action = (r.recommended_action||'').replace(/_/g,' ');
+            return `
+            <tr>
+              <td style="font-weight:500;color:var(--text-primary)">No. ${num}</td>
+              <td>
+                <span class="prob-bar" style="width:${(prob*60).toFixed(0)}px"></span>
+                ${(prob*100).toFixed(1)}%
+              </td>
+              <td style="font-family:monospace">${r.deviation_score.toFixed(3)}</td>
+              <td style="font-size:0.72rem;color:var(--text-muted)">${action}</td>
+              <td style="text-align:right">
+                <span class="verdict-chip ${isMadison?'madison':'hamilton'}">${isMadison?'✓ Madison':'✗ Not Madison'}</span>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Insight box -->
+    <div class="val-insight">
+      <strong>Interpretation.</strong>
+      ${s.total_authors > 4
+        ? `AUC ${auc.toFixed(2)} across ${s.total_authors} authors spanning 18th–19th century political prose (Federalist Papers, Paine, Burke, Lincoln, Douglass) represents <strong>${aucGrade.toLowerCase()} discrimination</strong>. Same-domain authorship is a genuinely hard test; cross-domain studies typically report AUC 0.90+.`
+        : `AUC ${auc.toFixed(2)} on a same-domain corpus (all constitutional arguments, 18th-century English) represents <strong>${aucGrade.toLowerCase()} discrimination</strong>. Cross-domain authorship studies typically report AUC 0.90+, so same-domain is a genuinely hard test — Mosteller &amp; Wallace's landmark 1964 study used a similar setup.`
+      }
+      ${disputed.length > 0 ? ` All ${disputed.length} disputed Federalist Papers were attributed to Madison with probability
+      ${Math.min(...disputed.map(r=>r.authorship_probability)).toFixed(2)}–${Math.max(...disputed.map(r=>r.authorship_probability)).toFixed(2)},
+      agreeing with the modern scholarly consensus.` : ''}
+      ${thr ? ` Thresholds recalibrated via empirical sweep across ${s.total_essays_scored} scored essays.` :
+        ' The current action thresholds (0.40/0.55/0.75) can be recalibrated by running <code>threshold_tuner.py</code>.'}
+    </div>
+
+    ${thr ? renderThresholds(thr) : ''}
+    ${renderPerAuthorBreakdown(rpt)}
+    ${sim ? renderSimilarityMatrix(sim) : ''}
+  `;
+}
+
+function renderThresholds(thr) {
+  const orig = thr.original_thresholds || {};
+  const tuned = thr.tuned_thresholds || {};
+  const names = ['no_action','monitor','escalate'];
+  const labels = { no_action:'No Action', monitor:'Monitor', escalate:'Escalate' };
+  const rows = names.map(name => {
+    const t = tuned[name] || {};
+    const oldVal = orig[name] || 0;
+    const newVal = t.value || 0;
+    const delta = newVal - oldVal;
+    const sign = delta >= 0 ? '+' : '';
+    const cls = Math.abs(delta) < 0.001 ? '' : (delta > 0 ? 'better' : 'worse');
+    const metConstraint = t.constraint_satisfied;
+    return `
+    <tr>
+      <td style="font-weight:500;color:var(--text-primary)">${labels[name]}</td>
+      <td><span class="thresh-old">${oldVal.toFixed(3)}</span></td>
+      <td><span class="thresh-new">${newVal.toFixed(3)}</span>
+        ${cls ? `<span class="thresh-delta ${cls}">${sign}${delta.toFixed(3)}</span>` : ''}
+      </td>
+      <td style="font-size:0.72rem;color:var(--text-muted)">${(t.tpr*100||0).toFixed(0)}% TPR · ${(t.fpr*100||0).toFixed(0)}% FPR</td>
+      <td style="text-align:right">
+        <span class="verdict-chip ${metConstraint?'madison':'hamilton'}">${metConstraint?'✓ Met':'✗ Relaxed'}</span>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const eer = thr.equal_error_rate !== undefined ? (thr.equal_error_rate*100).toFixed(1)+'%' : '—';
+  const eerT = thr.eer_threshold !== undefined ? thr.eer_threshold.toFixed(3) : '—';
+  const f1T = thr.optimal_f1_threshold !== undefined ? thr.optimal_f1_threshold.toFixed(3) : '—';
+
+  return `
+  <div class="val-card wide">
+    <div class="val-card-title" style="margin-bottom:4px">Recalibrated Action Thresholds</div>
+    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:16px;font-family:'EB Garamond',serif;font-style:italic">
+      Empirically optimised via sweep across scored corpus · EER ${eer} at ${eerT} · Optimal F1 threshold ${f1T}
+    </div>
+    <table class="thresh-table">
+      <thead>
+        <tr>
+          <th>Action</th><th>Old</th><th>Tuned</th><th>Metrics</th><th style="text-align:right">Constraint</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+function renderPerAuthorBreakdown(rpt) {
+  // Group authentic results by author_id
+  const authByAuthor = {};
+  for (const r of rpt.individual_results) {
+    if (r.label === 'authentic') {
+      if (!authByAuthor[r.author_id]) authByAuthor[r.author_id] = [];
+      authByAuthor[r.author_id].push(r.deviation_score);
+    }
+  }
+
+  const ORDER = ['hamilton','madison','jay','paine','burke','lincoln','douglass','disputed_vs_madison'];
+  const DISPLAY = {
+    hamilton:'Hamilton', madison:'Madison', jay:'Jay',
+    paine:'Paine', burke:'Burke', lincoln:'Lincoln',
+    douglass:'Douglass', disputed_vs_madison:'Disputed'
+  };
+  const COLORS = {
+    hamilton:'var(--gold)', madison:'var(--flag-green)', jay:'#6b7ede',
+    paine:'#c47c3e', burke:'#7e5aa2', lincoln:'#3e8fa2', douglass:'#c44444',
+    disputed_vs_madison:'var(--text-muted)'
+  };
+
+  const entries = ORDER
+    .filter(id => authByAuthor[id] && authByAuthor[id].length > 0)
+    .map(id => {
+      const arr = authByAuthor[id];
+      const mean = arr.reduce((a,b)=>a+b,0)/arr.length;
+      return { id, name: DISPLAY[id]||id, mean, n: arr.length, color: COLORS[id]||'var(--gold)' };
+    });
+
+  if (entries.length === 0) return '';
+
+  const maxMean = Math.max(...entries.map(e=>e.mean), 0.001);
+
+  return `
+  <div class="val-card wide">
+    <div class="val-card-title">Per-Author Authentic Deviation</div>
+    <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:16px">
+      Mean deviation of each author's own texts scored against their own baseline.
+      Lower = more self-consistent writing style; higher = more variable.
+    </div>
+    ${entries.map(e => `
+    <div class="author-bar-row">
+      <div class="author-bar-name">${e.name} <span style="color:var(--text-muted)">(${e.n})</span></div>
+      <div class="author-bar-track">
+        <div class="author-bar-fill" style="width:${(e.mean/maxMean*100).toFixed(1)}%;background:${e.color}"></div>
+      </div>
+      <div class="author-bar-val">${e.mean.toFixed(3)}</div>
+    </div>
+    `).join('')}
+  </div>`;
+}
+
+function renderSimilarityMatrix(sim) {
+  const authors = sim.authors || [];
+  const matrix  = sim.matrix  || [];
+  const lo = sim.min ?? 0;
+  const hi = sim.max ?? 1;
+
+  function cellColor(val, i, j) {
+    if (val === null || val === undefined) return 'background:transparent';
+    if (i === j) return 'background:var(--cream-border)';
+    const t = Math.max(0, Math.min(1, (val - lo) / Math.max(hi - lo, 0.001)));
+    // green→amber→red gradient
+    let r, g, b;
+    if (t < 0.5) {
+      // green(42,107,69) → amber(201,160,40)
+      const p = t * 2;
+      r = Math.round(42  + p*(201-42));
+      g = Math.round(107 + p*(160-107));
+      b = Math.round(69  + p*(40-69));
+    } else {
+      // amber → red(180,40,40)
+      const p = (t-0.5)*2;
+      r = Math.round(201 + p*(180-201));
+      g = Math.round(160 + p*(40-160));
+      b = Math.round(40  + p*(40-40));
+    }
+    const alpha = 0.15 + t * 0.55;
+    return `background:rgba(${r},${g},${b},${alpha.toFixed(2)});color:${t>0.6?'#fff':'var(--text-primary)'}`;
+  }
+
+  const headerCells = authors.map(a =>
+    `<th title="${a}">${a.substring(0,7)}</th>`
+  ).join('');
+
+  const bodyRows = matrix.map((row, i) => {
+    const cells = row.map((val, j) => {
+      if (i === j) return `<td class="self" title="${authors[i]} vs itself">—</td>`;
+      if (val === null) return `<td class="empty">—</td>`;
+      return `<td style="${cellColor(val,i,j)}" title="${authors[i]} baseline ← ${authors[j]} text">${val.toFixed(3)}</td>`;
+    }).join('');
+    return `<tr><th class="row-head">${authors[i]}</th>${cells}</tr>`;
+  }).join('');
+
+  return `
+  <div class="val-card wide">
+    <div class="val-card-title">Cross-Author Stylistic Similarity</div>
+    <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:12px">
+      Mean deviation when each author's text (column) is scored against each baseline (row).
+      <strong style="color:var(--flag-green)">Lower = more similar</strong> ·
+      <strong style="color:var(--flag-red)">Higher = more distinct</strong>.
+      Diagonal excluded.
+    </div>
+    <div class="sim-matrix-wrap">
+      <table class="sim-matrix">
+        <thead>
+          <tr><th class="row-head">Baseline ↓ / Text →</th>${headerCells}</tr>
+        </thead>
+        <tbody>${bodyRows}</tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;font-size:0.7rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic">
+      Range: ${lo.toFixed(3)} – ${hi.toFixed(3)} · ${sim.interpretation || ''}
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PR 10 — Adaptive context panel renderers + correction/blend handlers
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function renderContextPanel(raw) {
+  const card = document.getElementById('contextCard');
+  if (!card) return;
+  const m = raw?.context_manifest;
+  const rep = raw?.report;
+  // Show the panel only when at least the manifest is populated.
+  if (!m && !rep) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+
+  // Verdict badge — colour-coded by report.verdict.
+  const verdictEl = document.getElementById('ctxVerdictBadge');
+  if (rep) {
+    verdictEl.textContent = rep.verdict;
+    verdictEl.className = 'rec-badge ' + (
+      rep.verdict === 'authentic' ? 'no_action' :
+      rep.verdict === 'anomalous' ? 'escalate'  : 'monitor'
+    );
+  } else {
+    verdictEl.textContent = '—';
+    verdictEl.className = 'rec-badge';
+  }
+  document.getElementById('ctxConfidenceBadge').textContent =
+    rep?.confidence ? `confidence: ${rep.confidence}` : '—';
+
+  // Narrative
+  document.getElementById('ctxNarrative').textContent =
+    rep?.narrative || '(narrative unavailable — manifest collected without report)';
+
+  // Chips
+  const chipsEl = document.getElementById('ctxChips');
+  const flags = (m?.flags) || [];
+  const anchors = (m?.anchor_tiers) || [];
+  const chipParts = [
+    ...flags.map(f => `<span class="chip chip-flag" style="background:rgba(201,160,40,0.12);color:#9b6420;display:inline-block;padding:3px 9px;border-radius:99px;font-size:0.72rem;margin:2px">${f}</span>`),
+    ...anchors.map(t => `<span class="chip chip-anchor" style="background:rgba(42,107,69,0.1);color:#2a6b45;display:inline-block;padding:3px 9px;border-radius:99px;font-size:0.72rem;margin:2px">anchor T${t}</span>`),
+  ];
+  const muteCount = (m?.weight_modifications?.mute_codes || []).length;
+  const attCount  = (m?.weight_modifications?.attenuate_codes || []).length;
+  if (muteCount) chipParts.push(`<span class="chip chip-mute" style="background:rgba(192,57,43,0.08);color:#c0392b;display:inline-block;padding:3px 9px;border-radius:99px;font-size:0.72rem;margin:2px">mute ×${muteCount}</span>`);
+  if (attCount)  chipParts.push(`<span class="chip chip-attenuate" style="background:rgba(155,100,32,0.1);color:#9b6420;display:inline-block;padding:3px 9px;border-radius:99px;font-size:0.72rem;margin:2px">attenuate ×${attCount}</span>`);
+  chipsEl.innerHTML = chipParts.length ? chipParts.join('') :
+    '<span style="color:var(--text-muted);font-style:italic;font-family:\'EB Garamond\',serif">none</span>';
+
+  // Anchor tier consistency bars
+  const barsEl = document.getElementById('ctxAnchorBars');
+  const scores = rep?.anchor_tier_scores || {};
+  if (Object.keys(scores).length) {
+    barsEl.innerHTML = Object.entries(scores).map(([tier, score]) => {
+      const pct = score * 100;
+      const color = score >= 0.85 ? '#2a6b45' : score >= 0.65 ? '#c9a028' : '#c0392b';
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:0.82rem">
+        <span style="min-width:54px;font-weight:600">T${tier}</span>
+        <div style="flex:1;background:var(--cream-warm);border-radius:99px;height:7px;overflow:hidden">
+          <div style="height:100%;background:${color};width:${pct}%"></div>
+        </div>
+        <span style="min-width:48px;text-align:right;font-family:monospace;font-size:0.78rem">${score.toFixed(3)}</span>
+      </div>`;
+    }).join('');
+  } else {
+    barsEl.innerHTML = '<span style="color:var(--text-muted);font-style:italic;font-family:\'EB Garamond\',serif">no anchor tiers scored</span>';
+  }
+
+  document.getElementById('ctxLength').textContent = `length regime: ${m?.length_regime || '—'}`;
+  const cluster = rep?.baseline_cluster || [];
+  document.getElementById('ctxCluster').textContent =
+    cluster.length ? cluster.join(', ') : '(anchor-only fallback)';
+}
+
+/* ── Correction modal ─────────────────────────────────────────────────────── */
+
+function openCorrectionForm() {
+  if (!window._PR10_currentSubmissionId) {
+    alert('No submission ID available — make sure CONTEXT_MANIFEST_ENABLED=1 is set on the server.');
+    return;
+  }
+  document.getElementById('correctionModal').style.display = 'flex';
+}
+
+function closeCorrectionForm() {
+  document.getElementById('correctionModal').style.display = 'none';
+}
+
+async function submitCorrection() {
+  const subId = window._PR10_currentSubmissionId;
+  if (!subId) { closeCorrectionForm(); return; }
+  const isCorrect = document.querySelector('input[name="cIsCorrect"]:checked')?.value === 'true';
+  const verdict = document.getElementById('cVerdict').value;
+  const action  = document.getElementById('cAction').value;
+  const notes   = document.getElementById('cNotes').value.trim();
+  const body = { is_correct: isCorrect };
+  if (verdict) body.corrected_verdict = verdict;
+  if (action)  body.corrected_action  = action;
+  if (notes)   body.notes             = notes;
+  body.reviewer = 'professor';
+  try {
+    const r = await fetch(`/submissions/${encodeURIComponent(subId)}/correct`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    closeCorrectionForm();
+    alert('Correction submitted. It will appear in Context Audit and feed the next retrain in the Lab.');
+  } catch (e) {
+    alert(`Failed: ${e.message}`);
+  }
+}
+
+/* ── Blend detection on the current submission ───────────────────────────── */
+
+async function runBlendCheck() {
+  const raw = window._PR10_currentRaw || {};
+  // Pull text from the current submission textarea — the existing analyze
+  // path has already validated it.
+  const text = document.getElementById('subText')?.value
+    || document.getElementById('analyzeText')?.value
+    || '';
+  const studentId = raw.student_id;
+  if (!studentId) { alert('No student selected.'); return; }
+  if (!text.trim()) { alert('No submission text available.'); return; }
+  const card = document.getElementById('blendCard');
+  card.style.display = 'block';
+  document.getElementById('blendDetectedV').textContent = '…';
+  document.getElementById('blendIndexV').textContent = '…';
+  document.getElementById('blendShiftsV').textContent = '…';
+  document.getElementById('blendChartPro').innerHTML = '<div style="color:var(--text-muted);font-style:italic">running blend…</div>';
+  try {
+    const r = await fetch(`/students/${encodeURIComponent(studentId)}/score/blend`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text, submission_id: raw.submission_id || ''}),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    document.getElementById('blendDetectedV').textContent = data.blend_detected ? 'Yes' : 'No';
+    document.getElementById('blendIndexV').textContent = data.blend_index.toFixed(3);
+    document.getElementById('blendShiftsV').textContent =
+      (data.shift_positions && data.shift_positions.length)
+        ? data.shift_positions.join(', ') : '—';
+    renderBlendChartPro(data);
+  } catch (e) {
+    document.getElementById('blendChartPro').innerHTML =
+      `<div style="color:var(--flag-red)">Failed: ${e.message}</div>`;
+  }
+}
+
+function renderBlendChartPro(blend) {
+  const sections = blend.per_section || [];
+  const el = document.getElementById('blendChartPro');
+  if (!sections.length) {
+    el.innerHTML = `<div style="color:var(--text-muted);font-style:italic">${blend.fallback_reason || 'No windows scored.'}</div>`;
+    return;
+  }
+  const w = 720, h = 180, pad = {top:10, right:14, bottom:24, left:36};
+  const usableW = w - pad.left - pad.right, usableH = h - pad.top - pad.bottom;
+  const xMax = blend.n_tokens || sections[sections.length - 1].end;
+  const sx = x => pad.left + (x / xMax) * usableW;
+  const sy = v => pad.top + (1 - v) * usableH;
+  const bars = sections.map(s => {
+    const x0 = sx(s.start), x1 = sx(s.end), y = sy(s.score);
+    return `<rect x="${x0}" y="${y}" width="${x1-x0}" height="${pad.top + usableH - y}" fill="#c9a028" opacity="0.45"/>
+      <line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="#162b22" stroke-width="2"/>`;
+  }).join('');
+  const shifts = (blend.shift_positions || []).map(p =>
+    `<line x1="${sx(p)}" y1="${pad.top}" x2="${sx(p)}" y2="${pad.top+usableH}" stroke="#c0392b" stroke-width="2" stroke-dasharray="4,3"/>`
+  ).join('');
+  const yLines = [0, 0.25, 0.5, 0.75, 1.0].map(v =>
+    `<line x1="${pad.left}" y1="${sy(v)}" x2="${w-pad.right}" y2="${sy(v)}" stroke="var(--cream-border)"/>
+     <text x="${pad.left-6}" y="${sy(v)+3}" font-size="9" text-anchor="end" fill="var(--text-muted)">${v.toFixed(2)}</text>`
+  ).join('');
+  el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" style="width:100%;max-width:760px" xmlns="http://www.w3.org/2000/svg">
+    ${yLines}${bars}${shifts}
+    <text x="${w/2}" y="${h-4}" font-size="10" text-anchor="middle" fill="var(--text-muted)">token offset →</text>
+  </svg>`;
+}
+</script>
+
+
+</body>
+</html>

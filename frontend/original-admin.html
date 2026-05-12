@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Original — Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+    :root{
+      --green-deepest:#0f1e17;--green-deep:#162b22;--green-mid:#1e3d2f;
+      --green-hover:#243d30;--green-border:rgba(255,255,255,0.07);
+      --cream:#f7f3ea;--cream-warm:#ede8d8;--cream-border:#e2dccf;
+      --surface:#ffffff;--gold:#c9a028;--gold-light:rgba(201,160,40,0.12);
+      --gold-muted:rgba(201,160,40,0.35);--amber:#9b6420;
+      --text-primary:#1a130a;--text-secondary:#5a4030;--text-muted:#8a7060;
+      --text-cream:#f7f3ea;--text-cream-dim:rgba(247,243,234,0.55);
+      --flag-red:#c0392b;--flag-red-bg:rgba(192,57,43,0.08);
+      --flag-green:#2a6b45;--flag-green-bg:rgba(42,107,69,0.1);
+      --flag-amber-bg:rgba(201,160,40,0.1);
+      --sidebar-w:264px;--radius:6px;
+      --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+    }
+    html,body{height:100%;}
+    body{font-family:'Inter',system-ui,sans-serif;background:var(--cream);color:var(--text-primary);display:flex;overflow:hidden;font-size:14px;line-height:1.5;}
+
+    .sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);height:100vh;background:var(--green-deep);display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:100;border-right:1px solid var(--green-border);}
+    .sidebar-logo{padding:1.5rem 1.5rem 1.25rem;border-bottom:1px solid var(--green-border);}
+    .logo-mark{display:flex;align-items:center;gap:0.75rem;margin-bottom:0.35rem;}
+    .logo-icon{width:30px;height:30px;border:1px solid var(--gold-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .logo-icon svg{width:14px;height:14px;stroke:var(--gold);}
+    .logo-wordmark{font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;color:var(--text-cream);letter-spacing:0.06em;}
+    .logo-school{font-family:'EB Garamond',serif;font-size:0.78rem;font-style:italic;color:var(--text-cream-dim);letter-spacing:0.03em;padding-left:2.8rem;}
+    .sidebar-nav{flex:1;padding:1rem 0;overflow-y:auto;}
+    .nav-section-label{font-size:0.65rem;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-cream-dim);padding:0.6rem 1.5rem 0.3rem;margin-top:0.5rem;}
+    .nav-item{display:flex;align-items:center;gap:0.75rem;padding:0.6rem 1.5rem;color:rgba(247,243,234,0.65);text-decoration:none;font-size:0.875rem;font-weight:500;cursor:pointer;transition:color 0.15s,background 0.15s;border-left:2px solid transparent;letter-spacing:0.01em;}
+    .nav-item:hover{color:var(--text-cream);background:var(--green-hover);}
+    .nav-item.active{color:var(--text-cream);border-left-color:var(--gold);background:rgba(201,160,40,0.08);}
+    .nav-item svg{width:16px;height:16px;stroke:currentColor;flex-shrink:0;opacity:0.85;}
+    .nav-badge{margin-left:auto;background:var(--gold);color:var(--green-deepest);font-size:0.65rem;font-weight:700;padding:0.15rem 0.45rem;border-radius:20px;}
+    .sidebar-user{border-top:1px solid var(--green-border);padding:1rem 1.25rem;display:flex;align-items:center;gap:0.75rem;}
+    .user-avatar{width:32px;height:32px;border-radius:50%;background:var(--green-mid);border:1px solid var(--gold-muted);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:0.8rem;color:var(--gold);flex-shrink:0;}
+    .user-info{flex:1;min-width:0;}
+    .user-name{font-size:0.825rem;font-weight:500;color:var(--text-cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .user-role{font-size:0.72rem;color:var(--gold);font-family:'EB Garamond',serif;font-style:italic;}
+    .user-settings{width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--text-cream-dim);cursor:pointer;border-radius:4px;}
+    .user-settings svg{width:15px;height:15px;stroke:currentColor;}
+
+    .main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+    .topbar{background:var(--cream);border-bottom:1px solid var(--cream-border);padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+    .breadcrumb{display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;color:var(--text-muted);}
+    .breadcrumb a{color:var(--text-muted);text-decoration:none;}
+    .breadcrumb a:hover{color:var(--amber);}
+    .breadcrumb-sep{color:var(--cream-border);}
+    .breadcrumb-current{font-weight:500;color:var(--text-secondary);}
+    .topbar-right{display:flex;align-items:center;gap:0.75rem;}
+    .semester-badge{font-family:'EB Garamond',serif;font-size:0.85rem;font-style:italic;color:var(--text-muted);background:var(--cream-warm);border:1px solid var(--cream-border);padding:0.3rem 0.85rem;border-radius:20px;}
+    .topbar-icon-btn{width:32px;height:32px;border-radius:var(--radius);border:1px solid var(--cream-border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-secondary);}
+    .topbar-icon-btn svg{width:15px;height:15px;stroke:currentColor;}
+    .notif-dot{position:absolute;top:6px;right:6px;width:6px;height:6px;background:var(--gold);border-radius:50%;border:1.5px solid var(--cream);}
+
+    .page-body{flex:1;overflow-y:auto;padding:2rem 2rem 3rem;}
+
+    .page-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:1.75rem;}
+    .page-title{font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:600;color:var(--text-primary);line-height:1.2;letter-spacing:-0.01em;}
+    .page-subtitle{font-family:'EB Garamond',serif;font-size:0.95rem;font-style:italic;color:var(--text-muted);margin-top:0.2rem;}
+    .page-actions{display:flex;align-items:center;gap:0.75rem;}
+    .btn{display:inline-flex;align-items:center;gap:0.45rem;padding:0.5rem 1.1rem;border-radius:var(--radius);font-size:0.825rem;font-weight:500;cursor:pointer;transition:all 0.15s;text-decoration:none;border:none;letter-spacing:0.01em;}
+    .btn svg{width:14px;height:14px;stroke:currentColor;}
+    .btn-ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--cream-border);}
+    .btn-ghost:hover{background:var(--surface);border-color:var(--gold-muted);color:var(--text-primary);}
+    .btn-primary{background:var(--green-deep);color:var(--text-cream);border:1px solid var(--green-deep);}
+    .btn-primary:hover{background:var(--green-mid);}
+
+    /* STAT CARDS */
+    .stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:2rem;}
+    .stat-card{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:1.1rem 1.25rem;box-shadow:var(--shadow-sm);position:relative;overflow:hidden;}
+    .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+    .stat-card.t-default::before{background:var(--cream-border);}
+    .stat-card.t-gold::before{background:var(--gold);}
+    .stat-card.t-green::before{background:var(--flag-green);}
+    .stat-card.t-red::before{background:var(--flag-red);}
+    .stat-label{font-size:0.68rem;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.5rem;}
+    .stat-value{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:600;color:var(--text-primary);line-height:1;margin-bottom:0.3rem;}
+    .stat-card.t-gold .stat-value{color:var(--amber);}
+    .stat-card.t-red .stat-value{color:var(--flag-red);}
+    .stat-meta{font-size:0.72rem;color:var(--text-muted);font-style:italic;font-family:'EB Garamond',serif;}
+
+    /* MAIN GRID */
+    .admin-grid{display:grid;grid-template-columns:1fr 320px;gap:1.5rem;align-items:start;}
+
+    .section-card{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:1.5rem;}
+    .section-card:last-child{margin-bottom:0;}
+    .section-head{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.4rem;border-bottom:1px solid var(--cream-border);}
+    .section-title{font-family:'Playfair Display',serif;font-size:0.95rem;font-weight:600;color:var(--text-primary);}
+    .section-action{font-size:0.775rem;color:var(--amber);text-decoration:none;font-weight:500;}
+
+    /* INSTRUCTOR TABLE */
+    .instructor-head{display:grid;grid-template-columns:1.5fr 80px 80px 100px 120px 80px;padding:0.65rem 1.4rem;background:var(--cream);border-bottom:1px solid var(--cream-border);}
+    .th{font-size:0.68rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);}
+    .th.right{text-align:right;}.th.center{text-align:center;}
+    .instructor-row{display:grid;grid-template-columns:1.5fr 80px 80px 100px 120px 80px;padding:0.85rem 1.4rem;border-bottom:1px solid var(--cream-border);align-items:center;transition:background 0.12s;}
+    .instructor-row:last-child{border-bottom:none;}
+    .instructor-row:hover{background:var(--cream);}
+    .instructor-ident{display:flex;align-items:center;gap:0.7rem;}
+    .instructor-av{width:30px;height:30px;border-radius:50%;background:var(--cream-warm);border:1px solid var(--cream-border);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:0.72rem;color:var(--text-secondary);flex-shrink:0;}
+    .instructor-name{font-size:0.85rem;font-weight:500;color:var(--text-primary);}
+    .instructor-dept{font-size:0.72rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;}
+    .td{font-size:0.825rem;color:var(--text-secondary);}
+    .td.center{text-align:center;}.td.right{text-align:right;}
+    .status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;}
+    .status-dot.active{background:var(--flag-green);}
+    .status-dot.pending{background:var(--amber);}
+    .role-tag{font-size:0.68rem;padding:0.15rem 0.55rem;border-radius:20px;font-weight:600;}
+    .role-tag.admin{background:var(--gold-light);color:var(--amber);border:1px solid var(--gold-muted);}
+    .role-tag.instructor{background:var(--cream-warm);color:var(--text-secondary);border:1px solid var(--cream-border);}
+
+    /* SYSTEM HEALTH + COURSE DRILL-DOWN */
+    .health-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem;}
+    .health-card{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:1rem 1.1rem;box-shadow:var(--shadow-sm);}
+    .health-card-label{font-size:0.65rem;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.4rem;}
+    .health-card-value{font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:600;color:var(--text-primary);}
+    .health-card-meta{font-size:0.72rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;margin-top:0.2rem;}
+    .health-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:0.35rem;vertical-align:middle;}
+    .health-dot.up{background:var(--flag-green);}
+    .health-dot.warn{background:var(--amber);}
+    .health-dot.down{background:var(--flag-red);}
+    /* Course drill-down table */
+    .course-table-head{display:grid;grid-template-columns:1fr 70px 70px 50px 80px 80px;padding:0.6rem 1.4rem;background:var(--cream);border-bottom:1px solid var(--cream-border);}
+    .course-row{display:grid;grid-template-columns:1fr 70px 70px 50px 80px 80px;padding:0.75rem 1.4rem;border-bottom:1px solid var(--cream-border);align-items:center;transition:background 0.12s;cursor:pointer;}
+    .course-row:last-child{border-bottom:none;}
+    .course-row:hover{background:var(--cream);}
+    .course-name{font-size:0.83rem;font-weight:500;color:var(--text-primary);}
+    .course-code{font-size:0.72rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;}
+    .course-td{font-size:0.82rem;color:var(--text-secondary);}
+    .course-td.center{text-align:center;}
+    .course-flag-badge{display:inline-block;font-size:0.7rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:20px;}
+    .course-flag-badge.hi{background:var(--flag-red-bg);color:var(--flag-red);border:1px solid rgba(192,57,43,0.2);}
+    .course-flag-badge.lo{background:var(--flag-green-bg);color:var(--flag-green);border:1px solid rgba(42,107,69,0.15);}
+    .course-flag-badge.no{background:var(--cream-warm);color:var(--text-muted);border:1px solid var(--cream-border);}
+    .course-cov-bar{display:flex;align-items:center;gap:0.4rem;}
+    .course-cov-track{flex:1;height:5px;background:var(--cream-warm);border-radius:3px;overflow:hidden;}
+    .course-cov-fill{height:100%;border-radius:3px;background:var(--flag-green);}
+    .course-cov-pct{font-size:0.72rem;color:var(--text-muted);min-width:26px;text-align:right;}
+
+    /* INTEGRATION CARDS */
+    .integration-list{padding:0.75rem 1.4rem;display:flex;flex-direction:column;gap:0.75rem;}
+    .integration-item{display:flex;align-items:center;gap:0.85rem;padding:0.9rem 1rem;border:1px solid var(--cream-border);border-radius:var(--radius);transition:border-color 0.15s;cursor:pointer;}
+    .integration-item:hover{border-color:var(--gold-muted);}
+    .integration-icon{width:36px;height:36px;border-radius:6px;background:var(--cream-warm);border:1px solid var(--cream-border);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .integration-icon svg{width:18px;height:18px;stroke:var(--text-secondary);}
+    .integration-body{flex:1;}
+    .integration-name{font-size:0.85rem;font-weight:600;color:var(--text-primary);}
+    .integration-desc{font-size:0.75rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;}
+    .integration-status{display:flex;align-items:center;gap:0.35rem;font-size:0.72rem;font-weight:600;flex-shrink:0;}
+    .integration-status.connected{color:var(--flag-green);}
+    .integration-status.pending{color:var(--amber);}
+    .integration-status.inactive{color:var(--text-muted);}
+    .int-dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+
+    /* ACTIVITY FEED */
+    .activity-feed{padding:0;}
+    .activity-item{display:flex;align-items:flex-start;gap:0.85rem;padding:0.85rem 1.4rem;border-bottom:1px solid var(--cream-border);}
+    .activity-item:last-child{border-bottom:none;}
+    .activity-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:0.1rem;}
+    .activity-icon svg{width:13px;height:13px;stroke:currentColor;}
+    .activity-icon.flag{background:var(--flag-red-bg);color:var(--flag-red);}
+    .activity-icon.user{background:var(--flag-green-bg);color:var(--flag-green);}
+    .activity-icon.system{background:var(--cream-warm);color:var(--text-muted);}
+    .activity-icon.gold{background:var(--gold-light);color:var(--amber);}
+    .activity-body{flex:1;}
+    .activity-text{font-size:0.825rem;color:var(--text-primary);line-height:1.4;}
+    .activity-text strong{font-weight:600;}
+    .activity-time{font-size:0.72rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;margin-top:0.2rem;}
+
+    /* SCHOOL SETTINGS */
+    .settings-section{padding:1.25rem 1.4rem;border-bottom:1px solid var(--cream-border);}
+    .settings-section:last-child{border-bottom:none;}
+    .settings-label{font-size:0.7rem;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.85rem;}
+    .setting-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;}
+    .setting-row:last-child{margin-bottom:0;}
+    .setting-name{font-size:0.825rem;font-weight:500;color:var(--text-primary);}
+    .setting-desc{font-size:0.72rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;}
+    .toggle{position:relative;width:36px;height:20px;flex-shrink:0;}
+    .toggle input{opacity:0;width:0;height:0;}
+    .toggle-slider{position:absolute;inset:0;border-radius:20px;background:var(--cream-border);cursor:pointer;transition:background 0.2s;}
+    .toggle-slider::before{content:'';position:absolute;width:14px;height:14px;background:white;border-radius:50%;top:3px;left:3px;transition:transform 0.2s;box-shadow:0 1px 2px rgba(0,0,0,0.15);}
+    .toggle input:checked+.toggle-slider{background:var(--flag-green);}
+    .toggle input:checked+.toggle-slider::before{transform:translateX(16px);}
+    .threshold-input{display:flex;align-items:center;gap:0.5rem;}
+    .threshold-val{font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;color:var(--amber);min-width:2.5rem;text-align:center;}
+    .threshold-btn{width:24px;height:24px;border-radius:4px;border:1px solid var(--cream-border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);font-size:0.9rem;line-height:1;transition:all 0.15s;}
+    .threshold-btn:hover{border-color:var(--gold-muted);color:var(--text-primary);}
+
+    /* LTI REGISTRATIONS */
+    .lti-table-head{display:grid;grid-template-columns:1fr 140px 110px 80px 80px;padding:0.65rem 1.4rem;background:var(--cream);border-bottom:1px solid var(--cream-border);}
+    .lti-row{display:grid;grid-template-columns:1fr 140px 110px 80px 80px;padding:0.85rem 1.4rem;border-bottom:1px solid var(--cream-border);align-items:center;transition:background 0.12s;}
+    .lti-row:last-child{border-bottom:none;}
+    .lti-row:hover{background:var(--cream);}
+    .lti-label{font-size:0.85rem;font-weight:500;color:var(--text-primary);}
+    .lti-iss{font-size:0.72rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;margin-top:0.1rem;}
+    .lti-badge{display:inline-flex;align-items:center;gap:0.3rem;font-size:0.68rem;font-weight:600;padding:0.18rem 0.55rem;border-radius:20px;}
+    .lti-badge.active{background:var(--flag-green-bg);color:var(--flag-green);border:1px solid rgba(42,107,69,0.2);}
+    .lti-badge.inactive{background:var(--cream-warm);color:var(--text-muted);border:1px solid var(--cream-border);}
+    .lti-action{font-size:0.75rem;color:var(--amber);text-decoration:none;cursor:pointer;font-weight:500;}
+    .lti-action:hover{text-decoration:underline;}
+    .lti-empty{padding:1.75rem 1.4rem;text-align:center;}
+    .lti-empty-title{font-family:'Playfair Display',serif;font-size:0.9rem;color:var(--text-secondary);margin-bottom:0.35rem;}
+    .lti-empty-desc{font-family:'EB Garamond',serif;font-size:0.82rem;font-style:italic;color:var(--text-muted);}
+
+    /* MODAL */
+    .modal-overlay{position:fixed;inset:0;background:rgba(15,30,23,0.55);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem;}
+    .modal-overlay.hidden{display:none;}
+    .modal{background:var(--surface);border-radius:var(--radius);border:1px solid var(--cream-border);width:100%;max-width:540px;box-shadow:0 8px 32px rgba(0,0,0,0.15);overflow:hidden;}
+    .modal-head{padding:1.1rem 1.4rem;border-bottom:1px solid var(--cream-border);display:flex;align-items:center;justify-content:space-between;}
+    .modal-title{font-family:'Playfair Display',serif;font-size:1rem;font-weight:600;color:var(--text-primary);}
+    .modal-close{width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:4px;color:var(--text-muted);}
+    .modal-close svg{width:15px;height:15px;stroke:currentColor;}
+    .modal-close:hover{color:var(--text-primary);background:var(--cream);}
+    .modal-body{padding:1.25rem 1.4rem;}
+    .modal-foot{padding:0.85rem 1.4rem;border-top:1px solid var(--cream-border);display:flex;align-items:center;justify-content:flex-end;gap:0.75rem;}
+    .form-row{margin-bottom:1rem;}
+    .form-row:last-child{margin-bottom:0;}
+    .form-label{font-size:0.7rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.45rem;display:block;}
+    .form-input{width:100%;padding:0.55rem 0.85rem;border:1px solid var(--cream-border);border-radius:var(--radius);font-size:0.85rem;color:var(--text-primary);background:var(--surface);font-family:'Inter',system-ui,sans-serif;transition:border-color 0.15s;}
+    .form-input:focus{outline:none;border-color:var(--gold-muted);}
+    .form-hint{font-family:'EB Garamond',serif;font-size:0.78rem;font-style:italic;color:var(--text-muted);margin-top:0.3rem;}
+    .form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+
+    /* DATA POLICY section in settings */
+    .policy-field{display:flex;align-items:center;justify-content:space-between;padding:0.65rem 0;border-bottom:1px solid var(--cream-border);}
+    .policy-field:last-child{border-bottom:none;}
+    .policy-field-name{font-size:0.825rem;font-weight:500;color:var(--text-primary);}
+    .policy-field-desc{font-size:0.72rem;color:var(--text-muted);font-family:'EB Garamond',serif;font-style:italic;margin-top:0.1rem;}
+    .policy-input-wrap{display:flex;align-items:center;gap:0.45rem;flex-shrink:0;}
+    .days-input{width:64px;text-align:center;padding:0.3rem 0.5rem;border:1px solid var(--cream-border);border-radius:var(--radius);font-family:'Playfair Display',serif;font-size:0.95rem;color:var(--amber);font-weight:600;}
+    .days-input:focus{outline:none;border-color:var(--gold-muted);}
+    .days-label{font-size:0.72rem;color:var(--text-muted);}
+    .purge-btn{width:100%;margin-top:0.85rem;padding:0.55rem 1rem;border:1px solid var(--flag-red);border-radius:var(--radius);background:var(--flag-red-bg);color:var(--flag-red);font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.45rem;transition:all 0.15s;}
+    .purge-btn:hover{background:var(--flag-red);color:white;}
+    .purge-btn svg{width:13px;height:13px;stroke:currentColor;}
+
+    ::-webkit-scrollbar{width:4px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:var(--cream-border);border-radius:2px;}
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+      <span class="logo-wordmark">Original</span>
+    </div>
+    <div class="logo-school">Southern Baptist Theological Seminary</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Overview</div>
+    <a class="nav-item" href="original-dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard</a>
+    <a class="nav-item" href="original-course.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Courses</a>
+    <a class="nav-item" href="original-students.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Students</a>
+    <div class="nav-section-label">Review</div>
+    <a class="nav-item" href="original-flagged.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>Flagged<span class="nav-badge">5</span></a>
+    <a class="nav-item" href="original-reports.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Reports</a>
+        <div class="nav-section-label">Pipeline</div>
+    <a class="nav-item" href="original-features.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>Feature Profile</a>
+    <a class="nav-item" href="original-quantum.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>Quantum State</a>
+    <a class="nav-item" href="original-decomposition.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Interference</a>
+    <div class="nav-section-label">Institution</div>
+    <a class="nav-item active" href="original-admin.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Admin</a>
+    <a class="nav-item" href="original-integrations.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 012 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>Integrations</a>
+    <a class="nav-item" href="original-settings.html"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/></svg>Settings</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">AC</div>
+    <div class="user-info"><div class="user-name">Dr. Andrew Clark</div><div class="user-role">Administrator</div></div>
+    <div class="user-settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="breadcrumb">
+      <a href="original-dashboard.html">Original</a>
+      <span class="breadcrumb-sep">/</span>
+      <span class="breadcrumb-current">Admin</span>
+    </div>
+    <div class="topbar-right">
+      <div class="semester-badge">Spring 2026</div>
+      <div class="topbar-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+      <div class="topbar-icon-btn" style="position:relative;"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-dot"></span></div>
+    </div>
+  </div>
+
+  <div class="page-body">
+
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Institution Admin</h1>
+        <p class="page-subtitle">Southern Baptist Theological Seminary · Spring 2026</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-ghost" onclick="exportAccreditationCSV()">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export Report
+        </button>
+        <button class="btn btn-primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Instructor
+        </button>
+      </div>
+    </div>
+
+    <!-- Institution stats -->
+    <div class="stats-row">
+      <div class="stat-card t-default">
+        <div class="stat-label">Instructors</div>
+        <div class="stat-value">6</div>
+        <div class="stat-meta">5 active · 1 pending</div>
+      </div>
+      <div class="stat-card t-default">
+        <div class="stat-label">Active Courses</div>
+        <div class="stat-value">14</div>
+        <div class="stat-meta">this term</div>
+      </div>
+      <div class="stat-card t-default">
+        <div class="stat-label">Total Students</div>
+        <div class="stat-value">182</div>
+        <div class="stat-meta">across all courses</div>
+      </div>
+      <div class="stat-card t-gold">
+        <div class="stat-label">School-wide Flags</div>
+        <div class="stat-value">12</div>
+        <div class="stat-meta">7 pending review</div>
+      </div>
+      <div class="stat-card t-green">
+        <div class="stat-label">Baseline Coverage</div>
+        <div class="stat-value">68<span style="font-size:1rem;font-weight:400;">%</span></div>
+        <div class="stat-meta">123 of 182 established</div>
+      </div>
+    </div>
+
+    <!-- System Health Panel -->
+    <div class="health-row">
+      <div class="health-card">
+        <div class="health-card-label">API Status</div>
+        <div class="health-card-value" id="hc-api-status"><span class="health-dot up"></span>Operational</div>
+        <div class="health-card-meta" id="hc-uptime">99.97% uptime this month</div>
+      </div>
+      <div class="health-card">
+        <div class="health-card-label">Avg Scoring Latency</div>
+        <div class="health-card-value" id="hc-latency">447<span style="font-size:0.9rem;font-weight:400;"> ms</span></div>
+        <div class="health-card-meta">p95: 1.2s · target ≤ 2s</div>
+      </div>
+      <div class="health-card">
+        <div class="health-card-label">Students / Submissions</div>
+        <div class="health-card-value" id="hc-counts">— / —</div>
+        <div class="health-card-meta" id="hc-flagged">Loading…</div>
+      </div>
+      <div class="health-card">
+        <div class="health-card-label">Queue Depth</div>
+        <div class="health-card-value" id="hc-queue">0</div>
+        <div class="health-card-meta">Submissions awaiting scoring</div>
+      </div>
+    </div>
+
+    <!-- Main grid -->
+    <div class="admin-grid">
+      <div>
+
+        <!-- Course Drill-Down -->
+        <div class="section-card" style="margin-bottom:1.5rem;">
+          <div class="section-head">
+            <span class="section-title">Course Overview</span>
+            <span style="font-family:'EB Garamond',serif;font-size:0.78rem;font-style:italic;color:var(--text-muted);">Spring 2026 · all departments</span>
+          </div>
+          <div class="course-table-head">
+            <div class="th">Course</div>
+            <div class="th center">Students</div>
+            <div class="th center">Submissions</div>
+            <div class="th center">Flags</div>
+            <div class="th center">Avg Deviation</div>
+            <div class="th center">Baseline %</div>
+          </div>
+          <div id="course-table-body">
+          <div class="course-row" onclick="window.location.href='original-course.html'">
+            <div><div class="course-name">Systematic Theology I</div><div class="course-code">THEO 501 · Dr. Clark</div></div>
+            <div class="course-td center">48</div>
+            <div class="course-td center">312</div>
+            <div class="course-td center"><span class="course-flag-badge hi">7</span></div>
+            <div class="course-td center">0.54</div>
+            <div class="course-td"><div class="course-cov-bar"><div class="course-cov-track"><div class="course-cov-fill" style="width:79%"></div></div><span class="course-cov-pct">79%</span></div></div>
+          </div>
+          <div class="course-row">
+            <div><div class="course-name">Church History II</div><div class="course-code">HIST 410 · Dr. Holt</div></div>
+            <div class="course-td center">39</div>
+            <div class="course-td center">241</div>
+            <div class="course-td center"><span class="course-flag-badge hi">4</span></div>
+            <div class="course-td center">0.51</div>
+            <div class="course-td"><div class="course-cov-bar"><div class="course-cov-track"><div class="course-cov-fill" style="width:72%"></div></div><span class="course-cov-pct">72%</span></div></div>
+          </div>
+          <div class="course-row">
+            <div><div class="course-name">Introduction to the OT</div><div class="course-code">BIBL 301 · Prof. Ford</div></div>
+            <div class="course-td center">34</div>
+            <div class="course-td center">187</div>
+            <div class="course-td center"><span class="course-flag-badge lo">2</span></div>
+            <div class="course-td center">0.46</div>
+            <div class="course-td"><div class="course-cov-bar"><div class="course-cov-track"><div class="course-cov-fill" style="width:65%"></div></div><span class="course-cov-pct">65%</span></div></div>
+          </div>
+          <div class="course-row">
+            <div><div class="course-name">Hermeneutics</div><div class="course-code">BMIN 220 · Dr. Reeves</div></div>
+            <div class="course-td center">28</div>
+            <div class="course-td center">142</div>
+            <div class="course-td center"><span class="course-flag-badge lo">1</span></div>
+            <div class="course-td center">0.43</div>
+            <div class="course-td"><div class="course-cov-bar"><div class="course-cov-track"><div class="course-cov-fill" style="width:61%"></div></div><span class="course-cov-pct">61%</span></div></div>
+          </div>
+          <div class="course-row">
+            <div><div class="course-name">Greek I</div><div class="course-code">GREK 101 · Prof. Torres</div></div>
+            <div class="course-td center">33</div>
+            <div class="course-td center">98</div>
+            <div class="course-td center"><span class="course-flag-badge no">0</span></div>
+            <div class="course-td center">0.38</div>
+            <div class="course-td"><div class="course-cov-bar"><div class="course-cov-track"><div class="course-cov-fill" style="width:55%"></div></div><span class="course-cov-pct">55%</span></div></div>
+          </div>
+          </div><!-- #course-table-body -->
+        </div>
+
+        <!-- Instructors -->
+        <div class="section-card">
+          <div class="section-head">
+            <span class="section-title">Instructors</span>
+            <button class="btn btn-ghost" style="padding:0.3rem 0.85rem;font-size:0.775rem;">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Invite
+            </button>
+          </div>
+
+          <div class="instructor-head">
+            <div class="th">Instructor</div>
+            <div class="th center">Courses</div>
+            <div class="th center">Students</div>
+            <div class="th center">Flags</div>
+            <div class="th">Role</div>
+            <div class="th center">Status</div>
+          </div>
+
+          <div class="instructor-row">
+            <div class="instructor-ident">
+              <div class="instructor-av">AC</div>
+              <div><div class="instructor-name">Dr. Andrew Clark</div><div class="instructor-dept">Systematic Theology</div></div>
+            </div>
+            <div class="td center">4</div>
+            <div class="td center">48</div>
+            <div class="td center" style="color:var(--amber);font-weight:600;">5</div>
+            <div class="td"><span class="role-tag admin">Admin</span></div>
+            <div class="td center"><span class="status-dot active"></span></div>
+          </div>
+
+          <div class="instructor-row">
+            <div class="instructor-ident">
+              <div class="instructor-av">PH</div>
+              <div><div class="instructor-name">Dr. Patricia Holt</div><div class="instructor-dept">Church History</div></div>
+            </div>
+            <div class="td center">3</div>
+            <div class="td center">39</div>
+            <div class="td center" style="color:var(--amber);font-weight:600;">4</div>
+            <div class="td"><span class="role-tag instructor">Instructor</span></div>
+            <div class="td center"><span class="status-dot active"></span></div>
+          </div>
+
+          <div class="instructor-row">
+            <div class="instructor-ident">
+              <div class="instructor-av">MT</div>
+              <div><div class="instructor-name">Prof. Michael Torres</div><div class="instructor-dept">Biblical Studies</div></div>
+            </div>
+            <div class="td center">3</div>
+            <div class="td center">34</div>
+            <div class="td center" style="color:var(--flag-green);font-weight:600;">2</div>
+            <div class="td"><span class="role-tag instructor">Instructor</span></div>
+            <div class="td center"><span class="status-dot active"></span></div>
+          </div>
+
+          <div class="instructor-row">
+            <div class="instructor-ident">
+              <div class="instructor-av">ER</div>
+              <div><div class="instructor-name">Dr. Eleanor Reeves</div><div class="instructor-dept">Hermeneutics</div></div>
+            </div>
+            <div class="td center">2</div>
+            <div class="td center">28</div>
+            <div class="td center" style="color:var(--text-muted);">1</div>
+            <div class="td"><span class="role-tag instructor">Instructor</span></div>
+            <div class="td center"><span class="status-dot active"></span></div>
+          </div>
+
+          <div class="instructor-row">
+            <div class="instructor-ident">
+              <div class="instructor-av">JF</div>
+              <div><div class="instructor-name">Prof. James Ford</div><div class="instructor-dept">Old Testament</div></div>
+            </div>
+            <div class="td center">2</div>
+            <div class="td center">33</div>
+            <div class="td center" style="color:var(--text-muted);">0</div>
+            <div class="td"><span class="role-tag instructor">Instructor</span></div>
+            <div class="td center"><span class="status-dot active"></span></div>
+          </div>
+
+          <div class="instructor-row" style="opacity:0.7;">
+            <div class="instructor-ident">
+              <div class="instructor-av" style="color:var(--amber);">LP</div>
+              <div><div class="instructor-name">Dr. Laura Park</div><div class="instructor-dept">New Testament</div></div>
+            </div>
+            <div class="td center" style="color:var(--text-muted);">—</div>
+            <div class="td center" style="color:var(--text-muted);">—</div>
+            <div class="td center" style="color:var(--text-muted);">—</div>
+            <div class="td"><span class="role-tag instructor">Instructor</span></div>
+            <div class="td center"><span class="status-dot pending"></span></div>
+          </div>
+
+        </div>
+
+        <!-- Integrations -->
+        <div class="section-card">
+          <div class="section-head">
+            <span class="section-title">Integrations</span>
+            <span style="font-family:'EB Garamond',serif;font-size:0.8rem;font-style:italic;color:var(--text-muted);">LMS & SIS connections</span>
+          </div>
+          <div class="integration-list">
+
+            <div class="integration-item">
+              <div class="integration-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              </div>
+              <div class="integration-body">
+                <div class="integration-name">Canvas LMS</div>
+                <div class="integration-desc">Auto-import submissions · Grade passback · Single sign-on</div>
+              </div>
+              <div class="integration-status connected"><div class="int-dot"></div>Connected</div>
+            </div>
+
+            <div class="integration-item">
+              <div class="integration-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <div class="integration-body">
+                <div class="integration-name">RenWeb / FACTS SIS</div>
+                <div class="integration-desc">Student roster sync · Enrollment data · Historical records</div>
+              </div>
+              <div class="integration-status pending"><div class="int-dot"></div>Configuring</div>
+            </div>
+
+            <div class="integration-item" style="opacity:0.7;">
+              <div class="integration-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              </div>
+              <div class="integration-body">
+                <div class="integration-name">Email Notifications</div>
+                <div class="integration-desc">Flag alerts · Weekly digest · Decision confirmations</div>
+              </div>
+              <div class="integration-status inactive"><div class="int-dot"></div>Not connected</div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Canvas LTI 1.3 Registrations -->
+        <div class="section-card">
+          <div class="section-head">
+            <div>
+              <span class="section-title">Canvas LTI 1.3 Registrations</span>
+              <div style="font-family:'EB Garamond',serif;font-size:0.78rem;font-style:italic;color:var(--text-muted);margin-top:0.15rem;">One registration per Canvas instance · RS256 signed · OIDC launch flow</div>
+            </div>
+            <button class="btn btn-ghost" style="padding:0.3rem 0.85rem;font-size:0.775rem;" onclick="openModal()">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Register Canvas
+            </button>
+          </div>
+
+          <div class="lti-table-head">
+            <div class="th">Registration</div>
+            <div class="th">Platform Issuer</div>
+            <div class="th center">Client ID</div>
+            <div class="th center">Status</div>
+            <div class="th center">Actions</div>
+          </div>
+
+          <!-- Demo row 1: active -->
+          <div class="lti-row">
+            <div>
+              <div class="lti-label">SBTS Canvas</div>
+              <div class="lti-iss">Registered Mar 12, 2026</div>
+            </div>
+            <div class="td" style="font-size:0.78rem;font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);">canvas.sbts.edu</div>
+            <div class="td center" style="font-family:monospace;font-size:0.78rem;color:var(--text-secondary);">178450…</div>
+            <div class="td center"><span class="lti-badge active"><span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block;"></span>Active</span></div>
+            <div class="td center"><span class="lti-action" onclick="alert('Rotate key for SBTS Canvas')">Rotate key</span></div>
+          </div>
+
+          <!-- Demo row 2: inactive -->
+          <div class="lti-row" style="opacity:0.6;">
+            <div>
+              <div class="lti-label">Dev / Sandbox</div>
+              <div class="lti-iss">Registered Feb 4, 2026</div>
+            </div>
+            <div class="td" style="font-size:0.78rem;font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);">canvas.instructure.com</div>
+            <div class="td center" style="font-family:monospace;font-size:0.78rem;color:var(--text-secondary);">129001…</div>
+            <div class="td center"><span class="lti-badge inactive">Inactive</span></div>
+            <div class="td center"><span class="lti-action" onclick="alert('Edit sandbox registration')">Edit</span></div>
+          </div>
+
+          <!-- Setup guidance footer -->
+          <div style="padding:0.85rem 1.4rem;background:var(--cream);border-top:1px solid var(--cream-border);">
+            <div style="font-size:0.72rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.5rem;">Canvas Setup URLs — provide these to your Canvas administrator</div>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:0.35rem 0.75rem;font-size:0.78rem;align-items:center;">
+              <span style="color:var(--text-muted);font-weight:600;">OIDC Initiation</span>
+              <code style="font-family:monospace;background:var(--cream-warm);padding:0.1rem 0.4rem;border-radius:3px;color:var(--text-secondary);font-size:0.75rem;">https://original.sbts.edu/lti/login</code>
+              <span style="color:var(--text-muted);font-weight:600;">Redirect URI</span>
+              <code style="font-family:monospace;background:var(--cream-warm);padding:0.1rem 0.4rem;border-radius:3px;color:var(--text-secondary);font-size:0.75rem;">https://original.sbts.edu/lti/launch</code>
+              <span style="color:var(--text-muted);font-weight:600;">JWKS URL</span>
+              <code style="font-family:monospace;background:var(--cream-warm);padding:0.1rem 0.4rem;border-radius:3px;color:var(--text-secondary);font-size:0.75rem;">https://original.sbts.edu/lti/jwks</code>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /left -->
+
+      <!-- RIGHT -->
+      <div>
+
+        <!-- Activity -->
+        <div class="section-card">
+          <div class="section-head">
+            <span class="section-title">Recent Activity</span>
+          </div>
+          <div class="activity-feed">
+
+            <div class="activity-item">
+              <div class="activity-icon flag">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+              </div>
+              <div class="activity-body">
+                <div class="activity-text"><strong>James Whitfield</strong> submission flagged — score 0.91</div>
+                <div class="activity-time">THEO 501 · 2 hours ago</div>
+              </div>
+            </div>
+
+            <div class="activity-item">
+              <div class="activity-icon flag">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+              </div>
+              <div class="activity-body">
+                <div class="activity-text"><strong>Sarah Okonkwo</strong> submission flagged — score 0.84</div>
+                <div class="activity-time">THEO 501 · 4 hours ago</div>
+              </div>
+            </div>
+
+            <div class="activity-item">
+              <div class="activity-icon user">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="activity-body">
+                <div class="activity-text">Dr. Holt cleared flag for <strong>Owen Ellis</strong></div>
+                <div class="activity-time">HIST 410 · Yesterday · 3:14pm</div>
+              </div>
+            </div>
+
+            <div class="activity-item">
+              <div class="activity-icon system">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <div class="activity-body">
+                <div class="activity-text">Canvas sync completed — <strong>12 new submissions</strong> imported</div>
+                <div class="activity-time">Yesterday · 11:00pm</div>
+              </div>
+            </div>
+
+            <div class="activity-item">
+              <div class="activity-icon gold">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              </div>
+              <div class="activity-body">
+                <div class="activity-text">Baseline established for <strong>Rebecca Booth</strong></div>
+                <div class="activity-time">BIBL 301 · Mar 13</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Institution settings -->
+        <div class="section-card">
+          <div class="section-head">
+            <span class="section-title">Detection Settings</span>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-label">Flagging Thresholds</div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-name">Flag threshold</div>
+                <div class="setting-desc">Deviation score above which submissions are flagged</div>
+              </div>
+              <div class="threshold-input">
+                <button class="threshold-btn" onclick="adjustThreshold(-0.05)">−</button>
+                <span class="threshold-val" id="threshold-val">0.65</span>
+                <button class="threshold-btn" onclick="adjustThreshold(0.05)">+</button>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-name">High-risk threshold</div>
+                <div class="setting-desc">Above this score, flags are marked high-priority</div>
+              </div>
+              <div class="threshold-input">
+                <button class="threshold-btn" onclick="adjustHighThreshold(-0.05)">−</button>
+                <span class="threshold-val" id="high-threshold-val" style="color:var(--flag-red);">0.80</span>
+                <button class="threshold-btn" onclick="adjustHighThreshold(0.05)">+</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-label">Notifications</div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-name">Email on flag</div>
+                <div class="setting-desc">Notify instructor immediately when a submission is flagged</div>
+              </div>
+              <label class="toggle"><input type="checkbox" checked /><span class="toggle-slider"></span></label>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-name">Weekly summary</div>
+                <div class="setting-desc">Send admins a weekly digest of flags and decisions</div>
+              </div>
+              <label class="toggle"><input type="checkbox" checked /><span class="toggle-slider"></span></label>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-name">Require decision notes</div>
+                <div class="setting-desc">Mandate written notes when clearing or escalating a flag</div>
+              </div>
+              <label class="toggle"><input type="checkbox" /><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-label">Baseline</div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-name">Minimum samples required</div>
+                <div class="setting-desc">Submissions needed before a baseline is considered established</div>
+              </div>
+              <div class="threshold-input">
+                <button class="threshold-btn" onclick="adjustMin(-1)">−</button>
+                <span class="threshold-val" id="min-val" style="color:var(--flag-green);">3</span>
+                <button class="threshold-btn" onclick="adjustMin(1)">+</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Data Policy -->
+        <div class="section-card">
+          <div class="section-head">
+            <div>
+              <span class="section-title">Data Policy</span>
+              <div style="font-family:'EB Garamond',serif;font-size:0.78rem;font-style:italic;color:var(--text-muted);margin-top:0.1rem;">FERPA · GDPR · Retention controls</div>
+            </div>
+            <span style="font-size:0.68rem;font-weight:600;padding:0.2rem 0.6rem;background:var(--flag-green-bg);color:var(--flag-green);border:1px solid rgba(42,107,69,0.2);border-radius:20px;">Privacy-first defaults</span>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-label">Submission Storage</div>
+
+            <div class="policy-field">
+              <div>
+                <div class="policy-field-name">Store submission text</div>
+                <div class="policy-field-desc">Retain full text for draft-history corroboration</div>
+              </div>
+              <label class="toggle"><input type="checkbox" id="toggle-store-text" /><span class="toggle-slider"></span></label>
+            </div>
+
+            <div class="policy-field">
+              <div>
+                <div class="policy-field-name">Index for cross-cohort comparison</div>
+                <div class="policy-field-desc">Off by default — requires explicit institutional consent</div>
+              </div>
+              <label class="toggle"><input type="checkbox" id="toggle-index" /><span class="toggle-slider"></span></label>
+            </div>
+
+            <div class="policy-field">
+              <div>
+                <div class="policy-field-name">Retention period</div>
+                <div class="policy-field-desc">Days to keep scored submissions (0 = indefinite)</div>
+              </div>
+              <div class="policy-input-wrap">
+                <input class="days-input" type="number" id="retention-days" value="0" min="0" max="3650" />
+                <span class="days-label">days</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-label">GDPR / Transparency</div>
+
+            <div class="policy-field">
+              <div>
+                <div class="policy-field-name">Lawful basis</div>
+                <div class="policy-field-desc">Shown in student-facing privacy notice</div>
+              </div>
+              <select class="days-input" id="lawful-basis" style="width:auto;padding:0.3rem 0.5rem;font-family:'Inter',sans-serif;font-size:0.78rem;color:var(--text-secondary);">
+                <option value="legitimate_interest">Legitimate interest</option>
+                <option value="public_task">Public task</option>
+                <option value="consent">Consent</option>
+              </select>
+            </div>
+
+            <div style="margin-top:0.75rem;">
+              <label class="form-label" style="margin-bottom:0.3rem;display:block;">Student transparency URL</label>
+              <input class="form-input" type="url" placeholder="https://sbts.edu/privacy/original" id="transparency-url" style="font-size:0.8rem;" />
+              <div class="form-hint">Linked in Canvas SpeedGrader report footers</div>
+            </div>
+
+            <div style="margin-top:0.75rem;">
+              <label class="form-label" style="margin-bottom:0.3rem;display:block;">Deletion request contact</label>
+              <input class="form-input" type="email" placeholder="privacy@sbts.edu" id="deletion-email" style="font-size:0.8rem;" />
+              <div class="form-hint">Students contact this address to request submission deletion</div>
+            </div>
+          </div>
+
+          <div class="settings-section" style="background:var(--flag-red-bg);">
+            <div class="settings-label" style="color:var(--flag-red);">Data Purge</div>
+            <div style="font-family:'EB Garamond',serif;font-size:0.82rem;font-style:italic;color:var(--text-secondary);margin-bottom:0.75rem;line-height:1.5;">
+              Permanently delete submissions that exceed the retention period. Always run a dry-run preview first — deletion is not reversible.
+            </div>
+            <div style="display:flex;gap:0.65rem;">
+              <button class="purge-btn" style="border-color:var(--amber);background:rgba(201,160,40,0.08);color:var(--amber);" onclick="alert('Dry run: 0 submissions would be purged (retention = indefinite)')">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Dry-run preview
+              </button>
+              <button class="purge-btn" onclick="confirmPurge()">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                Purge now
+              </button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="savePolicy()">Save Data Policy</button>
+          </div>
+
+        </div>
+
+      </div><!-- /right -->
+    </div>
+  </div>
+</div>
+
+<!-- LTI Registration Modal -->
+<div class="modal-overlay hidden" id="lti-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Register Canvas LTI 1.3 Deployment</span>
+      <span class="modal-close" onclick="closeModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </span>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label">Registration Label</label>
+        <input class="form-input" type="text" placeholder="e.g. SBTS Production Canvas" id="lti-label" />
+        <div class="form-hint">Human-readable name for this Canvas instance</div>
+      </div>
+      <div class="form-row-2">
+        <div class="form-row" style="margin-bottom:0;">
+          <label class="form-label">Platform Issuer (ISS)</label>
+          <input class="form-input" type="url" value="https://canvas.instructure.com" id="lti-iss" />
+          <div class="form-hint">canvas.instructure.com for hosted Canvas; your domain for self-hosted</div>
+        </div>
+        <div class="form-row" style="margin-bottom:0;">
+          <label class="form-label">Client ID</label>
+          <input class="form-input" type="text" placeholder="From Canvas Developer Key" id="lti-client-id" />
+          <div class="form-hint">Numeric ID from the Canvas Developer Key</div>
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:1rem;">
+        <label class="form-label">Deployment ID <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+        <input class="form-input" type="text" placeholder="Leave blank for single-deployment keys" id="lti-deployment-id" />
+      </div>
+      <div class="form-row">
+        <label class="form-label">Canvas API Token <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+        <input class="form-input" type="password" placeholder="System-level token for grade passback fallback" id="lti-api-token" />
+        <div class="form-hint">Per-submission tokens from the LTI launch are preferred — this is a fallback only</div>
+      </div>
+      <div style="padding:0.75rem;background:var(--flag-green-bg);border:1px solid rgba(42,107,69,0.15);border-radius:var(--radius);margin-top:0.5rem;">
+        <div style="font-size:0.72rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--flag-green);margin-bottom:0.4rem;">After saving, provide these URLs to Canvas</div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:0.25rem 0.65rem;font-size:0.76rem;color:var(--text-secondary);">
+          <span style="font-weight:600;color:var(--flag-green);">OIDC Init</span><code style="font-family:monospace;font-size:0.72rem;">[ORIGINAL_BASE_URL]/lti/login</code>
+          <span style="font-weight:600;color:var(--flag-green);">Redirect URI</span><code style="font-family:monospace;font-size:0.72rem;">[ORIGINAL_BASE_URL]/lti/launch</code>
+          <span style="font-weight:600;color:var(--flag-green);">JWKS</span><code style="font-family:monospace;font-size:0.72rem;">[ORIGINAL_BASE_URL]/lti/jwks</code>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitRegistration()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        Create Registration
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Load live health data from demo API server ────────────────────────────
+  (function loadHealth() {
+    var API = 'http://localhost:8000';
+    fetch(API + '/admin/health')
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d) {
+        if (!d) return;
+        // API status
+        var statusEl = document.getElementById('hc-api-status');
+        if (statusEl) {
+          var dot = d.api_status === 'operational'
+            ? '<span class="health-dot up"></span>Operational'
+            : '<span class="health-dot warn"></span>' + d.api_status;
+          statusEl.innerHTML = dot;
+        }
+        var uptimeEl = document.getElementById('hc-uptime');
+        if (uptimeEl && d.uptime_pct != null) {
+          uptimeEl.textContent = d.uptime_pct.toFixed(2) + '% uptime this month';
+        }
+        // Latency
+        var latEl = document.getElementById('hc-latency');
+        if (latEl && d.avg_latency_ms != null) {
+          latEl.innerHTML = d.avg_latency_ms + '<span style="font-size:0.9rem;font-weight:400;"> ms</span>';
+        }
+        // Students / submissions
+        var countsEl = document.getElementById('hc-counts');
+        if (countsEl) {
+          var students = d.student_count != null ? d.student_count : '—';
+          var subs = d.total_submissions != null ? d.total_submissions : '—';
+          countsEl.textContent = students + ' / ' + subs;
+        }
+        var flaggedEl = document.getElementById('hc-flagged');
+        if (flaggedEl && d.flagged_count != null) {
+          flaggedEl.textContent = d.flagged_count + ' flagged submission' + (d.flagged_count !== 1 ? 's' : '');
+        }
+        // Queue depth
+        var queueEl = document.getElementById('hc-queue');
+        if (queueEl && d.queue_depth != null) {
+          queueEl.textContent = d.queue_depth;
+        }
+      })
+      .catch(function() {
+        // Server offline — leave static defaults, show dot warning
+        var statusEl = document.getElementById('hc-api-status');
+        if (statusEl) statusEl.innerHTML = '<span class="health-dot warn"></span>Demo server offline';
+        var flaggedEl = document.getElementById('hc-flagged');
+        if (flaggedEl) flaggedEl.textContent = 'Start server: uvicorn original.api:app';
+      });
+  })();
+
+  // Course table — fetch from production API if JWT is present; keep static demo data otherwise
+  (function loadCourses() {
+    var PROD_API = 'http://localhost:8001';
+    var token = '';
+    try { token = JSON.parse(localStorage.getItem('original_auth') || '{}').access_token || ''; } catch(e) {}
+    if (!token) return; // no session — keep hardcoded demo rows
+
+    fetch(PROD_API + '/api/v1/admin/courses', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(courses) {
+      if (!courses || !courses.length) return;
+      var html = '';
+      courses.forEach(function(c) {
+        var flags = c.flag_count || 0;
+        var flagClass = flags >= 5 ? 'hi' : flags >= 1 ? 'lo' : 'no';
+        var dev = c.avg_deviation != null ? c.avg_deviation.toFixed(2) : '—';
+        var cov = c.baseline_coverage_pct || 0;
+        var instructor = c.instructor_name ? c.instructor_name : '';
+        var codeStr = c.course_code || '';
+        if (instructor) codeStr += (codeStr ? ' · ' : '') + instructor;
+        html += '<div class="course-row" onclick="window.location.href=\'original-course.html\'">'
+              + '<div><div class="course-name">' + escH(c.name || c.course_name || '') + '</div>'
+              + (codeStr ? '<div class="course-code">' + escH(codeStr) + '</div>' : '')
+              + '</div>'
+              + '<div class="course-td center">' + (c.student_count || 0) + '</div>'
+              + '<div class="course-td center">' + (c.submission_count || 0) + '</div>'
+              + '<div class="course-td center"><span class="course-flag-badge ' + flagClass + '">' + flags + '</span></div>'
+              + '<div class="course-td center">' + dev + '</div>'
+              + '<div class="course-td"><div class="course-cov-bar"><div class="course-cov-track"><div class="course-cov-fill" style="width:' + cov + '%"></div></div><span class="course-cov-pct">' + cov + '%</span></div></div>'
+              + '</div>';
+      });
+      var body = document.getElementById('course-table-body');
+      if (body && html) body.innerHTML = html;
+    })
+    .catch(function() {}); // silent — keep static demo rows on error
+  })();
+
+  function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  let threshold = 0.65;
+  let highThreshold = 0.80;
+  let minSamples = 3;
+
+  function adjustThreshold(delta) {
+    threshold = Math.max(0.1, Math.min(0.95, +(threshold + delta).toFixed(2)));
+    document.getElementById('threshold-val').textContent = threshold.toFixed(2);
+  }
+  function adjustHighThreshold(delta) {
+    highThreshold = Math.max(threshold + 0.05, Math.min(0.99, +(highThreshold + delta).toFixed(2)));
+    document.getElementById('high-threshold-val').textContent = highThreshold.toFixed(2);
+  }
+  function adjustMin(delta) {
+    minSamples = Math.max(1, Math.min(10, minSamples + delta));
+    document.getElementById('min-val').textContent = minSamples;
+  }
+
+  // LTI modal
+  function openModal() {
+    document.getElementById('lti-modal').classList.remove('hidden');
+  }
+  function closeModal() {
+    document.getElementById('lti-modal').classList.add('hidden');
+  }
+  function submitRegistration() {
+    const label = document.getElementById('lti-label').value.trim();
+    const clientId = document.getElementById('lti-client-id').value.trim();
+    if (!label || !clientId) {
+      alert('Label and Client ID are required.');
+      return;
+    }
+    alert(`Registration "${label}" created.\n\nIn production this would POST to /api/v1/admin/canvas/registrations.`);
+    closeModal();
+  }
+  document.getElementById('lti-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  // Data policy
+  function savePolicy() {
+    const retentionDays = parseInt(document.getElementById('retention-days').value, 10) || 0;
+    const storeText = document.getElementById('toggle-store-text').checked;
+    const indexSubs = document.getElementById('toggle-index').checked;
+    const lawfulBasis = document.getElementById('lawful-basis').value;
+    const transparencyUrl = document.getElementById('transparency-url').value.trim();
+    const deletionEmail = document.getElementById('deletion-email').value.trim();
+    console.log('Policy saved:', { retentionDays, storeText, indexSubs, lawfulBasis, transparencyUrl, deletionEmail });
+    alert('Data policy saved.\n\nIn production this PUTs to /api/v1/admin/institutions/{id}/data-policy.');
+  }
+
+  function exportAccreditationCSV() {
+    var rows = [
+      ['Course', 'Code', 'Instructor', 'Students', 'Submissions', 'Flags', 'Avg Deviation', 'Baseline Coverage %'],
+      ['Systematic Theology I', 'THEO 501', 'Dr. Andrew Clark', 48, 312, 7, 0.54, 79],
+      ['Church History II', 'HIST 410', 'Dr. Patricia Holt', 39, 241, 4, 0.51, 72],
+      ['Introduction to the OT', 'BIBL 301', 'Prof. James Ford', 34, 187, 2, 0.46, 65],
+      ['Hermeneutics', 'BMIN 220', 'Dr. Eleanor Reeves', 28, 142, 1, 0.43, 61],
+      ['Greek I', 'GREK 101', 'Prof. Michael Torres', 33, 98, 0, 0.38, 55],
+    ];
+    var csv = rows.map(function(r){ return r.map(function(c){ return '"' + String(c).replace(/"/g,'""') + '"'; }).join(','); }).join('\r\n');
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'Original_Accreditation_Report_Spring2026.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function confirmPurge() {
+    const days = parseInt(document.getElementById('retention-days').value, 10) || 0;
+    if (days === 0) {
+      alert('Retention period is set to indefinite (0 days). No submissions would be purged.');
+      return;
+    }
+    if (confirm(`This will permanently delete all submissions older than ${days} days for this institution.\n\nThis action is not reversible. Proceed?`)) {
+      alert('Purge complete. In production this POSTs to /api/v1/admin/institutions/{id}/submissions/purge?dry_run=false');
+    }
+  }
+</script>
+</body>
+</html>
