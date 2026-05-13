@@ -312,10 +312,6 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         Settings
       </a>
-      <a class="nav-item" href="http://localhost:3000" target="_blank" title="Bbook Exams" style="opacity:0.85">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-        Bbook Exams ↗
-      </a>
     </nav>
     <div class="sidebar-user">
       <div class="user-avatar">SA</div>
@@ -547,99 +543,180 @@ function filterTable(query) {
   });
 }
 
-const STUDENTS=[
-  {ini:'MW',color:'#BFDBFE',tc:'#1E40AF',name:'Marcus Whitfield',id:'STU-0041',course:'TH501',score:0.71,action:'schedule_conversation'},
-  {ini:'JO',color:'#D1FAE5',tc:'#065F46',name:'James Okafor',    id:'STU-0078',course:'CH301',score:0.52,action:'monitor'},
-  {ini:'RK',color:'#FEE2E2',tc:'#991B1B',name:'Rachel Kim',      id:'STU-0112',course:'NT401',score:0.81,action:'escalate'},
-  {ini:'ET',color:'#FEF9C3',tc:'#92400E',name:'Emily Torres',    id:'STU-0055',course:'PT201',score:0.28,action:'no_action'},
-  {ini:'DO',color:'#D1FAE5',tc:'#065F46',name:'David Osei',      id:'STU-0093',course:'OT302',score:0.19,action:'no_action'},
-  {ini:'SC',color:'#E9D5FF',tc:'#6D28D9',name:'Sarah Chen',      id:'STU-0067',course:'TH501',score:0.44,action:'monitor'},
+const API = '';
+const AV_COLORS = [
+  {bg:'#BFDBFE',tc:'#1E40AF'},{bg:'#D1FAE5',tc:'#065F46'},{bg:'#FEE2E2',tc:'#991B1B'},
+  {bg:'#FEF9C3',tc:'#92400E'},{bg:'#E9D5FF',tc:'#6D28D9'},{bg:'#FCE7F3',tc:'#9D174D'},
 ];
-const ACTIVITY=[
-  {dot:'#DC2626',title:'Submission Needs Review',    sub:'Rachel Kim · NT401 — Awaiting instructor review',   time:'2h ago'},
-  {dot:'#D97706',title:'Conversation scheduled',    sub:'Marcus Whitfield · TH501 — Prof. Adeyemi notified', time:'5h ago'},
-  {dot:'#059669',title:'Baseline added',            sub:'David Osei · 5th sample authenticated',            time:'1d ago'},
-  {dot:'#2563EB',title:'New submission scored',     sub:'Emily Torres · PT201 — No action required',        time:'1d ago'},
-  {dot:'#059669',title:'Canvas sync complete',      sub:'28 new submissions imported overnight',             time:'2d ago'},
-];
+const aLabel = {no_action:'No Action', monitor:'Monitor', schedule_conversation:'Discuss', escalate:'Escalate'};
 
-function scoreColor(s){
-  if(s<0.40) return 'var(--green)';
-  if(s<0.55) return 'var(--blue)';
-  if(s<0.75) return 'var(--amber)';
-  return 'var(--red)';
+function scoreColor(s) {
+  if (s < 0.40) return '#059669';
+  if (s < 0.55) return '#2563EB';
+  if (s < 0.75) return '#D97706';
+  return '#DC2626';
 }
-const aLabel={no_action:'No Action',monitor:'Monitor',schedule_conversation:'Discuss',escalate:'Escalate'};
+function scoreAction(s) {
+  if (s > 0.75) return 'escalate';
+  if (s > 0.55) return 'schedule_conversation';
+  if (s > 0.40) return 'monitor';
+  return 'no_action';
+}
+function initials(id) {
+  return id.replace(/_/g,' ').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+}
+function timeAgo(iso) {
+  if (!iso) return '—';
+  const diff = Date.now() - new Date(iso.replace('Z','')+'Z').getTime();
+  const h = Math.floor(diff / 3600000);
+  if (h < 1) return 'just now';
+  if (h < 24) return h + 'h ago';
+  const d = Math.floor(h / 24);
+  return d < 7 ? d + 'd ago' : Math.floor(d/7) + 'w ago';
+}
 
-/* Table */
-const tbody=document.getElementById('studentTable');
-STUDENTS.forEach(s=>{
-  const c=scoreColor(s.score);
-  tbody.innerHTML+=`<tr style="cursor:pointer" onclick="window.location='professor.html'">
-    <td><div class="s-cell">
-      <div class="s-av" style="background:${s.color};color:${s.tc}">${s.ini}</div>
-      <div><div class="s-name">${s.name}</div><div class="s-id">${s.id}</div></div>
-    </div></td>
-    <td style="color:var(--text-muted);font-size:0.79rem">${s.course}</td>
-    <td><div class="sbar-wrap">
-      <div class="sbar-bg"><div class="sbar-fill" id="bar-${s.id}" style="background:${c};width:0%"></div></div>
-      <span class="sbar-val" style="color:${c}">${s.score.toFixed(2)}</span>
-    </div></td>
-    <td><span class="abadge ${s.action}">${aLabel[s.action]}</span></td>
-  </tr>`;
-});
-setTimeout(()=>{
-  STUDENTS.forEach(s=>{
-    const b=document.getElementById('bar-'+s.id);
-    if(b) b.style.width=(s.score*100)+'%';
-  });
-},200);
+async function loadDashboard() {
+  try {
+    const [studentsRes, statsRes] = await Promise.all([
+      fetch(API + '/students'),
+      fetch(API + '/admin/manifests/stats'),
+    ]);
+    const {students: ids} = await studentsRes.json();
+    const stats = await statsRes.json();
 
-/* Activity */
-const feed=document.getElementById('actFeed');
-ACTIVITY.forEach(a=>{
-  feed.innerHTML+=`<div class="activity-item">
-    <div class="act-dot" style="background:${a.dot}"></div>
-    <div class="act-body"><div class="act-title">${a.title}</div><div class="act-sub">${a.sub}</div></div>
-    <div class="act-time">${a.time}</div>
-  </div>`;
-});
+    // Update stat cards
+    const cards = document.querySelectorAll('.stats-grid .stat-card .stat-value');
+    if (cards[0]) cards[0].textContent = ids.length;
+    if (cards[2]) cards[2].textContent = stats.total || 0;
 
-/* Campus SVG nodes */
-(function drawNodes(){
-  const g=document.getElementById('nodeGroup');
-  const cx=130,cy=130;
-  // Place nodes on concentric rings
-  const rings=[
-    {r:42, students:STUDENTS.slice(0,3)},
-    {r:80, students:STUDENTS.slice(3,6)},
-  ];
-  rings.forEach(ring=>{
-    ring.students.forEach((s,i)=>{
-      const angle=(i/ring.students.length)*2*Math.PI - Math.PI/2;
-      const x=cx+ring.r*Math.cos(angle);
-      const y=cy+ring.r*Math.sin(angle);
-      const nodeColor=scoreColor(s.score).replace('var(--green)','#059669').replace('var(--blue)','#2563EB').replace('var(--amber)','#D97706').replace('var(--red)','#DC2626');
-      // Connection line to center
-      g.innerHTML+=`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="rgba(37,99,235,0.12)" stroke-width="1.5" stroke-dasharray="3,3"/>`;
-      // Node circle
-      g.innerHTML+=`<circle cx="${x}" cy="${y}" r="20" fill="white" stroke="${nodeColor}" stroke-width="2.5" filter="url(#glow)"/>
-      <text x="${x}" y="${y+4}" text-anchor="middle" font-size="8.5" fill="${nodeColor}" font-weight="700" font-family="Inter,sans-serif">${s.ini}</text>
-      <circle cx="${x+14}" cy="${y-14}" r="5.5" fill="${nodeColor}" stroke="white" stroke-width="1.5"/>`;
+    // Fetch up to 12 student states in parallel
+    const slice = ids.slice(0, 12);
+    const states = await Promise.all(
+      slice.map(id => fetch(API + '/students/' + id).then(r => r.json()).catch(() => null))
+    );
+    const students = states.map((st, i) => st ? {...st, _id: slice[i]} : null).filter(Boolean);
+
+    const totalBaselines = students.reduce((sum, s) => sum + (s.sample_count || 0), 0);
+    if (cards[1]) cards[1].textContent = totalBaselines;
+
+    // Recent manifests for activity feed + attention count
+    const manifestsRes = await fetch(API + '/admin/manifests?limit=20');
+    const manifestsData = await manifestsRes.json();
+    const items = manifestsData.items || [];
+
+    const attention = new Set(
+      items.filter(m => m.action === 'escalate' || m.action === 'schedule_conversation')
+           .map(m => m.student_id)
+    ).size;
+    if (cards[3]) cards[3].textContent = attention;
+
+    renderStudentTable(students);
+    renderActivity(items.slice(0, 5));
+    drawNodes(students);
+  } catch (e) {
+    console.error('Dashboard load failed:', e);
+    document.getElementById('studentTable').innerHTML =
+      '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--flag-red)">Could not load data — is the server running?</td></tr>';
+  }
+}
+
+function renderStudentTable(students) {
+  const tbody = document.getElementById('studentTable');
+  if (!students.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted)">No students yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = students.map((s, i) => {
+    const score = s.purity || 0;
+    const action = scoreAction(score);
+    const c = scoreColor(score);
+    const av = AV_COLORS[i % AV_COLORS.length];
+    const ini = initials(s._id || s.student_id || '');
+    const barId = 'bar-' + (s._id || i);
+    return `<tr style="cursor:pointer" onclick="window.location='professor.html'">
+      <td><div class="s-cell">
+        <div class="s-av" style="background:${av.bg};color:${av.tc}">${ini}</div>
+        <div><div class="s-name">${s._id || s.student_id}</div>
+             <div class="s-id">${s.sample_count || 0} baseline${s.sample_count !== 1 ? 's' : ''}</div></div>
+      </div></td>
+      <td style="color:var(--text-muted);font-size:0.79rem">${s.trajectory_direction || '—'}</td>
+      <td><div class="sbar-wrap">
+        <div class="sbar-bg"><div class="sbar-fill" id="${barId}" style="background:${c};width:0%"></div></div>
+        <span class="sbar-val" style="color:${c}">${score.toFixed(2)}</span>
+      </div></td>
+      <td><span class="abadge ${action}">${aLabel[action]}</span></td>
+    </tr>`;
+  }).join('');
+  // Animate bars
+  requestAnimationFrame(() => setTimeout(() => {
+    students.forEach((s, i) => {
+      const b = document.getElementById('bar-' + (s._id || i));
+      if (b) b.style.width = ((s.purity || 0) * 100) + '%';
+    });
+  }, 50));
+}
+
+function renderActivity(items) {
+  const feed = document.getElementById('actFeed');
+  if (!items.length) {
+    feed.innerHTML = '<div class="activity-item"><div class="act-body"><div class="act-title" style="color:var(--text-muted)">No submissions scored yet.</div></div></div>';
+    return;
+  }
+  const dotColor = a => ({escalate:'#DC2626', schedule_conversation:'#D97706', monitor:'#2563EB'})[a] || '#059669';
+  const actTitle = a => ({escalate:'Submission Needs Review', schedule_conversation:'Conversation Recommended', monitor:'Flagged for Monitoring'})[a] || 'Submission Cleared';
+  feed.innerHTML = items.map(m => `<div class="activity-item">
+    <div class="act-dot" style="background:${dotColor(m.action)}"></div>
+    <div class="act-body">
+      <div class="act-title">${actTitle(m.action)}</div>
+      <div class="act-sub">${m.student_id} · deviation ${m.divergence_score != null ? m.divergence_score.toFixed(3) : '—'}${m.flags && m.flags.length ? ' · ' + m.flags.join(', ') : ''}</div>
+    </div>
+    <div class="act-time">${timeAgo(m.created_at)}</div>
+  </div>`).join('');
+}
+
+function drawNodes(students) {
+  const g = document.getElementById('nodeGroup');
+  if (!g || !students.length) return;
+  const cx = 130, cy = 130;
+  const innerCount = Math.min(3, students.length);
+  const rings = [
+    {r: 42, list: students.slice(0, innerCount)},
+    {r: 80, list: students.slice(innerCount, innerCount + 6)},
+  ].filter(ring => ring.list.length > 0);
+
+  rings.forEach(ring => {
+    ring.list.forEach((s, i) => {
+      const score = s.purity || 0;
+      const angle = (i / ring.list.length) * 2 * Math.PI - Math.PI / 2;
+      const x = cx + ring.r * Math.cos(angle);
+      const y = cy + ring.r * Math.sin(angle);
+      const nodeColor = scoreColor(score);
+      const ini = initials(s._id || s.student_id || '');
+      g.innerHTML += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="rgba(37,99,235,0.12)" stroke-width="1.5" stroke-dasharray="3,3"/>`;
+      g.innerHTML += `<circle cx="${x}" cy="${y}" r="20" fill="white" stroke="${nodeColor}" stroke-width="2.5" filter="url(#glow)"/>
+        <text x="${x}" y="${y+4}" text-anchor="middle" font-size="8.5" fill="${nodeColor}" font-weight="700" font-family="Inter,sans-serif">${ini}</text>
+        <circle cx="${x+14}" cy="${y-14}" r="5.5" fill="${nodeColor}" stroke="white" stroke-width="1.5"/>`;
     });
   });
-  // Animate a pulse on escalated node
-  const eNode=rings[0].students.find(s=>s.action==='escalate');
-  if(eNode){
-    const i=rings[0].students.indexOf(eNode);
-    const angle=(i/rings[0].students.length)*2*Math.PI - Math.PI/2;
-    const x=cx+42*Math.cos(angle), y=cy+42*Math.sin(angle);
-    g.innerHTML+=`<circle cx="${x}" cy="${y}" r="22" fill="none" stroke="#DC2626" stroke-width="1.5" opacity="0.5">
-      <animate attributeName="r" values="22;32;22" dur="2s" repeatCount="indefinite"/>
-      <animate attributeName="opacity" values="0.5;0;0.5" dur="2s" repeatCount="indefinite"/>
-    </circle>`;
+
+  // Pulse on most anomalous student
+  const flagged = students.filter(s => (s.purity || 0) > 0.75);
+  if (flagged.length) {
+    const idx = students.indexOf(flagged[0]);
+    const inInner = idx < innerCount;
+    const ring = inInner ? {r:42, i:idx, n:innerCount} : {r:80, i:idx-innerCount, n:Math.min(6,students.length-innerCount)};
+    if (ring.n > 0) {
+      const angle = (ring.i / ring.n) * 2 * Math.PI - Math.PI / 2;
+      const x = cx + ring.r * Math.cos(angle), y = cy + ring.r * Math.sin(angle);
+      g.innerHTML += `<circle cx="${x}" cy="${y}" r="22" fill="none" stroke="#DC2626" stroke-width="1.5" opacity="0.5">
+        <animate attributeName="r" values="22;32;22" dur="2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.5;0;0.5" dur="2s" repeatCount="indefinite"/>
+      </circle>`;
+    }
   }
-})();
+}
+
+document.addEventListener('DOMContentLoaded', loadDashboard);
 </script>
 <div id="toastContainer" style="position:fixed;bottom:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none"></div>
 </body>

@@ -1182,6 +1182,31 @@ def admin_get_tuned_thresholds():
     return TunedThresholdsRecord(**active) if active else None
 
 
+# ── Demo auth (no real session / JWT — backdoor only) ─────────────────────────
+
+@app.post("/api/v1/auth/login")
+async def demo_login(body: dict):
+    """
+    Demo login endpoint.
+    Backdoor credentials: username=Gandalf / password=Friend → professor.
+    Anyone else with 'admin' in their email gets admin; 'student' → student.
+    All other credentials return 401.
+    """
+    username = body.get("email", body.get("username", ""))
+    password = body.get("password", "")
+
+    if username.lower() == "gandalf" and password == "Friend":
+        role = "professor"
+    elif "admin" in username.lower():
+        role = "admin"
+    elif "student" in username.lower():
+        role = "student"
+    else:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    return {"token": "demo-token", "role": role, "name": username or "Demo User"}
+
+
 @app.get("/admin/tuned-thresholds/history", response_model=TunedThresholdsListResponse)
 def admin_list_tuned_thresholds(limit: int = 50, offset: int = 0):
     """Audit list of all tuned-threshold versions ever applied."""

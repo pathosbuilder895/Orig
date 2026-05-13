@@ -13,6 +13,7 @@ Modes:
 
 import argparse
 import importlib.util
+import os
 import sys
 from pathlib import Path
 
@@ -106,6 +107,11 @@ def main():
         frontend_dir = Path(args.frontend_dir).expanduser().resolve()
         if not frontend_dir.is_dir():
             parser.error(f"--frontend-dir does not exist or is not a directory: {frontend_dir}")
+
+        # Enable adaptive scoring pipeline (Phases 2–8) in demo mode.
+        # setdefault preserves any explicit env override (e.g., for testing with flags off).
+        os.environ.setdefault("CONTEXT_MANIFEST_ENABLED", "1")
+        os.environ.setdefault("ADAPTIVE_WEIGHTS_ENABLED", "1")
 
         if not args.skip_seed:
             seed_demo_store()

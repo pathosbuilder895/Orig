@@ -57,3 +57,10 @@ outreach-brief-*.md
 content-checkin-*.md
 weekly-review-*.md
 THIS-WEEK-ACTION-SUMMARY.txt
+
+# macOS Finder duplicates (e.g. "file 2.py", "file 3.html")
+* 2.*
+* 3.*
+* 4.*
+ORIGINAL_MASTER_ROADMAP.docx
+legacy_mvp/
