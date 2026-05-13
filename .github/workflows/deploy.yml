@@ -2,7 +2,9 @@ name: Deploy to Fly.io
 
 on:
   push:
-    branches: [main, master, commit-changes]
+    # Only deploy when code lands on the default branch, not from feature branches or PRs.
+    # For immediate deploys while iterating, run: fly deploy --config fly.toml
+    branches: [main, master]
 
 jobs:
   deploy:
