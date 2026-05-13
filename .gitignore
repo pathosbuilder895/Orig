@@ -33,11 +33,12 @@ redis_data/
 .DS_Store
 Thumbs.db
 
-# Databases (local dev only)
+# Databases (local dev only — but allow the pre-baked Render seed DB)
 *.db
 *.db-journal
 *.sqlite
 *.sqlite3
+!demo/seed.db
 
 # Env dev (keep .env.example)
 .env.dev

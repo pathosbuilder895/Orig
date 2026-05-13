@@ -417,6 +417,8 @@ def seed(verbose: bool = True) -> None:
             )
             state.add_sample(sample)
 
+        store.put(state)  # persist to SQLite so --skip-seed can load from DB
+
         if verbose:
             print(f"  {s['name']} ({s['id']}): {state.authenticated_count} baseline samples, "
                   f"purity={state.purity:.3f}")
