@@ -4,15 +4,39 @@ services:
     runtime: python
     region: oregon
     plan: free
-    buildCommand: pip install -r requirements.txt && python -m spacy download en_core_web_sm
-    startCommand: python run.py --demo --port $PORT --skip-seed
+
+    # Slim install — requirements-demo.txt excludes PyTorch/sentence-transformers,
+    # psycopg2, sqlalchemy, auth libs, and dev tools. Keeps the build under
+    # Render's free-tier memory ceiling and well within the 20-min build timeout.
+    buildCommand: >
+      pip install -r requirements-demo.txt
+      && python -m spacy download en_core_web_sm
+
+    # --skip-seed omitted: the demo seeds synthetic student profiles on each cold
+    # start. No persistent disk needed on free tier — data resets on redeploy,
+    # which is fine for a demo. (Upgrade to Starter + uncomment disk block below
+    # to persist data across deploys.)
+    startCommand: python run.py --demo --port $PORT
+
     healthCheckPath: /health
+
     envVars:
-      - key: ORIGINAL_DB
-        value: /data/profiles.db
       - key: PYTHON_VERSION
-        value: "3.11"
-    disk:
-      name: profiles-db
-      mountPath: /data
-      sizeGB: 1
+        value: "3.11.0"
+      # Adaptive scoring phases 2-8. run.py --demo sets these via setdefault,
+      # but explicit env vars here survive any future run.py refactor.
+      - key: CONTEXT_MANIFEST_ENABLED
+        value: "1"
+      - key: ADAPTIVE_WEIGHTS_ENABLED
+        value: "1"
+
+# ── Paid-tier persistence (uncomment on Starter plan, $7/mo) ─────────────────
+# Keeps SQLite across deploys; also add --skip-seed to startCommand above.
+#
+#    disk:
+#      name: profiles-db
+#      mountPath: /data
+#      sizeGB: 1
+#    envVars:
+#      - key: ORIGINAL_DB
+#        value: /data/profiles.db

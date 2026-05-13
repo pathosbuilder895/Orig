@@ -1,0 +1,36 @@
+# requirements-demo.txt — runtime-only deps for the demo server (run.py --demo).
+#
+# Excludes:
+#   - sentence-transformers / PyTorch   (optional; tier10/tension_arc fall back to TF-IDF)
+#   - psycopg2, sqlalchemy, alembic     (demo uses SQLite via store.py, no ORM)
+#   - pydantic-settings, email-validator (only needed by production main.py)
+#   - python-jose, passlib, bcrypt       (no JWT auth in demo)
+#   - slowapi, prometheus-*              (rate-limiting / metrics: prod only)
+#   - httpx                             (Canvas endpoints are demo stubs, no real HTTP calls)
+#   - black, ruff, mypy, pytest-*        (dev / CI tools)
+
+# ── Web framework ──────────────────────────────────────────────────────────────
+# fastapi 0.115.0 required starlette<0.39.0, incompatible with the starlette>=0.47.2
+# security pin below (CVE-2025-54121). fastapi 0.128.8 requires starlette<1.0.0,>=0.40.0.
+fastapi==0.128.8
+uvicorn[standard]==0.34.3
+pydantic==2.9.2
+# python-multipart <0.0.18 had CVE-2024-53981 (header injection) and later CVEs.
+# Fixed in 0.0.27.
+python-multipart>=0.0.27
+# starlette <0.47.2 had CVE-2025-54121. Use >=0.47.2.
+starlette>=0.47.2
+
+# ── Numerics / ML (lightweight) ────────────────────────────────────────────────
+numpy==1.26.4
+# scikit-learn is used by features/tier10.py (TF-IDF fallback) and the Phase 2
+# topic resolver. sentence-transformers is optional — code falls back to TF-IDF.
+scikit-learn>=1.3,<2.0
+spacy>=3.7,<4.0
+# langdetect powers the Phase 2 language resolver.
+langdetect>=1.0.9,<2.0
+
+# ── Document extraction (file-upload endpoints) ────────────────────────────────
+python-docx>=1.1,<2.0
+# pypdf <6.10.2 had multiple CVEs (path traversal, XML injection, ReDoS).
+pypdf>=6.10.2
