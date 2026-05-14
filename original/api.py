@@ -229,6 +229,20 @@ def add_baseline(student_id: str, req: AddSampleRequest):
 
     state = store.get_or_create(student_id)
     vec = feature_vector(req.text, keystroke_data=req.keystroke_data)
+
+    # Genre label — classify the text at ingestion time so the Hierarchical
+    # Bayesian prior (BAYESIAN_PRIOR_ENABLED=1) has cross-student genre data.
+    # Uses the same rule-based resolver as the context manifest pipeline.
+    # Runs even when the manifest flag is off — genre metadata is cheap and
+    # the prior needs it independent of the manifest subsystem.
+    _sample_genre: Optional[str] = None
+    try:
+        from .context.resolvers import resolve_genre
+        _genre_result = resolve_genre(req.text)
+        _sample_genre = (_genre_result or {}).get("primary")
+    except Exception:
+        pass   # genre labeling is best-effort; don't fail baseline ingestion
+
     sample = BaselineSample(
         text=req.text,
         vector=vec,
@@ -236,6 +250,7 @@ def add_baseline(student_id: str, req: AddSampleRequest):
         auth_weight=AUTH_WEIGHTS[req.provenance],
         assignment=req.assignment,
         submitted_at=req.submitted_at,
+        genre=_sample_genre,
     )
 
     # ── Phase 8: drift gate before adding to baseline ─────────────────────────
@@ -407,6 +422,25 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
         manifest=manifest_dict,
         n_tokens=_n_tokens,
     )
+
+    # ── Persist quantum fidelity for conformal calibration ───────────────────
+    # Stores every scored fidelity so get_authentic_fidelities() can build
+    # a calibration set for the conformal p-value on future submissions.
+    # "Authentic" is approximated as action == no_action here; the instructor
+    # corrections flow (put_correction + is_correct=True) should override
+    # this for any verdict the professor marks as wrong.
+    if result.authorship.quantum_fidelity > 0:
+        try:
+            store.put_fidelity_score(
+                submission_id=submission_id,
+                student_id=student_id,
+                fidelity=result.authorship.quantum_fidelity,
+                is_authentic=(result.recommendation.action == "no_action"),
+            )
+        except Exception as _e:
+            logging.getLogger(__name__).debug(
+                "put_fidelity_score skipped for %s: %s", submission_id, _e,
+            )
 
     # ── Persist manifest to audit log when one was built ──────────────────────
     if manifest is not None:

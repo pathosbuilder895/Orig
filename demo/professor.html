@@ -1130,19 +1130,31 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
                 <span id="ctxConfidenceBadge" style="font-size:0.7rem;color:var(--text-muted);padding:3px 9px;border-radius:99px;background:var(--cream-warm)">—</span>
               </div>
             </div>
-            <div id="ctxNarrative" style="font-family:'EB Garamond',serif;font-size:1rem;line-height:1.55;color:var(--text-primary);padding:12px 16px;background:var(--cream-warm);border-radius:6px;margin:14px 0"></div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
-              <div>
-                <div style="font-weight:600;font-size:0.78rem;color:var(--text-secondary);margin-bottom:8px">Active flags &amp; anchors</div>
-                <div id="ctxChips"></div>
-              </div>
-              <div>
-                <div style="font-weight:600;font-size:0.78rem;color:var(--text-secondary);margin-bottom:8px">Anchor tier consistency</div>
-                <div id="ctxAnchorBars"></div>
-              </div>
+            <!-- Professor explanation (plain English) -->
+            <div id="profExplanation"></div>
+
+            <!-- Technical details — collapsed by default -->
+            <div style="margin-top:4px">
+              <a id="ctxTechToggle" href="#" onclick="toggleCtxTechnical(event)"
+                 style="font-family:'EB Garamond',serif;font-size:0.82rem;color:var(--text-muted);text-decoration:none;display:inline-flex;align-items:center;gap:4px">
+                <span id="ctxTechArrow">▶</span> View technical details
+              </a>
             </div>
-            <div style="margin-top:12px;font-size:0.72rem;color:var(--text-muted)">
-              <span id="ctxLength">—</span> · cluster: <span id="ctxCluster">—</span>
+            <div id="ctxTechnicalDetails" style="display:none;margin-top:10px">
+              <div id="ctxNarrative" style="font-family:'EB Garamond',serif;font-size:1rem;line-height:1.55;color:var(--text-primary);padding:12px 16px;background:var(--cream-warm);border-radius:6px;margin:14px 0"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+                <div>
+                  <div style="font-weight:600;font-size:0.78rem;color:var(--text-secondary);margin-bottom:8px">Active flags &amp; anchors</div>
+                  <div id="ctxChips"></div>
+                </div>
+                <div>
+                  <div style="font-weight:600;font-size:0.78rem;color:var(--text-secondary);margin-bottom:8px">Anchor tier consistency</div>
+                  <div id="ctxAnchorBars"></div>
+                </div>
+              </div>
+              <div style="margin-top:12px;font-size:0.72rem;color:var(--text-muted)">
+                <span id="ctxLength">—</span> · cluster: <span id="ctxCluster">—</span>
+              </div>
             </div>
           </div>
 
@@ -3488,6 +3500,82 @@ function renderSimilarityMatrix(sim) {
    PR 10 — Adaptive context panel renderers + correction/blend handlers
    ══════════════════════════════════════════════════════════════════════════ */
 
+function toggleCtxTechnical(e) {
+  e.preventDefault();
+  const panel = document.getElementById('ctxTechnicalDetails');
+  const arrow = document.getElementById('ctxTechArrow');
+  if (!panel) return;
+  const visible = panel.style.display !== 'none';
+  panel.style.display = visible ? 'none' : 'block';
+  if (arrow) arrow.textContent = visible ? '▶' : '▼';
+}
+
+function _renderProfExplanation(pe, action) {
+  if (!pe) return '';
+
+  // Colour scheme keyed by action
+  const colours = {
+    no_action:            { border: '#2a6b45', headColor: '#2a6b45', actionBg: 'rgba(42,107,69,0.07)', actionBorder: '#2a6b45' },
+    monitor:              { border: '#c9a028', headColor: '#9b6420', actionBg: 'rgba(201,160,40,0.08)', actionBorder: '#c9a028' },
+    schedule_conversation:{ border: '#c9a028', headColor: '#9b6420', actionBg: 'rgba(201,160,40,0.08)', actionBorder: '#c9a028' },
+    escalate:             { border: '#c0392b', headColor: '#9b2520', actionBg: 'rgba(192,57,43,0.07)', actionBorder: '#c0392b' },
+  };
+  const c = colours[action] || colours['monitor'];
+
+  const obsHtml = (pe.observations || []).map(o =>
+    `<li style="margin-bottom:6px">${escHtml(o)}</li>`
+  ).join('');
+
+  const hypHtml = (pe.hypotheses || []).map(h =>
+    `<li style="margin-bottom:6px">${escHtml(h)}</li>`
+  ).join('');
+
+  const behavNote = pe.has_behavioral_signals
+    ? `<span style="display:inline-block;margin-left:8px;padding:2px 8px;border-radius:99px;background:rgba(42,107,69,0.1);color:#2a6b45;font-size:0.72rem">keystroke data included</span>`
+    : '';
+  const aiNote = pe.has_ai_signals
+    ? `<span style="display:inline-block;margin-left:8px;padding:2px 8px;border-radius:99px;background:rgba(192,57,43,0.08);color:#9b2520;font-size:0.72rem">AI-pattern signals present</span>`
+    : '';
+
+  return `
+    <div style="border-left:3px solid ${c.border};padding:14px 18px;margin:14px 0;background:var(--surface)">
+      <div style="font-family:'EB Garamond',serif;font-size:1.18rem;font-weight:700;color:${c.headColor};line-height:1.35;margin-bottom:10px">
+        ${escHtml(pe.headline)}${behavNote}${aiNote}
+      </div>
+      <p style="font-family:'EB Garamond',serif;font-size:0.97rem;line-height:1.6;color:var(--text-primary);margin:0 0 14px 0">
+        ${escHtml(pe.summary)}
+      </p>
+      ${obsHtml ? `
+      <div style="margin-bottom:14px">
+        <div style="font-weight:600;font-size:0.78rem;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em">What the system noticed</div>
+        <ul style="margin:0;padding-left:18px;font-family:'EB Garamond',serif;font-size:0.95rem;line-height:1.55;color:var(--text-primary)">
+          ${obsHtml}
+        </ul>
+      </div>` : ''}
+      <div style="margin-bottom:14px">
+        <div style="font-weight:600;font-size:0.78rem;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em">What might explain this?</div>
+        <ul style="margin:0;padding-left:18px;font-family:'EB Garamond',serif;font-size:0.95rem;line-height:1.55;color:var(--text-primary)">
+          ${hypHtml}
+        </ul>
+      </div>
+      <div style="background:${c.actionBg};border:1px solid ${c.actionBorder};border-radius:6px;padding:10px 14px;margin-bottom:12px;font-family:'EB Garamond',serif;font-size:0.95rem;color:var(--text-primary)">
+        <strong>Suggested next step:</strong> ${escHtml(pe.suggested_action)}
+      </div>
+      <div style="font-family:'EB Garamond',serif;font-style:italic;font-size:0.82rem;color:var(--text-muted)">
+        ${escHtml(pe.confidence_note)}
+      </div>
+    </div>`;
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function renderContextPanel(raw) {
   const card = document.getElementById('contextCard');
   if (!card) return;
@@ -3514,6 +3602,14 @@ function renderContextPanel(raw) {
   }
   document.getElementById('ctxConfidenceBadge').textContent =
     rep?.confidence ? `confidence: ${rep.confidence}` : '—';
+
+  // Professor explanation — plain-English card rendered before technical details
+  const profExplEl = document.getElementById('profExplanation');
+  if (profExplEl) {
+    const pe = rep?.professor_explanation;
+    const action = raw?.recommendation?.action || rep?.verdict || 'monitor';
+    profExplEl.innerHTML = pe ? _renderProfExplanation(pe, action) : '';
+  }
 
   // Narrative
   document.getElementById('ctxNarrative').textContent =
