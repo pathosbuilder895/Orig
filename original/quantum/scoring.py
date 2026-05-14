@@ -189,6 +189,8 @@ def _amplitude_score(
     submission_id: str,
     n_tokens: int,
     secret_key: str = "",
+    baseline_mean_override: Optional[np.ndarray] = None,
+    baseline_std_override: Optional[np.ndarray] = None,
 ) -> Tuple[float, Optional[float], Dict]:
     """
     Compute quantum fidelity, conformal p-value, and 3-way interference.
@@ -199,14 +201,17 @@ def _amplitude_score(
 
     Parameters
     ----------
-    state         : StudentState with baseline samples
-    z             : shape (D,), already-computed z-scores
-    weight_vec    : shape (D,), tier-weight vector
-    active        : shape (D,), bool active-feature mask
-    student_id    : used for keyed unitary + conformal calibration lookup
-    submission_id : used for keyed unitary seed
-    n_tokens      : word count of submission text
-    secret_key    : HMAC secret (empty → skip unitary projection)
+    state                  : StudentState with baseline samples
+    z                      : shape (D,), already-computed z-scores
+    weight_vec             : shape (D,), tier-weight vector
+    active                 : shape (D,), bool active-feature mask
+    student_id             : used for keyed unitary + conformal calibration lookup
+    submission_id          : used for keyed unitary seed
+    n_tokens               : word count of submission text
+    secret_key             : HMAC secret (empty → skip unitary projection)
+    baseline_mean_override : when set (e.g. Bayesian prior blend), replaces
+                             state.baseline_mean inside build_superposition_baseline
+    baseline_std_override  : same for state.baseline_std
 
     Returns
     -------
@@ -224,12 +229,14 @@ def _amplitude_score(
     contributing = [s for s in state.samples if s.auth_weight > 0]
 
     psi_s = encode_amplitudes(z, weight_vec, active, n_tokens)
+    _bsl_mean = baseline_mean_override if baseline_mean_override is not None else state.baseline_mean
+    _bsl_std  = baseline_std_override  if baseline_std_override  is not None else state.baseline_std
     psi_b = build_superposition_baseline(
         contributing,
         weight_vec,
         active,
-        state.baseline_mean,
-        state.baseline_std,
+        _bsl_mean,
+        _bsl_std,
         n_tokens,
     )
 
@@ -264,6 +271,7 @@ def score(
     submission_id: str = "",
     adaptive_weights: Optional[np.ndarray] = None,
     manifest: Optional[Dict] = None,
+    n_tokens: int = 300,
 ) -> Layer7Output:
     """
     Score a submission against a student's current quantum state.
@@ -282,6 +290,12 @@ def score(
                          to ``Layer7Output.context_manifest`` for inspection;
                          does not influence scoring math itself — that's the
                          job of ``adaptive_weights``.
+    n_tokens           : word count of the submission text. Threads into the
+                         Gaussian wave packet reliability factor inside
+                         encode_amplitudes so short texts produce proportionally
+                         smaller amplitudes — reducing overconfident fidelity
+                         scores. Defaults to 300 (≈ median essay length) when
+                         not supplied by the caller.
     """
     xi = _unit(submission_vector)           # ξ  (unit-normalised submission vector)
     rho = state.density_matrix              # ρ
@@ -311,6 +325,42 @@ def score(
     mu = state.baseline_mean                    # shape (D,)
     sigma = state.baseline_std                  # shape (D,), floored at 0.005
     active = state.active_feature_mask          # shape (D,), bool
+
+    # ── Hierarchical Bayesian prior (cold-start) ──────────────────────────────
+    # When a student has few baseline samples, blend their personal mu/sigma
+    # with the cross-student genre prior so cold-start z-scores are computed
+    # against a less noisy reference distribution.
+    #
+    # Blend formula:  mu_eff = α·mu_student + (1−α)·mu_prior
+    #                 α = N / (N + prior_weight)   (N = student sample count)
+    # α → 1 as N grows, so the prior is washed out once enough personal data
+    # accumulates. Default prior_weight=3 means 3 authentic baselines = 50%
+    # personal / 50% genre prior; 10 baselines = 77% personal / 23% prior.
+    #
+    # Gated by BAYESIAN_PRIOR_ENABLED env flag (default OFF) to preserve
+    # Phase 1 byte-identical behaviour for existing callers.
+    _bayesian_enabled = os.environ.get("BAYESIAN_PRIOR_ENABLED", "0") == "1"
+    if _bayesian_enabled and state.sample_count < 10:
+        try:
+            from ..store import get_genre_stats
+            _genre = (
+                state.samples[0].genre
+                if state.samples and getattr(state.samples[0], "genre", None)
+                else None
+            )
+            _prior = get_genre_stats(_genre) if _genre else None
+            if _prior is not None:
+                _prior_weight = float(os.environ.get("PRIOR_WEIGHT", "3.0"))
+                _alpha = state.sample_count / (state.sample_count + _prior_weight)
+                mu = _alpha * mu + (1.0 - _alpha) * _prior["mean"]
+                sigma = _alpha * sigma + (1.0 - _alpha) * _prior["std"]
+                log.debug(
+                    "Bayesian prior blend: alpha=%.3f genre=%s n_prior=%d",
+                    _alpha, _genre, _prior["n_samples"],
+                )
+        except Exception as _exc:
+            log.debug("Bayesian prior blend skipped: %s", _exc)
+
     sub_raw = submission_vector                 # raw normalised [0,1] vector
     z = (sub_raw - mu) / sigma                  # standardised deviation, shape (D,)
 
@@ -350,7 +400,10 @@ def score(
     # When OFF: fidelity=0.0, conformal_p=None — all downstream consumers
     # treat these as "no amplitude data" and fall back to deviation_score only.
     _amp_enabled = os.environ.get("AMPLITUDE_SCORING_ENABLED", "0") == "1"
-    _n_tokens = int(feature_dict.get("word_count", 300))
+    # n_tokens is threaded in from the caller so Gaussian wave packet
+    # attenuation is proportional to the actual submission length.
+    # Falls back to the parameter default (300) when not supplied.
+    _n_tokens = n_tokens
     _secret_key = os.environ.get("SECRET_KEY", "")
     if _amp_enabled:
         try:
@@ -358,6 +411,8 @@ def score(
                 state, z, weight_vec, active,
                 state.student_id, submission_id,
                 _n_tokens, _secret_key,
+                baseline_mean_override=mu,
+                baseline_std_override=sigma,
             )
         except Exception as _exc:
             log.warning(
@@ -404,7 +459,9 @@ def score(
     D_adjusted = float(np.clip(D_raw * adj_factor, 0.0, 1.0))
 
     # ── Interference decomposition ────────────────────────────────────────────
-    interference = _decompose(xi, rho_xi, P, feature_dict, state.baseline_mean, z)
+    # Use local `mu` (potentially Bayesian-blended) so interference deltas
+    # are computed against the same reference distribution as the z-scores.
+    interference = _decompose(xi, rho_xi, P, feature_dict, mu, z)
 
     # ── Baseline confidence ───────────────────────────────────────────────────
     bc = BaselineConfidence(

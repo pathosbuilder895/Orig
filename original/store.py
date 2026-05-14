@@ -622,6 +622,59 @@ def get_authentic_fidelities(
         return []
 
 
+# ── Hierarchical Bayesian prior: cross-student genre statistics ───────────────
+
+def get_genre_stats(genre: str) -> Optional[Dict]:
+    """
+    Compute cross-student mean, std, and sample count for a given writing genre.
+
+    Aggregates feature vectors from all confirmed-authentic baseline samples
+    (auth_weight > 0) with matching ``sample.genre`` across every student in
+    the in-memory store.  Returns ``None`` when fewer than 5 samples are
+    found — the caller treats this as "no prior available" and falls back to
+    the student-only baseline.
+
+    This is the population-level reference distribution used by the
+    Hierarchical Bayesian cold-start prior in ``scoring.score()``.  It is
+    intentionally in-memory only (no DB query) because:
+    - The store is always fully loaded before scoring calls arrive.
+    - Cross-student density-matrix queries on SQLite are expensive for large N.
+    - Genre labels are optional metadata; many legacy samples have genre=None.
+
+    Parameters
+    ----------
+    genre : genre label (e.g. "argumentative_essay", "lab_report")
+
+    Returns
+    -------
+    dict with keys "mean" (np.ndarray), "std" (np.ndarray), "n_samples" (int)
+    or None if fewer than 5 matching authentic samples are found.
+    """
+    _load_all()
+    vectors: List[np.ndarray] = []
+    for student_state in _STORE.values():
+        for sample in student_state.samples:
+            if (
+                sample.auth_weight > 0
+                and getattr(sample, "genre", None) == genre
+            ):
+                vectors.append(sample.vector)
+
+    if len(vectors) < 5:
+        return None
+
+    mat = np.stack(vectors, axis=0)          # shape (N, FEATURE_DIM)
+    mean_vec = mat.mean(axis=0)              # shape (FEATURE_DIM,)
+    # Use the same 0.005 floor as StudentState.baseline_std to keep the
+    # prior std compatible with the per-student sigma floor.
+    std_vec = np.maximum(mat.std(axis=0), 0.005)
+    return {
+        "mean":      mean_vec,
+        "std":       std_vec,
+        "n_samples": len(vectors),
+    }
+
+
 # ── PR 7: corrections feedback log ───────────────────────────────────────────
 
 def put_correction(

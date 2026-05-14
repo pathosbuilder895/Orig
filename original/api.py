@@ -394,6 +394,10 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
         adaptive_weights = None
 
     manifest_dict = manifest.to_dict() if manifest is not None else None
+    # n_tokens: thread the actual word count into the scorer so the Gaussian
+    # wave packet attenuation in encode_amplitudes is proportional to the
+    # real submission length, not a fixed default.
+    _n_tokens = len(req.text.split())
     result = quantum_score(
         state=state,
         submission_vector=vec,
@@ -401,6 +405,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
         submission_id=submission_id,
         adaptive_weights=adaptive_weights,
         manifest=manifest_dict,
+        n_tokens=_n_tokens,
     )
 
     # ── Persist manifest to audit log when one was built ──────────────────────
@@ -991,6 +996,7 @@ def test_score(req: TestScoreRequest):
         submission_id=req.submission_id,
         adaptive_weights=adaptive.adaptive_weights,
         manifest=manifest_dict,
+        n_tokens=len(req.text.split()),
     )
 
     # ── Optional: build the report (Phase 6) ──────────────────────────────────
