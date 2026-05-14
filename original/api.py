@@ -24,7 +24,7 @@ import io
 import logging
 import os
 
-from fastapi import FastAPI, Form, HTTPException, UploadFile, File
+from fastapi import FastAPI, Form, HTTPException, Request, UploadFile, File
 from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -1222,27 +1222,63 @@ def admin_get_tuned_thresholds():
     return TunedThresholdsRecord(**active) if active else None
 
 
-# ── Demo auth (no real session / JWT — backdoor only) ─────────────────────────
+# ── Demo auth (no real session / JWT — maintenance backdoor) ──────────────────
+#
+# MAINTENANCE_TOKEN — set this env var to a strong random string to enable
+# the maintenance backdoor. NEVER hardcode a value here. Generate with:
+#   python -c "import secrets; print(secrets.token_urlsafe(48))"
+#
+# When presented, grants admin role AND writes a warning-level audit log entry
+# so every maintenance access is traceable. Rotate via env var change + restart.
+_MAINTENANCE_TOKEN = os.environ.get("MAINTENANCE_TOKEN", "")
+
+
+def _audit_maintenance_access(username: str, remote: str) -> None:
+    """Write a warning-level log entry for every maintenance login."""
+    import datetime
+    log = logging.getLogger(__name__)
+    log.warning(
+        "MAINTENANCE ACCESS: user=%r remote=%s at %s",
+        username,
+        remote,
+        datetime.datetime.utcnow().isoformat() + "Z",
+    )
+
 
 @app.post("/api/v1/auth/login")
-async def demo_login(body: dict):
+async def demo_login(body: dict, request: "Request"):
     """
     Demo login endpoint.
-    Backdoor credentials: username=Gandalf / password=Friend → professor.
-    Anyone else with 'admin' in their email gets admin; 'student' → student.
-    All other credentials return 401.
+
+    Maintenance backdoor: set MAINTENANCE_TOKEN env var to a strong random
+    string. When the password matches, grants admin role and writes an audit
+    log warning. Never hardcoded — rotate without a code deploy.
+
+    Demo role routing (no real auth — demo only):
+      'admin' in email → admin role
+      'student' in email → student role
+      anything else → professor role
     """
     username = body.get("email", body.get("username", ""))
     password = body.get("password", "")
+    remote   = getattr(request.client, "host", "unknown") if request.client else "unknown"
 
-    if username.lower() == "gandalf" and password == "Friend":
-        role = "professor"
-    elif "admin" in username.lower():
+    # Maintenance backdoor — env var only, always audited
+    if _MAINTENANCE_TOKEN and password == _MAINTENANCE_TOKEN:
+        _audit_maintenance_access(username or "__maintenance__", remote)
+        return {
+            "token": "maintenance-token",
+            "role": "admin",
+            "name": username or "Maintenance",
+        }
+
+    # Demo role routing (for the demo dashboard — not production auth)
+    if "admin" in username.lower():
         role = "admin"
     elif "student" in username.lower():
         role = "student"
     else:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        role = "professor"
 
     return {"token": "demo-token", "role": role, "name": username or "Demo User"}
 
