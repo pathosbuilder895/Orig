@@ -29,6 +29,7 @@ than failing the request.
 
 from __future__ import annotations
 
+import concurrent.futures
 import logging
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
@@ -112,9 +113,12 @@ def run_adaptive_pipeline(
 
     # ── Phase-1 short-circuit ─────────────────────────────────────────────────
     if not want_manifest:
-        # Identical to the legacy api.py flow at lines 248–255.
+        # Call extract_features once; build the vector from the returned dict.
+        # Previously called both extract_features() AND feature_vector(), each
+        # of which ran preprocess(text) internally — two spaCy passes for the
+        # price of one. Now we do it once and derive the vector from the dict.
         feat_dict = extract_features(text, keystroke_data=keystroke_data)
-        vec = feature_vector(text, keystroke_data=keystroke_data)
+        vec = np.array([feat_dict[c] for c in ALL_FEATURE_CODES], dtype=np.float64)
         return AdaptivePipelineResult(
             feat_dict=feat_dict,
             vector=vec,
@@ -186,36 +190,46 @@ def run_adaptive_pipeline(
             "error":           str(e),
         }
 
-    # ── Stage 5: adaptive weight vector ───────────────────────────────────────
-    try:
-        adaptive_weights = build_adaptive_weight_vector(manifest)
-    except Exception as e:
-        log.warning("weight-vector build failed for %s: %s — using static weights",
-                    submission_id, e)
-        adaptive_weights = None
-
-    # ── Stage 6: feature extraction with cluster filter ───────────────────────
+    # ── Stages 5 + 6: run in parallel ────────────────────────────────────────
+    # Stage 5 (build_adaptive_weight_vector) only needs the manifest — fast,
+    # ~0.1 s. Stage 6 (compute_full_features) needs text + cluster_indices —
+    # slow, ~2-3 s. Both depend only on Stage 4 output so they can run
+    # concurrently, shaving Stage 5's wall-clock time off the hot path.
+    #
     # When `anchor_only=True`, pass an empty list to compute_full_features
     # so comparison features stay at the 0.5 placeholder (their natural
-    # "no signal" state); the weight vector will mute them via the
-    # `length_regime`/anchor logic upstream.
-    try:
-        if anchor_only:
-            feat_dict = compute_full_features(
-                text, baseline_texts,
-                keystroke_data=keystroke_data,
-                baseline_indices=[],
-            )
-        else:
-            feat_dict = compute_full_features(
-                text, baseline_texts,
-                keystroke_data=keystroke_data,
-                baseline_indices=cluster_indices,
-            )
-    except Exception as e:
-        log.warning("compute_full_features failed for %s: %s — using extract_features",
-                    submission_id, e)
-        feat_dict = extract_features(text, keystroke_data=keystroke_data)
+    # "no signal" state); the weight vector mutes them via the manifest
+    # length_regime/anchor logic.
+    def _build_weights(_manifest):
+        return build_adaptive_weight_vector(_manifest)
+
+    def _extract_features(_text, _baseline_texts, _keystroke_data, _indices, _anchor):
+        return compute_full_features(
+            _text, _baseline_texts,
+            keystroke_data=_keystroke_data,
+            baseline_indices=[] if _anchor else _indices,
+        )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as _pool:
+        _fw = _pool.submit(_build_weights, manifest)
+        _ff = _pool.submit(
+            _extract_features,
+            text, baseline_texts, keystroke_data, cluster_indices, anchor_only,
+        )
+
+        try:
+            adaptive_weights = _fw.result()
+        except Exception as e:
+            log.warning("weight-vector build failed for %s: %s — using static weights",
+                        submission_id, e)
+            adaptive_weights = None
+
+        try:
+            feat_dict = _ff.result()
+        except Exception as e:
+            log.warning("compute_full_features failed for %s: %s — using extract_features",
+                        submission_id, e)
+            feat_dict = extract_features(text, keystroke_data=keystroke_data)
 
     vec = np.array([feat_dict[c] for c in ALL_FEATURE_CODES], dtype=np.float64)
 

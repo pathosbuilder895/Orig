@@ -30,7 +30,9 @@ Interference decomposition
 
 from __future__ import annotations
 
+import logging
 import math
+import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
@@ -45,6 +47,8 @@ from ..constants import (
     TRAJECTORY_GROWTH_THRESHOLD, TRAJECTORY_REGRESSIVE_THRESHOLD,
     ACTION_THRESHOLDS, TIER_WEIGHTS,
 )
+
+log = logging.getLogger(__name__)
 
 # Pre-built per-feature tier-weight vector (shape D,) — applied to z-scores
 # so that high-identity tiers (6=idiosyncratic, 11=error ecology, 4=char/punct)
@@ -94,6 +98,14 @@ class InterferenceDecomposition:
 class AuthorshipSignal:
     authorship_probability: float
     deviation_score: float
+    # ── Production Phase 6: amplitude-based signals ───────────────────────────
+    # Both default to 0.0/None so existing callers see byte-identical output
+    # when AMPLITUDE_SCORING_ENABLED is off.
+    quantum_fidelity: float = field(default=0.0)
+    # |⟨ψ_b|ψ_s⟩|² ∈ [0,1]; 1.0 = perfectly authentic, 0.0 = anomalous.
+    fidelity_conformal_pvalue: Optional[float] = field(default=None)
+    # Conformal p-value from corrections feedback loop.
+    # None when calibration set is empty (no historical authentic fidelities).
 
 
 @dataclass
@@ -111,6 +123,10 @@ class BaselineConfidence:
     authenticated_count: int
     effective_sample_count: float
     trajectory_confidence: float
+    # Von Neumann entropy S = −Tr(ρ log ρ)/log(D) ∈ [0,1].
+    # 0 = pure state (consistent baseline, high confidence).
+    # 1 = maximally mixed (variable baseline, low confidence).
+    von_neumann_entropy: float = field(default=0.0)
 
 
 @dataclass
@@ -160,6 +176,83 @@ class Layer7Output:
     # import cycle. None when the manifest flag is off — preserves byte-
     # identical Phase 1 responses by default.
     context_manifest: Optional[Dict[str, "object"]] = field(default=None)
+
+
+# ── Amplitude scoring helper ──────────────────────────────────────────────────
+
+def _amplitude_score(
+    state: StudentState,
+    z: np.ndarray,
+    weight_vec: np.ndarray,
+    active: np.ndarray,
+    student_id: str,
+    submission_id: str,
+    n_tokens: int,
+    secret_key: str = "",
+) -> Tuple[float, Optional[float], Dict]:
+    """
+    Compute quantum fidelity, conformal p-value, and 3-way interference.
+
+    Called inside ``score()`` when AMPLITUDE_SCORING_ENABLED=1.  All imports
+    are local so this module has no hard dependency on amplitude/conformal
+    modules when the flag is off.
+
+    Parameters
+    ----------
+    state         : StudentState with baseline samples
+    z             : shape (D,), already-computed z-scores
+    weight_vec    : shape (D,), tier-weight vector
+    active        : shape (D,), bool active-feature mask
+    student_id    : used for keyed unitary + conformal calibration lookup
+    submission_id : used for keyed unitary seed
+    n_tokens      : word count of submission text
+    secret_key    : HMAC secret (empty → skip unitary projection)
+
+    Returns
+    -------
+    (fidelity, conformal_pvalue_or_None, interference_dict)
+    """
+    from .amplitude import (
+        encode_amplitudes,
+        build_superposition_baseline,
+        quantum_fidelity,
+        apply_keyed_projection,
+        interference_components,
+    )
+    from .conformal import conformal_pvalue
+
+    contributing = [s for s in state.samples if s.auth_weight > 0]
+
+    psi_s = encode_amplitudes(z, weight_vec, active, n_tokens)
+    psi_b = build_superposition_baseline(
+        contributing,
+        weight_vec,
+        active,
+        state.baseline_mean,
+        state.baseline_std,
+        n_tokens,
+    )
+
+    if secret_key:
+        psi_b, psi_s = apply_keyed_projection(
+            psi_b, psi_s, secret_key, student_id, submission_id
+        )
+
+    F = quantum_fidelity(psi_b, psi_s)
+
+    # Conformal p-value — reads confirmed-authentic fidelities from store.
+    # Import store here to keep module free of circular top-level imports.
+    p_val: Optional[float] = None
+    try:
+        from ..store import get_authentic_fidelities
+        cal_fidelities = get_authentic_fidelities(student_id)
+        if cal_fidelities:
+            p_val = conformal_pvalue(F, cal_fidelities)
+    except Exception as exc:
+        log.debug("conformal p-value skipped for %s: %s", submission_id, exc)
+
+    components = interference_components(psi_b, psi_s)
+    return F, p_val, components
 
 
 # ── Main scoring function ─────────────────────────────────────────────────────
@@ -252,6 +345,29 @@ def score(
     else:
         rms_z = 0.0
 
+    # ── Amplitude scoring (Production Phase 6) ────────────────────────────────
+    # Gated by AMPLITUDE_SCORING_ENABLED env flag (default OFF).
+    # When OFF: fidelity=0.0, conformal_p=None — all downstream consumers
+    # treat these as "no amplitude data" and fall back to deviation_score only.
+    _amp_enabled = os.environ.get("AMPLITUDE_SCORING_ENABLED", "0") == "1"
+    _n_tokens = int(feature_dict.get("word_count", 300))
+    _secret_key = os.environ.get("SECRET_KEY", "")
+    if _amp_enabled:
+        try:
+            _fidelity, _conformal_p, _amp_components = _amplitude_score(
+                state, z, weight_vec, active,
+                state.student_id, submission_id,
+                _n_tokens, _secret_key,
+            )
+        except Exception as _exc:
+            log.warning(
+                "amplitude scoring failed for %s: %s — fidelity set to 0",
+                submission_id, _exc,
+            )
+            _fidelity, _conformal_p, _amp_components = 0.0, None, {}
+    else:
+        _fidelity, _conformal_p, _amp_components = 0.0, None, {}
+
     # Map to [0,1] via tanh.
     #
     # Divisor calibration history
@@ -293,6 +409,7 @@ def score(
     # ── Baseline confidence ───────────────────────────────────────────────────
     bc = BaselineConfidence(
         purity=state.purity,
+        von_neumann_entropy=state.von_neumann_entropy,
         sample_count=state.sample_count,
         authenticated_count=state.authenticated_count,
         effective_sample_count=state.effective_sample_count,
@@ -324,7 +441,11 @@ def score(
     catastrophic_drift = bool(rms_z >= CATASTROPHIC_DRIFT_THRESHOLD)
 
     # ── Recommended action ────────────────────────────────────────────────────
-    recommendation = _recommend(P, D_adjusted, interference, domain, bc)
+    recommendation = _recommend(
+        P, D_adjusted, interference, domain, bc,
+        fidelity=_fidelity,
+        conformal_p=_conformal_p,
+    )
 
     # Override to escalate on catastrophic drift regardless of scored action
     if catastrophic_drift and recommendation.action != "escalate":
@@ -350,6 +471,8 @@ def score(
         authorship=AuthorshipSignal(
             authorship_probability=P,
             deviation_score=D_adjusted,
+            quantum_fidelity=_fidelity,
+            fidelity_conformal_pvalue=_conformal_p,
         ),
         trajectory=TrajectoryConformance(
             direction=direction,
@@ -573,6 +696,8 @@ def _recommend(
     interference: InterferenceDecomposition,
     domain: DomainSignal,
     bc: BaselineConfidence,
+    fidelity: float = 0.0,
+    conformal_p: Optional[float] = None,
 ) -> RecommendedAction:
     """Derive recommended action from the full probability object.
 
@@ -618,6 +743,37 @@ def _recommend(
     ghostwriting_confirmed = ghostwriting_detected and _ttr_spiked and _err_vanished
     if ghostwriting_confirmed and action != "escalate":
         action = "escalate"
+
+    # ── Conformal signal (when amplitude scoring is enabled + calibrated) ─────
+    # conformal_p is a p-value: low = anomalous vs authentic calibration set.
+    # We use it as a secondary signal to nudge action up or add rationale.
+    # It NEVER overrides a higher-severity action and NEVER acts alone without
+    # evidence from the deviation score (to avoid false positives on day 0).
+    _conformal_nudge_note: Optional[str] = None
+    if conformal_p is not None:
+        from .conformal import verdict_from_pvalue
+        _conformal_verdict = verdict_from_pvalue(conformal_p)
+        # Nudge up if conformal is more alarmed than deviation score
+        _action_severity = {
+            "no_action": 0, "monitor": 1,
+            "schedule_conversation": 2, "escalate": 3,
+        }
+        if (_action_severity.get(_conformal_verdict, 0) >
+                _action_severity.get(action, 0)
+                and action != "escalate"):
+            action = _conformal_verdict
+            _conformal_nudge_note = (
+                f"Conformal calibration (p={conformal_p:.3f}) suggests "
+                f"'{_conformal_verdict}' — action raised from deviation-score verdict."
+            )
+        elif (conformal_p > 0.20 and action == "escalate"
+              and not ghostwriting_confirmed):
+            # Conformal calibration disagrees — add a note but keep action
+            _conformal_nudge_note = (
+                f"Note: conformal calibration (p={conformal_p:.3f}) suggests "
+                "this fidelity is within the range of authentic submissions — "
+                "verify manually before acting."
+            )
 
     # Confidence: lower if baseline is thin or trajectory uncertain
     base_confidence = min(
@@ -669,6 +825,8 @@ def _recommend(
             f"Note: baseline built on {bc.effective_sample_count:.1f} effective samples — "
             "confidence is limited."
         )
+    if _conformal_nudge_note:
+        rationale_parts.append(_conformal_nudge_note)
 
     return RecommendedAction(
         action=action,
