@@ -188,6 +188,28 @@ class StudentState:
         return self._purity
 
     @property
+    def von_neumann_entropy(self) -> float:
+        """
+        Von Neumann entropy S = −Tr(ρ log ρ), normalised to [0, 1] by log(D).
+
+        Complements ``purity`` (tr(ρ²)) with an information-theoretic measure:
+        - S ≈ 0 → pure state (single proctored sample or highly consistent
+                  baseline) — high baseline confidence
+        - S ≈ 1 → maximally mixed (D orthogonal, equally-weighted samples)
+                  — low baseline confidence
+
+        Computed via eigvalsh (symmetric fast path, O(D²), ~1 ms for D=103).
+        Eigenvalues are clipped to [ε, 1] and renormalised before log to
+        avoid numerical -inf for near-zero eigenvalues.
+        """
+        rho = self.density_matrix
+        eigenvalues = np.linalg.eigvalsh(rho)
+        eigenvalues = np.clip(eigenvalues, 1e-12, 1.0)
+        eigenvalues = eigenvalues / eigenvalues.sum()   # renormalise
+        S = -float(np.sum(eigenvalues * np.log(eigenvalues)))
+        return float(np.clip(S / math.log(FEATURE_DIM), 0.0, 1.0))
+
+    @property
     def baseline_std(self) -> np.ndarray:
         """
         Per-feature standard deviation across baseline samples (shape D,).

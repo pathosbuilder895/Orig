@@ -142,6 +142,24 @@ def _get_conn() -> sqlite3.Connection:
         CREATE INDEX IF NOT EXISTS idx_tuned_thresholds_created
             ON tuned_thresholds_v2(created_at)
     """)
+    # Production Phase 6: quantum fidelity scores for conformal calibration.
+    # Populated by put_fidelity_score() after each scoring call.  Read by
+    # get_authentic_fidelities() at scoring time to build the conformal
+    # calibration set.  Grows automatically as instructors confirm verdicts
+    # via the corrections feedback loop.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS fidelity_scores (
+            submission_id    TEXT PRIMARY KEY,
+            student_id       TEXT NOT NULL,
+            fidelity         REAL NOT NULL,
+            is_authentic     INTEGER NOT NULL,
+            created_at       TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_fidelity_student
+            ON fidelity_scores(student_id, is_authentic)
+    """)
     conn.commit()
     return conn
 
@@ -527,6 +545,81 @@ def manifest_stats(
         "since":               since,
         "until":               until,
     }
+
+
+# ── Production Phase 6: quantum fidelity store ───────────────────────────────
+
+def put_fidelity_score(
+    submission_id: str,
+    student_id: str,
+    fidelity: float,
+    is_authentic: bool,
+) -> None:
+    """
+    Store a quantum fidelity score for conformal calibration.
+
+    Called by the API layer after scoring when AMPLITUDE_SCORING_ENABLED=1.
+    The calibration set grows as instructors confirm verdicts — higher-quality
+    data over time → tighter conformal p-values.
+
+    Parameters
+    ----------
+    submission_id : unique submission identifier
+    student_id    : student identifier
+    fidelity      : quantum_fidelity score ∈ [0, 1]
+    is_authentic  : True if the submission was confirmed authentic
+    """
+    import datetime
+    created_at = datetime.datetime.utcnow().isoformat()
+    try:
+        with _get_conn() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO fidelity_scores
+                    (submission_id, student_id, fidelity, is_authentic, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (submission_id, student_id, float(fidelity),
+                 1 if is_authentic else 0, created_at),
+            )
+            conn.commit()
+    except Exception:
+        log.exception("put_fidelity_score failed for %s", submission_id)
+
+
+def get_authentic_fidelities(
+    student_id: str,
+    limit: int = 200,
+) -> List[float]:
+    """
+    Return the most recent ``limit`` confirmed-authentic fidelity scores
+    for a student, for use as the conformal calibration set.
+
+    Sources (merged):
+    1. ``fidelity_scores`` table — populated by ``put_fidelity_score()`` when
+       a submission is logged as authentic after scoring.
+    2. Implicit: the corrections table is NOT queried here for simplicity;
+       the API layer should call ``put_fidelity_score(..., is_authentic=True)``
+       when an instructor correction confirms authenticity.
+
+    Returns an empty list when the calibration set is empty — callers treat
+    this as "no conformal data" and fall back to deviation_score only.
+    """
+    try:
+        with _get_conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT fidelity FROM fidelity_scores
+                WHERE student_id = ? AND is_authentic = 1
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (student_id, limit),
+            ).fetchall()
+            return [float(row[0]) for row in rows]
+    except Exception:
+        log.exception("get_authentic_fidelities failed for %s", student_id)
+        return []
 
 
 # ── PR 7: corrections feedback log ───────────────────────────────────────────
