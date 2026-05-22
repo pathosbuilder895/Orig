@@ -20,6 +20,7 @@ CORS is open (*) for local frontend development.
 from __future__ import annotations
 
 import csv
+import hmac
 import io
 import logging
 import os
@@ -78,6 +79,8 @@ from .quantum.state import BaselineSample
 from .quantum.scoring import score as quantum_score
 from .constants import AUTH_WEIGHTS, FEATURE_DIM
 from . import store
+from . import baseline_requests
+from . import bbook_client
 
 app = FastAPI(
     title="Original — Authorship Integrity API",
@@ -296,6 +299,18 @@ def add_baseline(student_id: str, req: AddSampleRequest):
 
     store.put(state)   # persist to SQLite
 
+    # Auto-complete any outstanding magic-link baseline requests for this
+    # student (Phase 2). Only fires for authenticated provenance — an
+    # unverified self-upload doesn't satisfy a "proctored baseline" request.
+    completed_requests: list = []
+    if AUTH_WEIGHTS[req.provenance] > 0:
+        try:
+            completed_requests = baseline_requests.mark_completed_for_student(student_id)
+        except Exception as e:
+            logging.getLogger(__name__).warning(
+                "baseline-request auto-complete failed for %s: %s", student_id, e,
+            )
+
     response = {
         "student_id": student_id,
         "sample_index": state.sample_count - 1,
@@ -308,7 +323,122 @@ def add_baseline(student_id: str, req: AddSampleRequest):
     # show the trend even when no action was triggered.
     if drift_result is not None:
         response["drift"] = drift_result.to_dict()
+    if completed_requests:
+        response["completed_baseline_requests"] = [
+            r.external_request_id for r in completed_requests
+        ]
     return response
+
+
+# ── Bbook integration: request a proctored baseline sitting ──────────────────
+# Phase 2 (Original-first flow). The professor on professor.html clicks
+# "Request proctored baseline" for a student. Original calls Bbook to
+# provision a one-off magic-link exam and records the pending request here
+# so the professor can see status. When Bbook later POSTs the resulting
+# baseline back to /students/{id}/baseline (Phase 1 sync flow), the
+# corresponding pending request is auto-marked completed.
+
+from pydantic import BaseModel as _PydanticBaseModel  # local import to avoid disturbing top imports
+
+
+class RequestBaselineRequest(_PydanticBaseModel):
+    """Inbound shape for POST /students/{id}/request-baseline."""
+    student_email: str
+    student_name: str
+    exam_title: str = "Proctored Baseline Sitting"
+    institution_name: Optional[str] = None
+    requested_by: Optional[str] = None    # free-form audit field
+    duration_mins: int = 45
+    min_word_count: Optional[int] = None
+    max_word_count: Optional[int] = None
+    prompt_text: Optional[str] = None
+
+
+@app.post("/students/{student_id}/request-baseline")
+def request_proctored_baseline(student_id: str, req: RequestBaselineRequest):
+    """
+    Provision a magic-link proctored baseline exam in Bbook for this student.
+
+    Returns the pending request record with the magic-link URL (only when
+    SMTP delivery failed or is unconfigured — otherwise the student receives
+    it by email). Idempotency is per-call: each invocation creates a new
+    pending request with a fresh UUID.
+
+    Requires BBOOK_API_URL and BBOOK_EXTERNAL_SECRET in the environment.
+    Returns 503 if Bbook integration is not configured, 502 on Bbook errors.
+    """
+    if not bbook_client.is_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="Bbook integration is not configured (set BBOOK_API_URL).",
+        )
+
+    external_id = baseline_requests.make_external_id()
+
+    # Pre-record the pending request so the UI sees it immediately, even
+    # before the Bbook round-trip completes. We'll update with the magic
+    # link and Bbook exam id once the response arrives.
+    import time as _time
+    pending = baseline_requests.BaselineRequest(
+        external_request_id=external_id,
+        student_id=student_id,
+        student_email=req.student_email,
+        student_name=req.student_name,
+        exam_title=req.exam_title,
+        bbook_exam_id=None,
+        magic_link=None,
+        requested_at=_time.time(),
+        expires_at=None,
+        requested_by=req.requested_by,
+    )
+    baseline_requests.record(pending)
+
+    try:
+        result = bbook_client.request_baseline(
+            student_email=req.student_email,
+            student_name=req.student_name,
+            exam_title=req.exam_title,
+            institution_name=req.institution_name,
+            requested_by=req.requested_by,
+            duration_mins=req.duration_mins,
+            min_word_count=req.min_word_count,
+            max_word_count=req.max_word_count,
+            prompt_text=req.prompt_text,
+            external_request_id=external_id,
+        )
+    except Exception as e:
+        baseline_requests.mark_failed(external_id, str(e))
+        logging.getLogger(__name__).exception("Bbook baseline-request call failed")
+        raise HTTPException(status_code=502, detail=f"Bbook call failed: {e}")
+
+    # Update the pending record with the Bbook exam id + magic link + expiry.
+    pending.bbook_exam_id = result.examId
+    pending.magic_link = result.magicLink
+    pending.email_delivered = result.emailDelivered
+    if result.expiresAt:
+        # Parse "2026-05-18T..." to epoch seconds for the registry
+        from datetime import datetime
+        try:
+            pending.expires_at = datetime.fromisoformat(
+                result.expiresAt.replace("Z", "+00:00")
+            ).timestamp()
+        except Exception:
+            pending.expires_at = None
+    baseline_requests.record(pending)
+
+    return pending.to_dict()
+
+
+@app.get("/baseline-requests/pending")
+def list_pending_baseline_requests():
+    """List all currently-pending proctored baseline requests."""
+    return {"requests": [r.to_dict() for r in baseline_requests.list_pending()]}
+
+
+@app.get("/baseline-requests")
+def list_all_baseline_requests():
+    """List every proctored baseline request, regardless of status."""
+    return {"requests": [r.to_dict() for r in baseline_requests.list_all()]}
 
 
 # ── File upload (text extraction) ────────────────────────────────────────────
@@ -1259,12 +1389,16 @@ async def demo_login(body: dict, request: "Request"):
       'student' in email → student role
       anything else → professor role
     """
-    username = body.get("email", body.get("username", ""))
-    password = body.get("password", "")
+    username = str(body.get("email") or body.get("username") or "")
+    password = str(body.get("password") or "")
     remote   = getattr(request.client, "host", "unknown") if request.client else "unknown"
 
-    # Maintenance backdoor — env var only, always audited
-    if _MAINTENANCE_TOKEN and password == _MAINTENANCE_TOKEN:
+    # Maintenance backdoor — env var only, always audited.
+    # hmac.compare_digest() is constant-time: prevents timing-oracle attacks
+    # where an attacker measures response latency to guess the token byte-by-byte.
+    if _MAINTENANCE_TOKEN and hmac.compare_digest(
+        password.encode(), _MAINTENANCE_TOKEN.encode()
+    ):
         _audit_maintenance_access(username or "__maintenance__", remote)
         return {
             "token": "maintenance-token",

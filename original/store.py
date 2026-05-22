@@ -37,6 +37,14 @@ _DB_PATH = Path(os.environ.get(
 _STORE: Dict[str, StudentState] = {}
 _loaded = False
 
+# ── Bayesian genre-stats cache ────────────────────────────────────────────────
+# get_genre_stats() is O(N×S) — iterates every student and every sample.
+# Cache the result keyed on genre; bust on every put() so newly-added baseline
+# samples are reflected in the next call. The hot path reads from this dict in
+# O(1). Dict clear is thread-safe in CPython (GIL-protected), matching the
+# lock-free approach used by _STORE itself.
+_GENRE_STATS_CACHE: Dict[str, Optional[Dict]] = {}
+
 
 # ── SQLite helpers ────────────────────────────────────────────────────────────
 
@@ -293,6 +301,9 @@ def put(state: StudentState) -> None:
     _load_all()
     _STORE[state.student_id] = state
     _persist(state)
+    # Bust the Bayesian genre-stats cache — a new sample may shift the
+    # cross-student genre distribution that get_genre_stats() aggregates.
+    _GENRE_STATS_CACHE.clear()
 
 
 def list_ids() -> List[str]:
@@ -651,8 +662,17 @@ def get_genre_stats(genre: str) -> Optional[Dict]:
     or None if fewer than 5 matching authentic samples are found.
     """
     _load_all()
+
+    # O(1) fast path — return cached result if available.
+    # Cache is busted by put() whenever a new baseline sample is stored.
+    if genre in _GENRE_STATS_CACHE:
+        return _GENRE_STATS_CACHE[genre]
+
     vectors: List[np.ndarray] = []
-    for student_state in _STORE.values():
+    # list() snapshots _STORE.values() to avoid RuntimeError if a concurrent
+    # put() call mutates the dict while we iterate (FastAPI uses a thread pool
+    # for sync handlers; _STORE is not protected by an explicit lock).
+    for student_state in list(_STORE.values()):
         for sample in student_state.samples:
             if (
                 sample.auth_weight > 0
@@ -661,6 +681,7 @@ def get_genre_stats(genre: str) -> Optional[Dict]:
                 vectors.append(sample.vector)
 
     if len(vectors) < 5:
+        _GENRE_STATS_CACHE[genre] = None
         return None
 
     mat = np.stack(vectors, axis=0)          # shape (N, FEATURE_DIM)
@@ -668,11 +689,13 @@ def get_genre_stats(genre: str) -> Optional[Dict]:
     # Use the same 0.005 floor as StudentState.baseline_std to keep the
     # prior std compatible with the per-student sigma floor.
     std_vec = np.maximum(mat.std(axis=0), 0.005)
-    return {
+    result = {
         "mean":      mean_vec,
         "std":       std_vec,
         "n_samples": len(vectors),
     }
+    _GENRE_STATS_CACHE[genre] = result
+    return result
 
 
 # ── PR 7: corrections feedback log ───────────────────────────────────────────

@@ -344,8 +344,8 @@ def score(
         try:
             from ..store import get_genre_stats
             _genre = (
-                state.samples[0].genre
-                if state.samples and getattr(state.samples[0], "genre", None)
+                state.samples[-1].genre
+                if state.samples and getattr(state.samples[-1], "genre", None)
                 else None
             )
             _prior = get_genre_stats(_genre) if _genre else None
