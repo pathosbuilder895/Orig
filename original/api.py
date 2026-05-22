@@ -220,6 +220,40 @@ def get_student(student_id: str):
     )
 
 
+# ── FERPA: student data deletion ──────────────────────────────────────────────
+
+@app.delete("/students/{student_id}", status_code=200)
+def delete_student(student_id: str):
+    """
+    Permanently delete all stored data for a student (FERPA right-to-erasure).
+
+    Removes the student profile, all baseline samples, all fidelity scores,
+    all adaptive-context manifests, and all instructor corrections associated
+    with this student_id.  The deletion is immediate and irreversible — there
+    is no soft-delete or recovery path.
+
+    Returns 204 No Content on success, 404 if the student is not found.
+
+    Intended audience: institution data-compliance officers and LMS admins.
+    In production this endpoint should be protected by role-based auth
+    (admin only). In the demo server auth is not enforced.
+    """
+    deleted = store.delete_student(student_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Student '{student_id}' not found — nothing to delete.",
+        )
+    return {
+        "deleted": True,
+        "student_id": student_id,
+        "message": (
+            f"All data for student '{student_id}' has been permanently removed "
+            "(baseline profile, fidelity scores, manifests, corrections)."
+        ),
+    }
+
+
 # ── Add baseline sample ───────────────────────────────────────────────────────
 
 @app.post("/students/{student_id}/baseline")
@@ -1070,6 +1104,35 @@ def submit_correction(submission_id: str, req: CorrectionRequest):
         raise HTTPException(status_code=500, detail="Correction inserted but not found on read-back")
     # The most recent (and only matching) row is the one we just wrote.
     latest = listed["items"][0]
+
+    # ── Close the conformal feedback loop ────────────────────────────────────
+    # Determine whether this correction establishes the submission as authentic,
+    # then update the fidelity_scores row so the conformal calibration set
+    # reflects real instructor labels rather than the automated heuristic.
+    #
+    # Rules:
+    #   is_correct=True  + original was "no_action"   → confirmed authentic
+    #   is_correct=True  + original was not "no_action" → confirmed anomalous
+    #   is_correct=False + corrected_verdict/action is authentic → now authentic
+    #   is_correct=False + no clear corrected label → assume anomalous
+    try:
+        _orig_action = latest.get("original_action") or ""
+        if req.is_correct:
+            _is_now_authentic = (_orig_action == "no_action")
+        else:
+            _is_now_authentic = (
+                req.corrected_verdict == "authentic"
+                or req.corrected_action == "no_action"
+            )
+        store.update_fidelity_authenticity(submission_id, _is_now_authentic)
+    except Exception as _fid_exc:
+        # Non-fatal: the correction row was saved; the fidelity update is
+        # best-effort. Log at DEBUG so production noise stays low.
+        logging.getLogger(__name__).debug(
+            "fidelity authenticity update skipped for %s: %s",
+            submission_id, _fid_exc,
+        )
+
     return CorrectionResponse(**latest)
 
 

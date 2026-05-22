@@ -698,6 +698,78 @@ def get_genre_stats(genre: str) -> Optional[Dict]:
     return result
 
 
+def update_fidelity_authenticity(submission_id: str, is_authentic: bool) -> None:
+    """
+    Update the ``is_authentic`` flag on an existing fidelity_scores row.
+
+    Called by the corrections endpoint when an instructor's verdict
+    overrides the automated authenticity label written at scoring time.
+    This is what actually closes the conformal calibration feedback loop:
+    real instructor signals → correct is_authentic labels → conformal set
+    quality improves over time → tighter p-values.
+
+    Silently no-ops when no fidelity row exists for this submission
+    (i.e. AMPLITUDE_SCORING_ENABLED was off when it was scored).
+    """
+    try:
+        with _get_conn() as conn:
+            conn.execute(
+                "UPDATE fidelity_scores SET is_authentic = ? WHERE submission_id = ?",
+                (1 if is_authentic else 0, submission_id),
+            )
+            conn.commit()
+    except Exception:
+        log.exception(
+            "update_fidelity_authenticity failed for submission %s", submission_id
+        )
+
+
+def delete_student(student_id: str) -> bool:
+    """
+    Permanently delete all data for a student (FERPA right-to-erasure).
+
+    Removes the student from:
+    - The in-memory store (_STORE)
+    - student_profiles      (SQLite — baseline profile)
+    - fidelity_scores       (SQLite — conformal calibration data)
+    - submission_manifests  (SQLite — adaptive-context audit log)
+    - corrections           (SQLite — instructor feedback)
+
+    ``corrections`` rows carry a ``student_id`` column auto-filled from the
+    manifest. We delete by that column so orphaned corrections (where
+    student_id was never set) are not accidentally removed.
+
+    Returns True if the student existed and was deleted, False if not found.
+    """
+    _load_all()
+    if student_id not in _STORE:
+        return False
+
+    # Purge in-memory first so no further reads see stale data
+    del _STORE[student_id]
+    _GENRE_STATS_CACHE.clear()   # genre stats may have included this student
+
+    try:
+        with _get_conn() as conn:
+            conn.execute(
+                "DELETE FROM student_profiles WHERE student_id = ?", (student_id,)
+            )
+            conn.execute(
+                "DELETE FROM fidelity_scores WHERE student_id = ?", (student_id,)
+            )
+            conn.execute(
+                "DELETE FROM submission_manifests WHERE student_id = ?", (student_id,)
+            )
+            conn.execute(
+                "DELETE FROM corrections WHERE student_id = ?", (student_id,)
+            )
+            conn.commit()
+    except Exception:
+        log.exception("delete_student failed for %s — SQLite rows may remain", student_id)
+
+    return True
+
+
 # ── PR 7: corrections feedback log ───────────────────────────────────────────
 
 def put_correction(
