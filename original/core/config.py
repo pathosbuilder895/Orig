@@ -136,6 +136,14 @@ class Settings(BaseSettings):
     # False = submissions are never indexed into a global comparison corpus
     DEFAULT_INDEX_SUBMISSIONS: bool = False
 
+    # ── Bbook (optional proctored-sitting companion) ─────────────────────────
+    # When BBOOK_API_URL is set, Original can provision one-off proctored
+    # baseline exams in Bbook via POST /students/{id}/request-baseline. The
+    # shared secret authenticates the outbound call. Leave empty to disable.
+    # See original/bbook_client.py.
+    BBOOK_API_URL: str = ""
+    BBOOK_EXTERNAL_SECRET: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:
