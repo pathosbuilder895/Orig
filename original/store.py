@@ -729,28 +729,34 @@ def delete_student(student_id: str) -> bool:
     Permanently delete all data for a student (FERPA right-to-erasure).
 
     Removes the student from:
-    - The in-memory store (_STORE)
     - student_profiles      (SQLite — baseline profile)
     - fidelity_scores       (SQLite — conformal calibration data)
     - submission_manifests  (SQLite — adaptive-context audit log)
-    - corrections           (SQLite — instructor feedback)
+    - corrections           (SQLite — instructor feedback, by submission_id
+                             to catch rows where student_id was never written)
+    - The in-memory store (_STORE) — evicted AFTER the SQLite commit so that
+      a commit failure returns False and leaves the server in a consistent state
+      (rows still in DB + still in memory).
 
-    ``corrections`` rows carry a ``student_id`` column auto-filled from the
-    manifest. We delete by that column so orphaned corrections (where
-    student_id was never set) are not accidentally removed.
-
-    Returns True if the student existed and was deleted, False if not found.
+    Returns True if the student existed and was deleted, False if not found or
+    if the SQLite commit failed.
     """
     _load_all()
     if student_id not in _STORE:
         return False
 
-    # Purge in-memory first so no further reads see stale data
-    del _STORE[student_id]
-    _GENRE_STATS_CACHE.clear()   # genre stats may have included this student
-
     try:
         with _get_conn() as conn:
+            # Collect submission_ids before deleting manifests so we can
+            # purge orphaned corrections rows where student_id was not set
+            # (put_correction() auto-fills student_id from the manifest, but
+            # the manifest may not have existed at correction time → NULL gap).
+            rows = conn.execute(
+                "SELECT submission_id FROM submission_manifests WHERE student_id = ?",
+                (student_id,),
+            ).fetchall()
+            sub_ids = [r[0] for r in rows]
+
             conn.execute(
                 "DELETE FROM student_profiles WHERE student_id = ?", (student_id,)
             )
@@ -760,13 +766,25 @@ def delete_student(student_id: str) -> bool:
             conn.execute(
                 "DELETE FROM submission_manifests WHERE student_id = ?", (student_id,)
             )
+            # Delete corrections by student_id AND by submission_id to cover
+            # any rows where student_id was left NULL (FERPA completeness).
             conn.execute(
                 "DELETE FROM corrections WHERE student_id = ?", (student_id,)
             )
+            if sub_ids:
+                placeholders = ",".join("?" * len(sub_ids))
+                conn.execute(
+                    f"DELETE FROM corrections WHERE submission_id IN ({placeholders})",
+                    sub_ids,
+                )
             conn.commit()
     except Exception:
-        log.exception("delete_student failed for %s — SQLite rows may remain", student_id)
+        log.exception("delete_student failed for %s — no data was removed", student_id)
+        return False
 
+    # SQLite committed successfully — now evict from memory.
+    del _STORE[student_id]
+    _GENRE_STATS_CACHE.clear()   # genre stats may have included this student
     return True
 
 

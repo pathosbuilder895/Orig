@@ -232,7 +232,8 @@ def delete_student(student_id: str):
     with this student_id.  The deletion is immediate and irreversible — there
     is no soft-delete or recovery path.
 
-    Returns 204 No Content on success, 404 if the student is not found.
+    Returns 200 with a confirmation payload on success, 404 if not found.
+    Returns 404 also when the SQLite commit fails (no data was removed).
 
     Intended audience: institution data-compliance officers and LMS admins.
     In production this endpoint should be protected by role-based auth

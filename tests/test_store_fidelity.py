@@ -16,6 +16,16 @@ import tempfile
 import numpy as np
 import pytest
 
+# These imports must appear ABOVE the fixture definition so that `store`
+# is already in the module namespace when _isolated_store is called.
+# (Python resolves names in fixture bodies at call time, not at definition
+# time — but keeping the import before the fixture makes the dependency
+# explicit and avoids surprising future maintainers.)
+import original.store as store
+from original.quantum.state import BaselineSample, StudentState
+from original.constants import FEATURE_DIM
+
+
 # Point the store at an isolated temp DB for each test
 @pytest.fixture(autouse=True)
 def _isolated_store(tmp_path, monkeypatch):
@@ -68,11 +78,6 @@ def _isolated_store(tmp_path, monkeypatch):
         _obj._STORE.clear()
         _obj._GENRE_STATS_CACHE.clear()
         _obj._loaded = False
-
-
-import original.store as store
-from original.quantum.state import BaselineSample, StudentState
-from original.constants import FEATURE_DIM
 
 
 def _make_state(student_id: str, n_samples: int = 1, genre: str | None = None) -> StudentState:
@@ -310,3 +315,53 @@ class TestDeleteStudent:
         store.delete_student("student-del-A")
         assert store.get("student-del-A") is None
         assert store.get("student-del-B") is not None
+
+    def test_corrections_with_null_student_id_purged(self):
+        """
+        Corrections whose student_id column is NULL (written before the
+        manifest existed) must still be purged by delete_student().
+
+        We simulate this by inserting a correction row with student_id=NULL
+        directly via SQL, then confirming delete_student() removes it via
+        the submission_id→manifest path.
+        """
+        import sqlite3
+        from datetime import datetime, timezone
+
+        state = _make_state("student-del-null-sid")
+        store.put(state)
+
+        # Write a fake manifest so delete_student() can look up submission_ids
+        sub_id = "sub-null-sid-001"
+        with store._get_conn() as conn:
+            conn.execute(
+                """INSERT OR IGNORE INTO submission_manifests
+                   (submission_id, student_id, created_at, manifest_json)
+                   VALUES (?, ?, ?, ?)""",
+                (sub_id, "student-del-null-sid",
+                 datetime.now(timezone.utc).isoformat(), "{}"),
+            )
+            # Insert an orphaned correction with student_id=NULL
+            conn.execute(
+                """INSERT INTO corrections
+                   (submission_id, student_id, is_correct, created_at)
+                   VALUES (?, NULL, 1, ?)""",
+                (sub_id, datetime.now(timezone.utc).isoformat()),
+            )
+            conn.commit()
+
+        # Confirm the orphaned row exists before deletion
+        with store._get_conn() as conn:
+            rows = conn.execute(
+                "SELECT COUNT(*) FROM corrections WHERE submission_id = ?", (sub_id,)
+            ).fetchone()
+        assert rows[0] == 1, "Orphaned correction row should exist before delete"
+
+        store.delete_student("student-del-null-sid")
+
+        # Orphaned correction must be gone after FERPA erasure
+        with store._get_conn() as conn:
+            rows = conn.execute(
+                "SELECT COUNT(*) FROM corrections WHERE submission_id = ?", (sub_id,)
+            ).fetchone()
+        assert rows[0] == 0, "Orphaned correction with NULL student_id must be purged"
