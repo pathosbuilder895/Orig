@@ -95,6 +95,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Startup: SECRET_KEY stability check ───────────────────────────────────────
+# Warn operators if SECRET_KEY is not pinned in the environment.
+# A random per-process key means all JWTs issued by a prior process are
+# immediately invalidated on restart — silent auth breakage that's hard to
+# debug in a real deployment. Demo mode is expected to be ephemeral; any
+# other environment should pin a stable key via the SECRET_KEY env var.
+
+_secret_key_pinned: bool = bool(os.environ.get("SECRET_KEY", ""))
+
+@app.on_event("startup")
+async def _startup_checks() -> None:
+    _log = logging.getLogger(__name__)
+    if not _secret_key_pinned:
+        _log.warning(
+            "SECRET_KEY is not set — using a per-process random value. "
+            "JWTs will be invalidated on every restart. "
+            "Set SECRET_KEY in your environment or .env file for a stable key: "
+            "  python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+        )
+    else:
+        _log.info("SECRET_KEY is pinned from environment — JWT tokens survive restarts.")
+
 
 # ── Email notification stub ───────────────────────────────────────────────────
 
@@ -253,6 +275,50 @@ def delete_student(student_id: str):
             "(baseline profile, fidelity scores, manifests, corrections)."
         ),
     }
+
+
+# ── Tenant registry ───────────────────────────────────────────────────────────
+# Phase 0 foundation: lightweight per-institution metadata stored in SQLite.
+# Lets demo operator register schools with an environment label (demo/pilot/
+# production) before Postgres multi-tenancy is needed.
+
+@app.post("/tenants", status_code=201)
+def create_tenant(body: dict):
+    """
+    Register or update a tenant (institution) record.
+
+    Required body fields:
+        tenant_id   — stable slug (e.g. 'seminary-of-dallas')
+        name        — human-readable institution name
+
+    Optional body fields:
+        environment — 'demo' | 'pilot' | 'production'  (default: 'demo')
+        meta        — arbitrary dict of metadata (contact email, LMS URL, etc.)
+    """
+    tenant_id = body.get("tenant_id", "")
+    name = body.get("name", "")
+    if not tenant_id or not name:
+        raise HTTPException(status_code=422, detail="tenant_id and name are required")
+    environment = body.get("environment", "demo")
+    if environment not in ("demo", "pilot", "production"):
+        raise HTTPException(status_code=422, detail="environment must be 'demo', 'pilot', or 'production'")
+    store.put_tenant(tenant_id, name, environment=environment, meta=body.get("meta"))
+    return {"tenant_id": tenant_id, "name": name, "environment": environment}
+
+
+@app.get("/tenants")
+def list_tenants(environment: str = ""):
+    """List all registered tenants, optionally filtered by environment."""
+    return store.list_tenants(environment=environment or None)
+
+
+@app.get("/tenants/{tenant_id}")
+def get_tenant(tenant_id: str):
+    """Get a single tenant record."""
+    t = store.get_tenant(tenant_id)
+    if not t:
+        raise HTTPException(status_code=404, detail=f"Tenant '{tenant_id}' not found")
+    return t
 
 
 # ── Add baseline sample ───────────────────────────────────────────────────────

@@ -168,6 +168,23 @@ def _get_conn() -> sqlite3.Connection:
         CREATE INDEX IF NOT EXISTS idx_fidelity_student
             ON fidelity_scores(student_id, is_authentic)
     """)
+    # Phase 0 — Tenant registry. Lightweight per-institution metadata that
+    # lets us attach environment context (demo / pilot / production) to a
+    # student cohort without a Postgres migration. Stored as a JSON blob so
+    # new metadata fields can be added without schema changes.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS tenants (
+            tenant_id    TEXT PRIMARY KEY,
+            name         TEXT NOT NULL,
+            environment  TEXT NOT NULL DEFAULT 'demo',
+            created_at   TEXT NOT NULL,
+            meta_json    TEXT NOT NULL DEFAULT '{}'
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_tenants_environment
+            ON tenants(environment)
+    """)
     conn.commit()
     return conn
 
@@ -1216,3 +1233,102 @@ def list_tuned_thresholds(limit: int = 50, offset: int = 0) -> Dict:
             for r in rows
         ],
     }
+
+
+# ── Tenant registry (Phase 0) ─────────────────────────────────────────────────
+# Lightweight per-institution metadata. Backed by the same SQLite DB as
+# student profiles. Environment can be 'demo', 'pilot', or 'production'.
+# meta_json carries arbitrary key/value pairs (contact email, Canvas URL, etc.)
+# without schema migrations as needs evolve.
+
+def put_tenant(
+    tenant_id: str,
+    name: str,
+    environment: str = "demo",
+    meta: Optional[Dict] = None,
+) -> None:
+    """
+    Upsert a tenant record.
+
+    Args:
+        tenant_id:   Stable identifier (e.g. slug like 'seminary-of-dallas').
+        name:        Human-readable institution name.
+        environment: One of 'demo', 'pilot', 'production'. Defaults to 'demo'.
+        meta:        Optional dict of arbitrary metadata (contact, LMS URL, etc.).
+    """
+    from datetime import datetime, timezone
+    created_at = datetime.now(timezone.utc).isoformat()
+    meta_json = json.dumps(meta or {})
+    try:
+        with _get_conn() as conn:
+            conn.execute(
+                """INSERT INTO tenants (tenant_id, name, environment, created_at, meta_json)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT(tenant_id) DO UPDATE SET
+                     name        = excluded.name,
+                     environment = excluded.environment,
+                     meta_json   = excluded.meta_json""",
+                (tenant_id, name, environment, created_at, meta_json),
+            )
+            conn.commit()
+    except Exception:
+        log.exception("put_tenant failed for %s", tenant_id)
+
+
+def get_tenant(tenant_id: str) -> Optional[Dict]:
+    """Return tenant dict or None if not found."""
+    try:
+        with _get_conn() as conn:
+            row = conn.execute(
+                "SELECT tenant_id, name, environment, created_at, meta_json "
+                "FROM tenants WHERE tenant_id = ?",
+                (tenant_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "tenant_id":   row[0],
+            "name":        row[1],
+            "environment": row[2],
+            "created_at":  row[3],
+            "meta":        json.loads(row[4] or "{}"),
+        }
+    except Exception:
+        log.exception("get_tenant failed for %s", tenant_id)
+        return None
+
+
+def list_tenants(environment: Optional[str] = None) -> List[Dict]:
+    """
+    List all tenants, optionally filtered by environment.
+
+    Args:
+        environment: If given, return only tenants matching this environment
+                     ('demo', 'pilot', 'production').
+    """
+    try:
+        with _get_conn() as conn:
+            if environment:
+                rows = conn.execute(
+                    "SELECT tenant_id, name, environment, created_at, meta_json "
+                    "FROM tenants WHERE environment = ? ORDER BY created_at",
+                    (environment,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT tenant_id, name, environment, created_at, meta_json "
+                    "FROM tenants ORDER BY created_at"
+                ).fetchall()
+        return [
+            {
+                "tenant_id":   r[0],
+                "name":        r[1],
+                "environment": r[2],
+                "created_at":  r[3],
+                "meta":        json.loads(r[4] or "{}"),
+            }
+            for r in rows
+        ]
+    except Exception:
+        log.exception("list_tenants failed")
+        return []

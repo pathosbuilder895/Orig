@@ -1061,13 +1061,13 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           <div class="metrics-row">
             <div class="metric-card" id="mc1">
               <div class="metric-header">
-                <span class="metric-icon">📐</span>
-                <span class="metric-title">Voice Consistency Score</span>
-                <span class="metric-sub">vs. baseline voice</span>
+                <span class="metric-icon">✅</span>
+                <span class="metric-title">Voice Match</span>
+                <span class="metric-sub">confirmed voice consistency</span>
               </div>
               <div class="metric-body">
                 <div class="sparkline-wrap" id="sparkline1"></div>
-                <div class="metric-value" id="mcVal1" style="color:var(--amber)">0.71</div>
+                <div class="metric-value" id="mcVal1" style="color:var(--amber)">71%</div>
               </div>
               <div class="metric-gloss" id="mcGloss1"></div>
             </div>
@@ -1871,7 +1871,7 @@ function renderHistory() {
   const el = document.getElementById('tab-history');
   el.innerHTML = '';
   const colors = {no_action:'var(--green)',monitor:'var(--blue)',schedule_conversation:'var(--amber)',escalate:'var(--red)'};
-  const labels = {no_action:'No Action',monitor:'Monitor',schedule_conversation:'Discuss',escalate:'Escalate'};
+  const labels = {no_action:'Voice Confirmed',monitor:'Follow Up',schedule_conversation:'Brief Check-in',escalate:'Discuss Submission'};
 
   // Read portfolio saved by student.html
   let entries = [];
@@ -1888,10 +1888,11 @@ function renderHistory() {
   [...entries].reverse().forEach(h => {
     const action = h.response?.recommendation?.action || 'no_action';
     const score  = h.response?.authorship?.deviation_score ?? 0;
+    const matchPct = Math.max(0, Math.round((1 - score) * 100));
     const date   = h.timestamp ? new Date(h.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
     const c = colors[action] || 'var(--text-muted)';
     el.innerHTML += `<div class="hist-item">
-      <div class="hist-ring" style="color:${c};border-color:${c}">${score.toFixed(2)}</div>
+      <div class="hist-ring" style="color:${c};border-color:${c}">${matchPct}%</div>
       <div><div class="hist-title">${h.assignment || 'Untitled Submission'}</div><div class="hist-meta">${date}</div></div>
       <div style="display:flex;gap:8px;align-items:center">
         <div class="hist-badge ${action}">${labels[action] || action}</div>
@@ -2384,10 +2385,11 @@ function showToast(msg, type='info', duration=4000) {
 }
 
 /* ── Metric gloss helpers ── */
-function getDeviationGloss(v) {
-  if (v >= 0.7) return 'significant divergence from prior writing';
-  if (v >= 0.45) return 'moderate divergence from prior writing';
-  return 'close match to prior writing';
+function getVoiceMatchGloss(v) {
+  // v = voice match % (0–100), derived from 1 - deviation
+  if (v >= 75) return 'strong voice consistency confirmed';
+  if (v >= 50) return 'voice partially confirmed — some variation present';
+  return 'significant variation from established voice';
 }
 function getProbGloss(v) {
   if (v < 0.4) return 'low match to authenticated baseline voice';
@@ -2413,10 +2415,10 @@ function buildInterpretation(r, student) {
     'Voice Authenticity':      'Uncharacteristic writing patterns',
   };
   const actionNextStep = {
-    no_action:             'No action required — submission appears consistent with baseline.',
-    monitor:               'Continue monitoring future submissions for further divergence.',
-    schedule_conversation: 'Schedule a brief conversation with the student to discuss their writing process.',
-    escalate:              'Submission needs review — recommend scheduling an academic integrity conversation.',
+    no_action:             'Voice confirmed — return this submission with confidence.',
+    monitor:               'Watch the next submission. If a pattern develops, a brief conversation can quickly resolve it.',
+    schedule_conversation: '10 minutes of open questions about their writing process usually clarifies what happened.',
+    escalate:              'Speak with the student before returning the paper — a direct conversation is the clearest path forward.',
   };
 
   // Severity
@@ -2424,14 +2426,15 @@ function buildInterpretation(r, student) {
   if (r.deviation >= 0.45 || r.prob < 0.65) severity = 'amber';
   if (r.deviation >= 0.65 || r.prob < 0.4)  severity = 'red';
 
-  // Headline — framed as voice matching, not AI detection
+  // Headline — lead with the CONFIRMED percentage (Sutherland polarity reframe)
+  const voiceMatchPct = Math.max(0, Math.round((1 - r.deviation) * 100));
   let headline;
   if (r.deviation >= 0.65 && r.prob < 0.4) {
-    headline = `This submission does not strongly match ${name}'s authenticated writing voice.`;
+    headline = `${name}'s writing is ${voiceMatchPct}% consistent with their established voice — notable differences are present.`;
   } else if (r.deviation >= 0.45 || r.prob < 0.65) {
-    headline = `This submission partially matches ${name}'s voice but shows notable differences from their baseline.`;
+    headline = `${name}'s writing is ${voiceMatchPct}% consistent with their established voice, with some areas worth exploring.`;
   } else {
-    headline = `This submission is consistent with ${name}'s authenticated writing voice.`;
+    headline = `${name}'s writing is ${voiceMatchPct}% consistent with their established voice — confirmed authentic.`;
   }
 
   // Bullets: sorted tiers, pick worst two
@@ -2466,9 +2469,11 @@ function renderResults(r) {
   wrap.style.display = 'flex';
 
   // Sparklines — prior 3 points fixed (baseline history), final point = computed score
+  // mc1 shows voice MATCH (1-deviation) so higher = better = green
+  const voiceMatch = Math.max(0, 1 - r.deviation);
   document.getElementById('sparkline1').innerHTML = sparkSVG(
-    [[0,0.22],[1,0.19],[2,0.38],[3,r.deviation]],
-    r.deviation>0.55?'#D97706':'#059669');
+    [[0,0.78],[1,0.81],[2,0.62],[3,voiceMatch]],
+    voiceMatch < 0.45 ? '#DC2626' : voiceMatch < 0.6 ? '#D97706' : '#059669');
   document.getElementById('sparkline2').innerHTML = sparkSVG(
     [[0,0.85],[1,0.88],[2,0.72],[3,r.prob]],
     r.prob < 0.4 ? '#DC2626' : r.prob < 0.65 ? '#D97706' : '#059669');
@@ -2477,11 +2482,13 @@ function renderResults(r) {
     r.traj < 0.4 ? '#DC2626' : '#2563EB');
 
   // Update metric values and colors dynamically
-  const devColor  = r.deviation >= 0.7 ? 'var(--red)' : r.deviation >= 0.45 ? 'var(--amber)' : 'var(--green)';
+  // mc1 = voice match % — higher is better (green); colors mirror match quality
+  const vmPct     = Math.max(0, Math.round((1 - r.deviation) * 100));
+  const matchColor= vmPct >= 75 ? 'var(--green)' : vmPct >= 50 ? 'var(--amber)' : 'var(--red)';
   const probColor = r.prob <= 0.3 ? 'var(--red)' : r.prob <= 0.55 ? 'var(--amber)' : 'var(--green)';
   const trajColor = r.traj <= 0.35 ? 'var(--red)' : r.traj <= 0.6 ? 'var(--blue)' : 'var(--green)';
-  document.getElementById('mcVal1').textContent = r.deviation.toFixed(2);
-  document.getElementById('mcVal1').style.color = devColor;
+  document.getElementById('mcVal1').textContent = vmPct + '%';
+  document.getElementById('mcVal1').style.color = matchColor;
   document.getElementById('mcVal2').textContent = Math.round(r.prob * 100) + '%';
   document.getElementById('mcVal2').style.color = probColor;
   document.getElementById('mcVal3').textContent = Math.round(r.traj * 100) + '%';
@@ -2511,8 +2518,8 @@ function renderResults(r) {
   const blendCard = document.getElementById('blendCard');
   if (blendCard) blendCard.style.display = 'none';
 
-  // Update recommendation badge
-  const actionLabels = {no_action:'No Action',monitor:'Monitor',schedule_conversation:'Needs Review',escalate:'Needs Review — Escalate'};
+  // Update recommendation badge — affirmative framing, not judicial
+  const actionLabels = {no_action:'Voice Confirmed',monitor:'Follow Up',schedule_conversation:'Brief Check-in',escalate:'Discuss Submission'};
   const badge = document.getElementById('recBadge');
   badge.textContent = actionLabels[r.action] || r.action;
   badge.className = `rec-badge ${r.action}`;
@@ -2565,7 +2572,7 @@ function renderResults(r) {
   // Metric glosses
   setTimeout(()=>{
     const glosses = [
-      { id:'mcGloss1', text: getDeviationGloss(r.deviation) },
+      { id:'mcGloss1', text: getVoiceMatchGloss(vmPct) },
       { id:'mcGloss2', text: getProbGloss(r.prob) },
       { id:'mcGloss3', text: getTrajGloss(r.traj) },
     ];

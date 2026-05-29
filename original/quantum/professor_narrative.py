@@ -386,24 +386,33 @@ class ProfessorExplanation:
 # ── Headline logic ─────────────────────────────────────────────────────────────
 
 def _build_headline(deviation: float, student_name: str) -> str:
+    """
+    Lead with what was CONFIRMED, not what deviated.
+    Same math — opposite emotion. Teachers are defenders, not prosecutors.
+    """
+    # Express as voice-match confidence (what we confirmed)
+    confidence_pct = max(0, int(round((1.0 - min(deviation, 1.0)) * 100)))
+    name = student_name
+
     if deviation < 0.30:
         return (
-            f"This submission is consistent with {student_name}'s writing "
-            f"— no concerns."
+            f"{name}'s writing is {confidence_pct}% consistent with their "
+            f"established voice — this submission is confirmed authentic."
         )
     if deviation < 0.55:
         return (
-            f"This submission shows some differences from {student_name}'s "
-            f"typical writing."
+            f"{name}'s writing is {confidence_pct}% consistent with their "
+            f"established voice, with a few areas worth a closer look."
         )
     if deviation < 0.75:
         return (
-            f"This submission reads noticeably differently from {student_name}'s "
-            f"established writing pattern."
+            f"This submission is {confidence_pct}% consistent with {name}'s "
+            f"established voice — notable differences are present."
         )
     return (
-        f"This submission is markedly different from {student_name}'s writing "
-        f"in several ways that warrant a conversation."
+        f"This submission is {confidence_pct}% consistent with {name}'s "
+        f"established voice — the difference is substantial enough to warrant "
+        f"a conversation."
     )
 
 
@@ -421,43 +430,46 @@ def _build_summary(
     if deviation < 0.30:
         base = (
             f"The system compared this submission against {name}'s established "
-            f"writing profile and found it to be a strong match. The stylistic "
-            f"patterns — sentence structure, vocabulary habits, rhetorical choices — "
-            f"are consistent with prior authenticated work."
+            f"writing profile and found a strong match across stylistic patterns — "
+            f"sentence structure, vocabulary habits, rhetorical choices, and "
+            f"argument pacing are all consistent with prior authenticated work. "
+            f"This is a healthy result."
         )
         if trajectory_direction == "growth":
             base += (
-                f" There are signs of continued development in {name}'s writing, "
-                f"which is a positive trend."
+                f" There are also signs of continued writing development, "
+                f"which is an encouraging trend."
             )
         return base
 
     if deviation < 0.55:
         return (
-            f"The system compared this submission against {name}'s established "
-            f"writing profile and found {n_destructive or 'some'} area(s) where "
-            f"this submission differs from prior work. Differences at this level "
-            f"are common and often reflect topic demands, genre shifts, or a good "
-            f"night's sleep — but they can also warrant a brief check-in."
+            f"The system confirmed most of {name}'s established writing patterns "
+            f"in this submission — the stylistic foundation looks like their work. "
+            f"There {'are ' + str(n_destructive) + ' area(s)' if n_destructive else 'are some areas'} "
+            f"where this submission differs from prior work. Differences at this "
+            f"level are common: topic demands, genre shifts, time pressure, or "
+            f"simply having an unusual writing day. A brief check-in is one option, "
+            f"though not required."
         )
 
     if deviation < 0.75:
         return (
-            f"The system compared this submission against {name}'s established "
-            f"writing profile and found a noticeable pattern of differences. "
-            f"Several stylistic markers — the kind that tend to stay consistent "
-            f"even when topic and genre change — look different here. This is "
-            f"worth understanding before returning the paper."
+            f"The system confirmed some of {name}'s stylistic patterns in this "
+            f"submission, but also found a pattern of differences across several "
+            f"markers — the kind that tend to stay consistent even when topic and "
+            f"genre change. Before drawing any conclusions, a conversation with "
+            f"{name} about their writing process for this assignment would help "
+            f"clarify what happened."
         )
 
     return (
-        f"The system compared this submission against {name}'s established "
-        f"writing profile and found substantial differences across multiple "
-        f"independent stylistic markers. These are the kinds of features that "
-        f"tend to stay consistent in a person's writing regardless of topic — "
-        f"things like sentence rhythm, vocabulary habits, and how ideas are "
-        f"connected. The level of difference here goes beyond typical topic-driven "
-        f"variation and suggests a conversation with {name} would be worthwhile."
+        f"The system found the majority of stylistic markers in this submission "
+        f"to differ from {name}'s established voice — things like sentence rhythm, "
+        f"vocabulary habits, and argument structure. These features tend to stay "
+        f"consistent in a writer's work regardless of topic. The differences here "
+        f"go beyond typical variation. A direct conversation with {name} before "
+        f"returning this paper is the recommended path."
     )
 
 
@@ -576,24 +588,28 @@ def _build_suggested_action(action: str, student_name: str) -> str:
     name = student_name
     if action == "no_action":
         return (
-            "No action needed — this submission is consistent with this student's "
-            "writing. File for reference."
+            f"Voice confirmed — no action needed. This submission is consistent with "
+            f"{name}'s established writing. Return it with confidence."
         )
     if action == "monitor":
         return (
-            f"Keep an eye on {name}'s next submission. If the pattern continues, "
-            f"consider a brief check-in."
+            f"Keep this result in context as you read {name}'s next submission. "
+            f"If a pattern develops, a brief open-ended check-in can surface "
+            f"useful information. No urgency now."
         )
     if action == "schedule_conversation":
         return (
-            f"Schedule a 10-minute conversation with {name} about their writing "
-            f"process for this assignment. A few open-ended questions usually "
-            f"clarify what happened."
+            f"A brief, curious conversation with {name} about their writing "
+            f"process for this assignment is the most useful next step — not an "
+            f"interrogation, just 10 minutes of open questions. In most cases "
+            f"this resolves the question quickly."
         )
     # escalate
     return (
-        f"Meet with {name} about this submission before returning it. The writing "
-        f"deviates enough that understanding their process is important."
+        f"Speak with {name} before returning this submission. Approach it as a "
+        f"conversation about their process: where they wrote, how long it took, "
+        f"what sources they consulted. That context, combined with this result, "
+        f"will clarify the picture."
     )
 
 
