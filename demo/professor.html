@@ -980,6 +980,10 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           </div>
         </div>
         <div class="semester-badge" id="hdrCourseSub">TH501 · Spring 2026</div>
+        <button onclick="resetDemoState()" title="Clear demo history and localStorage — does not delete server-side baseline profiles"
+                style="padding:7px 12px;background:var(--cream-warm);color:var(--text-muted);border:1px solid var(--cream-border);border-radius:var(--radius);font-family:Inter,sans-serif;font-size:0.78rem;font-weight:500;cursor:pointer">
+          ↺ Reset Demo
+        </button>
         <a href="admin.html" style="text-decoration:none">
           <button style="padding:7px 12px;background:var(--cream-warm);color:var(--text-secondary);border:1px solid var(--cream-border);border-radius:var(--radius);font-family:Inter,sans-serif;font-size:0.78rem;font-weight:500;cursor:pointer">
             Admin
@@ -1170,6 +1174,25 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
               <div style="margin-top:12px;font-size:0.72rem;color:var(--text-muted)">
                 <span id="ctxLength">—</span> · cluster: <span id="ctxCluster">—</span>
               </div>
+            </div>
+          </div>
+
+          <!-- ── Layer 3: System track record (proof layer) ────────────── -->
+          <!-- Collapsed by default. Click to expand. Loads AUC + FPR from
+               the most recent completed calibration run and translates them
+               into plain language the professor can use to calibrate trust. -->
+          <div id="proofCard" style="background:var(--surface);border:1px solid var(--cream-border);border-radius:10px;padding:12px 18px;margin-bottom:14px;box-shadow:var(--shadow-sm)">
+            <a href="#" onclick="toggleProofCard(event)"
+               style="display:flex;align-items:center;justify-content:space-between;text-decoration:none;color:var(--text-primary)">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:1rem">📊</span>
+                <span style="font-family:'EB Garamond',serif;font-size:0.95rem;font-weight:500">How accurate is this system?</span>
+                <span id="proofAucBadge" style="display:none;font-size:0.75rem;padding:2px 8px;border-radius:99px;background:var(--flag-green-bg);color:var(--flag-green);font-weight:600"></span>
+              </div>
+              <span id="proofArrow" style="font-size:0.75rem;color:var(--text-muted)">▶ Show</span>
+            </a>
+            <div id="proofBody" style="display:none;margin-top:12px;font-family:'EB Garamond',serif;font-size:0.95rem;line-height:1.65;color:var(--text-primary)">
+              <div id="proofContent" style="color:var(--text-muted);font-style:italic">Loading calibration data…</div>
             </div>
           </div>
 
@@ -2370,6 +2393,30 @@ async function runAnalysis() {
 }
 function delay(ms){return new Promise(r=>setTimeout(r,ms))}
 
+/* ── Demo reset ── */
+function resetDemoState() {
+  if (!confirm('Clear demo history and scored submission results?\n\nThis removes locally-stored history only — server-side student profiles and baselines are not affected.')) return;
+  // Clear all Original-namespaced localStorage keys
+  const toRemove = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && (k.startsWith('original_') || k.startsWith('scoring_history'))) {
+      toRemove.push(k);
+    }
+  }
+  toRemove.forEach(k => localStorage.removeItem(k));
+  // Reset in-memory result state
+  window._PR10_currentSubmissionId = null;
+  window._PR10_currentRaw = null;
+  window._cachedCalibrationRun = null;
+  // Hide results panel
+  const rw = document.getElementById('resultsWrap');
+  if (rw) rw.style.display = 'none';
+  // Re-render history (will show empty state)
+  if (typeof renderHistory === 'function') renderHistory();
+  showToast('Demo history cleared — server baselines are untouched.', 'success');
+}
+
 function showToast(msg, type='info', duration=4000) {
   const c = document.getElementById('toastContainer');
   if (!c) return;
@@ -2517,6 +2564,18 @@ function renderResults(r) {
   // Hide blend panel until user clicks "Run blend check"
   const blendCard = document.getElementById('blendCard');
   if (blendCard) blendCard.style.display = 'none';
+
+  // Layer 3 proof card — pre-load so AUC badge shows immediately on expand
+  _proofLoaded = false;   // reset so a fresh load happens each result render
+  _proofOpen   = false;
+  const proofBody  = document.getElementById('proofBody');
+  const proofArrow = document.getElementById('proofArrow');
+  const proofBadge = document.getElementById('proofAucBadge');
+  if (proofBody)  proofBody.style.display  = 'none';
+  if (proofArrow) proofArrow.textContent    = '▶ Show';
+  if (proofBadge) proofBadge.style.display  = 'none';
+  // Silently pre-fetch so the badge appears without requiring a click
+  setTimeout(() => { _proofLoaded = false; _loadProofCardSilent(); }, 800);
 
   // Update recommendation badge — affirmative framing, not judicial
   const actionLabels = {no_action:'Voice Confirmed',monitor:'Follow Up',schedule_conversation:'Brief Check-in',escalate:'Discuss Submission'};
@@ -3650,6 +3709,135 @@ function escHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/* ── Layer 3: System track-record proof panel ── */
+
+let _proofOpen = false;
+let _proofLoaded = false;
+
+function toggleProofCard(e) {
+  e.preventDefault();
+  _proofOpen = !_proofOpen;
+  const body  = document.getElementById('proofBody');
+  const arrow = document.getElementById('proofArrow');
+  if (body)  body.style.display  = _proofOpen ? 'block' : 'none';
+  if (arrow) arrow.textContent    = _proofOpen ? '▼ Hide' : '▶ Show';
+  if (_proofOpen && !_proofLoaded) _loadProofCard();
+}
+
+async function _loadProofCardSilent() {
+  // Pre-populate just the AUC badge without opening the panel
+  try {
+    const data = await fetch('/admin/calibration/runs?limit=5').then(r => r.json());
+    const completed = (data.items || []).filter(r => r.status === 'completed' && r.auc != null);
+    if (!completed.length) return;
+    const auc = completed[0].auc;
+    const badge = document.getElementById('proofAucBadge');
+    if (!badge) return;
+    const aucGrade = auc >= 0.90 ? 'Excellent' : auc >= 0.80 ? 'Strong' : auc >= 0.70 ? 'Good' : 'Limited';
+    badge.textContent = `AUC ${auc.toFixed(2)} · ${aucGrade}`;
+    badge.style.background = auc >= 0.80 ? 'var(--flag-green-bg)' : auc >= 0.70 ? 'rgba(201,160,40,0.1)' : 'var(--flag-red-bg)';
+    badge.style.color = auc >= 0.80 ? 'var(--flag-green)' : auc >= 0.70 ? 'var(--amber)' : 'var(--flag-red)';
+    badge.style.display = 'inline-block';
+    // Cache so full expand doesn't need another fetch
+    window._cachedCalibrationRun = completed[0];
+  } catch(_) {}
+}
+
+async function _loadProofCard() {
+  _proofLoaded = true;
+  const el = document.getElementById('proofContent');
+  if (!el) return;
+  try {
+    // Use cached run from pre-fetch if available
+    if (window._cachedCalibrationRun) {
+      _renderProofCard(el, window._cachedCalibrationRun);
+      return;
+    }
+    const data = await fetch('/admin/calibration/runs?limit=5').then(r => r.json());
+    const completed = (data.items || []).filter(r => r.status === 'completed' && r.auc != null);
+    if (completed.length === 0) {
+      el.innerHTML = _proofNoDataHtml();
+      return;
+    }
+    const latest = completed[0];
+    _renderProofCard(el, latest);
+  } catch(e) {
+    el.innerHTML = `<span style="color:var(--flag-red)">Could not load calibration data: ${escHtml(e.message)}</span>`;
+  }
+}
+
+function _proofNoDataHtml() {
+  return `
+    <p style="margin:0 0 10px 0">
+      No validation run has been completed yet for this installation.
+      Once a calibration run finishes in the Lab, this panel will show the
+      system's measured accuracy against essays with known authors.
+    </p>
+    <p style="margin:0;color:var(--text-muted);font-size:0.85rem">
+      To run a validation: open the <strong>Lab</strong> tab → select a dataset → click
+      <em>Run calibration</em>. A completed run typically takes under 60 seconds.
+    </p>`;
+}
+
+function _renderProofCard(el, run) {
+  const auc = run.auc;
+  const n   = run.n_essays_scored || '?';
+  const authors = run.n_authors || '?';
+  const label   = run.dataset_label || 'validation dataset';
+  const date    = run.completed_at ? new Date(run.completed_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+
+  // AUC → professor-friendly rating + plain-language sentence
+  let aucGrade, aucColor, aucExplain;
+  if (auc >= 0.90) {
+    aucGrade   = 'Excellent';
+    aucColor   = 'var(--flag-green)';
+    aucExplain = `When tested on essays with known authors, the system correctly distinguished authentic submissions from non-authentic ones <strong>${Math.round(auc*100)}%</strong> of the time — well above the threshold for reliable field use.`;
+  } else if (auc >= 0.80) {
+    aucGrade   = 'Strong';
+    aucColor   = 'var(--flag-green)';
+    aucExplain = `The system correctly distinguished authentic from non-authentic writing <strong>${Math.round(auc*100)}%</strong> of the time across the validation set. This is a strong result for a stylometric system.`;
+  } else if (auc >= 0.70) {
+    aucGrade   = 'Good';
+    aucColor   = 'var(--amber)';
+    aucExplain = `The system correctly distinguished authentic from non-authentic writing <strong>${Math.round(auc*100)}%</strong> of the time. Useful as one signal among several — pair with the professor narrative and a conversation.`;
+  } else {
+    aucGrade   = 'Limited';
+    aucColor   = 'var(--flag-red)';
+    aucExplain = `The system's discrimination on this dataset is limited. Additional baseline samples per student will improve accuracy.`;
+  }
+
+  // Update the badge in the collapsed header
+  const badge = document.getElementById('proofAucBadge');
+  if (badge) {
+    badge.textContent = `AUC ${auc.toFixed(2)} · ${aucGrade}`;
+    badge.style.background = auc >= 0.80 ? 'var(--flag-green-bg)' : auc >= 0.70 ? 'rgba(201,160,40,0.1)' : 'var(--flag-red-bg)';
+    badge.style.color = aucColor;
+    badge.style.display = 'inline-block';
+  }
+
+  el.innerHTML = `
+    <div style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:1.6rem;font-weight:700;color:${aucColor}">${auc.toFixed(2)}</span>
+        <div>
+          <div style="font-size:0.75rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em">AUC — discrimination accuracy</div>
+          <div style="font-size:0.78rem;color:var(--text-muted)">${aucGrade} · ${n} essays · ${authors} authors · ${label}</div>
+        </div>
+      </div>
+      <p style="margin:0 0 10px 0">${aucExplain}</p>
+    </div>
+    <div style="padding:10px 14px;background:var(--cream-warm);border-radius:6px;margin-bottom:10px">
+      <div style="font-weight:600;font-size:0.78rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px">What AUC means for your decision</div>
+      <p style="margin:0;font-size:0.9rem">
+        An AUC of <strong>${auc.toFixed(2)}</strong> means that if you pick any authentic submission and any non-authentic one at random, the system ranks the authentic one higher <strong>${Math.round(auc*100)}%</strong> of the time.
+        A score of 0.50 is random guessing; 1.0 is perfect. This system's result means it adds meaningful signal — not certainty — to your professional judgment.
+      </p>
+    </div>
+    <p style="margin:0;font-size:0.82rem;color:var(--text-muted);font-style:italic">
+      Source: calibration run completed ${date}. Re-run anytime from the Lab tab as your student population grows.
+    </p>`;
 }
 
 function renderContextPanel(raw) {
