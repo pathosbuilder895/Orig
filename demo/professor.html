@@ -3946,15 +3946,74 @@ async function _loadProofCard() {
 
 function _proofNoDataHtml() {
   return `
-    <p style="margin:0 0 10px 0">
+    <p style="margin:0 0 12px 0">
       No validation run has been completed yet for this installation.
-      Once a calibration run finishes in the Lab, this panel will show the
-      system's measured accuracy against essays with known authors.
+      The system can validate itself against 85 Federalist Papers essays with
+      known authors (Hamilton, Madison, Jay) — the classic authorship benchmark.
     </p>
-    <p style="margin:0;color:var(--text-muted);font-size:0.85rem">
-      To run a validation: open the <strong>Lab</strong> tab → select a dataset → click
-      <em>Run calibration</em>. A completed run typically takes under 60 seconds.
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <button onclick="runQuickValidation()" id="quickValBtn"
+              style="padding:8px 16px;background:var(--green-deep);color:var(--text-cream);border:none;border-radius:var(--radius);font-size:0.82rem;font-weight:600;cursor:pointer">
+        ⚗️ Run quick validation (~30s)
+      </button>
+      <span id="quickValStatus" style="font-family:'EB Garamond',serif;font-size:0.88rem;color:var(--text-muted)"></span>
+    </div>
+    <p style="margin:10px 0 0 0;color:var(--text-muted);font-size:0.82rem;font-style:italic">
+      Uses the built-in Federalist Papers corpus. No external data needed.
+      Results persist across sessions and are shown here automatically.
     </p>`;
+}
+
+let _quickValPollInterval = null;
+
+async function runQuickValidation() {
+  const btn = document.getElementById('quickValBtn');
+  const statusEl = document.getElementById('quickValStatus');
+  if (btn) { btn.disabled = true; btn.textContent = '⚗️ Starting…'; }
+  if (statusEl) { statusEl.textContent = ''; }
+
+  try {
+    const resp = await fetch('/admin/calibration/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataset_label: 'federalist', run_label: 'Quick validation — Federalist Papers' }),
+    });
+    if (!resp.ok) throw new Error((await resp.json().catch(()=>({}))).detail || resp.statusText);
+    const { run_id } = await resp.json();
+    if (btn) btn.textContent = '⚗️ Running…';
+    if (statusEl) statusEl.textContent = 'Scoring 85 essays… (~30s)';
+
+    // Poll for completion
+    _quickValPollInterval = setInterval(async () => {
+      try {
+        const r = await fetch(`/admin/calibration/runs/${run_id}`).then(x => x.json());
+        if (r.status === 'completed') {
+          clearInterval(_quickValPollInterval);
+          if (statusEl) statusEl.textContent = `Done — AUC: ${r.auc?.toFixed(3) || '?'}`;
+          // Refresh the proof card with real data
+          window._cachedCalibrationRun = null;
+          _proofLoaded = false;
+          const el = document.getElementById('proofContent');
+          if (el) _renderProofCard(el, r);
+          // Update the badge in the collapsed header
+          const badge = document.getElementById('proofAucBadge');
+          if (badge && r.auc != null) {
+            const g = r.auc >= 0.90 ? 'Excellent' : r.auc >= 0.80 ? 'Strong' : r.auc >= 0.70 ? 'Good' : 'Limited';
+            badge.textContent = `AUC ${r.auc.toFixed(2)} · ${g}`;
+            badge.style.display = 'inline-block';
+          }
+        } else if (r.status === 'failed') {
+          clearInterval(_quickValPollInterval);
+          if (statusEl) statusEl.textContent = `Failed: ${r.error || 'unknown error'}`;
+          if (statusEl) statusEl.style.color = 'var(--flag-red)';
+          if (btn) { btn.disabled = false; btn.textContent = '⚗️ Retry validation'; }
+        }
+      } catch(_) {}
+    }, 3000);
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = '⚗️ Run quick validation (~30s)'; }
+    if (statusEl) { statusEl.textContent = `Error: ${escHtml(e.message)}`; statusEl.style.color = 'var(--flag-red)'; }
+  }
 }
 
 function _renderProofCard(el, run) {
