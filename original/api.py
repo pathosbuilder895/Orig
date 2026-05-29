@@ -104,6 +104,45 @@ app.add_middleware(
 
 _secret_key_pinned: bool = bool(os.environ.get("SECRET_KEY", ""))
 
+# ── GUARD_DESTRUCTIVE flag ────────────────────────────────────────────────────
+# When GUARD_DESTRUCTIVE=1, three high-risk endpoints (student deletion,
+# calibration threshold apply, and baseline-request list) require a
+# matching X-Guard-Token header.  This lets pilot-mode deployments protect
+# dangerous operations without a full JWT/RBAC stack.
+#
+# Demo mode leaves this unset so the frontend works without credentials.
+# Pilot/production operators should:
+#   1. Set MAINTENANCE_TOKEN to a strong random string
+#   2. Set GUARD_DESTRUCTIVE=1
+#   3. The X-Guard-Token header value must equal MAINTENANCE_TOKEN
+
+_GUARD_DESTRUCTIVE: bool = os.environ.get("GUARD_DESTRUCTIVE", "0") == "1"
+
+
+def _require_guard(request: "Request") -> None:
+    """
+    Raise 403 if GUARD_DESTRUCTIVE is on and the request lacks the correct
+    X-Guard-Token header.  Call at the top of any endpoint that should be
+    protected in pilot/production but open in demo mode.
+    """
+    if not _GUARD_DESTRUCTIVE:
+        return
+    token = request.headers.get("X-Guard-Token", "")
+    _mt = os.environ.get("MAINTENANCE_TOKEN", "")
+    if not _mt:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "GUARD_DESTRUCTIVE=1 is set but MAINTENANCE_TOKEN is empty. "
+                "Set MAINTENANCE_TOKEN to a strong secret to use guarded endpoints."
+            ),
+        )
+    if not hmac.compare_digest(token.encode(), _mt.encode()):
+        raise HTTPException(
+            status_code=403,
+            detail="Destructive operation requires a valid X-Guard-Token header.",
+        )
+
 @app.on_event("startup")
 async def _startup_checks() -> None:
     _log = logging.getLogger(__name__)
@@ -245,7 +284,7 @@ def get_student(student_id: str):
 # ── FERPA: student data deletion ──────────────────────────────────────────────
 
 @app.delete("/students/{student_id}", status_code=200)
-def delete_student(student_id: str):
+def delete_student(student_id: str, request: "Request"):
     """
     Permanently delete all stored data for a student (FERPA right-to-erasure).
 
@@ -258,9 +297,10 @@ def delete_student(student_id: str):
     Returns 404 also when the SQLite commit fails (no data was removed).
 
     Intended audience: institution data-compliance officers and LMS admins.
-    In production this endpoint should be protected by role-based auth
-    (admin only). In the demo server auth is not enforced.
+    When GUARD_DESTRUCTIVE=1 (pilot/production mode), requires an
+    X-Guard-Token header matching MAINTENANCE_TOKEN. Demo mode is open.
     """
+    _require_guard(request)
     deleted = store.delete_student(student_id)
     if not deleted:
         raise HTTPException(
@@ -537,8 +577,12 @@ def list_pending_baseline_requests():
 
 
 @app.get("/baseline-requests")
-def list_all_baseline_requests():
-    """List every proctored baseline request, regardless of status."""
+def list_all_baseline_requests(request: "Request"):
+    """
+    List every proctored baseline request, regardless of status.
+    When GUARD_DESTRUCTIVE=1, requires X-Guard-Token header (admin only).
+    """
+    _require_guard(request)
     return {"requests": [r.to_dict() for r in baseline_requests.list_all()]}
 
 
@@ -1441,14 +1485,19 @@ def admin_run_suggestions(run_id: int):
 
 
 @app.post("/admin/calibration/runs/{run_id}/apply", response_model=TunedThresholdsRecord)
-def admin_apply_thresholds(run_id: int, req: ApplyThresholdsRequest):
+def admin_apply_thresholds(run_id: int, req: ApplyThresholdsRequest, request: "Request"):
     """
     Persist a new active threshold set sourced from a calibration run.
 
     Versioned in ``tuned_thresholds_v2`` — older sets remain for audit.
     The latest row by ``created_at`` is the in-effect active set;
     in-process scoring reads it on demand.
+
+    When GUARD_DESTRUCTIVE=1, requires X-Guard-Token header — applying new
+    thresholds changes system behaviour globally and should only be allowed
+    for admins in pilot/production mode.
     """
+    _require_guard(request)
     res = store.get_calibration_run(run_id, include_report=False)
     if res is None:
         raise HTTPException(status_code=404, detail=f"calibration run {run_id} not found")

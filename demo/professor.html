@@ -922,6 +922,10 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
         Bbook Exams ↗
       </a>
       <div class="nav-section-label" style="margin-top:8px">Research</div>
+      <a class="nav-item" href="#" title="Registered Institutions" onclick="showTenants();return false">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Institutions
+      </a>
       <a class="nav-item" href="#" title="Validation Study" onclick="showValidation();return false">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
         Validation
@@ -1334,6 +1338,67 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
     </div><!-- end mainContent tab panels -->
     <!-- ── Validation Section ── -->
     <div id="validationSection"></div>
+
+    <!-- ── Tenant Management Section (Phase 0) ──────────────────────── -->
+    <div id="tenantSection" style="display:none;flex:1;overflow-y:auto;padding:28px 28px 48px;background:var(--cream);flex-direction:column;gap:24px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div>
+          <div style="font-family:'Playfair Display',serif;font-size:1.3rem;color:var(--text-primary)">Registered Institutions</div>
+          <div style="font-family:'EB Garamond',serif;font-style:italic;font-size:0.85rem;color:var(--text-muted)">Register schools before a demo or pilot. Environment label (demo / pilot / production) controls endpoint guard behaviour.</div>
+        </div>
+        <button onclick="hideTenants()" style="padding:6px 14px;background:var(--cream-warm);color:var(--text-muted);border:1px solid var(--cream-border);border-radius:var(--radius);font-size:0.75rem;cursor:pointer">← Back</button>
+      </div>
+
+      <!-- Registered tenants list -->
+      <div style="background:var(--surface);border:1px solid var(--cream-border);border-radius:10px;padding:18px 22px">
+        <div style="font-weight:600;font-size:0.78rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:12px">Current registrations</div>
+        <div id="tenantList" style="font-family:'EB Garamond',serif;font-size:0.95rem;color:var(--text-muted);font-style:italic">Loading…</div>
+      </div>
+
+      <!-- Registration form -->
+      <div style="background:var(--surface);border:1px solid var(--cream-border);border-radius:10px;padding:18px 22px">
+        <div style="font-family:'Playfair Display',serif;font-size:1.05rem;margin-bottom:14px">Register an institution</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          <div>
+            <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:5px;color:var(--text-secondary)">Institution ID (slug)</label>
+            <input id="tIdInput" placeholder="e.g. seminary-of-dallas" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--cream-border);border-radius:6px;font-size:0.9rem;font-family:'EB Garamond',serif">
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px">Stable identifier — used in URLs and student cohort scoping</div>
+          </div>
+          <div>
+            <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:5px;color:var(--text-secondary)">Institution Name</label>
+            <input id="tNameInput" placeholder="e.g. Dallas Theological Seminary" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--cream-border);border-radius:6px;font-size:0.9rem;font-family:'EB Garamond',serif">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">
+          <div>
+            <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:5px;color:var(--text-secondary)">Environment</label>
+            <select id="tEnvInput" style="width:100%;padding:8px 12px;border:1px solid var(--cream-border);border-radius:6px;font-size:0.9rem">
+              <option value="demo">Demo — open access, no guards</option>
+              <option value="pilot">Pilot — destructive ops require guard token</option>
+              <option value="production">Production — fully hardened</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:5px;color:var(--text-secondary)">Contact email (optional)</label>
+            <input id="tContactInput" placeholder="registrar@institution.edu" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--cream-border);border-radius:6px;font-size:0.9rem;font-family:'EB Garamond',serif">
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button onclick="registerTenant()" style="padding:8px 18px;background:var(--green-deep);color:var(--text-cream);border:none;border-radius:var(--radius);font-size:0.82rem;font-weight:600;cursor:pointer">Register institution</button>
+          <span id="tenantStatus" style="font-family:'EB Garamond',serif;font-size:0.88rem;color:var(--text-muted)"></span>
+        </div>
+      </div>
+
+      <!-- Environment guide -->
+      <div style="background:var(--cream-warm);border:1px solid var(--cream-border);border-radius:8px;padding:14px 18px;font-family:'EB Garamond',serif;font-size:0.9rem;line-height:1.6;color:var(--text-primary)">
+        <strong>Environment guide:</strong>
+        <ul style="margin:8px 0 0 0;padding-left:18px">
+          <li><strong>Demo</strong> — for presentations and testing. All endpoints are open. Use when you control the environment.</li>
+          <li><strong>Pilot</strong> — for live school trials. Set <code>GUARD_DESTRUCTIVE=1</code> + <code>MAINTENANCE_TOKEN</code> to protect destructive endpoints (student deletion, threshold changes).</li>
+          <li><strong>Production</strong> — full Postgres + JWT auth. Contact the deployment team.</li>
+        </ul>
+      </div>
+    </div>
   </div><!-- end mainContent -->
 
   <!-- ── 3D Right Panel ── -->
@@ -3240,6 +3305,117 @@ function hideValidation() {
   if (titleRow)   titleRow.style.display   = '';
   const bc = document.querySelector('.bc-current');
   if (bc) bc.textContent = 'Professor Dashboard';
+}
+
+/* ── Tenant management panel ── */
+
+function _hideMainPanels() {
+  document.getElementById('mainContent').style.display = 'none';
+  const studentRow = document.querySelector('.student-row');
+  const tabsHeader = document.querySelector('.tabs-header');
+  const titleRow   = document.querySelector('.main > div[style*="padding:16px"]');
+  if (studentRow) studentRow.style.display = 'none';
+  if (tabsHeader) tabsHeader.style.display = 'none';
+  if (titleRow)   titleRow.style.display   = 'none';
+}
+
+function _showMainPanels(bcTitle) {
+  document.getElementById('mainContent').style.display = '';
+  const studentRow = document.querySelector('.student-row');
+  const tabsHeader = document.querySelector('.tabs-header');
+  const titleRow   = document.querySelector('.main > div[style*="padding:16px"]');
+  if (studentRow) studentRow.style.display = '';
+  if (tabsHeader) tabsHeader.style.display = '';
+  if (titleRow)   titleRow.style.display   = '';
+  const bc = document.querySelector('.bc-current');
+  if (bc) bc.textContent = bcTitle || 'Professor Dashboard';
+}
+
+function showTenants() {
+  _hideMainPanels();
+  const bc = document.querySelector('.bc-current');
+  if (bc) bc.textContent = 'Institutions';
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (event?.currentTarget) event.currentTarget.classList.add('active');
+  const sec = document.getElementById('tenantSection');
+  sec.style.display = 'flex';
+  _loadTenantList();
+}
+
+function hideTenants() {
+  document.getElementById('tenantSection').style.display = 'none';
+  _showMainPanels('Professor Dashboard');
+}
+
+async function _loadTenantList() {
+  const el = document.getElementById('tenantList');
+  if (!el) return;
+  try {
+    const data = await fetch('/tenants').then(r => r.json());
+    if (!Array.isArray(data) || data.length === 0) {
+      el.innerHTML = 'No institutions registered yet. Use the form below to add one.';
+      return;
+    }
+    const envColors = { demo:'var(--flag-green)', pilot:'var(--amber)', production:'var(--flag-red)' };
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.9rem">
+      <thead><tr style="font-size:0.75rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em">
+        <th style="text-align:left;padding:6px 10px;border-bottom:1px solid var(--cream-border)">ID</th>
+        <th style="text-align:left;padding:6px 10px;border-bottom:1px solid var(--cream-border)">Name</th>
+        <th style="text-align:left;padding:6px 10px;border-bottom:1px solid var(--cream-border)">Environment</th>
+        <th style="text-align:left;padding:6px 10px;border-bottom:1px solid var(--cream-border)">Registered</th>
+      </tr></thead>
+      <tbody>
+      ${data.map(t => `<tr>
+        <td style="padding:8px 10px;font-family:monospace;font-size:0.82rem;color:var(--text-muted)">${escHtml(t.tenant_id)}</td>
+        <td style="padding:8px 10px;font-family:'EB Garamond',serif">${escHtml(t.name)}</td>
+        <td style="padding:8px 10px"><span style="font-size:0.75rem;padding:2px 8px;border-radius:99px;background:${envColors[t.environment]||'var(--flag-green)'}22;color:${envColors[t.environment]||'var(--flag-green)'};font-weight:600">${escHtml(t.environment)}</span></td>
+        <td style="padding:8px 10px;font-size:0.82rem;color:var(--text-muted)">${t.created_at ? new Date(t.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</td>
+      </tr>`).join('')}
+      </tbody>
+    </table>`;
+  } catch(e) {
+    el.innerHTML = `<span style="color:var(--flag-red)">Failed to load: ${escHtml(e.message)}</span>`;
+  }
+}
+
+async function registerTenant() {
+  const tenantId = document.getElementById('tIdInput').value.trim();
+  const name     = document.getElementById('tNameInput').value.trim();
+  const env      = document.getElementById('tEnvInput').value;
+  const contact  = document.getElementById('tContactInput').value.trim();
+  const statusEl = document.getElementById('tenantStatus');
+
+  if (!tenantId || !name) {
+    statusEl.textContent = 'Institution ID and Name are required.';
+    statusEl.style.color = 'var(--flag-red)';
+    return;
+  }
+
+  statusEl.textContent = 'Registering…';
+  statusEl.style.color = 'var(--text-muted)';
+
+  try {
+    const body = { tenant_id: tenantId, name, environment: env };
+    if (contact) body.meta = { contact };
+    const resp = await fetch('/tenants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.detail || resp.statusText);
+    }
+    statusEl.textContent = `✓ ${name} registered as "${env}"`;
+    statusEl.style.color = 'var(--flag-green)';
+    document.getElementById('tIdInput').value = '';
+    document.getElementById('tNameInput').value = '';
+    document.getElementById('tContactInput').value = '';
+    _loadTenantList();
+  } catch(e) {
+    statusEl.textContent = `Error: ${e.message}`;
+    statusEl.style.color = 'var(--flag-red)';
+  }
 }
 
 async function loadValidationReport() {
