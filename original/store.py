@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -184,6 +185,31 @@ def _get_conn() -> sqlite3.Connection:
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_tenants_environment
             ON tenants(environment)
+    """)
+    # Phase 3 — Audit log. Every significant action (baseline add, score,
+    # deletion, correction, threshold apply) appends a row. Used for FERPA
+    # compliance reporting, operator oversight, and debugging. The
+    # `details_json` blob carries action-specific context (submission_id,
+    # provenance, action result) without a schema migration per new field.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at    TEXT NOT NULL,
+            action        TEXT NOT NULL,
+            student_id    TEXT,
+            tenant_id     TEXT,
+            actor         TEXT,
+            result        TEXT NOT NULL DEFAULT 'ok',
+            details_json  TEXT NOT NULL DEFAULT '{}'
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_audit_student
+            ON audit_log(student_id, created_at)
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_audit_action
+            ON audit_log(action, created_at)
     """)
     conn.commit()
     return conn
@@ -1256,7 +1282,6 @@ def put_tenant(
         environment: One of 'demo', 'pilot', 'production'. Defaults to 'demo'.
         meta:        Optional dict of arbitrary metadata (contact, LMS URL, etc.).
     """
-    from datetime import datetime, timezone
     created_at = datetime.now(timezone.utc).isoformat()
     meta_json = json.dumps(meta or {})
     try:
@@ -1332,3 +1357,288 @@ def list_tenants(environment: Optional[str] = None) -> List[Dict]:
     except Exception:
         log.exception("list_tenants failed")
         return []
+
+
+# ── Audit log (Phase 3) ───────────────────────────────────────────────────────
+# Best-effort append-only log of significant system actions. Never raises —
+# audit failure must not break the hot path (scoring, baseline ingest, etc.).
+
+def log_audit(
+    action: str,
+    student_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    actor: Optional[str] = None,
+    result: str = "ok",
+    details: Optional[Dict] = None,
+) -> None:
+    """
+    Append one row to the audit log.
+
+    Args:
+        action:     Short verb describing what happened.
+                    Conventional values:
+                    'baseline_add', 'score', 'student_delete', 'correction',
+                    'threshold_apply', 'tenant_register', 'bulk_delete'.
+        student_id: Affected student (None for system-wide actions).
+        tenant_id:  Institution the action belongs to (derived from
+                    student_id prefix when omitted).
+        actor:      IP address, user email, or service name — whoever
+                    triggered the action.
+        result:     'ok' | 'error' | 'not_found'.
+        details:    Arbitrary key/value dict (submission_id, provenance, etc.).
+    """
+    try:
+        # Auto-derive tenant_id from student_id prefix (e.g. 'seminary:marcus' → 'seminary')
+        if tenant_id is None and student_id and ":" in student_id:
+            tenant_id = student_id.split(":", 1)[0]
+
+        with _get_conn() as conn:
+            conn.execute(
+                """INSERT INTO audit_log
+                   (created_at, action, student_id, tenant_id, actor, result, details_json)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    datetime.now(timezone.utc).isoformat(),
+                    action,
+                    student_id,
+                    tenant_id,
+                    actor,
+                    result,
+                    json.dumps(details or {}),
+                ),
+            )
+            conn.commit()
+    except Exception:
+        log.exception("log_audit silently failed for action=%s student=%s", action, student_id)
+
+
+def list_audit(
+    student_id: Optional[str] = None,
+    action: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> Dict:
+    """
+    Query audit log entries. All filters are optional AND-combined.
+
+    Args:
+        student_id: Filter to this student's actions.
+        action:     Filter to this action type.
+        limit:      Max rows (cap 1000).
+        offset:     Pagination offset.
+    """
+    limit = min(limit, 1000)
+    try:
+        with _get_conn() as conn:
+            clauses, params = [], []
+            if student_id:
+                clauses.append("student_id = ?")
+                params.append(student_id)
+            if action:
+                clauses.append("action = ?")
+                params.append(action)
+            where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+            total = conn.execute(
+                f"SELECT COUNT(*) FROM audit_log {where}", params
+            ).fetchone()[0]
+            rows = conn.execute(
+                f"SELECT id, created_at, action, student_id, tenant_id, actor, result, details_json "
+                f"FROM audit_log {where} ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                params + [limit, offset],
+            ).fetchall()
+        return {
+            "total":  int(total),
+            "limit":  limit,
+            "offset": offset,
+            "items":  [
+                {
+                    "id":         r[0],
+                    "created_at": r[1],
+                    "action":     r[2],
+                    "student_id": r[3],
+                    "tenant_id":  r[4],
+                    "actor":      r[5],
+                    "result":     r[6],
+                    "details":    json.loads(r[7] or "{}"),
+                }
+                for r in rows
+            ],
+        }
+    except Exception:
+        log.exception("list_audit failed")
+        return {"total": 0, "limit": limit, "offset": offset, "items": []}
+
+
+# ── Phase 2: Tenant-scoped student operations ─────────────────────────────────
+# Student IDs for tenant-scoped deployments use the convention
+# "{tenant_id}:{local_id}" (e.g. "seminary-dallas:marcus_whitfield").
+# These helpers filter the existing flat store by prefix, enabling
+# per-institution dashboards and bulk operations without a schema change.
+
+def list_ids_for_tenant(tenant_id: str) -> List[str]:
+    """
+    Return all student IDs that belong to a given tenant (prefix match).
+
+    Works with both the naming convention `{tenant_id}:{local_id}` and
+    unscoped IDs (for backward compatibility, unscoped students are omitted).
+    """
+    _load_all()
+    prefix = f"{tenant_id}:"
+    return [sid for sid in _STORE if sid.startswith(prefix)]
+
+
+def tenant_stats(tenant_id: str) -> Dict:
+    """
+    Aggregate statistics for a single tenant from the live store + SQLite.
+
+    Returns:
+        student_count:     Number of students in this tenant.
+        sample_count:      Total baseline samples across all students.
+        submission_count:  Scored submissions recorded in submission_manifests.
+        last_active_at:    ISO timestamp of the most recent manifest row.
+        action_counts:     Dict mapping recommendation action → count.
+    """
+    student_ids = list_ids_for_tenant(tenant_id)
+    student_count = len(student_ids)
+    sample_count = sum(
+        _STORE[sid].sample_count for sid in student_ids if sid in _STORE
+    )
+
+    prefix = f"{tenant_id}:"
+    try:
+        with _get_conn() as conn:
+            row = conn.execute(
+                """SELECT COUNT(*), MAX(created_at)
+                   FROM submission_manifests
+                   WHERE student_id LIKE ?""",
+                (prefix + "%",),
+            ).fetchone()
+            submission_count = int(row[0]) if row else 0
+            last_active_at = row[1] if row else None
+
+            action_rows = conn.execute(
+                """SELECT action, COUNT(*) FROM submission_manifests
+                   WHERE student_id LIKE ? AND action IS NOT NULL
+                   GROUP BY action""",
+                (prefix + "%",),
+            ).fetchall()
+            action_counts = {r[0]: r[1] for r in action_rows}
+    except Exception:
+        log.exception("tenant_stats DB query failed for %s", tenant_id)
+        submission_count, last_active_at, action_counts = 0, None, {}
+
+    return {
+        "tenant_id":        tenant_id,
+        "student_count":    student_count,
+        "sample_count":     sample_count,
+        "submission_count": submission_count,
+        "last_active_at":   last_active_at,
+        "action_counts":    action_counts,
+    }
+
+
+def delete_tenant_students(tenant_id: str) -> Dict:
+    """
+    FERPA-safe bulk deletion of all students belonging to a tenant.
+
+    Calls delete_student() for each matching student so that every
+    associated record (fidelity scores, manifests, corrections) is
+    purged via the same code path as a single-student deletion.
+
+    Returns:
+        deleted_count:  Number of students successfully erased.
+        failed_ids:     Student IDs where deletion raised an exception.
+    """
+    ids_to_delete = list_ids_for_tenant(tenant_id)
+    deleted, failed = 0, []
+    for sid in ids_to_delete:
+        if delete_student(sid):
+            deleted += 1
+        else:
+            failed.append(sid)
+    log_audit(
+        action="bulk_delete",
+        tenant_id=tenant_id,
+        result="ok" if not failed else "partial",
+        details={"deleted_count": deleted, "failed_count": len(failed)},
+    )
+    return {"deleted_count": deleted, "failed_ids": failed}
+
+
+# ── Phase 3: FERPA data inventory ─────────────────────────────────────────────
+
+def student_data_inventory(student_id: str) -> Optional[Dict]:
+    """
+    Return a structured inventory of all data held for a student.
+
+    Used for FERPA data-access requests ("what do you hold on me?") and
+    deletion-confirmation audits ("prove everything was purged").
+
+    Returns None if the student is not in the store.
+    """
+    _load_all()
+    state = _STORE.get(student_id)
+    if state is None:
+        return None
+
+    try:
+        with _get_conn() as conn:
+            fidelity_count = conn.execute(
+                "SELECT COUNT(*) FROM fidelity_scores WHERE student_id = ?",
+                (student_id,),
+            ).fetchone()[0]
+
+            manifest_rows = conn.execute(
+                "SELECT COUNT(*), MIN(created_at), MAX(created_at), action "
+                "FROM submission_manifests WHERE student_id = ? GROUP BY action",
+                (student_id,),
+            ).fetchall()
+
+            correction_count = conn.execute(
+                "SELECT COUNT(*) FROM corrections WHERE student_id = ?",
+                (student_id,),
+            ).fetchone()[0]
+
+            audit_count = conn.execute(
+                "SELECT COUNT(*) FROM audit_log WHERE student_id = ?",
+                (student_id,),
+            ).fetchone()[0]
+    except Exception:
+        log.exception("student_data_inventory DB query failed for %s", student_id)
+        fidelity_count = manifest_rows = correction_count = audit_count = 0
+
+    manifests_by_action: Dict = {}
+    if manifest_rows:
+        for r in manifest_rows:
+            count, earliest, latest, action = r[0], r[1], r[2], r[3] or "unknown"
+            manifests_by_action[action] = {
+                "count": count, "earliest": earliest, "latest": latest
+            }
+
+    samples = state.samples
+    return {
+        "student_id":  student_id,
+        "data_categories": {
+            "baseline_samples": {
+                "count":    len(samples),
+                "provenances": list({s.provenance for s in samples}),
+                "earliest": min((s.submitted_at for s in samples if s.submitted_at), default=None),
+                "latest":   max((s.submitted_at for s in samples if s.submitted_at), default=None),
+            },
+            "fidelity_scores": {
+                "count": int(fidelity_count),
+            },
+            "submission_manifests": {
+                "total": sum(v["count"] for v in manifests_by_action.values()),
+                "by_action": manifests_by_action,
+            },
+            "instructor_corrections": {
+                "count": int(correction_count),
+            },
+            "audit_log_entries": {
+                "count": int(audit_count),
+            },
+        },
+        "effective_sample_weight": state.effective_sample_count,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }

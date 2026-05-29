@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Original — Operator Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="dashboard.css" />
+  <style>
+    /* ── Operator-specific styles ── */
+    .op-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+    .tenant-card {
+      background: var(--surface, #fff);
+      border: 1px solid var(--cream-border, #e0d8c8);
+      border-radius: 10px;
+      padding: 18px 20px;
+      display: flex; flex-direction: column; gap: 10px;
+      transition: box-shadow 0.15s;
+    }
+    .tenant-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+    .tenant-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .tenant-name { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: var(--text-primary, #1a1a1a); }
+    .tenant-id { font-family: monospace; font-size: 0.75rem; color: var(--text-muted, #888); margin-top: 2px; }
+    .env-badge {
+      font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 99px;
+      white-space: nowrap;
+    }
+    .env-badge.demo       { background: rgba(5,150,105,0.1); color: #059669; }
+    .env-badge.pilot      { background: rgba(217,119,6,0.1);  color: #b45309; }
+    .env-badge.production { background: rgba(220,38,38,0.08); color: #dc2626; }
+    .stat-row { display: flex; gap: 12px; }
+    .stat-box {
+      flex: 1; text-align: center; padding: 8px 0;
+      border: 1px solid var(--cream-border, #e0d8c8); border-radius: 6px;
+      background: var(--cream-warm, #f9f6f0);
+    }
+    .stat-val  { font-size: 1.3rem; font-weight: 600; color: var(--text-primary, #1a1a1a); }
+    .stat-lbl  { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted, #888); margin-top: 2px; }
+    .tenant-meta { font-family: 'EB Garamond', serif; font-size: 0.85rem; color: var(--text-muted, #888); font-style: italic; }
+    .tenant-actions { display: flex; gap: 6px; margin-top: 2px; flex-wrap: wrap; }
+    .btn-sm {
+      padding: 5px 11px; border-radius: 5px; font-size: 0.76rem; font-weight: 500;
+      border: 1px solid var(--cream-border, #e0d8c8); cursor: pointer;
+      background: var(--cream-warm, #f9f6f0); color: var(--text-secondary, #555);
+      transition: background 0.12s;
+    }
+    .btn-sm:hover { background: var(--cream, #f3ede0); }
+    .btn-sm.danger { border-color: rgba(220,38,38,0.3); color: #dc2626; background: rgba(220,38,38,0.05); }
+    .btn-sm.danger:hover { background: rgba(220,38,38,0.1); }
+
+    .system-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+    .sys-stat { background: var(--surface); border: 1px solid var(--cream-border); border-radius: 8px; padding: 14px 16px; }
+    .sys-val  { font-size: 1.6rem; font-weight: 700; color: var(--text-primary); }
+    .sys-lbl  { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-top: 2px; }
+
+    .audit-row { display: grid; grid-template-columns: 140px 130px 1fr 80px; gap: 10px; align-items: start;
+                 padding: 6px 0; border-bottom: 1px solid var(--cream-border); font-size: 0.83rem; }
+    .audit-row:last-child { border-bottom: none; }
+    .audit-action { font-weight: 600; color: var(--text-primary); }
+    .audit-when   { color: var(--text-muted); font-size: 0.78rem; }
+    .audit-detail { color: var(--text-secondary); font-family: monospace; font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .audit-result.ok { color: #059669; }
+    .audit-result.error { color: #dc2626; }
+    .audit-result.partial { color: #b45309; }
+
+    .section-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; margin-bottom: 4px; }
+    .section-sub   { font-family: 'EB Garamond', serif; font-style: italic; font-size: 0.82rem; color: var(--text-muted); margin-bottom: 14px; }
+
+    .reg-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; align-items: end; }
+    @media (max-width: 900px) { .reg-form { grid-template-columns: 1fr 1fr; } .system-stats { grid-template-columns: 1fr 1fr; } }
+
+    .empty-state { text-align: center; padding: 32px; color: var(--text-muted); font-family: 'EB Garamond', serif; font-style: italic; font-size: 0.95rem; }
+    .load-fail   { text-align: center; padding: 16px; color: #dc2626; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-mark">Ω</div>
+      <div>
+        <div class="sidebar-brand-name">Original</div>
+        <div style="font-size:0.7rem;color:rgba(247,243,234,0.55)">Operator Dashboard</div>
+      </div>
+    </div>
+    <div class="sidebar-section">Workspace</div>
+    <a class="nav-item" href="professor.html">Professor</a>
+    <a class="nav-item" href="admin.html">Admin</a>
+    <a class="nav-item active" href="operator.html">Operator</a>
+    <div class="sidebar-section">Research</div>
+    <a class="nav-item" href="lab.html">Lab</a>
+    <a class="nav-item" href="admin-context.html">Context Audit</a>
+    <a class="nav-item" href="playground.html">Playground</a>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title">Original&nbsp;/&nbsp;<strong>Operator</strong></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="lastRefreshed" style="font-size:0.75rem;color:var(--text-muted)">—</span>
+        <button onclick="loadAll()" class="btn" style="padding:5px 12px;font-size:0.78rem">↻ Refresh</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ── System overview ────────────────────────────────────────────── -->
+      <div class="system-stats" id="systemStats">
+        <div class="sys-stat"><div class="sys-val" id="ssTenants">—</div><div class="sys-lbl">Institutions</div></div>
+        <div class="sys-stat"><div class="sys-val" id="ssStudents">—</div><div class="sys-lbl">Total students</div></div>
+        <div class="sys-stat"><div class="sys-val" id="ssSubmissions">—</div><div class="sys-lbl">Submissions</div></div>
+        <div class="sys-stat"><div class="sys-val" id="ssAudit">—</div><div class="sys-lbl">Audit entries</div></div>
+      </div>
+
+      <!-- ── Institution cards ──────────────────────────────────────────── -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div>
+            <div class="section-title">Registered Institutions</div>
+            <div class="section-sub">Each card represents one school. Student IDs are namespaced as <code>{tenant_id}:{local_id}</code>.</div>
+          </div>
+          <button onclick="toggleRegForm()" class="btn btn-primary" style="padding:6px 14px;font-size:0.8rem">+ Register school</button>
+        </div>
+
+        <!-- Registration form (collapsed by default) -->
+        <div id="regForm" style="display:none;background:var(--cream-warm);border:1px solid var(--cream-border);border-radius:8px;padding:16px 18px;margin-bottom:18px">
+          <div class="reg-form">
+            <div>
+              <label class="label">Institution ID (slug)</label>
+              <input id="rfId"   class="input" placeholder="seminary-of-dallas" />
+            </div>
+            <div>
+              <label class="label">Name</label>
+              <input id="rfName" class="input" placeholder="Dallas Theological Seminary" />
+            </div>
+            <div>
+              <label class="label">Environment</label>
+              <select id="rfEnv" class="select">
+                <option value="demo">Demo</option>
+                <option value="pilot">Pilot</option>
+                <option value="production">Production</option>
+              </select>
+            </div>
+            <div>
+              <button onclick="registerSchool()" class="btn btn-primary">Save</button>
+            </div>
+          </div>
+          <div id="rfStatus" style="margin-top:8px;font-size:0.82rem;color:var(--text-muted)"></div>
+        </div>
+
+        <!-- Institution grid -->
+        <div class="op-grid" id="tenantGrid">
+          <div class="empty-state">Loading institutions…</div>
+        </div>
+      </div>
+
+      <!-- ── Audit log ──────────────────────────────────────────────────── -->
+      <div class="card">
+        <div class="section-title">Recent audit log</div>
+        <div class="section-sub">Last 50 system actions — baseline adds, scores, deletions, threshold changes, and registrations.</div>
+        <div id="auditLog"><div class="empty-state">Loading…</div></div>
+      </div>
+
+    </div><!-- end content -->
+  </main>
+
+</div><!-- end app -->
+
+<script>
+const API = '';  // same origin
+
+/* ── Utility ── */
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function shortDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+function relTime(iso) {
+  if (!iso) return '—';
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1)   return 'just now';
+  if (m < 60)  return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24)  return `${h}h ago`;
+  return shortDate(iso);
+}
+
+/* ── Main load ── */
+async function loadAll() {
+  await Promise.all([loadSystemStats(), loadTenants(), loadAuditLog()]);
+  document.getElementById('lastRefreshed').textContent =
+    'Refreshed ' + new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+}
+
+async function loadSystemStats() {
+  try {
+    const [health, audit] = await Promise.all([
+      fetch(API + '/admin/health').then(r => r.json()),
+      fetch(API + '/admin/audit?limit=1').then(r => r.json()),
+    ]);
+    const tenants = await fetch(API + '/tenants').then(r => r.json());
+    document.getElementById('ssTenants').textContent    = Array.isArray(tenants) ? tenants.length : '—';
+    document.getElementById('ssStudents').textContent   = health.student_count ?? '—';
+    document.getElementById('ssSubmissions').textContent = health.total_submissions ?? '—';
+    document.getElementById('ssAudit').textContent      = audit.total ?? '—';
+  } catch(e) {
+    console.warn('loadSystemStats failed', e);
+  }
+}
+
+async function loadTenants() {
+  const grid = document.getElementById('tenantGrid');
+  try {
+    const tenants = await fetch(API + '/tenants').then(r => r.json());
+    if (!Array.isArray(tenants) || tenants.length === 0) {
+      grid.innerHTML = '<div class="empty-state">No institutions registered yet. Click "Register school" to add the first one.</div>';
+      return;
+    }
+
+    // Load stats for all tenants in parallel
+    const statsResults = await Promise.allSettled(
+      tenants.map(t => fetch(API + `/tenants/${encodeURIComponent(t.tenant_id)}/stats`).then(r => r.json()))
+    );
+    const statsByTenant = {};
+    tenants.forEach((t, i) => {
+      if (statsResults[i].status === 'fulfilled') statsByTenant[t.tenant_id] = statsResults[i].value;
+    });
+
+    grid.innerHTML = tenants.map(t => {
+      const s = statsByTenant[t.tenant_id] || {};
+      const contact = t.meta?.contact || '';
+      return `
+      <div class="tenant-card">
+        <div class="tenant-card-header">
+          <div>
+            <div class="tenant-name">${esc(t.name)}</div>
+            <div class="tenant-id">${esc(t.tenant_id)}</div>
+            ${contact ? `<div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px">${esc(contact)}</div>` : ''}
+          </div>
+          <span class="env-badge ${esc(t.environment)}">${esc(t.environment)}</span>
+        </div>
+        <div class="stat-row">
+          <div class="stat-box"><div class="stat-val">${s.student_count ?? '—'}</div><div class="stat-lbl">Students</div></div>
+          <div class="stat-box"><div class="stat-val">${s.submission_count ?? '—'}</div><div class="stat-lbl">Submissions</div></div>
+          <div class="stat-box"><div class="stat-val">${s.sample_count ?? '—'}</div><div class="stat-lbl">Samples</div></div>
+        </div>
+        ${s.last_active_at ? `<div class="tenant-meta">Last active ${relTime(s.last_active_at)}</div>` : '<div class="tenant-meta">No activity yet</div>'}
+        ${renderActionBreakdown(s.action_counts || {})}
+        <div class="tenant-actions">
+          <button class="btn-sm" onclick="viewInProfessor('${esc(t.tenant_id)}')">👤 View students</button>
+          <button class="btn-sm" onclick="viewStats('${esc(t.tenant_id)}', '${esc(t.name)}')">📊 Stats</button>
+          <button class="btn-sm danger" onclick="bulkDelete('${esc(t.tenant_id)}', '${esc(t.name)}')">🗑 Erase all</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    grid.innerHTML = `<div class="load-fail">Failed to load institutions: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderActionBreakdown(counts) {
+  if (!counts || Object.keys(counts).length === 0) return '';
+  const labels = { no_action:'Confirmed', monitor:'Follow Up', schedule_conversation:'Check-in', escalate:'Escalate' };
+  const colors  = { no_action:'#059669',  monitor:'#2563eb',  schedule_conversation:'#b45309',  escalate:'#dc2626'  };
+  const bars = Object.entries(counts).map(([a, n]) =>
+    `<span style="font-size:0.72rem;color:${colors[a]||'#888'};margin-right:8px">${labels[a]||a}: ${n}</span>`
+  ).join('');
+  return `<div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:4px">${bars}</div>`;
+}
+
+async function loadAuditLog() {
+  const el = document.getElementById('auditLog');
+  try {
+    const data = await fetch(API + '/admin/audit?limit=50').then(r => r.json());
+    const items = data.items || [];
+    if (items.length === 0) {
+      el.innerHTML = '<div class="empty-state">No audit entries yet. Entries appear after baseline adds, scores, and deletions.</div>';
+      return;
+    }
+    const header = `<div class="audit-row" style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);border-bottom:2px solid var(--cream-border)">
+      <span>When</span><span>Action</span><span>Subject</span><span>Result</span></div>`;
+    const rows = items.map(e => {
+      const details = Object.entries(e.details || {}).map(([k,v]) => `${k}=${v}`).join(' ');
+      return `<div class="audit-row">
+        <span class="audit-when">${relTime(e.created_at)}</span>
+        <span class="audit-action">${esc(e.action)}</span>
+        <span class="audit-detail" title="${esc(details)}">
+          ${esc(e.student_id || e.tenant_id || '—')}
+          ${details ? `<span style="color:var(--text-muted)"> · ${esc(details.slice(0,80))}${details.length>80?'…':''}</span>` : ''}
+        </span>
+        <span class="audit-result ${esc(e.result)}">${esc(e.result)}</span>
+      </div>`;
+    }).join('');
+    el.innerHTML = header + rows;
+  } catch(e) {
+    el.innerHTML = `<div class="load-fail">Failed to load audit log: ${esc(e.message)}</div>`;
+  }
+}
+
+/* ── Actions ── */
+function toggleRegForm() {
+  const f = document.getElementById('regForm');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+async function registerSchool() {
+  const id  = document.getElementById('rfId').value.trim();
+  const name= document.getElementById('rfName').value.trim();
+  const env = document.getElementById('rfEnv').value;
+  const st  = document.getElementById('rfStatus');
+  if (!id || !name) { st.textContent = 'ID and name are required.'; st.style.color='#dc2626'; return; }
+  st.textContent = 'Saving…'; st.style.color='var(--text-muted)';
+  try {
+    const r = await fetch(API + '/tenants', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ tenant_id: id, name, environment: env }),
+    });
+    if (!r.ok) { const e = await r.json().catch(()=>{}); throw new Error(e?.detail || r.statusText); }
+    st.textContent = `✓ ${name} registered.`; st.style.color='#059669';
+    document.getElementById('rfId').value = '';
+    document.getElementById('rfName').value = '';
+    await loadAll();
+  } catch(e) { st.textContent = `Error: ${esc(e.message)}`; st.style.color='#dc2626'; }
+}
+
+function viewInProfessor(tenantId) {
+  // Opens professor.html pre-scoped to this tenant's students.
+  // professor.html reads ?tenant filter from the URL or localStorage.
+  window.open(`professor.html?tenant_id=${encodeURIComponent(tenantId)}`, '_blank');
+}
+
+async function viewStats(tenantId, tenantName) {
+  try {
+    const s = await fetch(API + `/tenants/${encodeURIComponent(tenantId)}/stats`).then(r=>r.json());
+    const lines = [
+      `Institution: ${tenantName} (${tenantId})`,
+      `Students: ${s.student_count}`,
+      `Baseline samples: ${s.sample_count}`,
+      `Scored submissions: ${s.submission_count}`,
+      `Last activity: ${s.last_active_at ? new Date(s.last_active_at).toLocaleString() : 'none'}`,
+      '',
+      'Submission breakdown by action:',
+      ...Object.entries(s.action_counts || {}).map(([a,n]) => `  ${a}: ${n}`),
+    ];
+    alert(lines.join('\n'));
+  } catch(e) { alert('Failed to load stats: ' + e.message); }
+}
+
+async function bulkDelete(tenantId, tenantName) {
+  const n = await fetch(API + `/tenants/${encodeURIComponent(tenantId)}/stats`).then(r=>r.json()).then(s=>s.student_count).catch(()=>'?');
+  if (!confirm(`Permanently delete all ${n} student(s) from "${tenantName}"?\n\nThis removes all baseline profiles, submissions, corrections, and fidelity scores. It cannot be undone.`)) return;
+  try {
+    const r = await fetch(API + `/tenants/${encodeURIComponent(tenantId)}/students`, { method:'DELETE' });
+    if (!r.ok) {
+      // May need guard token — GUARD_DESTRUCTIVE=1
+      if (r.status === 403) {
+        const gt = prompt('This operation requires a Guard Token (X-Guard-Token). Enter the MAINTENANCE_TOKEN:');
+        if (!gt) return;
+        const r2 = await fetch(API + `/tenants/${encodeURIComponent(tenantId)}/students`, {
+          method:'DELETE', headers:{'X-Guard-Token': gt},
+        });
+        if (!r2.ok) { const e = await r2.json().catch(()=>{}); alert('Error: ' + (e?.detail || r2.statusText)); return; }
+        const d = await r2.json();
+        alert(`Deleted ${d.deleted_count} student(s) from "${tenantName}".`);
+      } else {
+        const e = await r.json().catch(()=>{}); alert('Error: ' + (e?.detail || r.statusText)); return;
+      }
+    } else {
+      const d = await r.json();
+      alert(`Deleted ${d.deleted_count} student(s) from "${tenantName}".`);
+    }
+    await loadAll();
+  } catch(e) { alert('Failed: ' + e.message); }
+}
+
+/* ── Init ── */
+loadAll();
+</script>
+</body>
+</html>

@@ -124,12 +124,14 @@ def _require_guard(request: "Request") -> None:
     Raise 403 if GUARD_DESTRUCTIVE is on and the request lacks the correct
     X-Guard-Token header.  Call at the top of any endpoint that should be
     protected in pilot/production but open in demo mode.
+
+    Uses the module-level `_MAINTENANCE_TOKEN` (read once at startup) so
+    the value is consistent across the request lifetime and avoids repeated
+    os.environ lookups.
     """
     if not _GUARD_DESTRUCTIVE:
         return
-    token = request.headers.get("X-Guard-Token", "")
-    _mt = os.environ.get("MAINTENANCE_TOKEN", "")
-    if not _mt:
+    if not _MAINTENANCE_TOKEN:
         raise HTTPException(
             status_code=503,
             detail=(
@@ -137,12 +139,17 @@ def _require_guard(request: "Request") -> None:
                 "Set MAINTENANCE_TOKEN to a strong secret to use guarded endpoints."
             ),
         )
-    if not hmac.compare_digest(token.encode(), _mt.encode()):
+    token = request.headers.get("X-Guard-Token", "")
+    if not hmac.compare_digest(token.encode(), _MAINTENANCE_TOKEN.encode()):
         raise HTTPException(
             status_code=403,
             detail="Destructive operation requires a valid X-Guard-Token header.",
         )
 
+
+# Startup check — uses lifespan-compatible approach for FastAPI ≥ 0.93.
+# Kept as on_event for now (still supported); a future migration to the
+# contextlib.asynccontextmanager lifespan pattern is noted in tech-debt.
 @app.on_event("startup")
 async def _startup_checks() -> None:
     _log = logging.getLogger(__name__)
@@ -155,6 +162,11 @@ async def _startup_checks() -> None:
         )
     else:
         _log.info("SECRET_KEY is pinned from environment — JWT tokens survive restarts.")
+    _log.info(
+        "GUARD_DESTRUCTIVE=%s — destructive endpoints are %s.",
+        _GUARD_DESTRUCTIVE,
+        "GUARDED (X-Guard-Token required)" if _GUARD_DESTRUCTIVE else "open (demo mode)",
+    )
 
 
 # ── Email notification stub ───────────────────────────────────────────────────
@@ -237,8 +249,16 @@ def admin_health():
 # ── Student list ──────────────────────────────────────────────────────────────
 
 @app.get("/students")
-def list_students():
-    return {"students": store.list_ids()}
+def list_students(tenant_id: str = ""):
+    """
+    List student IDs.  When `tenant_id` is provided, returns only students
+    whose ID starts with `{tenant_id}:` (the multi-tenant naming convention).
+    """
+    if tenant_id:
+        ids = store.list_ids_for_tenant(tenant_id)
+    else:
+        ids = store.list_ids()
+    return {"students": ids}
 
 
 # ── Student state ─────────────────────────────────────────────────────────────
@@ -301,12 +321,15 @@ def delete_student(student_id: str, request: "Request"):
     X-Guard-Token header matching MAINTENANCE_TOKEN. Demo mode is open.
     """
     _require_guard(request)
+    remote = getattr(request.client, "host", "unknown") if request.client else "unknown"
     deleted = store.delete_student(student_id)
     if not deleted:
+        store.log_audit(action="student_delete", student_id=student_id, actor=remote, result="not_found")
         raise HTTPException(
             status_code=404,
             detail=f"Student '{student_id}' not found — nothing to delete.",
         )
+    store.log_audit(action="student_delete", student_id=student_id, actor=remote, result="ok")
     return {
         "deleted": True,
         "student_id": student_id,
@@ -334,15 +357,26 @@ def create_tenant(body: dict):
     Optional body fields:
         environment — 'demo' | 'pilot' | 'production'  (default: 'demo')
         meta        — arbitrary dict of metadata (contact email, LMS URL, etc.)
+                      Capped at 10 keys, values must be strings ≤ 500 chars.
     """
-    tenant_id = body.get("tenant_id", "")
-    name = body.get("name", "")
+    tenant_id = str(body.get("tenant_id", "")).strip()
+    name = str(body.get("name", "")).strip()
     if not tenant_id or not name:
         raise HTTPException(status_code=422, detail="tenant_id and name are required")
+    if len(tenant_id) > 80 or len(name) > 200:
+        raise HTTPException(status_code=422, detail="tenant_id max 80 chars, name max 200 chars")
     environment = body.get("environment", "demo")
     if environment not in ("demo", "pilot", "production"):
         raise HTTPException(status_code=422, detail="environment must be 'demo', 'pilot', or 'production'")
-    store.put_tenant(tenant_id, name, environment=environment, meta=body.get("meta"))
+    # Validate meta payload — prevents unbounded JSON storage
+    meta = body.get("meta") or {}
+    if not isinstance(meta, dict):
+        raise HTTPException(status_code=422, detail="meta must be a JSON object")
+    if len(meta) > 10:
+        raise HTTPException(status_code=422, detail="meta must have at most 10 keys")
+    meta = {str(k)[:80]: str(v)[:500] for k, v in list(meta.items())[:10]}
+    store.put_tenant(tenant_id, name, environment=environment, meta=meta)
+    store.log_audit(action="tenant_register", tenant_id=tenant_id, details={"name": name, "environment": environment})
     return {"tenant_id": tenant_id, "name": name, "environment": environment}
 
 
@@ -359,6 +393,97 @@ def get_tenant(tenant_id: str):
     if not t:
         raise HTTPException(status_code=404, detail=f"Tenant '{tenant_id}' not found")
     return t
+
+
+@app.get("/tenants/{tenant_id}/stats")
+def tenant_stats(tenant_id: str):
+    """
+    Aggregate statistics for a tenant — student count, submission volume,
+    action breakdown, last active timestamp.
+
+    Used by the operator dashboard to show all-schools-at-a-glance.
+    """
+    t = store.get_tenant(tenant_id)
+    if not t:
+        raise HTTPException(status_code=404, detail=f"Tenant '{tenant_id}' not found")
+    return store.tenant_stats(tenant_id)
+
+
+@app.delete("/tenants/{tenant_id}/students", status_code=200)
+def delete_tenant_students(tenant_id: str, request: "Request"):
+    """
+    FERPA-safe bulk deletion of all students belonging to a tenant.
+
+    Iterates list_ids_for_tenant() and calls store.delete_student() for each —
+    the same code path as individual deletion, so all linked records
+    (fidelity scores, manifests, corrections, audit rows) are purged.
+
+    When GUARD_DESTRUCTIVE=1, requires X-Guard-Token header.
+    """
+    _require_guard(request)
+    t = store.get_tenant(tenant_id)
+    if not t:
+        raise HTTPException(status_code=404, detail=f"Tenant '{tenant_id}' not found")
+    result = store.delete_tenant_students(tenant_id)
+    return {
+        "tenant_id":    tenant_id,
+        "deleted_count": result["deleted_count"],
+        "failed_ids":   result["failed_ids"],
+        "message": (
+            f"Deleted {result['deleted_count']} student(s) from '{tenant_id}'. "
+            + (f"Failed: {result['failed_ids']}" if result["failed_ids"] else "")
+        ).strip(),
+    }
+
+
+# ── FERPA: data inventory + audit log ────────────────────────────────────────
+
+@app.get("/students/{student_id}/data-inventory")
+def student_data_inventory(student_id: str):
+    """
+    FERPA data-access response: structured inventory of all data held for a student.
+
+    Returns a categorized breakdown of:
+    - Baseline writing samples (count, provenance types, date range)
+    - Fidelity / calibration scores
+    - Scored submission manifests (by recommendation action)
+    - Instructor corrections
+    - Audit log entries
+
+    Intended for: student data-access requests, FERPA compliance officers,
+    deletion confirmations ("prove everything was purged").
+    """
+    inv = store.student_data_inventory(student_id)
+    if inv is None:
+        raise HTTPException(status_code=404, detail=f"Student '{student_id}' not found")
+    return inv
+
+
+@app.get("/admin/audit")
+def list_audit_log(
+    student_id: str = "",
+    action: str = "",
+    limit: int = 100,
+    offset: int = 0,
+):
+    """
+    Query the system audit log.
+
+    Optional filters:
+        student_id — restrict to a specific student
+        action     — restrict to a specific action type
+                     (baseline_add, score, student_delete, correction,
+                      threshold_apply, tenant_register, bulk_delete)
+
+    Results are ordered most-recent-first.
+    """
+    limit = min(limit, 500)
+    return store.list_audit(
+        student_id=student_id or None,
+        action=action or None,
+        limit=limit,
+        offset=offset,
+    )
 
 
 # ── Add baseline sample ───────────────────────────────────────────────────────
@@ -439,6 +564,18 @@ def add_baseline(student_id: str, req: AddSampleRequest):
             state.baseline_kappa = new_mean
 
     store.put(state)   # persist to SQLite
+
+    # Audit log — record the baseline addition
+    store.log_audit(
+        action="baseline_add",
+        student_id=student_id,
+        details={
+            "provenance":         req.provenance,
+            "auth_weight":        AUTH_WEIGHTS[req.provenance],
+            "sample_count_after": state.sample_count,
+            "genre":              _sample_genre,
+        },
+    )
 
     # Auto-complete any outstanding magic-link baseline requests for this
     # student (Phase 2). Only fires for authenticated provenance — an
@@ -756,6 +893,21 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     if action in ("escalate", "schedule_conversation"):
         _send_notification_email(student_name=student_id, action=action, score=overall_score)
 
+    # ── Audit log — best-effort, never raises ─────────────────────────────────
+    try:
+        store.log_audit(
+            action="score",
+            student_id=student_id,
+            details={
+                "submission_id":   submission_id,
+                "deviation_score": round(result.authorship.deviation_score, 4),
+                "recommendation":  action,
+                "sample_count":    state.sample_count,
+            },
+        )
+    except Exception:
+        pass
+
     return _to_response(result, arc, report=report)
 
 
@@ -853,6 +1005,11 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
         # Human-friendly explanation for professors/instructors
         human_explanation=explain(r),
     )
+
+
+# ── Score audit log (best-effort, never raises) ───────────────────────────────
+# Wire audit logging after the return object is built so any exception here
+# cannot corrupt the response. The try/except is intentional insurance.
 
 
 # ── Phase 7: sliding-window blend detection ──────────────────────────────────

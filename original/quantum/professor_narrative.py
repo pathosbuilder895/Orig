@@ -443,14 +443,19 @@ def _build_summary(
         return base
 
     if deviation < 0.55:
+        # Build the area count phrase — "some" when n_destructive is unavailable (0/None)
+        _area_phrase = (
+            f"{n_destructive} area{'s' if n_destructive != 1 else ''}"
+            if n_destructive
+            else "some areas"
+        )
         return (
             f"The system confirmed most of {name}'s established writing patterns "
             f"in this submission — the stylistic foundation looks like their work. "
-            f"There {'are ' + str(n_destructive) + ' area(s)' if n_destructive else 'are some areas'} "
-            f"where this submission differs from prior work. Differences at this "
-            f"level are common: topic demands, genre shifts, time pressure, or "
-            f"simply having an unusual writing day. A brief check-in is one option, "
-            f"though not required."
+            f"There are {_area_phrase} where this submission differs from prior "
+            f"work. Differences at this level are common: topic demands, genre "
+            f"shifts, time pressure, or simply having an unusual writing day. "
+            f"A brief check-in is one option, though not required."
         )
 
     if deviation < 0.75:
