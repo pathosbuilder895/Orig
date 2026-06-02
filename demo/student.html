@@ -1,1058 +1,1109 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Original — My Writing Profile</title>
+<title>Original — My Writing Formation</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --green-deepest: #0f1e17;
-  --green-deep:    #162b22;
-  --green-mid:     #1e3d2f;
-  --green-hover:   #243d30;
-  --green-border:  rgba(255,255,255,0.07);
-  --cream:         #f7f3ea;
-  --cream-warm:    #ede8d8;
-  --cream-border:  #e2dccf;
-  --surface:       #ffffff;
-  --gold:          #c9a028;
-  --gold-light:    rgba(201,160,40,0.12);
-  --gold-muted:    rgba(201,160,40,0.35);
-  --amber:         #9b6420;
-  --text-primary:  #1a130a;
-  --text-secondary:#5a4030;
-  --text-muted:    #8a7060;
-  --text-cream:    #f7f3ea;
-  --text-cream-dim:rgba(247,243,234,0.55);
-  --flag-red:      #c0392b;
-  --flag-red-bg:   rgba(192,57,43,0.08);
-  --flag-amber:    #c9a028;
-  --flag-amber-bg: rgba(201,160,40,0.1);
-  --flag-green:    #2a6b45;
-  --flag-green-bg: rgba(42,107,69,0.1);
-  --sidebar-w:     264px;
-  --radius:        6px;
-  --shadow-sm:     0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md:     0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.05);
-
-  /* Legacy aliases — JS generates inline styles using these, keep them */
-  --bg: var(--cream);
-  --border: var(--cream-border);
-  --shadow: var(--shadow-sm);
-  --text: var(--text-primary);
-  --surface-2: var(--cream-warm);
-  --radius-sm: 4px;
-  --ox: var(--green-deep);
-  --ox-l: var(--gold-light);
-  --ox-m: var(--gold-muted);
-  --blue: var(--green-deep);
-  --blue-l: var(--gold-light);
-  --blue-m: var(--gold-muted);
-  --green: var(--flag-green);
-  --green-l: var(--flag-green-bg);
-  --red: var(--flag-red);
-  --red-l: var(--flag-red-bg);
-  --text-dim: var(--text-muted);
-  --amber-l: var(--flag-amber-bg);
+  --oxford:#002147;--oxford-mid:#0a2f5c;--oxford-pale:rgba(0,33,71,0.05);
+  --gold:#B08D3C;--gold-dim:rgba(176,141,60,0.15);--gold-glow:rgba(176,141,60,0.07);
+  --parchment:#F7F2E7;--vellum:#FBF8F1;
+  --ink:#1A1A1A;--marginal:#3C5A82;
+  --wine:#6B2737;--wine-dim:rgba(107,39,55,0.08);
+  --sage:#4A6B5C;--sage-dim:rgba(74,107,92,0.10);
+  --hairline:rgba(60,90,130,0.16);--hairline-s:rgba(60,90,130,0.28);
+  --font-d:'Cormorant Garamond',Georgia,serif;
+  --font-b:'EB Garamond',Georgia,serif;
+  --font-u:'Inter',system-ui,sans-serif;
+  --sb:232px;--top:54px;
 }
-html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);color:var(--text-primary);overflow:hidden}
+html,body{height:100%}
+body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font-size:14px;line-height:1.5;overflow:hidden}
 .layout{display:flex;height:100vh}
 
-/* ── Sidebar ────────────────────────────────────────────────────── */
-.sidebar {
-  width: var(--sidebar-w); flex-shrink: 0;
-  background: var(--green-deep);
-  display: flex; flex-direction: column;
-  overflow: hidden; z-index: 10;
-}
-.sidebar-logo {
-  padding: 20px 20px 16px;
-  border-bottom: 1px solid var(--green-border);
-}
-.logo-mark { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
-.logo-icon { width: 28px; height: 28px; background: var(--gold); border-radius: 4px;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.logo-wordmark { font-family: 'Playfair Display', serif; font-size: 1.05rem;
-  font-weight: 600; color: var(--text-cream); letter-spacing: -0.01em; }
-.logo-school { font-size: 0.68rem; color: var(--text-cream-dim);
-  font-family: 'EB Garamond', serif; font-style: italic; }
-.sidebar-nav { flex: 1; padding: 12px 10px; display: flex; flex-direction: column; gap: 1px; }
-.nav-section-label { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--text-cream-dim); padding: 8px 10px 4px; }
-.nav-item { display: flex; align-items: center; gap: 10px;
-  padding: 9px 10px; border-radius: 4px; text-decoration: none;
-  font-size: 0.82rem; color: rgba(247,243,234,0.65);
-  border-left: 2px solid transparent; transition: all 0.15s; cursor: pointer; }
-.nav-item:hover { background: var(--green-hover); color: var(--text-cream); }
-.nav-item.active { background: var(--gold-light); color: var(--text-cream);
-  border-left-color: var(--gold); }
-.nav-item svg { flex-shrink: 0; opacity: 0.75; }
-.nav-item.active svg { opacity: 1; }
-.sidebar-user { padding: 14px 16px; border-top: 1px solid var(--green-border);
-  display: flex; align-items: center; gap: 10px; }
-.user-avatar { width: 32px; height: 32px; border-radius: 50%;
-  background: var(--gold); display: flex; align-items: center; justify-content: center;
-  font-family: 'Playfair Display', serif; font-size: 0.72rem; font-weight: 700;
-  color: var(--green-deepest); flex-shrink: 0; }
-.user-name { font-size: 0.82rem; font-weight: 600; color: var(--text-cream); }
-.user-role { font-size: 0.7rem; color: var(--text-cream-dim);
-  font-family: 'EB Garamond', serif; font-style: italic; }
+/* ── Sidebar ── */
+.sidebar{width:var(--sb);flex-shrink:0;background:var(--oxford);display:flex;flex-direction:column;height:100vh;border-right:1px solid rgba(176,141,60,0.12);z-index:10}
+.sb-logo{padding:22px 20px 18px;border-bottom:1px solid rgba(255,255,255,0.07)}
+.sb-mark{display:flex;align-items:center;gap:10px;margin-bottom:5px}
+.sb-sigil{width:28px;height:28px;border:1px solid rgba(176,141,60,0.4);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-sigil svg{width:14px;height:14px;stroke:var(--gold);fill:none;stroke-width:1.8;stroke-linecap:round}
+.sb-wordmark{font-family:var(--font-d);font-size:1.1rem;font-weight:600;color:var(--parchment);letter-spacing:0.08em}
+.sb-inst{font-family:var(--font-b);font-size:0.77rem;font-style:italic;color:rgba(247,242,231,0.38);padding-left:38px}
+.sb-nav{flex:1;padding:14px 0;overflow-y:auto}
+.nav-lbl{font-size:0.59rem;font-weight:600;letter-spacing:0.20em;text-transform:uppercase;color:rgba(247,242,231,0.28);padding:8px 20px 4px;margin-top:6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;color:rgba(247,242,231,0.52);font-size:0.82rem;cursor:pointer;border-left:2px solid transparent;transition:color .15s,background .15s;user-select:none;text-decoration:none}
+.nav-item:hover{color:var(--parchment);background:rgba(255,255,255,0.05)}
+.nav-item.active{color:var(--parchment);background:rgba(176,141,60,0.10);border-left-color:var(--gold)}
+.nav-item svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;opacity:.8}
+.nav-item.active svg{opacity:1}
+.nav-badge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--wine);color:#fff;font-size:0.58rem;font-weight:600;margin-left:auto;font-family:var(--font-u)}
+.sb-user{border-top:1px solid rgba(255,255,255,0.07);padding:14px 20px;display:flex;align-items:center;gap:10px}
+.sb-avatar{width:30px;height:30px;border-radius:50%;background:rgba(176,141,60,0.13);border:1px solid rgba(176,141,60,0.35);display:flex;align-items:center;justify-content:center;font-family:var(--font-d);font-size:0.78rem;color:var(--gold);flex-shrink:0}
+.sb-uname{font-size:0.80rem;font-weight:500;color:var(--parchment)}
+.sb-urole{font-family:var(--font-b);font-size:0.71rem;font-style:italic;color:rgba(247,242,231,0.38)}
 
-/* ── Main ───────────────────────────────────────────────────────── */
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+/* ── Main ── */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.topbar{height:var(--top);flex-shrink:0;background:var(--vellum);border-bottom:1px solid var(--hairline);display:flex;align-items:center;justify-content:space-between;padding:0 28px}
+.bc{display:flex;align-items:center;gap:6px;font-size:0.75rem;color:rgba(26,26,26,0.38)}
+.bc-sep{color:var(--hairline-s)}
+.bc-cur{color:var(--marginal);font-weight:500}
+.sem-pill{font-family:var(--font-b);font-style:italic;font-size:0.82rem;color:rgba(60,90,130,0.65);background:rgba(60,90,130,0.06);border:1px solid var(--hairline);padding:4px 12px;border-radius:20px}
 
-/* ── Topbar ─────────────────────────────────────────────────────── */
-.topbar {
-  height: 52px; flex-shrink: 0;
-  background: var(--surface); border-bottom: 1px solid var(--cream-border);
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 24px;
-}
-.breadcrumb { display: flex; align-items: center; gap: 6px;
-  font-size: 0.78rem; color: var(--text-muted); }
-.bc-sep { color: var(--cream-border); }
-.bc-current { color: var(--text-primary); font-weight: 500; }
-.semester-badge { font-size: 0.72rem; font-weight: 500;
-  padding: 4px 10px; border-radius: 20px;
-  background: var(--gold-light); color: var(--amber);
-  border: 1px solid var(--gold-muted); }
+/* ── Views ── */
+.view{display:none;flex:1;overflow-y:auto}
+.view.active{display:flex;flex-direction:column}
+.page-body{flex:1;padding:32px 36px 48px}
+.page-body::-webkit-scrollbar{width:4px}
+.page-body::-webkit-scrollbar-thumb{background:var(--hairline-s);border-radius:2px}
 
-.header-name{color:var(--text-primary)}
-.content{flex:1;overflow-y:auto;padding:16px 24px 24px;display:flex;flex-direction:column;gap:14px}
-.content::-webkit-scrollbar{width:4px}
-.content::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.1);border-radius:2px}
+/* ── Page header ── */
+.pg-eye{font-family:var(--font-b);font-style:italic;font-size:0.84rem;color:var(--marginal);margin-bottom:4px;opacity:.7}
+.pg-title{font-family:var(--font-d);font-size:2.1rem;font-weight:500;color:var(--oxford);letter-spacing:-0.01em;line-height:1.1}
+.pg-sub{font-family:var(--font-b);font-size:0.97rem;color:rgba(26,26,26,0.48);margin-top:6px}
+.pg-hdr{margin-bottom:28px}
 
-/* ── Cards ──────────────────────────────────────────────────────── */
-.card{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow-sm);transition:transform 0.15s,box-shadow 0.15s}
-.card:hover{transform:translateY(-1px);box-shadow:var(--shadow-md)}
-.card-title{font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;margin-bottom:3px;color:var(--text-primary);display:flex;align-items:center;gap:8px}
-.card-title svg{width:16px;height:16px;stroke:var(--text-muted);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
-.card-sub{font-size:0.76rem;color:var(--text-muted);margin-bottom:12px}
+/* ── Cards: no border-radius, no shadows ── */
+.card{background:var(--vellum);border:1px solid var(--hairline)}
+.card-head{padding:16px 20px 0}
+.card-lbl{font-size:0.61rem;font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:var(--marginal);opacity:.62;margin-bottom:2px}
+.card-ttl{font-family:var(--font-d);font-size:1.1rem;font-weight:500;color:var(--oxford);letter-spacing:.01em}
 
-/* ── Chips ──────────────────────────────────────────────────────── */
-.chips-row{display:flex;gap:8px;flex-wrap:wrap}
-.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:0.74rem;font-weight:500;background:var(--surface);border:1px solid var(--cream-border);box-shadow:var(--shadow-sm);color:var(--text-muted)}
-.chip svg{width:14px;height:14px;stroke:var(--green-deep);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.chip .chip-val{color:var(--text-primary);font-weight:700}
+/* ── Hero grid ── */
+.hero-row{display:grid;grid-template-columns:310px 1fr;gap:22px;margin-bottom:22px}
 
-/* ── Score Gauge ────────────────────────────────────────────────── */
-.gauges-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.gauge-card{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:18px;text-align:center;box-shadow:var(--shadow-sm);transition:transform 0.15s,box-shadow 0.15s}
-.gauge-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
-.gauge-svg{width:110px;height:110px;margin:0 auto 8px}
-.gauge-track{fill:none;stroke:var(--cream-warm);stroke-width:7;stroke-linecap:round}
-.gauge-fill{fill:none;stroke-width:7;stroke-linecap:round;transition:stroke-dashoffset 1.2s cubic-bezier(0.16,1,0.3,1)}
-.gauge-label{font-family:'Playfair Display',serif;font-size:0.85rem;font-weight:700;margin-bottom:2px;color:var(--text-primary)}
-.gauge-qual{font-size:0.68rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase}
+/* ── Fingerprint card (Oxford Blue bg) ── */
+.fp-card{background:var(--oxford);border:1px solid rgba(176,141,60,0.14);display:flex;flex-direction:column;overflow:hidden}
+.fp-card .card-lbl{color:rgba(176,141,60,0.5)}
+.fp-card .card-ttl{color:var(--parchment)}
+.fp-viz{flex:1;padding:6px 6px 2px;display:flex;align-items:center;justify-content:center}
+.fp-legend{padding:0 16px 14px;display:flex;gap:16px;align-items:center}
+.fp-leg{display:flex;align-items:center;gap:6px;font-size:0.67rem;color:rgba(247,242,231,0.42)}
 
-/* ── Compact Score Bars (for expanded timeline) ─────────────────── */
-.score-bars{display:flex;flex-direction:column;gap:6px}
-.score-bar-row{display:flex;align-items:center;gap:8px;font-size:0.76rem}
-.score-bar-label{flex:0 0 130px;font-weight:500;color:var(--text-muted)}
-.score-bar-track{flex:1;height:7px;border-radius:4px;background:var(--cream-warm);overflow:hidden}
-.score-bar-fill{height:100%;border-radius:4px}
-.score-bar-val{flex:0 0 30px;text-align:right;font-weight:700;font-size:0.74rem}
+/* ── Arc card ── */
+.arc-card{display:flex;flex-direction:column}
 
-/* ── Strengths / Growth ─────────────────────────────────────────── */
-.sg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.sg-card{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow-sm)}
-.sg-card h3{font-family:'Playfair Display',serif;font-size:0.9rem;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px;color:var(--text-primary)}
-.sg-card h3 svg{width:16px;height:16px;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
-.sg-item{padding:7px 0;border-bottom:1px solid var(--cream-border);font-size:0.8rem}
-.sg-item:last-child{border-bottom:none}
-.sg-feat{font-weight:600;color:var(--text-primary)}
-.sg-tier{font-size:0.66rem;font-weight:700;padding:2px 6px;border-radius:5px;margin-left:6px}
-.sg-tip{color:var(--text-muted);margin-top:2px;line-height:1.4;font-size:0.76rem}
+/* ── Review opportunity ── */
+.ro{border-left:2px solid var(--wine);background:var(--wine-dim);padding:12px 16px 12px 18px;margin-bottom:22px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.ro-lbl{font-size:0.61rem;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--wine);margin-bottom:4px}
+.ro-body{font-family:var(--font-b);font-size:0.93rem;color:var(--ink);line-height:1.5}
+.ro-body em{font-style:italic;color:var(--wine)}
+.ro-meta{font-family:var(--font-b);font-style:italic;font-size:0.79rem;color:rgba(107,39,55,0.65);margin-top:3px}
+.ro-btn{font-family:var(--font-u);font-size:0.74rem;font-weight:500;color:var(--wine);background:none;border:1px solid rgba(107,39,55,0.28);padding:7px 14px;cursor:pointer;transition:background .15s;white-space:nowrap;flex-shrink:0;align-self:center}
+.ro-btn:hover{background:rgba(107,39,55,0.08)}
 
-/* ── Submit View ────────────────────────────────────────────────── */
-.submit-form{display:flex;flex-direction:column;gap:12px}
-.form-row{display:flex;gap:12px;align-items:center}
-.form-input{flex:1;padding:9px 14px;border:1px solid var(--cream-border);border-radius:var(--radius-sm);font-family:'Inter',sans-serif;font-size:0.84rem;background:var(--surface);transition:border-color 0.15s}
-.form-input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-light)}
+/* ── Stats grid ── */
+.lower-row{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:22px}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--hairline)}
+.stat-cell{padding:16px 18px;background:var(--vellum)}
+.stat-val{font-family:var(--font-d);font-size:1.7rem;font-weight:500;color:var(--oxford);line-height:1;margin-bottom:3px}
+.stat-lbl{font-size:0.67rem;color:rgba(26,26,26,0.42);letter-spacing:.06em;text-transform:uppercase}
+.stat-d{font-family:var(--font-b);font-style:italic;font-size:0.77rem;color:var(--sage);margin-top:2px}
 
-.upload-zone{border:2px dashed var(--gold-muted);border-radius:var(--radius);padding:24px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--cream-warm)}
-.upload-zone:hover,.upload-zone.dragover{border-color:var(--gold);background:var(--gold-light)}
-.upload-zone svg{width:32px;height:32px;stroke:var(--green-deep);fill:none;stroke-width:1.5;margin:0 auto 6px;display:block}
-.upload-zone-text{font-size:0.82rem;color:var(--text-muted)}
-.upload-zone-text strong{color:var(--green-deep)}
-.upload-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:var(--gold-light);border:1px solid var(--gold-muted);border-radius:20px;font-size:0.74rem;font-weight:600;color:var(--amber)}
+/* ── Voice notes ── */
+.vn{padding:12px 16px;border-top:1px solid rgba(60,90,130,0.10)}
+.vn-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.vn-auth{font-size:0.69rem;font-weight:500;color:var(--marginal);letter-spacing:.04em}
+.vn-date{font-family:var(--font-b);font-style:italic;font-size:0.71rem;color:rgba(26,26,26,0.33)}
+.vn-body{font-family:var(--font-b);font-size:0.91rem;color:var(--ink);line-height:1.55}
+.vn-body em{font-style:italic;color:var(--marginal)}
 
-.submission-textarea{width:100%;min-height:180px;padding:14px;border:1px solid var(--cream-border);border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:0.86rem;line-height:1.7;resize:vertical;background:var(--surface);transition:border-color 0.15s}
-.submission-textarea:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-light)}
+/* ── Library shelf ── */
+.shelf{display:flex;align-items:flex-end;gap:5px;padding:0 0 0 8px;border-bottom:2px solid rgba(60,90,130,0.22);min-height:180px;position:relative}
+.shelf::after{content:'';position:absolute;bottom:-8px;left:0;right:0;height:8px;background:linear-gradient(180deg,rgba(60,90,130,0.10),transparent)}
+.spine{display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .15s;position:relative;flex-shrink:0}
+.spine:hover{transform:translateY(-6px)}
+.spine-inner{writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-family:var(--font-d);font-size:0.77rem;font-weight:500;padding:10px 6px;letter-spacing:.05em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+.sub-detail{margin-top:24px;padding-top:18px;border-top:1px solid var(--hairline)}
+.sd-title{font-family:var(--font-d);font-size:1.25rem;font-weight:500;color:var(--oxford);margin-bottom:3px}
+.sd-meta{font-family:var(--font-b);font-style:italic;font-size:0.83rem;color:rgba(26,26,26,0.43);margin-bottom:12px}
+.sd-feats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sd-feat{background:var(--parchment);border:1px solid var(--hairline);padding:9px 13px}
+.sd-fv{font-family:var(--font-d);font-size:1.1rem;color:var(--oxford)}
+.sd-fl{font-size:.67rem;color:rgba(26,26,26,0.42);text-transform:uppercase;letter-spacing:.06em;margin-top:1px}
 
-.btn{padding:9px 20px;border:none;border-radius:var(--radius-sm);font-family:'Inter',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.15s;display:inline-flex;align-items:center;gap:7px}
-.btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.btn-primary{background:var(--green-deep);color:var(--text-cream);box-shadow:0 2px 8px rgba(22,43,34,0.25)}
-.btn-primary:hover{background:var(--green-mid)}
-.btn-primary:disabled{opacity:0.5;cursor:not-allowed;transform:none}
-.btn-secondary{background:var(--cream-warm);color:var(--text-secondary);border:1px solid var(--cream-border)}
-.btn-secondary:hover{background:var(--cream)}
+/* ── Fidelity badge ── */
+.fbadge{display:inline-flex;align-items:center;gap:5px;font-size:.71rem;font-weight:500;letter-spacing:.04em;padding:3px 10px;border-radius:20px}
+.fbadge.strong{background:var(--sage-dim);color:var(--sage);border:1px solid rgba(74,107,92,0.2)}
+.fbadge.developing{background:var(--gold-dim);color:#7a5e1a;border:1px solid rgba(176,141,60,0.25)}
+.fbadge.diverged{background:var(--wine-dim);color:var(--wine);border:1px solid rgba(107,39,55,0.2)}
 
-/* ── Loading ────────────────────────────────────────────────────── */
-.loading-card{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:32px;text-align:center;box-shadow:var(--shadow-sm)}
-.loading-spinner{width:36px;height:36px;border:3px solid var(--cream-border);border-top-color:var(--green-deep);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 14px;will-change:transform}
-@keyframes spin{to{transform:rotate(360deg)}}
-.loading-step{font-size:0.8rem;color:var(--text-muted);transition:all 0.3s}
+/* ── Submit layout ── */
+.submit-layout{display:grid;grid-template-columns:1fr 240px;gap:24px;align-items:start}
+.form-lbl{font-size:.69rem;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--marginal);margin-bottom:7px;display:block}
+.form-inp{width:100%;padding:10px 0;background:none;border:none;border-bottom:1px solid var(--hairline-s);font-family:var(--font-b);font-size:.95rem;color:var(--ink);outline:none;transition:border-color .2s}
+.form-inp:focus{border-bottom-color:var(--gold)}
+.form-inp::placeholder{color:rgba(26,26,26,0.28);font-style:italic}
+.form-ta{width:100%;min-height:220px;padding:14px 16px;background:var(--vellum);border:1px solid var(--hairline);font-family:var(--font-b);font-size:.93rem;line-height:1.7;color:var(--ink);resize:vertical;outline:none;transition:border-color .2s}
+.form-ta:focus{border-color:rgba(176,141,60,0.38)}
+.form-ta::placeholder{color:rgba(26,26,26,0.28);font-style:italic}
+.btn-primary{background:var(--oxford);color:var(--parchment);border:none;padding:11px 28px;font-family:var(--font-u);font-size:.82rem;font-weight:500;letter-spacing:.04em;cursor:pointer;transition:background .15s}
+.btn-primary:hover{background:var(--oxford-mid)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed}
+.btn-sec{background:none;border:1px solid var(--hairline-s);color:rgba(26,26,26,0.5);padding:11px 18px;font-family:var(--font-u);font-size:.82rem;cursor:pointer;transition:border-color .15s;margin-left:10px}
+.btn-sec:hover{border-color:var(--marginal);color:var(--marginal)}
 
-/* ── Voice Badge ────────────────────────────────────────────────── */
-.voice-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 16px;border-radius:20px;font-size:0.8rem;font-weight:600;letter-spacing:0.01em}
-.voice-badge.strong{background:var(--flag-green-bg);color:var(--flag-green);border:1px solid rgba(42,107,69,0.2)}
-.voice-badge.developing{background:var(--flag-amber-bg);color:var(--amber);border:1px solid rgba(201,160,40,0.2)}
-.voice-badge.growing{background:var(--gold-light);color:var(--amber);border:1px solid var(--gold-muted)}
+/* ── Focus Coach ── */
+.coach-panel{position:sticky;top:0;padding:0}
+.coach-label{font-size:0.59rem;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:rgba(60,90,130,0.45);margin-bottom:14px}
+.coach-whisper{border-left:1px solid var(--gold-dim);padding:8px 0 8px 14px;margin:0 0 14px 0;font-family:var(--font-b);font-style:italic;font-size:0.93rem;color:rgba(26,26,26,0.52);line-height:1.6;transition:opacity .5s}
+.coach-philosophy{font-family:var(--font-b);font-style:italic;font-size:0.79rem;color:rgba(26,26,26,0.32);line-height:1.55;margin-top:18px;border-top:1px solid var(--hairline);padding-top:14px}
 
-/* ── Tension Arc Badge ──────────────────────────────────────────── */
-.arc-badge{display:inline-block;font-size:0.7rem;font-weight:700;padding:2px 9px;border-radius:20px;letter-spacing:0.04em;vertical-align:middle}
-.arc-badge-authentic{background:#dcfce7;color:#166534}
-.arc-badge-ai{background:#fee2e2;color:#991b1b}
-.arc-badge-review{background:#fef3c7;color:#92400e}
+/* ── Score result ── */
+.score-result{margin-top:18px;padding-top:18px;border-top:1px solid var(--hairline)}
+.score-headline{font-family:var(--font-d);font-size:1.3rem;font-weight:500;color:var(--oxford);line-height:1.25;margin-bottom:8px}
+.score-summary{font-family:var(--font-b);font-size:0.93rem;line-height:1.6;color:rgba(26,26,26,0.70);margin-bottom:12px}
+.score-feat-row{display:flex;align-items:flex-start;gap:10px;font-size:0.83rem;margin-bottom:5px}
+.score-feat-dot{width:5px;height:5px;border-radius:50%;background:var(--sage);flex-shrink:0;margin-top:5px}
 
-/* ── Timeline ───────────────────────────────────────────────────── */
-.timeline{display:flex;flex-direction:column;gap:8px}
-.tl-item{display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);box-shadow:var(--shadow-sm);cursor:pointer;transition:all 0.15s}
-.tl-item:hover{transform:translateX(2px);box-shadow:var(--shadow-md)}
-.tl-check{width:18px;height:18px;border:2px solid var(--cream-border);border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;font-size:0.7rem}
-.tl-check.checked{background:var(--green-deep);border-color:var(--green-deep);color:#fff}
-.tl-body{flex:1;min-width:0}
-.tl-title{font-weight:600;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tl-date{font-size:0.7rem;color:var(--text-muted)}
-.tl-bars{display:flex;gap:4px;align-items:center}
-.tl-bar{width:36px;height:5px;border-radius:3px;background:var(--cream-warm)}
-.tl-bar-fill{height:100%;border-radius:3px}
+/* ── Formation Track ── */
+.ft-intro{font-family:var(--font-b);font-size:0.97rem;line-height:1.65;color:rgba(26,26,26,0.62);margin-bottom:22px;max-width:580px}
+.ft-session{display:flex;gap:16px;padding:18px 0;border-top:1px solid var(--hairline);align-items:flex-start}
+.ft-num{width:28px;height:28px;border:1px solid var(--hairline-s);display:flex;align-items:center;justify-content:center;font-family:var(--font-d);font-size:0.82rem;color:var(--marginal);flex-shrink:0}
+.ft-num.active{border-color:var(--gold);color:var(--gold);background:var(--gold-glow)}
+.ft-num.done{border-color:var(--sage);color:var(--sage);background:var(--sage-dim)}
+.ft-body{flex:1}
+.ft-title{font-family:var(--font-d);font-size:1.05rem;font-weight:500;color:var(--oxford);margin-bottom:3px}
+.ft-desc{font-family:var(--font-b);font-size:0.88rem;color:rgba(26,26,26,0.55);line-height:1.55}
+.ft-action{margin-top:8px}
+.ft-btn{font-family:var(--font-u);font-size:0.74rem;font-weight:500;color:var(--oxford);background:none;border:1px solid var(--hairline-s);padding:6px 14px;cursor:pointer;transition:all .15s}
+.ft-btn:hover{border-color:var(--oxford);background:var(--oxford-pale)}
+.ft-btn:disabled{opacity:.35;cursor:not-allowed}
+.ft-locked{font-family:var(--font-b);font-style:italic;font-size:0.79rem;color:rgba(26,26,26,0.30);margin-top:5px}
 
-/* ── Baseline List ──────────────────────────────────────────────── */
-.baseline-item{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--cream-warm);border-radius:var(--radius);border:1px solid var(--cream-border);font-size:0.8rem}
-.baseline-item .prov-badge{font-size:0.66rem;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.03em}
-.prov-proctored{background:var(--flag-green-bg);color:var(--flag-green)}
-.prov-verified{background:var(--gold-light);color:var(--amber)}
-.prov-unverified{background:var(--flag-amber-bg);color:var(--amber)}
+/* ── Notes view ── */
+.note-item{padding:20px 22px;border-top:1px solid rgba(60,90,130,0.10)}
+.note-item:first-child{border-top:none}
 
-.info-banner{padding:10px 14px;border-radius:var(--radius-sm);background:var(--gold-light);border:1px solid var(--gold-muted);font-size:0.8rem;color:var(--amber);display:flex;align-items:center;gap:8px;line-height:1.4}
-.info-banner svg{width:16px;height:16px;stroke:var(--amber);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+/* ── Library list ── */
+.sub-row{display:flex;align-items:center;gap:14px;padding:10px 16px;border-top:1px solid rgba(60,90,130,0.09);cursor:pointer;transition:background .15s}
+.sub-row:hover,.sub-row.selected{background:rgba(60,90,130,0.04)}
+.sub-date{font-family:var(--font-b);font-style:italic;font-size:0.74rem;color:rgba(26,26,26,0.38);width:50px;flex-shrink:0}
+.sub-title-col{flex:1;font-family:var(--font-d);font-size:0.95rem;color:var(--oxford);font-weight:500}
+.sub-type{font-size:0.71rem;color:rgba(26,26,26,0.38)}
 
-/* ── Compare ────────────────────────────────────────────────────── */
-.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.compare-header{font-family:'Playfair Display',serif;font-size:0.85rem;font-weight:700;text-align:center;padding:10px;background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius-sm);color:var(--text-primary)}
-.delta-row{display:flex;align-items:center;gap:8px;padding:7px 10px;font-size:0.8rem;background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius-sm)}
-.delta-name{flex:1;font-weight:500}
-.delta-val{font-weight:700;min-width:36px;text-align:right;font-size:0.78rem}
-.delta-arrow{min-width:20px;text-align:center}
-.delta-arrow svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
-.delta-bar{flex:0 0 70px;height:5px;border-radius:3px;background:var(--cream-warm);overflow:hidden}
-.delta-bar-fill{height:100%;border-radius:3px;transition:width 0.6s ease}
+/* ── Empty state ── */
+.empty-serif{font-family:var(--font-b);font-style:italic;font-size:0.95rem;color:rgba(26,26,26,0.38);padding:16px 0}
 
-/* ── Results ────────────────────────────────────────────────────── */
-.results-section{display:flex;flex-direction:column;gap:14px;animation:fadeUp 0.4s cubic-bezier(0.16,1,0.3,1) both}
-.tier-row{display:flex;align-items:center;gap:8px;padding:6px 0}
-.tier-name{flex:0 0 150px;font-size:0.78rem;font-weight:600}
-.tier-bar{flex:1;height:7px;border-radius:4px;background:var(--cream-warm);overflow:hidden}
-.tier-bar-fill{height:100%;border-radius:4px;transition:width 0.8s cubic-bezier(0.16,1,0.3,1)}
-.tier-val{flex:0 0 36px;text-align:right;font-size:0.76rem;font-weight:700}
-
+/* ── Animations ── */
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-
-/* ── Score bar bg ───────────────────────────────────────────────── */
-.sbar-bg{background:var(--cream-warm)}
-
-/* ── Action badges ──────────────────────────────────────────────── */
-.abadge.no_action{background:var(--flag-green-bg);color:var(--flag-green)}
-.abadge.monitor{background:var(--flag-amber-bg);color:var(--amber)}
-.abadge.schedule_conversation{background:var(--flag-amber-bg);color:var(--amber)}
-.abadge.escalate{background:var(--flag-red-bg);color:var(--flag-red)}
-
-/* ── 3D Right Panel ─────────────────────────────────────────────── */
-.panel-3d{width:300px;flex-shrink:0;background:linear-gradient(180deg,var(--cream) 0%,var(--cream-warm) 100%);border-left:1px solid var(--cream-border);display:flex;flex-direction:column;align-items:center;padding:22px 16px;overflow-y:auto;position:relative}
-.panel-student{text-align:center;margin-bottom:8px}
-.panel-student-name{font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:var(--text-primary)}
-.panel-student-meta{font-size:0.7rem;color:var(--text-muted);margin-top:2px}
-
-.prism-stage{width:200px;height:200px;perspective:600px;margin:0 auto 10px;position:relative}
-.prism-object{width:100%;height:100%;transform-style:preserve-3d;animation:prismSpin 24s linear infinite;position:relative}
-@keyframes prismSpin{0%{transform:rotateY(0deg) rotateX(12deg)}100%{transform:rotateY(360deg) rotateX(12deg)}}
-
-.hex-face{position:absolute;width:130px;height:130px;left:50%;top:50%;margin-left:-65px;margin-top:-65px;border:1.5px solid rgba(22,43,34,0.12);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase}
-.hex-face:nth-child(1){background:rgba(22,43,34,0.05);transform:rotateY(0deg) translateZ(65px);color:rgba(22,43,34,0.5)}
-.hex-face:nth-child(2){background:rgba(201,160,40,0.05);transform:rotateY(120deg) translateZ(65px);color:rgba(201,160,40,0.5);border-color:rgba(201,160,40,0.12)}
-.hex-face:nth-child(3){background:rgba(42,107,69,0.05);transform:rotateY(240deg) translateZ(65px);color:rgba(42,107,69,0.5);border-color:rgba(42,107,69,0.12)}
-
-.pedestal{width:70px;height:6px;border-radius:50%;background:radial-gradient(ellipse,rgba(0,0,0,0.07),transparent);margin:0 auto 14px}
-
-.panel-section{width:100%;margin-top:10px}
-.panel-section-title{font-size:0.66rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:8px}
-.panel-bar{display:flex;align-items:center;gap:6px;margin-bottom:7px;font-size:0.76rem}
-.panel-bar-label{flex:0 0 95px;font-weight:500;color:var(--text-muted);font-size:0.74rem}
-.panel-bar-track{flex:1;height:5px;border-radius:3px;background:rgba(0,0,0,0.06)}
-.panel-bar-fill{height:100%;border-radius:3px;transition:width 1.2s cubic-bezier(0.16,1,0.3,1)}
-.panel-bar-val{flex:0 0 28px;text-align:right;font-weight:700;font-size:0.7rem;color:var(--text-primary)}
-
-.panel-ferpa{margin-top:auto;padding-top:14px;font-size:0.66rem;color:var(--text-muted);text-align:center;line-height:1.5}
-
-/* ── Utilities ──────────────────────────────────────────────────── */
-.hidden{display:none!important}
-.mt-8{margin-top:8px}
-.mt-16{margin-top:16px}
-.expand-toggle{cursor:pointer;user-select:none}
-.expand-toggle .expand-hint{font-size:0.72rem;color:var(--text-muted);margin-left:6px;font-family:'Inter',sans-serif;font-weight:400}
-
-@media (max-width: 900px) {
-  .panel-3d, .right-panel { display: none !important; }
-}
-@media (max-width: 600px) {
-  .sidebar { width: 56px; }
-  .gauge-grid, .cards-grid { grid-template-columns: 1fr 1fr; }
-}
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-}
-/* ── Sidebar collapse ── */
-.sidebar{transition:width 0.22s cubic-bezier(0.4,0,0.2,1);overflow:hidden}
-.sidebar.collapsed{width:64px}
-.sidebar.collapsed .logo-wordmark,
-.sidebar.collapsed .logo-school,
-.sidebar.collapsed .nav-section-label,
-.sidebar.collapsed .user-info{display:none}
-.sidebar.collapsed .logo-mark{justify-content:center}
-.sidebar.collapsed .sidebar-logo{padding:16px 0;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--green-border)}
-.sidebar.collapsed .nav-item{justify-content:center;padding:10px 0;border-left-color:transparent !important}
-.sidebar.collapsed .nav-item.active{background:var(--gold-light);border-radius:4px}
-.sidebar.collapsed .sidebar-nav{padding:12px 8px}
-.sidebar.collapsed .sidebar-user{justify-content:center;padding:14px 0}
-.sidebar-toggle{width:32px;height:32px;border-radius:var(--radius);background:none;border:1px solid var(--cream-border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);flex-shrink:0;transition:background 0.15s,color 0.15s}
-.sidebar-toggle:hover{background:var(--cream-warm);color:var(--text-primary)}
-.sidebar-toggle svg{transition:transform 0.22s}
-.sidebar.collapsed~.main .topbar .sidebar-toggle svg{transform:scaleX(-1)}
-/* ── Right panel collapse ── */
-.panel-3d{transition:width 0.22s cubic-bezier(0.4,0,0.2,1);overflow:hidden}
-.panel-3d.collapsed{width:0;border-left:none}
-.panel-reopen-tab{position:fixed;right:0;top:50%;transform:translateY(-50%);width:20px;height:64px;background:var(--cream-warm);border:1px solid var(--cream-border);border-right:none;border-radius:6px 0 0 6px;display:none;align-items:center;justify-content:center;cursor:pointer;z-index:20;color:var(--text-muted)}
-.panel-reopen-tab.show{display:flex}
-.panel-close-btn{width:24px;height:24px;border-radius:4px;background:none;border:none;cursor:pointer;color:var(--text-muted);display:flex;align-items:center;justify-content:center;margin-left:auto;flex-shrink:0}
-.panel-close-btn:hover{background:var(--cream-border);color:var(--text-primary)}
+.fu{animation:fadeUp .44s cubic-bezier(0.16,1,0.3,1) both}
+.fu1{animation-delay:.05s}.fu2{animation-delay:.13s}.fu3{animation-delay:.21s}.fu4{animation-delay:.30s}
 </style>
 </head>
 <body>
 <div class="layout">
-  <!-- Sidebar -->
+
+  <!-- ── Sidebar ── -->
   <aside class="sidebar">
-    <div class="sidebar-logo">
-      <div class="logo-mark">
-        <div class="logo-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#162b22" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-          </svg>
+    <div class="sb-logo">
+      <div class="sb-mark">
+        <div class="sb-sigil">
+          <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
         </div>
-        <span class="logo-wordmark">Original</span>
+        <span class="sb-wordmark">Original</span>
       </div>
-      <div class="logo-school">Student Portal</div>
+      <div class="sb-inst" id="sbInst">Your Institution</div>
     </div>
-    <nav class="sidebar-nav">
-      <div class="nav-section-label">My Work</div>
-      <a class="nav-item active" href="student.html" title="Voice Profile">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    <nav class="sb-nav">
+      <div class="nav-lbl">My Formation</div>
+      <div class="nav-item active" data-view="profile">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M2 12C2 12 5 6 12 6s10 6 10 6-3 6-10 6S2 12 2 12"/></svg>
         Voice Profile
-      </a>
-      <a class="nav-item" href="#" onclick="navigate('submit');return false;" title="Submit Work">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      </div>
+      <div class="nav-item" data-view="library">
+        <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+        The Library
+      </div>
+      <div class="nav-item" data-view="notes">
+        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        Voice Notes
+      </div>
+      <div class="nav-item" data-view="submit">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
         Submit Work
-      </a>
-      <a class="nav-item" href="#" onclick="navigate('portfolio');return false;" title="Portfolio">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
-        Submission History
-      </a>
+      </div>
+      <div class="nav-item" data-view="formation" id="navFormation" style="display:none">
+        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Formation Track
+        <span class="nav-badge">!</span>
+      </div>
     </nav>
-    <div class="sidebar-user">
-      <div class="user-avatar" id="avatar">ST</div>
-      <div class="user-info">
-        <div class="user-name" id="sidebarName">Student</div>
-        <div class="user-role">TH501 · Spring 2026</div>
+    <div class="sb-user">
+      <div class="sb-avatar" id="sbAvatar">AW</div>
+      <div>
+        <div class="sb-uname" id="sbName">Student</div>
+        <div class="sb-urole" id="sbRole">Writing Formation</div>
       </div>
     </div>
   </aside>
 
-  <!-- Main Content -->
+  <!-- ── Main ── -->
   <div class="main">
-    <!-- Topbar -->
     <div class="topbar">
-      <div class="topbar-left" style="display:flex;align-items:center;gap:10px">
-        <button id="sidebarToggle" class="sidebar-toggle" title="Toggle sidebar">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-        </button>
-        <div class="breadcrumb">
-          <span>Original</span>
-          <span class="bc-sep">/</span>
-          <span class="bc-current">My Writing Profile</span>
-        </div>
+      <div class="bc">
+        <span>Original</span>
+        <span class="bc-sep">·</span>
+        <span class="bc-cur" id="bcCur">Voice Profile</span>
       </div>
-      <div class="topbar-right" style="display:flex;align-items:center;gap:10px">
-        <div class="semester-badge">Spring 2026</div>
-      </div>
+      <span class="sem-pill" id="semPill">Autumn Term 2025</span>
     </div>
-    <!-- Page title -->
-    <div style="padding:16px 24px 0;flex-shrink:0">
-      <div style="font-family:'EB Garamond',serif;font-style:italic;font-size:0.8rem;color:var(--text-muted);margin-bottom:2px">Your writing voice</div>
-      <div class="header-name" id="hdr-name" style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:600;color:var(--text-primary);letter-spacing:-0.02em">My Writing Profile</div>
-      <div id="hdr-greeting" style="display:none"></div>
-      <div id="hdr-sub" style="font-size:0.78rem;color:var(--text-muted);margin-top:2px"></div>
-    </div>
-    <div class="content" id="app-content"></div>
-  </div>
 
-  <!-- 3D Right Panel -->
-  <aside class="panel-3d">
-    <div class="panel-student">
-      <div style="display:flex;align-items:flex-start;width:100%">
-        <div style="flex:1;text-align:center">
-          <div class="panel-student-name" id="panel-name">James Whitfield</div>
-          <div class="panel-student-meta" id="panel-meta">3 baselines &middot; 103 features profiled</div>
+    <!-- ════ View: Voice Profile ════ -->
+    <div id="view-profile" class="view active">
+      <div class="page-body">
+        <div class="pg-hdr fu">
+          <div class="pg-eye" id="proEye">Your writing voice, over time</div>
+          <div class="pg-title" id="proTitle">Your voice is finding its shape.</div>
+          <div class="pg-sub" id="proSub">Submit your first piece of work to reveal your voice profile.</div>
         </div>
-        <button id="panelCloseBtn" class="panel-close-btn" title="Collapse panel">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
+
+        <div class="hero-row fu fu1">
+          <!-- Fingerprint -->
+          <div class="card fp-card">
+            <div class="card-head">
+              <div class="card-lbl">Voice Fingerprint</div>
+              <div class="card-ttl">12 stylometric dimensions</div>
+            </div>
+            <div class="fp-viz" style="height:270px">
+              <svg id="fpSvg" viewBox="0 0 300 300" width="280" height="280"></svg>
+            </div>
+            <div class="fp-legend">
+              <div class="fp-leg"><div style="width:20px;height:1.5px;background:#B08D3C"></div><span>Your voice now</span></div>
+              <div class="fp-leg"><div style="width:20px;height:0;border-top:1.5px dashed rgba(60,90,130,0.5)"></div><span>Start of term</span></div>
+            </div>
+          </div>
+
+          <!-- Arc -->
+          <div class="card arc-card">
+            <div class="card-head">
+              <div class="card-lbl">The Arc</div>
+              <div class="card-ttl" id="arcTitle">Voice fidelity this term</div>
+            </div>
+            <div style="flex:1;padding:4px 4px 0">
+              <svg id="arcSvg" width="100%" height="220" style="display:block"></svg>
+            </div>
+            <div style="padding:0 16px 14px;border-top:1px solid rgba(60,90,130,0.08);margin-top:4px">
+              <span id="arcFooter" style="font-family:var(--font-b);font-style:italic;font-size:0.79rem;color:rgba(26,26,26,0.42)">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Review opportunity (wine, hidden until needed) -->
+        <div class="ro fu fu2" id="roBlock" style="display:none">
+          <div style="flex:1">
+            <div class="ro-lbl">Formation Opportunity</div>
+            <div class="ro-body" id="roBody">A passage in your recent submission diverges from your established voice.</div>
+            <div class="ro-meta" id="roMeta"></div>
+          </div>
+          <button class="ro-btn" onclick="showView('formation')">Begin formation →</button>
+        </div>
+
+        <div class="lower-row fu fu3">
+          <!-- Metrics -->
+          <div class="card">
+            <div class="card-head" style="padding-bottom:12px">
+              <div class="card-lbl">Formation Metrics</div>
+              <div class="card-ttl">This term</div>
+            </div>
+            <div class="stats-grid">
+              <div class="stat-cell">
+                <div class="stat-val" id="mFidelity" style="color:var(--gold)">—</div>
+                <div class="stat-lbl">Voice Fidelity</div>
+                <div class="stat-d" id="mFidelityD"></div>
+              </div>
+              <div class="stat-cell">
+                <div class="stat-val" id="mSubs" style="color:var(--sage)">—</div>
+                <div class="stat-lbl">Submissions</div>
+                <div class="stat-d" id="mSubsD"></div>
+              </div>
+              <div class="stat-cell">
+                <div class="stat-val" id="mOnVoice" style="color:var(--marginal)">—</div>
+                <div class="stat-lbl">On-voice</div>
+                <div class="stat-d" id="mOnVoiceD"></div>
+              </div>
+              <div class="stat-cell">
+                <div class="stat-val" id="mGrowth">—</div>
+                <div class="stat-lbl">Baseline Samples</div>
+                <div class="stat-d" id="mGrowthD"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Voice notes strip -->
+          <div class="card">
+            <div class="card-head" style="padding-bottom:10px">
+              <div class="card-lbl">From your tutor</div>
+              <div class="card-ttl">Voice Notes</div>
+            </div>
+            <div id="proNotesStrip">
+              <div class="vn" style="border-top:none">
+                <div class="empty-serif">No voice notes yet.</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="prism-stage">
-      <div class="prism-object">
-        <div class="hex-face">Argument</div>
-        <div class="hex-face">Theology</div>
-        <div class="hex-face">Clarity</div>
+
+    <!-- ════ View: Library ════ -->
+    <div id="view-library" class="view">
+      <div class="page-body">
+        <div class="pg-hdr fu">
+          <div class="pg-eye">A body of work being formed</div>
+          <div class="pg-title">The Library</div>
+          <div class="pg-sub" id="libSub">Your submissions this term. Select a spine to read the record.</div>
+        </div>
+
+        <div class="card fu fu1" style="padding:24px 24px 28px;margin-bottom:22px">
+          <div class="shelf" id="libShelf">
+            <div class="empty-serif">Submit your first piece of work to begin your library.</div>
+          </div>
+          <div id="libDetail" style="display:none">
+            <div class="sub-detail fu">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px">
+                <div>
+                  <div class="sd-title" id="sdTitle">—</div>
+                  <div class="sd-meta" id="sdMeta">—</div>
+                </div>
+                <span id="sdBadge" class="fbadge strong">—</span>
+              </div>
+              <div class="sd-feats" id="sdFeats"></div>
+              <div id="sdRo" style="display:none;margin-top:14px">
+                <div class="ro" style="margin-bottom:0">
+                  <div style="flex:1">
+                    <div class="ro-lbl">Formation Opportunity</div>
+                    <div class="ro-body" id="sdRoBody">This submission diverges from your established voice.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card fu fu2">
+          <div class="card-head" style="padding-bottom:12px">
+            <div class="card-lbl">All submissions</div>
+          </div>
+          <div id="libList">
+            <div class="sub-row"><div class="empty-serif" style="padding:8px 0">No submissions yet.</div></div>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="pedestal"></div>
-    <div class="panel-section">
-      <div class="panel-section-title">Writing Dimensions</div>
-      <div class="panel-bar"><span class="panel-bar-label">Arg. Complexity</span><div class="panel-bar-track"><div class="panel-bar-fill" id="pb1" style="width:0;background:var(--green-deep)"></div></div><span class="panel-bar-val" id="pbv1">--</span></div>
-      <div class="panel-bar"><span class="panel-bar-label">Theo. Register</span><div class="panel-bar-track"><div class="panel-bar-fill" id="pb2" style="width:0;background:var(--gold)"></div></div><span class="panel-bar-val" id="pbv2">--</span></div>
-      <div class="panel-bar"><span class="panel-bar-label">Clarity &amp; Flow</span><div class="panel-bar-track"><div class="panel-bar-fill" id="pb3" style="width:0;background:var(--flag-green)"></div></div><span class="panel-bar-val" id="pbv3">--</span></div>
+
+    <!-- ════ View: Voice Notes ════ -->
+    <div id="view-notes" class="view">
+      <div class="page-body">
+        <div class="pg-hdr fu">
+          <div class="pg-eye">From your tutor</div>
+          <div class="pg-title">Voice Notes</div>
+          <div class="pg-sub" id="notesSub">Marginalia on your writing this term.</div>
+        </div>
+        <div class="card fu fu1" style="max-width:640px" id="notesList">
+          <div class="note-item"><div class="empty-serif">No voice notes yet.</div></div>
+        </div>
+        <div style="margin-top:14px;font-family:var(--font-b);font-style:italic;font-size:0.81rem;color:rgba(26,26,26,0.38);line-height:1.6;max-width:480px">
+          Voice notes are a conversation, not a verdict. Ask your tutor to schedule time if you would like to discuss.
+        </div>
+      </div>
     </div>
-    <div class="panel-section" id="panel-journey" style="display:none">
-      <div class="panel-section-title">Your Writing Journey</div>
-      <div id="panel-journey-content" style="font-size:0.78rem;color:var(--text-muted);line-height:1.5"></div>
+
+    <!-- ════ View: Submit Work ════ -->
+    <div id="view-submit" class="view">
+      <div class="page-body">
+        <div class="pg-hdr fu">
+          <div class="pg-eye">Add to your body of work</div>
+          <div class="pg-title">Submit Work</div>
+          <div class="pg-sub">Paste or type your writing below. Your voice is analysed and added to your formation record.</div>
+        </div>
+
+        <div class="submit-layout fu fu1">
+          <!-- Form -->
+          <div>
+            <div class="card" style="padding:24px 28px;margin-bottom:14px">
+              <div style="margin-bottom:18px">
+                <label class="form-lbl">Title</label>
+                <input class="form-inp" id="subTitle" placeholder="Name this piece…">
+              </div>
+              <div style="margin-bottom:18px">
+                <label class="form-lbl">Type</label>
+                <input class="form-inp" id="subType" placeholder="Essay, response, seminar paper…">
+              </div>
+              <div style="margin-bottom:18px">
+                <label class="form-lbl">Your writing</label>
+                <textarea class="form-ta" id="subText" rows="10" placeholder="Paste or type your work here…"></textarea>
+                <div style="display:flex;justify-content:space-between;margin-top:6px">
+                  <span id="wcLabel" style="font-family:var(--font-b);font-style:italic;font-size:0.75rem;color:rgba(26,26,26,0.33)">Minimum 200 words for voice analysis</span>
+                  <span id="wcReady" style="font-size:0.71rem;color:var(--sage);font-family:var(--font-u);display:none">✓ Ready for analysis</span>
+                </div>
+              </div>
+              <div style="border-top:1px solid rgba(60,90,130,0.1);padding-top:18px">
+                <button class="btn-primary" id="subBtn" disabled onclick="submitWork()">Analyse voice</button>
+                <button class="btn-sec" onclick="openCoach()">Open Focus Coach ↗</button>
+              </div>
+
+              <!-- Score result -->
+              <div class="score-result" id="scoreResult" style="display:none">
+                <div class="score-headline" id="scoreHeadline"></div>
+                <div class="score-summary" id="scoreSummary"></div>
+                <div id="scoreFeats" style="margin-bottom:12px"></div>
+                <div id="scoreFormationPrompt" style="display:none">
+                  <div class="ro" style="margin-bottom:0">
+                    <div style="flex:1">
+                      <div class="ro-lbl">Formation Opportunity Available</div>
+                      <div class="ro-body">A three-session formation pathway is available for this submission.</div>
+                    </div>
+                    <button class="ro-btn" onclick="showView('formation')">View pathway →</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="font-family:var(--font-b);font-style:italic;font-size:0.81rem;color:rgba(26,26,26,0.38);line-height:1.6;max-width:520px">
+              Your writing is analysed for stylometric voice patterns and compared against your established fingerprint. No similarity scores. No flags. A conversation, if something is worth noting.
+            </div>
+          </div>
+
+          <!-- Focus Coach -->
+          <div class="coach-panel">
+            <div class="coach-label">Focus Coach</div>
+            <div class="coach-whisper" id="coachWhisper">Does this sound like you?</div>
+            <div class="coach-philosophy">
+              You already know how to do this.<br>I am just helping you remember in the moment.
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="panel-ferpa">FERPA-compliant &middot; your writing data<br>is protected under institutional policy</div>
-  </aside>
-  <div id="panelReopenTab" class="panel-reopen-tab" title="Open panel">
-    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,18 9,12 15,6"/></svg>
-  </div>
-</div>
+
+    <!-- ════ View: Formation Track ════ -->
+    <div id="view-formation" class="view">
+      <div class="page-body">
+        <div class="pg-hdr fu">
+          <div class="pg-eye">A path forward</div>
+          <div class="pg-title">Formation Track</div>
+          <div class="pg-sub">Three sessions. One clear path. Successful completion clears the formation flag from your record.</div>
+        </div>
+
+        <div class="card fu fu1" style="padding:20px 24px 8px;margin-bottom:22px;max-width:620px">
+          <div class="card-head" style="padding:0 0 14px 0">
+            <div class="card-lbl">Formation Opportunity</div>
+            <div class="card-ttl" id="ftTitle">Voice divergence — worth a conversation</div>
+          </div>
+          <div class="ft-intro">
+            A passage in your recent submission reads differently from your established voice. This is not unusual — it happens to every writer. The formation pathway below gives you a structured way to work through it.
+          </div>
+
+          <div class="ft-session">
+            <div class="ft-num active" id="ft1num">1</div>
+            <div class="ft-body">
+              <div class="ft-title">Baseline Session</div>
+              <div class="ft-desc">An authenticated writing session in a monitored environment. Establishes your verified voice and gives us a clean reference point for what follows.</div>
+              <div class="ft-action">
+                <button class="ft-btn" id="ft1btn" onclick="advanceFormation(1)">Schedule a sitting →</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="ft-session">
+            <div class="ft-num" id="ft2num">2</div>
+            <div class="ft-body">
+              <div class="ft-title">Formation Session</div>
+              <div class="ft-desc">Targeted writing exercises designed around the dimensions of your voice that diverged. Strengthens your writing where it is developing.</div>
+              <div class="ft-action">
+                <button class="ft-btn" id="ft2btn" disabled onclick="advanceFormation(2)">Begin formation →</button>
+                <div class="ft-locked" id="ft2locked">Available after Session 1</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ft-session">
+            <div class="ft-num" id="ft3num">3</div>
+            <div class="ft-body">
+              <div class="ft-title">Verification Session</div>
+              <div class="ft-desc">A new authenticated piece, submitted and scored against your baseline. Successful completion clears the formation flag from your record and closes this pathway.</div>
+              <div class="ft-action">
+                <button class="ft-btn" id="ft3btn" disabled onclick="advanceFormation(3)">Submit verification piece →</button>
+                <div class="ft-locked" id="ft3locked">Available after Session 2</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="padding:16px 0;border-top:1px solid var(--hairline);font-family:var(--font-b);font-style:italic;font-size:0.81rem;color:rgba(26,26,26,0.38);line-height:1.55" id="ftComplete" style="display:none">
+            Formation complete. Your record has been updated.
+          </div>
+        </div>
+
+        <div style="font-family:var(--font-b);font-style:italic;font-size:0.83rem;color:rgba(26,26,26,0.38);line-height:1.6;max-width:480px">
+          This pathway is developmental throughout. Every step is designed to strengthen your writing, not to assess it. Your tutor is a companion here, not an examiner.
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end .main -->
+</div><!-- end .layout -->
 
 <script>
-/* ── Sidebar collapse ── */
-(function(){
-  const sidebar = document.querySelector('.sidebar');
-  const btn = document.getElementById('sidebarToggle');
-  if(!sidebar||!btn) return;
-  if(localStorage.getItem('sb-collapsed')==='1') sidebar.classList.add('collapsed');
-  btn.addEventListener('click',()=>{
-    const c = sidebar.classList.toggle('collapsed');
-    localStorage.setItem('sb-collapsed', c?'1':'0');
-  });
-})();
-/* ── Right panel collapse ── */
-(function(){
-  const panel = document.querySelector('.panel-3d');
-  const closeBtn = document.getElementById('panelCloseBtn');
-  const reopenTab = document.getElementById('panelReopenTab');
-  if(!panel) return;
-  function collapsePanel(){
-    panel.classList.add('collapsed');
-    if(reopenTab) reopenTab.classList.add('show');
-    localStorage.setItem('panel-collapsed','1');
-  }
-  function expandPanel(){
-    panel.classList.remove('collapsed');
-    if(reopenTab) reopenTab.classList.remove('show');
-    localStorage.setItem('panel-collapsed','0');
-  }
-  if(localStorage.getItem('panel-collapsed')==='1') collapsePanel();
-  if(closeBtn) closeBtn.addEventListener('click', collapsePanel);
-  if(reopenTab) reopenTab.addEventListener('click', expandPanel);
-})();
-'use strict';
+/* ═══════════════════════════════════════════════════════════════
+   Configuration
+   ═══════════════════════════════════════════════════════════════ */
+const API = (window.location.port === '8001' || window.location.port === '8000') ? '' : 'http://localhost:8001';
+const studentId  = () => localStorage.getItem('original_student_id')   || 'demo_student';
+const studentName= () => localStorage.getItem('original_student_name') || 'Student';
+const institution= () => localStorage.getItem('original_institution')  || 'Your Institution';
+const course     = () => localStorage.getItem('original_course')       || 'Writing Formation';
+const semester   = () => localStorage.getItem('original_semester')     || 'Autumn Term 2025';
 
-function showToast(msg, type='info', duration=3500) {
-  const c = document.getElementById('toastContainer');
-  if (!c) return;
-  const t = Object.assign(document.createElement('div'), {textContent: msg});
-  const bg = type==='error'?'#DC2626':type==='success'?'#059669':'#0F172A';
-  Object.assign(t.style, {background:bg,color:'#fff',padding:'11px 18px',borderRadius:'10px',fontSize:'0.82rem',fontWeight:'500',maxWidth:'300px',opacity:'0',transform:'translateY(12px)',transition:'opacity 0.25s,transform 0.25s',pointerEvents:'auto'});
-  c.appendChild(t);
-  requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ t.style.opacity='1'; t.style.transform='translateY(0)'; }); });
-  setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, duration);
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// SVG ICON LIBRARY
-// ═══════════════════════════════════════════════════════════════════
-
-const IC = {
-  file:    '<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
-  chart:   '<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
-  shield:  '<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
-  check:   '<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
-  growth:  '<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10m0 0l-3 3m3-3l3 3"/><circle cx="12" cy="6" r="2"/></svg>',
-  upload:  '<svg viewBox="0 0 24 24" width="32" height="32" stroke="currentColor" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
-  search:  '<svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
-  book:    '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>',
-  lock:    '<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>',
-  plus:    '<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
-  send:    '<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
-  folder:  '<svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>',
-  cols:    '<svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>',
-  arrowUp: '<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>',
-  arrowDn: '<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>',
-  minus:   '<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>',
-  chevDn:  '<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
-  info:    '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
-  x:       '<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
-  hourglass:'<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v4l-5 5 5 5v4H6v-4l5-5-5-5V2z"/></svg>',
+/* ═══════════════════════════════════════════════════════════════
+   Demo fallback data (used when server is unreachable)
+   ═══════════════════════════════════════════════════════════════ */
+const DEMO_HISTORY = [
+  { submission_id:'s1', assignment:'Augustinian Restlessness',   created_at:'2025-10-09', divergence_score:0.28, action:'no_action', words:1240 },
+  { submission_id:'s2', assignment:'Response: Hauerwas',         created_at:'2025-10-23', divergence_score:0.22, action:'no_action', words:620  },
+  { submission_id:'s3', assignment:'Conscience & Formation',     created_at:'2025-11-06', divergence_score:0.17, action:'no_action', words:1480 },
+  { submission_id:'s4', assignment:'Method in Theology',         created_at:'2025-11-14', divergence_score:0.61, action:'schedule_conversation', words:520 },
+  { submission_id:'s5', assignment:'The Sacramental Body',       created_at:'2025-11-21', divergence_score:0.15, action:'no_action', words:1600 },
+  { submission_id:'s6', assignment:'Barth on Analogy',           created_at:'2025-12-03', divergence_score:0.12, action:'no_action', words:2100 },
+  { submission_id:'s7', assignment:'Pneumatology & Praxis',      created_at:'2025-12-10', divergence_score:0.09, action:'no_action', words:1520 },
+  { submission_id:'s8', assignment:'Vocation & Suffering',       created_at:'2025-12-16', divergence_score:0.06, action:'no_action', words:3200 },
+];
+const DEMO_NOTES = [
+  { reviewer:'Dr. H. Pemberton', created_at:'2025-12-18',
+    notes:'Your extended essay shows a remarkable consolidation of the voice you have been developing all term. The shift in your handling of apophatic language — from borrowed register to genuinely your own — is exactly what formation looks like.' },
+  { reviewer:'Dr. H. Pemberton', created_at:'2025-11-17',
+    notes:'The Method in Theology response reads somewhat differently from your established voice — the hedging patterns are heavier than usual. Worth a conversation: was this intentional, or are you uncertain about the argument itself?' },
+];
+const DEMO_BASELINE = {
+  sentence_length_variance:0.62, type_token_ratio:0.78, hedging_density:0.41,
+  passive_voice_ratio:0.33,      transition_density:0.55, assertion_density:0.67,
+  first_person_ratio:0.48,       contraction_rate:0.25,   avg_word_length:0.60,
+  burstiness:0.70,               perplexity_proxy:0.58,   theological_register_score:0.82,
+};
+const DEMO_EARLY = {
+  sentence_length_variance:0.45, type_token_ratio:0.62, hedging_density:0.55,
+  passive_voice_ratio:0.44,      transition_density:0.48, assertion_density:0.52,
+  first_person_ratio:0.35,       contraction_rate:0.18,   avg_word_length:0.55,
+  burstiness:0.52,               perplexity_proxy:0.44,   theological_register_score:0.72,
 };
 
-// ═══════════════════════════════════════════════════════════════════
-// CONFIGURATION
-// ═══════════════════════════════════════════════════════════════════
-
-const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-  ? `${location.protocol}//${location.hostname}:${location.port || 8001}`
-  : location.origin;
-
-/* ── Roster helpers — reads data saved by onboard.html ── */
-function getRosterData() {
-  try { return JSON.parse(localStorage.getItem('original_roster') || 'null'); } catch(e) { return null; }
+/* ═══════════════════════════════════════════════════════════════
+   Focus Coach
+   ═══════════════════════════════════════════════════════════════ */
+const COACH_WHISPERS = [
+  "Feeling stuck? Read your thesis out loud. Does this paragraph serve it?",
+  "One clear idea at a time.",
+  "Taking a moment? Check your outline — are you still on track?",
+  "Your strongest writing comes when you trust what you already know.",
+  "Step away two minutes. Come back fresh.",
+  "Does this sound like you?",
+  "The argument is in the details. Slow down.",
+  "Write the sentence you mean, not the sentence that sounds impressive.",
+  "A paragraph is one thought, fully expressed. Is this one finished?",
+  "Read the last sentence you wrote. Does it earn the next one?",
+];
+let _coachIdx = Math.floor(Math.random() * COACH_WHISPERS.length);
+function rotateCoach() {
+  const el = document.getElementById('coachWhisper');
+  if (!el) return;
+  el.style.opacity = '0';
+  setTimeout(() => {
+    _coachIdx = (_coachIdx + 1) % COACH_WHISPERS.length;
+    el.textContent = COACH_WHISPERS[_coachIdx];
+    el.style.opacity = '1';
+  }, 500);
 }
-function getStudentNameFromRoster(id) {
-  const r = getRosterData();
-  if (r?.students) {
-    const s = r.students.find(s => s.id === id);
-    if (s) return s.name;
+setInterval(rotateCoach, 90000);
+// Show a random whisper on load
+document.getElementById('coachWhisper').textContent = COACH_WHISPERS[_coachIdx];
+
+/* ═══════════════════════════════════════════════════════════════
+   View switching
+   ═══════════════════════════════════════════════════════════════ */
+const VIEW_LABELS = { profile:'Voice Profile', library:'The Library', notes:'Voice Notes', submit:'Submit Work', formation:'Formation Track' };
+
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const vEl = document.getElementById('view-' + name);
+  if (vEl) vEl.classList.add('active');
+  document.querySelectorAll('.nav-item[data-view]').forEach(n =>
+    n.classList.toggle('active', n.dataset.view === name));
+  document.getElementById('bcCur').textContent = VIEW_LABELS[name] || name;
+  if (name === 'profile') loadProfile();
+  if (name === 'library') loadLibrary();
+  if (name === 'notes')   loadNotes();
+}
+document.querySelectorAll('.nav-item[data-view]').forEach(item =>
+  item.addEventListener('click', () => showView(item.dataset.view)));
+
+/* ═══════════════════════════════════════════════════════════════
+   Helpers
+   ═══════════════════════════════════════════════════════════════ */
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fidFromDev(d) { return Math.max(0, Math.round((1 - (d||0)) * 100)); }
+function shortDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+}
+function spineCol(f, div) {
+  if (div)   return { bg:'#3d1620', text:'#d4a0aa', bdr:'rgba(107,39,55,0.5)'   };
+  if (f>=88) return { bg:'#0f1e34', text:'#c9a845', bdr:'rgba(176,141,60,0.4)' };
+  if (f>=80) return { bg:'#1a2e3d', text:'#90a8c0', bdr:'rgba(60,90,130,0.4)'  };
+  return           { bg:'#1e2a24', text:'#7aa090', bdr:'rgba(74,107,92,0.35)'  };
+}
+function fidLabel(f, div) {
+  if (div)   return ['diverged',   'Voice diverges'];
+  if (f>=88) return ['strong',     'Voice strong'  ];
+  if (f>=78) return ['strong',     'Voice on track'];
+  return           ['developing',  'Voice forming' ];
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   API
+   ═══════════════════════════════════════════════════════════════ */
+async function apiFetch(path, opts) {
+  try {
+    const r = await fetch(API + path, opts);
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  } catch(e) { return null; }
+}
+async function getHistory() {
+  const d = await apiFetch(`/admin/manifests?student_id=${encodeURIComponent(studentId())}&limit=50`);
+  if (d?.items?.length) return d.items;
+  // Fall back to localStorage portfolio
+  try {
+    const raw = localStorage.getItem('original_portfolio_' + studentId());
+    if (raw) {
+      const portfolio = JSON.parse(raw);
+      return portfolio.map(p => ({
+        submission_id: String(p.id),
+        assignment: p.assignment,
+        created_at: p.timestamp,
+        divergence_score: p.response?.authorship?.deviation_score || 0,
+        action: p.response?.recommendation?.action || 'no_action',
+        words: p.words || 0,
+      }));
+    }
+  } catch(e) {}
+  return DEMO_HISTORY;
+}
+async function getNotes() {
+  const d = await apiFetch(`/admin/corrections?student_id=${encodeURIComponent(studentId())}`);
+  return d?.items?.length ? d.items : DEMO_NOTES;
+}
+async function getState() {
+  return apiFetch(`/students/${encodeURIComponent(studentId())}`);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Formation track state
+   ═══════════════════════════════════════════════════════════════ */
+let _ftStep = parseInt(localStorage.getItem('ft_step_' + studentId()) || '0');
+
+function updateFormationNav(show) {
+  document.getElementById('navFormation').style.display = show ? 'flex' : 'none';
+}
+function updateFormationUI() {
+  [1,2,3].forEach(n => {
+    const num = document.getElementById('ft'+n+'num');
+    const btn = document.getElementById('ft'+n+'btn');
+    const lk  = document.getElementById('ft'+n+'locked');
+    if (!num) return;
+    if (n <= _ftStep) {
+      num.className = 'ft-num done';
+      if (btn) { btn.disabled = true; }
+      if (lk)  lk.style.display = 'none';
+    } else if (n === _ftStep + 1) {
+      num.className = 'ft-num active';
+      if (btn) btn.disabled = false;
+      if (lk)  lk.style.display = 'none';
+    } else {
+      num.className = 'ft-num';
+      if (btn) btn.disabled = true;
+      if (lk)  { lk.textContent = `Available after Session ${n-1}`; lk.style.display = ''; }
+    }
+  });
+  if (_ftStep >= 3) document.getElementById('ftComplete').style.display = 'block';
+}
+function advanceFormation(step) {
+  if (step !== _ftStep + 1) return;
+  _ftStep = step;
+  localStorage.setItem('ft_step_' + studentId(), _ftStep);
+  updateFormationUI();
+  if (_ftStep >= 3) updateFormationNav(false);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SVG: Fingerprint radar
+   ═══════════════════════════════════════════════════════════════ */
+const FP_DIMS = [
+  'sentence_length_variance','type_token_ratio','hedging_density',
+  'passive_voice_ratio','transition_density','assertion_density',
+  'first_person_ratio','contraction_rate','avg_word_length',
+  'burstiness','perplexity_proxy','theological_register_score',
+];
+const FP_LABELS = [
+  'Rhythm','Vocabulary','Hedging','Passive','Transitions','Assertion',
+  'First person','Contractions','Word length','Burstiness','Predictability','Register',
+];
+
+function drawFingerprint(svgEl, current, early) {
+  const CX=150, CY=150, R=100, INNER=18, N=FP_DIMS.length;
+  let html = '';
+
+  // Grid rings
+  [0.25,0.5,0.75,1].forEach(t => {
+    const r = INNER + t*(R-INNER);
+    html += `<circle cx="${CX}" cy="${CY}" r="${r.toFixed(1)}" fill="none" stroke="rgba(176,141,60,0.08)" stroke-width="0.8"/>`;
+  });
+
+  // Axis spokes
+  for (let i=0;i<N;i++) {
+    const a = (i/N)*2*Math.PI - Math.PI/2;
+    const x = CX + R*Math.cos(a), y = CY + R*Math.sin(a);
+    html += `<line x1="${CX}" y1="${CY}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="rgba(60,90,130,0.12)" stroke-width="0.8"/>`;
   }
-  return null;
-}
-function getCourseFromRoster() {
-  return getRosterData()?.course || null;
-}
 
-/* ── Class code join: if ?student= is absent, check for class code join UI ── */
-function resolveStudentId() {
-  const params = new URLSearchParams(location.search);
-  const explicit = params.get('student');
-  if (explicit) return explicit;
-
-  // No student param — show class code join overlay
-  showClassCodeJoin();
-  return null;
-}
-
-function showClassCodeJoin() {
-  // Inject join overlay into the body
-  const overlay = document.createElement('div');
-  overlay.id = 'join-overlay';
-  overlay.style.cssText = `
-    position:fixed;inset:0;background:var(--bg,#F0F4F9);
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    z-index:9999;font-family:Inter,sans-serif;
-  `;
-  overlay.innerHTML = `
-    <div style="text-align:center;margin-bottom:32px">
-      <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#002147,#1B4F8A);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-      </div>
-      <div style="font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;color:#002147">Original</div>
-      <div style="font-size:0.85rem;color:#4A6080;margin-top:4px">Student Writing Portfolio</div>
-    </div>
-    <div style="background:#fff;border:1px solid rgba(0,33,71,0.10);border-radius:16px;padding:32px 36px;width:100%;max-width:380px;box-shadow:0 4px 24px rgba(0,33,71,0.10)">
-      <div style="font-size:1rem;font-weight:600;color:#0A1628;margin-bottom:6px">Find Your Profile</div>
-      <div style="font-size:0.82rem;color:#4A6080;margin-bottom:20px">Enter the class code your professor gave you, then select your name.</div>
-      <input id="join-code" type="text" maxlength="8" placeholder="Class code (e.g. TH5010)"
-        style="width:100%;padding:12px 14px;border:1.5px solid rgba(0,33,71,0.15);border-radius:10px;font-family:Inter,sans-serif;font-size:1rem;letter-spacing:0.08em;text-transform:uppercase;text-align:center;outline:none;margin-bottom:10px"
-        oninput="lookupClassCode(this.value)">
-      <div id="join-roster" style="margin-bottom:14px"></div>
-      <div id="join-error" style="font-size:0.78rem;color:#B91C1C;min-height:18px"></div>
-      <div style="margin-top:16px;border-top:1px solid rgba(0,33,71,0.08);padding-top:14px;font-size:0.75rem;color:#8FA3BC;text-align:center">
-        Don't have a code? Ask your professor, or visit the link they shared with you directly.
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  // Load Google Fonts if needed
-  if (!document.querySelector('link[href*="Playfair"]')) {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap';
-    document.head.appendChild(link);
+  function pts(vec) {
+    return FP_DIMS.map((k,i) => {
+      const v = Math.min(1,Math.max(0, vec[k]||0));
+      const r = INNER + v*(R-INNER);
+      const a = (i/N)*2*Math.PI - Math.PI/2;
+      return `${(CX+r*Math.cos(a)).toFixed(1)},${(CY+r*Math.sin(a)).toFixed(1)}`;
+    }).join(' ');
   }
+
+  // Early polygon (dashed)
+  if (early) {
+    html += `<polygon points="${pts(early)}" fill="none" stroke="rgba(60,90,130,0.35)" stroke-width="1" stroke-dasharray="3,3"/>`;
+  }
+  // Current polygon (gold)
+  html += `<polygon points="${pts(current)}" fill="rgba(176,141,60,0.09)" stroke="#B08D3C" stroke-width="1.5" opacity="0" style="transition:opacity .5s">`;
+  html += `<animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="0.1s" fill="freeze"/></polygon>`;
+
+  // 4 axis labels (top, right, bottom, left)
+  [0, N/4, N/2, 3*N/4].map(i => Math.round(i) % N).forEach(i => {
+    const a = (i/N)*2*Math.PI - Math.PI/2;
+    const x = CX+(R+14)*Math.cos(a), y = CY+(R+14)*Math.sin(a);
+    html += `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-family="'EB Garamond',serif" font-size="8.5" fill="rgba(247,242,231,0.38)" text-anchor="middle" dominant-baseline="middle">${FP_LABELS[i]}</text>`;
+  });
+
+  svgEl.innerHTML = html;
 }
 
-function lookupClassCode(code) {
-  const roster = getRosterData();
-  const errEl  = document.getElementById('join-error');
-  const listEl = document.getElementById('join-roster');
-  if (!listEl) return;
-  code = code.trim().toUpperCase();
-  if (code.length < 4) { listEl.innerHTML = ''; errEl.textContent = ''; return; }
-  if (!roster || roster.classCode?.toUpperCase() !== code) {
-    listEl.innerHTML = '';
-    errEl.textContent = code.length >= 6 ? 'Class code not found. Check with your professor.' : '';
+/* ═══════════════════════════════════════════════════════════════
+   SVG: Arc chart
+   ═══════════════════════════════════════════════════════════════ */
+function drawArc(svgEl, submissions) {
+  const W = svgEl.parentElement?.clientWidth || 500;
+  const H = 220, PL=24, PR=20, PT=16, PB=30;
+  svgEl.setAttribute('width', W);
+
+  if (!submissions?.length) {
+    svgEl.innerHTML = `<text x="${W/2}" y="${H/2}" font-family="'EB Garamond',serif" font-style="italic" font-size="13" fill="rgba(26,26,26,0.28)" text-anchor="middle">Submit your first piece to reveal your arc.</text>`;
     return;
   }
-  errEl.textContent = '';
-  const students = roster.students || [];
-  listEl.innerHTML = `<div style="font-size:0.78rem;font-weight:600;color:#4A6080;margin-bottom:8px">Select your name:</div>` +
-    students.map(s => `
-      <div onclick="joinAsStudent('${s.id}')"
-        style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;border:1.5px solid rgba(0,33,71,0.10);margin-bottom:6px;cursor:pointer;background:#F0F4F9;transition:background 0.15s"
-        onmouseover="this.style.background='#E8EFF7'" onmouseout="this.style.background='#F0F4F9'">
-        <div style="width:28px;height:28px;border-radius:50%;background:#1B4F8A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;flex-shrink:0">
-          ${s.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+
+  const pts = submissions.map((s,i) => {
+    const f = fidFromDev(s.divergence_score);
+    const x = PL + (submissions.length===1 ? (W-PL-PR)/2 : i*(W-PL-PR)/(submissions.length-1));
+    const y = PT + (1-f/100)*(H-PT-PB);
+    return {x,y,f,s};
+  });
+
+  let html = '';
+
+  // Hairlines
+  [25,50,75].forEach(v => {
+    const y = PT + (1-v/100)*(H-PT-PB);
+    html += `<line x1="${PL}" y1="${y.toFixed(1)}" x2="${W-PR}" y2="${y.toFixed(1)}" stroke="rgba(60,90,130,0.09)" stroke-width="1"/>`;
+    html += `<text x="${PL+2}" y="${(y-3).toFixed(1)}" font-family="'EB Garamond',serif" font-size="8" fill="rgba(60,90,130,0.28)">${v}</text>`;
+  });
+
+  // Smooth bezier
+  if (pts.length>1) {
+    let d = `M${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+    for (let i=0;i<pts.length-1;i++) {
+      const p0=pts[i], p1=pts[i+1], cx=(p0.x+p1.x)/2;
+      d += ` C${cx.toFixed(1)} ${p0.y.toFixed(1)},${cx.toFixed(1)} ${p1.y.toFixed(1)},${p1.x.toFixed(1)} ${p1.y.toFixed(1)}`;
+    }
+    html += `<path d="${d}" fill="none" stroke="#B08D3C" stroke-width="1.5"/>`;
+  }
+
+  // Points
+  pts.forEach((p,i) => {
+    const last = i===pts.length-1;
+    const c = p.f<78 ? 'rgba(107,39,55,0.7)' : '#B08D3C';
+    html += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${last?4:2.5}" fill="${last?c:'rgba(176,141,60,0.4)'}"/>`;
+    if (last) html += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="8" fill="none" stroke="${c}" stroke-width="1" opacity="0.3"/>`;
+  });
+
+  // Date labels
+  if (pts.length>=2) {
+    html += `<text x="${pts[0].x.toFixed(1)}" y="${(H-5).toFixed(1)}" font-family="'EB Garamond',serif" font-style="italic" font-size="9" fill="rgba(26,26,26,0.30)" text-anchor="start">${shortDate(pts[0].s.created_at)}</text>`;
+    html += `<text x="${pts[pts.length-1].x.toFixed(1)}" y="${(H-5).toFixed(1)}" font-family="'EB Garamond',serif" font-style="italic" font-size="9" fill="rgba(26,26,26,0.30)" text-anchor="end">${shortDate(pts[pts.length-1].s.created_at)}</text>`;
+  }
+
+  svgEl.innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Load: Profile
+   ═══════════════════════════════════════════════════════════════ */
+async function loadProfile() {
+  const [history, notes, state] = await Promise.all([getHistory(), getNotes(), getState()]);
+  const first = studentName().split(' ')[0];
+
+  // Headline
+  const latest = history[history.length-1];
+  if (latest) {
+    const f = fidFromDev(latest.divergence_score);
+    document.getElementById('proTitle').textContent = `${first}, your voice is finding its shape.`;
+    document.getElementById('proSub').textContent =
+      `Voice fidelity ${f} on your latest submission — ${f>=80?'a strong result this term':'your voice is developing across the term'}.`;
+  }
+
+  // Arc title + footer
+  document.getElementById('arcTitle').textContent = 'Voice fidelity across ' + semester();
+  const wordTotal = history.reduce((s,h)=>s+(h.words||0),0);
+  document.getElementById('arcFooter').textContent =
+    `${history.length} submission${history.length!==1?'s':''} · ${semester()} · ${wordTotal.toLocaleString()} words analysed`;
+
+  // Visualisations
+  const baseVec = state?.baseline_vector || DEMO_BASELINE;
+  drawFingerprint(document.getElementById('fpSvg'), baseVec, DEMO_EARLY);
+  drawArc(document.getElementById('arcSvg'), history);
+
+  // Review opportunity
+  const hasFlag = latest && latest.action && latest.action !== 'no_action';
+  document.getElementById('roBlock').style.display = hasFlag ? 'flex' : 'none';
+  if (hasFlag) {
+    document.getElementById('roBody').textContent =
+      `A passage in your ${latest.assignment||'recent submission'} diverges from your established voice. This is worth a brief conversation with your tutor.`;
+    document.getElementById('roMeta').textContent =
+      `${shortDate(latest.created_at)} · ${latest.assignment||'Submission'}`;
+    updateFormationNav(true);
+  }
+
+  // Metrics
+  const onVoice = history.filter(h=>!h.action||h.action==='no_action').length;
+  const fValues = history.map(h=>fidFromDev(h.divergence_score));
+  const latestF = fValues[fValues.length-1]||0;
+  const firstF  = fValues[0]||0;
+  const delta   = latestF - firstF;
+
+  document.getElementById('mFidelity').textContent  = latestF || '—';
+  document.getElementById('mFidelityD').textContent = delta>0 ? `↑ ${delta} pts since start of term` : '';
+  document.getElementById('mSubs').textContent      = history.length;
+  document.getElementById('mSubsD').textContent     = wordTotal ? wordTotal.toLocaleString()+' words total' : '';
+  document.getElementById('mOnVoice').textContent   = history.length ? `${onVoice}/${history.length}` : '—';
+  document.getElementById('mOnVoiceD').textContent  = history.length-onVoice===0&&history.length>0 ? 'All on voice this term' : `${history.length-onVoice} reviewed`;
+  document.getElementById('mGrowth').textContent    = state?.sample_count || history.length;
+  document.getElementById('mGrowthD').textContent   = state ? `Purity ${((state.purity||0)*100).toFixed(0)}%` : '';
+
+  // Notes strip
+  const strip = document.getElementById('proNotesStrip');
+  if (notes.length) {
+    strip.innerHTML = notes.slice(0,2).map(n=>`
+      <div class="vn">
+        <div class="vn-meta">
+          <span class="vn-auth">${esc(n.reviewer||'Your tutor')}</span>
+          <span class="vn-date">${shortDate(n.created_at)}</span>
         </div>
-        <span style="font-size:0.88rem;font-weight:500;color:#0A1628">${s.name}</span>
+        <div class="vn-body">${esc(n.notes||'')}</div>
       </div>`).join('');
+  } else {
+    strip.innerHTML = '<div class="vn" style="border-top:none"><div class="empty-serif">No voice notes yet.</div></div>';
+  }
 }
 
-function joinAsStudent(studentId) {
-  // Redirect to same page with student param
-  const url = new URL(location.href);
-  url.searchParams.set('student', studentId);
-  location.href = url.toString();
-}
+/* ═══════════════════════════════════════════════════════════════
+   Load: Library
+   ═══════════════════════════════════════════════════════════════ */
+async function loadLibrary() {
+  const history = await getHistory();
+  document.getElementById('libSub').textContent =
+    `${history.length} submission${history.length!==1?'s':''}, ${semester()}. Select a spine to read the record.`;
 
-const STUDENT_NAMES = { whitfield_j:'James Whitfield', okonkwo_s:'Sarah Okonkwo', osei_d:'Daniel Osei', mercer_l:'Lydia Mercer' };
-function getStudentId() {
-  return new URLSearchParams(location.search).get('student') || null;
-}
-const _rawId = getStudentId();
-if (!_rawId) { resolveStudentId(); }
-const STUDENT_ID = _rawId || 'whitfield_j';  // fallback keeps page functional
-const STUDENT_NAME = getStudentNameFromRoster(STUDENT_ID) || STUDENT_NAMES[STUDENT_ID] || STUDENT_ID;
+  const shelf = document.getElementById('libShelf');
+  if (!history.length) {
+    shelf.innerHTML = '<div class="empty-serif">Submit your first piece of work to begin your library.</div>';
+    return;
+  }
 
-/* ── Inject course info into dashboard header if available ── */
-function applyCourseInfo() {
-  const course = getCourseFromRoster();
-  if (!course) return;
-  const sub = document.getElementById('hdr-sub');
-  if (sub) sub.textContent = `${course.code || ''} ${course.name || ''} · ${course.semester || ''}`.trim();
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// FEATURE METADATA
-// ═══════════════════════════════════════════════════════════════════
-
-const FEATURE_NAMES = {
-  type_token_ratio:'Vocabulary Range', hapax_legomena_rate:'Word Uniqueness',
-  mean_sentence_length:'Sentence Length', sentence_length_variance:'Sentence Variety',
-  function_word_ratio:'Function Words', passive_voice_ratio:'Passive Voice',
-  modal_verb_ratio:'Modal Verb Usage', stop_word_ratio:'Common Words', avg_word_length:'Word Complexity',
-  discourse_marker_density:'Discourse Markers', additive_ratio:'Additive Transitions',
-  adversative_ratio:'Contrasting Transitions', causal_ratio:'Causal Reasoning',
-  temporal_ratio:'Temporal Flow', thematic_progression_score:'Thematic Progression',
-  pronoun_reference_density:'Pronoun Usage', lexical_chain_density:'Lexical Chains',
-  paragraph_topic_position:'Topic Placement', avg_paragraph_length:'Paragraph Length',
-  sentence_opener_variety:'Sentence Openers', cohesion_device_ratio:'Cohesion Devices',
-  transition_density:'Transition Density',
-  epistemic_certainty_ratio:'Epistemic Certainty', hedging_density:'Hedging Language',
-  assertion_density:'Assertion Strength', source_integration_style:'Source Integration',
-  counter_argument_ratio:'Counter-Arguments', claim_density:'Claim Density',
-  question_ratio:'Rhetorical Questions', imperative_density:'Imperative Voice',
-  first_person_ratio:'First-Person Voice', appeal_to_authority_density:'Authority Appeals',
-  conclusion_strategy_score:'Conclusion Strategy', theological_register_score:'Theological Vocabulary',
-  char_trigram_entropy:'Character Patterns', punctuation_diversity:'Punctuation Diversity',
-  comma_rate:'Comma Usage', semicolon_colon_rate:'Semicolons & Colons',
-  parenthetical_rate:'Parenthetical Usage', dash_rate:'Dash Usage', quote_rate:'Quotation Usage',
-  pos_bigram_entropy:'Grammar Patterns', pos_trigram_entropy:'Syntax Complexity',
-  noun_verb_ratio:'Noun-Verb Balance', adjective_rate:'Adjective Rate', adverb_rate:'Adverb Rate',
-  subordination_ratio:'Subordination', clause_depth_mean:'Clause Depth',
-  contraction_rate:'Contractions', sentence_initial_conjunction_rate:'Starting Conjunctions',
-  that_which_ratio:'That/Which Preference', citation_style_consistency:'Citation Consistency',
-  list_marker_preference:'List Style', abbreviation_tendency:'Abbreviation Use',
-  burstiness:'Burstiness', perplexity_proxy:'Unpredictability', repetition_gap_entropy:'Repetition Spacing',
-  transition_predictability:'Transition Predictability', vocabulary_introduction_rate:'Vocab Introduction',
-  filler_hedge_cluster_rate:'Hedge Clustering',
-  char_trigram_profile_divergence:'Char Pattern Shift', function_word_profile_divergence:'Function Word Shift',
-  // Tier 8 — Prosodic Rhythm
-  stress_entropy_unigram:'Stress Entropy (Unigram)', stress_entropy_bigram:'Stress Entropy (Bigram)',
-  clausulae_consistency:'Sentence Cadence', breath_group_variance:'Breath Group Variance',
-  // Tier 9 — Cognitive Sequencing
-  structural_centrist_penalty:'Argument Spread', markov_argument_alignment:'Rhetorical Sequence',
-  // Tier 10 — Semantic Gravity
-  semantic_field_dispersion:'Semantic Range', semantic_gravity_score:'Semantic Gravity',
-  // Tier 11 — Error Ecology
-  error_kl_divergence:'Error Fingerprint', stumble_rate_consistency:'Stumble Pattern',
-  punctuation_error_ratio:'Punctuation Errors',
-  // Tier 12 — Tension Arc
-  catastrophe_index:'Tension Arc (κ)',
-  // Tier 13 — Prosodic Depth
-  clausula_type_consistency:'Clausula Consistency', breath_group_regularity:'Breath-Group Regularity',
-  vowel_sonority_ratio:'Vowel Sonority', arc_resolution_score:'Arc Resolution',
-  metric_flatness_score:'Prosodic Flatness', clausula_shape_preference:'Clausula Shape',
-  // Tier 14 — Error Topology & Syntax
-  error_topology_consistency:'Error Pattern Consistency', article_omission_rate:'Article Omission',
-  pronoun_ambiguity_rate:'Pronoun Clarity', comma_splice_rate:'Comma Splices',
-  // Tier 15 — Lexical Architecture
-  semantic_field_concentration:'Semantic Focus', polysyndeton_ratio:'List Style (Poly/Asyndeton)',
-  chiasmus_rate:'Chiasmus Patterns', latinate_ratio:'Latinate Vocabulary',
-  nominalization_density:'Nominalization Density',
-  // Tier 16 — Citation Fingerprint
-  signal_verb_entropy:'Signal Verb Diversity', signal_verb_assertiveness:'Citation Assertiveness',
-  source_loyalty_index:'Source Loyalty', block_quote_rate:'Block-Quote Rate',
-  citation_density_cv:'Citation Distribution', ibid_usage_rate:'Ibid. Usage',
-  citation_position_pref:'Citation Position Style', paraphrase_density:'Paraphrase Density',
-};
-
-const FEATURE_TIER = {};
-['type_token_ratio','hapax_legomena_rate','mean_sentence_length','sentence_length_variance','function_word_ratio','passive_voice_ratio','modal_verb_ratio','stop_word_ratio','avg_word_length'].forEach(c=>FEATURE_TIER[c]=1);
-['discourse_marker_density','additive_ratio','adversative_ratio','causal_ratio','temporal_ratio','thematic_progression_score','pronoun_reference_density','lexical_chain_density','paragraph_topic_position','avg_paragraph_length','sentence_opener_variety','cohesion_device_ratio','transition_density'].forEach(c=>FEATURE_TIER[c]=2);
-['epistemic_certainty_ratio','hedging_density','assertion_density','source_integration_style','counter_argument_ratio','claim_density','question_ratio','imperative_density','first_person_ratio','appeal_to_authority_density','conclusion_strategy_score','theological_register_score'].forEach(c=>FEATURE_TIER[c]=3);
-['char_trigram_entropy','punctuation_diversity','comma_rate','semicolon_colon_rate','parenthetical_rate','dash_rate','quote_rate'].forEach(c=>FEATURE_TIER[c]=4);
-['pos_bigram_entropy','pos_trigram_entropy','noun_verb_ratio','adjective_rate','adverb_rate','subordination_ratio','clause_depth_mean'].forEach(c=>FEATURE_TIER[c]=5);
-['contraction_rate','sentence_initial_conjunction_rate','that_which_ratio','citation_style_consistency','list_marker_preference','abbreviation_tendency'].forEach(c=>FEATURE_TIER[c]=6);
-['burstiness','perplexity_proxy','repetition_gap_entropy','transition_predictability','vocabulary_introduction_rate','filler_hedge_cluster_rate'].forEach(c=>FEATURE_TIER[c]=7);
-// Tiers 8–12 (Musical / Deep Signal)
-['stress_entropy_unigram','stress_entropy_bigram','clausulae_consistency','breath_group_variance'].forEach(c=>FEATURE_TIER[c]=8);
-['structural_centrist_penalty','markov_argument_alignment'].forEach(c=>FEATURE_TIER[c]=9);
-['semantic_field_dispersion','semantic_gravity_score'].forEach(c=>FEATURE_TIER[c]=10);
-['error_kl_divergence','stumble_rate_consistency','punctuation_error_ratio'].forEach(c=>FEATURE_TIER[c]=11);
-['catastrophe_index'].forEach(c=>FEATURE_TIER[c]=12);
-// Tiers 13–15 (Deep Prosodic & Lexical Architecture)
-['clausula_type_consistency','breath_group_regularity','vowel_sonority_ratio','arc_resolution_score','metric_flatness_score','clausula_shape_preference'].forEach(c=>FEATURE_TIER[c]=13);
-['error_topology_consistency','article_omission_rate','pronoun_ambiguity_rate','comma_splice_rate'].forEach(c=>FEATURE_TIER[c]=14);
-['semantic_field_concentration','polysyndeton_ratio','chiasmus_rate','latinate_ratio','nominalization_density'].forEach(c=>FEATURE_TIER[c]=15);
-// Tier 16 — Citation Fingerprint
-['signal_verb_entropy','signal_verb_assertiveness','source_loyalty_index','block_quote_rate','citation_density_cv','ibid_usage_rate','citation_position_pref','paraphrase_density'].forEach(c=>FEATURE_TIER[c]=16);
-
-const ARGUMENT_FEATURES = ['epistemic_certainty_ratio','hedging_density','counter_argument_ratio','claim_density','source_integration_style','assertion_density'];
-const THEOLOGY_FEATURES = ['theological_register_score','appeal_to_authority_density','conclusion_strategy_score'];
-const CLARITY_FEATURES  = ['sentence_length_variance','discourse_marker_density','cohesion_device_ratio','transition_density','sentence_opener_variety','thematic_progression_score'];
-
-const COACHING = {
-  sentence_length_variance:{higher:'Your sentences vary more than usual — try maintaining a steadier rhythm.',lower:'Try mixing short declarative sentences with longer complex ones.'},
-  hedging_density:{higher:'Good epistemic caution. Ensure hedging serves your argument.',lower:'Academic writing benefits from hedging: "it appears that", "evidence suggests".'},
-  passive_voice_ratio:{higher:'Try leading with active subjects to strengthen directness.',lower:'Your active voice is strong. Consider occasional passive constructions.'},
-  first_person_ratio:{higher:'Strong personal voice. Balance reflection with objective analysis.',lower:'Consider weaving in personal reflection ("I argue") to strengthen voice.'},
-  epistemic_certainty_ratio:{higher:'High certainty — consider where nuance might strengthen claims.',lower:'Add conviction: "this demonstrates", "the evidence makes clear".'},
-  source_integration_style:{higher:'Excellent source engagement. Ensure sources support your argument.',lower:'Integrate more direct engagement with sources — quote, then analyze.'},
-  counter_argument_ratio:{higher:'Strong engagement with opposing views. Resolve back to your thesis.',lower:'Engage counter-positions: "one might object that..."'},
-  theological_register_score:{higher:'Rich theological vocabulary. Ensure terms are accessible.',lower:'Draw on more theological terminology to demonstrate command.'},
-  discourse_marker_density:{higher:'Good signposting. Ensure transitions serve argument flow.',lower:'Add discourse markers ("furthermore", "however") to guide readers.'},
-  cohesion_device_ratio:{higher:'Well-connected prose. Consider varying cohesion strategies.',lower:'Use more cohesive devices — pronoun references, lexical chains.'},
-  sentence_opener_variety:{higher:'Good variety in sentence openings — keeps readers engaged.',lower:'Vary sentence openings — try subordinate clauses, prepositional phrases.'},
-  claim_density:{higher:'Dense with claims. Support each with evidence.',lower:'State your claims more directly and clearly.'},
-  appeal_to_authority_density:{higher:'Strong authority engagement. Balance with your own analysis.',lower:'Cite more theological authorities: "as Barth argues..."'},
-  transition_density:{higher:'Well-signposted argument flow.',lower:'Add transitional phrases between ideas.'},
-  thematic_progression_score:{higher:'Strong thematic development.',lower:'Ensure each paragraph builds on the previous theme.'},
-  type_token_ratio:{higher:'Rich and varied vocabulary.',lower:'Expand vocabulary range — avoid repeating terms.'},
-  punctuation_diversity:{higher:'Good punctuation variety (semicolons, dashes, parentheticals).',lower:'Experiment with semicolons, em dashes, and parenthetical asides.'},
-  // Tier 8 — Prosodic Rhythm
-  stress_entropy_unigram:{higher:'High rhythmic entropy — your stress patterns are unusually varied. Try reading your work aloud.',lower:'Your prose has a consistent rhythmic cadence. Consider varying your syllabic stress to add musicality.'},
-  stress_entropy_bigram:{higher:'Your sentence rhythms shift unpredictably — aim for a steadier cadence across paragraphs.',lower:'Your rhythm is highly regular. Introduce more varied sentence types to keep readers engaged.'},
-  clausulae_consistency:{higher:'Strong sentence endings — your prose flows naturally to a close.',lower:'Consider ending more sentences with a falling cadence (stressed final syllable) to create resolution.'},
-  breath_group_variance:{higher:'Your breath groups vary considerably — aim for a more consistent respiratory rhythm.',lower:'Good breath-group consistency — your prose is easy to follow aurally.'},
-  // Tier 9 — Cognitive Sequencing
-  structural_centrist_penalty:{higher:'Your argument structure favors certain patterns — try exploring a wider range of argumentative moves.',lower:'Good structural variety in your argument flow. Ensure all moves are purposeful.'},
-  markov_argument_alignment:{higher:'Your argument sequences closely match your established pattern — good rhetorical consistency.',lower:'Your argument structure differs from your usual pattern. Ensure each claim leads logically to the next.'},
-  // Tier 10 — Semantic Gravity
-  semantic_field_dispersion:{higher:'Your essay ranges widely across semantic fields — consider focusing more tightly on your thesis.',lower:'Your semantic focus is tight and consistent. Occasionally introduce related concepts to enrich the discussion.'},
-  semantic_gravity_score:{higher:'Your writing stays close to your established semantic core — strong thematic focus.',lower:'This essay strays further from your usual semantic territory. Ensure your topic is developed fully before branching out.'},
-  // Tier 11 — Error Ecology
-  error_kl_divergence:{higher:'Your writing shows your characteristic patterns of imperfection — this is actually a strong authenticity signal.',lower:'This submission shows fewer of your typical writing idiosyncrasies than usual. Are you writing in your own voice?'},
-  stumble_rate_consistency:{higher:'Your natural stumble pattern (comma splices, clause breaks) is consistent with your prior work.',lower:'Your writing is unusually polished — this differs from your typical pattern. Write naturally and edit lightly.'},
-  punctuation_error_ratio:{higher:'Some punctuation irregularities present — review comma splices and run-ons before submitting.',lower:'Excellent punctuation control in this submission.'},
-  // Tier 12 — Tension Arc
-  catastrophe_index:{higher:'High tension arc index (κ) — your writing builds genuine unresolved tension, a hallmark of authentic authorship.',lower:'Low tension arc index. Try building and sustaining tension within your argument rather than resolving every thread immediately.'},
-  // Tier 13 — Prosodic Depth
-  clausula_type_consistency:{higher:'Your sentence endings show a consistent rhythmic signature — a mark of a developed prose voice.',lower:'Your sentence endings vary without a discernible pattern. Reading aloud may help you hear your natural cadence.'},
-  breath_group_regularity:{higher:'Your pause patterns are highly regular — your prose breathes in a consistent rhythm.',lower:'Your pause groupings vary considerably. Consider whether your punctuation reflects how you naturally speak the sentence.'},
-  vowel_sonority_ratio:{higher:'Your prose uses richly sonorous vowels — a hallmark of lyrical theological writing.',lower:'Your writing uses relatively few long vowel sounds. Reading poetic prose aloud may help you develop a more resonant voice.'},
-  arc_resolution_score:{higher:'Your narrative tension resolves gracefully at the close — a strong structural instinct.',lower:'Your argument tends to leave tension unresolved. Consider whether your conclusion fully addresses the questions you raised.'},
-  metric_flatness_score:{higher:'Your prose shows unusual metric uniformity — this can read as mechanical. Vary your sentence rhythms deliberately.',lower:'Good metric variety — your stress patterns shift naturally across paragraphs.'},
-  clausula_shape_preference:{higher:'Your writing favors heavy rhetorical closings — a classical stylistic signature.',lower:'Your sentences tend to close lightly (dactylic). Consider whether a stronger closing cadence would suit your argument.'},
-  // Tier 14 — Error Topology & Syntax
-  error_topology_consistency:{higher:'Your characteristic error patterns appear in consistent positions — a reliable authenticity signal.',lower:'Your error placement varies from your usual pattern. Write naturally without over-editing.'},
-  article_omission_rate:{higher:'Some article omissions detected. Review noun phrases after prepositions for missing "the" or "a".',lower:'Good article use throughout — your determiners are consistent and natural.'},
-  pronoun_ambiguity_rate:{higher:'Some pronoun references may be ambiguous. Ensure "it" and "they" have clear antecedents.',lower:'Your pronoun references are clear. Readers can easily identify who or what is being referenced.'},
-  comma_splice_rate:{higher:'Some comma splices detected. Consider whether these are intentional rhetorical choices or editing oversights.',lower:'Good sentence boundary control — your independent clauses are properly separated.'},
-  // Tier 15 — Lexical Architecture
-  semantic_field_concentration:{higher:'Your vocabulary stays tightly within a single semantic field — strong thematic coherence.',lower:'Your word choices range across multiple semantic fields. Ensure this breadth serves your thesis.'},
-  polysyndeton_ratio:{higher:'You favor polysyndeton ("X and Y and Z") — a rhetorical device that adds weight and rhythm. Use purposefully.',lower:'Your writing tends toward asyndetic lists ("X, Y, Z"). Consider whether occasional polysyndeton might add emphasis.'},
-  chiasmus_rate:{higher:'Chiastic structures detected — you naturally balance ideas symmetrically, a mark of classical rhetoric.',lower:'Try introducing chiasmus ("easy to say, hard to do → hard to do, easy to say") for rhetorical emphasis.'},
-  latinate_ratio:{higher:'High Latinate vocabulary — appropriate for formal academic theology. Ensure accessibility for non-specialist readers.',lower:'Your vocabulary leans Germanic (plain, direct). For theological argumentation, consider richer Latinate terms where appropriate.'},
-  nominalization_density:{higher:'Heavy nominalization ("the justification of" vs. "justifying"). Consider activating some noun phrases into verb phrases for clarity.',lower:'Good balance of nominalizations and active verbs — your prose avoids excessive abstraction.'},
-  // Tier 16 — Citation Fingerprint
-  signal_verb_entropy:{higher:'Good variety in how you introduce sources ("argues", "contends", "demonstrates") — a natural academic voice.',lower:'You tend to introduce sources with the same verb repeatedly. Try rotating: "argues", "demonstrates", "observes", "contends", "insists".'},
-  signal_verb_assertiveness:{higher:'You present sources confidently ("proves", "demonstrates") — keep this assertive engagement.',lower:'Consider using stronger signal verbs where the evidence clearly supports it: "demonstrates" rather than "suggests".'},
-  source_loyalty_index:{higher:'You return to the same core scholars repeatedly — a sign of deep, focused engagement with your field.',lower:'You draw from a wide range of sources without revisiting any. Sustained engagement with a few key thinkers often strengthens an argument.'},
-  block_quote_rate:{higher:'You rely on extended quotations. Aim to paraphrase more and let your own voice carry the argument.',lower:'Your source integration relies mainly on paraphrase and brief quotation. An occasional well-chosen extended quote can add texture.'},
-  citation_density_cv:{higher:'Your citations cluster unevenly — heavy in the introduction, sparse in the body. Aim for more consistent source engagement throughout.',lower:'Good distribution of citations across your essay — you draw on sources throughout rather than front-loading.'},
-  ibid_usage_rate:{higher:'Frequent ibid. usage signals close, page-specific engagement with primary texts — a strong scholarly habit.',lower:'You rarely repeat-cite the same source across consecutive footnotes. This is fine; ibid. suits texts with many page-specific references.'},
-  citation_position_pref:{higher:'You tend to place citations at sentence end — an assertive, argument-first style. Your claims lead; the sources follow.',lower:'You frequently open sentences with the cited author — an authority-led style. Try occasionally arguing first, then supporting with a citation.'},
-  paraphrase_density:{higher:'You integrate sources primarily by paraphrase and summary — a sign of genuine comprehension and strong source command.',lower:'You rely more on direct quotation than paraphrase. Demonstrate deeper engagement by restating the author\'s idea in your own words before or after quoting.'},
-};
-
-// ═══════════════════════════════════════════════════════════════════
-// API CLIENT
-// ═══════════════════════════════════════════════════════════════════
-
-const API = {
-  async getStudent(id) { const r=await fetch(`${API_BASE}/students/${id}`); if(!r.ok) throw new Error(`Student ${id} not found`); return r.json(); },
-  async score(id,text,assignment) { const r=await fetch(`${API_BASE}/students/${id}/score`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,submission_id:`${id}_${Date.now()}`,assignment})}); if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.detail||'Scoring failed')} return r.json(); },
-  async addBaseline(id,text,assignment) { const r=await fetch(`${API_BASE}/students/${id}/baseline`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,provenance:'unverified',assignment})}); if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.detail||'Upload failed')} return r.json(); },
-  async uploadFile(id,file) { const fd=new FormData();fd.append('file',file); const r=await fetch(`${API_BASE}/students/${id}/upload`,{method:'POST',body:fd}); if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.detail||'File upload failed')} return r.json(); },
-};
-
-// ═══════════════════════════════════════════════════════════════════
-// PORTFOLIO STORE
-// ═══════════════════════════════════════════════════════════════════
-
-const Portfolio = {
-  _key(id){return `original_portfolio_${id}`},
-  getAll(id){try{return JSON.parse(localStorage.getItem(this._key(id))||'[]')}catch{return []}},
-  save(id,assignment,textPreview,response){const all=this.getAll(id);all.unshift({id:Date.now().toString(),timestamp:new Date().toISOString(),assignment,textPreview:textPreview.slice(0,200),response});localStorage.setItem(this._key(id),JSON.stringify(all))},
-  getById(sid,subId){return this.getAll(sid).find(s=>s.id===subId)||null},
-};
-
-// ═══════════════════════════════════════════════════════════════════
-// SCORING HELPERS
-// ═══════════════════════════════════════════════════════════════════
-
-function computeDimension(vec,codes){const v=codes.map(c=>vec[c]).filter(v=>v!=null);return v.length?Math.round((v.reduce((a,b)=>a+b,0)/v.length)*100):0}
-function qualLabel(s){if(s>=80)return{label:'Distinguished',color:'var(--green)'};if(s>=60)return{label:'Proficient',color:'var(--blue)'};if(s>=40)return{label:'Competent',color:'var(--gold)'};return{label:'Developing',color:'var(--amber)'}}
-function voiceBadge(action){if(action==='no_action')return{label:'Voice Consistent',cls:'strong'};if(action==='monitor')return{label:'Voice Developing',cls:'developing'};if(action==='schedule_conversation')return{label:'Voice Needs Attention',cls:'growing'};return{label:'Voice Needs Attention',cls:'growing'}}
-function arcBadge(arc){if(!arc)return'';const m={authentic:{cls:'arc-badge-authentic',txt:'✓ Authentic rhythm'},ai_typical:{cls:'arc-badge-ai',txt:'⚠ Unusual pattern'},review:{cls:'arc-badge-review',txt:'? Inconclusive'}};const b=m[arc.arc_flag];return b?`<span class="arc-badge ${b.cls}">${b.txt}</span>`:''}
-
-function deriveStrengthsGrowth(fv,bv){
-  const deltas=[];
-  for(const code of Object.keys(fv)){if(bv[code]==null||code.includes('divergence'))continue;deltas.push({code,name:FEATURE_NAMES[code]||code,tier:FEATURE_TIER[code]||0,delta:Math.abs(fv[code]-bv[code]),direction:fv[code]>bv[code]?'higher':'lower',subVal:fv[code],baseVal:bv[code]})}
-  deltas.sort((a,b)=>a.delta-b.delta);
-  return{strengths:deltas.slice(0,3),growth:deltas.slice(-3).reverse()};
-}
-
-function scoreCardHTML(vec){
-  const dims=[{label:'Argument Complexity',codes:ARGUMENT_FEATURES,color:'var(--blue)'},{label:'Theological Register',codes:THEOLOGY_FEATURES,color:'var(--gold)'},{label:'Clarity & Flow',codes:CLARITY_FEATURES,color:'var(--green)'}];
-  const sz=110,r=sz/2-8,circ=2*Math.PI*r;
-  let h='<div class="gauges-row">';
-  for(const d of dims){const score=computeDimension(vec,d.codes),q=qualLabel(score),off=circ*(1-score/100);
-    h+=`<div class="gauge-card"><svg class="gauge-svg" viewBox="0 0 ${sz} ${sz}"><circle class="gauge-track" cx="${sz/2}" cy="${sz/2}" r="${r}" transform="rotate(-90 ${sz/2} ${sz/2})"/><circle class="gauge-fill" cx="${sz/2}" cy="${sz/2}" r="${r}" transform="rotate(-90 ${sz/2} ${sz/2})" stroke="${d.color}" stroke-dasharray="${circ}" stroke-dashoffset="${off}"/><text x="${sz/2}" y="${sz/2}" text-anchor="middle" dy="0.35em" font-size="18" font-weight="700" fill="var(--text)">${score}</text></svg><div class="gauge-label">${d.label}</div><div class="gauge-qual" style="color:${q.color}">${q.label}</div></div>`}
-  return h+'</div>';
-}
-
-function compactScoreBars(vec){
-  const dims=[{label:'Argument Complexity',codes:ARGUMENT_FEATURES,color:'var(--blue)'},{label:'Theological Register',codes:THEOLOGY_FEATURES,color:'var(--gold)'},{label:'Clarity & Flow',codes:CLARITY_FEATURES,color:'var(--green)'}];
-  let h='<div class="score-bars">';
-  for(const d of dims){const s=computeDimension(vec,d.codes);
-    h+=`<div class="score-bar-row"><span class="score-bar-label">${d.label}</span><div class="score-bar-track"><div class="score-bar-fill" style="width:${s}%;background:${d.color}"></div></div><span class="score-bar-val" style="color:${d.color}">${s}</span></div>`}
-  return h+'</div>';
-}
-
-function strengthsGrowthHTML(sg){
-  let h='<div class="sg-grid"><div class="sg-card"><h3><svg viewBox="0 0 24 24" stroke="var(--green)" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Your Strengths</h3>';
-  for(const s of sg.strengths) h+=`<div class="sg-item"><span class="sg-feat">${s.name}</span><span class="sg-tier" style="background:var(--green-l);color:var(--green)">T${s.tier}</span><div class="sg-tip">Consistent with your established voice.</div></div>`;
-  h+='</div><div class="sg-card"><h3><svg viewBox="0 0 24 24" stroke="var(--gold)" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10m0 0l-3 3m3-3l3 3"/><circle cx="12" cy="6" r="2"/></svg> Areas to Develop</h3>';
-  for(const g of sg.growth){const tip=COACHING[g.code]?.[g.direction]||`This feature shifted ${g.direction} from your baseline.`;h+=`<div class="sg-item"><span class="sg-feat">${g.name}</span><span class="sg-tier" style="background:var(--gold-l);color:var(--gold)">T${g.tier}</span><div class="sg-tip">${tip}</div></div>`}
-  return h+'</div></div>';
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// VIEW ROUTER
-// ═══════════════════════════════════════════════════════════════════
-
-let currentView='dashboard',studentData=null,compareIds=[];
-function navigate(v){currentView=v;document.querySelectorAll('.s-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===v));renderView()}
-
-async function init(){
-  document.getElementById('hdr-name').textContent=STUDENT_NAME;
-  document.getElementById('panel-name').textContent=STUDENT_NAME;
-  document.getElementById('avatar').textContent=STUDENT_NAME.split(' ').map(w=>w[0]).join('');
-  document.querySelectorAll('.s-btn[data-view]').forEach(btn=>btn.addEventListener('click',()=>navigate(btn.dataset.view)));
-  try{studentData=await API.getStudent(STUDENT_ID);document.getElementById('panel-meta').textContent=`${studentData.sample_count} baselines \u00b7 103 features profiled`;updatePanelBars(studentData.baseline_vector)}catch(e){console.error('Failed to load student:',e)}
-  navigate(location.hash.replace('#','')||'dashboard');
-}
-
-function updatePanelBars(vec){const a=computeDimension(vec,ARGUMENT_FEATURES),t=computeDimension(vec,THEOLOGY_FEATURES),c=computeDimension(vec,CLARITY_FEATURES);setTimeout(()=>{document.getElementById('pb1').style.width=a+'%';document.getElementById('pb2').style.width=t+'%';document.getElementById('pb3').style.width=c+'%';document.getElementById('pbv1').textContent=a;document.getElementById('pbv2').textContent=t;document.getElementById('pbv3').textContent=c},200)}
-
-function renderView(){const el=document.getElementById('app-content');switch(currentView){case'dashboard':renderDashboard(el);break;case'submit':renderSubmit(el);break;case'portfolio':renderPortfolio(el);break;case'compare':renderCompare(el);break;default:el.innerHTML='<div class="card"><div class="card-title">Settings</div><div class="card-sub">Coming soon.</div></div>'}}
-
-// ═══════════════════════════════════════════════════════════════════
-// DASHBOARD
-// ═══════════════════════════════════════════════════════════════════
-
-function renderDashboard(el){
-  if(!studentData){el.innerHTML='<div class="card"><div class="card-title">Loading...</div></div>';return}
-  const subs=Portfolio.getAll(STUDENT_ID),purity=(studentData.purity*100).toFixed(0);
-  let h=`<div class="chips-row">
-    <span class="chip">${IC.file} Baselines on file <span class="chip-val">${studentData.sample_count}</span></span>
-    <span class="chip">${IC.chart} Submissions scored <span class="chip-val">${subs.length}</span></span>
-    <span class="chip">${IC.shield} Profile maturity <span class="chip-val">${purity}%</span></span>
-  </div>
-  <div class="card"><div class="card-title">${IC.book} Voice Consistency Score</div><div class="card-sub">Your baseline writing profile across three key dimensions</div>${scoreCardHTML(studentData.baseline_vector)}</div>`;
-  if(subs.length>0){const latest=subs[0].response,sg=deriveStrengthsGrowth(latest.feature_vector,latest.baseline_vector),badge=voiceBadge(latest.recommendation.action);
-    h+=`<div style="display:flex;align-items:center;gap:12px"><span class="voice-badge ${badge.cls}">${badge.label}</span><span style="font-size:0.8rem;color:var(--text-muted)">Latest: ${subs[0].assignment||'Untitled'}</span></div>${strengthsGrowthHTML(sg)}`}
-  else h+=`<div class="info-banner">${IC.info} Submit your first paper to see personalized strengths and growth areas.</div>`;
-  el.innerHTML=h;
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// SUBMIT
-// ═══════════════════════════════════════════════════════════════════
-
-function renderSubmit(el){
-  el.innerHTML=`<div class="card"><div class="card-title">${IC.send} Submit a Paper for Analysis</div><div class="card-sub">Paste your text or upload a file (.txt, .docx, .pdf) to receive writing feedback</div>
-    <div class="submit-form">
-      <div class="form-row"><input type="text" class="form-input" id="sub-assignment" placeholder="Assignment name (e.g. Midterm Essay: Covenant Theology)"></div>
-      <div class="upload-zone" id="upload-zone">${IC.upload}<div class="upload-zone-text">Drag &amp; drop a file here, or <strong>click to browse</strong></div><input type="file" accept=".txt,.docx,.pdf" id="file-input" style="display:none"></div>
-      <div id="upload-badge-area"></div>
-      <textarea class="submission-textarea" id="sub-text" placeholder="Or paste your paper text here..."></textarea>
-      <div style="display:flex;gap:10px;align-items:center"><button class="btn btn-primary" id="btn-analyze">${IC.search} Analyze My Writing</button><span id="sub-wordcount" style="font-size:0.76rem;color:var(--text-dim)"></span></div>
-    </div></div>
-    <div id="sub-loading" class="hidden"></div><div id="sub-results" class="hidden"></div>`;
-  const zone=document.getElementById('upload-zone'),fi=document.getElementById('file-input');
-  zone.addEventListener('click',()=>fi.click());
-  zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragover')});
-  zone.addEventListener('dragleave',()=>zone.classList.remove('dragover'));
-  zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dragover');if(e.dataTransfer.files.length)handleFile(e.dataTransfer.files[0])});
-  fi.addEventListener('change',()=>{if(fi.files.length)handleFile(fi.files[0])});
-  const ta=document.getElementById('sub-text');ta.addEventListener('input',()=>{const wc=ta.value.trim().split(/\s+/).filter(Boolean).length;document.getElementById('sub-wordcount').textContent=wc?`${wc} words`:''});
-  document.getElementById('btn-analyze').addEventListener('click',handleAnalyze);
-}
-
-async function handleFile(file){
-  const b=document.getElementById('upload-badge-area');
-  b.innerHTML=`<span class="upload-badge">${IC.hourglass} Extracting text from ${file.name}...</span>`;
-  try{const r=await API.uploadFile(STUDENT_ID,file);document.getElementById('sub-text').value=r.text;b.innerHTML=`<span class="upload-badge">${IC.check} ${r.filename} &middot; ${r.word_count} words</span>`;document.getElementById('sub-text').dispatchEvent(new Event('input'))}
-  catch(e){b.innerHTML=`<span class="upload-badge" style="background:var(--red-l);color:var(--red);border-color:rgba(154,46,46,0.2)">${IC.x} ${e.message}</span>`}
-}
-
-async function handleAnalyze(){
-  const text=document.getElementById('sub-text').value.trim(),assignment=document.getElementById('sub-assignment').value.trim()||'Untitled',wc=text.split(/\s+/).filter(Boolean).length;
-  if(wc<50){alert('Please enter at least 50 words for analysis.');return}
-  const btn=document.getElementById('btn-analyze');btn.disabled=true;
-  const loadEl=document.getElementById('sub-loading'),resEl=document.getElementById('sub-results');resEl.classList.add('hidden');
-  const steps=['Extracting stylometric features...','Building feature vector (103 dimensions)...','Constructing density matrix \u03c1...','Computing Born-rule projection...','Analyzing interference patterns...','Matching against voice baseline...','Generating writing feedback...'];
-  loadEl.classList.remove('hidden');loadEl.innerHTML=`<div class="loading-card"><div class="loading-spinner"></div><div class="loading-step" id="load-step">${steps[0]}</div></div>`;
-  let si=0;const st=setInterval(()=>{si++;if(si<steps.length)document.getElementById('load-step').textContent=steps[si]},600);
-  try{
-    const resp=await API.score(STUDENT_ID,text,assignment);clearInterval(st);loadEl.classList.add('hidden');
-    Portfolio.save(STUDENT_ID,assignment,text,resp);
-    const sg=deriveStrengthsGrowth(resp.feature_vector,resp.baseline_vector),badge=voiceBadge(resp.recommendation.action);
-    resEl.innerHTML=`<div class="results-section">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px"><span class="voice-badge ${badge.cls}">${badge.label}</span>${arcBadge(resp.tension_arc)}<span style="font-size:0.8rem;color:var(--text-muted)">${assignment}</span></div>
-      <div class="card"><div class="card-title">${IC.book} Your Voice Consistency Score</div><div class="card-sub">How this submission measures across three dimensions</div>${scoreCardHTML(resp.feature_vector)}</div>
-      ${strengthsGrowthHTML(sg)}
-      <div class="card"><div class="card-title expand-toggle" onclick="this.parentElement.querySelector('.tier-detail').classList.toggle('hidden')">${IC.chevDn} Detailed Tier Breakdown<span class="expand-hint">click to expand</span></div><div class="tier-detail hidden" style="margin-top:12px">${tierBreakdownHTML(resp.interference.tier_breakdown)}</div></div>
+  shelf.innerHTML = history.map((s,i)=>{
+    const f=fidFromDev(s.divergence_score), div=s.action&&s.action!=='no_action';
+    const c=spineCol(f,div), h=Math.round(82+Math.max(0,f-60)*2.4);
+    return `<div class="spine" data-idx="${i}" style="width:36px;height:${h}px" title="${esc(s.assignment||'Untitled')}">
+      <div class="spine-inner" style="background:${c.bg};color:${c.text};border-left:2px solid ${c.bdr}">${esc(s.assignment||'Untitled')}</div>
     </div>`;
-    resEl.classList.remove('hidden');
-    updatePanelBars(resp.feature_vector);
-    document.getElementById('panel-journey').style.display='block';
-    document.getElementById('panel-journey-content').innerHTML=`<div class="voice-badge ${badge.cls}" style="margin-bottom:6px;font-size:0.76rem">${badge.label}</div><div style="font-size:0.72rem;color:var(--text-dim)">Latest: ${assignment}</div>`;
-  }catch(e){clearInterval(st);loadEl.innerHTML=`<div class="card" style="border-color:var(--red)"><div class="card-title" style="color:var(--red)">Analysis Failed</div><div class="card-sub">${e.message}</div></div>`}
-  btn.disabled=false;
+  }).join('') + '<div style="flex:1"></div>';
+
+  const list = document.getElementById('libList');
+  list.innerHTML = history.map((s,i)=>{
+    const f=fidFromDev(s.divergence_score), div=s.action&&s.action!=='no_action';
+    const [bc,bl]=fidLabel(f,div);
+    return `<div class="sub-row" data-idx="${i}">
+      <span class="sub-date">${shortDate(s.created_at)}</span>
+      <span class="sub-title-col">${esc(s.assignment||'Untitled')}</span>
+      <span class="sub-type" style="font-family:var(--font-b);font-style:italic">${esc(s.action==='schedule_conversation'?'Worth reviewing':'')}</span>
+      <span class="fbadge ${bc}" style="font-size:0.64rem;padding:3px 9px">${bl}</span>
+    </div>`;
+  }).join('');
+
+  function openDetail(idx) {
+    const s=history[idx];
+    const f=fidFromDev(s.divergence_score), div=s.action&&s.action!=='no_action';
+    const [bc,bl]=fidLabel(f,div);
+    document.getElementById('sdTitle').textContent=s.assignment||'Untitled';
+    document.getElementById('sdMeta').textContent=`${shortDate(s.created_at)} · ${(s.words||0).toLocaleString()} words`;
+    const badge=document.getElementById('sdBadge');
+    badge.textContent=bl; badge.className='fbadge '+bc;
+    document.getElementById('sdFeats').innerHTML=`
+      <div class="sd-feat"><div class="sd-fv" style="color:${f>=80?'var(--sage)':'var(--wine)'}">${f}</div><div class="sd-fl">Voice Fidelity</div></div>
+      <div class="sd-feat"><div class="sd-fv">${div?'Worth reviewing':'On voice'}</div><div class="sd-fl">Assessment</div></div>
+      <div class="sd-feat"><div class="sd-fv">${s.words?.toLocaleString()||'—'}</div><div class="sd-fl">Words</div></div>`;
+    const roDiv=document.getElementById('sdRo');
+    roDiv.style.display=div?'block':'none';
+    if(div) document.getElementById('sdRoBody').textContent=`This submission diverges from your established voice.${s.action==='schedule_conversation'?' A conversation with your tutor is suggested.':''}`;
+    document.getElementById('libDetail').style.display='block';
+    document.querySelectorAll('.spine .spine-inner').forEach((si,i)=>si.style.outline=i===idx?'2px solid rgba(176,141,60,0.7)':'none');
+    document.querySelectorAll('.sub-row[data-idx]').forEach(r=>r.classList.toggle('selected',parseInt(r.dataset.idx)===idx));
+  }
+
+  document.querySelectorAll('.spine[data-idx]').forEach(sp=>sp.addEventListener('click',()=>openDetail(parseInt(sp.dataset.idx))));
+  document.querySelectorAll('.sub-row[data-idx]').forEach(r=>r.addEventListener('click',()=>openDetail(parseInt(r.dataset.idx))));
 }
 
-function tierBreakdownHTML(bd){
-  if(!bd)return'<div style="color:var(--text-dim);font-size:0.8rem">No tier data.</div>';
-  const names={tier1:'Surface Stylometrics',tier2:'Discourse Structure',tier3:'Rhetorical Register',tier4:'Character & Punctuation',tier5:'POS & Syntax',tier6:'Idiosyncratic Patterns',tier7:'Voice Authenticity'};
-  let h='';for(let i=1;i<=7;i++){const k=`tier${i}`,v=bd[k]!=null?bd[k]:0,p=Math.round(v*100),c=p>60?'var(--green)':p>35?'var(--gold)':'var(--blue)';
-    h+=`<div class="tier-row"><span class="tier-name">T${i} ${names[k]}</span><div class="tier-bar"><div class="tier-bar-fill" style="width:${p}%;background:${c}"></div></div><span class="tier-val" style="color:${c}">${p}%</span></div>`}
-  return h;
+/* ═══════════════════════════════════════════════════════════════
+   Load: Notes
+   ═══════════════════════════════════════════════════════════════ */
+async function loadNotes() {
+  const notes = await getNotes();
+  const notesList = document.getElementById('notesList');
+  document.getElementById('notesSub').textContent = `${notes.length} note${notes.length!==1?'s':''} from your tutor this term.`;
+  if (!notes.length) {
+    notesList.innerHTML = '<div class="note-item"><div class="empty-serif">No voice notes yet.</div></div>';
+    return;
+  }
+  notesList.innerHTML = notes.map(n=>`
+    <div class="note-item">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
+        <span style="font-family:var(--font-u);font-size:0.69rem;font-weight:600;color:var(--marginal);letter-spacing:0.06em">${esc(n.reviewer||'Your tutor')}</span>
+        <span style="font-family:var(--font-b);font-style:italic;font-size:0.74rem;color:rgba(26,26,26,0.32)">${shortDate(n.created_at)}</span>
+      </div>
+      <div style="font-family:var(--font-b);font-size:1rem;line-height:1.65;color:var(--ink)">${esc(n.notes||'')}</div>
+    </div>`).join('');
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// PORTFOLIO
-// ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
+   Submit Work
+   ═══════════════════════════════════════════════════════════════ */
+function updateWordCount() {
+  const text = document.getElementById('subText').value;
+  const wc   = text.trim() ? text.trim().split(/\s+/).length : 0;
+  document.getElementById('wcLabel').textContent = wc>0 ? wc.toLocaleString()+' words' : 'Minimum 200 words for voice analysis';
+  document.getElementById('wcReady').style.display = wc>=200 ? 'inline' : 'none';
+  document.getElementById('subBtn').disabled = wc<200 || !document.getElementById('subTitle').value.trim();
+}
+document.getElementById('subText').addEventListener('input', updateWordCount);
+document.getElementById('subTitle').addEventListener('input', updateWordCount);
 
-function renderPortfolio(el){
-  const subs=Portfolio.getAll(STUDENT_ID);
-  let h=`<div class="card"><div class="card-title">${IC.file} Baseline Writing Samples</div><div class="card-sub">Your authenticated writing samples that build your voice profile</div>
-    <div class="info-banner" style="margin-bottom:10px">${IC.lock} Your professor will verify these samples to strengthen your baseline.</div>
-    <div id="baseline-list" style="display:flex;flex-direction:column;gap:6px"></div>
-    <button class="btn btn-secondary mt-16" id="btn-add-baseline" style="margin-top:10px">${IC.plus} Add Baseline Paper</button>
-    <div id="baseline-form" class="hidden" style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
-      <input type="text" class="form-input" id="bl-assignment" placeholder="Assignment name">
-      <div class="upload-zone" id="bl-upload-zone" style="padding:14px"><div class="upload-zone-text">Drop file or <strong>click to browse</strong></div><input type="file" accept=".txt,.docx,.pdf" id="bl-file-input" style="display:none"></div>
-      <div id="bl-upload-badge"></div>
-      <textarea class="submission-textarea" id="bl-text" placeholder="Or paste text..." style="min-height:100px"></textarea>
-      <button class="btn btn-primary" id="btn-submit-baseline">${IC.send} Submit as Baseline</button>
-    </div></div>
-  <div class="card"><div class="card-title">${IC.chart} Submission History</div><div class="card-sub">${subs.length} submission${subs.length===1?'':'s'} analyzed</div>
-    <div class="timeline" id="sub-timeline"></div>
-    <div style="display:flex;gap:10px;margin-top:10px;align-items:center">
-      <button class="btn btn-secondary" id="btn-compare-selected" disabled>${IC.cols} Compare Selected</button>
-      <span style="font-size:0.72rem;color:var(--text-dim)" id="compare-hint">Select 2 submissions to compare</span>
-    </div></div>`;
-  el.innerHTML=h;
+let _submitting = false;
+async function submitWork() {
+  if (_submitting) return;
+  _submitting = true;
+  const btn   = document.getElementById('subBtn');
+  const title = document.getElementById('subTitle').value.trim();
+  const text  = document.getElementById('subText').value.trim();
+  btn.disabled = true; btn.textContent = 'Analysing…';
 
-  if(studentData){const bl=document.getElementById('baseline-list');
-    if(studentData.samples&&studentData.samples.length)bl.innerHTML=studentData.samples.map(s=>`<div class="baseline-item"><span class="prov-badge prov-${s.provenance}">${s.provenance}</span><span style="flex:1;font-weight:500">${s.assignment}</span><span style="color:var(--text-dim);font-size:0.72rem">${new Date(s.submitted_at).toLocaleDateString()}</span></div>`).join('');
-    else bl.innerHTML='<div style="color:var(--text-dim);font-size:0.8rem">No baseline samples yet.</div>'}
-
-  const tl=document.getElementById('sub-timeline'),checked=new Set();
-  if(!subs.length)tl.innerHTML='<div style="color:var(--text-dim);font-size:0.8rem;padding:6px 0">No submissions yet. Submit a paper to start building your portfolio.</div>';
-  else tl.innerHTML=subs.map((s,idx)=>{const r=s.response,a=computeDimension(r.feature_vector,ARGUMENT_FEATURES),t=computeDimension(r.feature_vector,THEOLOGY_FEATURES),c=computeDimension(r.feature_vector,CLARITY_FEATURES);
-    return`<div class="tl-item" data-idx="${idx}" data-id="${s.id}"><div class="tl-check" data-id="${s.id}"></div><div class="tl-body"><div class="tl-title">${s.assignment||'Untitled'}</div><div class="tl-date">${new Date(s.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>${arcBadge(s.response&&s.response.tension_arc)}</div><div class="tl-bars"><div class="tl-bar"><div class="tl-bar-fill" style="width:${a}%;background:var(--blue)"></div></div><div class="tl-bar"><div class="tl-bar-fill" style="width:${t}%;background:var(--gold)"></div></div><div class="tl-bar"><div class="tl-bar-fill" style="width:${c}%;background:var(--green)"></div></div></div></div>`}).join('');
-
-  tl.addEventListener('click',e=>{const ck=e.target.closest('.tl-check');if(!ck)return;e.stopPropagation();const id=ck.dataset.id;
-    if(checked.has(id)){checked.delete(id);ck.classList.remove('checked');ck.innerHTML=''}else{if(checked.size>=2)return;checked.add(id);ck.classList.add('checked');ck.innerHTML=IC.check}
-    document.getElementById('btn-compare-selected').disabled=checked.size!==2;document.getElementById('compare-hint').textContent=checked.size===2?'Ready to compare':`Select ${2-checked.size} more`});
-
-  tl.addEventListener('click',e=>{if(e.target.closest('.tl-check'))return;const item=e.target.closest('.tl-item');if(!item)return;
-    const idx=parseInt(item.dataset.idx),sub=subs[idx];if(!sub)return;
-    const existing=item.querySelector('.tl-expanded');if(existing){existing.remove();item.style.flexWrap='';return}
-    const r=sub.response,sg=deriveStrengthsGrowth(r.feature_vector,r.baseline_vector),badge=voiceBadge(r.recommendation.action);
-    const exp=document.createElement('div');exp.className='tl-expanded';exp.style.cssText='padding:12px 0 0;border-top:1px solid var(--border);margin-top:10px;width:100%';
-    exp.innerHTML=`<div style="margin-bottom:10px"><span class="voice-badge ${badge.cls}" style="font-size:0.76rem">${badge.label}</span></div>${compactScoreBars(r.feature_vector)}<div style="margin-top:10px">${strengthsGrowthHTML(sg)}</div>`;
-    item.style.flexWrap='wrap';item.appendChild(exp)});
-
-  document.getElementById('btn-compare-selected').addEventListener('click',()=>{compareIds=Array.from(checked);navigate('compare')});
-  document.getElementById('btn-add-baseline').addEventListener('click',()=>document.getElementById('baseline-form').classList.toggle('hidden'));
-
-  const bz=document.getElementById('bl-upload-zone'),bf=document.getElementById('bl-file-input');
-  bz.addEventListener('click',()=>bf.click());bz.addEventListener('dragover',e=>{e.preventDefault();bz.classList.add('dragover')});bz.addEventListener('dragleave',()=>bz.classList.remove('dragover'));
-  bz.addEventListener('drop',e=>{e.preventDefault();bz.classList.remove('dragover');if(e.dataTransfer.files.length)handleBLFile(e.dataTransfer.files[0])});
-  bf.addEventListener('change',()=>{if(bf.files.length)handleBLFile(bf.files[0])});
-  document.getElementById('btn-submit-baseline').addEventListener('click',handleBLSubmit);
+  try {
+    // Add to baseline (best-effort — ignore error)
+    await apiFetch(`/students/${encodeURIComponent(studentId())}/baseline`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ text, assignment:title, provenance:'unverified' }),
+    });
+    // Score
+    const result = await apiFetch(`/students/${encodeURIComponent(studentId())}/score`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ text, assignment:title }),
+    });
+    renderScoreResult(result, title, text);
+  } finally {
+    _submitting = false;
+    btn.disabled = false; btn.textContent = 'Analyse voice';
+  }
 }
 
-async function handleBLFile(file){const b=document.getElementById('bl-upload-badge');b.innerHTML=`<span class="upload-badge">${IC.hourglass} Extracting...</span>`;try{const r=await API.uploadFile(STUDENT_ID,file);document.getElementById('bl-text').value=r.text;b.innerHTML=`<span class="upload-badge">${IC.check} ${r.filename} &middot; ${r.word_count} words</span>`}catch(e){b.innerHTML=`<span class="upload-badge" style="background:var(--red-l);color:var(--red)">${IC.x} ${e.message}</span>`}}
+function renderScoreResult(result, title, text) {
+  document.getElementById('scoreResult').style.display = 'block';
+  const wc = text?.trim().split(/\s+/).length || 0;
 
-async function handleBLSubmit(){const text=document.getElementById('bl-text').value.trim(),assignment=document.getElementById('bl-assignment').value.trim()||'Untitled';
-  if(text.split(/\s+/).filter(Boolean).length<50){alert('Baseline samples need at least 50 words.');return}
-  try{await API.addBaseline(STUDENT_ID,text,assignment);studentData=await API.getStudent(STUDENT_ID);updatePanelBars(studentData.baseline_vector);renderPortfolio(document.getElementById('app-content'))}catch(e){alert('Upload failed: '+e.message)}}
+  if (!result) {
+    document.getElementById('scoreHeadline').textContent = 'Analysis unavailable — server not reachable. Your submission was saved locally.';
+    document.getElementById('scoreSummary').textContent = '';
+    document.getElementById('scoreFeats').innerHTML = '';
+    // Still save locally
+    _saveToPortfolio(title, null, wc);
+    return;
+  }
 
-// ═══════════════════════════════════════════════════════════════════
-// COMPARE
-// ═══════════════════════════════════════════════════════════════════
+  const he = result.human_explanation;
+  if (he) {
+    document.getElementById('scoreHeadline').textContent = he.headline || '';
+    document.getElementById('scoreSummary').textContent  = he.summary  || '';
+    const feats = (result.interference?.constructive_features || []).slice(0,3);
+    document.getElementById('scoreFeats').innerHTML = feats.map(fc=>
+      `<div class="score-feat-row"><div class="score-feat-dot"></div><div style="font-family:var(--font-b);font-size:0.91rem;color:var(--ink)">${esc(fc.name)} is consistent with your established voice.</div></div>`
+    ).join('');
+  } else {
+    const f = fidFromDev(result.authorship?.deviation_score||0);
+    document.getElementById('scoreHeadline').textContent = `Your voice is ${f}% consistent with your established profile.`;
+    document.getElementById('scoreSummary').textContent = result.recommendation?.rationale || '';
+    document.getElementById('scoreFeats').innerHTML = '';
+  }
 
-function renderCompare(el){
-  const subs=Portfolio.getAll(STUDENT_ID);
-  if(compareIds.length<2||subs.length<2){el.innerHTML=`<div class="card"><div class="card-title">${IC.cols} Compare Submissions</div><div class="card-sub">Select two submissions from your portfolio to compare side by side.</div><button class="btn btn-secondary mt-8" onclick="navigate('portfolio')">${IC.folder} Go to Portfolio</button></div>`;return}
-  const a=subs.find(s=>s.id===compareIds[0]),b=subs.find(s=>s.id===compareIds[1]);
-  if(!a||!b){el.innerHTML='<div class="card"><div class="card-title">Submissions not found.</div></div>';return}
-  const ra=a.response,rb=b.response;
-  const dimsA=[computeDimension(ra.feature_vector,ARGUMENT_FEATURES),computeDimension(ra.feature_vector,THEOLOGY_FEATURES),computeDimension(ra.feature_vector,CLARITY_FEATURES)];
-  const dimsB=[computeDimension(rb.feature_vector,ARGUMENT_FEATURES),computeDimension(rb.feature_vector,THEOLOGY_FEATURES),computeDimension(rb.feature_vector,CLARITY_FEATURES)];
-  const dn=['Argument Complexity','Theological Register','Clarity & Flow'],dc=['var(--blue)','var(--gold)','var(--green)'];
+  const action = result.recommendation?.action;
+  document.getElementById('scoreFormationPrompt').style.display = (action&&action!=='no_action') ? 'block' : 'none';
+  if (action && action !== 'no_action') updateFormationNav(true);
 
-  let h=`<div class="card"><div class="card-title">${IC.cols} Side-by-Side Comparison</div><div class="card-sub">Tracking your writing growth between submissions</div>
-    <div class="compare-grid" style="margin-top:12px"><div class="compare-header">${a.assignment}<br><span style="font-size:0.7rem;color:var(--text-dim);font-weight:400">${new Date(a.timestamp).toLocaleDateString()}</span></div><div class="compare-header">${b.assignment}<br><span style="font-size:0.7rem;color:var(--text-dim);font-weight:400">${new Date(b.timestamp).toLocaleDateString()}</span></div></div>`;
-
-  for(let i=0;i<3;i++){const d=dimsB[i]-dimsA[i],arrow=d>0?IC.arrowUp:d<0?IC.arrowDn:IC.minus,ac=d>0?'var(--green)':d<0?'var(--amber)':'var(--text-dim)';
-    h+=`<div class="delta-row" style="margin-top:6px"><span class="delta-name" style="color:${dc[i]};font-weight:700">${dn[i]}</span><span class="delta-val">${dimsA[i]}</span><span class="delta-arrow" style="color:${ac}">${arrow}</span><span class="delta-val">${dimsB[i]}</span><span style="font-size:0.76rem;font-weight:600;color:${ac};min-width:44px;text-align:right">${d>0?'+':''}${d}</span></div>`}
-
-  const narr=[];for(let i=0;i<3;i++){const d=dimsB[i]-dimsA[i];if(Math.abs(d)>=3)narr.push(`Your <strong>${dn[i].toLowerCase()}</strong> ${d>0?'improved':'shifted'} by ${Math.abs(d)} points.`)}
-  if(narr.length)h+=`<div class="card" style="margin-top:12px;background:var(--green-l);border-color:rgba(26,122,92,0.15)"><div class="card-title" style="font-size:0.88rem">${IC.growth} Growth Summary</div><div style="font-size:0.8rem;color:var(--text);line-height:1.6;margin-top:4px">${narr.join(' ')}</div></div>`;
-
-  h+=`<div class="card" style="margin-top:12px"><div class="card-title expand-toggle" onclick="this.parentElement.querySelector('.feat-detail').classList.toggle('hidden')">${IC.chevDn} Feature-Level Comparison<span class="expand-hint">click to expand</span></div><div class="feat-detail hidden" style="margin-top:12px">`;
-  const feats=[];for(const code of Object.keys(ra.feature_vector)){if(rb.feature_vector[code]==null||code.includes('divergence'))continue;feats.push({code,name:FEATURE_NAMES[code]||code,valA:ra.feature_vector[code],valB:rb.feature_vector[code],delta:rb.feature_vector[code]-ra.feature_vector[code]})}
-  feats.sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
-  for(const f of feats.slice(0,20)){const pA=Math.round(f.valA*100),pB=Math.round(f.valB*100),d=Math.round(f.delta*100),c=d>0?'var(--green)':d<0?'var(--amber)':'var(--text-dim)';
-    h+=`<div class="delta-row" style="margin-bottom:3px"><span class="delta-name">${f.name}</span><span class="delta-val" style="font-size:0.72rem">${pA}</span><div class="delta-bar"><div class="delta-bar-fill" style="width:${Math.min(100,Math.abs(d)*2)}%;background:${c}"></div></div><span class="delta-val" style="font-size:0.72rem">${pB}</span><span style="font-size:0.7rem;font-weight:600;color:${c};min-width:36px;text-align:right">${d>0?'+':''}${d}</span></div>`}
-  h+='</div></div></div>';el.innerHTML=h;
+  _saveToPortfolio(title, result, wc);
 }
 
-// ═══════════════════════════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
-  applyCourseInfo();
-  init();
-});
+function _saveToPortfolio(title, result, wc) {
+  const key = 'original_portfolio_' + studentId();
+  let p = [];
+  try { p = JSON.parse(localStorage.getItem(key)||'[]'); } catch(e) {}
+  p.push({ id:Date.now(), assignment:title, timestamp:new Date().toISOString(), response:result, words:wc });
+  localStorage.setItem(key, JSON.stringify(p));
+}
+
+function openCoach() { window.open('student-coach.html','_blank','width=900,height=720'); }
+
+/* ═══════════════════════════════════════════════════════════════
+   Initialise
+   ═══════════════════════════════════════════════════════════════ */
+function init() {
+  const name = studentName();
+  const ini  = name.split(' ').filter(Boolean).map(n=>n[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('sbName').textContent   = name;
+  document.getElementById('sbAvatar').textContent = ini;
+  document.getElementById('sbInst').textContent   = institution();
+  document.getElementById('sbRole').textContent   = course() + ' · ' + semester();
+  document.getElementById('semPill').textContent  = semester();
+  document.getElementById('proTitle').textContent = name.split(' ')[0] + ', your voice is finding its shape.';
+  updateFormationUI();
+  if (_ftStep>0&&_ftStep<3) updateFormationNav(true);
+  loadProfile();
+}
+
+init();
 </script>
-<div class="toast-container" id="toastContainer" style="position:fixed;bottom:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none"></div>
 </body>
 </html>

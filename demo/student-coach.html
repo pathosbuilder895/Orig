@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Original — Focus Coach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --oxford:#002147;--oxford-mid:#0a2f5c;--oxford-pale:rgba(0,33,71,0.04);
+  --gold:#B08D3C;--gold-dim:rgba(176,141,60,0.15);
+  --parchment:#F7F2E7;--vellum:#FBF8F1;
+  --ink:#1A1A1A;--marginal:#3C5A82;
+  --wine:#6B2737;--wine-dim:rgba(107,39,55,0.08);
+  --sage:#4A6B5C;
+  --hairline:rgba(60,90,130,0.16);--hairline-s:rgba(60,90,130,0.28);
+  --font-d:'Cormorant Garamond',Georgia,serif;
+  --font-b:'EB Garamond',Georgia,serif;
+  --font-u:'Inter',system-ui,sans-serif;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font-size:14px}
+
+/* ── Header bar ── */
+.header{height:50px;background:var(--oxford);display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid rgba(176,141,60,0.12)}
+.hdr-left{display:flex;align-items:center;gap:14px}
+.hdr-mark{font-family:var(--font-d);font-size:0.95rem;font-weight:600;color:var(--parchment);letter-spacing:0.06em;opacity:.7}
+.hdr-sep{width:1px;height:16px;background:rgba(255,255,255,0.12)}
+.hdr-title{font-family:var(--font-b);font-style:italic;font-size:0.9rem;color:rgba(247,242,231,0.65)}
+.hdr-right{display:flex;align-items:center;gap:16px}
+.hdr-wc{font-family:var(--font-b);font-style:italic;font-size:0.79rem;color:rgba(247,242,231,0.45)}
+.btn-save{background:rgba(176,141,60,0.18);color:var(--gold);border:1px solid rgba(176,141,60,0.35);padding:6px 16px;font-family:var(--font-u);font-size:0.76rem;font-weight:500;letter-spacing:0.04em;cursor:pointer;transition:background .15s}
+.btn-save:hover{background:rgba(176,141,60,0.28)}
+.btn-save:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── Main layout ── */
+.body{display:flex;height:calc(100vh - 50px);overflow:hidden}
+
+/* ── Writing column ── */
+.writing-col{flex:1;display:flex;flex-direction:column;padding:48px 56px 36px 72px;max-width:760px;margin:0 auto;min-width:0;overflow-y:auto}
+.writing-col::-webkit-scrollbar{width:3px}
+.writing-col::-webkit-scrollbar-thumb{background:var(--hairline-s);border-radius:2px}
+
+.title-input{font-family:var(--font-d);font-size:1.7rem;font-weight:500;color:var(--oxford);border:none;border-bottom:1px solid transparent;background:none;outline:none;width:100%;margin-bottom:6px;padding:0;letter-spacing:-0.01em;line-height:1.2;transition:border-color .2s}
+.title-input:focus{border-bottom-color:var(--gold)}
+.title-input::placeholder{color:rgba(0,33,71,0.22);font-style:italic}
+
+.type-input{font-family:var(--font-b);font-style:italic;font-size:0.88rem;color:rgba(26,26,26,0.38);border:none;background:none;outline:none;width:100%;margin-bottom:32px;padding:0}
+.type-input::placeholder{color:rgba(26,26,26,0.22)}
+
+.text-area{flex:1;font-family:var(--font-b);font-size:1.05rem;line-height:1.85;color:var(--ink);border:none;background:none;outline:none;resize:none;width:100%;min-height:400px}
+.text-area::placeholder{color:rgba(26,26,26,0.22);font-style:italic}
+
+/* ── Coach column ── */
+.coach-col{width:200px;flex-shrink:0;border-left:1px solid var(--hairline);background:var(--vellum);padding:36px 18px;overflow-y:auto;display:flex;flex-direction:column;gap:0}
+.coach-col::-webkit-scrollbar{width:0}
+
+.coach-section-lbl{font-size:0.57rem;font-weight:600;letter-spacing:0.20em;text-transform:uppercase;color:rgba(60,90,130,0.4);margin-bottom:14px}
+
+.whisper{font-family:var(--font-b);font-style:italic;font-size:0.9rem;color:rgba(26,26,26,0.50);line-height:1.65;border-left:1px solid var(--gold-dim);padding:6px 0 6px 12px;margin-bottom:16px;transition:opacity .6s}
+
+.coach-divider{height:1px;background:var(--hairline);margin:20px 0}
+
+.coach-stat-lbl{font-size:0.6rem;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:rgba(60,90,130,0.38);margin-bottom:3px}
+.coach-stat-val{font-family:var(--font-d);font-size:1.3rem;color:var(--oxford);line-height:1;margin-bottom:12px}
+
+.coach-philosophy{font-family:var(--font-b);font-style:italic;font-size:0.78rem;color:rgba(26,26,26,0.28);line-height:1.6;margin-top:auto;padding-top:20px;border-top:1px solid var(--hairline)}
+
+/* ── Result panel ── */
+.result-panel{display:none;margin-top:32px;padding-top:24px;border-top:1px solid var(--hairline)}
+.result-headline{font-family:var(--font-d);font-size:1.25rem;font-weight:500;color:var(--oxford);line-height:1.25;margin-bottom:8px}
+.result-summary{font-family:var(--font-b);font-size:0.91rem;line-height:1.6;color:rgba(26,26,26,0.65);margin-bottom:10px}
+.result-note{font-family:var(--font-b);font-style:italic;font-size:0.79rem;color:rgba(26,26,26,0.35)}
+.result-feat{display:flex;align-items:flex-start;gap:8px;font-family:var(--font-b);font-size:0.88rem;color:var(--ink);margin-bottom:5px}
+.result-dot{width:4px;height:4px;border-radius:50%;background:var(--sage);flex-shrink:0;margin-top:7px}
+
+/* ── Review block in result ── */
+.ro-small{border-left:2px solid var(--wine);background:var(--wine-dim);padding:8px 12px 8px 14px;margin-top:12px;font-family:var(--font-b);font-size:0.88rem;color:var(--ink)}
+.ro-small-lbl{font-size:0.58rem;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--wine);margin-bottom:3px}
+
+/* ── Saving indicator ── */
+.saving-dot{width:5px;height:5px;border-radius:50%;background:var(--sage);opacity:0;transition:opacity .3s;display:inline-block;margin-left:6px}
+.saving-dot.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="hdr-left">
+    <div class="hdr-mark">Original</div>
+    <div class="hdr-sep"></div>
+    <div class="hdr-title">Focus Coach</div>
+  </div>
+  <div class="hdr-right">
+    <div class="hdr-wc" id="hdrWc">0 words</div>
+    <div class="saving-dot" id="savingDot"></div>
+    <button class="btn-save" id="saveBtn" disabled onclick="saveAndAnalyse()">Save &amp; Analyse</button>
+  </div>
+</div>
+
+<!-- Body -->
+<div class="body">
+
+  <!-- Writing area -->
+  <div class="writing-col">
+    <input class="title-input" id="docTitle" placeholder="Give this piece a title…" oninput="onEdit()">
+    <input class="type-input"  id="docType"  placeholder="Essay, response, seminar paper…">
+    <textarea class="text-area" id="docText" placeholder="Begin writing here…&#10;&#10;The Focus Coach is in the margin — quiet and patient." oninput="onEdit()"></textarea>
+
+    <!-- Result -->
+    <div class="result-panel" id="resultPanel">
+      <div class="result-headline" id="resultHeadline"></div>
+      <div class="result-summary"  id="resultSummary"></div>
+      <div id="resultFeats"></div>
+      <div id="resultRo" class="ro-small" style="display:none">
+        <div class="ro-small-lbl">Formation Opportunity</div>
+        <div id="resultRoBody">This submission diverges from your established voice. Return to the student dashboard to begin the formation pathway.</div>
+      </div>
+      <div class="result-note" style="margin-top:10px">Saved to your formation record. <a href="student.html" style="color:var(--marginal);text-decoration:none">Return to dashboard →</a></div>
+    </div>
+  </div>
+
+  <!-- Coach column -->
+  <div class="coach-col">
+    <div class="coach-section-lbl">Focus Coach</div>
+    <div class="whisper" id="whisper">Does this sound like you?</div>
+
+    <div class="coach-divider"></div>
+
+    <div class="coach-stat-lbl">Words</div>
+    <div class="coach-stat-val" id="statWc">0</div>
+
+    <div class="coach-stat-lbl">Time writing</div>
+    <div class="coach-stat-val" id="statTime">0:00</div>
+
+    <div class="coach-philosophy">
+      You already know how to do this.<br>I am just helping you remember in the moment.
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ── Config ── */
+const API = (window.opener && (window.opener.location.port === '8001' || window.opener.location.port === '8000'))
+  ? '' : 'http://localhost:8001';
+
+const studentId   = () => localStorage.getItem('original_student_id')   || 'demo_student';
+const studentName = () => localStorage.getItem('original_student_name') || 'Student';
+
+/* ── Whispers ── */
+const WHISPERS = [
+  "Does this sound like you?",
+  "Feeling stuck? Read your thesis out loud. Does this paragraph serve it?",
+  "One clear idea at a time.",
+  "Taking a moment? Check your outline — are you still on track?",
+  "Your strongest writing comes when you trust what you already know.",
+  "Step away two minutes. Come back fresh.",
+  "The argument is in the details. Slow down.",
+  "Write the sentence you mean, not the sentence that sounds impressive.",
+  "A paragraph is one thought, fully expressed. Is this one finished?",
+  "Read the last sentence you wrote. Does it earn the next one?",
+  "If you were explaining this to a friend, what would you say first?",
+];
+let _wIdx = 0;
+function nextWhisper() {
+  const el = document.getElementById('whisper');
+  el.style.opacity = '0';
+  setTimeout(() => {
+    _wIdx = (_wIdx + 1) % WHISPERS.length;
+    el.textContent = WHISPERS[_wIdx];
+    el.style.opacity = '1';
+  }, 600);
+}
+setInterval(nextWhisper, 90000);
+
+/* ── Timer ── */
+let _startTime = Date.now();
+setInterval(() => {
+  const s = Math.floor((Date.now() - _startTime) / 1000);
+  const m = Math.floor(s / 60), sec = s % 60;
+  document.getElementById('statTime').textContent = `${m}:${String(sec).padStart(2,'0')}`;
+}, 1000);
+
+/* ── Word count ── */
+function wordCount(text) { return text.trim() ? text.trim().split(/\s+/).length : 0; }
+
+function onEdit() {
+  const text  = document.getElementById('docText').value;
+  const title = document.getElementById('docTitle').value.trim();
+  const wc    = wordCount(text);
+  document.getElementById('statWc').textContent  = wc.toLocaleString();
+  document.getElementById('hdrWc').textContent   = wc.toLocaleString() + ' words';
+  document.getElementById('saveBtn').disabled    = wc < 200 || !title;
+
+  // Flash saving dot on keystroke
+  const dot = document.getElementById('savingDot');
+  dot.classList.add('show');
+  clearTimeout(window._dotTimer);
+  window._dotTimer = setTimeout(() => dot.classList.remove('show'), 1200);
+
+  // Auto-save draft
+  clearTimeout(window._saveTimer);
+  window._saveTimer = setTimeout(() => saveDraft(text, title), 3000);
+}
+
+function saveDraft(text, title) {
+  if (!text.trim()) return;
+  localStorage.setItem('coach_draft_' + studentId(), JSON.stringify({ title, text, saved: new Date().toISOString() }));
+}
+
+// Restore draft
+function restoreDraft() {
+  try {
+    const raw = localStorage.getItem('coach_draft_' + studentId());
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (d.text) document.getElementById('docText').value = d.text;
+    if (d.title) document.getElementById('docTitle').value = d.title;
+    onEdit();
+  } catch(e) {}
+}
+
+/* ── Save & Analyse ── */
+let _saving = false;
+async function saveAndAnalyse() {
+  if (_saving) return;
+  _saving = true;
+  const btn   = document.getElementById('saveBtn');
+  const title = document.getElementById('docTitle').value.trim();
+  const text  = document.getElementById('docText').value.trim();
+  btn.disabled = true; btn.textContent = 'Analysing…';
+
+  try {
+    // Add to baseline
+    await fetch(API + `/students/${encodeURIComponent(studentId())}/baseline`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ text, assignment:title, provenance:'unverified' }),
+    }).catch(()=>{});
+
+    // Score
+    let result = null;
+    try {
+      const r = await fetch(API + `/students/${encodeURIComponent(studentId())}/score`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ text, assignment:title }),
+      });
+      if (r.ok) result = await r.json();
+    } catch(e) {}
+
+    renderResult(result, title, text);
+    // Clear draft after successful save
+    localStorage.removeItem('coach_draft_' + studentId());
+  } finally {
+    _saving = false;
+    btn.disabled = false; btn.textContent = 'Save & Analyse';
+  }
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fidFromDev(d) { return Math.max(0, Math.round((1-(d||0))*100)); }
+
+function renderResult(result, title, text) {
+  const panel = document.getElementById('resultPanel');
+  panel.style.display = 'block';
+  panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
+
+  if (!result) {
+    document.getElementById('resultHeadline').textContent = 'Analysis unavailable — server not reachable. Your work was saved locally.';
+    document.getElementById('resultSummary').textContent  = '';
+    document.getElementById('resultFeats').innerHTML = '';
+    return;
+  }
+
+  const he = result.human_explanation;
+  if (he) {
+    document.getElementById('resultHeadline').textContent = he.headline || '';
+    document.getElementById('resultSummary').textContent  = he.summary  || '';
+    const feats = (result.interference?.constructive_features||[]).slice(0,3);
+    document.getElementById('resultFeats').innerHTML = feats.map(fc=>
+      `<div class="result-feat"><div class="result-dot"></div><div>${esc(fc.name)} is consistent with your established voice.</div></div>`
+    ).join('');
+  } else {
+    const f = fidFromDev(result.authorship?.deviation_score||0);
+    document.getElementById('resultHeadline').textContent = `Your voice is ${f}% consistent with your established profile.`;
+    document.getElementById('resultSummary').textContent = result.recommendation?.rationale || '';
+    document.getElementById('resultFeats').innerHTML = '';
+  }
+
+  const action = result.recommendation?.action;
+  const roEl = document.getElementById('resultRo');
+  roEl.style.display = (action && action !== 'no_action') ? 'block' : 'none';
+
+  // Save to portfolio
+  try {
+    const key = 'original_portfolio_' + studentId();
+    let p = JSON.parse(localStorage.getItem(key)||'[]');
+    p.push({ id:Date.now(), assignment:title, timestamp:new Date().toISOString(), response:result, words:wordCount(text) });
+    localStorage.setItem(key, JSON.stringify(p));
+  } catch(e) {}
+}
+
+/* ── Init ── */
+restoreDraft();
+</script>
+</body>
+</html>
