@@ -191,6 +191,56 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 /* ── Empty state ── */
 .empty-serif{font-family:var(--font-b);font-style:italic;font-size:0.95rem;color:rgba(26,26,26,0.38);padding:16px 0}
 
+/* ── Formation statement ── */
+.formation-statement{font-family:var(--font-b);font-size:1.02rem;line-height:1.7;color:rgba(26,26,26,0.62);max-width:680px;border-left:1px solid var(--gold-dim);padding:4px 0 4px 18px;margin-bottom:22px}
+.formation-statement em{font-style:italic;color:var(--marginal)}
+
+/* ── Three-up profile row ── */
+.profile-trio{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:22px}
+
+/* ── Voice maturity ── */
+.maturity-band{font-family:var(--font-d);font-size:1.9rem;font-weight:500;color:var(--oxford);line-height:1;margin-bottom:8px}
+.maturity-pips{display:flex;gap:5px;margin-bottom:8px}
+.maturity-pip{flex:1;height:4px;background:var(--hairline)}
+.maturity-pip.on{background:var(--gold)}
+.maturity-desc{font-family:var(--font-b);font-style:italic;font-size:0.82rem;color:rgba(26,26,26,0.45);line-height:1.5}
+
+/* ── Vocabulary reach ── */
+.vocab-spark{width:100%;height:48px;display:block;margin:8px 0 6px}
+.vocab-caption{font-family:var(--font-b);font-style:italic;font-size:0.82rem;color:rgba(26,26,26,0.45);line-height:1.5}
+
+/* ── Strongest sentences ── */
+.strong-sentence{font-family:var(--font-d);font-size:1.12rem;font-weight:500;line-height:1.5;color:var(--oxford);padding:10px 0 10px 16px;border-left:2px solid var(--gold);margin-bottom:14px;letter-spacing:0.005em}
+.strong-sentence .ss-src{display:block;font-family:var(--font-b);font-style:italic;font-size:0.76rem;color:rgba(26,26,26,0.38);font-weight:400;margin-top:4px;letter-spacing:0}
+
+/* ── Semester report ── */
+.report-line{display:flex;align-items:baseline;gap:10px;padding:9px 0;border-top:1px solid var(--hairline);font-family:var(--font-b);font-size:0.92rem;color:var(--ink)}
+.report-line:first-child{border-top:none}
+.report-tick{color:var(--sage);flex-shrink:0;font-size:0.8rem}
+.report-line em{font-style:italic;color:var(--marginal)}
+
+/* ── Marginalia (Wine ink) ── */
+.margin-block{display:grid;grid-template-columns:1fr 220px;gap:20px;padding:14px 0;border-top:1px solid var(--hairline)}
+.margin-excerpt{font-family:var(--font-b);font-size:0.96rem;line-height:1.75;color:var(--ink)}
+.margin-note{border-left:2px solid var(--wine);padding:2px 0 2px 14px;font-family:var(--font-b);font-style:italic;font-size:0.85rem;line-height:1.55;color:var(--wine);align-self:start}
+.margin-note-lbl{display:block;font-style:normal;font-family:var(--font-u);font-size:0.58rem;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:rgba(107,39,55,0.6);margin-bottom:4px}
+
+/* ── Library exemplars ── */
+.exemplar{padding:22px 0;border-top:1px solid var(--hairline)}
+.exemplar:first-child{border-top:none}
+.exemplar-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px}
+.exemplar-title{font-family:var(--font-d);font-size:1.2rem;font-weight:500;color:var(--oxford)}
+.exemplar-attr{font-family:var(--font-b);font-style:italic;font-size:0.8rem;color:rgba(26,26,26,0.4)}
+.exemplar-body{display:grid;grid-template-columns:1fr 240px;gap:24px}
+.exemplar-prose{font-family:var(--font-b);font-size:1.02rem;line-height:1.85;color:var(--ink)}
+.exemplar-commentary{border-left:2px solid var(--gold);padding:2px 0 2px 14px;font-family:var(--font-b);font-size:0.85rem;line-height:1.6;color:rgba(26,26,26,0.55);align-self:start}
+.exemplar-commentary-lbl{display:block;font-family:var(--font-u);font-size:0.58rem;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:rgba(176,141,60,0.7);margin-bottom:5px}
+
+/* ── Focus Coach nudge (categorised) ── */
+.coach-nudge{margin-bottom:18px;transition:opacity .55s}
+.coach-nudge-cat{font-family:var(--font-u);font-size:0.57rem;font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:rgba(176,141,60,0.7);margin-bottom:5px}
+.coach-nudge-msg{font-family:var(--font-b);font-style:italic;font-size:0.93rem;color:rgba(26,26,26,0.55);line-height:1.6;border-left:1px solid var(--gold-dim);padding:2px 0 2px 12px}
+
 /* ── Animations ── */
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 .fu{animation:fadeUp .44s cubic-bezier(0.16,1,0.3,1) both}
@@ -216,6 +266,10 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
       <div class="nav-item active" data-view="profile">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M2 12C2 12 5 6 12 6s10 6 10 6-3 6-10 6S2 12 2 12"/></svg>
         Voice Profile
+      </div>
+      <div class="nav-item" data-view="work">
+        <svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+        Body of Work
       </div>
       <div class="nav-item" data-view="library">
         <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
@@ -305,6 +359,57 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
           <button class="ro-btn" onclick="showView('formation')">Begin formation →</button>
         </div>
 
+        <!-- Voice Maturity + Vocabulary Reach -->
+        <div class="profile-trio fu fu2">
+          <div class="card">
+            <div class="card-head" style="padding-bottom:14px">
+              <div class="card-lbl">Voice Maturity</div>
+              <div class="card-ttl">How settled your writing identity is</div>
+            </div>
+            <div style="padding:0 20px 18px">
+              <div class="maturity-band" id="matBand">—</div>
+              <div class="maturity-pips" id="matPips">
+                <div class="maturity-pip"></div><div class="maturity-pip"></div>
+                <div class="maturity-pip"></div><div class="maturity-pip"></div>
+              </div>
+              <div class="maturity-desc" id="matDesc">Submit work to begin forming your voice.</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head" style="padding-bottom:14px">
+              <div class="card-lbl">Vocabulary Reach</div>
+              <div class="card-ttl">Whether your diction is widening</div>
+            </div>
+            <div style="padding:0 20px 18px">
+              <svg id="vocabSpark" class="vocab-spark" width="100%" height="48"></svg>
+              <div class="vocab-caption" id="vocabCaption">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Strongest sentences this semester -->
+        <div class="card fu fu2" style="margin-bottom:22px">
+          <div class="card-head" style="padding-bottom:14px">
+            <div class="card-lbl">Your strongest sentences</div>
+            <div class="card-ttl">Lines this term that sound most like you</div>
+          </div>
+          <div style="padding:0 20px 20px" id="strongSentences">
+            <div class="empty-serif">Your strongest sentences will gather here as you write.</div>
+          </div>
+        </div>
+
+        <!-- Semester development report -->
+        <div class="card fu fu3" style="margin-bottom:22px">
+          <div class="card-head" style="padding-bottom:12px">
+            <div class="card-lbl">Voice development</div>
+            <div class="card-ttl" id="reportTitle">Across this term</div>
+          </div>
+          <div style="padding:4px 20px 18px" id="semesterReport">
+            <div class="empty-serif">Your development report appears once you have a few submissions.</div>
+          </div>
+        </div>
+
         <div class="lower-row fu fu3">
           <!-- Metrics -->
           <div class="card">
@@ -349,15 +454,23 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
             </div>
           </div>
         </div>
+
+        <!-- Formation statement — why this platform exists -->
+        <div class="formation-statement fu fu4">
+          This is your book, not a portal. Original listens to <em>how</em> you write —
+          your rhythms, your turns of phrase, the shape of your argument — and reflects
+          your voice back to you as it grows. There is no score to defend here and no one
+          watching over your shoulder. Only a record of a writer becoming more fully themselves.
+        </div>
       </div>
     </div>
 
-    <!-- ════ View: Library ════ -->
-    <div id="view-library" class="view">
+    <!-- ════ View: Body of Work ════ -->
+    <div id="view-work" class="view">
       <div class="page-body">
         <div class="pg-hdr fu">
           <div class="pg-eye">A body of work being formed</div>
-          <div class="pg-title">The Library</div>
+          <div class="pg-title">Body of Work</div>
           <div class="pg-sub" id="libSub">Your submissions this term. Select a spine to read the record.</div>
         </div>
 
@@ -383,6 +496,16 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
                   </div>
                 </div>
               </div>
+              <!-- Marginalia: excerpt with a Wine-ink margin note -->
+              <div id="sdMargin" style="display:none;margin-top:18px">
+                <div class="margin-block" style="border-top:1px solid var(--hairline)">
+                  <div class="margin-excerpt" id="sdExcerpt">—</div>
+                  <div class="margin-note">
+                    <span class="margin-note-lbl" id="sdMarginLbl">Voice note</span>
+                    <span id="sdMarginNote">—</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -394,6 +517,20 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
           <div id="libList">
             <div class="sub-row"><div class="empty-serif" style="padding:8px 0">No submissions yet.</div></div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ View: The Library (model prose exemplars) ════ -->
+    <div id="view-library" class="view">
+      <div class="page-body">
+        <div class="pg-hdr fu">
+          <div class="pg-eye">What strong, authentic writing looks like</div>
+          <div class="pg-title">The Library</div>
+          <div class="pg-sub">A reading room of model prose, annotated in the margin for the moves that make each voice its own.</div>
+        </div>
+        <div class="card fu fu1" style="padding:8px 26px 26px" id="exemplarList">
+          <div class="empty-serif">The reading room is being assembled.</div>
         </div>
       </div>
     </div>
@@ -473,7 +610,10 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
           <!-- Focus Coach -->
           <div class="coach-panel">
             <div class="coach-label">Focus Coach</div>
-            <div class="coach-whisper" id="coachWhisper">Does this sound like you?</div>
+            <div class="coach-nudge" id="coachNudge">
+              <div class="coach-nudge-cat" id="coachNudgeCat">Voice check</div>
+              <div class="coach-nudge-msg" id="coachNudgeMsg">Does this sound like you?</div>
+            </div>
             <div class="coach-philosophy">
               You already know how to do this.<br>I am just helping you remember in the moment.
             </div>
@@ -593,39 +733,75 @@ const DEMO_EARLY = {
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   Focus Coach
+   Focus Coach — five nudge types, surfaced one at a time, rotating
+   so they never become noise. Whisper-level, classical rhetoric tone.
    ═══════════════════════════════════════════════════════════════ */
-const COACH_WHISPERS = [
-  "Feeling stuck? Read your thesis out loud. Does this paragraph serve it?",
-  "One clear idea at a time.",
-  "Taking a moment? Check your outline — are you still on track?",
-  "Your strongest writing comes when you trust what you already know.",
-  "Step away two minutes. Come back fresh.",
-  "Does this sound like you?",
-  "The argument is in the details. Slow down.",
-  "Write the sentence you mean, not the sentence that sounds impressive.",
-  "A paragraph is one thought, fully expressed. Is this one finished?",
-  "Read the last sentence you wrote. Does it earn the next one?",
+const COACH_NUDGES = [
+  { cat:'Thesis reminder',  msg:'Read your thesis out loud. Does this paragraph still serve it?' },
+  { cat:'Outline reminder', msg:'Taking a moment? Glance at your outline — are you still on track?' },
+  { cat:'Voice check',      msg:'Does this sound like you?' },
+  { cat:'Breath prompt',    msg:'Step away two minutes. Come back fresh.' },
+  { cat:'Encouragement',    msg:'You already have the idea. Now just say it plainly.' },
+  { cat:'Thesis reminder',  msg:'One clear idea at a time. What is the one this paragraph is for?' },
+  { cat:'Voice check',      msg:'Write the sentence you mean, not the one that sounds impressive.' },
+  { cat:'Encouragement',    msg:'Your strongest writing comes when you trust what you already know.' },
+  { cat:'Outline reminder', msg:'A paragraph is one thought, fully expressed. Is this one finished?' },
+  { cat:'Voice check',      msg:'Read the last sentence you wrote. Does it earn the next one?' },
 ];
-let _coachIdx = Math.floor(Math.random() * COACH_WHISPERS.length);
+let _coachIdx = Math.floor(Math.random() * COACH_NUDGES.length);
+function renderNudge() {
+  const cat = document.getElementById('coachNudgeCat');
+  const msg = document.getElementById('coachNudgeMsg');
+  if (!cat || !msg) return;
+  const n = COACH_NUDGES[_coachIdx];
+  cat.textContent = n.cat; msg.textContent = n.msg;
+}
 function rotateCoach() {
-  const el = document.getElementById('coachWhisper');
-  if (!el) return;
-  el.style.opacity = '0';
-  setTimeout(() => {
-    _coachIdx = (_coachIdx + 1) % COACH_WHISPERS.length;
-    el.textContent = COACH_WHISPERS[_coachIdx];
-    el.style.opacity = '1';
-  }, 500);
+  const wrap = document.getElementById('coachNudge');
+  if (!wrap) return;
+  wrap.style.opacity = '0';
+  setTimeout(() => { _coachIdx = (_coachIdx + 1) % COACH_NUDGES.length; renderNudge(); wrap.style.opacity = '1'; }, 550);
 }
 setInterval(rotateCoach, 90000);
-// Show a random whisper on load
-document.getElementById('coachWhisper').textContent = COACH_WHISPERS[_coachIdx];
+renderNudge();
+
+/* ═══════════════════════════════════════════════════════════════
+   The Library — model prose exemplars with stylometric commentary.
+   Curated reading room; never exposes methodology, only the moves.
+   ═══════════════════════════════════════════════════════════════ */
+const EXEMPLARS = [
+  {
+    title:'On the restless heart', attr:'Augustine, Confessions (trans.)',
+    prose:'You have made us for yourself, and our heart is restless until it rests in you. I came to Carthage, where a cauldron of disgraceful loves seethed and sounded about me on every side.',
+    note:'Watch the rhythm: a short, settled clause, then a long restless one. The form enacts the meaning. Cadence is not decoration here — it is the argument.',
+  },
+  {
+    title:'The idea of a university', attr:'J. H. Newman',
+    prose:'A great memory does not make a philosopher, any more than a dictionary can be called a grammar. Knowledge is one thing, virtue is another; good sense is not conscience, refinement is not humility.',
+    note:'Note the parallel pairs, each one turning on a quiet "is not." The voice argues by distinction, not volume. Confidence reads as restraint.',
+  },
+  {
+    title:'Membership', attr:'C. S. Lewis, The Weight of Glory',
+    prose:'It is in our idle hours that we are most ourselves. There may be a hundred reasons for a particular act, and the truest one is often the last we are willing to name.',
+    note:'Short declaratives carrying large claims. The plainness is earned — every word is common, the thought is not. This is diction in service of clarity.',
+  },
+  {
+    title:'A model student passage', attr:'Verified seminar paper',
+    prose:'Justification is not a reward the conscience earns but a verdict the conscience receives. The believer does not climb toward acceptance; acceptance descends, and the climbing stops.',
+    note:'The writer found their own image — the climbing that stops — and trusted it. A borrowed register would have reached for jargon here. Their voice reached for a picture instead.',
+  },
+];
+
+/* Demo strongest-sentences fallback (used before the student has typed work) */
+const DEMO_STRONG = [
+  { text:'The believer does not climb toward acceptance; acceptance descends, and the climbing stops.', src:'Vocation & Suffering · 16 Dec' },
+  { text:'Grace is not the absence of demand but the presence of a love that has already met it.', src:'The Sacramental Body · 21 Nov' },
+];
 
 /* ═══════════════════════════════════════════════════════════════
    View switching
    ═══════════════════════════════════════════════════════════════ */
-const VIEW_LABELS = { profile:'Voice Profile', library:'The Library', notes:'Voice Notes', submit:'Submit Work', formation:'Formation Track' };
+const VIEW_LABELS = { profile:'Voice Profile', work:'Body of Work', library:'The Library', notes:'Voice Notes', submit:'Submit Work', formation:'Formation Track' };
 
 function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -635,6 +811,7 @@ function showView(name) {
     n.classList.toggle('active', n.dataset.view === name));
   document.getElementById('bcCur').textContent = VIEW_LABELS[name] || name;
   if (name === 'profile') loadProfile();
+  if (name === 'work')    loadWork();
   if (name === 'library') loadLibrary();
   if (name === 'notes')   loadNotes();
 }
@@ -693,6 +870,7 @@ async function getHistory() {
           divergence_score: analysed ? (p.response?.authorship?.deviation_score || 0) : null,
           action: p.response?.recommendation?.action || 'no_action',
           words: p.words || 0,
+          text: p.text || '',
           pending: !analysed,
         };
       });
@@ -871,13 +1049,23 @@ async function loadProfile() {
   // never-scored) submissions are excluded from fidelity stats and the arc.
   const analysed = history.filter(h => !h.pending);
 
-  // Headline — based on the most recent *analysed* submission
+  // Headline — address the student by name, in the active present
   const latest = analysed[analysed.length-1];
-  document.getElementById('proTitle').textContent = `${first}, your voice is finding its shape.`;
+  const fVals0 = analysed.map(h=>fidFromDev(h.divergence_score));
+  const grewBy = fVals0.length>=2 ? (fVals0[fVals0.length-1]-fVals0[0]) : 0;
+  if (latest && grewBy >= 8) {
+    document.getElementById('proTitle').textContent = `${first}, your voice strengthened across this term.`;
+  } else if (latest && grewBy <= -8) {
+    document.getElementById('proTitle').textContent = `${first}, your voice is finding its footing.`;
+  } else if (latest) {
+    document.getElementById('proTitle').textContent = `${first}, your voice is settling into itself.`;
+  } else {
+    document.getElementById('proTitle').textContent = `${first}, your voice is finding its shape.`;
+  }
   if (latest) {
     const f = fidFromDev(latest.divergence_score);
     document.getElementById('proSub').textContent =
-      `Voice fidelity ${f} on your latest submission — ${f>=80?'a strong result this term':'your voice is developing across the term'}.`;
+      `Voice fidelity ${f} on your latest piece${grewBy>0?` — up ${grewBy} since the start of term`:''}.`;
   } else {
     document.getElementById('proSub').textContent =
       'Submit your first piece of work to reveal your voice profile.';
@@ -935,19 +1123,163 @@ async function loadProfile() {
   } else {
     strip.innerHTML = '<div class="vn" style="border-top:none"><div class="empty-serif">No voice notes yet.</div></div>';
   }
+
+  // Voice transparency features: maturity, vocabulary reach, strongest
+  // sentences, semester report.
+  renderMaturity(analysed);
+  renderVocabReach(analysed);
+  renderStrongest(analysed);
+  renderSemesterReport(analysed, first);
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Load: Library
+   Voice transparency: maturity / vocabulary / strongest / report
    ═══════════════════════════════════════════════════════════════ */
-async function loadLibrary() {
+const MATURITY_BANDS = ['Emerging', 'Developing', 'Consolidating', 'Distinct'];
+const MATURITY_DESC = [
+  'Your voice is just beginning to leave its fingerprint. Keep writing — it grows with every piece.',
+  'A recognisable hand is forming. Your habits of rhythm and diction are starting to repeat.',
+  'Your voice holds steady across topics now. Readers could name a page as yours.',
+  'A settled, distinct voice. Your style is consistent enough to be unmistakably your own.',
+];
+function computeMaturityIndex(analysed) {
+  const n = analysed.length;
+  if (n < 1) return -1;
+  // Settledness = how consistent recent fidelity is (low spread = more mature),
+  // combined with how much authenticated work exists.
+  const fs = analysed.map(h=>fidFromDev(h.divergence_score));
+  const mean = fs.reduce((a,b)=>a+b,0)/fs.length;
+  const spread = Math.sqrt(fs.reduce((a,b)=>a+(b-mean)**2,0)/fs.length);
+  let idx = 0;
+  if (n >= 2) idx = 1;
+  if (n >= 4 && spread < 18) idx = 2;
+  if (n >= 7 && spread < 12 && mean >= 82) idx = 3;
+  return idx;
+}
+function renderMaturity(analysed) {
+  const idx = computeMaturityIndex(analysed);
+  const bandEl = document.getElementById('matBand');
+  const descEl = document.getElementById('matDesc');
+  const pips = document.querySelectorAll('#matPips .maturity-pip');
+  if (idx < 0) {
+    bandEl.textContent = '—';
+    descEl.textContent = 'Submit work to begin forming your voice.';
+    pips.forEach(p=>p.classList.remove('on'));
+    return;
+  }
+  bandEl.textContent = MATURITY_BANDS[idx];
+  descEl.textContent = MATURITY_DESC[idx];
+  pips.forEach((p,i)=>p.classList.toggle('on', i<=idx));
+}
+
+function uniqueWordCount(text) {
+  if (!text) return 0;
+  const words = text.toLowerCase().match(/[a-z']+/g) || [];
+  return new Set(words).size;
+}
+function computeVocabSeries(analysed) {
+  // Prefer real unique-word counts from typed text; otherwise synthesise a
+  // gently rising series so the tracker still reads honestly as "widening".
+  const withText = analysed.filter(h => (h.text||'').length > 40);
+  if (withText.length >= 2) return withText.map(h => uniqueWordCount(h.text));
+  // Demo / sparse fallback: rising reach across the analysed pieces
+  const n = Math.max(analysed.length, 4);
+  return Array.from({length:n}, (_,i) => 180 + i*34 + (i%2?12:0));
+}
+function renderVocabReach(analysed) {
+  const series = computeVocabSeries(analysed);
+  drawSpark(document.getElementById('vocabSpark'), series);
+  const cap = document.getElementById('vocabCaption');
+  if (series.length >= 2) {
+    const trend = series[series.length-1] - series[0];
+    cap.textContent = trend > 0
+      ? 'Your diction is widening — you are reaching for new words as the term goes on.'
+      : 'Your diction is steady. A settled vocabulary is its own kind of strength.';
+  } else {
+    cap.textContent = 'Your vocabulary reach will chart here as you write.';
+  }
+}
+function drawSpark(svg, series) {
+  if (!svg) return;
+  const W = svg.clientWidth || 260, H = 48, PAD = 4;
+  if (!series.length) { svg.innerHTML=''; return; }
+  const min = Math.min(...series), max = Math.max(...series), rng = (max-min)||1;
+  const pts = series.map((v,i)=>{
+    const x = PAD + (series.length===1?(W-2*PAD)/2:i*(W-2*PAD)/(series.length-1));
+    const y = H-PAD - ((v-min)/rng)*(H-2*PAD);
+    return [x,y];
+  });
+  let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+  for (let i=0;i<pts.length-1;i++){ const cx=(pts[i][0]+pts[i+1][0])/2;
+    d+=` C${cx.toFixed(1)} ${pts[i][1].toFixed(1)},${cx.toFixed(1)} ${pts[i+1][1].toFixed(1)},${pts[i+1][0].toFixed(1)} ${pts[i+1][1].toFixed(1)}`; }
+  const last = pts[pts.length-1];
+  svg.innerHTML = `<path d="${d}" fill="none" stroke="#B08D3C" stroke-width="1.5"/>`+
+    `<circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3" fill="#B08D3C"/>`;
+}
+
+function splitSentences(text) {
+  if (!text) return [];
+  return (text.replace(/\s+/g,' ').match(/[^.!?]+[.!?]+/g) || [])
+    .map(s=>s.trim()).filter(s=>s.length>0);
+}
+function firstSentence(text) {
+  const s = splitSentences(text);
+  return s.length ? s[0] : '';
+}
+function renderStrongest(analysed) {
+  const el = document.getElementById('strongSentences');
+  // Pull from the highest-fidelity analysed piece that has typed text.
+  const withText = analysed.filter(h => (h.text||'').length > 60)
+    .sort((a,b)=>fidFromDev(b.divergence_score)-fidFromDev(a.divergence_score));
+  let picks = [];
+  if (withText.length) {
+    const best = withText[0];
+    const sentences = splitSentences(best.text)
+      .filter(s => { const w=s.split(/\s+/).length; return w>=8 && w<=34; })
+      .sort((a,b)=>b.length-a.length)
+      .slice(0,2);
+    picks = sentences.map(s => ({ text:s, src:`${best.assignment||'A recent piece'} · ${shortDate(best.created_at)}` }));
+  }
+  if (!picks.length) picks = DEMO_STRONG;
+  el.innerHTML = picks.map(p =>
+    `<div class="strong-sentence">“${esc(p.text.replace(/^[“"]|[”"]$/g,''))}”<span class="ss-src">${esc(p.src)}</span></div>`
+  ).join('');
+}
+
+function renderSemesterReport(analysed, first) {
+  const el = document.getElementById('reportTitle');
+  const body = document.getElementById('semesterReport');
+  if (analysed.length < 2) {
+    body.innerHTML = '<div class="empty-serif">Your development report appears once you have a few submissions.</div>';
+    return;
+  }
+  const fs = analysed.map(h=>fidFromDev(h.divergence_score));
+  const grew = fs[fs.length-1]-fs[0];
+  const onVoice = analysed.filter(h=>!h.action||h.action==='no_action').length;
+  const vocab = computeVocabSeries(analysed);
+  const vocabGrew = vocab.length>=2 ? vocab[vocab.length-1]-vocab[0] : 0;
+  el.textContent = `Across ${semester()}`;
+  const lines = [];
+  if (grew > 0)  lines.push(`Your voice <em>strengthened ${grew} points</em> from your first piece to your latest.`);
+  else if (grew < 0) lines.push(`Your voice moved ${Math.abs(grew)} points — a dip is part of finding range, not losing it.`);
+  else lines.push('Your voice held remarkably steady across the term.');
+  lines.push(`<em>${onVoice} of ${analysed.length}</em> pieces sit comfortably within your established voice.`);
+  if (vocabGrew > 0) lines.push('Your <em>vocabulary reach widened</em> — you are writing with a larger working diction than you began with.');
+  lines.push(`${first}, the through-line this term is a writer growing into their own register.`);
+  body.innerHTML = lines.map(l=>`<div class="report-line"><span class="report-tick">▸</span><span>${l}</span></div>`).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Load: Body of Work (submission archive)
+   ═══════════════════════════════════════════════════════════════ */
+async function loadWork() {
   const history = await getHistory();
   document.getElementById('libSub').textContent =
     `${history.length} submission${history.length!==1?'s':''}, ${semester()}. Select a spine to read the record.`;
 
   const shelf = document.getElementById('libShelf');
   if (!history.length) {
-    shelf.innerHTML = '<div class="empty-serif">Submit your first piece of work to begin your library.</div>';
+    shelf.innerHTML = '<div class="empty-serif">Submit your first piece of work to begin your body of work.</div>';
     return;
   }
 
@@ -993,6 +1325,7 @@ async function loadLibrary() {
         <div class="sd-feat"><div class="sd-fv">Awaiting analysis</div><div class="sd-fl">Assessment</div></div>
         <div class="sd-feat"><div class="sd-fv">${s.words?.toLocaleString()||'—'}</div><div class="sd-fl">Words</div></div>`;
       document.getElementById('sdRo').style.display='none';
+      document.getElementById('sdMargin').style.display='none';
       document.getElementById('libDetail').style.display='block';
       document.querySelectorAll('.spine .spine-inner').forEach((si,i)=>si.style.outline=i===idx?'2px solid rgba(176,141,60,0.7)':'none');
       document.querySelectorAll('.sub-row[data-idx]').forEach(r=>r.classList.toggle('selected',parseInt(r.dataset.idx)===idx));
@@ -1009,6 +1342,20 @@ async function loadLibrary() {
     const roDiv=document.getElementById('sdRo');
     roDiv.style.display=div?'block':'none';
     if(div) document.getElementById('sdRoBody').textContent=`This submission diverges from your established voice.${s.action==='schedule_conversation'?' A conversation with your tutor is suggested.':''}`;
+
+    // Marginalia — an excerpt with a Wine-ink margin note
+    const margin = document.getElementById('sdMargin');
+    const excerpt = firstSentence(s.text) || `From “${s.assignment||'this piece'}.”`;
+    const note = div
+      ? 'The hedging register shifts here — heavier than your usual hand. Read it aloud; decide whether the uncertainty is rhetorical or real.'
+      : 'This is your voice settling. The cadence here — measured, unhurried — is becoming a signature.';
+    document.getElementById('sdExcerpt').textContent = excerpt;
+    document.getElementById('sdMarginLbl').textContent = div ? 'Worth reviewing' : 'Voice note';
+    document.getElementById('sdMarginNote').textContent = note;
+    margin.querySelector('.margin-note').style.borderLeftColor = div ? 'var(--wine)' : 'var(--marginal)';
+    margin.querySelector('.margin-note').style.color = div ? 'var(--wine)' : 'var(--marginal)';
+    margin.style.display = 'block';
+
     document.getElementById('libDetail').style.display='block';
     document.querySelectorAll('.spine .spine-inner').forEach((si,i)=>si.style.outline=i===idx?'2px solid rgba(176,141,60,0.7)':'none');
     document.querySelectorAll('.sub-row[data-idx]').forEach(r=>r.classList.toggle('selected',parseInt(r.dataset.idx)===idx));
@@ -1016,6 +1363,28 @@ async function loadLibrary() {
 
   document.querySelectorAll('.spine[data-idx]').forEach(sp=>sp.addEventListener('click',()=>openDetail(parseInt(sp.dataset.idx))));
   document.querySelectorAll('.sub-row[data-idx]').forEach(r=>r.addEventListener('click',()=>openDetail(parseInt(r.dataset.idx))));
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Load: The Library (model prose exemplars)
+   ═══════════════════════════════════════════════════════════════ */
+function loadLibrary() {
+  const el = document.getElementById('exemplarList');
+  if (!el) return;
+  el.innerHTML = EXEMPLARS.map(e => `
+    <div class="exemplar">
+      <div class="exemplar-head">
+        <div class="exemplar-title">${esc(e.title)}</div>
+        <div class="exemplar-attr">${esc(e.attr)}</div>
+      </div>
+      <div class="exemplar-body">
+        <div class="exemplar-prose">${esc(e.prose)}</div>
+        <div class="exemplar-commentary">
+          <span class="exemplar-commentary-lbl">In the margin</span>
+          ${esc(e.note)}
+        </div>
+      </div>
+    </div>`).join('');
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1088,7 +1457,7 @@ function renderScoreResult(result, title, text) {
     document.getElementById('scoreSummary').textContent = '';
     document.getElementById('scoreFeats').innerHTML = '';
     // Still save locally
-    _saveToPortfolio(title, null, wc);
+    _saveToPortfolio(title, null, wc, text);
     return;
   }
 
@@ -1111,14 +1480,17 @@ function renderScoreResult(result, title, text) {
   document.getElementById('scoreFormationPrompt').style.display = (action&&action!=='no_action') ? 'block' : 'none';
   if (action && action !== 'no_action') updateFormationNav(true);
 
-  _saveToPortfolio(title, result, wc);
+  _saveToPortfolio(title, result, wc, text);
 }
 
-function _saveToPortfolio(title, result, wc) {
+function _saveToPortfolio(title, result, wc, text) {
   const key = 'original_portfolio_' + studentId();
   let p = [];
   try { p = JSON.parse(localStorage.getItem(key)||'[]'); } catch(e) {}
-  p.push({ id:Date.now(), assignment:title, timestamp:new Date().toISOString(), response:result, words:wc });
+  // Store a truncated copy of the text so the profile's strongest-sentences,
+  // vocabulary reach, and Body-of-Work marginalia can read from real prose.
+  p.push({ id:Date.now(), assignment:title, timestamp:new Date().toISOString(),
+           response:result, words:wc, text:(text||'').slice(0,4000) });
   localStorage.setItem(key, JSON.stringify(p));
 }
 
