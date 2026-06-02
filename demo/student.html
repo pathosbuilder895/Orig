@@ -132,6 +132,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 .fbadge.strong{background:var(--sage-dim);color:var(--sage);border:1px solid rgba(74,107,92,0.2)}
 .fbadge.developing{background:var(--gold-dim);color:#7a5e1a;border:1px solid rgba(176,141,60,0.25)}
 .fbadge.diverged{background:var(--wine-dim);color:var(--wine);border:1px solid rgba(107,39,55,0.2)}
+.fbadge.pending{background:rgba(60,90,130,0.07);color:var(--marginal);border:1px solid var(--hairline)}
 
 /* ── Submit layout ── */
 .submit-layout{display:grid;grid-template-columns:1fr 240px;gap:24px;align-items:start}
@@ -680,14 +681,21 @@ async function getHistory() {
     const raw = localStorage.getItem('original_portfolio_' + studentId());
     if (raw) {
       const portfolio = JSON.parse(raw);
-      return portfolio.map(p => ({
-        submission_id: String(p.id),
-        assignment: p.assignment,
-        created_at: p.timestamp,
-        divergence_score: p.response?.authorship?.deviation_score || 0,
-        action: p.response?.recommendation?.action || 'no_action',
-        words: p.words || 0,
-      }));
+      return portfolio.map(p => {
+        // A submission saved while the server was unreachable has no
+        // response — it was never analysed. Mark it pending so it does
+        // not masquerade as a perfect (fidelity 100) score.
+        const analysed = !!p.response;
+        return {
+          submission_id: String(p.id),
+          assignment: p.assignment,
+          created_at: p.timestamp,
+          divergence_score: analysed ? (p.response?.authorship?.deviation_score || 0) : null,
+          action: p.response?.recommendation?.action || 'no_action',
+          words: p.words || 0,
+          pending: !analysed,
+        };
+      });
     }
   } catch(e) {}
   return DEMO_HISTORY;
@@ -859,27 +867,34 @@ async function loadProfile() {
   const [history, notes, state] = await Promise.all([getHistory(), getNotes(), getState()]);
   const first = studentName().split(' ')[0];
 
-  // Headline
-  const latest = history[history.length-1];
+  // Only analysed submissions carry a fidelity score. Pending (offline-saved,
+  // never-scored) submissions are excluded from fidelity stats and the arc.
+  const analysed = history.filter(h => !h.pending);
+
+  // Headline — based on the most recent *analysed* submission
+  const latest = analysed[analysed.length-1];
+  document.getElementById('proTitle').textContent = `${first}, your voice is finding its shape.`;
   if (latest) {
     const f = fidFromDev(latest.divergence_score);
-    document.getElementById('proTitle').textContent = `${first}, your voice is finding its shape.`;
     document.getElementById('proSub').textContent =
       `Voice fidelity ${f} on your latest submission — ${f>=80?'a strong result this term':'your voice is developing across the term'}.`;
+  } else {
+    document.getElementById('proSub').textContent =
+      'Submit your first piece of work to reveal your voice profile.';
   }
 
   // Arc title + footer
   document.getElementById('arcTitle').textContent = 'Voice fidelity across ' + semester();
-  const wordTotal = history.reduce((s,h)=>s+(h.words||0),0);
+  const wordTotal = analysed.reduce((s,h)=>s+(h.words||0),0);
   document.getElementById('arcFooter').textContent =
-    `${history.length} submission${history.length!==1?'s':''} · ${semester()} · ${wordTotal.toLocaleString()} words analysed`;
+    `${analysed.length} submission${analysed.length!==1?'s':''} · ${semester()} · ${wordTotal.toLocaleString()} words analysed`;
 
   // Visualisations
   const baseVec = state?.baseline_vector || DEMO_BASELINE;
   drawFingerprint(document.getElementById('fpSvg'), baseVec, DEMO_EARLY);
-  drawArc(document.getElementById('arcSvg'), history);
+  drawArc(document.getElementById('arcSvg'), analysed);
 
-  // Review opportunity
+  // Review opportunity — only meaningful for an analysed submission
   const hasFlag = latest && latest.action && latest.action !== 'no_action';
   document.getElementById('roBlock').style.display = hasFlag ? 'flex' : 'none';
   if (hasFlag) {
@@ -890,19 +905,19 @@ async function loadProfile() {
     updateFormationNav(true);
   }
 
-  // Metrics
-  const onVoice = history.filter(h=>!h.action||h.action==='no_action').length;
-  const fValues = history.map(h=>fidFromDev(h.divergence_score));
+  // Metrics — fidelity figures computed over analysed submissions only
+  const onVoice = analysed.filter(h=>!h.action||h.action==='no_action').length;
+  const fValues = analysed.map(h=>fidFromDev(h.divergence_score));
   const latestF = fValues[fValues.length-1]||0;
   const firstF  = fValues[0]||0;
   const delta   = latestF - firstF;
 
-  document.getElementById('mFidelity').textContent  = latestF || '—';
+  document.getElementById('mFidelity').textContent  = latest ? latestF : '—';
   document.getElementById('mFidelityD').textContent = delta>0 ? `↑ ${delta} pts since start of term` : '';
   document.getElementById('mSubs').textContent      = history.length;
   document.getElementById('mSubsD').textContent     = wordTotal ? wordTotal.toLocaleString()+' words total' : '';
-  document.getElementById('mOnVoice').textContent   = history.length ? `${onVoice}/${history.length}` : '—';
-  document.getElementById('mOnVoiceD').textContent  = history.length-onVoice===0&&history.length>0 ? 'All on voice this term' : `${history.length-onVoice} reviewed`;
+  document.getElementById('mOnVoice').textContent   = analysed.length ? `${onVoice}/${analysed.length}` : '—';
+  document.getElementById('mOnVoiceD').textContent  = analysed.length-onVoice===0&&analysed.length>0 ? 'All on voice this term' : `${analysed.length-onVoice} reviewed`;
   document.getElementById('mGrowth').textContent    = state?.sample_count || history.length;
   document.getElementById('mGrowthD').textContent   = state ? `Purity ${((state.purity||0)*100).toFixed(0)}%` : '';
 
@@ -937,6 +952,14 @@ async function loadLibrary() {
   }
 
   shelf.innerHTML = history.map((s,i)=>{
+    // Pending (never-analysed) submissions get a neutral spine and a
+    // fixed modest height — they carry no fidelity score yet.
+    if (s.pending) {
+      const ph = 96;
+      return `<div class="spine" data-idx="${i}" style="width:36px;height:${ph}px" title="${esc(s.assignment||'Untitled')} — awaiting analysis">
+        <div class="spine-inner" style="background:#22303f;color:#8aa0b4;border-left:2px solid var(--hairline-s)">${esc(s.assignment||'Untitled')}</div>
+      </div>`;
+    }
     const f=fidFromDev(s.divergence_score), div=s.action&&s.action!=='no_action';
     const c=spineCol(f,div), h=Math.round(82+Math.max(0,f-60)*2.4);
     return `<div class="spine" data-idx="${i}" style="width:36px;height:${h}px" title="${esc(s.assignment||'Untitled')}">
@@ -946,23 +969,38 @@ async function loadLibrary() {
 
   const list = document.getElementById('libList');
   list.innerHTML = history.map((s,i)=>{
-    const f=fidFromDev(s.divergence_score), div=s.action&&s.action!=='no_action';
-    const [bc,bl]=fidLabel(f,div);
+    const div=s.action&&s.action!=='no_action';
+    const [bc,bl] = s.pending ? ['pending','Awaiting analysis'] : fidLabel(fidFromDev(s.divergence_score), div);
     return `<div class="sub-row" data-idx="${i}">
       <span class="sub-date">${shortDate(s.created_at)}</span>
       <span class="sub-title-col">${esc(s.assignment||'Untitled')}</span>
-      <span class="sub-type" style="font-family:var(--font-b);font-style:italic">${esc(s.action==='schedule_conversation'?'Worth reviewing':'')}</span>
+      <span class="sub-type" style="font-family:var(--font-b);font-style:italic">${esc(s.pending?'':(s.action==='schedule_conversation'?'Worth reviewing':''))}</span>
       <span class="fbadge ${bc}" style="font-size:0.64rem;padding:3px 9px">${bl}</span>
     </div>`;
   }).join('');
 
   function openDetail(idx) {
     const s=history[idx];
-    const f=fidFromDev(s.divergence_score), div=s.action&&s.action!=='no_action';
-    const [bc,bl]=fidLabel(f,div);
+    const div=s.action&&s.action!=='no_action';
     document.getElementById('sdTitle').textContent=s.assignment||'Untitled';
     document.getElementById('sdMeta').textContent=`${shortDate(s.created_at)} · ${(s.words||0).toLocaleString()} words`;
     const badge=document.getElementById('sdBadge');
+
+    if (s.pending) {
+      badge.textContent='Awaiting analysis'; badge.className='fbadge pending';
+      document.getElementById('sdFeats').innerHTML=`
+        <div class="sd-feat"><div class="sd-fv">—</div><div class="sd-fl">Voice Fidelity</div></div>
+        <div class="sd-feat"><div class="sd-fv">Awaiting analysis</div><div class="sd-fl">Assessment</div></div>
+        <div class="sd-feat"><div class="sd-fv">${s.words?.toLocaleString()||'—'}</div><div class="sd-fl">Words</div></div>`;
+      document.getElementById('sdRo').style.display='none';
+      document.getElementById('libDetail').style.display='block';
+      document.querySelectorAll('.spine .spine-inner').forEach((si,i)=>si.style.outline=i===idx?'2px solid rgba(176,141,60,0.7)':'none');
+      document.querySelectorAll('.sub-row[data-idx]').forEach(r=>r.classList.toggle('selected',parseInt(r.dataset.idx)===idx));
+      return;
+    }
+
+    const f=fidFromDev(s.divergence_score);
+    const [bc,bl]=fidLabel(f,div);
     badge.textContent=bl; badge.className='fbadge '+bc;
     document.getElementById('sdFeats').innerHTML=`
       <div class="sd-feat"><div class="sd-fv" style="color:${f>=80?'var(--sage)':'var(--wine)'}">${f}</div><div class="sd-fl">Voice Fidelity</div></div>

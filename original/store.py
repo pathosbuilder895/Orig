@@ -26,6 +26,16 @@ from .constants import FEATURE_DIM
 
 log = logging.getLogger(__name__)
 
+
+def _escape_like(s: str) -> str:
+    r"""
+    Escape SQL LIKE wildcards so a literal string can be used as a LIKE
+    pattern. Escapes the backslash first (the escape char), then '%' and '_'.
+    Pair with ``LIKE ? ESCAPE '\'`` in the query.
+    """
+    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 # ── Database path ─────────────────────────────────────────────────────────────
 
 _DB_PATH = Path(os.environ.get(
@@ -1504,23 +1514,27 @@ def tenant_stats(tenant_id: str) -> Dict:
         _STORE[sid].sample_count for sid in student_ids if sid in _STORE
     )
 
-    prefix = f"{tenant_id}:"
+    # Escape SQL LIKE wildcards so a tenant_id containing '_' or '%' cannot
+    # accidentally match other tenants' rows (e.g. 'sem_a' must not match
+    # 'semXa:...'). The deletion path uses Python startswith() and is already
+    # exact; this keeps the stats counts consistent with it.
+    like_prefix = _escape_like(f"{tenant_id}:") + "%"
     try:
         with _get_conn() as conn:
             row = conn.execute(
-                """SELECT COUNT(*), MAX(created_at)
+                r"""SELECT COUNT(*), MAX(created_at)
                    FROM submission_manifests
-                   WHERE student_id LIKE ?""",
-                (prefix + "%",),
+                   WHERE student_id LIKE ? ESCAPE '\'""",
+                (like_prefix,),
             ).fetchone()
             submission_count = int(row[0]) if row else 0
             last_active_at = row[1] if row else None
 
             action_rows = conn.execute(
-                """SELECT action, COUNT(*) FROM submission_manifests
-                   WHERE student_id LIKE ? AND action IS NOT NULL
+                r"""SELECT action, COUNT(*) FROM submission_manifests
+                   WHERE student_id LIKE ? ESCAPE '\' AND action IS NOT NULL
                    GROUP BY action""",
-                (prefix + "%",),
+                (like_prefix,),
             ).fetchall()
             action_counts = {r[0]: r[1] for r in action_rows}
     except Exception:
