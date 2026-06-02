@@ -534,7 +534,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
             </div>
           </div>
 
-          <div style="padding:16px 0;border-top:1px solid var(--hairline);font-family:var(--font-b);font-style:italic;font-size:0.81rem;color:rgba(26,26,26,0.38);line-height:1.55" id="ftComplete" style="display:none">
+          <div id="ftComplete" style="display:none;padding:16px 0;border-top:1px solid var(--hairline);font-family:var(--font-b);font-style:italic;font-size:0.81rem;color:rgba(26,26,26,0.38);line-height:1.55">
             Formation complete. Your record has been updated.
           </div>
         </div>
@@ -643,7 +643,7 @@ document.querySelectorAll('.nav-item[data-view]').forEach(item =>
 /* ═══════════════════════════════════════════════════════════════
    Helpers
    ═══════════════════════════════════════════════════════════════ */
-function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function fidFromDev(d) { return Math.max(0, Math.round((1 - (d||0)) * 100)); }
 function shortDate(iso) {
   if (!iso) return '—';
