@@ -276,24 +276,31 @@ function renderResult(result, title, text) {
     return;
   }
 
-  const he = result.human_explanation;
-  if (he) {
-    document.getElementById('resultHeadline').textContent = he.headline || '';
-    document.getElementById('resultSummary').textContent  = he.summary  || '';
-    const feats = (result.interference?.constructive_features||[]).slice(0,3);
-    document.getElementById('resultFeats').innerHTML = feats.map(fc=>
-      `<div class="result-feat"><div class="result-dot"></div><div>${esc(fc.name)} is consistent with your established voice.</div></div>`
-    ).join('');
+  // Formation-register copy, built client-side. Never surface the technical
+  // explainer ("deviation score" / "anomalies detected").
+  const action = result.recommendation?.action || 'no_action';
+  const fid = fidFromDev(result.authorship?.deviation_score||0);
+  const diverges = action !== 'no_action';
+  let headline, summary;
+  if (!diverges) {
+    headline = 'This reads like you.';
+    summary  = 'Your established voice comes through here — your rhythm, your vocabulary, the way you build an argument. Saved to your body of work.';
+  } else if (action === 'monitor') {
+    headline = 'Mostly your voice, with a few new notes.';
+    summary  = 'Most of this reads like your established writing; a few passages stretch in new directions. Often that is growth.';
   } else {
-    const f = fidFromDev(result.authorship?.deviation_score||0);
-    document.getElementById('resultHeadline').textContent = `Your voice is ${f}% consistent with your established profile.`;
-    document.getElementById('resultSummary').textContent = result.recommendation?.rationale || '';
-    document.getElementById('resultFeats').innerHTML = '';
+    headline = 'Some passages read differently from your voice.';
+    summary  = 'Parts of this diverge from your established voice — worth revisiting. Not a verdict, an invitation to look again.';
   }
+  document.getElementById('resultHeadline').textContent = headline;
+  document.getElementById('resultSummary').textContent  = summary;
+  const feats = (result.interference?.constructive_features||[]).slice(0,3);
+  document.getElementById('resultFeats').innerHTML =
+    `<div style="font-family:var(--font-b);font-style:italic;font-size:0.78rem;color:rgba(26,26,26,0.38);margin-bottom:${feats.length?'8px':'0'}">Voice fidelity ${fid} · within your established range.</div>` +
+    feats.map(fc=>`<div class="result-feat"><div class="result-dot"></div><div>${esc(fc.name)} is consistent with your established voice.</div></div>`).join('');
 
-  const action = result.recommendation?.action;
   const roEl = document.getElementById('resultRo');
-  roEl.style.display = (action && action !== 'no_action') ? 'block' : 'none';
+  roEl.style.display = diverges ? 'block' : 'none';
 
   // Save to portfolio
   try {

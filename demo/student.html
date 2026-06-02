@@ -1512,24 +1512,49 @@ function renderScoreResult(result, title, text) {
     return;
   }
 
-  const he = result.human_explanation;
-  if (he) {
-    document.getElementById('scoreHeadline').textContent = he.headline || '';
-    document.getElementById('scoreSummary').textContent  = he.summary  || '';
-    const feats = (result.interference?.constructive_features || []).slice(0,3);
-    document.getElementById('scoreFeats').innerHTML = feats.map(fc=>
-      `<div class="score-feat-row"><div class="score-feat-dot"></div><div style="font-family:var(--font-b);font-size:0.91rem;color:var(--ink)">${esc(fc.name)} is consistent with your established voice.</div></div>`
-    ).join('');
-  } else {
-    const f = fidFromDev(result.authorship?.deviation_score||0);
-    document.getElementById('scoreHeadline').textContent = `Your voice is ${f}% consistent with your established profile.`;
-    document.getElementById('scoreSummary').textContent = result.recommendation?.rationale || '';
-    document.getElementById('scoreFeats').innerHTML = '';
-  }
+  // Build the result copy CLIENT-SIDE in the formation register. We never
+  // surface the technical explainer (result.human_explanation), which speaks
+  // in "deviation score" / "anomalies detected" — the surveillance language
+  // this dashboard exists to avoid.
+  const action = result.recommendation?.action || 'no_action';
+  const dev    = result.authorship?.deviation_score || 0;
+  const fid    = fidFromDev(dev);
+  const diverges = action !== 'no_action';
 
-  const action = result.recommendation?.action;
-  document.getElementById('scoreFormationPrompt').style.display = (action&&action!=='no_action') ? 'block' : 'none';
-  if (action && action !== 'no_action') updateFormationNav(true);
+  let headline, summary;
+  if (!diverges) {
+    headline = 'This reads like you.';
+    summary  = 'Your established voice comes through clearly here — in your sentence rhythm, your vocabulary, the way you build an argument. This piece sits comfortably within your body of work.';
+  } else if (action === 'monitor') {
+    headline = 'Mostly your voice, with a few new notes.';
+    summary  = 'Most of this reads like your established writing. A few passages stretch in new directions — often a sign of growth, sometimes just a different day at the desk.';
+  } else {
+    headline = 'Some passages here read differently from your voice.';
+    summary  = 'Parts of this piece diverge from your established voice. That is worth revisiting — not a verdict, an invitation to look again. A formation pathway is available if you would like a structured way through it.';
+  }
+  document.getElementById('scoreHeadline').textContent = headline;
+  document.getElementById('scoreSummary').textContent  = summary;
+
+  // Quiet secondary detail (not a hero percentage): voice fidelity + the
+  // features that held steady. Constructive features read as affirmation.
+  const feats = (result.interference?.constructive_features || []).slice(0,3);
+  const featHtml = feats.map(fc=>
+    `<div class="score-feat-row"><div class="score-feat-dot"></div><div style="font-family:var(--font-b);font-size:0.91rem;color:var(--ink)">${esc(fc.name)} is consistent with your established voice.</div></div>`
+  ).join('');
+  document.getElementById('scoreFeats').innerHTML =
+    `<div style="font-family:var(--font-b);font-style:italic;font-size:0.82rem;color:rgba(26,26,26,0.4);margin-bottom:${featHtml?'10px':'0'}">Voice fidelity ${fid} · within your established range.</div>` + featHtml;
+
+  // Formation: a divergence opens a server-side pathway (idempotent).
+  document.getElementById('scoreFormationPrompt').style.display = diverges ? 'block' : 'none';
+  if (diverges) {
+    updateFormationNav(true);
+    const subId = result.submission_id || null;
+    window._ftSubmissionId = subId;
+    apiFetch(`/students/${encodeURIComponent(studentId())}/formation`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ submission_id: subId, reason:'voice divergence' }),
+    });
+  }
 
   _saveToPortfolio(title, result, wc, text);
 }
