@@ -221,6 +221,26 @@ def _get_conn() -> sqlite3.Connection:
         CREATE INDEX IF NOT EXISTS idx_audit_action
             ON audit_log(action, created_at)
     """)
+    # Formation pathways (ADR-002 convergence slice). A pathway is opened when a
+    # submission diverges (review opportunity). It advances through three
+    # sessions (baseline → formation → verification); completion clears the
+    # review flag on the triggering submission. One open pathway per student.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS formation_pathways (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id     TEXT NOT NULL,
+            submission_id  TEXT,
+            status         TEXT NOT NULL DEFAULT 'open',
+            current_step   INTEGER NOT NULL DEFAULT 0,
+            reason         TEXT,
+            created_at     TEXT NOT NULL,
+            updated_at     TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_formation_student
+            ON formation_pathways(student_id, status)
+    """)
     conn.commit()
     return conn
 
@@ -1656,3 +1676,122 @@ def student_data_inventory(student_id: str) -> Optional[Dict]:
         "effective_sample_weight": state.effective_sample_count,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
+
+
+# ── Formation pathways (ADR-002) ──────────────────────────────────────────────
+# A three-session developmental pathway opened when a submission diverges.
+# Steps: 0 = not started, 1 = baseline done, 2 = formation done,
+#        3 = verification done → status 'completed', review flag cleared.
+
+FORMATION_STEPS = 3
+
+
+def _formation_row_to_dict(row) -> Dict:
+    return {
+        "id":            row[0],
+        "student_id":    row[1],
+        "submission_id": row[2],
+        "status":        row[3],
+        "current_step":  row[4],
+        "reason":        row[5],
+        "created_at":    row[6],
+        "updated_at":    row[7],
+        "total_steps":   FORMATION_STEPS,
+    }
+
+
+def get_formation_pathway(student_id: str) -> Optional[Dict]:
+    """Return the student's open pathway, or the most recent if none open."""
+    try:
+        with _get_conn() as conn:
+            row = conn.execute(
+                """SELECT id, student_id, submission_id, status, current_step,
+                          reason, created_at, updated_at
+                   FROM formation_pathways
+                   WHERE student_id = ?
+                   ORDER BY (status='open') DESC, updated_at DESC
+                   LIMIT 1""",
+                (student_id,),
+            ).fetchone()
+        return _formation_row_to_dict(row) if row else None
+    except Exception:
+        log.exception("get_formation_pathway failed for %s", student_id)
+        return None
+
+
+def open_formation_pathway(
+    student_id: str,
+    submission_id: Optional[str] = None,
+    reason: Optional[str] = None,
+) -> Optional[Dict]:
+    """
+    Open a formation pathway for a student. Idempotent: if an open pathway
+    already exists, it is returned unchanged (a student has at most one).
+    """
+    existing = get_formation_pathway(student_id)
+    if existing and existing["status"] == "open":
+        return existing
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        with _get_conn() as conn:
+            cur = conn.execute(
+                """INSERT INTO formation_pathways
+                   (student_id, submission_id, status, current_step, reason, created_at, updated_at)
+                   VALUES (?, ?, 'open', 0, ?, ?, ?)""",
+                (student_id, submission_id, reason, now, now),
+            )
+            conn.commit()
+            new_id = cur.lastrowid
+    except Exception:
+        log.exception("open_formation_pathway failed for %s", student_id)
+        return None
+    log_audit(action="formation_open", student_id=student_id,
+              details={"submission_id": submission_id, "pathway_id": new_id})
+    return get_formation_pathway(student_id)
+
+
+def advance_formation_pathway(student_id: str) -> Optional[Dict]:
+    """
+    Advance the student's open pathway by one session. On reaching the final
+    step the pathway is marked 'completed' and the triggering submission's
+    review flag is cleared (manifest action → no_action; fidelity authentic).
+    Returns the updated pathway, or None if there is no open pathway.
+    """
+    p = get_formation_pathway(student_id)
+    if not p or p["status"] != "open":
+        return None
+    new_step = min(p["current_step"] + 1, FORMATION_STEPS)
+    completed = new_step >= FORMATION_STEPS
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        with _get_conn() as conn:
+            conn.execute(
+                """UPDATE formation_pathways
+                   SET current_step = ?, status = ?, updated_at = ?
+                   WHERE id = ?""",
+                (new_step, "completed" if completed else "open", now, p["id"]),
+            )
+            # Clearing the review flag on completion: neutralise the triggering
+            # submission so the student's record no longer shows divergence.
+            if completed and p["submission_id"]:
+                conn.execute(
+                    "UPDATE submission_manifests SET action = 'no_action' WHERE submission_id = ?",
+                    (p["submission_id"],),
+                )
+            conn.commit()
+    except Exception:
+        log.exception("advance_formation_pathway failed for %s", student_id)
+        return None
+
+    if completed and p["submission_id"]:
+        # Conformal feedback loop: a completed formation says the work was
+        # authentic after all.
+        update_fidelity_authenticity(p["submission_id"], True)
+
+    log_audit(
+        action="formation_complete" if completed else "formation_advance",
+        student_id=student_id,
+        details={"pathway_id": p["id"], "step": new_step,
+                 "submission_id": p["submission_id"]},
+    )
+    return get_formation_pathway(student_id)

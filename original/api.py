@@ -24,6 +24,7 @@ import hmac
 import io
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile, File
 from typing import List, Optional
@@ -81,11 +82,33 @@ from .constants import AUTH_WEIGHTS, FEATURE_DIM
 from . import store
 from . import baseline_requests
 from . import bbook_client
+from .repository import get_repository
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    _log = logging.getLogger(__name__)
+    if not _secret_key_pinned:
+        _log.warning(
+            "SECRET_KEY is not set — using a per-process random value. "
+            "JWTs will be invalidated on every restart. "
+            "Set SECRET_KEY in your environment or .env file for a stable key: "
+            "  python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+        )
+    else:
+        _log.info("SECRET_KEY is pinned from environment — JWT tokens survive restarts.")
+    _log.info(
+        "GUARD_DESTRUCTIVE=%s — destructive endpoints are %s.",
+        _GUARD_DESTRUCTIVE,
+        "GUARDED (X-Guard-Token required)" if _GUARD_DESTRUCTIVE else "open (demo mode)",
+    )
+    yield
+
 
 app = FastAPI(
     title="Original — Authorship Integrity API",
     version="0.1.0",
     description="Quantum stylometric authorship analysis for seminary submissions.",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -145,28 +168,6 @@ def _require_guard(request: "Request") -> None:
             status_code=403,
             detail="Destructive operation requires a valid X-Guard-Token header.",
         )
-
-
-# Startup check — uses lifespan-compatible approach for FastAPI ≥ 0.93.
-# Kept as on_event for now (still supported); a future migration to the
-# contextlib.asynccontextmanager lifespan pattern is noted in tech-debt.
-@app.on_event("startup")
-async def _startup_checks() -> None:
-    _log = logging.getLogger(__name__)
-    if not _secret_key_pinned:
-        _log.warning(
-            "SECRET_KEY is not set — using a per-process random value. "
-            "JWTs will be invalidated on every restart. "
-            "Set SECRET_KEY in your environment or .env file for a stable key: "
-            "  python -c \"import secrets; print(secrets.token_urlsafe(64))\""
-        )
-    else:
-        _log.info("SECRET_KEY is pinned from environment — JWT tokens survive restarts.")
-    _log.info(
-        "GUARD_DESTRUCTIVE=%s — destructive endpoints are %s.",
-        _GUARD_DESTRUCTIVE,
-        "GUARDED (X-Guard-Token required)" if _GUARD_DESTRUCTIVE else "open (demo mode)",
-    )
 
 
 # ── Email notification stub ───────────────────────────────────────────────────
@@ -299,6 +300,46 @@ def get_student(student_id: str):
         baseline_vector=baseline_dict,
         samples=samples_out,
     )
+
+
+# ── Read a single baseline sample's prose text ───────────────────────────────
+# The StudentStateResponse exposes only SampleSummary metadata (index,
+# assignment, provenance, submitted_at, auth_weight) — not the text itself,
+# so the demo UI can stay slim. When the professor wants to read a specific
+# sample's writing (to remind themselves of the student's voice, or to
+# verify a sample is legitimate before authenticating it), they fetch
+# the prose lazily via this endpoint.
+
+@app.get("/students/{student_id}/samples/{index}/text")
+def get_sample_text(student_id: str, index: int):
+    """
+    Return the raw prose of a single baseline sample.
+
+    Returns 404 if the student doesn't exist or the index is out of range.
+    Response shape mirrors the SampleSummary metadata so the caller can
+    render headers + body in a single round-trip without re-fetching the
+    student state.
+    """
+    state = store.get(student_id)
+    if state is None:
+        raise HTTPException(status_code=404, detail=f"Student '{student_id}' not found")
+    if index < 0 or index >= len(state.samples):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Sample index {index} out of range (student has {len(state.samples)} samples)",
+        )
+    s = state.samples[index]
+    return {
+        "student_id": student_id,
+        "index": index,
+        "assignment": s.assignment,
+        "provenance": s.provenance,
+        "submitted_at": s.submitted_at,
+        "auth_weight": s.auth_weight,
+        "word_count": len((s.text or "").split()),
+        "char_count": len(s.text or ""),
+        "text": s.text or "",
+    }
 
 
 # ── FERPA: student data deletion ──────────────────────────────────────────────
@@ -721,6 +762,54 @@ def list_all_baseline_requests(request: "Request"):
     """
     _require_guard(request)
     return {"requests": [r.to_dict() for r in baseline_requests.list_all()]}
+
+
+# ── Formation pathways (ADR-002 — routed through the Repository seam) ─────────
+# These handlers depend only on the Repository interface, never on store
+# directly. Swapping in a Postgres-backed Repository requires no change here.
+
+@app.get("/students/{student_id}/formation")
+def get_formation(student_id: str):
+    """Return the student's active (or most recent) formation pathway, or null."""
+    repo = get_repository(os.environ.get("ENVIRONMENT", "demo"))
+    return {"pathway": repo.get_formation_pathway(student_id)}
+
+
+@app.post("/students/{student_id}/formation", status_code=201)
+def open_formation(student_id: str, body: Optional[dict] = None):
+    """
+    Open a three-session formation pathway. Idempotent — returns the existing
+    open pathway if one is already in progress.
+
+    Optional body: { submission_id, reason }
+    """
+    body = body or {}
+    repo = get_repository(os.environ.get("ENVIRONMENT", "demo"))
+    pathway = repo.open_formation_pathway(
+        student_id,
+        submission_id=body.get("submission_id"),
+        reason=body.get("reason"),
+    )
+    if pathway is None:
+        raise HTTPException(status_code=500, detail="Could not open formation pathway")
+    return {"pathway": pathway}
+
+
+@app.post("/students/{student_id}/formation/advance")
+def advance_formation(student_id: str):
+    """
+    Advance the open pathway by one session. On the final session the pathway
+    completes and the triggering submission's review flag is cleared.
+    Returns 404 if there is no open pathway.
+    """
+    repo = get_repository(os.environ.get("ENVIRONMENT", "demo"))
+    pathway = repo.advance_formation_pathway(student_id)
+    if pathway is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No open formation pathway for student '{student_id}'.",
+        )
+    return {"pathway": pathway}
 
 
 # ── File upload (text extraction) ────────────────────────────────────────────

@@ -810,10 +810,11 @@ function showView(name) {
   document.querySelectorAll('.nav-item[data-view]').forEach(n =>
     n.classList.toggle('active', n.dataset.view === name));
   document.getElementById('bcCur').textContent = VIEW_LABELS[name] || name;
-  if (name === 'profile') loadProfile();
-  if (name === 'work')    loadWork();
-  if (name === 'library') loadLibrary();
-  if (name === 'notes')   loadNotes();
+  if (name === 'profile')   loadProfile();
+  if (name === 'work')      loadWork();
+  if (name === 'library')   loadLibrary();
+  if (name === 'notes')     loadNotes();
+  if (name === 'formation') syncFormation(true, window._ftSubmissionId || null);
 }
 document.querySelectorAll('.nav-item[data-view]').forEach(item =>
   item.addEventListener('click', () => showView(item.dataset.view)));
@@ -887,9 +888,10 @@ async function getState() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Formation track state
+   Formation track state — server-backed (ADR-002), localStorage fallback
    ═══════════════════════════════════════════════════════════════ */
 let _ftStep = parseInt(localStorage.getItem('ft_step_' + studentId()) || '0');
+let _ftServerOk = false;   // true once a server pathway has been seen
 
 function updateFormationNav(show) {
   document.getElementById('navFormation').style.display = show ? 'flex' : 'none';
@@ -914,10 +916,53 @@ function updateFormationUI() {
       if (lk)  { lk.textContent = `Available after Session ${n-1}`; lk.style.display = ''; }
     }
   });
-  if (_ftStep >= 3) document.getElementById('ftComplete').style.display = 'block';
+  document.getElementById('ftComplete').style.display = _ftStep >= 3 ? 'block' : 'none';
 }
-function advanceFormation(step) {
+
+/* Pull the pathway from the server; reflect its step. Opens a pathway on
+   first view if a review opportunity is active and none exists yet. */
+async function syncFormation(openIfMissing, submissionId) {
+  try {
+    let data = await apiFetch(`/students/${encodeURIComponent(studentId())}/formation`);
+    let pathway = data && data.pathway;
+    if (!pathway && openIfMissing) {
+      const opened = await apiFetch(`/students/${encodeURIComponent(studentId())}/formation`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ submission_id: submissionId || null, reason:'voice divergence' }),
+      });
+      pathway = opened && opened.pathway;
+    }
+    if (pathway) {
+      _ftServerOk = true;
+      _ftStep = pathway.current_step;
+      localStorage.setItem('ft_step_' + studentId(), _ftStep);
+      const open = pathway.status === 'open';
+      updateFormationUI();
+      updateFormationNav(open && _ftStep < 3);
+      return pathway;
+    }
+  } catch(e) {}
+  return null;
+}
+
+async function advanceFormation(step) {
   if (step !== _ftStep + 1) return;
+  const btn = document.getElementById('ft'+step+'btn');
+  if (btn) btn.disabled = true;
+
+  if (_ftServerOk) {
+    // Authoritative path: the server advances and (on completion) clears the flag.
+    const data = await apiFetch(`/students/${encodeURIComponent(studentId())}/formation/advance`, { method:'POST' });
+    const pathway = data && data.pathway;
+    if (pathway) {
+      _ftStep = pathway.current_step;
+      localStorage.setItem('ft_step_' + studentId(), _ftStep);
+      updateFormationUI();
+      if (pathway.status === 'completed') updateFormationNav(false);
+      return;
+    }
+  }
+  // Fallback (server unreachable): advance locally so the demo still flows.
   _ftStep = step;
   localStorage.setItem('ft_step_' + studentId(), _ftStep);
   updateFormationUI();
@@ -1091,6 +1136,12 @@ async function loadProfile() {
     document.getElementById('roMeta').textContent =
       `${shortDate(latest.created_at)} · ${latest.assignment||'Submission'}`;
     updateFormationNav(true);
+    // Open a server-side formation pathway for this divergence (idempotent).
+    window._ftSubmissionId = latest.submission_id || null;
+    syncFormation(true, window._ftSubmissionId);
+  } else {
+    // Reflect any existing pathway (e.g. one opened earlier, still in progress).
+    syncFormation(false, null);
   }
 
   // Metrics — fidelity figures computed over analysed submissions only
