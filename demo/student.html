@@ -574,6 +574,10 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
                 <input class="form-inp" id="subType" placeholder="Essay, response, seminar paper…">
               </div>
               <div style="margin-bottom:18px">
+                <label class="form-lbl">Your thesis <span style="font-weight:400;text-transform:none;letter-spacing:0;font-style:italic;color:rgba(26,26,26,0.3)">— one sentence, kept in view as you write</span></label>
+                <input class="form-inp" id="subThesis" placeholder="In one sentence, what are you arguing?" oninput="onThesisInput()">
+              </div>
+              <div style="margin-bottom:18px">
                 <label class="form-lbl">Your writing</label>
                 <textarea class="form-ta" id="subText" rows="10" placeholder="Paste or type your work here…"></textarea>
                 <div style="display:flex;justify-content:space-between;margin-top:6px">
@@ -610,6 +614,11 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
           <!-- Focus Coach -->
           <div class="coach-panel">
             <div class="coach-label">Focus Coach</div>
+            <!-- Your stated thesis, kept passively in view -->
+            <div id="coachThesis" style="display:none;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--hairline)">
+              <div style="font-family:var(--font-u);font-size:0.57rem;font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:rgba(60,90,130,0.45);margin-bottom:5px">Your thesis</div>
+              <div id="coachThesisText" style="font-family:var(--font-d);font-size:0.98rem;line-height:1.4;color:var(--oxford)"></div>
+            </div>
             <div class="coach-nudge" id="coachNudge">
               <div class="coach-nudge-cat" id="coachNudgeCat">Voice check</div>
               <div class="coach-nudge-msg" id="coachNudgeMsg">Does this sound like you?</div>
@@ -736,25 +745,40 @@ const DEMO_EARLY = {
    Focus Coach — five nudge types, surfaced one at a time, rotating
    so they never become noise. Whisper-level, classical rhetoric tone.
    ═══════════════════════════════════════════════════════════════ */
+// Each nudge is a function of the live writing context (the stated thesis,
+// whether words have been written). Thesis/Outline reminders surface the
+// student's ACTUAL thesis rather than a generic line. msg(ctx) returns the
+// whisper; null means "not applicable right now" and the nudge is skipped.
 const COACH_NUDGES = [
-  { cat:'Thesis reminder',  msg:'Read your thesis out loud. Does this paragraph still serve it?' },
-  { cat:'Outline reminder', msg:'Taking a moment? Glance at your outline — are you still on track?' },
-  { cat:'Voice check',      msg:'Does this sound like you?' },
-  { cat:'Breath prompt',    msg:'Step away two minutes. Come back fresh.' },
-  { cat:'Encouragement',    msg:'You already have the idea. Now just say it plainly.' },
-  { cat:'Thesis reminder',  msg:'One clear idea at a time. What is the one this paragraph is for?' },
-  { cat:'Voice check',      msg:'Write the sentence you mean, not the one that sounds impressive.' },
-  { cat:'Encouragement',    msg:'Your strongest writing comes when you trust what you already know.' },
-  { cat:'Outline reminder', msg:'A paragraph is one thought, fully expressed. Is this one finished?' },
-  { cat:'Voice check',      msg:'Read the last sentence you wrote. Does it earn the next one?' },
+  { cat:'Thesis reminder',  msg: c => c.thesis ? `Your thesis: “${c.thesis}” — does this paragraph still serve it?`
+                                               : 'Name your thesis in one sentence. It will keep you honest.' },
+  { cat:'Outline reminder', msg: c => c.thesis ? `Glance back at your thesis — are you still on its track?`
+                                               : 'Taking a moment? Sketch the shape of your argument before you go on.' },
+  { cat:'Voice check',      msg: () => 'Does this sound like you?' },
+  { cat:'Breath prompt',    msg: () => 'Step away two minutes. Come back fresh.' },
+  { cat:'Encouragement',    msg: () => 'You already have the idea. Now just say it plainly.' },
+  { cat:'Thesis reminder',  msg: c => c.thesis ? `One idea at a time. Right now, the one is: “${c.thesis}”.`
+                                               : 'One clear idea at a time. What is the one this paragraph is for?' },
+  { cat:'Voice check',      msg: () => 'Write the sentence you mean, not the one that sounds impressive.' },
+  { cat:'Encouragement',    msg: () => 'Your strongest writing comes when you trust what you already know.' },
+  { cat:'Outline reminder', msg: () => 'A paragraph is one thought, fully expressed. Is this one finished?' },
+  { cat:'Voice check',      msg: () => 'Read the last sentence you wrote. Does it earn the next one?' },
 ];
 let _coachIdx = Math.floor(Math.random() * COACH_NUDGES.length);
+
+function coachContext() {
+  const t = (document.getElementById('subThesis')?.value || '').trim();
+  const w = (document.getElementById('subText')?.value || '').trim();
+  return { thesis: t, hasWords: w.split(/\s+/).filter(Boolean).length >= 20 };
+}
 function renderNudge() {
   const cat = document.getElementById('coachNudgeCat');
   const msg = document.getElementById('coachNudgeMsg');
   if (!cat || !msg) return;
+  const ctx = coachContext();
   const n = COACH_NUDGES[_coachIdx];
-  cat.textContent = n.cat; msg.textContent = n.msg;
+  cat.textContent = n.cat;
+  msg.textContent = n.msg(ctx);
 }
 function rotateCoach() {
   const wrap = document.getElementById('coachNudge');
@@ -764,6 +788,18 @@ function rotateCoach() {
 }
 setInterval(rotateCoach, 90000);
 renderNudge();
+
+/* Surface the stated thesis passively in the coach margin as it is typed. */
+function onThesisInput() {
+  const t = (document.getElementById('subThesis')?.value || '').trim();
+  const box = document.getElementById('coachThesis');
+  const txt = document.getElementById('coachThesisText');
+  if (box && txt) {
+    box.style.display = t ? 'block' : 'none';
+    txt.textContent = t;
+  }
+  renderNudge();   // refresh the current nudge so a thesis reminder picks it up
+}
 
 /* ═══════════════════════════════════════════════════════════════
    The Library — model prose exemplars with stylometric commentary.
@@ -1565,8 +1601,10 @@ function _saveToPortfolio(title, result, wc, text) {
   try { p = JSON.parse(localStorage.getItem(key)||'[]'); } catch(e) {}
   // Store a truncated copy of the text so the profile's strongest-sentences,
   // vocabulary reach, and Body-of-Work marginalia can read from real prose.
+  // The stated thesis is kept with the record (Focus Coach context).
+  const thesis = (document.getElementById('subThesis')?.value || '').trim();
   p.push({ id:Date.now(), assignment:title, timestamp:new Date().toISOString(),
-           response:result, words:wc, text:(text||'').slice(0,4000) });
+           response:result, words:wc, text:(text||'').slice(0,4000), thesis });
   localStorage.setItem(key, JSON.stringify(p));
 }
 

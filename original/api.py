@@ -142,6 +142,11 @@ _secret_key_pinned: bool = bool(os.environ.get("SECRET_KEY", ""))
 _GUARD_DESTRUCTIVE: bool = os.environ.get("GUARD_DESTRUCTIVE", "0") == "1"
 
 
+def _repo():
+    """The persistence Repository for this environment (ADR-002 seam)."""
+    return get_repository(os.environ.get("ENVIRONMENT", "demo"))
+
+
 def _require_guard(request: "Request") -> None:
     """
     Raise 403 if GUARD_DESTRUCTIVE is on and the request lacks the correct
@@ -365,12 +370,12 @@ def delete_student(student_id: str, request: "Request"):
     remote = getattr(request.client, "host", "unknown") if request.client else "unknown"
     deleted = store.delete_student(student_id)
     if not deleted:
-        store.log_audit(action="student_delete", student_id=student_id, actor=remote, result="not_found")
+        _repo().log_audit(action="student_delete", student_id=student_id, actor=remote, result="not_found")
         raise HTTPException(
             status_code=404,
             detail=f"Student '{student_id}' not found — nothing to delete.",
         )
-    store.log_audit(action="student_delete", student_id=student_id, actor=remote, result="ok")
+    _repo().log_audit(action="student_delete", student_id=student_id, actor=remote, result="ok")
     return {
         "deleted": True,
         "student_id": student_id,
@@ -416,21 +421,21 @@ def create_tenant(body: dict):
     if len(meta) > 10:
         raise HTTPException(status_code=422, detail="meta must have at most 10 keys")
     meta = {str(k)[:80]: str(v)[:500] for k, v in list(meta.items())[:10]}
-    store.put_tenant(tenant_id, name, environment=environment, meta=meta)
-    store.log_audit(action="tenant_register", tenant_id=tenant_id, details={"name": name, "environment": environment})
+    _repo().put_tenant(tenant_id, name, environment=environment, meta=meta)
+    _repo().log_audit(action="tenant_register", tenant_id=tenant_id, details={"name": name, "environment": environment})
     return {"tenant_id": tenant_id, "name": name, "environment": environment}
 
 
 @app.get("/tenants")
 def list_tenants(environment: str = ""):
     """List all registered tenants, optionally filtered by environment."""
-    return store.list_tenants(environment=environment or None)
+    return _repo().list_tenants(environment=environment or None)
 
 
 @app.get("/tenants/{tenant_id}")
 def get_tenant(tenant_id: str):
     """Get a single tenant record."""
-    t = store.get_tenant(tenant_id)
+    t = _repo().get_tenant(tenant_id)
     if not t:
         raise HTTPException(status_code=404, detail=f"Tenant '{tenant_id}' not found")
     return t
@@ -444,10 +449,10 @@ def tenant_stats(tenant_id: str):
 
     Used by the operator dashboard to show all-schools-at-a-glance.
     """
-    t = store.get_tenant(tenant_id)
+    t = _repo().get_tenant(tenant_id)
     if not t:
         raise HTTPException(status_code=404, detail=f"Tenant '{tenant_id}' not found")
-    return store.tenant_stats(tenant_id)
+    return _repo().tenant_stats(tenant_id)
 
 
 @app.delete("/tenants/{tenant_id}/students", status_code=200)
@@ -462,7 +467,7 @@ def delete_tenant_students(tenant_id: str, request: "Request"):
     When GUARD_DESTRUCTIVE=1, requires X-Guard-Token header.
     """
     _require_guard(request)
-    t = store.get_tenant(tenant_id)
+    t = _repo().get_tenant(tenant_id)
     if not t:
         raise HTTPException(status_code=404, detail=f"Tenant '{tenant_id}' not found")
     result = store.delete_tenant_students(tenant_id)
@@ -519,7 +524,7 @@ def list_audit_log(
     Results are ordered most-recent-first.
     """
     limit = min(limit, 500)
-    return store.list_audit(
+    return _repo().list_audit(
         student_id=student_id or None,
         action=action or None,
         limit=limit,
@@ -607,7 +612,7 @@ def add_baseline(student_id: str, req: AddSampleRequest):
     store.put(state)   # persist to SQLite
 
     # Audit log — record the baseline addition
-    store.log_audit(
+    _repo().log_audit(
         action="baseline_add",
         student_id=student_id,
         details={
@@ -984,7 +989,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
 
     # ── Audit log — best-effort, never raises ─────────────────────────────────
     try:
-        store.log_audit(
+        _repo().log_audit(
             action="score",
             student_id=student_id,
             details={

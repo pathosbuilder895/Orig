@@ -241,6 +241,23 @@ def _get_conn() -> sqlite3.Connection:
         CREATE INDEX IF NOT EXISTS idx_formation_student
             ON formation_pathways(student_id, status)
     """)
+    # Proctored baseline requests (durable). Previously in-memory only — a
+    # restart dropped every pending request. The full BaselineRequest is
+    # stored as a JSON blob; status / student_id / requested_at are promoted
+    # to columns for querying without deserialising every row.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS baseline_requests (
+            external_request_id TEXT PRIMARY KEY,
+            student_id          TEXT NOT NULL,
+            status              TEXT NOT NULL,
+            requested_at        REAL NOT NULL,
+            data_json           TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_baseline_requests_status
+            ON baseline_requests(status, requested_at)
+    """)
     conn.commit()
     return conn
 
@@ -1795,3 +1812,52 @@ def advance_formation_pathway(student_id: str) -> Optional[Dict]:
                  "submission_id": p["submission_id"]},
     )
     return get_formation_pathway(student_id)
+
+
+# ── Proctored baseline requests (durable persistence) ─────────────────────────
+# Write-through storage for the baseline_requests registry, so pending
+# proctored requests survive a process restart.
+
+def put_baseline_request(
+    external_request_id: str,
+    student_id: str,
+    status: str,
+    requested_at: float,
+    data_json: str,
+) -> None:
+    """Upsert a baseline request row (best-effort; never raises)."""
+    try:
+        with _get_conn() as conn:
+            conn.execute(
+                """INSERT INTO baseline_requests
+                   (external_request_id, student_id, status, requested_at, data_json)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT(external_request_id) DO UPDATE SET
+                     student_id   = excluded.student_id,
+                     status       = excluded.status,
+                     requested_at = excluded.requested_at,
+                     data_json    = excluded.data_json""",
+                (external_request_id, student_id, status, requested_at, data_json),
+            )
+            conn.commit()
+    except Exception:
+        log.exception("put_baseline_request failed for %s", external_request_id)
+
+
+def load_baseline_requests() -> List[Dict]:
+    """Return every persisted baseline request as a raw dict (data_json parsed)."""
+    try:
+        with _get_conn() as conn:
+            rows = conn.execute(
+                "SELECT data_json FROM baseline_requests ORDER BY requested_at"
+            ).fetchall()
+        out: List[Dict] = []
+        for r in rows:
+            try:
+                out.append(json.loads(r[0]))
+            except Exception:
+                continue
+        return out
+    except Exception:
+        log.exception("load_baseline_requests failed")
+        return []
