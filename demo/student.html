@@ -241,6 +241,28 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 .coach-nudge-cat{font-family:var(--font-u);font-size:0.57rem;font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:rgba(176,141,60,0.7);margin-bottom:5px}
 .coach-nudge-msg{font-family:var(--font-b);font-style:italic;font-size:0.93rem;color:rgba(26,26,26,0.55);line-height:1.6;border-left:1px solid var(--gold-dim);padding:2px 0 2px 12px}
 
+/* ── Login gate ── */
+.gate{position:fixed;inset:0;z-index:100;background:var(--oxford);display:flex;align-items:center;justify-content:center;padding:24px}
+.gate-card{width:100%;max-width:420px;background:var(--vellum);border:1px solid rgba(176,141,60,0.2);padding:40px 40px 34px}
+.gate-mark{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.gate-sigil{width:30px;height:30px;border:1px solid rgba(176,141,60,0.5);display:flex;align-items:center;justify-content:center}
+.gate-sigil svg{width:15px;height:15px;stroke:var(--gold);fill:none;stroke-width:1.8;stroke-linecap:round}
+.gate-word{font-family:var(--font-d);font-size:1.25rem;font-weight:600;color:var(--oxford);letter-spacing:0.06em}
+.gate-eye{font-family:var(--font-b);font-style:italic;font-size:0.86rem;color:var(--marginal);margin-bottom:26px}
+.gate-lbl{font-size:0.66rem;font-weight:600;text-transform:uppercase;letter-spacing:0.12em;color:var(--marginal);margin-bottom:6px;display:block}
+.gate-inp{width:100%;padding:10px 0;background:none;border:none;border-bottom:1px solid var(--hairline-s);font-family:var(--font-b);font-size:0.98rem;color:var(--ink);outline:none;transition:border-color .2s;margin-bottom:18px}
+.gate-inp:focus{border-bottom-color:var(--gold)}
+.gate-inp::placeholder{color:rgba(26,26,26,0.28);font-style:italic}
+.gate-btn{width:100%;background:var(--oxford);color:var(--parchment);border:none;padding:12px;font-family:var(--font-u);font-size:0.84rem;font-weight:500;letter-spacing:0.04em;cursor:pointer;transition:background .15s;margin-top:6px}
+.gate-btn:hover{background:var(--oxford-mid)}
+.gate-btn:disabled{opacity:.5;cursor:not-allowed}
+.gate-err{font-family:var(--font-b);font-style:italic;font-size:0.83rem;color:var(--wine);min-height:18px;margin-top:10px}
+.gate-alt{text-align:center;margin-top:18px;padding-top:16px;border-top:1px solid var(--hairline)}
+.gate-alt a{font-family:var(--font-b);font-style:italic;font-size:0.85rem;color:var(--marginal);cursor:pointer;text-decoration:none}
+.gate-alt a:hover{color:var(--oxford)}
+.signout{font-family:var(--font-u);font-size:0.68rem;color:rgba(247,242,231,0.4);cursor:pointer;margin-left:auto;padding:2px 6px}
+.signout:hover{color:var(--parchment)}
+
 /* ── Animations ── */
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 .fu{animation:fadeUp .44s cubic-bezier(0.16,1,0.3,1) both}
@@ -248,6 +270,34 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 </style>
 </head>
 <body>
+
+<!-- ════ Login gate ════ -->
+<div class="gate" id="loginGate" style="display:none">
+  <div class="gate-card">
+    <div class="gate-mark">
+      <div class="gate-sigil"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+      <span class="gate-word">Original</span>
+    </div>
+    <div class="gate-eye">Your commonplace book. Sign in to open it.</div>
+
+    <label class="gate-lbl">Institution</label>
+    <input class="gate-inp" id="gateInstitution" placeholder="e.g. Wycliffe College" autocomplete="organization">
+
+    <label class="gate-lbl">Email</label>
+    <input class="gate-inp" id="gateEmail" type="email" placeholder="you@institution.edu" autocomplete="email">
+
+    <label class="gate-lbl">Your name <span style="font-weight:400;text-transform:none;letter-spacing:0;font-style:italic;color:rgba(26,26,26,0.3)">— optional</span></label>
+    <input class="gate-inp" id="gateName" placeholder="How you would like to be addressed" autocomplete="name">
+
+    <button class="gate-btn" id="gateBtn" onclick="doLogin()">Open my book</button>
+    <div class="gate-err" id="gateErr"></div>
+
+    <div class="gate-alt">
+      <a onclick="enterGuest()">Explore the demo instead →</a>
+    </div>
+  </div>
+</div>
+
 <div class="layout">
 
   <!-- ── Sidebar ── -->
@@ -295,6 +345,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
         <div class="sb-uname" id="sbName">Student</div>
         <div class="sb-urole" id="sbRole">Writing Formation</div>
       </div>
+      <span class="signout" id="signOutBtn" onclick="signOut()" title="Sign out">Sign out</span>
     </div>
   </aside>
 
@@ -708,6 +759,8 @@ const studentName= () => localStorage.getItem('original_student_name') || 'Stude
 const institution= () => localStorage.getItem('original_institution')  || 'Your Institution';
 const course     = () => localStorage.getItem('original_course')       || 'Writing Formation';
 const semester   = () => localStorage.getItem('original_semester')     || 'Autumn Term 2025';
+const sessionToken = () => localStorage.getItem('original_session_token') || '';
+const isGuest    = () => studentId() === 'demo_student';   // demo showcase, no real account
 
 /* ═══════════════════════════════════════════════════════════════
    Demo fallback data (used when server is unreachable)
@@ -913,11 +966,14 @@ async function getHistory() {
       });
     }
   } catch(e) {}
-  return DEMO_HISTORY;
+  // Curated demo data is shown only to the guest showcase, never to a real
+  // signed-in student (who should see their own — possibly empty — record).
+  return isGuest() ? DEMO_HISTORY : [];
 }
 async function getNotes() {
   const d = await apiFetch(`/admin/corrections?student_id=${encodeURIComponent(studentId())}`);
-  return d?.items?.length ? d.items : DEMO_NOTES;
+  if (d?.items?.length) return d.items;
+  return isGuest() ? DEMO_NOTES : [];
 }
 async function getState() {
   return apiFetch(`/students/${encodeURIComponent(studentId())}`);
@@ -1619,15 +1675,101 @@ function init() {
   document.getElementById('sbName').textContent   = name;
   document.getElementById('sbAvatar').textContent = ini;
   document.getElementById('sbInst').textContent   = institution();
-  document.getElementById('sbRole').textContent   = course() + ' · ' + semester();
+  document.getElementById('sbRole').textContent   = isGuest() ? 'Guest · demo' : (course() + ' · ' + semester());
   document.getElementById('semPill').textContent  = semester();
   document.getElementById('proTitle').textContent = name.split(' ')[0] + ', your voice is finding its shape.';
+  document.getElementById('signOutBtn').textContent = isGuest() ? 'Exit demo' : 'Sign out';
   updateFormationUI();
   if (_ftStep>0&&_ftStep<3) updateFormationNav(true);
   loadProfile();
 }
 
-init();
+/* ═══════════════════════════════════════════════════════════════
+   Authentication gate
+   ═══════════════════════════════════════════════════════════════ */
+function showGate() {
+  document.getElementById('loginGate').style.display = 'flex';
+  const e = document.getElementById('gateEmail'); if (e) e.focus();
+}
+function hideGate() { document.getElementById('loginGate').style.display = 'none'; }
+
+async function doLogin() {
+  const institution = document.getElementById('gateInstitution').value.trim();
+  const email = document.getElementById('gateEmail').value.trim();
+  const name  = document.getElementById('gateName').value.trim();
+  const err   = document.getElementById('gateErr');
+  const btn   = document.getElementById('gateBtn');
+  err.textContent = '';
+  if (!institution) { err.textContent = 'Please enter your institution.'; return; }
+  if (!email || !email.includes('@')) { err.textContent = 'Please enter a valid email.'; return; }
+  btn.disabled = true; btn.textContent = 'Opening…';
+  try {
+    const r = await fetch(API + '/student-auth/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email, institution, name }),
+    });
+    if (!r.ok) { const d = await r.json().catch(()=>({})); throw new Error(d.detail || 'Sign-in failed.'); }
+    const data = await r.json();
+    localStorage.setItem('original_session_token', data.token);
+    localStorage.setItem('original_student_id',   data.student_id);
+    localStorage.setItem('original_student_name', data.name || email.split('@')[0]);
+    localStorage.setItem('original_institution',  data.institution || institution);
+    localStorage.removeItem('original_course'); localStorage.removeItem('original_semester');
+    hideGate();
+    init();
+  } catch(e) {
+    err.textContent = e.message || 'Sign-in failed.';
+    btn.disabled = false; btn.textContent = 'Open my book';
+  }
+}
+
+function enterGuest() {
+  // The demo showcase — populated sample data, no real account.
+  localStorage.setItem('original_student_id',   'demo_student');
+  localStorage.setItem('original_student_name', 'Andrew Whitfield');
+  localStorage.setItem('original_institution',  'Wycliffe College');
+  localStorage.setItem('original_course',       'TH 504');
+  localStorage.setItem('original_semester',     'Michaelmas Term 2025');
+  localStorage.removeItem('original_session_token');
+  hideGate();
+  init();
+}
+
+function signOut() {
+  ['original_session_token','original_student_id','original_student_name',
+   'original_institution','original_course','original_semester'].forEach(k=>localStorage.removeItem(k));
+  // Reset in-memory result state and return to the gate.
+  const rw = document.getElementById('resultsWrap'); if (rw) rw.style.display='none';
+  showGate();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Boot — gate first, then dashboard
+   ═══════════════════════════════════════════════════════════════ */
+async function boot() {
+  const tok = sessionToken();
+  if (tok) {
+    // Validate the session server-side; fall through to the gate if invalid.
+    try {
+      const me = await fetch(API + '/student-auth/me', { headers:{ 'Authorization':'Bearer '+tok } });
+      if (me.ok) { hideGate(); init(); return; }
+    } catch(e) {}
+    // Token present but rejected — clear and gate.
+    localStorage.removeItem('original_session_token');
+  }
+  if (isGuest() && localStorage.getItem('original_student_id') === 'demo_student') {
+    // An explicit prior guest session — keep showing the demo.
+    hideGate(); init(); return;
+  }
+  showGate();
+}
+
+// Allow Enter to submit from any gate field
+document.getElementById('loginGate').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+boot();
 </script>
 </body>
 </html>

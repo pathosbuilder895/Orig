@@ -82,6 +82,7 @@ from .constants import AUTH_WEIGHTS, FEATURE_DIM
 from . import store
 from . import baseline_requests
 from . import bbook_client
+from . import student_auth
 from .repository import get_repository
 
 @asynccontextmanager
@@ -480,6 +481,68 @@ def delete_tenant_students(tenant_id: str, request: "Request"):
             + (f"Failed: {result['failed_ids']}" if result["failed_ids"] else "")
         ).strip(),
     }
+
+
+# ── Student authentication (converged path) ──────────────────────────────────
+# A student signs in with (institution, email). Their id is derived
+# deterministically (institution-scoped email hash), their institution is
+# auto-registered as a demo tenant, and they receive a signed, stateless
+# session token. No password in the demo path — identity is the email +
+# institution, which the v1 path can later harden with a real credential.
+
+@app.post("/student-auth/login")
+def student_login(body: dict, request: "Request"):
+    """
+    Sign a student in. Body: { email, institution, name? }.
+
+    Derives an institution-scoped student id, ensures the institution exists in
+    the tenant registry (auto-provisioned as a demo tenant), creates the
+    student record if new, and returns a signed session token.
+    """
+    email = str(body.get("email") or "").strip()
+    institution = str(body.get("institution") or "").strip()
+    name = str(body.get("name") or "").strip()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=422, detail="A valid email is required.")
+    if not institution:
+        raise HTTPException(status_code=422, detail="An institution is required.")
+
+    tenant_id = student_auth.slugify(institution)
+    student_id = student_auth.derive_student_id(institution, email)
+
+    # Auto-provision the institution as a demo tenant (idempotent).
+    if not _repo().get_tenant(tenant_id):
+        _repo().put_tenant(tenant_id, institution, environment="demo",
+                           meta={"auto_provisioned": "student_login"})
+
+    # Ensure the student record exists so the dashboard has somewhere to read.
+    store.get_or_create(student_id)
+
+    token = student_auth.mint_session(student_id, name or email.split("@")[0])
+    remote = getattr(request.client, "host", "unknown") if request.client else "unknown"
+    _repo().log_audit(action="student_login", student_id=student_id,
+                      tenant_id=tenant_id, actor=remote)
+    return {
+        "token":       token,
+        "student_id":  student_id,
+        "name":        name or email.split("@")[0],
+        "tenant_id":   tenant_id,
+        "institution": institution,
+    }
+
+
+@app.get("/student-auth/me")
+def student_me(request: "Request"):
+    """
+    Resolve the current student from the session token (Authorization: Bearer
+    <token> or X-Student-Token header). 401 if missing/invalid/expired.
+    """
+    auth = request.headers.get("Authorization", "")
+    token = auth[7:] if auth.lower().startswith("bearer ") else request.headers.get("X-Student-Token", "")
+    session = student_auth.verify_session(token)
+    if not session:
+        raise HTTPException(status_code=401, detail="Not signed in.")
+    return {"student_id": session["sid"], "name": session.get("name", "")}
 
 
 # ── FERPA: data inventory + audit log ────────────────────────────────────────
