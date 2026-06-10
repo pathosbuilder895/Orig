@@ -14,6 +14,10 @@ from original import principal as pr
 
 app = run.load_legacy_demo_app()
 client = TestClient(app)
+# Capture the module object NOW: tests/context/test_drift.py evicts the
+# "_legacy_demo_api" entry from sys.modules mid-suite, but this reference
+# (the module our `app` actually lives in) stays valid.
+_legacy_mod = sys.modules["original._legacy_demo_api"]
 
 EMAIL = "prof.auth@acmeu.edu"
 PW = "s3cret-passw0rd"
@@ -97,7 +101,7 @@ def test_me_requires_auth():
 
 def test_login_throttled_after_repeated_attempts():
     """Per-IP sliding window: the 11th attempt inside the window gets 429."""
-    legacy = sys.modules["original._legacy_demo_api"]
+    legacy = _legacy_mod
     legacy._login_attempts.clear()
     try:
         codes = [
