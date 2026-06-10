@@ -79,7 +79,10 @@ _PAREN_CITATION = re.compile(
     r"(?:\s+(?:and|&|et\s+al\.?)\s+[A-ZÁÉÍÓÚ][a-záéíóú\-]{1,25})*"
     r",?\s+)"
     r"\d{4}"
-    r"(?:,\s*pp?\.\s*\d+(?:[–\-]\d+)?)?"
+    # Page locator: "p. 44" / "pp. 44–48" (APA) or the bare ", 44" / ", 44–48"
+    # of Chicago/SBL author-date — the dominant style in seminary writing.
+    # The p./pp. prefix must be optional or "(Smith 2019, 44)" never matches.
+    r"(?:,\s*(?:pp?\.\s*)?\d+(?:[–\-]\d+)?)?"
     r"\)",
     re.UNICODE,
 )
