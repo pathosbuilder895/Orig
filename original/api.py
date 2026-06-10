@@ -1,5 +1,5 @@
 """
-api.py — FastAPI application (demo / compat server, no auth required).
+api.py — FastAPI application for the dashboard demo and pilot-compatible server.
 
 Endpoints
 ─────────
@@ -14,7 +14,10 @@ POST /import/courses/{course_id}/turnitin-csv       import Turnitin CSV export
 POST /canvas/baseline/{id}/list-canvas-submissions  list past Canvas submissions for student
 POST /canvas/baseline/{id}/import-baseline          import selected Canvas submissions as baseline
 
-CORS is open (*) for local frontend development.
+In demo mode, anonymous sandbox access remains available for the seeded sales
+demo. In pilot/production modes, real tenant data is protected by the Principal
+tenant-isolation middleware, stable SECRET_KEY requirement, locked CORS, and
+guarded destructive operations.
 """
 
 from __future__ import annotations
@@ -22,8 +25,11 @@ from __future__ import annotations
 import csv
 import hmac
 import io
+import json
 import logging
 import os
+import urllib.parse
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile, File
@@ -83,12 +89,32 @@ from . import store
 from . import baseline_requests
 from . import bbook_client
 from . import student_auth
+from . import principal as principal_mod
+from . import users as users_mod
 from .repository import get_repository
+from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
+
+# NOTE: .env is loaded by the run.py entrypoint (not at import) so importing the
+# app in tests/other contexts never pollutes os.environ for the v1 Settings.
+
+# Deployment mode for the legacy/demo app: "demo" (default, zero-login sandbox),
+# "pilot", or "production". Controls CORS defaults, the SECRET_KEY fail-fast,
+# and security headers. Distinct from the v1 app's ENVIRONMENT setting.
+ORIGINAL_ENV = os.environ.get("ORIGINAL_ENV", "demo").strip().lower()
+_IS_REAL_DEPLOY = ORIGINAL_ENV in ("pilot", "staging", "production")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _log = logging.getLogger(__name__)
     if not _secret_key_pinned:
+        if _IS_REAL_DEPLOY:
+            # Fail closed: a random per-process key silently invalidates every
+            # token on restart and is unacceptable outside the demo sandbox.
+            raise RuntimeError(
+                f"ORIGINAL_ENV={ORIGINAL_ENV} requires a stable SECRET_KEY. "
+                "Set it in the environment or .env: "
+                "python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+            )
         _log.warning(
             "SECRET_KEY is not set — using a per-process random value. "
             "JWTs will be invalidated on every restart. "
@@ -97,6 +123,7 @@ async def lifespan(app: FastAPI):
         )
     else:
         _log.info("SECRET_KEY is pinned from environment — JWT tokens survive restarts.")
+    _log.info("ORIGINAL_ENV=%s — CORS=%s", ORIGINAL_ENV, _ALLOWED_ORIGINS)
     _log.info(
         "GUARD_DESTRUCTIVE=%s — destructive endpoints are %s.",
         _GUARD_DESTRUCTIVE,
@@ -112,12 +139,72 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS: demo allows any origin; pilot/production must list origins explicitly
+# via ALLOWED_ORIGINS (comma-separated). Falls back to "*" only in demo.
+def _resolve_allowed_origins():
+    raw = os.environ.get("ALLOWED_ORIGINS", "").strip()
+    if raw:
+        return [o.strip() for o in raw.split(",") if o.strip()]
+    if _IS_REAL_DEPLOY:
+        return []  # locked down: no origin allowed until configured
+    return ["*"]
+
+
+_ALLOWED_ORIGINS = _resolve_allowed_origins()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ── Security headers ──────────────────────────────────────────────────────────
+# Always-safe headers on every response. HSTS is opt-in (ENABLE_HSTS=1) since it
+# only makes sense once TLS terminates in front of the app. X-Frame-Options is
+# SAMEORIGIN (not DENY) so LTI launches can render inside an LMS that we allow
+# via a CSP frame-ancestors directive at deploy time.
+_ENABLE_HSTS = os.environ.get("ENABLE_HSTS", "0") == "1"
+
+
+@app.middleware("http")
+async def security_headers(request: "Request", call_next):
+    resp = await call_next(request)
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    # LTI launches render inside the LMS iframe, so don't frame-block them.
+    # (Restrict embedders at deploy time via a CSP frame-ancestors directive.)
+    if not request.url.path.startswith("/lti/"):
+        resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    if _ENABLE_HSTS:
+        resp.headers.setdefault(
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+        )
+    return resp
+
+
+# ── Tenant-isolation middleware (ADR-003, Phase 1) ────────────────────────────
+# Resolves the request principal once and enforces tenant boundaries on every
+# student-scoped path in ONE place. Additive by construction: with no
+# credentials the principal is the anonymous demo principal, which is allowed
+# over flat ids + demo-environment tenants — i.e. today's demo is unchanged.
+# Real (pilot/production) tenant data is only reachable by an authenticated
+# principal of that tenant (or a super/operator role). See original/principal.py.
+@app.middleware("http")
+async def tenant_isolation(request: "Request", call_next):
+    principal = principal_mod.resolve_principal(request)
+    request.state.principal = principal
+    scoped_id = principal_mod.extract_scoped_id(request.url.path)
+    if scoped_id is not None:
+        try:
+            principal_mod.assert_student_access(principal, scoped_id)
+        except principal_mod.TenantAccessError:
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Cross-tenant access denied."},
+            )
+    return await call_next(request)
 
 # ── Startup: SECRET_KEY stability check ───────────────────────────────────────
 # Warn operators if SECRET_KEY is not pinned in the environment.
@@ -253,15 +340,313 @@ def admin_health():
     }
 
 
+# ── Staff auth: email + password → principal token (ADR-003, Phase 1.x) ───────
+# Professors / admins / operators log in here. Students use student_auth.
+# Every method (this, and LTI later) mints the same principal token, which the
+# tenant-isolation middleware then enforces. Demo needs no login — anonymous
+# requests resolve to the demo principal and keep working.
+
+@app.post("/auth/login")
+def auth_login(body: dict):
+    email = str(body.get("email") or "").strip()
+    password = str(body.get("password") or "")
+    if not email or not password:
+        raise HTTPException(status_code=422, detail="email and password are required")
+    user = users_mod.authenticate(email, password)
+    if not user:
+        _repo().log_audit(action="login", actor=email, result="denied")
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    token = principal_mod.mint_principal_token(
+        user["user_id"], user["role"], user["tenant_id"]
+    )
+    _repo().log_audit(
+        action="login", tenant_id=user["tenant_id"], actor=user["email"], result="ok"
+    )
+    return {
+        "token": token,
+        "role": user["role"],
+        "tenant_id": user["tenant_id"],
+        "name": user["name"],
+        "email": user["email"],
+    }
+
+
+@app.get("/auth/me")
+def auth_me(request: "Request"):
+    """Return the authenticated principal, or 401 for anonymous/demo callers."""
+    p = getattr(request.state, "principal", None)
+    if p is None or p.is_demo:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return {
+        "user_id": p.user_id,
+        "role": p.role,
+        "tenant_id": p.tenant_id,
+        "auth_method": p.auth_method,
+    }
+
+
+@app.post("/auth/register", status_code=201)
+def auth_register(body: dict, request: "Request"):
+    """
+    Provision a staff user. Privileged: guarded by GUARD_DESTRUCTIVE in
+    pilot/production (X-Guard-Token required); open in demo for convenience.
+    """
+    _require_guard(request)
+    email = str(body.get("email") or "").strip()
+    password = str(body.get("password") or "")
+    role = str(body.get("role") or "professor")
+    tenant_id = str(body.get("tenant_id") or "").strip()
+    name = str(body.get("name") or "")
+    if not email or not password or not tenant_id:
+        raise HTTPException(status_code=422, detail="email, password, and tenant_id are required")
+    if role not in ("professor", "admin", "operator"):
+        raise HTTPException(status_code=422, detail="role must be professor, admin, or operator")
+    if len(password) < 8:
+        raise HTTPException(status_code=422, detail="password must be at least 8 characters")
+    if store.get_user_by_email(email):
+        raise HTTPException(status_code=409, detail="a user with that email already exists")
+    user = users_mod.create_user(email, password, role, tenant_id, name)
+    _repo().log_audit(
+        action="user_register", tenant_id=tenant_id, actor=email, result="ok",
+        details={"role": role},
+    )
+    return {"user_id": user["user_id"], "email": user["email"], "role": role, "tenant_id": tenant_id}
+
+
+# ── LTI 1.3 launch (ADR-003, Phase 1.5) ───────────────────────────────────────
+# Lets an LMS (Canvas/Blackboard/Moodle) launch Original directly. The launch
+# terminates in the same principal token as email/password login. Crypto deps
+# are imported lazily, so the demo (which omits python-jose) still boots; the
+# endpoints return a clear error until LTI is configured.
+
+@app.api_route("/lti/login", methods=["GET", "POST"])
+async def lti_login(request: "Request"):
+    from . import lti
+    params = dict(request.query_params)
+    if request.method == "POST":
+        form = await request.form()
+        params.update({k: str(v) for k, v in form.items()})
+    try:
+        url = lti.build_login_redirect(params)
+    except lti.LtiError as e:
+        raise HTTPException(status_code=400, detail=f"LTI login error: {e}")
+    return RedirectResponse(url, status_code=302)
+
+
+@app.post("/lti/launch")
+async def lti_launch(request: "Request"):
+    from . import lti
+    form = await request.form()
+    id_token = str(form.get("id_token", ""))
+    state = str(form.get("state", ""))
+    if not id_token or not state:
+        raise HTTPException(status_code=400, detail="missing id_token or state")
+    try:
+        claims = lti.verify_launch(id_token, state)
+    except lti.LtiError as e:
+        raise HTTPException(status_code=401, detail=f"LTI launch rejected: {e}")
+    except ImportError:
+        raise HTTPException(
+            status_code=501,
+            detail="LTI requires python-jose, which is not installed in this deployment.",
+        )
+    p = lti.principal_from_claims(claims)
+    _repo().log_audit(
+        action="lti_launch", tenant_id=p["tenant_id"],
+        actor=str(claims.get("sub", "")), result="ok",
+        details={"role": p["role"], "redirect": p.get("redirect")},
+    )
+    # All localStorage keys the destination needs (token + identity + any binding).
+    ls = {
+        p["token_key"]: p["token"],
+        "original_role": p["role"],
+        "original_tenant": p["tenant_id"],
+    }
+    ls.update(p.get("extra") or {})
+    redirect = p.get("redirect") or "professor.html"
+    params = p.get("params") or {}
+    if params and redirect.endswith("/"):
+        redirect = redirect + "?" + urllib.parse.urlencode(params)
+    sets = "".join(
+        f"localStorage.setItem({json.dumps(k)},{json.dumps(v)});" for k, v in ls.items()
+    )
+    # Hand the token to the browser (server-rendered, never in a URL) and break
+    # out of the LMS iframe into the full-page app.
+    html = (
+        "<!doctype html><meta charset=utf-8><title>Bluebook · Original</title>"
+        "<body style=\"font-family:Inter,system-ui;background:#001020;color:#C9A961;"
+        "display:flex;align-items:center;justify-content:center;height:100vh;margin:0\">"
+        "<div style=\"font-family:'Cormorant Garamond',Georgia,serif;font-size:1.3rem\">Entering examination…</div>"
+        f"<script>try{{{sets}}}catch(e){{}}"
+        f"var u={json.dumps(redirect)};try{{window.top.location.replace(u);}}catch(e){{location.replace(u);}}"
+        "</script></body>"
+    )
+    return HTMLResponse(html)
+
+
+@app.get("/lti/jwks")
+def lti_jwks():
+    from . import lti
+    return lti.public_jwks()
+
+
+# ── Bluebook examinations (secure-exam layer, tenant-scoped) ──────────────────
+# Instructor-created exams persist here. Submissions themselves flow to
+# /students/{id}/baseline as proctored samples. Scoping mirrors list_students:
+# an authenticated non-super principal sees only its tenant; demo sees "demo".
+
+def _bluebook_tenant(request: "Request") -> str:
+    p = getattr(request.state, "principal", None)
+    if p and not p.is_demo:
+        return p.tenant_id
+    return principal_mod.DEMO_TENANT
+
+
+def _int_or(v, default):
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return default
+
+
+@app.post("/bluebook/exams", status_code=201)
+def bluebook_create_exam(body: dict, request: "Request"):
+    title = str(body.get("title") or "").strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="title is required")
+    tenant = _bluebook_tenant(request)
+    rec = {
+        "id": uuid.uuid4().hex[:16],
+        "tenant_id": tenant,
+        "title": title[:200],
+        "course": str(body.get("course") or "")[:80],
+        "duration": _int_or(body.get("duration"), 90),
+        "minWords": _int_or(body.get("minWords"), 0),
+        "maxWords": _int_or(body.get("maxWords"), 0),
+        "prompt": str(body.get("prompt") or "")[:8000],
+        "conditions": body.get("conditions") if isinstance(body.get("conditions"), dict) else {},
+        "status": (str(body.get("status") or "DRAFT").upper())[:20],
+    }
+    store.put_bluebook_exam(rec)
+    _repo().log_audit(action="bluebook_exam_create", tenant_id=tenant, details={"title": title})
+    rec["submissions"] = 0
+    return rec
+
+
+@app.get("/bluebook/exams")
+def bluebook_list_exams(request: "Request"):
+    p = getattr(request.state, "principal", None)
+    if p and not p.is_demo and p.role not in principal_mod.SUPER_ROLES:
+        exams = store.list_bluebook_exams(p.tenant_id)
+    elif p and p.is_demo:
+        exams = store.list_bluebook_exams(principal_mod.DEMO_TENANT)
+    else:  # super / operator → all tenants
+        exams = store.list_bluebook_exams(None)
+    return {"exams": exams}
+
+
+@app.get("/bluebook/exams/{exam_id}")
+def bluebook_get_exam(exam_id: str, request: "Request"):
+    rec = store.get_bluebook_exam(exam_id)
+    if not rec:
+        raise HTTPException(status_code=404, detail="exam not found")
+    p = getattr(request.state, "principal", None)
+    owner = rec.get("tenant_id")
+    if p and not p.is_demo and p.role not in principal_mod.SUPER_ROLES and owner != p.tenant_id:
+        raise HTTPException(status_code=403, detail="cross-tenant access denied")
+    if p and p.is_demo and owner not in (None, principal_mod.DEMO_TENANT):
+        raise HTTPException(status_code=403, detail="cross-tenant access denied")
+    return rec
+
+
+@app.post("/bluebook/submissions", status_code=201)
+def bluebook_record_submission(body: dict, request: "Request"):
+    """Record one sat examination (the integrity reading for the Results view)."""
+    tenant = _bluebook_tenant(request)
+
+    def _clamp_pct(v):
+        n = _int_or(v, None)
+        return None if n is None else max(0, min(100, n))
+
+    rec = {
+        "id": uuid.uuid4().hex[:16],
+        "exam_id": (str(body.get("exam_id")) if body.get("exam_id") else None),
+        "tenant_id": tenant,
+        "student_id": str(body.get("student_id") or "")[:128],
+        "candidate": str(body.get("candidate") or "")[:120],
+        "exam_title": str(body.get("exam_title") or "")[:200],
+        "course": str(body.get("course") or "")[:80],
+        "word_count": _int_or(body.get("word_count"), 0),
+        "time_min": _int_or(body.get("time_min"), 0),
+        "stylometric": _clamp_pct(body.get("stylometric")),
+        "ai_score": _clamp_pct(body.get("ai_score")),
+        "status": (str(body.get("status") or "SUBMITTED").upper())[:20],
+    }
+    store.put_bluebook_submission(rec)
+    _repo().log_audit(action="bluebook_submission", tenant_id=tenant,
+                      student_id=rec["student_id"], details={"exam_id": rec["exam_id"]})
+    return {"id": rec["id"], "status": rec["status"]}
+
+
+@app.get("/bluebook/submissions")
+def bluebook_list_submissions(request: "Request"):
+    p = getattr(request.state, "principal", None)
+    if p and not p.is_demo and p.role not in principal_mod.SUPER_ROLES:
+        subs = store.list_bluebook_submissions(p.tenant_id)
+    elif p and p.is_demo:
+        subs = store.list_bluebook_submissions(principal_mod.DEMO_TENANT)
+    else:
+        subs = store.list_bluebook_submissions(None)
+    return {"submissions": subs}
+
+
+@app.post("/bluebook/courses", status_code=201)
+def bluebook_create_course(body: dict, request: "Request"):
+    name = str(body.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="course name is required")
+    tenant = _bluebook_tenant(request)
+    rec = {
+        "id": uuid.uuid4().hex[:16],
+        "tenant_id": tenant,
+        "code": str(body.get("code") or "")[:40],
+        "name": name[:160],
+        "term": str(body.get("term") or "")[:60],
+        "status": (str(body.get("status") or "ACTIVE").upper())[:20],
+    }
+    store.put_bluebook_course(rec)
+    _repo().log_audit(action="bluebook_course_create", tenant_id=tenant, details={"code": rec["code"]})
+    return {**rec, "active": rec["status"] == "ACTIVE", "students": 0, "exams": 0}
+
+
+@app.get("/bluebook/courses")
+def bluebook_list_courses(request: "Request"):
+    p = getattr(request.state, "principal", None)
+    if p and not p.is_demo and p.role not in principal_mod.SUPER_ROLES:
+        courses = store.list_bluebook_courses(p.tenant_id)
+    elif p and p.is_demo:
+        courses = store.list_bluebook_courses(principal_mod.DEMO_TENANT)
+    else:
+        courses = store.list_bluebook_courses(None)
+    return {"courses": courses}
+
+
 # ── Student list ──────────────────────────────────────────────────────────────
 
 @app.get("/students")
-def list_students(tenant_id: str = ""):
+def list_students(request: "Request", tenant_id: str = ""):
     """
-    List student IDs.  When `tenant_id` is provided, returns only students
-    whose ID starts with `{tenant_id}:` (the multi-tenant naming convention).
+    List student IDs.
+
+    Scoping (ADR-003): an authenticated, non-super principal only ever sees its
+    own tenant's students — the `tenant_id` query param cannot widen that. The
+    anonymous demo principal and super/operator roles keep the original
+    behaviour (optional `tenant_id` filter, else all).
     """
-    if tenant_id:
+    principal = getattr(request.state, "principal", None)
+    if principal and not principal.is_demo and principal.role not in principal_mod.SUPER_ROLES:
+        ids = store.list_ids_for_tenant(principal.tenant_id)
+    elif tenant_id:
         ids = store.list_ids_for_tenant(tenant_id)
     else:
         ids = store.list_ids()
@@ -423,6 +808,7 @@ def create_tenant(body: dict):
         raise HTTPException(status_code=422, detail="meta must have at most 10 keys")
     meta = {str(k)[:80]: str(v)[:500] for k, v in list(meta.items())[:10]}
     _repo().put_tenant(tenant_id, name, environment=environment, meta=meta)
+    principal_mod.invalidate_tenant_cache()  # env may have changed → drop stale cache
     _repo().log_audit(action="tenant_register", tenant_id=tenant_id, details={"name": name, "environment": environment})
     return {"tenant_id": tenant_id, "name": name, "environment": environment}
 

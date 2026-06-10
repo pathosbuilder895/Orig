@@ -60,7 +60,12 @@ _GENRE_STATS_CACHE: Dict[str, Optional[Dict]] = {}
 # ── SQLite helpers ────────────────────────────────────────────────────────────
 
 def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(_DB_PATH))
+    conn = sqlite3.connect(str(_DB_PATH), timeout=10.0)
+    # Concurrency hardening for pilot use: WAL allows readers during a write;
+    # busy_timeout avoids spurious "database is locked" under parallel requests.
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
+    conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS student_profiles (
             student_id TEXT PRIMARY KEY,
@@ -195,6 +200,88 @@ def _get_conn() -> sqlite3.Connection:
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_tenants_environment
             ON tenants(environment)
+    """)
+    # Staff users (professor / admin / operator) for email+password login
+    # (ADR-003, Phase 1.x). Students authenticate via student_auth sessions and
+    # are NOT stored here. password_hash is a PBKDF2-HMAC-SHA256 string (stdlib,
+    # so the demo deployment needs no extra crypto deps). tenant_id ties the
+    # user to one institution; operators use a sentinel tenant + 'operator' role.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            user_id       TEXT PRIMARY KEY,
+            email         TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            role          TEXT NOT NULL DEFAULT 'professor',
+            tenant_id     TEXT NOT NULL,
+            name          TEXT NOT NULL DEFAULT '',
+            created_at    TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_users_tenant
+            ON users(tenant_id)
+    """)
+    # Bluebook examinations (secure-exam layer). Tenant-scoped instructor
+    # artifacts: title, course, timing, prompt, and the lockdown conditions.
+    # Submissions themselves flow to student_profiles as proctored baselines.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bluebook_exams (
+            exam_id         TEXT PRIMARY KEY,
+            tenant_id       TEXT NOT NULL,
+            title           TEXT NOT NULL,
+            course          TEXT,
+            duration        INTEGER,
+            min_words       INTEGER,
+            max_words       INTEGER,
+            prompt          TEXT,
+            conditions_json TEXT NOT NULL DEFAULT '{}',
+            status          TEXT NOT NULL DEFAULT 'DRAFT',
+            created_at      TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_bluebook_exams_tenant
+            ON bluebook_exams(tenant_id, created_at)
+    """)
+    # Bluebook submissions — one row per sat examination, linked to its exam.
+    # Carries the Original-derived integrity reading for the Results view; the
+    # prose itself lives in student_profiles (as the proctored baseline sample).
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bluebook_submissions (
+            submission_id TEXT PRIMARY KEY,
+            exam_id       TEXT,
+            tenant_id     TEXT NOT NULL,
+            student_id    TEXT,
+            candidate     TEXT,
+            exam_title    TEXT,
+            course        TEXT,
+            word_count    INTEGER,
+            time_min      INTEGER,
+            stylometric   INTEGER,
+            ai_score      INTEGER,
+            status        TEXT NOT NULL DEFAULT 'SUBMITTED',
+            created_at    TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_bluebook_subs_tenant
+            ON bluebook_submissions(tenant_id, created_at)
+    """)
+    # Bluebook courses — instructor-created, tenant-scoped course records.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bluebook_courses (
+            course_id   TEXT PRIMARY KEY,
+            tenant_id   TEXT NOT NULL,
+            code        TEXT,
+            name        TEXT NOT NULL,
+            term        TEXT,
+            status      TEXT NOT NULL DEFAULT 'ACTIVE',
+            created_at  TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_bluebook_courses_tenant
+            ON bluebook_courses(tenant_id, created_at)
     """)
     # Phase 3 — Audit log. Every significant action (baseline add, score,
     # deletion, correction, threshold apply) appends a row. Used for FERPA
@@ -1368,6 +1455,226 @@ def get_tenant(tenant_id: str) -> Optional[Dict]:
     except Exception:
         log.exception("get_tenant failed for %s", tenant_id)
         return None
+
+
+def put_user(
+    user_id: str,
+    email: str,
+    password_hash: str,
+    role: str,
+    tenant_id: str,
+    name: str = "",
+) -> None:
+    """Upsert a staff user (professor / admin / operator). Email is unique."""
+    created_at = datetime.now(timezone.utc).isoformat()
+    try:
+        with _get_conn() as conn:
+            conn.execute(
+                """INSERT INTO users (user_id, email, password_hash, role, tenant_id, name, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(user_id) DO UPDATE SET
+                     email         = excluded.email,
+                     password_hash = excluded.password_hash,
+                     role          = excluded.role,
+                     tenant_id     = excluded.tenant_id,
+                     name          = excluded.name""",
+                (user_id, email.strip().lower(), password_hash, role, tenant_id, name, created_at),
+            )
+            conn.commit()
+    except Exception:
+        log.exception("put_user failed for %s", email)
+
+
+def get_user_by_email(email: str) -> Optional[Dict]:
+    """Return the user dict (including password_hash) or None."""
+    try:
+        with _get_conn() as conn:
+            row = conn.execute(
+                "SELECT user_id, email, password_hash, role, tenant_id, name, created_at "
+                "FROM users WHERE email = ?",
+                (email.strip().lower(),),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "user_id": row[0], "email": row[1], "password_hash": row[2],
+            "role": row[3], "tenant_id": row[4], "name": row[5], "created_at": row[6],
+        }
+    except Exception:
+        log.exception("get_user_by_email failed for %s", email)
+        return None
+
+
+def _bluebook_exam_to_dict(row) -> Dict:
+    return {
+        "id": row[0], "tenant_id": row[1], "title": row[2], "course": row[3],
+        "duration": row[4], "minWords": row[5], "maxWords": row[6], "prompt": row[7],
+        "conditions": json.loads(row[8] or "{}"), "status": row[9],
+        "submissions": 0, "created_at": row[10],
+    }
+
+
+def put_bluebook_exam(rec: Dict) -> None:
+    """Upsert a Bluebook exam. `rec` carries id, tenant_id, title, course,
+    duration, minWords, maxWords, prompt, conditions (dict), status."""
+    created_at = datetime.now(timezone.utc).isoformat()
+    try:
+        with _get_conn() as conn:
+            conn.execute(
+                """INSERT INTO bluebook_exams
+                     (exam_id, tenant_id, title, course, duration, min_words,
+                      max_words, prompt, conditions_json, status, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(exam_id) DO UPDATE SET
+                     title=excluded.title, course=excluded.course,
+                     duration=excluded.duration, min_words=excluded.min_words,
+                     max_words=excluded.max_words, prompt=excluded.prompt,
+                     conditions_json=excluded.conditions_json, status=excluded.status""",
+                (rec["id"], rec["tenant_id"], rec["title"], rec.get("course", ""),
+                 rec.get("duration"), rec.get("minWords"), rec.get("maxWords"),
+                 rec.get("prompt", ""), json.dumps(rec.get("conditions") or {}),
+                 rec.get("status", "DRAFT"), created_at),
+            )
+            conn.commit()
+    except Exception:
+        log.exception("put_bluebook_exam failed for %s", rec.get("id"))
+
+
+def get_bluebook_exam(exam_id: str) -> Optional[Dict]:
+    try:
+        with _get_conn() as conn:
+            row = conn.execute(
+                "SELECT exam_id, tenant_id, title, course, duration, min_words, "
+                "max_words, prompt, conditions_json, status, created_at "
+                "FROM bluebook_exams WHERE exam_id = ?",
+                (exam_id,),
+            ).fetchone()
+        return _bluebook_exam_to_dict(row) if row else None
+    except Exception:
+        log.exception("get_bluebook_exam failed for %s", exam_id)
+        return None
+
+
+def list_bluebook_exams(tenant_id: Optional[str]) -> List[Dict]:
+    """List exams for a tenant, or all when tenant_id is None (operator view)."""
+    try:
+        with _get_conn() as conn:
+            if tenant_id is None:
+                rows = conn.execute(
+                    "SELECT exam_id, tenant_id, title, course, duration, min_words, "
+                    "max_words, prompt, conditions_json, status, created_at "
+                    "FROM bluebook_exams ORDER BY created_at DESC"
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT exam_id, tenant_id, title, course, duration, min_words, "
+                    "max_words, prompt, conditions_json, status, created_at "
+                    "FROM bluebook_exams WHERE tenant_id = ? ORDER BY created_at DESC",
+                    (tenant_id,),
+                ).fetchall()
+        return [_bluebook_exam_to_dict(r) for r in rows]
+    except Exception:
+        log.exception("list_bluebook_exams failed for %s", tenant_id)
+        return []
+
+
+def _bluebook_sub_to_dict(row) -> Dict:
+    sid = row[3] or ""
+    return {
+        "id": row[0], "exam_id": row[1], "tenant_id": row[2], "student_id": sid,
+        "student": row[4] or "Candidate",
+        "candidateId": (sid.split(":")[-1][:6] if ":" in sid else (sid[:6] or "—")),
+        "candidate": row[4], "exam": row[5] or "", "course": row[6] or "",
+        "words": row[7] or 0, "timeMin": row[8] or 0,
+        "stylometric": row[9], "aiScore": row[10],
+        "status": row[11], "created_at": row[12],
+    }
+
+
+def put_bluebook_submission(rec: Dict) -> None:
+    created_at = datetime.now(timezone.utc).isoformat()
+    try:
+        with _get_conn() as conn:
+            conn.execute(
+                """INSERT INTO bluebook_submissions
+                     (submission_id, exam_id, tenant_id, student_id, candidate,
+                      exam_title, course, word_count, time_min, stylometric,
+                      ai_score, status, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (rec["id"], rec.get("exam_id"), rec["tenant_id"], rec.get("student_id"),
+                 rec.get("candidate"), rec.get("exam_title"), rec.get("course"),
+                 rec.get("word_count"), rec.get("time_min"), rec.get("stylometric"),
+                 rec.get("ai_score"), rec.get("status", "SUBMITTED"), created_at),
+            )
+            conn.commit()
+    except Exception:
+        log.exception("put_bluebook_submission failed for %s", rec.get("id"))
+
+
+def list_bluebook_submissions(tenant_id: Optional[str]) -> List[Dict]:
+    cols = ("submission_id, exam_id, tenant_id, student_id, candidate, exam_title, "
+            "course, word_count, time_min, stylometric, ai_score, status, created_at")
+    try:
+        with _get_conn() as conn:
+            if tenant_id is None:
+                rows = conn.execute(
+                    f"SELECT {cols} FROM bluebook_submissions ORDER BY created_at DESC"
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    f"SELECT {cols} FROM bluebook_submissions WHERE tenant_id = ? "
+                    "ORDER BY created_at DESC", (tenant_id,),
+                ).fetchall()
+        return [_bluebook_sub_to_dict(r) for r in rows]
+    except Exception:
+        log.exception("list_bluebook_submissions failed for %s", tenant_id)
+        return []
+
+
+def _bluebook_course_to_dict(row) -> Dict:
+    return {
+        "id": row[0], "tenant_id": row[1], "code": row[2], "name": row[3],
+        "term": row[4], "status": row[5], "active": (row[5] or "").upper() == "ACTIVE",
+        "students": 0, "exams": 0, "created_at": row[6],
+    }
+
+
+def put_bluebook_course(rec: Dict) -> None:
+    created_at = datetime.now(timezone.utc).isoformat()
+    try:
+        with _get_conn() as conn:
+            conn.execute(
+                """INSERT INTO bluebook_courses
+                     (course_id, tenant_id, code, name, term, status, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(course_id) DO UPDATE SET
+                     code=excluded.code, name=excluded.name,
+                     term=excluded.term, status=excluded.status""",
+                (rec["id"], rec["tenant_id"], rec.get("code", ""), rec["name"],
+                 rec.get("term", ""), rec.get("status", "ACTIVE"), created_at),
+            )
+            conn.commit()
+    except Exception:
+        log.exception("put_bluebook_course failed for %s", rec.get("id"))
+
+
+def list_bluebook_courses(tenant_id: Optional[str]) -> List[Dict]:
+    cols = "course_id, tenant_id, code, name, term, status, created_at"
+    try:
+        with _get_conn() as conn:
+            if tenant_id is None:
+                rows = conn.execute(
+                    f"SELECT {cols} FROM bluebook_courses ORDER BY created_at DESC"
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    f"SELECT {cols} FROM bluebook_courses WHERE tenant_id = ? "
+                    "ORDER BY created_at DESC", (tenant_id,),
+                ).fetchall()
+        return [_bluebook_course_to_dict(r) for r in rows]
+    except Exception:
+        log.exception("list_bluebook_courses failed for %s", tenant_id)
+        return []
 
 
 def list_tenants(environment: Optional[str] = None) -> List[Dict]:
