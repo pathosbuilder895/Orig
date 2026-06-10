@@ -346,8 +346,34 @@ def admin_health():
 # tenant-isolation middleware then enforces. Demo needs no login — anonymous
 # requests resolve to the demo principal and keep working.
 
+# Login throttle: sliding-window per-IP limit so /auth/login is not freely
+# brute-forceable in pilot deployments. In-memory (single-process uvicorn) and
+# stdlib-only, matching the app's dependency posture. PBKDF2's ~100ms verify
+# cost plus this window makes online guessing impractical.
+_LOGIN_WINDOW_SEC = 300
+_LOGIN_MAX_ATTEMPTS = 10
+_login_attempts: dict = {}   # ip -> [monotonic timestamps]
+
+
+def _throttle_login(request: "Request") -> None:
+    import time as _time
+    ip = getattr(request.client, "host", "unknown") if request.client else "unknown"
+    now = _time.monotonic()
+    window = [t for t in _login_attempts.get(ip, []) if now - t < _LOGIN_WINDOW_SEC]
+    if len(window) >= _LOGIN_MAX_ATTEMPTS:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many sign-in attempts. Try again in a few minutes.",
+        )
+    window.append(now)
+    _login_attempts[ip] = window
+    if len(_login_attempts) > 10_000:   # bound memory under address churn
+        _login_attempts.clear()
+
+
 @app.post("/auth/login")
-def auth_login(body: dict):
+def auth_login(body: dict, request: "Request"):
+    _throttle_login(request)
     email = str(body.get("email") or "").strip()
     password = str(body.get("password") or "")
     if not email or not password:

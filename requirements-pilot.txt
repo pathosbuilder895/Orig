@@ -1,0 +1,17 @@
+# requirements-pilot.txt — runtime deps for the PILOT service (run.py --demo
+# with ORIGINAL_ENV=pilot hardening).
+#
+# = requirements-demo.txt + the LTI 1.3 crypto stack.
+#
+# Why a third file (vs requirements.txt): the full production set pulls
+# sentence-transformers/PyTorch, which exceeds Render Starter's memory and
+# build limits. The pilot runs the same SQLite dashboard app as the demo —
+# it just additionally needs python-jose/cryptography, which original/lti.py
+# imports lazily (LTI launches 500 without them).
+
+-r requirements-demo.txt
+
+# ── LTI 1.3 (original/lti.py) ──────────────────────────────────────────────────
+# jose verifies the platform's RS256 id_token against its JWKS; cryptography
+# loads the tool's RSA key for /lti/jwks.
+python-jose[cryptography]>=3.3,<4.0

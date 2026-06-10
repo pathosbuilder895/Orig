@@ -8,6 +8,7 @@ mints a principal the tenant-isolation middleware enforces.
 import pytest
 from fastapi.testclient import TestClient
 
+import sys
 import run
 from original import principal as pr
 
@@ -92,6 +93,21 @@ def test_me_requires_auth():
     assert r.status_code == 200
     assert r.json()["tenant_id"] == TENANT
     assert r.json()["auth_method"] == "principal-token"
+
+
+def test_login_throttled_after_repeated_attempts():
+    """Per-IP sliding window: the 11th attempt inside the window gets 429."""
+    legacy = sys.modules["original._legacy_demo_api"]
+    legacy._login_attempts.clear()
+    try:
+        codes = [
+            client.post("/auth/login", json={"email": EMAIL, "password": "wrong"}).status_code
+            for _ in range(11)
+        ]
+        assert all(c == 401 for c in codes[:10]), codes
+        assert codes[10] == 429, codes
+    finally:
+        legacy._login_attempts.clear()   # don't poison other tests' window
 
 
 def test_logged_in_professor_is_tenant_scoped_end_to_end():
