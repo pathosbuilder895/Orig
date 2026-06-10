@@ -5,34 +5,55 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Original — Professor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<script>
+/* Auth bridge (ADR-003): attach the principal token to same-origin API calls.
+   No token (the zero-login demo) → no header → demo principal, unchanged. */
+(function(){
+  var _f = window.fetch;
+  window.fetch = function(input, init){
+    init = init || {};
+    try {
+      var url = (typeof input === 'string') ? input : (input && input.url) || '';
+      var tok = localStorage.getItem('original_principal_token');
+      var external = /^https?:\/\//.test(url) && url.indexOf(location.origin) !== 0;
+      if (tok && !external) {
+        var h = new Headers((init && init.headers) || (typeof input!=='string' && input && input.headers) || {});
+        if (!h.has('Authorization')) h.set('Authorization', 'Bearer ' + tok);
+        init.headers = h;
+      }
+    } catch(e){}
+    return _f.call(this, input, init);
+  };
+})();
+</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --green-deepest: #0f1e17;
-  --green-deep:    #162b22;
-  --green-mid:     #1e3d2f;
-  --green-hover:   #243d30;
-  --green-border:  rgba(255,255,255,0.07);
-  --cream:         #f7f3ea;
-  --cream-warm:    #ede8d8;
-  --cream-border:  #e2dccf;
-  --surface:       #ffffff;
-  --gold:          #c9a028;
-  --gold-light:    rgba(201,160,40,0.12);
-  --gold-muted:    rgba(201,160,40,0.35);
-  --amber:         #9b6420;
-  --text-primary:  #1a130a;
-  --text-secondary:#5a4030;
-  --text-muted:    #8a7060;
-  --text-cream:    #f7f3ea;
-  --text-cream-dim:rgba(247,243,234,0.55);
-  --flag-red:      #c0392b;
-  --flag-red-bg:   rgba(192,57,43,0.08);
-  --flag-amber:    #c9a028;
-  --flag-amber-bg: rgba(201,160,40,0.1);
-  --flag-green:    #2a6b45;
-  --flag-green-bg: rgba(42,107,69,0.1);
+  --green-deepest: #001834;
+  --green-deep:    #002147;
+  --green-mid:     #0a2f5c;
+  --green-hover:   #103a6b;
+  --green-border:  rgba(176,141,60,0.12);
+  --cream:         #F7F2E7;
+  --cream-warm:    #F1EBDB;
+  --cream-border:  rgba(60,90,130,0.18);
+  --surface:       #FBF8F1;
+  --gold:          #B08D3C;
+  --gold-light:    rgba(176,141,60,0.15);
+  --gold-muted:    rgba(176,141,60,0.35);
+  --amber:         #8a6a28;
+  --text-primary:  #1A1A1A;
+  --text-secondary:#3C5A82;
+  --text-muted:    #7d8794;
+  --text-cream:    #F7F2E7;
+  --text-cream-dim:rgba(247,242,231,0.55);
+  --flag-red:      #6B2737;
+  --flag-red-bg:   rgba(107,39,55,0.08);
+  --flag-amber:    #B08D3C;
+  --flag-amber-bg: rgba(176,141,60,0.12);
+  --flag-green:    #4A6B5C;
+  --flag-green-bg: rgba(74,107,92,0.12);
   --sidebar-w:     264px;
   --radius:        6px;
   --shadow-sm:     0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
@@ -74,7 +95,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 .logo-mark { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
 .logo-icon { width: 28px; height: 28px; background: var(--gold); border-radius: 4px;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.logo-wordmark { font-family: 'Playfair Display', serif; font-size: 1.05rem;
+.logo-wordmark { font-family: 'Cormorant Garamond', serif; font-size: 1.05rem;
   font-weight: 600; color: var(--text-cream); letter-spacing: -0.01em; }
 .logo-school { font-size: 0.68rem; color: var(--text-cream-dim);
   font-family: 'EB Garamond', serif; font-style: italic; }
@@ -94,7 +115,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   display: flex; align-items: center; gap: 10px; }
 .user-avatar { width: 32px; height: 32px; border-radius: 50%;
   background: var(--gold); display: flex; align-items: center; justify-content: center;
-  font-family: 'Playfair Display', serif; font-size: 0.72rem; font-weight: 700;
+  font-family: 'Cormorant Garamond', serif; font-size: 0.72rem; font-weight: 700;
   color: var(--green-deepest); flex-shrink: 0; }
 .user-name { font-size: 0.82rem; font-weight: 600; color: var(--text-cream); }
 .user-role { font-size: 0.7rem; color: var(--text-cream-dim);
@@ -114,11 +135,11 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   font-size: 0.78rem; color: var(--text-muted); }
 .bc-sep { color: var(--cream-border); }
 .bc-current { color: var(--text-primary); font-weight: 500; }
-.semester-badge { font-size: 0.72rem; font-weight: 500;
-  padding: 4px 10px; border-radius: 20px;
-  background: var(--gold-light); color: var(--amber);
+.semester-badge { font-family:'EB Garamond',serif; font-style:italic; font-size: 0.84rem; font-weight: 500;
+  padding: 3px 11px; border-radius: 2px;
+  background: transparent; color: var(--amber);
   border: 1px solid var(--gold-muted); }
-.header-name{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:600;letter-spacing:-0.02em;color:var(--text-primary)}
+.header-name{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:600;letter-spacing:-0.02em;color:var(--text-primary)}
 
 /* Student pills row */
 .student-row{
@@ -129,20 +150,23 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 .student-row::-webkit-scrollbar{display:none}
 .s-pill{
   display:flex;align-items:center;gap:9px;
-  padding:8px 14px;border-radius:24px;
-  background:var(--surface);border:1.5px solid var(--border);
-  cursor:pointer;transition:all 0.15s;white-space:nowrap;
-  box-shadow:var(--shadow);
+  padding:7px 6px 9px;border:none;border-bottom:1.5px solid transparent;
+  border-radius:0;background:transparent;box-shadow:none;
+  cursor:pointer;transition:border-color .18s,color .18s;white-space:nowrap;
 }
-.s-pill:hover{background:var(--cream-warm);border-color:var(--cream-border)}
-.s-pill.active{border-color:var(--gold);background:var(--gold-light);border-left:2px solid var(--gold)}
+.s-pill:hover{background:transparent;border-bottom-color:var(--cream-border)}
+.s-pill:hover .s-pill-name{color:var(--text-primary)}
+.s-pill.active{border-bottom-color:var(--gold);background:transparent}
+.s-pill.active .s-pill-name{font-style:italic;font-weight:500;color:var(--text-primary)}
+.s-pill.active .s-pill-avatar{box-shadow:0 0 0 2px var(--gold-light)}
 .s-pill-avatar{
-  width:26px;height:26px;border-radius:50%;
+  width:27px;height:27px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
-  font-size:0.62rem;font-weight:700;flex-shrink:0;
+  font-family:'Cormorant Garamond',serif;font-size:0.8rem;font-weight:600;flex-shrink:0;
+  transition:box-shadow .18s;
 }
-.s-pill-name{font-size:0.8rem;font-weight:500}
-.s-pill-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.s-pill-name{font-family:'EB Garamond',serif;font-size:0.95rem;font-weight:500;color:var(--text-secondary)}
+.s-pill-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 
 /* Content area */
 .content{flex:1;overflow-y:auto;padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px}
@@ -159,11 +183,14 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 .input-card-header h3{font-size:0.92rem;font-weight:600}
 .input-card-header p{font-size:0.78rem;color:var(--text-muted)}
 .input-notice{
-  display:flex;align-items:center;gap:8px;
-  padding:10px 14px;margin-bottom:12px;
-  background:var(--gold-light);border-radius:4px;
-  font-size:0.78rem;color:var(--amber);
+  display:block;
+  padding:4px 0 6px 16px;margin-bottom:16px;
+  background:transparent;border:none;border-left:2px solid var(--gold);border-radius:0;
+  font-family:'EB Garamond',serif;font-style:italic;
+  font-size:1rem;line-height:1.6;color:var(--text-secondary);
 }
+.input-notice strong{font-style:normal;font-weight:600;color:var(--text-primary)}
+.input-notice em{font-style:italic;color:var(--gold)}
 .submission-textarea{
   width:100%;min-height:130px;
   padding:14px 16px;
@@ -184,7 +211,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   border:none;border-radius:4px;
   font-family:'Inter',sans-serif;font-size:0.84rem;font-weight:600;
   color:var(--text-cream);cursor:pointer;
-  box-shadow:0 2px 8px rgba(22,43,34,0.3);
+  box-shadow:0 2px 8px rgba(0,33,71,0.3);
   transition:all 0.15s;
 }
 .btn-analyze:hover{background:var(--green-mid);transform:translateY(-1px)}
@@ -237,13 +264,14 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 .metric-card:nth-child(2){transition-delay:0.12s}
 .metric-card:nth-child(3){transition-delay:0.19s}
 .metric-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
-.metric-icon{font-size:1rem}
+.metric-icon{display:inline-flex;align-items:center}
+.metric-icon svg{width:15px;height:15px;stroke:var(--gold);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .metric-title{font-size:0.78rem;font-weight:600;color:var(--text-secondary)}
 .metric-sub{font-size:0.68rem;color:var(--text-dim);margin-left:auto}
 .metric-body{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
 .sparkline-wrap{flex:1;height:36px}
 .sparkline-wrap svg{width:100%;height:100%}
-.metric-value{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;letter-spacing:-0.04em;line-height:1;white-space:nowrap}
+.metric-value{font-family:'Cormorant Garamond',serif;font-size:1.8rem;font-weight:700;letter-spacing:-0.04em;line-height:1;white-space:nowrap}
 
 /* Recommendation badge */
 .rec-card{
@@ -255,11 +283,12 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   transition:opacity 0.4s 0.3s,transform 0.4s 0.3s;
 }
 .rec-card.show{opacity:1;transform:none}
-.rec-icon{font-size:2rem;flex-shrink:0}
+.rec-icon{display:inline-flex;align-items:center;flex-shrink:0}
+.rec-icon svg{width:22px;height:22px;stroke:var(--gold);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .rec-text h4{font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px}
 .rec-badge{
   display:inline-flex;align-items:center;gap:6px;
-  padding:6px 14px;border-radius:20px;
+  padding:6px 14px;border-radius:3px;
   font-size:0.85rem;font-weight:600;
 }
 .rec-badge::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor}
@@ -277,7 +306,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 }
 .action-btn:hover{background:var(--cream);color:var(--text-primary)}
 .action-btn.warn{border-color:var(--gold-muted);background:var(--flag-amber-bg);color:var(--amber)}
-.action-btn.danger{border-color:rgba(192,57,43,0.3);background:var(--flag-red-bg);color:var(--flag-red)}
+.action-btn.danger{border-color:rgba(107,39,55,0.3);background:var(--flag-red-bg);color:var(--flag-red)}
 
 /* Tier bars card */
 .tiers-card{
@@ -288,7 +317,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   transition:opacity 0.4s 0.45s,transform 0.4s 0.45s;
 }
 .tiers-card.show{opacity:1;transform:none}
-.section-label{font-family:'Playfair Display',serif;font-size:0.85rem;font-weight:600;color:var(--text-primary);letter-spacing:0;text-transform:none;margin-bottom:14px}
+.section-label{font-family:'Cormorant Garamond',serif;font-size:0.85rem;font-weight:600;color:var(--text-primary);letter-spacing:0;text-transform:none;margin-bottom:14px}
 .tier-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .tier-row:last-child{margin-bottom:0}
 .tier-name{font-size:0.78rem;color:var(--text-muted);width:170px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -333,7 +362,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   padding:20px 22px 0;flex-shrink:0;
 }
 .panel-3d-label{font-size:0.68rem;font-weight:600;color:var(--text-muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px}
-.panel-3d-title{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:700;color:var(--text-primary);letter-spacing:-0.02em}
+.panel-3d-title{font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:700;color:var(--text-primary);letter-spacing:-0.02em}
 .panel-3d-sub{font-size:0.75rem;color:var(--text-muted);margin-top:2px}
 
 /* Student info in panel */
@@ -364,7 +393,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   position:absolute;
   width:200px;height:200px;
   border-radius:50%;
-  background:radial-gradient(circle,rgba(42,107,69,0.18) 0%,transparent 70%);
+  background:radial-gradient(circle,rgba(74,107,92,0.18) 0%,transparent 70%);
   pointer-events:none;
 }
 
@@ -390,12 +419,12 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   background:radial-gradient(circle at 36% 32%,
     rgba(255,255,255,0.95) 0%,
     rgba(180,220,180,0.9) 20%,
-    rgba(22,43,34,0.85) 50%,
+    rgba(0,33,71,0.85) 50%,
     rgba(10,25,18,1) 100%
   );
   box-shadow:
-    0 0 50px rgba(42,107,69,0.4),
-    0 0 100px rgba(42,107,69,0.12),
+    0 0 50px rgba(74,107,92,0.4),
+    0 0 100px rgba(74,107,92,0.12),
     inset -8px -8px 20px rgba(0,0,0,0.25),
     inset 6px 6px 14px rgba(255,255,255,0.35);
   z-index:5;
@@ -404,7 +433,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   content:'ρ';
   position:absolute;inset:0;
   display:flex;align-items:center;justify-content:center;
-  font-family:'Playfair Display',serif;
+  font-family:'Cormorant Garamond',serif;
   font-size:2rem;font-weight:700;
   color:rgba(255,255,255,0.8);
   text-shadow:0 0 12px rgba(255,255,255,0.5);
@@ -434,7 +463,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 .q-ring-3{
   width:220px;height:220px;
   top:50%;left:50%;margin:-110px 0 0 -110px;
-  border:1.5px solid rgba(5,150,105,0.4);
+  border:1.5px solid rgba(74,107,92,0.4);
   transform:rotateX(52deg) rotateY(-38deg);
   animation:orbit3 26s linear infinite;
   will-change:transform;
@@ -460,11 +489,11 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   display:flex;flex-direction:column;align-items:center;gap:4px;
 }
 .ped-disk{
-  border-radius:50%;background:rgba(201,160,40,0.1);
+  border-radius:50%;background:rgba(176,141,60,0.1);
   backdrop-filter:blur(4px);
-  border:1px solid rgba(201,160,40,0.2);
+  border:1px solid rgba(176,141,60,0.2);
 }
-.ped-disk-1{width:130px;height:14px;box-shadow:0 4px 16px rgba(42,107,69,0.08)}
+.ped-disk-1{width:130px;height:14px;box-shadow:0 4px 16px rgba(74,107,92,0.08)}
 .ped-disk-2{width:100px;height:10px;opacity:0.7}
 .ped-disk-3{width:72px;height:7px;opacity:0.45}
 
@@ -475,7 +504,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 }
 .legend-pill{
   display:flex;align-items:center;gap:6px;
-  padding:5px 10px;border-radius:20px;
+  padding:5px 10px;border-radius:3px;
   background:var(--surface);
   border:1px solid var(--cream-border);
   font-size:0.7rem;font-weight:500;color:var(--text-secondary);
@@ -508,7 +537,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 .panel-deviation.show{display:block}
 .pd-label{font-size:0.68rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px}
 .pd-row{display:flex;align-items:center;justify-content:space-between}
-.pd-score{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;letter-spacing:-0.04em}
+.pd-score{font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:700;letter-spacing:-0.04em}
 .pd-action{font-size:0.75rem;font-weight:500}
 
 /* Tabs top */
@@ -546,7 +575,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 .hist-meta{font-size:0.73rem;color:var(--text-muted)}
 .hist-badge{
   margin-left:auto;
-  padding:4px 10px;border-radius:20px;
+  padding:4px 10px;border-radius:3px;
   font-size:0.72rem;font-weight:500;
   display:flex;align-items:center;gap:5px;flex-shrink:0;
 }
@@ -563,10 +592,50 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   border-radius:var(--radius);padding:16px 18px;
   box-shadow:var(--shadow-sm);
 }
-.base-num{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--amber);margin-bottom:4px}
+.base-num{font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:700;color:var(--amber);margin-bottom:4px}
 .base-title{font-size:0.82rem;font-weight:500;margin-bottom:2px}
 .base-date{font-size:0.72rem;color:var(--text-muted)}
 .base-words{font-size:0.72rem;color:var(--text-dim);margin-top:6px}
+.base-card{cursor:pointer;transition:border-color 0.15s, box-shadow 0.15s}
+.base-card:hover{border-color:var(--gold-muted);box-shadow:0 0 0 2px var(--gold-light)}
+.base-card.expanded{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold-light)}
+.sample-text-panel{
+  grid-column:1/-1;
+  margin-top:4px;
+  background:var(--surface-2);
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  padding:0;
+  overflow:hidden;
+  animation:sampleTextFadeIn 0.18s ease-out;
+}
+@keyframes sampleTextFadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.sample-text-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;
+  background:var(--cream-warm);
+  border-bottom:1px solid var(--cream-border);
+}
+.sample-text-title{font-size:0.82rem;font-weight:600;color:var(--text-primary)}
+.sample-text-meta{font-size:0.7rem;color:var(--text-muted);font-family:'IBM Plex Mono',monospace;letter-spacing:0.04em}
+.sample-text-close{
+  background:none;border:none;cursor:pointer;color:var(--text-muted);
+  font-size:1.1rem;line-height:1;padding:0 4px;
+}
+.sample-text-close:hover{color:var(--text-primary)}
+.sample-text-body{
+  padding:16px 18px;
+  max-height:400px;
+  overflow-y:auto;
+  font-family:'EB Garamond',Georgia,serif;
+  font-size:0.95rem;
+  line-height:1.65;
+  color:var(--text-primary);
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+.sample-text-body.loading{color:var(--text-muted);font-style:italic;font-family:Inter,sans-serif;font-size:0.82rem}
+.sample-text-body.error{color:var(--red);font-family:Inter,sans-serif;font-size:0.82rem}
 .add-base-btn{
   width:100%;padding:12px;border-radius:var(--radius);
   background:none;border:1.5px dashed var(--gold-muted);
@@ -582,7 +651,8 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   background:var(--cream-warm);
 }
 .drop-zone.drag-over{border-color:var(--gold);background:var(--gold-light)}
-.drop-zone-icon{font-size:2rem;margin-bottom:8px}
+.drop-zone-icon{display:flex;justify-content:center;margin-bottom:10px}
+.drop-zone-icon svg{width:28px;height:28px;stroke:var(--text-muted);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .drop-zone-label{font-size:0.84rem;font-weight:500;color:var(--text)}
 .drop-zone-sub{font-size:0.74rem;color:var(--text-muted);margin-top:4px}
 .file-queue{display:flex;flex-direction:column;gap:8px;margin:14px 0}
@@ -812,19 +882,19 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 #validationSection{display:none;flex:1;overflow-y:auto;padding:28px 28px 48px;background:var(--cream);flex-direction:column;gap:24px}
 #validationSection.show{display:flex}
 .val-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
-.val-title{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:600;color:var(--text-primary);letter-spacing:-0.02em}
+.val-title{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:600;color:var(--text-primary);letter-spacing:-0.02em}
 .val-subtitle{font-family:'EB Garamond',serif;font-style:italic;font-size:0.88rem;color:var(--text-muted);margin-top:3px}
-.val-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase}
-.val-badge.pass{background:var(--flag-green-bg);color:var(--flag-green);border:1px solid rgba(42,107,69,0.2)}
-.val-badge.warn{background:var(--flag-amber-bg);color:var(--amber);border:1px solid rgba(201,160,40,0.2)}
+.val-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:3px;font-size:0.72rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase}
+.val-badge.pass{background:var(--flag-green-bg);color:var(--flag-green);border:1px solid rgba(74,107,92,0.2)}
+.val-badge.warn{background:var(--flag-amber-bg);color:var(--amber);border:1px solid rgba(176,141,60,0.2)}
 .val-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 .val-stat-card{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:16px 18px}
 .val-stat-label{font-size:0.68rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px}
-.val-stat-value{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:600;color:var(--text-primary);letter-spacing:-0.02em;line-height:1}
+.val-stat-value{font-family:'Cormorant Garamond',serif;font-size:1.9rem;font-weight:600;color:var(--text-primary);letter-spacing:-0.02em;line-height:1}
 .val-stat-sub{font-size:0.72rem;color:var(--text-muted);margin-top:4px}
 .val-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .val-card{background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:18px 20px}
-.val-card-title{font-family:'Playfair Display',serif;font-size:0.95rem;font-weight:600;color:var(--text-primary);margin-bottom:14px}
+.val-card-title{font-family:'Cormorant Garamond',serif;font-size:0.95rem;font-weight:600;color:var(--text-primary);margin-bottom:14px}
 .val-card.wide{grid-column:1/-1}
 .roc-svg{width:100%;height:220px;display:block}
 .val-dev-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
@@ -882,9 +952,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
     <div class="sidebar-logo">
       <div class="logo-mark">
         <div class="logo-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#162b22" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-          </svg>
+          <span style="font-family:'Cormorant Garamond',serif;font-weight:700;font-size:1.3rem;line-height:1;color:#002147">Ω</span>
         </div>
         <span class="logo-wordmark">Original</span>
       </div>
@@ -896,16 +964,16 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         Dashboard
       </a>
-      <a class="nav-item" href="#" title="Students">
+      <a class="nav-item" href="#" title="Students" onclick="navStudents();return false">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Students
       </a>
-      <a class="nav-item" href="#" title="Submissions">
+      <a class="nav-item" href="#" title="Submissions" onclick="navSubmissions();return false">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         Submissions
       </a>
       <div class="nav-section-label" style="margin-top:8px">System</div>
-      <a class="nav-item" href="#" title="Integrations">
+      <a class="nav-item" href="#" title="Integrations" onclick="navIntegrations();return false">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
         Integrations
       </a>
@@ -917,13 +985,13 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="6" height="6" rx="1"/><rect x="16" y="3" width="6" height="6" rx="1"/><rect x="2" y="15" width="6" height="6" rx="1"/><rect x="16" y="15" width="6" height="6" rx="1"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="18" x2="16" y2="18"/><line x1="5" y1="9" x2="5" y2="15"/><line x1="19" y1="9" x2="19" y2="15"/></svg>
         Operator
       </a>
-      <a class="nav-item" href="#" title="Settings">
+      <a class="nav-item" href="#" title="Settings" onclick="showSettings();return false">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         Settings
       </a>
-      <a class="nav-item" href="http://localhost:3000" target="_blank" title="Bbook Exams" style="opacity:0.85">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-        Bbook Exams ↗
+      <a class="nav-item" href="bluebook/" target="_blank" title="Bluebook — secure examinations" style="opacity:0.85">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        Bluebook ↗
       </a>
       <div class="nav-section-label" style="margin-top:8px">Research</div>
       <a class="nav-item" href="#" title="Registered Institutions" onclick="showTenants();return false">
@@ -1006,12 +1074,12 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
     <!-- Page title row -->
     <div style="padding:16px 24px 0;flex-shrink:0">
       <div style="font-family:'EB Garamond',serif;font-style:italic;font-size:0.8rem;color:var(--text-muted);margin-bottom:2px">Good afternoon</div>
-      <div class="header-name" id="hdrProfName" style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:600;color:var(--text-primary);letter-spacing:-0.02em">Prof. Adeyemi</div>
+      <div class="header-name" id="hdrProfName" style="font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:600;color:var(--text-primary);letter-spacing:-0.02em">Prof. Adeyemi</div>
     </div>
 
     <!-- Student pills -->
     <div class="student-row" id="studentRow">
-      <div class="s-pill" onclick="addStudentInline()" title="Add a student" style="border-style:dashed;color:var(--text-muted)">
+      <div class="s-pill" onclick="addStudentInline()" title="Add a student" style="border:1px dashed var(--cream-border);border-bottom:1px dashed var(--cream-border);border-radius:4px;padding:6px 12px;color:var(--text-muted);align-self:center">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Add Student
       </div>
@@ -1038,7 +1106,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
             </div>
           </div>
           <div class="input-notice">
-            💡 Original compares this submission against the student's <strong>authenticated voice baseline</strong> across 103 stylometric features — verifying not just that it isn't AI, but that it <em>is</em> theirs.
+            Original compares this submission against the student's <strong>authenticated voice baseline</strong> across 103 stylometric features — verifying not just that it isn't AI, but that it <em>is</em> theirs.
           </div>
           <textarea class="submission-textarea" id="subText" rows="6"
             placeholder="Paste the student's submitted text here…"
@@ -1057,12 +1125,12 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           <div class="loading-spinner"></div>
           <p>Extracting stylometric features…</p>
           <div class="load-steps" id="loadSteps">
-            <div class="load-step" id="ls1"><span class="ls-icon">📏</span> Surface stylometrics (TTR, sentence length, hapax…)</div>
-            <div class="load-step" id="ls2"><span class="ls-icon">🔗</span> Discourse &amp; cohesion analysis…</div>
-            <div class="load-step" id="ls3"><span class="ls-icon">⛪</span> Rhetorical register &amp; theological vocabulary…</div>
-            <div class="load-step" id="ls4"><span class="ls-icon">🔤</span> Character &amp; punctuation fingerprint…</div>
-            <div class="load-step" id="ls5"><span class="ls-icon">🧠</span> POS/syntax &amp; idiosyncratic patterns…</div>
-            <div class="load-step" id="ls6"><span class="ls-icon">⚛️</span> Projecting onto density matrix ρ — matching against voice baseline…</div>
+            <div class="load-step" id="ls1"><span class="ls-icon"></span> Surface stylometrics (TTR, sentence length, hapax…)</div>
+            <div class="load-step" id="ls2"><span class="ls-icon"></span> Discourse &amp; cohesion analysis…</div>
+            <div class="load-step" id="ls3"><span class="ls-icon"></span> Rhetorical register &amp; theological vocabulary…</div>
+            <div class="load-step" id="ls4"><span class="ls-icon"></span> Character &amp; punctuation fingerprint…</div>
+            <div class="load-step" id="ls5"><span class="ls-icon"></span> POS/syntax &amp; idiosyncratic patterns…</div>
+            <div class="load-step" id="ls6"><span class="ls-icon"></span> Projecting onto density matrix ρ — matching against voice baseline…</div>
           </div>
         </div>
 
@@ -1073,7 +1141,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           <div class="metrics-row">
             <div class="metric-card" id="mc1">
               <div class="metric-header">
-                <span class="metric-icon">✅</span>
+                <span class="metric-icon"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
                 <span class="metric-title">Voice Match</span>
                 <span class="metric-sub">confirmed voice consistency</span>
               </div>
@@ -1085,7 +1153,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
             </div>
             <div class="metric-card" id="mc2">
               <div class="metric-header">
-                <span class="metric-icon">✍️</span>
+                <span class="metric-icon"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>
                 <span class="metric-title">Authorship Probability</span>
                 <span class="metric-sub">Born rule P(ξ|ρ)<br><span style="font-size:0.63rem;color:var(--text-dim)">probability this matches their voice</span></span>
               </div>
@@ -1097,7 +1165,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
             </div>
             <div class="metric-card" id="mc3">
               <div class="metric-header">
-                <span class="metric-icon">📈</span>
+                <span class="metric-icon"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="14 7 21 7 21 14"/></svg></span>
                 <span class="metric-title">Trajectory Conformance</span>
                 <span class="metric-sub">growth pattern</span>
               </div>
@@ -1112,7 +1180,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           <!-- Interpretation box -->
           <div class="interp-card severity-amber" id="interpCard">
             <div class="interp-header">
-              <span>🧠</span>
+              <span></span>
               <span class="interp-header-label">Writing Voice Analysis</span>
             </div>
             <div class="interp-headline" id="interpHeadline"></div>
@@ -1129,7 +1197,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           </div>
 
           <div class="rec-card" id="recCard">
-            <div class="rec-icon">💬</div>
+            <div class="rec-icon"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg></div>
             <div class="rec-text">
               <h4>Recommended Action</h4>
               <span class="rec-badge schedule_conversation" id="recBadge">Schedule Conversation</span>
@@ -1149,12 +1217,12 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           <div id="contextCard" style="display:none;background:var(--surface);border:1px solid var(--cream-border);border-radius:12px;padding:20px 24px;margin-bottom:18px;box-shadow:var(--shadow-sm)">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
               <div>
-                <div style="font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--text-primary)">Adaptive context</div>
+                <div style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;color:var(--text-primary)">Adaptive context</div>
                 <div style="font-family:'EB Garamond',serif;font-style:italic;font-size:0.82rem;color:var(--text-muted)">Why the score weighted what it weighted, plus the auditable narrative.</div>
               </div>
               <div style="display:flex;gap:6px;align-items:center">
                 <span id="ctxVerdictBadge" class="rec-badge" style="font-size:0.72rem">—</span>
-                <span id="ctxConfidenceBadge" style="font-size:0.7rem;color:var(--text-muted);padding:3px 9px;border-radius:99px;background:var(--cream-warm)">—</span>
+                <span id="ctxConfidenceBadge" style="font-size:0.7rem;color:var(--text-muted);padding:3px 9px;border-radius:3px;background:var(--cream-warm)">—</span>
               </div>
             </div>
             <!-- Professor explanation (plain English) -->
@@ -1193,9 +1261,9 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
             <a href="#" onclick="toggleProofCard(event)"
                style="display:flex;align-items:center;justify-content:space-between;text-decoration:none;color:var(--text-primary)">
               <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-size:1rem">📊</span>
+                <span style="font-size:1rem"></span>
                 <span style="font-family:'EB Garamond',serif;font-size:0.95rem;font-weight:500">How accurate is this system?</span>
-                <span id="proofAucBadge" style="display:none;font-size:0.75rem;padding:2px 8px;border-radius:99px;background:var(--flag-green-bg);color:var(--flag-green);font-weight:600"></span>
+                <span id="proofAucBadge" style="display:none;font-size:0.75rem;padding:2px 8px;border-radius:3px;background:var(--flag-green-bg);color:var(--flag-green);font-weight:600"></span>
               </div>
               <span id="proofArrow" style="font-size:0.75rem;color:var(--text-muted)">▶ Show</span>
             </a>
@@ -1215,7 +1283,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 
           <!-- ── Blend timeline (lazy-rendered when "Run blend" clicked) ─── -->
           <div id="blendCard" style="display:none;background:var(--surface);border:1px solid var(--cream-border);border-radius:12px;padding:20px 24px;margin-bottom:18px;box-shadow:var(--shadow-sm)">
-            <div style="font-family:'Playfair Display',serif;font-size:1.1rem;margin-bottom:4px">Sliding-window blend detection</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;margin-bottom:4px">Sliding-window blend detection</div>
             <div style="font-family:'EB Garamond',serif;font-style:italic;font-size:0.82rem;color:var(--text-muted);margin-bottom:14px">Per 300-token window. Red dashes mark detected fingerprint shifts.</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px">
               <div class="metric-card" style="padding:10px 14px">
@@ -1237,7 +1305,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           <!-- ── Correction modal ───────────────────────────────────────── -->
           <div id="correctionModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,30,23,0.55);z-index:1000;align-items:center;justify-content:center">
             <div style="background:var(--cream);border-radius:12px;padding:24px 28px;max-width:520px;width:90%;box-shadow:var(--shadow-md)">
-              <div style="font-family:'Playfair Display',serif;font-size:1.2rem;margin-bottom:6px">Correct this verdict</div>
+              <div style="font-family:'Cormorant Garamond',serif;font-size:1.2rem;margin-bottom:6px">Correct this verdict</div>
               <div style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.85rem;margin-bottom:14px">Your feedback feeds the retraining loop in the Lab.</div>
               <div style="margin-bottom:14px">
                 <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:6px">Was the original verdict correct?</label>
@@ -1291,7 +1359,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           <!-- Compare toggle -->
           <div style="display:flex;justify-content:flex-end">
             <button class="compare-toggle" id="compareToggleBtn" onclick="toggleCompare()" style="display:none">
-              📊 Compare Voice Fingerprints
+              Compare Voice Fingerprints
             </button>
           </div>
 
@@ -1312,7 +1380,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           <div class="features-card" id="arcCard" style="display:none">
             <div class="section-label" style="display:flex;align-items:center;justify-content:space-between">
               <span>Tension Arc Analysis</span>
-              <span id="arcFlagBadge" style="font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:20px"></span>
+              <span id="arcFlagBadge" style="font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:3px"></span>
             </div>
             <!-- Rhythm Identity — shown only when student has a κ baseline -->
             <div id="arcIdentityWrap" style="display:none;margin:10px 0 14px">
@@ -1342,12 +1410,13 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
     </div><!-- end mainContent tab panels -->
     <!-- ── Validation Section ── -->
     <div id="validationSection"></div>
+    <div id="settingsSection" style="display:none;flex:1;overflow-y:auto;padding:28px 28px 48px;background:var(--cream);flex-direction:column;gap:20px"></div>
 
     <!-- ── Tenant Management Section (Phase 0) ──────────────────────── -->
     <div id="tenantSection" style="display:none;flex:1;overflow-y:auto;padding:28px 28px 48px;background:var(--cream);flex-direction:column;gap:24px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <div>
-          <div style="font-family:'Playfair Display',serif;font-size:1.3rem;color:var(--text-primary)">Registered Institutions</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:1.3rem;color:var(--text-primary)">Registered Institutions</div>
           <div style="font-family:'EB Garamond',serif;font-style:italic;font-size:0.85rem;color:var(--text-muted)">Register schools before a demo or pilot. Environment label (demo / pilot / production) controls endpoint guard behaviour.</div>
         </div>
         <button onclick="hideTenants()" style="padding:6px 14px;background:var(--cream-warm);color:var(--text-muted);border:1px solid var(--cream-border);border-radius:var(--radius);font-size:0.75rem;cursor:pointer">← Back</button>
@@ -1361,7 +1430,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 
       <!-- Registration form -->
       <div style="background:var(--surface);border:1px solid var(--cream-border);border-radius:10px;padding:18px 22px">
-        <div style="font-family:'Playfair Display',serif;font-size:1.05rem;margin-bottom:14px">Register an institution</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:1.05rem;margin-bottom:14px">Register an institution</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
           <div>
             <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:5px;color:var(--text-secondary)">Institution ID (slug)</label>
@@ -1450,8 +1519,8 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 
           <!-- Ring 3: Green — Discourse/Idiosyncratic -->
           <div class="q-ring q-ring-3">
-            <div class="q-dot" style="--dc:#059669;top:0%;left:50%"></div>
-            <div class="q-dot" style="--dc:#059669;top:100%;left:50%"></div>
+            <div class="q-dot" style="--dc:#4A6B5C;top:0%;left:50%"></div>
+            <div class="q-dot" style="--dc:#4A6B5C;top:100%;left:50%"></div>
             <div class="q-dot" style="--dc:#34D399;top:50%;left:0%"></div>
           </div>
 
@@ -1479,7 +1548,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
     <div class="panel-legend">
       <div class="legend-pill"><div class="legend-dot" style="background:#2563EB"></div>Surface / Syntax</div>
       <div class="legend-pill"><div class="legend-dot" style="background:#D97706"></div>Rhetorical</div>
-      <div class="legend-pill"><div class="legend-dot" style="background:#059669"></div>Discourse</div>
+      <div class="legend-pill"><div class="legend-dot" style="background:#4A6B5C"></div>Discourse</div>
     </div>
 
     <!-- Trait bars -->
@@ -1502,7 +1571,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
       </div>
       <div class="trait-row">
         <span class="trait-label">Sentence consistency</span>
-        <div class="trait-bar-bg"><div class="trait-bar-fill" id="ptb4" style="background:#059669;width:0%"></div></div>
+        <div class="trait-bar-bg"><div class="trait-bar-fill" id="ptb4" style="background:#4A6B5C;width:0%"></div></div>
         <span class="trait-pct">71%</span>
       </div>
     </div>
@@ -1592,6 +1661,14 @@ const API = {
     }
     return r.json(); // { text, filename, word_count }
   },
+  async getSampleText(studentId, index) {
+    const r = await fetch(`${API_BASE}/students/${encodeURIComponent(studentId)}/samples/${index}/text`);
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({detail: r.statusText}));
+      throw new Error(e.detail || 'Failed to load sample text');
+    }
+    return r.json();
+  },
   /* Phase 2 — Bbook proctored baseline requests */
   async requestBaseline(studentId, payload) {
     const r = await fetch(`${API_BASE}/students/${encodeURIComponent(studentId)}/request-baseline`, {
@@ -1643,23 +1720,92 @@ function loadRoster() {
   } catch(e) {}
   // Fallback: hardcoded demo students
   return [
-    {id:'whitfield_j',name:'James Whitfield',   ini:'JW',color:'#BFDBFE',tc:'#1E40AF',dot:'#DC2626',baselines:5,status:'needs_review'},
+    {id:'whitfield_j',name:'James Whitfield',   ini:'JW',color:'#BFDBFE',tc:'#1E40AF',dot:'#6B2737',baselines:5,status:'needs_review'},
     {id:'okonkwo_s',  name:'Sarah Okonkwo',    ini:'SO',color:'#E9D5FF',tc:'#6D28D9',dot:'#D97706',baselines:5,status:'monitor'},
-    {id:'osei_d',     name:'Daniel Osei',      ini:'DO',color:'#D1FAE5',tc:'#065F46',dot:'#059669',baselines:5,status:'clear'},
-    {id:'mercer_l',   name:'Lydia Mercer',     ini:'LM',color:'#FEF9C3',tc:'#92400E',dot:'#059669',baselines:5,status:'clear'},
+    {id:'osei_d',     name:'Daniel Osei',      ini:'DO',color:'#D1FAE5',tc:'#065F46',dot:'#4A6B5C',baselines:5,status:'clear'},
+    {id:'mercer_l',   name:'Lydia Mercer',     ini:'LM',color:'#FEF9C3',tc:'#92400E',dot:'#4A6B5C',baselines:5,status:'clear'},
     {id:'chen_m',     name:'Michael Chen',     ini:'MC',color:'#FCE7F3',tc:'#9D174D',dot:'#6B7280',baselines:1,status:'monitor'},
   ];
 }
 let STUDENTS = loadRoster();
+
+/* ── Authenticated roster (ADR-003): when a principal token is present, the
+   roster comes from GET /students (tenant-scoped by the server), replacing the
+   demo fallback above. No token → zero-login demo, unchanged. ── */
+function isAuthed() {
+  try { return !!localStorage.getItem('original_principal_token'); } catch(e) { return false; }
+}
+
+function serverStudentFromId(id, i) {
+  const local = id.includes(':') ? id.split(':').slice(1).join(':') : id;
+  const [bg, tc] = AVATAR_COLORS[i % AVATAR_COLORS.length];
+  const ini = (local.replace(/[^a-zA-Z0-9]/g, '').slice(0, 2) || '··').toUpperCase();
+  return { id, name: 'Student ' + local.slice(0, 6), ini, color: bg, tc,
+           dot: '#6B7280', baselines: 0, status: 'unknown' };
+}
+
+async function hydrateRosterFromServer() {
+  try {
+    const r = await fetch(`${API_BASE}/students`);   // Bearer added by the auth-bridge shim
+    if (!r.ok) return;
+    const ids = (await r.json()).students || [];
+    STUDENTS = ids.map(serverStudentFromId);
+    const tenant = localStorage.getItem('original_tenant') || '';
+    const hdr = document.getElementById('hdrCourseSub');
+    if (hdr) hdr.textContent = `${tenant || 'your institution'} · ${ids.length} student${ids.length === 1 ? '' : 's'}`;
+    renderStudents();
+    if (STUDENTS.length) { selectStudent(STUDENTS[0]); }
+    else {
+      active = null;
+      const mc = document.getElementById('mainContent');
+      if (mc) {
+        let note = document.getElementById('emptyRosterNote');
+        if (!note) {
+          note = document.createElement('div');
+          note.id = 'emptyRosterNote';
+          note.style.cssText = 'padding:24px;margin:8px 0 16px;border:1px dashed var(--cream-border);background:var(--cream-warm);font-family:\'EB Garamond\',serif;font-style:italic;color:var(--text-muted)';
+          mc.prepend(note);
+        }
+        note.textContent = 'No students in your roster yet. Use “Import Papers” to add baseline writing, or have students submit via their course link.';
+      }
+    }
+  } catch(e) { /* stay on demo fallback */ }
+}
+
+function applyAuthedChrome() {
+  const role = localStorage.getItem('original_role') || 'professor';
+  const tenant = localStorage.getItem('original_tenant') || '';
+  const roleEl = document.querySelector('.sidebar-user .user-role');
+  if (roleEl) roleEl.textContent = tenant ? `${role} · ${tenant}` : role;
+  const nameEl = document.getElementById('sidebarName');
+  if (nameEl) nameEl.textContent = 'Signed in';
+  const su = document.querySelector('.sidebar-user');
+  if (su && !document.getElementById('signOutBtn')) {
+    const btn = document.createElement('button');
+    btn.id = 'signOutBtn';
+    btn.textContent = 'Sign out';
+    btn.title = 'Return to the demo';
+    btn.style.cssText = 'margin-left:auto;background:none;border:1px solid var(--green-border);color:var(--text-cream-dim);font:500 0.7rem Inter,sans-serif;padding:4px 9px;border-radius:4px;cursor:pointer';
+    btn.onclick = signOut;
+    su.appendChild(btn);
+  }
+}
+
+function signOut() {
+  ['original_principal_token', 'original_session_token', 'original_role', 'original_tenant', 'original_name']
+    .forEach(k => { try { localStorage.removeItem(k); } catch(e) {} });
+  location.replace('professor.html');
+}
+
 /* ── Transform API response → renderResults() format ── */
 const TIER_META = [
   {key:'T1', name:'Surface Stylometrics',   sub:'sentence length, vocabulary range', c:'#2563EB'},
   {key:'T2', name:'Discourse Analysis',     sub:'argument flow & transitions',        c:'#7C3AED'},
-  {key:'T3', name:'Rhetorical Register',    sub:'theological tone & formality',       c:'#DC2626'},
+  {key:'T3', name:'Rhetorical Register',    sub:'theological tone & formality',       c:'#6B2737'},
   {key:'T4', name:'Char & Punctuation',     sub:'punctuation habits & rhythm',        c:'#D97706'},
   {key:'T5', name:'POS & Syntax',           sub:'grammar patterns & sentence structure', c:'#2563EB'},
-  {key:'T6', name:'Idiosyncratic Patterns', sub:'unique phrases & word choices',      c:'#B8860B'},
-  {key:'T7', name:'Voice Authenticity',     sub:'AI-associated & uncharacteristic patterns', c:'#059669'},
+  {key:'T6', name:'Idiosyncratic Patterns', sub:'unique phrases & word choices',      c:'#B08D3C'},
+  {key:'T7', name:'Voice Authenticity',     sub:'AI-associated & uncharacteristic patterns', c:'#4A6B5C'},
   {key:'T8', name:'Prosodic Rhythm',       sub:'sentence-level stress patterns, cadence variation, and rhythmic fingerprint', c:'#7c3aed'},
   {key:'T9', name:'Cognitive Sequencing',  sub:'order of idea presentation, argument scaffolding, and conceptual flow logic', c:'#0891b2'},
   {key:'T10', name:'Semantic Gravity',      sub:'abstraction level shifts, grounding moves, and conceptual density per sentence', c:'#be185d'},
@@ -1695,7 +1841,7 @@ function apiResponseToResult(resp) {
     dir:  f.direction === 'destructive'
             ? `↓ ${(f.delta < 0 ? 'below' : 'above')} baseline`
             : '✓ consistent with baseline',
-    c: f.direction === 'destructive' ? '#D97706' : '#059669',
+    c: f.direction === 'destructive' ? '#D97706' : '#4A6B5C',
   }));
 
   return { deviation, prob, traj, action, tiers, feats, _raw: resp };
@@ -1797,7 +1943,7 @@ function renderTensionArc(arc) {
 
     // Fill area under curve
     const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, arc.arc_flag === 'ai_typical' ? 'rgba(220,38,38,0.15)' : 'rgba(5,150,105,0.15)');
+    grad.addColorStop(0, arc.arc_flag === 'ai_typical' ? 'rgba(107,39,55,0.15)' : 'rgba(74,107,92,0.15)');
     grad.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.beginPath();
     ctx.moveTo(pts[0][0], H - 8);
@@ -1808,7 +1954,7 @@ function renderTensionArc(arc) {
     ctx.fill();
 
     // Line
-    const lineColor = arc.arc_flag === 'ai_typical' ? '#DC2626' : arc.arc_flag === 'authentic' ? '#059669' : '#D97706';
+    const lineColor = arc.arc_flag === 'ai_typical' ? '#6B2737' : arc.arc_flag === 'authentic' ? '#4A6B5C' : '#D97706';
     ctx.beginPath();
     ctx.moveTo(pts[0][0], pts[0][1]);
     pts.forEach(([x, y]) => ctx.lineTo(x, y));
@@ -1927,7 +2073,7 @@ function updatePanelBars(bv) {
     ['theological_register_score', 'ptb1', '#2563EB'],
     ['source_integration_style',   'ptb2', '#D97706'],
     ['epistemic_certainty_ratio',  'ptb3', '#2563EB'],
-    ['sentence_length_variance',   'ptb4', '#059669'],
+    ['sentence_length_variance',   'ptb4', '#4A6B5C'],
   ];
   keys.forEach(([k, id, col]) => {
     const bar = document.getElementById(id);
@@ -2023,7 +2169,7 @@ function renderBaselines() {
   if (samples.length === 0) {
     html += `<div style="grid-column:1/-1">
       <div style="text-align:center;padding:32px 16px;color:var(--text-muted)">
-        <div style="font-size:2.5rem;margin-bottom:12px">📄</div>
+        <div style="display:flex;justify-content:center;margin-bottom:12px"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="var(--text-muted)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
         <div style="font-weight:600;margin-bottom:6px">No baseline papers yet</div>
         <div style="font-size:0.8rem">Drop PDF, DOCX, or TXT files above to build this student's voice profile</div>
       </div>
@@ -2034,13 +2180,16 @@ function renderBaselines() {
     const label = provLabels[b.provenance] || b.provenance;
     const col   = provColors[b.provenance] || 'var(--text-muted)';
     const wt    = b.auth_weight !== undefined ? `weight ${b.auth_weight.toFixed(1)}` : '';
-    html += `<div class="base-card">
+    const safeAssignment = (b.assignment || 'Baseline Sample').replace(/"/g,'&quot;');
+    html += `<div class="base-card" data-sample-index="${i}" onclick="toggleSampleText(${i}, this)" title="Click to read this sample">
       <div class="base-num">${num}</div>
-      <div class="base-title">${b.assignment || 'Baseline Sample'}</div>
+      <div class="base-title">${safeAssignment}</div>
       <div class="base-date">${b.submitted_at || ''}</div>
       <div class="base-words" style="color:${col};font-weight:600">${label} ${wt ? '· '+wt : ''}</div>
     </div>`;
   });
+  // Inline panel slot for the click-to-expand prose viewer
+  html += `<div id="sampleTextPanelSlot" style="grid-column:1/-1"></div>`;
   html += '</div>';
 
   // Confidence strip
@@ -2066,7 +2215,7 @@ function renderBaselines() {
          ondragleave="this.classList.remove('drag-over')"
          ondrop="_onDrop(event)"
          onclick="document.getElementById('blFileInput').click()">
-      <div class="drop-zone-icon">📂</div>
+      <div class="drop-zone-icon"><svg viewBox="0 0 24 24"><path d="M12 16V8"/><path d="m8 11 4-4 4 4"/><path d="M20 16.5A4.5 4.5 0 0 0 17 8a6 6 0 0 0-11.3 1.5A4 4 0 0 0 6 17"/></svg></div>
       <div class="drop-zone-label">Drop PDF, DOCX or TXT files here</div>
       <div class="drop-zone-sub">Or click to browse · Multiple files accepted</div>
     </div>
@@ -2092,7 +2241,7 @@ function renderBaselines() {
 
     <!-- Import from Canvas -->
     <div style="margin-top:12px">
-      <button class="add-base-btn" onclick="toggleCanvasImport()" id="canvasImportBtn">📥 Import from Canvas</button>
+      <button class="add-base-btn" onclick="toggleCanvasImport()" id="canvasImportBtn">Import from Canvas</button>
       <div id="canvasImportPanel" style="display:none;margin-top:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
         <div style="font-size:0.8rem;font-weight:600;margin-bottom:10px;color:var(--text)">Canvas Submissions Import</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
@@ -2113,7 +2262,7 @@ function renderBaselines() {
 
     <!-- Request proctored sitting via Bbook (Phase 2 Original-first flow) -->
     <div style="margin-top:12px">
-      <button class="add-base-btn" onclick="toggleBbookRequest()" id="bbookRequestBtn">🛡 Request proctored sitting via Bbook</button>
+      <button class="add-base-btn" onclick="toggleBbookRequest()" id="bbookRequestBtn">Request proctored sitting via Bbook</button>
       <div id="bbookRequestPanel" style="display:none;margin-top:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
         <div style="font-size:0.8rem;font-weight:600;margin-bottom:10px;color:var(--text)">New Proctored Baseline Sitting</div>
         <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:10px;line-height:1.5">
@@ -2173,7 +2322,7 @@ function _renderFileQueue() {
   if(ctrl) ctrl.style.display='block';
   el.innerHTML = _fileQueue.map((f,i) => `
     <div class="file-item">
-      <span class="file-item-name">📄 ${f.name}</span>
+      <span class="file-item-name">${f.name}</span>
       <span class="file-item-words">${f.wordCount ? f.wordCount+' words' : ''}</span>
       <span class="file-item-status ${f.status}">${
         f.status==='pending'?'Ready':f.status==='uploading'?'Adding…':f.status==='done'?'✓ Added':f.error||'Error'
@@ -2306,7 +2455,7 @@ function toggleCanvasImport() {
   const panel = document.getElementById('canvasImportPanel');
   const btn   = document.getElementById('canvasImportBtn');
   if (panel) panel.style.display = _canvasImportOpen ? 'block' : 'none';
-  if (btn)   btn.textContent = _canvasImportOpen ? '× Cancel Canvas Import' : '📥 Import from Canvas';
+  if (btn)   btn.textContent = _canvasImportOpen ? '× Cancel Canvas Import' : 'Import from Canvas';
 }
 
 async function listCanvasSubmissions() {
@@ -2589,13 +2738,13 @@ function renderResults(r) {
   const voiceMatch = Math.max(0, 1 - r.deviation);
   document.getElementById('sparkline1').innerHTML = sparkSVG(
     [[0,0.78],[1,0.81],[2,0.62],[3,voiceMatch]],
-    voiceMatch < 0.45 ? '#DC2626' : voiceMatch < 0.6 ? '#D97706' : '#059669');
+    voiceMatch < 0.45 ? '#6B2737' : voiceMatch < 0.6 ? '#D97706' : '#4A6B5C');
   document.getElementById('sparkline2').innerHTML = sparkSVG(
     [[0,0.85],[1,0.88],[2,0.72],[3,r.prob]],
-    r.prob < 0.4 ? '#DC2626' : r.prob < 0.65 ? '#D97706' : '#059669');
+    r.prob < 0.4 ? '#6B2737' : r.prob < 0.65 ? '#D97706' : '#4A6B5C');
   document.getElementById('sparkline3').innerHTML = sparkSVG(
     [[0,0.80],[1,0.75],[2,0.60],[3,r.traj]],
-    r.traj < 0.4 ? '#DC2626' : '#2563EB');
+    r.traj < 0.4 ? '#6B2737' : '#2563EB');
 
   // Update metric values and colors dynamically
   // mc1 = voice match % — higher is better (green); colors mirror match quality
@@ -2718,7 +2867,7 @@ function renderResults(r) {
     document.getElementById('interpHeadline').textContent = interp.headline;
     const ul = document.getElementById('interpBullets');
     ul.innerHTML = interp.bullets.map(b=>`<li>${b}</li>`).join('');
-    document.getElementById('interpNext').innerHTML = `<span>💡</span><span><strong>Recommended next step:</strong> ${interp.nextStep}</span>`;
+    document.getElementById('interpNext').innerHTML = `<span></span><span><strong>Recommended next step:</strong> ${interp.nextStep}</span>`;
     card.style.display = 'block';
     requestAnimationFrame(()=>card.classList.add('show'));
   }, 200);
@@ -2799,7 +2948,7 @@ function renderCompare(raw) {
   if (_radarChartB) _radarChartB.destroy();
   if (_radarChartS) _radarChartS.destroy();
   _radarChartB = new Chart(ctxB, chartCfg(bData, '#2563EB'));
-  _radarChartS = new Chart(ctxS, chartCfg(sData, '#DC2626'));
+  _radarChartS = new Chart(ctxS, chartCfg(sData, '#6B2737'));
 
   // Divergent feature table
   const el = document.getElementById('compareDivergent');
@@ -2861,9 +3010,28 @@ function addStudentInline() {
 /* ── Init ── */
 window.addEventListener('DOMContentLoaded', () => {
   renderStudents();
-  // Select first student and load their real data
-  if (STUDENTS.length > 0) selectStudent(STUDENTS[0]);
+  if (isAuthed()) {
+    // Authenticated (login or LTI): real, tenant-scoped roster from the server.
+    applyAuthedChrome();
+    hydrateRosterFromServer();
+  } else if (STUDENTS.length > 0) {
+    // Zero-login demo: hardcoded roster, unchanged.
+    selectStudent(STUDENTS[0]);
+  }
+  // Deep-link support so other pages (e.g. admin.html) can target a surface:
+  //   professor.html#students | #submissions | #integrations | #settings
+  setTimeout(applyNavHash, 150);
 });
+
+window.addEventListener('hashchange', applyNavHash);
+
+function applyNavHash() {
+  const h = (location.hash || '').replace('#', '').toLowerCase();
+  if (h === 'students')      navStudents();
+  else if (h === 'submissions')  navSubmissions();
+  else if (h === 'integrations') navIntegrations();
+  else if (h === 'settings')     showSettings();
+}
 
 /* ════════════════════════════════════════════════════════
    Import Papers Drawer — three tabs:
@@ -2943,7 +3111,7 @@ function _renderImportQueue() {
   if (ctrl) ctrl.style.display = 'block';
   el.innerHTML = _importBatchQueue.map((f, i) => `
     <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;font-size:0.8rem">
-      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 ${f.name}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</span>
       <span style="font-size:0.76rem;color:${f.status==='done'?'var(--green)':f.status==='error'?'var(--red)':'var(--text-muted)'}">
         ${f.status==='pending'?'Ready':f.status==='uploading'?'Uploading…':f.status==='done'?'✓ Imported':f.error||'Error'}
       </span>
@@ -3076,7 +3244,7 @@ async function runTurnitinCsvImport() {
   <div class="import-drawer">
     <div class="import-drawer-header">
       <div>
-        <div class="import-drawer-title">📥 Import Papers</div>
+        <div class="import-drawer-title">Import Papers</div>
         <div id="importDrawerSub" style="font-size:0.75rem;color:var(--text-muted);margin-top:2px">
           Bulk-import past student papers as verified baselines
         </div>
@@ -3100,7 +3268,7 @@ async function runTurnitinCsvImport() {
              ondragleave="this.classList.remove('drag-over')"
              ondrop="_onImportDrop(event)"
              onclick="document.getElementById('importFileInput').click()">
-          <div class="drop-zone-icon">📂</div>
+          <div class="drop-zone-icon"><svg viewBox="0 0 24 24"><path d="M12 16V8"/><path d="m8 11 4-4 4 4"/><path d="M20 16.5A4.5 4.5 0 0 0 17 8a6 6 0 0 0-11.3 1.5A4 4 0 0 0 6 17"/></svg></div>
           <div class="drop-zone-label">Drop files here or click to browse</div>
           <div class="drop-zone-sub">PDF · DOCX · TXT · Multiple files accepted</div>
         </div>
@@ -3129,7 +3297,7 @@ async function runTurnitinCsvImport() {
         </div>
 
         <div style="margin-top:16px;padding:12px 14px;background:var(--gold-light);border-radius:8px;font-size:0.78rem;color:var(--amber);line-height:1.5">
-          💡 <strong>Tip:</strong> Select the student on the left first, then drop their past papers here.
+          <strong>Tip:</strong> Select the student on the left first, then drop their past papers here.
           All files are sent in a single request — duplicates are detected by content hash and skipped automatically.
         </div>
       </div>
@@ -3167,7 +3335,7 @@ async function runTurnitinCsvImport() {
       <div class="import-tab-panel" id="importPanel_turnitin">
         <div class="import-section-label">Import Turnitin submission metadata from a CSV export</div>
         <div style="padding:12px 14px;background:var(--flag-amber-bg);border:1px solid var(--gold-muted);border-radius:8px;font-size:0.79rem;color:var(--amber);line-height:1.5;margin-bottom:14px">
-          ⚠️ Turnitin CSV exports contain <strong>metadata only</strong> — not full paper text.
+          ⚠ Turnitin CSV exports contain <strong>metadata only</strong> — not full paper text.
           After import, upload the actual PDF/DOCX files using the <em>Upload Files</em> tab to attach paper content.
         </div>
         <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;margin-bottom:10px">
@@ -3351,6 +3519,104 @@ function hideTenants() {
   _showMainPanels('Professor Dashboard');
 }
 
+/* ── Workspace/System nav wiring (Students, Submissions, Integrations, Settings) ── */
+function _navActiveItem() {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (typeof event !== 'undefined' && event && event.currentTarget) event.currentTarget.classList.add('active');
+}
+function _navClearOverlays() {
+  const ts = document.getElementById('tenantSection');     if (ts) ts.style.display = 'none';
+  const vs = document.getElementById('validationSection'); if (vs) vs.classList.remove('show');
+  const ss = document.getElementById('settingsSection');   if (ss) ss.style.display = 'none';
+}
+
+function navStudents() {
+  _navClearOverlays();
+  _showMainPanels('Students');
+  switchTab('score');
+  _navActiveItem();
+  const row = document.getElementById('studentRow');
+  if (row) {
+    row.scrollIntoView({ behavior:'smooth', block:'center' });
+    row.style.transition = 'box-shadow .3s';
+    row.style.boxShadow = '0 0 0 2px var(--gold)';
+    setTimeout(() => { row.style.boxShadow = ''; }, 1500);
+  }
+}
+
+function navSubmissions() {
+  _navClearOverlays();
+  _showMainPanels('Submissions');
+  if (typeof renderHistory === 'function') renderHistory();
+  switchTab('history');
+  _navActiveItem();
+  const th = document.querySelector('.tabs-header');
+  if (th) th.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function navIntegrations() {
+  _navClearOverlays();
+  _showMainPanels('Integrations');
+  _navActiveItem();
+  openImportDrawer();
+}
+
+function showSettings() {
+  _navClearOverlays();
+  _hideMainPanels();
+  const bc = document.querySelector('.bc-current');
+  if (bc) bc.textContent = 'Settings';
+  _navActiveItem();
+  const sec = document.getElementById('settingsSection');
+  const apiBase = (typeof API_BASE !== 'undefined' && API_BASE) ? API_BASE : (location.origin + ' (same origin)');
+  const studentName = (typeof active !== 'undefined' && active) ? (active.name || active.id) : '—';
+  sec.innerHTML = `
+    <div style="max-width:680px">
+      <h2 style="font-family:var(--font-d, 'Cormorant Garamond'),serif;font-size:1.7rem;color:var(--text-primary);margin-bottom:4px">Settings</h2>
+      <div style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);margin-bottom:22px">Demo configuration and workspace controls.</div>
+
+      <div class="card" style="background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:20px 22px;margin-bottom:16px">
+        <div style="font-weight:600;color:var(--text-primary);margin-bottom:12px">Connection</div>
+        <div style="display:grid;grid-template-columns:160px 1fr;gap:8px 14px;font-size:0.88rem;color:var(--text-secondary)">
+          <div style="color:var(--text-muted)">API endpoint</div><div style="font-family:monospace">${apiBase}</div>
+          <div style="color:var(--text-muted)">Active student</div><div>${studentName}</div>
+          <div style="color:var(--text-muted)">Health</div><div id="settingsHealth">checking…</div>
+        </div>
+      </div>
+
+      <div class="card" style="background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:20px 22px;margin-bottom:16px">
+        <div style="font-weight:600;color:var(--text-primary);margin-bottom:6px">Demo data</div>
+        <div style="font-size:0.86rem;color:var(--text-muted);margin-bottom:14px">Clears local submission history and cached UI state. Does not delete server-side baseline profiles.</div>
+        <button onclick="resetDemoState()" style="padding:8px 16px;background:var(--surface);border:1px solid var(--cream-border);border-radius:6px;cursor:pointer;color:var(--text-primary);font:500 0.85rem Inter,sans-serif">↺ Reset demo state</button>
+      </div>
+
+      <div class="card" style="background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:20px 22px;margin-bottom:20px">
+        <div style="font-weight:600;color:var(--text-primary);margin-bottom:12px">System surfaces</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <a href="admin.html" style="padding:7px 14px;border:1px solid var(--cream-border);border-radius:6px;text-decoration:none;color:var(--text-primary);font-size:0.85rem">Threshold Admin →</a>
+          <a href="operator.html" style="padding:7px 14px;border:1px solid var(--cream-border);border-radius:6px;text-decoration:none;color:var(--text-primary);font-size:0.85rem">Operator (all schools) →</a>
+          <a href="lab.html" style="padding:7px 14px;border:1px solid var(--cream-border);border-radius:6px;text-decoration:none;color:var(--text-primary);font-size:0.85rem">Calibration Lab →</a>
+        </div>
+      </div>
+
+      <button onclick="hideSettings()" style="padding:8px 16px;background:var(--green-deep);color:var(--cream);border:1px solid var(--green-deep);border-radius:6px;cursor:pointer;font:500 0.85rem Inter,sans-serif">← Back to Dashboard</button>
+    </div>`;
+  sec.style.display = 'flex';
+  // live health check
+  fetch((typeof API_BASE !== 'undefined' ? API_BASE : '') + '/health').then(r => r.ok ? 'online ✓' : ('error ' + r.status))
+    .catch(() => 'unreachable')
+    .then(txt => { const h = document.getElementById('settingsHealth'); if (h) h.textContent = txt; });
+}
+
+function hideSettings() {
+  const sec = document.getElementById('settingsSection');
+  if (sec) sec.style.display = 'none';
+  _showMainPanels('Professor Dashboard');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const dash = document.querySelector('.nav-item[href="professor.html"]');
+  if (dash) dash.classList.add('active');
+}
+
 async function _loadTenantList() {
   const el = document.getElementById('tenantList');
   if (!el) return;
@@ -3372,7 +3638,7 @@ async function _loadTenantList() {
       ${data.map(t => `<tr>
         <td style="padding:8px 10px;font-family:monospace;font-size:0.82rem;color:var(--text-muted)">${escHtml(t.tenant_id)}</td>
         <td style="padding:8px 10px;font-family:'EB Garamond',serif">${escHtml(t.name)}</td>
-        <td style="padding:8px 10px"><span style="font-size:0.75rem;padding:2px 8px;border-radius:99px;background:${envColors[t.environment]||'var(--flag-green)'}22;color:${envColors[t.environment]||'var(--flag-green)'};font-weight:600">${escHtml(t.environment)}</span></td>
+        <td style="padding:8px 10px"><span style="font-size:0.75rem;padding:2px 8px;border-radius:3px;background:${envColors[t.environment]||'var(--flag-green)'}22;color:${envColors[t.environment]||'var(--flag-green)'};font-weight:600">${escHtml(t.environment)}</span></td>
         <td style="padding:8px 10px;font-size:0.82rem;color:var(--text-muted)">${t.created_at ? new Date(t.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</td>
       </tr>`).join('')}
       </tbody>
@@ -3543,7 +3809,7 @@ function renderValidation(rpt, sim, thr) {
           <!-- ROC line -->
           <path d="${rocPath}" stroke="${aucColor}" stroke-width="2" fill="none" stroke-linejoin="round"/>
           <!-- AUC label -->
-          <text x="${sx(0.6)}" y="${sy(0.2)}" font-family="'Playfair Display',serif" font-size="13" fill="${aucColor}" font-weight="600">AUC = ${auc.toFixed(4)}</text>
+          <text x="${sx(0.6)}" y="${sy(0.2)}" font-family="'Cormorant Garamond',serif" font-size="13" fill="${aucColor}" font-weight="600">AUC = ${auc.toFixed(4)}</text>
           <!-- Axis labels -->
           <text x="${sx(0.5)}" y="${H-4}" font-family="Inter,sans-serif" font-size="9" fill="var(--text-muted)" text-anchor="middle">False Positive Rate</text>
           <text x="10" y="${sy(0.5)}" font-family="Inter,sans-serif" font-size="9" fill="var(--text-muted)" text-anchor="middle" transform="rotate(-90,10,${sy(0.5)})">True Positive Rate</text>
@@ -3830,10 +4096,10 @@ function _renderProfExplanation(pe, action) {
 
   // Colour scheme keyed by action
   const colours = {
-    no_action:            { border: '#2a6b45', headColor: '#2a6b45', actionBg: 'rgba(42,107,69,0.07)', actionBorder: '#2a6b45' },
-    monitor:              { border: '#c9a028', headColor: '#9b6420', actionBg: 'rgba(201,160,40,0.08)', actionBorder: '#c9a028' },
-    schedule_conversation:{ border: '#c9a028', headColor: '#9b6420', actionBg: 'rgba(201,160,40,0.08)', actionBorder: '#c9a028' },
-    escalate:             { border: '#c0392b', headColor: '#9b2520', actionBg: 'rgba(192,57,43,0.07)', actionBorder: '#c0392b' },
+    no_action:            { border: '#4A6B5C', headColor: '#4A6B5C', actionBg: 'rgba(74,107,92,0.07)', actionBorder: '#4A6B5C' },
+    monitor:              { border: '#B08D3C', headColor: '#8a6a28', actionBg: 'rgba(176,141,60,0.08)', actionBorder: '#B08D3C' },
+    schedule_conversation:{ border: '#B08D3C', headColor: '#8a6a28', actionBg: 'rgba(176,141,60,0.08)', actionBorder: '#B08D3C' },
+    escalate:             { border: '#6B2737', headColor: '#5a2230', actionBg: 'rgba(107,39,55,0.07)', actionBorder: '#6B2737' },
   };
   const c = colours[action] || colours['monitor'];
 
@@ -3846,10 +4112,10 @@ function _renderProfExplanation(pe, action) {
   ).join('');
 
   const behavNote = pe.has_behavioral_signals
-    ? `<span style="display:inline-block;margin-left:8px;padding:2px 8px;border-radius:99px;background:rgba(42,107,69,0.1);color:#2a6b45;font-size:0.72rem">keystroke data included</span>`
+    ? `<span style="display:inline-block;margin-left:8px;padding:2px 8px;border-radius:3px;background:rgba(74,107,92,0.1);color:#4A6B5C;font-size:0.72rem">keystroke data included</span>`
     : '';
   const aiNote = pe.has_ai_signals
-    ? `<span style="display:inline-block;margin-left:8px;padding:2px 8px;border-radius:99px;background:rgba(192,57,43,0.08);color:#9b2520;font-size:0.72rem">AI-pattern signals present</span>`
+    ? `<span style="display:inline-block;margin-left:8px;padding:2px 8px;border-radius:3px;background:rgba(107,39,55,0.08);color:#5a2230;font-size:0.72rem">AI-pattern signals present</span>`
     : '';
 
   return `
@@ -3917,7 +4183,7 @@ async function _loadProofCardSilent() {
     if (!badge) return;
     const aucGrade = auc >= 0.90 ? 'Excellent' : auc >= 0.80 ? 'Strong' : auc >= 0.70 ? 'Good' : 'Limited';
     badge.textContent = `AUC ${auc.toFixed(2)} · ${aucGrade}`;
-    badge.style.background = auc >= 0.80 ? 'var(--flag-green-bg)' : auc >= 0.70 ? 'rgba(201,160,40,0.1)' : 'var(--flag-red-bg)';
+    badge.style.background = auc >= 0.80 ? 'var(--flag-green-bg)' : auc >= 0.70 ? 'rgba(176,141,60,0.1)' : 'var(--flag-red-bg)';
     badge.style.color = auc >= 0.80 ? 'var(--flag-green)' : auc >= 0.70 ? 'var(--amber)' : 'var(--flag-red)';
     badge.style.display = 'inline-block';
     // Cache so full expand doesn't need another fetch
@@ -3958,7 +4224,7 @@ function _proofNoDataHtml() {
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <button onclick="runQuickValidation()" id="quickValBtn"
               style="padding:8px 16px;background:var(--green-deep);color:var(--text-cream);border:none;border-radius:var(--radius);font-size:0.82rem;font-weight:600;cursor:pointer">
-        ⚗️ Run quick validation (~30s)
+        Run quick validation (~30s)
       </button>
       <span id="quickValStatus" style="font-family:'EB Garamond',serif;font-size:0.88rem;color:var(--text-muted)"></span>
     </div>
@@ -3973,7 +4239,7 @@ let _quickValPollInterval = null;
 async function runQuickValidation() {
   const btn = document.getElementById('quickValBtn');
   const statusEl = document.getElementById('quickValStatus');
-  if (btn) { btn.disabled = true; btn.textContent = '⚗️ Starting…'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Starting…'; }
   if (statusEl) { statusEl.textContent = ''; }
 
   try {
@@ -3984,7 +4250,7 @@ async function runQuickValidation() {
     });
     if (!resp.ok) throw new Error((await resp.json().catch(()=>({}))).detail || resp.statusText);
     const { run_id } = await resp.json();
-    if (btn) btn.textContent = '⚗️ Running…';
+    if (btn) btn.textContent = 'Running…';
     if (statusEl) statusEl.textContent = 'Scoring 85 essays… (~30s)';
 
     // Poll for completion
@@ -4010,12 +4276,12 @@ async function runQuickValidation() {
           clearInterval(_quickValPollInterval);
           if (statusEl) statusEl.textContent = `Failed: ${r.error || 'unknown error'}`;
           if (statusEl) statusEl.style.color = 'var(--flag-red)';
-          if (btn) { btn.disabled = false; btn.textContent = '⚗️ Retry validation'; }
+          if (btn) { btn.disabled = false; btn.textContent = 'Retry validation'; }
         }
       } catch(_) {}
     }, 3000);
   } catch(e) {
-    if (btn) { btn.disabled = false; btn.textContent = '⚗️ Run quick validation (~30s)'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Run quick validation (~30s)'; }
     if (statusEl) { statusEl.textContent = `Error: ${escHtml(e.message)}`; statusEl.style.color = 'var(--flag-red)'; }
   }
 }
@@ -4051,7 +4317,7 @@ function _renderProofCard(el, run) {
   const badge = document.getElementById('proofAucBadge');
   if (badge) {
     badge.textContent = `AUC ${auc.toFixed(2)} · ${aucGrade}`;
-    badge.style.background = auc >= 0.80 ? 'var(--flag-green-bg)' : auc >= 0.70 ? 'rgba(201,160,40,0.1)' : 'var(--flag-red-bg)';
+    badge.style.background = auc >= 0.80 ? 'var(--flag-green-bg)' : auc >= 0.70 ? 'rgba(176,141,60,0.1)' : 'var(--flag-red-bg)';
     badge.style.color = aucColor;
     badge.style.display = 'inline-block';
   }
@@ -4123,13 +4389,13 @@ function renderContextPanel(raw) {
   const flags = (m?.flags) || [];
   const anchors = (m?.anchor_tiers) || [];
   const chipParts = [
-    ...flags.map(f => `<span class="chip chip-flag" style="background:rgba(201,160,40,0.12);color:#9b6420;display:inline-block;padding:3px 9px;border-radius:99px;font-size:0.72rem;margin:2px">${f}</span>`),
-    ...anchors.map(t => `<span class="chip chip-anchor" style="background:rgba(42,107,69,0.1);color:#2a6b45;display:inline-block;padding:3px 9px;border-radius:99px;font-size:0.72rem;margin:2px">anchor T${t}</span>`),
+    ...flags.map(f => `<span class="chip chip-flag" style="background:rgba(176,141,60,0.12);color:#8a6a28;display:inline-block;padding:3px 9px;border-radius:3px;font-size:0.72rem;margin:2px">${f}</span>`),
+    ...anchors.map(t => `<span class="chip chip-anchor" style="background:rgba(74,107,92,0.1);color:#4A6B5C;display:inline-block;padding:3px 9px;border-radius:3px;font-size:0.72rem;margin:2px">anchor T${t}</span>`),
   ];
   const muteCount = (m?.weight_modifications?.mute_codes || []).length;
   const attCount  = (m?.weight_modifications?.attenuate_codes || []).length;
-  if (muteCount) chipParts.push(`<span class="chip chip-mute" style="background:rgba(192,57,43,0.08);color:#c0392b;display:inline-block;padding:3px 9px;border-radius:99px;font-size:0.72rem;margin:2px">mute ×${muteCount}</span>`);
-  if (attCount)  chipParts.push(`<span class="chip chip-attenuate" style="background:rgba(155,100,32,0.1);color:#9b6420;display:inline-block;padding:3px 9px;border-radius:99px;font-size:0.72rem;margin:2px">attenuate ×${attCount}</span>`);
+  if (muteCount) chipParts.push(`<span class="chip chip-mute" style="background:rgba(107,39,55,0.08);color:#6B2737;display:inline-block;padding:3px 9px;border-radius:3px;font-size:0.72rem;margin:2px">mute ×${muteCount}</span>`);
+  if (attCount)  chipParts.push(`<span class="chip chip-attenuate" style="background:rgba(155,100,32,0.1);color:#8a6a28;display:inline-block;padding:3px 9px;border-radius:3px;font-size:0.72rem;margin:2px">attenuate ×${attCount}</span>`);
   chipsEl.innerHTML = chipParts.length ? chipParts.join('') :
     '<span style="color:var(--text-muted);font-style:italic;font-family:\'EB Garamond\',serif">none</span>';
 
@@ -4139,7 +4405,7 @@ function renderContextPanel(raw) {
   if (Object.keys(scores).length) {
     barsEl.innerHTML = Object.entries(scores).map(([tier, score]) => {
       const pct = score * 100;
-      const color = score >= 0.85 ? '#2a6b45' : score >= 0.65 ? '#c9a028' : '#c0392b';
+      const color = score >= 0.85 ? '#4A6B5C' : score >= 0.65 ? '#B08D3C' : '#6B2737';
       return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:0.82rem">
         <span style="min-width:54px;font-weight:600">T${tier}</span>
         <div style="flex:1;background:var(--cream-warm);border-radius:99px;height:7px;overflow:hidden">
@@ -4250,11 +4516,11 @@ function renderBlendChartPro(blend) {
   const sy = v => pad.top + (1 - v) * usableH;
   const bars = sections.map(s => {
     const x0 = sx(s.start), x1 = sx(s.end), y = sy(s.score);
-    return `<rect x="${x0}" y="${y}" width="${x1-x0}" height="${pad.top + usableH - y}" fill="#c9a028" opacity="0.45"/>
-      <line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="#162b22" stroke-width="2"/>`;
+    return `<rect x="${x0}" y="${y}" width="${x1-x0}" height="${pad.top + usableH - y}" fill="#B08D3C" opacity="0.45"/>
+      <line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="#002147" stroke-width="2"/>`;
   }).join('');
   const shifts = (blend.shift_positions || []).map(p =>
-    `<line x1="${sx(p)}" y1="${pad.top}" x2="${sx(p)}" y2="${pad.top+usableH}" stroke="#c0392b" stroke-width="2" stroke-dasharray="4,3"/>`
+    `<line x1="${sx(p)}" y1="${pad.top}" x2="${sx(p)}" y2="${pad.top+usableH}" stroke="#6B2737" stroke-width="2" stroke-dasharray="4,3"/>`
   ).join('');
   const yLines = [0, 0.25, 0.5, 0.75, 1.0].map(v =>
     `<line x1="${pad.left}" y1="${sy(v)}" x2="${w-pad.right}" y2="${sy(v)}" stroke="var(--cream-border)"/>
@@ -4264,6 +4530,80 @@ function renderBlendChartPro(blend) {
     ${yLines}${bars}${shifts}
     <text x="${w/2}" y="${h-4}" font-size="10" text-anchor="middle" fill="var(--text-muted)">token offset →</text>
   </svg>`;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Baseline sample inline viewer — click a card to read the prose
+   ──────────────────────────────────────────────────────────────────────────── */
+
+let _expandedSampleIndex = null;
+
+async function toggleSampleText(index, cardEl) {
+  if (!active) return;
+  const slot = document.getElementById('sampleTextPanelSlot');
+  if (!slot) return;
+
+  // Clicking the currently-open card closes it
+  if (_expandedSampleIndex === index) {
+    slot.innerHTML = '';
+    _expandedSampleIndex = null;
+    document.querySelectorAll('.base-card.expanded').forEach(c => c.classList.remove('expanded'));
+    return;
+  }
+
+  // Highlight the active card
+  document.querySelectorAll('.base-card.expanded').forEach(c => c.classList.remove('expanded'));
+  if (cardEl) cardEl.classList.add('expanded');
+  _expandedSampleIndex = index;
+
+  // Loading state
+  slot.innerHTML = `
+    <div class="sample-text-panel">
+      <div class="sample-text-header">
+        <div class="sample-text-title">Loading…</div>
+        <button class="sample-text-close" onclick="closeSampleText()" aria-label="Close">×</button>
+      </div>
+      <div class="sample-text-body loading">Fetching prose from baseline #${index + 1}…</div>
+    </div>`;
+
+  try {
+    const data = await API.getSampleText(active.id, index);
+    const provLabel = ({proctored:'Proctored', verified:'Verified', unverified:'Unverified'}[data.provenance]) || data.provenance;
+    const meta = [
+      provLabel,
+      data.submitted_at || null,
+      `${data.word_count.toLocaleString()} words`,
+    ].filter(Boolean).join(' · ');
+    slot.innerHTML = `
+      <div class="sample-text-panel">
+        <div class="sample-text-header">
+          <div>
+            <div class="sample-text-title">${escapeHtml(data.assignment || 'Baseline Sample')} <span style="color:var(--text-muted);font-weight:500">— #${index + 1}</span></div>
+            <div class="sample-text-meta">${escapeHtml(meta)}</div>
+          </div>
+          <button class="sample-text-close" onclick="closeSampleText()" aria-label="Close">×</button>
+        </div>
+        <div class="sample-text-body">${escapeHtml(data.text || '(empty)')}</div>
+      </div>`;
+    // Scroll the new panel into view
+    slot.scrollIntoView({behavior:'smooth', block:'nearest'});
+  } catch (e) {
+    slot.innerHTML = `
+      <div class="sample-text-panel">
+        <div class="sample-text-header">
+          <div class="sample-text-title">Failed to load</div>
+          <button class="sample-text-close" onclick="closeSampleText()" aria-label="Close">×</button>
+        </div>
+        <div class="sample-text-body error">${escapeHtml(e.message)}</div>
+      </div>`;
+  }
+}
+
+function closeSampleText() {
+  const slot = document.getElementById('sampleTextPanelSlot');
+  if (slot) slot.innerHTML = '';
+  _expandedSampleIndex = null;
+  document.querySelectorAll('.base-card.expanded').forEach(c => c.classList.remove('expanded'));
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -4279,7 +4619,7 @@ function toggleBbookRequest() {
   const open = panel.style.display !== 'none' && panel.style.display !== '';
   panel.style.display = open ? 'none' : 'block';
   btn.textContent = open
-    ? '🛡 Request proctored sitting via Bbook'
+    ? 'Request proctored sitting via Bbook'
     : '− Cancel request';
   // Pre-fill from the active student's roster entry when opening blank.
   if (!open && active) {

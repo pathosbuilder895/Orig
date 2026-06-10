@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Original — Set Up a Class</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --ox:#002147;--blue:#1B4F8A;--blue-l:#E8EFF7;--blue-m:#B8CDE3;
-  --gold:#8A6914;--gold-l:#FBF5E6;
-  --green:#1A6B45;--green-l:#E6F5EE;
-  --red:#B91C1C;--red-l:#FEF2F2;
+  --gold:#B08D3C;--gold-l:#FBF5E6;
+  --green:#4A6B5C;--green-l:#E6F5EE;
+  --red:#6B2737;--red-l:#FEF2F2;
   --bg:#F0F4F9;--surface:#FFFFFF;--border:rgba(0,33,71,0.10);
   --text:#0A1628;--muted:#4A6080;--dim:#8FA3BC;
   --radius:14px;--shadow:0 1px 4px rgba(0,33,71,0.07),0 6px 24px rgba(0,33,71,0.08);
@@ -28,7 +28,7 @@ body{display:flex;flex-direction:column;align-items:center;padding:40px 16px 80p
   display:flex;align-items:center;justify-content:center;
 }
 .brand-mark svg{width:22px;height:22px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round}
-.brand-name{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;color:var(--ox)}
+.brand-name{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:700;color:var(--ox)}
 .brand-tag{font-size:0.75rem;color:var(--muted);margin-top:1px}
 
 /* progress bar */
@@ -48,7 +48,7 @@ body{display:flex;flex-direction:column;align-items:center;padding:40px 16px 80p
   box-shadow:var(--shadow);
 }
 .card-step{font-size:0.72rem;font-weight:600;color:var(--blue);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px}
-.card-title{font-family:'Playfair Display',serif;font-size:1.55rem;font-weight:700;color:var(--ox);margin-bottom:6px}
+.card-title{font-family:'Cormorant Garamond',serif;font-size:1.55rem;font-weight:700;color:var(--ox);margin-bottom:6px}
 .card-sub{font-size:0.85rem;color:var(--muted);margin-bottom:28px;line-height:1.5}
 
 /* fields */
@@ -97,7 +97,7 @@ body{display:flex;flex-direction:column;align-items:center;padding:40px 16px 80p
 .roster-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;min-height:30px}
 .rtag{
   display:flex;align-items:center;gap:6px;
-  padding:4px 10px 4px 6px;border-radius:20px;
+  padding:4px 10px 4px 6px;border-radius:3px;
   background:var(--blue-l);border:1px solid var(--blue-m);
   font-size:0.78rem;font-weight:500;color:var(--blue);
 }
@@ -187,7 +187,7 @@ body{display:flex;flex-direction:column;align-items:center;padding:40px 16px 80p
 .copied-flash{
   position:fixed;bottom:32px;left:50%;transform:translateX(-50%);
   padding:10px 20px;background:var(--ox);color:#fff;
-  border-radius:20px;font-size:0.82rem;font-weight:600;
+  border-radius:3px;font-size:0.82rem;font-weight:600;
   opacity:0;transition:opacity 0.2s;pointer-events:none;z-index:999;
 }
 .copied-flash.show{opacity:1}
@@ -197,7 +197,7 @@ body{display:flex;flex-direction:column;align-items:center;padding:40px 16px 80p
 
 <div class="brand">
   <div class="brand-mark">
-    <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    <span style="font-family:'Cormorant Garamond',serif;font-weight:700;font-size:1.6rem;line-height:1;color:#fff">Ω</span>
   </div>
   <div>
     <div class="brand-name">Original</div>
@@ -295,7 +295,7 @@ body{display:flex;flex-direction:column;align-items:center;padding:40px 16px 80p
        ondragleave="this.style.borderColor='rgba(27,79,138,0.3)';this.style.background='var(--bg)'"
        ondrop="onCsvDrop(event)"
        onclick="document.getElementById('csvFileInput').click()">
-    <div style="font-size:1.3rem;margin-bottom:4px">📋</div>
+    <div style="font-size:1.3rem;margin-bottom:4px"></div>
     <div style="font-size:0.84rem;font-weight:500;color:var(--muted)">Drop a CSV file here, or click to browse</div>
     <div style="font-size:0.74rem;color:var(--dim);margin-top:3px">
       Columns: <code>external_id, full_name, email</code> (any order, header required)

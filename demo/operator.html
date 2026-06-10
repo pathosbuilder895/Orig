@@ -5,7 +5,28 @@
   <title>Original — Operator Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet" />
+  <script>
+  /* Auth bridge (ADR-003): attach the principal token to same-origin API calls.
+     No token (the zero-login demo) → no header → demo principal, unchanged. */
+  (function(){
+    var _f = window.fetch;
+    window.fetch = function(input, init){
+      init = init || {};
+      try {
+        var url = (typeof input === 'string') ? input : (input && input.url) || '';
+        var tok = localStorage.getItem('original_principal_token');
+        var external = /^https?:\/\//.test(url) && url.indexOf(location.origin) !== 0;
+        if (tok && !external) {
+          var h = new Headers((init && init.headers) || (typeof input!=='string' && input && input.headers) || {});
+          if (!h.has('Authorization')) h.set('Authorization', 'Bearer ' + tok);
+          init.headers = h;
+        }
+      } catch(e){}
+      return _f.call(this, input, init);
+    };
+  })();
+  </script>
   <link rel="stylesheet" href="dashboard.css" />
   <style>
     /* ── Operator-specific styles ── */
@@ -20,15 +41,15 @@
     }
     .tenant-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
     .tenant-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-    .tenant-name { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: var(--text-primary, #1a1a1a); }
+    .tenant-name { font-family: 'Cormorant Garamond', serif; font-size: 1.05rem; color: var(--text-primary, #1a1a1a); }
     .tenant-id { font-family: monospace; font-size: 0.75rem; color: var(--text-muted, #888); margin-top: 2px; }
     .env-badge {
-      font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 99px;
+      font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 3px;
       white-space: nowrap;
     }
-    .env-badge.demo       { background: rgba(5,150,105,0.1); color: #059669; }
-    .env-badge.pilot      { background: rgba(217,119,6,0.1);  color: #b45309; }
-    .env-badge.production { background: rgba(220,38,38,0.08); color: #dc2626; }
+    .env-badge.demo       { background: rgba(74,107,92,0.12); color: #4A6B5C; }
+    .env-badge.pilot      { background: rgba(176,141,60,0.14);  color: #8a6a28; }
+    .env-badge.production { background: rgba(107,39,55,0.10); color: #6B2737; }
     .stat-row { display: flex; gap: 12px; }
     .stat-box {
       flex: 1; text-align: center; padding: 8px 0;
@@ -46,8 +67,8 @@
       transition: background 0.12s;
     }
     .btn-sm:hover { background: var(--cream, #f3ede0); }
-    .btn-sm.danger { border-color: rgba(220,38,38,0.3); color: #dc2626; background: rgba(220,38,38,0.05); }
-    .btn-sm.danger:hover { background: rgba(220,38,38,0.1); }
+    .btn-sm.danger { border-color: rgba(107,39,55,0.35); color: #6B2737; background: rgba(107,39,55,0.06); }
+    .btn-sm.danger:hover { background: rgba(107,39,55,0.12); }
 
     .system-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
     .sys-stat { background: var(--surface); border: 1px solid var(--cream-border); border-radius: 8px; padding: 14px 16px; }
@@ -60,18 +81,18 @@
     .audit-action { font-weight: 600; color: var(--text-primary); }
     .audit-when   { color: var(--text-muted); font-size: 0.78rem; }
     .audit-detail { color: var(--text-secondary); font-family: monospace; font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .audit-result.ok { color: #059669; }
-    .audit-result.error { color: #dc2626; }
-    .audit-result.partial { color: #b45309; }
+    .audit-result.ok { color: #4A6B5C; }
+    .audit-result.error { color: #6B2737; }
+    .audit-result.partial { color: #8a6a28; }
 
-    .section-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; margin-bottom: 4px; }
+    .section-title { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; margin-bottom: 4px; }
     .section-sub   { font-family: 'EB Garamond', serif; font-style: italic; font-size: 0.82rem; color: var(--text-muted); margin-bottom: 14px; }
 
     .reg-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; align-items: end; }
     @media (max-width: 900px) { .reg-form { grid-template-columns: 1fr 1fr; } .system-stats { grid-template-columns: 1fr 1fr; } }
 
     .empty-state { text-align: center; padding: 32px; color: var(--text-muted); font-family: 'EB Garamond', serif; font-style: italic; font-size: 0.95rem; }
-    .load-fail   { text-align: center; padding: 16px; color: #dc2626; font-size: 0.85rem; }
+    .load-fail   { text-align: center; padding: 16px; color: #6B2737; font-size: 0.85rem; }
   </style>
 </head>
 <body>
@@ -255,9 +276,9 @@ async function loadTenants() {
         ${s.last_active_at ? `<div class="tenant-meta">Last active ${relTime(s.last_active_at)}</div>` : '<div class="tenant-meta">No activity yet</div>'}
         ${renderActionBreakdown(s.action_counts || {})}
         <div class="tenant-actions">
-          <button class="btn-sm" onclick="viewInProfessor('${esc(t.tenant_id)}')">👤 View students</button>
-          <button class="btn-sm" onclick="viewStats('${esc(t.tenant_id)}', '${esc(t.name)}')">📊 Stats</button>
-          <button class="btn-sm danger" onclick="bulkDelete('${esc(t.tenant_id)}', '${esc(t.name)}')">🗑 Erase all</button>
+          <button class="btn-sm" onclick="viewInProfessor('${esc(t.tenant_id)}')">View students</button>
+          <button class="btn-sm" onclick="viewStats('${esc(t.tenant_id)}', '${esc(t.name)}')">Stats</button>
+          <button class="btn-sm danger" onclick="bulkDelete('${esc(t.tenant_id)}', '${esc(t.name)}')">Erase all</button>
         </div>
       </div>`;
     }).join('');
@@ -269,7 +290,7 @@ async function loadTenants() {
 function renderActionBreakdown(counts) {
   if (!counts || Object.keys(counts).length === 0) return '';
   const labels = { no_action:'Confirmed', monitor:'Follow Up', schedule_conversation:'Check-in', escalate:'Escalate' };
-  const colors  = { no_action:'#059669',  monitor:'#2563eb',  schedule_conversation:'#b45309',  escalate:'#dc2626'  };
+  const colors  = { no_action:'#4A6B5C',  monitor:'#3C5A82',  schedule_conversation:'#8a6a28',  escalate:'#6B2737'  };
   const bars = Object.entries(counts).map(([a, n]) =>
     `<span style="font-size:0.72rem;color:${colors[a]||'#888'};margin-right:8px">${labels[a]||a}: ${n}</span>`
   ).join('');
@@ -316,7 +337,7 @@ async function registerSchool() {
   const name= document.getElementById('rfName').value.trim();
   const env = document.getElementById('rfEnv').value;
   const st  = document.getElementById('rfStatus');
-  if (!id || !name) { st.textContent = 'ID and name are required.'; st.style.color='#dc2626'; return; }
+  if (!id || !name) { st.textContent = 'ID and name are required.'; st.style.color='#6B2737'; return; }
   st.textContent = 'Saving…'; st.style.color='var(--text-muted)';
   try {
     const r = await fetch(API + '/tenants', {
@@ -324,11 +345,11 @@ async function registerSchool() {
       body: JSON.stringify({ tenant_id: id, name, environment: env }),
     });
     if (!r.ok) { const e = await r.json().catch(()=>{}); throw new Error(e?.detail || r.statusText); }
-    st.textContent = `✓ ${name} registered.`; st.style.color='#059669';
+    st.textContent = `✓ ${name} registered.`; st.style.color='#4A6B5C';
     document.getElementById('rfId').value = '';
     document.getElementById('rfName').value = '';
     await loadAll();
-  } catch(e) { st.textContent = `Error: ${esc(e.message)}`; st.style.color='#dc2626'; }
+  } catch(e) { st.textContent = `Error: ${esc(e.message)}`; st.style.color='#6B2737'; }
 }
 
 function viewInProfessor(tenantId) {
