@@ -1,0 +1,13 @@
+{
+  "name": "bluebook-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Bluebook secure-exam frontend — build the JSX into a static bundle.",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}
