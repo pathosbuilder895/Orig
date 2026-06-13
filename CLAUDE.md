@@ -18,11 +18,14 @@ Stylometric authorship verification system for academic integrity. Per-student q
 
 ## Testing
 ```bash
-.venv/bin/python -m pytest tests/ -q                  # full suite (~726 tests, ~80s)
+.venv/bin/python -m pytest tests/ -q                  # full suite (~497 tests, ~42s)
 .venv/bin/python -m pytest tests/quantum/ -v          # quantum module only
-.venv/bin/python -m pytest tests/ --ignore=tests/test_tension_arc_integration.py -q
+.venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -q   # exact CI command
 ```
-5 `TestAuthEndpoints` tests fail with 429 (rate-limit exhaustion) when running the full suite — this is pre-existing and unrelated to any code changes. All other tests should pass.
+The 5 `TestAuthEndpoints` tests that 429 under full-suite rate-limit exhaustion are
+marked `xfail(strict=False)` — they show as XFAIL/XPASS, never as failures. A clean
+run is **0 failed**; treat any failure as real. (Historical note: counts before
+2026-06 were inflated ~2× by macOS Finder-duplicate test files, since removed.)
 
 ---
 
@@ -63,7 +66,17 @@ Text → 103-feature pipeline (original/features/)
 **Professor narrative:** `original/quantum/professor_narrative.py` — plain-English explanation  
 **Context pipeline:** `original/context/pipeline.py` — adaptive Stage 5+6 (parallelized)  
 **Store:** `original/store.py` — SQLite persistence + in-memory cache  
-**API:** `original/api.py` — FastAPI endpoints
+**API:** `original/api.py` — FastAPI endpoints (THE pilot backend)
+
+⚠️ **Two backends / three frontends exist** — see `docs/ARCHITECTURE.md` before
+touching auth or LTI. The live stack is `original/api.py` + `demo/` +
+`demo/bluebook/` with LTI at `/lti/*` (`original/lti.py`). The v1 package
+(`original/api/`, `original/main.py`, `frontend/`, `/canvas/lti/*`) is dormant;
+`web/` is abandoned. New pilot features go in the live stack only.
+
+**Bluebook frontend:** after editing any `demo/bluebook/*.jsx`, rebuild and
+commit the bundle: `cd demo/bluebook && npm run build` (Render has no Node —
+the committed `bluebook.bundle.js` is what production serves).
 
 ---
 
@@ -84,7 +97,7 @@ Text → 103-feature pipeline (original/features/)
 ## Commit Style
 - One focused commit per logical change
 - Conventional: `Fix ...`, `Add ...`, `Refactor ...` (not `update` for new features)
-- Co-author line: `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>`
+- Co-author line: `Co-Authored-By: Claude <current model name> <noreply@anthropic.com>` (e.g. Claude Fable 5)
 - Branch: `commit-changes` → PR to `main` on `pathosbuilder895/Orig`
 
 ---

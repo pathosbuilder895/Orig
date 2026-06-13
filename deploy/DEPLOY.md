@@ -1,5 +1,12 @@
 # Original — production deployment runbook (Phase 2)
 
+> ## ⚠️ NOT the current deployment path
+> The pilot runs on **Render** — see `render.yaml` + `docs/OPS_RUNBOOK.md`.
+> This VPS/nginx/Postgres runbook targets the dormant v1 backend and is kept
+> only as a reference for a future self-hosted option. Its `backup.sh` is NOT
+> the pilot backup script (that's `scripts/backup_db.sh`).
+> See `docs/ARCHITECTURE.md` for which stack is live.
+
 Single **Ubuntu 22.04** host (DigitalOcean, Lightsail, or similar): **Docker Compose** for `api` + `postgres` + `redis`, **system nginx** for TLS and static frontend, **Let’s Encrypt** for certificates, **cron** for daily DB backups, **UptimeRobot** (or similar) for `/health`.
 
 ## 1. Server bootstrap
