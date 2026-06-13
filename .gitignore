@@ -36,9 +36,14 @@ Thumbs.db
 # Databases (local dev only — but allow the pre-baked Render seed DB)
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
 !demo/seed.db
+
+# SQLite backups (scripts/backup_db.sh output)
+backups/
 
 # Env dev (keep .env.example)
 .env.dev
@@ -53,11 +58,18 @@ node_modules/
 .claude/settings.local.json
 
 # Personal notes / internal comms (not source code)
+notes/
 standup-*.md
 outreach-brief-*.md
 content-checkin-*.md
 weekly-review-*.md
 THIS-WEEK-ACTION-SUMMARY.txt
+
+# Separate product prototype (its own project, not part of Original)
+variantexam/
+
+# Bluebook build intermediates (bundle itself IS committed)
+demo/bluebook/._bluebook_combined.jsx
 
 # macOS Finder duplicates (e.g. "file 2.py", "file 3.html")
 * 2.*

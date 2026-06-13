@@ -1,4 +1,8 @@
 services:
+  # ════════════════════════════════════════════════════════════════════════════
+  # original-demo — the always-live, zero-login SALES DEMO (free tier).
+  # Ephemeral by design: writes reset on each deploy; seeded from demo/seed.db.
+  # ════════════════════════════════════════════════════════════════════════════
   - type: web
     name: original-demo
     runtime: python
@@ -12,8 +16,6 @@ services:
 
     # --skip-seed: synthetic student profiles are pre-baked into demo/seed.db
     # (committed to the repo). Startup takes <1s — no ML pipeline runs at boot.
-    # Writes (new scores, baselines) are ephemeral on free tier; they reset on
-    # the next deploy, which is fine for a demo.
     startCommand: python run.py --demo --port $PORT --skip-seed
 
     healthCheckPath: /health
@@ -30,14 +32,70 @@ services:
       - key: ADAPTIVE_WEIGHTS_ENABLED
         value: "1"
 
-# ── Paid-tier persistence (Starter plan, $7/mo) ───────────────────────────────
-# Uncomment to keep new data (student scores, baselines) across deploys.
-# Also remove --skip-seed from startCommand above.
-#
-#    disk:
-#      name: profiles-db
-#      mountPath: /data
-#      sizeGB: 1
-#    envVars:
-#      - key: ORIGINAL_DB
-#        value: /data/profiles.db
+  # ════════════════════════════════════════════════════════════════════════════
+  # original-pilot — the REAL institutional pilot (Starter plan + persistent
+  # disk). Same dashboard app, hardened by ORIGINAL_ENV=pilot:
+  #   • boots REFUSE to start without a stable SECRET_KEY (fail-fast)
+  #   • CORS locked to ALLOWED_ORIGINS (empty = nothing allowed)
+  #   • HSTS on; destructive endpoints guarded by MAINTENANCE_TOKEN
+  # Secrets (sync: false) are set once in the Render dashboard, never in git.
+  # ════════════════════════════════════════════════════════════════════════════
+  - type: web
+    name: original-pilot
+    runtime: python
+    region: oregon
+    plan: starter
+
+    # Demo deps + LTI crypto (python-jose/cryptography). Full requirements.txt
+    # pulls PyTorch and will not fit Starter — do not "upgrade" this.
+    buildCommand: pip install -r requirements-pilot.txt && python -m spacy download en_core_web_sm
+
+    # --skip-seed: a pilot must never boot with synthetic students. The store
+    # starts empty on first deploy; real tenants/professors are provisioned via
+    # docs/PROVISIONING_CHECKLIST.md.
+    startCommand: python run.py --demo --port $PORT --skip-seed
+
+    healthCheckPath: /health
+
+    disk:
+      name: profiles-db
+      mountPath: /data
+      sizeGB: 1
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      - key: ORIGINAL_DB
+        value: /data/profiles.db
+      # ── Hardening mode: pilot fails fast without SECRET_KEY ──
+      - key: ORIGINAL_ENV
+        value: pilot
+      # Stable signing key — set in dashboard. Generate:
+      #   python -c "import secrets; print(secrets.token_urlsafe(64))"
+      - key: SECRET_KEY
+        sync: false
+      # Guard token for destructive/provisioning endpoints (X-Guard-Token).
+      - key: MAINTENANCE_TOKEN
+        sync: false
+      - key: GUARD_DESTRUCTIVE
+        value: "1"
+      # Lock CORS to the public URL of THIS service (update if custom domain).
+      - key: ALLOWED_ORIGINS
+        value: https://original-pilot.onrender.com
+      - key: ENABLE_HSTS
+        value: "1"
+      # ── LTI 1.3 (Canvas) ──
+      - key: LTI_TOOL_URL
+        value: https://original-pilot.onrender.com
+      # Tool RSA private key (PEM, \n-escaped). Generate: openssl genrsa 2048
+      - key: LTI_PRIVATE_KEY
+        sync: false
+      # JSON array of registered platforms — set after the Canvas admin returns
+      # the client_id/deployment_id (see docs/CANVAS_RUNBOOK.md).
+      - key: LTI_PLATFORMS
+        sync: false
+      # Adaptive scoring phases (same as demo).
+      - key: CONTEXT_MANIFEST_ENABLED
+        value: "1"
+      - key: ADAPTIVE_WEIGHTS_ENABLED
+        value: "1"

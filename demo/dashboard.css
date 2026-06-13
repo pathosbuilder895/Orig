@@ -8,26 +8,26 @@
  */
 
 :root {
-  --green-deepest: #0f1e17;
-  --green-deep:    #162b22;
-  --green-mid:     #1e3d2f;
-  --green-hover:   #243d30;
-  --cream:         #f7f3ea;
-  --cream-warm:    #ede8d8;
-  --cream-border:  #e2dccf;
-  --surface:       #ffffff;
-  --gold:          #c9a028;
-  --gold-light:    rgba(201,160,40,0.12);
-  --amber:         #9b6420;
-  --text-primary:  #1a130a;
-  --text-secondary:#5a4030;
-  --text-muted:    #8a7060;
-  --flag-red:      #c0392b;
-  --flag-red-bg:   rgba(192,57,43,0.08);
-  --flag-amber:    #c9a028;
-  --flag-amber-bg: rgba(201,160,40,0.1);
-  --flag-green:    #2a6b45;
-  --flag-green-bg: rgba(42,107,69,0.1);
+  --green-deepest: #001834;
+  --green-deep:    #002147;
+  --green-mid:     #0a2f5c;
+  --green-hover:   #103a6b;
+  --cream:         #F7F2E7;
+  --cream-warm:    #F1EBDB;
+  --cream-border:  rgba(60,90,130,0.18);
+  --surface:       #FBF8F1;
+  --gold:          #B08D3C;
+  --gold-light:    rgba(176,141,60,0.15);
+  --amber:         #8a6a28;
+  --text-primary:  #1A1A1A;
+  --text-secondary:#3C5A82;
+  --text-muted:    #7d8794;
+  --flag-red:      #6B2737;
+  --flag-red-bg:   rgba(107,39,55,0.08);
+  --flag-amber:    #B08D3C;
+  --flag-amber-bg: rgba(176,141,60,0.12);
+  --flag-green:    #4A6B5C;
+  --flag-green-bg: rgba(74,107,92,0.12);
   --sidebar-w:     264px;
   --radius:        6px;
   --radius-sm:     4px;
@@ -80,11 +80,11 @@ body {
   color: var(--green-deepest);
   font-weight: 700;
   font-size: 14px;
-  font-family: 'Playfair Display', serif;
+  font-family: 'Cormorant Garamond', serif;
 }
 
 .sidebar-brand-name {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Cormorant Garamond', serif;
   font-size: 1.15rem;
   letter-spacing: 0.01em;
 }
@@ -148,7 +148,7 @@ body {
 }
 
 .topbar-title {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Cormorant Garamond', serif;
   font-size: 1.05rem;
   color: var(--text-secondary);
   font-weight: 500;
@@ -175,7 +175,7 @@ body {
 }
 
 .card-title {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Cormorant Garamond', serif;
   font-size: 1.1rem;
   margin: 0 0 4px;
   color: var(--text-primary);
@@ -211,7 +211,7 @@ body {
 }
 
 .stat-card-value {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Cormorant Garamond', serif;
   font-size: 1.6rem;
   color: var(--text-primary);
 }
@@ -257,7 +257,7 @@ body {
 }
 
 .btn-gold:hover {
-  background: #d8ad34;
+  background: #c5a04f;
 }
 
 .btn:disabled {
@@ -298,7 +298,7 @@ body {
   display: inline-flex;
   align-items: center;
   padding: 3px 9px;
-  border-radius: 999px;
+  border-radius: 3px;
   font-size: 0.72rem;
   font-weight: 500;
   margin-right: 4px;

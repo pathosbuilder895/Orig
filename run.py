@@ -103,6 +103,12 @@ def main():
     )
     args = parser.parse_args()
 
+    # Load .env into the process environment before any app/config is imported.
+    # Done here (the entrypoint) rather than at module import so that importing
+    # the app in tests never pollutes os.environ for the v1 Settings.
+    from original._env import load_env_file
+    load_env_file()
+
     if args.demo:
         frontend_dir = Path(args.frontend_dir).expanduser().resolve()
         if not frontend_dir.is_dir():

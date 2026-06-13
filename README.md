@@ -1,8 +1,10 @@
 # Original — Authorship Verification for Academic Integrity
 
-Original verifies that a student wrote their own work. It builds a per-student writing profile from authenticated baseline samples, then scores new submissions against that profile using a **97-feature stylometric pipeline** and a quantum density matrix scoring engine.
+Original verifies whether a submitted paper is consistent with the student's own authenticated writing history. It builds a per-student writing profile from verified baseline samples, then scores new submissions against that profile using a **103-dimensional stylometric pipeline** and a quantum density matrix scoring engine.
 
-Designed for seminaries and colleges that want a pastoral, explainable, FERPA-compliant alternative to text-matching plagiarism tools — one that detects ghostwriting, AI-assisted writing, and any significant deviation from a student's established voice, without flagging natural growth or topic-driven variation.
+Designed for seminaries and colleges that want a pastoral, explainable, FERPA-conscious alternative to text-matching plagiarism tools — one that detects ghostwriting, AI-assisted writing, and significant deviation from a student's established voice while preserving human review, student conversation, and documented institutional process.
+
+Original is a **decision-support system, not a disciplinary decision-maker**. A score can recommend monitoring, a conversation, or formal review, but institutional action remains with instructors and academic integrity officers.
 
 ---
 
@@ -66,14 +68,14 @@ Installs dependencies, downloads the spaCy language model, seeds five synthetic 
 
 ---
 
-## The 97-feature pipeline
+## The 103-dimensional pipeline
 
-Features are extracted across 16 tiers. Before any feature runs, the text passes through a **preprocessing stage** that strips bibliography, appendix, and notes sections, removes parenthetical citation markers and footnote superscripts from prose, and strips block quotes — while extracting citation fingerprint data for Tier 16.
+Original currently uses 103 ordered feature dimensions from `original/constants.py`: 96 base dimensions extracted from prose, citations, and optional proctored keystroke data, plus 7 comparison/profile dimensions computed during scoring. Before prose features run, the text passes through a **preprocessing stage** that strips bibliography, appendix, and notes sections, removes parenthetical citation markers and footnote superscripts from prose, and strips block quotes — while extracting citation fingerprint data for Tier 16.
 
 | Tier | Name | Features | Suspicion weight | What it measures |
 |------|------|----------|-----------------|-----------------|
 | 1 | Surface stylometrics | 9 | 1.0× | Type-token ratio, hapax rate, sentence length, function words, passive voice |
-| 2 | Discourse & cohesion | 13 | 1.0× | Discourse markers, transitions, lexical chains, paragraph structure |
+| 2 | Discourse & cohesion | 13 | 0.6× | Discourse markers, transitions, lexical chains, paragraph structure |
 | 3 | Rhetorical register | 12 | 0.8× | Hedging, assertion, epistemic certainty, theological vocabulary — *lower weight: topic-sensitive* |
 | 4 | Char/punct fingerprint | 7 | 1.3× | Character trigram entropy, comma/semicolon/dash/quote rates |
 | 5 | POS & syntax | 7 | 1.2× | Noun-verb ratio, clause depth, subordination, POS bigram entropy |
@@ -88,6 +90,8 @@ Features are extracted across 16 tiers. Before any feature runs, the text passes
 | 14 | Error topology | 4 | 1.3× | Positional entropy of errors, article omissions, pronoun ambiguity |
 | 15 | Lexical architecture | 5 | 1.2× | Latinate ratio, nominalization density, chiasmus, polysyndeton |
 | 16 | **Citation fingerprint** | 8 | **1.4×** | Signal verb entropy, source loyalty, block-quote habit, ibid. rate, citation position |
+| 17 | Behavioral biometrics | 6 | 1.2× | Keystroke rhythm, bursts, deletion rate, pauses, paste events, revision depth |
+| 0 | Comparison/profile features | 7 | 1.2× | Baseline-relative profile divergence features computed at scoring time |
 
 **Why Tier 16 matters:** Citation habits are deeply unconscious. Students do not think about whether they always write "argues" or rotate verbs, whether they block-quote constantly or rarely, or whether they habitually use ibid. AI ghostwriters replicate vocabulary and argument structure but have no access to the student's citation personality — they use a small set of signal verbs (low entropy), cite no repeat sources (no loyalty), and default to end-of-sentence citation placement.
 
@@ -106,6 +110,8 @@ Features are extracted across 16 tiers. Before any feature runs, the text passes
 | RMS z > 3.0 | `escalate` (override) | Catastrophic drift — immediate review regardless of score |
 
 Fewer than 5 verified baselines suppresses escalation to `schedule_conversation` automatically.
+
+These thresholds generate recommendations only. `schedule_conversation` should be treated as an invitation to ask the student about process, sources, drafting conditions, accommodations, and possible legitimate changes in writing context. `escalate` means the case is ready for institutional review, not that misconduct has been proven.
 
 ---
 
@@ -202,6 +208,17 @@ Canvas and Blackboard structure their OIDC claims differently. Original normalis
 
 ---
 
+## Runtime surfaces
+
+Original currently has two backend surfaces:
+
+| Surface | Entry point | Purpose |
+|---------|-------------|---------|
+| Dashboard/pilot app | `python run.py --demo --frontend-dir demo/` | Static professor, student, admin, operator, and Bluebook dashboards. This is the current pilot-facing app, hardened with tenant isolation, staff login, guarded destructive operations, audit logging, and SQLite WAL backups. |
+| v1 API | `python run.py` | Long-term DB-backed API with JWT auth, SQLAlchemy models, rate limiting, Canvas/LTI routes, and a Postgres path. |
+
+The zero-login seeded demo remains the sales showcase. Real pilot tenants must run with `ORIGINAL_ENV=pilot`, a stable `SECRET_KEY`, locked CORS, `GUARD_DESTRUCTIVE=1`, and a configured `ORIGINAL_DB` backup path.
+
 ## Key API endpoints
 
 | Method | Path | Description |
@@ -240,7 +257,7 @@ Every institution is created with FERPA-safe defaults:
 }
 ```
 
-With `ferpa_mode: true`, raw submission text is deleted after feature extraction. Only the 97-dimensional feature vector and scoring results are retained. Student data is never sold or used to train external models.
+With `ferpa_mode: true`, raw submission text is deleted after feature extraction unless an institution explicitly configures a different retention policy. Only hashes, metadata, the 103-dimensional feature vector, baseline state, audit records, and scoring results are retained. Student data is never sold or used to train external models.
 
 Update an institution's policy:
 ```
@@ -280,12 +297,12 @@ cp .env.dev .env
 | Layer | Technology |
 |-------|-----------|
 | API | FastAPI + uvicorn |
-| Database | PostgreSQL (production) / SQLite (test) |
-| ORM & migrations | SQLAlchemy + Alembic |
-| Auth | JWT (python-jose) + bcrypt |
+| Database | Hardened SQLite/WAL for the dashboard pilot; PostgreSQL path in the v1 API |
+| ORM & migrations | SQLAlchemy + Alembic in v1; repository/store layer in the dashboard app |
+| Auth | Principal tokens + PBKDF2 staff auth in dashboard app; JWT (python-jose) + bcrypt in v1 |
 | NLP | spaCy `en_core_web_sm` |
 | Embeddings | sentence-transformers `all-MiniLM-L6-v2` (optional — Tier 10 falls back to neutral if unavailable) |
-| Feature extraction | Pure Python + numpy (Tiers 1–9, 12–16) |
+| Feature extraction | Pure Python + numpy (Tiers 1–17, with optional Tier 17 keystroke inputs) |
 | Scoring | Quantum density matrix, Born rule (numpy) |
 | LTI | IMS LTI 1.3 / OIDC (Canvas + Blackboard) |
 | PDF parsing | pypdf |
@@ -312,7 +329,8 @@ original/
 │   └── alembic/              Migration versions (001–003)
 ├── features/
 │   ├── preprocess.py         Back-matter stripping + citation data extraction
-│   ├── tier1.py  … tier7.py  Original 34 features (surface → AI detection)
+│   ├── tier1.py  … tier7.py  Surface, discourse, register, punctuation,
+│   │                         syntax, idiosyncratic, and AI-pattern signals
 │   ├── tier8.py              Prosodic rhythm
 │   ├── tier9.py              Cognitive sequencing
 │   ├── tier10.py             Semantic gravity wells
@@ -320,13 +338,14 @@ original/
 │   ├── prosodic.py           Tiers 13–15 (prosodic depth, error topology,
 │   │                         lexical architecture)
 │   ├── tier16.py             Citation fingerprint (8 features)
+│   ├── tier17.py             Behavioral biometrics for proctored sessions
 │   └── pipeline.py           Feature orchestrator + comparison features
 ├── quantum/
 │   ├── state.py              StudentState density matrix builder + trajectory
 │   └── scoring.py            Born-rule scoring, interference decomposition,
 │                             catastrophic drift alert
 ├── tension_arc.py            Catastrophe index κ (Tier 12)
-├── constants.py              All 97 feature codes, tier weights, norm bounds,
+├── constants.py              All 103 feature dimensions, tier weights, norm bounds,
 │                             lexicons, thresholds
 └── schemas_v1/               Pydantic request/response models
 

@@ -3,9 +3,9 @@
   "configurations": [
     {
       "name": "Original Demo",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["/Users/andrew/Desktop/Original/run.py", "--demo", "--frontend-dir", "/Users/andrew/Desktop/Original/demo", "--skip-seed", "--port", "8001"],
-      "port": 8001
+      "runtimeExecutable": "/Users/andrew/Desktop/Original/.venv/bin/python",
+      "runtimeArgs": ["/Users/andrew/Desktop/Original/run.py", "--demo", "--frontend-dir", "/Users/andrew/Desktop/Original/demo", "--skip-seed", "--port", "8002"],
+      "port": 8002
     }
   ]
 }

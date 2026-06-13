@@ -38,6 +38,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
 from ..constants import FEATURE_TIER
+from ..quantum.professor_narrative import build_professor_explanation
 
 
 # ── Tunable thresholds ───────────────────────────────────────────────────────
@@ -162,6 +163,7 @@ class ScoringReport:
     narrative: str
     flags: List[str]
     baseline_cluster: List[str]                  # assignment labels (or "sample_<i>" fallback)
+    professor_explanation: Optional[Dict[str, Any]] = field(default=None)
 
     def to_dict(self) -> Dict[str, Any]:
         # asdict() handles nested dataclasses naturally; we ensure the
@@ -415,6 +417,16 @@ def build_report(
         verdict=verdict,
     )
 
+    # Professor-facing explanation — deterministic template assembly, no LLM.
+    # Catch any exception so a narrative bug never breaks the scoring pipeline.
+    professor_explanation: Optional[Dict[str, Any]] = None
+    try:
+        from dataclasses import asdict as _asdict
+        prof_expl = build_professor_explanation(layer7, student_name="this student")
+        professor_explanation = _asdict(prof_expl)
+    except Exception:
+        pass
+
     return ScoringReport(
         submission_id=submission_id,
         divergence_score=round(divergence, 4),
@@ -425,6 +437,7 @@ def build_report(
         narrative=narrative,
         flags=list(flags),
         baseline_cluster=cluster_labels,
+        professor_explanation=professor_explanation,
     )
 
 

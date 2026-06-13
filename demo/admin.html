@@ -5,34 +5,55 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Original — Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<script>
+/* Auth bridge (ADR-003): attach the principal token to same-origin API calls.
+   No token (the zero-login demo) → no header → demo principal, unchanged. */
+(function(){
+  var _f = window.fetch;
+  window.fetch = function(input, init){
+    init = init || {};
+    try {
+      var url = (typeof input === 'string') ? input : (input && input.url) || '';
+      var tok = localStorage.getItem('original_principal_token');
+      var external = /^https?:\/\//.test(url) && url.indexOf(location.origin) !== 0;
+      if (tok && !external) {
+        var h = new Headers((init && init.headers) || (typeof input!=='string' && input && input.headers) || {});
+        if (!h.has('Authorization')) h.set('Authorization', 'Bearer ' + tok);
+        init.headers = h;
+      }
+    } catch(e){}
+    return _f.call(this, input, init);
+  };
+})();
+</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --green-deepest: #0f1e17;
-  --green-deep:    #162b22;
-  --green-mid:     #1e3d2f;
-  --green-hover:   #243d30;
-  --green-border:  rgba(255,255,255,0.07);
-  --cream:         #f7f3ea;
-  --cream-warm:    #ede8d8;
-  --cream-border:  #e2dccf;
-  --surface:       #ffffff;
-  --gold:          #c9a028;
-  --gold-light:    rgba(201,160,40,0.12);
-  --gold-muted:    rgba(201,160,40,0.35);
-  --amber:         #9b6420;
-  --text-primary:  #1a130a;
-  --text-secondary:#5a4030;
-  --text-muted:    #8a7060;
-  --text-cream:    #f7f3ea;
-  --text-cream-dim:rgba(247,243,234,0.55);
-  --flag-red:      #c0392b;
-  --flag-red-bg:   rgba(192,57,43,0.08);
-  --flag-amber:    #c9a028;
-  --flag-amber-bg: rgba(201,160,40,0.1);
-  --flag-green:    #2a6b45;
-  --flag-green-bg: rgba(42,107,69,0.1);
+  --green-deepest: #001834;
+  --green-deep:    #002147;
+  --green-mid:     #0a2f5c;
+  --green-hover:   #103a6b;
+  --green-border:  rgba(176,141,60,0.12);
+  --cream:         #F7F2E7;
+  --cream-warm:    #F1EBDB;
+  --cream-border:  rgba(60,90,130,0.18);
+  --surface:       #FBF8F1;
+  --gold:          #B08D3C;
+  --gold-light:    rgba(176,141,60,0.15);
+  --gold-muted:    rgba(176,141,60,0.35);
+  --amber:         #8a6a28;
+  --text-primary:  #1A1A1A;
+  --text-secondary:#3C5A82;
+  --text-muted:    #7d8794;
+  --text-cream:    #F7F2E7;
+  --text-cream-dim:rgba(247,242,231,0.55);
+  --flag-red:      #6B2737;
+  --flag-red-bg:   rgba(107,39,55,0.08);
+  --flag-amber:    #B08D3C;
+  --flag-amber-bg: rgba(176,141,60,0.12);
+  --flag-green:    #4A6B5C;
+  --flag-green-bg: rgba(74,107,92,0.12);
   --sidebar-w:     264px;
   --radius:        6px;
   --shadow-sm:     0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
@@ -71,7 +92,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 .logo-mark { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
 .logo-icon { width: 28px; height: 28px; background: var(--gold); border-radius: 4px;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.logo-wordmark { font-family: 'Playfair Display', serif; font-size: 1.05rem;
+.logo-wordmark { font-family: 'Cormorant Garamond', serif; font-size: 1.05rem;
   font-weight: 600; color: var(--text-cream); letter-spacing: -0.01em; }
 .logo-school { font-size: 0.68rem; color: var(--text-cream-dim);
   font-family: 'EB Garamond', serif; font-style: italic; }
@@ -91,7 +112,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   display: flex; align-items: center; gap: 10px; }
 .user-avatar { width: 32px; height: 32px; border-radius: 50%;
   background: var(--gold); display: flex; align-items: center; justify-content: center;
-  font-family: 'Playfair Display', serif; font-size: 0.72rem; font-weight: 700;
+  font-family: 'Cormorant Garamond', serif; font-size: 0.72rem; font-weight: 700;
   color: var(--green-deepest); flex-shrink: 0; }
 .user-name { font-size: 0.82rem; font-weight: 600; color: var(--text-cream); }
 .user-role { font-size: 0.7rem; color: var(--text-cream-dim);
@@ -108,9 +129,9 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   font-size: 0.78rem; color: var(--text-muted); }
 .bc-sep { color: var(--cream-border); }
 .bc-current { color: var(--text-primary); font-weight: 500; }
-.semester-badge { font-size: 0.72rem; font-weight: 500;
-  padding: 4px 10px; border-radius: 20px;
-  background: var(--gold-light); color: var(--amber);
+.semester-badge { font-family:'EB Garamond',serif; font-style:italic; font-size: 0.84rem; font-weight: 500;
+  padding: 3px 11px; border-radius: 2px;
+  background: transparent; color: var(--amber);
   border: 1px solid var(--gold-muted); }
 
 /* Main */
@@ -128,10 +149,10 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 .stat-card:nth-child(1){animation-delay:.05s}.stat-card:nth-child(2){animation-delay:.10s}.stat-card:nth-child(3){animation-delay:.15s}.stat-card:nth-child(4){animation-delay:.20s}
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 .stat-accent { position:absolute;top:0;left:0;right:0;height:3px; border-radius: var(--radius) var(--radius) 0 0; }
-.stat-icon-wrap{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;margin-bottom:14px}
-.stat-value { font-family: 'Playfair Display', serif; font-size:2rem;font-weight:700;letter-spacing:-0.04em;line-height:1;margin-bottom:3px}
+.stat-icon-wrap{display:none}
+.stat-value { font-family: 'Cormorant Garamond', serif; font-size:2rem;font-weight:700;letter-spacing:-0.04em;line-height:1;margin-bottom:3px}
 .stat-label { color: var(--text-muted); font-size:0.78rem;}
-.stat-delta{margin-top:10px;font-size:0.72rem;font-weight:500;display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px}
+.stat-delta{margin-top:10px;font-size:0.72rem;font-weight:500;display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:3px}
 
 /* Grid */
 .grid-2{display:grid;grid-template-columns:1fr 320px;gap:16px}
@@ -139,7 +160,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 /* Section card */
 .section-card { background: var(--surface); border: 1px solid var(--cream-border); border-radius: var(--radius); overflow:hidden; box-shadow: var(--shadow-sm); }
 .section-head { display:flex;align-items:center;justify-content:space-between;padding:16px 20px; border-bottom: 1px solid var(--cream-border); }
-.section-head h3 { color: var(--text-primary); font-family: 'Playfair Display', serif; font-size: 0.9rem; font-weight:600;}
+.section-head h3 { color: var(--text-primary); font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; font-weight:600;}
 .section-head .meta { font-size:0.75rem; color: var(--text-muted); }
 .section-head .btn-sm { background: var(--cream-warm); border: 1px solid var(--cream-border); color: var(--text-muted); padding:6px 14px;border-radius:8px;font-size:0.75rem;font-weight:500;cursor:pointer;transition:all 0.15s}
 .section-head .btn-sm:hover { background: var(--cream); color: var(--text-primary); }
@@ -166,7 +187,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 .sbar-val{font-size:0.8rem;font-weight:600;width:32px;text-align:right}
 
 /* Action badge */
-.abadge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:0.71rem;font-weight:500}
+.abadge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:3px;font-size:0.71rem;font-weight:500}
 .abadge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}
 .abadge.no_action { background: var(--flag-green-bg); color: var(--flag-green); }
 .abadge.monitor { background: var(--flag-amber-bg); color: var(--amber); }
@@ -185,10 +206,10 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 /* Integration */
 .integ-item { display:flex;align-items:center;gap:12px;padding:13px 20px; border-bottom: 1px solid var(--cream-border); }
 .integ-item:last-child{border-bottom:none}
-.integ-icon { width:36px;height:36px;border-radius:9px; background: var(--cream-warm); display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+.integ-icon { width:34px;height:34px;border-radius:4px; background: var(--cream-warm); border:1px solid var(--cream-border); display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:600;color:var(--text-secondary);flex-shrink:0}
 .integ-name{font-size:0.84rem;font-weight:500}
 .integ-desc{font-size:0.73rem;color:var(--text-muted)}
-.integ-status{margin-left:auto;font-size:0.71rem;font-weight:500;padding:4px 10px;border-radius:20px}
+.integ-status{margin-left:auto;font-size:0.71rem;font-weight:500;padding:4px 10px;border-radius:3px}
 .integ-status.on { background: var(--flag-green-bg); color: var(--flag-green); }
 .integ-status.off { background: var(--cream-warm); color: var(--text-muted); }
 
@@ -196,7 +217,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 .panel-3d { background: var(--cream-warm); border-left: 1px solid var(--cream-border); width:320px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden;position:relative}
 .panel-3d-header{padding:20px 22px 0;flex-shrink:0}
 .panel-3d-label { font-size:0.68rem;font-weight:600; color: var(--text-muted); letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px}
-.panel-3d-title { font-family: 'Playfair Display', serif; font-size:1.2rem;font-weight:700; color: var(--text-primary); letter-spacing:-0.02em}
+.panel-3d-title { font-family: 'Cormorant Garamond', serif; font-size:1.2rem;font-weight:700; color: var(--text-primary); letter-spacing:-0.02em}
 .panel-3d-sub { font-size:0.75rem; color: var(--text-muted); margin-top:2px}
 
 /* 3D Campus node network */
@@ -205,15 +226,15 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 
 /* Pedestal */
 .q-pedestal{flex-shrink:0;padding-bottom:20px;display:flex;flex-direction:column;align-items:center;gap:4px}
-.ped-disk { border-radius:50%; background: rgba(201,160,40,0.1); backdrop-filter:blur(4px); border: 1px solid rgba(201,160,40,0.2); }
-.ped-disk-1{width:130px;height:14px;box-shadow:0 4px 16px rgba(201,160,40,0.08)}
+.ped-disk { border-radius:50%; background: rgba(176,141,60,0.1); backdrop-filter:blur(4px); border: 1px solid rgba(176,141,60,0.2); }
+.ped-disk-1{width:130px;height:14px;box-shadow:0 4px 16px rgba(176,141,60,0.08)}
 .ped-disk-2{width:100px;height:10px;opacity:0.7}
 .ped-disk-3{width:72px;height:7px;opacity:0.45}
 
 /* Panel stats */
 .panel-stats{padding:0 22px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;flex-shrink:0}
 .pstat { background: var(--surface); border: 1px solid var(--cream-border); border-radius: var(--radius); padding:12px 14px}
-.pstat-val { font-family: 'Playfair Display', serif; font-size:1.5rem;font-weight:700; color: var(--text-primary); line-height:1}
+.pstat-val { font-family: 'Cormorant Garamond', serif; font-size:1.5rem;font-weight:700; color: var(--text-primary); line-height:1}
 .pstat-label { font-size:0.7rem; color: var(--text-muted); margin-top:3px}
 
 /* Flagged list in panel */
@@ -226,7 +247,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 .pf-score{font-size:0.78rem;font-weight:700}
 
 /* Header */
-.header-name { color: var(--text-primary); font-family: 'Playfair Display', serif; }
+.header-name { color: var(--text-primary); font-family: 'Cormorant Garamond', serif; }
 .header-search { background: var(--surface); border: 1px solid var(--cream-border); }
 .search-input { background: var(--surface); border: 1px solid var(--cream-border); border-radius: var(--radius); padding: 8px 14px 8px 36px; font-family: 'Inter', sans-serif; font-size: 0.82rem; color: var(--text-primary); }
 .search-input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-light); }
@@ -277,9 +298,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
     <div class="sidebar-logo">
       <div class="logo-mark">
         <div class="logo-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#162b22" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-          </svg>
+          <span style="font-family:'Cormorant Garamond',serif;font-weight:700;font-size:1.3rem;line-height:1;color:#002147">Ω</span>
         </div>
         <span class="logo-wordmark">Original</span>
       </div>
@@ -295,20 +314,20 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12,2 2,7 22,7"/></svg>
         Admin Console
       </a>
-      <a class="nav-item" href="#" title="Students">
+      <a class="nav-item" href="professor.html#students" title="Students">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Students
       </a>
-      <a class="nav-item" href="#" title="Submissions">
+      <a class="nav-item" href="professor.html#submissions" title="Submissions">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         Submissions
       </a>
       <div class="nav-section-label" style="margin-top:8px">System</div>
-      <a class="nav-item" href="#" title="Integrations">
+      <a class="nav-item" href="professor.html#integrations" title="Integrations">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
         Integrations
       </a>
-      <a class="nav-item" href="#" title="Settings">
+      <a class="nav-item" href="professor.html#settings" title="Settings">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         Settings
       </a>
@@ -348,7 +367,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
     <!-- Page title -->
     <div style="padding:16px 24px 0;flex-shrink:0">
       <div style="font-family:'EB Garamond',serif;font-style:italic;font-size:0.8rem;color:var(--text-muted);margin-bottom:2px">System overview</div>
-      <div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:600;color:var(--text-primary);letter-spacing:-0.02em">Admin Console</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:600;color:var(--text-primary);letter-spacing:-0.02em">Admin Console</div>
     </div>
 
     <div class="content">
@@ -356,28 +375,28 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-accent" style="background:var(--green-deep)"></div>
-          <div class="stat-icon-wrap" style="background:var(--gold-light)">👨‍🎓</div>
+          <div class="stat-icon-wrap" style="background:var(--gold-light)"></div>
           <div class="stat-value" style="color:var(--green-deep)">247</div>
           <div class="stat-label">Enrolled Students</div>
           <span class="stat-delta" style="background:var(--flag-green-bg);color:var(--flag-green)">↑ +12 this term</span>
         </div>
         <div class="stat-card">
           <div class="stat-accent" style="background:var(--flag-red)"></div>
-          <div class="stat-icon-wrap" style="background:var(--flag-red-bg)">📝</div>
+          <div class="stat-icon-wrap" style="background:var(--flag-red-bg)"></div>
           <div class="stat-value" style="color:var(--flag-red)">1,084</div>
           <div class="stat-label">Baseline Samples</div>
           <span class="stat-delta" style="background:var(--flag-green-bg);color:var(--flag-green)">94% coverage</span>
         </div>
         <div class="stat-card">
           <div class="stat-accent" style="background:var(--amber)"></div>
-          <div class="stat-icon-wrap" style="background:var(--flag-amber-bg)">🔍</div>
+          <div class="stat-icon-wrap" style="background:var(--flag-amber-bg)"></div>
           <div class="stat-value" style="color:var(--amber)">318</div>
           <div class="stat-label">Submissions Scored</div>
           <span class="stat-delta" style="background:var(--flag-amber-bg);color:var(--amber)">28 this week</span>
         </div>
         <div class="stat-card">
           <div class="stat-accent" style="background:var(--flag-green)"></div>
-          <div class="stat-icon-wrap" style="background:var(--flag-green-bg)">⚠️</div>
+          <div class="stat-icon-wrap" style="background:var(--flag-green-bg)"></div>
           <div class="stat-value" style="color:var(--flag-green)">3</div>
           <div class="stat-label">Require Attention</div>
           <span class="stat-delta" style="background:var(--flag-red-bg);color:var(--flag-red)">Pending review</span>
@@ -409,12 +428,12 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           <div class="section-card">
             <div class="section-head"><h3>Integrations</h3></div>
             <div class="integ-item">
-              <div class="integ-icon">🎨</div>
+              <div class="integ-icon">C</div>
               <div><div class="integ-name">Canvas LMS</div><div class="integ-desc">LTI 1.3 · Grade passback active</div></div>
               <span class="integ-status on">Connected</span>
             </div>
             <div class="integ-item">
-              <div class="integ-icon">📐</div>
+              <div class="integ-icon">B</div>
               <div><div class="integ-name">Blackboard</div><div class="integ-desc">LTI 1.3 integration</div></div>
               <span class="integ-status off">Not configured</span>
             </div>
@@ -551,10 +570,10 @@ const AV_COLORS = [
 const aLabel = {no_action:'No Action', monitor:'Monitor', schedule_conversation:'Discuss', escalate:'Escalate'};
 
 function scoreColor(s) {
-  if (s < 0.40) return '#059669';
+  if (s < 0.40) return '#4A6B5C';
   if (s < 0.55) return '#2563EB';
   if (s < 0.75) return '#D97706';
-  return '#DC2626';
+  return '#6B2737';
 }
 function scoreAction(s) {
   if (s > 0.75) return 'escalate';
@@ -662,7 +681,7 @@ function renderActivity(items) {
     feed.innerHTML = '<div class="activity-item"><div class="act-body"><div class="act-title" style="color:var(--text-muted)">No submissions scored yet.</div></div></div>';
     return;
   }
-  const dotColor = a => ({escalate:'#DC2626', schedule_conversation:'#D97706', monitor:'#2563EB'})[a] || '#059669';
+  const dotColor = a => ({escalate:'#6B2737', schedule_conversation:'#D97706', monitor:'#2563EB'})[a] || '#4A6B5C';
   const actTitle = a => ({escalate:'Submission Needs Review', schedule_conversation:'Conversation Recommended', monitor:'Flagged for Monitoring'})[a] || 'Submission Cleared';
   feed.innerHTML = items.map(m => `<div class="activity-item">
     <div class="act-dot" style="background:${dotColor(m.action)}"></div>
@@ -708,7 +727,7 @@ function drawNodes(students) {
     if (ring.n > 0) {
       const angle = (ring.i / ring.n) * 2 * Math.PI - Math.PI / 2;
       const x = cx + ring.r * Math.cos(angle), y = cy + ring.r * Math.sin(angle);
-      g.innerHTML += `<circle cx="${x}" cy="${y}" r="22" fill="none" stroke="#DC2626" stroke-width="1.5" opacity="0.5">
+      g.innerHTML += `<circle cx="${x}" cy="${y}" r="22" fill="none" stroke="#6B2737" stroke-width="1.5" opacity="0.5">
         <animate attributeName="r" values="22;32;22" dur="2s" repeatCount="indefinite"/>
         <animate attributeName="opacity" values="0.5;0;0.5" dur="2s" repeatCount="indefinite"/>
       </circle>`;

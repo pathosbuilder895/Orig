@@ -5,8 +5,8 @@ All feature codes mirror the frontend FEATURES array exactly.
 Normalization bounds are calibrated to seminary-level academic prose
 (1000–5000 word essays, formal theological register).
 
-Tiers 1–3: Original 34 features (surface, discourse, rhetorical)
-Tiers 4–7: Expanded features (char/punct, POS/syntax, idiosyncratic, AI detection)
+Tiers 1–17 plus comparison/profile dimensions form the current 103-dimensional
+feature space. Legacy profiles with older dimensions are padded on load.
 """
 
 from typing import Dict, Tuple
