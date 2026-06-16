@@ -753,7 +753,9 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 /* ═══════════════════════════════════════════════════════════════
    Configuration
    ═══════════════════════════════════════════════════════════════ */
-const API = (window.location.port === '8001' || window.location.port === '8000') ? '' : 'http://localhost:8001';
+// Same origin — the page is always served by the backend (the preview server in
+// dev, the real domain in production), so relative paths reach the right API.
+const API = '';
 const studentId  = () => localStorage.getItem('original_student_id')   || 'demo_student';
 const studentName= () => localStorage.getItem('original_student_name') || 'Student';
 const institution= () => localStorage.getItem('original_institution')  || 'Your Institution';
