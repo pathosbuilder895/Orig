@@ -219,6 +219,18 @@ def assert_student_access(principal: Principal, student_id: str) -> None:
     # Authenticated principals
     if principal.role in SUPER_ROLES:
         return  # operator / super-admin: cross-tenant by design
+
+    # A student may only touch their OWN record (ADR-005). Scoping a student to
+    # the whole tenant would let a logged-in student read a classmate's profile
+    # via GET /students/<sameTenant:other> — a horizontal-authorization hole.
+    # Staff roles (professor/admin) keep tenant-wide access below.
+    if principal.role == "student":
+        if student_id == principal.user_id:
+            return
+        raise TenantAccessError(
+            f"student {principal.user_id} cannot access '{student_id}'"
+        )
+
     if t is not None and t == principal.tenant_id:
         return
     raise TenantAccessError(
