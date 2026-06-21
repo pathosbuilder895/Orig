@@ -93,6 +93,21 @@
 
     .empty-state { text-align: center; padding: 32px; color: var(--text-muted); font-family: 'EB Garamond', serif; font-style: italic; font-size: 0.95rem; }
     .load-fail   { text-align: center; padding: 16px; color: #6B2737; font-size: 0.85rem; }
+
+    /* ── Sidebar collapse: the Ω brand-mark is the toggle ──────────────────────
+       Clicking the logo slides the rail shut (flex-basis/width 264->60) and the
+       nav + section labels evaporate, leaving just the logo as the toggle. The
+       sidebar is a flex item, so its size keys off flex-basis, not width. */
+    .sidebar { transition: flex-basis 0.26s cubic-bezier(0.4,0,0.2,1), width 0.26s cubic-bezier(0.4,0,0.2,1); overflow: hidden; }
+    .sidebar-brand-mark { cursor: pointer; transition: transform 0.18s ease, box-shadow 0.18s ease; }
+    .sidebar-brand-mark:hover { transform: scale(1.06); box-shadow: 0 0 0 4px var(--gold-light); }
+    .sidebar-brand-mark:active { transform: scale(0.92); }
+    .sidebar-brand-mark:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--gold); }
+    .sidebar.collapsed { flex-basis: 60px; width: 60px; }
+    .sidebar.collapsed .sidebar-brand { justify-content: center; gap: 0; padding: 0; }
+    .sidebar.collapsed .sidebar-brand > div:last-child { display: none; }
+    .sidebar.collapsed .sidebar-section,
+    .sidebar.collapsed .nav-item { opacity: 0; pointer-events: none; }
   </style>
 </head>
 <body>
@@ -101,7 +116,7 @@
   <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <div class="sidebar-brand-mark">Ω</div>
+      <div class="sidebar-brand-mark" id="sidebarLogoToggle" role="button" tabindex="0" title="Toggle sidebar" aria-label="Toggle sidebar">Ω</div>
       <div>
         <div class="sidebar-brand-name">Original</div>
         <div style="font-size:0.7rem;color:rgba(247,243,234,0.55)">Operator Dashboard</div>
@@ -193,6 +208,20 @@
 
 <script>
 const API = '';  // same origin
+
+/* ── Sidebar collapse: the Ω brand-mark toggles the rail (ADR-005 parity) ── */
+(function(){
+  const sidebar = document.querySelector('.sidebar');
+  const logo = document.getElementById('sidebarLogoToggle');
+  if(!sidebar || !logo) return;
+  if(localStorage.getItem('sb-collapsed')==='1') sidebar.classList.add('collapsed');
+  function toggle(){
+    const c = sidebar.classList.toggle('collapsed');
+    localStorage.setItem('sb-collapsed', c?'1':'0');
+  }
+  logo.addEventListener('click', toggle);
+  logo.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); } });
+})();
 
 /* ── Utility ── */
 function esc(s) {

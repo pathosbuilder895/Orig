@@ -91,7 +91,11 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 }
 .logo-mark { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
 .logo-icon { width: 28px; height: 28px; background: var(--gold); border-radius: 4px;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  cursor: pointer; transition: transform 0.18s ease, box-shadow 0.18s ease; }
+.logo-icon:hover { transform: scale(1.06); box-shadow: 0 0 0 4px var(--gold-light); }
+.logo-icon:active { transform: scale(0.92); }
+.logo-icon:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--gold); }
 .logo-wordmark { font-family: 'Cormorant Garamond', serif; font-size: 1.05rem;
   font-weight: 600; color: var(--text-cream); letter-spacing: -0.01em; }
 .logo-school { font-size: 0.68rem; color: var(--text-cream-dim);
@@ -265,18 +269,19 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 }
 .sbar-fill { will-change: width; }
 /* ── Sidebar collapse ── */
-.sidebar{transition:width 0.22s cubic-bezier(0.4,0,0.2,1);overflow:hidden}
-.sidebar.collapsed{width:64px}
+.sidebar{transition:flex-basis 0.26s cubic-bezier(0.4,0,0.2,1),width 0.26s cubic-bezier(0.4,0,0.2,1);overflow:hidden}
+/* Collapsed: the nav + user evaporate, leaving a slim rail with just the Ω logo
+   — which is itself the toggle. The sidebar is a flex item, so its main size
+   comes from flex-basis, not width — set both so the rail collapses reliably. */
+.sidebar.collapsed{flex-basis:60px;width:60px}
 .sidebar.collapsed .logo-wordmark,
-.sidebar.collapsed .logo-school,
-.sidebar.collapsed .nav-section-label,
-.sidebar.collapsed .user-info{display:none}
-.sidebar.collapsed .logo-mark{justify-content:center}
+.sidebar.collapsed .logo-school{display:none}
+.sidebar.collapsed .logo-mark{justify-content:center;margin-bottom:0}
 .sidebar.collapsed .sidebar-logo{padding:16px 0;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--green-border)}
-.sidebar.collapsed .nav-item{justify-content:center;padding:10px 0;border-left-color:transparent !important}
-.sidebar.collapsed .nav-item.active{background:var(--gold-light);border-radius:4px}
-.sidebar.collapsed .sidebar-nav{padding:12px 8px}
-.sidebar.collapsed .sidebar-user{justify-content:center;padding:14px 0}
+/* The nav + user hide as the rail slides shut; the width slide carries the
+   motion (an opacity transition renders inconsistently under reduced-motion). */
+.sidebar.collapsed .sidebar-nav,
+.sidebar.collapsed .sidebar-user{opacity:0;pointer-events:none}
 .sidebar-toggle{width:32px;height:32px;border-radius:var(--radius);background:none;border:1px solid var(--cream-border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);flex-shrink:0;transition:background 0.15s,color 0.15s}
 .sidebar-toggle:hover{background:var(--cream-warm);color:var(--text-primary)}
 .sidebar-toggle svg{transition:transform 0.22s}
@@ -297,7 +302,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   <aside class="sidebar">
     <div class="sidebar-logo">
       <div class="logo-mark">
-        <div class="logo-icon">
+        <div class="logo-icon" id="sidebarLogoToggle" role="button" tabindex="0" title="Toggle sidebar" aria-label="Toggle sidebar">
           <span style="font-family:'Cormorant Garamond',serif;font-weight:700;font-size:1.3rem;line-height:1;color:#002147">Ω</span>
         </div>
         <span class="logo-wordmark">Original</span>
@@ -526,13 +531,19 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 /* ── Sidebar collapse ── */
 (function(){
   const sidebar = document.querySelector('.sidebar');
+  if(!sidebar) return;
   const btn = document.getElementById('sidebarToggle');
-  if(!sidebar||!btn) return;
+  const logo = document.getElementById('sidebarLogoToggle');
   if(localStorage.getItem('sb-collapsed')==='1') sidebar.classList.add('collapsed');
-  btn.addEventListener('click',()=>{
+  function toggle(){
     const c = sidebar.classList.toggle('collapsed');
     localStorage.setItem('sb-collapsed', c?'1':'0');
-  });
+  }
+  if(btn) btn.addEventListener('click', toggle);
+  if(logo){
+    logo.addEventListener('click', toggle);
+    logo.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); } });
+  }
 })();
 /* ── Right panel collapse ── */
 (function(){
