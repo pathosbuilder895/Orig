@@ -72,6 +72,17 @@ def _get_conn() -> sqlite3.Connection:
             data       TEXT NOT NULL
         )
     """)
+    # Human-readable student display names, kept out of the profile blob so a
+    # name can be recorded (at login / LTI launch / import) before any baseline
+    # exists. The roster reads from here so a professor sees real names, not the
+    # opaque tenant-scoped ids.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS student_names (
+            student_id   TEXT PRIMARY KEY,
+            display_name TEXT NOT NULL DEFAULT '',
+            updated_at   TEXT NOT NULL DEFAULT ''
+        )
+    """)
     # Phase 5 audit log — every adaptive scoring run with a manifest
     # appends a row here. Lets us inspect which directives fired against
     # which submissions and how that correlated with action/score, so we
@@ -1839,6 +1850,124 @@ def list_ids_for_tenant(tenant_id: str) -> List[str]:
     _load_all()
     prefix = f"{tenant_id}:"
     return [sid for sid in _STORE if sid.startswith(prefix)]
+
+
+# ── Student display names + roster ────────────────────────────────────────────
+
+def set_display_name(student_id: str, name: str) -> None:
+    """Record a human-readable display name for a student (best-effort, upsert).
+
+    A blank name never overwrites an existing one, so a later anonymous touch
+    can't wipe a real name captured at login.
+    """
+    name = (name or "").strip()
+    if not name:
+        return
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        with _get_conn() as conn:
+            conn.execute(
+                """INSERT INTO student_names (student_id, display_name, updated_at)
+                   VALUES (?, ?, ?)
+                   ON CONFLICT(student_id) DO UPDATE SET
+                     display_name = excluded.display_name,
+                     updated_at   = excluded.updated_at""",
+                (student_id, name, now),
+            )
+            conn.commit()
+    except Exception:
+        log.exception("set_display_name failed for %s", student_id)
+
+
+def get_display_name(student_id: str) -> str:
+    """Return the stored display name for a student, or '' if none."""
+    try:
+        with _get_conn() as conn:
+            row = conn.execute(
+                "SELECT display_name FROM student_names WHERE student_id = ?",
+                (student_id,),
+            ).fetchone()
+        return row[0] if row and row[0] else ""
+    except Exception:
+        return ""
+
+
+def _display_names_for(student_ids: List[str]) -> Dict[str, str]:
+    """Bulk-fetch display names for a set of student ids."""
+    if not student_ids:
+        return {}
+    try:
+        with _get_conn() as conn:
+            qmarks = ",".join("?" for _ in student_ids)
+            rows = conn.execute(
+                f"SELECT student_id, display_name FROM student_names "
+                f"WHERE student_id IN ({qmarks})",
+                student_ids,
+            ).fetchall()
+        return {r[0]: r[1] for r in rows if r[1]}
+    except Exception:
+        return {}
+
+
+def _latest_actions_for(student_ids: List[str]) -> Dict[str, str]:
+    """Most-recent scoring action per student (for roster status)."""
+    if not student_ids:
+        return {}
+    try:
+        with _get_conn() as conn:
+            qmarks = ",".join("?" for _ in student_ids)
+            rows = conn.execute(
+                f"""SELECT student_id, action FROM submission_manifests
+                    WHERE student_id IN ({qmarks})
+                    ORDER BY created_at ASC""",
+                student_ids,
+            ).fetchall()
+        # ASC so the last write per student wins → most recent action.
+        latest: Dict[str, str] = {}
+        for sid, action in rows:
+            if action:
+                latest[sid] = action
+        return latest
+    except Exception:
+        return {}
+
+
+def _status_for(sample_count: int, action: Optional[str]) -> str:
+    """Roster status label from baseline count + latest action."""
+    if sample_count <= 0:
+        return "no_baseline"
+    if action in ("escalate", "schedule_conversation"):
+        return "needs_review"
+    if action == "monitor":
+        return "monitor"
+    return "clear"
+
+
+def roster_for_tenant(tenant_id: str) -> List[Dict]:
+    """A display-ready roster for one tenant: name, baseline counts, status.
+
+    This is what the professor/admin dashboards render — real names instead of
+    the opaque tenant-scoped ids, so the logged-in product is actually usable.
+    """
+    _load_all()
+    ids = list_ids_for_tenant(tenant_id)
+    names = _display_names_for(ids)
+    actions = _latest_actions_for(ids)
+    roster: List[Dict] = []
+    for sid in sorted(ids):
+        state = _STORE.get(sid)
+        sample_count = state.sample_count if state else 0
+        authenticated_count = state.authenticated_count if state else 0
+        local = sid.split(":", 1)[1] if ":" in sid else sid
+        roster.append({
+            "id": sid,
+            "name": names.get(sid) or f"Student {local[:6]}",
+            "has_name": bool(names.get(sid)),
+            "sample_count": sample_count,
+            "authenticated_count": authenticated_count,
+            "status": _status_for(sample_count, actions.get(sid)),
+        })
+    return roster
 
 
 def tenant_stats(tenant_id: str) -> Dict:

@@ -674,13 +674,20 @@ def list_students(request: "Request", tenant_id: str = ""):
     behaviour (optional `tenant_id` filter, else all).
     """
     principal = getattr(request.state, "principal", None)
+    roster_tenant = None
     if principal and not principal.is_demo and principal.role not in principal_mod.SUPER_ROLES:
-        ids = store.list_ids_for_tenant(principal.tenant_id)
+        roster_tenant = principal.tenant_id
+        ids = store.list_ids_for_tenant(roster_tenant)
     elif tenant_id:
+        roster_tenant = tenant_id
         ids = store.list_ids_for_tenant(tenant_id)
     else:
         ids = store.list_ids()
-    return {"students": ids}
+    # `students` stays a list of ids (back-compat). `roster` adds the
+    # display-ready rows (real names, baseline counts, status) the dashboards
+    # render — only when scoped to a single tenant.
+    roster = store.roster_for_tenant(roster_tenant) if roster_tenant else None
+    return {"students": ids, "roster": roster}
 
 
 # ── Student state ─────────────────────────────────────────────────────────────
@@ -933,6 +940,9 @@ def student_login(body: dict, request: "Request"):
 
     # Ensure the student record exists so the dashboard has somewhere to read.
     store.get_or_create(student_id)
+    # Record the display name so the professor roster shows a real person, not
+    # the opaque tenant-scoped id.
+    store.set_display_name(student_id, name or email.split("@")[0])
 
     token = student_auth.mint_session(student_id, name or email.split("@")[0])
     remote = getattr(request.client, "host", "unknown") if request.client else "unknown"
