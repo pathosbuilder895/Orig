@@ -1758,15 +1758,34 @@ function serverStudentFromId(id, i) {
            dot: '#6B7280', baselines: 0, status: 'unknown' };
 }
 
+/* Status → the small dot colour beside each student. */
+const STATUS_DOT = { needs_review:'#6B2737', monitor:'#D97706', clear:'#4A6B5C', no_baseline:'#6B7280', unknown:'#6B7280' };
+
+/* Map a server roster row {id,name,sample_count,status} into the STUDENTS shape
+   the dashboard renders — real name, real initials, real baseline count. */
+function rosterRowToStudent(s, i) {
+  const [bg, tc] = AVATAR_COLORS[i % AVATAR_COLORS.length];
+  const name = s.name || ('Student ' + (s.id.split(':').slice(1).join(':') || s.id).slice(0,6));
+  const ini = name.replace(/[^a-zA-Z0-9 ]/g,'').split(/\s+/).filter(Boolean).map(w=>w[0]).join('').slice(0,2).toUpperCase() || '··';
+  const status = s.status || 'unknown';
+  return { id: s.id, name, ini, color: bg, tc,
+           dot: STATUS_DOT[status] || '#6B7280', baselines: s.sample_count || 0, status };
+}
+
 async function hydrateRosterFromServer() {
   try {
     const r = await fetch(`${API_BASE}/students`);   // Bearer added by the auth-bridge shim
     if (!r.ok) return;
-    const ids = (await r.json()).students || [];
-    STUDENTS = ids.map(serverStudentFromId);
+    const payload = await r.json();
+    // Prefer the rich roster (real names, counts, status); fall back to bare ids.
+    if (Array.isArray(payload.roster) && payload.roster.length) {
+      STUDENTS = payload.roster.map(rosterRowToStudent);
+    } else {
+      STUDENTS = (payload.students || []).map(serverStudentFromId);
+    }
     const tenant = localStorage.getItem('original_tenant') || '';
     const hdr = document.getElementById('hdrCourseSub');
-    if (hdr) hdr.textContent = `${tenant || 'your institution'} · ${ids.length} student${ids.length === 1 ? '' : 's'}`;
+    if (hdr) hdr.textContent = `${tenant || 'your institution'} · ${STUDENTS.length} student${STUDENTS.length === 1 ? '' : 's'}`;
     renderStudents();
     if (STUDENTS.length) { selectStudent(STUDENTS[0]); }
     else {

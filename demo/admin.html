@@ -611,7 +611,10 @@ async function loadDashboard() {
       fetch(API + '/students'),
       fetch(API + '/admin/manifests/stats'),
     ]);
-    const {students: ids} = await studentsRes.json();
+    const sjson = await studentsRes.json();
+    const ids = sjson.students || [];
+    const nameMap = {};
+    (sjson.roster || []).forEach(r => { nameMap[r.id] = r; });
     const stats = await statsRes.json();
 
     // Update stat cards
@@ -624,7 +627,7 @@ async function loadDashboard() {
     const states = await Promise.all(
       slice.map(id => fetch(API + '/students/' + id).then(r => r.json()).catch(() => null))
     );
-    const students = states.map((st, i) => st ? {...st, _id: slice[i]} : null).filter(Boolean);
+    const students = states.map((st, i) => st ? {...st, _id: slice[i], _name: (nameMap[slice[i]] && nameMap[slice[i]].name) || null} : null).filter(Boolean);
 
     const totalBaselines = students.reduce((sum, s) => sum + (s.sample_count || 0), 0);
     if (cards[1]) cards[1].textContent = totalBaselines;
@@ -661,12 +664,13 @@ function renderStudentTable(students) {
     const action = scoreAction(score);
     const c = scoreColor(score);
     const av = AV_COLORS[i % AV_COLORS.length];
-    const ini = initials(s._id || s.student_id || '');
+    const display = s._name || s._id || s.student_id || '';
+    const ini = initials(display);
     const barId = 'bar-' + (s._id || i);
     return `<tr style="cursor:pointer" onclick="window.location='professor.html'">
       <td><div class="s-cell">
         <div class="s-av" style="background:${av.bg};color:${av.tc}">${ini}</div>
-        <div><div class="s-name">${s._id || s.student_id}</div>
+        <div><div class="s-name">${display}</div>
              <div class="s-id">${s.sample_count || 0} baseline${s.sample_count !== 1 ? 's' : ''}</div></div>
       </div></td>
       <td style="color:var(--text-muted);font-size:0.79rem">${s.trajectory_direction || '—'}</td>
