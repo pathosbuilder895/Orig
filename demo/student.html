@@ -369,12 +369,23 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
           <div class="pg-sub" id="proSub">Submit your first piece of work to reveal your voice profile.</div>
         </div>
 
+        <!-- First-steps guide — shown only before any work has been analysed -->
+        <div class="card fu" id="firstSteps" style="display:none;padding:24px 28px;margin-bottom:20px;max-width:780px">
+          <div class="card-lbl" style="margin-bottom:7px">Begin your record</div>
+          <div style="font-family:var(--font-d),'Cormorant Garamond',serif;font-size:1.4rem;color:var(--oxford);margin-bottom:9px">Your voice profile starts with your first piece.</div>
+          <div style="font-family:var(--font-b);font-size:0.96rem;line-height:1.65;color:rgba(26,26,26,0.6);margin-bottom:18px">
+            Submit a piece of writing and Original begins to learn your voice — your cadence, your diction, the way you build an argument. Nothing here is graded. This is your formation record, and it grows with you.
+          </div>
+          <div id="fsMilestones" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap"></div>
+          <button class="btn-primary" onclick="showView('submit')">Submit your first piece →</button>
+        </div>
+
         <div class="hero-row fu fu1">
           <!-- Fingerprint -->
           <div class="card fp-card">
             <div class="card-head">
               <div class="card-lbl">Voice Fingerprint</div>
-              <div class="card-ttl">12 stylometric dimensions</div>
+              <div class="card-ttl">Seven dimensions of your voice</div>
             </div>
             <div class="fp-viz" style="height:270px">
               <svg id="fpSvg" viewBox="0 0 300 300" width="280" height="280"></svg>
@@ -1241,6 +1252,37 @@ async function loadProfile() {
   // Only analysed submissions carry a fidelity score. Pending (offline-saved,
   // never-scored) submissions are excluded from fidelity stats and the arc.
   const analysed = history.filter(h => !h.pending);
+
+  // Day-one guide: before any work is analysed, show the first-steps card with
+  // the milestone journey so the page reads as a beginning, not an empty shell.
+  const fs = document.getElementById('firstSteps');
+  if (fs) {
+    const showGuide = analysed.length === 0;
+    fs.style.display = showGuide ? 'block' : 'none';
+    if (showGuide) {
+      const milestones = (v && Array.isArray(v.milestones) && v.milestones.length)
+        ? v.milestones
+        : [
+            { label:'Voice Sampled',     state:'upcoming', blurb:'Your writing enters your record.' },
+            { label:'Voice Established',  state:'upcoming', blurb:'Enough on file to recognise your voice.' },
+            { label:'Voice Affirmed',     state:'upcoming', blurb:'A verified piece confirms it is yours.' },
+          ];
+      document.getElementById('fsMilestones').innerHTML = milestones.map(m => {
+        const reached = m.state === 'reached';
+        return `<div style="flex:1;min-width:150px;padding:12px 14px;border:1px solid ${reached?'rgba(176,141,60,0.4)':'var(--hairline)'};border-radius:8px;background:${reached?'rgba(176,141,60,0.06)':'transparent'}">
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">
+            <span style="width:7px;height:7px;border-radius:50%;background:${reached?'#B08D3C':'rgba(60,90,130,0.25)'}"></span>
+            <span style="font-family:var(--font-u);font-size:0.7rem;font-weight:600;letter-spacing:0.04em;color:${reached?'var(--gold-deep,#8a6d2a)':'rgba(26,26,26,0.55)'}">${esc(m.label)}</span>
+          </div>
+          <div style="font-family:var(--font-b);font-style:italic;font-size:0.78rem;line-height:1.45;color:rgba(26,26,26,0.42)">${esc(m.blurb||'')}</div>
+        </div>`;
+      }).join('');
+    }
+  }
+  // The dashed "Start of term" fingerprint legend only applies to the guest
+  // showcase (which has an early snapshot); a real student has none.
+  const earlyLeg = document.querySelectorAll('.fp-legend .fp-leg')[1];
+  if (earlyLeg) earlyLeg.style.display = (v ? 'none' : 'flex');
 
   // Headline — for a real student the server already resolved the prose; the
   // guest showcase computes it client-side from the synthetic history.
