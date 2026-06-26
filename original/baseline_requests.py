@@ -77,19 +77,55 @@ _hydrated = False
 
 _FIELD_NAMES = {f.name for f in dataclass_fields(BaselineRequest)}
 
+# Tracks how many persist calls have failed silently since process start. We
+# don't want every failure to log (could be noisy under a disk-full incident),
+# but a silent divergence between memory and SQLite that nobody notices is
+# strictly worse — so log every 10th failure with full context, and expose the
+# counter for ops tooling.
+_persist_failures = 0
 
-def _persist(req: BaselineRequest) -> None:
-    """Write a request through to durable storage (best-effort)."""
+
+def _snapshot(req: BaselineRequest) -> dict:
+    """Return a frozen dict snapshot of the request — safe to persist outside the lock."""
+    return asdict(req)
+
+
+def _persist_snapshot(
+    external_request_id: str,
+    student_id: str,
+    status: str,
+    requested_at: float,
+    snap: dict,
+) -> None:
+    """Write a pre-snapshotted request through to durable storage (best-effort).
+
+    Takes a dict snapshot, NOT the live dataclass, so concurrent mutations on
+    the in-memory object can't race with this serialization.
+    """
+    global _persist_failures
     try:
         store.put_baseline_request(
-            external_request_id=req.external_request_id,
-            student_id=req.student_id,
-            status=req.status,
-            requested_at=req.requested_at,
-            data_json=json.dumps(asdict(req)),
+            external_request_id=external_request_id,
+            student_id=student_id,
+            status=status,
+            requested_at=requested_at,
+            data_json=json.dumps(snap),
         )
     except Exception:
-        log.exception("persist baseline request %s failed", req.external_request_id)
+        _persist_failures += 1
+        # Log every 10th failure (incl. the first). One slow-disk incident
+        # produces one stack trace + a steady tick of the counter, not 100
+        # identical tracebacks.
+        if _persist_failures % 10 == 1:
+            log.exception(
+                "persist baseline request %s failed (%d total failures since start)",
+                external_request_id, _persist_failures,
+            )
+
+
+def persist_failure_count() -> int:
+    """Expose the running count of silent persistence failures (ops/metrics)."""
+    return _persist_failures
 
 
 def _ensure_hydrated() -> None:
@@ -131,7 +167,12 @@ def record(req: BaselineRequest) -> None:
         ids = _by_student.setdefault(req.student_id, [])
         if req.external_request_id not in ids:
             ids.append(req.external_request_id)
-    _persist(req)
+        snap = _snapshot(req)
+        ext_id = req.external_request_id
+        student_id = req.student_id
+        status = req.status
+        requested_at = req.requested_at
+    _persist_snapshot(ext_id, student_id, status, requested_at, snap)
 
 
 def get(external_request_id: str) -> Optional[BaselineRequest]:
@@ -144,7 +185,7 @@ def list_pending() -> List[BaselineRequest]:
     """Return all requests with status='pending' (oldest first)."""
     now = time.time()
     out: List[BaselineRequest] = []
-    expired: List[BaselineRequest] = []
+    expired_snaps: List[tuple] = []
     with _lock:
         _ensure_hydrated()
         for r in _registry.values():
@@ -153,11 +194,14 @@ def list_pending() -> List[BaselineRequest]:
             # Auto-expire on read
             if r.expires_at and r.expires_at < now:
                 r.status = "expired"
-                expired.append(r)
+                expired_snaps.append(
+                    (r.external_request_id, r.student_id, r.status, r.requested_at, _snapshot(r))
+                )
                 continue
             out.append(r)
-    for r in expired:          # persist the expiry transition
-        _persist(r)
+    # Persist the expiry transitions outside the lock from frozen snapshots.
+    for ext_id, student_id, status, requested_at, snap in expired_snaps:
+        _persist_snapshot(ext_id, student_id, status, requested_at, snap)
     out.sort(key=lambda r: r.requested_at)
     return out
 
@@ -181,6 +225,7 @@ def mark_completed_for_student(student_id: str) -> List[BaselineRequest]:
     transitioned (empty if none were pending).
     """
     completed: List[BaselineRequest] = []
+    completed_snaps: List[tuple] = []
     now = time.time()
     with _lock:
         _ensure_hydrated()
@@ -191,20 +236,23 @@ def mark_completed_for_student(student_id: str) -> List[BaselineRequest]:
                 r.status = "completed"
                 r.completed_at = now
                 completed.append(r)
-    for r in completed:
-        _persist(r)
+                completed_snaps.append(
+                    (r.external_request_id, r.student_id, r.status, r.requested_at, _snapshot(r))
+                )
+    for ext_id, sid, status, requested_at, snap in completed_snaps:
+        _persist_snapshot(ext_id, sid, status, requested_at, snap)
     return completed
 
 
 def mark_failed(external_request_id: str, error: str) -> None:
     """Mark a single request as failed (Bbook call exploded, etc.)."""
-    target: Optional[BaselineRequest] = None
+    snap_args: Optional[tuple] = None
     with _lock:
         _ensure_hydrated()
         r = _registry.get(external_request_id)
         if r:
             r.status = "failed"
             r.error = error
-            target = r
-    if target:
-        _persist(target)
+            snap_args = (r.external_request_id, r.student_id, r.status, r.requested_at, _snapshot(r))
+    if snap_args:
+        _persist_snapshot(*snap_args)
