@@ -78,6 +78,12 @@ variantexam/
 # Bluebook build intermediates (bundle itself IS committed)
 demo/bluebook/._bluebook_combined.jsx
 
+# Bluebook Playwright test artifacts (config + specs are tracked; outputs are not)
+demo/bluebook/test-results/
+demo/bluebook/playwright-report/
+demo/bluebook/playwright/.cache/
+demo/bluebook/blob-report/
+
 # macOS Finder duplicates (e.g. "file 2.py", "file 3.html")
 * 2.*
 * 3.*
