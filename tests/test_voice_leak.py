@@ -35,34 +35,125 @@ LONG_TEXT = (
     "conclusion arrives less as a surprise than as something already half-known."
 )
 
-# Tokens that must NEVER appear in any student-facing payload. Feature codes are
-# checked separately (the full ALL_FEATURE_CODES list).
-FORBIDDEN_SUBSTRINGS = [
-    "divergence",
-    "deviation",
-    "purity",
+# ── Positive contract: the keys VoiceView and VoiceSubmitResult are allowed
+# to expose. Anything NOT in these sets is a leak by construction.
+#
+# This is a stronger guarantee than the old substring scan because it can't
+# false-negative (a new forbidden field can't slip in unnamed) and can't
+# false-positive (instructor prose containing the word "manifest" no longer
+# breaks CI).
+#
+# When project_voice_view or project_submission_result legitimately grows a
+# new top-level key, add it here in the same commit. That's the design — the
+# allow-list IS the contract.
+ALLOWED_VOICE_VIEW_KEYS = frozenset({
+    "name",
+    "headline",
+    "subhead",
+    "fingerprint",
+    "fingerprint.name",
+    "fingerprint.value",
+    "arc",
+    "arc.period",
+    "arc.fidelity",
+    "arc.attention",
+    "voice_notes",
+    "voice_notes.note",
+    "voice_notes.reviewer",
+    "voice_notes.date",
+    "review_opportunities",
+    "review_opportunities.invitation_prose",
+    "review_opportunities.locator",
+    "milestones",
+    "milestones.label",
+    "milestones.state",
+    "milestones.blurb",
+    "formation",
+    "formation.active",
+    "formation.status",
+    "formation.current_step",
+    "formation.total_steps",
+    "formation.step_label",
+    "formation.supportive_copy",
+})
+
+ALLOWED_SUBMIT_RESULT_KEYS = frozenset({
+    "headline",
+    "summary",
+    "steady",
+    "review_opportunity",
+})
+
+# The substring scan is RETAINED as a secondary defence — it catches values
+# (not just keys) that look like surveillance internals. Tightly scoped so
+# legitimate prose can use the natural English words (e.g. "manifest itself").
+# Each entry is matched against the VALUE strings only, not key names.
+FORBIDDEN_VALUE_FRAGMENTS = [
+    "divergence_score",
+    "deviation_score",
     "baseline_vector",
     "feature_vector",
-    "sample_count",
-    "authenticated_count",
-    "trajectory",
-    "quantum",
-    "anomal",          # "anomaly" / "anomalous"
     "no_action",
     "schedule_conversation",
-    "escalate",
-    "manifest",
     "human_explanation",
+    "auth_weight",
 ]
 
 
-def _assert_clean(blob) -> None:
-    """Assert a JSON-serializable blob carries no forbidden token or feature code."""
-    text = json.dumps(blob).lower()
-    for bad in FORBIDDEN_SUBSTRINGS:
-        assert bad not in text, f"forbidden token {bad!r} leaked into student payload"
-    for code in ALL_FEATURE_CODES:
-        assert code not in text, f"feature code {code!r} leaked into student payload"
+def _walk_keys(blob, prefix: str = ""):
+    """Yield every dotted key path that appears in a nested dict/list blob."""
+    if isinstance(blob, dict):
+        for k, v in blob.items():
+            yield f"{prefix}.{k}" if prefix else k
+            yield from _walk_keys(v, k)
+    elif isinstance(blob, list):
+        for item in blob:
+            yield from _walk_keys(item, prefix)
+
+
+def _walk_values(blob):
+    """Yield every string value (recursively) in a nested dict/list blob."""
+    if isinstance(blob, dict):
+        for v in blob.values():
+            yield from _walk_values(v)
+    elif isinstance(blob, list):
+        for item in blob:
+            yield from _walk_values(item)
+    elif isinstance(blob, str):
+        yield blob
+
+
+def _assert_keys_in(blob, allowed: frozenset, label: str) -> None:
+    """The primary contract — every key in `blob` must be in the allow-list."""
+    for path in _walk_keys(blob):
+        assert path in allowed, (
+            f"{label}: unexpected key {path!r} (not in the allow-list — "
+            f"either redact it, or add it to ALLOWED_*_KEYS in the same commit)"
+        )
+
+
+def _assert_values_clean(blob) -> None:
+    """Belt-and-suspenders — value strings can't contain surveillance fragments."""
+    for value in _walk_values(blob):
+        v = value.lower()
+        for bad in FORBIDDEN_VALUE_FRAGMENTS:
+            assert bad not in v, f"forbidden fragment {bad!r} found in value {value!r}"
+        for code in ALL_FEATURE_CODES:
+            assert code not in v, f"feature code {code!r} leaked into value {value!r}"
+
+
+def _assert_voice_view_clean(blob) -> None:
+    _assert_keys_in(blob, ALLOWED_VOICE_VIEW_KEYS, "VoiceView")
+    _assert_values_clean(blob)
+
+
+def _assert_submit_result_clean(blob) -> None:
+    _assert_keys_in(blob, ALLOWED_SUBMIT_RESULT_KEYS, "VoiceSubmitResult")
+    _assert_values_clean(blob)
+
+
+# Back-compat alias for any external callers that imported the old name.
+_assert_clean = _assert_voice_view_clean
 
 
 # ── Unit: projection redacts adversarial raw inputs ──────────────────────────
@@ -89,7 +180,7 @@ def test_projection_drops_feature_codes_and_scores():
         sample_count=5, authenticated_count=2,
         manifests=manifests, corrections=corrections, pathway=pathway,
     )
-    _assert_clean(view)
+    _assert_voice_view_clean(view)
 
     # The shape is still useful: 7 blended dimensions, an ascending arc, a note.
     assert len(view["fingerprint"]) == 7
@@ -112,7 +203,7 @@ def test_submission_result_redaction():
         "human_explanation": {"summary": "deviation score 0.52; anomalies detected"},
     }
     res = voice_mod.project_submission_result(layer7, "Thomas Merton")
-    _assert_clean(res)
+    _assert_submit_result_clean(res)
     assert res["review_opportunity"] is True
     assert res["steady"], "constructive features should surface as steady dimensions"
 
@@ -147,7 +238,7 @@ def test_me_voice_is_clean(student_token):
     tok, _sid = student_token
     r = client.get("/me/voice", headers={"Authorization": f"Bearer {tok}"})
     assert r.status_code == 200, r.text
-    _assert_clean(r.json())
+    _assert_voice_view_clean(r.json())
     assert len(r.json()["fingerprint"]) == 7
 
 
@@ -156,7 +247,7 @@ def test_me_work_is_clean(student_token):
     r = client.post("/me/work", headers={"Authorization": f"Bearer {tok}"},
                     json={"text": LONG_TEXT, "title": "Conscience & Formation"})
     assert r.status_code == 200, r.text
-    _assert_clean(r.json())
+    _assert_submit_result_clean(r.json())
 
 
 def test_student_cannot_read_a_classmate(student_token):
@@ -167,6 +258,26 @@ def test_student_cannot_read_a_classmate(student_token):
     other = f"{tenant}:someone-else"
     r = client.get(f"/students/{other}", headers={"Authorization": f"Bearer {tok}"})
     assert r.status_code == 403, r.text
+
+
+def test_student_cannot_probe_other_tenant_existence(student_token):
+    """A student token must not be able to enumerate students in OTHER tenants.
+
+    If the authz check is "is this my student id?", a request for any
+    nonexistent id under a foreign tenant must STILL return 403, not 404 —
+    otherwise the response code differentiates "tenant exists but you can't
+    see it" from "tenant doesn't exist", which is itself an information leak.
+    """
+    tok, _sid = student_token
+    foreign_tenant_id = "some-other-school:any-student-id"
+    r = client.get(
+        f"/students/{foreign_tenant_id}",
+        headers={"Authorization": f"Bearer {tok}"},
+    )
+    assert r.status_code == 403, (
+        f"expected 403 to keep cross-tenant existence unleakable; "
+        f"got {r.status_code} (body: {r.text!r})"
+    )
 
 
 def test_student_can_still_read_self(student_token):
