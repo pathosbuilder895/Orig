@@ -62,7 +62,8 @@ def seed_demo_store():
 
 def create_demo_app(frontend_dir: Path):
     """Return the legacy demo app with the static frontend mounted."""
-    from fastapi.responses import RedirectResponse
+    import os
+    from fastapi.responses import FileResponse, RedirectResponse
     from fastapi.staticfiles import StaticFiles
 
     app = load_legacy_demo_app()
@@ -72,6 +73,22 @@ def create_demo_app(frontend_dir: Path):
     @app.get("/", include_in_schema=False)
     def demo_root():
         return RedirectResponse(url="/professor.html")
+
+    # ── Bluebook prod-index swap ────────────────────────────────────────────
+    # In pilot/staging/production, serve the precompiled bundle entry
+    # (index.prod.html with vendored React, no CDN dependencies at exam time).
+    # In dev, keep serving the dev index.html (CDN React + in-browser Babel).
+    # The static mount below would otherwise always serve index.html for
+    # /bluebook/ — these explicit handlers take precedence.
+    _ENV = (os.getenv("ORIGINAL_ENV") or "demo").lower()
+    _USE_PROD_BLUEBOOK = _ENV in ("pilot", "staging", "production")
+    _bluebook_root = frontend_dir / "bluebook"
+    _bluebook_prod_index = _bluebook_root / "index.prod.html"
+    if _USE_PROD_BLUEBOOK and _bluebook_prod_index.is_file():
+        @app.get("/bluebook/", include_in_schema=False)
+        @app.get("/bluebook/index.html", include_in_schema=False)
+        def _bluebook_prod_root():
+            return FileResponse(str(_bluebook_prod_index), media_type="text/html")
 
     app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
     app.state._original_demo_frontend_mounted = True
