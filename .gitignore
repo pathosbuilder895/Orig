@@ -51,6 +51,13 @@ backups/
 # Pytest temp dirs
 pytest-cache-files-*/
 
+# Stray dev log captures (one-off run outputs)
+err.log
+*.log
+
+# Office app lock files (Word/Excel "~$" temp files)
+~$*
+
 # Node
 node_modules/
 
