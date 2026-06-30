@@ -92,6 +92,7 @@ ORIGINAL_MASTER_ROADMAP.docx
 legacy_mvp/
 
 # Benchmark output (generated; not tracked by default — uncomment a dated
-# subdirectory to commit a specific evidence run)
-validation/benchmarks/
+# subdirectory to commit a specific evidence run). The README is tracked.
+validation/benchmarks/*
+!validation/benchmarks/README.md
 
