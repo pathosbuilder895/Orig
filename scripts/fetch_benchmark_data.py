@@ -40,6 +40,7 @@ import urllib.parse
 import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
+from typing import List, Optional
 from html.parser import HTMLParser
 
 logging.basicConfig(
@@ -53,6 +54,8 @@ PROJECT_ROOT = Path(__file__).parent.parent
 CACHE_DIR = PROJECT_ROOT / ".benchmark_cache"
 ARXIV_DIR = CACHE_DIR / "arxiv"
 PAN_DIR = CACHE_DIR / "pan"
+RAID_DIR = CACHE_DIR / "raid"
+M4_DIR = CACHE_DIR / "m4"
 
 
 # ── Utilities ──────────────────────────────────────────────────────────────────
@@ -429,6 +432,119 @@ def fetch_pan(years: list[int] = None, force: bool = False) -> dict[int, dict]:
     return results
 
 
+# ── RAID (Robust AI Detection benchmark) ──────────────────────────────────────
+#
+# RAID is the largest open AI-detection benchmark — ~10M rows covering 8
+# domains × 11 generators × 4 decoding strategies × 11 attacks.
+# https://github.com/liamdugan/raid
+#
+# The full set is huge. We only ever need a sample, and a small CSV file
+# is published at HuggingFace's `liamdugan/raid` dataset hub. We try the
+# small/sample slice first and fall back to a manual-download message
+# pointing at the documented URLs.
+#
+# Cached file: .benchmark_cache/raid/raid_sample.csv
+#   columns: id, adv_source_id, source_id, model, decoding,
+#            repetition_penalty, attack, domain, title, prompt, generation
+#   (a row with model="human" is a human-written reference)
+
+RAID_DOWNLOAD_URLS = [
+    # HuggingFace dataset mirror, smallest sample slice.
+    "https://huggingface.co/datasets/liamdugan/raid/resolve/main/data/raid_sample.csv",
+    "https://huggingface.co/datasets/liamdugan/raid/raw/main/data/raid_sample.csv",
+]
+
+
+def fetch_raid(force: bool = False) -> Optional[Path]:
+    """
+    Download the RAID sample CSV into ``.benchmark_cache/raid/``.
+
+    Returns the cached CSV path on success, or None if the download
+    fails and the user needs to fetch it manually.
+    """
+    RAID_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = RAID_DIR / "raid_sample.csv"
+
+    if out_path.exists() and not force:
+        log.info("✓ RAID: cached at %s (%.1f MB)", out_path, out_path.stat().st_size / 1e6)
+        return out_path
+
+    for url in RAID_DOWNLOAD_URLS:
+        log.info("→ RAID: trying %s", url)
+        try:
+            raw = _get(url, timeout=120)
+            out_path.write_bytes(raw)
+            log.info("✓ RAID: downloaded %.1f MB → %s", len(raw) / 1e6, out_path)
+            return out_path
+        except Exception as e:
+            log.warning("  failed: %s", e)
+
+    log.error("Could not download RAID automatically.")
+    log.error("  Manual fetch:")
+    log.error("    git clone https://github.com/liamdugan/raid")
+    log.error("    cp raid/data/raid_sample.csv %s", out_path)
+    log.error("  Then re-run.")
+    return None
+
+
+# ── M4 (Multi-domain, Multi-generator, Multilingual, Multi-source) ────────────
+#
+# M4 mixes human text vs machine-generated continuations across multiple
+# domains (arxiv, peerread, reddit, wikihow, wikipedia, etc.) and
+# generators (chatGPT, davinci, cohere, dolly, bloomz, flan-t5).
+# https://github.com/mbzuai-nlp/M4
+#
+# Each JSONL line has fields ``text``, ``label`` (0 = human, 1 = machine),
+# ``source``, ``model``. We download the per-source JSONL files directly
+# from the GitHub raw URL.
+
+M4_BASE = "https://raw.githubusercontent.com/mbzuai-nlp/M4/main/data"
+M4_FILES = [
+    # source-specific JSONL files; English-only first pass
+    "arxiv_chatGPT.jsonl",
+    "arxiv_cohere.jsonl",
+    "arxiv_davinci.jsonl",
+    "peerread_chatGPT.jsonl",
+    "peerread_cohere.jsonl",
+    "wikihow_chatGPT.jsonl",
+    "wikipedia_chatgpt.jsonl",
+    "reddit_chatGPT.jsonl",
+]
+
+
+def fetch_m4(force: bool = False) -> List[Path]:
+    """
+    Download a sampling of M4 JSONL files. Returns the list of cached
+    files on disk (may be partial if some URLs 404).
+    """
+    M4_DIR.mkdir(parents=True, exist_ok=True)
+    cached: List[Path] = []
+
+    for fname in M4_FILES:
+        target = M4_DIR / fname
+        if target.exists() and not force:
+            log.info("✓ M4 %s: cached (%.1f KB)", fname, target.stat().st_size / 1e3)
+            cached.append(target)
+            continue
+
+        url = f"{M4_BASE}/{fname}"
+        log.info("→ M4 %s", url)
+        try:
+            raw = _get(url, timeout=60)
+            target.write_bytes(raw)
+            log.info("✓ M4 %s: %.1f KB", fname, len(raw) / 1e3)
+            cached.append(target)
+        except Exception as e:
+            log.warning("  M4 %s: %s (skipping)", fname, e)
+
+    if not cached:
+        log.error("No M4 files downloaded. Try:")
+        log.error("  git clone https://github.com/mbzuai-nlp/M4")
+        log.error("  cp M4/data/*.jsonl %s/", M4_DIR)
+
+    return cached
+
+
 # ── Summary ────────────────────────────────────────────────────────────────────
 
 def print_summary(arxiv_data: dict, pan_data: dict):
@@ -470,30 +586,52 @@ def main():
     parser.add_argument("--pan", action="store_true", help="Fetch PAN datasets only")
     parser.add_argument("--pan-year", type=int, choices=[2021, 2022, 2023],
                         help="Fetch specific PAN year only")
+    parser.add_argument("--raid", action="store_true", help="Fetch RAID sample CSV only")
+    parser.add_argument("--m4", action="store_true", help="Fetch M4 JSONL files only")
     parser.add_argument("--force", action="store_true", help="Re-download even if cached")
     args = parser.parse_args()
 
-    fetch_both = not args.arxiv and not args.pan and not args.pan_year
+    any_specific = args.arxiv or args.pan or args.pan_year or args.raid or args.m4
+    fetch_legacy = not any_specific   # default: arXiv + PAN for back-compat
+
     arxiv_data = {}
     pan_data = {}
+    raid_path: Optional[Path] = None
+    m4_paths: List[Path] = []
 
-    if args.arxiv or fetch_both:
+    if args.arxiv or fetch_legacy:
         log.info("=" * 50)
         log.info("Fetching arXiv papers")
         log.info("=" * 50)
         arxiv_data = fetch_arxiv(force=args.force)
 
-    if args.pan or args.pan_year or fetch_both:
+    if args.pan or args.pan_year or fetch_legacy:
         log.info("=" * 50)
         log.info("Fetching PAN datasets")
         log.info("=" * 50)
         years = [args.pan_year] if args.pan_year else [2021, 2022, 2023]
         pan_data = fetch_pan(years=years, force=args.force)
 
+    if args.raid:
+        log.info("=" * 50)
+        log.info("Fetching RAID sample")
+        log.info("=" * 50)
+        raid_path = fetch_raid(force=args.force)
+
+    if args.m4:
+        log.info("=" * 50)
+        log.info("Fetching M4 JSONL files")
+        log.info("=" * 50)
+        m4_paths = fetch_m4(force=args.force)
+
     if arxiv_data or pan_data:
         print_summary(arxiv_data, pan_data)
-    else:
-        log.warning("No data fetched. Run with --arxiv, --pan, or no flags for both.")
+    if raid_path:
+        log.info("RAID ready: %s", raid_path)
+    if m4_paths:
+        log.info("M4 ready: %d JSONL files in %s", len(m4_paths), M4_DIR)
+    if not (arxiv_data or pan_data or raid_path or m4_paths):
+        log.warning("No data fetched. Run with --arxiv, --pan, --raid, --m4, or no flags for arXiv+PAN.")
 
 
 if __name__ == "__main__":
