@@ -2,16 +2,21 @@
 ADR-005 leak-test gate — the permanent guarantee that the student read-model
 never carries surveillance internals on the wire.
 
-Two layers of defence:
+Three layers of defence:
   1. Unit: drive original.voice projections with deliberately adversarial raw
      inputs (real feature codes, raw divergence scores, action enums, formation
      reasons) and assert NONE of them survive into the projected output.
   2. Integration: sign in as a student, hit /me/voice and /me/work, and assert
      the serialized payloads contain no forbidden token. Also proves the
      self-only authorization (a student cannot read a classmate via /students).
+  3. Static HTML: scan demo/student.html itself for surveillance words in
+     user-visible text nodes (not CSS class names, not JS variable names),
+     so the first-paint render before any data fetch is also clean.
 """
 
 import json
+import pathlib
+import re
 
 import pytest
 from fastapi.testclient import TestClient
@@ -285,3 +290,51 @@ def test_student_can_still_read_self(student_token):
     tok, sid = student_token
     r = client.get(f"/students/{sid}", headers={"Authorization": f"Bearer {tok}"})
     assert r.status_code == 200, r.text
+
+
+# ── Static-HTML: the first-paint render must not flash surveillance jargon ───
+#
+# The integration tests above prove the JSON payloads are clean. But the
+# student.html template renders a fallback before the JS fetches /me/voice
+# — for ~50-200ms the user sees the static copy. ADR-005's promise has to
+# hold during that flash too. This test parses the user-visible text nodes
+# out of demo/student.html and asserts none of the forbidden words appear.
+
+REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+# Words that may not appear in user-visible STUDENT-facing text. Each of
+# these would betray the surveillance framing ADR-005 promised to redact.
+# The list is deliberately narrow: substrings shared with legitimate prose
+# (e.g. "manifest" in "manifested") are NOT included — only the unambiguous
+# surveillance-only terms.
+STUDENT_FORBIDDEN_STATIC = [
+    "divergence",
+    "deviation",
+    "catastrophic",
+    "interference",
+    # action enum names (formal config, not formation register)
+    "no_action",
+    "schedule_conversation",
+    "escalate ",   # trailing space so "escalating" doesn't trip
+]
+
+
+def _user_visible_text(html: str) -> str:
+    """Strip <style>, <script>, comments — keep only text between tags."""
+    html = re.sub(r"<style[\s\S]*?</style>", "", html, flags=re.IGNORECASE)
+    html = re.sub(r"<script[\s\S]*?</script>", "", html, flags=re.IGNORECASE)
+    html = re.sub(r"<!--[\s\S]*?-->", "", html)
+    # Pull strings between tags only — element bodies, not attribute values.
+    return " ".join(m for m in re.findall(r">([^<]+)<", html) if m.strip())
+
+
+def test_student_html_static_first_paint_is_clean():
+    """ADR-005 holds during the static-render flash before JS replaces copy."""
+    html = (REPO_ROOT / "demo" / "student.html").read_text()
+    visible = _user_visible_text(html).lower()
+    for bad in STUDENT_FORBIDDEN_STATIC:
+        assert bad not in visible, (
+            f"surveillance word {bad!r} appears in user-visible text on "
+            f"demo/student.html. Replace with the formation-register equivalent "
+            f"(see original/voice.py for the canonical word choices)."
+        )
