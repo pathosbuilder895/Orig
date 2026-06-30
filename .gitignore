@@ -90,3 +90,8 @@ demo/bluebook/blob-report/
 * 4.*
 ORIGINAL_MASTER_ROADMAP.docx
 legacy_mvp/
+
+# Benchmark output (generated; not tracked by default — uncomment a dated
+# subdirectory to commit a specific evidence run)
+validation/benchmarks/
+
