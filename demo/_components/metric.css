@@ -1,0 +1,180 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   <Metric> — icon + plain English + percent + bar + Technical view chip.
+
+   Replaces every raw decimal currently displayed (0.18, 0.61) with:
+     ✓ Consistent  18%   ▓▓░░░░░░░  [Technical view]
+
+   The math is unchanged. The Technical view chip reveals the raw decimal
+   (and links to the explainer) in a popover.
+
+   Status thresholds map to the SAME ones used in bbook/DESIGN_SYSTEM.md §2:
+      0–40   → attend  (wine)
+      40–70  → watch   (amber)
+      70–100 → calm    (sage)
+
+   Reuses the dashboard CSS variables for color; provides minimal fallbacks.
+   ───────────────────────────────────────────────────────────────────────── */
+
+:where(.metric) {
+  --m-sage:        var(--sage,         #4A6B5C);
+  --m-sage-bg:     var(--sage-dim,     rgba(74,107,92,0.10));
+  --m-amber:       var(--amber,        #B8860B);
+  --m-amber-bg:    var(--amber-dim,    rgba(184,134,11,0.10));
+  --m-wine:        var(--wine,         #6B2737);
+  --m-wine-bg:     var(--wine-dim,     rgba(107,39,55,0.10));
+  --m-text:        var(--text-primary, #1a130a);
+  --m-muted:       var(--text-muted,   #6a5a40);
+  --m-bar-track:   var(--cream-border, rgba(0,0,0,0.08));
+}
+
+.metric {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    "icon word percent"
+    "bar  bar  bar"
+    "tech tech tech";
+  align-items: center;
+  gap: 8px 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--cream-border, rgba(0,0,0,0.08));
+  border-radius: 6px;
+  background: rgba(255,255,255,0.5);
+}
+
+.metric-icon {
+  grid-area: icon;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.metric-word {
+  grid-area: word;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--m-text);
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+.metric-percent {
+  grid-area: percent;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--m-text);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.metric-bar {
+  grid-area: bar;
+  height: 5px;
+  background: var(--m-bar-track);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.metric-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.8s cubic-bezier(0.16,1,0.3,1);
+}
+
+.metric-technical {
+  grid-area: tech;
+  justify-self: end;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--m-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 3px;
+  transition: background 0.15s, color 0.15s;
+}
+.metric-technical:hover {
+  background: var(--cream-border, rgba(0,0,0,0.06));
+  color: var(--m-text);
+}
+.metric-technical::before {
+  content: 'ⓘ ';
+  margin-right: 2px;
+  opacity: 0.6;
+}
+
+/* ── Status variants ──────────────────────────────────────────────────── */
+
+.metric--calm .metric-icon       { background: var(--m-sage-bg);  color: var(--m-sage);  }
+.metric--calm .metric-bar-fill   { background: var(--m-sage); }
+
+.metric--watch .metric-icon      { background: var(--m-amber-bg); color: var(--m-amber); }
+.metric--watch .metric-bar-fill  { background: var(--m-amber); }
+
+.metric--attend .metric-icon     { background: var(--m-wine-bg);  color: var(--m-wine);  }
+.metric--attend .metric-bar-fill { background: var(--m-wine); }
+
+/* Loading state — used before the metric.js wiring runs */
+.metric--loading .metric-percent { color: transparent; background: var(--m-bar-track); border-radius: 3px; width: 2.5em; }
+.metric--loading .metric-word    { color: transparent; background: var(--m-bar-track); border-radius: 3px; width: 60%; }
+
+/* Popover that the Technical view chip opens */
+.metric-popover {
+  margin: 0;
+  border: 1px solid var(--cream-border, rgba(0,0,0,0.15));
+  border-radius: 6px;
+  background: #FFFFFF;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+  padding: 16px 18px;
+  max-width: 320px;
+  color: var(--m-text);
+  font-family: Inter, system-ui, sans-serif;
+}
+.metric-popover::backdrop {
+  background: rgba(0,0,0,0.20);
+}
+.metric-popover h3 {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+.metric-popover dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 10px 0;
+  font-size: 0.85rem;
+}
+.metric-popover dt { color: var(--m-muted); }
+.metric-popover dd { margin: 0; font-family: 'IBM Plex Mono', Menlo, monospace; }
+.metric-popover-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; gap: 10px; }
+.metric-popover-actions button {
+  background: none;
+  border: 1px solid var(--cream-border, rgba(0,0,0,0.15));
+  padding: 5px 12px;
+  border-radius: 3px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.metric-popover-actions a {
+  font-size: 0.82rem;
+  color: var(--oxford, #002147);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metric-bar-fill { transition: none; }
+}

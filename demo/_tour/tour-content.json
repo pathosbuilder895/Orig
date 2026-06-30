@@ -1,0 +1,130 @@
+{
+  "professor": {
+    "title": "60-second tour — Professor Dashboard",
+    "stops": [
+      {
+        "target": "#profHero",
+        "eye": "Stop 1 of 5 · The status line",
+        "title": "Your at-a-glance answer",
+        "body": "This banner answers \"is anything wrong with any student's work right now?\" Sage = all caught up. Amber = a few things worth a look. Wine = needs attention. The number on the right of the topbar shows the same count."
+      },
+      {
+        "target": "#studentRow",
+        "eye": "Stop 2 of 5 · The roster",
+        "title": "Your students",
+        "body": "Click any name to load that student's profile. The dashed \"Add\" pill lets you onboard a new student. Pills colour in once a student has baseline samples."
+      },
+      {
+        "target": ".tab-btn",
+        "eye": "Stop 3 of 5 · Analyse",
+        "title": "Score a new submission",
+        "body": "Paste a piece of student writing here and click Analyse. The result returns a percentage authenticity score, a tier breakdown, and a recommendation written in plain English. Click \"Technical view\" on any metric for the raw deviation."
+      },
+      {
+        "target": "#sb-baselines, .nav-item[onclick*='switchTab']",
+        "eye": "Stop 4 of 5 · Baselines",
+        "title": "Build the voice profile",
+        "body": "Add baseline samples (essays, papers) to strengthen a student's voice profile. \"Request proctored sitting via Bbook\" emails the student a one-sitting magic link — proctored samples carry the highest trust weight."
+      },
+      {
+        "target": "#pendingBaselinesPill",
+        "eye": "Stop 5 of 5 · Pending requests",
+        "title": "Outstanding proctored sittings",
+        "body": "When you request proctored sittings, they appear in this pill until the student completes them. Click it any time to see who's outstanding. The hero answer above mirrors this count."
+      }
+    ]
+  },
+  "student": {
+    "title": "60-second tour — Voice Profile",
+    "stops": [
+      {
+        "target": "#studentHero",
+        "eye": "Stop 1 of 5 · Your status",
+        "title": "Is your voice growing?",
+        "body": "This banner answers \"is my voice growing or holding steady?\" Sage = strengthening or steady. Amber = settling, worth keeping an eye on. Wine = a recent piece reads a little differently — an invitation, never a verdict."
+      },
+      {
+        "target": "#fpSvg, .fp-card",
+        "eye": "Stop 2 of 5 · Voice fingerprint",
+        "title": "Your seven dimensions",
+        "body": "Each axis is a blend of how you write — Cadence, Diction, Texture, Register, Restraint, Architecture, Resonance. The shape is yours. None of these axes corresponds to a single underlying number, so it cannot be reverse-engineered."
+      },
+      {
+        "target": "#arcSvg, .arc-card",
+        "eye": "Stop 3 of 5 · The arc",
+        "title": "Voice across the term",
+        "body": "Each point is one piece of work. The value is a 0–100 fidelity score — higher means the system recognises this piece as yours. The arc shows whether you are strengthening, holding steady, or moving."
+      },
+      {
+        "target": "#fsMilestones, .milestones",
+        "eye": "Stop 4 of 5 · Milestones",
+        "title": "Voice Sampled · Established · Affirmed",
+        "body": "Three named milestones. Not deadlines, not grades — they describe what is already true about your record. The third is reached when a verified piece (proctored or instructor-confirmed) is on file."
+      },
+      {
+        "target": ".btn-primary[onclick*='submit'], #sb-submit",
+        "eye": "Stop 5 of 5 · Submit",
+        "title": "Add to your record",
+        "body": "Submit Work adds a piece to your profile. Each submission appears on the arc and contributes to the fingerprint. Nothing here is graded — this is your formation record."
+      }
+    ]
+  },
+  "admin": {
+    "title": "60-second tour — Admin Console",
+    "stops": [
+      {
+        "target": "#adminHero",
+        "eye": "Stop 1 of 4 · System health",
+        "title": "Is everything healthy?",
+        "body": "This banner answers \"is the system healthy?\" The status comes from the worst KPI — if any students are flagged for attention, the banner reflects that. Sage means quiet."
+      },
+      {
+        "target": ".stats-grid",
+        "eye": "Stop 2 of 4 · The four KPIs",
+        "title": "Students · Baselines · Submissions · Attention",
+        "body": "Four numbers that summarise the institution: how many students are enrolled, how many baseline samples are on file, how many submissions have been scored, and how many students are currently in the attention queue."
+      },
+      {
+        "target": "#studentTable",
+        "eye": "Stop 3 of 4 · Roster",
+        "title": "Every student at a glance",
+        "body": "The full institutional roster. Click any row to jump into the professor's view of that student. The colour bar at the right shows their voice-purity at a glance."
+      },
+      {
+        "target": ".activity-feed, .activity-card",
+        "eye": "Stop 4 of 4 · Recent activity",
+        "title": "What just happened",
+        "body": "Live feed of recent submissions across the institution — who submitted what, when, and the action the system recommended. A scrollable institutional log."
+      }
+    ]
+  },
+  "operator": {
+    "title": "60-second tour — Operator Dashboard",
+    "stops": [
+      {
+        "target": "#operatorHero",
+        "eye": "Stop 1 of 4 · Tenant health",
+        "title": "Are any tenants in trouble?",
+        "body": "This banner answers \"are any of my tenants in trouble?\" A tenant counts as troubled when it has registered students but no baseline samples yet — onboarded but not yet operating."
+      },
+      {
+        "target": ".system-stats",
+        "eye": "Stop 2 of 4 · System overview",
+        "title": "Across all tenants",
+        "body": "Total institutions, students, submissions, and audit entries — the operator's cross-tenant view. Each tenant's contribution is broken out in the cards below."
+      },
+      {
+        "target": "#tenantGrid",
+        "eye": "Stop 3 of 4 · Registered institutions",
+        "title": "Every tenant in one place",
+        "body": "Each card is one school. Click View → professor.html scoped to that tenant. Click View Stats for a quick per-tenant breakdown."
+      },
+      {
+        "target": "button[onclick*='toggleRegForm']",
+        "eye": "Stop 4 of 4 · Register a school",
+        "title": "Onboard a new tenant",
+        "body": "Register the next school. After registration, the school's professor signs in and starts building voice profiles. The system stays multi-tenant — students never cross schools."
+      }
+    ]
+  }
+}

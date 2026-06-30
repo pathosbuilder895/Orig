@@ -1,0 +1,176 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Tour scaffold — opt-in 60-second walkthrough.
+
+   Two surfaces:
+     1. The persistent "Take the 60-second tour" CHIP in the top-right area
+        of each dashboard. Auto-hides after the user dismisses or completes
+        the tour. localStorage key: original_tour_{page}_seen.
+     2. The active TOUR OVERLAY — a translucent backdrop + a positioned
+        card with prose, a position indicator, and Next / Skip controls.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ── 1. The persistent chip ── */
+.tour-chip {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 200;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px 7px 12px;
+  background: var(--cream-warm, #F4EFE6);
+  color: var(--text-primary, #1a130a);
+  border: 1px solid var(--gold, #C9A961);
+  border-radius: 4px;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.04);
+  transition: background 0.15s, transform 0.15s;
+  animation: tour-chip-in 0.5s cubic-bezier(0.16,1,0.3,1) 0.6s both;
+}
+@keyframes tour-chip-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+.tour-chip::before {
+  content: '◐';
+  color: var(--gold, #C9A961);
+  font-size: 1rem;
+  line-height: 1;
+}
+.tour-chip:hover {
+  background: var(--gold-light, rgba(201,169,97,0.18));
+  transform: translateY(-1px);
+}
+.tour-chip-close {
+  margin-left: 4px;
+  background: none;
+  border: none;
+  padding: 2px 5px;
+  cursor: pointer;
+  color: var(--text-muted, #6a5a40);
+  font-size: 0.95rem;
+  line-height: 1;
+  border-radius: 3px;
+}
+.tour-chip-close:hover { color: var(--text-primary, #1a130a); }
+
+/* ── 2. The overlay (backdrop + spotlight card) ── */
+.tour-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: rgba(0, 33, 71, 0.45);
+  animation: tour-fade-in 0.2s ease;
+}
+@keyframes tour-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.tour-card {
+  position: fixed;
+  z-index: 9999;
+  max-width: 380px;
+  padding: 22px 26px;
+  background: #FFFFFF;
+  border: 1px solid var(--cream-border, #D8CFB8);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.22);
+  font-family: Inter, system-ui, sans-serif;
+  color: var(--text-primary, #1a130a);
+  animation: tour-card-in 0.25s cubic-bezier(0.16,1,0.3,1);
+}
+@keyframes tour-card-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+
+.tour-card-eye {
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted, #6a5a40);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.tour-card-title {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0 0 10px;
+  letter-spacing: -0.005em;
+  color: var(--oxford, #002147);
+}
+.tour-card-body {
+  font-size: 0.96rem;
+  line-height: 1.55;
+  color: var(--text-primary, #1a130a);
+  margin: 0 0 18px;
+}
+.tour-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.tour-card-progress {
+  font-family: 'IBM Plex Mono', Menlo, monospace;
+  font-size: 0.75rem;
+  color: var(--text-muted, #6a5a40);
+  letter-spacing: 0.06em;
+}
+.tour-card-buttons { display: flex; gap: 8px; }
+.tour-card-buttons button {
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+}
+.tour-skip {
+  background: none;
+  border: 1px solid var(--cream-border, #D8CFB8);
+  color: var(--text-muted, #6a5a40);
+}
+.tour-skip:hover { background: var(--cream-warm, #F4EFE6); color: var(--text-primary, #1a130a); }
+.tour-next {
+  background: var(--oxford, #002147);
+  color: #F4EFE6;
+  border: 1px solid var(--oxford, #002147);
+}
+.tour-next:hover { opacity: 0.88; }
+
+/* Spotlight — a soft gold ring around the highlighted element */
+.tour-spotlight {
+  position: fixed;
+  z-index: 9999;
+  border: 2px solid var(--gold, #C9A961);
+  border-radius: 6px;
+  box-shadow: 0 0 0 9999px rgba(0, 33, 71, 0.45),
+              0 0 0 4px rgba(201, 169, 97, 0.35);
+  pointer-events: none;
+  transition: top 0.25s, left 0.25s, width 0.25s, height 0.25s;
+  animation: tour-spot-pulse 1.8s ease-in-out infinite;
+}
+@keyframes tour-spot-pulse {
+  0%, 100% { box-shadow: 0 0 0 9999px rgba(0,33,71,0.45), 0 0 0 4px rgba(201,169,97,0.35); }
+  50%      { box-shadow: 0 0 0 9999px rgba(0,33,71,0.45), 0 0 0 8px rgba(201,169,97,0.18); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-chip, .tour-card, .tour-backdrop, .tour-spotlight {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .tour-card { max-width: calc(100vw - 28px); padding: 18px 20px; }
+  .tour-chip { top: 10px; right: 10px; font-size: 0.78rem; }
+}

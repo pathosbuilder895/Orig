@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How Original works — a plain-English explainer</title>
+<style>
+  :root {
+    --oxford: #002147;
+    --cream:  #F4EFE6;
+    --ink:    #1a130a;
+    --muted:  #6a5a40;
+    --gold:   #C9A961;
+    --sage:   #4A6B5C;
+    --wine:   #6B2737;
+    --rule:   #D8CFB8;
+  }
+  html, body { background: var(--cream); color: var(--ink); margin: 0; padding: 0; }
+  body {
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size: 1.05rem;
+    line-height: 1.7;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 28px 80px;
+  }
+  header {
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 28px;
+    margin-bottom: 36px;
+  }
+  .eye {
+    font-family: Inter, system-ui, sans-serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  h1 {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 2.4rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+    margin: 0 0 12px;
+    color: var(--oxford);
+  }
+  .lede {
+    font-style: italic;
+    color: var(--muted);
+    font-size: 1.1rem;
+    margin: 0;
+  }
+  h2 {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 1.55rem;
+    font-weight: 500;
+    margin: 40px 0 14px;
+    color: var(--oxford);
+    letter-spacing: -0.005em;
+  }
+  h3 {
+    font-family: Inter, system-ui, sans-serif;
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 24px 0 6px;
+  }
+  p { margin: 0 0 14px; }
+  ul { margin: 0 0 14px 0; padding-left: 1.2em; }
+  li { margin-bottom: 8px; }
+  code, .mono {
+    font-family: 'IBM Plex Mono', Menlo, monospace;
+    font-size: 0.92em;
+    background: rgba(0,0,0,0.04);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .tldr {
+    background: rgba(74,107,92,0.07);
+    border-left: 3px solid var(--sage);
+    padding: 12px 18px;
+    margin: 16px 0 28px;
+    font-size: 0.98rem;
+    line-height: 1.6;
+  }
+  .tldr-lbl {
+    font-family: Inter, system-ui, sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--sage);
+    font-weight: 600;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .anchor-list {
+    columns: 2;
+    column-gap: 28px;
+    list-style: none;
+    padding-left: 0;
+    font-family: Inter, system-ui, sans-serif;
+    font-size: 0.92rem;
+  }
+  .anchor-list a {
+    color: var(--oxford);
+    text-decoration: none;
+    border-bottom: 1px dotted rgba(0,0,0,0.2);
+  }
+  .anchor-list a:hover { border-bottom-style: solid; }
+  hr { border: none; border-top: 1px solid var(--rule); margin: 36px 0; }
+  footer {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-family: Inter, system-ui, sans-serif;
+    font-size: 0.85rem;
+    color: var(--muted);
+    text-align: center;
+  }
+  /* When a #anchor target lands, give the heading a brief gold highlight. */
+  :target {
+    background: rgba(201,169,97,0.18);
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 1.4s ease;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eye">How Original works · a one-page reading</div>
+  <h1>The plain-English version.</h1>
+  <p class="lede">You do not need a statistics background to use Original. You do not even need to read this page. But if you are curious what is happening, here it is.</p>
+</header>
+
+<div class="tldr">
+  <span class="tldr-lbl">In one paragraph</span>
+  Original reads each piece of student writing and compares it with how that student writes when we are sure it is them — their <em>voice profile</em>. When a new submission stays close to their established voice, the system says so. When it strays, the system invites a conversation rather than rendering a verdict. That is the whole product.
+</div>
+
+<h3>Jump to</h3>
+<ul class="anchor-list">
+  <li><a href="#fingerprint">Voice fingerprint</a></li>
+  <li><a href="#arc">Voice arc</a></li>
+  <li><a href="#voiceNotes">Voice notes</a></li>
+  <li><a href="#milestones">Milestones</a></li>
+  <li><a href="#formation">Formation pathway</a></li>
+  <li><a href="#baseline">Baseline samples</a></li>
+  <li><a href="#proctored">Proctored sittings</a></li>
+  <li><a href="#review">Worth a conversation</a></li>
+  <li><a href="#deviation">How the score is computed</a></li>
+  <li><a href="#tiers">Tier breakdown</a></li>
+  <li><a href="#metrics">Reading the metrics</a></li>
+  <li><a href="#privacy">Privacy and FERPA</a></li>
+</ul>
+
+<hr>
+
+<h2 id="fingerprint">Voice fingerprint</h2>
+<p>Your writing is summarised into <strong>seven blended dimensions</strong> — Cadence, Diction, Texture, Register, Restraint, Architecture, and Resonance. Each one is a blend of underlying measurements, so a single number on the chart does not correspond to a single feature. The blends are the same for every student.</p>
+<p>The radar you see on the student dashboard is a picture of those seven dimensions. The shape itself is not a grade; it is a recognisable outline of how you write.</p>
+
+<h2 id="arc">Voice arc</h2>
+<p>A timeline of how strongly each submission reads like the established voice. Each point is a 0–100 <em>fidelity</em> score — higher means the system recognises this piece as yours. Submitting another piece adds another point to the arc.</p>
+<p>The arc is the answer to "is my voice growing or holding steady this term?" Most students hold steady; some strengthen; the occasional dip is normal.</p>
+
+<h2 id="voiceNotes">Voice notes</h2>
+<p>Written remarks an instructor leaves after reading your work. These are the words a person wrote — encouragement, an observation about a particular sentence, a stylistic note — not anything the system inferred. We surface them on the dashboard because they are usually the most useful thing on it.</p>
+
+<h2 id="milestones">Milestones</h2>
+<p>Three named milestones in your record. None of them are grades:</p>
+<ul>
+  <li><strong>Voice Sampled</strong> — your first piece is on file.</li>
+  <li><strong>Voice Established</strong> — enough is on file that the system recognises your patterns.</li>
+  <li><strong>Voice Affirmed</strong> — at least one verified piece confirms the voice is genuinely yours.</li>
+</ul>
+
+<h2 id="formation">Formation pathway</h2>
+<p>An optional, structured path of three short writing sessions — Baseline, Formation, Verification — designed to <em>strengthen</em> your writing rather than assess it. Your instructor opens a pathway when they want to invest in a particular piece with you. There is no penalty for not being on one.</p>
+
+<h2 id="baseline">Baseline samples</h2>
+<p>A baseline sample is a piece of writing that has been confirmed as genuinely yours. The more baseline samples we have, the more confidently the system can recognise your voice on future submissions. There are three trust levels:</p>
+<ul>
+  <li><strong>Proctored</strong> — written in a locked-down environment with keystroke capture. Highest trust.</li>
+  <li><strong>Verified</strong> — your instructor confirmed it is yours.</li>
+  <li><strong>Unverified</strong> — uploaded by you without confirmation. Useful but weighted less.</li>
+</ul>
+
+<h2 id="proctored">Proctored sittings</h2>
+<p>A proctored sitting is a single writing session in a Bluebook environment — no AI assistants, no web search, no copy-paste, and the rhythm of your typing is recorded along with the words. Because nothing else can be the author, proctored samples carry the strongest signal in your voice profile.</p>
+
+<h2 id="review">Worth a conversation</h2>
+<p>When part of a submission reads differently from your established voice, the system surfaces it as an invitation to look at the piece together. <strong>It is not a score. It is not a verdict. It is not an action.</strong> The intent is formation, not surveillance.</p>
+
+<h2 id="deviation">How the score is computed</h2>
+<p>Each submission is compared with the established voice across <strong>103 stylometric features in seventeen tiers</strong>: sentence rhythm, character habits, function-word patterns, citation style, behavioural keystroke dynamics, and so on. The comparison produces a <em>deviation</em> in [0, 1].</p>
+<p>We present that as <strong>authenticity = (1 − deviation) × 100</strong>, expressed as a percentage. A 90% authenticity reading means the submission stays very close to the established voice; a 30% reading means the system is having trouble recognising it.</p>
+
+<h2 id="tiers">Tier breakdown</h2>
+<p>The seventeen tiers group the features by what they measure. Some are highly resistant to editing — character n-grams, error patterns, citation fingerprint — and those tiers weight a little more heavily when something unusual appears. The instructor view shows the full tier breakdown; the student view stays at the seven blended dimensions.</p>
+
+<h2 id="metrics">Reading the metrics on the dashboard</h2>
+<p>Every metric on the dashboard follows the same pattern:</p>
+<ul>
+  <li>A status icon (<strong>✓ Consistent</strong>, <strong>⚠ Worth a look</strong>, <strong>✗ Diverged</strong>) tells you the headline at a glance.</li>
+  <li>A percentage between 0 and 100 tells you where the metric sits.</li>
+  <li>A coloured bar tells you the same thing visually.</li>
+  <li>A small <em>Technical view</em> link reveals the underlying raw number for the curious.</li>
+</ul>
+<p>The thresholds are the same everywhere: <strong>70–100 is consistent</strong>, <strong>40–70 is worth a look</strong>, <strong>under 40 is diverged</strong>.</p>
+
+<h2 id="privacy">Privacy and FERPA</h2>
+<p>Your writing is yours. Original is FERPA-compliant, operates per-institution, and never trains a model on your work. Baseline samples are stored encrypted; raw text is never sent off-platform. The full data inventory is available from your instructor or institution administrator.</p>
+
+<hr>
+
+<p style="font-style: italic; color: var(--muted); font-size: 0.95rem;">If something on this page is unclear, that is on us. Ask your instructor — or, if you are the instructor, the operator account at your institution — and we will rewrite the section.</p>
+
+<footer>
+  Original · How it works · v1
+</footer>
+
+</body>
+</html>

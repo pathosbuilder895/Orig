@@ -268,8 +268,32 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 .fu{animation:fadeUp .44s cubic-bezier(0.16,1,0.3,1) both}
 .fu1{animation-delay:.05s}.fu2{animation-delay:.13s}.fu3{animation-delay:.21s}.fu4{animation-delay:.30s}
 </style>
+<!-- ── Dashboard intuitiveness pass — primitives + typography floor ── -->
+<link rel="stylesheet" href="_components/hero-answer.css">
+<link rel="stylesheet" href="_components/metric.css">
+<link rel="stylesheet" href="_components/help-hint.css">
+<style>
+  /* Comfort floor for any text that conveys meaning — was 0.6–0.68rem,
+     now bumped to ~12.5px so older readers can scan without leaning in. */
+  :root { --type-floor: 0.78rem; --type-body: 1rem; }
+  .meta, .stat-lbl, .nav-section-label, .empty-serif, .fc-label,
+  .pg-sub, .base-words, .base-date, .badge, .badge-lbl, .stat-d {
+    font-size: var(--type-floor) !important;
+  }
+  .input-notice, .ro-body, .section-body {
+    font-size: var(--type-body); line-height: 1.55;
+  }
+  h1 .help-hint, h2 .help-hint, h3 .help-hint, .card-ttl .help-hint,
+  .pg-ttl .help-hint, .stat-lbl .help-hint {
+    transform: translateY(-2px);
+  }
+</style>
+<script defer src="_components/metric.js"></script>
+<script defer src="_components/help-hint.js"></script>
+<link rel="stylesheet" href="_tour/tour.css">
+<script defer src="_tour/tour.js"></script>
 </head>
-<body>
+<body data-tour-page="student">
 
 <!-- ════ Login gate ════ -->
 <div class="gate" id="loginGate" style="display:none">
@@ -350,7 +374,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
   </aside>
 
   <!-- ── Main ── -->
-  <div class="main">
+  <div class="main" role="main">
     <div class="topbar">
       <div class="bc">
         <span>Original</span>
@@ -363,6 +387,18 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
     <!-- ════ View: Voice Profile ════ -->
     <div id="view-profile" class="view active">
       <div class="page-body">
+        <!-- ── HeroAnswer: "Is my voice growing or holding steady this term?" ── -->
+        <div id="studentHero"
+             class="hero-answer hero-answer--loading"
+             data-hero-answer="student"
+             data-tour-id="hero"
+             aria-live="polite"
+             style="max-width:780px">
+          <div class="hero-answer-eye">Your voice this term</div>
+          <div class="hero-answer-headline">Loading…</div>
+          <div class="hero-answer-detail"></div>
+        </div>
+
         <div class="pg-hdr fu">
           <div class="pg-eye" id="proEye">Your writing voice, over time</div>
           <div class="pg-title" id="proTitle">Your voice is finding its shape.</div>
@@ -705,7 +741,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
         <div class="card fu fu1" style="padding:20px 24px 8px;margin-bottom:22px;max-width:620px">
           <div class="card-head" style="padding:0 0 14px 0">
             <div class="card-lbl">Formation Opportunity</div>
-            <div class="card-ttl" id="ftTitle">Voice divergence — worth a conversation</div>
+            <div class="card-ttl" id="ftTitle">Worth a conversation</div>
           </div>
           <div class="ft-intro">
             A passage in your recent submission reads differently from your established voice. This is not unusual — it happens to every writer. The formation pathway below gives you a structured way to work through it.
@@ -1289,6 +1325,50 @@ async function loadProfile() {
   const latest = analysed[analysed.length-1];
   const fVals0 = analysed.map(h=>fidFromDev(h.divergence_score));
   const grewBy = fVals0.length>=2 ? (fVals0[fVals0.length-1]-fVals0[0]) : 0;
+  // ── HeroAnswer: the 5-second answer ────────────────────────────────────
+  // Question answered: "Is my voice growing or holding steady this term?"
+  // Reuses voice.py's resolved headline / subhead when present (formation-
+  // register prose, redacted of surveillance jargon by ADR-005).
+  (function renderStudentHero() {
+    const hero = document.getElementById('studentHero');
+    if (!hero) return;
+    const hasFlag = v
+      ? (Array.isArray(v.review_opportunities) && v.review_opportunities.length > 0)
+      : (latest && latest.action && latest.action !== 'no_action');
+    const latestFid = latest ? fidFromDev(latest.divergence_score) : null;
+    let status, eye, head, detail;
+    if (!analysed.length) {
+      status = 'calm';
+      eye    = 'A clean page';
+      head   = `${first}, your voice is finding its shape.`;
+      detail = 'Submit your first piece below to begin your record.';
+    } else if (hasFlag) {
+      status = 'attend';
+      eye    = 'Worth a conversation';
+      head   = (v && v.headline) || `${first}, a recent piece reads a little differently.`;
+      detail = (v && v.subhead)  || 'Open it with your tutor — it is an invitation, not a verdict.';
+    } else if (grewBy >= 8) {
+      status = 'calm';
+      eye    = 'Voice strengthening';
+      head   = (v && v.headline) || `${first}, your voice strengthened across this term.`;
+      detail = (v && v.subhead)  || `Voice fidelity ${latestFid} on your latest piece — up ${grewBy} since the start of term.`;
+    } else if (grewBy <= -8) {
+      status = 'watch';
+      eye    = 'Voice finding its footing';
+      head   = (v && v.headline) || `${first}, your voice is finding its footing.`;
+      detail = (v && v.subhead)  || `Voice fidelity ${latestFid} on your latest piece.`;
+    } else {
+      status = 'calm';
+      eye    = 'Voice holding steady';
+      head   = (v && v.headline) || `${first}, your voice is settling into itself.`;
+      detail = (v && v.subhead)  || `Voice fidelity ${latestFid} on your latest piece.`;
+    }
+    hero.classList.remove('hero-answer--loading','hero-answer--calm','hero-answer--watch','hero-answer--attend');
+    hero.classList.add('hero-answer--' + status);
+    hero.querySelector('.hero-answer-eye').textContent = eye;
+    hero.querySelector('.hero-answer-headline').textContent = head;
+    hero.querySelector('.hero-answer-detail').textContent = detail;
+  })();
   if (v && v.headline) {
     document.getElementById('proTitle').textContent = v.headline;
     document.getElementById('proSub').textContent   = v.subhead || '';
