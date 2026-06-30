@@ -96,3 +96,10 @@ legacy_mvp/
 validation/benchmarks/*
 !validation/benchmarks/README.md
 
+# Stability-study output (same pattern — gitignored by default, evidence
+# runs committed explicitly with `git add -f`). The first study run
+# (2026-06-30/) is force-tracked as the headline evidence for the
+# length-stability PR.
+validation/stability/2*/
+!validation/stability/2026-06-30/
+
