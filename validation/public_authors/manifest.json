@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "created_at": "2026-06-30T20:22:11Z",
+  "created_at": "2026-06-30T21:06:40Z",
   "description": "Public-author validation corpus for Original. Each essay is uniquely attributed by the public record; the manifest fixes a 3-baseline / N-scored split per author.",
   "authors": {
     "james": {
@@ -30,21 +30,25 @@
     "newman": {
       "name": "John Henry Newman",
       "native_english": true
+    },
+    "kempis": {
+      "name": "Thomas \u00e0 Kempis",
+      "native_english": true
+    },
+    "augustine": {
+      "name": "Augustine of Hippo",
+      "native_english": true
+    },
+    "boethius": {
+      "name": "Boethius",
+      "native_english": true
+    },
+    "edwards": {
+      "name": "Jonathan Edwards",
+      "native_english": true
     }
   },
   "entries": [
-    {
-      "filename": "james/what_pragmatism_means.txt",
-      "author_id": "james",
-      "label": "authentic",
-      "prompt": "What Pragmatism Means",
-      "word_count": 7168,
-      "is_baseline": false,
-      "ai_provider": "none",
-      "theological_tradition": null,
-      "native_english": true,
-      "notes": "Source: https://en.wikisource.org/wiki/Pragmatism:_A_New_Name_for_Some_Old_Ways_of_Thinking/Lecture_II"
-    },
     {
       "filename": "emerson/self_reliance.txt",
       "author_id": "emerson",
@@ -344,6 +348,366 @@
       "theological_tradition": null,
       "native_english": true,
       "notes": "Source: Project Gutenberg pg24526 \u2014 The Idea of a University, chunk 5/5"
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_01.txt",
+      "author_id": "james",
+      "label": "authentic",
+      "prompt": "The Varieties of Religious Experience (part 1 of 8)",
+      "word_count": 34237,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg621 \u2014 The Varieties of Religious Experience, chunk 1/8"
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_02.txt",
+      "author_id": "james",
+      "label": "authentic",
+      "prompt": "The Varieties of Religious Experience (part 2 of 8)",
+      "word_count": 36744,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg621 \u2014 The Varieties of Religious Experience, chunk 2/8"
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_03.txt",
+      "author_id": "james",
+      "label": "authentic",
+      "prompt": "The Varieties of Religious Experience (part 3 of 8)",
+      "word_count": 28947,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg621 \u2014 The Varieties of Religious Experience, chunk 3/8"
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_04.txt",
+      "author_id": "james",
+      "label": "authentic",
+      "prompt": "The Varieties of Religious Experience (part 4 of 8)",
+      "word_count": 34818,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg621 \u2014 The Varieties of Religious Experience, chunk 4/8"
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_05.txt",
+      "author_id": "james",
+      "label": "authentic",
+      "prompt": "The Varieties of Religious Experience (part 5 of 8)",
+      "word_count": 20322,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg621 \u2014 The Varieties of Religious Experience, chunk 5/8"
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_06.txt",
+      "author_id": "james",
+      "label": "authentic",
+      "prompt": "The Varieties of Religious Experience (part 6 of 8)",
+      "word_count": 1427,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg621 \u2014 The Varieties of Religious Experience, chunk 6/8"
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_07.txt",
+      "author_id": "james",
+      "label": "authentic",
+      "prompt": "The Varieties of Religious Experience (part 7 of 8)",
+      "word_count": 11256,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg621 \u2014 The Varieties of Religious Experience, chunk 7/8"
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_08.txt",
+      "author_id": "james",
+      "label": "authentic",
+      "prompt": "The Varieties of Religious Experience (part 8 of 8)",
+      "word_count": 18623,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg621 \u2014 The Varieties of Religious Experience, chunk 8/8"
+    },
+    {
+      "filename": "kempis/the_imitation_of_christ_part_01.txt",
+      "author_id": "kempis",
+      "label": "authentic",
+      "prompt": "The Imitation of Christ (part 1 of 5)",
+      "word_count": 17,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg1653 \u2014 The Imitation of Christ, chunk 1/5"
+    },
+    {
+      "filename": "kempis/the_imitation_of_christ_part_02.txt",
+      "author_id": "kempis",
+      "label": "authentic",
+      "prompt": "The Imitation of Christ (part 2 of 5)",
+      "word_count": 7,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg1653 \u2014 The Imitation of Christ, chunk 2/5"
+    },
+    {
+      "filename": "kempis/the_imitation_of_christ_part_03.txt",
+      "author_id": "kempis",
+      "label": "authentic",
+      "prompt": "The Imitation of Christ (part 3 of 5)",
+      "word_count": 7,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg1653 \u2014 The Imitation of Christ, chunk 3/5"
+    },
+    {
+      "filename": "kempis/the_imitation_of_christ_part_04.txt",
+      "author_id": "kempis",
+      "label": "authentic",
+      "prompt": "The Imitation of Christ (part 4 of 5)",
+      "word_count": 6,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg1653 \u2014 The Imitation of Christ, chunk 4/5"
+    },
+    {
+      "filename": "kempis/the_imitation_of_christ_part_05.txt",
+      "author_id": "kempis",
+      "label": "authentic",
+      "prompt": "The Imitation of Christ (part 5 of 5)",
+      "word_count": 8,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg1653 \u2014 The Imitation of Christ, chunk 5/5"
+    },
+    {
+      "filename": "augustine/confessions_part_01.txt",
+      "author_id": "augustine",
+      "label": "authentic",
+      "prompt": "Confessions (part 1 of 6)",
+      "word_count": 15061,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg3296 \u2014 Confessions, chunk 1/6"
+    },
+    {
+      "filename": "augustine/confessions_part_02.txt",
+      "author_id": "augustine",
+      "label": "authentic",
+      "prompt": "Confessions (part 2 of 6)",
+      "word_count": 20399,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg3296 \u2014 Confessions, chunk 2/6"
+    },
+    {
+      "filename": "augustine/confessions_part_03.txt",
+      "author_id": "augustine",
+      "label": "authentic",
+      "prompt": "Confessions (part 3 of 6)",
+      "word_count": 21041,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg3296 \u2014 Confessions, chunk 3/6"
+    },
+    {
+      "filename": "augustine/confessions_part_04.txt",
+      "author_id": "augustine",
+      "label": "authentic",
+      "prompt": "Confessions (part 4 of 6)",
+      "word_count": 18244,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg3296 \u2014 Confessions, chunk 4/6"
+    },
+    {
+      "filename": "augustine/confessions_part_05.txt",
+      "author_id": "augustine",
+      "label": "authentic",
+      "prompt": "Confessions (part 5 of 6)",
+      "word_count": 17363,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg3296 \u2014 Confessions, chunk 5/6"
+    },
+    {
+      "filename": "augustine/confessions_part_06.txt",
+      "author_id": "augustine",
+      "label": "authentic",
+      "prompt": "Confessions (part 6 of 6)",
+      "word_count": 19713,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg3296 \u2014 Confessions, chunk 6/6"
+    },
+    {
+      "filename": "boethius/the_consolation_of_philosophy_part_01.txt",
+      "author_id": "boethius",
+      "label": "authentic",
+      "prompt": "The Consolation of Philosophy (part 1 of 5)",
+      "word_count": 10753,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg14328 \u2014 The Consolation of Philosophy, chunk 1/5"
+    },
+    {
+      "filename": "boethius/the_consolation_of_philosophy_part_02.txt",
+      "author_id": "boethius",
+      "label": "authentic",
+      "prompt": "The Consolation of Philosophy (part 2 of 5)",
+      "word_count": 9284,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg14328 \u2014 The Consolation of Philosophy, chunk 2/5"
+    },
+    {
+      "filename": "boethius/the_consolation_of_philosophy_part_03.txt",
+      "author_id": "boethius",
+      "label": "authentic",
+      "prompt": "The Consolation of Philosophy (part 3 of 5)",
+      "word_count": 5299,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg14328 \u2014 The Consolation of Philosophy, chunk 3/5"
+    },
+    {
+      "filename": "boethius/the_consolation_of_philosophy_part_04.txt",
+      "author_id": "boethius",
+      "label": "authentic",
+      "prompt": "The Consolation of Philosophy (part 4 of 5)",
+      "word_count": 8536,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg14328 \u2014 The Consolation of Philosophy, chunk 4/5"
+    },
+    {
+      "filename": "boethius/the_consolation_of_philosophy_part_05.txt",
+      "author_id": "boethius",
+      "label": "authentic",
+      "prompt": "The Consolation of Philosophy (part 5 of 5)",
+      "word_count": 8838,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg14328 \u2014 The Consolation of Philosophy, chunk 5/5"
+    },
+    {
+      "filename": "edwards/a_treatise_concerning_religious_affections_part_01.txt",
+      "author_id": "edwards",
+      "label": "authentic",
+      "prompt": "A Treatise Concerning Religious Affections (part 1 of 6)",
+      "word_count": 17743,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg24962 \u2014 A Treatise Concerning Religious Affections, chunk 1/6"
+    },
+    {
+      "filename": "edwards/a_treatise_concerning_religious_affections_part_02.txt",
+      "author_id": "edwards",
+      "label": "authentic",
+      "prompt": "A Treatise Concerning Religious Affections (part 2 of 6)",
+      "word_count": 19364,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg24962 \u2014 A Treatise Concerning Religious Affections, chunk 2/6"
+    },
+    {
+      "filename": "edwards/a_treatise_concerning_religious_affections_part_03.txt",
+      "author_id": "edwards",
+      "label": "authentic",
+      "prompt": "A Treatise Concerning Religious Affections (part 3 of 6)",
+      "word_count": 18173,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg24962 \u2014 A Treatise Concerning Religious Affections, chunk 3/6"
+    },
+    {
+      "filename": "edwards/a_treatise_concerning_religious_affections_part_04.txt",
+      "author_id": "edwards",
+      "label": "authentic",
+      "prompt": "A Treatise Concerning Religious Affections (part 4 of 6)",
+      "word_count": 19809,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg24962 \u2014 A Treatise Concerning Religious Affections, chunk 4/6"
+    },
+    {
+      "filename": "edwards/a_treatise_concerning_religious_affections_part_05.txt",
+      "author_id": "edwards",
+      "label": "authentic",
+      "prompt": "A Treatise Concerning Religious Affections (part 5 of 6)",
+      "word_count": 21662,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg24962 \u2014 A Treatise Concerning Religious Affections, chunk 5/6"
+    },
+    {
+      "filename": "edwards/a_treatise_concerning_religious_affections_part_06.txt",
+      "author_id": "edwards",
+      "label": "authentic",
+      "prompt": "A Treatise Concerning Religious Affections (part 6 of 6)",
+      "word_count": 17192,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg24962 \u2014 A Treatise Concerning Religious Affections, chunk 6/6"
     }
   ]
 }

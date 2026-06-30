@@ -1,0 +1,1358 @@
+{
+  "generated_at": "2026-06-30T21:24:21.996213Z",
+  "environment": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "adaptive_weights_enabled": "0",
+    "environment": "testing",
+    "original_db": ":memory:",
+    "numpy_seeded": true,
+    "python_seeded": true
+  },
+  "corpus": {
+    "authors": [
+      "augustine",
+      "boethius",
+      "chesterton",
+      "edwards",
+      "james",
+      "kempis",
+      "mill",
+      "newman"
+    ],
+    "n_authors": 8,
+    "word_counts": {
+      "augustine": 111821,
+      "boethius": 42710,
+      "chesterton": 63819,
+      "edwards": 113943,
+      "james": 186374,
+      "kempis": 63393,
+      "mill": 52045,
+      "newman": 159383
+    },
+    "window_counts_per_length": [
+      {
+        "length": 250,
+        "per_author": {
+          "augustine": 12,
+          "boethius": 12,
+          "chesterton": 12,
+          "edwards": 12,
+          "james": 12,
+          "kempis": 12,
+          "mill": 12,
+          "newman": 12
+        }
+      },
+      {
+        "length": 500,
+        "per_author": {
+          "augustine": 12,
+          "boethius": 12,
+          "chesterton": 12,
+          "edwards": 12,
+          "james": 12,
+          "kempis": 12,
+          "mill": 12,
+          "newman": 12
+        }
+      },
+      {
+        "length": 1000,
+        "per_author": {
+          "augustine": 12,
+          "boethius": 12,
+          "chesterton": 12,
+          "edwards": 12,
+          "james": 12,
+          "kempis": 12,
+          "mill": 12,
+          "newman": 12
+        }
+      },
+      {
+        "length": 2000,
+        "per_author": {
+          "augustine": 12,
+          "boethius": 12,
+          "chesterton": 12,
+          "edwards": 12,
+          "james": 12,
+          "kempis": 12,
+          "mill": 12,
+          "newman": 12
+        }
+      },
+      {
+        "length": 5000,
+        "per_author": {
+          "augustine": 12,
+          "boethius": 8,
+          "chesterton": 12,
+          "edwards": 12,
+          "james": 12,
+          "kempis": 12,
+          "mill": 10,
+          "newman": 12
+        }
+      }
+    ]
+  },
+  "lengths": [
+    250,
+    500,
+    1000,
+    2000,
+    5000
+  ],
+  "fisher_matrix": [
+    {
+      "feature": "type_token_ratio",
+      "tier": 1,
+      "F": [
+        0.7395,
+        0.4462,
+        0.193,
+        0.2032,
+        0.1434
+      ],
+      "stability_ratio_500_over_5000": 3.113
+    },
+    {
+      "feature": "hapax_legomena_rate",
+      "tier": 1,
+      "F": [
+        0.7299,
+        0.6413,
+        0.239,
+        0.4669,
+        0.9998
+      ],
+      "stability_ratio_500_over_5000": 0.6415
+    },
+    {
+      "feature": "mean_sentence_length",
+      "tier": 1,
+      "F": [
+        0.3788,
+        0.6105,
+        1.2703,
+        1.7145,
+        2.1004
+      ],
+      "stability_ratio_500_over_5000": 0.2907
+    },
+    {
+      "feature": "sentence_length_variance",
+      "tier": 1,
+      "F": [
+        0.6954,
+        0.5983,
+        0.4328,
+        0.1707,
+        0.0
+      ],
+      "stability_ratio_500_over_5000": null
+    },
+    {
+      "feature": "function_word_ratio",
+      "tier": 1,
+      "F": [
+        2.2764,
+        4.1104,
+        9.891,
+        14.7251,
+        33.5364
+      ],
+      "stability_ratio_500_over_5000": 0.1226
+    },
+    {
+      "feature": "passive_voice_ratio",
+      "tier": 1,
+      "F": [
+        0.4982,
+        0.5648,
+        0.8337,
+        1.2033,
+        2.5381
+      ],
+      "stability_ratio_500_over_5000": 0.2225
+    },
+    {
+      "feature": "modal_verb_ratio",
+      "tier": 1,
+      "F": [
+        0.6118,
+        0.5948,
+        0.9385,
+        1.9391,
+        2.5118
+      ],
+      "stability_ratio_500_over_5000": 0.2368
+    },
+    {
+      "feature": "stop_word_ratio",
+      "tier": 1,
+      "F": [
+        3.0677,
+        5.7842,
+        12.3856,
+        18.8651,
+        37.5205
+      ],
+      "stability_ratio_500_over_5000": 0.1542
+    },
+    {
+      "feature": "avg_word_length",
+      "tier": 1,
+      "F": [
+        0.7067,
+        1.8608,
+        2.0338,
+        2.8881,
+        3.8038
+      ],
+      "stability_ratio_500_over_5000": 0.4892
+    },
+    {
+      "feature": "discourse_marker_density",
+      "tier": 2,
+      "F": [
+        0.8185,
+        1.1113,
+        0.953,
+        2.4046,
+        1.5975
+      ],
+      "stability_ratio_500_over_5000": 0.6956
+    },
+    {
+      "feature": "additive_ratio",
+      "tier": 2,
+      "F": [
+        0.1026,
+        0.2029,
+        0.2486,
+        0.5029,
+        0.4019
+      ],
+      "stability_ratio_500_over_5000": 0.5049
+    },
+    {
+      "feature": "adversative_ratio",
+      "tier": 2,
+      "F": [
+        0.5291,
+        0.6797,
+        1.013,
+        0.2223,
+        0.0527
+      ],
+      "stability_ratio_500_over_5000": 12.9043
+    },
+    {
+      "feature": "causal_ratio",
+      "tier": 2,
+      "F": [
+        0.4039,
+        0.7647,
+        1.375,
+        1.5597,
+        2.1041
+      ],
+      "stability_ratio_500_over_5000": 0.3634
+    },
+    {
+      "feature": "temporal_ratio",
+      "tier": 2,
+      "F": [
+        0.0508,
+        0.0442,
+        0.0577,
+        0.0711,
+        0.0577
+      ],
+      "stability_ratio_500_over_5000": 0.7662
+    },
+    {
+      "feature": "thematic_progression_score",
+      "tier": 2,
+      "F": [
+        0.2075,
+        0.2068,
+        0.3167,
+        0.6797,
+        0.8025
+      ],
+      "stability_ratio_500_over_5000": 0.2577
+    },
+    {
+      "feature": "pronoun_reference_density",
+      "tier": 2,
+      "F": [
+        1.0062,
+        1.819,
+        3.1827,
+        5.0637,
+        6.0787
+      ],
+      "stability_ratio_500_over_5000": 0.2992
+    },
+    {
+      "feature": "lexical_chain_density",
+      "tier": 2,
+      "F": [
+        0.4059,
+        0.3451,
+        0.1905,
+        0.3119,
+        0.6463
+      ],
+      "stability_ratio_500_over_5000": 0.5339
+    },
+    {
+      "feature": "paragraph_topic_position",
+      "tier": 2,
+      "F": [
+        0.099,
+        0.0758,
+        0.0256,
+        0.1123,
+        0.0702
+      ],
+      "stability_ratio_500_over_5000": 1.0798
+    },
+    {
+      "feature": "avg_paragraph_length",
+      "tier": 2,
+      "F": [
+        0.2237,
+        0.2772,
+        0.0683,
+        0.2237,
+        0.1537
+      ],
+      "stability_ratio_500_over_5000": 1.8036
+    },
+    {
+      "feature": "sentence_opener_variety",
+      "tier": 2,
+      "F": [
+        0.5891,
+        1.3387,
+        2.5753,
+        5.1598,
+        8.2329
+      ],
+      "stability_ratio_500_over_5000": 0.1626
+    },
+    {
+      "feature": "cohesion_device_ratio",
+      "tier": 2,
+      "F": [
+        1.0355,
+        0.8535,
+        0.3329,
+        0.5485,
+        2.0712
+      ],
+      "stability_ratio_500_over_5000": 0.4121
+    },
+    {
+      "feature": "transition_density",
+      "tier": 2,
+      "F": [
+        1.0247,
+        1.0651,
+        2.29,
+        2.4611,
+        4.8649
+      ],
+      "stability_ratio_500_over_5000": 0.2189
+    },
+    {
+      "feature": "epistemic_certainty_ratio",
+      "tier": 3,
+      "F": [
+        0.485,
+        0.6823,
+        0.7469,
+        1.441,
+        2.2278
+      ],
+      "stability_ratio_500_over_5000": 0.3063
+    },
+    {
+      "feature": "hedging_density",
+      "tier": 3,
+      "F": [
+        0.4251,
+        0.682,
+        1.167,
+        1.3943,
+        2.3528
+      ],
+      "stability_ratio_500_over_5000": 0.2899
+    },
+    {
+      "feature": "assertion_density",
+      "tier": 3,
+      "F": [
+        0.2347,
+        0.3824,
+        0.4518,
+        0.454,
+        0.7132
+      ],
+      "stability_ratio_500_over_5000": 0.5362
+    },
+    {
+      "feature": "source_integration_style",
+      "tier": 3,
+      "F": [
+        0.1618,
+        0.0557,
+        0.1109,
+        0.2861,
+        0.2284
+      ],
+      "stability_ratio_500_over_5000": 0.2436
+    },
+    {
+      "feature": "counter_argument_ratio",
+      "tier": 3,
+      "F": [
+        0.1859,
+        0.2347,
+        0.5104,
+        0.7722,
+        1.8437
+      ],
+      "stability_ratio_500_over_5000": 0.1273
+    },
+    {
+      "feature": "claim_density",
+      "tier": 3,
+      "F": [
+        0.2092,
+        0.2641,
+        0.4203,
+        0.302,
+        0.703
+      ],
+      "stability_ratio_500_over_5000": 0.3757
+    },
+    {
+      "feature": "question_ratio",
+      "tier": 3,
+      "F": [
+        0.2514,
+        0.4088,
+        0.913,
+        1.0092,
+        0.9157
+      ],
+      "stability_ratio_500_over_5000": 0.4464
+    },
+    {
+      "feature": "imperative_density",
+      "tier": 3,
+      "F": [
+        0.1652,
+        0.1893,
+        0.2489,
+        0.8992,
+        1.1156
+      ],
+      "stability_ratio_500_over_5000": 0.1696
+    },
+    {
+      "feature": "first_person_ratio",
+      "tier": 3,
+      "F": [
+        0.3504,
+        0.6277,
+        1.8361,
+        2.265,
+        5.3404
+      ],
+      "stability_ratio_500_over_5000": 0.1175
+    },
+    {
+      "feature": "appeal_to_authority_density",
+      "tier": 3,
+      "F": [
+        0.033,
+        0.1069,
+        0.1981,
+        0.1891,
+        0.1847
+      ],
+      "stability_ratio_500_over_5000": 0.5787
+    },
+    {
+      "feature": "conclusion_strategy_score",
+      "tier": 3,
+      "F": [
+        0.1,
+        0.1347,
+        0.2435,
+        0.2121,
+        0.5409
+      ],
+      "stability_ratio_500_over_5000": 0.249
+    },
+    {
+      "feature": "theological_register_score",
+      "tier": 3,
+      "F": [
+        0.0729,
+        0.2223,
+        0.2596,
+        0.2841,
+        0.1585
+      ],
+      "stability_ratio_500_over_5000": 1.4022
+    },
+    {
+      "feature": "char_trigram_entropy",
+      "tier": 4,
+      "F": [
+        1.0002,
+        1.032,
+        0.6084,
+        1.6108,
+        1.3719
+      ],
+      "stability_ratio_500_over_5000": 0.7522
+    },
+    {
+      "feature": "punctuation_diversity",
+      "tier": 4,
+      "F": [
+        0.5853,
+        0.6645,
+        1.0483,
+        2.1552,
+        3.1357
+      ],
+      "stability_ratio_500_over_5000": 0.2119
+    },
+    {
+      "feature": "comma_rate",
+      "tier": 4,
+      "F": [
+        1.0597,
+        1.7523,
+        2.8715,
+        3.7445,
+        5.3512
+      ],
+      "stability_ratio_500_over_5000": 0.3275
+    },
+    {
+      "feature": "semicolon_colon_rate",
+      "tier": 4,
+      "F": [
+        0.4502,
+        0.6977,
+        0.6265,
+        1.8564,
+        0.7153
+      ],
+      "stability_ratio_500_over_5000": 0.9755
+    },
+    {
+      "feature": "parenthetical_rate",
+      "tier": 4,
+      "F": [
+        0.1302,
+        0.0828,
+        0.2148,
+        0.526,
+        1.6464
+      ],
+      "stability_ratio_500_over_5000": 0.0503
+    },
+    {
+      "feature": "dash_rate",
+      "tier": 4,
+      "F": [
+        1.8751,
+        7.4707,
+        11.9009,
+        16.6521,
+        36.4679
+      ],
+      "stability_ratio_500_over_5000": 0.2049
+    },
+    {
+      "feature": "quote_rate",
+      "tier": 4,
+      "F": [
+        0.463,
+        0.173,
+        0.1972,
+        0.3237,
+        0.6451
+      ],
+      "stability_ratio_500_over_5000": 0.2682
+    },
+    {
+      "feature": "pos_bigram_entropy",
+      "tier": 5,
+      "F": [
+        4.4152,
+        9.5026,
+        11.9466,
+        32.2069,
+        53.1099
+      ],
+      "stability_ratio_500_over_5000": 0.1789
+    },
+    {
+      "feature": "pos_trigram_entropy",
+      "tier": 5,
+      "F": [
+        2.7561,
+        4.2908,
+        4.1667,
+        9.8401,
+        12.7533
+      ],
+      "stability_ratio_500_over_5000": 0.3364
+    },
+    {
+      "feature": "noun_verb_ratio",
+      "tier": 5,
+      "F": [
+        1.586,
+        2.0164,
+        4.2464,
+        8.8066,
+        28.4514
+      ],
+      "stability_ratio_500_over_5000": 0.0709
+    },
+    {
+      "feature": "adjective_rate",
+      "tier": 5,
+      "F": [
+        0.5758,
+        0.9883,
+        1.7033,
+        1.9765,
+        2.7111
+      ],
+      "stability_ratio_500_over_5000": 0.3645
+    },
+    {
+      "feature": "adverb_rate",
+      "tier": 5,
+      "F": [
+        0.7174,
+        1.117,
+        1.5069,
+        2.5995,
+        3.131
+      ],
+      "stability_ratio_500_over_5000": 0.3568
+    },
+    {
+      "feature": "subordination_ratio",
+      "tier": 5,
+      "F": [
+        0.5124,
+        0.6532,
+        1.0796,
+        1.3902,
+        2.3401
+      ],
+      "stability_ratio_500_over_5000": 0.2791
+    },
+    {
+      "feature": "clause_depth_mean",
+      "tier": 5,
+      "F": [
+        0.7162,
+        1.1023,
+        1.7871,
+        3.6382,
+        6.4597
+      ],
+      "stability_ratio_500_over_5000": 0.1706
+    },
+    {
+      "feature": "contraction_rate",
+      "tier": 6,
+      "F": [
+        0.573,
+        0.9214,
+        0.9857,
+        1.2902,
+        3.0253
+      ],
+      "stability_ratio_500_over_5000": 0.3046
+    },
+    {
+      "feature": "sentence_initial_conjunction_rate",
+      "tier": 6,
+      "F": [
+        0.7875,
+        1.0498,
+        1.6475,
+        2.0206,
+        3.8196
+      ],
+      "stability_ratio_500_over_5000": 0.2749
+    },
+    {
+      "feature": "that_which_ratio",
+      "tier": 6,
+      "F": [
+        0.0909,
+        0.1508,
+        0.5028,
+        0.8903,
+        0.9265
+      ],
+      "stability_ratio_500_over_5000": 0.1628
+    },
+    {
+      "feature": "citation_style_consistency",
+      "tier": 6,
+      "F": [
+        0.0,
+        0.0,
+        0.0,
+        0.0795,
+        0.0795
+      ],
+      "stability_ratio_500_over_5000": 0.0
+    },
+    {
+      "feature": "list_marker_preference",
+      "tier": 6,
+      "F": [
+        0.0904,
+        0.0714,
+        0.3248,
+        0.4875,
+        0.5238
+      ],
+      "stability_ratio_500_over_5000": 0.1364
+    },
+    {
+      "feature": "abbreviation_tendency",
+      "tier": 6,
+      "F": [
+        0.4218,
+        0.4822,
+        0.304,
+        0.4551,
+        0.3745
+      ],
+      "stability_ratio_500_over_5000": 1.2876
+    },
+    {
+      "feature": "burstiness",
+      "tier": 7,
+      "F": [
+        0.4386,
+        0.6771,
+        1.0712,
+        1.2542,
+        0.9442
+      ],
+      "stability_ratio_500_over_5000": 0.7171
+    },
+    {
+      "feature": "perplexity_proxy",
+      "tier": 7,
+      "F": [
+        15.0265,
+        35.4982,
+        69.3517,
+        86.7632,
+        139.4024
+      ],
+      "stability_ratio_500_over_5000": 0.2546
+    },
+    {
+      "feature": "repetition_gap_entropy",
+      "tier": 7,
+      "F": [
+        0.5409,
+        0.558,
+        0.2097,
+        0.197,
+        0.1564
+      ],
+      "stability_ratio_500_over_5000": 3.5676
+    },
+    {
+      "feature": "transition_predictability",
+      "tier": 7,
+      "F": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "stability_ratio_500_over_5000": null
+    },
+    {
+      "feature": "vocabulary_introduction_rate",
+      "tier": 7,
+      "F": [
+        0.2261,
+        0.0836,
+        0.0979,
+        0.2264,
+        0.718
+      ],
+      "stability_ratio_500_over_5000": 0.1165
+    },
+    {
+      "feature": "filler_hedge_cluster_rate",
+      "tier": 7,
+      "F": [
+        0.1723,
+        0.4747,
+        1.2808,
+        2.3886,
+        4.815
+      ],
+      "stability_ratio_500_over_5000": 0.0986
+    },
+    {
+      "feature": "stress_entropy_unigram",
+      "tier": 8,
+      "F": [
+        1.1553,
+        1.809,
+        2.747,
+        3.9213,
+        3.748
+      ],
+      "stability_ratio_500_over_5000": 0.4827
+    },
+    {
+      "feature": "stress_entropy_bigram",
+      "tier": 8,
+      "F": [
+        1.1948,
+        1.8556,
+        3.0495,
+        3.826,
+        3.0414
+      ],
+      "stability_ratio_500_over_5000": 0.6101
+    },
+    {
+      "feature": "clausulae_consistency",
+      "tier": 8,
+      "F": [
+        0.1463,
+        0.1815,
+        0.2027,
+        0.3161,
+        0.7174
+      ],
+      "stability_ratio_500_over_5000": 0.2531
+    },
+    {
+      "feature": "breath_group_variance",
+      "tier": 8,
+      "F": [
+        0.0715,
+        0.0839,
+        0.1545,
+        0.2161,
+        0.4147
+      ],
+      "stability_ratio_500_over_5000": 0.2024
+    },
+    {
+      "feature": "structural_centrist_penalty",
+      "tier": 9,
+      "F": [
+        0.1824,
+        0.3001,
+        0.2076,
+        0.5648,
+        0.7561
+      ],
+      "stability_ratio_500_over_5000": 0.3969
+    },
+    {
+      "feature": "argument_sequence_likelihood",
+      "tier": 9,
+      "F": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "stability_ratio_500_over_5000": null
+    },
+    {
+      "feature": "semantic_field_dispersion",
+      "tier": 10,
+      "F": [
+        0.3901,
+        0.3827,
+        0.5553,
+        1.4852,
+        1.1312
+      ],
+      "stability_ratio_500_over_5000": 0.3383
+    },
+    {
+      "feature": "semantic_centroid_proximity",
+      "tier": 10,
+      "F": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "stability_ratio_500_over_5000": null
+    },
+    {
+      "feature": "error_kl_divergence",
+      "tier": 11,
+      "F": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "stability_ratio_500_over_5000": null
+    },
+    {
+      "feature": "stumble_rate_consistency",
+      "tier": 11,
+      "F": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "stability_ratio_500_over_5000": null
+    },
+    {
+      "feature": "punctuation_error_ratio",
+      "tier": 11,
+      "F": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "stability_ratio_500_over_5000": null
+    },
+    {
+      "feature": "catastrophe_index",
+      "tier": 12,
+      "F": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "stability_ratio_500_over_5000": null
+    },
+    {
+      "feature": "clausula_type_consistency",
+      "tier": 13,
+      "F": [
+        0.4444,
+        0.262,
+        0.2848,
+        0.381,
+        0.541
+      ],
+      "stability_ratio_500_over_5000": 0.4843
+    },
+    {
+      "feature": "breath_group_regularity",
+      "tier": 13,
+      "F": [
+        0.0964,
+        0.3991,
+        0.2288,
+        0.5471,
+        0.5329
+      ],
+      "stability_ratio_500_over_5000": 0.749
+    },
+    {
+      "feature": "vowel_sonority_ratio",
+      "tier": 13,
+      "F": [
+        1.4097,
+        1.5641,
+        2.6749,
+        4.5753,
+        9.948
+      ],
+      "stability_ratio_500_over_5000": 0.1572
+    },
+    {
+      "feature": "arc_resolution_score",
+      "tier": 13,
+      "F": [
+        0.1103,
+        0.0456,
+        0.0552,
+        0.0454,
+        0.1328
+      ],
+      "stability_ratio_500_over_5000": 0.3435
+    },
+    {
+      "feature": "metric_flatness_score",
+      "tier": 13,
+      "F": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "stability_ratio_500_over_5000": null
+    },
+    {
+      "feature": "clausula_shape_preference",
+      "tier": 13,
+      "F": [
+        0.1089,
+        0.0749,
+        0.1337,
+        0.3054,
+        1.137
+      ],
+      "stability_ratio_500_over_5000": 0.0659
+    },
+    {
+      "feature": "error_topology_consistency",
+      "tier": 14,
+      "F": [
+        0.0743,
+        0.1285,
+        0.0477,
+        0.312,
+        0.6722
+      ],
+      "stability_ratio_500_over_5000": 0.1912
+    },
+    {
+      "feature": "article_omission_rate",
+      "tier": 14,
+      "F": [
+        1.0242,
+        1.4948,
+        1.4225,
+        0.9126,
+        0.4711
+      ],
+      "stability_ratio_500_over_5000": 3.1732
+    },
+    {
+      "feature": "pronoun_ambiguity_rate",
+      "tier": 14,
+      "F": [
+        0.1928,
+        0.38,
+        0.5326,
+        1.5525,
+        2.683
+      ],
+      "stability_ratio_500_over_5000": 0.1416
+    },
+    {
+      "feature": "comma_splice_rate",
+      "tier": 14,
+      "F": [
+        0.3347,
+        0.2985,
+        0.445,
+        0.7574,
+        0.9692
+      ],
+      "stability_ratio_500_over_5000": 0.308
+    },
+    {
+      "feature": "semantic_field_concentration",
+      "tier": 15,
+      "F": [
+        0.0733,
+        0.1067,
+        0.0972,
+        0.3141,
+        0.3397
+      ],
+      "stability_ratio_500_over_5000": 0.3141
+    },
+    {
+      "feature": "polysyndeton_ratio",
+      "tier": 15,
+      "F": [
+        0.1516,
+        0.2232,
+        0.3652,
+        0.7045,
+        1.4149
+      ],
+      "stability_ratio_500_over_5000": 0.1577
+    },
+    {
+      "feature": "chiasmus_rate",
+      "tier": 15,
+      "F": [
+        0.2485,
+        0.681,
+        0.7316,
+        2.9388,
+        15.0582
+      ],
+      "stability_ratio_500_over_5000": 0.0452
+    },
+    {
+      "feature": "latinate_ratio",
+      "tier": 15,
+      "F": [
+        0.7895,
+        1.3257,
+        2.6471,
+        3.4769,
+        3.8625
+      ],
+      "stability_ratio_500_over_5000": 0.3432
+    },
+    {
+      "feature": "nominalization_density",
+      "tier": 15,
+      "F": [
+        0.513,
+        0.862,
+        1.2554,
+        1.4275,
+        2.0485
+      ],
+      "stability_ratio_500_over_5000": 0.4208
+    },
+    {
+      "feature": "signal_verb_entropy",
+      "tier": 16,
+      "F": [
+        0.0795,
+        0.0795,
+        0.0795,
+        0.0795,
+        0.0737
+      ],
+      "stability_ratio_500_over_5000": 1.0799
+    },
+    {
+      "feature": "signal_verb_assertiveness",
+      "tier": 16,
+      "F": [
+        0.064,
+        0.0608,
+        0.1096,
+        0.0663,
+        0.0473
+      ],
+      "stability_ratio_500_over_5000": 1.2848
+    },
+    {
+      "feature": "source_loyalty_index",
+      "tier": 16,
+      "F": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "stability_ratio_500_over_5000": null
+    },
+    {
+      "feature": "block_quote_rate",
+      "tier": 16,
+      "F": [
+        0.4194,
+        0.3403,
+        0.5005,
+        2.4089,
+        6.1443
+      ],
+      "stability_ratio_500_over_5000": 0.0554
+    },
+    {
+      "feature": "citation_density_cv",
+      "tier": 16,
+      "F": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "stability_ratio_500_over_5000": null
+    },
+    {
+      "feature": "ibid_usage_rate",
+      "tier": 16,
+      "F": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "stability_ratio_500_over_5000": null
+    },
+    {
+      "feature": "citation_position_pref",
+      "tier": 16,
+      "F": [
+        0.0795,
+        0.0795,
+        0.0856,
+        0.1876,
+        0.3477
+      ],
+      "stability_ratio_500_over_5000": 0.2288
+    },
+    {
+      "feature": "paraphrase_density",
+      "tier": 16,
+      "F": [
+        0.0792,
+        0.0862,
+        0.1316,
+        0.1263,
+        0.1598
+      ],
+      "stability_ratio_500_over_5000": 0.5395
+    },
+    {
+      "feature": "typing_speed_cv",
+      "tier": 17,
+      "F": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "stability_ratio_500_over_5000": null
+    },
+    {
+      "feature": "burst_ratio",
+      "tier": 17,
+      "F": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "stability_ratio_500_over_5000": null
+    },
+    {
+      "feature": "deletion_rate",
+      "tier": 17,
+      "F": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "stability_ratio_500_over_5000": null
+    },
+    {
+      "feature": "pause_density",
+      "tier": 17,
+      "F": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "stability_ratio_500_over_5000": null
+    },
+    {
+      "feature": "paste_event_rate",
+      "tier": 17,
+      "F": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "stability_ratio_500_over_5000": null
+    },
+    {
+      "feature": "revision_depth",
+      "tier": 17,
+      "F": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "stability_ratio_500_over_5000": null
+    },
+    {
+      "feature": "char_trigram_profile_divergence",
+      "tier": 0,
+      "F": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "stability_ratio_500_over_5000": null
+    },
+    {
+      "feature": "function_word_profile_divergence",
+      "tier": 0,
+      "F": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "stability_ratio_500_over_5000": null
+    }
+  ],
+  "excluded_indices": [
+    95,
+    96,
+    97,
+    98,
+    99,
+    100
+  ],
+  "notes": [
+    "6 tier-17 (keystroke) features were excluded \u2014 text-only input gives them constant 0.5, so F is undefined."
+  ],
+  "extra": {}
+}
