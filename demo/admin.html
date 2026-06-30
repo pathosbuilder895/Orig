@@ -91,7 +91,11 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 }
 .logo-mark { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
 .logo-icon { width: 28px; height: 28px; background: var(--gold); border-radius: 4px;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  cursor: pointer; transition: transform 0.18s ease, box-shadow 0.18s ease; }
+.logo-icon:hover { transform: scale(1.06); box-shadow: 0 0 0 4px var(--gold-light); }
+.logo-icon:active { transform: scale(0.92); }
+.logo-icon:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--gold); }
 .logo-wordmark { font-family: 'Cormorant Garamond', serif; font-size: 1.05rem;
   font-weight: 600; color: var(--text-cream); letter-spacing: -0.01em; }
 .logo-school { font-size: 0.68rem; color: var(--text-cream-dim);
@@ -265,18 +269,19 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 }
 .sbar-fill { will-change: width; }
 /* ── Sidebar collapse ── */
-.sidebar{transition:width 0.22s cubic-bezier(0.4,0,0.2,1);overflow:hidden}
-.sidebar.collapsed{width:64px}
+.sidebar{transition:flex-basis 0.26s cubic-bezier(0.4,0,0.2,1),width 0.26s cubic-bezier(0.4,0,0.2,1);overflow:hidden}
+/* Collapsed: the nav + user evaporate, leaving a slim rail with just the Ω logo
+   — which is itself the toggle. The sidebar is a flex item, so its main size
+   comes from flex-basis, not width — set both so the rail collapses reliably. */
+.sidebar.collapsed{flex-basis:60px;width:60px}
 .sidebar.collapsed .logo-wordmark,
-.sidebar.collapsed .logo-school,
-.sidebar.collapsed .nav-section-label,
-.sidebar.collapsed .user-info{display:none}
-.sidebar.collapsed .logo-mark{justify-content:center}
+.sidebar.collapsed .logo-school{display:none}
+.sidebar.collapsed .logo-mark{justify-content:center;margin-bottom:0}
 .sidebar.collapsed .sidebar-logo{padding:16px 0;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--green-border)}
-.sidebar.collapsed .nav-item{justify-content:center;padding:10px 0;border-left-color:transparent !important}
-.sidebar.collapsed .nav-item.active{background:var(--gold-light);border-radius:4px}
-.sidebar.collapsed .sidebar-nav{padding:12px 8px}
-.sidebar.collapsed .sidebar-user{justify-content:center;padding:14px 0}
+/* The nav + user hide as the rail slides shut; the width slide carries the
+   motion (an opacity transition renders inconsistently under reduced-motion). */
+.sidebar.collapsed .sidebar-nav,
+.sidebar.collapsed .sidebar-user{opacity:0;pointer-events:none}
 .sidebar-toggle{width:32px;height:32px;border-radius:var(--radius);background:none;border:1px solid var(--cream-border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);flex-shrink:0;transition:background 0.15s,color 0.15s}
 .sidebar-toggle:hover{background:var(--cream-warm);color:var(--text-primary)}
 .sidebar-toggle svg{transition:transform 0.22s}
@@ -289,15 +294,39 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 .panel-close-btn{width:24px;height:24px;border-radius:4px;background:none;border:none;cursor:pointer;color:var(--text-muted);display:flex;align-items:center;justify-content:center;margin-left:auto;flex-shrink:0}
 .panel-close-btn:hover{background:var(--cream-border);color:var(--text-primary)}
 </style>
+<!-- ── Dashboard intuitiveness pass — primitives + typography floor ── -->
+<link rel="stylesheet" href="_components/hero-answer.css">
+<link rel="stylesheet" href="_components/metric.css">
+<link rel="stylesheet" href="_components/help-hint.css">
+<style>
+  /* Comfort floor for any text that conveys meaning — was 0.6–0.68rem,
+     now bumped to ~12.5px so older readers can scan without leaning in. */
+  :root { --type-floor: 0.78rem; --type-body: 1rem; }
+  .meta, .stat-lbl, .nav-section-label, .empty-serif, .fc-label,
+  .pg-sub, .base-words, .base-date, .badge, .badge-lbl, .stat-d {
+    font-size: var(--type-floor) !important;
+  }
+  .input-notice, .ro-body, .section-body {
+    font-size: var(--type-body); line-height: 1.55;
+  }
+  h1 .help-hint, h2 .help-hint, h3 .help-hint, .card-ttl .help-hint,
+  .pg-ttl .help-hint, .stat-lbl .help-hint {
+    transform: translateY(-2px);
+  }
+</style>
+<script defer src="_components/metric.js"></script>
+<script defer src="_components/help-hint.js"></script>
+<link rel="stylesheet" href="_tour/tour.css">
+<script defer src="_tour/tour.js"></script>
 </head>
-<body>
+<body data-tour-page="admin">
 <div class="layout">
 
   <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-logo">
       <div class="logo-mark">
-        <div class="logo-icon">
+        <div class="logo-icon" id="sidebarLogoToggle" role="button" tabindex="0" title="Toggle sidebar" aria-label="Toggle sidebar">
           <span style="font-family:'Cormorant Garamond',serif;font-weight:700;font-size:1.3rem;line-height:1;color:#002147">Ω</span>
         </div>
         <span class="logo-wordmark">Original</span>
@@ -342,7 +371,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   </aside>
 
   <!-- Main -->
-  <div class="main">
+  <div class="main" role="main">
     <!-- Topbar -->
     <div class="topbar">
       <div class="topbar-left" style="display:flex;align-items:center;gap:10px">
@@ -368,6 +397,17 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
     <div style="padding:16px 24px 0;flex-shrink:0">
       <div style="font-family:'EB Garamond',serif;font-style:italic;font-size:0.8rem;color:var(--text-muted);margin-bottom:2px">System overview</div>
       <div style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:600;color:var(--text-primary);letter-spacing:-0.02em">Admin Console</div>
+    </div>
+
+    <!-- ── HeroAnswer: "Is the system healthy and operating within parameters?" ── -->
+    <div id="adminHero"
+         class="hero-answer hero-answer--loading"
+         data-hero-answer="admin"
+         data-tour-id="hero"
+         aria-live="polite">
+      <div class="hero-answer-eye">Status, this session</div>
+      <div class="hero-answer-headline">Loading the dashboard…</div>
+      <div class="hero-answer-detail"></div>
     </div>
 
     <div class="content">
@@ -413,7 +453,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           </div>
           <table class="table">
             <thead>
-              <tr><th>Student</th><th>Course</th><th>Deviation</th><th>Status</th></tr>
+              <tr><th>Student</th><th>Course</th><th>Voice match</th><th>Status</th></tr>
             </thead>
             <tbody id="studentTable"></tbody>
           </table>
@@ -526,13 +566,19 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 /* ── Sidebar collapse ── */
 (function(){
   const sidebar = document.querySelector('.sidebar');
+  if(!sidebar) return;
   const btn = document.getElementById('sidebarToggle');
-  if(!sidebar||!btn) return;
+  const logo = document.getElementById('sidebarLogoToggle');
   if(localStorage.getItem('sb-collapsed')==='1') sidebar.classList.add('collapsed');
-  btn.addEventListener('click',()=>{
+  function toggle(){
     const c = sidebar.classList.toggle('collapsed');
     localStorage.setItem('sb-collapsed', c?'1':'0');
-  });
+  }
+  if(btn) btn.addEventListener('click', toggle);
+  if(logo){
+    logo.addEventListener('click', toggle);
+    logo.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); } });
+  }
 })();
 /* ── Right panel collapse ── */
 (function(){
@@ -594,13 +640,53 @@ function timeAgo(iso) {
   return d < 7 ? d + 'd ago' : Math.floor(d/7) + 'w ago';
 }
 
+function renderAdminHero({ studentCount, totalBaselines, submissionsScored, attentionCount }) {
+  // Answers: "Is the system healthy and operating within parameters?"
+  // Status derives from the worst KPI:
+  //   attend  — attention queue ≥ 5 students                    (act today)
+  //   watch   — attention queue 1–4, or coverage < 70%          (monitor)
+  //   calm    — empty attention queue and baseline coverage OK  (healthy)
+  const el = document.getElementById('adminHero');
+  if (!el) return;
+  const coverage = studentCount > 0
+    ? Math.round((totalBaselines / Math.max(1, studentCount * 3)) * 100)
+    : 0;
+  let status, eye, head, detail;
+  if (attentionCount >= 5) {
+    status = 'attend';
+    eye    = `${attentionCount} students need attention`;
+    head   = `${attentionCount} students currently in the review queue.`;
+    detail = `${studentCount} students enrolled · ${submissionsScored} submissions scored this term.`;
+  } else if (attentionCount > 0 || coverage < 70) {
+    status = 'watch';
+    eye    = attentionCount > 0 ? `${attentionCount} worth a look` : 'Coverage low';
+    head   = attentionCount > 0
+      ? `${attentionCount} student${attentionCount===1?'':'s'} worth checking on this week.`
+      : `Baseline coverage is at ${coverage}% — below the 70% comfort line.`;
+    detail = `${studentCount} students · ${totalBaselines} baseline samples · ${submissionsScored} scored.`;
+  } else {
+    status = 'calm';
+    eye    = 'System healthy';
+    head   = `Healthy — ${studentCount} students, ${coverage}% baseline coverage.`;
+    detail = `${submissionsScored} submissions scored this term, none currently flagged.`;
+  }
+  el.classList.remove('hero-answer--loading','hero-answer--calm','hero-answer--watch','hero-answer--attend');
+  el.classList.add('hero-answer--' + status);
+  el.querySelector('.hero-answer-eye').textContent = eye;
+  el.querySelector('.hero-answer-headline').textContent = head;
+  el.querySelector('.hero-answer-detail').textContent = detail;
+}
+
 async function loadDashboard() {
   try {
     const [studentsRes, statsRes] = await Promise.all([
       fetch(API + '/students'),
       fetch(API + '/admin/manifests/stats'),
     ]);
-    const {students: ids} = await studentsRes.json();
+    const sjson = await studentsRes.json();
+    const ids = sjson.students || [];
+    const nameMap = {};
+    (sjson.roster || []).forEach(r => { nameMap[r.id] = r; });
     const stats = await statsRes.json();
 
     // Update stat cards
@@ -613,7 +699,7 @@ async function loadDashboard() {
     const states = await Promise.all(
       slice.map(id => fetch(API + '/students/' + id).then(r => r.json()).catch(() => null))
     );
-    const students = states.map((st, i) => st ? {...st, _id: slice[i]} : null).filter(Boolean);
+    const students = states.map((st, i) => st ? {...st, _id: slice[i], _name: (nameMap[slice[i]] && nameMap[slice[i]].name) || null} : null).filter(Boolean);
 
     const totalBaselines = students.reduce((sum, s) => sum + (s.sample_count || 0), 0);
     if (cards[1]) cards[1].textContent = totalBaselines;
@@ -632,6 +718,14 @@ async function loadDashboard() {
     renderStudentTable(students);
     renderActivity(items.slice(0, 5));
     drawNodes(students);
+
+    // ── HeroAnswer: "Is the system healthy and operating within parameters?" ──
+    renderAdminHero({
+      studentCount: ids.length,
+      totalBaselines,
+      submissionsScored: stats.total || 0,
+      attentionCount: attention,
+    });
   } catch (e) {
     console.error('Dashboard load failed:', e);
     document.getElementById('studentTable').innerHTML =
@@ -650,12 +744,13 @@ function renderStudentTable(students) {
     const action = scoreAction(score);
     const c = scoreColor(score);
     const av = AV_COLORS[i % AV_COLORS.length];
-    const ini = initials(s._id || s.student_id || '');
+    const display = s._name || s._id || s.student_id || '';
+    const ini = initials(display);
     const barId = 'bar-' + (s._id || i);
     return `<tr style="cursor:pointer" onclick="window.location='professor.html'">
       <td><div class="s-cell">
         <div class="s-av" style="background:${av.bg};color:${av.tc}">${ini}</div>
-        <div><div class="s-name">${s._id || s.student_id}</div>
+        <div><div class="s-name">${display}</div>
              <div class="s-id">${s.sample_count || 0} baseline${s.sample_count !== 1 ? 's' : ''}</div></div>
       </div></td>
       <td style="color:var(--text-muted);font-size:0.79rem">${s.trajectory_direction || '—'}</td>

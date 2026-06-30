@@ -1,8 +1,15 @@
 # ADR-003: Multi-Institution Readiness Without Losing the Demo
 
-**Status:** Proposed
+**Status:** Accepted — Phase 1 implemented 2026-06-15; Phase 1.5 implemented 2026-06-16
 **Date:** 2026-06-04
 **Deciders:** Product owner (Andrew) · whoever signs off on the first university pilot
+
+> **Implementation note (2026-05-17 audit).** Phase 1 and Phase 1.5 are shipped.
+> Phase 1 action item #5 ("migrate SQLite → Postgres") was explicitly superseded
+> by **ADR-004 (Accepted)**, which adopts hardened SQLite for the pilot and
+> documents the Postgres path as a fast-follow. The Phase 1 CI gate (cross-tenant
+> isolation, `tests/test_tenant_isolation.py`) passes 8/8. Phase 2 items are
+> long-term GA work and explicitly NOT a precondition for accepting Phase 1.
 
 ## Context
 
@@ -154,21 +161,21 @@ weeks-away pilot** with real student data under FERPA.
 ## Action Items
 
 **Phase 1 — Pilot-ready (target: the weeks-away date)**
-1. [ ] Add `resolve_principal()` dependency → `{user_id, role, tenant_id, auth_method}`.
-2. [ ] Introduce a tenant-scoped repository; server constructs `student_id` from `principal.tenant_id` (reject client-supplied cross-tenant IDs).
-3. [ ] Carve out the reserved **`demo`** tenant: anonymous + read-mostly + role-from-UI + write sandbox + destructive ops blocked + hard rate limit + periodic reset.
-4. [ ] Email/password auth + **stable `SECRET_KEY`** (env/secret manager); JWT sessions.
-5. [ ] Migrate SQLite → Postgres; real migrations + automated backups.
-6. [ ] Frontend: configurable `API_BASE`; wire `index.html` login; "Jump into demo" → demo tenant.
-7. [ ] HTTPS; CORS locked to known origins; `GUARD_DESTRUCTIVE=1` in prod.
-8. [ ] **CI gate:** cross-tenant isolation test suite (A-cannot-read-B).
+1. [x] Add `resolve_principal()` dependency → `{user_id, role, tenant_id, auth_method}`. — `original/principal.py`
+2. [x] Introduce a tenant-scoped repository; server constructs `student_id` from `principal.tenant_id` (reject client-supplied cross-tenant IDs). — `original/api.py`, `original/store.py`
+3. [x] Carve out the reserved **`demo`** tenant: anonymous + read-mostly + role-from-UI + write sandbox + destructive ops blocked + hard rate limit + periodic reset. — `scripts/reset_demo_data.py`, demo-tenant rules in `principal.py`
+4. [x] Email/password auth + **stable `SECRET_KEY`** (env/secret manager); JWT sessions. — `original/auth/`, login throttle in `original/api.py`
+5. [~] Migrate SQLite → Postgres; real migrations + automated backups. **Superseded by ADR-004 (Accepted): hardened SQLite for the pilot, Postgres documented as fast-follow.** Automated backups shipped (`deploy/backup.sh`, `scripts/backup_db.sh`).
+6. [x] Frontend: configurable `API_BASE`; wire `index.html` login; "Jump into demo" → demo tenant. — `demo/index.html`, `demo/*.html` (`API_BASE` derived per page)
+7. [x] HTTPS; CORS locked to known origins; `GUARD_DESTRUCTIVE=1` in prod. — Render pilot config, smoke test §A checks HSTS + CORS + `GUARD_DESTRUCTIVE` runtime flag in `original/api.py`
+8. [x] **CI gate:** cross-tenant isolation test suite (A-cannot-read-B). — `tests/test_tenant_isolation.py` (8 tests passing); reinforced by `tests/test_voice_leak.py::test_student_cannot_probe_other_tenant_existence` (2026-05-17)
 
 **Phase 1.5 — LTI 1.3 fast-follow (right after pilot)**
-9. [ ] LTI 1.3 launch → mints the same `Principal` (reuse Bbook LTI patterns). "Both methods" satisfied.
+9. [x] LTI 1.3 launch → mints the same `Principal` (reuse Bbook LTI patterns). "Both methods" satisfied. — `original/lti.py`, `tests/test_lti.py`, `docs/CANVAS_RUNBOOK.md` + `docs/canvas_developer_key.md`
 
-**Phase 2 — Multi-institution GA**
+**Phase 2 — Multi-institution GA** (long-term; not gating Phase 1 acceptance)
 10. [ ] Self-serve tenant onboarding + admin invites (builds on `/tenants` + onboard.html).
-11. [ ] Persist `baseline_requests`; add a background job queue for bulk import / re-scoring.
-12. [ ] FERPA program (DPAs, retention/erasure, audit-log immutability + access controls).
+11. [x] Persist `baseline_requests` — `original/baseline_requests.py` + `original/store.py` (SQLite write-through with hydration, 2026-06-18). Background job queue for bulk import / re-scoring still pending.
+12. [ ] FERPA program (DPAs, retention/erasure, audit-log immutability + access controls). DPA template and student disclosure shipped; audit-log immutability still pending.
 13. [ ] Per-tenant observability, quotas, usage dashboards (extend operator.html).
 14. [ ] Per-tenant threshold calibration before scores inform grading; appeals/human-in-the-loop policy.

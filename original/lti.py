@@ -286,6 +286,14 @@ def principal_from_claims(claims: Dict) -> Dict:
 
     if role == "student":
         sid = student_auth.derive_student_id(tenant, email or f"{sub}@lti.local")
+        # Record the LMS-provided name so the professor roster shows a real
+        # person rather than the opaque tenant-scoped id.
+        if name:
+            try:
+                from . import store
+                store.set_display_name(sid, name)
+            except Exception:
+                pass
         token = student_auth.mint_session(sid, name)
         result = {
             "role": "student", "tenant_id": tenant, "token": token,

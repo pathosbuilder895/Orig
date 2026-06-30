@@ -1,0 +1,92 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   <HelpHint> — passive (i) icon next to a heading or label.
+
+   Usage:
+     <h2>Voice Fingerprint
+       <span class="help-hint"
+             data-hint="The seven blended dimensions of how you write."
+             data-topic="fingerprint"></span>
+     </h2>
+
+   Hover → native title tooltip (data-hint copy).
+   Click → opens a <dialog> with longer explainer + link to the topic on
+           the How it works page.
+
+   ───────────────────────────────────────────────────────────────────────── */
+
+.help-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  border: 1px solid var(--cream-border, rgba(0,0,0,0.15));
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted, #6a5a40);
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 0.72rem;
+  font-style: italic;
+  font-weight: 500;
+  cursor: help;
+  vertical-align: middle;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  user-select: none;
+  flex-shrink: 0;
+}
+.help-hint::before { content: 'i'; line-height: 1; }
+
+.help-hint:hover,
+.help-hint:focus-visible {
+  background: var(--gold-light, rgba(201,169,97,0.15));
+  border-color: var(--gold, #C9A961);
+  color: var(--gold-dark, #B8860B);
+  outline: none;
+}
+
+/* Popover shared with Metric — same .metric-popover styles. If only HelpHint
+   is loaded (Metric isn't), provide the same shell so things look right. */
+.help-popover {
+  margin: 0;
+  border: 1px solid var(--cream-border, rgba(0,0,0,0.15));
+  border-radius: 6px;
+  background: #FFFFFF;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+  padding: 18px 22px;
+  max-width: 360px;
+  color: var(--text-primary, #1a130a);
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+.help-popover::backdrop { background: rgba(0,0,0,0.20); }
+.help-popover h3 {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+.help-popover p { margin: 0 0 10px; }
+.help-popover .help-popover-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  gap: 10px;
+}
+.help-popover-actions a {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--oxford, #002147);
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+}
+.help-popover-actions button {
+  background: none;
+  border: 1px solid var(--cream-border, rgba(0,0,0,0.15));
+  padding: 5px 14px;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}

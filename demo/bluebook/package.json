@@ -5,9 +5,12 @@
   "type": "module",
   "description": "Bluebook secure-exam frontend — build the JSX into a static bundle.",
   "scripts": {
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "esbuild": "^0.24.0"
   }
 }

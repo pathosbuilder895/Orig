@@ -268,8 +268,32 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 .fu{animation:fadeUp .44s cubic-bezier(0.16,1,0.3,1) both}
 .fu1{animation-delay:.05s}.fu2{animation-delay:.13s}.fu3{animation-delay:.21s}.fu4{animation-delay:.30s}
 </style>
+<!-- ── Dashboard intuitiveness pass — primitives + typography floor ── -->
+<link rel="stylesheet" href="_components/hero-answer.css">
+<link rel="stylesheet" href="_components/metric.css">
+<link rel="stylesheet" href="_components/help-hint.css">
+<style>
+  /* Comfort floor for any text that conveys meaning — was 0.6–0.68rem,
+     now bumped to ~12.5px so older readers can scan without leaning in. */
+  :root { --type-floor: 0.78rem; --type-body: 1rem; }
+  .meta, .stat-lbl, .nav-section-label, .empty-serif, .fc-label,
+  .pg-sub, .base-words, .base-date, .badge, .badge-lbl, .stat-d {
+    font-size: var(--type-floor) !important;
+  }
+  .input-notice, .ro-body, .section-body {
+    font-size: var(--type-body); line-height: 1.55;
+  }
+  h1 .help-hint, h2 .help-hint, h3 .help-hint, .card-ttl .help-hint,
+  .pg-ttl .help-hint, .stat-lbl .help-hint {
+    transform: translateY(-2px);
+  }
+</style>
+<script defer src="_components/metric.js"></script>
+<script defer src="_components/help-hint.js"></script>
+<link rel="stylesheet" href="_tour/tour.css">
+<script defer src="_tour/tour.js"></script>
 </head>
-<body>
+<body data-tour-page="student">
 
 <!-- ════ Login gate ════ -->
 <div class="gate" id="loginGate" style="display:none">
@@ -350,7 +374,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
   </aside>
 
   <!-- ── Main ── -->
-  <div class="main">
+  <div class="main" role="main">
     <div class="topbar">
       <div class="bc">
         <span>Original</span>
@@ -363,10 +387,33 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
     <!-- ════ View: Voice Profile ════ -->
     <div id="view-profile" class="view active">
       <div class="page-body">
+        <!-- ── HeroAnswer: "Is my voice growing or holding steady this term?" ── -->
+        <div id="studentHero"
+             class="hero-answer hero-answer--loading"
+             data-hero-answer="student"
+             data-tour-id="hero"
+             aria-live="polite"
+             style="max-width:780px">
+          <div class="hero-answer-eye">Your voice this term</div>
+          <div class="hero-answer-headline">Loading…</div>
+          <div class="hero-answer-detail"></div>
+        </div>
+
         <div class="pg-hdr fu">
           <div class="pg-eye" id="proEye">Your writing voice, over time</div>
           <div class="pg-title" id="proTitle">Your voice is finding its shape.</div>
           <div class="pg-sub" id="proSub">Submit your first piece of work to reveal your voice profile.</div>
+        </div>
+
+        <!-- First-steps guide — shown only before any work has been analysed -->
+        <div class="card fu" id="firstSteps" style="display:none;padding:24px 28px;margin-bottom:20px;max-width:780px">
+          <div class="card-lbl" style="margin-bottom:7px">Begin your record</div>
+          <div style="font-family:var(--font-d),'Cormorant Garamond',serif;font-size:1.4rem;color:var(--oxford);margin-bottom:9px">Your voice profile starts with your first piece.</div>
+          <div style="font-family:var(--font-b);font-size:0.96rem;line-height:1.65;color:rgba(26,26,26,0.6);margin-bottom:18px">
+            Submit a piece of writing and Original begins to learn your voice — your cadence, your diction, the way you build an argument. Nothing here is graded. This is your formation record, and it grows with you.
+          </div>
+          <div id="fsMilestones" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap"></div>
+          <button class="btn-primary" onclick="showView('submit')">Submit your first piece →</button>
         </div>
 
         <div class="hero-row fu fu1">
@@ -374,7 +421,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
           <div class="card fp-card">
             <div class="card-head">
               <div class="card-lbl">Voice Fingerprint</div>
-              <div class="card-ttl">12 stylometric dimensions</div>
+              <div class="card-ttl">Seven dimensions of your voice</div>
             </div>
             <div class="fp-viz" style="height:270px">
               <svg id="fpSvg" viewBox="0 0 300 300" width="280" height="280"></svg>
@@ -486,7 +533,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
               </div>
               <div class="stat-cell">
                 <div class="stat-val" id="mGrowth">—</div>
-                <div class="stat-lbl">Baseline Samples</div>
+                <div class="stat-lbl">Voice Standing</div>
                 <div class="stat-d" id="mGrowthD"></div>
               </div>
             </div>
@@ -694,7 +741,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
         <div class="card fu fu1" style="padding:20px 24px 8px;margin-bottom:22px;max-width:620px">
           <div class="card-head" style="padding:0 0 14px 0">
             <div class="card-lbl">Formation Opportunity</div>
-            <div class="card-ttl" id="ftTitle">Voice divergence — worth a conversation</div>
+            <div class="card-ttl" id="ftTitle">Worth a conversation</div>
           </div>
           <div class="ft-intro">
             A passage in your recent submission reads differently from your established voice. This is not unusual — it happens to every writer. The formation pathway below gives you a structured way to work through it.
@@ -753,7 +800,9 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 /* ═══════════════════════════════════════════════════════════════
    Configuration
    ═══════════════════════════════════════════════════════════════ */
-const API = (window.location.port === '8001' || window.location.port === '8000') ? '' : 'http://localhost:8001';
+// Same origin — the page is always served by the backend (the preview server in
+// dev, the real domain in production), so relative paths reach the right API.
+const API = '';
 const studentId  = () => localStorage.getItem('original_student_id')   || 'demo_student';
 const studentName= () => localStorage.getItem('original_student_name') || 'Student';
 const institution= () => localStorage.getItem('original_institution')  || 'Your Institution';
@@ -903,7 +952,7 @@ function showView(name) {
   if (name === 'work')      loadWork();
   if (name === 'library')   loadLibrary();
   if (name === 'notes')     loadNotes();
-  if (name === 'formation') syncFormation(true, window._ftSubmissionId || null);
+  if (name === 'formation') syncFormation(true);
 }
 document.querySelectorAll('.nav-item[data-view]').forEach(item =>
   item.addEventListener('click', () => showView(item.dataset.view)));
@@ -940,43 +989,79 @@ async function apiFetch(path, opts) {
     return r.json();
   } catch(e) { return null; }
 }
+/* Authenticated fetch — every real call carries the student session token, so
+   the server resolves us as ourselves. The student client talks ONLY to the
+   /me/* read-model (ADR-005); it never touches /students/{id} or /admin/*. */
+function authHeaders(extra) {
+  const h = Object.assign({}, extra || {});
+  const tok = sessionToken();
+  if (tok) h['Authorization'] = 'Bearer ' + tok;
+  return h;
+}
+async function apiAuthFetch(path, opts) {
+  opts = opts || {};
+  opts.headers = authHeaders(opts.headers);
+  return apiFetch(path, opts);
+}
+
+/* The single, redacted read-model. Fetched once per profile load; everything
+   the dashboard renders for a real student derives from this document. */
+let VOICE = null;
+async function loadVoiceView(force) {
+  if (isGuest()) { VOICE = null; return null; }   // guest uses the local DEMO showcase
+  if (VOICE && !force) return VOICE;
+  VOICE = await apiAuthFetch('/me/voice');
+  return VOICE;
+}
+
+/* The student's own typed text lives in their browser's localStorage portfolio —
+   it is THEIR data, never shipped from the server, so the prose-driven extras
+   (strongest sentences, vocabulary reach, Body-of-Work titles) may read it. */
+function localPortfolio() {
+  try { return JSON.parse(localStorage.getItem('original_portfolio_' + studentId()) || '[]'); }
+  catch(e) { return []; }
+}
+
+/* History items in the shape the renderers already expect. For a real student
+   they are derived from the redacted Arc: the server sends only a resolved
+   `fidelity` (0–100) and an `attention` boolean — we reconstruct a *display-only*
+   proxy `divergence_score` from that fidelity purely so the existing
+   fidFromDev()-based drawing math keeps working. No raw score crosses the wire. */
 async function getHistory() {
-  const d = await apiFetch(`/admin/manifests?student_id=${encodeURIComponent(studentId())}&limit=50`);
-  if (d?.items?.length) return d.items;
-  // Fall back to localStorage portfolio
-  try {
-    const raw = localStorage.getItem('original_portfolio_' + studentId());
-    if (raw) {
-      const portfolio = JSON.parse(raw);
-      return portfolio.map(p => {
-        // A submission saved while the server was unreachable has no
-        // response — it was never analysed. Mark it pending so it does
-        // not masquerade as a perfect (fidelity 100) score.
-        const analysed = !!p.response;
+  if (!isGuest()) {
+    const v = await loadVoiceView();
+    if (v && Array.isArray(v.arc)) {
+      const port = localPortfolio();
+      return v.arc.map((pt, i) => {
+        const p = port[i] || {};
         return {
-          submission_id: String(p.id),
-          assignment: p.assignment,
-          created_at: p.timestamp,
-          divergence_score: analysed ? (p.response?.authorship?.deviation_score || 0) : null,
-          action: p.response?.recommendation?.action || 'no_action',
+          submission_id: 'piece-' + i,
+          assignment: p.assignment || `Submission ${i + 1}`,
+          created_at: pt.period,
+          divergence_score: Math.max(0, (100 - (pt.fidelity || 0)) / 100),
+          action: pt.attention ? 'schedule_conversation' : 'no_action',
           words: p.words || 0,
           text: p.text || '',
-          pending: !analysed,
+          pending: false,
         };
       });
     }
-  } catch(e) {}
-  // Curated demo data is shown only to the guest showcase, never to a real
-  // signed-in student (who should see their own — possibly empty — record).
-  return isGuest() ? DEMO_HISTORY : [];
+    return [];
+  }
+  // Guest showcase — curated, synthetic data baked into the page (no real account).
+  return DEMO_HISTORY;
 }
+
+/* Voice notes in the shape the renderers expect: {reviewer, created_at, notes}. */
 async function getNotes() {
-  const d = await apiFetch(`/admin/corrections?student_id=${encodeURIComponent(studentId())}`);
-  if (d?.items?.length) return d.items;
-  return isGuest() ? DEMO_NOTES : [];
-}
-async function getState() {
-  return apiFetch(`/students/${encodeURIComponent(studentId())}`);
+  if (!isGuest()) {
+    const v = await loadVoiceView();
+    if (v && Array.isArray(v.voice_notes)) {
+      return v.voice_notes.map(n => ({ reviewer: n.reviewer, created_at: n.date, notes: n.note }));
+    }
+    return [];
+  }
+  return DEMO_NOTES;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1011,30 +1096,31 @@ function updateFormationUI() {
   document.getElementById('ftComplete').style.display = _ftStep >= 3 ? 'block' : 'none';
 }
 
-/* Pull the pathway from the server; reflect its step. Opens a pathway on
-   first view if a review opportunity is active and none exists yet. */
-async function syncFormation(openIfMissing, submissionId) {
-  try {
-    let data = await apiFetch(`/students/${encodeURIComponent(studentId())}/formation`);
-    let pathway = data && data.pathway;
-    if (!pathway && openIfMissing) {
-      const opened = await apiFetch(`/students/${encodeURIComponent(studentId())}/formation`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ submission_id: submissionId || null, reason:'voice divergence' }),
-      });
-      pathway = opened && opened.pathway;
-    }
-    if (pathway) {
-      _ftServerOk = true;
-      _ftStep = pathway.current_step;
-      localStorage.setItem('ft_step_' + studentId(), _ftStep);
-      const open = pathway.status === 'open';
-      updateFormationUI();
-      updateFormationNav(open && _ftStep < 3);
-      return pathway;
-    }
-  } catch(e) {}
-  return null;
+/* Reflect the formation state the read-model already resolved (the pathway
+   `reason` and triggering submission id are stripped server-side). For a real
+   student the state rides on VOICE.formation; the guest runs a local-only track. */
+function syncFormation(active) {
+  if (isGuest()) {
+    updateFormationUI();
+    updateFormationNav(active && _ftStep < 3);
+    return;
+  }
+  const f = (VOICE && VOICE.formation) ? VOICE.formation : null;
+  if (f) {
+    _ftServerOk = true;
+    _ftStep = f.current_step;
+    localStorage.setItem('ft_step_' + studentId(), _ftStep);
+    updateFormationUI();
+    updateFormationNav(f.active && _ftStep < f.total_steps);
+  } else if (active) {
+    // No pathway yet, but a review opportunity is live — show the track so the
+    // student can begin; advancing opens the pathway server-side.
+    _ftServerOk = true;
+    updateFormationUI();
+    updateFormationNav(true);
+  } else {
+    updateFormationNav(false);
+  }
 }
 
 async function advanceFormation(step) {
@@ -1042,19 +1128,20 @@ async function advanceFormation(step) {
   const btn = document.getElementById('ft'+step+'btn');
   if (btn) btn.disabled = true;
 
-  if (_ftServerOk) {
-    // Authoritative path: the server advances and (on completion) clears the flag.
-    const data = await apiFetch(`/students/${encodeURIComponent(studentId())}/formation/advance`, { method:'POST' });
-    const pathway = data && data.pathway;
-    if (pathway) {
-      _ftStep = pathway.current_step;
+  if (!isGuest()) {
+    // Authoritative path: the server advances (opening the pathway if needed,
+    // clearing the flag on completion) and hands back the fresh redacted view.
+    const v = await apiAuthFetch('/me/formation/advance', { method:'POST' });
+    if (v && v.formation) {
+      VOICE = v;
+      _ftStep = v.formation.current_step;
       localStorage.setItem('ft_step_' + studentId(), _ftStep);
       updateFormationUI();
-      if (pathway.status === 'completed') updateFormationNav(false);
+      updateFormationNav(v.formation.active && _ftStep < v.formation.total_steps);
       return;
     }
   }
-  // Fallback (server unreachable): advance locally so the demo still flows.
+  // Guest / fallback: advance locally so the demo still flows.
   _ftStep = step;
   localStorage.setItem('ft_step_' + studentId(), _ftStep);
   updateFormationUI();
@@ -1075,8 +1162,23 @@ const FP_LABELS = [
   'First person','Contractions','Word length','Burstiness','Predictability','Register',
 ];
 
+/* Accepts either the redacted VoiceView fingerprint — an array of
+   {name, value} named voice dimensions resolved server-side — or, for the guest
+   showcase, a legacy feature-keyed vector. Both are normalised to {label, value}
+   axes here; the raw feature codes never reach this client for a real student. */
+function _fpAxes(data) {
+  if (Array.isArray(data)) {
+    return data.map(d => ({ label: d.name, value: Math.min(1, Math.max(0, d.value || 0)) }));
+  }
+  if (data && typeof data === 'object') {
+    return FP_DIMS.map((k, i) => ({ label: FP_LABELS[i], value: Math.min(1, Math.max(0, data[k] || 0)) }));
+  }
+  return [];
+}
 function drawFingerprint(svgEl, current, early) {
-  const CX=150, CY=150, R=100, INNER=18, N=FP_DIMS.length;
+  const axes = _fpAxes(current);
+  const earlyAxes = early ? _fpAxes(early) : null;
+  const CX=150, CY=150, R=100, INNER=18, N=axes.length || 1;
   let html = '';
 
   // Grid rings
@@ -1092,28 +1194,28 @@ function drawFingerprint(svgEl, current, early) {
     html += `<line x1="${CX}" y1="${CY}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="rgba(60,90,130,0.12)" stroke-width="0.8"/>`;
   }
 
-  function pts(vec) {
-    return FP_DIMS.map((k,i) => {
-      const v = Math.min(1,Math.max(0, vec[k]||0));
-      const r = INNER + v*(R-INNER);
+  function pts(ax) {
+    return ax.map((d,i) => {
+      const r = INNER + d.value*(R-INNER);
       const a = (i/N)*2*Math.PI - Math.PI/2;
       return `${(CX+r*Math.cos(a)).toFixed(1)},${(CY+r*Math.sin(a)).toFixed(1)}`;
     }).join(' ');
   }
 
-  // Early polygon (dashed)
-  if (early) {
-    html += `<polygon points="${pts(early)}" fill="none" stroke="rgba(60,90,130,0.35)" stroke-width="1" stroke-dasharray="3,3"/>`;
+  // Early polygon (dashed) — only the guest showcase has an early snapshot.
+  if (earlyAxes && earlyAxes.length === N) {
+    html += `<polygon points="${pts(earlyAxes)}" fill="none" stroke="rgba(60,90,130,0.35)" stroke-width="1" stroke-dasharray="3,3"/>`;
   }
   // Current polygon (gold)
-  html += `<polygon points="${pts(current)}" fill="rgba(176,141,60,0.09)" stroke="#B08D3C" stroke-width="1.5" opacity="0" style="transition:opacity .5s">`;
+  html += `<polygon points="${pts(axes)}" fill="rgba(176,141,60,0.09)" stroke="#B08D3C" stroke-width="1.5" opacity="0" style="transition:opacity .5s">`;
   html += `<animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="0.1s" fill="freeze"/></polygon>`;
 
   // 4 axis labels (top, right, bottom, left)
   [0, N/4, N/2, 3*N/4].map(i => Math.round(i) % N).forEach(i => {
     const a = (i/N)*2*Math.PI - Math.PI/2;
     const x = CX+(R+14)*Math.cos(a), y = CY+(R+14)*Math.sin(a);
-    html += `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-family="'EB Garamond',serif" font-size="8.5" fill="rgba(247,242,231,0.38)" text-anchor="middle" dominant-baseline="middle">${FP_LABELS[i]}</text>`;
+    const lbl = (axes[i] && axes[i].label) || '';
+    html += `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-family="'EB Garamond',serif" font-size="8.5" fill="rgba(247,242,231,0.38)" text-anchor="middle" dominant-baseline="middle">${esc(lbl)}</text>`;
   });
 
   svgEl.innerHTML = html;
@@ -1179,61 +1281,152 @@ function drawArc(svgEl, submissions) {
    Load: Profile
    ═══════════════════════════════════════════════════════════════ */
 async function loadProfile() {
-  const [history, notes, state] = await Promise.all([getHistory(), getNotes(), getState()]);
+  const v = isGuest() ? null : await loadVoiceView();
+  const [history, notes] = await Promise.all([getHistory(), getNotes()]);
   const first = studentName().split(' ')[0];
 
   // Only analysed submissions carry a fidelity score. Pending (offline-saved,
   // never-scored) submissions are excluded from fidelity stats and the arc.
   const analysed = history.filter(h => !h.pending);
 
-  // Headline — address the student by name, in the active present
+  // Day-one guide: before any work is analysed, show the first-steps card with
+  // the milestone journey so the page reads as a beginning, not an empty shell.
+  const fs = document.getElementById('firstSteps');
+  if (fs) {
+    const showGuide = analysed.length === 0;
+    fs.style.display = showGuide ? 'block' : 'none';
+    if (showGuide) {
+      const milestones = (v && Array.isArray(v.milestones) && v.milestones.length)
+        ? v.milestones
+        : [
+            { label:'Voice Sampled',     state:'upcoming', blurb:'Your writing enters your record.' },
+            { label:'Voice Established',  state:'upcoming', blurb:'Enough on file to recognise your voice.' },
+            { label:'Voice Affirmed',     state:'upcoming', blurb:'A verified piece confirms it is yours.' },
+          ];
+      document.getElementById('fsMilestones').innerHTML = milestones.map(m => {
+        const reached = m.state === 'reached';
+        return `<div style="flex:1;min-width:150px;padding:12px 14px;border:1px solid ${reached?'rgba(176,141,60,0.4)':'var(--hairline)'};border-radius:8px;background:${reached?'rgba(176,141,60,0.06)':'transparent'}">
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">
+            <span style="width:7px;height:7px;border-radius:50%;background:${reached?'#B08D3C':'rgba(60,90,130,0.25)'}"></span>
+            <span style="font-family:var(--font-u);font-size:0.7rem;font-weight:600;letter-spacing:0.04em;color:${reached?'var(--gold-deep,#8a6d2a)':'rgba(26,26,26,0.55)'}">${esc(m.label)}</span>
+          </div>
+          <div style="font-family:var(--font-b);font-style:italic;font-size:0.78rem;line-height:1.45;color:rgba(26,26,26,0.42)">${esc(m.blurb||'')}</div>
+        </div>`;
+      }).join('');
+    }
+  }
+  // The dashed "Start of term" fingerprint legend only applies to the guest
+  // showcase (which has an early snapshot); a real student has none.
+  const earlyLeg = document.querySelectorAll('.fp-legend .fp-leg')[1];
+  if (earlyLeg) earlyLeg.style.display = (v ? 'none' : 'flex');
+
+  // Headline — for a real student the server already resolved the prose; the
+  // guest showcase computes it client-side from the synthetic history.
   const latest = analysed[analysed.length-1];
   const fVals0 = analysed.map(h=>fidFromDev(h.divergence_score));
   const grewBy = fVals0.length>=2 ? (fVals0[fVals0.length-1]-fVals0[0]) : 0;
-  if (latest && grewBy >= 8) {
-    document.getElementById('proTitle').textContent = `${first}, your voice strengthened across this term.`;
-  } else if (latest && grewBy <= -8) {
-    document.getElementById('proTitle').textContent = `${first}, your voice is finding its footing.`;
-  } else if (latest) {
-    document.getElementById('proTitle').textContent = `${first}, your voice is settling into itself.`;
+  // ── HeroAnswer: the 5-second answer ────────────────────────────────────
+  // Question answered: "Is my voice growing or holding steady this term?"
+  // Reuses voice.py's resolved headline / subhead when present (formation-
+  // register prose, redacted of surveillance jargon by ADR-005).
+  (function renderStudentHero() {
+    const hero = document.getElementById('studentHero');
+    if (!hero) return;
+    const hasFlag = v
+      ? (Array.isArray(v.review_opportunities) && v.review_opportunities.length > 0)
+      : (latest && latest.action && latest.action !== 'no_action');
+    const latestFid = latest ? fidFromDev(latest.divergence_score) : null;
+    let status, eye, head, detail;
+    if (!analysed.length) {
+      status = 'calm';
+      eye    = 'A clean page';
+      head   = `${first}, your voice is finding its shape.`;
+      detail = 'Submit your first piece below to begin your record.';
+    } else if (hasFlag) {
+      status = 'attend';
+      eye    = 'Worth a conversation';
+      head   = (v && v.headline) || `${first}, a recent piece reads a little differently.`;
+      detail = (v && v.subhead)  || 'Open it with your tutor — it is an invitation, not a verdict.';
+    } else if (grewBy >= 8) {
+      status = 'calm';
+      eye    = 'Voice strengthening';
+      head   = (v && v.headline) || `${first}, your voice strengthened across this term.`;
+      detail = (v && v.subhead)  || `Voice fidelity ${latestFid} on your latest piece — up ${grewBy} since the start of term.`;
+    } else if (grewBy <= -8) {
+      status = 'watch';
+      eye    = 'Voice finding its footing';
+      head   = (v && v.headline) || `${first}, your voice is finding its footing.`;
+      detail = (v && v.subhead)  || `Voice fidelity ${latestFid} on your latest piece.`;
+    } else {
+      status = 'calm';
+      eye    = 'Voice holding steady';
+      head   = (v && v.headline) || `${first}, your voice is settling into itself.`;
+      detail = (v && v.subhead)  || `Voice fidelity ${latestFid} on your latest piece.`;
+    }
+    hero.classList.remove('hero-answer--loading','hero-answer--calm','hero-answer--watch','hero-answer--attend');
+    hero.classList.add('hero-answer--' + status);
+    hero.querySelector('.hero-answer-eye').textContent = eye;
+    hero.querySelector('.hero-answer-headline').textContent = head;
+    hero.querySelector('.hero-answer-detail').textContent = detail;
+  })();
+  if (v && v.headline) {
+    document.getElementById('proTitle').textContent = v.headline;
+    document.getElementById('proSub').textContent   = v.subhead || '';
   } else {
-    document.getElementById('proTitle').textContent = `${first}, your voice is finding its shape.`;
-  }
-  if (latest) {
-    const f = fidFromDev(latest.divergence_score);
-    document.getElementById('proSub').textContent =
-      `Voice fidelity ${f} on your latest piece${grewBy>0?` — up ${grewBy} since the start of term`:''}.`;
-  } else {
-    document.getElementById('proSub').textContent =
-      'Submit your first piece of work to reveal your voice profile.';
+    if (latest && grewBy >= 8) {
+      document.getElementById('proTitle').textContent = `${first}, your voice strengthened across this term.`;
+    } else if (latest && grewBy <= -8) {
+      document.getElementById('proTitle').textContent = `${first}, your voice is finding its footing.`;
+    } else if (latest) {
+      document.getElementById('proTitle').textContent = `${first}, your voice is settling into itself.`;
+    } else {
+      document.getElementById('proTitle').textContent = `${first}, your voice is finding its shape.`;
+    }
+    if (latest) {
+      const f = fidFromDev(latest.divergence_score);
+      document.getElementById('proSub').textContent =
+        `Voice fidelity ${f} on your latest piece${grewBy>0?` — up ${grewBy} since the start of term`:''}.`;
+    } else {
+      document.getElementById('proSub').textContent =
+        'Submit your first piece of work to reveal your voice profile.';
+    }
   }
 
   // Arc title + footer
   document.getElementById('arcTitle').textContent = 'Voice fidelity across ' + semester();
   const wordTotal = analysed.reduce((s,h)=>s+(h.words||0),0);
   document.getElementById('arcFooter').textContent =
-    `${analysed.length} submission${analysed.length!==1?'s':''} · ${semester()} · ${wordTotal.toLocaleString()} words analysed`;
+    `${analysed.length} submission${analysed.length!==1?'s':''} · ${semester()}${wordTotal?` · ${wordTotal.toLocaleString()} words`:''}`;
 
-  // Visualisations
-  const baseVec = state?.baseline_vector || DEMO_BASELINE;
-  drawFingerprint(document.getElementById('fpSvg'), baseVec, DEMO_EARLY);
+  // Visualisations — real students get the redacted named voice dimensions (no
+  // early polygon, since the server ships no early snapshot); the guest gets the
+  // legacy feature-keyed demo vectors.
+  if (v && Array.isArray(v.fingerprint)) {
+    drawFingerprint(document.getElementById('fpSvg'), v.fingerprint, null);
+  } else {
+    drawFingerprint(document.getElementById('fpSvg'), DEMO_BASELINE, DEMO_EARLY);
+  }
   drawArc(document.getElementById('arcSvg'), analysed);
 
-  // Review opportunity — only meaningful for an analysed submission
-  const hasFlag = latest && latest.action && latest.action !== 'no_action';
+  // Review opportunity — server-decided for a real student; derived from the
+  // synthetic latest action for the guest.
+  const ro = v && Array.isArray(v.review_opportunities) ? v.review_opportunities[0] : null;
+  const hasFlag = v ? !!ro : (latest && latest.action && latest.action !== 'no_action');
   document.getElementById('roBlock').style.display = hasFlag ? 'flex' : 'none';
   if (hasFlag) {
-    document.getElementById('roBody').textContent =
-      `A passage in your ${latest.assignment||'recent submission'} diverges from your established voice. This is worth a brief conversation with your tutor.`;
-    document.getElementById('roMeta').textContent =
-      `${shortDate(latest.created_at)} · ${latest.assignment||'Submission'}`;
+    if (v && ro) {
+      document.getElementById('roBody').textContent = ro.invitation_prose;
+      document.getElementById('roMeta').textContent = ro.locator ? shortDate(ro.locator) : '';
+    } else {
+      document.getElementById('roBody').textContent =
+        `A passage in your ${latest.assignment||'recent submission'} reads a little differently from your established voice. This is worth a brief conversation with your tutor.`;
+      document.getElementById('roMeta').textContent =
+        `${shortDate(latest.created_at)} · ${latest.assignment||'Submission'}`;
+    }
     updateFormationNav(true);
-    // Open a server-side formation pathway for this divergence (idempotent).
-    window._ftSubmissionId = latest.submission_id || null;
-    syncFormation(true, window._ftSubmissionId);
+    syncFormation(true);
   } else {
-    // Reflect any existing pathway (e.g. one opened earlier, still in progress).
-    syncFormation(false, null);
+    syncFormation(false);
   }
 
   // Metrics — fidelity figures computed over analysed submissions only
@@ -1249,8 +1442,21 @@ async function loadProfile() {
   document.getElementById('mSubsD').textContent     = wordTotal ? wordTotal.toLocaleString()+' words total' : '';
   document.getElementById('mOnVoice').textContent   = analysed.length ? `${onVoice}/${analysed.length}` : '—';
   document.getElementById('mOnVoiceD').textContent  = analysed.length-onVoice===0&&analysed.length>0 ? 'All on voice this term' : `${analysed.length-onVoice} reviewed`;
-  document.getElementById('mGrowth').textContent    = state?.sample_count || history.length;
-  document.getElementById('mGrowthD').textContent   = state ? `Purity ${((state.purity||0)*100).toFixed(0)}%` : '';
+
+  // Voice standing — a positive credential from the named milestones the server
+  // resolved (no raw sample counts, no purity). Guest shows a gentle default.
+  const reached = (v && Array.isArray(v.milestones)) ? v.milestones.filter(m=>m.state==='reached') : [];
+  const topMilestone = reached.length ? reached[reached.length-1] : null;
+  if (topMilestone) {
+    document.getElementById('mGrowth').textContent  = topMilestone.label.replace(/^Voice\s+/,'');
+    document.getElementById('mGrowthD').textContent = topMilestone.blurb;
+  } else if (v) {
+    document.getElementById('mGrowth').textContent  = 'Forming';
+    document.getElementById('mGrowthD').textContent = 'Your standing grows as you write.';
+  } else {
+    document.getElementById('mGrowth').textContent  = 'Distinct';
+    document.getElementById('mGrowthD').textContent = 'A settled, recognisable voice.';
+  }
 
   // Notes strip
   const strip = document.getElementById('proNotesStrip');
@@ -1574,93 +1780,79 @@ async function submitWork() {
   btn.disabled = true; btn.textContent = 'Analysing…';
 
   try {
-    // Add to baseline (best-effort — ignore error)
-    await apiFetch(`/students/${encodeURIComponent(studentId())}/baseline`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ text, assignment:title, provenance:'unverified' }),
-    });
-    // Score
-    const result = await apiFetch(`/students/${encodeURIComponent(studentId())}/score`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ text, assignment:title }),
-    });
+    // One redacted call: the server adds the piece to the body of work, scores
+    // it, and returns only the display-ready result (no raw deviation, no action
+    // enum, no feature vectors). The guest showcase has no account → render a
+    // local affirmation instead.
+    let result = null;
+    if (!isGuest()) {
+      result = await apiAuthFetch('/me/work', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ text, title }),
+      });
+    }
     renderScoreResult(result, title, text);
+    // Refresh the read-model so the arc, fingerprint, and standing reflect the
+    // new piece the next time the profile is viewed.
+    if (!isGuest()) await loadVoiceView(true);
   } finally {
     _submitting = false;
     btn.disabled = false; btn.textContent = 'Analyse voice';
   }
 }
 
+/* Renders the redacted /me/work result: {headline, summary, steady[],
+   review_opportunity}. The raw deviation score, action enum, and feature names
+   never arrive here — the server already resolved everything display-ready. The
+   guest showcase (no account, result === null) gets a local affirmation. */
 function renderScoreResult(result, title, text) {
   document.getElementById('scoreResult').style.display = 'block';
   const wc = text?.trim().split(/\s+/).length || 0;
 
   if (!result) {
-    document.getElementById('scoreHeadline').textContent = 'Analysis unavailable — server not reachable. Your submission was saved locally.';
-    document.getElementById('scoreSummary').textContent = '';
+    // Guest showcase, or server unreachable — affirm locally and save the piece.
+    document.getElementById('scoreHeadline').textContent = isGuest()
+      ? 'This reads like you.'
+      : 'Saved to your body of work.';
+    document.getElementById('scoreSummary').textContent = isGuest()
+      ? 'Your established voice comes through clearly here — in your sentence rhythm, your vocabulary, the way you build an argument.'
+      : 'This piece has been added to your formation record. Your voice profile builds as you submit more work.';
     document.getElementById('scoreFeats').innerHTML = '';
-    // Still save locally
-    _saveToPortfolio(title, null, wc, text);
+    document.getElementById('scoreFormationPrompt').style.display = 'none';
+    _saveToPortfolio(title, wc, text);
     return;
   }
 
-  // Build the result copy CLIENT-SIDE in the formation register. We never
-  // surface the technical explainer (result.human_explanation), which speaks
-  // in "deviation score" / "anomalies detected" — the surveillance language
-  // this dashboard exists to avoid.
-  const action = result.recommendation?.action || 'no_action';
-  const dev    = result.authorship?.deviation_score || 0;
-  const fid    = fidFromDev(dev);
-  const diverges = action !== 'no_action';
+  document.getElementById('scoreHeadline').textContent = result.headline || '';
+  document.getElementById('scoreSummary').textContent  = result.summary || '';
 
-  let headline, summary;
-  if (!diverges) {
-    headline = 'This reads like you.';
-    summary  = 'Your established voice comes through clearly here — in your sentence rhythm, your vocabulary, the way you build an argument. This piece sits comfortably within your body of work.';
-  } else if (action === 'monitor') {
-    headline = 'Mostly your voice, with a few new notes.';
-    summary  = 'Most of this reads like your established writing. A few passages stretch in new directions — often a sign of growth, sometimes just a different day at the desk.';
-  } else {
-    headline = 'Some passages here read differently from your voice.';
-    summary  = 'Parts of this piece diverge from your established voice. That is worth revisiting — not a verdict, an invitation to look again. A formation pathway is available if you would like a structured way through it.';
-  }
-  document.getElementById('scoreHeadline').textContent = headline;
-  document.getElementById('scoreSummary').textContent  = summary;
-
-  // Quiet secondary detail (not a hero percentage): voice fidelity + the
-  // features that held steady. Constructive features read as affirmation.
-  const feats = (result.interference?.constructive_features || []).slice(0,3);
-  const featHtml = feats.map(fc=>
-    `<div class="score-feat-row"><div class="score-feat-dot"></div><div style="font-family:var(--font-b);font-size:0.91rem;color:var(--ink)">${esc(fc.name)} is consistent with your established voice.</div></div>`
+  // Quiet secondary detail: the voice dimensions that held steady (resolved
+  // server-side into formation language — never a raw feature name or score).
+  const steady = Array.isArray(result.steady) ? result.steady : [];
+  document.getElementById('scoreFeats').innerHTML = steady.map(s=>
+    `<div class="score-feat-row"><div class="score-feat-dot"></div><div style="font-family:var(--font-b);font-size:0.91rem;color:var(--ink)">${esc(s)}</div></div>`
   ).join('');
-  document.getElementById('scoreFeats').innerHTML =
-    `<div style="font-family:var(--font-b);font-style:italic;font-size:0.82rem;color:rgba(26,26,26,0.4);margin-bottom:${featHtml?'10px':'0'}">Voice fidelity ${fid} · within your established range.</div>` + featHtml;
 
-  // Formation: a divergence opens a server-side pathway (idempotent).
+  // Formation: a review opportunity surfaces the pathway. The server opens it
+  // when the student advances (POST /me/formation/advance); no id is exposed.
+  const diverges = !!result.review_opportunity;
   document.getElementById('scoreFormationPrompt').style.display = diverges ? 'block' : 'none';
-  if (diverges) {
-    updateFormationNav(true);
-    const subId = result.submission_id || null;
-    window._ftSubmissionId = subId;
-    apiFetch(`/students/${encodeURIComponent(studentId())}/formation`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ submission_id: subId, reason:'voice divergence' }),
-    });
-  }
+  if (diverges) updateFormationNav(true);
 
-  _saveToPortfolio(title, result, wc, text);
+  _saveToPortfolio(title, wc, text);
 }
 
-function _saveToPortfolio(title, result, wc, text) {
+function _saveToPortfolio(title, wc, text) {
   const key = 'original_portfolio_' + studentId();
   let p = [];
   try { p = JSON.parse(localStorage.getItem(key)||'[]'); } catch(e) {}
-  // Store a truncated copy of the text so the profile's strongest-sentences,
-  // vocabulary reach, and Body-of-Work marginalia can read from real prose.
-  // The stated thesis is kept with the record (Focus Coach context).
+  // Store only the student's OWN typed prose (in their OWN browser) so the
+  // profile's strongest-sentences, vocabulary reach, and Body-of-Work titles can
+  // read from real text. No server scoring payload is kept here — the redacted
+  // VoiceView is the single source of truth for fidelity/standing.
   const thesis = (document.getElementById('subThesis')?.value || '').trim();
   p.push({ id:Date.now(), assignment:title, timestamp:new Date().toISOString(),
-           response:result, words:wc, text:(text||'').slice(0,4000), thesis });
+           words:wc, text:(text||'').slice(0,4000), thesis });
   localStorage.setItem(key, JSON.stringify(p));
 }
 

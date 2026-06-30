@@ -93,15 +93,54 @@
 
     .empty-state { text-align: center; padding: 32px; color: var(--text-muted); font-family: 'EB Garamond', serif; font-style: italic; font-size: 0.95rem; }
     .load-fail   { text-align: center; padding: 16px; color: #6B2737; font-size: 0.85rem; }
+
+    /* ── Sidebar collapse: the Ω brand-mark is the toggle ──────────────────────
+       Clicking the logo slides the rail shut (flex-basis/width 264->60) and the
+       nav + section labels evaporate, leaving just the logo as the toggle. The
+       sidebar is a flex item, so its size keys off flex-basis, not width. */
+    .sidebar { transition: flex-basis 0.26s cubic-bezier(0.4,0,0.2,1), width 0.26s cubic-bezier(0.4,0,0.2,1); overflow: hidden; }
+    .sidebar-brand-mark { cursor: pointer; transition: transform 0.18s ease, box-shadow 0.18s ease; }
+    .sidebar-brand-mark:hover { transform: scale(1.06); box-shadow: 0 0 0 4px var(--gold-light); }
+    .sidebar-brand-mark:active { transform: scale(0.92); }
+    .sidebar-brand-mark:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--gold); }
+    .sidebar.collapsed { flex-basis: 60px; width: 60px; }
+    .sidebar.collapsed .sidebar-brand { justify-content: center; gap: 0; padding: 0; }
+    .sidebar.collapsed .sidebar-brand > div:last-child { display: none; }
+    .sidebar.collapsed .sidebar-section,
+    .sidebar.collapsed .nav-item { opacity: 0; pointer-events: none; }
   </style>
+<!-- ── Dashboard intuitiveness pass — primitives + typography floor ── -->
+<link rel="stylesheet" href="_components/hero-answer.css">
+<link rel="stylesheet" href="_components/metric.css">
+<link rel="stylesheet" href="_components/help-hint.css">
+<style>
+  /* Comfort floor for any text that conveys meaning — was 0.6–0.68rem,
+     now bumped to ~12.5px so older readers can scan without leaning in. */
+  :root { --type-floor: 0.78rem; --type-body: 1rem; }
+  .meta, .stat-lbl, .nav-section-label, .empty-serif, .fc-label,
+  .pg-sub, .base-words, .base-date, .badge, .badge-lbl, .stat-d {
+    font-size: var(--type-floor) !important;
+  }
+  .input-notice, .ro-body, .section-body {
+    font-size: var(--type-body); line-height: 1.55;
+  }
+  h1 .help-hint, h2 .help-hint, h3 .help-hint, .card-ttl .help-hint,
+  .pg-ttl .help-hint, .stat-lbl .help-hint {
+    transform: translateY(-2px);
+  }
+</style>
+<script defer src="_components/metric.js"></script>
+<script defer src="_components/help-hint.js"></script>
+<link rel="stylesheet" href="_tour/tour.css">
+<script defer src="_tour/tour.js"></script>
 </head>
-<body>
+<body data-tour-page="operator">
 <div class="app">
 
   <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <div class="sidebar-brand-mark">Ω</div>
+      <div class="sidebar-brand-mark" id="sidebarLogoToggle" role="button" tabindex="0" title="Toggle sidebar" aria-label="Toggle sidebar">Ω</div>
       <div>
         <div class="sidebar-brand-name">Original</div>
         <div style="font-size:0.7rem;color:rgba(247,243,234,0.55)">Operator Dashboard</div>
@@ -118,7 +157,7 @@
   </aside>
 
   <!-- Main -->
-  <main class="main">
+  <main class="main" role="main">
     <div class="topbar">
       <div class="topbar-title">Original&nbsp;/&nbsp;<strong>Operator</strong></div>
       <div style="display:flex;gap:8px;align-items:center">
@@ -128,6 +167,17 @@
     </div>
 
     <div class="content">
+
+      <!-- ── HeroAnswer: "Are any of my tenants in trouble?" ── -->
+      <div id="operatorHero"
+           class="hero-answer hero-answer--loading"
+           data-hero-answer="operator"
+           data-tour-id="hero"
+           aria-live="polite">
+        <div class="hero-answer-eye">Tenant health</div>
+        <div class="hero-answer-headline">Loading the tenant list…</div>
+        <div class="hero-answer-detail"></div>
+      </div>
 
       <!-- ── System overview ────────────────────────────────────────────── -->
       <div class="system-stats" id="systemStats">
@@ -194,6 +244,20 @@
 <script>
 const API = '';  // same origin
 
+/* ── Sidebar collapse: the Ω brand-mark toggles the rail (ADR-005 parity) ── */
+(function(){
+  const sidebar = document.querySelector('.sidebar');
+  const logo = document.getElementById('sidebarLogoToggle');
+  if(!sidebar || !logo) return;
+  if(localStorage.getItem('sb-collapsed')==='1') sidebar.classList.add('collapsed');
+  function toggle(){
+    const c = sidebar.classList.toggle('collapsed');
+    localStorage.setItem('sb-collapsed', c?'1':'0');
+  }
+  logo.addEventListener('click', toggle);
+  logo.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); } });
+})();
+
 /* ── Utility ── */
 function esc(s) {
   if (!s) return '';
@@ -221,6 +285,38 @@ async function loadAll() {
     'Refreshed ' + new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
 }
 
+function renderOperatorHero({ tenantCount, studentCount, submissionCount, troubledTenants }) {
+  // Answers: "Are any of my tenants in trouble?"
+  // Status:
+  //   attend — ≥1 tenant in trouble
+  //   watch  — no troubled tenants but coverage thin (0 students or stats unknown)
+  //   calm   — every tenant healthy
+  const el = document.getElementById('operatorHero');
+  if (!el) return;
+  let status, eye, head, detail;
+  if (troubledTenants > 0) {
+    status = 'attend';
+    eye    = `${troubledTenants} need attention`;
+    head   = `${troubledTenants} of ${tenantCount} tenant${tenantCount===1?'':'s'} need a look.`;
+    detail = `${studentCount} students across all institutions · ${submissionCount} submissions scored.`;
+  } else if (tenantCount === 0) {
+    status = 'watch';
+    eye    = 'No tenants yet';
+    head   = 'No institutions registered. Register the first one to begin.';
+    detail = 'Click "Register school" above.';
+  } else {
+    status = 'calm';
+    eye    = 'All tenants healthy';
+    head   = `${tenantCount} of ${tenantCount} tenant${tenantCount===1?'':'s'} healthy.`;
+    detail = `${studentCount} students across all institutions · ${submissionCount} submissions scored.`;
+  }
+  el.classList.remove('hero-answer--loading','hero-answer--calm','hero-answer--watch','hero-answer--attend');
+  el.classList.add('hero-answer--' + status);
+  el.querySelector('.hero-answer-eye').textContent = eye;
+  el.querySelector('.hero-answer-headline').textContent = head;
+  el.querySelector('.hero-answer-detail').textContent = detail;
+}
+
 async function loadSystemStats() {
   try {
     const [health, audit] = await Promise.all([
@@ -228,10 +324,22 @@ async function loadSystemStats() {
       fetch(API + '/admin/audit?limit=1').then(r => r.json()),
     ]);
     const tenants = await fetch(API + '/tenants').then(r => r.json());
-    document.getElementById('ssTenants').textContent    = Array.isArray(tenants) ? tenants.length : '—';
+    const tenantCount = Array.isArray(tenants) ? tenants.length : 0;
+    document.getElementById('ssTenants').textContent    = tenantCount || '—';
     document.getElementById('ssStudents').textContent   = health.student_count ?? '—';
     document.getElementById('ssSubmissions').textContent = health.total_submissions ?? '—';
     document.getElementById('ssAudit').textContent      = audit.total ?? '—';
+
+    // Tenant trouble heuristic for the hero: a tenant counts as "troubled" if
+    // its per-tenant stats endpoint reports student_count > 0 AND sample_count
+    // is zero (registered school with no baselines yet). The full picture is
+    // refined in loadTenants() once stats land — re-render then.
+    renderOperatorHero({
+      tenantCount,
+      studentCount: health.student_count || 0,
+      submissionCount: health.total_submissions || 0,
+      troubledTenants: 0,  // refined by loadTenants() once it sees per-tenant stats
+    });
   } catch(e) {
     console.warn('loadSystemStats failed', e);
   }
@@ -253,6 +361,20 @@ async function loadTenants() {
     const statsByTenant = {};
     tenants.forEach((t, i) => {
       if (statsResults[i].status === 'fulfilled') statsByTenant[t.tenant_id] = statsResults[i].value;
+    });
+
+    // Refine the hero's troubled-tenant count now that per-tenant stats landed.
+    // A tenant is "troubled" if it has registered students but zero baseline
+    // samples — a school that's onboarded but not yet operating.
+    const troubled = Object.values(statsByTenant)
+      .filter(s => (s.student_count || 0) > 0 && (s.sample_count || 0) === 0).length;
+    const totalStudents = Object.values(statsByTenant).reduce((a, s) => a + (s.student_count || 0), 0);
+    const totalSubs     = Object.values(statsByTenant).reduce((a, s) => a + (s.submission_count || 0), 0);
+    renderOperatorHero({
+      tenantCount: tenants.length,
+      studentCount: totalStudents,
+      submissionCount: totalSubs,
+      troubledTenants: troubled,
     });
 
     grid.innerHTML = tenants.map(t => {

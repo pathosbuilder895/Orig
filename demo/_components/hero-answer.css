@@ -1,0 +1,159 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   <HeroAnswer> — the one-question, one-answer hero block.
+
+   Sits above all existing content on each dashboard. Same skeleton, four
+   bodies. The status variant (calm | watch | attend) drives the left border
+   + tint. The math is unchanged — only presentation.
+
+   Reuses these existing CSS variables that every dashboard already defines:
+     --sage, --sage-dim   (calm / strengthening / healthy)
+     --amber, --amber-dim (watch / settling / monitor)
+     --wine, --wine-dim   (attend / needs review / flagged)
+     --oxford             (the editorial dark)
+     --cream-warm         (subtle background)
+     --cream-border       (hairline)
+     --text-primary       (body)
+     --text-muted         (eye / detail)
+
+   If a dashboard hasn't declared those variables, the rule below provides a
+   minimal fallback so the hero always renders cleanly.
+   ───────────────────────────────────────────────────────────────────────── */
+
+:where(.hero-answer) {
+  --ha-sage:        var(--sage,         #4A6B5C);
+  --ha-sage-bg:     var(--sage-dim,     rgba(74,107,92,0.07));
+  --ha-amber:       var(--amber,        #B8860B);
+  --ha-amber-bg:    var(--amber-dim,    rgba(184,134,11,0.07));
+  --ha-wine:        var(--wine,         #6B2737);
+  --ha-wine-bg:     var(--wine-dim,     rgba(107,39,55,0.07));
+  --ha-cream-bg:    var(--cream-warm,   #F4EFE6);
+  --ha-border:      var(--cream-border, #D8CFB8);
+  --ha-text:        var(--text-primary, #1a130a);
+  --ha-muted:       var(--text-muted,   #6a5a40);
+}
+
+.hero-answer {
+  /* Above-the-fold real estate: at least 120px tall on desktop, 100px on
+     phones. Wide breathing room — this is the THING the user reads first. */
+  position: relative;
+  margin: 12px 24px 18px;
+  padding: 18px 28px 20px;
+  border: 1px solid var(--ha-border);
+  border-left: 4px solid var(--ha-muted);
+  border-radius: 8px;
+  background: var(--ha-cream-bg);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  row-gap: 6px;
+  min-height: 120px;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.02);
+  animation: ha-rise 0.4s cubic-bezier(0.16,1,0.3,1);
+}
+
+@keyframes ha-rise {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.hero-answer-eye {
+  /* Tiny uppercase eye text — orients the user without claiming attention */
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ha-muted);
+  font-weight: 600;
+}
+
+.hero-answer-headline {
+  /* The answer in 6-10 words — the thing you read in 5 seconds */
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: clamp(1.35rem, 2.6vw, 1.85rem);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--ha-text);
+  font-weight: 500;
+}
+
+.hero-answer-detail {
+  /* One-line sub + optional CTA chip */
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 0.92rem;
+  color: var(--ha-muted);
+  line-height: 1.45;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.hero-answer-detail a,
+.hero-answer-detail .hero-answer-cta {
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.82rem;
+  letter-spacing: 0.03em;
+  padding: 5px 12px;
+  border-radius: 4px;
+  background: var(--oxford, #002147);
+  color: #F4EFE6;
+  transition: opacity 0.15s;
+}
+.hero-answer-detail a:hover,
+.hero-answer-detail .hero-answer-cta:hover {
+  opacity: 0.85;
+}
+
+/* ── Status variants ──────────────────────────────────────────────────── */
+
+.hero-answer--calm {
+  border-left-color: var(--ha-sage);
+  background: var(--ha-sage-bg);
+}
+.hero-answer--calm .hero-answer-eye { color: var(--ha-sage); }
+
+.hero-answer--watch {
+  border-left-color: var(--ha-amber);
+  background: var(--ha-amber-bg);
+}
+.hero-answer--watch .hero-answer-eye { color: var(--ha-amber); }
+
+.hero-answer--attend {
+  border-left-color: var(--ha-wine);
+  background: var(--ha-wine-bg);
+}
+.hero-answer--attend .hero-answer-eye { color: var(--ha-wine); }
+
+/* Loading shimmer for the brief window before data arrives */
+.hero-answer--loading .hero-answer-headline {
+  color: transparent;
+  background: linear-gradient(90deg,
+              var(--ha-border) 0%,
+              rgba(0,0,0,0.04) 50%,
+              var(--ha-border) 100%);
+  background-size: 200% 100%;
+  animation: ha-shimmer 1.4s ease-in-out infinite;
+  border-radius: 4px;
+  width: 60%;
+  height: 1.5em;
+}
+@keyframes ha-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+/* Respect user motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .hero-answer { animation: none; }
+  .hero-answer--loading .hero-answer-headline { animation: none; }
+}
+
+/* Narrow viewports: keep the hero readable */
+@media (max-width: 600px) {
+  .hero-answer {
+    margin: 8px 12px 14px;
+    padding: 14px 16px 16px;
+  }
+  .hero-answer-headline { font-size: 1.2rem; }
+  .hero-answer-detail { font-size: 0.85rem; }
+}

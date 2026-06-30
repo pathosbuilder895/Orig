@@ -487,6 +487,94 @@ class StudentStateResponse(BaseModel):
     samples: List[SampleSummary]
 
 
+# ── Student read-model (ADR-005): the redacting VoiceView ─────────────────────
+# Every field here is already display-ready and formation-register. The forbidden
+# internals (feature codes, raw divergence/deviation, purity, sample counts,
+# action enums, thresholds) are projected away server-side in original/voice.py
+# and must never appear in these models. tests/test_voice_leak.py is the gate.
+
+class VoiceDimensionOut(BaseModel):
+    """One blended, named axis of the Fingerprint radar (never a raw feature)."""
+    name: str                                    # "Cadence", "Diction", …
+    value: float = Field(..., ge=0.0, le=1.0)    # blended 0–1, not a feature value
+
+
+class ArcPointOut(BaseModel):
+    """One point on the Voice Arc — resolved fidelity only, no raw math."""
+    period: str                                  # bare date label, client formats it
+    fidelity: int = Field(..., ge=0, le=100)     # resolved display metric
+    attention: bool                              # server decided this is a review opportunity
+
+
+class VoiceNoteOut(BaseModel):
+    """A finished prose note from a tutor — scores/verdicts stripped."""
+    note: str
+    reviewer: str
+    date: str
+
+
+class ReviewOpportunityOut(BaseModel):
+    """A gentle invitation to a conversation — no score, threshold, or enum."""
+    invitation_prose: str
+    locator: Optional[str] = None
+
+
+class MilestoneOut(BaseModel):
+    """A positive credential as a named milestone — no raw counts."""
+    label: str                                   # "Voice Established"
+    state: str                                   # "reached" | "upcoming"
+    blurb: str
+
+
+class FormationStateOut(BaseModel):
+    """Restorative formation state — the pathway 'reason' is never sent."""
+    active: bool
+    status: str                                  # "open" | "completed"
+    current_step: int
+    total_steps: int
+    step_label: str
+    supportive_copy: str
+
+
+class VoiceView(BaseModel):
+    """
+    The complete student-facing read-model returned by ``GET /me/voice``.
+
+    Resolved entirely server-side by ``original.voice.project_voice_view``. The
+    student client renders this directly — it never touches ``/students/{id}``,
+    ``/admin/*``, or the raw ``/score`` payload.
+    """
+    name: str
+    headline: str
+    subhead: str
+    fingerprint: List[VoiceDimensionOut]
+    arc: List[ArcPointOut]
+    voice_notes: List[VoiceNoteOut]
+    review_opportunities: List[ReviewOpportunityOut]
+    milestones: List[MilestoneOut]
+    formation: Optional[FormationStateOut] = None
+
+
+class VoiceSubmitRequest(BaseModel):
+    """Body of ``POST /me/work`` — the student submits a piece of writing."""
+    text: str = Field(..., description="Raw essay text")
+    title: str = Field("", description="Assignment title/label")
+
+
+class VoiceSubmitResult(BaseModel):
+    """
+    Redacted scoring result returned by ``POST /me/work``.
+
+    Built by ``original.voice.project_submission_result`` from the internal
+    Layer-7 output. Carries no deviation score, no action enum, no feature
+    vectors, and not the technical ``human_explanation``.
+    """
+    headline: str
+    summary: str
+    steady: List[str]
+    review_opportunity: bool
+
+
 # ── Health ────────────────────────────────────────────────────────────────────
 
 class HealthResponse(BaseModel):
