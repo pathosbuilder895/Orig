@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "created_at": "2026-06-30T21:06:40Z",
+  "created_at": "2026-07-01T03:42:15Z",
   "description": "Public-author validation corpus for Original. Each essay is uniquely attributed by the public record; the manifest fixes a 3-baseline / N-scored split per author.",
   "authors": {
     "james": {
