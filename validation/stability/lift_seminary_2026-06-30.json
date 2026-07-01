@@ -1,0 +1,113 @@
+{
+  "n_tokens_truncated_to": 500,
+  "off": {
+    "auc": 0.6204,
+    "brier": 0.1304,
+    "n_scored": 717,
+    "per_label": {
+      "authentic": {
+        "count": 617,
+        "mean_deviation": 0.7957,
+        "std_deviation": 0.0686,
+        "min_deviation": 0.5939,
+        "max_deviation": 1.0
+      },
+      "ghostwritten": {
+        "count": 100,
+        "mean_deviation": 0.8213,
+        "std_deviation": 0.0495,
+        "min_deviation": 0.671,
+        "max_deviation": 0.9134
+      }
+    },
+    "threshold_metrics": {
+      "no_action": {
+        "threshold": 0.4,
+        "tp": 0,
+        "fp": 617,
+        "tn": 100,
+        "fn": 0,
+        "accuracy": 0.1395,
+        "precision": 0.1395
+      },
+      "monitor": {
+        "threshold": 0.55,
+        "tp": 0,
+        "fp": 617,
+        "tn": 100,
+        "fn": 0,
+        "accuracy": 0.1395,
+        "precision": 0.1395
+      },
+      "escalate": {
+        "threshold": 0.75,
+        "tp": 165,
+        "fp": 452,
+        "tn": 93,
+        "fn": 7,
+        "accuracy": 0.3598,
+        "precision": 0.1706
+      }
+    }
+  },
+  "on": {
+    "auc": 0.6239,
+    "brier": 0.1304,
+    "n_scored": 717,
+    "per_label": {
+      "authentic": {
+        "count": 617,
+        "mean_deviation": 0.927,
+        "std_deviation": 0.0418,
+        "min_deviation": 0.712,
+        "max_deviation": 1.0
+      },
+      "ghostwritten": {
+        "count": 100,
+        "mean_deviation": 0.9443,
+        "std_deviation": 0.0235,
+        "min_deviation": 0.8676,
+        "max_deviation": 0.9798
+      }
+    },
+    "threshold_metrics": {
+      "no_action": {
+        "threshold": 0.4,
+        "tp": 0,
+        "fp": 617,
+        "tn": 100,
+        "fn": 0,
+        "accuracy": 0.1395,
+        "precision": 0.1395
+      },
+      "monitor": {
+        "threshold": 0.55,
+        "tp": 0,
+        "fp": 617,
+        "tn": 100,
+        "fn": 0,
+        "accuracy": 0.1395,
+        "precision": 0.1395
+      },
+      "escalate": {
+        "threshold": 0.75,
+        "tp": 1,
+        "fp": 616,
+        "tn": 100,
+        "fn": 0,
+        "accuracy": 0.1409,
+        "precision": 0.1397
+      }
+    }
+  },
+  "delta_auc": 0.0035,
+  "delta_brier": 0.0,
+  "env": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "adaptive_weights_enabled": "0",
+    "environment": "testing",
+    "original_db": ":memory:",
+    "numpy_seeded": true,
+    "python_seeded": true
+  }
+}
