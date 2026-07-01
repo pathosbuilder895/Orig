@@ -1,0 +1,22 @@
+# requirements-dev.txt — dev-only dependencies.
+#
+# These are needed for the accuracy benchmarks (validation/benchmark/,
+# validation/wide/, validation/public_authors/) and the documentation
+# pipeline. They are NOT needed at runtime — the production deploy on
+# Render uses requirements-pilot.txt (and the legacy demo uses
+# requirements-demo.txt), neither of which depend on these.
+#
+# Install once:
+#     pip install -r requirements-dev.txt
+
+# Plotting (ROC + calibration SVGs in the benchmark report).
+matplotlib>=3.7,<4
+
+# Used by validation.benchmark.metrics for some edge-case sanity checks
+# (sklearn's calibration_curve / brier_score_loss are the canonical
+# reference; we re-implement them in pure NumPy to keep them auditable,
+# but having sklearn available means we can cross-check.)
+scikit-learn>=1.3,<2
+
+# pypdf + python-docx are already pinned in requirements.txt (Bbook needs
+# them at runtime), so they are not duplicated here.

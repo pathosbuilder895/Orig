@@ -1,0 +1,349 @@
+{
+  "version": "1.0",
+  "created_at": "2026-06-30T20:22:11Z",
+  "description": "Public-author validation corpus for Original. Each essay is uniquely attributed by the public record; the manifest fixes a 3-baseline / N-scored split per author.",
+  "authors": {
+    "james": {
+      "name": "William James",
+      "native_english": true
+    },
+    "emerson": {
+      "name": "Ralph Waldo Emerson",
+      "native_english": true
+    },
+    "douglass": {
+      "name": "Frederick Douglass",
+      "native_english": true
+    },
+    "thoreau": {
+      "name": "Henry David Thoreau",
+      "native_english": true
+    },
+    "mill": {
+      "name": "John Stuart Mill",
+      "native_english": true
+    },
+    "chesterton": {
+      "name": "G.K. Chesterton",
+      "native_english": true
+    },
+    "newman": {
+      "name": "John Henry Newman",
+      "native_english": true
+    }
+  },
+  "entries": [
+    {
+      "filename": "james/what_pragmatism_means.txt",
+      "author_id": "james",
+      "label": "authentic",
+      "prompt": "What Pragmatism Means",
+      "word_count": 7168,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: https://en.wikisource.org/wiki/Pragmatism:_A_New_Name_for_Some_Old_Ways_of_Thinking/Lecture_II"
+    },
+    {
+      "filename": "emerson/self_reliance.txt",
+      "author_id": "emerson",
+      "label": "authentic",
+      "prompt": "Self-Reliance",
+      "word_count": 10360,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: https://en.wikisource.org/wiki/Essays:_First_Series/Self-Reliance"
+    },
+    {
+      "filename": "emerson/history.txt",
+      "author_id": "emerson",
+      "label": "authentic",
+      "prompt": "History",
+      "word_count": 8480,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: https://en.wikisource.org/wiki/Essays:_First_Series/History"
+    },
+    {
+      "filename": "emerson/compensation.txt",
+      "author_id": "emerson",
+      "label": "authentic",
+      "prompt": "Compensation",
+      "word_count": 7987,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: https://en.wikisource.org/wiki/Essays:_First_Series/Compensation"
+    },
+    {
+      "filename": "emerson/the_over_soul.txt",
+      "author_id": "emerson",
+      "label": "authentic",
+      "prompt": "The Over-Soul",
+      "word_count": 7105,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: https://en.wikisource.org/wiki/Essays:_First_Series/The_Over-Soul"
+    },
+    {
+      "filename": "emerson/spiritual_laws.txt",
+      "author_id": "emerson",
+      "label": "authentic",
+      "prompt": "Spiritual Laws",
+      "word_count": 8225,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: https://en.wikisource.org/wiki/Essays:_First_Series/Spiritual_Laws"
+    },
+    {
+      "filename": "douglass/what_to_the_slave_is_the_fourth_of_july.txt",
+      "author_id": "douglass",
+      "label": "authentic",
+      "prompt": "What to the Slave is the Fourth of July",
+      "word_count": 10490,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: https://en.wikisource.org/wiki/What_to_the_Slave_is_the_Fourth_of_July%3F"
+    },
+    {
+      "filename": "douglass/self_made_men.txt",
+      "author_id": "douglass",
+      "label": "authentic",
+      "prompt": "Self-Made Men",
+      "word_count": 1240,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: https://en.wikisource.org/wiki/Self-Made_Men"
+    },
+    {
+      "filename": "thoreau/life_without_principle.txt",
+      "author_id": "thoreau",
+      "label": "authentic",
+      "prompt": "Life Without Principle",
+      "word_count": 8269,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: https://en.wikisource.org/wiki/Life_Without_Principle"
+    },
+    {
+      "filename": "thoreau/slavery_in_massachusetts.txt",
+      "author_id": "thoreau",
+      "label": "authentic",
+      "prompt": "Slavery in Massachusetts",
+      "word_count": 6306,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: https://en.wikisource.org/wiki/Slavery_in_Massachusetts"
+    },
+    {
+      "filename": "thoreau/a_plea_for_captain_john_brown.txt",
+      "author_id": "thoreau",
+      "label": "authentic",
+      "prompt": "A Plea for Captain John Brown",
+      "word_count": 8689,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: https://en.wikisource.org/wiki/A_Plea_for_Captain_John_Brown"
+    },
+    {
+      "filename": "mill/on_liberty_part_01.txt",
+      "author_id": "mill",
+      "label": "authentic",
+      "prompt": "On Liberty (part 1 of 5)",
+      "word_count": 6,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg34901 \u2014 On Liberty, chunk 1/5"
+    },
+    {
+      "filename": "mill/on_liberty_part_02.txt",
+      "author_id": "mill",
+      "label": "authentic",
+      "prompt": "On Liberty (part 2 of 5)",
+      "word_count": 11,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg34901 \u2014 On Liberty, chunk 2/5"
+    },
+    {
+      "filename": "mill/on_liberty_part_03.txt",
+      "author_id": "mill",
+      "label": "authentic",
+      "prompt": "On Liberty (part 3 of 5)",
+      "word_count": 13,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg34901 \u2014 On Liberty, chunk 3/5"
+    },
+    {
+      "filename": "mill/on_liberty_part_04.txt",
+      "author_id": "mill",
+      "label": "authentic",
+      "prompt": "On Liberty (part 4 of 5)",
+      "word_count": 15,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg34901 \u2014 On Liberty, chunk 4/5"
+    },
+    {
+      "filename": "mill/on_liberty_part_05.txt",
+      "author_id": "mill",
+      "label": "authentic",
+      "prompt": "On Liberty (part 5 of 5)",
+      "word_count": 41,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg34901 \u2014 On Liberty, chunk 5/5"
+    },
+    {
+      "filename": "chesterton/orthodoxy_part_01.txt",
+      "author_id": "chesterton",
+      "label": "authentic",
+      "prompt": "Orthodoxy (part 1 of 5)",
+      "word_count": 11068,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg130 \u2014 Orthodoxy, chunk 1/5"
+    },
+    {
+      "filename": "chesterton/orthodoxy_part_02.txt",
+      "author_id": "chesterton",
+      "label": "authentic",
+      "prompt": "Orthodoxy (part 2 of 5)",
+      "word_count": 12730,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg130 \u2014 Orthodoxy, chunk 2/5"
+    },
+    {
+      "filename": "chesterton/orthodoxy_part_03.txt",
+      "author_id": "chesterton",
+      "label": "authentic",
+      "prompt": "Orthodoxy (part 3 of 5)",
+      "word_count": 12499,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg130 \u2014 Orthodoxy, chunk 3/5"
+    },
+    {
+      "filename": "chesterton/orthodoxy_part_04.txt",
+      "author_id": "chesterton",
+      "label": "authentic",
+      "prompt": "Orthodoxy (part 4 of 5)",
+      "word_count": 12578,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg130 \u2014 Orthodoxy, chunk 4/5"
+    },
+    {
+      "filename": "chesterton/orthodoxy_part_05.txt",
+      "author_id": "chesterton",
+      "label": "authentic",
+      "prompt": "Orthodoxy (part 5 of 5)",
+      "word_count": 14944,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg130 \u2014 Orthodoxy, chunk 5/5"
+    },
+    {
+      "filename": "newman/the_idea_of_a_university_part_01.txt",
+      "author_id": "newman",
+      "label": "authentic",
+      "prompt": "The Idea of a University (part 1 of 5)",
+      "word_count": 5312,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg24526 \u2014 The Idea of a University, chunk 1/5"
+    },
+    {
+      "filename": "newman/the_idea_of_a_university_part_02.txt",
+      "author_id": "newman",
+      "label": "authentic",
+      "prompt": "The Idea of a University (part 2 of 5)",
+      "word_count": 7228,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg24526 \u2014 The Idea of a University, chunk 2/5"
+    },
+    {
+      "filename": "newman/the_idea_of_a_university_part_03.txt",
+      "author_id": "newman",
+      "label": "authentic",
+      "prompt": "The Idea of a University (part 3 of 5)",
+      "word_count": 8447,
+      "is_baseline": true,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg24526 \u2014 The Idea of a University, chunk 3/5"
+    },
+    {
+      "filename": "newman/the_idea_of_a_university_part_04.txt",
+      "author_id": "newman",
+      "label": "authentic",
+      "prompt": "The Idea of a University (part 4 of 5)",
+      "word_count": 8550,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg24526 \u2014 The Idea of a University, chunk 4/5"
+    },
+    {
+      "filename": "newman/the_idea_of_a_university_part_05.txt",
+      "author_id": "newman",
+      "label": "authentic",
+      "prompt": "The Idea of a University (part 5 of 5)",
+      "word_count": 7608,
+      "is_baseline": false,
+      "ai_provider": "none",
+      "theological_tradition": null,
+      "native_english": true,
+      "notes": "Source: Project Gutenberg pg24526 \u2014 The Idea of a University, chunk 5/5"
+    }
+  ]
+}
