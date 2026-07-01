@@ -1,6 +1,6 @@
 # Owner's Manual — driving Original + Bluebook yourself
 
-For the operator/founder. Professors get `PROFESSOR_QUICKSTART.md`; servers get
+
 `OPS_RUNBOOK.md`; this is **how you personally use and present the product**.
 
 ---
@@ -104,3 +104,4 @@ that's exactly what an LTI launch does (binds the student id, skips login).
 | Login says "Too many sign-in attempts" | the throttle (10/5min per IP) — wait 5 minutes |
 | Server won't boot with `ORIGINAL_ENV=pilot` | missing `SECRET_KEY` — that's the fail-fast working |
 | Anything LTI | `docs/CANVAS_RUNBOOK.md` §4 troubleshooting table |
+
