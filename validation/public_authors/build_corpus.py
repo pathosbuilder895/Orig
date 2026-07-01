@@ -191,6 +191,22 @@ GUTENBERG_WORKS: List[GutenbergWork] = [
     # Newman, The Idea of a University (Discourses I-V is the public-domain set)
     GutenbergWork("newman", "John Henry Newman", "The Idea of a University", pg_id=24526,
                   n_chunks=5, n_baseline=3),
+    # ── Added for the length-stability study (≥50k words each, formation register) ──
+    # William James — Varieties of Religious Experience (~150k words)
+    GutenbergWork("james", "William James", "The Varieties of Religious Experience",
+                  pg_id=621, n_chunks=8, n_baseline=4),
+    # Thomas à Kempis — Imitation of Christ (~75k words; Benham translation)
+    GutenbergWork("kempis", "Thomas à Kempis", "The Imitation of Christ",
+                  pg_id=1653, n_chunks=5, n_baseline=3),
+    # Augustine — Confessions (~110k words; Pusey translation)
+    GutenbergWork("augustine", "Augustine of Hippo", "Confessions",
+                  pg_id=3296, n_chunks=6, n_baseline=3),
+    # Boethius — Consolation of Philosophy (~60k words)
+    GutenbergWork("boethius", "Boethius", "The Consolation of Philosophy",
+                  pg_id=14328, n_chunks=5, n_baseline=3),
+    # Jonathan Edwards — Religious Affections (~120k words)
+    GutenbergWork("edwards", "Jonathan Edwards", "A Treatise Concerning Religious Affections",
+                  pg_id=24962, n_chunks=6, n_baseline=3),
 ]
 
 
