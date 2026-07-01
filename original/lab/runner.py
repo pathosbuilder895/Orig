@@ -61,6 +61,15 @@ def trigger_run(
     except KeyError as e:
         return None, str(e)
 
+    if spec.requires_build:
+        # Wide-benchmark datasets (RAID/PAN/M4) build their corpus on
+        # demand from cached public data; the lab UI runs against a
+        # pre-built corpus on disk, so the user has to run the wide
+        # orchestrator first.
+        return None, (
+            f"dataset {dataset_label!r} must be built first: {spec.build_cmd}"
+        )
+
     config = {
         "dataset_label":  dataset_label,
         "max_scoring":    max_scoring,

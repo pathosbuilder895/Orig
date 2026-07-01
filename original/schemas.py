@@ -118,6 +118,8 @@ class DatasetInfo(BaseModel):
     name: str
     description: str
     author_filter: List[str]
+    requires_build: bool = False
+    build_cmd: str = ""
 
 
 class CalibrationRunRequest(BaseModel):

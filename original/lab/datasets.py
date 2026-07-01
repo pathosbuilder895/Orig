@@ -30,13 +30,17 @@ class DatasetSpec:
     corpus_dir: str       # path to the directory of essay files
     manifest_path: str    # path to the JSON manifest
     author_filter: List[str]   # only run these author_ids; [] = all
+    requires_build: bool = False
+    build_cmd: str = ""
 
     def to_dict(self) -> Dict:
         return {
-            "label":         self.label,
-            "name":          self.name,
-            "description":   self.description,
-            "author_filter": self.author_filter,
+            "label":          self.label,
+            "name":           self.name,
+            "description":    self.description,
+            "author_filter":  self.author_filter,
+            "requires_build": self.requires_build,
+            "build_cmd":      self.build_cmd,
         }
 
 
@@ -64,6 +68,53 @@ _REGISTRY: Dict[str, DatasetSpec] = {
         corpus_dir=str(_REPO_ROOT / "validation" / "corpus"),
         manifest_path=str(_REPO_ROOT / "validation" / "manifest.json"),
         author_filter=["hamilton", "madison", "jay", "disputed_vs_madison"],
+    ),
+
+    # Wide-benchmark datasets — the corpus + manifest are generated on the
+    # fly by `validation/wide/run.py` from the cached public datasets, so
+    # the lab UI must build them before running. The build_cmd is shown
+    # to the user as the next-step instruction.
+    "raid": DatasetSpec(
+        label="raid",
+        name="RAID — AI vs Human (8 domains)",
+        description=(
+            "Robust AI Detection benchmark: per-domain human prose vs LLM "
+            "generations across wikipedia, news, books, etc. Tests how well "
+            "Original separates real human writing from generated text in "
+            "the same domain."
+        ),
+        corpus_dir="",   # set at run time by the wide orchestrator
+        manifest_path="",
+        author_filter=[],
+        requires_build=True,
+        build_cmd="python -m validation.wide.run --dataset raid",
+    ),
+    "pan_av_2021": DatasetSpec(
+        label="pan_av_2021",
+        name="PAN 2021 Authorship Verification",
+        description=(
+            "PAN 2021 authorship verification dataset, regrouped per author. "
+            "Cross-topic same-author pairs — the classic hard test."
+        ),
+        corpus_dir="",
+        manifest_path="",
+        author_filter=[],
+        requires_build=True,
+        build_cmd="python -m validation.wide.run --dataset pan --pan-year 2021",
+    ),
+    "m4_en": DatasetSpec(
+        label="m4_en",
+        name="M4 — Multi-domain AI Detection (English)",
+        description=(
+            "M4 sample, English-only. Per-domain human vs AI text across "
+            "arxiv, peerread, reddit, wikihow, wikipedia. Multiple "
+            "generators (ChatGPT, davinci, cohere, dolly)."
+        ),
+        corpus_dir="",
+        manifest_path="",
+        author_filter=[],
+        requires_build=True,
+        build_cmd="python -m validation.wide.run --dataset m4",
     ),
 }
 
