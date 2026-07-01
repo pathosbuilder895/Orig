@@ -268,6 +268,71 @@ TIER_WEIGHTS: Dict[int, float] = {
     17: 1.5,   # behavioral biometrics (live keystroke — highest tamper-resistance)
 }
 
+
+# ── Length-adaptive tier weighting (Phase 2 of length-stability work) ─────────
+#
+# Derived from the per-tier Fisher-ratio stability study in
+# validation/stability/2026-06-30/per_tier_summary.csv. On short inputs
+# (≤ ~750 words) most tiers' features stop discriminating between authors —
+# their between-author variance only opens up once enough text is available.
+# A few tiers (2, 7, 14) keep most of their discriminating power even at
+# 500 words; a few collapse entirely (5, 11, 12, 15).
+#
+# When LENGTH_ADAPTIVE_WEIGHTS=1, scoring.py multiplies _TIER_WEIGHT_VECTOR
+# by the per-tier factor from the bucket matching the submission's word
+# count. The factors below are picked from the stability flag for each
+# tier ("HOLDS" → amplify, "DEGRADES" → identity, "COLLAPSES" → attenuate,
+# "n/a" → mute heavily). Identity at "long" preserves existing behaviour
+# on full essays.
+#
+# Bucket cutoffs match the stability-study lengths so a reviewer can map
+# a feature's behaviour at L back to the factor here:
+#   short   : ≤ 750 words   (covers the 250 + 500 stability rows)
+#   medium  : 750 - 2500    (covers the 1000 + 2000 rows)
+#   long    : > 2500 words  (covers the 5000 row + everything beyond)
+LENGTH_BUCKETS_BY_TOKENS: Dict[str, tuple] = {
+    "short":  (0,     750),
+    "medium": (750,   2500),
+    "long":   (2500,  10**9),
+}
+
+LENGTH_WEIGHT_SCHEDULE: Dict[str, Dict[int, float]] = {
+    # "short" factors are F(500, tier) / median(F(500, ·)), clipped to
+    # [0.5, 2.0]. Median F(500) across measured tiers ≈ 0.61, so factor
+    # = mean_F_500 / 0.61. Tiers 11 + 12 (text-only F=0) and tier 17
+    # (behavioral, length-independent) are pinned to identity.
+    "short": {
+        0:  1.00,   # comparison — no clear stability signal
+        1:  2.00,   # surface stylometrics: F(500)=1.69, ratio 2.77 → cap 2.0
+        2:  1.11,   # discourse: F(500)=0.68
+        3:  0.54,   # rhetorical: F(500)=0.33
+        4:  2.00,   # char/punct: F(500)=1.70, ratio 2.79 → cap
+        5:  2.00,   # POS/syntax: F(500)=2.81, ratio 4.61 → cap
+        6:  0.74,   # idiosyncratic: F(500)=0.45
+        7:  2.00,   # AI/burstiness: F(500)=6.22 (highest), ratio 10 → cap
+        8:  1.61,   # prosodic rhythm: F(500)=0.98
+        9:  0.50,   # argument: F(500)=0.15, ratio 0.25 → floor 0.5
+        10: 0.50,   # semantic gravity: F(500)=0.19
+        11: 0.50,   # error ecology — F=0 on text-only inputs → muted via floor
+        12: 0.50,   # tension arc — F=0 on text-only inputs → muted via floor
+        13: 0.64,   # prosodic depth: F(500)=0.39
+        14: 0.95,   # error topology: F(500)=0.58
+        15: 1.05,   # lexical architecture: F(500)=0.64
+        16: 0.50,   # citation: F(500)=0.08 (lowest), ratio 0.13 → floor
+        17: 1.00,   # behavioral — text-length-independent
+    },
+    "medium": {
+        # Linear interpolation between short and long for a smoother
+        # transition at ~1500 words. Kept explicit (not computed at
+        # import time) so reviewers can adjust per-tier without code.
+        0:  1.00, 1:  1.50, 2:  1.06, 3:  0.77, 4:  1.50,
+        5:  1.50, 6:  0.87, 7:  1.50, 8:  1.31, 9:  0.75,
+        10: 0.75, 11: 0.75, 12: 0.75, 13: 0.82, 14: 0.98,
+        15: 1.03, 16: 0.75, 17: 1.00,
+    },
+    "long":  {t: 1.0 for t in range(18)},   # identity — preserve existing behaviour
+}
+
 # ── Feature group toggles ────────────────────────────────────────────────────
 # Groups of features that require specific capabilities to produce real values.
 # When a group is in DISABLED_FEATURE_GROUPS, or its capability is unavailable,
