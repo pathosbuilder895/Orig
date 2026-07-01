@@ -46,6 +46,7 @@ from ..constants import (
     ALL_FEATURE_CODES, FEATURE_DIM, FEATURE_NAMES, FEATURE_TIER,
     TRAJECTORY_GROWTH_THRESHOLD, TRAJECTORY_REGRESSIVE_THRESHOLD,
     ACTION_THRESHOLDS, TIER_WEIGHTS,
+    LENGTH_BUCKETS_BY_TOKENS, LENGTH_WEIGHT_SCHEDULE,
 )
 
 log = logging.getLogger(__name__)
@@ -57,6 +58,37 @@ _TIER_WEIGHT_VECTOR = np.array(
     [TIER_WEIGHTS.get(FEATURE_TIER[code], 1.0) for code in ALL_FEATURE_CODES],
     dtype=np.float64,
 )
+
+
+# ── Length-adaptive scaling (Phase 2 of length-stability work) ───────────────
+#
+# When LENGTH_ADAPTIVE_WEIGHTS=1, the deviation-score weight vector is
+# multiplied by a per-tier factor chosen from the bucket that contains the
+# submission's n_tokens. The buckets + factors live in
+# original/constants.py:LENGTH_WEIGHT_SCHEDULE; this module just plumbs
+# them into the score() math.
+#
+# Pre-build one length-scale vector per bucket so the per-call cost is a
+# single np multiply, not a 103-feature Python loop.
+def _build_length_scale_vector(bucket: str) -> np.ndarray:
+    factors = LENGTH_WEIGHT_SCHEDULE[bucket]
+    return np.array(
+        [factors.get(FEATURE_TIER.get(code, 0), 1.0) for code in ALL_FEATURE_CODES],
+        dtype=np.float64,
+    )
+
+
+_LENGTH_SCALE_VECTORS: Dict[str, np.ndarray] = {
+    b: _build_length_scale_vector(b) for b in LENGTH_WEIGHT_SCHEDULE
+}
+
+
+def _length_bucket_for(n_tokens: int) -> str:
+    """Map a word count to the matching LENGTH_BUCKETS_BY_TOKENS key."""
+    for name, (lo, hi) in LENGTH_BUCKETS_BY_TOKENS.items():
+        if lo <= n_tokens < hi:
+            return name
+    return "long"   # safety net: anything past the last bucket reads as 'long'
 
 
 # ── Output dataclasses ────────────────────────────────────────────────────────
@@ -372,6 +404,17 @@ def score(
     weight_vec = (
         adaptive_weights if adaptive_weights is not None else _TIER_WEIGHT_VECTOR
     )
+
+    # ── Length-adaptive tier scaling ─────────────────────────────────────────
+    # When LENGTH_ADAPTIVE_WEIGHTS=1, scale the per-feature weight vector by
+    # a per-tier factor that depends on the submission's word count. Tiers
+    # that the stability study (validation/stability/) showed COLLAPSE on
+    # short inputs get attenuated; tiers that HOLD get amplified. Default
+    # OFF preserves byte-identical Phase 1 behaviour.
+    _length_adaptive = os.environ.get("LENGTH_ADAPTIVE_WEIGHTS", "0") == "1"
+    if _length_adaptive:
+        _bucket = _length_bucket_for(int(n_tokens))
+        weight_vec = weight_vec * _LENGTH_SCALE_VECTORS[_bucket]
 
     # Winsorise individual feature z-scores before weighting.
     # A single feature with |z| > 4 contributes 16× to the rms_z² sum —

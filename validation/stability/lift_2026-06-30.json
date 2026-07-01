@@ -1,0 +1,873 @@
+{
+  "summary": {
+    "n_essays_per_mode": 22,
+    "n_tokens_truncated_to": 500,
+    "off": {
+      "top1": 0.2727,
+      "mean_rank": 3.045
+    },
+    "on": {
+      "top1": 0.3182,
+      "mean_rank": 2.591
+    },
+    "delta_top1": 0.0455,
+    "delta_mean_rank": -0.454
+  },
+  "rows": [
+    {
+      "filename": "augustine/confessions_part_04.txt",
+      "true_author": "augustine",
+      "flag": "off",
+      "predicted": "augustine",
+      "correct": true,
+      "rank_of_true": 1,
+      "deviations": {
+        "augustine": 0.7864,
+        "boethius": 0.8233,
+        "chesterton": 0.8535,
+        "edwards": 0.9453,
+        "emerson": 0.7968,
+        "james": 0.9279,
+        "kempis": 0.9056,
+        "mill": 0.9209,
+        "newman": 0.9053
+      }
+    },
+    {
+      "filename": "augustine/confessions_part_04.txt",
+      "true_author": "augustine",
+      "flag": "on",
+      "predicted": "augustine",
+      "correct": true,
+      "rank_of_true": 1,
+      "deviations": {
+        "augustine": 0.8865,
+        "boethius": 0.9373,
+        "chesterton": 0.9527,
+        "edwards": 0.9813,
+        "emerson": 0.9106,
+        "james": 0.9855,
+        "kempis": 0.9915,
+        "mill": 0.9939,
+        "newman": 0.9692
+      }
+    },
+    {
+      "filename": "augustine/confessions_part_05.txt",
+      "true_author": "augustine",
+      "flag": "off",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 2,
+      "deviations": {
+        "augustine": 0.7913,
+        "boethius": 0.8384,
+        "chesterton": 0.8645,
+        "edwards": 0.9641,
+        "emerson": 0.5845,
+        "james": 0.9223,
+        "kempis": 0.9107,
+        "mill": 0.9232,
+        "newman": 0.89
+      }
+    },
+    {
+      "filename": "augustine/confessions_part_05.txt",
+      "true_author": "augustine",
+      "flag": "on",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 2,
+      "deviations": {
+        "augustine": 0.9026,
+        "boethius": 0.9524,
+        "chesterton": 0.966,
+        "edwards": 0.9912,
+        "emerson": 0.6728,
+        "james": 0.9824,
+        "kempis": 0.9927,
+        "mill": 0.9948,
+        "newman": 0.9546
+      }
+    },
+    {
+      "filename": "augustine/confessions_part_06.txt",
+      "true_author": "augustine",
+      "flag": "off",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 3,
+      "deviations": {
+        "augustine": 0.8875,
+        "boethius": 0.8883,
+        "chesterton": 0.8669,
+        "edwards": 0.9699,
+        "emerson": 0.6025,
+        "james": 0.9438,
+        "kempis": 0.897,
+        "mill": 0.9194,
+        "newman": 0.9364
+      }
+    },
+    {
+      "filename": "augustine/confessions_part_06.txt",
+      "true_author": "augustine",
+      "flag": "on",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 2,
+      "deviations": {
+        "augustine": 0.9666,
+        "boethius": 0.9737,
+        "chesterton": 0.9716,
+        "edwards": 0.9869,
+        "emerson": 0.6988,
+        "james": 0.9909,
+        "kempis": 0.9903,
+        "mill": 0.9935,
+        "newman": 0.9895
+      }
+    },
+    {
+      "filename": "boethius/the_consolation_of_philosophy_part_04.txt",
+      "true_author": "boethius",
+      "flag": "off",
+      "predicted": "kempis",
+      "correct": false,
+      "rank_of_true": 4,
+      "deviations": {
+        "augustine": 0.9396,
+        "boethius": 0.8944,
+        "chesterton": 0.874,
+        "edwards": 0.9559,
+        "emerson": 0.7923,
+        "james": 0.9536,
+        "kempis": 0.7878,
+        "mill": 0.9018,
+        "newman": 0.9506
+      }
+    },
+    {
+      "filename": "boethius/the_consolation_of_philosophy_part_04.txt",
+      "true_author": "boethius",
+      "flag": "on",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 3,
+      "deviations": {
+        "augustine": 0.9881,
+        "boethius": 0.9723,
+        "chesterton": 0.9736,
+        "edwards": 0.9861,
+        "emerson": 0.8806,
+        "james": 0.9919,
+        "kempis": 0.9575,
+        "mill": 0.9905,
+        "newman": 0.9917
+      }
+    },
+    {
+      "filename": "boethius/the_consolation_of_philosophy_part_05.txt",
+      "true_author": "boethius",
+      "flag": "off",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 3,
+      "deviations": {
+        "augustine": 0.8875,
+        "boethius": 0.8644,
+        "chesterton": 0.8857,
+        "edwards": 0.9397,
+        "emerson": 0.7659,
+        "james": 0.9471,
+        "kempis": 0.8637,
+        "mill": 0.904,
+        "newman": 0.9433
+      }
+    },
+    {
+      "filename": "boethius/the_consolation_of_philosophy_part_05.txt",
+      "true_author": "boethius",
+      "flag": "on",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 2,
+      "deviations": {
+        "augustine": 0.9708,
+        "boethius": 0.9628,
+        "chesterton": 0.9747,
+        "edwards": 0.9864,
+        "emerson": 0.8512,
+        "james": 0.9882,
+        "kempis": 0.9793,
+        "mill": 0.9909,
+        "newman": 0.9876
+      }
+    },
+    {
+      "filename": "chesterton/orthodoxy_part_04.txt",
+      "true_author": "chesterton",
+      "flag": "off",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 2,
+      "deviations": {
+        "augustine": 0.8912,
+        "boethius": 0.8496,
+        "chesterton": 0.7256,
+        "edwards": 0.9562,
+        "emerson": 0.5719,
+        "james": 0.9086,
+        "kempis": 0.8439,
+        "mill": 0.9077,
+        "newman": 0.9225
+      }
+    },
+    {
+      "filename": "chesterton/orthodoxy_part_04.txt",
+      "true_author": "chesterton",
+      "flag": "on",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 2,
+      "deviations": {
+        "augustine": 0.9717,
+        "boethius": 0.9524,
+        "chesterton": 0.8686,
+        "edwards": 0.9928,
+        "emerson": 0.6397,
+        "james": 0.9711,
+        "kempis": 0.9792,
+        "mill": 0.9927,
+        "newman": 0.9821
+      }
+    },
+    {
+      "filename": "chesterton/orthodoxy_part_05.txt",
+      "true_author": "chesterton",
+      "flag": "off",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 2,
+      "deviations": {
+        "augustine": 0.917,
+        "boethius": 0.8688,
+        "chesterton": 0.783,
+        "edwards": 0.9628,
+        "emerson": 0.5812,
+        "james": 0.9122,
+        "kempis": 0.8502,
+        "mill": 0.913,
+        "newman": 0.9359
+      }
+    },
+    {
+      "filename": "chesterton/orthodoxy_part_05.txt",
+      "true_author": "chesterton",
+      "flag": "on",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 2,
+      "deviations": {
+        "augustine": 0.9844,
+        "boethius": 0.9683,
+        "chesterton": 0.9418,
+        "edwards": 0.9969,
+        "emerson": 0.6743,
+        "james": 0.9776,
+        "kempis": 0.9815,
+        "mill": 0.9937,
+        "newman": 0.988
+      }
+    },
+    {
+      "filename": "edwards/a_treatise_concerning_religious_affections_part_04.txt",
+      "true_author": "edwards",
+      "flag": "off",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 4,
+      "deviations": {
+        "augustine": 0.9592,
+        "boethius": 0.9447,
+        "chesterton": 0.9439,
+        "edwards": 0.916,
+        "emerson": 0.8057,
+        "james": 0.9746,
+        "kempis": 0.9105,
+        "mill": 0.9053,
+        "newman": 0.9689
+      }
+    },
+    {
+      "filename": "edwards/a_treatise_concerning_religious_affections_part_04.txt",
+      "true_author": "edwards",
+      "flag": "on",
+      "predicted": "edwards",
+      "correct": true,
+      "rank_of_true": 1,
+      "deviations": {
+        "augustine": 0.9958,
+        "boethius": 0.994,
+        "chesterton": 0.9942,
+        "edwards": 0.8529,
+        "emerson": 0.9354,
+        "james": 0.9974,
+        "kempis": 0.9926,
+        "mill": 0.991,
+        "newman": 0.996
+      }
+    },
+    {
+      "filename": "edwards/a_treatise_concerning_religious_affections_part_05.txt",
+      "true_author": "edwards",
+      "flag": "off",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 5,
+      "deviations": {
+        "augustine": 0.9582,
+        "boethius": 0.9334,
+        "chesterton": 0.9465,
+        "edwards": 0.9356,
+        "emerson": 0.8092,
+        "james": 0.9735,
+        "kempis": 0.898,
+        "mill": 0.903,
+        "newman": 0.9644
+      }
+    },
+    {
+      "filename": "edwards/a_treatise_concerning_religious_affections_part_05.txt",
+      "true_author": "edwards",
+      "flag": "on",
+      "predicted": "edwards",
+      "correct": true,
+      "rank_of_true": 1,
+      "deviations": {
+        "augustine": 0.9955,
+        "boethius": 0.9917,
+        "chesterton": 0.9939,
+        "edwards": 0.9031,
+        "emerson": 0.9307,
+        "james": 0.9973,
+        "kempis": 0.99,
+        "mill": 0.9903,
+        "newman": 0.995
+      }
+    },
+    {
+      "filename": "edwards/a_treatise_concerning_religious_affections_part_06.txt",
+      "true_author": "edwards",
+      "flag": "off",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 4,
+      "deviations": {
+        "augustine": 0.96,
+        "boethius": 0.9407,
+        "chesterton": 0.9409,
+        "edwards": 0.9287,
+        "emerson": 0.799,
+        "james": 0.9701,
+        "kempis": 0.8748,
+        "mill": 0.9017,
+        "newman": 0.9673
+      }
+    },
+    {
+      "filename": "edwards/a_treatise_concerning_religious_affections_part_06.txt",
+      "true_author": "edwards",
+      "flag": "on",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 2,
+      "deviations": {
+        "augustine": 0.9957,
+        "boethius": 0.9935,
+        "chesterton": 0.9946,
+        "edwards": 0.9563,
+        "emerson": 0.9367,
+        "james": 0.9969,
+        "kempis": 0.9882,
+        "mill": 0.9904,
+        "newman": 0.9962
+      }
+    },
+    {
+      "filename": "emerson/the_over_soul.txt",
+      "true_author": "emerson",
+      "flag": "off",
+      "predicted": "emerson",
+      "correct": true,
+      "rank_of_true": 1,
+      "deviations": {
+        "augustine": 0.9413,
+        "boethius": 0.8997,
+        "chesterton": 0.9073,
+        "edwards": 0.9774,
+        "emerson": 0.7468,
+        "james": 0.9435,
+        "kempis": 0.8532,
+        "mill": 0.9136,
+        "newman": 0.9561
+      }
+    },
+    {
+      "filename": "emerson/the_over_soul.txt",
+      "true_author": "emerson",
+      "flag": "on",
+      "predicted": "emerson",
+      "correct": true,
+      "rank_of_true": 1,
+      "deviations": {
+        "augustine": 0.9904,
+        "boethius": 0.9849,
+        "chesterton": 0.9841,
+        "edwards": 0.9965,
+        "emerson": 0.8528,
+        "james": 0.9914,
+        "kempis": 0.9796,
+        "mill": 0.9925,
+        "newman": 0.9943
+      }
+    },
+    {
+      "filename": "emerson/spiritual_laws.txt",
+      "true_author": "emerson",
+      "flag": "off",
+      "predicted": "emerson",
+      "correct": true,
+      "rank_of_true": 1,
+      "deviations": {
+        "augustine": 0.92,
+        "boethius": 0.8924,
+        "chesterton": 0.8752,
+        "edwards": 0.9554,
+        "emerson": 0.7647,
+        "james": 0.9332,
+        "kempis": 0.8529,
+        "mill": 0.9142,
+        "newman": 0.935
+      }
+    },
+    {
+      "filename": "emerson/spiritual_laws.txt",
+      "true_author": "emerson",
+      "flag": "on",
+      "predicted": "emerson",
+      "correct": true,
+      "rank_of_true": 1,
+      "deviations": {
+        "augustine": 0.9832,
+        "boethius": 0.9667,
+        "chesterton": 0.9771,
+        "edwards": 0.9905,
+        "emerson": 0.8461,
+        "james": 0.9882,
+        "kempis": 0.9795,
+        "mill": 0.9924,
+        "newman": 0.9887
+      }
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_05.txt",
+      "true_author": "james",
+      "flag": "off",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 5,
+      "deviations": {
+        "augustine": 0.8941,
+        "boethius": 0.8323,
+        "chesterton": 0.8048,
+        "edwards": 0.9564,
+        "emerson": 0.6611,
+        "james": 0.8908,
+        "kempis": 0.8887,
+        "mill": 0.9107,
+        "newman": 0.8932
+      }
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_05.txt",
+      "true_author": "james",
+      "flag": "on",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 4,
+      "deviations": {
+        "augustine": 0.9616,
+        "boethius": 0.9335,
+        "chesterton": 0.9105,
+        "edwards": 0.9951,
+        "emerson": 0.8398,
+        "james": 0.9437,
+        "kempis": 0.9889,
+        "mill": 0.9936,
+        "newman": 0.963
+      }
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_06.txt",
+      "true_author": "james",
+      "flag": "off",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 8,
+      "deviations": {
+        "augustine": 0.9611,
+        "boethius": 0.9515,
+        "chesterton": 0.9529,
+        "edwards": 0.977,
+        "emerson": 0.8503,
+        "james": 0.9745,
+        "kempis": 0.8602,
+        "mill": 0.8544,
+        "newman": 0.9684
+      }
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_06.txt",
+      "true_author": "james",
+      "flag": "on",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 9,
+      "deviations": {
+        "augustine": 0.9952,
+        "boethius": 0.9963,
+        "chesterton": 0.996,
+        "edwards": 0.9952,
+        "emerson": 0.9642,
+        "james": 0.9976,
+        "kempis": 0.9829,
+        "mill": 0.9783,
+        "newman": 0.9965
+      }
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_07.txt",
+      "true_author": "james",
+      "flag": "off",
+      "predicted": "mill",
+      "correct": false,
+      "rank_of_true": 8,
+      "deviations": {
+        "augustine": 0.964,
+        "boethius": 1.0,
+        "chesterton": 0.9494,
+        "edwards": 0.9735,
+        "emerson": 0.8646,
+        "james": 0.9753,
+        "kempis": 0.8692,
+        "mill": 0.8603,
+        "newman": 0.9709
+      }
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_07.txt",
+      "true_author": "james",
+      "flag": "on",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 8,
+      "deviations": {
+        "augustine": 0.9958,
+        "boethius": 1.0,
+        "chesterton": 0.9946,
+        "edwards": 0.991,
+        "emerson": 0.9594,
+        "james": 0.9973,
+        "kempis": 0.9854,
+        "mill": 0.9789,
+        "newman": 0.9966
+      }
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_08.txt",
+      "true_author": "james",
+      "flag": "off",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 4,
+      "deviations": {
+        "augustine": 0.8727,
+        "boethius": 0.7985,
+        "chesterton": 0.8144,
+        "edwards": 0.9452,
+        "emerson": 0.5724,
+        "james": 0.8726,
+        "kempis": 0.8858,
+        "mill": 0.9121,
+        "newman": 0.8864
+      }
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_08.txt",
+      "true_author": "james",
+      "flag": "on",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 5,
+      "deviations": {
+        "augustine": 0.9417,
+        "boethius": 0.8893,
+        "chesterton": 0.9249,
+        "edwards": 0.9828,
+        "emerson": 0.6743,
+        "james": 0.9577,
+        "kempis": 0.9874,
+        "mill": 0.9936,
+        "newman": 0.9653
+      }
+    },
+    {
+      "filename": "kempis/the_imitation_of_christ_part_04.txt",
+      "true_author": "kempis",
+      "flag": "off",
+      "predicted": "kempis",
+      "correct": true,
+      "rank_of_true": 1,
+      "deviations": {
+        "augustine": 0.97,
+        "boethius": 0.96,
+        "chesterton": 0.9629,
+        "edwards": 0.9828,
+        "emerson": 1.0,
+        "james": 0.979,
+        "kempis": 0.6328,
+        "mill": 0.7107,
+        "newman": 0.9785
+      }
+    },
+    {
+      "filename": "kempis/the_imitation_of_christ_part_04.txt",
+      "true_author": "kempis",
+      "flag": "on",
+      "predicted": "kempis",
+      "correct": true,
+      "rank_of_true": 1,
+      "deviations": {
+        "augustine": 0.9975,
+        "boethius": 0.9967,
+        "chesterton": 0.9971,
+        "edwards": 0.9982,
+        "emerson": 1.0,
+        "james": 0.9984,
+        "kempis": 0.7548,
+        "mill": 0.847,
+        "newman": 0.9981
+      }
+    },
+    {
+      "filename": "kempis/the_imitation_of_christ_part_05.txt",
+      "true_author": "kempis",
+      "flag": "off",
+      "predicted": "kempis",
+      "correct": true,
+      "rank_of_true": 1,
+      "deviations": {
+        "augustine": 0.9649,
+        "boethius": 0.9561,
+        "chesterton": 0.9602,
+        "edwards": 0.9839,
+        "emerson": 0.9732,
+        "james": 0.9791,
+        "kempis": 0.381,
+        "mill": 0.71,
+        "newman": 0.9766
+      }
+    },
+    {
+      "filename": "kempis/the_imitation_of_christ_part_05.txt",
+      "true_author": "kempis",
+      "flag": "on",
+      "predicted": "kempis",
+      "correct": true,
+      "rank_of_true": 1,
+      "deviations": {
+        "augustine": 0.997,
+        "boethius": 0.9962,
+        "chesterton": 0.9967,
+        "edwards": 0.9985,
+        "emerson": 1.0,
+        "james": 0.9982,
+        "kempis": 0.5469,
+        "mill": 0.8456,
+        "newman": 0.9979
+      }
+    },
+    {
+      "filename": "mill/on_liberty_part_04.txt",
+      "true_author": "mill",
+      "flag": "off",
+      "predicted": "kempis",
+      "correct": false,
+      "rank_of_true": 2,
+      "deviations": {
+        "augustine": 0.9692,
+        "boethius": 0.9543,
+        "chesterton": 0.955,
+        "edwards": 0.9812,
+        "emerson": 0.8455,
+        "james": 0.9748,
+        "kempis": 0.4586,
+        "mill": 0.6391,
+        "newman": 0.9718
+      }
+    },
+    {
+      "filename": "mill/on_liberty_part_04.txt",
+      "true_author": "mill",
+      "flag": "on",
+      "predicted": "kempis",
+      "correct": false,
+      "rank_of_true": 2,
+      "deviations": {
+        "augustine": 0.9972,
+        "boethius": 0.9959,
+        "chesterton": 0.9961,
+        "edwards": 0.9975,
+        "emerson": 0.9738,
+        "james": 0.9977,
+        "kempis": 0.6489,
+        "mill": 0.8111,
+        "newman": 0.9973
+      }
+    },
+    {
+      "filename": "mill/on_liberty_part_05.txt",
+      "true_author": "mill",
+      "flag": "off",
+      "predicted": "mill",
+      "correct": true,
+      "rank_of_true": 1,
+      "deviations": {
+        "augustine": 0.9684,
+        "boethius": 0.9642,
+        "chesterton": 0.965,
+        "edwards": 0.9762,
+        "emerson": 0.8492,
+        "james": 0.9795,
+        "kempis": 0.8583,
+        "mill": 0.8347,
+        "newman": 0.976
+      }
+    },
+    {
+      "filename": "mill/on_liberty_part_05.txt",
+      "true_author": "mill",
+      "flag": "on",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 2,
+      "deviations": {
+        "augustine": 0.9969,
+        "boethius": 0.9968,
+        "chesterton": 0.9968,
+        "edwards": 0.9949,
+        "emerson": 0.9549,
+        "james": 0.998,
+        "kempis": 0.9813,
+        "mill": 0.974,
+        "newman": 0.9978
+      }
+    },
+    {
+      "filename": "newman/the_idea_of_a_university_part_04.txt",
+      "true_author": "newman",
+      "flag": "off",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 3,
+      "deviations": {
+        "augustine": 0.8813,
+        "boethius": 0.8053,
+        "chesterton": 0.8659,
+        "edwards": 0.9634,
+        "emerson": 0.744,
+        "james": 0.9148,
+        "kempis": 0.9032,
+        "mill": 0.9151,
+        "newman": 0.8515
+      }
+    },
+    {
+      "filename": "newman/the_idea_of_a_university_part_04.txt",
+      "true_author": "newman",
+      "flag": "on",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 2,
+      "deviations": {
+        "augustine": 0.9451,
+        "boethius": 0.9309,
+        "chesterton": 0.9629,
+        "edwards": 0.9938,
+        "emerson": 0.886,
+        "james": 0.9807,
+        "kempis": 0.9915,
+        "mill": 0.9941,
+        "newman": 0.9224
+      }
+    },
+    {
+      "filename": "newman/the_idea_of_a_university_part_05.txt",
+      "true_author": "newman",
+      "flag": "off",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 2,
+      "deviations": {
+        "augustine": 0.8899,
+        "boethius": 0.8784,
+        "chesterton": 0.8939,
+        "edwards": 0.9601,
+        "emerson": 0.794,
+        "james": 0.9177,
+        "kempis": 0.9074,
+        "mill": 0.9174,
+        "newman": 0.8701
+      }
+    },
+    {
+      "filename": "newman/the_idea_of_a_university_part_05.txt",
+      "true_author": "newman",
+      "flag": "on",
+      "predicted": "emerson",
+      "correct": false,
+      "rank_of_true": 3,
+      "deviations": {
+        "augustine": 0.9626,
+        "boethius": 0.9685,
+        "chesterton": 0.9754,
+        "edwards": 0.9924,
+        "emerson": 0.9025,
+        "james": 0.9848,
+        "kempis": 0.992,
+        "mill": 0.9948,
+        "newman": 0.9643
+      }
+    }
+  ],
+  "eligible": [
+    "augustine",
+    "boethius",
+    "chesterton",
+    "edwards",
+    "emerson",
+    "james",
+    "kempis",
+    "mill",
+    "newman"
+  ],
+  "env": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "adaptive_weights_enabled": "0",
+    "environment": "testing",
+    "original_db": ":memory:",
+    "numpy_seeded": true,
+    "python_seeded": true
+  }
+}
