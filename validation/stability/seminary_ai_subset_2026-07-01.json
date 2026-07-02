@@ -1,0 +1,48 @@
+{
+  "n_ai_essays": 20,
+  "n_real_authors": 8,
+  "eligible_real_authors": [
+    "hamilton",
+    "madison",
+    "disputed_vs_madison",
+    "paine",
+    "burke",
+    "lincoln",
+    "douglass",
+    "jay"
+  ],
+  "n_authentic_scorings": 607,
+  "n_ai_scorings": 160,
+  "authentic": {
+    "mean": 0.6949,
+    "std": 0.1052,
+    "p25": 0.6175,
+    "p50": 0.6795,
+    "p75": 0.7598
+  },
+  "ai_all": {
+    "mean": 0.915,
+    "std": 0.0271,
+    "p25": 0.8872,
+    "p50": 0.9251,
+    "p75": 0.9371
+  },
+  "ai_min_per_essay": {
+    "mean": 0.8769,
+    "std": 0.0113
+  },
+  "ai_mean_per_essay": {
+    "mean": 0.915,
+    "std": 0.0083
+  },
+  "auc_authentic_vs_ai": 0.9774,
+  "pct_ai_lower_dev_than_authentic_p50": 0.0,
+  "env": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "adaptive_weights_enabled": "0",
+    "environment": "testing",
+    "original_db": ":memory:",
+    "numpy_seeded": true,
+    "python_seeded": true
+  }
+}

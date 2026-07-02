@@ -24,6 +24,7 @@ the student's writing identity is evolving.
 from __future__ import annotations
 
 import math
+import os
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
@@ -156,6 +157,12 @@ class StudentState:
         Each sample i gets composite weight:
             composite_i = auth_weight_i × recency_decay^(N-1-i)
         where i is the index in the contributing-samples list (oldest → 0).
+
+        When ``RANK_REMEDIATION=shrinkage`` is set, the raw estimator ρ is
+        blended toward the isotropic target I/D via Ledoit-Wolf shrinkage
+        (see ``_ledoit_wolf_shrink``) before being returned. Default OFF —
+        omitting the env var (or any other value) preserves the exact
+        byte-for-byte ρ this method has always produced.
         """
         contributing = [s for s in self.samples if s.auth_weight > 0]
         N = len(contributing)
@@ -175,6 +182,16 @@ class StudentState:
             rho += weights[i] * np.outer(v, v)
 
         rho /= weights.sum()
+
+        # ── Rank remediation (additive, default OFF) ──────────────────────────
+        # The block above is UNCHANGED from the original implementation —
+        # every byte of rho above this line is identical whether or not
+        # RANK_REMEDIATION is set. Shrinkage only touches the return value.
+        if os.environ.get("RANK_REMEDIATION", "none") == "shrinkage":
+            vectors = np.stack([_unit(s.vector) for s in contributing])   # (N, D)
+            norm_weights = weights / weights.sum()                        # Σw_i = 1
+            rho = _ledoit_wolf_shrink(rho, vectors, norm_weights)
+
         return rho
 
     # ── Purity ───────────────────────────────────────────────────────────────
@@ -512,3 +529,89 @@ def _unit(v: np.ndarray) -> np.ndarray:
     """Return L2-unit normalised vector; return v unchanged if near-zero."""
     norm = np.linalg.norm(v)
     return v / norm if norm > 1e-12 else v
+
+
+def _ledoit_wolf_shrink(
+    rho: np.ndarray,
+    vectors: np.ndarray,
+    norm_weights: np.ndarray,
+) -> np.ndarray:
+    """
+    Blend ``rho`` toward the isotropic target I/D via weighted Ledoit-Wolf
+    (2004) shrinkage — the standard fix for rank-deficient covariance
+    estimators when the sample count N is small relative to the dimension D.
+
+    At N=3 baseline samples in a D=103 feature space, ``rho`` has rank ≤3:
+    100 of 103 eigen-directions carry exactly zero probability mass, so the
+    Born-rule projection ⟨ξ|ρ|ξ⟩ is blind to any submission feature that
+    varies outside the 3-dim subspace the baseline happened to span. The
+    shrunk estimator
+
+        ρ' = (1 − α)·ρ + α·(tr(ρ)/D)·I
+
+    assigns every dimension nonzero (if small) mass, trading a controlled
+    amount of bias for a large reduction in estimator variance — the
+    textbook bias-variance argument that makes shrinkage the standard
+    remedy for N≪D covariance estimation (portfolio theory, forensic
+    speaker verification, and here).
+
+    ``tr(ρ)/D`` is exactly 1/D for any weighted sum of outer products of
+    unit vectors (each ``outer(v,v)`` has trace 1, and the weights sum to
+    1), so the target is the maximally-mixed state I/D — "no information":
+    every feature equally likely, matching the N=0 fallback already used
+    elsewhere in this module.
+
+    The shrinkage intensity α is estimated from the data, not a tunable
+    constant — the weighted generalisation of Ledoit-Wolf's closed-form
+    formula (their eq. 5, adapted from uniform 1/N weights to our
+    recency/auth-weighted w_i, Σw_i=1):
+
+        target   F  = (tr(ρ)/D) · I
+        distance γ̂ = ‖ρ − F‖²_F          (how far the raw estimator sits
+                                            from the target — large when
+                                            the sample is concentrated in
+                                            a small subspace, i.e. N≪D)
+        variance π̂ = Σᵢ wᵢ² · ‖vᵢvᵢᵀ − ρ‖²_F
+                                           (how much each individual sample
+                                            disagrees with the pooled
+                                            estimator — the weighted analogue
+                                            of Ledoit-Wolf's (1/N²)Σ‖XₖXₖᵀ−S‖²_F;
+                                            reduces to their exact formula
+                                            when wᵢ = 1/N for all i)
+        α*        = min(1, π̂ / γ̂)         (large when the individual samples
+                                            are noisy relative to how far
+                                            they already are from uniform —
+                                            shrink hard when the estimator
+                                            is unreliable, shrink little
+                                            once N is large enough that ρ
+                                            is a trustworthy estimate)
+
+    Args:
+        rho: the raw (un-shrunk) density matrix, shape (D, D), tr(rho)=1.
+        vectors: unit-normalised baseline feature vectors, shape (N, D).
+        norm_weights: composite weights, Σ = 1, shape (N,).
+
+    Returns:
+        The shrunk density matrix, same shape as ``rho``, still tr=1
+        (a convex combination of two tr=1 matrices has tr=1).
+    """
+    D = rho.shape[0]
+    target_scale = float(np.trace(rho)) / D     # == 1/D exactly, computed
+                                                 # generally in case a
+                                                 # caller ever passes an
+                                                 # un-normalised rho.
+    target = target_scale * np.eye(D, dtype=np.float64)
+
+    gamma = float(np.sum((rho - target) ** 2))  # ‖ρ − F‖²_F
+    if gamma < 1e-18:
+        return rho    # ρ already equals the target — nothing to shrink toward
+
+    pi_hat = 0.0
+    for i in range(vectors.shape[0]):
+        outer_i = np.outer(vectors[i], vectors[i])
+        pi_hat += (norm_weights[i] ** 2) * float(np.sum((outer_i - rho) ** 2))
+
+    alpha = min(1.0, pi_hat / gamma) if gamma > 0 else 1.0
+    alpha = max(0.0, alpha)          # guard against float noise pushing <0
+
+    return (1.0 - alpha) * rho + alpha * target

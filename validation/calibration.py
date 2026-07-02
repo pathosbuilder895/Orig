@@ -108,6 +108,7 @@ def run_calibration(
     manifest_path: str,
     thresholds: Optional[Dict[str, float]] = None,
     max_scoring: Optional[int] = None,
+    min_baseline_bypass_labels: Optional[set] = None,
 ) -> CalibrationReport:
     """
     Run the full calibration study.
@@ -119,6 +120,15 @@ def run_calibration(
                     Defaults to the action thresholds from the roadmap.
         max_scoring: If set, cap the number of scoring entries per author to
                      this value (randomly sampled). Useful for large corpora.
+        min_baseline_bypass_labels: Optional set of ``AuthorshipLabel`` values.
+                    Entries with these labels get scored against EVERY
+                    eligible author's baseline, even if their nominal
+                    ``author_id`` has fewer than 3 baselines. Purpose: the
+                    seminary manifest attributes all AI essays to a
+                    synthetic ``ai_author`` with zero baselines; without
+                    this bypass, the "AUC" the study reports silently
+                    excludes 21 essays' worth of AI evidence. Default None
+                    preserves the old behaviour.
 
     Returns:
         CalibrationReport with all metrics.
@@ -130,6 +140,7 @@ def run_calibration(
             "monitor": 0.55,
             "escalate": 0.75,
         }
+    bypass_labels = set(min_baseline_bypass_labels or ())
 
     # Load manifest
     with open(manifest_path) as f:
@@ -139,9 +150,24 @@ def run_calibration(
     all_results: List[ScoringResult] = []
     total_baseline = 0
 
+    # If bypass is set, collect the labelled essays from ALL author buckets
+    # so we can score them against every eligible baseline later.
+    bypass_entries: List = []
+    if bypass_labels:
+        for e in manifest.entries:
+            if e.label in bypass_labels and not e.is_baseline:
+                bypass_entries.append(e)
+
+    # Track eligible authors' baselines so bypass entries can hit them.
+    eligible_states: Dict[str, "StudentState"] = {}
+    eligible_baseline_texts: Dict[str, List[str]] = {}
+
     print(f"Calibration study: {len(authors)} authors, {len(manifest.entries)} total entries")
     if max_scoring:
         print(f"  (capped at {max_scoring} scoring entries per author)")
+    if bypass_entries:
+        print(f"  bypass ({len(bypass_labels)} label{'s' if len(bypass_labels)>1 else ''}): "
+              f"{len(bypass_entries)} entries will score against every eligible author")
 
     for author_id in authors:
         baseline_entries = manifest.baseline_entries(author_id)
@@ -182,6 +208,10 @@ def run_calibration(
         total_baseline += len(baseline_samples)
         state = StudentState(student_id=author_id, samples=baseline_samples)
 
+        # Stash for the bypass-scoring pass below.
+        eligible_states[author_id] = state
+        eligible_baseline_texts[author_id] = baseline_texts
+
         # Score each non-baseline entry
         for s_idx, entry in enumerate(scoring_entries):
             text = _read_essay(corpus_dir, entry.filename)
@@ -219,6 +249,46 @@ def run_calibration(
             ))
 
         print(f"  {author_id}: {len(baseline_samples)} baseline, {len(scoring_entries)} scored")
+
+    # ── Bypass-label pass ────────────────────────────────────────────────────
+    # Every entry whose label was passed via ``min_baseline_bypass_labels``
+    # gets scored against every eligible author's baseline. For AI-generated
+    # essays whose nominal author has zero baselines, this recovers the
+    # evidence the SKIP gate would otherwise discard.
+    for entry in bypass_entries:
+        text = _read_essay(corpus_dir, entry.filename)
+        if not text:
+            continue
+        for target_author, state in eligible_states.items():
+            baseline_texts = eligible_baseline_texts[target_author]
+            print(f"    bypass {entry.filename} against {target_author}", flush=True)
+            t0 = time.perf_counter()
+            features = compute_full_features(text, baseline_texts)
+            sub_vector = np.array([features[c] for c in ALL_FEATURE_CODES],
+                                  dtype=np.float64)
+            result = score(state, sub_vector, features,
+                           f"{entry.filename}@{target_author}")
+            elapsed_ms = (time.perf_counter() - t0) * 1000
+
+            tier_contribs: Dict[str, float] = {}
+            for fc in (result.interference.constructive_features
+                       + result.interference.destructive_features):
+                tier = _feature_to_tier(fc.code)
+                tier_contribs[tier] = tier_contribs.get(tier, 0.0) + abs(fc.contribution)
+
+            all_results.append(ScoringResult(
+                filename=f"{entry.filename}@{target_author}",
+                author_id=target_author,
+                label=entry.label,
+                notes=(getattr(entry, "notes", "") or "") + " [bypass]",
+                deviation_score=result.authorship.deviation_score,
+                authorship_probability=result.authorship.authorship_probability,
+                recommended_action=result.recommendation.action,
+                is_same_author=False,      # bypass entries are BY DEFINITION not target_author
+                word_count=entry.word_count,
+                scoring_time_ms=round(elapsed_ms, 2),
+                tier_contributions=tier_contribs,
+            ))
 
     if not all_results:
         raise ValueError("No results — check corpus and manifest")
@@ -414,9 +484,23 @@ if __name__ == "__main__":
     parser.add_argument("--output", default="validation/calibration_report.json")
     parser.add_argument("--max-scoring", type=int, default=None,
                         help="Cap scoring entries per author (default: no cap)")
+    parser.add_argument(
+        "--bypass-labels", default="ai_generated",
+        help="Comma-separated AuthorshipLabel values that should be scored "
+             "against EVERY eligible author's baseline, bypassing the "
+             "≥3-baseline gate on their own author_id. Default 'ai_generated' "
+             "— without this, essays attributed to an author with <3 "
+             "baselines (e.g. a synthetic ai_author bucket) are silently "
+             "dropped from the reported AUC. Pass '' to disable.",
+    )
     args = parser.parse_args()
 
-    report = run_calibration(args.corpus, args.manifest, max_scoring=args.max_scoring)
+    bypass_labels = {
+        AuthorshipLabel(v.strip()) for v in args.bypass_labels.split(",") if v.strip()
+    } if args.bypass_labels else set()
+
+    report = run_calibration(args.corpus, args.manifest, max_scoring=args.max_scoring,
+                             min_baseline_bypass_labels=bypass_labels)
 
     print(f"\n{'='*60}")
     print(f"CALIBRATION RESULTS")
