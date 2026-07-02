@@ -1,0 +1,5 @@
+field,value,count,mean_deviation,std_deviation,auc_in_group,false_positive_rate
+ai_provider,none,213,0.776,0.0881,0.5707,0.9902
+word_count_bucket,<500,213,0.776,0.0881,0.5707,0.9902
+label,ai_generated,111,0.793,0.0886,0.5,nan
+label,authentic,102,0.7574,0.0838,0.5,0.9902

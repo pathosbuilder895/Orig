@@ -53,7 +53,7 @@ from validation.calibration import run_calibration
 from validation.wide._adapter import manifest_lookup_for
 
 
-DATASETS = {"raid", "pan", "m4", "all"}
+DATASETS = {"raid", "pan", "m4", "autextification", "all"}
 
 
 def _build_corpus_for(
@@ -96,6 +96,15 @@ def _build_corpus_for(
             sample_size=sample,
         )
         label = "m4_en"
+    elif dataset == "autextification":
+        from validation.wide.autextification import build_corpus
+        print(f"[wide] building AuTexTification corpus (sample={sample})…")
+        stats = build_corpus(
+            corpus_dir=corpus_dir,
+            manifest_path=manifest_path,
+            sample_size=sample,
+        )
+        label = "autextification_en"
     else:
         raise ValueError(f"unknown dataset {dataset!r}")
 
@@ -178,7 +187,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--dataset", required=True, choices=sorted(DATASETS),
-                   help="Which dataset to benchmark. 'all' runs raid + pan + m4.")
+                   help="Which dataset to benchmark. 'all' runs raid + pan + m4 + autextification.")
     p.add_argument("--sample", type=int, default=800,
                    help="Row cap for RAID + M4 (default: 800).")
     p.add_argument("--pan-year", type=int, default=2021,
@@ -193,7 +202,8 @@ def main():
                    help="Output root for report directories.")
     args = p.parse_args()
 
-    targets = (["raid", "pan", "m4"] if args.dataset == "all" else [args.dataset])
+    targets = (["raid", "pan", "m4", "autextification"] if args.dataset == "all"
+              else [args.dataset])
     paths = []
     for d in targets:
         try:

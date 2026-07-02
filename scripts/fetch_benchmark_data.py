@@ -56,6 +56,7 @@ ARXIV_DIR = CACHE_DIR / "arxiv"
 PAN_DIR = CACHE_DIR / "pan"
 RAID_DIR = CACHE_DIR / "raid"
 M4_DIR = CACHE_DIR / "m4"
+AUTEXTIFICATION_DIR = CACHE_DIR / "autextification"
 
 
 # ── Utilities ──────────────────────────────────────────────────────────────────
@@ -592,6 +593,55 @@ def fetch_m4(force: bool = False) -> List[Path]:
     return cached
 
 
+# ── AuTexTification (IberLEF 2023, symanto/autextification2023) ───────────────
+#
+# Shared-task dataset for AI-generated text detection, English subtask 1:
+# 33,845 train / test rows spanning 5 domains (tweets, reviews, news, legal
+# how-to articles, wikihow). label ∈ {human, generated}; model names the
+# generator (A-F) or "NO-MODEL" for human rows.
+# https://huggingface.co/datasets/symanto/autextification2023
+# Paper: https://arxiv.org/abs/2309.11285
+#
+# Files are small (13 MB train / 10 MB test) — no Range-sampling needed,
+# unlike RAID's multi-GB CSVs. Straight download.
+#
+# Cached file: .benchmark_cache/autextification/{train,test}.tsv
+#   columns: (index), id, prompt, text, label, model, domain
+
+AUTEXTIFICATION_URLS = {
+    "train": "https://huggingface.co/datasets/symanto/autextification2023/resolve/main/data/train/subtask_1/en/train.tsv",
+    "test":  "https://huggingface.co/datasets/symanto/autextification2023/resolve/main/data/test/subtask_1/en/test.tsv",
+}
+
+
+def fetch_autextification(force: bool = False) -> List[Path]:
+    """Download AuTexTification English subtask-1 train/test TSVs."""
+    AUTEXTIFICATION_DIR.mkdir(parents=True, exist_ok=True)
+    cached: List[Path] = []
+
+    for split, url in AUTEXTIFICATION_URLS.items():
+        target = AUTEXTIFICATION_DIR / f"{split}.tsv"
+        if target.exists() and not force:
+            log.info("✓ AuTexTification %s: cached (%.1f MB)", split, target.stat().st_size / 1e6)
+            cached.append(target)
+            continue
+
+        log.info("→ AuTexTification %s: %s", split, url)
+        try:
+            raw = _get(url, timeout=120)
+            target.write_bytes(raw)
+            log.info("✓ AuTexTification %s: %.1f MB", split, len(raw) / 1e6)
+            cached.append(target)
+        except Exception as e:
+            log.warning("  AuTexTification %s: %s (skipping)", split, e)
+
+    if not cached:
+        log.error("No AuTexTification files downloaded. Try:")
+        log.error("  https://huggingface.co/datasets/symanto/autextification2023")
+
+    return cached
+
+
 # ── Summary ────────────────────────────────────────────────────────────────────
 
 def print_summary(arxiv_data: dict, pan_data: dict):
@@ -635,16 +685,20 @@ def main():
                         help="Fetch specific PAN year only")
     parser.add_argument("--raid", action="store_true", help="Fetch RAID sample CSV only")
     parser.add_argument("--m4", action="store_true", help="Fetch M4 JSONL files only")
+    parser.add_argument("--autextification", action="store_true",
+                        help="Fetch AuTexTification English subtask-1 TSVs only")
     parser.add_argument("--force", action="store_true", help="Re-download even if cached")
     args = parser.parse_args()
 
-    any_specific = args.arxiv or args.pan or args.pan_year or args.raid or args.m4
+    any_specific = (args.arxiv or args.pan or args.pan_year or args.raid or args.m4
+                    or args.autextification)
     fetch_legacy = not any_specific   # default: arXiv + PAN for back-compat
 
     arxiv_data = {}
     pan_data = {}
     raid_path: Optional[Path] = None
     m4_paths: List[Path] = []
+    autext_paths: List[Path] = []
 
     if args.arxiv or fetch_legacy:
         log.info("=" * 50)
@@ -671,14 +725,23 @@ def main():
         log.info("=" * 50)
         m4_paths = fetch_m4(force=args.force)
 
+    if args.autextification:
+        log.info("=" * 50)
+        log.info("Fetching AuTexTification")
+        log.info("=" * 50)
+        autext_paths = fetch_autextification(force=args.force)
+
     if arxiv_data or pan_data:
         print_summary(arxiv_data, pan_data)
     if raid_path:
         log.info("RAID ready: %s", raid_path)
     if m4_paths:
         log.info("M4 ready: %d JSONL files in %s", len(m4_paths), M4_DIR)
-    if not (arxiv_data or pan_data or raid_path or m4_paths):
-        log.warning("No data fetched. Run with --arxiv, --pan, --raid, --m4, or no flags for arXiv+PAN.")
+    if autext_paths:
+        log.info("AuTexTification ready: %d files in %s", len(autext_paths), AUTEXTIFICATION_DIR)
+    if not (arxiv_data or pan_data or raid_path or m4_paths or autext_paths):
+        log.warning("No data fetched. Run with --arxiv, --pan, --raid, --m4, --autextification, "
+                    "or no flags for arXiv+PAN.")
 
 
 if __name__ == "__main__":
