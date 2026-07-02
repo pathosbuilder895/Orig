@@ -1674,6 +1674,11 @@ const API = {
     if (!r.ok) return null;
     return r.json();
   },
+  async getReadiness(id) {
+    const r = await fetch(`${API_BASE}/students/${encodeURIComponent(id)}/readiness`);
+    if (!r.ok) return null;
+    return r.json();
+  },
   async score(studentId, text, assignment) {
     const r = await fetch(`${API_BASE}/students/${encodeURIComponent(studentId)}/score`, {
       method: 'POST',
@@ -2049,6 +2054,7 @@ The doctrine of justification carries direct implications for the practice of Ch
 /* ── State ── */
 let active = STUDENTS[0];
 let activeApiData = null;  // live data from GET /students/{id}
+let activeReadiness = null;  // live data from GET /students/{id}/readiness
 let addBaselineOpen = false;
 
 /* ── Sparklines ── */
@@ -2118,8 +2124,12 @@ async function selectStudent(s) {
   });
 
   // Load real student data from API
-  const data = await API.getStudent(s.id);
+  const [data, readiness] = await Promise.all([
+    API.getStudent(s.id),
+    API.getReadiness(s.id),
+  ]);
   activeApiData = data;
+  activeReadiness = readiness;
 
   if (data) {
     const pct = Math.round(data.purity * 100);
@@ -2272,6 +2282,25 @@ function renderBaselines() {
       </div>
       <span style="font-size:0.76rem;font-weight:600;color:${purityColor}">${(purity*100).toFixed(0)}% purity</span>
       <span style="font-size:0.74rem;color:var(--text-dim)">${cnt} sample${cnt===1?'':'s'}</span>
+    </div>`;
+  }
+
+  // Readiness — GET /students/{id}/readiness: is this baseline good enough
+  // to score against yet, and what's the single most useful next step?
+  if (activeReadiness) {
+    const r = activeReadiness;
+    const verdictInfo = {
+      ready:        {color: 'var(--green)', label: 'Ready to analyze'},
+      developing:   {color: 'var(--amber)', label: 'Developing'},
+      insufficient: {color: 'var(--red)',   label: 'Needs more baselines'},
+    }[r.verdict] || {color: 'var(--text-dim)', label: r.verdict};
+    const topRec = (r.recommendations || [])[0] || '';
+    html += `<div style="margin:0 0 12px;padding:10px 12px;background:var(--surface-2);border-radius:8px;border-left:3px solid ${verdictInfo.color}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:${topRec ? '4px' : '0'}">
+        <span style="width:7px;height:7px;border-radius:50%;background:${verdictInfo.color};flex-shrink:0"></span>
+        <span style="font-size:0.78rem;font-weight:600;color:${verdictInfo.color}">${verdictInfo.label}</span>
+      </div>
+      ${topRec ? `<div style="font-size:0.76rem;color:var(--text-muted);line-height:1.4">${topRec}</div>` : ''}
     </div>`;
   }
 

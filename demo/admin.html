@@ -197,6 +197,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 .abadge.monitor { background: var(--flag-amber-bg); color: var(--amber); }
 .abadge.schedule_conversation { background: var(--flag-amber-bg); color: var(--amber); }
 .abadge.escalate { background: var(--flag-red-bg); color: var(--flag-red); }
+.abadge.no_data { background: var(--cream-warm); color: var(--text-muted); }
 
 /* Activity */
 .activity-item { display:flex;align-items:flex-start;gap:12px;padding:13px 20px; border-bottom: 1px solid var(--cream-border); }
@@ -613,19 +614,21 @@ const AV_COLORS = [
   {bg:'#BFDBFE',tc:'#1E40AF'},{bg:'#D1FAE5',tc:'#065F46'},{bg:'#FEE2E2',tc:'#991B1B'},
   {bg:'#FEF9C3',tc:'#92400E'},{bg:'#E9D5FF',tc:'#6D28D9'},{bg:'#FCE7F3',tc:'#9D174D'},
 ];
-const aLabel = {no_action:'No Action', monitor:'Monitor', schedule_conversation:'Discuss', escalate:'Escalate'};
+const aLabel = {no_action:'No Action', monitor:'Monitor', schedule_conversation:'Discuss', escalate:'Escalate', no_data:'Not Yet Scored'};
 
-function scoreColor(s) {
-  if (s < 0.40) return '#4A6B5C';
-  if (s < 0.55) return '#2563EB';
-  if (s < 0.75) return '#D97706';
-  return '#6B2737';
+// Color for an actual scored ACTION (no_action/monitor/schedule_conversation/
+// escalate/no_data) — the real risk signal, sourced from manifest history.
+function actionColor(a) {
+  return {no_action:'#4A6B5C', monitor:'#2563EB', schedule_conversation:'#D97706', escalate:'#6B2737', no_data:'#9CA3AF'}[a] || '#9CA3AF';
 }
-function scoreAction(s) {
-  if (s > 0.75) return 'escalate';
-  if (s > 0.55) return 'schedule_conversation';
-  if (s > 0.40) return 'monitor';
-  return 'no_action';
+// Color for PURITY — a baseline-confidence metric where HIGHER is better
+// (more consistent baseline), the opposite polarity of a risk score. Never
+// feed purity into actionColor()/an action badge — that inverts the meaning
+// and would label a student's best-established baseline as "Escalate".
+function purityColor(p) {
+  if (p >= 0.7) return '#4A6B5C';
+  if (p >= 0.4) return '#D97706';
+  return '#9CA3AF';
 }
 function initials(id) {
   return id.replace(/_/g,' ').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
@@ -715,9 +718,19 @@ async function loadDashboard() {
     ).size;
     if (cards[3]) cards[3].textContent = attention;
 
-    renderStudentTable(students);
+    // Latest scored action per student, keyed for the table/network view below.
+    // `items` is ordered created_at DESC (list_manifests), so the first entry
+    // seen per student_id is that student's most recent action — this is the
+    // actual risk signal. `purity` is a baseline-confidence metric (higher is
+    // BETTER), not a risk score, and must never drive escalate/attention UI.
+    const manifestByStudent = {};
+    items.forEach(m => {
+      if (!manifestByStudent[m.student_id]) manifestByStudent[m.student_id] = m;
+    });
+
+    renderStudentTable(students, manifestByStudent);
     renderActivity(items.slice(0, 5));
-    drawNodes(students);
+    drawNodes(students, manifestByStudent);
 
     // ── HeroAnswer: "Is the system healthy and operating within parameters?" ──
     renderAdminHero({
@@ -733,16 +746,20 @@ async function loadDashboard() {
   }
 }
 
-function renderStudentTable(students) {
+function renderStudentTable(students, manifestByStudent) {
+  manifestByStudent = manifestByStudent || {};
   const tbody = document.getElementById('studentTable');
   if (!students.length) {
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted)">No students yet.</td></tr>';
     return;
   }
   tbody.innerHTML = students.map((s, i) => {
-    const score = s.purity || 0;
-    const action = scoreAction(score);
-    const c = scoreColor(score);
+    // "Voice match" column = purity (baseline confidence, higher = better).
+    const purity = s.purity || 0;
+    const pc = purityColor(purity);
+    // "Status" column = the student's most recently scored action, if any —
+    // NOT derived from purity, which is a confidence metric, not a risk score.
+    const action = (manifestByStudent[s._id] || {}).action || 'no_data';
     const av = AV_COLORS[i % AV_COLORS.length];
     const display = s._name || s._id || s.student_id || '';
     const ini = initials(display);
@@ -755,8 +772,8 @@ function renderStudentTable(students) {
       </div></td>
       <td style="color:var(--text-muted);font-size:0.79rem">${s.trajectory_direction || '—'}</td>
       <td><div class="sbar-wrap">
-        <div class="sbar-bg"><div class="sbar-fill" id="${barId}" style="background:${c};width:0%"></div></div>
-        <span class="sbar-val" style="color:${c}">${score.toFixed(2)}</span>
+        <div class="sbar-bg"><div class="sbar-fill" id="${barId}" style="background:${pc};width:0%"></div></div>
+        <span class="sbar-val" style="color:${pc}">${purity.toFixed(2)}</span>
       </div></td>
       <td><span class="abadge ${action}">${aLabel[action]}</span></td>
     </tr>`;
@@ -788,7 +805,8 @@ function renderActivity(items) {
   </div>`).join('');
 }
 
-function drawNodes(students) {
+function drawNodes(students, manifestByStudent) {
+  manifestByStudent = manifestByStudent || {};
   const g = document.getElementById('nodeGroup');
   if (!g || !students.length) return;
   const cx = 130, cy = 130;
@@ -800,11 +818,12 @@ function drawNodes(students) {
 
   rings.forEach(ring => {
     ring.list.forEach((s, i) => {
-      const score = s.purity || 0;
+      // Node color = actual scored status (risk), never purity (confidence).
+      const action = (manifestByStudent[s._id] || {}).action || 'no_data';
       const angle = (i / ring.list.length) * 2 * Math.PI - Math.PI / 2;
       const x = cx + ring.r * Math.cos(angle);
       const y = cy + ring.r * Math.sin(angle);
-      const nodeColor = scoreColor(score);
+      const nodeColor = actionColor(action);
       const ini = initials(s._id || s.student_id || '');
       g.innerHTML += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="rgba(37,99,235,0.12)" stroke-width="1.5" stroke-dasharray="3,3"/>`;
       g.innerHTML += `<circle cx="${x}" cy="${y}" r="20" fill="white" stroke="${nodeColor}" stroke-width="2.5" filter="url(#glow)"/>
@@ -813,8 +832,8 @@ function drawNodes(students) {
     });
   });
 
-  // Pulse on most anomalous student
-  const flagged = students.filter(s => (s.purity || 0) > 0.75);
+  // Pulse on the most recently escalated student — not the highest-purity one.
+  const flagged = students.filter(s => (manifestByStudent[s._id] || {}).action === 'escalate');
   if (flagged.length) {
     const idx = students.indexOf(flagged[0]);
     const inInner = idx < innerCount;
