@@ -263,6 +263,24 @@ Indexed: submission_id, scored_at
 - Indexed for fast retrieval
 - Full audit trail of changes (InstructorDecision table)
 
+### 5.1b AI-Likelihood Scores (shadow / enabled mode)
+
+**Data Elements:** submission ID, student ID, calibrated AI-likelihood
+probability, band (low/elevated/strong), detector model version, timestamp.
+
+**Storage Location:** `ai_likelihood_scores` table (SQLite, pilot store).
+One row per scored submission whenever `AI_LIKELIHOOD_SHADOW=1` or
+`AI_LIKELIHOOD_ENABLED=1`; no rows when both are off. In shadow mode this
+table is the only footprint — nothing is surfaced to professors or students.
+
+**Access:** ops only (via `scripts/shadow_report.py` / `scripts/pilot_report.py`,
+read-only). Not exposed by any student- or professor-facing endpoint while in
+shadow mode.
+
+**Deletion:** purged by `DELETE /students/{student_id}` together with all
+other per-student data; counted in the data-inventory endpoint
+(`GET /students/{id}/data-inventory`, category `ai_likelihood_scores`).
+
 ### 5.2 Instructor Decisions
 
 **Data Elements:**

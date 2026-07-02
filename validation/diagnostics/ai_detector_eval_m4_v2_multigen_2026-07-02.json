@@ -1,0 +1,157 @@
+{
+  "dataset": "m4 eval split (held-out pairs \u2014 never trained on, even with --mix-m4)",
+  "artifact": "/Users/andrew/Desktop/Original/original/data/ai_detector_v1.joblib",
+  "trained_on": "autextification-2023-en+m4-academic-mix",
+  "overall": {
+    "n": 3414,
+    "n_human": 1707,
+    "n_ai": 1707,
+    "auc": 0.9835,
+    "brier": 0.0576,
+    "accuracy_at_0.5": 0.9397,
+    "tpr_at_fpr_05": 0.9279,
+    "tpr_at_fpr_01": 0.7897,
+    "at_t_elevated": {
+      "threshold": 0.738126,
+      "tpr": 0.8278,
+      "fpr": 0.017
+    },
+    "at_t_strong": {
+      "threshold": 0.929563,
+      "tpr": 0.2132,
+      "fpr": 0.0
+    }
+  },
+  "per_source": {
+    "arxiv": {
+      "n": 1666,
+      "n_human": 833,
+      "n_ai": 833,
+      "auc": 0.9602,
+      "brier": 0.0844,
+      "accuracy_at_0.5": 0.904,
+      "tpr_at_fpr_05": 0.8463,
+      "tpr_at_fpr_01": 0.6447,
+      "at_t_elevated": {
+        "threshold": 0.738126,
+        "tpr": 0.7383,
+        "fpr": 0.0252
+      },
+      "at_t_strong": {
+        "threshold": 0.929563,
+        "tpr": 0.3049,
+        "fpr": 0.0
+      }
+    },
+    "peerread": {
+      "n": 204,
+      "n_human": 102,
+      "n_ai": 102,
+      "auc": 0.9958,
+      "brier": 0.0377,
+      "accuracy_at_0.5": 0.9559,
+      "tpr_at_fpr_05": 0.9804,
+      "tpr_at_fpr_01": 0.9314,
+      "at_t_elevated": {
+        "threshold": 0.738126,
+        "tpr": 0.8627,
+        "fpr": 0.0
+      },
+      "at_t_strong": {
+        "threshold": 0.929563,
+        "tpr": 0.3137,
+        "fpr": 0.0
+      }
+    },
+    "reddit": {
+      "n": 494,
+      "n_human": 247,
+      "n_ai": 247,
+      "auc": 0.9951,
+      "brier": 0.0316,
+      "accuracy_at_0.5": 0.9737,
+      "tpr_at_fpr_05": 0.9838,
+      "tpr_at_fpr_01": 0.8745,
+      "at_t_elevated": {
+        "threshold": 0.738126,
+        "tpr": 0.9231,
+        "fpr": 0.0202
+      },
+      "at_t_strong": {
+        "threshold": 0.929563,
+        "tpr": 0.2429,
+        "fpr": 0.0
+      }
+    },
+    "wikihow": {
+      "n": 560,
+      "n_human": 280,
+      "n_ai": 280,
+      "auc": 0.998,
+      "brier": 0.028,
+      "accuracy_at_0.5": 0.9839,
+      "tpr_at_fpr_05": 0.9964,
+      "tpr_at_fpr_01": 0.9464,
+      "at_t_elevated": {
+        "threshold": 0.738126,
+        "tpr": 0.925,
+        "fpr": 0.0071
+      },
+      "at_t_strong": {
+        "threshold": 0.929563,
+        "tpr": 0.0643,
+        "fpr": 0.0
+      }
+    },
+    "wikipedia": {
+      "n": 490,
+      "n_human": 245,
+      "n_ai": 245,
+      "auc": 0.9972,
+      "brier": 0.0344,
+      "accuracy_at_0.5": 0.9694,
+      "tpr_at_fpr_05": 0.9878,
+      "tpr_at_fpr_01": 0.9429,
+      "at_t_elevated": {
+        "threshold": 0.738126,
+        "tpr": 0.9102,
+        "fpr": 0.0041
+      },
+      "at_t_strong": {
+        "threshold": 0.929563,
+        "tpr": 0.0,
+        "fpr": 0.0
+      }
+    }
+  },
+  "per_generator_tpr": {
+    "chatgpt": {
+      "n": 1050,
+      "tpr_at_t_elevated": 0.9133,
+      "tpr_at_t_strong": 0.2629
+    },
+    "cohere": {
+      "n": 380,
+      "tpr_at_t_elevated": 0.7711,
+      "tpr_at_t_strong": 0.2289
+    },
+    "davinci": {
+      "n": 277,
+      "tpr_at_t_elevated": 0.5812,
+      "tpr_at_t_strong": 0.0036
+    }
+  },
+  "env": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "environment": "testing",
+    "original_db": ":memory:",
+    "numpy_seeded": true,
+    "python_seeded": true,
+    "scoring_flags": {
+      "ADAPTIVE_WEIGHTS_ENABLED": "0",
+      "AMPLITUDE_SCORING_ENABLED": "0",
+      "BAYESIAN_PRIOR_ENABLED": "0",
+      "LENGTH_ADAPTIVE_WEIGHTS": "0"
+    }
+  }
+}

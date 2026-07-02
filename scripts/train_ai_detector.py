@@ -636,7 +636,8 @@ def cmd_eval_raid(args: argparse.Namespace) -> int:
             if len(text) < 10 or not model:
                 continue
             rows.append({"text": text, "model": model,
-                         "domain": (r.get("domain") or "unknown").lower()})
+                         "domain": (r.get("domain") or "unknown").lower(),
+                         "attack": (r.get("attack") or "none").strip().lower()})
     if args.limit:
         rows = rows[: args.limit]
     print(f"[eval-raid] rows={len(rows)}", file=sys.stderr)
@@ -656,14 +657,40 @@ def cmd_eval_raid(args: argparse.Namespace) -> int:
             "flag_rate_at_t_strong": round(float((probs[m] >= thresholds["strong"]).mean()), 4),
         }
 
+    # Attack split (AI rows only — the sample has too few humans for a
+    # per-attack FPR): separates "misses RLHF chat models" from "misses
+    # adversarially disguised text" — different caveats, different fixes.
+    attacks = np.array([r["attack"] for r in rows])
+    ai_mask = y == 1
+
+    def _ai_flag_rates(mask: np.ndarray) -> Dict[str, object]:
+        return {
+            "n": int(mask.sum()),
+            "tpr_at_t_elevated": (round(float((probs[mask] >= thresholds["elevated"]).mean()), 4)
+                                  if mask.any() else None),
+            "tpr_at_t_strong": (round(float((probs[mask] >= thresholds["strong"]).mean()), 4)
+                                if mask.any() else None),
+        }
+
+    attack_vs_clean = {
+        "clean": _ai_flag_rates(ai_mask & (attacks == "none")),
+        "attacked": _ai_flag_rates(ai_mask & (attacks != "none")),
+    }
+    per_attack = {a: _ai_flag_rates(ai_mask & (attacks == a))
+                  for a in sorted(set(attacks.tolist()))}
+
     report = {
         "dataset": "raid_sample (cross-dataset transfer, frozen model + thresholds)",
         "artifact": str(args.model),
-        "note": ("RAID sample is generations-heavy; AUC is only reported when both "
-                 "classes are present in usable volume. flag_rate for model=human "
-                 "IS the false-positive rate."),
+        "note": ("RAID sample is generations-heavy (only ~8 human rows — read "
+                 "the human flag rate as anecdote, not an FPR) and many "
+                 "generations carry adversarial attacks. attack_vs_clean and "
+                 "per_attack are AI-rows-only TPRs. AUC is only reported when "
+                 "both classes are present in usable volume."),
         "overall": _metric_block(y, probs, thresholds),
         "per_generator": per_generator,
+        "attack_vs_clean": attack_vs_clean,
+        "per_attack": per_attack,
         "env": ENV_LOCK.__dict__,
     }
     _write_report(report, Path(args.report))
@@ -691,12 +718,29 @@ def cmd_eval_m4(args: argparse.Namespace) -> int:
     per_source = {s: _metric_block(y[sources == s], probs[sources == s], thresholds)
                   for s in sorted(set(sources.tolist()))}
 
+    # Per-generator TPR: within one generator every row is y=1, so the flag
+    # rate at a threshold IS the true-positive rate for that generator —
+    # the multi-generator evidence (chatGPT / davinci / cohere) from open
+    # data the pilot pitch needs.
+    generators = m4["generator"][mask].astype(str)
+    per_generator = {}
+    for g in sorted(set(generators.tolist())):
+        if g == "human":
+            continue
+        gm = generators == g
+        per_generator[g] = {
+            "n": int(gm.sum()),
+            "tpr_at_t_elevated": round(float((probs[gm] >= thresholds["elevated"]).mean()), 4),
+            "tpr_at_t_strong": round(float((probs[gm] >= thresholds["strong"]).mean()), 4),
+        }
+
     report = {
         "dataset": "m4 eval split (held-out pairs — never trained on, even with --mix-m4)",
         "artifact": str(args.model),
         "trained_on": art["provenance"]["dataset"]["name"],
         "overall": _metric_block(y, probs, thresholds),
         "per_source": per_source,
+        "per_generator_tpr": per_generator,
         "env": ENV_LOCK.__dict__,
     }
     _write_report(report, Path(args.report))
@@ -717,12 +761,16 @@ def cmd_eval_seminary(args: argparse.Namespace) -> int:
         "ghostwritten": [],          # human-written by someone else — must NOT flag
         "historical_authentic": [],  # archaic public-author prose — known stress case
     }
+    # ai_provider per AI essay, parallel to groups["ai_generated"] — most
+    # manifest entries omit the field entirely, so `or "none"` is required.
+    ai_providers: List[str] = []
     for e in entries:
         path = SEMINARY_CORPUS / e["filename"]
         if not path.exists():
             continue
         if e["label"] == "ai_generated":
             groups["ai_generated"].append(str(path))
+            ai_providers.append(e.get("ai_provider") or "none")
         elif e["label"] == "ghostwritten":
             groups["ghostwritten"].append(str(path))
         elif e["label"] == "authentic" and e["author_id"].startswith("seminary"):
@@ -730,11 +778,12 @@ def cmd_eval_seminary(args: argparse.Namespace) -> int:
         elif e["label"] == "authentic":
             groups["historical_authentic"].append(str(path))
 
-    texts, group_of = [], []
+    texts, group_of, provider_of = [], [], []
     for g, paths in groups.items():
-        for p in paths:
+        for i, p in enumerate(paths):
             texts.append(Path(p).read_text(encoding="utf-8", errors="replace"))
             group_of.append(g)
+            provider_of.append(ai_providers[i] if g == "ai_generated" else "none")
     print(f"[eval-seminary] " +
           " ".join(f"{g}={len(v)}" for g, v in groups.items()), file=sys.stderr)
 
@@ -793,6 +842,16 @@ def cmd_eval_seminary(args: argparse.Namespace) -> int:
         "artifact": str(args.model),
         "core_seminary_vs_ai": core_block,
         "per_group": {g: _flag_rates(group_arr == g) for g in groups},
+        # Per-provider TPR over the AI essays (flag rate = TPR within a
+        # provider). All 20 current essays are claude; this section becomes
+        # the multi-generator gate report the moment scripts/add_ai_essays.py
+        # ingests essays from other providers.
+        "per_ai_provider": {
+            prov: _flag_rates((group_arr == "ai_generated")
+                              & (np.array(provider_of) == prov))
+            for prov in sorted({p for g, p in zip(group_of, provider_of)
+                                if g == "ai_generated"})
+        },
         "enablement_gate": {
             "rule": "in-domain AUC >= 0.85 AND flag_rate_at_t_elevated <= 0.05 "
                     "on seminary_authentic (see MODEL_CARD.md)",
