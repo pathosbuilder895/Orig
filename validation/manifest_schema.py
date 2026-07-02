@@ -26,6 +26,7 @@ class AIProvider(str, Enum):
     CHATGPT = "chatgpt"
     CLAUDE = "claude"
     GEMINI = "gemini"
+    OTHER = "other"    # open models / unnamed providers (add_ai_essays.py)
     NONE = "none"
 
 

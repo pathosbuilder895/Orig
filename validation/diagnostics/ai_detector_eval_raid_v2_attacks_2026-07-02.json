@@ -1,0 +1,149 @@
+{
+  "dataset": "raid_sample (cross-dataset transfer, frozen model + thresholds)",
+  "artifact": "/Users/andrew/Desktop/Original/original/data/ai_detector_v1.joblib",
+  "note": "RAID sample is generations-heavy (only ~8 human rows \u2014 read the human flag rate as anecdote, not an FPR) and many generations carry adversarial attacks. attack_vs_clean and per_attack are AI-rows-only TPRs. AUC is only reported when both classes are present in usable volume.",
+  "overall": {
+    "n": 499,
+    "n_human": 8,
+    "n_ai": 491,
+    "auc": 0.5099,
+    "brier": 0.3253,
+    "accuracy_at_0.5": 0.5331,
+    "tpr_at_fpr_05": 0.3442,
+    "tpr_at_fpr_01": 0.3442,
+    "at_t_elevated": {
+      "threshold": 0.738126,
+      "tpr": 0.387,
+      "fpr": 0.25
+    },
+    "at_t_strong": {
+      "threshold": 0.929563,
+      "tpr": 0.0652,
+      "fpr": 0.0
+    }
+  },
+  "per_generator": {
+    "chatgpt": {
+      "n": 22,
+      "flag_rate_at_t_elevated": 0.6818,
+      "flag_rate_at_t_strong": 0.1364
+    },
+    "cohere": {
+      "n": 28,
+      "flag_rate_at_t_elevated": 0.0357,
+      "flag_rate_at_t_strong": 0.0
+    },
+    "cohere-chat": {
+      "n": 20,
+      "flag_rate_at_t_elevated": 0.3,
+      "flag_rate_at_t_strong": 0.05
+    },
+    "gpt2": {
+      "n": 103,
+      "flag_rate_at_t_elevated": 0.6117,
+      "flag_rate_at_t_strong": 0.165
+    },
+    "gpt3": {
+      "n": 18,
+      "flag_rate_at_t_elevated": 0.2222,
+      "flag_rate_at_t_strong": 0.0556
+    },
+    "gpt4": {
+      "n": 19,
+      "flag_rate_at_t_elevated": 0.2105,
+      "flag_rate_at_t_strong": 0.0
+    },
+    "human": {
+      "n": 8,
+      "flag_rate_at_t_elevated": 0.25,
+      "flag_rate_at_t_strong": 0.0
+    },
+    "llama-chat": {
+      "n": 22,
+      "flag_rate_at_t_elevated": 0.1364,
+      "flag_rate_at_t_strong": 0.0
+    },
+    "mistral": {
+      "n": 62,
+      "flag_rate_at_t_elevated": 0.4194,
+      "flag_rate_at_t_strong": 0.129
+    },
+    "mistral-chat": {
+      "n": 59,
+      "flag_rate_at_t_elevated": 0.2542,
+      "flag_rate_at_t_strong": 0.0169
+    },
+    "mpt": {
+      "n": 62,
+      "flag_rate_at_t_elevated": 0.3065,
+      "flag_rate_at_t_strong": 0.0161
+    },
+    "mpt-chat": {
+      "n": 76,
+      "flag_rate_at_t_elevated": 0.4474,
+      "flag_rate_at_t_strong": 0.0
+    }
+  },
+  "attack_vs_clean": {
+    "clean": {
+      "n": 139,
+      "tpr_at_t_elevated": 0.3741,
+      "tpr_at_t_strong": 0.1295
+    },
+    "attacked": {
+      "n": 352,
+      "tpr_at_t_elevated": 0.392,
+      "tpr_at_t_strong": 0.0398
+    }
+  },
+  "per_attack": {
+    "article_deletion": {
+      "n": 56,
+      "tpr_at_t_elevated": 0.2857,
+      "tpr_at_t_strong": 0.0357
+    },
+    "homoglyph": {
+      "n": 54,
+      "tpr_at_t_elevated": 0.1852,
+      "tpr_at_t_strong": 0.0185
+    },
+    "insert_paragraphs": {
+      "n": 103,
+      "tpr_at_t_elevated": 0.301,
+      "tpr_at_t_strong": 0.1068
+    },
+    "none": {
+      "n": 139,
+      "tpr_at_t_elevated": 0.3741,
+      "tpr_at_t_strong": 0.1295
+    },
+    "upper_lower": {
+      "n": 40,
+      "tpr_at_t_elevated": 0.225,
+      "tpr_at_t_strong": 0.0
+    },
+    "whitespace": {
+      "n": 64,
+      "tpr_at_t_elevated": 0.5781,
+      "tpr_at_t_strong": 0.0
+    },
+    "zero_width_space": {
+      "n": 35,
+      "tpr_at_t_elevated": 1.0,
+      "tpr_at_t_strong": 0.0
+    }
+  },
+  "env": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "environment": "testing",
+    "original_db": ":memory:",
+    "numpy_seeded": true,
+    "python_seeded": true,
+    "scoring_flags": {
+      "ADAPTIVE_WEIGHTS_ENABLED": "0",
+      "AMPLITUDE_SCORING_ENABLED": "0",
+      "BAYESIAN_PRIOR_ENABLED": "0",
+      "LENGTH_ADAPTIVE_WEIGHTS": "0"
+    }
+  }
+}

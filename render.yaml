@@ -99,3 +99,13 @@ services:
         value: "1"
       - key: ADAPTIVE_WEIGHTS_ENABLED
         value: "1"
+      # ── AI-likelihood detector (second scoring mode) ──
+      # Pilot weeks 1-4: ENABLED stays "0" (nothing is ever surfaced to
+      # professors); SHADOW is dashboard-managed (sync: false) so ops can
+      # start/stop silent persistence without a redeploy. Flip ENABLED only
+      # after the shadow report passes the MODEL_CARD gate (real-world FPR
+      # <= 5% at t_elevated on instructor-confirmed authentic submissions).
+      - key: AI_LIKELIHOOD_ENABLED
+        value: "0"
+      - key: AI_LIKELIHOOD_SHADOW
+        sync: false
