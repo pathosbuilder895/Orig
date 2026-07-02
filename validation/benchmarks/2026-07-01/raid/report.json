@@ -1,0 +1,207 @@
+{
+  "dataset_label": "raid",
+  "generated_at": "2026-07-01T14:37:53.426355Z",
+  "environment": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "adaptive_weights_enabled": "0",
+    "environment": "testing",
+    "original_db": ":memory:",
+    "numpy_seeded": true,
+    "python_seeded": true
+  },
+  "summary": {
+    "total_authors": 1,
+    "total_essays_scored": 36,
+    "total_baseline_samples": 3,
+    "avg_scoring_time_ms": 645.53,
+    "auc": 0.4484
+  },
+  "metrics": {
+    "brier": 0.375522193773771,
+    "calibration_curve": [
+      {
+        "lower": 0.5,
+        "upper": 0.6000000000000001,
+        "count": 2,
+        "mean_predicted": 0.5786,
+        "fraction_positive": 0.0
+      },
+      {
+        "lower": 0.6000000000000001,
+        "upper": 0.7000000000000001,
+        "count": 32,
+        "mean_predicted": 0.651,
+        "fraction_positive": 0.0938
+      },
+      {
+        "lower": 0.7000000000000001,
+        "upper": 0.8,
+        "count": 2,
+        "mean_predicted": 0.7069,
+        "fraction_positive": 1.0
+      }
+    ],
+    "threshold_metrics": {
+      "no_action": {
+        "threshold": 0.4,
+        "tp": 0,
+        "fp": 0,
+        "tn": 31,
+        "fn": 5,
+        "precision": 0.0,
+        "recall": 0.0,
+        "accuracy": 0.8611,
+        "f1": 0.0
+      },
+      "monitor": {
+        "threshold": 0.55,
+        "tp": 0,
+        "fp": 1,
+        "tn": 30,
+        "fn": 5,
+        "precision": 0.0,
+        "recall": 0.0,
+        "accuracy": 0.8333,
+        "f1": 0.0
+      },
+      "escalate": {
+        "threshold": 0.75,
+        "tp": 4,
+        "fp": 25,
+        "tn": 6,
+        "fn": 1,
+        "precision": 0.1379,
+        "recall": 0.8,
+        "accuracy": 0.2778,
+        "f1": 0.2353
+      }
+    }
+  },
+  "per_label_stats": {
+    "ai_generated": {
+      "count": 31,
+      "mean_deviation": 0.6898,
+      "std_deviation": 0.0757,
+      "min_deviation": 0.5442,
+      "max_deviation": 0.8692
+    },
+    "authentic": {
+      "count": 5,
+      "mean_deviation": 0.7094,
+      "std_deviation": 0.0668,
+      "min_deviation": 0.6356,
+      "max_deviation": 0.8276
+    }
+  },
+  "threshold_metrics_legacy": {
+    "no_action": {
+      "threshold": 0.4,
+      "tp": 0,
+      "fp": 5,
+      "tn": 31,
+      "fn": 0,
+      "tpr": 0.0,
+      "fpr": 1.0,
+      "precision": 0.8611,
+      "accuracy": 0.8611
+    },
+    "monitor": {
+      "threshold": 0.55,
+      "tp": 0,
+      "fp": 5,
+      "tn": 30,
+      "fn": 1,
+      "tpr": 0.0,
+      "fpr": 1.0,
+      "precision": 0.8571,
+      "accuracy": 0.8333
+    },
+    "escalate": {
+      "threshold": 0.75,
+      "tp": 4,
+      "fp": 1,
+      "tn": 6,
+      "fn": 25,
+      "tpr": 0.1379,
+      "fpr": 0.2,
+      "precision": 0.8571,
+      "accuracy": 0.2778
+    }
+  },
+  "tier_importance_observed": {
+    "tier0": 0.01,
+    "tier1": 0.0145,
+    "tier10": 0.0083,
+    "tier11": 0.0147,
+    "tier13": 0.012,
+    "tier14": 0.0231,
+    "tier15": 0.0095,
+    "tier16": 0.0049,
+    "tier2": 0.0202,
+    "tier3": 0.0014,
+    "tier4": 0.0119,
+    "tier5": 0.0239,
+    "tier6": 0.0149,
+    "tier7": 0.0149,
+    "tier8": 0.0702,
+    "tier9": 0.0178
+  },
+  "ablation": [],
+  "bias": {
+    "ai_provider": [
+      {
+        "field": "ai_provider",
+        "value": "chatgpt",
+        "count": 14,
+        "mean_deviation": 0.7046,
+        "std_deviation": 0.066,
+        "auc_in_group": 0.5,
+        "false_positive_rate": NaN
+      },
+      {
+        "field": "ai_provider",
+        "value": "none",
+        "count": 22,
+        "mean_deviation": 0.6849,
+        "std_deviation": 0.079,
+        "auc_in_group": 0.7294,
+        "false_positive_rate": 1.0
+      }
+    ],
+    "word_count_bucket": [
+      {
+        "field": "word_count_bucket",
+        "value": "<500",
+        "count": 36,
+        "mean_deviation": 0.6926,
+        "std_deviation": 0.0748,
+        "auc_in_group": 0.6968,
+        "false_positive_rate": 1.0
+      }
+    ],
+    "label": [
+      {
+        "field": "label",
+        "value": "ai_generated",
+        "count": 31,
+        "mean_deviation": 0.6898,
+        "std_deviation": 0.0757,
+        "auc_in_group": 0.5,
+        "false_positive_rate": NaN
+      },
+      {
+        "field": "label",
+        "value": "authentic",
+        "count": 5,
+        "mean_deviation": 0.7094,
+        "std_deviation": 0.0668,
+        "auc_in_group": 0.5,
+        "false_positive_rate": 1.0
+      }
+    ]
+  },
+  "extra": {
+    "dataset_family": "wide",
+    "source": "raid"
+  }
+}

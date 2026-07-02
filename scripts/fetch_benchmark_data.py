@@ -438,30 +438,36 @@ def fetch_pan(years: list[int] = None, force: bool = False) -> dict[int, dict]:
 # domains × 11 generators × 4 decoding strategies × 11 attacks.
 # https://github.com/liamdugan/raid
 #
-# The full set is huge. We only ever need a sample, and a small CSV file
-# is published at HuggingFace's `liamdugan/raid` dataset hub. We try the
-# small/sample slice first and fall back to a manual-download message
-# pointing at the documented URLs.
+# HuggingFace's ``liamdugan/raid`` hosts three enormous CSVs (train ~12 GB,
+# test ~1.2 GB, extra ~3.7 GB) and no small ``raid_sample.csv``. The
+# fetcher grabs ~5 MB chunks from N evenly-spaced offsets in train.csv
+# via HTTP Range requests, drops partial edge rows to keep the CSV
+# parseable, filters out multi-line-quoted rows that got split at
+# chunk boundaries, and shuffles the whole set with a fixed seed.
+# End state: a ~50 MB, ~20k-row sample covering all 7 text domains.
 #
 # Cached file: .benchmark_cache/raid/raid_sample.csv
 #   columns: id, adv_source_id, source_id, model, decoding,
 #            repetition_penalty, attack, domain, title, prompt, generation
 #   (a row with model="human" is a human-written reference)
 
-RAID_DOWNLOAD_URLS = [
-    # HuggingFace dataset mirror, smallest sample slice.
-    "https://huggingface.co/datasets/liamdugan/raid/resolve/main/data/raid_sample.csv",
-    "https://huggingface.co/datasets/liamdugan/raid/raw/main/data/raid_sample.csv",
-]
+RAID_TRAIN_URL = "https://huggingface.co/datasets/liamdugan/raid/resolve/main/train.csv"
+RAID_TRAIN_SIZE = 11_779_491_051   # from HF API, 2026-07
 
 
-def fetch_raid(force: bool = False) -> Optional[Path]:
+def fetch_raid(force: bool = False,
+               n_offsets: int = 10,
+               chunk_bytes: int = 5_000_000,
+               shuffle_seed: int = 1729) -> Optional[Path]:
     """
-    Download the RAID sample CSV into ``.benchmark_cache/raid/``.
-
-    Returns the cached CSV path on success, or None if the download
-    fails and the user needs to fetch it manually.
+    Multi-offset Range-sample RAID's train.csv into a ~50 MB CSV under
+    ``.benchmark_cache/raid/raid_sample.csv``. Returns the cached
+    path on success, None on failure.
     """
+    import csv as _csv
+    import io as _io
+    import random as _random
+
     RAID_DIR.mkdir(parents=True, exist_ok=True)
     out_path = RAID_DIR / "raid_sample.csv"
 
@@ -469,22 +475,63 @@ def fetch_raid(force: bool = False) -> Optional[Path]:
         log.info("✓ RAID: cached at %s (%.1f MB)", out_path, out_path.stat().st_size / 1e6)
         return out_path
 
-    for url in RAID_DOWNLOAD_URLS:
-        log.info("→ RAID: trying %s", url)
-        try:
-            raw = _get(url, timeout=120)
-            out_path.write_bytes(raw)
-            log.info("✓ RAID: downloaded %.1f MB → %s", len(raw) / 1e6, out_path)
-            return out_path
-        except Exception as e:
-            log.warning("  failed: %s", e)
+    # 1. Header from byte 0
+    log.info("→ RAID: fetching header")
+    try:
+        header_chunk = _get_range(RAID_TRAIN_URL, 0, 8192)
+    except Exception as e:
+        log.error("Header fetch failed: %s", e)
+        return None
+    header_line = header_chunk.split(b"\n", 1)[0]
 
-    log.error("Could not download RAID automatically.")
-    log.error("  Manual fetch:")
-    log.error("    git clone https://github.com/liamdugan/raid")
-    log.error("    cp raid/data/raid_sample.csv %s", out_path)
-    log.error("  Then re-run.")
-    return None
+    # 2. Sample chunk_bytes from n_offsets evenly-spaced positions
+    offsets = [int(RAID_TRAIN_SIZE * (i + 0.5) / n_offsets) for i in range(n_offsets)]
+    chunks: list = []
+    for i, off in enumerate(offsets):
+        log.info("  chunk %d/%d @ byte %.2f GB", i + 1, n_offsets, off / 1e9)
+        try:
+            data = _get_range(RAID_TRAIN_URL, off, off + chunk_bytes)
+        except Exception as e:
+            log.warning("    Range fetch failed: %s (skipping)", e)
+            continue
+        first_nl = data.find(b"\n")
+        last_nl = data.rfind(b"\n")
+        if first_nl == -1 or last_nl == -1 or first_nl >= last_nl:
+            continue
+        chunks.append(data[first_nl + 1:last_nl])
+
+    merged = header_line + b"\n" + b"\n".join(chunks)
+
+    # 3. Parse + drop rows the DictReader can't align (multi-line quoted
+    #    fields split at chunk boundaries → phantom ``None`` keys).
+    reader = _csv.DictReader(_io.StringIO(merged.decode("utf-8", errors="replace")))
+    clean = [row for row in reader if None not in row]
+
+    # 4. Shuffle so the first N rows the adapter reads cover all domains
+    #    (RAID's train.csv is sorted by domain — un-shuffled, the first
+    #    2 × sample_size rows in the adapter are all one domain).
+    _random.seed(shuffle_seed)
+    _random.shuffle(clean)
+
+    # 5. Write.
+    with open(out_path, "w", encoding="utf-8", newline="") as f:
+        w = _csv.DictWriter(f, fieldnames=reader.fieldnames)
+        w.writeheader()
+        w.writerows(clean)
+
+    log.info("✓ RAID: %d rows shuffled → %s (%.1f MB)",
+             len(clean), out_path, out_path.stat().st_size / 1e6)
+    return out_path
+
+
+def _get_range(url: str, start: int, end: int, timeout: int = 180) -> bytes:
+    """HTTP Range request (bytes=start-end, inclusive)."""
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "Original-Benchmark/1.0 (academic research)",
+        "Range": f"bytes={start}-{end}",
+    })
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return resp.read()
 
 
 # ── M4 (Multi-domain, Multi-generator, Multilingual, Multi-source) ────────────

@@ -1,0 +1,6 @@
+field,value,count,mean_deviation,std_deviation,auc_in_group,false_positive_rate
+ai_provider,chatgpt,14,0.7046,0.066,0.5,nan
+ai_provider,none,22,0.6849,0.079,0.7294,1.0
+word_count_bucket,<500,36,0.6926,0.0748,0.6968,1.0
+label,ai_generated,31,0.6898,0.0757,0.5,nan
+label,authentic,5,0.7094,0.0668,0.5,1.0
