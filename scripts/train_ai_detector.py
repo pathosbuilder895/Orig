@@ -81,8 +81,17 @@ DEFAULT_ARTIFACT = _ROOT / "original" / "data" / "ai_detector_v1.joblib"
 SEED = 1729
 SCHEMA_VERSION = 1
 DATASET_NAME = "autextification-2023-en-subtask1"
+MIXED_DATASET_NAME = "autextification-2023-en+m4-academic-mix"
 ARTIFACT_SIZE_GATE_MB = 10.0
 N_REFERENCE_VECTORS = 8
+
+# Sources whose human prose is in a formal/academic register — the pilot's
+# actual register. When training with --mix-m4, operating thresholds are
+# derived from THESE humans' OOF probabilities instead of the (tweet-heavy)
+# global pool: the v1 seminary eval showed tweet-calibrated thresholds flag
+# 40% of authentic formal essays.
+FORMAL_SOURCES = {"legal", "arxiv", "peerread"}
+M4_EVAL_FRACTION = 0.2   # per-pair hash split; eval side never trains
 
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
@@ -168,6 +177,91 @@ def _load_cached_features(split: str) -> dict:
     data = np.load(npz_path, allow_pickle=False)
     return {"X": data["X"], "y": data["y"], "row_id": data["row_id"],
             "domain": data["domain"], "model": data["model"], "meta": meta}
+
+
+def _m4_npz_path() -> Path:
+    return M4_DIR / "features_v1.npz"
+
+
+def _m4_source_sha() -> str:
+    """One hash over all cached M4 JSONL files (name-sorted)."""
+    h = hashlib.sha256()
+    for p in sorted(M4_DIR.glob("*.jsonl")):
+        h.update(p.name.encode())
+        h.update(_sha256(p).encode())
+    return h.hexdigest()
+
+
+def _coerce_m4_text(value) -> str:
+    """M4 text fields are usually str, but peerread ships lists of reviews —
+    take the longest element so lengths stay comparable to single-text rows."""
+    if isinstance(value, list):
+        strings = [v for v in value if isinstance(v, str)]
+        value = max(strings, key=len) if strings else ""
+    return (value or "").strip() if isinstance(value, str) else ""
+
+
+def _load_m4_rows(per_file_cap: int) -> List[dict]:
+    """
+    M4 ships PAIRED rows: {human_text, machine_text, source, model, source_ID}.
+    Each pair yields two examples. The train/eval split hashes the pair key so
+    (a) a pair never straddles the split and (b) the same arxiv paper reused
+    across generator files always lands on the same side.
+    """
+    rows: List[dict] = []
+    for path in sorted(M4_DIR.glob("*.jsonl")):
+        generator = path.stem.split("_", 1)[-1].lower()
+        n_pairs = 0
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                if n_pairs >= per_file_cap:
+                    break
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                human = _coerce_m4_text(rec.get("human_text"))
+                machine = _coerce_m4_text(rec.get("machine_text"))
+                raw_source = (rec.get("source") or path.stem.split("_")[0]).lower()
+                # Normalize M4's messy source strings to canonical tokens so
+                # FORMAL_SOURCES matching works ("peerread/acl_2017/" → "peerread",
+                # "eli5" → "reddit", "wikipedia-20220301.en" → "wikipedia").
+                if raw_source.startswith("peerread"):
+                    source = "peerread"
+                elif raw_source.startswith("wikipedia"):
+                    source = "wikipedia"
+                elif raw_source == "eli5":
+                    source = "reddit"
+                else:
+                    source = raw_source
+                sid = str(rec.get("source_ID") or rec.get("source_id") or n_pairs)
+                if len(human) < 10 or len(machine) < 10:
+                    continue
+                pair_key = f"{source}:{sid}"
+                digest = int(hashlib.sha256(pair_key.encode()).hexdigest(), 16)
+                split = "eval" if (digest % 100) < int(M4_EVAL_FRACTION * 100) else "train"
+                rows.append({"text": human, "y": 0, "source": source,
+                             "generator": "human", "split": split})
+                rows.append({"text": machine, "y": 1, "source": source,
+                             "generator": generator, "split": split})
+                n_pairs += 1
+    return rows
+
+
+def _load_m4_features() -> dict:
+    npz_path = _m4_npz_path()
+    sidecar = npz_path.with_suffix(".json")
+    if not npz_path.exists() or not sidecar.exists():
+        raise FileNotFoundError(
+            "No M4 feature cache. Run: "
+            ".venv/bin/python scripts/train_ai_detector.py extract-m4"
+        )
+    meta = json.loads(sidecar.read_text())
+    if meta["source_sha256"] != _m4_source_sha():
+        raise RuntimeError("Stale M4 feature cache — re-run extract-m4.")
+    data = np.load(npz_path, allow_pickle=False)
+    return {"X": data["X"], "y": data["y"], "source": data["source"],
+            "generator": data["generator"], "split": data["split"], "meta": meta}
 
 
 def _tpr_fpr_at_threshold(y: np.ndarray, probs: np.ndarray, thr: float) -> Dict[str, float]:
@@ -282,6 +376,39 @@ def cmd_extract(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_extract_m4(args: argparse.Namespace) -> int:
+    from original.constants import FEATURE_DIM
+    if not any(M4_DIR.glob("*.jsonl")):
+        print(f"[extract-m4] M4 not cached at {M4_DIR}. Run: "
+              f"python scripts/fetch_benchmark_data.py --m4", file=sys.stderr)
+        return 1
+    rows = _load_m4_rows(args.per_file_cap)
+    print(f"[extract-m4] rows={len(rows)} "
+          f"(train={sum(r['split']=='train' for r in rows)} "
+          f"eval={sum(r['split']=='eval' for r in rows)})", file=sys.stderr)
+
+    X = _extract_parallel([r["text"] for r in rows], args.workers, "m4")
+    npz_path = _m4_npz_path()
+    np.savez_compressed(
+        npz_path, X=X,
+        y=np.array([r["y"] for r in rows], dtype=np.int8),
+        source=np.array([r["source"] for r in rows]),
+        generator=np.array([r["generator"] for r in rows]),
+        split=np.array([r["split"] for r in rows]),
+    )
+    sidecar = {
+        "source_sha256": _m4_source_sha(),
+        "n_rows": len(rows),
+        "per_file_cap": args.per_file_cap,
+        "eval_fraction": M4_EVAL_FRACTION,
+        "feature_dim": FEATURE_DIM,
+        "extracted_at": datetime.now(timezone.utc).isoformat(),
+    }
+    npz_path.with_suffix(".json").write_text(json.dumps(sidecar, indent=2) + "\n")
+    print(f"[extract-m4] wrote {npz_path} ({npz_path.stat().st_size/1e6:.1f} MB)")
+    return 0
+
+
 # ── train ─────────────────────────────────────────────────────────────────────
 
 def _oof_probs(estimator, X: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -304,6 +431,25 @@ def cmd_train(args: argparse.Namespace) -> int:
 
     cache = _load_cached_features("train")
     X, y = cache["X"].astype(np.float64), cache["y"].astype(np.int8)
+    source = cache["domain"].astype(str)
+    dataset_name = DATASET_NAME
+    dataset_extra: Dict[str, object] = {}
+
+    if args.mix_m4:
+        m4 = _load_m4_features()
+        m4_train = m4["split"] == "train"
+        X = np.concatenate([X, m4["X"][m4_train].astype(np.float64)])
+        y = np.concatenate([y, m4["y"][m4_train].astype(np.int8)])
+        source = np.concatenate([source, m4["source"][m4_train].astype(str)])
+        dataset_name = MIXED_DATASET_NAME
+        dataset_extra = {
+            "m4_sha256": m4["meta"]["source_sha256"],
+            "n_m4_train": int(m4_train.sum()),
+            "m4_eval_fraction": M4_EVAL_FRACTION,
+        }
+        print(f"[train] mixed in {m4_train.sum()} M4 train rows "
+              f"({sorted(set(m4['source'][m4_train].tolist()))})")
+
     print(f"[train] n={len(y)} human={(y==0).sum()} ai={(y==1).sum()}")
 
     def _hgb():
@@ -342,12 +488,23 @@ def cmd_train(args: argparse.Namespace) -> int:
     print(f"[train] selected primary: {primary}")
 
     # Thresholds: Neyman-Pearson operating points on OOF probs of HUMAN rows.
-    human_oof = oof[primary][y == 0]
+    # With --mix-m4, restrict to FORMAL-register humans (legal/arxiv/peerread):
+    # the pilot scores formal academic prose, and v1 showed tweet-calibrated
+    # thresholds flag 40% of authentic seminary essays.
+    human_mask = y == 0
+    formal_mask = human_mask & np.isin(source, list(FORMAL_SOURCES))
+    threshold_pool = "all_humans"
+    pool_mask = human_mask
+    if args.mix_m4 and formal_mask.sum() >= 500:
+        pool_mask = formal_mask
+        threshold_pool = f"formal_register_humans ({sorted(FORMAL_SOURCES)})"
+    human_oof = oof[primary][pool_mask]
     thresholds = {
         "elevated": float(np.quantile(human_oof, 0.95, method="higher")),  # 5% FPR
         "strong":   float(np.quantile(human_oof, 0.99, method="higher")),  # 1% FPR
     }
-    print(f"[train] thresholds (train-OOF): {thresholds}")
+    print(f"[train] thresholds (train-OOF, pool={threshold_pool}, "
+          f"n={int(pool_mask.sum())}): {thresholds}")
 
     # Fit the shipped model on the FULL train split.
     model = {"hgb_isotonic": _hgb(),
@@ -381,13 +538,15 @@ def cmd_train(args: argparse.Namespace) -> int:
             "numpy_version": np.__version__,
             "seed": SEED,
             "dataset": {
-                "name": DATASET_NAME,
+                "name": dataset_name,
                 "train_sha256": cache["meta"]["source_sha256"],
                 "n_train": int(len(y)),
                 "n_human": int((y == 0).sum()),
                 "n_ai": int((y == 1).sum()),
+                **dataset_extra,
             },
             "selection": "train-OOF AUC (test split untouched until eval)",
+            "threshold_pool": threshold_pool,
             "oof_metrics": oof_metrics,
         },
     }
@@ -515,47 +674,29 @@ def cmd_eval_raid(args: argparse.Namespace) -> int:
 # ── eval-m4 ───────────────────────────────────────────────────────────────────
 
 def cmd_eval_m4(args: argparse.Namespace) -> int:
-    files = sorted(M4_DIR.glob("*.jsonl")) if M4_DIR.exists() else []
-    if not files:
-        print(f"[eval-m4] M4 not cached at {M4_DIR}. Run: "
-              f"python scripts/fetch_benchmark_data.py --m4", file=sys.stderr)
-        return 1
+    """
+    Score the M4 EVAL split (the hash-held-out 20% of pairs). Honest whether
+    or not the model was trained with --mix-m4: eval-split pairs never train.
+    """
     art = _load_artifact(Path(args.model))
-    rows = []
-    per_file_cap = max(50, (args.limit or 4000) // max(len(files), 1))
-    for path in files:
-        n_taken = 0
-        with open(path, encoding="utf-8") as f:
-            for line in f:
-                if n_taken >= per_file_cap:
-                    break
-                try:
-                    rec = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                text = (rec.get("text") or "").strip()
-                if len(text) < 10:
-                    continue
-                rows.append({"text": text,
-                             "y": 1 if int(rec.get("label", 0)) == 1 else 0,
-                             "source": path.stem})
-                n_taken += 1
-    print(f"[eval-m4] rows={len(rows)} from {len(files)} files", file=sys.stderr)
+    m4 = _load_m4_features()
+    mask = m4["split"] == "eval"
+    X = m4["X"][mask].astype(np.float64)
+    y = m4["y"][mask]
+    sources = m4["source"][mask].astype(str)
+    print(f"[eval-m4] eval-split rows={len(y)}", file=sys.stderr)
 
-    X = _extract_parallel([r["text"] for r in rows], args.workers, "m4")
-    y = np.array([r["y"] for r in rows], dtype=np.int8)
-    probs = art["model"].predict_proba(X.astype(np.float64))[:, 1]
+    probs = art["model"].predict_proba(X)[:, 1]
     thresholds = art["thresholds"]
-
-    sources = np.array([r["source"] for r in rows])
     per_source = {s: _metric_block(y[sources == s], probs[sources == s], thresholds)
                   for s in sorted(set(sources.tolist()))}
 
     report = {
-        "dataset": "m4 (cross-dataset transfer, frozen model + thresholds)",
+        "dataset": "m4 eval split (held-out pairs — never trained on, even with --mix-m4)",
         "artifact": str(args.model),
+        "trained_on": art["provenance"]["dataset"]["name"],
         "overall": _metric_block(y, probs, thresholds),
-        "per_source_file": per_source,
+        "per_source": per_source,
         "env": ENV_LOCK.__dict__,
     }
     _write_report(report, Path(args.report))
@@ -597,7 +738,26 @@ def cmd_eval_seminary(args: argparse.Namespace) -> int:
     print(f"[eval-seminary] " +
           " ".join(f"{g}={len(v)}" for g, v in groups.items()), file=sys.stderr)
 
-    X = _extract_parallel(texts, args.workers, "seminary")
+    # Feature cache keyed on the manifest hash — the corpus is git-versioned,
+    # so a manifest change is the signal that extraction must re-run.
+    cache_path = _ROOT / ".benchmark_cache" / "seminary_features_v1.npz"
+    sidecar_path = cache_path.with_suffix(".json")
+    manifest_sha = _sha256(SEMINARY_MANIFEST)
+    X = None
+    if cache_path.exists() and sidecar_path.exists():
+        meta = json.loads(sidecar_path.read_text())
+        if meta.get("manifest_sha256") == manifest_sha and meta.get("n") == len(texts):
+            cached = np.load(cache_path, allow_pickle=False)
+            if cached["group"].astype(str).tolist() == group_of:
+                X = cached["X"]
+                print("[eval-seminary] using cached features", file=sys.stderr)
+    if X is None:
+        X = _extract_parallel(texts, args.workers, "seminary")
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(cache_path, X=X, group=np.array(group_of))
+        sidecar_path.write_text(json.dumps(
+            {"manifest_sha256": manifest_sha, "n": len(texts),
+             "extracted_at": datetime.now(timezone.utc).isoformat()}, indent=2) + "\n")
     probs = art["model"].predict_proba(X.astype(np.float64))[:, 1]
     thresholds = art["thresholds"]
     group_arr = np.array(group_of)
@@ -670,8 +830,17 @@ def main(argv=None) -> int:
                    help="Row cap for smoke tests (recorded in the sidecar).")
     p.set_defaults(fn=cmd_extract)
 
+    p = sub.add_parser("extract-m4", help="Extract M4 paired rows to .npz cache (80/20 hash split).")
+    p.add_argument("--workers", type=int, default=8)
+    p.add_argument("--per-file-cap", type=int, default=1250,
+                   help="Max pairs per JSONL file (default 1250 → ~2500 texts/file).")
+    p.set_defaults(fn=cmd_extract_m4)
+
     p = sub.add_parser("train", help="Train + calibrate, select thresholds, write artifact.")
     p.add_argument("--out", default=str(DEFAULT_ARTIFACT))
+    p.add_argument("--mix-m4", action="store_true",
+                   help="Mix the M4 train split into training and derive thresholds "
+                        "from formal-register humans (legal/arxiv/peerread).")
     p.set_defaults(fn=cmd_train)
 
     p = sub.add_parser("eval", help="Score the official test split once (frozen model).")
@@ -686,11 +855,9 @@ def main(argv=None) -> int:
     p.add_argument("--limit", type=int, default=None)
     p.set_defaults(fn=cmd_eval_raid)
 
-    p = sub.add_parser("eval-m4", help="Cross-dataset check on cached M4 JSONL.")
+    p = sub.add_parser("eval-m4", help="Score the held-out M4 eval split (needs extract-m4).")
     p.add_argument("--model", default=str(DEFAULT_ARTIFACT))
     p.add_argument("--report", default=str(diag / f"ai_detector_eval_m4_{today}.json"))
-    p.add_argument("--workers", type=int, default=8)
-    p.add_argument("--limit", type=int, default=4000)
     p.set_defaults(fn=cmd_eval_m4)
 
     p = sub.add_parser("eval-seminary", help="IN-DOMAIN check: seminary essays vs Claude essays.")

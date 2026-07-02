@@ -1,0 +1,156 @@
+{
+  "dataset": "autextification-2023-en-subtask1 (official test split, frozen model + thresholds)",
+  "note": "The official test split is DELIBERATELY cross-domain: train domains are legal/tweets/wiki, test domains are news/reviews (IberLEF 2023 shared-task design). The train-OOF metrics are the in-distribution numbers (comparable to papers that use a random split, e.g. StyloAI); this test block is the harder unseen-domain generalization number. Both are honest answers to different questions.",
+  "artifact": "/Users/andrew/Desktop/Original/original/data/ai_detector_v1.joblib",
+  "model_name": "hgb_isotonic",
+  "provenance": {
+    "trained_at": "2026-07-02T07:29:28.878234+00:00",
+    "git_sha": "b662bc11164b72bb24110c817b99b6215e54b087",
+    "sklearn_version": "1.6.1",
+    "numpy_version": "1.26.4",
+    "seed": 1729,
+    "dataset": {
+      "name": "autextification-2023-en+m4-academic-mix",
+      "train_sha256": "7537df7ddf5482641b0fe948212eb8a867296da80612ef70da04cb61faed9e0a",
+      "n_train": 46603,
+      "n_human": 23425,
+      "n_ai": 23178,
+      "m4_sha256": "0ffb8d9379a7451cbbf23755b707e46df1ebf1081ac5dc4b723fd7aff464e7b4",
+      "n_m4_train": 12758,
+      "m4_eval_fraction": 0.2
+    },
+    "selection": "train-OOF AUC (test split untouched until eval)",
+    "threshold_pool": "formal_register_humans (['arxiv', 'legal', 'peerread'])"
+  },
+  "oof_metrics_train": {
+    "hgb_isotonic": {
+      "oof_auc": 0.8165,
+      "oof_brier": 0.1701
+    },
+    "rf_depth12": {
+      "oof_auc": 0.8156,
+      "oof_brier": 0.1767
+    },
+    "logreg": {
+      "oof_auc": 0.6797,
+      "oof_brier": 0.2455
+    }
+  },
+  "references": {
+    "styloai_paper": {
+      "auc": 0.88,
+      "accuracy": 0.81,
+      "source": "arxiv.org/html/2405.10129v1"
+    },
+    "original_production_born_rule": {
+      "auc": 0.6091,
+      "source": "PR #20"
+    },
+    "diagnostic_rf_n1000": {
+      "auc": 0.7402,
+      "source": "PR #21"
+    }
+  },
+  "overall": {
+    "n": 21832,
+    "n_human": 10642,
+    "n_ai": 11190,
+    "auc": 0.7715,
+    "brier": 0.2352,
+    "accuracy_at_0.5": 0.6177,
+    "tpr_at_fpr_05": 0.3791,
+    "tpr_at_fpr_01": 0.2095,
+    "at_t_elevated": {
+      "threshold": 0.738126,
+      "tpr": 0.6988,
+      "fpr": 0.3099
+    },
+    "at_t_strong": {
+      "threshold": 0.929563,
+      "tpr": 0.0128,
+      "fpr": 0.0
+    }
+  },
+  "per_domain": {
+    "news": {
+      "n": 10928,
+      "n_human": 5464,
+      "n_ai": 5464,
+      "auc": 0.7425,
+      "brier": 0.2352,
+      "accuracy_at_0.5": 0.6143,
+      "tpr_at_fpr_05": 0.3217,
+      "tpr_at_fpr_01": 0.1836,
+      "at_t_elevated": {
+        "threshold": 0.738126,
+        "tpr": 0.6045,
+        "fpr": 0.2571
+      },
+      "at_t_strong": {
+        "threshold": 0.929563,
+        "tpr": 0.0154,
+        "fpr": 0.0
+      }
+    },
+    "reviews": {
+      "n": 10904,
+      "n_human": 5178,
+      "n_ai": 5726,
+      "auc": 0.805,
+      "brier": 0.2352,
+      "accuracy_at_0.5": 0.6211,
+      "tpr_at_fpr_05": 0.4268,
+      "tpr_at_fpr_01": 0.2475,
+      "at_t_elevated": {
+        "threshold": 0.738126,
+        "tpr": 0.7889,
+        "fpr": 0.3656
+      },
+      "at_t_strong": {
+        "threshold": 0.929563,
+        "tpr": 0.0103,
+        "fpr": 0.0
+      }
+    }
+  },
+  "per_generator_tpr": {
+    "A": {
+      "n": 1704,
+      "tpr_at_t_elevated": 0.9296,
+      "tpr_at_t_strong": 0.0458
+    },
+    "B": {
+      "n": 1782,
+      "tpr_at_t_elevated": 0.8603,
+      "tpr_at_t_strong": 0.0107
+    },
+    "C": {
+      "n": 1831,
+      "tpr_at_t_elevated": 0.7712,
+      "tpr_at_t_strong": 0.0027
+    },
+    "D": {
+      "n": 1960,
+      "tpr_at_t_elevated": 0.598,
+      "tpr_at_t_strong": 0.0107
+    },
+    "E": {
+      "n": 1958,
+      "tpr_at_t_elevated": 0.5884,
+      "tpr_at_t_strong": 0.0102
+    },
+    "F": {
+      "n": 1955,
+      "tpr_at_t_elevated": 0.4946,
+      "tpr_at_t_strong": 0.0
+    }
+  },
+  "env": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "adaptive_weights_enabled": "0",
+    "environment": "testing",
+    "original_db": ":memory:",
+    "numpy_seeded": true,
+    "python_seeded": true
+  }
+}

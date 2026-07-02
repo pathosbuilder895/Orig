@@ -159,15 +159,25 @@ Born-rule path (never trained on a labeled example) scored 0.6091.
 
 **Training and artifact**
 
-- Trained by `scripts/train_ai_detector.py` on the AuTexTification 2023
-  English subtask-1 official train split (33,845 rows; text column only).
+- Trained by `scripts/train_ai_detector.py` on a register-diverse mix:
+  the AuTexTification 2023 English subtask-1 official train split
+  (33,845 rows) plus the M4 train side (12,758 rows across
+  arxiv/peerread/reddit/wikihow/wikipedia; 20% of pairs hash-held-out
+  for evaluation and never trained on). Text columns only.
+- The academic mix matters: the AuTexT-only v1 model flagged 40% of
+  authentic seminary essays and 76-91% of archaic historical prose —
+  formal register read as "AI-like" to a tweet-heavy model. With
+  arxiv/peerread human prose in training, both failure modes measured 0-4%.
 - Committed artifact: `original/data/ai_detector_v1.joblib` with full
-  provenance (git SHA, sklearn/numpy versions, dataset sha256, metrics).
+  provenance (git SHA, sklearn/numpy versions, dataset sha256s, metrics).
 - Thresholds are Neyman-Pearson operating points from train-out-of-fold
-  probabilities: `t_elevated` at 5% FPR, `t_strong` at 1% FPR on human rows.
-  The official test split is scored exactly once, by the frozen artifact.
+  probabilities of FORMAL-REGISTER humans (legal/arxiv/peerread, n=8,645):
+  `t_elevated` at 5% FPR, `t_strong` at 1% FPR. The official AuTexT test
+  split is scored exactly once, by the frozen artifact.
 - Evaluation evidence lives in `validation/diagnostics/ai_detector_eval_*.json`
-  (official test + RAID cross-dataset + in-domain seminary reports).
+  (official test, M4 holdout, RAID cross-dataset, in-domain seminary;
+  `*_v2_*` files are the shipped mixed-training model, earlier files
+  document the AuTexT-only v1 for comparison).
 
 **sklearn version-skew runbook** — the loader smoke-predicts 8 stored
 reference vectors at startup; drift > 0.02 disables the detector with a
@@ -175,12 +185,17 @@ logged reason. If that happens after a dependency bump, retrain the artifact
 on the deployed sklearn version (`train_ai_detector.py train`) rather than
 tightening the requirements pin.
 
-**Demo/pilot enablement gate** — the flag stays OFF for pilot-facing
-deployments until the in-domain evaluation shows **seminary AUC ≥ 0.85 AND
+**Demo/pilot enablement gate** — rule: **seminary AUC ≥ 0.85 AND
 false-positive rate ≤ 5% at `t_elevated` on authentic seminary essays**
-(`train_ai_detector.py eval-seminary` prints the gate verdict). The training
-domains (tweets, legal, reviews, wiki-how, news) are not student essays;
-domain shift is the primary known risk.
+(`train_ai_detector.py eval-seminary` prints the verdict). Status: the
+shipped mixed-training model **passes** (AUC 1.0, FPR 4%, TPR 100% on
+25 authentic vs 20 Claude essays; archaic-prose flag rates 0%). Caveats
+before flipping the flag anywhere pilot-facing: the in-domain sample is
+small (45 essays), single-generator (Claude), and corpus-synthesized —
+a larger multi-generator in-domain eval and an institutional decision
+should precede enablement. Known trade-off: detection of RAID's
+adversarially-attacked generations dropped relative to v1; adversarial
+robustness remains out of scope for this mode.
 
 **Future path (deliberately deferred)** — coupling the signal to recommended
 actions would follow the conformal-nudge pattern (raise-only, never lowers,
