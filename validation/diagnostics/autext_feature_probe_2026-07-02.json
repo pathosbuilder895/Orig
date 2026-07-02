@@ -1,0 +1,95 @@
+{
+  "n_train": 1000,
+  "n_test": 400,
+  "seed": 1729,
+  "styloai_reference": {
+    "auc": 0.88,
+    "accuracy": 0.81,
+    "source": "arxiv.org/html/2405.10129v1"
+  },
+  "original_production_reference": {
+    "auc": 0.6091,
+    "brier": 0.2771,
+    "source": "PR #20, validation/wide/autextification.py, Born-rule per-student scoring"
+  },
+  "A_original_features_rf": {
+    "auc": 0.7402,
+    "accuracy": 0.6125,
+    "brier": 0.2244
+  },
+  "B_tfidf_char_ngram_rf": {
+    "auc": 0.5731,
+    "accuracy": 0.55,
+    "brier": 0.2519
+  },
+  "top_15_feature_importances_A": [
+    {
+      "feature": "perplexity_proxy",
+      "importance": 0.0558
+    },
+    {
+      "feature": "stop_word_ratio",
+      "importance": 0.0399
+    },
+    {
+      "feature": "mean_sentence_length",
+      "importance": 0.0386
+    },
+    {
+      "feature": "breath_group_variance",
+      "importance": 0.0365
+    },
+    {
+      "feature": "function_word_ratio",
+      "importance": 0.0352
+    },
+    {
+      "feature": "char_trigram_entropy",
+      "importance": 0.0314
+    },
+    {
+      "feature": "avg_word_length",
+      "importance": 0.03
+    },
+    {
+      "feature": "hapax_legomena_rate",
+      "importance": 0.0293
+    },
+    {
+      "feature": "clause_depth_mean",
+      "importance": 0.0247
+    },
+    {
+      "feature": "vowel_sonority_ratio",
+      "importance": 0.0242
+    },
+    {
+      "feature": "cohesion_device_ratio",
+      "importance": 0.0234
+    },
+    {
+      "feature": "pronoun_reference_density",
+      "importance": 0.0231
+    },
+    {
+      "feature": "type_token_ratio",
+      "importance": 0.0231
+    },
+    {
+      "feature": "vocabulary_introduction_rate",
+      "importance": 0.0228
+    },
+    {
+      "feature": "pos_trigram_entropy",
+      "importance": 0.0221
+    }
+  ],
+  "env": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "adaptive_weights_enabled": "0",
+    "environment": "testing",
+    "original_db": ":memory:",
+    "numpy_seeded": true,
+    "python_seeded": true
+  }
+}
