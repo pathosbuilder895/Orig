@@ -1,0 +1,212 @@
+{
+  "dataset_label": "autextification_en",
+  "generated_at": "2026-07-02T00:43:12.889137Z",
+  "environment": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "adaptive_weights_enabled": "0",
+    "environment": "testing",
+    "original_db": ":memory:",
+    "numpy_seeded": true,
+    "python_seeded": true
+  },
+  "summary": {
+    "total_authors": 3,
+    "total_essays_scored": 213,
+    "total_baseline_samples": 9,
+    "avg_scoring_time_ms": 200.27,
+    "auc": 0.6091
+  },
+  "metrics": {
+    "brier": 0.2770612362443361,
+    "calibration_curve": [
+      {
+        "lower": 0.4,
+        "upper": 0.5,
+        "count": 4,
+        "mean_predicted": 0.4713,
+        "fraction_positive": 0.25
+      },
+      {
+        "lower": 0.5,
+        "upper": 0.6000000000000001,
+        "count": 39,
+        "mean_predicted": 0.5636,
+        "fraction_positive": 0.4103
+      },
+      {
+        "lower": 0.6000000000000001,
+        "upper": 0.7000000000000001,
+        "count": 116,
+        "mean_predicted": 0.6531,
+        "fraction_positive": 0.4655
+      },
+      {
+        "lower": 0.7000000000000001,
+        "upper": 0.8,
+        "count": 53,
+        "mean_predicted": 0.7383,
+        "fraction_positive": 0.566
+      },
+      {
+        "lower": 0.8,
+        "upper": 0.9,
+        "count": 1,
+        "mean_predicted": 0.809,
+        "fraction_positive": 1.0
+      }
+    ],
+    "threshold_metrics": {
+      "no_action": {
+        "threshold": 0.4,
+        "tp": 0,
+        "fp": 0,
+        "tn": 111,
+        "fn": 102,
+        "precision": 0.0,
+        "recall": 0.0,
+        "accuracy": 0.5211,
+        "f1": 0.0
+      },
+      "monitor": {
+        "threshold": 0.55,
+        "tp": 1,
+        "fp": 0,
+        "tn": 111,
+        "fn": 101,
+        "precision": 1.0,
+        "recall": 0.0098,
+        "accuracy": 0.5258,
+        "f1": 0.0194
+      },
+      "escalate": {
+        "threshold": 0.75,
+        "tp": 44,
+        "fp": 38,
+        "tn": 73,
+        "fn": 58,
+        "precision": 0.5366,
+        "recall": 0.4314,
+        "accuracy": 0.5493,
+        "f1": 0.4783
+      }
+    }
+  },
+  "per_label_stats": {
+    "ai_generated": {
+      "count": 111,
+      "mean_deviation": 0.793,
+      "std_deviation": 0.0886,
+      "min_deviation": 0.5767,
+      "max_deviation": 1.0
+    },
+    "authentic": {
+      "count": 102,
+      "mean_deviation": 0.7574,
+      "std_deviation": 0.0838,
+      "min_deviation": 0.4964,
+      "max_deviation": 0.9265
+    }
+  },
+  "threshold_metrics_legacy": {
+    "no_action": {
+      "threshold": 0.4,
+      "tp": 0,
+      "fp": 102,
+      "tn": 111,
+      "fn": 0,
+      "tpr": 0.0,
+      "fpr": 1.0,
+      "precision": 0.5211,
+      "accuracy": 0.5211
+    },
+    "monitor": {
+      "threshold": 0.55,
+      "tp": 1,
+      "fp": 101,
+      "tn": 111,
+      "fn": 0,
+      "tpr": 1.0,
+      "fpr": 0.9902,
+      "precision": 0.5236,
+      "accuracy": 0.5258
+    },
+    "escalate": {
+      "threshold": 0.75,
+      "tp": 44,
+      "fp": 58,
+      "tn": 73,
+      "fn": 38,
+      "tpr": 0.5366,
+      "fpr": 0.5686,
+      "precision": 0.5573,
+      "accuracy": 0.5493
+    }
+  },
+  "tier_importance_observed": {
+    "tier0": 0.003,
+    "tier1": 0.0499,
+    "tier10": 0.0201,
+    "tier11": 0.0393,
+    "tier13": 0.0129,
+    "tier14": 0.0053,
+    "tier15": 0.0111,
+    "tier16": 0.0142,
+    "tier2": 0.0464,
+    "tier3": 0.0063,
+    "tier4": 0.0059,
+    "tier5": 0.0123,
+    "tier6": 0.0156,
+    "tier7": 0.0137,
+    "tier8": 0.059,
+    "tier9": 0.0221
+  },
+  "ablation": [],
+  "bias": {
+    "ai_provider": [
+      {
+        "field": "ai_provider",
+        "value": "none",
+        "count": 213,
+        "mean_deviation": 0.776,
+        "std_deviation": 0.0881,
+        "auc_in_group": 0.5707,
+        "false_positive_rate": 0.9902
+      }
+    ],
+    "word_count_bucket": [
+      {
+        "field": "word_count_bucket",
+        "value": "<500",
+        "count": 213,
+        "mean_deviation": 0.776,
+        "std_deviation": 0.0881,
+        "auc_in_group": 0.5707,
+        "false_positive_rate": 0.9902
+      }
+    ],
+    "label": [
+      {
+        "field": "label",
+        "value": "ai_generated",
+        "count": 111,
+        "mean_deviation": 0.793,
+        "std_deviation": 0.0886,
+        "auc_in_group": 0.5,
+        "false_positive_rate": NaN
+      },
+      {
+        "field": "label",
+        "value": "authentic",
+        "count": 102,
+        "mean_deviation": 0.7574,
+        "std_deviation": 0.0838,
+        "auc_in_group": 0.5,
+        "false_positive_rate": 0.9902
+      }
+    ]
+  },
+  "extra": {
+    "dataset_family": "wide",
+    "source": "autextification"
+  }
+}

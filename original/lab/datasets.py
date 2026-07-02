@@ -116,6 +116,22 @@ _REGISTRY: Dict[str, DatasetSpec] = {
         requires_build=True,
         build_cmd="python -m validation.wide.run --dataset m4",
     ),
+    "autextification_en": DatasetSpec(
+        label="autextification_en",
+        name="AuTexTification — Human vs AI (IberLEF 2023)",
+        description=(
+            "English subtask-1 shared-task corpus: tweets, legal text, "
+            "wikihow. The exact dataset the StyloAI paper "
+            "(arxiv.org/html/2405.10129v1) reports 81% accuracy / 0.88 AUC "
+            "on — built to run a real head-to-head, not an inference from "
+            "two abstracts."
+        ),
+        corpus_dir="",
+        manifest_path="",
+        author_filter=[],
+        requires_build=True,
+        build_cmd="python -m validation.wide.run --dataset autextification",
+    ),
 }
 
 
