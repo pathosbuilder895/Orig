@@ -255,6 +255,25 @@ def explain(result: Layer7Output) -> Dict:
         else:
             top_reasons.append("deviation score indicates significant deviation")
 
+    # Corpus-level AI-likelihood (second scoring mode, report-only): when the
+    # band is elevated or strong, name the top indicator in plain language.
+    # Never touches verdict/severity — those stay per-student identity signals.
+    ai_like = getattr(result, "ai_likelihood", None)
+    if ai_like is not None and getattr(ai_like, "band", "low") in ("elevated", "strong"):
+        indicators = getattr(ai_like, "top_indicators", []) or []
+        if indicators:
+            lead = indicators[0]
+            top_reasons.append(
+                f"{lead.label.lower()} is unusually "
+                f"{'high' if lead.direction == 'higher' else 'low'} — a pattern "
+                f"common in AI-generated text"
+            )
+        else:
+            top_reasons.append(
+                "overall statistical patterns resemble those common in "
+                "AI-generated text"
+            )
+
     # ── 3. Ghostwriting signal ────────────────────────────────────────────────
 
     ghostwriting_signal = any(

@@ -1,0 +1,95 @@
+{
+  "dataset": "raid_sample (cross-dataset transfer, frozen model + thresholds)",
+  "artifact": "original/data/ai_detector_v1.joblib",
+  "note": "RAID sample is generations-heavy; AUC is only reported when both classes are present in usable volume. flag_rate for model=human IS the false-positive rate.",
+  "overall": {
+    "n": 499,
+    "n_human": 8,
+    "n_ai": 491,
+    "auc": 0.6553,
+    "brier": 0.1375,
+    "accuracy_at_0.5": 0.7796,
+    "tpr_at_fpr_05": 0.3523,
+    "tpr_at_fpr_01": 0.3523,
+    "at_t_elevated": {
+      "threshold": 0.756819,
+      "tpr": 0.5377,
+      "fpr": 0.375
+    },
+    "at_t_strong": {
+      "threshold": 0.905243,
+      "tpr": 0.3442,
+      "fpr": 0.0
+    }
+  },
+  "per_generator": {
+    "chatgpt": {
+      "n": 22,
+      "flag_rate_at_t_elevated": 0.1364,
+      "flag_rate_at_t_strong": 0.0
+    },
+    "cohere": {
+      "n": 28,
+      "flag_rate_at_t_elevated": 0.1429,
+      "flag_rate_at_t_strong": 0.0714
+    },
+    "cohere-chat": {
+      "n": 20,
+      "flag_rate_at_t_elevated": 0.2,
+      "flag_rate_at_t_strong": 0.0
+    },
+    "gpt2": {
+      "n": 103,
+      "flag_rate_at_t_elevated": 0.767,
+      "flag_rate_at_t_strong": 0.6019
+    },
+    "gpt3": {
+      "n": 18,
+      "flag_rate_at_t_elevated": 0.1667,
+      "flag_rate_at_t_strong": 0.0556
+    },
+    "gpt4": {
+      "n": 19,
+      "flag_rate_at_t_elevated": 0.1579,
+      "flag_rate_at_t_strong": 0.0
+    },
+    "human": {
+      "n": 8,
+      "flag_rate_at_t_elevated": 0.375,
+      "flag_rate_at_t_strong": 0.0
+    },
+    "llama-chat": {
+      "n": 22,
+      "flag_rate_at_t_elevated": 0.1364,
+      "flag_rate_at_t_strong": 0.0455
+    },
+    "mistral": {
+      "n": 62,
+      "flag_rate_at_t_elevated": 0.6613,
+      "flag_rate_at_t_strong": 0.5161
+    },
+    "mistral-chat": {
+      "n": 59,
+      "flag_rate_at_t_elevated": 0.2712,
+      "flag_rate_at_t_strong": 0.1186
+    },
+    "mpt": {
+      "n": 62,
+      "flag_rate_at_t_elevated": 0.8226,
+      "flag_rate_at_t_strong": 0.5484
+    },
+    "mpt-chat": {
+      "n": 76,
+      "flag_rate_at_t_elevated": 0.75,
+      "flag_rate_at_t_strong": 0.3947
+    }
+  },
+  "env": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "adaptive_weights_enabled": "0",
+    "environment": "testing",
+    "original_db": ":memory:",
+    "numpy_seeded": true,
+    "python_seeded": true
+  }
+}

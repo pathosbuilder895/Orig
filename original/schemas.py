@@ -444,6 +444,32 @@ class ScoringReportOut(BaseModel):
     baseline_cluster: List[str]
 
 
+class AiIndicatorOut(BaseModel):
+    """One professor-explainable feature driving the AI-likelihood signal."""
+    code: str
+    label: str
+    z: float
+    direction: str                                 # "higher" | "lower"
+
+
+class AiLikelihoodOut(BaseModel):
+    """
+    Corpus-level AI-likelihood (second scoring mode). Report-only: never
+    feeds the deviation score or the recommended action.
+
+    Populated only when AI_LIKELIHOOD_ENABLED=1 AND the committed detector
+    artifact loaded and validated cleanly; null otherwise — preserves the
+    flag-off byte-identical contract. The calibrated probability lives here
+    (the auditable structured surface); professor-facing prose stays
+    band-only by design.
+    """
+    probability: float                             # calibrated p(AI-generated)
+    band: str                                      # "low" | "elevated" | "strong"
+    model_version: str
+    trained_on: str
+    top_indicators: List[AiIndicatorOut] = []
+
+
 class Layer7OutputResponse(BaseModel):
     student_id: str
     submission_id: str
@@ -463,6 +489,8 @@ class Layer7OutputResponse(BaseModel):
     # Phase 6 — same gate as context_manifest; report is the human-readable
     # surface, manifest is the structured directive trail.
     report: Optional[ScoringReportOut] = None
+    # AI-likelihood — populated only when AI_LIKELIHOOD_ENABLED=1; null otherwise.
+    ai_likelihood: Optional[AiLikelihoodOut] = None
     # Plain-English explanation for professors/instructors
     human_explanation: Optional[Dict[str, Any]] = None
 

@@ -381,6 +381,10 @@ class ProfessorExplanation:
     confidence_note: str           # plain language about reliability of comparison
     has_behavioral_signals: bool   # True if keystroke/paste data contributed
     has_ai_signals: bool           # True if AI-detection features were anomalous
+    # Corpus-level AI-likelihood band ("low"/"elevated"/"strong") when the
+    # AI_LIKELIHOOD_ENABLED detector produced a signal; None otherwise.
+    # Defaults keep existing consumers byte-stable when the flag is off.
+    ai_likelihood_band: Optional[str] = None
 
 
 # ── Headline logic ─────────────────────────────────────────────────────────────
@@ -544,6 +548,7 @@ def _build_hypotheses(
     has_ai: bool,
     quantum_fidelity: float,
     action: str,
+    ai_band: Optional[str] = None,
 ) -> List[str]:
     hyps: List[str] = []
 
@@ -567,8 +572,26 @@ def _build_hypotheses(
             "transferring it."
         )
 
-    # AI signal
-    if has_ai:
+    # AI signal — the corpus-level detector's band takes precedence over the
+    # per-feature heuristic when both fire (same hypothesis, better evidence).
+    # Band-only, frequency-framed prose; the calibrated probability lives in
+    # the structured API field, never in a sentence (tone rule: no numbers).
+    if ai_band == "strong":
+        hyps.append(
+            "Several statistical patterns in this submission resemble those "
+            "common in AI-generated text, at a level seen in fewer than one in "
+            "a hundred authentic essays in our calibration corpora — this can "
+            "also reflect heavy editing tools or an unusually formal register, "
+            "and is worth exploring in conversation."
+        )
+    elif ai_band == "elevated":
+        hyps.append(
+            "Some statistical patterns in this submission resemble those "
+            "common in AI-generated text — this can also reflect heavy "
+            "editing tools or an unusually formal register, and is worth "
+            "exploring in conversation."
+        )
+    elif has_ai:
         hyps.append(
             "AI writing assistance was used — one or more patterns in this "
             "submission are consistent with AI-generated or AI-assisted text."
@@ -684,6 +707,12 @@ def build_professor_explanation(
         if entry.get("ai_signal"):
             has_ai = True
 
+    # ── Corpus-level AI-likelihood (second scoring mode, report-only) ─────────
+    ai_like = getattr(layer7, "ai_likelihood", None)
+    ai_band = getattr(ai_like, "band", None) if ai_like is not None else None
+    if ai_band == "strong":
+        has_ai = True
+
     # ── Build components ──────────────────────────────────────────────────────
     headline = _build_headline(deviation, student_name)
 
@@ -707,6 +736,7 @@ def build_professor_explanation(
         has_ai=has_ai,
         quantum_fidelity=quantum_fidelity,
         action=action,
+        ai_band=ai_band,
     )
 
     suggested_action = _build_suggested_action(action, student_name)
@@ -722,6 +752,7 @@ def build_professor_explanation(
         confidence_note=confidence_note,
         has_behavioral_signals=has_behavioral,
         has_ai_signals=has_ai,
+        ai_likelihood_band=ai_band,
     )
 
 

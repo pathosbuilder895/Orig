@@ -1,0 +1,69 @@
+{
+  "dataset": "seminary corpus (IN-DOMAIN transfer \u2014 the pilot's actual register)",
+  "note": "Only seminary_authentic vs ai_generated measures the pilot register. The 'ghostwritten' group is Madison's Federalist papers scored against Hamilton's baseline \u2014 genuinely human but ARCHAIC prose, so its flag rate belongs with historical_authentic as the known archaic-register stress case, NOT as a modern-ghostwriter control. High flag rates on both archaic groups are the documented failure mode of a model trained on modern tweets/legal/wiki text.",
+  "artifact": "original/data/ai_detector_v1.joblib",
+  "core_seminary_vs_ai": {
+    "n": 45,
+    "n_human": 25,
+    "n_ai": 20,
+    "auc": 0.854,
+    "brier": 0.2641,
+    "accuracy_at_0.5": 0.6222,
+    "tpr_at_fpr_05": 0.4,
+    "tpr_at_fpr_01": 0.4,
+    "at_t_elevated": {
+      "threshold": 0.756819,
+      "tpr": 0.95,
+      "fpr": 0.4
+    },
+    "at_t_strong": {
+      "threshold": 0.905243,
+      "tpr": 0.35,
+      "fpr": 0.0
+    },
+    "auc_bootstrap_ci_95": [
+      0.744,
+      0.9441
+    ]
+  },
+  "per_group": {
+    "ai_generated": {
+      "n": 20,
+      "median_prob": 0.8763,
+      "flag_rate_at_t_elevated": 0.95,
+      "flag_rate_at_t_strong": 0.35
+    },
+    "seminary_authentic": {
+      "n": 25,
+      "median_prob": 0.6913,
+      "flag_rate_at_t_elevated": 0.4,
+      "flag_rate_at_t_strong": 0.0
+    },
+    "ghostwritten": {
+      "n": 100,
+      "median_prob": 0.9124,
+      "flag_rate_at_t_elevated": 0.91,
+      "flag_rate_at_t_strong": 0.54
+    },
+    "historical_authentic": {
+      "n": 662,
+      "median_prob": 0.8758,
+      "flag_rate_at_t_elevated": 0.7659,
+      "flag_rate_at_t_strong": 0.3807
+    }
+  },
+  "enablement_gate": {
+    "rule": "in-domain AUC >= 0.85 AND flag_rate_at_t_elevated <= 0.05 on seminary_authentic (see MODEL_CARD.md)",
+    "auc_ok": true,
+    "fpr_ok": false,
+    "passes": false
+  },
+  "env": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "adaptive_weights_enabled": "0",
+    "environment": "testing",
+    "original_db": ":memory:",
+    "numpy_seeded": true,
+    "python_seeded": true
+  }
+}
