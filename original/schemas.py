@@ -517,6 +517,34 @@ class StudentStateResponse(BaseModel):
     samples: List[SampleSummary]
 
 
+class BaselineWordStats(BaseModel):
+    """Word-count spread across a student's baseline samples."""
+    min: int
+    median: int
+    mean: float
+    max: int
+    n_below_300: int
+
+
+class ReadinessResponse(BaseModel):
+    """
+    Pilot-facing baseline-readiness check (GET /students/{id}/readiness).
+
+    verdict: "ready" (>= 5 authenticated samples AND >= 3 effective),
+    "developing" (>= 2 authenticated), else "insufficient". Pure read —
+    computed from the same StudentState the score endpoint uses.
+    """
+    student_id: str
+    sample_count: int
+    authenticated_count: int
+    effective_sample_count: float
+    purity: float
+    provenance_mix: Dict[str, int]
+    word_stats: Optional[BaselineWordStats] = None
+    verdict: str
+    recommendations: List[str]
+
+
 # ── Student read-model (ADR-005): the redacting VoiceView ─────────────────────
 # Every field here is already display-ready and formation-register. The forbidden
 # internals (feature codes, raw divergence/deviation, purity, sample counts,

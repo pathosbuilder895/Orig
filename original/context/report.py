@@ -378,6 +378,7 @@ def build_report(
     layer7: "object",
     manifest: "object",
     state: "object",
+    n_tokens: Optional[int] = None,
 ) -> ScoringReport:
     """
     Assemble a `ScoringReport` from a Layer7Output + ContextManifest + StudentState.
@@ -422,7 +423,8 @@ def build_report(
     professor_explanation: Optional[Dict[str, Any]] = None
     try:
         from dataclasses import asdict as _asdict
-        prof_expl = build_professor_explanation(layer7, student_name="this student")
+        prof_expl = build_professor_explanation(layer7, student_name="this student",
+                                                n_tokens=n_tokens)
         professor_explanation = _asdict(prof_expl)
     except Exception:
         pass

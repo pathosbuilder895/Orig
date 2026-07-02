@@ -52,6 +52,12 @@ from ..constants import (
 
 log = logging.getLogger(__name__)
 
+# Submissions under this many words get a provisional-confidence note in the
+# recommendation rationale and the professor confidence note. Chosen from the
+# length-stability study (validation/stability/): feature discriminability
+# degrades sharply below ~300 words. Prose only — never changes the action.
+SHORT_SUBMISSION_TOKENS = 300
+
 # Pre-built per-feature tier-weight vector (shape D,) — applied to z-scores
 # so that high-identity tiers (6=idiosyncratic, 11=error ecology, 4=char/punct)
 # dominate the deviation score over noisier tiers (3=rhetorical, 9=argument).
@@ -653,6 +659,7 @@ def score(
         P, D_adjusted, interference, domain, bc,
         fidelity=_fidelity,
         conformal_p=_conformal_p,
+        n_tokens=n_tokens,
     )
 
     # Override to escalate on catastrophic drift regardless of scored action
@@ -907,6 +914,7 @@ def _recommend(
     bc: BaselineConfidence,
     fidelity: float = 0.0,
     conformal_p: Optional[float] = None,
+    n_tokens: Optional[int] = None,
 ) -> RecommendedAction:
     """Derive recommended action from the full probability object.
 
@@ -1033,6 +1041,14 @@ def _recommend(
         rationale_parts.append(
             f"Note: baseline built on {bc.effective_sample_count:.1f} effective samples — "
             "confidence is limited."
+        )
+    # Length-stability work measured feature reliability degrading sharply
+    # below ~300 words. Prose-only caution (mirrors the thin-baseline note
+    # above): the action itself is never changed by submission length.
+    if n_tokens is not None and n_tokens < SHORT_SUBMISSION_TOKENS:
+        rationale_parts.append(
+            f"Note: submission is only {n_tokens} words — short submissions "
+            "reduce stylometric confidence; treat this result as provisional."
         )
     if _conformal_nudge_note:
         rationale_parts.append(_conformal_nudge_note)
