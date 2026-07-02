@@ -52,6 +52,8 @@ from .schemas import (
     DomainSignalOut,
     RecommendedActionOut,
     TensionArcOut,
+    AiIndicatorOut,
+    AiLikelihoodOut,
     ContextManifestOut,
     ScoringReportOut,
     BlendDetectionRequest,
@@ -133,6 +135,10 @@ async def lifespan(app: FastAPI):
         _GUARD_DESTRUCTIVE,
         "GUARDED (X-Guard-Token required)" if _GUARD_DESTRUCTIVE else "open (demo mode)",
     )
+    if os.environ.get("AI_LIKELIHOOD_ENABLED") == "1":
+        from .ai_likelihood import warm as _ai_warm
+        _log.info("AI_LIKELIHOOD_ENABLED=1 — detector %s.",
+                  "ready" if _ai_warm() else "unavailable (see warning above)")
     yield
 
 
@@ -1540,6 +1546,14 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
         n_tokens=_n_tokens,
     )
 
+    # ── AI-likelihood (corpus-level second scoring mode, report-only) ─────────
+    # Attached before report/narrative assembly so downstream explanation
+    # layers can see it. Scores the same `vec` — no second extraction.
+    # predict_ai_likelihood never raises; None whenever unavailable.
+    if os.environ.get("AI_LIKELIHOOD_ENABLED") == "1":
+        from .ai_likelihood import predict_ai_likelihood
+        result.ai_likelihood = predict_ai_likelihood(vec)
+
     # ── Persist quantum fidelity for conformal calibration ───────────────────
     # Stores every scored fidelity so get_authentic_fidelities() can build
     # a calibration set for the conformal p-value on future submissions.
@@ -1707,6 +1721,22 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
         ),
         # Phase 6: ScoringReportOut when a manifest+report were built.
         report=report_out,
+        # AI-likelihood: AiLikelihoodOut when AI_LIKELIHOOD_ENABLED=1 and the
+        # detector produced a signal, else None (byte-identical when off).
+        ai_likelihood=(
+            AiLikelihoodOut(
+                probability=r.ai_likelihood.probability,
+                band=r.ai_likelihood.band,
+                model_version=r.ai_likelihood.model_version,
+                trained_on=r.ai_likelihood.trained_on,
+                top_indicators=[
+                    AiIndicatorOut(**ind.__dict__)
+                    for ind in r.ai_likelihood.top_indicators
+                ],
+            )
+            if getattr(r, "ai_likelihood", None) is not None
+            else None
+        ),
         # Human-friendly explanation for professors/instructors
         human_explanation=explain(r),
     )

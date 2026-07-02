@@ -1,0 +1,152 @@
+{
+  "dataset": "autextification-2023-en-subtask1 (official test split, frozen model + thresholds)",
+  "note": "The official test split is DELIBERATELY cross-domain: train domains are legal/tweets/wiki, test domains are news/reviews (IberLEF 2023 shared-task design). The train-OOF metrics are the in-distribution numbers (comparable to papers that use a random split, e.g. StyloAI); this test block is the harder unseen-domain generalization number. Both are honest answers to different questions.",
+  "artifact": "original/data/ai_detector_v1.joblib",
+  "model_name": "hgb_isotonic",
+  "provenance": {
+    "trained_at": "2026-07-02T02:06:02.135340+00:00",
+    "git_sha": "b73da57c70056ef0877a1edea23b27310b927687",
+    "sklearn_version": "1.6.1",
+    "numpy_version": "1.26.4",
+    "seed": 1729,
+    "dataset": {
+      "name": "autextification-2023-en-subtask1",
+      "train_sha256": "7537df7ddf5482641b0fe948212eb8a867296da80612ef70da04cb61faed9e0a",
+      "n_train": 33845,
+      "n_human": 17046,
+      "n_ai": 16799
+    },
+    "selection": "train-OOF AUC (test split untouched until eval)"
+  },
+  "oof_metrics_train": {
+    "hgb_isotonic": {
+      "oof_auc": 0.9111,
+      "oof_brier": 0.121
+    },
+    "rf_depth12": {
+      "oof_auc": 0.8879,
+      "oof_brier": 0.145
+    },
+    "logreg": {
+      "oof_auc": 0.8144,
+      "oof_brier": 0.176
+    }
+  },
+  "references": {
+    "styloai_paper": {
+      "auc": 0.88,
+      "accuracy": 0.81,
+      "source": "arxiv.org/html/2405.10129v1"
+    },
+    "original_production_born_rule": {
+      "auc": 0.6091,
+      "source": "PR #20"
+    },
+    "diagnostic_rf_n1000": {
+      "auc": 0.7402,
+      "source": "PR #21"
+    }
+  },
+  "overall": {
+    "n": 21832,
+    "n_human": 10642,
+    "n_ai": 11190,
+    "auc": 0.7695,
+    "brier": 0.2558,
+    "accuracy_at_0.5": 0.6134,
+    "tpr_at_fpr_05": 0.3601,
+    "tpr_at_fpr_01": 0.1913,
+    "at_t_elevated": {
+      "threshold": 0.756819,
+      "tpr": 0.7515,
+      "fpr": 0.384
+    },
+    "at_t_strong": {
+      "threshold": 0.905243,
+      "tpr": 0.5048,
+      "fpr": 0.1217
+    }
+  },
+  "per_domain": {
+    "news": {
+      "n": 10928,
+      "n_human": 5464,
+      "n_ai": 5464,
+      "auc": 0.7423,
+      "brier": 0.25,
+      "accuracy_at_0.5": 0.6177,
+      "tpr_at_fpr_05": 0.3073,
+      "tpr_at_fpr_01": 0.1803,
+      "at_t_elevated": {
+        "threshold": 0.756819,
+        "tpr": 0.6541,
+        "fpr": 0.3113
+      },
+      "at_t_strong": {
+        "threshold": 0.905243,
+        "tpr": 0.4134,
+        "fpr": 0.1043
+      }
+    },
+    "reviews": {
+      "n": 10904,
+      "n_human": 5178,
+      "n_ai": 5726,
+      "auc": 0.8047,
+      "brier": 0.2616,
+      "accuracy_at_0.5": 0.6091,
+      "tpr_at_fpr_05": 0.4113,
+      "tpr_at_fpr_01": 0.2059,
+      "at_t_elevated": {
+        "threshold": 0.756819,
+        "tpr": 0.8444,
+        "fpr": 0.4608
+      },
+      "at_t_strong": {
+        "threshold": 0.905243,
+        "tpr": 0.592,
+        "fpr": 0.14
+      }
+    }
+  },
+  "per_generator_tpr": {
+    "A": {
+      "n": 1704,
+      "tpr_at_t_elevated": 0.9437,
+      "tpr_at_t_strong": 0.8486
+    },
+    "B": {
+      "n": 1782,
+      "tpr_at_t_elevated": 0.8861,
+      "tpr_at_t_strong": 0.7138
+    },
+    "C": {
+      "n": 1831,
+      "tpr_at_t_elevated": 0.8159,
+      "tpr_at_t_strong": 0.5893
+    },
+    "D": {
+      "n": 1960,
+      "tpr_at_t_elevated": 0.6857,
+      "tpr_at_t_strong": 0.3801
+    },
+    "E": {
+      "n": 1958,
+      "tpr_at_t_elevated": 0.6624,
+      "tpr_at_t_strong": 0.357
+    },
+    "F": {
+      "n": 1955,
+      "tpr_at_t_elevated": 0.556,
+      "tpr_at_t_strong": 0.2087
+    }
+  },
+  "env": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "adaptive_weights_enabled": "0",
+    "environment": "testing",
+    "original_db": ":memory:",
+    "numpy_seeded": true,
+    "python_seeded": true
+  }
+}

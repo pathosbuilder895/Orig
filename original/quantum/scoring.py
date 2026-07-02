@@ -37,6 +37,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
+    from original.ai_likelihood import AiLikelihoodResult
     from original.tension_arc import TensionArcResult
 
 import numpy as np
@@ -219,6 +220,12 @@ class Layer7Output:
     # import cycle. None when the manifest flag is off — preserves byte-
     # identical Phase 1 responses by default.
     context_manifest: Optional[Dict[str, "object"]] = field(default=None)
+
+    # Corpus-level AI-likelihood (orthogonal signal, set at the API layer
+    # after quantum score when AI_LIKELIHOOD_ENABLED=1). Report-only: never
+    # feeds the deviation score or the recommended action. None when the
+    # flag is off — preserves byte-identical responses by default.
+    ai_likelihood: Optional["AiLikelihoodResult"] = field(default=None)
 
 
 # ── Amplitude scoring helper ──────────────────────────────────────────────────

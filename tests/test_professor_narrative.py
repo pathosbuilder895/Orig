@@ -424,3 +424,37 @@ class TestBuildProfessorExplanation:
     def test_observations_not_empty(self):
         result = build_professor_explanation(_Layer7(), "Jane")
         assert len(result.observations) >= 1
+
+
+# ── AI-likelihood band (corpus-level second scoring mode) ─────────────────────
+
+class _AiBand:
+    def __init__(self, band):
+        self.band = band
+
+
+class TestAiLikelihoodBand:
+    def test_band_none_leaves_explanation_unchanged(self):
+        base = build_professor_explanation(_Layer7(), "Jane")
+        l7 = _Layer7()
+        l7.ai_likelihood = None
+        with_none = build_professor_explanation(l7, "Jane")
+        assert base.hypotheses == with_none.hypotheses
+        assert with_none.ai_likelihood_band is None
+
+    def test_elevated_band_adds_hedged_ai_hypothesis(self):
+        l7 = _Layer7()
+        l7.ai_likelihood = _AiBand("elevated")
+        result = build_professor_explanation(l7, "Jane")
+        ai = [h for h in result.hypotheses if "AI-generated" in h]
+        assert ai and "can also reflect" in ai[0]
+        assert result.ai_likelihood_band == "elevated"
+
+    def test_strong_band_sets_flag_and_keeps_prose_digit_free(self):
+        l7 = _Layer7()
+        l7.ai_likelihood = _AiBand("strong")
+        result = build_professor_explanation(l7, "Jane")
+        ai = [h for h in result.hypotheses if "AI-generated" in h]
+        assert ai and not any(c.isdigit() for c in ai[0])
+        assert result.has_ai_signals is True
+        assert result.ai_likelihood_band == "strong"
