@@ -139,6 +139,17 @@ class AuthorshipSignal:
     fidelity_conformal_pvalue: Optional[float] = field(default=None)
     # Conformal p-value from corrections feedback loop.
     # None when calibration set is empty (no historical authentic fidelities).
+    # ── Rank-and-null work: explicit likelihood-ratio deviation ──────────────
+    # None unless NULL_MODEL=impostor is set AND the caller supplied
+    # impostor_stats to score(). deviation_score above answers "how far is
+    # this from the claimed author's baseline?" (absolute distance).
+    # llr_deviation_score answers "how much MORE like the claimed author is
+    # this than like a typical OTHER author?" (relative distance — a proper
+    # log-likelihood-ratio proxy). 0.5 = as consistent with one as the
+    # other; → 1.0 = fits the impostor pool much better than the claimed
+    # author (suspicious); → 0.0 = fits the claimed author much better
+    # (genuine). See _llr_deviation() for the derivation.
+    llr_deviation_score: Optional[float] = field(default=None)
 
 
 @dataclass
@@ -301,6 +312,69 @@ def _amplitude_score(
     return F, p_val, components
 
 
+def _llr_deviation(
+    sub_raw: np.ndarray,
+    impostor_stats: Tuple[np.ndarray, np.ndarray],
+    weight_vec: np.ndarray,
+    active: np.ndarray,
+    n_active: int,
+    rms_z: float,
+) -> float:
+    """
+    Relative (claimed-author vs impostor-pool) deviation — a bounded,
+    monotonic proxy for the log-likelihood ratio
+
+        Λ(X, A) = log P(ξ | H₁, baseline_A) − log P(ξ | H₀, impostor_pool)
+
+    ``rms_z`` (the caller's already-computed distance from the CLAIMED
+    author's baseline) plays the role of −2·log P(ξ|H₁) up to a constant.
+    This function computes the analogous ``rms_z_null`` — distance from
+    the IMPOSTOR POOL's per-feature mean/std, using the exact same
+    weighting/capping/active-mask machinery as the primary computation so
+    the two numbers are on the same footing — which plays the role of
+    −2·log P(ξ|H₀).
+
+    We report a bounded transform of the RMS DIFFERENCE (not the squared
+    difference the exact LLR would use) because it reuses the existing
+    tanh/1.5 calibration exactly, keeping the well-tested primary
+    deviation_score untouched and this new score interpretable on the
+    same scale:
+
+        llr_deviation = 0.5 + 0.5·tanh( (rms_z − rms_z_null) / 1.5 )
+
+    0.5   → as consistent with the claimed author as with the impostor
+            pool (no information either way)
+    → 1.0 → fits the impostor pool much better than the claimed author
+            (this text looks like "generic other-author" writing —
+            suspicious)
+    → 0.0 → fits the claimed author much better than the impostor pool
+            (genuinely this author's voice, not just "unremarkable")
+
+    Args:
+        sub_raw: raw normalised [0,1] submission feature vector, shape (D,).
+        impostor_stats: (mu_null, sigma_null), each shape (D,) — per-feature
+            mean/std fit from a cohort of OTHER authors' baseline vectors.
+        weight_vec, active, n_active: identical to the values already
+            computed for the primary rms_z, so both distances use the same
+            tier weighting and the same active-feature mask.
+        rms_z: the caller's already-computed distance from the claimed
+            author's baseline.
+    """
+    mu_null, sigma_null = impostor_stats
+    sigma_null_floored = np.maximum(sigma_null, 0.005)   # same floor as state.baseline_std
+    z_null = (sub_raw - mu_null) / sigma_null_floored
+    z_null_capped = np.clip(z_null, -4.0, 4.0)
+    z_null_weighted = z_null_capped * weight_vec * active.astype(np.float64)
+
+    if n_active > 0:
+        rms_z_null = float(np.sqrt(np.sum(z_null_weighted ** 2) / n_active))
+    else:
+        rms_z_null = 0.0
+
+    delta = rms_z - rms_z_null
+    return float(np.clip(0.5 + 0.5 * np.tanh(delta / 1.5), 0.0, 1.0))
+
+
 # ── Main scoring function ─────────────────────────────────────────────────────
 
 def score(
@@ -311,6 +385,7 @@ def score(
     adaptive_weights: Optional[np.ndarray] = None,
     manifest: Optional[Dict] = None,
     n_tokens: int = 300,
+    impostor_stats: Optional[Tuple[np.ndarray, np.ndarray]] = None,
 ) -> Layer7Output:
     """
     Score a submission against a student's current quantum state.
@@ -335,6 +410,19 @@ def score(
                          smaller amplitudes — reducing overconfident fidelity
                          scores. Defaults to 300 (≈ median essay length) when
                          not supplied by the caller.
+    impostor_stats     : optional (mu_null, sigma_null) per-feature Gaussian,
+                         each shape (FEATURE_DIM,), fit from a cohort of
+                         OTHER authors' baseline vectors (see
+                         validation/verify/null_models.py). Only used when
+                         both this is supplied AND NULL_MODEL=impostor is
+                         set — populates
+                         ``Layer7Output.authorship.llr_deviation_score``, a
+                         relative (claimed-author vs impostor-pool)
+                         deviation measure alongside the existing absolute
+                         ``deviation_score``. None preserves Phase 1
+                         byte-identical behaviour; the primary
+                         deviation_score / action / recommendation are
+                         never touched by this parameter.
     """
     xi = _unit(submission_vector)           # ξ  (unit-normalised submission vector)
     rho = state.density_matrix              # ρ
@@ -444,6 +532,19 @@ def score(
         rms_z = float(np.sqrt(np.sum(z_weighted ** 2) / n_active))
     else:
         rms_z = 0.0
+
+    # ── Explicit null model (rank-and-null work) ──────────────────────────────
+    # Gated by NULL_MODEL=impostor env flag AND the caller supplying
+    # impostor_stats — both must be true, so this can never fire from an
+    # existing call site that doesn't know about it. Computes a relative
+    # (claimed-author vs impostor-pool) deviation alongside the absolute
+    # one; does not modify rms_z, D_raw, or anything downstream of them.
+    _null_model = os.environ.get("NULL_MODEL", "none")
+    llr_deviation_score: Optional[float] = None
+    if _null_model == "impostor" and impostor_stats is not None:
+        llr_deviation_score = _llr_deviation(
+            sub_raw, impostor_stats, weight_vec, active, n_active, rms_z,
+        )
 
     # ── Amplitude scoring (Production Phase 6) ────────────────────────────────
     # Gated by AMPLITUDE_SCORING_ENABLED env flag (default OFF).
@@ -580,6 +681,7 @@ def score(
             deviation_score=D_adjusted,
             quantum_fidelity=_fidelity,
             fidelity_conformal_pvalue=_conformal_p,
+            llr_deviation_score=llr_deviation_score,
         ),
         trajectory=TrajectoryConformance(
             direction=direction,

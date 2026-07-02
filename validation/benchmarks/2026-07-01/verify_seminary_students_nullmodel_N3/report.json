@@ -1,0 +1,122 @@
+{
+  "label": "seminary_students_nullmodel_N3",
+  "generated_at": "2026-07-01T21:49:46.185034Z",
+  "environment": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "environment": "testing",
+    "original_db": ":memory:",
+    "numpy_seeded": true,
+    "python_seeded": true,
+    "scoring_flags": {
+      "ADAPTIVE_WEIGHTS_ENABLED": "0",
+      "AMPLITUDE_SCORING_ENABLED": "0",
+      "BAYESIAN_PRIOR_ENABLED": "0",
+      "LENGTH_ADAPTIVE_WEIGHTS": "0"
+    }
+  },
+  "corpus": {
+    "corpus_dir": "validation/corpus",
+    "manifest_path": "validation/manifest.json",
+    "baselines_per_author": 3
+  },
+  "summary": {
+    "n_authors": 5,
+    "skipped_authors": [],
+    "total_same_pairs": 10,
+    "total_different_pairs": 40,
+    "median_per_author_auc": 1.0,
+    "iqr_per_author_auc": [
+      1.0,
+      1.0
+    ],
+    "pooled_uncalibrated_auc": 0.9325,
+    "pooled_uncalibrated_auc_ci_95": [
+      0.8275,
+      1.0
+    ],
+    "pooled_uncalibrated_brier": 0.1668,
+    "pooled_uncalibrated_tpr_at_fpr": {
+      "0.01": 0.2,
+      "0.05": 0.8,
+      "0.10": 0.9
+    }
+  },
+  "per_author": [
+    {
+      "author": "seminary_01",
+      "n_same": 2,
+      "n_different": 8,
+      "auc": 1.0,
+      "auc_ci_lo": 1.0,
+      "auc_ci_hi": 1.0,
+      "brier": 0.1684,
+      "tpr_at_fpr_01": 1.0,
+      "tpr_at_fpr_05": 1.0,
+      "tpr_at_fpr_10": 1.0
+    },
+    {
+      "author": "seminary_02",
+      "n_same": 2,
+      "n_different": 8,
+      "auc": 1.0,
+      "auc_ci_lo": 1.0,
+      "auc_ci_hi": 1.0,
+      "brier": 0.1283,
+      "tpr_at_fpr_01": 1.0,
+      "tpr_at_fpr_05": 1.0,
+      "tpr_at_fpr_10": 1.0
+    },
+    {
+      "author": "seminary_03",
+      "n_same": 2,
+      "n_different": 8,
+      "auc": 0.6875,
+      "auc_ci_lo": 0.25,
+      "auc_ci_hi": 1.0,
+      "brier": 0.1949,
+      "tpr_at_fpr_01": 0.0,
+      "tpr_at_fpr_05": 0.0,
+      "tpr_at_fpr_10": 0.0
+    },
+    {
+      "author": "seminary_04",
+      "n_same": 2,
+      "n_different": 8,
+      "auc": 1.0,
+      "auc_ci_lo": 1.0,
+      "auc_ci_hi": 1.0,
+      "brier": 0.1734,
+      "tpr_at_fpr_01": 1.0,
+      "tpr_at_fpr_05": 1.0,
+      "tpr_at_fpr_10": 1.0
+    },
+    {
+      "author": "seminary_05",
+      "n_same": 2,
+      "n_different": 8,
+      "auc": 1.0,
+      "auc_ci_lo": 1.0,
+      "auc_ci_hi": 1.0,
+      "brier": 0.1688,
+      "tpr_at_fpr_01": 1.0,
+      "tpr_at_fpr_05": 1.0,
+      "tpr_at_fpr_10": 1.0
+    }
+  ],
+  "extra": {
+    "eligible_authors": [
+      "seminary_01",
+      "seminary_02",
+      "seminary_03",
+      "seminary_04",
+      "seminary_05"
+    ],
+    "comparison": "baseline (flag off) vs impostor-null (NULL_MODEL=impostor)",
+    "baseline_median_per_author_auc": 0.8125,
+    "baseline_iqr_per_author_auc": [
+      0.6875,
+      0.875
+    ],
+    "baseline_pooled_uncalibrated_auc": 0.8825
+  }
+}
