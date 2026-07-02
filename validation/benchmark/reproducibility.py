@@ -5,11 +5,19 @@ A benchmark report is only useful if anyone can re-run it and get the same
 numbers. This module is the single place we set the knobs that govern
 non-determinism in Original's scoring stack:
 
-    - SECRET_KEY                : fixed → keyed random unitary is deterministic
-    - ADAPTIVE_WEIGHTS_ENABLED  : 0    → fixed-weight version that ships to pilots
-    - ENVIRONMENT               : testing → strict-mode flags off
-    - ORIGINAL_DB               : :memory: → no cross-run student-store contamination
-    - random.seed / numpy seed  : BENCHMARK_SEED
+    - SECRET_KEY                  : fixed → keyed random unitary is deterministic
+    - ADAPTIVE_WEIGHTS_ENABLED    : 0    → fixed-weight version that ships to pilots
+    - AMPLITUDE_SCORING_ENABLED   : 0    → no Phase-6 amplitude branch
+    - BAYESIAN_PRIOR_ENABLED      : 0    → no cold-start blend
+    - LENGTH_ADAPTIVE_WEIGHTS     : 0    → no length-schedule scaling
+    - ENVIRONMENT                 : testing → strict-mode flags off
+    - ORIGINAL_DB                 : :memory: → no cross-run store contamination
+    - random.seed / numpy seed    : BENCHMARK_SEED
+
+Every env-var-gated branch in ``original/quantum/scoring.py`` and
+``original/quantum/state.py`` is pinned so no cross-shell-leak (a
+``LENGTH_ADAPTIVE_WEIGHTS=1`` left over from a prior process, for
+example) can change scoring behind our back.
 
 Anyone running a benchmark **must** call ``lock_environment()`` before
 loading any ``original.*`` modules — otherwise the random unitary is
@@ -27,15 +35,26 @@ from dataclasses import dataclass
 BENCHMARK_SEED = 1729   # Ramanujan's taxicab number — same one calibration.py uses
 
 
+# ── Every env-var-gated scoring flag, mapped to its pinned default. ─────────
+# The value is what lock_environment() writes into os.environ. Keep this
+# dict in sync with every `os.environ.get(...)` read in original/quantum/.
+_SCORING_FLAG_DEFAULTS = {
+    "ADAPTIVE_WEIGHTS_ENABLED":   "0",   # Phase 5 context-adaptive weights
+    "AMPLITUDE_SCORING_ENABLED":  "0",   # Phase 6 amplitude branch
+    "BAYESIAN_PRIOR_ENABLED":     "0",   # cold-start prior blend
+    "LENGTH_ADAPTIVE_WEIGHTS":    "0",   # length-schedule scaling
+}
+
+
 @dataclass(frozen=True)
 class _EnvLockReport:
     """What lock_environment() set. Returned for visibility / debugging."""
     secret_key: str
-    adaptive_weights_enabled: str
     environment: str
     original_db: str
     numpy_seeded: bool
     python_seeded: bool
+    scoring_flags: dict     # {flag_name: pinned_value}
 
 
 def lock_environment(seed: int = BENCHMARK_SEED) -> _EnvLockReport:
@@ -59,12 +78,11 @@ def lock_environment(seed: int = BENCHMARK_SEED) -> _EnvLockReport:
     secret = "bench-key-do-not-deploy-01234567890123456789"
     os.environ["SECRET_KEY"] = secret
 
-    # 2. Adaptive weights are a per-context modification on top of the fixed
-    #    tier weights. The benchmark measures the FIXED model that ships to
-    #    pilots — if we leave adaptive weights on, two reviewers comparing
-    #    notes will get different numbers depending on the context manifest
-    #    that happens to be active.
-    os.environ["ADAPTIVE_WEIGHTS_ENABLED"] = "0"
+    # 2. Pin every env-var-gated scoring flag. Even if the current default
+    #    is "0", we OVERWRITE from any leaked value in the shell so
+    #    identical runs stay identical.
+    for name, value in _SCORING_FLAG_DEFAULTS.items():
+        os.environ[name] = value
 
     # 3. ENVIRONMENT=testing disables strict-production checks that would
     #    fail loudly on the test-only SECRET_KEY above.
@@ -87,11 +105,11 @@ def lock_environment(seed: int = BENCHMARK_SEED) -> _EnvLockReport:
 
     return _EnvLockReport(
         secret_key=_redacted(secret),
-        adaptive_weights_enabled="0",
         environment=os.environ["ENVIRONMENT"],
         original_db=":memory:",
         numpy_seeded=numpy_seeded,
         python_seeded=True,
+        scoring_flags=dict(_SCORING_FLAG_DEFAULTS),
     )
 
 
