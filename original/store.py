@@ -195,6 +195,30 @@ def _get_conn() -> sqlite3.Connection:
         CREATE INDEX IF NOT EXISTS idx_fidelity_student
             ON fidelity_scores(student_id, is_authentic)
     """)
+    # AI-likelihood shadow scores (second scoring mode). One row per scored
+    # submission whenever AI_LIKELIHOOD_SHADOW=1 or AI_LIKELIHOOD_ENABLED=1.
+    # In shadow mode this table is the ONLY footprint of the detector —
+    # nothing is surfaced to professors — so scripts/shadow_report.py can
+    # measure real-world false-positive rates (joined against the
+    # instructor-corrected is_authentic labels in fidelity_scores) before
+    # any enablement decision. Deliberately a separate table from
+    # fidelity_scores: that table is conditionally written (fidelity > 0)
+    # and feeds conformal calibration; coupling an unrelated signal to that
+    # lifecycle would silently drop rows and pollute the contract.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS ai_likelihood_scores (
+            submission_id    TEXT PRIMARY KEY,
+            student_id       TEXT NOT NULL,
+            probability      REAL NOT NULL,
+            band             TEXT NOT NULL,
+            model_version    TEXT NOT NULL DEFAULT '',
+            created_at       TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_ai_likelihood_student
+            ON ai_likelihood_scores(student_id, created_at)
+    """)
     # Phase 0 — Tenant registry. Lightweight per-institution metadata that
     # lets us attach environment context (demo / pilot / production) to a
     # student cohort without a Postgres migration. Stored as a JSON blob so
@@ -821,6 +845,82 @@ def get_authentic_fidelities(
         return []
 
 
+def put_ai_likelihood_score(
+    submission_id: str,
+    student_id: str,
+    probability: float,
+    band: str,
+    model_version: str = "",
+) -> None:
+    """
+    Persist one AI-likelihood prediction (shadow or enabled mode).
+
+    Mirrors put_fidelity_score: INSERT OR REPLACE (re-scoring the same
+    submission_id keeps one row), never raises — persistence failures must
+    never break the scoring endpoint.
+    """
+    import datetime
+    created_at = datetime.datetime.utcnow().isoformat()
+    try:
+        with _get_conn() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO ai_likelihood_scores
+                    (submission_id, student_id, probability, band,
+                     model_version, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (submission_id, student_id, float(probability), str(band),
+                 str(model_version), created_at),
+            )
+            conn.commit()
+    except Exception:
+        log.exception("put_ai_likelihood_score failed for %s", submission_id)
+
+
+def get_ai_likelihood_scores(
+    student_id: Optional[str] = None,
+    limit: int = 500,
+) -> List[Dict]:
+    """
+    Fetch persisted AI-likelihood rows, newest first, optionally filtered by
+    student. Used by tests and ops tooling (scripts/shadow_report.py reads
+    the DB directly for its joins; this helper is the in-process surface).
+    """
+    try:
+        with _get_conn() as conn:
+            if student_id is not None:
+                rows = conn.execute(
+                    """
+                    SELECT submission_id, student_id, probability, band,
+                           model_version, created_at
+                    FROM ai_likelihood_scores
+                    WHERE student_id = ?
+                    ORDER BY created_at DESC LIMIT ?
+                    """,
+                    (student_id, limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT submission_id, student_id, probability, band,
+                           model_version, created_at
+                    FROM ai_likelihood_scores
+                    ORDER BY created_at DESC LIMIT ?
+                    """,
+                    (limit,),
+                ).fetchall()
+            return [
+                {"submission_id": r[0], "student_id": r[1],
+                 "probability": float(r[2]), "band": r[3],
+                 "model_version": r[4], "created_at": r[5]}
+                for r in rows
+            ]
+    except Exception:
+        log.exception("get_ai_likelihood_scores failed")
+        return []
+
+
 # ── Hierarchical Bayesian prior: cross-student genre statistics ───────────────
 
 def get_genre_stats(genre: str) -> Optional[Dict]:
@@ -950,6 +1050,9 @@ def delete_student(student_id: str) -> bool:
             )
             conn.execute(
                 "DELETE FROM fidelity_scores WHERE student_id = ?", (student_id,)
+            )
+            conn.execute(
+                "DELETE FROM ai_likelihood_scores WHERE student_id = ?", (student_id,)
             )
             conn.execute(
                 "DELETE FROM submission_manifests WHERE student_id = ?", (student_id,)
@@ -2090,9 +2193,15 @@ def student_data_inventory(student_id: str) -> Optional[Dict]:
                 "SELECT COUNT(*) FROM audit_log WHERE student_id = ?",
                 (student_id,),
             ).fetchone()[0]
+
+            ai_likelihood_count = conn.execute(
+                "SELECT COUNT(*) FROM ai_likelihood_scores WHERE student_id = ?",
+                (student_id,),
+            ).fetchone()[0]
     except Exception:
         log.exception("student_data_inventory DB query failed for %s", student_id)
         fidelity_count = manifest_rows = correction_count = audit_count = 0
+        ai_likelihood_count = 0
 
     manifests_by_action: Dict = {}
     if manifest_rows:
@@ -2124,6 +2233,9 @@ def student_data_inventory(student_id: str) -> Optional[Dict]:
             },
             "audit_log_entries": {
                 "count": int(audit_count),
+            },
+            "ai_likelihood_scores": {
+                "count": int(ai_likelihood_count),
             },
         },
         "effective_sample_weight": state.effective_sample_count,

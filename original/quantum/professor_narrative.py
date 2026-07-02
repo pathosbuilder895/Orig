@@ -643,22 +643,31 @@ def _build_suggested_action(action: str, student_name: str) -> str:
 
 # ── Confidence note ───────────────────────────────────────────────────────────
 
-def _build_confidence_note(sample_count: int) -> str:
+def _build_confidence_note(sample_count: int, n_tokens: Optional[int] = None) -> str:
     if sample_count >= 8:
-        return (
+        note = (
             f"This comparison is based on {sample_count} authenticated writing "
             f"samples — the profile is well-established and reliable."
         )
-    if sample_count >= 4:
-        return (
+    elif sample_count >= 4:
+        note = (
             f"This comparison is based on {sample_count} writing samples. The "
             f"profile is developing; adding more baselines will improve reliability."
         )
-    return (
-        f"This comparison is based on only {sample_count} writing sample(s). "
-        f"The profile is limited — treat this result as preliminary and weight "
-        f"the conversation more than the score."
-    )
+    else:
+        note = (
+            f"This comparison is based on only {sample_count} writing sample(s). "
+            f"The profile is limited — treat this result as preliminary and weight "
+            f"the conversation more than the score."
+        )
+    # Short-submission caveat (length-stability floor ~300 words). Additive
+    # prose only; None (the default) keeps every existing caller unchanged.
+    if n_tokens is not None and n_tokens < 300:
+        note += (
+            " Also note this submission is quite short — style measurements "
+            "on brief texts are less certain, so weigh this result lightly."
+        )
+    return note
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -668,6 +677,7 @@ def _build_confidence_note(sample_count: int) -> str:
 def build_professor_explanation(
     layer7: "object",
     student_name: str = "this student",
+    n_tokens: Optional[int] = None,
 ) -> ProfessorExplanation:
     """
     Translate a Layer7Output into professor-facing plain-English explanation.
@@ -741,7 +751,7 @@ def build_professor_explanation(
 
     suggested_action = _build_suggested_action(action, student_name)
 
-    confidence_note = _build_confidence_note(sample_count)
+    confidence_note = _build_confidence_note(sample_count, n_tokens=n_tokens)
 
     return ProfessorExplanation(
         headline=headline,

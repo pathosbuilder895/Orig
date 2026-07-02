@@ -41,6 +41,8 @@ from .schemas import (
     ScoreSubmissionRequest,
     Layer7OutputResponse,
     StudentStateResponse,
+    BaselineWordStats,
+    ReadinessResponse,
     SampleSummary,
     HealthResponse,
     AuthorshipSignalOut,
@@ -135,9 +137,12 @@ async def lifespan(app: FastAPI):
         _GUARD_DESTRUCTIVE,
         "GUARDED (X-Guard-Token required)" if _GUARD_DESTRUCTIVE else "open (demo mode)",
     )
-    if os.environ.get("AI_LIKELIHOOD_ENABLED") == "1":
+    _ai_mode = ("enabled" if os.environ.get("AI_LIKELIHOOD_ENABLED") == "1"
+                else "shadow" if os.environ.get("AI_LIKELIHOOD_SHADOW") == "1"
+                else None)
+    if _ai_mode:
         from .ai_likelihood import warm as _ai_warm
-        _log.info("AI_LIKELIHOOD_ENABLED=1 — detector %s.",
+        _log.info("AI-likelihood detector mode=%s — %s.", _ai_mode,
                   "ready" if _ai_warm() else "unavailable (see warning above)")
     yield
 
@@ -736,6 +741,73 @@ def get_student(student_id: str):
     )
 
 
+# ── Baseline-readiness check (pilot onboarding surface) ──────────────────────
+# Answers "is this student's baseline good enough to score against yet?" in
+# one call, with plain-language recommendations. Verdict thresholds: 5
+# authenticated samples is where scoring confidence saturates
+# (quantum/scoring.py), 2 is the developing floor, and 0 authenticated
+# cannot score at all (the score endpoint 422s).
+
+@app.get("/students/{student_id}/readiness", response_model=ReadinessResponse)
+def get_student_readiness(student_id: str):
+    state = store.get(student_id)
+    if state is None:
+        raise HTTPException(status_code=404, detail=f"Student '{student_id}' not found")
+
+    from collections import Counter
+    from statistics import median as _median
+
+    provenance_mix = dict(Counter(s.provenance for s in state.samples))
+    word_counts = [len((s.text or "").split()) for s in state.samples]
+    word_stats = None
+    if word_counts:
+        word_stats = BaselineWordStats(
+            min=min(word_counts),
+            median=int(_median(word_counts)),
+            mean=round(sum(word_counts) / len(word_counts), 1),
+            max=max(word_counts),
+            n_below_300=sum(1 for w in word_counts if w < 300),
+        )
+
+    auth = state.authenticated_count
+    eff = state.effective_sample_count
+    if auth >= 5 and eff >= 3:
+        verdict = "ready"
+    elif auth >= 2:
+        verdict = "developing"
+    else:
+        verdict = "insufficient"
+
+    recs: List[str] = []
+    if auth == 0:
+        recs.append("Collect a first proctored writing sample (via Bluebook) — "
+                    "scoring cannot run until at least one authenticated sample exists.")
+    if auth < 5:
+        recs.append(f"Collect {5 - auth} more authenticated sample(s) — "
+                    "the target for reliable comparison is 5-8.")
+    if word_stats and word_stats.n_below_300 > 0:
+        recs.append(f"{word_stats.n_below_300} baseline sample(s) are under 300 "
+                    "words — prefer 300+ word samples for stable style measurement.")
+    assignments = {s.assignment for s in state.samples if s.assignment}
+    if state.sample_count >= 3 and len(assignments) <= 1:
+        recs.append("All samples come from one assignment — collect baselines "
+                    "across different assignments to capture the student's range.")
+    if not recs:
+        recs.append("Baseline is in good shape — no action needed.")
+
+    return ReadinessResponse(
+        student_id=student_id,
+        sample_count=state.sample_count,
+        authenticated_count=auth,
+        effective_sample_count=eff,
+        purity=state.purity,
+        provenance_mix=provenance_mix,
+        word_stats=word_stats,
+        verdict=verdict,
+        recommendations=recs,
+    )
+
+
 # ── Read a single baseline sample's prose text ───────────────────────────────
 # The StudentStateResponse exposes only SampleSummary metadata (index,
 # assignment, provenance, submitted_at, auth_weight) — not the text itself,
@@ -810,7 +882,8 @@ def delete_student(student_id: str, request: "Request"):
         "student_id": student_id,
         "message": (
             f"All data for student '{student_id}' has been permanently removed "
-            "(baseline profile, fidelity scores, manifests, corrections)."
+            "(baseline profile, fidelity scores, AI-likelihood scores, "
+            "manifests, corrections)."
         ),
     }
 
@@ -1547,12 +1620,36 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     )
 
     # ── AI-likelihood (corpus-level second scoring mode, report-only) ─────────
+    # Two modes, one persistence call site:
+    #   AI_LIKELIHOOD_SHADOW=1  → compute + persist ONLY. result.ai_likelihood
+    #     stays None, so narrative/explainer/response can never see it —
+    #     silent real-world FPR measurement (scripts/shadow_report.py).
+    #   AI_LIKELIHOOD_ENABLED=1 → attach to the result AND persist (strict
+    #     superset: enablement is one env flip with unbroken data continuity).
     # Attached before report/narrative assembly so downstream explanation
-    # layers can see it. Scores the same `vec` — no second extraction.
-    # predict_ai_likelihood never raises; None whenever unavailable.
-    if os.environ.get("AI_LIKELIHOOD_ENABLED") == "1":
+    # layers can see it when enabled. Scores the same `vec` — no second
+    # extraction. predict_ai_likelihood never raises; None when unavailable.
+    _ai_enabled = os.environ.get("AI_LIKELIHOOD_ENABLED") == "1"
+    _ai_shadow = os.environ.get("AI_LIKELIHOOD_SHADOW") == "1"
+    if _ai_enabled or _ai_shadow:
         from .ai_likelihood import predict_ai_likelihood
-        result.ai_likelihood = predict_ai_likelihood(vec)
+        _ai_res = predict_ai_likelihood(vec)
+        if _ai_enabled:
+            result.ai_likelihood = _ai_res
+        if _ai_res is not None:
+            # Deliberately outside the quantum_fidelity > 0 gate below —
+            # shadow rows must persist for every scored submission.
+            try:
+                store.put_ai_likelihood_score(
+                    submission_id=submission_id,
+                    student_id=student_id,
+                    probability=_ai_res.probability,
+                    band=_ai_res.band,
+                    model_version=_ai_res.model_version,
+                )
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    "ai_likelihood persistence failed for %s", submission_id)
 
     # ── Persist quantum fidelity for conformal calibration ───────────────────
     # Stores every scored fidelity so get_authentic_fidelities() can build
@@ -1597,7 +1694,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     if manifest is not None:
         try:
             from .context.report import build_report
-            report = build_report(result, manifest, state)
+            report = build_report(result, manifest, state, n_tokens=_n_tokens)
         except Exception as e:
             logging.getLogger(__name__).warning(
                 "Report assembly failed for %s: %s", submission_id, e,
