@@ -711,7 +711,7 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
                 onClick={handleSubmit}
                 disabled={words < cfg.minWords || submitting}
                 style={{ padding: '7px 20px', fontSize: 14 }}
-              >{submitting ? 'Sealing…' : 'Seal & Surrender'}</BtnPrimary>
+              >{submitting ? 'Sealing…' : 'Seal & Submit'}</BtnPrimary>
             </div>
           </div>
         </div>

@@ -1161,6 +1161,10 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
               <button class="btn-analyze" id="analyzeBtn" onclick="runAnalysis()">Analyze Writing</button>
             </div>
           </div>
+          <div id="noBaselineNotice" style="display:none;margin-top:10px;padding:10px 14px;background:var(--surface-2);border-left:3px solid var(--red);border-radius:8px;font-size:0.82rem;color:var(--text-muted);line-height:1.5;align-items:center;gap:10px;flex-wrap:wrap">
+            <span><strong style="color:var(--red)">No baseline yet.</strong> <span id="noBaselineText"></span></span>
+            <button onclick="switchTab('baselines')" style="padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;font-size:0.78rem;color:var(--text-primary);white-space:nowrap">Open Baselines →</button>
+          </div>
         </div>
 
         <!-- Loading -->
@@ -2116,6 +2120,7 @@ async function selectStudent(s) {
   document.getElementById('arcIdentityWrap').style.display = 'none';
   document.getElementById('subText').value = '';
   document.getElementById('wordCount').textContent = '0 words';
+  document.getElementById('noBaselineNotice').style.display = 'none';
   document.getElementById('panelDeviation').classList.remove('show');
   const ic = document.getElementById('interpCard');
   ic.classList.remove('show'); ic.style.display='none';
@@ -2667,10 +2672,15 @@ async function runAnalysis() {
   const text = document.getElementById('subText').value.trim();
   if (text.length < 30) { alert('Paste text or click "Load sample"'); return; }
 
+  const notice = document.getElementById('noBaselineNotice');
   if (!activeApiData || activeApiData.authenticated_count === 0) {
-    alert(`${active.name} has no verified baseline samples yet.\n\nAsk the student to add baselines from their writing dashboard, or add one yourself via the Baselines tab.`);
+    document.getElementById('noBaselineText').textContent =
+      `${active.name} has no verified baseline samples yet. Add one from the Baselines tab, or ask the student to submit from their writing dashboard.`;
+    notice.style.display = 'flex';
+    notice.scrollIntoView({behavior: 'smooth', block: 'nearest'});
     return;
   }
+  notice.style.display = 'none';
 
   document.getElementById('analyzeBtn').disabled = true;
   document.getElementById('loadingCard').classList.add('show');
