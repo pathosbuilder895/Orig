@@ -6,7 +6,7 @@
  *   - Paste blocking + the examiner's notice
  *   - Ctrl/Cmd+P + Ctrl/Cmd+S blocking
  *   - Submit gating below the minimum word count
- *   - Round-trip: type → Seal & Surrender → "Examination Sealed" +
+ *   - Round-trip: type → Seal & Submit → "Examination Sealed" +
  *     "✓ Proctored baseline transmitted to Original" + API-side
  *     confirmation that sample_count incremented with provenance=proctored.
  *
@@ -152,7 +152,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
     // The Seal button is rendered disabled until words >= minWords (the
     // primary structural gate), AND clicking it (forced) still doesn't
     // advance because handleSubmit early-returns on words < cfg.minWords.
-    const sealBtn = page.locator('button', { hasText: /Seal & Surrender|Sealing/ })
+    const sealBtn = page.locator('button', { hasText: /Seal & Submit|Sealing/ })
     await expect(sealBtn).toBeVisible()
     await expect(sealBtn).toBeDisabled()
 
@@ -194,7 +194,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
       'a record built by patience is one a student can stand on.'
     await page.keyboard.type(longProse, { delay: 1 })
 
-    const sealBtn = page.locator('button', { hasText: /Seal & Surrender|Sealing/ })
+    const sealBtn = page.locator('button', { hasText: /Seal & Submit|Sealing/ })
     await expect(sealBtn).toBeVisible()
     await sealBtn.click()
 
