@@ -28,14 +28,20 @@ Keep copies in the password manager. **Rotating `SECRET_KEY` logs everyone out**
 
 ## Backups
 
-- `scripts/backup_db.sh [dest] [keep]` does a **consistent online** SQLite backup
-  (safe while serving; uses `.backup`, never `cp` a WAL database).
-- Schedule: Render Cron Job (same repo) →
-  `bash scripts/backup_db.sh /data/backups 48` every 30 min, AND a daily
-  **off-box pull** from the operator's machine:
+- **On-disk (automatic, in-app):** the web process itself runs a backup
+  scheduler (`original/backup.py`, started by the API lifespan) — a
+  **consistent online** SQLite `.backup` to `BACKUP_DIR` (render.yaml pins
+  `/data/backups`) every `BACKUP_INTERVAL_MINUTES` (30), pruned to
+  `BACKUP_KEEP` (48). No cron required — Render web services have no crontab,
+  and a Render cron job cannot mount this service's disk, which is why this
+  runs in-process. Verify anytime: `GET /admin/health` (staff login) →
+  `last_backup_age_seconds` should stay under ~3600.
+- `scripts/backup_db.sh [dest] [keep]` is the same backup for manual/local
+  use (safe while serving; uses `.backup`, never `cp` a WAL database).
+- **Off-box (manual, daily):** the disk and its on-disk backups die together —
+  pull a copy daily from the operator's machine:
   `render ssh original-pilot -- cat /data/backups/$(date +profiles-%Y%m%d)*.db > ~/orig-backups/...`
-  (or scp). The disk and its on-disk backups die together — the off-box copy is
-  the real backup.
+  (or scp). The off-box copy is the real backup.
 - **Weekly restore drill:** copy the newest backup locally,
   `sqlite3 backup.db "SELECT COUNT(*) FROM student_profiles;"` and compare with
   `/students` on the live service. A backup that's never been restored is a wish.
@@ -51,7 +57,10 @@ Keep copies in the password manager. **Rotating `SECRET_KEY` logs everyone out**
 
 ## Deploys
 
-- Flow: branch → PR → CI green → merge to `main` → Render auto-deploy.
+- Flow: branch → PR → CI green → merge to `main` → **manual deploy from the
+  Render dashboard** (`autoDeploy: false` on original-pilot; disk-backed
+  services deploy stop-then-start, so a merge must never take the service
+  down on its own). The demo service may keep auto-deploy.
 - **Never deploy during a scheduled exam** (shared exam calendar with professors).
 - Rollback = Render dashboard → previous deploy → "Rollback". SQLite schema is
   additive (`CREATE TABLE IF NOT EXISTS`), so rolling back code is safe.
@@ -70,7 +79,7 @@ Keep copies in the password manager. **Rotating `SECRET_KEY` logs everyone out**
 
 | Cadence | Action |
 |---|---|
-| daily (automated) | backup cron + off-box pull; uptime monitor |
+| daily | off-box backup pull (manual); uptime monitor + in-app backups run themselves |
 | weekly (~1 h) | restore drill; log scan; disk usage; professor office hour; update `PILOT_LOG.md` |
 | after sales demos | `python scripts/reset_demo_data.py --apply` **on the demo service** (touches only the `demo` tenant — verified safe, but never run against the pilot DB casually) |
 | per release | suite green locally (`.venv/bin/python -m pytest tests/ -q`), bundle rebuilt if JSX changed |

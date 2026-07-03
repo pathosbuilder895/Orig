@@ -19,8 +19,12 @@ work is recognizably yours.
 | Proctored Bluebook examinations only | typing rhythm (timing between keys, deletions, pauses), paste attempts, window-focus and fullscreen events | typing dynamics are part of your fingerprint; focus events document exam conditions |
 
 Your student identity is stored as an opaque code derived from your
-institutional email — your name and email do not appear in stored records or
-URLs.
+institutional email — your email address is not stored, and the code (not
+your name) is what appears in analysis records and URLs. One exception:
+when you launch through your school's LMS (Canvas), the display name Canvas
+sends is stored so your professor sees "you" and not a code on their roster.
+That stored name is deleted along with everything else if you request
+deletion.
 
 ## What is NOT done
 
@@ -41,9 +45,13 @@ you as a warning — it does not eject you from the exam.
 
 ## Your rights
 
-- You may ask your professor what your profile contains (sample list and dates).
-- You may request erasure of your data through the registrar; deletion removes
-  your profile, samples, scores, and analysis records (FERPA right-to-erasure).
+- Under FERPA you may inspect your education records and request correction
+  of inaccurate ones — ask your professor or registrar what your profile
+  contains (sample list and dates).
+- You may additionally request deletion of your data through the registrar;
+  deletion removes your profile, samples, scores, stored display name, and
+  analysis records. (Deletion goes beyond what FERPA requires — it is this
+  institution's commitment, not a FERPA right.)
 - Retention: enrollment plus one academic year, unless your institution sets a
   shorter period.
 

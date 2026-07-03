@@ -7,11 +7,20 @@ All write calls need the guard header: `-H "X-Guard-Token: $MAINTENANCE_TOKEN"`
 ## 1. Tenant
 
 ```bash
-curl -s -X POST $HOST/tenants -H 'Content-Type: application/json' \
+curl -s -X POST $HOST/tenants \
+  -H 'Content-Type: application/json' \
+  -H "X-Guard-Token: $MAINTENANCE_TOKEN" \
   -d '{"tenant_id":"<slug>","name":"<Institution Name>","environment":"pilot"}'
 ```
 - [ ] Slug is lowercase-kebab, final (it prefixes every student id — never rename).
-- [ ] `GET $HOST/tenants` shows it with `environment: pilot`.
+- [ ] Slug equals `slugify(institution name)` exactly as students would type it
+      — a mismatched slug sends self-service logins into a second, demo-labeled
+      tenant instead of this one.
+- [ ] `GET $HOST/tenants` (as a logged-in staff account) shows it with
+      `environment: pilot`.
+- [ ] Anonymous `POST $HOST/tenants` (no guard header) → **403**, and
+      re-POSTing this tenant with `"environment":"demo"` → **409** (downgrade
+      refused). If either passes, STOP — the deploy is not running this build.
 
 ## 2. Professor accounts (repeat ×5)
 
@@ -44,6 +53,9 @@ for the same email/tenant, then delivers it again. Log it in PILOT_LOG.md.
 
 - [ ] Logged in as a pilot professor, `GET $HOST/students` returns only `<slug>:*` ids (empty at first).
 - [ ] Anonymous `GET $HOST/students/<slug>:anything` → 403.
+- [ ] Anonymous `GET $HOST/students` → **401** (roster requires staff login on pilot).
+- [ ] Anonymous `GET $HOST/admin/audit` and `GET $HOST/tenants` → **401**.
+- [ ] `GET $HOST/seed.db` and `GET $HOST/lab.html` → **404** (demo artifacts blocked).
 - [ ] The public demo (`original-demo` service) shows none of this tenant's data.
 
 ## 5. Before real students

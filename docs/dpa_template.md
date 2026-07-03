@@ -1,5 +1,12 @@
 # Data Processing Agreement (DPA) Template
 
+> **TEMPLATE — NOT FOR SIGNATURE AS-IS.** Review with counsel before offering
+> it to an institution. Every commitment below is limited to (a) what FERPA
+> actually requires of a school official and (b) controls that exist in the
+> current deployment — no aspirational security claims. If a control is added
+> later (MFA, application-level encryption, SOC 2), amend the DPA then, not
+> before.
+
 **BETWEEN:** Original Authorship Verification Platform ("Processor")
 **AND:** [Institution Name] ("School")
 
@@ -75,37 +82,49 @@ Original shall:
 - Cooperate with audit requests and regulatory inquiries
 - Delete student data upon request or contract termination
 - Notify the School of any suspected breach within 48 hours
-- Implement encryption at rest and in transit
-- Maintain an audit log of all data access and modifications
+- Protect data in transit with TLS and rely on provider-managed disk
+  encryption at rest (see §4.1 for the precise controls in place)
+- Maintain an audit log of data access and modifications
 
 ---
 
 ## 4. Data Security and Confidentiality
 
 ### 4.1 Technical Controls
-Original implements the following technical security measures:
-- **Encryption at Rest:** Student data encrypted using AES-256-GCM
-- **Encryption in Transit:** TLS 1.3 for all network communication
-- **Access Control:** Role-based access control (RBAC) limiting access to authorized users
-- **Authentication:** Multi-factor authentication (MFA) for admin accounts
-- **Audit Logging:** All data access logged with timestamp, user, and action
-- **Network Security:** Firewall rules, DDoS protection, IP allowlisting
-- **Data Isolation:** Student data segregated by institution
+Original implements the following technical security measures. FERPA requires
+reasonable methods to protect education records (34 CFR § 99.31(a)(1)(ii));
+it does not mandate specific encryption standards, and this section commits
+only to controls actually deployed:
+- **Encryption in Transit:** TLS (1.2 or higher) for all network communication,
+  terminated by the hosting provider
+- **Encryption at Rest:** Provider-managed disk encryption on the hosting
+  infrastructure. Application-level encryption is not currently implemented.
+- **Access Control:** Role-based access control (professor / admin / operator /
+  student) with per-institution tenant isolation enforced on every request
+- **Authentication:** Password authentication with salted PBKDF2 hashing for
+  staff accounts; signed, expiring session tokens; LTI 1.3 (OIDC + JWT) for
+  LMS launches. Multi-factor authentication is not currently offered.
+- **Audit Logging:** Data-affecting actions logged with timestamp, actor, and
+  action
+- **Network Security:** Platform-level DDoS mitigation by the hosting provider;
+  destructive/administrative operations additionally guarded by a maintenance
+  token
+- **Data Isolation:** Student data segregated by institution (tenant), enforced
+  in middleware on every request
 
 ### 4.2 Organizational Controls
 Original implements the following organizational measures:
 - **Data Minimization:** Process only data necessary for authorship verification
 - **Purpose Limitation:** Use student data only for authorized purposes
-- **Access Restriction:** Only authorized employees access student data
-- **Confidentiality Agreements:** All employees sign confidentiality clauses
-- **Background Checks:** Security screening of personnel with data access
-- **Training:** Annual security and privacy training for all staff
-- **Vendor Management:** Third-party subprocessors bound by equivalent commitments
+- **Access Restriction:** Access to production data is limited to the named
+  operator(s) listed in Appendix B; no other personnel have access
+- **Confidentiality:** All personnel with data access are bound by
+  confidentiality obligations in the Service Agreement
 
 ### 4.3 Subprocessors
 Original may engage subprocessors (cloud hosting, monitoring services) only with School's written consent. Current subprocessors:
-- [Cloud Provider] — Infrastructure hosting
-- [Monitoring Vendor] — Security monitoring (optional)
+- Render (render.com) — Infrastructure hosting (compute, persistent disk, TLS)
+- [Monitoring Vendor] — Uptime monitoring (optional; receives no student data)
 
 The School may object to new subprocessors by written notice within 10 business days.
 
@@ -124,14 +143,19 @@ Students have the right to:
 ### 5.2 Exercising Rights
 To exercise these rights, students shall submit requests to their institution (School). The School shall forward requests to Original, which shall respond within 30 days.
 
-### 5.3 Right to Deletion
-Students may request deletion of their data. Original shall delete:
-- All submission text and feature vectors
-- All baseline samples and authorship profiles
-- All scoring results and audit logs
-- All associated metadata
+### 5.3 Deletion Requests
+FERPA itself grants inspection and amendment rights, not a general right to
+erasure; deletion here is a contractual commitment. On the School's request
+(or a student request forwarded by the School), Original shall delete:
+- All baseline samples and submission text
+- The authorship profile and derived feature data
+- All scoring results, manifests, and instructor corrections
+- The stored display name and the student's audit-log history
 
-within 30 days of receiving the deletion request, subject to legal holds or retention requirements.
+within 30 days of receiving the request, subject to legal holds. One audit
+entry recording that the deletion occurred (student identifier, timestamp,
+requester) is retained as the deletion receipt. Deleted records also age out
+of short-term rotating backups within approximately 24 hours.
 
 ---
 
@@ -150,10 +174,11 @@ After the retention period expires, Original automatically deletes all student d
 The School may request deletion of any student's data at any time. Original shall complete deletion within 30 days.
 
 ### 6.4 Data Destruction
-Deleted data is securely destroyed by:
-- Overwriting all storage sectors (Gutmann method or equivalent)
-- Cryptographic key deletion (making encrypted data unrecoverable)
-- Destruction of physical media (if applicable)
+Deleted data is destroyed by:
+- Immediate removal from the live database (no soft-delete or recovery path)
+- Expiry from short-term rotating backups within approximately 24 hours
+- The hosting provider's media sanitization practices for decommissioned
+  storage (provider-managed; physical media is not under Original's control)
 
 ---
 
@@ -175,7 +200,10 @@ Original shall:
 - Respond to inquiries within 15 business days
 
 ### 7.3 Third-Party Audits
-Original shall maintain SOC 2 Type II certification or equivalent, updated annually. Original shall provide a copy of the audit report to the School upon request.
+Original does not currently hold SOC 2 or equivalent third-party certification
+and makes no representation of one. Original shall provide its internal
+security review documentation to the School upon request, and shall notify the
+School if third-party certification is later obtained.
 
 ---
 

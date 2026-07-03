@@ -132,12 +132,15 @@ BEFORE launch; fill weekly from the report):
 
 ## 6. Backups
 
-```
-*/30 * * * * bash /opt/original/scripts/backup_db.sh /data/backups 48
-```
+On-disk backups are **automatic**: the server process runs an in-app
+scheduler (`original/backup.py`) that writes a consistent SQLite backup to
+`BACKUP_DIR` (`/data/backups` on Render) every 30 minutes, pruned to the
+newest 48. Check `GET /admin/health` → `last_backup_age_seconds` to confirm
+it is running.
 
-Copy at least one backup per day off the box. Run one restore drill in
-week 1 (restore a backup to a scratch path, run
+What stays manual: copy at least one backup per day **off the box** (the
+disk and its backups die together), and run one restore drill in week 1
+(restore a backup to a scratch path, run
 `scripts/pilot_preflight.py --db <scratch>` against it — the table check
 doubles as a restore validation). See `OPS_RUNBOOK.md` for the full
 backup/restore procedure.
