@@ -518,7 +518,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
             <div class="stats-grid">
               <div class="stat-cell">
                 <div class="stat-val" id="mFidelity" style="color:var(--gold)">—</div>
-                <div class="stat-lbl">Voice Fidelity</div>
+                <div class="stat-lbl">Voice Match</div>
                 <div class="stat-d" id="mFidelityD"></div>
               </div>
               <div class="stat-cell">
@@ -705,7 +705,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
               </div>
             </div>
             <div style="font-family:var(--font-b);font-style:italic;font-size:0.81rem;color:rgba(26,26,26,0.38);line-height:1.6;max-width:520px">
-              Your writing is analysed for stylometric voice patterns and compared against your established fingerprint. No similarity scores. No flags. A conversation, if something is worth noting.
+              Your writing is compared with your own earlier work — never with other students. Anything worth discussing starts as a conversation with your professor, never an automatic penalty.
             </div>
           </div>
 
@@ -735,7 +735,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
         <div class="pg-hdr fu">
           <div class="pg-eye">A path forward</div>
           <div class="pg-title">Formation Track</div>
-          <div class="pg-sub">Three sessions. One clear path. Successful completion clears the formation flag from your record.</div>
+          <div class="pg-sub">Three sessions. One clear path. Completing it closes the conversation.</div>
         </div>
 
         <div class="card fu fu1" style="padding:20px 24px 8px;margin-bottom:22px;max-width:620px">
@@ -774,7 +774,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
             <div class="ft-num" id="ft3num">3</div>
             <div class="ft-body">
               <div class="ft-title">Verification Session</div>
-              <div class="ft-desc">A new authenticated piece, submitted and scored against your baseline. Successful completion clears the formation flag from your record and closes this pathway.</div>
+              <div class="ft-desc">A new authenticated piece, written in your own voice. Completing it closes this pathway — and the conversation.</div>
               <div class="ft-action">
                 <button class="ft-btn" id="ft3btn" disabled onclick="advanceFormation(3)">Submit verification piece →</button>
                 <div class="ft-locked" id="ft3locked">Available after Session 2</div>
@@ -1436,7 +1436,7 @@ async function loadProfile() {
   const firstF  = fValues[0]||0;
   const delta   = latestF - firstF;
 
-  document.getElementById('mFidelity').textContent  = latest ? latestF : '—';
+  document.getElementById('mFidelity').textContent  = latest ? latestF + '%' : '—';
   document.getElementById('mFidelityD').textContent = delta>0 ? `↑ ${delta} pts since start of term` : '';
   document.getElementById('mSubs').textContent      = history.length;
   document.getElementById('mSubsD').textContent     = wordTotal ? wordTotal.toLocaleString()+' words total' : '';
@@ -1527,13 +1527,16 @@ function uniqueWordCount(text) {
   return new Set(words).size;
 }
 function computeVocabSeries(analysed) {
-  // Prefer real unique-word counts from typed text; otherwise synthesise a
-  // gently rising series so the tracker still reads honestly as "widening".
+  // Real unique-word counts from typed text only. The synthetic rising
+  // series is reserved for the anonymous demo — a signed-in student must
+  // never see a fabricated "your diction is widening" about themselves.
   const withText = analysed.filter(h => (h.text||'').length > 40);
   if (withText.length >= 2) return withText.map(h => uniqueWordCount(h.text));
-  // Demo / sparse fallback: rising reach across the analysed pieces
-  const n = Math.max(analysed.length, 4);
-  return Array.from({length:n}, (_,i) => 180 + i*34 + (i%2?12:0));
+  if (isGuest()) {
+    const n = Math.max(analysed.length, 4);
+    return Array.from({length:n}, (_,i) => 180 + i*34 + (i%2?12:0));
+  }
+  return [];
 }
 function renderVocabReach(analysed) {
   const series = computeVocabSeries(analysed);
@@ -1589,7 +1592,13 @@ function renderStrongest(analysed) {
       .slice(0,2);
     picks = sentences.map(s => ({ text:s, src:`${best.assignment||'A recent piece'} · ${shortDate(best.created_at)}` }));
   }
-  if (!picks.length) picks = DEMO_STRONG;
+  // The curated showcase sentences are for the anonymous demo ONLY — a real
+  // signed-in student must never see fabricated lines presented as their own.
+  if (!picks.length && isGuest()) picks = DEMO_STRONG;
+  if (!picks.length) {
+    el.innerHTML = '<div class="empty-serif">Your strongest sentences will gather here as you write.</div>';
+    return;
+  }
   el.innerHTML = picks.map(p =>
     `<div class="strong-sentence">“${esc(p.text.replace(/^[“"]|[”"]$/g,''))}”<span class="ss-src">${esc(p.src)}</span></div>`
   ).join('');
@@ -1670,7 +1679,7 @@ async function loadWork() {
     if (s.pending) {
       badge.textContent='Awaiting analysis'; badge.className='fbadge pending';
       document.getElementById('sdFeats').innerHTML=`
-        <div class="sd-feat"><div class="sd-fv">—</div><div class="sd-fl">Voice Fidelity</div></div>
+        <div class="sd-feat"><div class="sd-fv">—</div><div class="sd-fl">Voice Match</div></div>
         <div class="sd-feat"><div class="sd-fv">Awaiting analysis</div><div class="sd-fl">Assessment</div></div>
         <div class="sd-feat"><div class="sd-fv">${s.words?.toLocaleString()||'—'}</div><div class="sd-fl">Words</div></div>`;
       document.getElementById('sdRo').style.display='none';
@@ -1685,7 +1694,7 @@ async function loadWork() {
     const [bc,bl]=fidLabel(f,div);
     badge.textContent=bl; badge.className='fbadge '+bc;
     document.getElementById('sdFeats').innerHTML=`
-      <div class="sd-feat"><div class="sd-fv" style="color:${f>=80?'var(--sage)':'var(--wine)'}">${f}</div><div class="sd-fl">Voice Fidelity</div></div>
+      <div class="sd-feat"><div class="sd-fv" style="color:${f>=80?'var(--sage)':'var(--wine)'}">${f}%</div><div class="sd-fl">Voice Match</div></div>
       <div class="sd-feat"><div class="sd-fv">${div?'Worth reviewing':'On voice'}</div><div class="sd-fl">Assessment</div></div>
       <div class="sd-feat"><div class="sd-fv">${s.words?.toLocaleString()||'—'}</div><div class="sd-fl">Words</div></div>`;
     const roDiv=document.getElementById('sdRo');
@@ -1810,16 +1819,25 @@ function renderScoreResult(result, title, text) {
   const wc = text?.trim().split(/\s+/).length || 0;
 
   if (!result) {
-    // Guest showcase, or server unreachable — affirm locally and save the piece.
-    document.getElementById('scoreHeadline').textContent = isGuest()
-      ? 'This reads like you.'
-      : 'Saved to your body of work.';
-    document.getElementById('scoreSummary').textContent = isGuest()
-      ? 'Your established voice comes through clearly here — in your sentence rhythm, your vocabulary, the way you build an argument.'
-      : 'This piece has been added to your formation record. Your voice profile builds as you submit more work.';
-    document.getElementById('scoreFeats').innerHTML = '';
+    if (isGuest()) {
+      // Guest showcase — no account, affirm locally and save the piece.
+      document.getElementById('scoreHeadline').textContent = 'This reads like you.';
+      document.getElementById('scoreSummary').textContent =
+        'Your established voice comes through clearly here — in your sentence rhythm, your vocabulary, the way you build an argument.';
+      document.getElementById('scoreFeats').innerHTML = '';
+      document.getElementById('scoreFormationPrompt').style.display = 'none';
+      _saveToPortfolio(title, wc, text);
+      return;
+    }
+    // Signed-in student + null result = the request FAILED. Saying "saved to
+    // your record" here would let a student close the tab believing their
+    // work was submitted when nothing reached the server.
+    document.getElementById('scoreHeadline').textContent = 'We couldn’t reach the server.';
+    document.getElementById('scoreSummary').textContent =
+      'Your writing is safe in this browser, but it has not been added to your record yet. Please try again — and if it keeps failing, tell your professor.';
+    document.getElementById('scoreFeats').innerHTML =
+      '<button class="ro-btn" onclick="submitWork()" style="margin-top:6px">Try again</button>';
     document.getElementById('scoreFormationPrompt').style.display = 'none';
-    _saveToPortfolio(title, wc, text);
     return;
   }
 
