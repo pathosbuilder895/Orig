@@ -124,12 +124,14 @@ function Ornament({ char = '❦', py = 20 }) {
 }
 
 // ─── Meta Label ──────────────────────────────────────────────────────────────
+// 12.5px = the product-wide 0.78rem readability floor (docs and dashboards
+// share it) — metadata still reads as metadata, but a 65-year-old can read it.
 function MetaLabel({ children, style: s = {} }) {
   return (
     <span style={{
       fontFamily: fontMono,
-      fontSize: 10,
-      letterSpacing: '0.2em',
+      fontSize: 12.5,
+      letterSpacing: '0.14em',
       textTransform: 'uppercase',
       color: BB.fade,
       ...s,

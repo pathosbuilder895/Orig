@@ -80,7 +80,7 @@ function LandingScreen({ onNavigate }) {
               Sign in
             </BtnGhost>
             <BtnPrimary onClick={() => onNavigate('login')} style={{ padding: '10px 28px', fontSize: 16 }}>
-              Begin free trial
+              Request a demo
             </BtnPrimary>
           </div>
         </div>
@@ -99,7 +99,7 @@ function LandingScreen({ onNavigate }) {
           <GoldRule faint />
           {[
             { num: 'I',   title: 'Lockdown Mode',      desc: 'Secure browser environment' },
-            { num: 'II',  title: 'Keystroke Dynamics',  desc: 'Behavioural fingerprinting' },
+            { num: 'II',  title: 'Typing Rhythm',       desc: 'Confirms the work is the writer’s own' },
             { num: 'III', title: 'AI Detection',        desc: 'Integrated with Original' },
             { num: 'IV',  title: 'Proctor Dashboard',   desc: 'Live supervision & alerts' },
           ].map(({ num, title, desc }) => (
@@ -138,13 +138,16 @@ function LandingScreen({ onNavigate }) {
         <Logotype size={17} />
         <MetaLabel>© MMXXVI · All rights reserved</MetaLabel>
         <div style={{ display: 'flex', gap: 28 }}>
-          {['Sign in', 'Register', 'About'].map(l => (
-            <button key={l} onClick={() => onNavigate('login')} style={{
-              fontFamily: fontMono, fontSize: 10, letterSpacing: '0.18em',
-              textTransform: 'uppercase', color: BB.fade,
-              background: 'none', border: 'none', cursor: 'pointer',
-            }}>{l}</button>
-          ))}
+          <button onClick={() => onNavigate('login')} style={{
+            fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
+            textTransform: 'uppercase', color: BB.fade,
+            background: 'none', border: 'none', cursor: 'pointer',
+          }}>Sign in</button>
+          <a href="/_components/explainer.html" target="_blank" rel="noopener" style={{
+            fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
+            textTransform: 'uppercase', color: BB.fade,
+            textDecoration: 'none',
+          }}>How it works</a>
         </div>
       </footer>
     </div>
@@ -251,11 +254,10 @@ function LoginScreen({ onNavigate }) {
             color: BB.fade, letterSpacing: '0.02em', margin: '0 0 14px',
           }}>
             Not yet registered?{' '}
-            <button style={{
+            <a href="mailto:hello@originalvoice.io?subject=Bluebook%20access%20request" style={{
               fontFamily: fontBody, fontSize: 16, color: BB.gold,
-              background: 'none', border: 'none', cursor: 'pointer',
               textDecoration: 'underline', letterSpacing: '0.02em',
-            }}>Apply for access</button>
+            }}>Apply for access</a>
           </p>
           <div style={{ textAlign: 'center' }}>
             <button onClick={() => onNavigate('dashboard')} style={{

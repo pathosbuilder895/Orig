@@ -42,9 +42,9 @@ function buildConditions(cfg) {
     cfg.blockAI   && 'Access to AI assistants and writing tools is blocked',
     cfg.blockWeb  && 'The examination runs full-screen — the browser is locked, no web or external tabs',
     cfg.blockCopy && 'Copy and paste are disabled for this session',
-    'Keystroke dynamics will be recorded throughout',
+    'The rhythm of your typing is noted so your work can be confirmed as your own',
     cfg.phoneBlk  && 'Devices must be silenced for the duration',
-    cfg.aiDetect  && 'Stylometric & AI analysis will follow submission',
+    cfg.aiDetect  && 'After you submit, your writing is compared with your own past work',
   ].filter(Boolean);
 }
 
@@ -271,9 +271,9 @@ function BriefingScreen({ onNavigate }) {
             </BtnPrimary>
             <p style={{
               textAlign: 'center', marginTop: 12,
-              fontFamily: fontMono, fontSize: 10,
-              letterSpacing: '0.16em', textTransform: 'uppercase',
-              color: 'rgba(139,155,180,0.45)',
+              fontFamily: fontMono, fontSize: 13,
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+              color: BB.fadedCream,
             }}>Once begun, this examination cannot be paused</p>
           </div>
         </div>
@@ -285,9 +285,19 @@ function BriefingScreen({ onNavigate }) {
 // ─── Active Examination Screen ────────────────────────────────────────────────
 function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_SHADES.warm }) {
   const cfg = getExamConfig();
-  const [content,     setContent]     = useExState('');
-  const [words,       setWords]       = useExState(0);
-  const [timeLeft,    setTimeLeft]    = useExState(cfg.duration);
+  // Draft persistence: an exam must survive a crash, reload, or accidental
+  // exit. Keyed per exam, restored on mount, cleared on successful seal.
+  const draftKey = 'bb_draft_' + (cfg.id || cfg.title || 'exam');
+  const restored = (() => {
+    try { return JSON.parse(localStorage.getItem(draftKey) || 'null'); }
+    catch (e) { return null; }
+  })();
+  const [content,     setContent]     = useExState((restored && restored.content) || '');
+  const [words,       setWords]       = useExState(restored && restored.content ? wordCount(restored.content) : 0);
+  const [timeLeft,    setTimeLeft]    = useExState(
+    restored && typeof restored.timeLeft === 'number'
+      ? Math.max(0, Math.min(restored.timeLeft, cfg.duration))
+      : cfg.duration);
   const [saving,      setSaving]      = useExState(false);
   const [warnings,    setWarnings]    = useExState(0);
   const [warnMsg,     setWarnMsg]     = useExState('');
@@ -296,6 +306,35 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
   const [fsLost,      setFsLost]      = useExState(false);
   const textareaRef = useExRef(null);
   const saveTimer   = useExRef(null);
+  // Live refs so interval/debounce callbacks always persist current values.
+  const contentRef  = useExRef(content);
+  const timeLeftRef = useExRef(timeLeft);
+  contentRef.current  = content;
+  timeLeftRef.current = timeLeft;
+
+  function writeDraftNow() {
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({
+        content: contentRef.current,
+        timeLeft: timeLeftRef.current,
+        savedAt: Date.now(),
+      }));
+      return true;
+    } catch (e) { return false; }
+  }
+
+  // One warning per real event: blur + visibilitychange fire together for a
+  // single tab switch, so repeats inside 1.5s collapse into one notice.
+  const lastWarnRef = useExRef(0);
+  function recordWarning(msg) {
+    const now = Date.now();
+    if (now - lastWarnRef.current < 1500) return;
+    lastWarnRef.current = now;
+    setWarnings(n => n + 1);
+    setWarnMsg(msg);
+    setShowWarn(true);
+    setTimeout(() => setShowWarn(false), 5000);
+  }
 
   // ── Keystroke-dynamics capture (fed to Original's Tier 17) ──
   const ksRef     = useExRef([]);    // [{ key, elapsed(ms) }]
@@ -337,9 +376,23 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
     };
   }
 
-  async function handleSubmit() {
-    if (submitting || words < cfg.minWords) return;
+  async function handleSubmit(opts = {}) {
+    // opts.force: time expiry seals whatever exists, bypassing the word
+    // minimum — a student must never be stranded at a dead 00:00.
+    if (submitting || (!opts.force && words < cfg.minWords)) return;
+    if (opts.force && !contentRef.current.trim()) {
+      // Nothing written when time ran out — don't post an empty baseline.
+      window.BB_LAST_SUBMISSION = {
+        words: 0, title: cfg.title, courseTitle: cfg.courseTitle,
+        candidate: cfg.candidate, studentId: null,
+        ok: false, error: 'No text was written before time expired',
+        expired: true,
+      };
+      onNavigate('submitted');
+      return;
+    }
     setSubmitting(true);
+    writeDraftNow();   // belt-and-braces: the draft survives a failed seal
     const studentId = await bbResolveStudentId(cfg);
     // 1) Score against the EXISTING baseline first (before this sitting is added)
     //    → AI / authorship reading. null when there's no baseline yet.
@@ -366,6 +419,8 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
         ai_score:    aiScore,
         status,
       });
+      // Sealed and delivered — the on-device draft has served its purpose.
+      try { localStorage.removeItem(draftKey); } catch (e) {}
     }
     window.BB_LAST_SUBMISSION = {
       words: wordCount(content),
@@ -376,6 +431,8 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
       ok: result.ok,
       error: result.error || null,
       aiScore,
+      expired: !!opts.expired,
+      draftKey,
     };
     setSubmitting(false);
     onNavigate('submitted');
@@ -387,25 +444,39 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
     return () => clearInterval(id);
   }, []);
 
-  // Autosave every 30s
+  // Time expiry: seal whatever is written. Without this the countdown died
+  // silently at 00:00 with the seal button still disabled below the word
+  // minimum — the student was stranded forever.
   useExEffect(() => {
-    saveTimer.current = setInterval(() => {
-      if (content.trim()) {
+    if (timeLeft > 0 || !cfg.duration || submitting) return;
+    handleSubmit({ force: true, expired: true });
+  }, [timeLeft]);
+
+  // Autosave: the dot appears only after a REAL write. A 2s typing debounce
+  // captures active work; the 30s interval keeps the draft's remaining-time
+  // fresh even while idle.
+  useExEffect(() => {
+    if (!content.trim()) return;
+    const deb = setTimeout(() => {
+      if (writeDraftNow()) {
         setSaving(true);
         setTimeout(() => setSaving(false), 1800);
       }
+    }, 2000);
+    return () => clearTimeout(deb);
+  }, [content]);
+  useExEffect(() => {
+    saveTimer.current = setInterval(() => {
+      if (contentRef.current.trim()) writeDraftNow();
     }, 30000);
     return () => clearInterval(saveTimer.current);
-  }, [content]);
+  }, []);
 
   // Focus monitoring — active when the browser is locked to the exam
   useExEffect(() => {
     if (!cfg.blockWeb) return;
     function onBlur() {
-      setWarnings(n => n + 1);
-      setWarnMsg('You attempted to leave the examination. The browser is locked.');
-      setShowWarn(true);
-      setTimeout(() => setShowWarn(false), 5000);
+      recordWarning('Focus left the exam window — please return to the exam. Brief interruptions are noted for context, not held against you.');
     }
     window.addEventListener('blur', onBlur);
     return () => window.removeEventListener('blur', onBlur);
@@ -417,20 +488,15 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
   useExEffect(() => {
     const off = [];
     const on = (target, type, fn, opts) => { target.addEventListener(type, fn, opts); off.push([target, type, fn, opts]); };
-    const warn = (msg) => {
-      setWarnings(n => n + 1);
-      setWarnMsg(msg);
-      setShowWarn(true);
-      setTimeout(() => setShowWarn(false), 5000);
-    };
+    const warn = recordWarning;
     if (cfg.blockWeb) {
       on(document, 'visibilitychange', () => {
-        if (document.hidden) warn('You navigated away from the examination. This has been recorded.');
+        if (document.hidden) warn('The exam window was hidden — please keep this tab in front until you seal your work.');
       });
       on(document, 'fullscreenchange', () => {
         const fs = bbIsFullscreen();
         setFsLost(!fs);
-        if (!fs) warn('You exited full-screen. The examination must remain full-screen.');
+        if (!fs) warn('You left full-screen — please return to full-screen to continue.');
       });
       on(window, 'beforeunload', (e) => { e.preventDefault(); e.returnValue = ''; return ''; });
       on(document, 'keydown', (e) => {
@@ -495,25 +561,32 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
             margin: '0 0 6px', textAlign: 'center',
             letterSpacing: '0.03em',
           }}>
-            <strong style={{ fontWeight: 600, fontStyle: 'normal' }}>Attention, {cfg.candidate}:</strong>
-            {' '}{warnMsg}{' '}
-            <span style={{ fontFamily: fontMono, fontSize: 11 }}>({warnings} recorded)</span>
+            {warnMsg}
           </p>
           <GoldRule style={{ marginTop: 8 }} />
         </div>
       )}
 
-      {/* Prototype nav — not part of the real product */}
-      <button onClick={() => onNavigate('briefing')} style={{
-        position: 'fixed', top: 20, left: 20, zIndex: 200,
-        fontFamily: fontMono, fontSize: 10, letterSpacing: '0.18em',
-        textTransform: 'uppercase', color: 'rgba(139,155,180,0.4)',
-        background: 'none', border: 'none', cursor: 'pointer',
-        transition: 'color 0.3s',
-      }}
-        onMouseEnter={e => e.currentTarget.style.color = BB.gold}
-        onMouseLeave={e => e.currentTarget.style.color = 'rgba(139,155,180,0.4)'}
-      >← Exit Exam</button>
+      {/* Instructor-preview nav. Hidden for real student launches — one
+          stray click must never cost a student their essay. The draft +
+          remaining time are persisted, so re-entry restores both. */}
+      {!BB_API.isStudentLaunch() && (
+        <button onClick={() => {
+          writeDraftNow();
+          if (confirm('Leave the exam? Your draft and remaining time are saved on this device and will be restored when you re-enter.')) {
+            onNavigate('briefing');
+          }
+        }} style={{
+          position: 'fixed', top: 20, left: 20, zIndex: 200,
+          fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
+          textTransform: 'uppercase', color: 'rgba(139,155,180,0.55)',
+          background: 'none', border: 'none', cursor: 'pointer',
+          transition: 'color 0.3s',
+        }}
+          onMouseEnter={e => e.currentTarget.style.color = BB.gold}
+          onMouseLeave={e => e.currentTarget.style.color = 'rgba(139,155,180,0.55)'}
+        >← Exit Exam</button>
+      )}
 
       {/* The Blue Book */}
       <div style={{
@@ -556,7 +629,7 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
           borderBottom: '1px solid rgba(201,169,97,0.15)',
         }}>
           <span style={{
-            fontFamily: fontMono, fontSize: 9, letterSpacing: '0.2em',
+            fontFamily: fontMono, fontSize: 12, letterSpacing: '0.16em',
             textTransform: 'uppercase', color: BB.gold, flexShrink: 0,
           }}>● Locked</span>
           {[
@@ -565,12 +638,12 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
             { on: cfg.blockCopy, label: 'Clipboard blocked' },
           ].map(({ on, label }) => (
             <span key={label} style={{
-              fontFamily: fontMono, fontSize: 9, letterSpacing: '0.16em',
+              fontFamily: fontMono, fontSize: 12, letterSpacing: '0.12em',
               textTransform: 'uppercase',
-              color: on ? BB.fadedCream : 'rgba(139,155,180,0.35)',
+              color: on ? BB.fadedCream : 'rgba(139,155,180,0.5)',
               display: 'flex', alignItems: 'center', gap: 6,
             }}>
-              <span style={{ color: on ? '#5EB87C' : 'rgba(139,155,180,0.3)' }}>
+              <span style={{ color: on ? '#5EB87C' : 'rgba(139,155,180,0.45)' }}>
                 {on ? '✓' : '○'}
               </span>
               {label}
@@ -579,9 +652,10 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
           {cfg.blockWeb && fsLost && (
             <button onClick={bbRequestFullscreen} style={{
               marginLeft: 'auto', flexShrink: 0,
-              fontFamily: fontMono, fontSize: 9, letterSpacing: '0.16em',
+              fontFamily: fontMono, fontSize: 13, letterSpacing: '0.12em',
               textTransform: 'uppercase', color: BB.deep, background: BB.gold,
-              border: 'none', padding: '4px 12px', cursor: 'pointer',
+              border: 'none', padding: '11px 20px', cursor: 'pointer',
+              minHeight: 40,
             }}>↺ Restore full-screen</button>
           )}
         </div>
@@ -621,10 +695,7 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
               revsRef.current.push({ type: 'paste' });   // record the attempt for Tier 17
               if (cfg.blockCopy) {
                 e.preventDefault();
-                setWarnings(n => n + 1);
-                setWarnMsg('Pasting is disabled. Your work must be composed here.');
-                setShowWarn(true);
-                setTimeout(() => setShowWarn(false), 5000);
+                recordWarning('Pasting is disabled. Your work must be composed here.');
               }
             }}
             onCopy={e => { if (cfg.blockCopy) e.preventDefault(); }}
@@ -706,7 +777,13 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
                 color: isVeryLow ? '#C47A6B' : isLow ? BB.gold : BB.fade,
                 transition: 'color 0.5s',
               }}>{fmt(timeLeft)}</span>
-              <Seal size={20} verified glow={!warnings} />
+              <Seal size={20} verified glow />
+              {cfg.minWords > 0 && !atMin && !submitting && (
+                <span style={{
+                  fontFamily: fontMono, fontSize: 12.5,
+                  letterSpacing: '0.06em', color: BB.fade,
+                }}>{words.toLocaleString()} of {cfg.minWords.toLocaleString()} minimum words</span>
+              )}
               <BtnPrimary
                 onClick={handleSubmit}
                 disabled={words < cfg.minWords || submitting}
@@ -729,6 +806,7 @@ function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
   const candidate  = sub.candidate || EXAM_META.candidate;
   const transmitted = sub.ok === true;
   const transmitFailed = sub.ok === false;
+  const isStudent = BB_API.isStudentLaunch();
   return (
     <div className="bb-screen" style={{
       minHeight: '100vh', background: BB.oxford,
@@ -738,37 +816,61 @@ function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
       <div style={{ width: '100%', maxWidth: 480, textAlign: 'center' }}>
 
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
-          <Seal size={72} verified glow />
+          <Seal size={72} verified={!transmitFailed} glow={!transmitFailed} />
         </div>
 
         <GoldRule double style={{ marginBottom: 28 }} />
 
-        <h1 style={{
-          fontFamily: fontDisplay, fontSize: 36,
-          fontWeight: 400, color: BB.cream,
-          letterSpacing: '0.02em', margin: '0 0 16px',
-        }}>Examination Sealed</h1>
-
-        <p style={{
-          fontFamily: fontBody, fontSize: 17,
-          color: BB.fade, lineHeight: 1.65,
-          margin: '0 0 10px', letterSpacing: '0.02em',
-        }}>
-          Your examination has been received, sealed, and submitted
-          for review. Stylometric analysis has been queued.
-        </p>
-
-        {/* Transmission status — the proctored baseline hand-off to Original */}
-        {(transmitted || transmitFailed) && (
-          <p style={{
-            fontFamily: fontMono, fontSize: 11, letterSpacing: '0.1em',
-            margin: '14px 0 0',
-            color: transmitted ? '#5EB87C' : BB.indigo,
-          }}>
-            {transmitted
-              ? '✓ Proctored baseline transmitted to Original'
-              : '○ Baseline could not be transmitted — ' + (sub.error || 'unavailable')}
-          </p>
+        {transmitFailed ? (
+          <React.Fragment>
+            <h1 style={{
+              fontFamily: fontDisplay, fontSize: 34,
+              fontWeight: 400, color: BB.cream,
+              letterSpacing: '0.02em', margin: '0 0 16px',
+            }}>We could not deliver your examination</h1>
+            <p style={{
+              fontFamily: fontBody, fontSize: 17,
+              color: BB.fade, lineHeight: 1.65,
+              margin: '0 0 10px', letterSpacing: '0.02em',
+            }}>
+              Your writing is saved on this device — nothing is lost.
+              Please try again, and if it still fails, tell your instructor
+              before closing this window.
+            </p>
+            <p style={{
+              fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.08em',
+              margin: '14px 0 0', color: BB.indigo,
+            }}>{sub.error || 'The server could not be reached.'}</p>
+          </React.Fragment>
+        ) : (
+          <React.Fragment>
+            <h1 style={{
+              fontFamily: fontDisplay, fontSize: 36,
+              fontWeight: 400, color: BB.cream,
+              letterSpacing: '0.02em', margin: '0 0 16px',
+            }}>Examination Sealed</h1>
+            <p style={{
+              fontFamily: fontBody, fontSize: 17,
+              color: BB.fade, lineHeight: 1.65,
+              margin: '0 0 10px', letterSpacing: '0.02em',
+            }}>
+              Your examination has been received, sealed, and submitted
+              for review. Your writing will be compared with your own past
+              work to confirm it as yours.
+            </p>
+            {sub.expired && (
+              <p style={{
+                fontFamily: fontBody, fontStyle: 'italic', fontSize: 15,
+                color: BB.fadedCream, margin: '6px 0 0',
+              }}>Time expired — your work was sealed as written.</p>
+            )}
+            {transmitted && (
+              <p style={{
+                fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.08em',
+                margin: '14px 0 0', color: '#5EB87C',
+              }}>✓ Your writing sample was delivered to Original</p>
+            )}
+          </React.Fragment>
         )}
 
         <Ornament py={24} />
@@ -799,10 +901,27 @@ function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
         </div>
 
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-          <BtnGhost onClick={() => onNavigate('dashboard')} style={{ padding: '11px 32px' }}>
-            Return to Dashboard
-          </BtnGhost>
+          {transmitFailed && (
+            <BtnPrimary onClick={() => onNavigate('exam')} style={{ padding: '11px 32px' }}>
+              Try Again
+            </BtnPrimary>
+          )}
+          {!isStudent && (
+            <BtnGhost onClick={() => onNavigate('dashboard')} style={{ padding: '11px 32px' }}>
+              Return to Dashboard
+            </BtnGhost>
+          )}
         </div>
+
+        {isStudent && !transmitFailed && (
+          <p style={{
+            marginTop: 20, fontFamily: fontBody, fontSize: 15,
+            color: BB.fade, lineHeight: 1.6,
+          }}>
+            Your professor reviews the results and will follow up through
+            your course page. You may close this window.
+          </p>
+        )}
 
         <p style={{
           marginTop: 28, fontFamily: fontMono, fontSize: 10,
