@@ -25,7 +25,7 @@
   --red:       #6B2737;
   --text:      #1A1A1A;
   --text-muted:#3C5A82;
-  --text-dim:  #7d8794;
+  --text-dim:  #5d6875;
   --radius:    14px;
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
   --shadow:    0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
@@ -675,8 +675,18 @@ body::after {
    visitor isn't reading smaller text on the login page than anywhere
    else in the product. */
 :root { --type-floor: 0.78rem; }
+
+/* Small screens: the fixed 480px panel + overflow:hidden made the page
+   unreachable on phones. Stack, scroll, hide the decorative panel. */
+@media (max-width: 720px) {
+  html, body { overflow: auto !important; height: auto !important; }
+  .page { height: auto !important; flex-direction: column; }
+  .login-panel { width: 100% !important; flex-shrink: 1; min-height: 100vh; }
+  .visual-panel { display: none !important; }
+}
 .fc-label, .fc-sub, .fc-chip, .demo-label, .role-pill .pill-name,
-.trust-badge, .field label, .logo-text span, .q-label, .divider span {
+.trust-badge, .field label, .logo-text span, .q-label, .divider span,
+.q-feat {
   font-size: var(--type-floor) !important;
 }
 </style>
@@ -705,11 +715,11 @@ body::after {
 
       <form id="loginForm" onsubmit="handleLogin(event)">
         <div class="field">
-          <label>Email address</label>
+          <label for="email">Email address</label>
           <input type="email" id="email" placeholder="you@seminary.edu" autocomplete="email" required>
         </div>
         <div class="field">
-          <label>Password</label>
+          <label for="password">Password</label>
           <input type="password" id="password" placeholder="••••••••••" autocomplete="current-password" required>
         </div>
         <div class="error-msg" id="errorMsg">Invalid email or password. Try the demo buttons below.</div>
@@ -743,10 +753,10 @@ body::after {
           <div class="trust-dot" style="background:var(--blue)"></div>
           Pastoral AI
         </div>
-        <div class="trust-badge">
+        <a class="trust-badge" href="_components/explainer.html" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;cursor:pointer" title="How Original works — the plain-English explainer">
           <div class="trust-dot" style="background:var(--gold)"></div>
-          Explainable
-        </div>
+          Explainable &#8599;
+        </a>
       </div>
 
     </div>
@@ -755,15 +765,18 @@ body::after {
   <!-- ── Right: 3D Visual ── -->
   <div class="visual-panel">
 
-    <!-- Floating stat cards -->
+    <!-- Floating stat cards — ILLUSTRATIVE sample data, labeled as such.
+         Real seminary names and unverifiable accuracy claims must never
+         render on a login page. -->
     <div class="float-cards">
+      <div style="position:absolute;top:14px;left:50%;transform:translateX(-50%);font-size:0.78rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);font-weight:600">Illustrative sample data</div>
 
       <!-- Top-left: Detection accuracy -->
       <div class="float-card fc1">
-        <div class="fc-label">Detection Accuracy</div>
-        <div class="fc-value">94.7<span style="font-size:0.8rem;color:var(--text-muted)">%</span></div>
-        <div class="fc-sub">Across 103 stylometric features</div>
-        <div class="fc-bar"><div class="fc-bar-fill" style="width:94.7%;background:var(--blue)"></div></div>
+        <div class="fc-label">Writing Features Compared</div>
+        <div class="fc-value">103</div>
+        <div class="fc-sub">On every submission, against the student's own past work</div>
+        <div class="fc-bar"><div class="fc-bar-fill" style="width:100%;background:var(--blue)"></div></div>
       </div>
 
       <!-- Top-right: Submissions today -->
@@ -776,7 +789,7 @@ body::after {
         </div>
         <div class="fc-chips">
           <span class="fc-chip" style="background:var(--blue-l);color:var(--blue)">✓ 201 Original</span>
-          <span class="fc-chip" style="background:#FEF2F2;color:var(--red)">17 Review</span>
+          <span class="fc-chip" style="background:rgba(217,119,6,0.10);color:var(--gold, #B08D3C)">17 worth a conversation</span>
         </div>
       </div>
 
@@ -787,17 +800,17 @@ body::after {
         <div style="display:flex;flex-direction:column;gap:5px">
           <div style="display:flex;align-items:center;gap:8px">
             <div style="width:7px;height:7px;border-radius:50%;background:var(--blue);flex-shrink:0"></div>
-            <span style="font-size:0.72rem;color:var(--text-muted);flex:1">Gordon-Conwell</span>
+            <span style="font-size:0.72rem;color:var(--text-muted);flex:1">St. Aidan&#8217;s Seminary</span>
             <span style="font-size:0.72rem;font-weight:600;color:var(--text)">84 students</span>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <div style="width:7px;height:7px;border-radius:50%;background:var(--gold);flex-shrink:0"></div>
-            <span style="font-size:0.72rem;color:var(--text-muted);flex:1">Dallas Theological</span>
+            <span style="font-size:0.72rem;color:var(--text-muted);flex:1">Carmel Divinity School</span>
             <span style="font-size:0.72rem;font-weight:600;color:var(--text)">71 students</span>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <div style="width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0"></div>
-            <span style="font-size:0.72rem;color:var(--text-muted);flex:1">Westminster</span>
+            <span style="font-size:0.72rem;color:var(--text-muted);flex:1">Whitfield College</span>
             <span style="font-size:0.72rem;font-weight:600;color:var(--text)">63 students</span>
           </div>
         </div>
@@ -805,21 +818,21 @@ body::after {
 
       <!-- Bottom-right: Authorship score sample -->
       <div class="float-card fc4">
-        <div class="fc-label">Latest Score</div>
-        <div class="fc-value" style="color:var(--green)">0.912</div>
-        <div class="fc-sub">Voice match confidence</div>
+        <div class="fc-label">Latest Analysis</div>
+        <div class="fc-value" style="color:var(--green)">&#10003; 91<span style="font-size:0.8rem;color:var(--text-muted)">%</span></div>
+        <div class="fc-sub">Consistent &#183; voice match</div>
         <div style="margin-top:8px;display:flex;gap:4px">
           <div style="flex:1;text-align:center;padding:5px 4px;background:var(--surface-2);border-radius:6px;border:1px solid var(--border)">
-            <div style="font-size:0.62rem;color:var(--text-dim);margin-bottom:2px">Surface</div>
-            <div style="font-size:0.75rem;font-weight:700;color:var(--blue)">0.94</div>
+            <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:2px">Surface</div>
+            <div style="font-size:0.78rem;font-weight:700;color:var(--blue)">94%</div>
           </div>
           <div style="flex:1;text-align:center;padding:5px 4px;background:var(--surface-2);border-radius:6px;border:1px solid var(--border)">
-            <div style="font-size:0.62rem;color:var(--text-dim);margin-bottom:2px">Syntax</div>
-            <div style="font-size:0.75rem;font-weight:700;color:var(--blue)">0.89</div>
+            <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:2px">Syntax</div>
+            <div style="font-size:0.78rem;font-weight:700;color:var(--blue)">89%</div>
           </div>
           <div style="flex:1;text-align:center;padding:5px 4px;background:var(--surface-2);border-radius:6px;border:1px solid var(--border)">
-            <div style="font-size:0.62rem;color:var(--text-dim);margin-bottom:2px">Register</div>
-            <div style="font-size:0.75rem;font-weight:700;color:var(--blue)">0.91</div>
+            <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:2px">Register</div>
+            <div style="font-size:0.78rem;font-weight:700;color:var(--blue)">91%</div>
           </div>
         </div>
       </div>
@@ -878,6 +891,7 @@ body::after {
     <div style="position:absolute;bottom:40px;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none">
       <div style="font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:600;color:var(--text);margin-bottom:4px">Every voice is uniquely yours</div>
       <div style="font-size:0.8rem;color:var(--text-muted)">103-feature analysis · Statistically grounded · FERPA compliant</div>
+      <div style="margin-top:6px;font-size:0.82rem"><a href="_components/explainer.html" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none">How it works — the plain-English version &#8599;</a></div>
     </div>
 
   </div><!-- /visual-panel -->

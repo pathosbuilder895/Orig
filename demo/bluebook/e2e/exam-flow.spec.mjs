@@ -7,7 +7,7 @@
  *   - Ctrl/Cmd+P + Ctrl/Cmd+S blocking
  *   - Submit gating below the minimum word count
  *   - Round-trip: type → Seal & Submit → "Examination Sealed" +
- *     "✓ Proctored baseline transmitted to Original" + API-side
+ *     "✓ Your writing sample was delivered to Original" + API-side
  *     confirmation that sample_count incremented with provenance=proctored.
  *
  * These tests inject configuration via `addInitScript` so the React app
@@ -203,7 +203,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
       .toBeVisible({ timeout: 15_000 })
 
     // The proctored-baseline transmission line shows the success token
-    await expect(page.getByText('✓ Proctored baseline transmitted to Original'))
+    await expect(page.getByText('✓ Your writing sample was delivered to Original'))
       .toBeVisible({ timeout: 5_000 })
 
     // ── API-side verification: the bound student now has a proctored sample
@@ -235,7 +235,47 @@ test.describe('Bluebook exam lockdown — full flow', () => {
       document.dispatchEvent(new Event('fullscreenchange'))
     })
 
-    await expect(page.getByText('You exited full-screen. The examination must remain full-screen.'))
+    await expect(page.getByText('You left full-screen — please return to full-screen to continue.'))
       .toBeVisible({ timeout: 5_000 })
+  })
+
+  test('Timer expiry seals the exam instead of stranding the student', async ({ page }) => {
+    // Minimum far above what we type: before the fix, 00:00 left the seal
+    // button disabled forever. Expiry must force-seal as-written.
+    await bootInExam(page, { minWords: 600 })
+    await page.goto('/bluebook/')
+    await page.waitForLoadState('networkidle')
+
+    // duration is minutes in BB_EXAM_CONFIG (getExamConfig ×60): 0.05 → 3s.
+    await page.evaluate(() => { window.BB_EXAM_CONFIG.duration = 0.05 })
+    await page.locator('button', { hasText: /begin|continue|enter|start/i }).first().click()
+
+    const textarea = page.locator('textarea[placeholder="Begin writing here…"]')
+    await expect(textarea).toBeVisible()
+    await textarea.click()
+    await page.keyboard.type('Short answer, far below the minimum.', { delay: 4 })
+
+    await expect(page.getByText('Examination Sealed')).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByText('Time expired — your work was sealed as written.')).toBeVisible()
+  })
+
+  test('Reload mid-exam restores the draft from this device', async ({ page }) => {
+    await bootInExam(page)
+    await page.goto('/bluebook/')
+    await page.waitForLoadState('networkidle')
+    await page.locator('button', { hasText: /begin|continue|enter|start/i }).first().click()
+
+    const textarea = page.locator('textarea[placeholder="Begin writing here…"]')
+    await expect(textarea).toBeVisible()
+    await textarea.click()
+    await page.keyboard.type('Words that must survive a reload.', { delay: 4 })
+    // The 2s debounce persists the draft; wait past it.
+    await page.waitForTimeout(2600)
+
+    await page.reload()
+    await page.waitForLoadState('networkidle')
+    await page.locator('button', { hasText: /begin|continue|enter|start/i }).first().click()
+    await expect(page.locator('textarea[placeholder="Begin writing here…"]'))
+      .toHaveValue(/Words that must survive a reload\./, { timeout: 5_000 })
   })
 })

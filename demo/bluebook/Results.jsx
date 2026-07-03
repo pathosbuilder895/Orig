@@ -51,8 +51,8 @@ function ExpandedRow({ result, onClose }) {
           <MetaLabel style={{ display:'block', marginBottom:14 }}>Integrity Analysis</MetaLabel>
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
             {[
-              { label:'Stylometric Authenticity', score:result.stylometric, note:'Keystroke dynamics vs. baseline' },
-              { label:'AI-Authorship Detection',  score:result.aiScore,     note:'Scored via Original platform' },
+              { label:'Typing Consistency', score:result.stylometric, note:'Typing rhythm compared with this student’s baseline — higher is more consistent' },
+              { label:'Authenticity',       score:result.aiScore,     note:'Higher = more consistent with this student’s own writing (scored via Original)' },
             ].map(({ label, score, note }) => (
               <div key={label}>
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
@@ -172,7 +172,7 @@ function ResultsScreen({ onNavigate }) {
           { label:'Submitted',  value:results.filter(r=>r.status==='SUBMITTED').length,  color:BB.fade  },
           { label:'Flagged',    value:counts.flagged,                                    color:'#C47A6B'},
           { label:'Reviewed',   value:counts.reviewed,                                   color:'#5EB87C'},
-          { label:'Avg Stylometric', value:`${avgStylo}%`, color:BB.gold },
+          { label:'Avg Typing Consistency', value:`${avgStylo}%`, color:BB.gold },
         ].map(({ label, value, color }) => (
           <div key={label} style={{
             flex:1, border:'1px solid rgba(201,169,97,0.18)',
@@ -208,7 +208,7 @@ function ResultsScreen({ onNavigate }) {
           padding:'10px 20px',
           borderBottom:'1px solid rgba(201,169,97,0.35)',
         }}>
-          {['Candidate', 'Examination', 'Words', 'Time', 'Stylometric', 'AI Score', 'Status'].map(h => (
+          {['Candidate', 'Examination', 'Words', 'Time', 'Typing Consistency', 'Authenticity', 'Status'].map(h => (
             <MetaLabel key={h}>{h}</MetaLabel>
           ))}
         </div>
