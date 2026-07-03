@@ -3124,6 +3124,24 @@ window.addEventListener('DOMContentLoaded', () => {
   } else if (STUDENTS.length > 0) {
     // Zero-login demo: hardcoded roster, unchanged.
     selectStudent(STUDENTS[0]);
+    // On a real deploy (pilot/staging/production) an unauthenticated visitor
+    // must never see the synthetic fallback roster — a professor could
+    // mistake the fabricated names for their class. Ask the server which
+    // environment this is and, if real, clear the fakes and point to login.
+    fetch(`${API_BASE}/health`).then(r => r.json()).then(h => {
+      if (h.environment && h.environment !== 'demo') {
+        STUDENTS = [];
+        active = null;
+        renderStudents();
+        const mc = document.getElementById('mainContent');
+        if (mc) {
+          const note = document.createElement('div');
+          note.style.cssText = 'padding:24px;margin:8px 0 16px;border:1px dashed var(--cream-border);background:var(--cream-warm);font-family:\'EB Garamond\',serif;font-style:italic;color:var(--text-muted)';
+          note.innerHTML = 'Please <a href="index.html" style="color:var(--text-primary)">sign in</a> to see your class roster.';
+          mc.prepend(note);
+        }
+      }
+    }).catch(() => { /* health unreachable — leave demo behaviour */ });
   }
   // Deep-link support so other pages (e.g. admin.html) can target a surface:
   //   professor.html#students | #submissions | #integrations | #settings

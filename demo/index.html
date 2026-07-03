@@ -716,10 +716,10 @@ body::after {
         <button type="submit" class="btn-primary" id="loginBtn">Sign in</button>
       </form>
 
-      <div class="divider"><span>or jump into the demo</span></div>
+      <div class="divider" id="demoDivider"><span>or jump into the demo</span></div>
 
-      <div class="demo-label">Select your role</div>
-      <div class="role-pills">
+      <div class="demo-label" id="demoLabel">Select your role</div>
+      <div class="role-pills" id="demoRolePills">
         <a href="admin.html" class="role-pill admin">
           <span class="pill-icon"><svg viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 2 7 22 7"/></svg></span>
           <span class="pill-name">Admin</span>
@@ -923,6 +923,22 @@ async function handleLogin(e) {
     btn.disabled = false;
   }
 }
+
+// On real deploys (pilot/staging/production) the demo shortcuts must not
+// exist: the role pills bypass login entirely, which is fine on a demo but a
+// foot-gun on the page a seminary professor signs in from. The server's
+// /health reports its environment; anything other than demo hides them.
+(async () => {
+  try {
+    const h = await fetch(`${API}/health`).then(r => r.json());
+    if (h.environment && h.environment !== 'demo') {
+      for (const id of ['demoDivider', 'demoLabel', 'demoRolePills']) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      }
+    }
+  } catch { /* health unreachable — leave the page as-is */ }
+})();
 </script>
 </body>
 </html>
