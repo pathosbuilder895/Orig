@@ -315,6 +315,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
     transform: translateY(-2px);
   }
 </style>
+<script defer src="_components/actions.js"></script>
 <script defer src="_components/metric.js"></script>
 <script defer src="_components/help-hint.js"></script>
 <link rel="stylesheet" href="_tour/tour.css">
@@ -417,30 +418,30 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
         <div class="stat-card">
           <div class="stat-accent" style="background:var(--green-deep)"></div>
           <div class="stat-icon-wrap" style="background:var(--gold-light)"></div>
-          <div class="stat-value" style="color:var(--green-deep)">247</div>
+          <div class="stat-value" style="color:var(--green-deep)">—</div>
           <div class="stat-label">Enrolled Students</div>
-          <span class="stat-delta" style="background:var(--flag-green-bg);color:var(--flag-green)">↑ +12 this term</span>
+          
         </div>
         <div class="stat-card">
           <div class="stat-accent" style="background:var(--flag-red)"></div>
           <div class="stat-icon-wrap" style="background:var(--flag-red-bg)"></div>
-          <div class="stat-value" style="color:var(--flag-red)">1,084</div>
+          <div class="stat-value" style="color:var(--flag-red)">—</div>
           <div class="stat-label">Baseline Samples</div>
-          <span class="stat-delta" style="background:var(--flag-green-bg);color:var(--flag-green)">94% coverage</span>
+          <span class="stat-delta" id="baselineScopeNote" style="background:var(--flag-green-bg);color:var(--flag-green)"></span>
         </div>
         <div class="stat-card">
           <div class="stat-accent" style="background:var(--amber)"></div>
           <div class="stat-icon-wrap" style="background:var(--flag-amber-bg)"></div>
-          <div class="stat-value" style="color:var(--amber)">318</div>
+          <div class="stat-value" style="color:var(--amber)">—</div>
           <div class="stat-label">Submissions Scored</div>
-          <span class="stat-delta" style="background:var(--flag-amber-bg);color:var(--amber)">28 this week</span>
+          
         </div>
         <div class="stat-card">
           <div class="stat-accent" style="background:var(--flag-green)"></div>
           <div class="stat-icon-wrap" style="background:var(--flag-green-bg)"></div>
-          <div class="stat-value" style="color:var(--flag-green)">3</div>
+          <div class="stat-value" style="color:var(--flag-green)">—</div>
           <div class="stat-label">Require Attention</div>
-          <span class="stat-delta" style="background:var(--flag-red-bg);color:var(--flag-red)">Pending review</span>
+          
         </div>
       </div>
 
@@ -450,11 +451,11 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           <div class="section-head">
             <h3>Recent Submissions</h3>
             <span class="meta">Last 7 days</span>
-            <button class="btn-sm">View all</button>
+            <button class="btn-sm" onclick="window.location='professor.html#students'">View all</button>
           </div>
           <table class="table">
             <thead>
-              <tr><th>Student</th><th>Course</th><th>Voice match</th><th>Status</th></tr>
+              <tr><th>Student</th><th>Writing trend</th><th>Baseline confidence</th><th>Status</th></tr>
             </thead>
             <tbody id="studentTable"></tbody>
           </table>
@@ -494,7 +495,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
         </button>
       </div>
       <div class="panel-3d-title">Integrity Map</div>
-      <div class="panel-3d-sub">Live authorship risk topology</div>
+      <div class="panel-3d-sub">Which students may need a conversation</div>
     </div>
 
     <!-- Campus node SVG visualization -->
@@ -518,10 +519,15 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
         <circle cx="130" cy="130" r="112" fill="none" stroke="rgba(37,99,235,0.06)" stroke-width="1"/>
         <!-- Center node (institution) -->
         <circle cx="130" cy="130" r="18" fill="white" stroke="rgba(37,99,235,0.2)" stroke-width="2" filter="url(#glow)"/>
-        <text x="130" y="135" text-anchor="middle" font-size="12" fill="#1E3A8A" font-family="serif" font-weight="bold">ρ</text>
+        <text x="130" y="135" text-anchor="middle" font-size="12" fill="#1E3A8A" font-family="serif" font-weight="bold">Ω</text>
         <!-- Student nodes drawn by JS -->
         <g id="nodeGroup"></g>
       </svg>
+      <div style="display:flex;gap:12px;justify-content:center;margin-top:6px;font-size:0.78rem;color:var(--text-muted)">
+        <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#4A6B5C;margin-right:4px"></span>Confirmed</span>
+        <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#D97706;margin-right:4px"></span>Conversation</span>
+        <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#6B2737;margin-right:4px"></span>Needs review</span>
+      </div>
     </div>
 
     <div class="q-pedestal">
@@ -530,32 +536,18 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
       <div class="ped-disk ped-disk-3"></div>
     </div>
 
-    <!-- Panel stats -->
-    <div class="panel-stats">
-      <div class="pstat"><div class="pstat-val">94%</div><div class="pstat-label">Baseline coverage</div></div>
-      <div class="pstat"><div class="pstat-val">1.2%</div><div class="pstat-label">False positive rate</div></div>
-      <div class="pstat"><div class="pstat-val">0.78</div><div class="pstat-label">Avg baseline confidence</div></div>
-      <div class="pstat"><div class="pstat-val">4.4</div><div class="pstat-label">Avg baselines</div></div>
+    <!-- Panel stats — rendered from live data (renderPanelStats) -->
+    <div class="panel-stats" id="panelStats">
+      <div class="pstat"><div class="pstat-val">—</div><div class="pstat-label">Baseline coverage</div></div>
+      <div class="pstat"><div class="pstat-val">—</div><div class="pstat-label">Avg baseline confidence</div></div>
+      <div class="pstat"><div class="pstat-val">—</div><div class="pstat-label">Avg baselines</div></div>
+      <div class="pstat"><div class="pstat-val">—</div><div class="pstat-label">Needs review</div></div>
     </div>
 
-    <!-- Flagged -->
+    <!-- Flagged — rendered from live manifests (renderPanelStats) -->
     <div class="panel-flagged">
       <div class="pf-label">Require Attention</div>
-      <div class="pf-item">
-        <div class="pf-av" style="background:#FEE2E2;color:#991B1B">RK</div>
-        <span class="pf-name">Rachel Kim</span>
-        <span class="pf-score" style="color:var(--flag-red)">0.81</span>
-      </div>
-      <div class="pf-item">
-        <div class="pf-av" style="background:#BFDBFE;color:#1E40AF">MW</div>
-        <span class="pf-name">Marcus Whitfield</span>
-        <span class="pf-score" style="color:var(--amber)">0.71</span>
-      </div>
-      <div class="pf-item">
-        <div class="pf-av" style="background:#E9D5FF;color:#6D28D9">SC</div>
-        <span class="pf-name">Sarah Chen</span>
-        <span class="pf-score" style="color:var(--green-mid)">0.52</span>
-      </div>
+      <div id="panelFlagged"><div class="pf-item" style="color:var(--text-muted)">Loading…</div></div>
     </div>
   </aside>
   <div id="panelReopenTab" class="panel-reopen-tab" title="Open panel">
@@ -614,13 +606,11 @@ const AV_COLORS = [
   {bg:'#BFDBFE',tc:'#1E40AF'},{bg:'#D1FAE5',tc:'#065F46'},{bg:'#FEE2E2',tc:'#991B1B'},
   {bg:'#FEF9C3',tc:'#92400E'},{bg:'#E9D5FF',tc:'#6D28D9'},{bg:'#FCE7F3',tc:'#9D174D'},
 ];
-const aLabel = {no_action:'No Action', monitor:'Monitor', schedule_conversation:'Discuss', escalate:'Escalate', no_data:'Not Yet Scored'};
+const aLabel = new Proxy({}, { get: (_, k) => originalActionLabel(k) });
 
 // Color for an actual scored ACTION (no_action/monitor/schedule_conversation/
 // escalate/no_data) — the real risk signal, sourced from manifest history.
-function actionColor(a) {
-  return {no_action:'#4A6B5C', monitor:'#2563EB', schedule_conversation:'#D97706', escalate:'#6B2737', no_data:'#9CA3AF'}[a] || '#9CA3AF';
-}
+function actionColor(a) { return originalActionColor(a); }
 // Color for PURITY — a baseline-confidence metric where HIGHER is better
 // (more consistent baseline), the opposite polarity of a risk score. Never
 // feed purity into actionColor()/an action badge — that inverts the meaning
@@ -706,6 +696,13 @@ async function loadDashboard() {
 
     const totalBaselines = students.reduce((sum, s) => sum + (s.sample_count || 0), 0);
     if (cards[1]) cards[1].textContent = totalBaselines;
+    // Honesty note: when there are more students than the 12 fetched, this
+    // card is a sample, not a census — say so instead of undercounting silently.
+    const scopeNote = document.getElementById('baselineScopeNote');
+    if (scopeNote) {
+      scopeNote.textContent = ids.length > slice.length
+        ? `across the ${slice.length} most recent students` : '';
+    }
 
     // Recent manifests for activity feed + attention count
     const manifestsRes = await fetch(API + '/admin/manifests?limit=20');
@@ -731,6 +728,7 @@ async function loadDashboard() {
     renderStudentTable(students, manifestByStudent);
     renderActivity(items.slice(0, 5));
     drawNodes(students, manifestByStudent);
+    renderPanelStats(students, manifestByStudent, nameMap, ids.length > slice.length);
 
     // ── HeroAnswer: "Is the system healthy and operating within parameters?" ──
     renderAdminHero({
@@ -743,6 +741,46 @@ async function loadDashboard() {
     console.error('Dashboard load failed:', e);
     document.getElementById('studentTable').innerHTML =
       '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--flag-red)">Could not load data — is the server running?</td></tr>';
+  }
+}
+
+/* Right panel: the same live data as the table — never hardcoded students.
+   Before this, three fabricated names and invented quality metrics rendered
+   for every institution, including brand-new ones with zero students. */
+function renderPanelStats(students, manifestByStudent, nameMap, isSample) {
+  const n = students.length;
+  const withBaseline = students.filter(s => (s.sample_count || 0) > 0).length;
+  const avgConf = n ? students.reduce((sum, s) => sum + (s.purity || 0), 0) / n : 0;
+  const avgBase = n ? students.reduce((sum, s) => sum + (s.sample_count || 0), 0) / n : 0;
+  const flagged = students
+    .map(s => ({ s, m: manifestByStudent[s._id] }))
+    .filter(x => x.m && (x.m.action === 'escalate' || x.m.action === 'schedule_conversation'));
+
+  const scope = isSample ? ' (12 recent)' : '';
+  const stats = document.getElementById('panelStats');
+  if (stats) {
+    stats.innerHTML = `
+      <div class="pstat"><div class="pstat-val">${n ? Math.round(withBaseline / n * 100) + '%' : '—'}</div><div class="pstat-label">Baseline coverage${scope}</div></div>
+      <div class="pstat"><div class="pstat-val">${n ? Math.round(avgConf * 100) + '%' : '—'}</div><div class="pstat-label">Avg baseline confidence</div></div>
+      <div class="pstat"><div class="pstat-val">${n ? avgBase.toFixed(1) : '—'}</div><div class="pstat-label">Avg baselines</div></div>
+      <div class="pstat"><div class="pstat-val">${flagged.length}</div><div class="pstat-label">Needs review${scope}</div></div>`;
+  }
+
+  const flaggedEl = document.getElementById('panelFlagged');
+  if (flaggedEl) {
+    if (!flagged.length) {
+      flaggedEl.innerHTML = '<div class="pf-item" style="color:var(--text-muted)">No students flagged.</div>';
+    } else {
+      flaggedEl.innerHTML = flagged.slice(0, 5).map(({ s, m }, i) => {
+        const display = s._name || s._id || '';
+        const av = AV_COLORS[i % AV_COLORS.length];
+        return `<div class="pf-item">
+          <div class="pf-av" style="background:${av.bg};color:${av.tc}">${initials(display)}</div>
+          <span class="pf-name">${display}</span>
+          <span class="pf-score" style="color:${actionColor(m.action)}">${aLabel[m.action]}</span>
+        </div>`;
+      }).join('');
+    }
   }
 }
 
@@ -764,16 +802,18 @@ function renderStudentTable(students, manifestByStudent) {
     const display = s._name || s._id || s.student_id || '';
     const ini = initials(display);
     const barId = 'bar-' + (s._id || i);
-    return `<tr style="cursor:pointer" onclick="window.location='professor.html'">
+    const trendLabels = {improving:'Growing', stable:'Steady', regressive:'Changing', insufficient_data:'Needs more samples'};
+    const trend = trendLabels[s.trajectory_direction] || '—';
+    return `<tr style="cursor:pointer" onclick="window.location='professor.html#students'" onkeydown="if(event.key==='Enter'){window.location='professor.html#students'}" tabindex="0">
       <td><div class="s-cell">
         <div class="s-av" style="background:${av.bg};color:${av.tc}">${ini}</div>
         <div><div class="s-name">${display}</div>
              <div class="s-id">${s.sample_count || 0} baseline${s.sample_count !== 1 ? 's' : ''}</div></div>
       </div></td>
-      <td style="color:var(--text-muted);font-size:0.79rem">${s.trajectory_direction || '—'}</td>
+      <td style="color:var(--text-muted);font-size:0.79rem">${trend}</td>
       <td><div class="sbar-wrap">
         <div class="sbar-bg"><div class="sbar-fill" id="${barId}" style="background:${pc};width:0%"></div></div>
-        <span class="sbar-val" style="color:${pc}">${purity.toFixed(2)}</span>
+        <span class="sbar-val" style="color:${pc}">${Math.round(purity * 100)}%</span>
       </div></td>
       <td><span class="abadge ${action}">${aLabel[action]}</span></td>
     </tr>`;

@@ -47,9 +47,11 @@
       font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 3px;
       white-space: nowrap;
     }
-    .env-badge.demo       { background: rgba(74,107,92,0.12); color: #4A6B5C; }
-    .env-badge.pilot      { background: rgba(176,141,60,0.14);  color: #8a6a28; }
-    .env-badge.production { background: rgba(107,39,55,0.10); color: #6B2737; }
+    /* Environment is informational — never reuse the amber/wine "needs
+       attention" palette for a healthy pilot or production label. */
+    .env-badge.demo       { background: rgba(107,114,128,0.12); color: #4B5563; }
+    .env-badge.pilot      { background: rgba(37,99,235,0.10);   color: #2563EB; }
+    .env-badge.production { background: rgba(74,107,92,0.14);   color: #4A6B5C; }
     .stat-row { display: flex; gap: 12px; }
     .stat-box {
       flex: 1; text-align: center; padding: 8px 0;
@@ -129,6 +131,7 @@
     transform: translateY(-2px);
   }
 </style>
+<script defer src="_components/actions.js"></script>
 <script defer src="_components/metric.js"></script>
 <script defer src="_components/help-hint.js"></script>
 <link rel="stylesheet" href="_tour/tour.css">
@@ -174,8 +177,8 @@
            data-hero-answer="operator"
            data-tour-id="hero"
            aria-live="polite">
-        <div class="hero-answer-eye">Tenant health</div>
-        <div class="hero-answer-headline">Loading the tenant list…</div>
+        <div class="hero-answer-eye">School health</div>
+        <div class="hero-answer-headline">Loading the school list…</div>
         <div class="hero-answer-detail"></div>
       </div>
 
@@ -297,16 +300,16 @@ function renderOperatorHero({ tenantCount, studentCount, submissionCount, troubl
   if (troubledTenants > 0) {
     status = 'attend';
     eye    = `${troubledTenants} need attention`;
-    head   = `${troubledTenants} of ${tenantCount} tenant${tenantCount===1?'':'s'} need a look.`;
+    head   = `${troubledTenants} of ${tenantCount} school${tenantCount===1?'':'s'} need a look.`;
     detail = `${studentCount} students across all institutions · ${submissionCount} submissions scored.`;
   } else if (tenantCount === 0) {
     status = 'watch';
-    eye    = 'No tenants yet';
+    eye    = 'No schools yet';
     head   = 'No institutions registered. Register the first one to begin.';
     detail = 'Click "Register school" above.';
   } else {
     status = 'calm';
-    eye    = 'All tenants healthy';
+    eye    = 'All schools healthy';
     head   = `${tenantCount} of ${tenantCount} tenant${tenantCount===1?'':'s'} healthy.`;
     detail = `${studentCount} students across all institutions · ${submissionCount} submissions scored.`;
   }
@@ -396,6 +399,7 @@ async function loadTenants() {
           <div class="stat-box"><div class="stat-val">${s.sample_count ?? '—'}</div><div class="stat-lbl">Samples</div></div>
         </div>
         ${s.last_active_at ? `<div class="tenant-meta">Last active ${relTime(s.last_active_at)}</div>` : '<div class="tenant-meta">No activity yet</div>'}
+        ${(s.student_count && !s.sample_count) ? '<div style="display:inline-block;margin-top:4px;padding:2px 8px;border-radius:6px;background:rgba(217,119,6,0.12);color:#8a6a28;font-size:0.78rem;font-weight:600">No baselines yet</div>' : ''}
         ${renderActionBreakdown(s.action_counts || {})}
         <div class="tenant-actions">
           <button class="btn-sm" onclick="viewInProfessor('${esc(t.tenant_id)}')">View students</button>
@@ -411,10 +415,8 @@ async function loadTenants() {
 
 function renderActionBreakdown(counts) {
   if (!counts || Object.keys(counts).length === 0) return '';
-  const labels = { no_action:'Confirmed', monitor:'Follow Up', schedule_conversation:'Check-in', escalate:'Escalate' };
-  const colors  = { no_action:'#4A6B5C',  monitor:'#3C5A82',  schedule_conversation:'#8a6a28',  escalate:'#6B2737'  };
   const bars = Object.entries(counts).map(([a, n]) =>
-    `<span style="font-size:0.72rem;color:${colors[a]||'#888'};margin-right:8px">${labels[a]||a}: ${n}</span>`
+    `<span style="font-size:0.78rem;color:${originalActionColor(a)};margin-right:8px">${originalActionLabel(a)}: ${n}</span>`
   ).join('');
   return `<div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:4px">${bars}</div>`;
 }
@@ -490,8 +492,8 @@ async function viewStats(tenantId, tenantName) {
       `Scored submissions: ${s.submission_count}`,
       `Last activity: ${s.last_active_at ? new Date(s.last_active_at).toLocaleString() : 'none'}`,
       '',
-      'Submission breakdown by action:',
-      ...Object.entries(s.action_counts || {}).map(([a,n]) => `  ${a}: ${n}`),
+      'Submission breakdown:',
+      ...Object.entries(s.action_counts || {}).map(([a,n]) => `  ${originalActionLabel(a)}: ${n}`),
     ];
     alert(lines.join('\n'));
   } catch(e) { alert('Failed to load stats: ' + e.message); }
@@ -499,13 +501,13 @@ async function viewStats(tenantId, tenantName) {
 
 async function bulkDelete(tenantId, tenantName) {
   const n = await fetch(API + `/tenants/${encodeURIComponent(tenantId)}/stats`).then(r=>r.json()).then(s=>s.student_count).catch(()=>'?');
-  if (!confirm(`Permanently delete all ${n} student(s) from "${tenantName}"?\n\nThis removes all baseline profiles, submissions, corrections, and fidelity scores. It cannot be undone.`)) return;
+  if (!confirm(`Permanently delete all ${n} student(s) from "${tenantName}"?\n\nThis removes all baseline profiles, submissions, corrections, and similarity scores. It cannot be undone.`)) return;
   try {
     const r = await fetch(API + `/tenants/${encodeURIComponent(tenantId)}/students`, { method:'DELETE' });
     if (!r.ok) {
       // May need guard token — GUARD_DESTRUCTIVE=1
       if (r.status === 403) {
-        const gt = prompt('This operation requires a Guard Token (X-Guard-Token). Enter the MAINTENANCE_TOKEN:');
+        const gt = prompt('Deleting student data requires the maintenance token. Ask your administrator for it if you do not have it:');
         if (!gt) return;
         const r2 = await fetch(API + `/tenants/${encodeURIComponent(tenantId)}/students`, {
           method:'DELETE', headers:{'X-Guard-Token': gt},
