@@ -337,9 +337,9 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section-label">Overview</div>
-      <a class="nav-item" href="professor.html" title="Dashboard">
+      <a class="nav-item" href="professor.html" title="Professor view">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-        Dashboard
+        Professor view
       </a>
       <a class="nav-item active" href="admin.html" title="Admin Console">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12,2 2,7 22,7"/></svg>
@@ -455,7 +455,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           </div>
           <table class="table">
             <thead>
-              <tr><th>Student</th><th>Writing trend</th><th>Baseline confidence</th><th>Status</th></tr>
+              <tr><th>Student</th><th>Writing trend</th><th class="help-hint" data-topic="baseline">Baseline confidence</th><th>Status</th></tr>
             </thead>
             <tbody id="studentTable"></tbody>
           </table>

@@ -1012,9 +1012,9 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
         Integrations
       </a>
-      <a class="nav-item" href="admin.html" title="Admin">
+      <a class="nav-item" href="admin.html" title="Admin console">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12,2 2,7 22,7"/></svg>
-        Admin
+        Admin console
       </a>
       <a class="nav-item" href="operator.html" title="Operator — all schools view">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="6" height="6" rx="1"/><rect x="16" y="3" width="6" height="6" rx="1"/><rect x="2" y="15" width="6" height="6" rx="1"/><rect x="16" y="15" width="6" height="6" rx="1"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="18" x2="16" y2="18"/><line x1="5" y1="9" x2="5" y2="15"/><line x1="19" y1="9" x2="19" y2="15"/></svg>
@@ -1601,7 +1601,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 
     <!-- Deviation display (appears after scoring) -->
     <div class="panel-deviation" id="panelDeviation">
-      <div class="pd-label">Latest Submission · Voice Match</div>
+      <div class="pd-label help-hint" data-topic="deviation">Latest Submission · Voice Match</div>
       <div class="pd-row">
         <div class="pd-score" id="pdScore" style="color:var(--amber)">29%</div>
         <div class="pd-action" id="pdAction" style="color:var(--amber)">Schedule Conversation</div>
@@ -2359,7 +2359,7 @@ function renderBaselines() {
     const cnt = activeApiData.sample_count ?? 0;
     const purityColor = purity > 0.7 ? 'var(--green)' : purity > 0.4 ? 'var(--amber)' : 'var(--red)';
     html += `<div style="margin:12px 0 8px;display:flex;gap:16px;align-items:center">
-      <span style="font-size:0.76rem;color:var(--text-muted)">Baseline confidence</span>
+      <span class="help-hint" data-topic="baseline" style="font-size:0.78rem;color:var(--text-muted)">Baseline confidence</span>
       <div style="flex:1;height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden">
         <div style="height:100%;width:${Math.round(purity*100)}%;background:${purityColor};border-radius:3px;transition:width 0.4s"></div>
       </div>
