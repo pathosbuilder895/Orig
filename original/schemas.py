@@ -639,3 +639,6 @@ class HealthResponse(BaseModel):
     status: str
     feature_dim: int
     students_in_store: int
+    # Deployment environment label (demo | pilot | staging | production).
+    # Frontends use it to hide demo-only affordances on real deploys.
+    environment: str = "demo"

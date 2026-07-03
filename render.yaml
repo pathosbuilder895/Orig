@@ -46,6 +46,12 @@ services:
     region: oregon
     plan: starter
 
+    # Manual deploys only. Disk-backed services deploy stop-then-start (no
+    # zero-downtime), so an auto-deploy on merge to main would take the
+    # service down mid-exam. Deploy from the dashboard inside agreed
+    # maintenance windows (see docs/OPS_RUNBOOK.md).
+    autoDeploy: false
+
     # Demo deps + LTI crypto (python-jose/cryptography). Full requirements.txt
     # pulls PyTorch and will not fit Starter — do not "upgrade" this.
     buildCommand: pip install -r requirements-pilot.txt && python -m spacy download en_core_web_sm
@@ -67,6 +73,11 @@ services:
         value: "3.11.0"
       - key: ORIGINAL_DB
         value: /data/profiles.db
+      # In-app backup scheduler (original/backup.py): consistent .backup
+      # copies on the persistent disk, every 30 min, pruned to 48. The daily
+      # off-box pull is still a manual runbook step (docs/OPS_RUNBOOK.md).
+      - key: BACKUP_DIR
+        value: /data/backups
       # ── Hardening mode: pilot fails fast without SECRET_KEY ──
       - key: ORIGINAL_ENV
         value: pilot
