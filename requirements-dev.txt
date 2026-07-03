@@ -16,7 +16,8 @@ matplotlib>=3.7,<4
 # (sklearn's calibration_curve / brier_score_loss are the canonical
 # reference; we re-implement them in pure NumPy to keep them auditable,
 # but having sklearn available means we can cross-check.)
-scikit-learn>=1.3,<2
+# <1.7 matches the runtime pin (AI-likelihood artifact compat — see requirements.txt).
+scikit-learn>=1.3,<1.7
 
 # pypdf + python-docx are already pinned in requirements.txt (Bbook needs
 # them at runtime), so they are not duplicated here.

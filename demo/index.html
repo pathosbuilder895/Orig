@@ -669,6 +669,16 @@ body::after {
   margin-right: 5px;
   vertical-align: middle;
 }
+
+/* Comfort floor for any text that conveys meaning — matches the floor
+   applied to admin/operator/professor/student (~12.5px) so a first-time
+   visitor isn't reading smaller text on the login page than anywhere
+   else in the product. */
+:root { --type-floor: 0.78rem; }
+.fc-label, .fc-sub, .fc-chip, .demo-label, .role-pill .pill-name,
+.trust-badge, .field label, .logo-text span, .q-label, .divider span {
+  font-size: var(--type-floor) !important;
+}
 </style>
 </head>
 <body>
@@ -797,7 +807,7 @@ body::after {
       <div class="float-card fc4">
         <div class="fc-label">Latest Score</div>
         <div class="fc-value" style="color:var(--green)">0.912</div>
-        <div class="fc-sub">ρ — Authorship probability</div>
+        <div class="fc-sub">Voice match confidence</div>
         <div style="margin-top:8px;display:flex;gap:4px">
           <div style="flex:1;text-align:center;padding:5px 4px;background:var(--surface-2);border-radius:6px;border:1px solid var(--border)">
             <div style="font-size:0.62rem;color:var(--text-dim);margin-bottom:2px">Surface</div>
@@ -861,13 +871,13 @@ body::after {
         <div class="ped-disk ped-disk-3"></div>
       </div>
 
-      <div class="q-label">Quantum Density Matrix</div>
+      <div class="q-label">Voice Fingerprint</div>
     </div><!-- /q-stage -->
 
     <!-- Tagline beneath sphere -->
     <div style="position:absolute;bottom:40px;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none">
       <div style="font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:600;color:var(--text);margin-bottom:4px">Every voice is uniquely yours</div>
-      <div style="font-size:0.8rem;color:var(--text-muted)">103-feature pipeline · Born-rule probability · FERPA compliant</div>
+      <div style="font-size:0.8rem;color:var(--text-muted)">103-feature analysis · Statistically grounded · FERPA compliant</div>
     </div>
 
   </div><!-- /visual-panel -->
