@@ -22,6 +22,7 @@ guarded destructive operations.
 
 from __future__ import annotations
 
+import asyncio
 import csv
 import hmac
 import io
@@ -94,6 +95,7 @@ from .quantum.state import BaselineSample
 from .quantum.scoring import score as quantum_score
 from .constants import AUTH_WEIGHTS, FEATURE_DIM
 from . import store
+from . import backup as backup_mod
 from . import baseline_requests
 from . import bbook_client
 from . import student_auth
@@ -144,7 +146,23 @@ async def lifespan(app: FastAPI):
         from .ai_likelihood import warm as _ai_warm
         _log.info("AI-likelihood detector mode=%s — %s.", _ai_mode,
                   "ready" if _ai_warm() else "unavailable (see warning above)")
+    # In-app backup scheduler — production has no crontab (Render web service),
+    # so the periodic consistent .backup runs inside this process. Demo stays
+    # off unless BACKUP_DIR is set explicitly. See original/backup.py.
+    _backup_task = None
+    _bdir = backup_mod.resolve_backup_dir(store._DB_PATH, _IS_REAL_DEPLOY)
+    if _bdir is not None:
+        _interval = float(os.environ.get("BACKUP_INTERVAL_MINUTES", "30") or 30)
+        _keep = int(os.environ.get("BACKUP_KEEP", "48") or 48)
+        _backup_task = asyncio.create_task(
+            backup_mod.backup_loop(store._DB_PATH, _bdir, _interval, _keep)
+        )
+        _log.info("Backups: every %.0f min to %s (keep %d).", _interval, _bdir, _keep)
+    else:
+        _log.info("Backups: disabled (demo mode, no BACKUP_DIR set).")
     yield
+    if _backup_task is not None:
+        _backup_task.cancel()
 
 
 app = FastAPI(
@@ -159,7 +177,16 @@ app = FastAPI(
 def _resolve_allowed_origins():
     raw = os.environ.get("ALLOWED_ORIGINS", "").strip()
     if raw:
-        return [o.strip() for o in raw.split(",") if o.strip()]
+        origins = [o.strip() for o in raw.split(",") if o.strip()]
+        if _IS_REAL_DEPLOY and "*" in origins:
+            # An operator typing ALLOWED_ORIGINS=* would silently reopen the
+            # exact hole the empty-default closes. Fail loudly at boot instead.
+            raise RuntimeError(
+                "ALLOWED_ORIGINS must list explicit https origins on a real "
+                "deploy — a '*' wildcard is not allowed when "
+                f"ORIGINAL_ENV={ORIGINAL_ENV}."
+            )
+        return origins
     if _IS_REAL_DEPLOY:
         return []  # locked down: no origin allowed until configured
     return ["*"]
@@ -206,10 +233,43 @@ async def security_headers(request: "Request", call_next):
 # over flat ids + demo-environment tenants — i.e. today's demo is unchanged.
 # Real (pilot/production) tenant data is only reachable by an authenticated
 # principal of that tenant (or a super/operator role). See original/principal.py.
+
+# Unscoped surfaces that must never be anonymously readable outside demo:
+# rosters, audit logs, manifests, corrections, calibration, tenant registry,
+# proctoring queues, bulk import, and the internal scoring test endpoint.
+# extract_scoped_id() can't cover these (no student id in the path), so on
+# real deploys the middleware requires an authenticated staff principal.
+_STAFF_ONLY_EXACT = frozenset({"/students", "/tenants", "/baseline-requests", "/test/score"})
+_STAFF_ONLY_PREFIXES = ("/admin/", "/tenants/", "/baseline-requests/", "/import/")
+
+# Demo-only static artifacts that must not be downloadable from a real deploy:
+# the synthetic seed database, internal lab/playground pages, and validation
+# report JSONs. They live in demo/ because the demo serves them; the pilot
+# serves the same directory, so the app blocks them by path.
+_DEMO_ONLY_STATICS = frozenset({
+    "/seed.db", "/lab.html", "/playground.html",
+    "/validation_report.json", "/validation_similarity.json",
+    "/validation_thresholds.json",
+})
+
+
+def _is_staff_only_path(path: str) -> bool:
+    p = path.rstrip("/") or "/"
+    return p in _STAFF_ONLY_EXACT or path.startswith(_STAFF_ONLY_PREFIXES)
+
+
 @app.middleware("http")
 async def tenant_isolation(request: "Request", call_next):
     principal = principal_mod.resolve_principal(request)
     request.state.principal = principal
+    if _IS_REAL_DEPLOY and request.url.path in _DEMO_ONLY_STATICS:
+        return JSONResponse(status_code=404, content={"detail": "Not found"})
+    if _IS_REAL_DEPLOY and _is_staff_only_path(request.url.path):
+        if principal.is_demo or principal.role == "student":
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Authentication required — sign in with a staff account."},
+            )
     scoped_id = principal_mod.extract_scoped_id(request.url.path)
     if scoped_id is not None:
         try:
@@ -305,6 +365,7 @@ def health():
         status="ok",
         feature_dim=FEATURE_DIM,
         students_in_store=store.count(),
+        environment=ORIGINAL_ENV,
     )
 
 
@@ -344,6 +405,11 @@ def admin_health():
     except Exception:
         pass
 
+    # Backup recency — None when backups are disabled (demo) or none exist
+    # yet. Ops alerting: on a pilot this should never exceed ~2× the interval.
+    _bdir = backup_mod.resolve_backup_dir(store._DB_PATH, _IS_REAL_DEPLOY)
+    last_backup_age = backup_mod.latest_backup_age_seconds(_bdir)
+
     return {
         "api_status": "operational",
         "student_count": student_count,
@@ -352,6 +418,10 @@ def admin_health():
         "avg_latency_ms": avg_latency_ms,
         "queue_depth": 0,   # demo server processes synchronously; always 0
         "uptime_pct": 99.97,
+        "backups_enabled": _bdir is not None,
+        "last_backup_age_seconds": (
+            round(last_backup_age) if last_backup_age is not None else None
+        ),
     }
 
 
@@ -883,7 +953,9 @@ def delete_student(student_id: str, request: "Request"):
         "message": (
             f"All data for student '{student_id}' has been permanently removed "
             "(baseline profile, fidelity scores, AI-likelihood scores, "
-            "manifests, corrections)."
+            "manifests, corrections, stored display name, and audit history). "
+            "A single audit entry recording this deletion is retained. "
+            "Copies age out of rotating on-disk backups within ~24 hours."
         ),
     }
 
@@ -894,7 +966,7 @@ def delete_student(student_id: str, request: "Request"):
 # production) before Postgres multi-tenancy is needed.
 
 @app.post("/tenants", status_code=201)
-def create_tenant(body: dict):
+def create_tenant(body: dict, request: "Request"):
     """
     Register or update a tenant (institution) record.
 
@@ -906,7 +978,12 @@ def create_tenant(body: dict):
         environment — 'demo' | 'pilot' | 'production'  (default: 'demo')
         meta        — arbitrary dict of metadata (contact email, LMS URL, etc.)
                       Capped at 10 keys, values must be strings ≤ 500 chars.
+
+    When GUARD_DESTRUCTIVE=1, requires X-Guard-Token. Tenant writes are as
+    sensitive as deletions: updating an existing pilot tenant's environment
+    to 'demo' would make its student data anonymously readable.
     """
+    _require_guard(request)
     tenant_id = str(body.get("tenant_id", "")).strip()
     name = str(body.get("name", "")).strip()
     if not tenant_id or not name:
@@ -916,6 +993,21 @@ def create_tenant(body: dict):
     environment = body.get("environment", "demo")
     if environment not in ("demo", "pilot", "production"):
         raise HTTPException(status_code=422, detail="environment must be 'demo', 'pilot', or 'production'")
+    # Never downgrade a real tenant to demo — demo tenants are anonymously
+    # readable, so a downgrade silently exposes FERPA-protected records.
+    # Recovering from a genuine mislabel is a deliberate operator action:
+    # delete the tenant's students first, then re-register.
+    existing = _repo().get_tenant(tenant_id)
+    if existing and existing.get("environment") in ("pilot", "production") and environment == "demo":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Refusing to downgrade tenant '{tenant_id}' from "
+                f"'{existing.get('environment')}' to 'demo' — demo tenants are "
+                "anonymously readable. Delete the tenant's students first if "
+                "this is intentional."
+            ),
+        )
     # Validate meta payload — prevents unbounded JSON storage
     meta = body.get("meta") or {}
     if not isinstance(meta, dict):
@@ -2557,6 +2649,12 @@ async def demo_login(body: dict, request: "Request"):
       'student' in email → student role
       anything else → professor role
     """
+    # Demo-only surface: the tokens it mints are decorative (no real principal),
+    # but leaving a role-granting login mounted on a real deploy is an
+    # unnecessary attack surface. Real deploys use /auth/login and /lti/*.
+    if _IS_REAL_DEPLOY:
+        raise HTTPException(status_code=404, detail="Not found")
+
     username = str(body.get("email") or body.get("username") or "")
     password = str(body.get("password") or "")
     remote   = getattr(request.client, "host", "unknown") if request.client else "unknown"

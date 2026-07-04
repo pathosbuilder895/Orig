@@ -53,7 +53,7 @@
         "target": "#arcSvg, .arc-card",
         "eye": "Stop 3 of 5 · The arc",
         "title": "Voice across the term",
-        "body": "Each point is one piece of work. The value is a 0–100 fidelity score — higher means the system recognises this piece as yours. The arc shows whether you are strengthening, holding steady, or moving."
+        "body": "Each point is one piece of work. The value is a 0–100 voice-match score — higher means the system recognises this piece as yours. The arc shows whether you are strengthening, holding steady, or moving."
       },
       {
         "target": "#fsMilestones, .milestones",
@@ -88,10 +88,10 @@
         "target": "#studentTable",
         "eye": "Stop 3 of 4 · Roster",
         "title": "Every student at a glance",
-        "body": "The full institutional roster. Click any row to jump into the professor's view of that student. The colour bar at the right shows their voice-purity at a glance."
+        "body": "The full institutional roster. Click any row to jump into the professor's view. The colour bar shows each student's baseline confidence at a glance."
       },
       {
-        "target": ".activity-feed, .activity-card",
+        "target": "#actFeed",
         "eye": "Stop 4 of 4 · Recent activity",
         "title": "What just happened",
         "body": "Live feed of recent submissions across the institution — who submitted what, when, and the action the system recommended. A scrollable institutional log."
@@ -103,27 +103,27 @@
     "stops": [
       {
         "target": "#operatorHero",
-        "eye": "Stop 1 of 4 · Tenant health",
-        "title": "Are any tenants in trouble?",
-        "body": "This banner answers \"are any of my tenants in trouble?\" A tenant counts as troubled when it has registered students but no baseline samples yet — onboarded but not yet operating."
+        "eye": "Stop 1 of 4 · School health",
+        "title": "Are any schools in trouble?",
+        "body": "This banner answers \"are any of my schools in trouble?\" A school counts as troubled when it has registered students but no baseline samples yet — onboarded but not yet operating."
       },
       {
         "target": ".system-stats",
         "eye": "Stop 2 of 4 · System overview",
-        "title": "Across all tenants",
-        "body": "Total institutions, students, submissions, and audit entries — the operator's cross-tenant view. Each tenant's contribution is broken out in the cards below."
+        "title": "Across all schools",
+        "body": "Total institutions, students, submissions, and audit entries — the operator's cross-school view. Each school's contribution is broken out in the cards below."
       },
       {
         "target": "#tenantGrid",
         "eye": "Stop 3 of 4 · Registered institutions",
-        "title": "Every tenant in one place",
+        "title": "Every school in one place",
         "body": "Each card is one school. Click View → professor.html scoped to that tenant. Click View Stats for a quick per-tenant breakdown."
       },
       {
         "target": "button[onclick*='toggleRegForm']",
         "eye": "Stop 4 of 4 · Register a school",
-        "title": "Onboard a new tenant",
-        "body": "Register the next school. After registration, the school's professor signs in and starts building voice profiles. The system stays multi-tenant — students never cross schools."
+        "title": "Onboard a new school",
+        "body": "Register the next school. After registration, the school's professor signs in and starts building voice profiles. Students never cross schools."
       }
     ]
   }

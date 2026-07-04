@@ -1019,9 +1019,14 @@ def delete_student(student_id: str) -> bool:
     Removes the student from:
     - student_profiles      (SQLite — baseline profile)
     - fidelity_scores       (SQLite — conformal calibration data)
+    - ai_likelihood_scores  (SQLite — shadow-mode detector rows)
     - submission_manifests  (SQLite — adaptive-context audit log)
     - corrections           (SQLite — instructor feedback, by submission_id
                              to catch rows where student_id was never written)
+    - student_names         (SQLite — display name from LTI / roster import)
+    - audit_log             (SQLite — the student's action history; the
+                             deletion itself is re-logged by the API caller
+                             as the single retained deletion receipt)
     - The in-memory store (_STORE) — evicted AFTER the SQLite commit so that
       a commit failure returns False and leaves the server in a consistent state
       (rows still in DB + still in memory).
@@ -1068,6 +1073,17 @@ def delete_student(student_id: str) -> bool:
                     f"DELETE FROM corrections WHERE submission_id IN ({placeholders})",
                     sub_ids,
                 )
+            # Display name (PII from LTI launches / roster import) and the
+            # student's audit-log history both identify the student — purge
+            # them too. The caller records ONE fresh audit row for the
+            # deletion itself (the deletion receipt), which is disclosed in
+            # docs/dpa_template.md §5.3.
+            conn.execute(
+                "DELETE FROM student_names WHERE student_id = ?", (student_id,)
+            )
+            conn.execute(
+                "DELETE FROM audit_log WHERE student_id = ?", (student_id,)
+            )
             conn.commit()
     except Exception:
         log.exception("delete_student failed for %s — no data was removed", student_id)
@@ -2198,10 +2214,16 @@ def student_data_inventory(student_id: str) -> Optional[Dict]:
                 "SELECT COUNT(*) FROM ai_likelihood_scores WHERE student_id = ?",
                 (student_id,),
             ).fetchone()[0]
+
+            name_row = conn.execute(
+                "SELECT display_name FROM student_names WHERE student_id = ?",
+                (student_id,),
+            ).fetchone()
     except Exception:
         log.exception("student_data_inventory DB query failed for %s", student_id)
         fidelity_count = manifest_rows = correction_count = audit_count = 0
         ai_likelihood_count = 0
+        name_row = None
 
     manifests_by_action: Dict = {}
     if manifest_rows:
@@ -2236,6 +2258,9 @@ def student_data_inventory(student_id: str) -> Optional[Dict]:
             },
             "ai_likelihood_scores": {
                 "count": int(ai_likelihood_count),
+            },
+            "display_name": {
+                "on_file": bool(name_row and name_row[0]),
             },
         },
         "effective_sample_weight": state.effective_sample_count,

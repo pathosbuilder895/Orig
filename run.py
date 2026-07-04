@@ -51,6 +51,19 @@ def load_legacy_demo_app():
 
 def seed_demo_store():
     """Reset and seed the in-memory demo student store."""
+    import os
+
+    # Hard refusal, independent of CLI flags: seeding clears the store and
+    # writes synthetic students. On a real deployment that would destroy and
+    # pollute FERPA-protected data — no flag combination may allow it.
+    env = os.environ.get("ORIGINAL_ENV", "demo")
+    if env in ("pilot", "staging", "production"):
+        raise SystemExit(
+            f"Refusing to seed synthetic demo data: ORIGINAL_ENV={env}. "
+            "Seeding clears the store and is demo-only. Unset ORIGINAL_ENV "
+            "or run against a scratch database."
+        )
+
     from original import store
     from synthetic.seed_data import seed
 

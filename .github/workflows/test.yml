@@ -62,8 +62,11 @@ jobs:
           ORIGINAL_ENV: pilot
           SECRET_KEY: ci-test-only-secret-do-not-deploy
           MAINTENANCE_TOKEN: ci-test-only
+        # --skip-seed is mandatory here: seeding hard-refuses when
+        # ORIGINAL_ENV=pilot (synthetic data must never enter a real store),
+        # and CI boots exactly the way the Render pilot does.
         run: |
-          python run.py --demo --frontend-dir demo --port 8001 \
+          python run.py --demo --frontend-dir demo --port 8001 --skip-seed \
             > /tmp/original-ci.log 2>&1 &
           echo $! > /tmp/original.pid
           # Wait for server to become responsive (up to 30s)
