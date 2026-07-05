@@ -47,8 +47,9 @@ All production features are opt-in via env flags. Default OFF preserves Phase 1 
 | `SECRET_KEY` | `""` | Keyed random unitary projection (adversarial robustness) |
 | `BAYESIAN_PRIOR_ENABLED` | `0` | Hierarchical Bayesian cold-start prior |
 | `PRIOR_WEIGHT` | `3.0` | Virtual sample count for the prior |
+| `NULL_MODEL` | `none` | `impostor` = per-tenant peer-pool null model; attaches `llr_deviation_score` (attach-only, never changes the action) |
 
-Demo mode turns on CONTEXT_MANIFEST_ENABLED and ADAPTIVE_WEIGHTS_ENABLED automatically (set in run.py).
+Demo mode turns on CONTEXT_MANIFEST_ENABLED, ADAPTIVE_WEIGHTS_ENABLED, and NULL_MODEL=impostor automatically (set in run.py).
 
 ---
 

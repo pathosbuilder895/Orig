@@ -1701,6 +1701,23 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # wave packet attenuation in encode_amplitudes is proportional to the
     # real submission length, not a fixed default.
     _n_tokens = len(req.text.split())
+
+    # ── Explicit null model (rank-and-null work, production wiring) ───────────
+    # NULL_MODEL=impostor: pool authenticated baseline vectors from the
+    # claimed student's same-tenant peers into a diagonal-Gaussian impostor
+    # cohort (original/quantum/null_pool.py); quantum_score() then attaches
+    # llr_deviation_score — "fits this student vs fits a typical classmate".
+    # None below the cold-start floors (3 peers / 5 vectors) and on any
+    # failure; never changes deviation_score or the recommended action.
+    _impostor_stats = None
+    if os.environ.get("NULL_MODEL", "none") == "impostor":
+        try:
+            from .quantum.null_pool import build_impostor_stats
+            _impostor_stats = build_impostor_stats(student_id, store.all_states())
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "impostor pool build failed for %s — llr score skipped", student_id)
+
     result = quantum_score(
         state=state,
         submission_vector=vec,
@@ -1709,6 +1726,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
         adaptive_weights=adaptive_weights,
         manifest=manifest_dict,
         n_tokens=_n_tokens,
+        impostor_stats=_impostor_stats,
     )
 
     # ── AI-likelihood (corpus-level second scoring mode, report-only) ─────────
@@ -1840,6 +1858,7 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
         authorship=AuthorshipSignalOut(
             authorship_probability=r.authorship.authorship_probability,
             deviation_score=r.authorship.deviation_score,
+            llr_deviation_score=r.authorship.llr_deviation_score,
         ),
         trajectory=TrajectoryConformanceOut(
             direction=r.trajectory.direction,

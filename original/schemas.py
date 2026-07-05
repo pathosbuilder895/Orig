@@ -333,6 +333,12 @@ class BlendResultOut(BaseModel):
 class AuthorshipSignalOut(BaseModel):
     authorship_probability: float
     deviation_score: float
+    # Relative (claimed-student vs same-tenant impostor pool) deviation.
+    # 0.5 = fits either equally; → 0 = distinctly this student's voice;
+    # → 1 = fits the peer pool better (suspicious). None unless
+    # NULL_MODEL=impostor is set AND the tenant has enough peers with
+    # authenticated baselines to fit a pool (see quantum/null_pool.py).
+    llr_deviation_score: Optional[float] = None
 
 
 class TrajectoryConformanceOut(BaseModel):

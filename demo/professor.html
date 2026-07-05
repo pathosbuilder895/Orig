@@ -1953,7 +1953,11 @@ function apiResponseToResult(resp) {
     c: f.direction === 'destructive' ? '#D97706' : '#4A6B5C',
   }));
 
-  return { deviation, prob, traj, action, tiers, feats, _raw: resp };
+  // Relative peer-pool score (NULL_MODEL=impostor; null when off/cold-start).
+  const llr = (resp.authorship.llr_deviation_score === undefined)
+    ? null : resp.authorship.llr_deviation_score;
+
+  return { deviation, prob, traj, action, tiers, feats, llr, _raw: resp };
 }
 
 /* ── Tension Arc rendering ── */
@@ -3034,8 +3038,17 @@ function renderResults(r) {
 
   // Metric glosses
   setTimeout(()=>{
+    // Peer-comparison line (only when the server computed a peer-pool score)
+    let vmGloss = getVoiceMatchGloss(vmPct);
+    if (r.llr !== null && r.llr !== undefined) {
+      vmGloss += r.llr <= 0.35
+        ? ' Compared with classmates’ writing, this reads distinctly like this student.'
+        : r.llr <= 0.65
+        ? ' Compared with classmates’ writing, this is not strongly distinct either way.'
+        : ' This reads more like a typical classmate than like this student’s own baseline — worth a closer look.';
+    }
     const glosses = [
-      { id:'mcGloss1', text: getVoiceMatchGloss(vmPct) },
+      { id:'mcGloss1', text: vmGloss },
       { id:'mcGloss2', text: getProbGloss(r.prob) },
       { id:'mcGloss3', text: getTrajGloss(r.traj) },
     ];

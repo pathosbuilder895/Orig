@@ -148,6 +148,11 @@ def main():
         # setdefault preserves any explicit env override (e.g., for testing with flags off).
         os.environ.setdefault("CONTEXT_MANIFEST_ENABLED", "1")
         os.environ.setdefault("ADAPTIVE_WEIGHTS_ENABLED", "1")
+        # Peer-pool null model: attaches llr_deviation_score (relative
+        # "fits this student vs a typical classmate") when the tenant has
+        # ≥3 peers with authenticated baselines. Attach-only — deviation
+        # score and recommended action are unchanged.
+        os.environ.setdefault("NULL_MODEL", "impostor")
 
         if not args.skip_seed:
             seed_demo_store()
