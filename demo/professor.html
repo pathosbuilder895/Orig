@@ -3056,6 +3056,19 @@ function renderResults(r) {
       const el=document.getElementById(id);
       if(el){ el.textContent=text; el.classList.add('show'); }
     });
+    // Peer-comparison help-hint icon — only when the server computed a
+    // peer-pool score, so the icon never appears with nothing behind it.
+    if (r.llr !== null && r.llr !== undefined) {
+      const g1 = document.getElementById('mcGloss1');
+      if (g1) {
+        const icon = document.createElement('span');
+        icon.className = 'help-hint';
+        icon.setAttribute('data-topic', 'peerCompare');
+        icon.setAttribute('data-hint', 'How the classmate comparison works');
+        g1.appendChild(icon);
+        if (window.OriginalHelpHint) window.OriginalHelpHint.decorate(icon);
+      }
+    }
   }, 600);
 
   // Interpretation box

@@ -59,6 +59,10 @@
       title: 'Tier breakdown',
       body:  'Seventeen tiers group the 103 features by what they measure — sentence rhythm, character habits, citation style, etc. Tiers most resistant to editing (character n-grams, error patterns) weight slightly more heavily when something looks unusual.',
     },
+    peerCompare: {
+      title: 'Compared with classmates',
+      body:  'This checks the same submission against a second question: does it read more like a typical classmate\'s writing than like this specific student\'s own established voice? It never changes the primary score or the recommended action — it\'s a second, independent read shown alongside the first. It only appears once the school has at least three other students with baseline samples on file; with fewer, there isn\'t enough of a comparison group yet.',
+    },
   };
 
   function ensurePopover() {
