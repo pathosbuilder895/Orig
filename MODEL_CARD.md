@@ -205,6 +205,44 @@ of in-domain false-positive data.
 
 ---
 
+## Peer-Pool Null Model (relative scoring signal, optional)
+
+The primary `deviation_score` answers "how far is this submission from the
+claimed student's baseline?" — an absolute distance with no notion of what
+*someone else's* writing looks like. The peer-pool null model adds the
+missing half of the hypothesis test: a diagonal-Gaussian impostor cohort
+fit from the authenticated baseline vectors of the student's **same-tenant
+peers** (`original/quantum/null_pool.py`), producing
+`authorship.llr_deviation_score` — a bounded log-likelihood-ratio proxy.
+0.5 = fits the claimed student and a typical classmate equally; toward 0 =
+distinctly this student's voice; toward 1 = fits the peer pool better than
+the claimed student's own baseline.
+
+**Measured lift** (binary authorship verification, N=3 baselines,
+`validation/benchmarks/2026-07-01/*nullmodel*`): seminary median
+per-author AUC 0.8125 → **1.0** (pooled 0.8925 → **0.9325**, Brier 0.51 →
+0.17); public authors pooled 0.8551 → **0.8993** (Brier 0.34 → 0.09).
+TPR at 5% FPR rose from 0.6 → 0.8. Ledoit-Wolf shrinkage
+(`RANK_REMEDIATION=shrinkage`) was A/B'd at the same time and *hurt* —
+the null model alone accounts for the entire gain.
+
+**Contract**
+
+- Gated by `NULL_MODEL=impostor` (default OFF; demo mode sets it via
+  `setdefault` in `run.py`). Attach-only: `deviation_score`, the
+  recommended action, and every other response field are unchanged.
+- Cold-start abstention: the pool requires ≥ 3 same-tenant peers with
+  authenticated baselines and ≥ 5 pooled vectors, else the field is null.
+  Weak evidence abstains; it never widens or blocks a score.
+- Tenant isolation: cross-tenant vectors are never pooled — the cohort is
+  the student's own school, which also keeps the comparison genre-matched.
+- Coupling the relative score to recommended actions is deliberately
+  deferred (same posture as the AI-likelihood action nudge): thresholds
+  were calibrated for `deviation_score`, so action coupling waits on
+  pilot-semester recalibration against the llr distribution.
+
+---
+
 ## Data Protection and FERPA Posture
 
 Original is designed around data minimization:
@@ -236,6 +274,7 @@ The zero-login demo remains intentionally available for sales and evaluation. Re
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.3.0 | 2026-07-04 | Peer-pool null model in production: `NULL_MODEL=impostor` builds a per-tenant impostor cohort on the live scoring path and attaches `llr_deviation_score` (attach-only; cold-start abstention; on by default in demo mode only). |
 | 1.2.0 | 2026-07-01 | Added the optional AI-likelihood detector (corpus-level second scoring mode): committed calibrated classifier artifact, `AI_LIKELIHOOD_ENABLED` flag, report-only contract, enablement gate, and version-skew runbook. |
 | 1.1.0 | 2026-06-09 | Updated model card for 103-dimensional pipeline, Tier 17 behavioral biometrics, comparison dimensions, pilot runtime posture, and explicit human-review policy. |
 | 1.0.0 | 2026-03-17 | Initial release — 34-feature pipeline, quantum density matrix scorer. |

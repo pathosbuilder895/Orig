@@ -421,7 +421,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
           <div class="card fp-card">
             <div class="card-head">
               <div class="card-lbl">Voice Fingerprint</div>
-              <div class="card-ttl">Seven dimensions of your voice</div>
+              <div class="card-ttl">Seven dimensions of your voice<span class="help-hint" data-topic="fingerprint" data-hint="What the seven dimensions mean"></span></div>
             </div>
             <div class="fp-viz" style="height:270px">
               <svg id="fpSvg" viewBox="0 0 300 300" width="280" height="280"></svg>
@@ -436,7 +436,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
           <div class="card arc-card">
             <div class="card-head">
               <div class="card-lbl">The Arc</div>
-              <div class="card-ttl" id="arcTitle">Voice fidelity this term</div>
+              <div class="card-ttl" id="arcTitle">Voice fidelity this term<span class="help-hint" data-topic="arc" data-hint="How to read this timeline"></span></div>
             </div>
             <div style="flex:1;padding:4px 4px 0">
               <svg id="arcSvg" width="100%" height="220" style="display:block"></svg>
@@ -533,7 +533,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
               </div>
               <div class="stat-cell">
                 <div class="stat-val" id="mGrowth">—</div>
-                <div class="stat-lbl">Voice Standing</div>
+                <div class="stat-lbl">Voice Standing<span class="help-hint" data-topic="milestones" data-hint="What the milestones mean"></span></div>
                 <div class="stat-d" id="mGrowthD"></div>
               </div>
             </div>
@@ -638,7 +638,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
       <div class="page-body">
         <div class="pg-hdr fu">
           <div class="pg-eye">From your tutor</div>
-          <div class="pg-title">Voice Notes</div>
+          <div class="pg-title">Voice Notes<span class="help-hint" data-topic="voiceNotes" data-hint="What voice notes are"></span></div>
           <div class="pg-sub" id="notesSub">Marginalia on your writing this term.</div>
         </div>
         <div class="card fu fu1" style="max-width:640px" id="notesList">
@@ -734,7 +734,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
       <div class="page-body">
         <div class="pg-hdr fu">
           <div class="pg-eye">A path forward</div>
-          <div class="pg-title">Formation Track</div>
+          <div class="pg-title">Formation Track<span class="help-hint" data-topic="formation" data-hint="How the formation pathway works"></span></div>
           <div class="pg-sub">Three sessions. One clear path. Completing it closes the conversation.</div>
         </div>
 
@@ -1392,8 +1392,12 @@ async function loadProfile() {
     }
   }
 
-  // Arc title + footer
-  document.getElementById('arcTitle').textContent = 'Voice fidelity across ' + semester();
+  // Arc title + footer. textContent would wipe the help-hint icon nested in
+  // this element (see the static markup) -- prepend a text node instead so
+  // the icon survives every re-render.
+  const arcTitleEl = document.getElementById('arcTitle');
+  Array.from(arcTitleEl.childNodes).forEach(n => { if (n.nodeType === 3) n.remove(); });
+  arcTitleEl.insertBefore(document.createTextNode('Voice fidelity across ' + semester()), arcTitleEl.firstChild);
   const wordTotal = analysed.reduce((s,h)=>s+(h.words||0),0);
   document.getElementById('arcFooter').textContent =
     `${analysed.length} submission${analysed.length!==1?'s':''} · ${semester()}${wordTotal?` · ${wordTotal.toLocaleString()} words`:''}`;

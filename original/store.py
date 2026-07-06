@@ -523,6 +523,12 @@ def list_ids() -> List[str]:
     return list(_STORE.keys())
 
 
+def all_states() -> List[StudentState]:
+    """Every cached StudentState (the impostor-pool builder's input)."""
+    _load_all()
+    return list(_STORE.values())
+
+
 def count() -> int:
     _load_all()
     return len(_STORE)
