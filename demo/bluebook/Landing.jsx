@@ -267,7 +267,7 @@ export function LoginScreen({ onNavigate }) {
           <div style={{ textAlign: 'center' }}>
             <button onClick={() => onNavigate('dashboard')} style={{
               fontFamily: fontMono, fontSize: 10, letterSpacing: '0.18em',
-              textTransform: 'uppercase', color: 'rgba(139,155,180,0.6)',
+              textTransform: 'uppercase', color: 'rgba(139,155,180,0.9)',
               background: 'none', border: 'none', cursor: 'pointer',
             }}>Explore the demo →</button>
           </div>
@@ -276,7 +276,7 @@ export function LoginScreen({ onNavigate }) {
         <p style={{
           textAlign: 'center', marginTop: 20,
           fontFamily: fontMono, fontSize: 10, letterSpacing: '0.18em',
-          color: 'rgba(139,155,180,0.45)', textTransform: 'uppercase',
+          color: 'rgba(139,155,180,0.9)', textTransform: 'uppercase',
         }}>Secure · Encrypted · Monitored</p>
       </div>
     </div>

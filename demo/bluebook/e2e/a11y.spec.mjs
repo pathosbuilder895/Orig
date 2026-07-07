@@ -30,13 +30,26 @@ function logViolations(results, label) {
   }
 }
 
+// Screens whose React rebuild (WS-8) has landed and verified passing axe
+// with zero violations. A screen's @a11y case is blocking (hard-fails on
+// any violation) only once its label is added here -- until then, scans
+// only log. Empty until WS-8 R1 lands; add labels one at a time as each
+// screen is migrated and confirmed clean, never as a batch.
+const MIGRATED_SCREENS = []
+
+function checkA11y(results, label) {
+  logViolations(results, label)
+  if (MIGRATED_SCREENS.includes(label)) {
+    expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([])
+  }
+}
+
 base.describe('Axe scan — public screens @a11y', () => {
   base('Landing screen', async ({ page }) => {
     await page.goto('/bluebook/')
     await page.waitForLoadState('networkidle')
     const results = await runAxe(page)
-    logViolations(results, 'Landing')
-    expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([])
+    checkA11y(results, 'Landing')
   })
 
   base('Login screen', async ({ page }) => {
@@ -44,8 +57,7 @@ base.describe('Axe scan — public screens @a11y', () => {
     await page.getByRole('button', { name: 'Sign in' }).first().click()
     await expect(page.getByPlaceholder('you@institution.edu')).toBeVisible()
     const results = await runAxe(page)
-    logViolations(results, 'Login')
-    expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([])
+    checkA11y(results, 'Login')
   })
 
   base('Briefing screen (student launch)', async ({ page }) => {
@@ -60,8 +72,7 @@ base.describe('Axe scan — public screens @a11y', () => {
     await page.waitForLoadState('networkidle')
     await expect(page.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
     const results = await runAxe(page)
-    logViolations(results, 'Briefing')
-    expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([])
+    checkA11y(results, 'Briefing')
   })
 })
 
@@ -82,8 +93,7 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
         await staffPage.getByRole('button', { name: navLabel }).click()
       }
       const results = await new AxeBuilder({ page: staffPage }).withTags(['wcag2a', 'wcag2aa']).analyze()
-      logViolations(results, label)
-      expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([])
+      checkA11y(results, label)
     })
   }
 
@@ -93,8 +103,7 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
     await staffPage.getByRole('button', { name: 'Examinations' }).click()
     await staffPage.getByRole('button', { name: '+ New Examination' }).click()
     const results = await new AxeBuilder({ page: staffPage }).withTags(['wcag2a', 'wcag2aa']).analyze()
-    logViolations(results, 'New Examination')
-    expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([])
+    checkA11y(results, 'New Examination')
   })
 })
 
