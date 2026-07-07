@@ -14,9 +14,17 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.9                      # keep in lockstep with requirements-dev pin
     hooks:
+      # Scoped to original/ to mirror the CI lint gate (.github/workflows/test.yml):
+      # tests/, validation/, scripts/, and alembic/ were never swept for lint
+      # compliance (out of WS-2's scope). Without this filter, the first push of a
+      # new branch runs pre-commit against --all-files and fails on that legacy debt.
+      # Dormant v1 dirs inside original/ are still skipped via pyproject
+      # extend-exclude (the hook entry passes --force-exclude).
       - id: ruff
         args: [--fix]
+        files: ^original/
       - id: ruff-format
+        files: ^original/
 
   - repo: local
     hooks:
