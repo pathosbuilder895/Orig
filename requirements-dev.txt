@@ -14,7 +14,7 @@
 # >=8.2,<9 to stay compatible.
 pytest>=8.2,<9
 pytest-asyncio==0.24.0
-pytest-cov==5.0.0
+pytest-cov==7.1.0
 hypothesis==6.112.2
 
 # Lint/format/type-check + git hook runner.
