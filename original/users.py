@@ -17,10 +17,11 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import os
 import secrets
 import uuid
 
-from . import store
+from .repository import get_repository
 
 _ALGO = "pbkdf2_sha256"
 _ITERATIONS = 240_000
@@ -50,9 +51,13 @@ def _user_id(tenant_id: str, email: str) -> str:
     return uuid.uuid5(uuid.NAMESPACE_URL, f"{tenant_id}:{email.strip().lower()}").hex[:16]
 
 
+def _repo():
+    return get_repository(os.environ.get("ENVIRONMENT", "demo"))
+
+
 def create_user(email: str, password: str, role: str, tenant_id: str, name: str = "") -> dict:
     uid = _user_id(tenant_id, email)
-    store.put_user(uid, email, hash_password(password), role, tenant_id, name)
+    _repo().put_user(uid, email, hash_password(password), role, tenant_id, name)
     return {
         "user_id": uid,
         "email": email.strip().lower(),
@@ -64,7 +69,7 @@ def create_user(email: str, password: str, role: str, tenant_id: str, name: str 
 
 def authenticate(email: str, password: str) -> dict | None:
     """Return the user (minus password) on success, else None."""
-    rec = store.get_user_by_email(email)
+    rec = _repo().get_user_by_email(email)
     if not rec:
         # Equalise timing so a missing email isn't distinguishable from a wrong
         # password (mitigates account enumeration).

@@ -305,9 +305,9 @@ def principal_from_claims(claims: dict) -> dict:
         # person rather than the opaque tenant-scoped id.
         if name:
             try:
-                from . import store
+                from .repository import get_repository
 
-                store.set_display_name(sid, name)
+                get_repository(os.environ.get("ENVIRONMENT", "demo")).set_display_name(sid, name)
             except Exception:
                 pass
         token = student_auth.mint_session(sid, name)

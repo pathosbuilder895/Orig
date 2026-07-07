@@ -145,9 +145,9 @@ def tenant_environment(slug: str) -> str | None:
         return _ENV_CACHE[slug]
     env: str | None = None
     try:
-        from . import store
+        from .repository import get_repository
 
-        rec = store.get_tenant(slug)
+        rec = get_repository(os.environ.get("ENVIRONMENT", "demo")).get_tenant(slug)
         if rec:
             env = rec.get("environment")
     except Exception:

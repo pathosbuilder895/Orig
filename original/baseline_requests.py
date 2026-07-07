@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 import time
 import uuid
@@ -30,9 +31,13 @@ from dataclasses import fields as dataclass_fields
 from datetime import UTC
 from typing import Literal
 
-from . import store
+from .repository import get_repository
 
 log = logging.getLogger(__name__)
+
+
+def _repo():
+    return get_repository(os.environ.get("ENVIRONMENT", "demo"))
 
 
 Status = Literal["pending", "completed", "expired", "failed"]
@@ -107,7 +112,7 @@ def _persist_snapshot(
     """
     global _persist_failures
     try:
-        store.put_baseline_request(
+        _repo().put_baseline_request(
             external_request_id=external_request_id,
             student_id=student_id,
             status=status,
@@ -138,7 +143,7 @@ def _ensure_hydrated() -> None:
     if _hydrated:
         return
     try:
-        for d in store.load_baseline_requests():
+        for d in _repo().load_baseline_requests():
             payload = {k: v for k, v in d.items() if k in _FIELD_NAMES}
             req = BaselineRequest(**payload)
             _registry[req.external_request_id] = req
