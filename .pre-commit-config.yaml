@@ -33,6 +33,7 @@ repos:
       - id: bundle-freshness         # pre-push heuristic; CI byte-diff (B2) is the real gate
         name: bluebook bundle freshness
         stages: [pre-push]
-        entry: bash -c 'if git diff --name-only @{push}.. 2>/dev/null | grep -q "^demo/bluebook/.*\.jsx$" && ! git diff --name-only @{push}.. | grep -q "^demo/bluebook/bluebook\.bundle\.js$"; then echo "JSX changed but bundle not rebuilt — run: cd demo/bluebook && npm run build"; exit 1; fi'
+        entry: >-
+          bash -c 'if git diff --name-only @{push}.. 2>/dev/null | grep -q "^demo/bluebook/.*\.jsx$" && ! git diff --name-only @{push}.. | grep -q "^demo/bluebook/bluebook\.bundle\.js$"; then echo "JSX changed but bundle not rebuilt — run: cd demo/bluebook && npm run build"; exit 1; fi'
         language: system
         pass_filenames: false
