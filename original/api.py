@@ -492,8 +492,16 @@ def admin_health():
 # brute-forceable in pilot deployments. In-memory (single-process uvicorn) and
 # stdlib-only, matching the app's dependency posture. PBKDF2's ~100ms verify
 # cost plus this window makes online guessing impractical.
-_LOGIN_WINDOW_SEC = 300
-_LOGIN_MAX_ATTEMPTS = 10
+#
+# Overridable via env (defaults unchanged — same opt-in pattern as
+# GUARD_DESTRUCTIVE/SECRET_KEY): a real E2E suite legitimately provisions many
+# distinct tenants/staff logins per run (tenant-isolation coverage needs
+# multiple real logins per test), which exceeds 10/300s at full-suite scale
+# on a single shared IP — not brute-forcing, just parallel test fixtures.
+# CI sets LOGIN_THROTTLE_MAX_ATTEMPTS higher for the e2e job only; pilot/
+# production are untouched unless someone deliberately sets these.
+_LOGIN_WINDOW_SEC = int(os.environ.get("LOGIN_THROTTLE_WINDOW_SEC", "300"))
+_LOGIN_MAX_ATTEMPTS = int(os.environ.get("LOGIN_THROTTLE_MAX_ATTEMPTS", "10"))
 _login_attempts: dict = {}  # ip -> [monotonic timestamps]
 
 
