@@ -11,6 +11,9 @@ concurrency:
 
 permissions:
   contents: read
+  # gitleaks-action calls GET /pulls/{n}/commits to scope its scan to the PR
+  # diff on pull_request events — read-only, no write scopes granted.
+  pull-requests: read
 
 jobs:
   lint:
