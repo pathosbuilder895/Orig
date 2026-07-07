@@ -1,6 +1,6 @@
 # WS-5 — Test depth: unit/API
 
-> Part of the [Master Implementation Plan](../AUDIT_2026-07-06.md) (Audit §9).
+> Part of the [Master Implementation Plan](../AUDIT_2026-07-06.md) (Audit §9). Refs are a 2026-07-07 snapshot — resolve each cited `path:line` by its **named symbol** via [ANCHORS.md](ANCHORS.md); the tree is under active edit and line numbers drift.
 > **Findings:** T1, T2, T3, T4, T5, T6, T10 · **Effort:** 4–6 days · **Depends on:** WS-2 (CI coverage gate + shared fixtures) · **Unblocks:** a trustworthy `--cov-fail-under` floor so WS-6/WS-7 refactors can't silently regress the live pilot backend, and the shared live-app fixture every future live-stack test reuses.
 
 ## Objective

@@ -1,6 +1,6 @@
 # WS-8 — Frontend → React migration
 
-> Part of the [Master Implementation Plan](../AUDIT_2026-07-06.md) (Audit §9).
+> Part of the [Master Implementation Plan](../AUDIT_2026-07-06.md) (Audit §9). Refs are a 2026-07-07 snapshot — resolve each cited `path:line` by its **named symbol** via [ANCHORS.md](ANCHORS.md); the tree is under active edit and line numbers drift.
 > **Findings:** W5–W8, W11–W15 (durable a11y), F5 (retire dead pages) · **Effort:** ~2 months part-time · **Depends on:** WS-4 hotfix first (§9 table) · **Unblocks:** the VPAT (WS-3 / D15, writable from axe evidence not hope), and WS-9's professor-side E2E coverage.
 
 ## Objective

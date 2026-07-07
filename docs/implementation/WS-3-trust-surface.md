@@ -1,6 +1,6 @@
 # WS-3 — Trust surface: docs & compliance
 
-> Part of the [Master Implementation Plan](../AUDIT_2026-07-06.md) (Audit §9).
+> Part of the [Master Implementation Plan](../AUDIT_2026-07-06.md) (Audit §9). Refs are a 2026-07-07 snapshot — resolve each cited `path:line` by its **named symbol** via [ANCHORS.md](ANCHORS.md); the tree is under active edit and line numbers drift.
 > **Findings:** D1–D8, D10–D16, F3 (flag-table slice), F8 (97/103) · **Effort:** 3–4 days (can run same week as WS-1/2) · **Depends on:** — · **Unblocks:** the compliance/procurement conversation a seminary's legal office will start (encryption + data-inventory honesty), and a defensible MODEL_CARD/README for any pilot go-live review. VPAT is deferred until WS-4/WS-8 land the a11y fixes it must describe.
 
 ## Objective

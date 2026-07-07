@@ -1,6 +1,6 @@
 # WS-7 — API-layer refactor
 
-> Part of the [Master Implementation Plan](../AUDIT_2026-07-06.md) (Audit §9).
+> Part of the [Master Implementation Plan](../AUDIT_2026-07-06.md) (Audit §9). Refs are a 2026-07-07 snapshot — resolve each cited `path:line` by its **named symbol** via [ANCHORS.md](ANCHORS.md); the tree is under active edit and line numbers drift.
 > **Findings:** A2, A6, A7, A10, S1, S4, S5, S7, S8, S9, F2, F5 · **Effort:** 2–3 weeks · **Depends on:** interleaves with WS-6 (Postgres) · **Unblocks:** WS-6 P0 (step 1 `ScoringConfig` removes the scoring→store edge the `PostgresRepository` would otherwise have to port); a testable, router-split `api.py` that WS-5/WS-9 can target.
 
 ## Objective

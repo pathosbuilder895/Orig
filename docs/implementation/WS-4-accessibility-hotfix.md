@@ -1,6 +1,6 @@
 # WS-4 — Accessibility: exam-flow hotfix, then AA
 
-> Part of the [Master Implementation Plan](../AUDIT_2026-07-06.md) (Audit §9).
+> Part of the [Master Implementation Plan](../AUDIT_2026-07-06.md) (Audit §9). Refs are a 2026-07-07 snapshot — resolve each cited `path:line` by its **named symbol** via [ANCHORS.md](ANCHORS.md); the tree is under active edit and line numbers drift.
 > **Findings:** W1–W6, W12, W13, W14 (NOW, in the existing HTML/JSX) · **Effort:** 2–3 days · **Depends on:** — · **Unblocks:** the pilot's legal exposure on the locked-down exam flow (a blind candidate can currently neither name the answer field nor hear a proctoring warning recorded against them); gives WS-8 a passing axe baseline to preserve through the React rebuild.
 
 ## Objective

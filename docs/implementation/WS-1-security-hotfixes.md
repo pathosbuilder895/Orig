@@ -1,6 +1,6 @@
 # WS-1 — Security & data-integrity hotfixes
 
-> Part of the [Master Implementation Plan](../AUDIT_2026-07-06.md) (Audit §9).
+> Part of the [Master Implementation Plan](../AUDIT_2026-07-06.md) (Audit §9). Refs are a 2026-07-07 snapshot — resolve each cited `path:line` by its **named symbol** via [ANCHORS.md](ANCHORS.md); the tree is under active edit and line numbers drift.
 > **Findings:** B10, A1, B16, F3 (MAINTENANCE_TOKEN/GUARD_DESTRUCTIVE doc subset) · **Effort:** 1–2 days · **Depends on:** — · **Unblocks:** WS-2 (pip-audit gate has a clean baseline to enforce), WS-6 (a store that surfaces write failures is a precondition for the Postgres repository seam).
 
 ## Objective

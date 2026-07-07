@@ -1,6 +1,6 @@
 # WS-6 — Postgres convergence
 
-> Part of the [Master Implementation Plan](../AUDIT_2026-07-06.md) (Audit §9).
+> Part of the [Master Implementation Plan](../AUDIT_2026-07-06.md) (Audit §9). Refs are a 2026-07-07 snapshot — resolve each cited `path:line` by its **named symbol** via [ANCHORS.md](ANCHORS.md); the tree is under active edit and line numbers drift.
 > **Findings:** A3, A4, A5, A8, A9, F1, F4, F6, B15, B19, T4, T6, S2, S3, part of S4 · **Effort:** 6–9 weeks part-time · **Depends on:** WS-1, WS-2 · **Unblocks:** `--workers N` / Render horizontal scaling, deletion of ~7,700 LOC dormant v1 + 62 CI tests, a real migration story (alembic), and the ADR-002 convergence deadline.
 
 This is a **wrapper workstream**. The detailed design lives in **Audit §10 "Postgres convergence plan"** (lines 609–653): the scope decision, the measured current state, Phases P0–P6, per-phase design decisions, and the risk/mitigation table. **Read §10 first.** This file is the *execution checklist* — it adds owners, entry gates, decision gates, the acceptance/contract-test proof for each phase, and rollback posture. It does **not** re-derive §10; where you need the fine detail, follow the §10 pointer.

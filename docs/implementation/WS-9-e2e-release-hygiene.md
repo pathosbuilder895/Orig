@@ -1,6 +1,6 @@
 # WS-9 — E2E build-out & release hygiene
 
-> Part of the [Master Implementation Plan](../AUDIT_2026-07-06.md) (Audit §9).
+> Part of the [Master Implementation Plan](../AUDIT_2026-07-06.md) (Audit §9). Refs are a 2026-07-07 snapshot — resolve each cited `path:line` by its **named symbol** via [ANCHORS.md](ANCHORS.md); the tree is under active edit and line numbers drift.
 > **Findings:** T7, B20, D7 · **Effort:** 2–3 weeks · **Depends on:** WS-2, WS-8 (partially) · **Unblocks:** a review surface that can't silently regress (professor journey guarded), a writable VPAT (D15, once `@a11y` specs go blocking), and honest deploy provenance for the pilot.
 
 This is a **wrapper workstream.** The detailed derivation lives in **Audit §12 "Playwright E2E build-out plan"** (Stages 0–3). This file is the execution checklist over §12 — it adds owners, order, decision gates, and acceptance, and folds in the release-hygiene rider (B20, D7) that §9 line 604–605 attaches here. **Read §12 first;** do not re-derive it below.

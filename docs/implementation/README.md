@@ -18,7 +18,8 @@ matrix, and a candid list of concerns about the plan's scope and approach.
 > (= R.2) exists at `api.py:177`, and `playwright.config.mjs` is `fullyParallel: true` with a
 > literal "WS-9 Stage 0.2" comment. **Consequence:** every `path:line` reference in these plans is a
 > point-in-time snapshot and will drift as work lands — at execution, grep the symbol, don't trust the
-> line, and reconcile WS-9 against what's already been built before starting it.
+> line, and reconcile WS-9 against what's already been built before starting it. **[ANCHORS.md](ANCHORS.md)**
+> gives a greppable symbol for every load-bearing site so refs survive the drift.
 
 ---
 

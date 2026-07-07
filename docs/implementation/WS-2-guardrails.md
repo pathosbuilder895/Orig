@@ -1,6 +1,6 @@
 # WS-2 — Guardrails: CI, pre-commit, lint, hygiene
 
-> Part of the [Master Implementation Plan](../AUDIT_2026-07-06.md) (Audit §9).
+> Part of the [Master Implementation Plan](../AUDIT_2026-07-06.md) (Audit §9). Refs are a 2026-07-07 snapshot — resolve each cited `path:line` by its **named symbol** via [ANCHORS.md](ANCHORS.md); the tree is under active edit and line numbers drift.
 > **Findings:** H1–H4, D9, B1–B9, B11–B14, B17, B18, T8, T9, S6, S10–S12 · **Effort:** 3–5 days · **Depends on:** — (runs in parallel with WS-1/WS-3 immediately) · **Unblocks:** WS-5 (fixtures + green coverage gate), WS-6/WS-7 (`extend-exclude` of the dormant tree is the lint contract they delete against), WS-9 (bundle-diff + e2e-on-pilot is the release-hygiene base).
 
 ## Objective
