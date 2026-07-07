@@ -1158,6 +1158,24 @@ def put_correction(
             # job can re-derive verdict from divergence_score + the same
             # threshold table that was active at scoring time.
 
+    if student_id is None:
+        # Manifests are gated behind CONTEXT_MANIFEST_ENABLED and often
+        # empty even when the flag is on; the audit_log's unconditional
+        # "score" row for this submission always carries student_id — fall
+        # back to it so a correction can still be found per-student without
+        # that flag (see /admin/audit's own action=score entries).
+        try:
+            with _get_conn() as conn:
+                row = conn.execute(
+                    "SELECT student_id FROM audit_log WHERE action = 'score' "
+                    "AND details_json LIKE ? ORDER BY created_at DESC LIMIT 1",
+                    (f'%"submission_id": "{submission_id}"%',),
+                ).fetchone()
+                if row is not None:
+                    student_id = row[0]
+        except Exception:
+            pass
+
     try:
         with _get_conn() as conn:
             cur = conn.execute(
@@ -1744,8 +1762,9 @@ def put_bluebook_exam(rec: dict) -> None:
                 ),
             )
             conn.commit()
-    except Exception:
-        log.exception("put_bluebook_exam failed for %s", rec.get("id"))
+    except sqlite3.Error as e:
+        log.error("put_bluebook_exam failed for %s: %s", rec.get("id"), e)
+        raise
 
 
 def get_bluebook_exam(exam_id: str) -> dict | None:
@@ -1834,8 +1853,9 @@ def put_bluebook_submission(rec: dict) -> None:
                 ),
             )
             conn.commit()
-    except Exception:
-        log.exception("put_bluebook_submission failed for %s", rec.get("id"))
+    except sqlite3.Error as e:
+        log.error("put_bluebook_submission failed for %s: %s", rec.get("id"), e)
+        raise
 
 
 def list_bluebook_submissions(tenant_id: str | None) -> list[dict]:
@@ -1898,8 +1918,9 @@ def put_bluebook_course(rec: dict) -> None:
                 ),
             )
             conn.commit()
-    except Exception:
-        log.exception("put_bluebook_course failed for %s", rec.get("id"))
+    except sqlite3.Error as e:
+        log.error("put_bluebook_course failed for %s: %s", rec.get("id"), e)
+        raise
 
 
 def list_bluebook_courses(tenant_id: str | None) -> list[dict]:
