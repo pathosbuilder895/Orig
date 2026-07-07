@@ -1,0 +1,38 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-added-large-files
+        args: [--maxkb=500]          # bundle 94KB + vendor react-dom 132KB pass; stray models/DBs don't
+      - id: check-merge-conflict
+      - id: detect-private-key       # LTI RSA keys are handled in this repo
+      - id: end-of-file-fixer
+        exclude: ^demo/bluebook/(bluebook\.bundle\.js|vendor/)
+      - id: trailing-whitespace
+        exclude: ^demo/bluebook/(bluebook\.bundle\.js|vendor/)
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9                      # keep in lockstep with requirements-dev pin
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: finder-duplicates        # the recurring "file 2.py" problem, blocked at the gate
+        name: block macOS Finder duplicates
+        entry: bash -c 'f=$(git diff --cached --name-only | grep -E " [0-9]+\.[^/]*$| copy\." || true); [ -z "$f" ] || { echo "Finder duplicate staged:"; echo "$f"; exit 1; }'
+        language: system
+        pass_filenames: false
+      - id: no-db-files
+        name: block committed databases (except demo/seed.db)
+        entry: bash -c 'f=$(git diff --cached --name-only | grep -E "\.(db|sqlite3?)$" | grep -v "^demo/seed\.db$" || true); [ -z "$f" ] || { echo "DB file staged:"; echo "$f"; exit 1; }'
+        language: system
+        pass_filenames: false
+      - id: bundle-freshness         # pre-push heuristic; CI byte-diff (B2) is the real gate
+        name: bluebook bundle freshness
+        stages: [pre-push]
+        entry: bash -c 'if git diff --name-only @{push}.. 2>/dev/null | grep -q "^demo/bluebook/.*\.jsx$" && ! git diff --name-only @{push}.. | grep -q "^demo/bluebook/bluebook\.bundle\.js$"; then echo "JSX changed but bundle not rebuilt — run: cd demo/bluebook && npm run build"; exit 1; fi'
+        language: system
+        pass_filenames: false
