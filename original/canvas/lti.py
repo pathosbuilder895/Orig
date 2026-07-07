@@ -27,10 +27,9 @@ Canvas LTI 1.3 reference:
 from __future__ import annotations
 
 import hashlib
-import json
 import secrets
 import time
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 from urllib.parse import urlencode
 
 import httpx
@@ -39,7 +38,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from jose import JWTError, jwt as jose_jwt
 from sqlalchemy.orm import Session
 
-from original.canvas.keys import get_jwks, get_kid, sign_jwt
+from original.canvas.keys import get_jwks, sign_jwt
 from original.core.config import get_settings
 from original.core.logging import get_logger
 from original.db.session import SessionLocal
@@ -109,7 +108,7 @@ def _parse_claims(claims: dict, registration: "LTIRegistration") -> LTIContext:
     # Both Canvas and Blackboard use "id" in the context claim (IMS standard)
     context_id = context.get("id", "")
 
-    roles = claims.get(f"https://purl.imsglobal.org/spec/lti/claim/roles", [])
+    roles = claims.get("https://purl.imsglobal.org/spec/lti/claim/roles", [])
     resource_link = claims.get(f"{_NS}/resource_link", {}) or {}
     dl_settings = claims.get(f"{_DL_NS}/deep_linking_settings", {}) or {}
 

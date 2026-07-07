@@ -31,8 +31,8 @@ import argparse
 import os
 import sys
 
-
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
 
 def _get_db_session():
     """Return a raw SQLAlchemy Session connected to the configured database."""
@@ -52,6 +52,7 @@ def _print_err(msg: str) -> None:
 
 # ── Commands ───────────────────────────────────────────────────────────────────
 
+
 def cmd_create_admin(args: argparse.Namespace) -> int:
     """
     Create an admin user.
@@ -67,16 +68,8 @@ def cmd_create_admin(args: argparse.Namespace) -> int:
 
     settings = get_settings()
 
-    email = (
-        args.email
-        or os.environ.get("ADMIN_EMAIL")
-        or settings.FIRST_ADMIN_EMAIL
-    )
-    password = (
-        args.password
-        or os.environ.get("ADMIN_PASSWORD")
-        or settings.FIRST_ADMIN_PASSWORD
-    )
+    email = args.email or os.environ.get("ADMIN_EMAIL") or settings.FIRST_ADMIN_EMAIL
+    password = args.password or os.environ.get("ADMIN_PASSWORD") or settings.FIRST_ADMIN_PASSWORD
     institution_name = args.institution or "Default Seminary"
 
     # Validate password strength before touching the DB
@@ -96,11 +89,7 @@ def cmd_create_admin(args: argparse.Namespace) -> int:
             return 1
 
         # Ensure institution exists
-        institution = (
-            db.query(Institution)
-            .filter(Institution.name == institution_name)
-            .first()
-        )
+        institution = db.query(Institution).filter(Institution.name == institution_name).first()
         if not institution:
             subdomain = institution_name.lower().replace(" ", "-")
             institution = Institution(name=institution_name, subdomain=subdomain)
@@ -239,9 +228,7 @@ def cmd_rebuild_baselines(args: argparse.Namespace) -> int:
 
             except Exception as exc:
                 errors += 1
-                _print_err(
-                    f"  ERROR  {sample.id[:8]}… — {exc}"
-                )
+                _print_err(f"  ERROR  {sample.id[:8]}… — {exc}")
 
         if not args.dry_run and rebuilt > 0:
             db.commit()
@@ -272,6 +259,7 @@ def cmd_rebuild_baselines(args: argparse.Namespace) -> int:
 
 
 # ── Argument parser ────────────────────────────────────────────────────────────
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -328,6 +316,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     parser = build_parser()

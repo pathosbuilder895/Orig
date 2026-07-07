@@ -27,10 +27,9 @@ called from Phase 3 onwards via `original/context/manifest.build_manifest()`.
 from __future__ import annotations
 
 import logging
-import math
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -53,6 +52,7 @@ log = logging.getLogger(__name__)
 
 try:
     from langdetect import DetectorFactory, detect_langs  # type: ignore
+
     DetectorFactory.seed = 0
     _LANGDETECT_AVAILABLE = True
 except ImportError:  # pragma: no cover
@@ -68,7 +68,7 @@ _LANG_WINDOW_CHARS = 200
 _LANG_WINDOW_OVERLAP = 0.5
 
 
-def resolve_language(text: str) -> Dict[str, Any]:
+def resolve_language(text: str) -> dict[str, Any]:
     """
     Chunk-level language tagging via langdetect 200-char sliding windows.
 
@@ -91,7 +91,7 @@ def resolve_language(text: str) -> Dict[str, Any]:
         return {"primary": "en", "segments": {"en": 1.0}, "code_switched": False}
 
     step = max(1, int(_LANG_WINDOW_CHARS * (1 - _LANG_WINDOW_OVERLAP)))
-    counts: Dict[str, int] = {}
+    counts: dict[str, int] = {}
     total = 0
 
     if len(text) <= _LANG_WINDOW_CHARS:
@@ -110,7 +110,7 @@ def resolve_language(text: str) -> Dict[str, Any]:
         return {"primary": "unknown", "segments": {}, "code_switched": False}
 
     for start in range(0, len(text) - _LANG_WINDOW_CHARS + 1, step):
-        window = text[start:start + _LANG_WINDOW_CHARS]
+        window = text[start : start + _LANG_WINDOW_CHARS]
         if len(window.strip()) < 20:
             continue
         try:
@@ -129,8 +129,7 @@ def resolve_language(text: str) -> Dict[str, Any]:
     segments = {lang: round(c / total, 4) for lang, c in counts.items()}
     primary = max(segments.items(), key=lambda kv: kv[1])[0]
     code_switched = any(
-        lang != primary and prop > LANGUAGE_CODE_SWITCH_THRESHOLD
-        for lang, prop in segments.items()
+        lang != primary and prop > LANGUAGE_CODE_SWITCH_THRESHOLD for lang, prop in segments.items()
     )
 
     return {
@@ -144,7 +143,8 @@ def resolve_language(text: str) -> Dict[str, Any]:
 # 2.2 Genre Resolver — rule-based fallback (sklearn classifier deferred)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def resolve_genre(text: str, citation_data: Optional[CitationData] = None) -> Dict[str, Any]:
+
+def resolve_genre(text: str, citation_data: CitationData | None = None) -> dict[str, Any]:
     """
     Rule-based genre classification across the 8 GENRE_LABELS.
 
@@ -181,15 +181,13 @@ def resolve_genre(text: str, citation_data: Optional[CitationData] = None) -> Di
     block_quote_ratio = citation_data.block_quote_word_count / word_count
 
     # Imperative density (per 100 sentences) — reuse tier3 helper.
-    from ..features.tier3 import imperative_density, first_person_ratio
+    from ..features.tier3 import first_person_ratio, imperative_density
 
     imp_density = imperative_density(doc)
     fp_ratio = first_person_ratio(doc)
 
     # Mean sentence length
-    msl = (
-        sum(len(_tokenize(s)) for s in doc.sentences) / max(1, doc.sentence_count)
-    )
+    msl = sum(len(_tokenize(s)) for s in doc.sentences) / max(1, doc.sentence_count)
 
     signal_verb_total = sum(citation_data.signal_verb_counts.values())
 
@@ -222,10 +220,7 @@ def resolve_genre(text: str, citation_data: Optional[CitationData] = None) -> Di
     ):
         primary = "personal_essay"
     # 5. Short sentences + low citation + low first-person → blog_post
-    elif (
-        msl <= GENRE_RULES["informal_msl_max"]
-        and cite_density < 0.3
-    ):
+    elif msl <= GENRE_RULES["informal_msl_max"] and cite_density < 0.3:
         primary = "blog_post"
     # 6. Lots of dialogue or quoted speech without citation framing → creative_fiction
     elif (
@@ -257,8 +252,7 @@ def _looks_structured(text: str) -> bool:
     if not lines:
         return False
     structured_lines = sum(
-        1 for l in lines
-        if re.match(r"^\s*(?:[-*•]|\d+[\.)]|#{1,6}\s|\[\s*[xX ]\s*\])", l)
+        1 for l in lines if re.match(r"^\s*(?:[-*•]|\d+[\.)]|#{1,6}\s|\[\s*[xX ]\s*\])", l)
     )
     return structured_lines / len(lines) >= 0.3
 
@@ -267,7 +261,8 @@ def _looks_structured(text: str) -> bool:
 # 2.3 Topic Resolver
 # ══════════════════════════════════════════════════════════════════════════════
 
-def resolve_topic(text: str, baseline_texts: List[str]) -> Dict[str, Any]:
+
+def resolve_topic(text: str, baseline_texts: list[str]) -> dict[str, Any]:
     """
     TF-IDF cosine distance between the submission and the centroid of the
     student's baseline corpus. Maps the distance to a coarse novelty bucket.
@@ -295,7 +290,10 @@ def resolve_topic(text: str, baseline_texts: List[str]) -> Dict[str, Any]:
 
     try:
         vec = TfidfVectorizer(
-            min_df=1, max_features=300, sublinear_tf=True, strip_accents="unicode",
+            min_df=1,
+            max_features=300,
+            sublinear_tf=True,
+            strip_accents="unicode",
         )
         # Fit on baseline corpus, transform submission.
         baseline_matrix = vec.fit_transform(baseline_texts).toarray()
@@ -332,7 +330,8 @@ def resolve_topic(text: str, baseline_texts: List[str]) -> Dict[str, Any]:
 # 2.4 Length Resolver
 # ══════════════════════════════════════════════════════════════════════════════
 
-def resolve_length(text: str) -> Dict[str, Any]:
+
+def resolve_length(text: str) -> dict[str, Any]:
     """
     Token-count bucketing. Emits per-tier reliability flags so the manifest
     layer can mute features that degrade below their reliability floor.
@@ -370,9 +369,8 @@ def resolve_length(text: str) -> Dict[str, Any]:
 # 2.5 Citation Resolver
 # ══════════════════════════════════════════════════════════════════════════════
 
-def resolve_citations(
-    text: str, citation_data: Optional[CitationData] = None
-) -> Dict[str, Any]:
+
+def resolve_citations(text: str, citation_data: CitationData | None = None) -> dict[str, Any]:
     """
     Citation density, format, and block-quote proportion.
 
@@ -401,9 +399,7 @@ def resolve_citations(
 
     citations_present = cite_total > 0
     density = round((cite_total / word_count) * 100.0, 4)
-    block_quote_ratio = round(
-        citation_data.block_quote_word_count / word_count, 4
-    )
+    block_quote_ratio = round(citation_data.block_quote_word_count / word_count, 4)
 
     if not citations_present:
         fmt = "none"
@@ -422,9 +418,9 @@ def resolve_citations(
 
     return {
         "citations_present": citations_present,
-        "density":           density,
+        "density": density,
         "block_quote_ratio": block_quote_ratio,
-        "format":            fmt,
+        "format": fmt,
     }
 
 
@@ -432,9 +428,8 @@ def resolve_citations(
 # 2.6 Composition-Mode Resolver
 # ══════════════════════════════════════════════════════════════════════════════
 
-def resolve_composition_mode(
-    text: str, keystroke_data: Optional[Dict] = None
-) -> Dict[str, Any]:
+
+def resolve_composition_mode(text: str, keystroke_data: dict | None = None) -> dict[str, Any]:
     """
     Infer software mediation. Three modes:
 
@@ -488,8 +483,7 @@ def resolve_composition_mode(
     # ── Structured-template heuristic ─────────────────────────────────────────
     msl_var = _sentence_length_variance(doc)
     looks_structured = (
-        doc.sentence_count >= 5
-        and msl_var < 4.0  # very low variance in sentence length
+        doc.sentence_count >= 5 and msl_var < 4.0  # very low variance in sentence length
     )
 
     if software_mediated or looks_clean:
@@ -502,8 +496,8 @@ def resolve_composition_mode(
         mode = "natural_drafted"
 
     return {
-        "mode":              mode,
-        "edit_signature":    edit_signature,
+        "mode": mode,
+        "edit_signature": edit_signature,
         "software_mediated": software_mediated,
     }
 
@@ -522,10 +516,7 @@ def _estimate_punct_error_ratio(text: str) -> float:
     """Doubled punctuation / orphan-space punctuation per character."""
     if not text:
         return 0.0
-    errors = (
-        len(re.findall(r"[,.;:!?]{2,}", text))
-        + len(re.findall(r"\s+[,.;:!?]", text))
-    )
+    errors = len(re.findall(r"[,.;:!?]{2,}", text)) + len(re.findall(r"\s+[,.;:!?]", text))
     return errors / max(1, len(text))
 
 
@@ -546,11 +537,11 @@ _RESOLVER_TIMEOUT_SEC = 30.0
 
 def run_resolvers(
     text: str,
-    baseline_texts: List[str],
-    citation_data: Optional[CitationData] = None,
-    keystroke_data: Optional[Dict] = None,
-    metadata: Optional[Dict] = None,
-) -> Dict[str, Any]:
+    baseline_texts: list[str],
+    citation_data: CitationData | None = None,
+    keystroke_data: dict | None = None,
+    metadata: dict | None = None,
+) -> dict[str, Any]:
     """
     Run all six resolvers in parallel via ThreadPoolExecutor.
 
@@ -571,22 +562,19 @@ def run_resolvers(
             citation_data = None
 
     tasks = {
-        "language":         (resolve_language,         (text,)),
-        "genre":            (resolve_genre,            (text, citation_data)),
-        "topic":            (resolve_topic,            (text, baseline_texts or [])),
-        "length":           (resolve_length,           (text,)),
-        "citations":        (resolve_citations,        (text, citation_data)),
+        "language": (resolve_language, (text,)),
+        "genre": (resolve_genre, (text, citation_data)),
+        "topic": (resolve_topic, (text, baseline_texts or [])),
+        "length": (resolve_length, (text,)),
+        "citations": (resolve_citations, (text, citation_data)),
         "composition_mode": (resolve_composition_mode, (text, keystroke_data)),
     }
 
-    results: Dict[str, Any] = {}
-    errors: List[Dict[str, str]] = []
+    results: dict[str, Any] = {}
+    errors: list[dict[str, str]] = []
 
     with ThreadPoolExecutor(max_workers=6) as pool:
-        futures = {
-            pool.submit(fn, *args): name
-            for name, (fn, args) in tasks.items()
-        }
+        futures = {pool.submit(fn, *args): name for name, (fn, args) in tasks.items()}
         for fut in as_completed(futures, timeout=_RESOLVER_TIMEOUT_SEC):
             name = futures[fut]
             try:

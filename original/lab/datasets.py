@@ -14,8 +14,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List
-
 
 # Repository root, used to resolve default corpus + manifest paths.
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -24,29 +22,30 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 @dataclass
 class DatasetSpec:
     """One named dataset the lab knows how to run."""
-    label: str            # short stable identifier, e.g. "federalist"
-    name: str             # human-readable name for the dropdown
-    description: str      # one-line explanation
-    corpus_dir: str       # path to the directory of essay files
-    manifest_path: str    # path to the JSON manifest
-    author_filter: List[str]   # only run these author_ids; [] = all
+
+    label: str  # short stable identifier, e.g. "federalist"
+    name: str  # human-readable name for the dropdown
+    description: str  # one-line explanation
+    corpus_dir: str  # path to the directory of essay files
+    manifest_path: str  # path to the JSON manifest
+    author_filter: list[str]  # only run these author_ids; [] = all
     requires_build: bool = False
     build_cmd: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
-            "label":          self.label,
-            "name":           self.name,
-            "description":    self.description,
-            "author_filter":  self.author_filter,
+            "label": self.label,
+            "name": self.name,
+            "description": self.description,
+            "author_filter": self.author_filter,
             "requires_build": self.requires_build,
-            "build_cmd":      self.build_cmd,
+            "build_cmd": self.build_cmd,
         }
 
 
 # ── Registry ─────────────────────────────────────────────────────────────────
 
-_REGISTRY: Dict[str, DatasetSpec] = {
+_REGISTRY: dict[str, DatasetSpec] = {
     "multi_author": DatasetSpec(
         label="multi_author",
         name="Multi-Author (8 authors)",
@@ -69,7 +68,6 @@ _REGISTRY: Dict[str, DatasetSpec] = {
         manifest_path=str(_REPO_ROOT / "validation" / "manifest.json"),
         author_filter=["hamilton", "madison", "jay", "disputed_vs_madison"],
     ),
-
     # Wide-benchmark datasets — the corpus + manifest are generated on the
     # fly by `validation/wide/run.py` from the cached public datasets, so
     # the lab UI must build them before running. The build_cmd is shown
@@ -83,7 +81,7 @@ _REGISTRY: Dict[str, DatasetSpec] = {
             "Original separates real human writing from generated text in "
             "the same domain."
         ),
-        corpus_dir="",   # set at run time by the wide orchestrator
+        corpus_dir="",  # set at run time by the wide orchestrator
         manifest_path="",
         author_filter=[],
         requires_build=True,
@@ -135,7 +133,7 @@ _REGISTRY: Dict[str, DatasetSpec] = {
 }
 
 
-def list_datasets() -> List[Dict]:
+def list_datasets() -> list[dict]:
     """Return the registry as a JSON-friendly list (for the dropdown)."""
     return [spec.to_dict() for spec in _REGISTRY.values()]
 
@@ -143,6 +141,5 @@ def list_datasets() -> List[Dict]:
 def get_dataset(label: str) -> DatasetSpec:
     """Look up a dataset by label; raise KeyError if unknown."""
     if label not in _REGISTRY:
-        raise KeyError(f"unknown dataset: {label!r}; "
-                       f"known: {sorted(_REGISTRY)}")
+        raise KeyError(f"unknown dataset: {label!r}; " f"known: {sorted(_REGISTRY)}")
     return _REGISTRY[label]

@@ -6,7 +6,7 @@ Handles baseline sample submission and authorship scoring.
 
 import hashlib
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from pydantic import BaseModel

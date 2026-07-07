@@ -20,7 +20,7 @@ from typing import Optional
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from original.auth.jwt import TokenData, decode_token
+from original.auth.jwt import decode_token
 from original.core.exceptions import AuthError
 from original.db.models import User, UserRole, Student, Submission, Course, StudentEnrollment
 from original.db.session import get_db

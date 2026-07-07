@@ -10,7 +10,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, Optional
 
-from sqlalchemy import Boolean, DateTime, JSON, ForeignKey, String, Float, Integer, Index
+from sqlalchemy import DateTime, JSON, ForeignKey, String, Float, Integer, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from original.db.base import Base, UUIDMixin, TimestampMixin

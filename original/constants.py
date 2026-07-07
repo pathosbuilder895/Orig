@@ -9,7 +9,6 @@ Tiers 1–17 plus comparison/profile dimensions form the current 103-dimensional
 feature space. Legacy profiles with older dimensions are padded on load.
 """
 
-from typing import Dict, Tuple
 
 # ── Feature registry ────────────────────────────────────────────────────────
 
@@ -221,7 +220,7 @@ BASE_FEATURE_CODES = (
 )
 BASE_FEATURE_DIM = len(BASE_FEATURE_CODES)  # 96
 
-FEATURE_TIER: Dict[str, int] = (
+FEATURE_TIER: dict[str, int] = (
     {c: 1  for c in TIER1_CODES}
     | {c: 2  for c in TIER2_CODES}
     | {c: 3  for c in TIER3_CODES}
@@ -244,7 +243,7 @@ FEATURE_TIER: Dict[str, int] = (
 
 # Tier weights for destructive feature ranking in interference decomposition.
 # Higher = more suspicious when deviating.
-TIER_WEIGHTS: Dict[int, float] = {
+TIER_WEIGHTS: dict[int, float] = {
     0:  1.2,   # comparison features (meta)
     1:  1.0,   # surface stylometrics (baseline)
     2:  0.6,   # discourse structure — down from 1.0; topic-sensitive features
@@ -290,13 +289,13 @@ TIER_WEIGHTS: Dict[int, float] = {
 #   short   : ≤ 750 words   (covers the 250 + 500 stability rows)
 #   medium  : 750 - 2500    (covers the 1000 + 2000 rows)
 #   long    : > 2500 words  (covers the 5000 row + everything beyond)
-LENGTH_BUCKETS_BY_TOKENS: Dict[str, tuple] = {
+LENGTH_BUCKETS_BY_TOKENS: dict[str, tuple] = {
     "short":  (0,     750),
     "medium": (750,   2500),
     "long":   (2500,  10**9),
 }
 
-LENGTH_WEIGHT_SCHEDULE: Dict[str, Dict[int, float]] = {
+LENGTH_WEIGHT_SCHEDULE: dict[str, dict[int, float]] = {
     # "short" factors are F(500, tier) / median(F(500, ·)), clipped to
     # [0.5, 2.0], THEN rescaled so that sum((TIER_WEIGHTS × factor)²)
     # across the 103 features equals sum(TIER_WEIGHTS²) — the
@@ -354,7 +353,7 @@ LENGTH_WEIGHT_SCHEDULE: Dict[str, Dict[int, float]] = {
 #   DISABLED_FEATURE_GROUPS.discard("behavioral")  # enable when keystroke data flows
 #   DISABLED_FEATURE_GROUPS.add("semantic")        # disable if ST unavailable
 #
-FEATURE_GROUPS: Dict[str, list] = {
+FEATURE_GROUPS: dict[str, list] = {
     "behavioral": TIER17_CODES,
     "semantic":   ["semantic_field_dispersion", "semantic_centroid_proximity"],
     "pos_syntax": TIER5_CODES,
@@ -365,7 +364,7 @@ DISABLED_FEATURE_GROUPS: set = {
     "behavioral",   # requires live keystroke data from Bbook exam environment
 }
 
-FEATURE_NAMES: Dict[str, str] = {
+FEATURE_NAMES: dict[str, str] = {
     "type_token_ratio":           "Type-Token Ratio",
     "hapax_legomena_rate":        "Hapax Legomena Rate",
     "mean_sentence_length":       "Mean Sentence Length",
@@ -490,7 +489,7 @@ FEATURE_NAMES: Dict[str, str] = {
 # (min, max) for each feature in raw units.
 # Values outside these bounds are clipped.
 
-NORM_BOUNDS: Dict[str, Tuple[float, float]] = {
+NORM_BOUNDS: dict[str, tuple[float, float]] = {
     # Tier 1 — Surface stylometry
     # Empirically calibrated on a 20-text theological essay corpus (2026-03-17).
     # Bounds are set at (P05 − margin, P95 + margin) with manual review.
@@ -649,6 +648,7 @@ TRAJECTORY_GROWTH_THRESHOLD    = 0.25   # cos sim above this → growth
 TRAJECTORY_REGRESSIVE_THRESHOLD = -0.20  # cos sim below this → regressive
 TRAJECTORY_MIN_SAMPLES          = 3      # need ≥3 samples to estimate trajectory
 
+# Publish-sync: README.md action table, MODEL_CARD.md action table, OWNERS_MANUAL.md — update all three if these boundaries move.
 ACTION_THRESHOLDS = {
     "no_action":            (0.00, 0.40),
     "monitor":              (0.40, 0.60),   # raised from 0.55 — absorbs same-author
@@ -662,15 +662,15 @@ ACTION_THRESHOLDS = {
 
 FUNCTION_WORDS = {
     "a", "an", "the", "and", "but", "or", "nor", "for", "yet", "so",
-    "at", "by", "for", "from", "in", "into", "of", "on", "to", "up",
+    "at", "by", "from", "in", "into", "of", "on", "to", "up",
     "with", "as", "that", "this", "these", "those", "it", "its",
     "he", "she", "they", "we", "you", "i", "me", "him", "her", "us",
-    "them", "my", "your", "his", "our", "their", "its", "which", "who",
+    "them", "my", "your", "his", "our", "their", "which", "who",
     "whom", "whose", "what", "when", "where", "how", "if", "whether",
     "because", "although", "while", "since", "until", "unless", "after",
     "before", "during", "between", "through", "about", "against", "among",
     "around", "without", "within", "along", "following", "across", "behind",
-    "beyond", "plus", "except", "up", "out", "than", "there", "been",
+    "beyond", "plus", "except", "out", "than", "there", "been",
     "be", "am", "is", "are", "was", "were", "do", "does", "did",
     "have", "has", "had", "will", "would", "could", "should", "shall",
     "may", "might", "must", "can", "need", "dare", "ought",
@@ -775,7 +775,7 @@ TRANSITION_PHRASES = set(DISCOURSE_MARKERS.keys()) | {
 HEDGE_WORDS = {
     "perhaps", "maybe", "possibly", "probably", "apparently",
     "seemingly", "presumably", "likely", "unlikely", "arguably",
-    "arguably", "generally", "typically", "usually", "often",
+    "generally", "typically", "usually", "often",
     "sometimes", "tends", "tend", "appear", "appears", "seem",
     "seems", "suggest", "suggests", "indicate", "indicates",
     "might", "may", "could", "would", "somewhat", "rather",
@@ -838,8 +838,7 @@ THEOLOGICAL_TERMS = {
     "believers", "congregationalism", "cessationism", "continuationism",
     # Scripture integration
     "scripture", "scriptural", "biblical", "hermeneutic", "textual",
-    "exegete", "text", "passage", "narrative", "pericope",
-    "theological", "doctrinal", "apostolic", "prophetic",
+    "exegete", "text", "passage", "narrative", "theological", "doctrinal", "apostolic", "prophetic",
     "kerygmatic", "didactic", "parenetic", "doxological",
 }
 
@@ -893,7 +892,7 @@ GENRE_LABELS = [
 # Genre family mapping — used by Phase 4 baseline-cluster matching to award
 # partial credit when a submission and a baseline sample share a family but
 # not the exact label. Values must be a small fixed set (≤ 5 families).
-GENRE_FAMILIES: Dict[str, str] = {
+GENRE_FAMILIES: dict[str, str] = {
     "academic_exegesis":   "academic",
     "scholarly_essay":     "academic",
     "sermon":              "homiletic",
@@ -909,7 +908,7 @@ GENRE_FAMILIES: Dict[str, str] = {
 LANGUAGE_CODE_SWITCH_THRESHOLD = 0.05
 
 # Token-count buckets for the length resolver. Inclusive low, exclusive high.
-LENGTH_REGIME_BOUNDS: Dict[str, Tuple[int, float]] = {
+LENGTH_REGIME_BOUNDS: dict[str, tuple[int, float]] = {
     "micro":    (0, 150),
     "short":    (150, 500),
     "standard": (500, 3000),
@@ -918,7 +917,7 @@ LENGTH_REGIME_BOUNDS: Dict[str, Tuple[int, float]] = {
 
 # Topic novelty buckets — TF-IDF cosine distance from baseline centroid.
 # < low → "low" novelty; between low and medium → "medium"; ≥ medium → "high".
-TOPIC_NOVELTY_BOUNDS: Dict[str, float] = {
+TOPIC_NOVELTY_BOUNDS: dict[str, float] = {
     "low":    0.25,
     "medium": 0.50,
 }
@@ -954,7 +953,7 @@ COMPOSITION_RULES = {
 
 # Citation-format detection cues — used by `resolve_citations` to classify
 # the dominant style. Order matters: first match wins.
-CITATION_FORMAT_CUES: Dict[str, list] = {
+CITATION_FORMAT_CUES: dict[str, list] = {
     # (Smith, 2020, p. 45) / (Smith and Jones, 2020) — Chicago author-date / Turabian
     "chicago":  [r"\([A-Z][a-z]+,?\s+\d{4}(?:,\s*pp?\.\s*\d)", r"\bibid\.", r"\bop\.\s*cit\."],
     # Footnote superscripts → Chicago notes-bibliography or Turabian

@@ -7,7 +7,6 @@ Pydantic v2 schemas for auth endpoints.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 

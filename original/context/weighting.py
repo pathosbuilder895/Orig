@@ -21,7 +21,7 @@ When both feature flags are off (the default), nothing in this module runs —
 
 from __future__ import annotations
 
-from typing import Dict, Sequence
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -30,7 +30,6 @@ from ..constants import (
     FEATURE_TIER,
     TIER_WEIGHTS,
 )
-
 
 # ── Tunable factors (exposed at module top so tests can monkeypatch) ─────────
 
@@ -49,9 +48,10 @@ ATTENUATE_FACTOR: float = 0.6
 # Public API
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def build_adaptive_weight_vector(
-    manifest: "object",                        # ContextManifest, kept duck-typed to avoid import cycle
-    base_tier_weights: Dict[int, float] = TIER_WEIGHTS,
+    manifest: object,  # ContextManifest, duck-typed to avoid import cycle
+    base_tier_weights: dict[int, float] = TIER_WEIGHTS,
     feature_codes: Sequence[str] = ALL_FEATURE_CODES,
 ) -> np.ndarray:
     """
@@ -97,9 +97,9 @@ def build_adaptive_weight_vector(
         weight_mods = getattr(manifest, "weight_modifications", {}) or {}
         anchor_tiers = getattr(manifest, "anchor_tiers", []) or []
 
-    mute_codes      = set(weight_mods.get("mute_codes", []))
+    mute_codes = set(weight_mods.get("mute_codes", []))
     attenuate_codes = set(weight_mods.get("attenuate_codes", []))
-    amplify_codes   = set(weight_mods.get("amplify_codes", []))
+    amplify_codes = set(weight_mods.get("amplify_codes", []))
     anchor_tier_set = set(anchor_tiers)
 
     # Anchor tiers expand to per-code amplification — every code whose tier

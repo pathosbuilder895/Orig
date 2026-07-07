@@ -34,7 +34,6 @@ import json
 import os
 import time
 from dataclasses import dataclass
-from typing import Dict, Optional
 from urllib.parse import unquote
 
 from . import student_auth
@@ -55,9 +54,9 @@ DEMO_VISIBLE_ENVIRONMENTS = frozenset({"demo"})
 @dataclass(frozen=True)
 class Principal:
     user_id: str
-    role: str            # student | professor | admin | operator | super_admin | demo
-    tenant_id: str       # "demo" for the anonymous sandbox
-    auth_method: str     # "demo" | "session" | "principal-token"
+    role: str  # student | professor | admin | operator | super_admin | demo
+    tenant_id: str  # "demo" for the anonymous sandbox
+    auth_method: str  # "demo" | "session" | "principal-token"
     is_demo: bool = False
 
 
@@ -66,6 +65,7 @@ class TenantAccessError(PermissionError):
 
 
 # ── Signed principal token (professor / admin / operator) ─────────────────────
+
 
 def _secret() -> bytes:
     # Shares the signing secret with student_auth; same dev fallback so the demo
@@ -103,7 +103,7 @@ def mint_principal_token(
     return f"{payload}.{_sign(payload)}"
 
 
-def verify_principal_token(token: str) -> Optional[Dict]:
+def verify_principal_token(token: str) -> dict | None:
     """Return ``{sub, role, tid, exp}`` if valid+unexpired, else None."""
     if not token or "." not in token:
         return None
@@ -123,14 +123,15 @@ def verify_principal_token(token: str) -> Optional[Dict]:
 
 # ── Tenant helpers ────────────────────────────────────────────────────────────
 
-def tenant_of(student_id: str) -> Optional[str]:
+
+def tenant_of(student_id: str) -> str | None:
     """Tenant slug prefix before ':' — or None for a legacy flat id."""
     if not student_id or ":" not in student_id:
         return None
     return student_id.split(":", 1)[0]
 
 
-_ENV_CACHE: Dict[str, Optional[str]] = {}
+_ENV_CACHE: dict[str, str | None] = {}
 
 
 def invalidate_tenant_cache() -> None:
@@ -138,13 +139,14 @@ def invalidate_tenant_cache() -> None:
     _ENV_CACHE.clear()
 
 
-def tenant_environment(slug: str) -> Optional[str]:
+def tenant_environment(slug: str) -> str | None:
     """Registered environment ('demo'/'pilot'/'production') or None if unknown. Cached."""
     if slug in _ENV_CACHE:
         return _ENV_CACHE[slug]
-    env: Optional[str] = None
+    env: str | None = None
     try:
         from . import store
+
         rec = store.get_tenant(slug)
         if rec:
             env = rec.get("environment")
@@ -155,6 +157,7 @@ def tenant_environment(slug: str) -> Optional[str]:
 
 
 # ── Identity resolution ────────────────────────────────────────────────────────
+
 
 def _bearer(request) -> str:
     h = request.headers.get("authorization") or request.headers.get("Authorization") or ""
@@ -201,6 +204,7 @@ def resolve_principal(request) -> Principal:
 
 # ── Authorization ──────────────────────────────────────────────────────────────
 
+
 def assert_student_access(principal: Principal, student_id: str) -> None:
     """Raise ``TenantAccessError`` if ``principal`` may not touch ``student_id``."""
     t = tenant_of(student_id)
@@ -212,9 +216,7 @@ def assert_student_access(principal: Principal, student_id: str) -> None:
             return
         if tenant_environment(t) in DEMO_VISIBLE_ENVIRONMENTS:
             return
-        raise TenantAccessError(
-            f"demo principal cannot access tenant '{t}' (real data)"
-        )
+        raise TenantAccessError(f"demo principal cannot access tenant '{t}' (real data)")
 
     # Authenticated principals
     if principal.role in SUPER_ROLES:
@@ -227,18 +229,14 @@ def assert_student_access(principal: Principal, student_id: str) -> None:
     if principal.role == "student":
         if student_id == principal.user_id:
             return
-        raise TenantAccessError(
-            f"student {principal.user_id} cannot access '{student_id}'"
-        )
+        raise TenantAccessError(f"student {principal.user_id} cannot access '{student_id}'")
 
     if t is not None and t == principal.tenant_id:
         return
-    raise TenantAccessError(
-        f"{principal.role}@{principal.tenant_id} cannot access '{student_id}'"
-    )
+    raise TenantAccessError(f"{principal.role}@{principal.tenant_id} cannot access '{student_id}'")
 
 
-def extract_scoped_id(path: str) -> Optional[str]:
+def extract_scoped_id(path: str) -> str | None:
     """Return the tenant-scoped identity id embedded in a request path, else None.
 
     Covers ``/students/{id}/...`` and ``/canvas/baseline/{id}/...``. The list

@@ -7,19 +7,23 @@ and SBTS-specific theological register.
 """
 
 import re
-import math
-from collections import Counter
-from typing import List, Dict, Set
 
-from .tier1 import TextDoc, _tokenize
 from ..constants import (
-    HEDGE_WORDS, ASSERTION_WORDS, CLAIM_MARKERS, AUTHORITY_MARKERS,
-    FUNCTION_WORDS, STOP_WORDS, FIRST_PERSON, PERSONAL_PRONOUNS,
-    THEOLOGICAL_TERMS, SCRIPTURE_PATTERNS, CONFESSIONAL_MARKERS,
+    ASSERTION_WORDS,
+    AUTHORITY_MARKERS,
+    CLAIM_MARKERS,
+    CONFESSIONAL_MARKERS,
+    FIRST_PERSON,
+    HEDGE_WORDS,
+    PERSONAL_PRONOUNS,
+    SCRIPTURE_PATTERNS,
+    STOP_WORDS,
+    THEOLOGICAL_TERMS,
 )
-
+from .tier1 import TextDoc, _tokenize
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
 
 def _per_100(count: float, word_count: int) -> float:
     if not word_count:
@@ -27,7 +31,7 @@ def _per_100(count: float, word_count: int) -> float:
     return count / word_count * 100
 
 
-def _count_phrases(text: str, phrases: Set[str]) -> int:
+def _count_phrases(text: str, phrases: set[str]) -> int:
     """Count occurrences of a set of phrases/words in lower-cased text."""
     lower = text.lower()
     count = 0
@@ -35,11 +39,12 @@ def _count_phrases(text: str, phrases: Set[str]) -> int:
         if " " in phrase:
             count += lower.count(phrase)
         else:
-            count += len(re.findall(r'\b' + re.escape(phrase) + r'\b', lower))
+            count += len(re.findall(r"\b" + re.escape(phrase) + r"\b", lower))
     return count
 
 
 # ── Tier 3 extractors ────────────────────────────────────────────────────────
+
 
 def epistemic_certainty_ratio(doc: TextDoc) -> float:
     """
@@ -88,8 +93,12 @@ def source_integration_style(doc: TextDoc) -> float:
     if not citation_indices:
         # No citations detected — check if synthesis language present
         synth_markers = {
-            "in other words", "this means", "what paul means",
-            "the significance", "this implies", "therefore",
+            "in other words",
+            "this means",
+            "what paul means",
+            "the significance",
+            "this implies",
+            "therefore",
         }
         synth_count = _count_phrases(lower, synth_markers)
         return min(synth_count / max(1, len(sents)) * 3, 1.0)
@@ -100,8 +109,7 @@ def source_integration_style(doc: TextDoc) -> float:
             next_sent = sents[idx + 1]
             # Commentary: no citation, has evaluative/analytical words
             if (idx + 1) not in citation_indices:
-                cw = [w for w in _tokenize(next_sent)
-                      if w.lower() not in STOP_WORDS and len(w) > 3]
+                cw = [w for w in _tokenize(next_sent) if w.lower() not in STOP_WORDS and len(w) > 3]
                 if len(cw) >= 4:
                     comment_count += 1
 
@@ -114,10 +122,22 @@ def counter_argument_ratio(doc: TextDoc) -> float:
     Signals that the writer acknowledges and addresses objections.
     """
     adversative_openers = {
-        "however", "nevertheless", "nonetheless", "yet", "but",
-        "although", "even though", "while", "despite", "granted",
-        "admittedly", "it might be objected", "one might argue",
-        "some would argue", "critics contend", "it could be said",
+        "however",
+        "nevertheless",
+        "nonetheless",
+        "yet",
+        "but",
+        "although",
+        "even though",
+        "while",
+        "despite",
+        "granted",
+        "admittedly",
+        "it might be objected",
+        "one might argue",
+        "some would argue",
+        "critics contend",
+        "it could be said",
         "one could argue",
     }
     if not doc.sentence_count:
@@ -127,8 +147,7 @@ def counter_argument_ratio(doc: TextDoc) -> float:
         first_words = " ".join(_tokenize(sent)[:6]).lower()
         # Use word-boundary regex to avoid false positives from substring matches
         # (e.g. "but" inside "about"). Check only the first ~6 tokens.
-        if any(re.search(r'\b' + re.escape(op) + r'\b', first_words)
-               for op in adversative_openers):
+        if any(re.search(r"\b" + re.escape(op) + r"\b", first_words) for op in adversative_openers):
             count += 1
     return count / doc.sentence_count
 
@@ -160,23 +179,64 @@ def imperative_density(doc: TextDoc) -> float:
 
     # Academic-prose imperatives
     academic_imperatives = {
-        "consider", "note", "observe", "recall", "recognize", "acknowledge",
-        "see", "compare", "contrast", "examine", "notice", "imagine",
-        "suppose", "assume", "grant", "reflect", "think", "understand",
-        "distinguish", "recall", "apply", "evaluate", "assess",
+        "consider",
+        "note",
+        "observe",
+        "recall",
+        "recognize",
+        "acknowledge",
+        "see",
+        "compare",
+        "contrast",
+        "examine",
+        "notice",
+        "imagine",
+        "suppose",
+        "assume",
+        "grant",
+        "reflect",
+        "think",
+        "understand",
+        "distinguish",
+        "apply",
+        "evaluate",
+        "assess",
     }
     # Pastoral / homiletical imperatives common in theological writing
     pastoral_imperatives = {
-        "receive", "pray", "confess", "serve", "give", "seek", "trust",
-        "follow", "remember", "read", "listen", "come", "go", "be",
-        "love", "forgive", "worship", "ask", "rest", "rejoice",
-        "repent", "believe", "obey", "know", "take", "keep", "let",
+        "receive",
+        "pray",
+        "confess",
+        "serve",
+        "give",
+        "seek",
+        "trust",
+        "follow",
+        "remember",
+        "read",
+        "listen",
+        "come",
+        "go",
+        "be",
+        "love",
+        "forgive",
+        "worship",
+        "ask",
+        "rest",
+        "rejoice",
+        "repent",
+        "believe",
+        "obey",
+        "know",
+        "take",
+        "keep",
+        "let",
     }
     imperative_verbs = academic_imperatives | pastoral_imperatives
 
     count = 0
     for sent in doc.sentences:
-        first = re.match(r'(\w+)', sent.lstrip())
+        first = re.match(r"(\w+)", sent.lstrip())
         if first and first.group(1).lower() in imperative_verbs:
             count += 1
     return _per_100(count, doc.word_count)
@@ -212,18 +272,39 @@ def conclusion_strategy_score(doc: TextDoc) -> float:
     conclusion_text = lower[cutoff:]
 
     summary_markers = {
-        "in summary", "in conclusion", "to conclude", "to summarize",
-        "thus", "therefore", "in sum", "in short", "briefly",
+        "in summary",
+        "in conclusion",
+        "to conclude",
+        "to summarize",
+        "thus",
+        "therefore",
+        "in sum",
+        "in short",
+        "briefly",
     }
     implication_markers = {
-        "this means", "this implies", "this suggests", "the implication",
-        "what this means", "consequently", "it follows", "the significance",
-        "for the church", "for theology", "for ministry",
+        "this means",
+        "this implies",
+        "this suggests",
+        "the implication",
+        "what this means",
+        "consequently",
+        "it follows",
+        "the significance",
+        "for the church",
+        "for theology",
+        "for ministry",
     }
     open_markers = {
-        "further research", "future work", "remains to be seen",
-        "question for further", "deserves further", "invites further",
-        "more work is needed", "not yet resolved", "an open question",
+        "further research",
+        "future work",
+        "remains to be seen",
+        "question for further",
+        "deserves further",
+        "invites further",
+        "more work is needed",
+        "not yet resolved",
+        "an open question",
     }
 
     has_summary = _count_phrases(conclusion_text, summary_markers) > 0
@@ -255,18 +336,19 @@ def theological_register_score(doc: TextDoc) -> float:
 
 # ── Public extraction function ───────────────────────────────────────────────
 
-def extract_tier3(doc: TextDoc) -> Dict[str, float]:
+
+def extract_tier3(doc: TextDoc) -> dict[str, float]:
     return {
-        "epistemic_certainty_ratio":  epistemic_certainty_ratio(doc),
-        "hedging_density":            hedging_density(doc),
-        "assertion_density":          assertion_density(doc),
-        "source_integration_style":   source_integration_style(doc),
-        "counter_argument_ratio":     counter_argument_ratio(doc),
-        "claim_density":              claim_density(doc),
-        "question_ratio":             question_ratio(doc),
-        "imperative_density":         imperative_density(doc),
-        "first_person_ratio":         first_person_ratio(doc),
-        "appeal_to_authority_density":appeal_to_authority_density(doc),
-        "conclusion_strategy_score":  conclusion_strategy_score(doc),
+        "epistemic_certainty_ratio": epistemic_certainty_ratio(doc),
+        "hedging_density": hedging_density(doc),
+        "assertion_density": assertion_density(doc),
+        "source_integration_style": source_integration_style(doc),
+        "counter_argument_ratio": counter_argument_ratio(doc),
+        "claim_density": claim_density(doc),
+        "question_ratio": question_ratio(doc),
+        "imperative_density": imperative_density(doc),
+        "first_person_ratio": first_person_ratio(doc),
+        "appeal_to_authority_density": appeal_to_authority_density(doc),
+        "conclusion_strategy_score": conclusion_strategy_score(doc),
         "theological_register_score": theological_register_score(doc),
     }

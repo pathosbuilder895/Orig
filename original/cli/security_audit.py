@@ -24,14 +24,11 @@ Example:
 from __future__ import annotations
 
 import argparse
-import ast
 import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional, Tuple
 
-from original.auth.jwt import TokenData
 from original.core.config import get_settings
 from original.core.logging import get_logger
 
@@ -110,9 +107,7 @@ class SecurityAudit:
 
         # Check secret key strength
         if len(settings.SECRET_KEY) < 32:
-            self._print_err(
-                f"SECRET_KEY is too short: {len(settings.SECRET_KEY)} chars (min 32)"
-            )
+            self._print_err(f"SECRET_KEY is too short: {len(settings.SECRET_KEY)} chars (min 32)")
         else:
             self._print_ok(f"SECRET_KEY is strong: {len(settings.SECRET_KEY)} chars")
 
@@ -407,7 +402,7 @@ class SecurityAudit:
             return 1
 
 
-def main(args: Optional[list[str]] = None) -> int:
+def main(args: list[str] | None = None) -> int:
     """
     Main entry point for the security audit CLI command.
 

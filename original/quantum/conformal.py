@@ -39,14 +39,12 @@ The calibration set grows automatically:
 
 from __future__ import annotations
 
-from typing import List, Optional
-
-
 # ── Conformal p-value ─────────────────────────────────────────────────────────
+
 
 def conformal_pvalue(
     fidelity: float,
-    calibration_fidelities: List[float],
+    calibration_fidelities: list[float],
 ) -> float:
     """
     Compute the conformal p-value for a submission fidelity score.
@@ -64,7 +62,7 @@ def conformal_pvalue(
     """
     n = len(calibration_fidelities)
     if n == 0:
-        return 0.5   # no calibration data — do not act on this signal alone
+        return 0.5  # no calibration data — do not act on this signal alone
 
     # Count how many calibration scores are ≤ fidelity (fidelity looks at least
     # this authentic).  Dividing by (n + 1) gives a valid p-value.
@@ -73,6 +71,7 @@ def conformal_pvalue(
 
 
 # ── Verdict mapping ───────────────────────────────────────────────────────────
+
 
 def verdict_from_pvalue(
     p_value: float,
@@ -112,6 +111,7 @@ def verdict_from_pvalue(
 
 # ── Asymmetric cost threshold ─────────────────────────────────────────────────
 
+
 def asymmetric_threshold(cost_fp: float, cost_fn: float) -> float:
     """
     Compute the Bayes-optimal significance threshold for asymmetric costs.
@@ -137,7 +137,7 @@ def asymmetric_threshold(cost_fp: float, cost_fn: float) -> float:
     """
     denom = cost_fp + cost_fn
     if denom < 1e-12:
-        return 0.05   # degenerate — return default
+        return 0.05  # degenerate — return default
     return float(cost_fp / denom)
 
 

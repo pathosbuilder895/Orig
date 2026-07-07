@@ -40,8 +40,7 @@ from __future__ import annotations
 import logging
 import math
 import re
-from collections import Counter, defaultdict
-from typing import Dict, List, Optional, Tuple
+from collections import Counter
 
 import numpy as np
 
@@ -52,7 +51,7 @@ log = logging.getLogger(__name__)
 # ── Lazy spaCy ───────────────────────────────────────────────────────────────
 
 _nlp = None
-_spacy_ok: Optional[bool] = None
+_spacy_ok: bool | None = None
 
 
 def _get_nlp():
@@ -60,6 +59,7 @@ def _get_nlp():
     if _spacy_ok is None:
         try:
             import spacy
+
             _nlp = spacy.load("en_core_web_sm", disable=["ner"])
             _spacy_ok = True
         except (ImportError, OSError):
@@ -75,12 +75,12 @@ _LONG_VOWEL_RE = re.compile(r"[aeiou]{2,}|[aeio][yw]|[aeiou](?=[^aeiou\s]{0,1}\s
 _VOWEL_GROUP_RE = re.compile(r"[aeiou]+", re.I)
 
 
-def _syllable_groups(word: str) -> List[str]:
+def _syllable_groups(word: str) -> list[str]:
     """Return vowel-cluster groups as proxy syllables."""
     return _VOWEL_GROUP_RE.findall(word)
 
 
-def _word_stress(word: str) -> List[int]:
+def _word_stress(word: str) -> list[int]:
     """Binary stress sequence for a word (1=stressed, 0=unstressed).
 
     Heuristic: penultimate stress for polysyllabic words.
@@ -91,14 +91,14 @@ def _word_stress(word: str) -> List[int]:
     if n == 1:
         stress[0] = 1
     elif n >= 2:
-        stress[-2] = 1   # penultimate (most common English pattern)
+        stress[-2] = 1  # penultimate (most common English pattern)
     return stress
 
 
-def _sentence_stress_tail(sentence: str, n_syllables: int = 6) -> List[int]:
+def _sentence_stress_tail(sentence: str, n_syllables: int = 6) -> list[int]:
     """Return last n_syllables stress values for a sentence."""
     words = [w for w in re.findall(r"[a-zA-Z']+", sentence) if re.search(r"[aeiou]", w, re.I)]
-    tail: List[int] = []
+    tail: list[int] = []
     for word in reversed(words):
         syl = _word_stress(word)
         tail = list(reversed(syl)) + tail
@@ -107,7 +107,7 @@ def _sentence_stress_tail(sentence: str, n_syllables: int = 6) -> List[int]:
     return tail[-n_syllables:] if len(tail) >= n_syllables else tail
 
 
-def _classify_clausula(stress_tail: List[int]) -> str:
+def _classify_clausula(stress_tail: list[int]) -> str:
     """Classify the stress tail into a clausula type.
 
     Classical cursus patterns (last 4-6 syllables):
@@ -144,6 +144,7 @@ def _shannon_entropy(counts: Counter) -> float:
 
 
 # ── TIER 13: Prosodic Depth ───────────────────────────────────────────────────
+
 
 def _clausula_type_consistency(doc: TextDoc) -> float:
     """1 − normalised entropy of sentence-final clausula types.
@@ -209,9 +210,9 @@ def _arc_resolution_score(doc: TextDoc) -> float:
     n = len(lengths)
     q = n // 4
     q1 = float(np.mean(lengths[:q])) if q > 0 else 0.0
-    q2 = float(np.mean(lengths[q:2*q])) if q > 0 else 0.0
-    q3 = float(np.mean(lengths[2*q:3*q])) if q > 0 else 0.0
-    q4 = float(np.mean(lengths[3*q:])) if q > 0 else 0.0
+    q2 = float(np.mean(lengths[q : 2 * q])) if q > 0 else 0.0
+    q3 = float(np.mean(lengths[2 * q : 3 * q])) if q > 0 else 0.0
+    q4 = float(np.mean(lengths[3 * q :])) if q > 0 else 0.0
     # Resolution: final quarter calmer (shorter) than middle
     middle_max = max(q1, q2, q3, 1.0)
     resolution_ratio = 1.0 - float(np.clip(q4 / middle_max, 0.0, 1.5)) / 1.5
@@ -229,11 +230,10 @@ def _metric_flatness_score(doc: TextDoc) -> float:
     """
     if not doc.paragraphs:
         return 0.5
-    densities: List[float] = []
+    densities: list[float] = []
     for para_sents in doc.paragraphs:
         para_text = " ".join(para_sents)
-        words = [w for w in re.findall(r"[a-zA-Z]+", para_text)
-                 if re.search(r"[aeiou]", w, re.I)]
+        words = [w for w in re.findall(r"[a-zA-Z]+", para_text) if re.search(r"[aeiou]", w, re.I)]
         if not words:
             continue
         stressed = sum(1 for w in words if len(_syllable_groups(w)) >= 2)
@@ -260,10 +260,15 @@ def _clausula_shape_preference(doc: TextDoc) -> float:
     A value near 0 = dactylic style; near 1 = classical rhetorical close.
     """
     shape_scores = {
-        "dactylic": 0.0, "short": 0.1, "iambic": 0.25,
-        "trochaic": 0.5, "other": 0.5,
-        "tardus": 0.65, "spondaic": 0.75,
-        "velox": 0.9, "planus": 1.0,
+        "dactylic": 0.0,
+        "short": 0.1,
+        "iambic": 0.25,
+        "trochaic": 0.5,
+        "other": 0.5,
+        "tardus": 0.65,
+        "spondaic": 0.75,
+        "velox": 0.9,
+        "planus": 1.0,
     }
     if doc.sentence_count < 2:
         return 0.5
@@ -281,9 +286,20 @@ def _clausula_shape_preference(doc: TextDoc) -> float:
 # A sentence containing `, [lowercase subject word]` where both sides
 # contain a verb is a candidate comma splice.
 _SUBJECT_WORDS = {
-    "i", "he", "she", "it", "we", "they", "you",
-    "this", "that", "these", "those",
-    "the", "a", "an",
+    "i",
+    "he",
+    "she",
+    "it",
+    "we",
+    "they",
+    "you",
+    "this",
+    "that",
+    "these",
+    "those",
+    "the",
+    "a",
+    "an",
 }
 _VERB_RE = re.compile(
     r"\b(is|are|was|were|has|have|had|do|does|did|will|would|could|should|"
@@ -320,7 +336,7 @@ def _error_topology_consistency(doc: TextDoc) -> float:
     A writer who always puts splices at paragraph midpoints has LOW entropy
     → high consistency (near 1.0).  Random placement → near 0.0.
     """
-    positions: Counter = Counter()   # "early"/"mid"/"late"
+    positions: Counter = Counter()  # "early"/"mid"/"late"
     for para in doc.paragraphs:
         n = max(len(para), 1)
         for i, sent in enumerate(para):
@@ -334,9 +350,9 @@ def _error_topology_consistency(doc: TextDoc) -> float:
                     positions["late"] += 1
     total = sum(positions.values())
     if total < 2:
-        return 0.5   # neutral: not enough splices to judge
+        return 0.5  # neutral: not enough splices to judge
     h = _shannon_entropy(positions)
-    max_h = math.log2(3)   # 3 bins
+    max_h = math.log2(3)  # 3 bins
     return float(np.clip(1.0 - h / max_h, 0.0, 1.0))
 
 
@@ -357,18 +373,21 @@ def _article_omission_rate(doc: TextDoc) -> float:
         # Use spaCy dependency parse: count det-less singular common nouns
         # that are governed by a preposition (an article-drop position).
         try:
-            spacy_doc = nlp(doc.clean[:4000])   # truncate for speed
+            spacy_doc = nlp(doc.clean[:4000])  # truncate for speed
             omissions = 0
-            prep_governed: set = set()   # token indices that are in prep phrase
+            prep_governed: set = set()  # token indices that are in prep phrase
             for tok in spacy_doc:
                 # Mark tokens whose head is a preposition
                 if tok.head.pos_ == "ADP":
                     prep_governed.add(tok.i)
             for tok in spacy_doc:
                 # A common singular noun in a prepositional phrase without DET subtree
-                if (tok.pos_ == "NOUN" and tok.i in prep_governed
-                        and not tok.text.endswith("s")           # rough singular check
-                        and not any(c.pos_ == "DET" for c in tok.children)):
+                if (
+                    tok.pos_ == "NOUN"
+                    and tok.i in prep_governed
+                    and not tok.text.endswith("s")  # rough singular check
+                    and not any(c.pos_ == "DET" for c in tok.children)
+                ):
                     omissions += 1
             total_words = len(doc.words)
             # Normalise: ceiling at 20 per 100 words (very high ESL rate)
@@ -399,12 +418,12 @@ def _pronoun_ambiguity_rate(doc: TextDoc) -> float:
     in the window and flags ambiguity if count ≥ 2.
     """
     pronoun_sets = {
-        "m":   {"he", "him", "his", "himself"},
-        "f":   {"she", "her", "hers", "herself"},
-        "pl":  {"they", "them", "their", "theirs", "themselves"},
-        "n":   {"it", "its", "itself"},
+        "m": {"he", "him", "his", "himself"},
+        "f": {"she", "her", "hers", "herself"},
+        "pl": {"they", "them", "their", "theirs", "themselves"},
+        "n": {"it", "its", "itself"},
     }
-    pronoun_map: Dict[str, str] = {}
+    pronoun_map: dict[str, str] = {}
     for g, words in pronoun_sets.items():
         for w in words:
             pronoun_map[w] = g
@@ -421,13 +440,13 @@ def _pronoun_ambiguity_rate(doc: TextDoc) -> float:
                 continue
             total_pronouns += 1
             # Check window: previous 2 sentences
-            window_text = " ".join(sents[max(0, i-2):i])
+            window_text = " ".join(sents[max(0, i - 2) : i])
             # Count nouns (rough proxy: words that follow "the" or "a/an", or are title-cased)
             noun_candidates = len(re.findall(r"\b(?:the|a|an)\s+[A-Za-z]+", window_text))
             noun_candidates += len(re.findall(r"\b[A-Z][a-z]{2,}", window_text))
-            if noun_candidates >= 4:   # require 4+ candidates for conservative flagging
+            if noun_candidates >= 4:  # require 4+ candidates for conservative flagging
                 ambiguous += 1
-            break   # count once per sentence
+            break  # count once per sentence
 
     if total_pronouns == 0:
         return 0.5
@@ -443,7 +462,7 @@ def _comma_splice_rate(doc: TextDoc) -> float:
     if doc.sentence_count == 0:
         return 0.0
     splice_count = sum(1 for s in doc.sentences if _is_comma_splice(s))
-    rate = splice_count / doc.sentence_count * 100   # per 100 sentences
+    rate = splice_count / doc.sentence_count * 100  # per 100 sentences
     return float(np.clip(rate / 30.0, 0.0, 1.0))
 
 
@@ -459,13 +478,14 @@ _LATINATE_SUFFIXES = re.compile(
 
 # Nominalization patterns
 _NOMINALIZATION_RE = re.compile(
-    r"\b\w+(tion|tions|sion|sions|ment|ments|ness|nesses|ity|ities|"
-    r"ance|ances|ence|ences)\b",
+    r"\b\w+(tion|tions|sion|sions|ment|ments|ness|nesses|ity|ities|" r"ance|ances|ence|ences)\b",
     re.I,
 )
 
 # Polysyndeton: 3+ items joined by repeated conjunctions
-_POLY_RE = re.compile(r"\b(and|or|but)\b[^.!?]{1,40}\b(and|or|but)\b[^.!?]{1,40}\b(and|or|but)\b", re.I)
+_POLY_RE = re.compile(
+    r"\b(and|or|but)\b[^.!?]{1,40}\b(and|or|but)\b[^.!?]{1,40}\b(and|or|but)\b", re.I
+)
 # Asyndeton: 3+ items in a comma list with no final conjunction
 _ASYN_RE = re.compile(r"[a-z]+,\s+[a-z]+,\s+[a-z]+(?:,\s+[a-z]+)*(?!\s*(?:and|or|but))", re.I)
 
@@ -485,9 +505,9 @@ def _semantic_field_concentration(doc: TextDoc) -> float:
     # Extract candidate nouns (lowercase alphabetic tokens, 4+ chars,
     # not in function word list)
     from ..constants import FUNCTION_WORDS
+
     content_words = [
-        w.lower() for w in doc.words
-        if len(w) >= 4 and w.lower() not in FUNCTION_WORDS
+        w.lower() for w in doc.words if len(w) >= 4 and w.lower() not in FUNCTION_WORDS
     ]
     if not content_words:
         return 0.5
@@ -506,13 +526,13 @@ def _semantic_field_concentration(doc: TextDoc) -> float:
             if len(vecs) < 4:
                 raise ValueError("too few vectors")
             # Mean pairwise cosine similarity
-            mat = np.stack(vecs)   # (N, 300)
+            mat = np.stack(vecs)  # (N, 300)
             sim_matrix = mat @ mat.T
             n = len(vecs)
             # Extract upper triangle (excluding diagonal)
             mask = np.triu(np.ones((n, n), dtype=bool), k=1)
             mean_sim = float(np.mean(sim_matrix[mask]))
-            return float(np.clip((mean_sim + 1.0) / 2.0, 0.0, 1.0))   # [-1,1] → [0,1]
+            return float(np.clip((mean_sim + 1.0) / 2.0, 0.0, 1.0))  # [-1,1] → [0,1]
         except Exception:
             pass
 
@@ -561,7 +581,7 @@ def _chiasmus_rate(doc: TextDoc) -> float:
     if len(sents) < 4:
         return 0.0
 
-    def _pos_tags(text: str) -> List[str]:
+    def _pos_tags(text: str) -> list[str]:
         try:
             return [t.pos_ for t in nlp(text[:200]) if t.is_alpha]
         except Exception:
@@ -593,6 +613,7 @@ def _latinate_ratio(doc: TextDoc) -> float:
     divided by total content words (non-function, non-stop words).
     """
     from ..constants import FUNCTION_WORDS
+
     content = [w for w in doc.lower_words if w not in FUNCTION_WORDS and len(w) >= 3]
     if not content:
         return 0.5
@@ -610,13 +631,14 @@ def _nominalization_density(doc: TextDoc) -> float:
     if doc.word_count == 0:
         return 0.0
     noms = len(_NOMINALIZATION_RE.findall(doc.clean))
-    rate = noms / doc.word_count * 100   # per 100 words
+    rate = noms / doc.word_count * 100  # per 100 words
     return float(np.clip(rate / 15.0, 0.0, 1.0))
 
 
 # ── Public entry point ────────────────────────────────────────────────────────
 
-def extract_prosodic(doc: TextDoc) -> Dict[str, float]:
+
+def extract_prosodic(doc: TextDoc) -> dict[str, float]:
     """
     Extract all 15 Tier 13–15 prosodic and lexical features.
 
@@ -625,21 +647,21 @@ def extract_prosodic(doc: TextDoc) -> Dict[str, float]:
     """
     return {
         # Tier 13 — Prosodic Depth
-        "clausula_type_consistency":  _clausula_type_consistency(doc),
-        "breath_group_regularity":    _breath_group_regularity(doc),
-        "vowel_sonority_ratio":       _vowel_sonority_ratio(doc),
-        "arc_resolution_score":       _arc_resolution_score(doc),
-        "metric_flatness_score":      _metric_flatness_score(doc),
-        "clausula_shape_preference":  _clausula_shape_preference(doc),
+        "clausula_type_consistency": _clausula_type_consistency(doc),
+        "breath_group_regularity": _breath_group_regularity(doc),
+        "vowel_sonority_ratio": _vowel_sonority_ratio(doc),
+        "arc_resolution_score": _arc_resolution_score(doc),
+        "metric_flatness_score": _metric_flatness_score(doc),
+        "clausula_shape_preference": _clausula_shape_preference(doc),
         # Tier 14 — Error Topology & Syntax
         "error_topology_consistency": _error_topology_consistency(doc),
-        "article_omission_rate":      _article_omission_rate(doc),
-        "pronoun_ambiguity_rate":     _pronoun_ambiguity_rate(doc),
-        "comma_splice_rate":          _comma_splice_rate(doc),
+        "article_omission_rate": _article_omission_rate(doc),
+        "pronoun_ambiguity_rate": _pronoun_ambiguity_rate(doc),
+        "comma_splice_rate": _comma_splice_rate(doc),
         # Tier 15 — Lexical Architecture
         "semantic_field_concentration": _semantic_field_concentration(doc),
-        "polysyndeton_ratio":           _polysyndeton_ratio(doc),
-        "chiasmus_rate":                _chiasmus_rate(doc),
-        "latinate_ratio":               _latinate_ratio(doc),
-        "nominalization_density":       _nominalization_density(doc),
+        "polysyndeton_ratio": _polysyndeton_ratio(doc),
+        "chiasmus_rate": _chiasmus_rate(doc),
+        "latinate_ratio": _latinate_ratio(doc),
+        "nominalization_density": _nominalization_density(doc),
     }

@@ -19,7 +19,6 @@ import hashlib
 import hmac
 import secrets
 import uuid
-from typing import Dict, Optional
 
 from . import store
 
@@ -40,9 +39,7 @@ def verify_password(password: str, stored: str) -> bool:
         algo, iters, salt_hex, hash_hex = stored.split("$")
         if algo != _ALGO:
             return False
-        dk = hashlib.pbkdf2_hmac(
-            "sha256", password.encode(), bytes.fromhex(salt_hex), int(iters)
-        )
+        dk = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt_hex), int(iters))
         return hmac.compare_digest(dk.hex(), hash_hex)
     except Exception:
         return False
@@ -50,14 +47,10 @@ def verify_password(password: str, stored: str) -> bool:
 
 def _user_id(tenant_id: str, email: str) -> str:
     """Deterministic, tenant-scoped user id (stable across re-provisioning)."""
-    return uuid.uuid5(
-        uuid.NAMESPACE_URL, f"{tenant_id}:{email.strip().lower()}"
-    ).hex[:16]
+    return uuid.uuid5(uuid.NAMESPACE_URL, f"{tenant_id}:{email.strip().lower()}").hex[:16]
 
 
-def create_user(
-    email: str, password: str, role: str, tenant_id: str, name: str = ""
-) -> Dict:
+def create_user(email: str, password: str, role: str, tenant_id: str, name: str = "") -> dict:
     uid = _user_id(tenant_id, email)
     store.put_user(uid, email, hash_password(password), role, tenant_id, name)
     return {
@@ -69,7 +62,7 @@ def create_user(
     }
 
 
-def authenticate(email: str, password: str) -> Optional[Dict]:
+def authenticate(email: str, password: str) -> dict | None:
     """Return the user (minus password) on success, else None."""
     rec = store.get_user_by_email(email)
     if not rec:

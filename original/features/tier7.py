@@ -9,19 +9,17 @@ AI is prompted to "write like" a specific person.
 No new dependencies beyond a precomputed word-frequency table.
 """
 
-import math
-import re
 import json
+import math
 import os
 from collections import Counter
-from typing import Dict, List
 
+from ..constants import FUNCTION_WORDS, HEDGE_WORDS
 from .tier1 import TextDoc, _tokenize
-from ..constants import HEDGE_WORDS, FUNCTION_WORDS
 
 # ── Word frequency table (lazy-loaded) ──────────────────────────────────────
 
-_WORD_FREQS: Dict[str, float] = {}
+_WORD_FREQS: dict[str, float] = {}
 _FREQ_LOADED = False
 _FREQ_FLOOR = -15.0  # log2 frequency floor for unknown words
 
@@ -32,11 +30,10 @@ def _load_word_freqs():
     if _FREQ_LOADED:
         return
     freq_path = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        "data", "word_frequencies.json"
+        os.path.dirname(os.path.dirname(__file__)), "data", "word_frequencies.json"
     )
     try:
-        with open(freq_path, "r") as f:
+        with open(freq_path) as f:
             raw = json.load(f)
         # Convert raw counts to log2 probabilities
         total = sum(raw.values())
@@ -49,7 +46,8 @@ def _load_word_freqs():
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
-def _gini_coefficient(values: List[float]) -> float:
+
+def _gini_coefficient(values: list[float]) -> float:
     """Compute Gini coefficient for a list of non-negative values."""
     if not values or len(values) < 2:
         return 0.0
@@ -67,6 +65,7 @@ def _gini_coefficient(values: List[float]) -> float:
 
 
 # ── Tier 7 feature extractors ───────────────────────────────────────────────
+
 
 def burstiness(doc: TextDoc) -> float:
     """
@@ -130,14 +129,14 @@ def repetition_gap_entropy(doc: TextDoc) -> float:
         return 0.0
 
     # Build position lists for repeated content words
-    positions: Dict[str, List[int]] = {}
+    positions: dict[str, list[int]] = {}
     for i, w in enumerate(doc.lower_words):
         if len(w) >= 4 and w not in FUNCTION_WORDS:
             positions.setdefault(w, []).append(i)
 
     # Compute gaps for words that appear 2+ times
-    all_gaps: List[int] = []
-    for word, pos_list in positions.items():
+    all_gaps: list[int] = []
+    for _word, pos_list in positions.items():
         if len(pos_list) >= 2:
             for i in range(1, len(pos_list)):
                 all_gaps.append(pos_list[i] - pos_list[i - 1])
@@ -156,7 +155,7 @@ def repetition_gap_entropy(doc: TextDoc) -> float:
     return entropy
 
 
-def function_word_profile(doc: TextDoc) -> Dict[str, int]:
+def function_word_profile(doc: TextDoc) -> dict[str, int]:
     """
     Return the top-30 function word frequency profile for comparison.
 
@@ -183,7 +182,7 @@ def transition_predictability(doc: TextDoc) -> float:
         return 0.5  # neutral for single-paragraph texts
 
     # Build bag-of-words vectors per paragraph (content words only)
-    def _bow(sentences: List[str]) -> Counter:
+    def _bow(sentences: list[str]) -> Counter:
         words = Counter()
         for sent in sentences:
             for w in _tokenize(sent):
@@ -267,7 +266,7 @@ def filler_hedge_cluster_rate(doc: TextDoc) -> float:
         return 0.0
 
     total_words = len(doc.lower_words)
-    hedge_positions: List[float] = []
+    hedge_positions: list[float] = []
     for i, w in enumerate(doc.lower_words):
         if w in HEDGE_WORDS:
             hedge_positions.append(i / total_words)
@@ -277,26 +276,26 @@ def filler_hedge_cluster_rate(doc: TextDoc) -> float:
 
     # Compute gaps between consecutive hedge positions
     hedge_positions.sort()
-    gaps = [hedge_positions[i] - hedge_positions[i - 1]
-            for i in range(1, len(hedge_positions))]
+    gaps = [hedge_positions[i] - hedge_positions[i - 1] for i in range(1, len(hedge_positions))]
 
     return _gini_coefficient(gaps)
 
 
 # ── Public extraction function ───────────────────────────────────────────────
 
-def extract_tier7(doc: TextDoc) -> Dict[str, float]:
+
+def extract_tier7(doc: TextDoc) -> dict[str, float]:
     return {
-        "burstiness":                   burstiness(doc),
-        "perplexity_proxy":             perplexity_proxy(doc),
-        "repetition_gap_entropy":       repetition_gap_entropy(doc),
-        "transition_predictability":    transition_predictability(doc),
+        "burstiness": burstiness(doc),
+        "perplexity_proxy": perplexity_proxy(doc),
+        "repetition_gap_entropy": repetition_gap_entropy(doc),
+        "transition_predictability": transition_predictability(doc),
         "vocabulary_introduction_rate": vocabulary_introduction_rate(doc),
-        "filler_hedge_cluster_rate":    filler_hedge_cluster_rate(doc),
+        "filler_hedge_cluster_rate": filler_hedge_cluster_rate(doc),
     }
 
 
-def extract_tier7_profiles(doc: TextDoc) -> Dict[str, object]:
+def extract_tier7_profiles(doc: TextDoc) -> dict[str, object]:
     """Extract comparison profiles (stored alongside feature_vector)."""
     return {
         "_function_word_profile": function_word_profile(doc),

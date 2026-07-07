@@ -17,7 +17,7 @@ incrementally — see ADR-002 action items.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from . import store
 
@@ -27,27 +27,35 @@ class Repository(Protocol):
     """Storage operations the API depends on. Backend-agnostic."""
 
     # ── Formation pathways ────────────────────────────────────────────────
-    def get_formation_pathway(self, student_id: str) -> Optional[Dict]: ...
+    def get_formation_pathway(self, student_id: str) -> dict | None: ...
     def open_formation_pathway(
-        self, student_id: str, submission_id: Optional[str] = None,
-        reason: Optional[str] = None,
-    ) -> Optional[Dict]: ...
-    def advance_formation_pathway(self, student_id: str) -> Optional[Dict]: ...
+        self,
+        student_id: str,
+        submission_id: str | None = None,
+        reason: str | None = None,
+    ) -> dict | None: ...
+    def advance_formation_pathway(self, student_id: str) -> dict | None: ...
 
     # ── Tenants ───────────────────────────────────────────────────────────
-    def get_tenant(self, tenant_id: str) -> Optional[Dict]: ...
-    def list_tenants(self, environment: Optional[str] = None) -> List[Dict]: ...
+    def get_tenant(self, tenant_id: str) -> dict | None: ...
+    def list_tenants(self, environment: str | None = None) -> list[dict]: ...
     def put_tenant(
-        self, tenant_id: str, name: str, environment: str = "demo",
-        meta: Optional[Dict] = None,
+        self,
+        tenant_id: str,
+        name: str,
+        environment: str = "demo",
+        meta: dict | None = None,
     ) -> None: ...
-    def tenant_stats(self, tenant_id: str) -> Dict: ...
+    def tenant_stats(self, tenant_id: str) -> dict: ...
 
     # ── Audit log ─────────────────────────────────────────────────────────
     def list_audit(
-        self, student_id: Optional[str] = None, action: Optional[str] = None,
-        limit: int = 100, offset: int = 0,
-    ) -> Dict: ...
+        self,
+        student_id: str | None = None,
+        action: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> dict: ...
     def log_audit(self, action: str, **kwargs) -> None: ...
 
 
@@ -55,41 +63,48 @@ class SqliteRepository:
     """Repository backed by the demo SQLite store (``original.store``)."""
 
     # ── Formation pathways ────────────────────────────────────────────────
-    def get_formation_pathway(self, student_id: str) -> Optional[Dict]:
+    def get_formation_pathway(self, student_id: str) -> dict | None:
         return store.get_formation_pathway(student_id)
 
     def open_formation_pathway(
-        self, student_id: str, submission_id: Optional[str] = None,
-        reason: Optional[str] = None,
-    ) -> Optional[Dict]:
+        self,
+        student_id: str,
+        submission_id: str | None = None,
+        reason: str | None = None,
+    ) -> dict | None:
         return store.open_formation_pathway(student_id, submission_id, reason)
 
-    def advance_formation_pathway(self, student_id: str) -> Optional[Dict]:
+    def advance_formation_pathway(self, student_id: str) -> dict | None:
         return store.advance_formation_pathway(student_id)
 
     # ── Tenants ───────────────────────────────────────────────────────────
-    def get_tenant(self, tenant_id: str) -> Optional[Dict]:
+    def get_tenant(self, tenant_id: str) -> dict | None:
         return store.get_tenant(tenant_id)
 
-    def list_tenants(self, environment: Optional[str] = None) -> List[Dict]:
+    def list_tenants(self, environment: str | None = None) -> list[dict]:
         return store.list_tenants(environment=environment)
 
     def put_tenant(
-        self, tenant_id: str, name: str, environment: str = "demo",
-        meta: Optional[Dict] = None,
+        self,
+        tenant_id: str,
+        name: str,
+        environment: str = "demo",
+        meta: dict | None = None,
     ) -> None:
         store.put_tenant(tenant_id, name, environment=environment, meta=meta)
 
-    def tenant_stats(self, tenant_id: str) -> Dict:
+    def tenant_stats(self, tenant_id: str) -> dict:
         return store.tenant_stats(tenant_id)
 
     # ── Audit log ─────────────────────────────────────────────────────────
     def list_audit(
-        self, student_id: Optional[str] = None, action: Optional[str] = None,
-        limit: int = 100, offset: int = 0,
-    ) -> Dict:
-        return store.list_audit(student_id=student_id, action=action,
-                                limit=limit, offset=offset)
+        self,
+        student_id: str | None = None,
+        action: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> dict:
+        return store.list_audit(student_id=student_id, action=action, limit=limit, offset=offset)
 
     def log_audit(self, action: str, **kwargs) -> None:
         store.log_audit(action, **kwargs)
@@ -118,22 +133,39 @@ class PostgresRepository:
         raise NotImplementedError(self._NOT_READY.format(op=op))
 
     # Formation
-    def get_formation_pathway(self, student_id):                 self._todo("get_formation_pathway")
-    def open_formation_pathway(self, student_id, submission_id=None, reason=None): self._todo("open_formation_pathway")
-    def advance_formation_pathway(self, student_id):             self._todo("advance_formation_pathway")
+    def get_formation_pathway(self, student_id):
+        self._todo("get_formation_pathway")
+
+    def open_formation_pathway(self, student_id, submission_id=None, reason=None):
+        self._todo("open_formation_pathway")
+
+    def advance_formation_pathway(self, student_id):
+        self._todo("advance_formation_pathway")
+
     # Tenants
-    def get_tenant(self, tenant_id):                             self._todo("get_tenant")
-    def list_tenants(self, environment=None):                    self._todo("list_tenants")
-    def put_tenant(self, tenant_id, name, environment="demo", meta=None): self._todo("put_tenant")
-    def tenant_stats(self, tenant_id):                           self._todo("tenant_stats")
+    def get_tenant(self, tenant_id):
+        self._todo("get_tenant")
+
+    def list_tenants(self, environment=None):
+        self._todo("list_tenants")
+
+    def put_tenant(self, tenant_id, name, environment="demo", meta=None):
+        self._todo("put_tenant")
+
+    def tenant_stats(self, tenant_id):
+        self._todo("tenant_stats")
+
     # Audit
-    def list_audit(self, student_id=None, action=None, limit=100, offset=0): self._todo("list_audit")
-    def log_audit(self, action, **kwargs):                       self._todo("log_audit")
+    def list_audit(self, student_id=None, action=None, limit=100, offset=0):
+        self._todo("list_audit")
+
+    def log_audit(self, action, **kwargs):
+        self._todo("log_audit")
 
 
 # ── Factory ───────────────────────────────────────────────────────────────────
 
-_REPO: Optional[Repository] = None
+_REPO: Repository | None = None
 
 
 def get_repository(environment: str = "demo") -> Repository:

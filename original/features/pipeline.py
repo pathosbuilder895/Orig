@@ -16,12 +16,23 @@ tension_arc.analyze_tension_arc(), imported lazily to keep it optional
 during unit tests that don't have the full dependency stack.
 """
 
+from __future__ import annotations
+
 import math
-from collections import Counter
-from typing import Dict, Optional
 
 import numpy as np
 
+from ..constants import (
+    ALL_FEATURE_CODES,
+    BASE_FEATURE_CODES,
+    COMPARISON_CODES,
+    DISABLED_FEATURE_GROUPS,
+    MUSICAL_COMPARISON_CODES,
+    NORM_BOUNDS,
+    TIER17_CODES,
+)
+from .preprocess import preprocess  # backmatter strip + citation data
+from .prosodic import extract_prosodic  # Tiers 13–15
 from .tier1 import TextDoc, extract_tier1
 from .tier2 import extract_tier2
 from .tier3 import extract_tier3
@@ -30,18 +41,11 @@ from .tier5 import extract_tier5
 from .tier6 import extract_tier6
 from .tier7 import extract_tier7, extract_tier7_profiles
 from .tier8 import extract_tier8
-from .tier9 import extract_tier9_standalone, extract_tier9_profile, compute_tier9_comparison
-from .tier10 import extract_tier10_standalone, extract_tier10_profile, compute_tier10_comparison
-from .tier11 import extract_tier11_profile, compute_tier11_comparison
-from .prosodic import extract_prosodic                          # Tiers 13–15
-from .preprocess import preprocess                              # backmatter strip + citation data
-from .tier16 import extract_tier16                              # Tier 16 — Citation Fingerprint
-from .tier17 import extract_tier17                              # Tier 17 — Behavioral Biometrics
-from ..constants import (
-    NORM_BOUNDS, ALL_FEATURE_CODES, FEATURE_DIM,
-    BASE_FEATURE_CODES, COMPARISON_CODES, MUSICAL_COMPARISON_CODES,
-    TIER17_CODES, DISABLED_FEATURE_GROUPS,
-)
+from .tier9 import compute_tier9_comparison, extract_tier9_profile, extract_tier9_standalone
+from .tier10 import compute_tier10_comparison, extract_tier10_profile, extract_tier10_standalone
+from .tier11 import compute_tier11_comparison, extract_tier11_profile
+from .tier16 import extract_tier16  # Tier 16 — Citation Fingerprint
+from .tier17 import extract_tier17  # Tier 17 — Behavioral Biometrics
 
 
 def _normalise(raw: float, code: str) -> float:
@@ -52,6 +56,7 @@ def _normalise(raw: float, code: str) -> float:
 
 
 # ── Tier 12: Catastrophe Index wrapper ───────────────────────────────────────
+
 
 def _extract_catastrophe_index(doc: TextDoc) -> float:
     """
@@ -69,6 +74,7 @@ def _extract_catastrophe_index(doc: TextDoc) -> float:
     """
     try:
         from ..tension_arc import analyze_tension_arc
+
         result = analyze_tension_arc(doc.text, baseline_kappa=None)
         kappa = result.catastrophe_index
         return float(np.clip(kappa / 0.3, 0.0, 1.0))
@@ -78,10 +84,11 @@ def _extract_catastrophe_index(doc: TextDoc) -> float:
 
 # ── Feature extraction ────────────────────────────────────────────────────────
 
+
 def extract_features(
     text: str,
-    keystroke_data: Optional[Dict] = None,
-) -> Dict[str, float]:
+    keystroke_data: dict | None = None,
+) -> dict[str, float]:
     """
     Extract and normalise all base features from raw text.
 
@@ -108,7 +115,7 @@ def extract_features(
     # Build TextDoc from clean prose (not raw text)
     doc = TextDoc(prose)
 
-    raw: Dict[str, float] = {}
+    raw: dict[str, float] = {}
     raw.update(extract_tier1(doc))
     raw.update(extract_tier2(doc))
     raw.update(extract_tier3(doc))
@@ -116,12 +123,12 @@ def extract_features(
     raw.update(extract_tier5(doc))
     raw.update(extract_tier6(doc))
     raw.update(extract_tier7(doc))
-    raw.update(extract_tier8(doc))                        # Tier 8 — Prosodic Rhythm
-    raw.update(extract_tier9_standalone(doc))             # Tier 9 standalone
-    raw.update(extract_tier10_standalone(doc))            # Tier 10 standalone
+    raw.update(extract_tier8(doc))  # Tier 8 — Prosodic Rhythm
+    raw.update(extract_tier9_standalone(doc))  # Tier 9 standalone
+    raw.update(extract_tier10_standalone(doc))  # Tier 10 standalone
     raw["catastrophe_index"] = _extract_catastrophe_index(doc)  # Tier 12
-    raw.update(extract_prosodic(doc))                     # Tiers 13–15 (15 features)
-    raw.update(extract_tier16(citation_data))             # Tier 16 — Citation Fingerprint
+    raw.update(extract_prosodic(doc))  # Tiers 13–15 (15 features)
+    raw.update(extract_tier16(citation_data))  # Tier 16 — Citation Fingerprint
 
     # Tier 17 — Behavioral Biometrics (keystroke data from Bbook)
     # Only computed when: (a) keystroke_data is provided AND
@@ -134,7 +141,7 @@ def extract_features(
     else:
         for code in TIER17_CODES:
             lo, hi = NORM_BOUNDS[code]
-            raw[code] = (lo + hi) / 2   # midpoint → 0.5 after normalisation
+            raw[code] = (lo + hi) / 2  # midpoint → 0.5 after normalisation
 
     # Normalise base features (Tiers 8–12 standalone already output [0,1];
     # _normalise() is a no-op clip for bounds=(0.0, 1.0))
@@ -147,7 +154,7 @@ def extract_features(
     return result
 
 
-def extract_profiles(text: str) -> Dict[str, object]:
+def extract_profiles(text: str) -> dict[str, object]:
     """
     Extract comparison profiles from raw text.
 
@@ -160,19 +167,19 @@ def extract_profiles(text: str) -> Dict[str, object]:
     """
     prose, _ = preprocess(text)
     doc = TextDoc(prose)
-    profiles: Dict[str, object] = {}
+    profiles: dict[str, object] = {}
     profiles.update(extract_tier4_profiles(doc))
     profiles.update(extract_tier7_profiles(doc))
-    profiles.update(extract_tier9_profile(doc))    # Tier 9 — argument sequence
-    profiles.update(extract_tier10_profile(doc))   # Tier 10 — sentence embeddings
-    profiles.update(extract_tier11_profile(doc))   # Tier 11 — error profile
+    profiles.update(extract_tier9_profile(doc))  # Tier 9 — argument sequence
+    profiles.update(extract_tier10_profile(doc))  # Tier 10 — sentence embeddings
+    profiles.update(extract_tier11_profile(doc))  # Tier 11 — error profile
     return profiles
 
 
 def compute_comparison_features(
-    submission_profiles: Dict[str, object],
-    baseline_profiles: Dict[str, object],
-) -> Dict[str, float]:
+    submission_profiles: dict[str, object],
+    baseline_profiles: dict[str, object],
+) -> dict[str, float]:
     """
     Compute all comparison features between submission and baseline.
 
@@ -180,7 +187,7 @@ def compute_comparison_features(
     Musical comparison features (Tiers 9–11) are computed separately in
     compute_full_features() and are already normalised to [0,1].
     """
-    result: Dict[str, float] = {}
+    result: dict[str, float] = {}
 
     # Character trigram profile divergence (KL-divergence, bits)
     sub_trigrams = submission_profiles.get("_char_trigram_profile", {})
@@ -195,12 +202,12 @@ def compute_comparison_features(
     return result
 
 
-def normalise_comparison_features(raw: Dict[str, float]) -> Dict[str, float]:
+def normalise_comparison_features(raw: dict[str, float]) -> dict[str, float]:
     """Normalise raw comparison features to [0, 1]."""
     return {code: _normalise(val, code) for code, val in raw.items()}
 
 
-def _kl_divergence(p_counts: Dict, q_counts: Dict) -> float:
+def _kl_divergence(p_counts: dict, q_counts: dict) -> float:
     """
     Compute KL-divergence D_KL(P || Q) from frequency count dicts.
 
@@ -231,7 +238,7 @@ def _kl_divergence(p_counts: Dict, q_counts: Dict) -> float:
 
 def build_aggregate_baseline_profiles(
     baseline_texts: list[str],
-) -> Dict[str, object]:
+) -> dict[str, object]:
     """
     Build aggregate comparison profiles from multiple baseline texts.
 
@@ -240,14 +247,14 @@ def build_aggregate_baseline_profiles(
     error profiles) are collected into lists so that Tier 9/10/11 comparison
     functions can access per-sample structure.
     """
-    merged: Dict[str, object] = {
+    merged: dict[str, object] = {
         # Existing dict-merge profiles
-        "_char_trigram_profile":     {},
-        "_function_word_profile":    {},
+        "_char_trigram_profile": {},
+        "_function_word_profile": {},
         # New list-collect profiles (one entry per baseline sample)
         "_argument_sequence_profiles": [],
-        "_semantic_embeddings_list":   [],
-        "_error_profiles":             [],
+        "_semantic_embeddings_list": [],
+        "_error_profiles": [],
     }
 
     for text in baseline_texts:
@@ -259,16 +266,16 @@ def build_aggregate_baseline_profiles(
         for key in ("_char_trigram_profile", "_function_word_profile"):
             for tok, count in profiles.get(key, {}).items():
                 d = merged[key]
-                d[tok] = d.get(tok, 0) + count   # type: ignore[index]
+                d[tok] = d.get(tok, 0) + count  # type: ignore[index]
 
         # List-type: append per-sample values
-        merged["_argument_sequence_profiles"].append(          # type: ignore[union-attr]
+        merged["_argument_sequence_profiles"].append(  # type: ignore[union-attr]
             profiles.get("_argument_sequence_profile", [])
         )
-        merged["_semantic_embeddings_list"].append(            # type: ignore[union-attr]
+        merged["_semantic_embeddings_list"].append(  # type: ignore[union-attr]
             profiles.get("_semantic_embeddings")
         )
-        merged["_error_profiles"].append(                      # type: ignore[union-attr]
+        merged["_error_profiles"].append(  # type: ignore[union-attr]
             profiles.get("_error_profile", {})
         )
 
@@ -278,9 +285,9 @@ def build_aggregate_baseline_profiles(
 def compute_full_features(
     text: str,
     baseline_texts: list[str],
-    keystroke_data: Optional[Dict] = None,
-    baseline_indices: Optional[list[int]] = None,
-) -> Dict[str, float]:
+    keystroke_data: dict | None = None,
+    baseline_indices: list[int] | None = None,
+) -> dict[str, float]:
     """
     Extract all features including comparison features.
 
@@ -311,8 +318,7 @@ def compute_full_features(
     # path; [] yields anchor-only fallback (no comparison features computed).
     if baseline_indices is not None:
         baseline_texts = [
-            baseline_texts[i] for i in baseline_indices
-            if 0 <= i < len(baseline_texts)
+            baseline_texts[i] for i in baseline_indices if 0 <= i < len(baseline_texts)
         ]
 
     # If we have baseline texts, compute real comparison features
@@ -334,7 +340,7 @@ def compute_full_features(
 
 def feature_vector(
     text: str,
-    keystroke_data: Optional[Dict] = None,
+    keystroke_data: dict | None = None,
 ) -> np.ndarray:
     """
     Extract features and return as a numpy array of shape (FEATURE_DIM,).

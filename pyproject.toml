@@ -1,40 +1,65 @@
 [project]
 name = "original"
-version = "0.0.0"
+version = "0.1.0"
 description = "Original API — stylometric authorship detection"
 readme = "README.md"
 requires-python = ">=3.10"
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
-exclude = [".venv"]
+target-version = "py311"          # aligns with CI/Render; local .venv is still 3.9 (WS-2 task 2.6)
+extend-exclude = [
+  # dormant v1 tree — do not lint code scheduled for deletion (WS-6/WS-7 delete
+  # against this list; keep it verbatim, see docs/implementation/WS-2-guardrails.md)
+  "original/api", "original/canvas", "original/db", "original/core",
+  "original/schemas_v1", "original/middleware", "original/auth", "original/tasks",
+  "frontend", "web", "legacy_mvp", "demo/bluebook/vendor",
+]
 
 [tool.ruff.lint]
-# Ambiguous 1-letter names (l/O/I) -- common in math/quantum code, low value here.
-ignore = ["E741"]
+select = [
+  "E", "F",        # pycodestyle / pyflakes
+  "I",             # import sorting (replaces isort)
+  "B",             # bugbear — mutable defaults, late-binding loops
+  "UP",            # pyupgrade — keeps 3.11 idioms consistent
+  "N",             # naming (math-var exceptions below)
+]
+# E741: ambiguous 1-letter names (l/O/I) -- common in math/quantum code, low value here.
+# N806/N803: ρ/matrix math locals and params (P, ref_X etc.) are domain-idiomatic.
+# B008: FastAPI's Depends()/File()/Form() call-as-default is the framework's own idiom.
+ignore = ["E741", "N806", "N803", "B008"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
 
 [tool.ruff.lint.per-file-ignores]
-# SQLAlchemy `Mapped["ClassName"]` string forward-refs to sibling model files --
-# ruff can't resolve these across modules; false positive, not a real bug.
-"original/db/models/*.py" = ["F821"]
+"tests/*" = ["B011"]
+# Deliberate column-aligned tables (CLAUDE.md gates changes to feature ordering
+# on explicit permission) -- also excluded from `ruff format` below.
+"original/constants.py" = ["E501", "E402"]
 # Deliberate late imports (see inline comments at each site) -- not a lint fix.
-"original/api.py" = ["E402"]
-"original/canvas/lti.py" = ["E402"]
-"original/constants.py" = ["E402"]
-
-[tool.black]
-line-length = 100
-target-version = ["py310"]
+# UP007: response_model=Optional[X] is an eagerly-evaluated call argument, not a
+# lazy annotation -- `X | None` would raise on the local 3.9 venv (PEP 604 needs
+# 3.10+); revisit alongside the WS-2 task 2.6 venv rebuild.
+# N814: StudentState imported as `_SS` (see call site) to avoid a heavy
+# module-level import.
+"original/api.py" = ["E402", "UP007", "N814", "E501"]
+# bbook_client field names mirror the external Bbook API's camelCase JSON.
+"original/bbook_client.py" = ["N815"]
+# Long lines here are professor-facing narrative prose / f-string templates --
+# wrapping them makes the text harder to read and edit for no lint value.
+"original/quantum/professor_narrative.py" = ["E501"]
+"original/context/report.py" = ["E501"]
+"original/main.py" = ["E501"]
+"original/explainer.py" = ["E501"]
+"original/schemas.py" = ["E501"]
+"original/lab/suggestions.py" = ["E501"]
+# Deliberate column-aligned one-liner method stubs (PostgresRepository._todo table).
+"original/repository.py" = ["E501"]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
+files = ["original/quantum", "original/features", "original/repository.py"]
+warn_unused_ignores = true
+check_untyped_defs = true
 ignore_missing_imports = true
-# Dormant v1 package (original/api.py + demo/ + demo/bluebook/ is the live stack) --
-# see CLAUDE.md. Excluded so advisory mypy output stays signal, not noise.
-exclude = [
-    "^original/api/",
-    "^original/db/",
-    "^original/canvas/",
-    "^original/main\\.py$",
-]

@@ -9,25 +9,22 @@ difficult to fake consistently.
 All pure Python + regex. No NLP dependencies.
 """
 
-import re
 import math
+import re
 from collections import Counter
-from typing import Dict, List, Set
 
-from .tier1 import TextDoc, _tokenize
-from ..constants import STOP_WORDS
-
+from .tier1 import TextDoc
 
 # ── Abbreviation dictionary (theological domain) ────────────────────────────
 # Maps abbreviation → full form.  Used by abbreviation_tendency.
 
 THEOLOGICAL_ABBREVIATIONS = {
-    "nt":  "new testament",
-    "ot":  "old testament",
+    "nt": "new testament",
+    "ot": "old testament",
     "lxx": "septuagint",
-    "mt":  "masoretic text",
+    "mt": "masoretic text",
     "bfm": "baptist faith and message",
-    "cf":  "compare",
+    "cf": "compare",
     "e.g": "for example",
     "i.e": "that is",
     "et al": "and others",
@@ -35,9 +32,9 @@ THEOLOGICAL_ABBREVIATIONS = {
     "op cit": "in the work cited",
     "viz": "namely",
     "esp": "especially",
-    "v":   "verse",
-    "vv":  "verses",
-    "ch":  "chapter",
+    "v": "verse",
+    "vv": "verses",
+    "ch": "chapter",
     "chs": "chapters",
     "gen": "genesis",
     "exod": "exodus",
@@ -68,16 +65,19 @@ THEOLOGICAL_ABBREVIATIONS = {
 # ── Citation format patterns ────────────────────────────────────────────────
 
 CITATION_PATTERNS = {
-    "apa_parenthetical": re.compile(r'\([A-Z][a-z]+,?\s+\d{4}'),          # (Smith, 2020)
-    "apa_narrative":     re.compile(r'[A-Z][a-z]+\s+\(\d{4}\)'),          # Smith (2020)
-    "turabian_footnote": re.compile(r'\d+\.\s+[A-Z][a-z]+,\s+[A-Z]'),    # 1. Author, T
-    "inline_author":     re.compile(r'(?:as\s+)?[A-Z][a-z]+\s+(?:argues|notes|writes|states|contends|observes|claims|suggests|maintains)'),
-    "ibid_style":        re.compile(r'\b[Ii]bid\.'),
-    "scripture_ref":     re.compile(r'\b[1-3]?\s*[A-Z][a-z]+\s+\d+:\d+'),
+    "apa_parenthetical": re.compile(r"\([A-Z][a-z]+,?\s+\d{4}"),  # (Smith, 2020)
+    "apa_narrative": re.compile(r"[A-Z][a-z]+\s+\(\d{4}\)"),  # Smith (2020)
+    "turabian_footnote": re.compile(r"\d+\.\s+[A-Z][a-z]+,\s+[A-Z]"),  # 1. Author, T
+    "inline_author": re.compile(
+        r"(?:as\s+)?[A-Z][a-z]+\s+(?:argues|notes|writes|states|contends|observes|claims|suggests|maintains)"
+    ),
+    "ibid_style": re.compile(r"\b[Ii]bid\."),
+    "scripture_ref": re.compile(r"\b[1-3]?\s*[A-Z][a-z]+\s+\d+:\d+"),
 }
 
 
 # ── Tier 6 feature extractors ───────────────────────────────────────────────
+
 
 def contraction_rate(doc: TextDoc) -> float:
     """
@@ -90,9 +90,7 @@ def contraction_rate(doc: TextDoc) -> float:
     if not doc.word_count:
         return 0.0
     # Match tokens containing an apostrophe followed by common contractions
-    contraction_pattern = re.compile(
-        r"\b\w+'(?:t|s|re|ve|ll|d|m|nt)\b", re.IGNORECASE
-    )
+    contraction_pattern = re.compile(r"\b\w+'(?:t|s|re|ve|ll|d|m|nt)\b", re.IGNORECASE)
     count = len(contraction_pattern.findall(doc.raw))
     return count / doc.word_count * 100
 
@@ -109,7 +107,7 @@ def sentence_initial_conjunction_rate(doc: TextDoc) -> float:
     initial_conjunctions = {"and", "but", "so", "or", "yet", "for", "nor"}
     count = 0
     for sent in doc.sentences:
-        first_match = re.match(r'\b(\w+)', sent.lstrip())
+        first_match = re.match(r"\b(\w+)", sent.lstrip())
         if first_match and first_match.group(1).lower() in initial_conjunctions:
             count += 1
     return count / doc.sentence_count
@@ -125,8 +123,10 @@ def that_which_ratio(doc: TextDoc) -> float:
     """
     # Match relative clause patterns (word + that/which)
     lower = doc.clean.lower()
-    that_rel = len(re.findall(r'\b\w+\s+that\s+(?:is|are|was|were|has|have|had|the|a|an|\w+s\b)', lower))
-    which_rel = len(re.findall(r'\b\w+\s+which\s+', lower))
+    that_rel = len(
+        re.findall(r"\b\w+\s+that\s+(?:is|are|was|were|has|have|had|the|a|an|\w+s\b)", lower)
+    )
+    which_rel = len(re.findall(r"\b\w+\s+which\s+", lower))
     total = that_rel + which_rel
     if total == 0:
         return 0.5  # neutral when neither is used
@@ -173,14 +173,16 @@ def list_marker_preference(doc: TextDoc) -> float:
       0.8 = bullet (- or *)
       1.0 = inline (first, second, third / firstly, secondly)
     """
-    numbered = len(re.findall(r'^\s*\d+[.)]\s', doc.raw, re.MULTILINE))
-    lettered = len(re.findall(r'^\s*[a-z][.)]\s', doc.raw, re.MULTILINE))
-    roman = len(re.findall(r'^\s*(?:i{1,3}|iv|vi{0,3}|ix|x)[.)]\s', doc.raw, re.MULTILINE))
-    bullet = len(re.findall(r'^\s*[-*•]\s', doc.raw, re.MULTILINE))
-    inline = len(re.findall(
-        r'\b(?:first(?:ly)?|second(?:ly)?|third(?:ly)?|fourth(?:ly)?|finally)\b',
-        doc.clean.lower()
-    ))
+    numbered = len(re.findall(r"^\s*\d+[.)]\s", doc.raw, re.MULTILINE))
+    lettered = len(re.findall(r"^\s*[a-z][.)]\s", doc.raw, re.MULTILINE))
+    roman = len(re.findall(r"^\s*(?:i{1,3}|iv|vi{0,3}|ix|x)[.)]\s", doc.raw, re.MULTILINE))
+    bullet = len(re.findall(r"^\s*[-*•]\s", doc.raw, re.MULTILINE))
+    inline = len(
+        re.findall(
+            r"\b(?:first(?:ly)?|second(?:ly)?|third(?:ly)?|fourth(?:ly)?|finally)\b",
+            doc.clean.lower(),
+        )
+    )
 
     counts = {
         0.2: numbered,
@@ -216,7 +218,7 @@ def abbreviation_tendency(doc: TextDoc) -> float:
 
     for abbrev, full_form in THEOLOGICAL_ABBREVIATIONS.items():
         # Check for abbreviation (case-insensitive word boundary)
-        abbrev_count = len(re.findall(r'\b' + re.escape(abbrev) + r'\b', lower))
+        abbrev_count = len(re.findall(r"\b" + re.escape(abbrev) + r"\b", lower))
         # Check for full form
         full_count = lower.count(full_form)
 
@@ -233,12 +235,13 @@ def abbreviation_tendency(doc: TextDoc) -> float:
 
 # ── Public extraction function ───────────────────────────────────────────────
 
-def extract_tier6(doc: TextDoc) -> Dict[str, float]:
+
+def extract_tier6(doc: TextDoc) -> dict[str, float]:
     return {
-        "contraction_rate":                 contraction_rate(doc),
+        "contraction_rate": contraction_rate(doc),
         "sentence_initial_conjunction_rate": sentence_initial_conjunction_rate(doc),
-        "that_which_ratio":                 that_which_ratio(doc),
-        "citation_style_consistency":       citation_style_consistency(doc),
-        "list_marker_preference":           list_marker_preference(doc),
-        "abbreviation_tendency":            abbreviation_tendency(doc),
+        "that_which_ratio": that_which_ratio(doc),
+        "citation_style_consistency": citation_style_consistency(doc),
+        "list_marker_preference": list_marker_preference(doc),
+        "abbreviation_tendency": abbreviation_tendency(doc),
     }

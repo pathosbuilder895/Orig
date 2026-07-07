@@ -22,38 +22,66 @@ required for this tier.
 """
 
 import math
-from typing import Dict, List
 
 import numpy as np
 
-from .tier1 import TextDoc
 from ..constants import DISCOURSE_MARKERS
+from .tier1 import TextDoc
 
 # ── Rhetorical move labels ────────────────────────────────────────────────────
 
 _MOVE_LABELS = ["Q", "C", "E", "K", "R", "N"]
-_MOVE_IDX    = {m: i for i, m in enumerate(_MOVE_LABELS)}
+_MOVE_IDX = {m: i for i, m in enumerate(_MOVE_LABELS)}
 
 # Evidence cue phrases
 _EVIDENCE_CUES = {
-    "according to", "studies show", "research shows", "data suggests",
-    "the text states", "as cited", "for example", "for instance",
-    "as shown", "evidence shows", "the passage", "scripture states",
-    "as written", "as recorded", "ibid", "et al", "cf.",
+    "according to",
+    "studies show",
+    "research shows",
+    "data suggests",
+    "the text states",
+    "as cited",
+    "for example",
+    "for instance",
+    "as shown",
+    "evidence shows",
+    "the passage",
+    "scripture states",
+    "as written",
+    "as recorded",
+    "ibid",
+    "et al",
+    "cf.",
 }
 
 # Resolution cue words (causal + temporal conclusion markers)
 _RESOLUTION_CUES = {
-    "therefore", "thus", "hence", "consequently", "in conclusion",
-    "to summarize", "finally", "in summary", "it follows", "accordingly",
-    "as a result", "for this reason",
+    "therefore",
+    "thus",
+    "hence",
+    "consequently",
+    "in conclusion",
+    "to summarize",
+    "finally",
+    "in summary",
+    "it follows",
+    "accordingly",
+    "as a result",
+    "for this reason",
 }
 
 # Claim cue phrases
 _CLAIM_CUES = {
-    "i argue", "i contend", "one can conclude", "this shows",
-    "this demonstrates", "this means", "this implies", "this proves",
-    "the argument is", "it is argued",
+    "i argue",
+    "i contend",
+    "one can conclude",
+    "this shows",
+    "this demonstrates",
+    "this means",
+    "this implies",
+    "this proves",
+    "the argument is",
+    "it is argued",
 }
 
 
@@ -63,7 +91,7 @@ def _tag_move(sentence: str) -> str:
     keyword heuristics.  Priority: Q > K > R > E > C > N.
     """
     text_lower = sentence.lower().strip()
-    stripped   = sentence.strip()
+    stripped = sentence.strip()
 
     # Q — Question: ends with '?'
     if stripped.endswith("?"):
@@ -93,14 +121,15 @@ def _tag_move(sentence: str) -> str:
     return "N"
 
 
-def _build_move_sequence(doc: TextDoc) -> List[str]:
+def _build_move_sequence(doc: TextDoc) -> list[str]:
     """Return the rhetorical move label for each sentence in the document."""
     return [_tag_move(s) for s in doc.sentences]
 
 
 # ── Standalone feature ────────────────────────────────────────────────────────
 
-def extract_tier9_standalone(doc: TextDoc) -> Dict[str, float]:
+
+def extract_tier9_standalone(doc: TextDoc) -> dict[str, float]:
     """
     structural_centrist_penalty: how much the submission's move sequence
     resembles the repetitive, low-diversity AI pattern (Q→C→E cycles).
@@ -113,7 +142,7 @@ def extract_tier9_standalone(doc: TextDoc) -> Dict[str, float]:
     if len(moves) < 3:
         return {"structural_centrist_penalty": 0.5}
 
-    bigrams = list(zip(moves, moves[1:]))
+    bigrams = list(zip(moves, moves[1:], strict=False))
     unique_ratio = len(set(bigrams)) / max(len(bigrams), 1)
     # Low unique_ratio (repetitive Q→C→E) → high centrist_penalty
     centrist_penalty = float(np.clip(1.0 - unique_ratio, 0.0, 1.0))
@@ -122,17 +151,19 @@ def extract_tier9_standalone(doc: TextDoc) -> Dict[str, float]:
 
 # ── Profile extraction (for comparison at scoring time) ──────────────────────
 
-def extract_tier9_profile(doc: TextDoc) -> Dict[str, object]:
+
+def extract_tier9_profile(doc: TextDoc) -> dict[str, object]:
     """Extract the raw move sequence to store as a baseline profile."""
     return {"_argument_sequence_profile": _build_move_sequence(doc)}
 
 
 # ── Comparison feature ────────────────────────────────────────────────────────
 
+
 def compute_tier9_comparison(
-    sub_profile: Dict[str, object],
-    baseline_profiles: Dict[str, object],
-) -> Dict[str, float]:
+    sub_profile: dict[str, object],
+    baseline_profiles: dict[str, object],
+) -> dict[str, float]:
     """
     argument_sequence_likelihood: mean log-likelihood of the submission's
     move sequence under the Markov transition matrix learned from baseline.
@@ -144,9 +175,9 @@ def compute_tier9_comparison(
     score = clip(1 + L / 3, 0, 1)     — 0→1 scaling (L=0 → 1.0; L=−3 → 0.0)
     """
     # Build transition matrix from all baseline move sequences
-    M = np.full((6, 6), 0.1, dtype=np.float64)   # Laplace smoothing
+    M = np.full((6, 6), 0.1, dtype=np.float64)  # Laplace smoothing
     for seq in baseline_profiles.get("_argument_sequence_profiles", []):
-        for a, b in zip(seq, seq[1:]):
+        for a, b in zip(seq, seq[1:], strict=False):
             M[_MOVE_IDX.get(a, 5)][_MOVE_IDX.get(b, 5)] += 1.0
     # Row-normalise → probability distribution
     row_sums = M.sum(axis=1, keepdims=True)
@@ -159,9 +190,9 @@ def compute_tier9_comparison(
     # Mean log-probability of the submission's transition sequence
     log_probs = [
         math.log(float(M[_MOVE_IDX.get(a, 5)][_MOVE_IDX.get(b, 5)]) + 1e-9)
-        for a, b in zip(sub_seq, sub_seq[1:])
+        for a, b in zip(sub_seq, sub_seq[1:], strict=False)
     ]
-    mean_ll = float(np.mean(log_probs))   # ∈ (−∞, 0]
+    mean_ll = float(np.mean(log_probs))  # ∈ (−∞, 0]
 
     # Map to [0,1]: score ≈ 1.0 when L≈0 (highly likely), ≈ 0 when L≤−3
     score = float(np.clip(1.0 + mean_ll / 3.0, 0.0, 1.0))

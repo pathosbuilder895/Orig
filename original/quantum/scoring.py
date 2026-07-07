@@ -31,10 +31,9 @@ Interference decomposition
 from __future__ import annotations
 
 import logging
-import math
 import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from original.ai_likelihood import AiLikelihoodResult
@@ -42,13 +41,19 @@ if TYPE_CHECKING:
 
 import numpy as np
 
-from .state import StudentState, TrajectoryResult, _unit
 from ..constants import (
-    ALL_FEATURE_CODES, FEATURE_DIM, FEATURE_NAMES, FEATURE_TIER,
-    TRAJECTORY_GROWTH_THRESHOLD, TRAJECTORY_REGRESSIVE_THRESHOLD,
-    ACTION_THRESHOLDS, TIER_WEIGHTS,
-    LENGTH_BUCKETS_BY_TOKENS, LENGTH_WEIGHT_SCHEDULE,
+    ACTION_THRESHOLDS,
+    ALL_FEATURE_CODES,
+    FEATURE_DIM,
+    FEATURE_NAMES,
+    FEATURE_TIER,
+    LENGTH_BUCKETS_BY_TOKENS,
+    LENGTH_WEIGHT_SCHEDULE,
+    TIER_WEIGHTS,
+    TRAJECTORY_GROWTH_THRESHOLD,
+    TRAJECTORY_REGRESSIVE_THRESHOLD,
 )
+from .state import StudentState, _unit
 
 log = logging.getLogger(__name__)
 
@@ -85,7 +90,7 @@ def _build_length_scale_vector(bucket: str) -> np.ndarray:
     )
 
 
-_LENGTH_SCALE_VECTORS: Dict[str, np.ndarray] = {
+_LENGTH_SCALE_VECTORS: dict[str, np.ndarray] = {
     b: _build_length_scale_vector(b) for b in LENGTH_WEIGHT_SCHEDULE
 }
 
@@ -95,21 +100,22 @@ def _length_bucket_for(n_tokens: int) -> str:
     for name, (lo, hi) in LENGTH_BUCKETS_BY_TOKENS.items():
         if lo <= n_tokens < hi:
             return name
-    return "long"   # safety net: anything past the last bucket reads as 'long'
+    return "long"  # safety net: anything past the last bucket reads as 'long'
 
 
 # ── Output dataclasses ────────────────────────────────────────────────────────
+
 
 @dataclass
 class FeatureContribution:
     code: str
     name: str
     tier: int
-    contribution: float         # normalised contribution to Born prob, can be negative
-    direction: str              # "constructive" | "destructive" | "neutral"
-    baseline_value: float       # mean feature value in baseline
-    submission_value: float     # feature value in submission
-    delta: float                # submission − baseline
+    contribution: float  # normalised contribution to Born prob, can be negative
+    direction: str  # "constructive" | "destructive" | "neutral"
+    baseline_value: float  # mean feature value in baseline
+    submission_value: float  # feature value in submission
+    delta: float  # submission − baseline
 
 
 @dataclass
@@ -121,16 +127,16 @@ class EntanglementAnomaly:
     expected_correlation: float
     observed_product: float
     anomaly_score: float
-    label: str                  # human-readable e.g. "T2–T3 discourse-rhetorical"
+    label: str  # human-readable e.g. "T2–T3 discourse-rhetorical"
 
 
 @dataclass
 class InterferenceDecomposition:
     total_probability: float
-    constructive_features: List[FeatureContribution]   # top 5
-    destructive_features: List[FeatureContribution]    # top 5
-    broken_entanglements: List[EntanglementAnomaly]    # top 3
-    tier_breakdown: Dict[str, float]                   # fraction of prob by tier
+    constructive_features: list[FeatureContribution]  # top 5
+    destructive_features: list[FeatureContribution]  # top 5
+    broken_entanglements: list[EntanglementAnomaly]  # top 3
+    tier_breakdown: dict[str, float]  # fraction of prob by tier
 
 
 @dataclass
@@ -142,7 +148,7 @@ class AuthorshipSignal:
     # when AMPLITUDE_SCORING_ENABLED is off.
     quantum_fidelity: float = field(default=0.0)
     # |⟨ψ_b|ψ_s⟩|² ∈ [0,1]; 1.0 = perfectly authentic, 0.0 = anomalous.
-    fidelity_conformal_pvalue: Optional[float] = field(default=None)
+    fidelity_conformal_pvalue: float | None = field(default=None)
     # Conformal p-value from corrections feedback loop.
     # None when calibration set is empty (no historical authentic fidelities).
     # ── Rank-and-null work: explicit likelihood-ratio deviation ──────────────
@@ -155,7 +161,7 @@ class AuthorshipSignal:
     # other; → 1.0 = fits the impostor pool much better than the claimed
     # author (suspicious); → 0.0 = fits the claimed author much better
     # (genuine). See _llr_deviation() for the derivation.
-    llr_deviation_score: Optional[float] = field(default=None)
+    llr_deviation_score: float | None = field(default=None)
 
 
 @dataclass
@@ -183,14 +189,60 @@ class BaselineConfidence:
 class DomainSignal:
     theological_register_score: float
     register_anomaly: bool
-    confessional_balance: str   # "confessional" | "critical" | "balanced"
+    confessional_balance: str  # "confessional" | "critical" | "balanced"
 
 
 @dataclass
 class RecommendedAction:
-    action: str                 # "no_action"|"monitor"|"schedule_conversation"|"escalate"
+    action: str  # "no_action"|"monitor"|"schedule_conversation"|"escalate"
     confidence: float
     rationale: str
+
+
+@dataclass(frozen=True)
+class ScoringConfig:
+    """
+    Every input to ``score()`` that used to be read live from ``os.environ``
+    or fetched from ``store`` inside the function body (WS-7 step 1). This is
+    the ONE place those six env vars are read (via :meth:`from_env`) — the
+    scoring math itself is now a pure function of its arguments.
+
+    ``ScoringConfig()`` (all defaults) reproduces the flags-OFF, no-calibration-
+    data Phase 1 behaviour exactly, so a no-arg ``score()`` call stays
+    byte-identical. Callers that need live env/store state must build one
+    explicitly with :meth:`from_env` and pass persistence lookups in — this
+    module never imports ``store`` itself.
+    """
+
+    # ── formerly os.environ.get() reads inside score() ────────────────────────
+    bayesian_prior_enabled: bool = False  # was BAYESIAN_PRIOR_ENABLED, :512
+    prior_weight: float = 3.0  # was PRIOR_WEIGHT, :524
+    length_adaptive_weights: bool = False  # was LENGTH_ADAPTIVE_WEIGHTS, :553
+    null_model: str = "none"  # was NULL_MODEL, :586
+    amplitude_scoring_enabled: bool = False  # was AMPLITUDE_SCORING_ENABLED, :597
+    secret_key: str = ""  # was SECRET_KEY, :602
+
+    # ── formerly call-time `from ..store import ...` ──────────────────────────
+    # Confirmed-authentic fidelity scores for this student, for the conformal
+    # p-value (was ``store.get_authentic_fidelities(student_id)``).
+    authentic_fidelities: list[float] | None = None
+    # Cross-student genre prior {"mean": ndarray, "std": ndarray, "n_samples": int}
+    # already resolved for the CURRENT submission's genre (was
+    # ``store.get_genre_stats(genre)``) — the caller must do the genre lookup
+    # since only it knows which genre applies before calling score().
+    genre_stats: dict | None = None
+
+    @classmethod
+    def from_env(cls) -> ScoringConfig:
+        """Build a config from the current environment. The ONE place these six vars are read."""
+        return cls(
+            bayesian_prior_enabled=os.environ.get("BAYESIAN_PRIOR_ENABLED", "0") == "1",
+            prior_weight=float(os.environ.get("PRIOR_WEIGHT", "3.0")),
+            length_adaptive_weights=os.environ.get("LENGTH_ADAPTIVE_WEIGHTS", "0") == "1",
+            null_model=os.environ.get("NULL_MODEL", "none"),
+            amplitude_scoring_enabled=os.environ.get("AMPLITUDE_SCORING_ENABLED", "0") == "1",
+            secret_key=os.environ.get("SECRET_KEY", ""),
+        )
 
 
 @dataclass
@@ -206,8 +258,8 @@ class Layer7Output:
     recommendation: RecommendedAction
 
     # Raw feature values for UI visualisation
-    feature_vector: Dict[str, float]      # submission (normalised 0–1)
-    baseline_vector: Dict[str, float]     # baseline mean (normalised 0–1)
+    feature_vector: dict[str, float]  # submission (normalised 0–1)
+    baseline_vector: dict[str, float]  # baseline mean (normalised 0–1)
 
     # ── Item 100: Catastrophic Drift Alert ────────────────────────────────────
     # Fires when RMS z-score across all features exceeds 3 SDs from baseline,
@@ -218,23 +270,24 @@ class Layer7Output:
     catastrophic_drift_rms_z: float = field(default=0.0)  # raw RMS z-score
 
     # Tension arc (orthogonal signal, set at API layer after quantum score)
-    tension_arc: Optional["TensionArcResult"] = field(default=None)
+    tension_arc: TensionArcResult | None = field(default=None)
 
     # Phase 3+: auditable adaptive-context manifest, attached at the API layer
     # after scoring when CONTEXT_MANIFEST_ENABLED=1. Stored as a plain dict
     # (not the dataclass) to keep this module free of an `original.context`
     # import cycle. None when the manifest flag is off — preserves byte-
     # identical Phase 1 responses by default.
-    context_manifest: Optional[Dict[str, "object"]] = field(default=None)
+    context_manifest: dict[str, object] | None = field(default=None)
 
     # Corpus-level AI-likelihood (orthogonal signal, set at the API layer
     # after quantum score when AI_LIKELIHOOD_ENABLED=1). Report-only: never
     # feeds the deviation score or the recommended action. None when the
     # flag is off — preserves byte-identical responses by default.
-    ai_likelihood: Optional["AiLikelihoodResult"] = field(default=None)
+    ai_likelihood: AiLikelihoodResult | None = field(default=None)
 
 
 # ── Amplitude scoring helper ──────────────────────────────────────────────────
+
 
 def _amplitude_score(
     state: StudentState,
@@ -245,9 +298,10 @@ def _amplitude_score(
     submission_id: str,
     n_tokens: int,
     secret_key: str = "",
-    baseline_mean_override: Optional[np.ndarray] = None,
-    baseline_std_override: Optional[np.ndarray] = None,
-) -> Tuple[float, Optional[float], Dict]:
+    baseline_mean_override: np.ndarray | None = None,
+    baseline_std_override: np.ndarray | None = None,
+    authentic_fidelities: list[float] | None = None,
+) -> tuple[float, float | None, dict]:
     """
     Compute quantum fidelity, conformal p-value, and 3-way interference.
 
@@ -261,32 +315,38 @@ def _amplitude_score(
     z                      : shape (D,), already-computed z-scores
     weight_vec             : shape (D,), tier-weight vector
     active                 : shape (D,), bool active-feature mask
-    student_id             : used for keyed unitary + conformal calibration lookup
+    student_id             : used for keyed unitary seed
     submission_id          : used for keyed unitary seed
     n_tokens               : word count of submission text
     secret_key             : HMAC secret (empty → skip unitary projection)
     baseline_mean_override : when set (e.g. Bayesian prior blend), replaces
                              state.baseline_mean inside build_superposition_baseline
     baseline_std_override  : same for state.baseline_std
+    authentic_fidelities   : confirmed-authentic fidelity calibration set for
+                             this student (``ScoringConfig.authentic_fidelities``),
+                             resolved by the caller — this module no longer
+                             reaches into ``store`` for it.
 
     Returns
     -------
     (fidelity, conformal_pvalue_or_None, interference_dict)
     """
     from .amplitude import (
-        encode_amplitudes,
-        build_superposition_baseline,
-        quantum_fidelity,
         apply_keyed_projection,
+        build_superposition_baseline,
+        encode_amplitudes,
         interference_components,
+        quantum_fidelity,
     )
     from .conformal import conformal_pvalue
 
     contributing = [s for s in state.samples if s.auth_weight > 0]
 
     psi_s = encode_amplitudes(z, weight_vec, active, n_tokens)
-    _bsl_mean = baseline_mean_override if baseline_mean_override is not None else state.baseline_mean
-    _bsl_std  = baseline_std_override  if baseline_std_override  is not None else state.baseline_std
+    _bsl_mean = (
+        baseline_mean_override if baseline_mean_override is not None else state.baseline_mean
+    )
+    _bsl_std = baseline_std_override if baseline_std_override is not None else state.baseline_std
     psi_b = build_superposition_baseline(
         contributing,
         weight_vec,
@@ -297,20 +357,16 @@ def _amplitude_score(
     )
 
     if secret_key:
-        psi_b, psi_s = apply_keyed_projection(
-            psi_b, psi_s, secret_key, student_id, submission_id
-        )
+        psi_b, psi_s = apply_keyed_projection(psi_b, psi_s, secret_key, student_id, submission_id)
 
     F = quantum_fidelity(psi_b, psi_s)
 
-    # Conformal p-value — reads confirmed-authentic fidelities from store.
-    # Import store here to keep module free of circular top-level imports.
-    p_val: Optional[float] = None
+    # Conformal p-value — caller-supplied confirmed-authentic fidelities
+    # (WS-7 step 1: this module no longer reaches into store directly).
+    p_val: float | None = None
     try:
-        from ..store import get_authentic_fidelities
-        cal_fidelities = get_authentic_fidelities(student_id)
-        if cal_fidelities:
-            p_val = conformal_pvalue(F, cal_fidelities)
+        if authentic_fidelities:
+            p_val = conformal_pvalue(F, authentic_fidelities)
     except Exception as exc:
         log.debug("conformal p-value skipped for %s: %s", submission_id, exc)
 
@@ -320,7 +376,7 @@ def _amplitude_score(
 
 def _llr_deviation(
     sub_raw: np.ndarray,
-    impostor_stats: Tuple[np.ndarray, np.ndarray],
+    impostor_stats: tuple[np.ndarray, np.ndarray],
     weight_vec: np.ndarray,
     active: np.ndarray,
     n_active: int,
@@ -367,13 +423,13 @@ def _llr_deviation(
             author's baseline.
     """
     mu_null, sigma_null = impostor_stats
-    sigma_null_floored = np.maximum(sigma_null, 0.005)   # same floor as state.baseline_std
+    sigma_null_floored = np.maximum(sigma_null, 0.005)  # same floor as state.baseline_std
     z_null = (sub_raw - mu_null) / sigma_null_floored
     z_null_capped = np.clip(z_null, -4.0, 4.0)
     z_null_weighted = z_null_capped * weight_vec * active.astype(np.float64)
 
     if n_active > 0:
-        rms_z_null = float(np.sqrt(np.sum(z_null_weighted ** 2) / n_active))
+        rms_z_null = float(np.sqrt(np.sum(z_null_weighted**2) / n_active))
     else:
         rms_z_null = 0.0
 
@@ -383,15 +439,17 @@ def _llr_deviation(
 
 # ── Main scoring function ─────────────────────────────────────────────────────
 
+
 def score(
     state: StudentState,
     submission_vector: np.ndarray,
-    feature_dict: Dict[str, float],
+    feature_dict: dict[str, float],
     submission_id: str = "",
-    adaptive_weights: Optional[np.ndarray] = None,
-    manifest: Optional[Dict] = None,
+    adaptive_weights: np.ndarray | None = None,
+    manifest: dict | None = None,
     n_tokens: int = 300,
-    impostor_stats: Optional[Tuple[np.ndarray, np.ndarray]] = None,
+    impostor_stats: tuple[np.ndarray, np.ndarray] | None = None,
+    scoring_config: ScoringConfig | None = None,
 ) -> Layer7Output:
     """
     Score a submission against a student's current quantum state.
@@ -429,12 +487,24 @@ def score(
                          byte-identical behaviour; the primary
                          deviation_score / action / recommendation are
                          never touched by this parameter.
+    scoring_config     : optional ``ScoringConfig`` (WS-7 step 1). Carries the six
+                         flags that used to be read from ``os.environ`` inside this
+                         function (bayesian/length-adaptive/null-model/amplitude/
+                         secret-key) plus persistence-derived inputs (confirmed-
+                         authentic fidelities for the conformal p-value, the
+                         resolved genre prior for the Bayesian cold-start blend)
+                         that the caller fetches from store. This module never
+                         reads ``os.environ`` or imports ``store`` itself; omitting
+                         it is exactly the flags-OFF, no-calibration-data Phase 1
+                         path (``ScoringConfig()`` defaults).
     """
-    xi = _unit(submission_vector)           # ξ  (unit-normalised submission vector)
-    rho = state.density_matrix              # ρ
+    config = scoring_config or ScoringConfig()
+
+    xi = _unit(submission_vector)  # ξ  (unit-normalised submission vector)
+    rho = state.density_matrix  # ρ
 
     # ── Born probability (used for interference decomposition) ────────────────
-    rho_xi = rho @ xi                       # shape (D,)
+    rho_xi = rho @ xi  # shape (D,)
     P = float(np.clip(float(xi @ rho_xi), 1e-6, 1.0))
 
     # ── Variance-weighted deviation (primary score) ───────────────────────────
@@ -455,9 +525,9 @@ def score(
     # 4. tanh divisor reduced 2.5 → 1.0 to spread the usable score range.
     #    Old calibration: rms_z=1.5 → 0.54, rms_z=2.5 → 0.76 (usable band 0.22)
     #    New calibration: rms_z=1.0 → 0.76, rms_z=2.0 → 0.96 (full range used)
-    mu = state.baseline_mean                    # shape (D,)
-    sigma = state.baseline_std                  # shape (D,), floored at 0.005
-    active = state.active_feature_mask          # shape (D,), bool
+    mu = state.baseline_mean  # shape (D,)
+    sigma = state.baseline_std  # shape (D,), floored at 0.005
+    active = state.active_feature_mask  # shape (D,), bool
 
     # ── Hierarchical Bayesian prior (cold-start) ──────────────────────────────
     # When a student has few baseline samples, blend their personal mu/sigma
@@ -470,50 +540,48 @@ def score(
     # accumulates. Default prior_weight=3 means 3 authentic baselines = 50%
     # personal / 50% genre prior; 10 baselines = 77% personal / 23% prior.
     #
-    # Gated by BAYESIAN_PRIOR_ENABLED env flag (default OFF) to preserve
+    # Gated by config.bayesian_prior_enabled (default OFF) to preserve
     # Phase 1 byte-identical behaviour for existing callers.
-    _bayesian_enabled = os.environ.get("BAYESIAN_PRIOR_ENABLED", "0") == "1"
-    if _bayesian_enabled and state.sample_count < 10:
+    if config.bayesian_prior_enabled and state.sample_count < 10:
         try:
-            from ..store import get_genre_stats
             _genre = (
                 state.samples[-1].genre
                 if state.samples and getattr(state.samples[-1], "genre", None)
                 else None
             )
-            _prior = get_genre_stats(_genre) if _genre else None
-            if _prior is not None:
-                _prior_weight = float(os.environ.get("PRIOR_WEIGHT", "3.0"))
-                _alpha = state.sample_count / (state.sample_count + _prior_weight)
+            # Caller resolves the genre-stats lookup (WS-7 step 1: this
+            # module no longer imports store directly).
+            _prior = config.genre_stats
+            if _genre and _prior is not None:
+                _alpha = state.sample_count / (state.sample_count + config.prior_weight)
                 mu = _alpha * mu + (1.0 - _alpha) * _prior["mean"]
                 sigma = _alpha * sigma + (1.0 - _alpha) * _prior["std"]
                 log.debug(
                     "Bayesian prior blend: alpha=%.3f genre=%s n_prior=%d",
-                    _alpha, _genre, _prior["n_samples"],
+                    _alpha,
+                    _genre,
+                    _prior["n_samples"],
                 )
         except Exception as _exc:
             log.debug("Bayesian prior blend skipped: %s", _exc)
 
-    sub_raw = submission_vector                 # raw normalised [0,1] vector
-    z = (sub_raw - mu) / sigma                  # standardised deviation, shape (D,)
+    sub_raw = submission_vector  # raw normalised [0,1] vector
+    z = (sub_raw - mu) / sigma  # standardised deviation, shape (D,)
 
     # Apply tier weights then zero out inactive (no-data) features.
     # Phase 5: when an adaptive weight vector is supplied (built from the
     # ContextManifest), it replaces the static _TIER_WEIGHT_VECTOR. The
     # static vector is the unconditional fallback so Phase 1 callers see
     # byte-identical results.
-    weight_vec = (
-        adaptive_weights if adaptive_weights is not None else _TIER_WEIGHT_VECTOR
-    )
+    weight_vec = adaptive_weights if adaptive_weights is not None else _TIER_WEIGHT_VECTOR
 
     # ── Length-adaptive tier scaling ─────────────────────────────────────────
-    # When LENGTH_ADAPTIVE_WEIGHTS=1, scale the per-feature weight vector by
-    # a per-tier factor that depends on the submission's word count. Tiers
+    # When config.length_adaptive_weights, scale the per-feature weight vector
+    # by a per-tier factor that depends on the submission's word count. Tiers
     # that the stability study (validation/stability/) showed COLLAPSE on
     # short inputs get attenuated; tiers that HOLD get amplified. Default
     # OFF preserves byte-identical Phase 1 behaviour.
-    _length_adaptive = os.environ.get("LENGTH_ADAPTIVE_WEIGHTS", "0") == "1"
-    if _length_adaptive:
+    if config.length_adaptive_weights:
         _bucket = _length_bucket_for(int(n_tokens))
         weight_vec = weight_vec * _LENGTH_SCALE_VECTORS[_bucket]
 
@@ -535,46 +603,56 @@ def score(
 
     n_active = int(active.sum())
     if n_active > 0:
-        rms_z = float(np.sqrt(np.sum(z_weighted ** 2) / n_active))
+        rms_z = float(np.sqrt(np.sum(z_weighted**2) / n_active))
     else:
         rms_z = 0.0
 
     # ── Explicit null model (rank-and-null work) ──────────────────────────────
-    # Gated by NULL_MODEL=impostor env flag AND the caller supplying
+    # Gated by config.null_model == "impostor" AND the caller supplying
     # impostor_stats — both must be true, so this can never fire from an
     # existing call site that doesn't know about it. Computes a relative
     # (claimed-author vs impostor-pool) deviation alongside the absolute
     # one; does not modify rms_z, D_raw, or anything downstream of them.
-    _null_model = os.environ.get("NULL_MODEL", "none")
-    llr_deviation_score: Optional[float] = None
-    if _null_model == "impostor" and impostor_stats is not None:
+    llr_deviation_score: float | None = None
+    if config.null_model == "impostor" and impostor_stats is not None:
         llr_deviation_score = _llr_deviation(
-            sub_raw, impostor_stats, weight_vec, active, n_active, rms_z,
+            sub_raw,
+            impostor_stats,
+            weight_vec,
+            active,
+            n_active,
+            rms_z,
         )
 
     # ── Amplitude scoring (Production Phase 6) ────────────────────────────────
-    # Gated by AMPLITUDE_SCORING_ENABLED env flag (default OFF).
+    # Gated by config.amplitude_scoring_enabled (default OFF).
     # When OFF: fidelity=0.0, conformal_p=None — all downstream consumers
     # treat these as "no amplitude data" and fall back to deviation_score only.
-    _amp_enabled = os.environ.get("AMPLITUDE_SCORING_ENABLED", "0") == "1"
     # n_tokens is threaded in from the caller so Gaussian wave packet
     # attenuation is proportional to the actual submission length.
     # Falls back to the parameter default (300) when not supplied.
     _n_tokens = n_tokens
-    _secret_key = os.environ.get("SECRET_KEY", "")
-    if _amp_enabled:
+    _secret_key = config.secret_key
+    if config.amplitude_scoring_enabled:
         try:
             _fidelity, _conformal_p, _amp_components = _amplitude_score(
-                state, z, weight_vec, active,
-                state.student_id, submission_id,
-                _n_tokens, _secret_key,
+                state,
+                z,
+                weight_vec,
+                active,
+                state.student_id,
+                submission_id,
+                _n_tokens,
+                _secret_key,
                 baseline_mean_override=mu,
                 baseline_std_override=sigma,
+                authentic_fidelities=config.authentic_fidelities,
             )
         except Exception as _exc:
             log.warning(
                 "amplitude scoring failed for %s: %s — fidelity set to 0",
-                submission_id, _exc,
+                submission_id,
+                _exc,
             )
             _fidelity, _conformal_p, _amp_components = 0.0, None, {}
     else:
@@ -602,7 +680,7 @@ def score(
     traj_confidence = traj.confidence
 
     if traj.vector is not None:
-        alignment = float(np.dot(xi, traj.vector))   # cos sim (both unit-normalised)
+        alignment = float(np.dot(xi, traj.vector))  # cos sim (both unit-normalised)
         if alignment > TRAJECTORY_GROWTH_THRESHOLD:
             direction = "growth"
             adj_factor = 0.75
@@ -631,7 +709,7 @@ def score(
     )
 
     # ── Domain signal ─────────────────────────────────────────────────────────
-    theol_sub  = feature_dict.get("theological_register_score", 0.0)
+    theol_sub = feature_dict.get("theological_register_score", 0.0)
     theol_base = state.baseline_mean[ALL_FEATURE_CODES.index("theological_register_score")]
     delta_theol = theol_sub - theol_base
     if theol_base > 0.5:
@@ -656,7 +734,11 @@ def score(
 
     # ── Recommended action ────────────────────────────────────────────────────
     recommendation = _recommend(
-        P, D_adjusted, interference, domain, bc,
+        P,
+        D_adjusted,
+        interference,
+        domain,
+        bc,
         fidelity=_fidelity,
         conformal_p=_conformal_p,
         n_tokens=n_tokens,
@@ -676,8 +758,7 @@ def score(
 
     # ── Build output ──────────────────────────────────────────────────────────
     baseline_dict = {
-        code: float(state.baseline_mean[i])
-        for i, code in enumerate(ALL_FEATURE_CODES)
+        code: float(state.baseline_mean[i]) for i, code in enumerate(ALL_FEATURE_CODES)
     }
 
     return Layer7Output(
@@ -712,24 +793,22 @@ def score(
 
 # ── Interference decomposition ────────────────────────────────────────────────
 
+
 def _decompose(
     xi: np.ndarray,
     rho_xi: np.ndarray,
     P: float,
-    feature_dict: Dict[str, float],
+    feature_dict: dict[str, float],
     baseline_mean: np.ndarray,
-    z_scores: Optional[np.ndarray] = None,
+    z_scores: np.ndarray | None = None,
 ) -> InterferenceDecomposition:
-    D = FEATURE_DIM
-    expected_per_feature = P / D
-
     # Per-feature contribution: use z-score magnitude as the contribution signal.
     # Born contributions are preserved but z-score drives constructive/destructive.
     born_contribs = xi * rho_xi  # shape (D,)
     if z_scores is None:
         z_scores = np.zeros(FEATURE_DIM)
 
-    feature_contribs: List[FeatureContribution] = []
+    feature_contribs: list[FeatureContribution] = []
     for i, code in enumerate(ALL_FEATURE_CODES):
         c = float(born_contribs[i])
         z = float(z_scores[i])
@@ -739,26 +818,29 @@ def _decompose(
 
         # Direction based on z-score magnitude (more intuitive than Born contribution)
         if z < -1.0 or z > 1.0:
-            direction = "destructive"    # significantly outside baseline range
+            direction = "destructive"  # significantly outside baseline range
         elif abs(z) < 0.5:
-            direction = "constructive"   # well within baseline range
+            direction = "constructive"  # well within baseline range
         else:
             direction = "neutral"
 
-        feature_contribs.append(FeatureContribution(
-            code=code,
-            name=FEATURE_NAMES[code],
-            tier=FEATURE_TIER[code],
-            contribution=c,
-            direction=direction,
-            baseline_value=base_val,
-            submission_value=sub_val,
-            delta=delta,
-        ))
+        feature_contribs.append(
+            FeatureContribution(
+                code=code,
+                name=FEATURE_NAMES[code],
+                tier=FEATURE_TIER[code],
+                contribution=c,
+                direction=direction,
+                baseline_value=base_val,
+                submission_value=sub_val,
+                delta=delta,
+            )
+        )
 
     constructive = sorted(
         [f for f in feature_contribs if f.direction == "constructive"],
-        key=lambda f: f.contribution, reverse=True
+        key=lambda f: f.contribution,
+        reverse=True,
     )[:5]
 
     # Sort destructive by weighted absolute delta — tier weights amplify
@@ -781,7 +863,7 @@ def _decompose(
     entanglements = _find_entanglement_anomalies(xi, feature_contribs)
 
     # Tier breakdown: fraction of total Born probability from each tier
-    tier_totals: Dict[int, float] = {}
+    tier_totals: dict[int, float] = {}
     for fc in feature_contribs:
         tier_totals[fc.tier] = tier_totals.get(fc.tier, 0.0) + max(fc.contribution, 0.0)
     total_positive = sum(tier_totals.values()) + 1e-9
@@ -798,8 +880,8 @@ def _decompose(
 
 def _find_entanglement_anomalies(
     xi: np.ndarray,
-    feature_contribs: List[FeatureContribution],
-) -> List[EntanglementAnomaly]:
+    feature_contribs: list[FeatureContribution],
+) -> list[EntanglementAnomaly]:
     """
     Identify the most anomalous feature-pair co-variations.
 
@@ -811,33 +893,32 @@ def _find_entanglement_anomalies(
     # We don't have ρ here directly, but we can approximate the
     # cross-feature expected correlation from the contribution structure.
     # Use the product of per-feature deviations as a proxy.
-    anomalies: List[EntanglementAnomaly] = []
+    anomalies: list[EntanglementAnomaly] = []
 
     # Informative cross-tier pairs — where correlated baseline patterns should
     # hold but break under AI ghostwriting or stylistic fraud.
     # Expanded to include Tiers 8–12 "musical" relationships.
     _INFORMATIVE_TIER_PAIRS = {
-        (2, 3),   # discourse structure ↔ rhetorical register
-        (4, 6),   # char/punct fingerprint ↔ idiosyncratic patterns
-        (1, 7),   # surface stylometrics ↔ AI detection markers
-        (4, 7),   # char/punct ↔ AI detection
-        (5, 6),   # POS/syntax ↔ idiosyncratic
-        (2, 7),   # discourse ↔ AI detection
-        (3, 7),   # rhetorical ↔ AI detection
+        (2, 3),  # discourse structure ↔ rhetorical register
+        (4, 6),  # char/punct fingerprint ↔ idiosyncratic patterns
+        (1, 7),  # surface stylometrics ↔ AI detection markers
+        (4, 7),  # char/punct ↔ AI detection
+        (5, 6),  # POS/syntax ↔ idiosyncratic
+        (2, 7),  # discourse ↔ AI detection
+        (3, 7),  # rhetorical ↔ AI detection
         (1, 11),  # surface vocab ↔ error ecology (ghostwriting signal)
         (6, 11),  # idiosyncratic ↔ error ecology (should co-vary)
         (7, 12),  # AI markers ↔ tension arc (should co-vary for AI text)
         (8, 12),  # prosodic rhythm ↔ tension arc (rhythmic coherence)
     }
     cross_tier_pairs = [
-        (a, b) for a in feature_contribs
+        (a, b)
+        for a in feature_contribs
         for b in feature_contribs
-        if a.tier < b.tier
-        and a.tier >= 1
-        and (a.tier, b.tier) in _INFORMATIVE_TIER_PAIRS
+        if a.tier < b.tier and a.tier >= 1 and (a.tier, b.tier) in _INFORMATIVE_TIER_PAIRS
     ]
 
-    for a, b in cross_tier_pairs[:80]:   # cap search for performance
+    for a, b in cross_tier_pairs[:80]:  # cap search for performance
         # Proxy: if both are destructive and highly correlated in baseline,
         # that's the strongest signal
         if a.direction == "destructive" and b.direction == "destructive":
@@ -848,63 +929,70 @@ def _find_entanglement_anomalies(
                 tier_label = f"T{a.tier}–T{b.tier}"
                 name_a = a.name.split()[0].lower()
                 name_b = b.name.split()[0].lower()
-                anomalies.append(EntanglementAnomaly(
-                    feature_a=a.code,
-                    feature_b=b.code,
-                    tier_a=a.tier,
-                    tier_b=b.tier,
-                    expected_correlation=0.0,  # would come from ρ[i,j]
-                    observed_product=float(xi[ALL_FEATURE_CODES.index(a.code)] *
-                                           xi[ALL_FEATURE_CODES.index(b.code)]),
-                    anomaly_score=float(np.clip(score, 0.0, 1.0)),
-                    label=f"{tier_label} {name_a}–{name_b} entanglement",
-                ))
+                anomalies.append(
+                    EntanglementAnomaly(
+                        feature_a=a.code,
+                        feature_b=b.code,
+                        tier_a=a.tier,
+                        tier_b=b.tier,
+                        expected_correlation=0.0,  # would come from ρ[i,j]
+                        observed_product=float(
+                            xi[ALL_FEATURE_CODES.index(a.code)]
+                            * xi[ALL_FEATURE_CODES.index(b.code)]
+                        ),
+                        anomaly_score=float(np.clip(score, 0.0, 1.0)),
+                        label=f"{tier_label} {name_a}–{name_b} entanglement",
+                    )
+                )
 
     # ── Special case: T1↔T11 vocabulary-spike + error-vanish ────────────────
     # If Tier 1 vocab features are CONSTRUCTIVE (rich vocabulary, within baseline)
     # but Tier 11 error features are DESTRUCTIVE (error fingerprint has vanished),
     # this is a strong indicator of AI ghostwriting — the ghostwriter replicated
     # the student's vocabulary range but not their error ecology.
-    t1_vocab_codes  = {"type_token_ratio", "hapax_legomena_rate"}
+    t1_vocab_codes = {"type_token_ratio", "hapax_legomena_rate"}
     t11_error_codes = {"error_kl_divergence", "stumble_rate_consistency"}
     # Magnitude thresholds (on delta, not Born direction) prevent noise (±0.04)
     # from triggering this signal. "Constructive"/"destructive" Born direction
     # is unreliable for this check because Born contributions cluster tightly;
     # the raw feature delta (submission − baseline) is the correct signal here.
     # AI ghostwriting produces large, unambiguous deltas; authentic variance does not.
-    _TTR_SPIKE_THRESHOLD   =  0.15   # TTR must be ≥ 0.15 above baseline mean
-    _ERR_VANISH_THRESHOLD  = -0.10   # error fingerprint ≥ 0.10 below baseline mean
-    t1_constructive  = any(
+    _TTR_SPIKE_THRESHOLD = 0.15  # TTR must be ≥ 0.15 above baseline mean
+    _ERR_VANISH_THRESHOLD = -0.10  # error fingerprint ≥ 0.10 below baseline mean
+    t1_constructive = any(
         f.code in t1_vocab_codes
-        and f.delta >= _TTR_SPIKE_THRESHOLD     # delta only — no Born-direction filter
+        and f.delta >= _TTR_SPIKE_THRESHOLD  # delta only — no Born-direction filter
         for f in feature_contribs
     )
-    t11_destructive  = any(
-        f.code in t11_error_codes
-        and f.delta <= _ERR_VANISH_THRESHOLD
-        for f in feature_contribs
+    t11_destructive = any(
+        f.code in t11_error_codes and f.delta <= _ERR_VANISH_THRESHOLD for f in feature_contribs
     )
     if t1_constructive and t11_destructive:
-        anomalies.insert(0, EntanglementAnomaly(
-            feature_a="type_token_ratio",
-            feature_b="error_kl_divergence",
-            tier_a=1, tier_b=11,
-            # Baseline co-variance: richer vocabulary typically co-occurs with
-            # a richer, more idiosyncratic error fingerprint (r ≈ 0.6)
-            expected_correlation=0.6,
-            observed_product=float(
-                xi[ALL_FEATURE_CODES.index("type_token_ratio")] *
-                xi[ALL_FEATURE_CODES.index("error_kl_divergence")]
+        anomalies.insert(
+            0,
+            EntanglementAnomaly(
+                feature_a="type_token_ratio",
+                feature_b="error_kl_divergence",
+                tier_a=1,
+                tier_b=11,
+                # Baseline co-variance: richer vocabulary typically co-occurs with
+                # a richer, more idiosyncratic error fingerprint (r ≈ 0.6)
+                expected_correlation=0.6,
+                observed_product=float(
+                    xi[ALL_FEATURE_CODES.index("type_token_ratio")]
+                    * xi[ALL_FEATURE_CODES.index("error_kl_divergence")]
+                ),
+                anomaly_score=0.85,
+                label="T1–T11 vocabulary-spike + error-vanish (AI ghostwriting signal)",
             ),
-            anomaly_score=0.85,
-            label="T1–T11 vocabulary-spike + error-vanish (AI ghostwriting signal)",
-        ))
+        )
 
     anomalies.sort(key=lambda x: x.anomaly_score, reverse=True)
     return anomalies[:3]
 
 
 # ── Recommended action ────────────────────────────────────────────────────────
+
 
 def _recommend(
     born_prob: float,
@@ -913,8 +1001,8 @@ def _recommend(
     domain: DomainSignal,
     bc: BaselineConfidence,
     fidelity: float = 0.0,
-    conformal_p: Optional[float] = None,
-    n_tokens: Optional[int] = None,
+    conformal_p: float | None = None,
+    n_tokens: int | None = None,
 ) -> RecommendedAction:
     """Derive recommended action from the full probability object.
 
@@ -949,14 +1037,15 @@ def _recommend(
     # confirm large deltas before escalating.
     _GHOSTWRITING_LABEL = "T1–T11 vocabulary-spike + error-vanish (AI ghostwriting signal)"
     ghostwriting_detected = any(
-        e.label == _GHOSTWRITING_LABEL
-        for e in interference.broken_entanglements
+        e.label == _GHOSTWRITING_LABEL for e in interference.broken_entanglements
     )
     # Defence-in-depth magnitude guard — use delta not Born direction
     # (Born contributions cluster tightly; delta is the reliable magnitude signal)
     _all_top_feats = interference.constructive_features + interference.destructive_features
-    _ttr_spiked   = any(f.code == "type_token_ratio"      and f.delta >= 0.15  for f in _all_top_feats)
-    _err_vanished = any(f.code == "error_kl_divergence"   and f.delta <= -0.10 for f in _all_top_feats)
+    _ttr_spiked = any(f.code == "type_token_ratio" and f.delta >= 0.15 for f in _all_top_feats)
+    _err_vanished = any(
+        f.code == "error_kl_divergence" and f.delta <= -0.10 for f in _all_top_feats
+    )
     ghostwriting_confirmed = ghostwriting_detected and _ttr_spiked and _err_vanished
     if ghostwriting_confirmed and action != "escalate":
         action = "escalate"
@@ -966,25 +1055,28 @@ def _recommend(
     # We use it as a secondary signal to nudge action up or add rationale.
     # It NEVER overrides a higher-severity action and NEVER acts alone without
     # evidence from the deviation score (to avoid false positives on day 0).
-    _conformal_nudge_note: Optional[str] = None
+    _conformal_nudge_note: str | None = None
     if conformal_p is not None:
         from .conformal import verdict_from_pvalue
+
         _conformal_verdict = verdict_from_pvalue(conformal_p)
         # Nudge up if conformal is more alarmed than deviation score
         _action_severity = {
-            "no_action": 0, "monitor": 1,
-            "schedule_conversation": 2, "escalate": 3,
+            "no_action": 0,
+            "monitor": 1,
+            "schedule_conversation": 2,
+            "escalate": 3,
         }
-        if (_action_severity.get(_conformal_verdict, 0) >
-                _action_severity.get(action, 0)
-                and action != "escalate"):
+        if (
+            _action_severity.get(_conformal_verdict, 0) > _action_severity.get(action, 0)
+            and action != "escalate"
+        ):
             action = _conformal_verdict
             _conformal_nudge_note = (
                 f"Conformal calibration (p={conformal_p:.3f}) suggests "
                 f"'{_conformal_verdict}' — action raised from deviation-score verdict."
             )
-        elif (conformal_p > 0.20 and action == "escalate"
-              and not ghostwriting_confirmed):
+        elif conformal_p > 0.20 and action == "escalate" and not ghostwriting_confirmed:
             # Conformal calibration disagrees — add a note but keep action
             _conformal_nudge_note = (
                 f"Note: conformal calibration (p={conformal_p:.3f}) suggests "
@@ -995,12 +1087,12 @@ def _recommend(
     # Confidence: lower if baseline is thin or trajectory uncertain
     base_confidence = min(
         1.0,
-        bc.effective_sample_count / 5.0  # saturates at 5 effective samples
+        bc.effective_sample_count / 5.0,  # saturates at 5 effective samples
     )
     confidence = float(np.clip(base_confidence * (0.7 + 0.3 * bc.purity), 0.0, 1.0))
     if ghostwriting_confirmed:
-        confidence = min(confidence, 0.80)   # cap: entanglement is high-specificity
-                                              # but confirmation via baseline still helps
+        confidence = min(confidence, 0.80)  # cap: entanglement is high-specificity
+        # but confirmation via baseline still helps
 
     # Secondary consistency check: if Born probability (cosine-alignment signal)
     # strongly disagrees with deviation score, reduce confidence and note it.
@@ -1012,10 +1104,14 @@ def _recommend(
 
     # Build rationale
     n_destructive = len(interference.destructive_features)
-    top_destructive = (interference.destructive_features[0].name
-                       if interference.destructive_features else "unknown feature")
-    top_entanglement = (interference.broken_entanglements[0].label
-                        if interference.broken_entanglements else None)
+    top_destructive = (
+        interference.destructive_features[0].name
+        if interference.destructive_features
+        else "unknown feature"
+    )
+    top_entanglement = (
+        interference.broken_entanglements[0].label if interference.broken_entanglements else None
+    )
 
     rationale_parts = [
         f"Deviation score {deviation:.3f} (primary verdict signal).",

@@ -34,7 +34,6 @@ import secrets
 import time
 import urllib.parse
 import urllib.request
-from typing import Dict, List, Optional
 
 from . import principal as principal_mod
 from . import student_auth
@@ -48,7 +47,7 @@ CLAIM_TARGET_LINK_URI = "https://purl.imsglobal.org/spec/lti/claim/target_link_u
 CLAIM_CUSTOM = "https://purl.imsglobal.org/spec/lti/claim/custom"
 
 
-def is_exam_launch(claims: Dict) -> bool:
+def is_exam_launch(claims: dict) -> bool:
     """True when the LMS launch targets a Bluebook examination.
 
     Detected from the resource link's target_link_uri pointing at /bluebook,
@@ -69,6 +68,7 @@ class LtiError(Exception):
 
 
 # ── Signing (shared HMAC for the stateless `state` token) ─────────────────────
+
 
 def _secret() -> bytes:
     return (os.environ.get("SECRET_KEY") or "demo-insecure-student-secret").encode()
@@ -92,7 +92,7 @@ def mint_state(nonce: str, issuer: str, ttl_seconds: int = 600) -> str:
     return f"{payload}.{_sign(payload)}"
 
 
-def verify_state(state: str) -> Optional[Dict]:
+def verify_state(state: str) -> dict | None:
     if not state or "." not in state:
         return None
     payload, sig = state.split(".", 1)
@@ -109,7 +109,8 @@ def verify_state(state: str) -> Optional[Dict]:
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-def platforms() -> List[Dict]:
+
+def platforms() -> list[dict]:
     try:
         data = json.loads(os.environ.get("LTI_PLATFORMS", "[]") or "[]")
         return data if isinstance(data, list) else []
@@ -117,7 +118,7 @@ def platforms() -> List[Dict]:
         return []
 
 
-def find_platform(issuer: str, client_id: Optional[str] = None) -> Optional[Dict]:
+def find_platform(issuer: str, client_id: str | None = None) -> dict | None:
     cands = [p for p in platforms() if p.get("issuer") == issuer]
     if client_id is not None:
         exact = [p for p in cands if str(p.get("client_id")) == str(client_id)]
@@ -130,7 +131,7 @@ def tool_url() -> str:
     return os.environ.get("LTI_TOOL_URL", "").rstrip("/")
 
 
-def _private_key_pem() -> Optional[str]:
+def _private_key_pem() -> str | None:
     pem = os.environ.get("LTI_PRIVATE_KEY", "")
     if pem:
         return pem.replace("\\n", "\n")
@@ -148,7 +149,7 @@ def _kid() -> str:
     return hashlib.sha256(pem.encode()).hexdigest()[:16] if pem else "original-lti"
 
 
-def public_jwks() -> Dict:
+def public_jwks() -> dict:
     """Tool public key set. Empty if no tool key is configured."""
     pem = _private_key_pem()
     if not pem:
@@ -162,18 +163,26 @@ def public_jwks() -> Dict:
         b = n.to_bytes((n.bit_length() + 7) // 8, "big")
         return base64.urlsafe_b64encode(b).decode().rstrip("=")
 
-    return {"keys": [{
-        "kty": "RSA", "alg": "RS256", "use": "sig", "kid": _kid(),
-        "n": b64u_int(nums.n), "e": b64u_int(nums.e),
-    }]}
+    return {
+        "keys": [
+            {
+                "kty": "RSA",
+                "alg": "RS256",
+                "use": "sig",
+                "kid": _kid(),
+                "n": b64u_int(nums.n),
+                "e": b64u_int(nums.e),
+            }
+        ]
+    }
 
 
 # ── Platform JWKS (cached) ─────────────────────────────────────────────────────
 
-_JWKS_CACHE: Dict[str, Dict] = {}
+_JWKS_CACHE: dict[str, dict] = {}
 
 
-def fetch_jwks(url: str) -> Dict:
+def fetch_jwks(url: str) -> dict:
     if url in _JWKS_CACHE:
         return _JWKS_CACHE[url]
     with urllib.request.urlopen(url, timeout=8) as resp:  # noqa: S310 (trusted platform URL)
@@ -184,7 +193,8 @@ def fetch_jwks(url: str) -> Dict:
 
 # ── OIDC login (step 1) ────────────────────────────────────────────────────────
 
-def build_login_redirect(params: Dict) -> str:
+
+def build_login_redirect(params: dict) -> str:
     """Build the platform auth-redirect URL for the OIDC initiation."""
     issuer = params.get("iss") or ""
     client_id = params.get("client_id")
@@ -210,7 +220,8 @@ def build_login_redirect(params: Dict) -> str:
 
 # ── Launch verification (step 2) ───────────────────────────────────────────────
 
-def verify_launch(id_token: str, state: str) -> Dict:
+
+def verify_launch(id_token: str, state: str) -> dict:
     """Verify state + id_token; return the claims (with `_tenant_id`). Raises LtiError."""
     st = verify_state(state)
     if not st:
@@ -236,11 +247,14 @@ def verify_launch(id_token: str, state: str) -> Dict:
 
     try:
         claims = jose_jwt.decode(
-            id_token, key, algorithms=["RS256"],
-            audience=str(platform["client_id"]), issuer=issuer,
+            id_token,
+            key,
+            algorithms=["RS256"],
+            audience=str(platform["client_id"]),
+            issuer=issuer,
         )
     except Exception as e:  # jose raises various JWTError subclasses
-        raise LtiError(f"id_token verification failed: {e}")
+        raise LtiError(f"id_token verification failed: {e}") from e
 
     if claims.get("nonce") != st.get("nonce"):
         raise LtiError("nonce mismatch")
@@ -256,7 +270,8 @@ def verify_launch(id_token: str, state: str) -> Dict:
 
 # ── Claims → principal ─────────────────────────────────────────────────────────
 
-def role_from_claims(claims: Dict) -> str:
+
+def role_from_claims(claims: dict) -> str:
     roles = claims.get(CLAIM_ROLES) or []
     joined = " ".join(roles).lower()
     if "administrator" in joined:
@@ -266,7 +281,7 @@ def role_from_claims(claims: Dict) -> str:
     return "student"
 
 
-def principal_from_claims(claims: Dict) -> Dict:
+def principal_from_claims(claims: dict) -> dict:
     """Map verified claims → a launch result.
 
     Returns ``{role, tenant_id, token, token_key, redirect, extra?, params?}``.
@@ -291,19 +306,23 @@ def principal_from_claims(claims: Dict) -> Dict:
         if name:
             try:
                 from . import store
+
                 store.set_display_name(sid, name)
             except Exception:
                 pass
         token = student_auth.mint_session(sid, name)
         result = {
-            "role": "student", "tenant_id": tenant, "token": token,
+            "role": "student",
+            "tenant_id": tenant,
+            "token": token,
             "token_key": "original_session_token",
         }
         if exam:
             result["redirect"] = "/bluebook/"
             result["extra"] = {"bluebook_student_id": sid, "original_tenant": tenant}
-            result["params"] = {k: v for k, v in
-                                {"exam": exam_title, "candidate": name}.items() if v}
+            result["params"] = {
+                k: v for k, v in {"exam": exam_title, "candidate": name}.items() if v
+            }
         else:
             result["redirect"] = "student.html"
         return result
@@ -311,7 +330,9 @@ def principal_from_claims(claims: Dict) -> Dict:
     uid = hashlib.sha256(f"{tenant}:{sub}".encode()).hexdigest()[:16]
     token = principal_mod.mint_principal_token(uid, role, tenant)
     result = {
-        "role": role, "tenant_id": tenant, "token": token,
+        "role": role,
+        "tenant_id": tenant,
+        "token": token,
         "token_key": "original_principal_token",
     }
     if exam:

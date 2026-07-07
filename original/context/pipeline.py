@@ -32,14 +32,13 @@ from __future__ import annotations
 import concurrent.futures
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 import numpy as np
 
 from ..constants import ALL_FEATURE_CODES
 from ..features.pipeline import compute_full_features, extract_features, feature_vector
-from .baseline_match import match_baseline_cluster, ensure_sample_context_metadata
-from .manifest import build_manifest, ContextManifest
+from .baseline_match import ensure_sample_context_metadata, match_baseline_cluster
+from .manifest import ContextManifest, build_manifest
 from .resolvers import run_resolvers
 from .weighting import build_adaptive_weight_vector
 
@@ -50,16 +49,17 @@ log = logging.getLogger(__name__)
 # Result dataclass
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class AdaptivePipelineResult:
     """Bundle returned by `run_adaptive_pipeline()` for the caller."""
 
-    feat_dict: Dict[str, float]
-    vector: np.ndarray                       # shape (FEATURE_DIM,)
-    manifest: Optional[ContextManifest] = None
-    adaptive_weights: Optional[np.ndarray] = None
-    fallback_reason: Optional[str] = None    # populated when graceful degradation kicked in
-    cluster_indices: List[int] = field(default_factory=list)
+    feat_dict: dict[str, float]
+    vector: np.ndarray  # shape (FEATURE_DIM,)
+    manifest: ContextManifest | None = None
+    adaptive_weights: np.ndarray | None = None
+    fallback_reason: str | None = None  # populated when graceful degradation kicked in
+    cluster_indices: list[int] = field(default_factory=list)
     anchor_only: bool = False
 
 
@@ -67,11 +67,12 @@ class AdaptivePipelineResult:
 # Public orchestrator
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def run_adaptive_pipeline(
     text: str,
-    state: "object",
+    state: object,
     submission_id: str,
-    keystroke_data: Optional[Dict] = None,
+    keystroke_data: dict | None = None,
     enable_manifest: bool = False,
     enable_adaptive_weights: bool = False,
 ) -> AdaptivePipelineResult:
@@ -130,7 +131,7 @@ def run_adaptive_pipeline(
         )
 
     # ── Stage 2: resolvers ────────────────────────────────────────────────────
-    baseline_texts: List[str] = []
+    baseline_texts: list[str] = []
     samples = getattr(state, "samples", None) or []
     baseline_texts = [s.text for s in samples if (s.auth_weight or 0) > 0]
 
@@ -141,13 +142,14 @@ def run_adaptive_pipeline(
             keystroke_data=keystroke_data,
         )
     except Exception as e:
-        log.warning("resolvers failed for %s: %s — falling back to Phase 1",
-                    submission_id, e)
+        log.warning("resolvers failed for %s: %s — falling back to Phase 1", submission_id, e)
         feat_dict = extract_features(text, keystroke_data=keystroke_data)
         vec = feature_vector(text, keystroke_data=keystroke_data)
         return AdaptivePipelineResult(
-            feat_dict=feat_dict, vector=vec,
-            manifest=None, adaptive_weights=None,
+            feat_dict=feat_dict,
+            vector=vec,
+            manifest=None,
+            adaptive_weights=None,
             fallback_reason="resolver_exception",
         )
 
@@ -162,7 +164,7 @@ def run_adaptive_pipeline(
             feat_dict=feat_dict,
             vector=vec,
             manifest=manifest,
-            adaptive_weights=None,        # ← NOT used when only manifest flag is on
+            adaptive_weights=None,  # ← NOT used when only manifest flag is on
             fallback_reason=None,
         )
 
@@ -170,24 +172,25 @@ def run_adaptive_pipeline(
     try:
         ensure_sample_context_metadata(state)
         cluster_indices, anchor_only = match_baseline_cluster(
-            manifest, state, submission_text=text,
+            manifest,
+            state,
+            submission_text=text,
         )
         # Mutate manifest to record what we picked — this is the key audit
         # field for "why was this score the way it was".
         manifest.baseline_match = {
             "cluster_indices": list(cluster_indices),
-            "n_samples":       len(cluster_indices),
-            "anchor_only":     anchor_only,
+            "n_samples": len(cluster_indices),
+            "anchor_only": anchor_only,
         }
     except Exception as e:
-        log.warning("baseline matching failed for %s: %s — anchor-only fallback",
-                    submission_id, e)
+        log.warning("baseline matching failed for %s: %s — anchor-only fallback", submission_id, e)
         cluster_indices, anchor_only = [], True
         manifest.baseline_match = {
             "cluster_indices": [],
-            "n_samples":       0,
-            "anchor_only":     True,
-            "error":           str(e),
+            "n_samples": 0,
+            "anchor_only": True,
+            "error": str(e),
         }
 
     # ── Stages 5 + 6: run in parallel ────────────────────────────────────────
@@ -205,7 +208,8 @@ def run_adaptive_pipeline(
 
     def _extract_features(_text, _baseline_texts, _keystroke_data, _indices, _anchor):
         return compute_full_features(
-            _text, _baseline_texts,
+            _text,
+            _baseline_texts,
             keystroke_data=_keystroke_data,
             baseline_indices=[] if _anchor else _indices,
         )
@@ -214,21 +218,27 @@ def run_adaptive_pipeline(
         _fw = _pool.submit(_build_weights, manifest)
         _ff = _pool.submit(
             _extract_features,
-            text, baseline_texts, keystroke_data, cluster_indices, anchor_only,
+            text,
+            baseline_texts,
+            keystroke_data,
+            cluster_indices,
+            anchor_only,
         )
 
         try:
             adaptive_weights = _fw.result()
         except Exception as e:
-            log.warning("weight-vector build failed for %s: %s — using static weights",
-                        submission_id, e)
+            log.warning(
+                "weight-vector build failed for %s: %s — using static weights", submission_id, e
+            )
             adaptive_weights = None
 
         try:
             feat_dict = _ff.result()
         except Exception as e:
-            log.warning("compute_full_features failed for %s: %s — using extract_features",
-                        submission_id, e)
+            log.warning(
+                "compute_full_features failed for %s: %s — using extract_features", submission_id, e
+            )
             feat_dict = extract_features(text, keystroke_data=keystroke_data)
 
     vec = np.array([feat_dict[c] for c in ALL_FEATURE_CODES], dtype=np.float64)

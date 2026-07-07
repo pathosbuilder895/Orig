@@ -5,15 +5,11 @@ Transforms quantitative authorship signals into human-readable verdicts
 for professors and instructors, emphasizing the "why" behind the score.
 """
 
-from typing import Dict, List, Optional
-from dataclasses import dataclass
-
 from .quantum.scoring import Layer7Output
-
 
 # ── Feature code → plain English name (comprehensive) ──────────────────────────
 
-FEATURE_PLAIN_NAMES: Dict[str, str] = {
+FEATURE_PLAIN_NAMES: dict[str, str] = {
     # Tier 1 — Surface stylometry
     "type_token_ratio": "vocabulary range",
     "hapax_legomena_rate": "unique word usage",
@@ -24,7 +20,6 @@ FEATURE_PLAIN_NAMES: Dict[str, str] = {
     "modal_verb_ratio": "use of modal verbs",
     "stop_word_ratio": "stop word frequency",
     "avg_word_length": "word complexity",
-
     # Tier 2 — Discourse structure
     "discourse_marker_density": "use of transition words",
     "additive_ratio": "additive connectors (and, also)",
@@ -39,7 +34,6 @@ FEATURE_PLAIN_NAMES: Dict[str, str] = {
     "sentence_opener_variety": "variety in sentence starters",
     "cohesion_device_ratio": "cohesive devices",
     "transition_density": "transition word frequency",
-
     # Tier 3 — Rhetorical & register
     "epistemic_certainty_ratio": "confident assertion style",
     "hedging_density": "use of hedging words",
@@ -53,7 +47,6 @@ FEATURE_PLAIN_NAMES: Dict[str, str] = {
     "appeal_to_authority_density": "appeals to authority",
     "conclusion_strategy_score": "conclusion strategy",
     "theological_register_score": "theological register",
-
     # Tier 4 — Character & Punctuation
     "char_trigram_entropy": "character-level writing patterns",
     "punctuation_diversity": "punctuation variety",
@@ -62,7 +55,6 @@ FEATURE_PLAIN_NAMES: Dict[str, str] = {
     "parenthetical_rate": "parenthetical usage",
     "dash_rate": "dash usage",
     "quote_rate": "quotation frequency",
-
     # Tier 5 — POS & Syntax
     "pos_bigram_entropy": "part-of-speech patterns",
     "pos_trigram_entropy": "three-word grammatical patterns",
@@ -71,7 +63,6 @@ FEATURE_PLAIN_NAMES: Dict[str, str] = {
     "adverb_rate": "adverb frequency",
     "subordination_ratio": "subordination patterns",
     "clause_depth_mean": "clause depth complexity",
-
     # Tier 6 — Idiosyncratic
     "contraction_rate": "use of contractions (don't, can't, it's)",
     "sentence_initial_conjunction_rate": "sentence-initial conjunctions",
@@ -79,7 +70,6 @@ FEATURE_PLAIN_NAMES: Dict[str, str] = {
     "citation_style_consistency": "consistency of citations",
     "list_marker_preference": "list marker preferences",
     "abbreviation_tendency": "abbreviation usage",
-
     # Tier 7 — AI Detection
     "burstiness": "vocabulary bursts",
     "perplexity_proxy": "text predictability",
@@ -87,29 +77,23 @@ FEATURE_PLAIN_NAMES: Dict[str, str] = {
     "transition_predictability": "transition predictability",
     "vocabulary_introduction_rate": "new vocabulary introduction",
     "filler_hedge_cluster_rate": "pattern of hesitation markers",
-
     # Tier 8 — Prosodic Rhythm
     "stress_entropy_unigram": "syllabic stress patterns",
     "stress_entropy_bigram": "consecutive stress patterns",
     "clausulae_consistency": "sentence-ending rhythm patterns",
     "breath_group_variance": "breath group patterns",
-
     # Tier 9 — Cognitive Sequencing
     "structural_centrist_penalty": "argument structure diversity",
     "argument_sequence_likelihood": "argument sequence patterns",
-
     # Tier 10 — Semantic
     "semantic_field_dispersion": "semantic field diversity",
     "semantic_centroid_proximity": "semantic consistency",
-
     # Tier 11 — Error Ecology
     "error_kl_divergence": "error fingerprint (spelling/grammar mistakes)",
     "stumble_rate_consistency": "pattern of errors and stumbles",
     "punctuation_error_ratio": "punctuation error patterns",
-
     # Tier 12 — Tension Arc
     "catastrophe_index": "narrative tension arc structure",
-
     # Tier 13 — Prosodic Depth
     "clausula_type_consistency": "sentence-ending patterns",
     "breath_group_regularity": "breathing patterns",
@@ -117,20 +101,17 @@ FEATURE_PLAIN_NAMES: Dict[str, str] = {
     "arc_resolution_score": "sentence-arc resolution",
     "metric_flatness_score": "rhythmic flatness (AI marker)",
     "clausula_shape_preference": "sentence-ending shape preference",
-
     # Tier 14 — Error Topology
     "error_topology_consistency": "error placement patterns",
     "article_omission_rate": "article omission patterns",
     "pronoun_ambiguity_rate": "pronoun ambiguity",
     "comma_splice_rate": "comma splice frequency",
-
     # Tier 15 — Lexical Architecture
     "semantic_field_concentration": "semantic field concentration",
     "polysyndeton_ratio": "polysyndeton usage",
     "chiasmus_rate": "chiasmus (A-B-B-A) patterns",
     "latinate_ratio": "Latinate vocabulary usage",
     "nominalization_density": "nominalization density",
-
     # Tier 16 — Citation Fingerprint
     "signal_verb_entropy": "signal verb variety",
     "signal_verb_assertiveness": "signal verb tone",
@@ -140,7 +121,6 @@ FEATURE_PLAIN_NAMES: Dict[str, str] = {
     "ibid_usage_rate": "ibid. usage patterns",
     "citation_position_pref": "citation positioning",
     "paraphrase_density": "paraphrase attribution",
-
     # Tier 17 — Behavioral Biometrics
     "typing_speed_cv": "typing rhythm consistency",
     "burst_ratio": "rapid typing patterns",
@@ -148,7 +128,6 @@ FEATURE_PLAIN_NAMES: Dict[str, str] = {
     "pause_density": "pause and thinking patterns",
     "paste_event_rate": "paste/paste-over events",
     "revision_depth": "depth of revisions",
-
     # Comparison features
     "char_trigram_profile_divergence": "character-level divergence",
     "function_word_profile_divergence": "function word divergence",
@@ -172,7 +151,7 @@ def _delta_intensity(delta: float) -> str:
     return f"{intensity} {direction} than usual"
 
 
-def explain(result: Layer7Output) -> Dict:
+def explain(result: Layer7Output) -> dict:
     """
     Convert a Layer7Output scoring result to a professor-friendly explanation.
 
@@ -216,16 +195,19 @@ def explain(result: Layer7Output) -> Dict:
     }
 
     action = result.recommendation.action
-    verdict_data = action_verdicts.get(action, {
-        "verdict": "Assessment inconclusive.",
-        "severity": "watch",
-    })
+    verdict_data = action_verdicts.get(
+        action,
+        {
+            "verdict": "Assessment inconclusive.",
+            "severity": "watch",
+        },
+    )
     verdict = verdict_data["verdict"]
     severity = verdict_data["severity"]
 
     # ── 2. Top reasons from destructive features ──────────────────────────────
 
-    top_reasons: List[str] = []
+    top_reasons: list[str] = []
 
     # Sort destructive features by absolute delta, take top 3
     destructive = sorted(
@@ -270,8 +252,7 @@ def explain(result: Layer7Output) -> Dict:
             )
         else:
             top_reasons.append(
-                "overall statistical patterns resemble those common in "
-                "AI-generated text"
+                "overall statistical patterns resemble those common in " "AI-generated text"
             )
 
     # ── 3. Ghostwriting signal ────────────────────────────────────────────────
@@ -292,9 +273,7 @@ def explain(result: Layer7Output) -> Dict:
             "More samples would improve accuracy."
         )
     else:
-        confidence_note = (
-            f"Assessment based on {int(esc)} verified writing samples."
-        )
+        confidence_note = f"Assessment based on {int(esc)} verified writing samples."
 
     # ── 5. Summary paragraph ──────────────────────────────────────────────────
 
@@ -344,6 +323,6 @@ def explain(result: Layer7Output) -> Dict:
 def _format_reason(reason: str) -> str:
     """Format a reason for inline insertion into summary."""
     # Remove trailing punctuation if present
-    reason = reason.rstrip('.')
+    reason = reason.rstrip(".")
     # Convert to lowercase for inline use
     return reason.lower()

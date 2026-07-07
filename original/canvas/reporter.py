@@ -25,8 +25,7 @@ Canvas reference:
 
 from __future__ import annotations
 
-import math
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import httpx
 
@@ -103,8 +102,6 @@ def _build_authorship_report(
     report_url: str,
 ) -> Dict[str, Any]:
     """Build the authorship deviation report payload for Canvas."""
-    # Map action to colour indicator
-    colour = _deviation_to_colour(deviation_score)
     consistency_pct = round(authorship_probability * 100)
 
     if deviation_score < _GREEN_THRESHOLD:
@@ -256,7 +253,7 @@ async def post_speedgrader_comment(
     action_label = action_labels.get(recommended_action, recommended_action)
 
     lines = [
-        f"Original Authorship Report",
+        "Original Authorship Report",
         f"Consistency: {consistency_pct}% | Deviation: {deviation_pct}%",
         f"Recommendation: {action_label}",
     ]

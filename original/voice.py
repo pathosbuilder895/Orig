@@ -27,42 +27,90 @@ personal and real without being a lookup table back to the 103 features.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
-
+from typing import Any
 
 # ── The voice-dimension taxonomy (server-side only) ──────────────────────────
 # Each named dimension is a blend of several feature codes. A student (or a
 # motivated cheater) seeing "Cadence = 0.62" cannot reverse it to any single
 # tracked feature, and this mapping never crosses the wire.
-VOICE_DIMENSIONS: List[tuple] = [
-    ("Cadence", [
-        "mean_sentence_length", "sentence_length_variance", "burstiness",
-        "breath_group_variance", "breath_group_regularity", "arc_resolution_score",
-    ]),
-    ("Diction", [
-        "type_token_ratio", "hapax_legomena_rate", "avg_word_length",
-        "latinate_ratio", "nominalization_density", "vocabulary_introduction_rate",
-    ]),
-    ("Texture", [
-        "punctuation_diversity", "comma_rate", "semicolon_colon_rate",
-        "dash_rate", "parenthetical_rate", "subordination_ratio", "clause_depth_mean",
-    ]),
-    ("Register", [
-        "theological_register_score", "function_word_ratio", "contraction_rate",
-        "stop_word_ratio", "epistemic_certainty_ratio",
-    ]),
-    ("Restraint", [
-        "hedging_density", "assertion_density", "modal_verb_ratio",
-        "claim_density", "counter_argument_ratio", "question_ratio",
-    ]),
-    ("Architecture", [
-        "transition_density", "discourse_marker_density", "cohesion_device_ratio",
-        "thematic_progression_score", "lexical_chain_density", "conclusion_strategy_score",
-    ]),
-    ("Resonance", [
-        "stress_entropy_unigram", "clausulae_consistency", "clausula_type_consistency",
-        "vowel_sonority_ratio", "metric_flatness_score", "polysyndeton_ratio",
-    ]),
+VOICE_DIMENSIONS: list[tuple] = [
+    (
+        "Cadence",
+        [
+            "mean_sentence_length",
+            "sentence_length_variance",
+            "burstiness",
+            "breath_group_variance",
+            "breath_group_regularity",
+            "arc_resolution_score",
+        ],
+    ),
+    (
+        "Diction",
+        [
+            "type_token_ratio",
+            "hapax_legomena_rate",
+            "avg_word_length",
+            "latinate_ratio",
+            "nominalization_density",
+            "vocabulary_introduction_rate",
+        ],
+    ),
+    (
+        "Texture",
+        [
+            "punctuation_diversity",
+            "comma_rate",
+            "semicolon_colon_rate",
+            "dash_rate",
+            "parenthetical_rate",
+            "subordination_ratio",
+            "clause_depth_mean",
+        ],
+    ),
+    (
+        "Register",
+        [
+            "theological_register_score",
+            "function_word_ratio",
+            "contraction_rate",
+            "stop_word_ratio",
+            "epistemic_certainty_ratio",
+        ],
+    ),
+    (
+        "Restraint",
+        [
+            "hedging_density",
+            "assertion_density",
+            "modal_verb_ratio",
+            "claim_density",
+            "counter_argument_ratio",
+            "question_ratio",
+        ],
+    ),
+    (
+        "Architecture",
+        [
+            "transition_density",
+            "discourse_marker_density",
+            "cohesion_device_ratio",
+            "thematic_progression_score",
+            "lexical_chain_density",
+            "conclusion_strategy_score",
+        ],
+    ),
+    (
+        "Resonance",
+        [
+            "stress_entropy_unigram",
+            "clausulae_consistency",
+            "clausula_type_consistency",
+            "vowel_sonority_ratio",
+            "metric_flatness_score",
+            "polysyndeton_ratio",
+        ],
+    ),
 ]
 
 
@@ -74,7 +122,7 @@ def _clamp01(x: float) -> float:
     return x
 
 
-def project_fingerprint(baseline_vector: Optional[Dict[str, float]]) -> List[Dict[str, Any]]:
+def project_fingerprint(baseline_vector: dict[str, float] | None) -> list[dict[str, Any]]:
     """Blend the raw 103-feature baseline vector into named voice dimensions.
 
     Returns ``[{name, value}]`` where value ∈ [0, 1] is the mean of the
@@ -83,7 +131,7 @@ def project_fingerprint(baseline_vector: Optional[Dict[str, float]]) -> List[Dic
     radar still renders a (centred) shape for a brand-new student.
     """
     vec = baseline_vector or {}
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for name, codes in VOICE_DIMENSIONS:
         vals = [float(vec[c]) for c in codes if c in vec and vec[c] is not None]
         value = sum(vals) / len(vals) if vals else 0.5
@@ -91,7 +139,7 @@ def project_fingerprint(baseline_vector: Optional[Dict[str, float]]) -> List[Dic
     return out
 
 
-def _fidelity(divergence: Optional[float]) -> int:
+def _fidelity(divergence: float | None) -> int:
     """Resolve a raw divergence score into a display-ready fidelity (0–100).
 
     This is the *only* place the divergence→fidelity transform happens. The
@@ -103,14 +151,14 @@ def _fidelity(divergence: Optional[float]) -> int:
     return max(0, min(100, int(f)))
 
 
-def _short_period(created_at: Optional[str]) -> str:
+def _short_period(created_at: str | None) -> str:
     """A bare 'YYYY-MM-DD' (or '') — the client formats it for display."""
     if not created_at:
         return ""
     return str(created_at)[:10]
 
 
-def project_arc(manifests: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def project_arc(manifests: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Manifests (newest-first) → an ascending fidelity series for the Arc.
 
     Each point carries only the *resolved* fidelity, a period label, and an
@@ -119,56 +167,62 @@ def project_arc(manifests: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     # list_manifests returns newest-first; the Arc reads left→right oldest→newest.
     ordered = list(reversed(manifests or []))
-    series: List[Dict[str, Any]] = []
+    series: list[dict[str, Any]] = []
     for m in ordered:
-        action = (m.get("action") or "no_action")
-        series.append({
-            "period": _short_period(m.get("created_at")),
-            "fidelity": _fidelity(m.get("divergence_score")),
-            "attention": action != "no_action",
-        })
+        action = m.get("action") or "no_action"
+        series.append(
+            {
+                "period": _short_period(m.get("created_at")),
+                "fidelity": _fidelity(m.get("divergence_score")),
+                "attention": action != "no_action",
+            }
+        )
     return series
 
 
-def project_voice_notes(corrections: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def project_voice_notes(corrections: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Instructor corrections → finished prose voice notes.
 
     Only the human-written ``notes`` prose, the reviewer, and the date cross the
     wire. The scores/verdicts/actions that generated each correction are stripped.
     """
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for c in corrections or []:
         note = (c.get("notes") or "").strip()
         if not note:
             continue
-        out.append({
-            "note": note,
-            "reviewer": (c.get("reviewer") or "Your tutor").strip() or "Your tutor",
-            "date": _short_period(c.get("created_at")),
-        })
+        out.append(
+            {
+                "note": note,
+                "reviewer": (c.get("reviewer") or "Your tutor").strip() or "Your tutor",
+                "date": _short_period(c.get("created_at")),
+            }
+        )
     return out
 
 
-def project_review_opportunities(manifests: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def project_review_opportunities(manifests: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """The most recent flagged submission → a single gentle invitation.
 
     Server-side decides *what qualifies* (action ≠ no_action). The student
     receives an invitation in prose plus a locator — never the score, the
     threshold, or the action enum.
     """
-    for m in (manifests or []):  # newest-first
-        action = (m.get("action") or "no_action")
+    for m in manifests or []:  # newest-first
+        action = m.get("action") or "no_action"
         if action == "no_action":
             continue
         locator = _short_period(m.get("created_at"))
-        return [{
-            "invitation_prose": (
-                "A passage in your recent work reads a little differently from your "
-                "established voice. This happens to every writer — it is worth a brief "
-                "conversation with your tutor, not a cause for worry."
-            ),
-            "locator": locator,
-        }]
+        return [
+            {
+                "invitation_prose": (
+                    "A passage in your recent work reads a little differently from your "
+                    "established voice. This happens to every writer — it is worth a brief "
+                    "conversation with your tutor, not a cause for worry."
+                ),
+                "locator": locator,
+            }
+        ]
     return []
 
 
@@ -176,7 +230,7 @@ def project_milestones(
     sample_count: int,
     authenticated_count: int,
     formation_completed: bool,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Sample counts → a positive credential as named milestones.
 
     Never sends the raw counts or "3 of 5 samples" — only whether each named
@@ -216,7 +270,7 @@ _FORMATION_STEP_LABELS = {
 }
 
 
-def project_formation(pathway: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+def project_formation(pathway: dict[str, Any] | None) -> dict[str, Any] | None:
     """Formation pathway → a restorative state, with the *reason* stripped.
 
     The pathway's ``reason`` (which can read "voice divergence") and the
@@ -235,17 +289,18 @@ def project_formation(pathway: Optional[Dict[str, Any]]) -> Optional[Dict[str, A
         "current_step": current,
         "total_steps": total,
         "step_label": _FORMATION_STEP_LABELS.get(min(current + 1, total), "Verification Session")
-        if not completed else "Complete",
+        if not completed
+        else "Complete",
         "supportive_copy": (
             "Formation complete. Your record reflects the work you put in."
-            if completed else
-            "A structured, developmental path — three short sessions, each one to "
+            if completed
+            else "A structured, developmental path — three short sessions, each one to "
             "strengthen your writing, not to assess it."
         ),
     }
 
 
-def project_headline(name: str, arc: List[Dict[str, Any]]) -> Dict[str, str]:
+def project_headline(name: str, arc: list[dict[str, Any]]) -> dict[str, str]:
     """A name-addressed, formation-register headline + subhead.
 
     Derived from the resolved fidelity trend only. No raw numbers other than the
@@ -274,13 +329,13 @@ def project_headline(name: str, arc: List[Dict[str, Any]]) -> Dict[str, str]:
 def project_voice_view(
     *,
     name: str,
-    baseline_vector: Optional[Dict[str, float]],
+    baseline_vector: dict[str, float] | None,
     sample_count: int,
     authenticated_count: int,
-    manifests: List[Dict[str, Any]],
-    corrections: List[Dict[str, Any]],
-    pathway: Optional[Dict[str, Any]],
-) -> Dict[str, Any]:
+    manifests: list[dict[str, Any]],
+    corrections: list[dict[str, Any]],
+    pathway: dict[str, Any] | None,
+) -> dict[str, Any]:
     """Assemble the complete, display-ready VoiceView document.
 
     This is the only function the ``/me/voice`` endpoint calls. Everything it
@@ -306,7 +361,8 @@ def project_voice_view(
 
 # ── POST /me/work : redacted scoring result ──────────────────────────────────
 
-def project_submission_result(layer7: Any, name: str) -> Dict[str, Any]:
+
+def project_submission_result(layer7: Any, name: str) -> dict[str, Any]:
     """Project a raw Layer-7 scoring result into the student's formation view.
 
     Accepts either the Pydantic ``Layer7OutputResponse`` or a plain dict with
@@ -316,6 +372,7 @@ def project_submission_result(layer7: Any, name: str) -> Dict[str, Any]:
     The raw deviation score, action enum, feature vectors, and the technical
     ``human_explanation`` never cross the wire.
     """
+
     def _get(obj: Any, key: str, default: Any = None) -> Any:
         if obj is None:
             return default
@@ -353,14 +410,14 @@ def project_submission_result(layer7: Any, name: str) -> Dict[str, Any]:
     # the affirmation is personal without naming any tracked feature. We invert
     # VOICE_DIMENSIONS into code→dimension and report the distinct dimensions
     # that held steady.
-    code_to_dim: Dict[str, str] = {}
+    code_to_dim: dict[str, str] = {}
     for dim, codes in VOICE_DIMENSIONS:
         for c in codes:
             code_to_dim.setdefault(c, dim)
 
     interference = _get(layer7, "interference")
     constructive = _get(interference, "constructive_features", []) or []
-    steady_dims: List[str] = []
+    steady_dims: list[str] = []
     for fc in constructive:
         code = _get(fc, "code")
         dim = code_to_dim.get(code)

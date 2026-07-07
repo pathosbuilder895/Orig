@@ -15,7 +15,7 @@ from original.constants import ALL_FEATURE_CODES
 from original.core.logging import get_logger
 from original.db.models import BaselineSample, Submission, SubmissionStatus, ScoringResult
 from original.db.session import SessionLocal
-from original.features.pipeline import extract_features, compute_full_features
+from original.features.pipeline import compute_full_features
 from original.quantum.scoring import score
 from original.quantum.state import BaselineSample as QBaselineSample, StudentState
 from original.tension_arc import analyze_tension_arc

@@ -2,7 +2,6 @@
 # Replace the field definition to use a string instead of List[str]
 # Then convert it in a validator
 
-import sys
 
 # Read the original config.py
 with open('original/core/config.py', 'r') as f:

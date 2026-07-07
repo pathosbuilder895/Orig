@@ -290,7 +290,7 @@ def purge_submissions(
         cutoff = datetime.utcnow() - timedelta(days=policy.retention_days)
 
     # Find submissions for students in this institution
-    from original.db.models import Student, BaselineSample
+    from original.db.models import Student
 
     student_ids = [s.id for s in db.query(Student.id).filter(
         Student.institution_id == institution_id

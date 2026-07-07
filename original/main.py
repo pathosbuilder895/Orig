@@ -8,21 +8,20 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Depends, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import Depends, FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, RedirectResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
-from prometheus_fastapi_instrumentator import Instrumentator
-
 from original.api.docs_hub import API_DOCS_HUB_HTML
 from original.api.scalar_reference import SCALAR_REFERENCE_HTML
 from original.api.v1 import v1_router
+from original.canvas.baseline_import import router as canvas_baseline_router
 from original.canvas.lti import router as lti_router
 from original.canvas.webhook import router as canvas_webhook_router
-from original.canvas.baseline_import import router as canvas_baseline_router
 from original.core.config import get_settings
 from original.core.exceptions import register_exception_handlers
 from original.core.limiter import limiter
@@ -57,13 +56,31 @@ _OPENAPI_TAGS = [
         "name": "Authentication",
         "description": "Obtain JWTs. **Authorize here first** after calling `POST /auth/login`.",
     },
-    {"name": "Students", "description": "Roster and writing-state for each learner in your institution."},
-    {"name": "Submissions", "description": "Add baseline samples and score new text against a student profile."},
+    {
+        "name": "Students",
+        "description": "Roster and writing-state for each learner in your institution.",
+    },
+    {
+        "name": "Submissions",
+        "description": "Add baseline samples and score new text against a student profile.",
+    },
     {"name": "Admin", "description": "Institution policy, Canvas LTI, audit log (admin role)."},
-    {"name": "Canvas LTI", "description": "LTI 1.3 tool configuration and launch (Canvas integration)."},
-    {"name": "Canvas Webhooks", "description": "Inbound webhook endpoints for Canvas plagiarism / document workflows."},
-    {"name": "Canvas Baseline Import", "description": "Import Canvas submissions as verified baselines."},
-    {"name": "Platform", "description": "Liveness and readiness probes for operations and load balancers."},
+    {
+        "name": "Canvas LTI",
+        "description": "LTI 1.3 tool configuration and launch (Canvas integration).",
+    },
+    {
+        "name": "Canvas Webhooks",
+        "description": "Inbound webhook endpoints for Canvas plagiarism / document workflows.",
+    },
+    {
+        "name": "Canvas Baseline Import",
+        "description": "Import Canvas submissions as verified baselines.",
+    },
+    {
+        "name": "Platform",
+        "description": "Liveness and readiness probes for operations and load balancers.",
+    },
 ]
 
 
@@ -156,7 +173,7 @@ def create_app() -> FastAPI:
     if settings.ENABLE_METRICS:
         Instrumentator(
             should_group_status_codes=False,
-            should_ignore_untemplated=True,          # skip 404s from random paths
+            should_ignore_untemplated=True,  # skip 404s from random paths
             should_instrument_requests_inprogress=True,
             excluded_handlers=["/health", "/readiness", "/metrics"],
             inprogress_name="original_requests_inprogress",
@@ -208,8 +225,8 @@ def _warn_if_no_admin() -> None:
     Log a warning if no admin users exist so operators know to run the CLI.
     Does NOT auto-create users — that is the job of `python -m original.cli create-admin`.
     """
-    from original.db.session import SessionLocal
     from original.db.models import User, UserRole
+    from original.db.session import SessionLocal
 
     db = SessionLocal()
     try:

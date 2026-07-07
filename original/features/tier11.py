@@ -32,7 +32,6 @@ All three are comparison features (require baseline profiles).
 
 import logging
 import re
-from typing import Dict, List
 
 import numpy as np
 
@@ -51,6 +50,7 @@ def _get_nlp():
     if _nlp is None:
         try:
             import spacy
+
             _nlp = spacy.load("en_core_web_sm", disable=["ner", "lemmatizer"])
         except (ImportError, OSError):
             _nlp = "unavailable"
@@ -65,7 +65,8 @@ def _get_nlp():
 
 # ── Error profile extraction ──────────────────────────────────────────────────
 
-def _extract_error_profile(doc: TextDoc) -> Dict[str, float]:
+
+def _extract_error_profile(doc: TextDoc) -> dict[str, float]:
     """
     Compute per-100-word rates for three error categories.
 
@@ -109,16 +110,18 @@ def _extract_error_profile(doc: TextDoc) -> Dict[str, float]:
         for sent in doc.sentences:
             # Simple heuristic: sentence contains ", and" or ", but" — not ideal
             # but gives a baseline reading without a dep parser
-            if re.search(r'\b\w{4,}\b\s*,\s*\b(he|she|they|it|we|the|a|an|this|that)\b', sent, re.I):
+            if re.search(
+                r"\b\w{4,}\b\s*,\s*\b(he|she|they|it|we|the|a|an|this|that)\b", sent, re.I
+            ):
                 errors["comma_splice"] += 1
 
         # Adj chains: 3+ words ending in -ing/-ed/-ful/-ive/-ous before a noun
-        adj_pat = r'(?:\b\w+(?:ing|ed|ful|ive|ous|al|ic)\s+){3,}\w+'
+        adj_pat = r"(?:\b\w+(?:ing|ed|ful|ive|ous|al|ic)\s+){3,}\w+"
         errors["adj_chain"] = len(re.findall(adj_pat, doc.raw, re.I))
 
     # ── Regex punctuation errors (applies regardless of spaCy availability) ───
     # Two or more consecutive punctuation chars (e.g. ".," "?!" ",,")
-    errors["punct_error"] = len(re.findall(r'[.,;!?]{2,}', doc.raw))
+    errors["punct_error"] = len(re.findall(r"[.,;!?]{2,}", doc.raw))
 
     # Normalise to per-100-word rates
     return {k: (v / n_words) * 100.0 for k, v in errors.items()}
@@ -126,17 +129,19 @@ def _extract_error_profile(doc: TextDoc) -> Dict[str, float]:
 
 # ── Profile extraction (for comparison at scoring time) ──────────────────────
 
-def extract_tier11_profile(doc: TextDoc) -> Dict[str, object]:
+
+def extract_tier11_profile(doc: TextDoc) -> dict[str, object]:
     """Return the raw error-rate profile for storage as a baseline profile."""
     return {"_error_profile": _extract_error_profile(doc)}
 
 
 # ── Comparison features ───────────────────────────────────────────────────────
 
+
 def compute_tier11_comparison(
-    sub_profile: Dict[str, object],
-    baseline_profiles: Dict[str, object],
-) -> Dict[str, float]:
+    sub_profile: dict[str, object],
+    baseline_profiles: dict[str, object],
+) -> dict[str, float]:
     """
     Compute all three Error Ecology comparison features.
 
@@ -144,24 +149,21 @@ def compute_tier11_comparison(
     baseline_profiles  — aggregated profile dict from build_aggregate_baseline_profiles()
                          must contain "_error_profiles": List[Dict[str, float]]
     """
-    sub_err: Dict[str, float] = sub_profile.get("_error_profile", {})
-    base_err_list: List[Dict[str, float]] = baseline_profiles.get("_error_profiles", [])
+    sub_err: dict[str, float] = sub_profile.get("_error_profile", {})
+    base_err_list: list[dict[str, float]] = baseline_profiles.get("_error_profiles", [])
 
     KEYS = ["comma_splice", "adj_chain", "punct_error"]
     FALLBACK = {
-        "error_kl_divergence":      0.5,
+        "error_kl_divergence": 0.5,
         "stumble_rate_consistency": 0.5,
-        "punctuation_error_ratio":  0.5,
+        "punctuation_error_ratio": 0.5,
     }
 
     if not base_err_list or not sub_err:
         return FALLBACK
 
     # Aggregate baseline: mean per error type across all baseline samples
-    base_avg = {
-        k: float(np.mean([e.get(k, 0.0) for e in base_err_list]))
-        for k in KEYS
-    }
+    base_avg = {k: float(np.mean([e.get(k, 0.0) for e in base_err_list])) for k in KEYS}
 
     # ── Feature 1: Error profile KL-divergence ────────────────────────────────
     # D_KL(P ∥ Q) where P = submission error distribution, Q = baseline.
@@ -175,31 +177,37 @@ def compute_tier11_comparison(
     q /= q.sum()
     # D_KL(P ∥ Q) = Σ P log₂(P/Q)  — in bits
     kl_div = float(np.sum(p * np.log2(p / q)))
-    MAX_KL = 3.0   # bits; expected maximum divergence for 3-class distribution
+    MAX_KL = 3.0  # bits; expected maximum divergence for 3-class distribution
     error_kl_divergence = float(np.clip(1.0 - kl_div / MAX_KL, 0.0, 1.0))
 
     # ── Feature 2: Stumble-rate consistency ───────────────────────────────────
     # Compares total error rate (all types summed) between submission and baseline.
     # Normalised by the baseline rate to make it scale-invariant.
-    sub_total  = sum(sub_err.get(k, 0.0) for k in KEYS)
+    sub_total = sum(sub_err.get(k, 0.0) for k in KEYS)
     base_total = sum(base_avg.get(k, 0.0) for k in KEYS)
-    stumble_rate_consistency = float(np.clip(
-        1.0 - abs(sub_total - base_total) / (base_total + 0.01),
-        0.0, 1.0,
-    ))
+    stumble_rate_consistency = float(
+        np.clip(
+            1.0 - abs(sub_total - base_total) / (base_total + 0.01),
+            0.0,
+            1.0,
+        )
+    )
 
     # ── Feature 3: Punctuation-error ratio ────────────────────────────────────
     # Focuses specifically on the punct_error category (double-punctuation).
     # This is the least confounded by topic/length effects.
-    punct_sub  = sub_err.get("punct_error", 0.0)
+    punct_sub = sub_err.get("punct_error", 0.0)
     punct_base = base_avg.get("punct_error", 0.0)
-    punctuation_error_ratio = float(np.clip(
-        1.0 - abs(punct_sub - punct_base) / (punct_base + 0.01),
-        0.0, 1.0,
-    ))
+    punctuation_error_ratio = float(
+        np.clip(
+            1.0 - abs(punct_sub - punct_base) / (punct_base + 0.01),
+            0.0,
+            1.0,
+        )
+    )
 
     return {
-        "error_kl_divergence":      error_kl_divergence,
+        "error_kl_divergence": error_kl_divergence,
         "stumble_rate_consistency": stumble_rate_consistency,
-        "punctuation_error_ratio":  punctuation_error_ratio,
+        "punctuation_error_ratio": punctuation_error_ratio,
     }
