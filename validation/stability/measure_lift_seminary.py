@@ -28,6 +28,7 @@ from __future__ import annotations
 
 # Lock env BEFORE any original.* import; the flag is flipped per-run.
 from validation.benchmark.reproducibility import lock_environment  # noqa: E402
+
 ENV_LOCK = lock_environment()
 
 import argparse
@@ -95,8 +96,11 @@ def run_pair(corpus_dir: Path, manifest_path: Path) -> Dict[str, dict]:
     out: Dict[str, dict] = {}
     for mode in ("off", "on"):
         os.environ["LENGTH_ADAPTIVE_WEIGHTS"] = "1" if mode == "on" else "0"
-        print(f"\n[lift-seminary] running calibration with flag {mode.upper()}…",
-              file=sys.stderr, flush=True)
+        print(
+            f"\n[lift-seminary] running calibration with flag {mode.upper()}…",
+            file=sys.stderr,
+            flush=True,
+        )
         report = run_calibration(
             corpus_dir=str(corpus_dir),
             manifest_path=str(manifest_path),
@@ -120,31 +124,51 @@ def run_pair(corpus_dir: Path, manifest_path: Path) -> Dict[str, dict]:
                 for name, m in report.threshold_metrics.items()
             },
         }
-        print(f"[lift-seminary]  {mode.upper()}: AUC={out[mode]['auc']:.4f} "
-              f"Brier={out[mode]['brier']:.4f} n={out[mode]['n_scored']}",
-              file=sys.stderr, flush=True)
+        print(
+            f"[lift-seminary]  {mode.upper()}: AUC={out[mode]['auc']:.4f} "
+            f"Brier={out[mode]['brier']:.4f} n={out[mode]['n_scored']}",
+            file=sys.stderr,
+            flush=True,
+        )
     return out
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description=__doc__,
-                                formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--n-tokens", type=int, default=500,
-                   help="Truncate scoring essays to this many words. Default 500.")
-    p.add_argument("--tmp-dir", type=Path, default=Path("/tmp/seminary_500w"),
-                   help="Where to materialise the truncated corpus.")
-    p.add_argument("--out", type=Path,
-                   default=_HERE / "lift_seminary_2026-06-30.json",
-                   help="Output JSON path for the summary.")
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p.add_argument(
+        "--n-tokens",
+        type=int,
+        default=500,
+        help="Truncate scoring essays to this many words. Default 500.",
+    )
+    p.add_argument(
+        "--tmp-dir",
+        type=Path,
+        default=Path("/tmp/seminary_500w"),
+        help="Where to materialise the truncated corpus.",
+    )
+    p.add_argument(
+        "--out",
+        type=Path,
+        default=_HERE / "lift_seminary_2026-06-30.json",
+        help="Output JSON path for the summary.",
+    )
     args = p.parse_args()
 
     src_corpus = _ROOT / "validation" / "corpus"
     src_manifest = _ROOT / "validation" / "manifest.json"
 
-    print(f"[lift-seminary] building truncated corpus @ {args.n_tokens} words → {args.tmp_dir}",
-          file=sys.stderr)
+    print(
+        f"[lift-seminary] building truncated corpus @ {args.n_tokens} words → {args.tmp_dir}",
+        file=sys.stderr,
+    )
     dst_corpus, dst_manifest = build_truncated_corpus(
-        src_corpus, src_manifest, args.tmp_dir, n_tokens=args.n_tokens,
+        src_corpus,
+        src_manifest,
+        args.tmp_dir,
+        n_tokens=args.n_tokens,
     )
 
     pair = run_pair(dst_corpus, dst_manifest)
@@ -168,7 +192,9 @@ def main() -> int:
     print(f"┌─────────────────────────────────────────────────────────────┐")
     print(f"│  seminary corpus, scored essays truncated to {args.n_tokens} words         │")
     print(f"│  n scored: {pair['off']['n_scored']:<6}                                          │")
-    print(f"│  flag OFF →  AUC={pair['off']['auc']:.4f}  Brier={pair['off']['brier']:.4f}          │")
+    print(
+        f"│  flag OFF →  AUC={pair['off']['auc']:.4f}  Brier={pair['off']['brier']:.4f}          │"
+    )
     print(f"│  flag ON  →  AUC={pair['on']['auc']:.4f}  Brier={pair['on']['brier']:.4f}          │")
     print(f"│  Δ AUC   :  {delta_auc:+.4f}                                    │")
     print(f"│  Δ Brier :  {delta_brier:+.4f}                                    │")

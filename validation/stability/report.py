@@ -39,6 +39,7 @@ _TIERS_TO_AGGREGATE = list(range(1, 17))
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class StabilityPaths:
     root: Path
@@ -64,6 +65,7 @@ def paths_for(base: str = "validation/stability") -> StabilityPaths:
 
 # ── Main writer ──────────────────────────────────────────────────────────────
 
+
 def write_report(
     paths: StabilityPaths,
     *,
@@ -84,8 +86,7 @@ def write_report(
             "n_authors": len(report.author_word_counts),
             "word_counts": report.author_word_counts,
             "window_counts_per_length": [
-                {"length": L, "per_author": wc}
-                for L, wc in zip(lengths, report.window_counts)
+                {"length": L, "per_author": wc} for L, wc in zip(lengths, report.window_counts)
             ],
         },
         "lengths": lengths,
@@ -98,9 +99,7 @@ def write_report(
                     report.fisher_matrix[idx], lengths
                 ),
             }
-            for idx, (code, tier) in enumerate(
-                zip(report.feature_codes, report.feature_tiers)
-            )
+            for idx, (code, tier) in enumerate(zip(report.feature_codes, report.feature_tiers))
         ],
         "excluded_indices": report.excluded_indices,
         "notes": report.notes,
@@ -119,6 +118,7 @@ def write_report(
 
 
 # ── Tabular helpers ─────────────────────────────────────────────────────────
+
 
 def _stability_ratio(row: List[float], lengths: List[int]) -> Optional[float]:
     """F(500) / F(5000) — close to 1 = stable, close to 0 = fragile."""
@@ -139,7 +139,11 @@ def _row_to_json(row: List[float]) -> List[Optional[float]]:
 def _write_feature_csv(path: Path, report: StabilityReport) -> None:
     with open(path, "w", newline="") as f:
         w = csv.writer(f)
-        headers = ["feature_code", "tier"] + [f"F_{L}" for L in report.lengths] + ["stability_ratio_500_over_5000"]
+        headers = (
+            ["feature_code", "tier"]
+            + [f"F_{L}" for L in report.lengths]
+            + ["stability_ratio_500_over_5000"]
+        )
         w.writerow(headers)
         for idx, (code, tier) in enumerate(zip(report.feature_codes, report.feature_tiers)):
             row_vals = report.fisher_matrix[idx]
@@ -161,17 +165,16 @@ def _write_tier_csv(path: Path, report: StabilityReport) -> None:
     lengths = report.lengths
     with open(path, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["tier", "n_features"]
-                   + [f"mean_F_{L}" for L in lengths]
-                   + ["mean_stability_ratio_500_5000", "flag"])
+        w.writerow(
+            ["tier", "n_features"]
+            + [f"mean_F_{L}" for L in lengths]
+            + ["mean_stability_ratio_500_5000", "flag"]
+        )
         for tier in sorted(rows_by_tier.keys()):
             rows = [r for r in rows_by_tier[tier] if not all(math.isnan(v) for v in r)]
             if not rows:
                 continue
-            means_by_length = [
-                _mean_skipnan([r[col] for r in rows])
-                for col in range(len(lengths))
-            ]
+            means_by_length = [_mean_skipnan([r[col] for r in rows]) for col in range(len(lengths))]
             ratios = [_stability_ratio(r, lengths) for r in rows]
             mean_ratio = _mean_skipnan([r for r in ratios if r is not None])
             csv_row = [tier, len(rows)]
@@ -198,6 +201,7 @@ def _flag_for(ratio: Optional[float]) -> str:
 
 # ── Markdown render ─────────────────────────────────────────────────────────
 
+
 def _render_markdown(report: StabilityReport, *, extra: dict) -> str:
     lines: List[str] = []
     lines.append("# Length-stability study")
@@ -206,12 +210,15 @@ def _render_markdown(report: StabilityReport, *, extra: dict) -> str:
     lines.append("")
     lines.append("## Corpus")
     lines.append("")
-    lines.append("| author | word count | " + " | ".join(f"windows@{L}" for L in report.lengths) + " |")
+    lines.append(
+        "| author | word count | " + " | ".join(f"windows@{L}" for L in report.lengths) + " |"
+    )
     lines.append("|---|---|" + "|".join("---" for _ in report.lengths) + "|")
     for author in sorted(report.author_word_counts.keys()):
         wc = report.author_word_counts[author]
-        per_length = " | ".join(str(report.window_counts[col].get(author, 0))
-                                for col in range(len(report.lengths)))
+        per_length = " | ".join(
+            str(report.window_counts[col].get(author, 0)) for col in range(len(report.lengths))
+        )
         lines.append(f"| {author} | {wc:,} | {per_length} |")
     lines.append("")
     if report.notes:
@@ -222,8 +229,12 @@ def _render_markdown(report: StabilityReport, *, extra: dict) -> str:
 
     # Ranked feature lists.
     measured = [
-        (idx, report.feature_codes[idx], report.feature_tiers[idx],
-         _stability_ratio(report.fisher_matrix[idx], report.lengths))
+        (
+            idx,
+            report.feature_codes[idx],
+            report.feature_tiers[idx],
+            _stability_ratio(report.fisher_matrix[idx], report.lengths),
+        )
         for idx in range(len(report.feature_codes))
     ]
     measured = [m for m in measured if m[3] is not None]
@@ -233,8 +244,10 @@ def _render_markdown(report: StabilityReport, *, extra: dict) -> str:
 
     lines.append("## Top 30 length-robust features (F(500) / F(5000) descending)")
     lines.append("")
-    lines.append("Features that keep most of their discriminating power on short inputs. "
-                 "Phase-2 weight schedule should LEAN INTO these at low word count.")
+    lines.append(
+        "Features that keep most of their discriminating power on short inputs. "
+        "Phase-2 weight schedule should LEAN INTO these at low word count."
+    )
     lines.append("")
     lines.append("| rank | feature | tier | F(500) | F(5000) | ratio |")
     lines.append("|---|---|---|---|---|---|")
@@ -246,8 +259,10 @@ def _render_markdown(report: StabilityReport, *, extra: dict) -> str:
 
     lines.append("## Bottom 20 length-fragile features (F(500) / F(5000) ascending)")
     lines.append("")
-    lines.append("Features that lose most of their discriminating power on short inputs. "
-                 "Phase-2 weight schedule should DOWN-WEIGHT these at low word count.")
+    lines.append(
+        "Features that lose most of their discriminating power on short inputs. "
+        "Phase-2 weight schedule should DOWN-WEIGHT these at low word count."
+    )
     lines.append("")
     lines.append("| rank | feature | tier | F(500) | F(5000) | ratio |")
     lines.append("|---|---|---|---|---|---|")
@@ -260,24 +275,28 @@ def _render_markdown(report: StabilityReport, *, extra: dict) -> str:
     # Per-tier aggregate.
     lines.append("## Per-tier aggregate")
     lines.append("")
-    lines.append("Mean Fisher ratio per tier across the 5 length buckets. "
-                 "**HOLDS** = stability ratio ≥ 0.7; **DEGRADES** = 0.3 ≤ ratio < 0.7; "
-                 "**COLLAPSES** = ratio < 0.3. Tier 0 (comparison features) and tier 17 "
-                 "(keystroke) are excluded from this aggregate.")
+    lines.append(
+        "Mean Fisher ratio per tier across the 5 length buckets. "
+        "**HOLDS** = stability ratio ≥ 0.7; **DEGRADES** = 0.3 ≤ ratio < 0.7; "
+        "**COLLAPSES** = ratio < 0.3. Tier 0 (comparison features) and tier 17 "
+        "(keystroke) are excluded from this aggregate."
+    )
     lines.append("")
-    lines.append("| tier | n features | "
-                 + " | ".join(f"mean F({L})" for L in report.lengths)
-                 + " | mean ratio | flag |")
+    lines.append(
+        "| tier | n features | "
+        + " | ".join(f"mean F({L})" for L in report.lengths)
+        + " | mean ratio | flag |"
+    )
     lines.append("|---|---|" + "|".join("---" for _ in report.lengths) + "|---|---|")
 
     for tier in _TIERS_TO_AGGREGATE:
-        rows = [report.fisher_matrix[idx]
-                for idx, t in enumerate(report.feature_tiers) if t == tier]
+        rows = [
+            report.fisher_matrix[idx] for idx, t in enumerate(report.feature_tiers) if t == tier
+        ]
         rows = [r for r in rows if not all(math.isnan(v) for v in r)]
         if not rows:
             continue
-        means = [_mean_skipnan([r[col] for r in rows])
-                 for col in range(len(report.lengths))]
+        means = [_mean_skipnan([r[col] for r in rows]) for col in range(len(report.lengths))]
         ratios = [_stability_ratio(r, report.lengths) for r in rows]
         mean_ratio = _mean_skipnan([r for r in ratios if r is not None])
         flag = _flag_for(mean_ratio)

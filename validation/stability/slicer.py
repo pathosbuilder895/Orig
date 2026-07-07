@@ -62,5 +62,5 @@ def slide(
     step = max(1, int(round(window_size * (1.0 - overlap))))
     windows: List[str] = []
     for start in range(0, len(words) - window_size + 1, step):
-        windows.append(" ".join(words[start:start + window_size]))
+        windows.append(" ".join(words[start : start + window_size]))
     return windows

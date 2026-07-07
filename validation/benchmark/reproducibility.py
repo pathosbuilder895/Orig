@@ -32,29 +32,30 @@ import os
 import random
 from dataclasses import dataclass
 
-BENCHMARK_SEED = 1729   # Ramanujan's taxicab number — same one calibration.py uses
+BENCHMARK_SEED = 1729  # Ramanujan's taxicab number — same one calibration.py uses
 
 
 # ── Every env-var-gated scoring flag, mapped to its pinned default. ─────────
 # The value is what lock_environment() writes into os.environ. Keep this
 # dict in sync with every `os.environ.get(...)` read in original/quantum/.
 _SCORING_FLAG_DEFAULTS = {
-    "ADAPTIVE_WEIGHTS_ENABLED":   "0",   # Phase 5 context-adaptive weights
-    "AMPLITUDE_SCORING_ENABLED":  "0",   # Phase 6 amplitude branch
-    "BAYESIAN_PRIOR_ENABLED":     "0",   # cold-start prior blend
-    "LENGTH_ADAPTIVE_WEIGHTS":    "0",   # length-schedule scaling
+    "ADAPTIVE_WEIGHTS_ENABLED": "0",  # Phase 5 context-adaptive weights
+    "AMPLITUDE_SCORING_ENABLED": "0",  # Phase 6 amplitude branch
+    "BAYESIAN_PRIOR_ENABLED": "0",  # cold-start prior blend
+    "LENGTH_ADAPTIVE_WEIGHTS": "0",  # length-schedule scaling
 }
 
 
 @dataclass(frozen=True)
 class _EnvLockReport:
     """What lock_environment() set. Returned for visibility / debugging."""
+
     secret_key: str
     environment: str
     original_db: str
     numpy_seeded: bool
     python_seeded: bool
-    scoring_flags: dict     # {flag_name: pinned_value}
+    scoring_flags: dict  # {flag_name: pinned_value}
 
 
 def lock_environment(seed: int = BENCHMARK_SEED) -> _EnvLockReport:
@@ -98,6 +99,7 @@ def lock_environment(seed: int = BENCHMARK_SEED) -> _EnvLockReport:
     random.seed(seed)
     try:
         import numpy as np
+
         np.random.seed(seed)
         numpy_seeded = True
     except Exception:

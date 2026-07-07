@@ -23,19 +23,20 @@ from typing import Dict, List, Optional, Sequence, Tuple
 import numpy as np
 
 
-BOOTSTRAP_B = 1000        # 1k iters gives ~1pp precision on the 95% CI
-BOOTSTRAP_SEED = 1729     # match BENCHMARK_SEED for full reproducibility
+BOOTSTRAP_B = 1000  # 1k iters gives ~1pp precision on the 95% CI
+BOOTSTRAP_SEED = 1729  # match BENCHMARK_SEED for full reproducibility
 
 
 @dataclass(frozen=True)
 class AuthorMetrics:
     """Per-author metrics."""
+
     author: str
     n_same: int
     n_different: int
     auc: float
-    auc_ci_lo: float          # bootstrap 95% CI lower
-    auc_ci_hi: float          # bootstrap 95% CI upper
+    auc_ci_lo: float  # bootstrap 95% CI lower
+    auc_ci_hi: float  # bootstrap 95% CI upper
     brier: float
     tpr_at_fpr_01: Optional[float]
     tpr_at_fpr_05: Optional[float]
@@ -59,8 +60,9 @@ class VerifyReport:
     an assumption this evaluator does not verify. Report it as a
     secondary/diagnostic number, not the pilot's headline claim.
     """
+
     n_authors: int
-    skipped_authors: List[str]      # authors with n_same=0 or n_diff=0 — no metric possible
+    skipped_authors: List[str]  # authors with n_same=0 or n_diff=0 — no metric possible
     total_same_pairs: int
     total_different_pairs: int
     pooled_uncalibrated_auc: float
@@ -76,6 +78,7 @@ class VerifyReport:
 
 
 # ── AUC ─────────────────────────────────────────────────────────────────────
+
 
 def auc(y_true: np.ndarray, y_score: np.ndarray) -> float:
     """
@@ -116,8 +119,7 @@ def brier(y_true: Sequence[int], y_score: Sequence[float]) -> float:
     return float(np.mean((y_score - y_true) ** 2))
 
 
-def tpr_at_fpr(y_true: np.ndarray, y_score: np.ndarray,
-               target_fpr: float) -> Optional[float]:
+def tpr_at_fpr(y_true: np.ndarray, y_score: np.ndarray, target_fpr: float) -> Optional[float]:
     """
     Highest TPR achievable while keeping FPR ≤ ``target_fpr``.
 
@@ -158,6 +160,7 @@ def tpr_at_fpr(y_true: np.ndarray, y_score: np.ndarray,
 
 
 # ── Bootstrap AUC ────────────────────────────────────────────────────────────
+
 
 def bootstrap_auc_ci(
     y_true: np.ndarray,
@@ -206,9 +209,11 @@ def bootstrap_auc_ci(
 
 # ── Per-author + aggregate ──────────────────────────────────────────────────
 
+
 @dataclass
 class _ScoringPair:
     """One (baseline_author, submission_author, deviation, probability) row."""
+
     baseline_author: str
     submission_author: str
     deviation: float
@@ -239,24 +244,29 @@ def summarize(pairs: List[_ScoringPair]) -> VerifyReport:
         if n_same == 0 or n_diff == 0:
             # Can't compute a meaningful binary metric — no same-author
             # or no different-author examples to contrast against.
-            print(f"[verify] skip {author}: n_same={n_same}, n_diff={n_diff} "
-                  f"(no metric possible)", file=_sys.stderr)
+            print(
+                f"[verify] skip {author}: n_same={n_same}, n_diff={n_diff} "
+                f"(no metric possible)",
+                file=_sys.stderr,
+            )
             skipped_authors.append(author)
             continue
         a = auc(yt, ys)
         lo, hi = bootstrap_auc_ci(yt, ys)
-        per_author.append(AuthorMetrics(
-            author=author,
-            n_same=n_same,
-            n_different=n_diff,
-            auc=round(a, 4),
-            auc_ci_lo=round(lo, 4),
-            auc_ci_hi=round(hi, 4),
-            brier=round(brier(yt, ys), 4),
-            tpr_at_fpr_01=_maybe_round(tpr_at_fpr(yt, ys, 0.01)),
-            tpr_at_fpr_05=_maybe_round(tpr_at_fpr(yt, ys, 0.05)),
-            tpr_at_fpr_10=_maybe_round(tpr_at_fpr(yt, ys, 0.10)),
-        ))
+        per_author.append(
+            AuthorMetrics(
+                author=author,
+                n_same=n_same,
+                n_different=n_diff,
+                auc=round(a, 4),
+                auc_ci_lo=round(lo, 4),
+                auc_ci_hi=round(hi, 4),
+                brier=round(brier(yt, ys), 4),
+                tpr_at_fpr_01=_maybe_round(tpr_at_fpr(yt, ys, 0.01)),
+                tpr_at_fpr_05=_maybe_round(tpr_at_fpr(yt, ys, 0.05)),
+                tpr_at_fpr_10=_maybe_round(tpr_at_fpr(yt, ys, 0.10)),
+            )
+        )
 
     # Pooled-uncalibrated: concatenate every eligible author's rows and
     # compute AUC + Brier on that pooled set. NOT the headline number —

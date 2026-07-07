@@ -44,20 +44,21 @@ from validation.manifest_schema import (
 
 # ── A dataset-agnostic entry the adapters fill in ────────────────────────────
 
+
 @dataclass
 class WideEntry:
     """One essay's worth of data, the shape the materialize() step wants."""
 
-    author_id: str                  # canonical author identifier (e.g. "raid_wiki")
-    label: AuthorshipLabel          # AUTHENTIC | AI_GENERATED | GHOSTWRITTEN | …
-    text: str                       # the essay text itself
-    prompt: str                     # short topic/prompt label
+    author_id: str  # canonical author identifier (e.g. "raid_wiki")
+    label: AuthorshipLabel  # AUTHENTIC | AI_GENERATED | GHOSTWRITTEN | …
+    text: str  # the essay text itself
+    prompt: str  # short topic/prompt label
     is_baseline: bool = False
     ai_provider: AIProvider = AIProvider.NONE
     native_english: Optional[bool] = None
     theological_tradition: Optional[str] = None
     notes: str = ""
-    source_id: str = ""             # original dataset row id (for traceability)
+    source_id: str = ""  # original dataset row id (for traceability)
 
 
 # ── Writing the corpus + manifest ────────────────────────────────────────────
@@ -105,9 +106,7 @@ def materialize(
         baselines = [e for e in items if e.is_baseline]
         scoring = [e for e in items if not e.is_baseline]
         if len(baselines) < min_baseline_per_author or len(scoring) < min_scoring_per_author:
-            dropped.append(
-                f"{author_id} (baseline={len(baselines)}, scoring={len(scoring)})"
-            )
+            dropped.append(f"{author_id} (baseline={len(baselines)}, scoring={len(scoring)})")
             continue
 
         author_dir = corpus_dir / _slug(author_id)
@@ -117,22 +116,26 @@ def materialize(
         for idx, e in enumerate(items):
             fname = f"{_slug(author_id)}/{idx:04d}_{e.label.value}.txt"
             (corpus_dir / fname).write_text(e.text, encoding="utf-8")
-            corpus_entries.append(CorpusEntry(
-                filename=fname,
-                author_id=author_id,
-                label=e.label,
-                prompt=e.prompt or "n/a",
-                word_count=len(e.text.split()),
-                is_baseline=e.is_baseline,
-                ai_provider=e.ai_provider,
-                theological_tradition=e.theological_tradition,
-                native_english=e.native_english,
-                notes=e.notes or e.source_id or None,
-            ))
+            corpus_entries.append(
+                CorpusEntry(
+                    filename=fname,
+                    author_id=author_id,
+                    label=e.label,
+                    prompt=e.prompt or "n/a",
+                    word_count=len(e.text.split()),
+                    is_baseline=e.is_baseline,
+                    ai_provider=e.ai_provider,
+                    theological_tradition=e.theological_tradition,
+                    native_english=e.native_english,
+                    notes=e.notes or e.source_id or None,
+                )
+            )
         kept_authors[author_id] = corpus_entries
 
     if dropped:
-        print(f"  [adapter] dropped {len(dropped)} authors: {dropped[:5]}{'…' if len(dropped) > 5 else ''}")
+        print(
+            f"  [adapter] dropped {len(dropped)} authors: {dropped[:5]}{'…' if len(dropped) > 5 else ''}"
+        )
 
     flat_entries = [c for lst in kept_authors.values() for c in lst]
     if not flat_entries:
@@ -160,6 +163,7 @@ def materialize(
 
 
 # ── Manifest lookup (for the bias slicer) ────────────────────────────────────
+
 
 def manifest_lookup_for(manifest_path: Path) -> Dict[str, dict]:
     """

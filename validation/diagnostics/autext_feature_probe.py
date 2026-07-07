@@ -44,6 +44,7 @@ from __future__ import annotations
 
 # Lock env BEFORE any original.* import.
 from validation.benchmark.reproducibility import lock_environment  # noqa: E402
+
 ENV_LOCK = lock_environment()
 
 import argparse
@@ -94,18 +95,21 @@ def _extract_original_features(rows: List[dict], label: str) -> np.ndarray:
         X[i] = feature_vector(row["text"])
         if (i + 1) % 100 == 0:
             elapsed = time.perf_counter() - t0
-            print(f"  [{label}] {i+1}/{len(rows)} features extracted "
-                  f"({elapsed:.0f}s elapsed)", file=sys.stderr, flush=True)
+            print(
+                f"  [{label}] {i+1}/{len(rows)} features extracted " f"({elapsed:.0f}s elapsed)",
+                file=sys.stderr,
+                flush=True,
+            )
     return X
 
 
 def _y(rows: List[dict]) -> np.ndarray:
-    return np.array([1 if (r.get("label") or "").lower() == "human" else 0
-                     for r in rows], dtype=np.int8)
+    return np.array(
+        [1 if (r.get("label") or "").lower() == "human" else 0 for r in rows], dtype=np.int8
+    )
 
 
-def run(*, n_train: int, n_test: int, seed: int = BENCHMARK_SEED,
-       out_path: Path = None) -> dict:
+def run(*, n_train: int, n_test: int, seed: int = BENCHMARK_SEED, out_path: Path = None) -> dict:
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.metrics import roc_auc_score, accuracy_score, brier_score_loss
@@ -121,8 +125,11 @@ def run(*, n_train: int, n_test: int, seed: int = BENCHMARK_SEED,
 
     train_rows = _stratified_sample(train_rows_all, n_train, seed)
     test_rows = _stratified_sample(test_rows_all, n_test, seed + 1)
-    print(f"[probe] train={len(train_rows)} test={len(test_rows)} "
-          f"(balanced human/generated, pooled across domains)", file=sys.stderr)
+    print(
+        f"[probe] train={len(train_rows)} test={len(test_rows)} "
+        f"(balanced human/generated, pooled across domains)",
+        file=sys.stderr,
+    )
 
     y_train, y_test = _y(train_rows), _y(test_rows)
 
@@ -165,6 +172,7 @@ def run(*, n_train: int, n_test: int, seed: int = BENCHMARK_SEED,
     # ── Feature importance from (A) — which of Original's 103 features
     #    actually carry AI-detection signal, for follow-up. ──
     from original.constants import ALL_FEATURE_CODES
+
     importances = sorted(
         zip(ALL_FEATURE_CODES, clf_a.feature_importances_),
         key=lambda kv: -kv[1],
@@ -174,18 +182,21 @@ def run(*, n_train: int, n_test: int, seed: int = BENCHMARK_SEED,
         "n_train": len(train_rows),
         "n_test": len(test_rows),
         "seed": seed,
-        "styloai_reference": {"auc": 0.88, "accuracy": 0.81,
-                              "source": "arxiv.org/html/2405.10129v1"},
+        "styloai_reference": {
+            "auc": 0.88,
+            "accuracy": 0.81,
+            "source": "arxiv.org/html/2405.10129v1",
+        },
         "original_production_reference": {
-            "auc": 0.6091, "brier": 0.2771,
+            "auc": 0.6091,
+            "brier": 0.2771,
             "source": "PR #20, validation/wide/autextification.py, "
-                     "Born-rule per-student scoring",
+            "Born-rule per-student scoring",
         },
         "A_original_features_rf": result_a,
         "B_tfidf_char_ngram_rf": result_b,
         "top_15_feature_importances_A": [
-            {"feature": f, "importance": round(float(imp), 4)}
-            for f, imp in importances
+            {"feature": f, "importance": round(float(imp), 4)} for f, imp in importances
         ],
         "env": ENV_LOCK.__dict__,
     }
@@ -197,16 +208,24 @@ def run(*, n_train: int, n_test: int, seed: int = BENCHMARK_SEED,
     print()
     print("┌─────────────────────────────────────────────────────────────────┐")
     print("│  AuTexTification: features vs. scoring method                    │")
-    print(f"│  train={len(train_rows):<5} test={len(test_rows):<5}                                          │")
+    print(
+        f"│  train={len(train_rows):<5} test={len(test_rows):<5}                                          │"
+    )
     print("│                                                                    │")
     print(f"│  StyloAI (paper, full 33k train)     AUC=0.8800  acc=0.8100      │")
     print(f"│  Original production (PR #20)        AUC=0.6091  Brier=0.2771    │")
-    print(f"│  (A) Original 103 feat + RF (n={n_train:<5})  AUC={result_a['auc']:.4f}  acc={result_a['accuracy']:.4f}  │")
-    print(f"│  (B) TF-IDF char-ngram + RF (n={n_train:<5})  AUC={result_b['auc']:.4f}  acc={result_b['accuracy']:.4f}  │")
+    print(
+        f"│  (A) Original 103 feat + RF (n={n_train:<5})  AUC={result_a['auc']:.4f}  acc={result_a['accuracy']:.4f}  │"
+    )
+    print(
+        f"│  (B) TF-IDF char-ngram + RF (n={n_train:<5})  AUC={result_b['auc']:.4f}  acc={result_b['accuracy']:.4f}  │"
+    )
     print("│                                                                    │")
-    verdict = ("features are fine — scoring method is the bottleneck"
-              if result_a["auc"] >= result_b["auc"] - 0.03
-              else "features lack signal relative to a generic baseline")
+    verdict = (
+        "features are fine — scoring method is the bottleneck"
+        if result_a["auc"] >= result_b["auc"] - 0.03
+        else "features lack signal relative to a generic baseline"
+    )
     print(f"│  Verdict: {verdict}")
     print("└─────────────────────────────────────────────────────────────────┘")
     if out_path:
@@ -216,15 +235,20 @@ def run(*, n_train: int, n_test: int, seed: int = BENCHMARK_SEED,
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--n-train", type=int, default=1000,
-                    help="Balanced train sample size (default 1000).")
-    ap.add_argument("--n-test", type=int, default=400,
-                    help="Balanced test sample size (default 400).")
-    ap.add_argument("--out", type=Path,
-                    default=_ROOT / "validation" / "diagnostics" /
-                            "autext_feature_probe_2026-07-02.json")
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument(
+        "--n-train", type=int, default=1000, help="Balanced train sample size (default 1000)."
+    )
+    ap.add_argument(
+        "--n-test", type=int, default=400, help="Balanced test sample size (default 400)."
+    )
+    ap.add_argument(
+        "--out",
+        type=Path,
+        default=_ROOT / "validation" / "diagnostics" / "autext_feature_probe_2026-07-02.json",
+    )
     args = ap.parse_args(argv)
     try:
         run(n_train=args.n_train, n_test=args.n_test, out_path=args.out)

@@ -43,18 +43,16 @@ from .slicer import slide
 
 log = logging.getLogger("stability")
 
-EPS = 1e-9                              # for the Fisher denominator
-KEYSTROKE_TIER = 17                     # text-only inputs zero this tier
+EPS = 1e-9  # for the Fisher denominator
+KEYSTROKE_TIER = 17  # text-only inputs zero this tier
 
 
 # Pre-compute the indices we actually measure (everything except tier 17).
 _FEATURE_INDICES_MEASURED: List[int] = [
-    idx for idx, code in enumerate(ALL_FEATURE_CODES)
-    if FEATURE_TIER.get(code, 0) != KEYSTROKE_TIER
+    idx for idx, code in enumerate(ALL_FEATURE_CODES) if FEATURE_TIER.get(code, 0) != KEYSTROKE_TIER
 ]
 _FEATURE_INDICES_SKIPPED: List[int] = [
-    idx for idx, code in enumerate(ALL_FEATURE_CODES)
-    if FEATURE_TIER.get(code, 0) == KEYSTROKE_TIER
+    idx for idx, code in enumerate(ALL_FEATURE_CODES) if FEATURE_TIER.get(code, 0) == KEYSTROKE_TIER
 ]
 
 
@@ -62,13 +60,13 @@ _FEATURE_INDICES_SKIPPED: List[int] = [
 class StabilityReport:
     """Result of ``per_feature_stability`` — everything the writer needs."""
 
-    feature_codes: List[str]                  # length 103, ordered by ALL_FEATURE_CODES
-    feature_tiers: List[int]                  # parallel to feature_codes
-    lengths: List[int]                        # the window sizes evaluated, ascending
-    fisher_matrix: List[List[float]]          # shape (n_features, n_lengths); NaN for tier-17 rows
-    window_counts: List[Dict[str, int]]       # per length: {author_id: n_windows}
+    feature_codes: List[str]  # length 103, ordered by ALL_FEATURE_CODES
+    feature_tiers: List[int]  # parallel to feature_codes
+    lengths: List[int]  # the window sizes evaluated, ascending
+    fisher_matrix: List[List[float]]  # shape (n_features, n_lengths); NaN for tier-17 rows
+    window_counts: List[Dict[str, int]]  # per length: {author_id: n_windows}
     author_word_counts: Dict[str, int]
-    excluded_indices: List[int]               # tier-17 feature indices
+    excluded_indices: List[int]  # tier-17 feature indices
     notes: List[str] = field(default_factory=list)
 
 
@@ -107,13 +105,16 @@ def compute_feature_matrix(
         for w in windows:
             try:
                 fv = feature_vector(w)
-            except Exception:                                       # pragma: no cover
-                log.warning("feature_vector failed on a window for %s @ %d",
-                            author_id, length, exc_info=True)
+            except Exception:  # pragma: no cover
+                log.warning(
+                    "feature_vector failed on a window for %s @ %d",
+                    author_id,
+                    length,
+                    exc_info=True,
+                )
                 continue
             rows.append(np.asarray(fv, dtype=np.float64))
-        out[author_id] = np.vstack(rows) if rows else \
-                         np.zeros((0, FEATURE_DIM), dtype=np.float64)
+        out[author_id] = np.vstack(rows) if rows else np.zeros((0, FEATURE_DIM), dtype=np.float64)
     return out
 
 
@@ -179,7 +180,9 @@ def per_feature_stability(
     for col, L in enumerate(lengths_sorted):
         log.info("[stability] computing length=%d (%d authors)…", L, len(author_texts))
         matrices = compute_feature_matrix(
-            author_texts, L, max_windows=max_windows_per_author,
+            author_texts,
+            L,
+            max_windows=max_windows_per_author,
         )
         window_counts.append({a: int(m.shape[0]) for a, m in matrices.items()})
         F = fisher_ratio(matrices)

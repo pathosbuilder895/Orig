@@ -34,19 +34,21 @@ from validation.manifest_schema import AIProvider, AuthorshipLabel
 from validation.wide._adapter import WideEntry, materialize
 
 
-RAID_CACHE = Path(__file__).resolve().parent.parent.parent / ".benchmark_cache" / "raid" / "raid_sample.csv"
+RAID_CACHE = (
+    Path(__file__).resolve().parent.parent.parent / ".benchmark_cache" / "raid" / "raid_sample.csv"
+)
 
 
 # RAID model strings → ai_provider buckets used by Original
 _PROVIDER_MAP = {
-    "human":          AIProvider.NONE,
-    "chatgpt":        AIProvider.CHATGPT,
-    "gpt2":           AIProvider.CHATGPT,
-    "gpt3":           AIProvider.CHATGPT,
-    "gpt4":           AIProvider.CHATGPT,
-    "claude":         AIProvider.CLAUDE,
-    "gemini":         AIProvider.GEMINI,
-    "bard":           AIProvider.GEMINI,
+    "human": AIProvider.NONE,
+    "chatgpt": AIProvider.CHATGPT,
+    "gpt2": AIProvider.CHATGPT,
+    "gpt3": AIProvider.CHATGPT,
+    "gpt4": AIProvider.CHATGPT,
+    "claude": AIProvider.CLAUDE,
+    "gemini": AIProvider.GEMINI,
+    "bard": AIProvider.GEMINI,
 }
 
 
@@ -90,7 +92,7 @@ def build_corpus(
     # Track per-(domain, role) caps so we don't drown one domain in AI
     # rows or starve another of human rows.
     per_domain_human_cap = max(8, sample_size // 16)
-    per_domain_ai_cap    = max(8, sample_size // 16)
+    per_domain_ai_cap = max(8, sample_size // 16)
     human_counts: Dict[str, int] = {}
     ai_counts: Dict[str, int] = {}
 
@@ -108,37 +110,41 @@ def build_corpus(
             if len(text) < min_text_chars:
                 continue
 
-            is_human = (model == "human")
+            is_human = model == "human"
             if is_human:
                 if human_counts.get(domain, 0) >= per_domain_human_cap:
                     continue
                 human_counts[domain] = human_counts.get(domain, 0) + 1
                 idx = human_counts[domain]
-                entries.append(WideEntry(
-                    author_id=f"raid:{domain}",
-                    label=AuthorshipLabel.AUTHENTIC,
-                    text=text,
-                    prompt=row.get("title") or domain,
-                    is_baseline=(idx <= 3),
-                    ai_provider=AIProvider.NONE,
-                    native_english=True,
-                    source_id=row.get("id") or row.get("source_id") or "",
-                ))
+                entries.append(
+                    WideEntry(
+                        author_id=f"raid:{domain}",
+                        label=AuthorshipLabel.AUTHENTIC,
+                        text=text,
+                        prompt=row.get("title") or domain,
+                        is_baseline=(idx <= 3),
+                        ai_provider=AIProvider.NONE,
+                        native_english=True,
+                        source_id=row.get("id") or row.get("source_id") or "",
+                    )
+                )
             else:
                 if ai_counts.get(domain, 0) >= per_domain_ai_cap:
                     continue
                 ai_counts[domain] = ai_counts.get(domain, 0) + 1
-                entries.append(WideEntry(
-                    author_id=f"raid:{domain}",
-                    label=AuthorshipLabel.AI_GENERATED,
-                    text=text,
-                    prompt=row.get("title") or domain,
-                    is_baseline=False,
-                    ai_provider=_bucket_provider(model),
-                    native_english=None,
-                    source_id=row.get("id") or row.get("source_id") or "",
-                    notes=f"model={model}, attack={row.get('attack')}",
-                ))
+                entries.append(
+                    WideEntry(
+                        author_id=f"raid:{domain}",
+                        label=AuthorshipLabel.AI_GENERATED,
+                        text=text,
+                        prompt=row.get("title") or domain,
+                        is_baseline=False,
+                        ai_provider=_bucket_provider(model),
+                        native_english=None,
+                        source_id=row.get("id") or row.get("source_id") or "",
+                        notes=f"model={model}, attack={row.get('attack')}",
+                    )
+                )
 
     return materialize(
         entries,

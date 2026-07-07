@@ -27,6 +27,7 @@ from __future__ import annotations
 
 # Lock the environment BEFORE importing anything that pulls original.*.
 from validation.benchmark.reproducibility import lock_environment  # noqa: E402
+
 ENV_LOCK = lock_environment()
 
 import argparse
@@ -43,8 +44,8 @@ _HERE = Path(__file__).resolve().parent
 _CORPUS_DIR = _HERE.parent / "public_authors" / "corpus"
 
 DEFAULT_LENGTHS = (250, 500, 1000, 2000, 5000)
-DEFAULT_MIN_WORDS = 40_000           # admits Boethius at 42k
-DEFAULT_MAX_WINDOWS = 12              # ~650ms per feature_vector → finishes in ~7 min
+DEFAULT_MIN_WORDS = 40_000  # admits Boethius at 42k
+DEFAULT_MAX_WINDOWS = 12  # ~650ms per feature_vector → finishes in ~7 min
 
 
 log = logging.getLogger("stability")
@@ -101,8 +102,7 @@ def run(
     corpus_dir: Path = _CORPUS_DIR,
 ) -> dict:
     """End-to-end study. Returns a small summary dict."""
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s",
-                        datefmt="%H:%M:%S")
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
 
     author_texts = load_corpus(corpus_dir, min_words=min_words, only=only)
     if len(author_texts) < 2:
@@ -121,12 +121,19 @@ def run(
 
     # ── Compact CLI summary so a user can sanity-check at a glance. ──
     measured = [
-        (report.feature_codes[idx],
-         report.fisher_matrix[idx][report.lengths.index(500)] if 500 in report.lengths else float("nan"),
-         report.fisher_matrix[idx][report.lengths.index(5000)] if 5000 in report.lengths else float("nan"))
+        (
+            report.feature_codes[idx],
+            report.fisher_matrix[idx][report.lengths.index(500)]
+            if 500 in report.lengths
+            else float("nan"),
+            report.fisher_matrix[idx][report.lengths.index(5000)]
+            if 5000 in report.lengths
+            else float("nan"),
+        )
         for idx in range(len(report.feature_codes))
     ]
     import math
+
     eligible_ratios = []
     for code, f500, f5000 in measured:
         if math.isnan(f500) or math.isnan(f5000) or f5000 <= 0:
@@ -138,10 +145,10 @@ def run(
 
     print("", file=sys.stderr)
     print(f"[stability] report → {paths.root}", file=sys.stderr)
-    print(f"[stability] {len(author_texts)} authors, lengths={list(report.lengths)}",
-          file=sys.stderr)
-    print(f"[stability] top 10 length-robust features (ratio F(500)/F(5000)):",
-          file=sys.stderr)
+    print(
+        f"[stability] {len(author_texts)} authors, lengths={list(report.lengths)}", file=sys.stderr
+    )
+    print(f"[stability] top 10 length-robust features (ratio F(500)/F(5000)):", file=sys.stderr)
     for code, r in top10:
         print(f"    {r:6.3f}  {code}", file=sys.stderr)
     print(f"[stability] bottom 10 length-fragile features:", file=sys.stderr)
@@ -158,31 +165,49 @@ def run(
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--lengths", default=",".join(str(L) for L in DEFAULT_LENGTHS),
-                    help="Comma-separated window sizes (words). "
-                         f"Default: {','.join(str(L) for L in DEFAULT_LENGTHS)}")
-    ap.add_argument("--min-words", type=int, default=DEFAULT_MIN_WORDS,
-                    help=f"Drop authors below this word count. "
-                         f"Default {DEFAULT_MIN_WORDS}.")
-    ap.add_argument("--max-windows-per-author", type=int, default=DEFAULT_MAX_WINDOWS,
-                    help=f"Cap windows per (author, length). Trade-off: more "
-                         f"windows tighten the within-author variance estimate "
-                         f"at quadratic cost. Default {DEFAULT_MAX_WINDOWS}.")
-    ap.add_argument("--only", default=None,
-                    help="Comma-separated author_ids to include (others dropped).")
-    ap.add_argument("--report-dir", default="validation/stability",
-                    help="Base dir for the dated report folder. "
-                         "Default: validation/stability")
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument(
+        "--lengths",
+        default=",".join(str(L) for L in DEFAULT_LENGTHS),
+        help="Comma-separated window sizes (words). "
+        f"Default: {','.join(str(L) for L in DEFAULT_LENGTHS)}",
+    )
+    ap.add_argument(
+        "--min-words",
+        type=int,
+        default=DEFAULT_MIN_WORDS,
+        help=f"Drop authors below this word count. " f"Default {DEFAULT_MIN_WORDS}.",
+    )
+    ap.add_argument(
+        "--max-windows-per-author",
+        type=int,
+        default=DEFAULT_MAX_WINDOWS,
+        help=f"Cap windows per (author, length). Trade-off: more "
+        f"windows tighten the within-author variance estimate "
+        f"at quadratic cost. Default {DEFAULT_MAX_WINDOWS}.",
+    )
+    ap.add_argument(
+        "--only", default=None, help="Comma-separated author_ids to include (others dropped)."
+    )
+    ap.add_argument(
+        "--report-dir",
+        default="validation/stability",
+        help="Base dir for the dated report folder. " "Default: validation/stability",
+    )
     args = ap.parse_args(argv)
 
     lengths = [int(x) for x in args.lengths.split(",") if x.strip()]
     only = set(a.strip() for a in args.only.split(",")) if args.only else None
     try:
-        run(lengths=lengths, min_words=args.min_words,
+        run(
+            lengths=lengths,
+            min_words=args.min_words,
             max_windows_per_author=args.max_windows_per_author,
-            only=only, report_base=args.report_dir)
+            only=only,
+            report_base=args.report_dir,
+        )
     except Exception as e:
         print(f"[stability] FAIL: {e}", file=sys.stderr)
         return 1

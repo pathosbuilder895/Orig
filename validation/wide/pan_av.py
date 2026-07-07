@@ -84,7 +84,7 @@ def build_corpus(
 
     # Group texts by author. For each text we remember its sibling in
     # the original pair so we can tag cross-author texts as GHOSTWRITTEN.
-    by_author: dict = {}    # author_id → [(text, label, pair_id, sibling_author)]
+    by_author: dict = {}  # author_id → [(text, label, pair_id, sibling_author)]
     n_pairs = 0
     with open(pairs_path, encoding="utf-8") as f:
         for line in f:
@@ -118,16 +118,18 @@ def build_corpus(
         own = by_author[author_id]
         # First 3 = baseline; rest = authentic scoring.
         for idx, (text, _, pid, _) in enumerate(own):
-            entries.append(WideEntry(
-                author_id=f"pan{year}:{author_id}",
-                label=AuthorshipLabel.AUTHENTIC,
-                text=text,
-                prompt=f"pan{year}_pair_{pid}",
-                is_baseline=(idx < 3),
-                ai_provider=AIProvider.NONE,
-                native_english=None,
-                source_id=f"{pid}#a",
-            ))
+            entries.append(
+                WideEntry(
+                    author_id=f"pan{year}:{author_id}",
+                    label=AuthorshipLabel.AUTHENTIC,
+                    text=text,
+                    prompt=f"pan{year}_pair_{pid}",
+                    is_baseline=(idx < 3),
+                    ai_provider=AIProvider.NONE,
+                    native_english=None,
+                    source_id=f"{pid}#a",
+                )
+            )
         # Cross-author ghostwritten — up to N per author, from siblings.
         ghost_count = 0
         for _text, _label, pid, sibling in own:
@@ -139,15 +141,17 @@ def build_corpus(
             ghost_text = sibling_texts[0][0]
             if len(ghost_text) < min_text_chars:
                 continue
-            entries.append(WideEntry(
-                author_id=f"pan{year}:{author_id}",
-                label=AuthorshipLabel.GHOSTWRITTEN,
-                text=ghost_text,
-                prompt=f"pan{year}_pair_{pid}",
-                is_baseline=False,
-                source_id=f"{pid}#ghost_from_{sibling}",
-                notes=f"ghostwritten by sibling {sibling}",
-            ))
+            entries.append(
+                WideEntry(
+                    author_id=f"pan{year}:{author_id}",
+                    label=AuthorshipLabel.GHOSTWRITTEN,
+                    text=ghost_text,
+                    prompt=f"pan{year}_pair_{pid}",
+                    is_baseline=False,
+                    source_id=f"{pid}#ghost_from_{sibling}",
+                    notes=f"ghostwritten by sibling {sibling}",
+                )
+            )
             ghost_count += 1
             if ghost_count >= 3:
                 break

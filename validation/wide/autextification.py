@@ -76,8 +76,8 @@ def build_corpus(
             f"python scripts/fetch_benchmark_data.py --autextification"
         )
 
-    per_domain_human_cap = max(8, sample_size // 8)   # 3 domains → generous per-domain budget
-    per_domain_ai_cap    = max(8, sample_size // 8)
+    per_domain_human_cap = max(8, sample_size // 8)  # 3 domains → generous per-domain budget
+    per_domain_ai_cap = max(8, sample_size // 8)
     human_counts: Dict[str, int] = {}
     ai_counts: Dict[str, int] = {}
 
@@ -97,42 +97,46 @@ def build_corpus(
             if len(text) < min_text_chars:
                 continue
 
-            is_human = (label == "human")
+            is_human = label == "human"
             if is_human:
                 if human_counts.get(domain, 0) >= per_domain_human_cap:
                     continue
                 human_counts[domain] = human_counts.get(domain, 0) + 1
                 idx = human_counts[domain]
-                entries.append(WideEntry(
-                    author_id=f"autext:{domain}",
-                    label=AuthorshipLabel.AUTHENTIC,
-                    text=text,
-                    prompt=row.get("prompt") or domain,
-                    is_baseline=(idx <= 3),
-                    ai_provider=AIProvider.NONE,
-                    native_english=True,
-                    source_id=row.get("id") or "",
-                ))
+                entries.append(
+                    WideEntry(
+                        author_id=f"autext:{domain}",
+                        label=AuthorshipLabel.AUTHENTIC,
+                        text=text,
+                        prompt=row.get("prompt") or domain,
+                        is_baseline=(idx <= 3),
+                        ai_provider=AIProvider.NONE,
+                        native_english=True,
+                        source_id=row.get("id") or "",
+                    )
+                )
             else:
                 if ai_counts.get(domain, 0) >= per_domain_ai_cap:
                     continue
                 ai_counts[domain] = ai_counts.get(domain, 0) + 1
-                entries.append(WideEntry(
-                    author_id=f"autext:{domain}",
-                    label=AuthorshipLabel.AI_GENERATED,
-                    text=text,
-                    prompt=row.get("prompt") or domain,
-                    is_baseline=False,
-                    ai_provider=AIProvider.NONE,   # anonymised model letter, not a named provider
-                    native_english=None,
-                    source_id=row.get("id") or "",
-                    notes=f"model={model} (anonymised, IberLEF 2023 shared task)",
-                ))
+                entries.append(
+                    WideEntry(
+                        author_id=f"autext:{domain}",
+                        label=AuthorshipLabel.AI_GENERATED,
+                        text=text,
+                        prompt=row.get("prompt") or domain,
+                        is_baseline=False,
+                        ai_provider=AIProvider.NONE,  # anonymised model letter, not a named provider
+                        native_english=None,
+                        source_id=row.get("id") or "",
+                        notes=f"model={model} (anonymised, IberLEF 2023 shared task)",
+                    )
+                )
 
     return materialize(
         entries,
         corpus_dir=corpus_dir,
         manifest_path=manifest_path,
         description=f"AuTexTification {split} — per-domain human-vs-LLM detection "
-                    f"(StyloAI comparison corpus)",
+        f"(StyloAI comparison corpus)",
     )

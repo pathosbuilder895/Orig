@@ -30,15 +30,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-ROOT       = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent
 CORPUS_DIR = ROOT / "validation" / "corpus"
-MANIFEST   = ROOT / "validation" / "manifest.json"
+MANIFEST = ROOT / "validation" / "manifest.json"
 
 # ── Author definitions ────────────────────────────────────────────────────────
 
 AUTHORS: List[Dict] = [
     {
-        "id":   "paine",
+        "id": "paine",
         "name": "Thomas Paine",
         "urls": [
             # Common Sense (Project Gutenberg #147 plain text)
@@ -53,7 +53,7 @@ AUTHORS: List[Dict] = [
         "n_baseline": 8,
     },
     {
-        "id":   "burke",
+        "id": "burke",
         "name": "Edmund Burke",
         "urls": [
             # Reflections on the Revolution in France (#15679)
@@ -64,7 +64,7 @@ AUTHORS: List[Dict] = [
         "n_baseline": 6,
     },
     {
-        "id":   "lincoln",
+        "id": "lincoln",
         "name": "Abraham Lincoln",
         "urls": [
             # Lincoln's speeches and letters (#2658)
@@ -75,7 +75,7 @@ AUTHORS: List[Dict] = [
         "n_baseline": 6,
     },
     {
-        "id":   "douglass",
+        "id": "douglass",
         "name": "Frederick Douglass",
         "urls": [
             # Narrative of the Life of Frederick Douglass (#23)
@@ -97,6 +97,7 @@ TARGET_CHUNK_MAX = 2000
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def fetch(url: str, retries: int = 3) -> str:
     for attempt in range(retries):
@@ -123,7 +124,7 @@ def strip_gutenberg(text: str) -> str:
         idx = text.find(marker)
         if idx != -1:
             # Skip to end of that line
-            text = text[text.index("\n", idx) + 1:]
+            text = text[text.index("\n", idx) + 1 :]
             break
 
     # End marker variants
@@ -157,7 +158,7 @@ def split_into_chunks(text: str, min_words: int, max_words: int) -> List[str]:
 
     for para in paragraphs:
         words = len(para.split())
-        if words < 10:          # skip very short lines (headers, page numbers)
+        if words < 10:  # skip very short lines (headers, page numbers)
             continue
         current.append(para)
         current_words += words
@@ -199,6 +200,7 @@ def existing_prefixes(manifest: dict) -> set:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+
 def build_author(author: Dict, corpus_dir: Path) -> Tuple[List[str], List[dict]]:
     """
     Fetch texts, split into chunks, save files, return (filenames, manifest_entries).
@@ -218,8 +220,8 @@ def build_author(author: Dict, corpus_dir: Path) -> Tuple[List[str], List[dict]]
         print(f"  WARNING: only {len(all_chunks)} chunks for {author['id']} — may be insufficient")
 
     # Save files
-    prefix   = author["prefix"]
-    n_base   = author["n_baseline"]
+    prefix = author["prefix"]
+    n_base = author["n_baseline"]
     filenames: List[str] = []
     for i, chunk in enumerate(all_chunks):
         fname = f"{prefix}_{i+1:03d}.txt"
@@ -230,17 +232,21 @@ def build_author(author: Dict, corpus_dir: Path) -> Tuple[List[str], List[dict]]
     entries: List[dict] = []
     for i, fname in enumerate(filenames):
         is_base = i < n_base
-        entries.append({
-            "filename":    fname,
-            "author_id":   author["id"],
-            "label":       "authentic",
-            "prompt":      author["prompt"],
-            "word_count":  len(all_chunks[i].split()),
-            "is_baseline": is_base,
-            "notes":       f"{author['name']} {'[BASELINE]' if is_base else '[SCORING]'}",
-        })
+        entries.append(
+            {
+                "filename": fname,
+                "author_id": author["id"],
+                "label": "authentic",
+                "prompt": author["prompt"],
+                "word_count": len(all_chunks[i].split()),
+                "is_baseline": is_base,
+                "notes": f"{author['name']} {'[BASELINE]' if is_base else '[SCORING]'}",
+            }
+        )
 
-    print(f"  {author['id']}: {len(filenames)} files ({n_base} baseline, {len(filenames)-n_base} scoring)")
+    print(
+        f"  {author['id']}: {len(filenames)} files ({n_base} baseline, {len(filenames)-n_base} scoring)"
+    )
     return filenames, entries
 
 
@@ -258,48 +264,54 @@ def build_cross_author_entries(
     """
     cross: List[dict] = []
     n_base = new_author["n_baseline"]
-    scoring_files = new_author["filenames"][n_base:]   # non-baseline chunks
+    scoring_files = new_author["filenames"][n_base:]  # non-baseline chunks
 
     # New author's chunks scored against every other new author's baseline
     for other in all_authors:
         if other["id"] == new_author["id"]:
             continue
-        for fname in scoring_files[:4]:   # limit to 4 cross-author entries per pair
+        for fname in scoring_files[:4]:  # limit to 4 cross-author entries per pair
             path = corpus_dir / fname
             if not path.exists():
                 continue
-            cross.append({
-                "filename":    fname,
-                "author_id":   other["id"],
-                "label":       "ghostwritten",
-                "prompt":      new_author["prompt"],
-                "word_count":  len(path.read_text(encoding="utf-8").split()),
-                "is_baseline": False,
-                "notes":       f"{new_author['name']} chunk scored against {other['name']} baseline",
-            })
+            cross.append(
+                {
+                    "filename": fname,
+                    "author_id": other["id"],
+                    "label": "ghostwritten",
+                    "prompt": new_author["prompt"],
+                    "word_count": len(path.read_text(encoding="utf-8").split()),
+                    "is_baseline": False,
+                    "notes": f"{new_author['name']} chunk scored against {other['name']} baseline",
+                }
+            )
 
     # Also score some Federalist chunks against this new author's baseline
     fed_scoring = [
-        e for e in manifest.get("entries", [])
+        e
+        for e in manifest.get("entries", [])
         if e["author_id"] in FEDERALIST_AUTHORS
         and not e["is_baseline"]
         and e["label"] == "authentic"
     ]
     # 3 per Federalist author
     import random
+
     random.seed(42)
     for fed_author in FEDERALIST_AUTHORS:
         fed_chunks = [e for e in fed_scoring if e["author_id"] == fed_author]
         for e in random.sample(fed_chunks, min(3, len(fed_chunks))):
-            cross.append({
-                "filename":    e["filename"],
-                "author_id":   new_author["id"],
-                "label":       "ghostwritten",
-                "prompt":      e["prompt"],
-                "word_count":  e["word_count"],
-                "is_baseline": False,
-                "notes":       f"Federalist ({fed_author}) scored against {new_author['name']} baseline",
-            })
+            cross.append(
+                {
+                    "filename": e["filename"],
+                    "author_id": new_author["id"],
+                    "label": "ghostwritten",
+                    "prompt": e["prompt"],
+                    "word_count": e["word_count"],
+                    "is_baseline": False,
+                    "notes": f"Federalist ({fed_author}) scored against {new_author['name']} baseline",
+                }
+            )
 
     return cross
 
@@ -329,7 +341,7 @@ def main():
 
         # Update authors dict in manifest
         manifest["authors"][author["id"]] = {
-            "name":   author["name"],
+            "name": author["name"],
             "chunks": len(filenames),
         }
 
@@ -340,8 +352,10 @@ def main():
     print("\nBuilding cross-author entries …")
     for author in built_authors:
         if author["prefix"] in existing:
-            continue    # already had cross entries built last run
-        cross = build_cross_author_entries(author, author["filenames"], built_authors, manifest, CORPUS_DIR)
+            continue  # already had cross entries built last run
+        cross = build_cross_author_entries(
+            author, author["filenames"], built_authors, manifest, CORPUS_DIR
+        )
         manifest["entries"].extend(cross)
         print(f"  {author['id']}: +{len(cross)} cross-author entries")
 

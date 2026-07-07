@@ -28,9 +28,11 @@ import numpy as np
 
 # ── Data structures ──────────────────────────────────────────────────────────
 
+
 @dataclass
 class TunedThreshold:
     """A single optimised threshold with its metrics."""
+
     name: str
     value: float
     true_positive_rate: float
@@ -45,15 +47,17 @@ class TunedThreshold:
 @dataclass
 class ThresholdTuningReport:
     """Complete threshold tuning output."""
+
     tuned_thresholds: Dict[str, TunedThreshold]
     original_thresholds: Dict[str, float]
     improvement_summary: Dict[str, dict]
     optimal_f1_threshold: float
-    equal_error_rate: float        # EER: where FPR == FNR
+    equal_error_rate: float  # EER: where FPR == FNR
     eer_threshold: float
 
 
 # ── Core tuning logic ────────────────────────────────────────────────────────
+
 
 def tune_thresholds(
     results: List[dict],
@@ -80,8 +84,8 @@ def tune_thresholds(
     scores = np.array([r["deviation_score"] for r in results])
     labels = np.array([r["is_same_author"] for r in results])  # True = authentic
 
-    total_positive = labels.sum()       # authentic essays
-    total_negative = (~labels).sum()    # non-authentic essays
+    total_positive = labels.sum()  # authentic essays
+    total_negative = (~labels).sum()  # non-authentic essays
 
     if total_positive == 0 or total_negative == 0:
         raise ValueError("Need both authentic and non-authentic samples for tuning")
@@ -103,14 +107,22 @@ def tune_thresholds(
         acc = (tp + tn) / max(1, tp + fp + tn + fn)
         f1 = 2 * prec * tnr / max(1e-10, prec + tnr) if (prec + tnr) > 0 else 0
 
-        metrics_at.append({
-            "threshold": round(float(thresh), 3),
-            "tp": int(tp), "fp": int(fp), "tn": int(tn), "fn": int(fn),
-            "tpr": float(tpr), "fpr": float(fpr),
-            "fnr": float(fnr), "tnr": float(tnr),
-            "precision": float(prec), "accuracy": float(acc),
-            "f1": float(f1),
-        })
+        metrics_at.append(
+            {
+                "threshold": round(float(thresh), 3),
+                "tp": int(tp),
+                "fp": int(fp),
+                "tn": int(tn),
+                "fn": int(fn),
+                "tpr": float(tpr),
+                "fpr": float(fpr),
+                "fnr": float(fnr),
+                "tnr": float(tnr),
+                "precision": float(prec),
+                "accuracy": float(acc),
+                "f1": float(f1),
+            }
+        )
 
     # ── Find optimal thresholds per constraint ───────────────────────────
 
@@ -187,6 +199,7 @@ def tune_thresholds(
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
+
 def _find_best(
     metrics: List[dict],
     constraint,
@@ -247,10 +260,7 @@ def save_tuning_report(report: ThresholdTuningReport, output_path: str) -> None:
         "optimal_f1_threshold": report.optimal_f1_threshold,
         "equal_error_rate": report.equal_error_rate,
         "eer_threshold": report.eer_threshold,
-        "recommended_config": {
-            name: t.value
-            for name, t in report.tuned_thresholds.items()
-        },
+        "recommended_config": {name: t.value for name, t in report.tuned_thresholds.items()},
     }
     with open(output_path, "w") as f:
         json.dump(data, f, indent=2)
@@ -288,8 +298,10 @@ if __name__ == "__main__":
         imp = report.improvement_summary[name]
         print(f"  {name}:")
         print(f"    Old: {imp['old_threshold']}  →  New: {t.value}")
-        print(f"    FPR: {t.false_positive_rate:.2%}  TPR: {t.true_positive_rate:.2%}  "
-              f"F1: {t.f1_score:.4f}  Constraint met: {t.constraint_satisfied}")
+        print(
+            f"    FPR: {t.false_positive_rate:.2%}  TPR: {t.true_positive_rate:.2%}  "
+            f"F1: {t.f1_score:.4f}  Constraint met: {t.constraint_satisfied}"
+        )
     print()
 
     save_tuning_report(report, args.output)
