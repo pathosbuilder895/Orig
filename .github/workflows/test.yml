@@ -200,6 +200,13 @@ jobs:
     continue-on-error: true # non-blocking until findings are triaged once
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # gitleaks-action diffs the PR's base..head commit range, which
+          # must exist in the local clone. The default fetch-depth: 1 only
+          # fetches the tip, so `git log <base>^..<head>` fails with
+          # "unknown revision" on any PR with more than one commit — full
+          # history is the documented gitleaks-action requirement for scans.
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
