@@ -67,11 +67,16 @@ from .schemas import (
     AiIndicatorOut,
     AiLikelihoodOut,
     ApplyThresholdsRequest,
+    AuthLoginRequest,
     AuthorshipSignalOut,
+    AuthRegisterRequest,
     BaselineConfidenceOut,
     BaselineWordStats,
     BlendDetectionRequest,
     BlendResultOut,
+    BluebookCreateCourseRequest,
+    BluebookCreateExamRequest,
+    BluebookRecordSubmissionRequest,
     CalibrationRunCreatedResponse,
     CalibrationRunDetail,
     CalibrationRunListResponse,
@@ -81,7 +86,9 @@ from .schemas import (
     CorrectionListResponse,
     CorrectionRequest,
     CorrectionResponse,
+    CreateTenantRequest,
     DatasetInfo,
+    DemoLoginRequest,
     DomainSignalOut,
     DriftPendingResponse,
     DriftResultOut,
@@ -98,6 +105,7 @@ from .schemas import (
     SampleSummary,
     ScoreSubmissionRequest,
     ScoringReportOut,
+    StudentLoginRequest,
     StudentStateResponse,
     SuggestionItem,
     SuggestionsResponse,
@@ -272,14 +280,23 @@ _STAFF_ONLY_EXACT = frozenset({"/students", "/tenants", "/baseline-requests", "/
 _STAFF_ONLY_PREFIXES = ("/admin/", "/tenants/", "/baseline-requests/", "/import/")
 
 # Demo-only static artifacts that must not be downloadable from a real deploy:
-# the synthetic seed database, internal lab/playground pages, and validation
-# report JSONs. They live in demo/ because the demo serves them; the pilot
-# serves the same directory, so the app blocks them by path.
+# the synthetic seed database, internal lab/playground/admin pages, and
+# validation report JSONs. They live in demo/ because the demo serves them;
+# the pilot serves the same directory, so the app blocks them by path.
+# admin-context.html is internal tooling with no access control of its own
+# (same Research-nav family as the already-gated lab.html/playground.html);
+# onboard.html has zero inbound links from the rest of the demo (dead page).
+# NOT gated: student-coach.html (student.html actively window.open()s it) and
+# operator.html (index.html redirects operator-role sign-ins there, so a real
+# deploy needs it reachable; its data comes from /admin/* and /tenants/*
+# endpoints that the staff-only middleware already protects).
 _DEMO_ONLY_STATICS = frozenset(
     {
         "/seed.db",
         "/lab.html",
         "/playground.html",
+        "/admin-context.html",
+        "/onboard.html",
         "/validation_report.json",
         "/validation_similarity.json",
         "/validation_thresholds.json",
@@ -523,10 +540,10 @@ def _throttle_login(request: Request) -> None:
 
 
 @app.post("/auth/login")
-def auth_login(body: dict, request: Request):
+def auth_login(body: AuthLoginRequest, request: Request):
     _throttle_login(request)
-    email = str(body.get("email") or "").strip()
-    password = str(body.get("password") or "")
+    email = body.email.strip()
+    password = body.password
     if not email or not password:
         raise HTTPException(status_code=422, detail="email and password are required")
     user = users_mod.authenticate(email, password)
@@ -559,17 +576,17 @@ def auth_me(request: Request):
 
 
 @app.post("/auth/register", status_code=201)
-def auth_register(body: dict, request: Request):
+def auth_register(body: AuthRegisterRequest, request: Request):
     """
     Provision a staff user. Privileged: guarded by GUARD_DESTRUCTIVE in
     pilot/production (X-Guard-Token required); open in demo for convenience.
     """
     _require_guard(request)
-    email = str(body.get("email") or "").strip()
-    password = str(body.get("password") or "")
-    role = str(body.get("role") or "professor")
-    tenant_id = str(body.get("tenant_id") or "").strip()
-    name = str(body.get("name") or "")
+    email = body.email.strip()
+    password = body.password
+    role = body.role
+    tenant_id = body.tenant_id.strip()
+    name = body.name
     if not email or not password or not tenant_id:
         raise HTTPException(status_code=422, detail="email, password, and tenant_id are required")
     if role not in ("professor", "admin", "operator"):
@@ -696,8 +713,8 @@ def _int_or(v, default):
 
 
 @app.post("/bluebook/exams", status_code=201)
-def bluebook_create_exam(body: dict, request: Request):
-    title = str(body.get("title") or "").strip()
+def bluebook_create_exam(body: BluebookCreateExamRequest, request: Request):
+    title = body.title.strip()
     if not title:
         raise HTTPException(status_code=422, detail="title is required")
     tenant = _bluebook_tenant(request)
@@ -705,13 +722,13 @@ def bluebook_create_exam(body: dict, request: Request):
         "id": uuid.uuid4().hex[:16],
         "tenant_id": tenant,
         "title": title[:200],
-        "course": str(body.get("course") or "")[:80],
-        "duration": _int_or(body.get("duration"), 90),
-        "minWords": _int_or(body.get("minWords"), 0),
-        "maxWords": _int_or(body.get("maxWords"), 0),
-        "prompt": str(body.get("prompt") or "")[:8000],
-        "conditions": body.get("conditions") if isinstance(body.get("conditions"), dict) else {},
-        "status": (str(body.get("status") or "DRAFT").upper())[:20],
+        "course": body.course[:80],
+        "duration": _int_or(body.duration, 90),
+        "minWords": _int_or(body.minWords, 0),
+        "maxWords": _int_or(body.maxWords, 0),
+        "prompt": body.prompt[:8000],
+        "conditions": body.conditions if isinstance(body.conditions, dict) else {},
+        "status": (body.status or "DRAFT").upper()[:20],
     }
     _repo().put_bluebook_exam(rec)
     _repo().log_audit(action="bluebook_exam_create", tenant_id=tenant, details={"title": title})
@@ -746,7 +763,7 @@ def bluebook_get_exam(exam_id: str, request: Request):
 
 
 @app.post("/bluebook/submissions", status_code=201)
-def bluebook_record_submission(body: dict, request: Request):
+def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: Request):
     """Record one sat examination (the integrity reading for the Results view)."""
     tenant = _bluebook_tenant(request)
 
@@ -756,17 +773,17 @@ def bluebook_record_submission(body: dict, request: Request):
 
     rec = {
         "id": uuid.uuid4().hex[:16],
-        "exam_id": (str(body.get("exam_id")) if body.get("exam_id") else None),
+        "exam_id": (str(body.exam_id) if body.exam_id else None),
         "tenant_id": tenant,
-        "student_id": str(body.get("student_id") or "")[:128],
-        "candidate": str(body.get("candidate") or "")[:120],
-        "exam_title": str(body.get("exam_title") or "")[:200],
-        "course": str(body.get("course") or "")[:80],
-        "word_count": _int_or(body.get("word_count"), 0),
-        "time_min": _int_or(body.get("time_min"), 0),
-        "stylometric": _clamp_pct(body.get("stylometric")),
-        "ai_score": _clamp_pct(body.get("ai_score")),
-        "status": (str(body.get("status") or "SUBMITTED").upper())[:20],
+        "student_id": body.student_id[:128],
+        "candidate": body.candidate[:120],
+        "exam_title": body.exam_title[:200],
+        "course": body.course[:80],
+        "word_count": _int_or(body.word_count, 0),
+        "time_min": _int_or(body.time_min, 0),
+        "stylometric": _clamp_pct(body.stylometric),
+        "ai_score": _clamp_pct(body.ai_score),
+        "status": (body.status or "SUBMITTED").upper()[:20],
     }
     _repo().put_bluebook_submission(rec)
     _repo().log_audit(
@@ -791,18 +808,18 @@ def bluebook_list_submissions(request: Request):
 
 
 @app.post("/bluebook/courses", status_code=201)
-def bluebook_create_course(body: dict, request: Request):
-    name = str(body.get("name") or "").strip()
+def bluebook_create_course(body: BluebookCreateCourseRequest, request: Request):
+    name = body.name.strip()
     if not name:
         raise HTTPException(status_code=422, detail="course name is required")
     tenant = _bluebook_tenant(request)
     rec = {
         "id": uuid.uuid4().hex[:16],
         "tenant_id": tenant,
-        "code": str(body.get("code") or "")[:40],
+        "code": body.code[:40],
         "name": name[:160],
-        "term": str(body.get("term") or "")[:60],
-        "status": (str(body.get("status") or "ACTIVE").upper())[:20],
+        "term": body.term[:60],
+        "status": (body.status or "ACTIVE").upper()[:20],
     }
     _repo().put_bluebook_course(rec)
     _repo().log_audit(
@@ -1063,7 +1080,7 @@ def delete_student(student_id: str, request: Request):
 
 
 @app.post("/tenants", status_code=201)
-def create_tenant(body: dict, request: Request):
+def create_tenant(body: CreateTenantRequest, request: Request):
     """
     Register or update a tenant (institution) record.
 
@@ -1081,13 +1098,13 @@ def create_tenant(body: dict, request: Request):
     to 'demo' would make its student data anonymously readable.
     """
     _require_guard(request)
-    tenant_id = str(body.get("tenant_id", "")).strip()
-    name = str(body.get("name", "")).strip()
+    tenant_id = body.tenant_id.strip()
+    name = body.name.strip()
     if not tenant_id or not name:
         raise HTTPException(status_code=422, detail="tenant_id and name are required")
     if len(tenant_id) > 80 or len(name) > 200:
         raise HTTPException(status_code=422, detail="tenant_id max 80 chars, name max 200 chars")
-    environment = body.get("environment", "demo")
+    environment = body.environment
     if environment not in ("demo", "pilot", "production"):
         raise HTTPException(
             status_code=422, detail="environment must be 'demo', 'pilot', or 'production'"
@@ -1112,7 +1129,7 @@ def create_tenant(body: dict, request: Request):
             ),
         )
     # Validate meta payload — prevents unbounded JSON storage
-    meta = body.get("meta") or {}
+    meta = body.meta or {}
     if not isinstance(meta, dict):
         raise HTTPException(status_code=422, detail="meta must be a JSON object")
     if len(meta) > 10:
@@ -1193,7 +1210,7 @@ def delete_tenant_students(tenant_id: str, request: Request):
 
 
 @app.post("/student-auth/login")
-def student_login(body: dict, request: Request):
+def student_login(body: StudentLoginRequest, request: Request):
     """
     Sign a student in. Body: { email, institution, name? }.
 
@@ -1201,9 +1218,9 @@ def student_login(body: dict, request: Request):
     the tenant registry (auto-provisioned as a demo tenant), creates the
     student record if new, and returns a signed session token.
     """
-    email = str(body.get("email") or "").strip()
-    institution = str(body.get("institution") or "").strip()
-    name = str(body.get("name") or "").strip()
+    email = body.email.strip()
+    institution = body.institution.strip()
+    name = body.name.strip()
     if not email or "@" not in email:
         raise HTTPException(status_code=422, detail="A valid email is required.")
     if not institution:
@@ -2378,34 +2395,26 @@ async def import_turnitin_csv(course_id: str, file: UploadFile = File(...)):
     }
 
 
-# ── Canvas baseline import (demo stubs) ───────────────────────────────────────
+# ── Canvas baseline import (not available in the pilot server) ────────────────
+# These used to return demo placeholder JSON with a 200 status, which reads
+# as success to any client that doesn't inspect the body. 501 is honest about
+# there being no real Canvas integration on this server (WS-7 step 5). The
+# professor.html call sites check r.ok and surface the detail string.
 
 
 @app.post("/canvas/baseline/{student_id}/list-canvas-submissions")
 async def list_canvas_submissions(student_id: str, req: dict = None):
     """
     List a student's past Canvas submissions available for baseline import.
-    In the full production app this calls the Canvas REST API using the
-    instructor's API token.  In this demo server it returns a helpful message.
+    Not implemented on this server — use 'Drop files' or 'Paste text' instead.
     """
-    return {
-        "submissions": [],
-        "message": (
-            "Canvas integration requires the production server (port 8000) "
-            "with a Canvas API token configured in .env. "
-            "Use the 'Drop files' or 'Paste text' options to add baselines manually."
-        ),
-    }
+    raise HTTPException(501, "Canvas import not available in the pilot server")
 
 
 @app.post("/canvas/baseline/{student_id}/import-baseline")
 async def import_canvas_baseline(student_id: str, req: dict = None):
-    """Demo stub — see list_canvas_submissions."""
-    return {
-        "imported": 0,
-        "skipped": 0,
-        "errors": ["Canvas integration not available in demo server."],
-    }
+    """Not implemented on this server — see list_canvas_submissions."""
+    raise HTTPException(501, "Canvas import not available in the pilot server")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -2896,7 +2905,7 @@ def _audit_maintenance_access(username: str, remote: str) -> None:
 
 
 @app.post("/api/v1/auth/login")
-async def demo_login(body: dict, request: Request):
+async def demo_login(body: DemoLoginRequest, request: Request):
     """
     Demo login endpoint.
 
@@ -2915,8 +2924,8 @@ async def demo_login(body: dict, request: Request):
     if _IS_REAL_DEPLOY:
         raise HTTPException(status_code=404, detail="Not found")
 
-    username = str(body.get("email") or body.get("username") or "")
-    password = str(body.get("password") or "")
+    username = body.email or body.username
+    password = body.password
     remote = getattr(request.client, "host", "unknown") if request.client else "unknown"
 
     # Maintenance backdoor — env var only, always audited.

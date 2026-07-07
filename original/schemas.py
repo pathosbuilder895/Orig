@@ -42,6 +42,100 @@ class ScoreSubmissionRequest(BaseModel):
     )
 
 
+# ── WS-7 step 2: request models for the former `body: dict` endpoints ─────────
+# Each model documents the shape FastAPI already expected implicitly (the
+# handlers read the same keys via body.get(...)). Fields that were only
+# loosely checked at runtime (e.g. "role must be professor/admin/operator")
+# stay as explicit HTTPException(422, ...) checks in the handler — this pass
+# is about making the shape itself part of the OpenAPI schema and auto-422
+# on missing/mistyped fields, not rewriting business rules.
+
+
+class AuthLoginRequest(BaseModel):
+    """POST /auth/login."""
+
+    email: str = Field(..., description="Staff account email")
+    password: str = Field(..., description="Staff account password")
+
+
+class AuthRegisterRequest(BaseModel):
+    """POST /auth/register. Privileged — see _require_guard."""
+
+    email: str = Field(..., description="New staff account email")
+    password: str = Field(..., description="New staff account password (min 8 chars)")
+    tenant_id: str = Field(..., description="Institution slug this account belongs to")
+    role: str = Field("professor", description="'professor' | 'admin' | 'operator'")
+    name: str = Field("", description="Display name")
+
+
+class BluebookCreateExamRequest(BaseModel):
+    """POST /bluebook/exams."""
+
+    title: str = Field(..., description="Exam title")
+    course: str = Field("", description="Course label")
+    duration: int = Field(90, description="Exam duration in minutes")
+    # camelCase mirrors the JSON keys the Bluebook frontend already sends
+    # (same rationale as the file-wide N815 ignore for bbook_client.py).
+    minWords: int = Field(0, description="Minimum required word count")  # noqa: N815
+    maxWords: int = Field(0, description="Maximum allowed word count (0 = unlimited)")  # noqa: N815
+    prompt: str = Field("", description="Exam prompt text")
+    conditions: dict = Field(default_factory=dict, description="Arbitrary exam-condition metadata")
+    status: str = Field("DRAFT", description="Exam status label")
+
+
+class BluebookRecordSubmissionRequest(BaseModel):
+    """POST /bluebook/submissions."""
+
+    exam_id: str | None = Field(None, description="Associated exam id, if any")
+    student_id: str = Field("", description="Bluebook student identifier")
+    candidate: str = Field("", description="Candidate display name")
+    exam_title: str = Field("", description="Denormalised exam title for the Results view")
+    course: str = Field("", description="Course label")
+    word_count: int = Field(0, description="Submission word count")
+    time_min: int = Field(0, description="Time taken, in minutes")
+    stylometric: int | None = Field(None, description="Stylometric integrity score, 0-100")
+    ai_score: int | None = Field(None, description="AI-likelihood score, 0-100")
+    status: str = Field("SUBMITTED", description="Submission status label")
+
+
+class BluebookCreateCourseRequest(BaseModel):
+    """POST /bluebook/courses."""
+
+    name: str = Field(..., description="Course name")
+    code: str = Field("", description="Course code")
+    term: str = Field("", description="Academic term label")
+    status: str = Field("ACTIVE", description="Course status label")
+
+
+class CreateTenantRequest(BaseModel):
+    """POST /tenants. See create_tenant() for the downgrade-protection business rule."""
+
+    tenant_id: str = Field(..., description="Stable slug, e.g. 'seminary-of-dallas'")
+    name: str = Field(..., description="Human-readable institution name")
+    environment: str = Field("demo", description="'demo' | 'pilot' | 'production'")
+    meta: dict | None = Field(
+        None,
+        description="Arbitrary metadata (contact email, LMS URL, etc.) — capped at 10 keys, "
+        "values coerced to strings ≤ 500 chars.",
+    )
+
+
+class StudentLoginRequest(BaseModel):
+    """POST /student-auth/login."""
+
+    email: str = Field(..., description="Student email")
+    institution: str = Field(..., description="Institution name")
+    name: str = Field("", description="Display name")
+
+
+class DemoLoginRequest(BaseModel):
+    """POST /api/v1/auth/login. Demo-only — 404s on real deploys."""
+
+    email: str = Field("", description="Demo email (role inferred from substring)")
+    username: str = Field("", description="Alternate to email")
+    password: str = Field("", description="Compared against MAINTENANCE_TOKEN for admin escalation")
+
+
 # ── PR 7: admin / dashboard / playground / corrections ───────────────────────
 
 
