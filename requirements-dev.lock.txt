@@ -60,7 +60,7 @@ pygments==2.20.0
     # via pytest
 pyparsing==3.3.2
     # via matplotlib
-pytest==8.4.2
+pytest==9.1.1
     # via
     #   -r requirements-dev.txt
     #   pytest-asyncio
