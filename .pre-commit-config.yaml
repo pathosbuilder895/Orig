@@ -3,13 +3,13 @@ repos:
     rev: v4.6.0
     hooks:
       - id: check-added-large-files
-        args: [--maxkb=500]          # bundle 94KB + vendor react-dom 132KB pass; stray models/DBs don't
+        args: [--maxkb=700]          # bundle ~230KB + linked sourcemap ~600KB pass; stray models/DBs don't
       - id: check-merge-conflict
       - id: detect-private-key       # LTI RSA keys are handled in this repo
       - id: end-of-file-fixer
-        exclude: ^demo/bluebook/(bluebook\.bundle\.js|vendor/)
+        exclude: ^demo/bluebook/bluebook\.bundle\.js(\.map)?$
       - id: trailing-whitespace
-        exclude: ^demo/bluebook/(bluebook\.bundle\.js|vendor/)
+        exclude: ^demo/bluebook/bluebook\.bundle\.js(\.map)?$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.9                      # keep in lockstep with requirements-dev pin
