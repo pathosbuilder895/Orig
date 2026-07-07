@@ -4,3 +4,37 @@ version = "0.0.0"
 description = "Original API — stylometric authorship detection"
 readme = "README.md"
 requires-python = ">=3.10"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = [".venv"]
+
+[tool.ruff.lint]
+# Ambiguous 1-letter names (l/O/I) -- common in math/quantum code, low value here.
+ignore = ["E741"]
+
+[tool.ruff.lint.per-file-ignores]
+# SQLAlchemy `Mapped["ClassName"]` string forward-refs to sibling model files --
+# ruff can't resolve these across modules; false positive, not a real bug.
+"original/db/models/*.py" = ["F821"]
+# Deliberate late imports (see inline comments at each site) -- not a lint fix.
+"original/api.py" = ["E402"]
+"original/canvas/lti.py" = ["E402"]
+"original/constants.py" = ["E402"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+# Dormant v1 package (original/api.py + demo/ + demo/bluebook/ is the live stack) --
+# see CLAUDE.md. Excluded so advisory mypy output stays signal, not noise.
+exclude = [
+    "^original/api/",
+    "^original/db/",
+    "^original/canvas/",
+    "^original/main\\.py$",
+]
