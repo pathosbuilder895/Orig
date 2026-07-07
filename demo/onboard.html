@@ -225,17 +225,17 @@ body{display:flex;flex-direction:column;align-items:center;padding:40px 16px 80p
   <div class="card-sub">Tell us about the school so student IDs and links are namespaced correctly.</div>
 
   <div class="field">
-    <label>Institution Name</label>
+    <label for="schoolName">Institution Name</label>
     <input type="text" id="schoolName" placeholder="e.g. Southern Baptist Theological Seminary" autocomplete="off">
   </div>
   <div class="field-row">
     <div class="field">
-      <label>Short Code <span style="font-weight:400;color:var(--dim)">(auto-generated)</span></label>
+      <label for="schoolCode">Short Code <span style="font-weight:400;color:var(--dim)">(auto-generated)</span></label>
       <input type="text" id="schoolCode" placeholder="e.g. sbts" maxlength="10" autocomplete="off">
       <div class="hint">Lowercase letters only — used in student IDs</div>
     </div>
     <div class="field">
-      <label>Preview ID</label>
+      <label for="idPreview">Preview ID</label>
       <div style="padding:11px 14px;background:var(--bg);border-radius:10px;font-size:0.85rem">
         <span class="code-preview" id="idPreview">sbts_student_name</span>
       </div>
@@ -255,21 +255,21 @@ body{display:flex;flex-direction:column;align-items:center;padding:40px 16px 80p
 
   <div class="field-row">
     <div class="field">
-      <label>Course Name</label>
+      <label for="courseName">Course Name</label>
       <input type="text" id="courseName" placeholder="e.g. Systematic Theology" autocomplete="off">
     </div>
     <div class="field">
-      <label>Course Code</label>
+      <label for="courseCode">Course Code</label>
       <input type="text" id="courseCode" placeholder="e.g. TH501" maxlength="10" autocomplete="off">
     </div>
   </div>
   <div class="field-row">
     <div class="field">
-      <label>Semester / Term</label>
+      <label for="courseSemester">Semester / Term</label>
       <input type="text" id="courseSemester" placeholder="e.g. Spring 2026" autocomplete="off">
     </div>
     <div class="field">
-      <label>Professor Name</label>
+      <label for="profName">Professor Name</label>
       <input type="text" id="profName" placeholder="e.g. Dr. Sarah Mitchell" autocomplete="off">
     </div>
   </div>
@@ -287,25 +287,24 @@ body{display:flex;flex-direction:column;align-items:center;padding:40px 16px 80p
   <div class="card-sub">Add students by name, or drop a CSV file from your LMS/spreadsheet.</div>
 
   <!-- CSV drop zone -->
-  <div id="csvDropZone"
-       style="border:2px dashed rgba(27,79,138,0.3);border-radius:10px;padding:18px 16px;
+  <label id="csvDropZone" for="csvFileInput"
+       style="display:block;position:relative;border:2px dashed rgba(27,79,138,0.3);border-radius:10px;padding:18px 16px;
               text-align:center;cursor:pointer;margin-bottom:16px;background:var(--bg);
               transition:all 0.2s"
        ondragover="event.preventDefault();this.style.borderColor='var(--blue)';this.style.background='var(--blue-l)'"
        ondragleave="this.style.borderColor='rgba(27,79,138,0.3)';this.style.background='var(--bg)'"
-       ondrop="onCsvDrop(event)"
-       onclick="document.getElementById('csvFileInput').click()">
+       ondrop="onCsvDrop(event)">
     <div style="font-size:1.3rem;margin-bottom:4px"></div>
     <div style="font-size:0.84rem;font-weight:500;color:var(--muted)">Drop a CSV file here, or click to browse</div>
     <div style="font-size:0.74rem;color:var(--dim);margin-top:3px">
       Columns: <code>external_id, full_name, email</code> (any order, header required)
     </div>
-    <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="onCsvPick(event)">
-  </div>
+    <input type="file" id="csvFileInput" accept=".csv" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0" onchange="onCsvPick(event)">
+  </label>
   <div id="csvStatus" style="font-size:0.78rem;color:var(--muted);margin-bottom:10px;min-height:18px"></div>
 
   <div class="field">
-    <label>Student Names <span style="font-weight:400;color:var(--dim)">(or type directly)</span></label>
+    <label for="rosterText">Student Names <span style="font-weight:400;color:var(--dim)">(or type directly)</span></label>
     <textarea id="rosterText" placeholder="James Whitfield&#10;Sarah Okonkwo&#10;Daniel Osei&#10;Lydia Mercer&#10;Marcus Chen" oninput="previewRoster()"></textarea>
     <div class="hint">First and last name, one per line · CSV import fills this automatically</div>
   </div>

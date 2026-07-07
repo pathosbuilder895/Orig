@@ -1,3 +1,6 @@
+import React from 'react';
+import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, MetaLabel, Seal, StatusBadge, fontBody, fontDisplay, fontMono } from './components.jsx';
+
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Results Screen
 //  Submission review with stylometric & AI integrity scores
@@ -123,7 +126,7 @@ function ExpandedRow({ result, onClose }) {
 }
 
 // ─── Results Screen ───────────────────────────────────────────────────────────
-function ResultsScreen({ onNavigate }) {
+export function ResultsScreen({ onNavigate }) {
   const [expanded,  setExpanded]  = useResState(null);
   const [statusFilter, setFilter] = useResState('all');
   const [serverResults, setServerResults] = useResState(null);
@@ -253,5 +256,3 @@ function ResultsScreen({ onNavigate }) {
     </div>
   );
 }
-
-Object.assign(window, { ResultsScreen });

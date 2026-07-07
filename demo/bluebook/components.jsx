@@ -1,9 +1,11 @@
+import React from 'react';
+
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Design System Components
 //  Oxford Blue · Antique Gold · Parchment · EB Garamond
 // ════════════════════════════════════════════════════════════════
 
-const BB = {
+export const BB = {
   oxford:      '#002147',
   deep:        '#001020',
   oxfordLight: '#0A2D5E',
@@ -19,21 +21,27 @@ const BB = {
   fadedCream:  '#B8B4AC',
 };
 
-const fontDisplay = "'Cormorant Garamond', serif";
-const fontBody    = "'EB Garamond', serif";
-const fontMono    = "'IBM Plex Mono', monospace";
+export const fontDisplay = "'Cormorant Garamond', serif";
+export const fontBody    = "'EB Garamond', serif";
+export const fontMono    = "'IBM Plex Mono', monospace";
 
-const PARCHMENT_SHADES = {
+export const PARCHMENT_SHADES = {
   warm:  '#F4EFE6',
   ivory: '#F8F5EE',
   cool:  '#EEF2EC',
 };
 
 // ─── Logotype ────────────────────────────────────────────────────────────────
-function Logotype({ size = 22, onClick, light = false }) {
+export function Logotype({ size = 22, onClick, light = false }) {
+  const Tag = onClick ? 'button' : 'span';
+  const interactiveProps = onClick ? {
+    onClick,
+    type: 'button',
+    'aria-label': 'Bluebook — go to dashboard',
+  } : {};
   return (
-    <span
-      onClick={onClick}
+    <Tag
+      {...interactiveProps}
       style={{
         fontFamily: fontDisplay,
         fontSize: size,
@@ -43,6 +51,9 @@ function Logotype({ size = 22, onClick, light = false }) {
         cursor: onClick ? 'pointer' : 'default',
         userSelect: 'none',
         whiteSpace: 'nowrap',
+        background: 'none',
+        border: 'none',
+        padding: 0,
       }}
     >
       B<span style={{
@@ -51,12 +62,12 @@ function Logotype({ size = 22, onClick, light = false }) {
         fontSize: size * 0.88,
         color: light ? BB.fadedCream : BB.gold,
       }}>luebook</span>
-    </span>
+    </Tag>
   );
 }
 
 // ─── Wax Seal SVG ────────────────────────────────────────────────────────────
-function Seal({ size = 22, verified = true, glow = false }) {
+export function Seal({ size = 22, verified = true, glow = false }) {
   const a = verified ? 1 : 0.3;
   const ticks = [0, 45, 90, 135, 180, 225, 270, 315];
   return (
@@ -95,7 +106,7 @@ function Seal({ size = 22, verified = true, glow = false }) {
 }
 
 // ─── Gold Rule ───────────────────────────────────────────────────────────────
-function GoldRule({ double = false, faint = false, style: s = {} }) {
+export function GoldRule({ double = false, faint = false, style: s = {} }) {
   const alpha = faint ? 0.22 : 0.72;
   const color = `rgba(201,169,97,${alpha})`;
   return (
@@ -107,7 +118,7 @@ function GoldRule({ double = false, faint = false, style: s = {} }) {
 }
 
 // ─── Printer's Ornament ──────────────────────────────────────────────────────
-function Ornament({ char = '❦', py = 20 }) {
+export function Ornament({ char = '❦', py = 20 }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 16,
@@ -126,21 +137,23 @@ function Ornament({ char = '❦', py = 20 }) {
 // ─── Meta Label ──────────────────────────────────────────────────────────────
 // 12.5px = the product-wide 0.78rem readability floor (docs and dashboards
 // share it) — metadata still reads as metadata, but a 65-year-old can read it.
-function MetaLabel({ children, style: s = {} }) {
+export function MetaLabel({ children, style: s = {}, htmlFor }) {
+  const Tag = htmlFor ? 'label' : 'span';
+  const forProp = htmlFor ? { htmlFor } : {};
   return (
-    <span style={{
+    <Tag {...forProp} style={{
       fontFamily: fontMono,
       fontSize: 12.5,
       letterSpacing: '0.14em',
       textTransform: 'uppercase',
       color: BB.fade,
       ...s,
-    }}>{children}</span>
+    }}>{children}</Tag>
   );
 }
 
 // ─── Primary Button ──────────────────────────────────────────────────────────
-function BtnPrimary({ children, onClick, disabled = false, style: s = {}, full = false }) {
+export function BtnPrimary({ children, onClick, disabled = false, style: s = {}, full = false }) {
   const [hover, setHover] = React.useState(false);
   return (
     <button
@@ -171,7 +184,7 @@ function BtnPrimary({ children, onClick, disabled = false, style: s = {}, full =
 }
 
 // ─── Ghost Button ────────────────────────────────────────────────────────────
-function BtnGhost({ children, onClick, disabled = false, style: s = {}, full = false }) {
+export function BtnGhost({ children, onClick, disabled = false, style: s = {}, full = false }) {
   const [hover, setHover] = React.useState(false);
   return (
     <button
@@ -212,7 +225,7 @@ const STATUS_MAP = {
   IN_PROGRESS: { color: BB.gold,   border: 'rgba(201,169,97,0.28)' },
 };
 
-function StatusBadge({ status, pulse = false }) {
+export function StatusBadge({ status, pulse = false }) {
   const s = STATUS_MAP[status] || STATUS_MAP.DRAFT;
   return (
     <span style={{
@@ -244,7 +257,7 @@ function StatusBadge({ status, pulse = false }) {
 // ─── Original API client (exam persistence) ──────────────────────────────────
 // Same-origin by default (Bluebook is served by the Original demo server).
 // Attaches whatever session token is present so writes are tenant-scoped.
-const BB_API = {
+export const BB_API = {
   base: window.BB_API_BASE || '',
   _headers() {
     const h = { 'Content-Type': 'application/json' };
@@ -340,10 +353,3 @@ const BB_API = {
     } catch (e) { return { name: '', role: '', tenant: '', authed: false }; }
   },
 };
-
-// Export everything to window for cross-script access
-Object.assign(window, {
-  BB, fontDisplay, fontBody, fontMono, PARCHMENT_SHADES,
-  Logotype, Seal, GoldRule, Ornament, MetaLabel,
-  BtnPrimary, BtnGhost, StatusBadge, BB_API,
-});

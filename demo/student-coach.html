@@ -107,9 +107,9 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 
   <!-- Writing area -->
   <div class="writing-col">
-    <input class="title-input" id="docTitle" placeholder="Give this piece a title…" oninput="onEdit()">
-    <input class="type-input"  id="docType"  placeholder="Essay, response, seminar paper…">
-    <textarea class="text-area" id="docText" placeholder="Begin writing here…&#10;&#10;The Focus Coach is in the margin — quiet and patient." oninput="onEdit()"></textarea>
+    <input class="title-input" id="docTitle" placeholder="Give this piece a title…" aria-label="Piece title" oninput="onEdit()">
+    <input class="type-input"  id="docType"  placeholder="Essay, response, seminar paper…" aria-label="Piece type">
+    <textarea class="text-area" id="docText" placeholder="Begin writing here…&#10;&#10;The Focus Coach is in the margin — quiet and patient." aria-label="Your writing" oninput="onEdit()"></textarea>
 
     <!-- Result -->
     <div class="result-panel" id="resultPanel">

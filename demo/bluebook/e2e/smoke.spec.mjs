@@ -69,26 +69,17 @@ test.describe('Bluebook — landing UI', () => {
   })
 })
 
-test.describe('Bluebook — pilot mode no-CDN guarantee', () => {
-  // This test only meaningfully runs when ORIGINAL_ENV=pilot on the server,
-  // because dev intentionally uses CDN React. We assert based on what we
-  // observed: if the page references unpkg.com, fail (production should
-  // never reach external CDNs at exam time).
-  //
-  // When run against a dev server, the test conditionally skips.
-  test('no unpkg / cdn references in production index', async ({ page, request }) => {
+test.describe('Bluebook — no-CDN guarantee', () => {
+  // React is bundled into bluebook.bundle.js (build.mjs) rather than loaded
+  // from a CDN or a vendored global <script> — index.html is the same file
+  // in dev and production, so this holds unconditionally, not just in pilot.
+  test('no unpkg / cdn / babel references in index', async ({ request }) => {
     const html = await (await request.get('/bluebook/')).text()
-    const inDevMode = html.includes('unpkg.com') || html.includes('cdn.jsdelivr')
-
-    test.skip(
-      inDevMode,
-      'Server running in dev mode (CDN React) — set ORIGINAL_ENV=pilot for this assertion.'
-    )
 
     expect(html).not.toContain('unpkg.com')
     expect(html).not.toContain('cdn.jsdelivr')
     expect(html).not.toContain('babel/standalone')
-    expect(html).toContain('vendor/react.production.min.js')
+    expect(html).not.toContain('vendor/react')
     expect(html).toContain('bluebook.bundle.js')
   })
 })

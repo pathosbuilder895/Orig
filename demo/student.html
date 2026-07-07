@@ -9,14 +9,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:focus-visible{outline:none;box-shadow:0 0 0 3px var(--gold);border-radius:2px}
 :root{
   --oxford:#002147;--oxford-mid:#0a2f5c;--oxford-pale:rgba(0,33,71,0.05);
-  --gold:#B08D3C;--gold-dim:rgba(176,141,60,0.15);--gold-glow:rgba(176,141,60,0.07);
+  --gold:#B08D3C;--gold-dim:rgba(176,141,60,0.15);--gold-glow:rgba(176,141,60,0.07);--gold-text:#8a6a28;
   --parchment:#F7F2E7;--vellum:#FBF8F1;
   --ink:#1A1A1A;--marginal:#3C5A82;
   --wine:#6B2737;--wine-dim:rgba(107,39,55,0.08);
   --sage:#4A6B5C;--sage-dim:rgba(74,107,92,0.10);
-  --hairline:rgba(60,90,130,0.16);--hairline-s:rgba(60,90,130,0.28);
+  --hairline:rgba(60,90,130,0.28);--hairline-s:rgba(60,90,130,0.42);
   --font-d:'Cormorant Garamond',Georgia,serif;
   --font-b:'EB Garamond',Georgia,serif;
   --font-u:'Inter',system-ui,sans-serif;
@@ -33,10 +34,10 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 .sb-sigil{width:28px;height:28px;border:1px solid rgba(176,141,60,0.4);display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .sb-sigil svg{width:14px;height:14px;stroke:var(--gold);fill:none;stroke-width:1.8;stroke-linecap:round}
 .sb-wordmark{font-family:var(--font-d);font-size:1.1rem;font-weight:600;color:var(--parchment);letter-spacing:0.08em}
-.sb-inst{font-family:var(--font-b);font-size:0.77rem;font-style:italic;color:rgba(247,242,231,0.38);padding-left:38px}
+.sb-inst{font-family:var(--font-b);font-size:0.77rem;font-style:italic;color:rgba(247,242,231,0.7);padding-left:38px}
 .sb-nav{flex:1;padding:14px 0;overflow-y:auto}
-.nav-lbl{font-size:0.59rem;font-weight:600;letter-spacing:0.20em;text-transform:uppercase;color:rgba(247,242,231,0.28);padding:8px 20px 4px;margin-top:6px}
-.nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;color:rgba(247,242,231,0.52);font-size:0.82rem;cursor:pointer;border-left:2px solid transparent;transition:color .15s,background .15s;user-select:none;text-decoration:none}
+.nav-lbl{font-size:0.59rem;font-weight:600;letter-spacing:0.20em;text-transform:uppercase;color:rgba(247,242,231,0.7);padding:8px 20px 4px;margin-top:6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;color:rgba(247,242,231,0.7);font-size:0.82rem;cursor:pointer;border-left:2px solid transparent;transition:color .15s,background .15s;user-select:none;text-decoration:none}
 .nav-item:hover{color:var(--parchment);background:rgba(255,255,255,0.05)}
 .nav-item.active{color:var(--parchment);background:rgba(176,141,60,0.10);border-left-color:var(--gold)}
 .nav-item svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;opacity:.8}
@@ -45,12 +46,12 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 .sb-user{border-top:1px solid rgba(255,255,255,0.07);padding:14px 20px;display:flex;align-items:center;gap:10px}
 .sb-avatar{width:30px;height:30px;border-radius:50%;background:rgba(176,141,60,0.13);border:1px solid rgba(176,141,60,0.35);display:flex;align-items:center;justify-content:center;font-family:var(--font-d);font-size:0.78rem;color:var(--gold);flex-shrink:0}
 .sb-uname{font-size:0.80rem;font-weight:500;color:var(--parchment)}
-.sb-urole{font-family:var(--font-b);font-size:0.71rem;font-style:italic;color:rgba(247,242,231,0.38)}
+.sb-urole{font-family:var(--font-b);font-size:0.71rem;font-style:italic;color:rgba(247,242,231,0.7)}
 
 /* ── Main ── */
 .main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
 .topbar{height:var(--top);flex-shrink:0;background:var(--vellum);border-bottom:1px solid var(--hairline);display:flex;align-items:center;justify-content:space-between;padding:0 28px}
-.bc{display:flex;align-items:center;gap:6px;font-size:0.75rem;color:rgba(26,26,26,0.38)}
+.bc{display:flex;align-items:center;gap:6px;font-size:0.75rem;color:rgba(26,26,26,0.62)}
 .bc-sep{color:var(--hairline-s)}
 .bc-cur{color:var(--marginal);font-weight:500}
 .sem-pill{font-family:var(--font-b);font-style:italic;font-size:0.82rem;color:rgba(60,90,130,0.65);background:rgba(60,90,130,0.06);border:1px solid var(--hairline);padding:4px 12px;border-radius:20px}
@@ -65,7 +66,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 /* ── Page header ── */
 .pg-eye{font-family:var(--font-b);font-style:italic;font-size:0.84rem;color:var(--marginal);margin-bottom:4px;opacity:.7}
 .pg-title{font-family:var(--font-d);font-size:2.1rem;font-weight:500;color:var(--oxford);letter-spacing:-0.01em;line-height:1.1}
-.pg-sub{font-family:var(--font-b);font-size:0.97rem;color:rgba(26,26,26,0.48);margin-top:6px}
+.pg-sub{font-family:var(--font-b);font-size:0.97rem;color:rgba(26,26,26,0.62);margin-top:6px}
 .pg-hdr{margin-bottom:28px}
 
 /* ── Cards: no border-radius, no shadows ── */
@@ -83,7 +84,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 .fp-card .card-ttl{color:var(--parchment)}
 .fp-viz{flex:1;padding:6px 6px 2px;display:flex;align-items:center;justify-content:center}
 .fp-legend{padding:0 16px 14px;display:flex;gap:16px;align-items:center}
-.fp-leg{display:flex;align-items:center;gap:6px;font-size:0.67rem;color:rgba(247,242,231,0.42)}
+.fp-leg{display:flex;align-items:center;gap:6px;font-size:0.67rem;color:rgba(247,242,231,0.7)}
 
 /* ── Arc card ── */
 .arc-card{display:flex;flex-direction:column}
@@ -102,14 +103,14 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--hairline)}
 .stat-cell{padding:16px 18px;background:var(--vellum)}
 .stat-val{font-family:var(--font-d);font-size:1.7rem;font-weight:500;color:var(--oxford);line-height:1;margin-bottom:3px}
-.stat-lbl{font-size:0.67rem;color:rgba(26,26,26,0.42);letter-spacing:.06em;text-transform:uppercase}
+.stat-lbl{font-size:0.67rem;color:rgba(26,26,26,0.62);letter-spacing:.06em;text-transform:uppercase}
 .stat-d{font-family:var(--font-b);font-style:italic;font-size:0.77rem;color:var(--sage);margin-top:2px}
 
 /* ── Voice notes ── */
 .vn{padding:12px 16px;border-top:1px solid rgba(60,90,130,0.10)}
 .vn-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
 .vn-auth{font-size:0.69rem;font-weight:500;color:var(--marginal);letter-spacing:.04em}
-.vn-date{font-family:var(--font-b);font-style:italic;font-size:0.71rem;color:rgba(26,26,26,0.33)}
+.vn-date{font-family:var(--font-b);font-style:italic;font-size:0.71rem;color:rgba(26,26,26,0.62)}
 .vn-body{font-family:var(--font-b);font-size:0.91rem;color:var(--ink);line-height:1.55}
 .vn-body em{font-style:italic;color:var(--marginal)}
 
@@ -121,11 +122,11 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 .spine-inner{writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-family:var(--font-d);font-size:0.77rem;font-weight:500;padding:10px 6px;letter-spacing:.05em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
 .sub-detail{margin-top:24px;padding-top:18px;border-top:1px solid var(--hairline)}
 .sd-title{font-family:var(--font-d);font-size:1.25rem;font-weight:500;color:var(--oxford);margin-bottom:3px}
-.sd-meta{font-family:var(--font-b);font-style:italic;font-size:0.83rem;color:rgba(26,26,26,0.43);margin-bottom:12px}
+.sd-meta{font-family:var(--font-b);font-style:italic;font-size:0.83rem;color:rgba(26,26,26,0.62);margin-bottom:12px}
 .sd-feats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .sd-feat{background:var(--parchment);border:1px solid var(--hairline);padding:9px 13px}
 .sd-fv{font-family:var(--font-d);font-size:1.1rem;color:var(--oxford)}
-.sd-fl{font-size:.67rem;color:rgba(26,26,26,0.42);text-transform:uppercase;letter-spacing:.06em;margin-top:1px}
+.sd-fl{font-size:.67rem;color:rgba(26,26,26,0.62);text-transform:uppercase;letter-spacing:.06em;margin-top:1px}
 
 /* ── Fidelity badge ── */
 .fbadge{display:inline-flex;align-items:center;gap:5px;font-size:.71rem;font-weight:500;letter-spacing:.04em;padding:3px 10px;border-radius:20px}
@@ -139,21 +140,21 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 .form-lbl{font-size:.69rem;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--marginal);margin-bottom:7px;display:block}
 .form-inp{width:100%;padding:10px 0;background:none;border:none;border-bottom:1px solid var(--hairline-s);font-family:var(--font-b);font-size:.95rem;color:var(--ink);outline:none;transition:border-color .2s}
 .form-inp:focus{border-bottom-color:var(--gold)}
-.form-inp::placeholder{color:rgba(26,26,26,0.28);font-style:italic}
+.form-inp::placeholder{color:rgba(26,26,26,0.62);font-style:italic}
 .form-ta{width:100%;min-height:220px;padding:14px 16px;background:var(--vellum);border:1px solid var(--hairline);font-family:var(--font-b);font-size:.93rem;line-height:1.7;color:var(--ink);resize:vertical;outline:none;transition:border-color .2s}
 .form-ta:focus{border-color:rgba(176,141,60,0.38)}
-.form-ta::placeholder{color:rgba(26,26,26,0.28);font-style:italic}
+.form-ta::placeholder{color:rgba(26,26,26,0.62);font-style:italic}
 .btn-primary{background:var(--oxford);color:var(--parchment);border:none;padding:11px 28px;font-family:var(--font-u);font-size:.82rem;font-weight:500;letter-spacing:.04em;cursor:pointer;transition:background .15s}
 .btn-primary:hover{background:var(--oxford-mid)}
 .btn-primary:disabled{opacity:.4;cursor:not-allowed}
-.btn-sec{background:none;border:1px solid var(--hairline-s);color:rgba(26,26,26,0.5);padding:11px 18px;font-family:var(--font-u);font-size:.82rem;cursor:pointer;transition:border-color .15s;margin-left:10px}
+.btn-sec{background:none;border:1px solid var(--hairline-s);color:rgba(26,26,26,0.62);padding:11px 18px;font-family:var(--font-u);font-size:.82rem;cursor:pointer;transition:border-color .15s;margin-left:10px}
 .btn-sec:hover{border-color:var(--marginal);color:var(--marginal)}
 
 /* ── Focus Coach ── */
 .coach-panel{position:sticky;top:0;padding:0}
 .coach-label{font-size:0.59rem;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:rgba(60,90,130,0.45);margin-bottom:14px}
-.coach-whisper{border-left:1px solid var(--gold-dim);padding:8px 0 8px 14px;margin:0 0 14px 0;font-family:var(--font-b);font-style:italic;font-size:0.93rem;color:rgba(26,26,26,0.52);line-height:1.6;transition:opacity .5s}
-.coach-philosophy{font-family:var(--font-b);font-style:italic;font-size:0.79rem;color:rgba(26,26,26,0.32);line-height:1.55;margin-top:18px;border-top:1px solid var(--hairline);padding-top:14px}
+.coach-whisper{border-left:1px solid var(--gold-dim);padding:8px 0 8px 14px;margin:0 0 14px 0;font-family:var(--font-b);font-style:italic;font-size:0.93rem;color:rgba(26,26,26,0.62);line-height:1.6;transition:opacity .5s}
+.coach-philosophy{font-family:var(--font-b);font-style:italic;font-size:0.79rem;color:rgba(26,26,26,0.62);line-height:1.55;margin-top:18px;border-top:1px solid var(--hairline);padding-top:14px}
 
 /* ── Score result ── */
 .score-result{margin-top:18px;padding-top:18px;border-top:1px solid var(--hairline)}
@@ -166,16 +167,16 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 .ft-intro{font-family:var(--font-b);font-size:0.97rem;line-height:1.65;color:rgba(26,26,26,0.62);margin-bottom:22px;max-width:580px}
 .ft-session{display:flex;gap:16px;padding:18px 0;border-top:1px solid var(--hairline);align-items:flex-start}
 .ft-num{width:28px;height:28px;border:1px solid var(--hairline-s);display:flex;align-items:center;justify-content:center;font-family:var(--font-d);font-size:0.82rem;color:var(--marginal);flex-shrink:0}
-.ft-num.active{border-color:var(--gold);color:var(--gold);background:var(--gold-glow)}
+.ft-num.active{border-color:var(--gold);color:var(--gold-text);background:var(--gold-glow)}
 .ft-num.done{border-color:var(--sage);color:var(--sage);background:var(--sage-dim)}
 .ft-body{flex:1}
 .ft-title{font-family:var(--font-d);font-size:1.05rem;font-weight:500;color:var(--oxford);margin-bottom:3px}
-.ft-desc{font-family:var(--font-b);font-size:0.88rem;color:rgba(26,26,26,0.55);line-height:1.55}
+.ft-desc{font-family:var(--font-b);font-size:0.88rem;color:rgba(26,26,26,0.62);line-height:1.55}
 .ft-action{margin-top:8px}
 .ft-btn{font-family:var(--font-u);font-size:0.74rem;font-weight:500;color:var(--oxford);background:none;border:1px solid var(--hairline-s);padding:6px 14px;cursor:pointer;transition:all .15s}
 .ft-btn:hover{border-color:var(--oxford);background:var(--oxford-pale)}
 .ft-btn:disabled{opacity:.35;cursor:not-allowed}
-.ft-locked{font-family:var(--font-b);font-style:italic;font-size:0.79rem;color:rgba(26,26,26,0.30);margin-top:5px}
+.ft-locked{font-family:var(--font-b);font-style:italic;font-size:0.79rem;color:rgba(26,26,26,0.62);margin-top:5px}
 
 /* ── Notes view ── */
 .note-item{padding:20px 22px;border-top:1px solid rgba(60,90,130,0.10)}
@@ -184,12 +185,12 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 /* ── Library list ── */
 .sub-row{display:flex;align-items:center;gap:14px;padding:10px 16px;border-top:1px solid rgba(60,90,130,0.09);cursor:pointer;transition:background .15s}
 .sub-row:hover,.sub-row.selected{background:rgba(60,90,130,0.04)}
-.sub-date{font-family:var(--font-b);font-style:italic;font-size:0.74rem;color:rgba(26,26,26,0.38);width:50px;flex-shrink:0}
+.sub-date{font-family:var(--font-b);font-style:italic;font-size:0.74rem;color:rgba(26,26,26,0.62);width:50px;flex-shrink:0}
 .sub-title-col{flex:1;font-family:var(--font-d);font-size:0.95rem;color:var(--oxford);font-weight:500}
-.sub-type{font-size:0.71rem;color:rgba(26,26,26,0.38)}
+.sub-type{font-size:0.71rem;color:rgba(26,26,26,0.62)}
 
 /* ── Empty state ── */
-.empty-serif{font-family:var(--font-b);font-style:italic;font-size:0.95rem;color:rgba(26,26,26,0.38);padding:16px 0}
+.empty-serif{font-family:var(--font-b);font-style:italic;font-size:0.95rem;color:rgba(26,26,26,0.62);padding:16px 0}
 
 /* ── Formation statement ── */
 .formation-statement{font-family:var(--font-b);font-size:1.02rem;line-height:1.7;color:rgba(26,26,26,0.62);max-width:680px;border-left:1px solid var(--gold-dim);padding:4px 0 4px 18px;margin-bottom:22px}
@@ -203,15 +204,15 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 .maturity-pips{display:flex;gap:5px;margin-bottom:8px}
 .maturity-pip{flex:1;height:4px;background:var(--hairline)}
 .maturity-pip.on{background:var(--gold)}
-.maturity-desc{font-family:var(--font-b);font-style:italic;font-size:0.82rem;color:rgba(26,26,26,0.45);line-height:1.5}
+.maturity-desc{font-family:var(--font-b);font-style:italic;font-size:0.82rem;color:rgba(26,26,26,0.62);line-height:1.5}
 
 /* ── Vocabulary reach ── */
 .vocab-spark{width:100%;height:48px;display:block;margin:8px 0 6px}
-.vocab-caption{font-family:var(--font-b);font-style:italic;font-size:0.82rem;color:rgba(26,26,26,0.45);line-height:1.5}
+.vocab-caption{font-family:var(--font-b);font-style:italic;font-size:0.82rem;color:rgba(26,26,26,0.62);line-height:1.5}
 
 /* ── Strongest sentences ── */
 .strong-sentence{font-family:var(--font-d);font-size:1.12rem;font-weight:500;line-height:1.5;color:var(--oxford);padding:10px 0 10px 16px;border-left:2px solid var(--gold);margin-bottom:14px;letter-spacing:0.005em}
-.strong-sentence .ss-src{display:block;font-family:var(--font-b);font-style:italic;font-size:0.76rem;color:rgba(26,26,26,0.38);font-weight:400;margin-top:4px;letter-spacing:0}
+.strong-sentence .ss-src{display:block;font-family:var(--font-b);font-style:italic;font-size:0.76rem;color:rgba(26,26,26,0.62);font-weight:400;margin-top:4px;letter-spacing:0}
 
 /* ── Semester report ── */
 .report-line{display:flex;align-items:baseline;gap:10px;padding:9px 0;border-top:1px solid var(--hairline);font-family:var(--font-b);font-size:0.92rem;color:var(--ink)}
@@ -230,16 +231,16 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 .exemplar:first-child{border-top:none}
 .exemplar-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px}
 .exemplar-title{font-family:var(--font-d);font-size:1.2rem;font-weight:500;color:var(--oxford)}
-.exemplar-attr{font-family:var(--font-b);font-style:italic;font-size:0.8rem;color:rgba(26,26,26,0.4)}
+.exemplar-attr{font-family:var(--font-b);font-style:italic;font-size:0.8rem;color:rgba(26,26,26,0.62)}
 .exemplar-body{display:grid;grid-template-columns:1fr 240px;gap:24px}
 .exemplar-prose{font-family:var(--font-b);font-size:1.02rem;line-height:1.85;color:var(--ink)}
-.exemplar-commentary{border-left:2px solid var(--gold);padding:2px 0 2px 14px;font-family:var(--font-b);font-size:0.85rem;line-height:1.6;color:rgba(26,26,26,0.55);align-self:start}
+.exemplar-commentary{border-left:2px solid var(--gold);padding:2px 0 2px 14px;font-family:var(--font-b);font-size:0.85rem;line-height:1.6;color:rgba(26,26,26,0.62);align-self:start}
 .exemplar-commentary-lbl{display:block;font-family:var(--font-u);font-size:0.58rem;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:rgba(176,141,60,0.7);margin-bottom:5px}
 
 /* ── Focus Coach nudge (categorised) ── */
 .coach-nudge{margin-bottom:18px;transition:opacity .55s}
 .coach-nudge-cat{font-family:var(--font-u);font-size:0.57rem;font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:rgba(176,141,60,0.7);margin-bottom:5px}
-.coach-nudge-msg{font-family:var(--font-b);font-style:italic;font-size:0.93rem;color:rgba(26,26,26,0.55);line-height:1.6;border-left:1px solid var(--gold-dim);padding:2px 0 2px 12px}
+.coach-nudge-msg{font-family:var(--font-b);font-style:italic;font-size:0.93rem;color:rgba(26,26,26,0.62);line-height:1.6;border-left:1px solid var(--gold-dim);padding:2px 0 2px 12px}
 
 /* ── Login gate ── */
 .gate{position:fixed;inset:0;z-index:100;background:var(--oxford);display:flex;align-items:center;justify-content:center;padding:24px}
@@ -252,7 +253,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 .gate-lbl{font-size:0.66rem;font-weight:600;text-transform:uppercase;letter-spacing:0.12em;color:var(--marginal);margin-bottom:6px;display:block}
 .gate-inp{width:100%;padding:10px 0;background:none;border:none;border-bottom:1px solid var(--hairline-s);font-family:var(--font-b);font-size:0.98rem;color:var(--ink);outline:none;transition:border-color .2s;margin-bottom:18px}
 .gate-inp:focus{border-bottom-color:var(--gold)}
-.gate-inp::placeholder{color:rgba(26,26,26,0.28);font-style:italic}
+.gate-inp::placeholder{color:rgba(26,26,26,0.62);font-style:italic}
 .gate-btn{width:100%;background:var(--oxford);color:var(--parchment);border:none;padding:12px;font-family:var(--font-u);font-size:0.84rem;font-weight:500;letter-spacing:0.04em;cursor:pointer;transition:background .15s;margin-top:6px}
 .gate-btn:hover{background:var(--oxford-mid)}
 .gate-btn:disabled{opacity:.5;cursor:not-allowed}
@@ -260,7 +261,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 .gate-alt{text-align:center;margin-top:18px;padding-top:16px;border-top:1px solid var(--hairline)}
 .gate-alt a{font-family:var(--font-b);font-style:italic;font-size:0.85rem;color:var(--marginal);cursor:pointer;text-decoration:none}
 .gate-alt a:hover{color:var(--oxford)}
-.signout{font-family:var(--font-u);font-size:0.68rem;color:rgba(247,242,231,0.4);cursor:pointer;margin-left:auto;padding:2px 6px}
+.signout{font-family:var(--font-u);font-size:0.68rem;color:rgba(247,242,231,0.7);cursor:pointer;margin-left:auto;padding:2px 6px}
 .signout:hover{color:var(--parchment)}
 
 /* ── Animations ── */
@@ -304,20 +305,20 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
     </div>
     <div class="gate-eye">Your commonplace book. Sign in to open it.</div>
 
-    <label class="gate-lbl">Institution</label>
+    <label class="gate-lbl" for="gateInstitution">Institution</label>
     <input class="gate-inp" id="gateInstitution" placeholder="e.g. Wycliffe College" autocomplete="organization">
 
-    <label class="gate-lbl">Email</label>
+    <label class="gate-lbl" for="gateEmail">Email</label>
     <input class="gate-inp" id="gateEmail" type="email" placeholder="you@institution.edu" autocomplete="email">
 
-    <label class="gate-lbl">Your name <span style="font-weight:400;text-transform:none;letter-spacing:0;font-style:italic;color:rgba(26,26,26,0.3)">— optional</span></label>
+    <label class="gate-lbl" for="gateName">Your name <span style="font-weight:400;text-transform:none;letter-spacing:0;font-style:italic;color:rgba(26,26,26,0.62)">— optional</span></label>
     <input class="gate-inp" id="gateName" placeholder="How you would like to be addressed" autocomplete="name">
 
     <button class="gate-btn" id="gateBtn" onclick="doLogin()">Open my book</button>
-    <div class="gate-err" id="gateErr"></div>
+    <div class="gate-err" id="gateErr" role="alert"></div>
 
     <div class="gate-alt">
-      <a onclick="enterGuest()">Explore the demo instead →</a>
+      <a href="#" onclick="event.preventDefault();enterGuest()">Explore the demo instead →</a>
     </div>
   </div>
 </div>
@@ -337,27 +338,27 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
     </div>
     <nav class="sb-nav">
       <div class="nav-lbl">My Formation</div>
-      <div class="nav-item active" data-view="profile">
+      <div class="nav-item active" data-view="profile" role="button" tabindex="0">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M2 12C2 12 5 6 12 6s10 6 10 6-3 6-10 6S2 12 2 12"/></svg>
         Voice Profile
       </div>
-      <div class="nav-item" data-view="work">
+      <div class="nav-item" data-view="work" role="button" tabindex="0">
         <svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
         Body of Work
       </div>
-      <div class="nav-item" data-view="library">
+      <div class="nav-item" data-view="library" role="button" tabindex="0">
         <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
         The Library
       </div>
-      <div class="nav-item" data-view="notes">
+      <div class="nav-item" data-view="notes" role="button" tabindex="0">
         <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
         Voice Notes
       </div>
-      <div class="nav-item" data-view="submit">
+      <div class="nav-item" data-view="submit" role="button" tabindex="0">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
         Submit Work
       </div>
-      <div class="nav-item" data-view="formation" id="navFormation" style="display:none">
+      <div class="nav-item" data-view="formation" id="navFormation" style="display:none" role="button" tabindex="0">
         <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Formation Track
         <span class="nav-badge">!</span>
@@ -369,7 +370,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
         <div class="sb-uname" id="sbName">Student</div>
         <div class="sb-urole" id="sbRole">Writing Formation</div>
       </div>
-      <span class="signout" id="signOutBtn" onclick="signOut()" title="Sign out">Sign out</span>
+      <span class="signout" id="signOutBtn" onclick="signOut()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();signOut()}" role="button" tabindex="0" title="Sign out">Sign out</span>
     </div>
   </aside>
 
@@ -409,7 +410,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
         <div class="card fu" id="firstSteps" style="display:none;padding:24px 28px;margin-bottom:20px;max-width:780px">
           <div class="card-lbl" style="margin-bottom:7px">Begin your record</div>
           <div style="font-family:var(--font-d),'Cormorant Garamond',serif;font-size:1.4rem;color:var(--oxford);margin-bottom:9px">Your voice profile starts with your first piece.</div>
-          <div style="font-family:var(--font-b);font-size:0.96rem;line-height:1.65;color:rgba(26,26,26,0.6);margin-bottom:18px">
+          <div style="font-family:var(--font-b);font-size:0.96rem;line-height:1.65;color:rgba(26,26,26,0.62);margin-bottom:18px">
             Submit a piece of writing and Original begins to learn your voice — your cadence, your diction, the way you build an argument. Nothing here is graded. This is your formation record, and it grows with you.
           </div>
           <div id="fsMilestones" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap"></div>
@@ -442,7 +443,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
               <svg id="arcSvg" width="100%" height="220" style="display:block"></svg>
             </div>
             <div style="padding:0 16px 14px;border-top:1px solid rgba(60,90,130,0.08);margin-top:4px">
-              <span id="arcFooter" style="font-family:var(--font-b);font-style:italic;font-size:0.79rem;color:rgba(26,26,26,0.42)">—</span>
+              <span id="arcFooter" style="font-family:var(--font-b);font-style:italic;font-size:0.79rem;color:rgba(26,26,26,0.62)">—</span>
             </div>
           </div>
         </div>
@@ -517,7 +518,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
             </div>
             <div class="stats-grid">
               <div class="stat-cell">
-                <div class="stat-val" id="mFidelity" style="color:var(--gold)">—</div>
+                <div class="stat-val" id="mFidelity" style="color:var(--gold-text)">—</div>
                 <div class="stat-lbl">Voice Match</div>
                 <div class="stat-d" id="mFidelityD"></div>
               </div>
@@ -644,7 +645,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
         <div class="card fu fu1" style="max-width:640px" id="notesList">
           <div class="note-item"><div class="empty-serif">No voice notes yet.</div></div>
         </div>
-        <div style="margin-top:14px;font-family:var(--font-b);font-style:italic;font-size:0.81rem;color:rgba(26,26,26,0.38);line-height:1.6;max-width:480px">
+        <div style="margin-top:14px;font-family:var(--font-b);font-style:italic;font-size:0.81rem;color:rgba(26,26,26,0.62);line-height:1.6;max-width:480px">
           Voice notes are a conversation, not a verdict. Ask your tutor to schedule time if you would like to discuss.
         </div>
       </div>
@@ -664,22 +665,22 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
           <div>
             <div class="card" style="padding:24px 28px;margin-bottom:14px">
               <div style="margin-bottom:18px">
-                <label class="form-lbl">Title</label>
+                <label class="form-lbl" for="subTitle">Title</label>
                 <input class="form-inp" id="subTitle" placeholder="Name this piece…">
               </div>
               <div style="margin-bottom:18px">
-                <label class="form-lbl">Type</label>
+                <label class="form-lbl" for="subType">Type</label>
                 <input class="form-inp" id="subType" placeholder="Essay, response, seminar paper…">
               </div>
               <div style="margin-bottom:18px">
-                <label class="form-lbl">Your thesis <span style="font-weight:400;text-transform:none;letter-spacing:0;font-style:italic;color:rgba(26,26,26,0.3)">— one sentence, kept in view as you write</span></label>
+                <label class="form-lbl" for="subThesis">Your thesis <span style="font-weight:400;text-transform:none;letter-spacing:0;font-style:italic;color:rgba(26,26,26,0.62)">— one sentence, kept in view as you write</span></label>
                 <input class="form-inp" id="subThesis" placeholder="In one sentence, what are you arguing?" oninput="onThesisInput()">
               </div>
               <div style="margin-bottom:18px">
-                <label class="form-lbl">Your writing</label>
-                <textarea class="form-ta" id="subText" rows="10" placeholder="Paste or type your work here…"></textarea>
+                <label class="form-lbl" for="subText">Your writing</label>
+                <textarea class="form-ta" id="subText" rows="10" placeholder="Paste or type your work here…" aria-describedby="wcLabel"></textarea>
                 <div style="display:flex;justify-content:space-between;margin-top:6px">
-                  <span id="wcLabel" style="font-family:var(--font-b);font-style:italic;font-size:0.75rem;color:rgba(26,26,26,0.33)">Minimum 200 words for voice analysis</span>
+                  <span id="wcLabel" style="font-family:var(--font-b);font-style:italic;font-size:0.75rem;color:rgba(26,26,26,0.62)">Minimum 200 words for voice analysis</span>
                   <span id="wcReady" style="font-size:0.71rem;color:var(--sage);font-family:var(--font-u);display:none">✓ Ready for analysis</span>
                 </div>
               </div>
@@ -704,7 +705,7 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
                 </div>
               </div>
             </div>
-            <div style="font-family:var(--font-b);font-style:italic;font-size:0.81rem;color:rgba(26,26,26,0.38);line-height:1.6;max-width:520px">
+            <div style="font-family:var(--font-b);font-style:italic;font-size:0.81rem;color:rgba(26,26,26,0.62);line-height:1.6;max-width:520px">
               Your writing is compared with your own earlier work — never with other students. Anything worth discussing starts as a conversation with your professor, never an automatic penalty.
             </div>
           </div>
@@ -782,12 +783,12 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
             </div>
           </div>
 
-          <div id="ftComplete" style="display:none;padding:16px 0;border-top:1px solid var(--hairline);font-family:var(--font-b);font-style:italic;font-size:0.81rem;color:rgba(26,26,26,0.38);line-height:1.55">
+          <div id="ftComplete" style="display:none;padding:16px 0;border-top:1px solid var(--hairline);font-family:var(--font-b);font-style:italic;font-size:0.81rem;color:rgba(26,26,26,0.62);line-height:1.55">
             Formation complete. Your record has been updated.
           </div>
         </div>
 
-        <div style="font-family:var(--font-b);font-style:italic;font-size:0.83rem;color:rgba(26,26,26,0.38);line-height:1.6;max-width:480px">
+        <div style="font-family:var(--font-b);font-style:italic;font-size:0.83rem;color:rgba(26,26,26,0.62);line-height:1.6;max-width:480px">
           This pathway is developmental throughout. Every step is designed to strengthen your writing, not to assess it. Your tutor is a companion here, not an examiner.
         </div>
       </div>
@@ -941,6 +942,15 @@ const DEMO_STRONG = [
    ═══════════════════════════════════════════════════════════════ */
 const VIEW_LABELS = { profile:'Voice Profile', work:'Body of Work', library:'The Library', notes:'Voice Notes', submit:'Submit Work', formation:'Formation Track' };
 
+/* Every view is directly linkable via its hash (e.g. student.html#formation),
+   not just reachable by clicking through the nav — the Formation Track nav
+   item is conditionally hidden, so a direct link is the only way in for a
+   guest who hasn't (and, in the demo, never will) trip a review opportunity. */
+function viewFromHash() {
+  const h = (location.hash || '').replace(/^#/, '').trim();
+  return VIEW_LABELS[h] ? h : null;
+}
+
 function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   const vEl = document.getElementById('view-' + name);
@@ -948,14 +958,26 @@ function showView(name) {
   document.querySelectorAll('.nav-item[data-view]').forEach(n =>
     n.classList.toggle('active', n.dataset.view === name));
   document.getElementById('bcCur').textContent = VIEW_LABELS[name] || name;
+  if (location.hash.slice(1) !== name) history.replaceState(null, '', '#' + name);
   if (name === 'profile')   loadProfile();
   if (name === 'work')      loadWork();
   if (name === 'library')   loadLibrary();
   if (name === 'notes')     loadNotes();
   if (name === 'formation') syncFormation(true);
 }
-document.querySelectorAll('.nav-item[data-view]').forEach(item =>
-  item.addEventListener('click', () => showView(item.dataset.view)));
+document.querySelectorAll('.nav-item[data-view]').forEach(item => {
+  item.addEventListener('click', () => showView(item.dataset.view));
+  item.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      showView(item.dataset.view);
+    }
+  });
+});
+window.addEventListener('hashchange', () => {
+  const name = viewFromHash();
+  if (name) showView(name);
+});
 
 /* ═══════════════════════════════════════════════════════════════
    Helpers
@@ -1070,6 +1092,13 @@ async function getNotes() {
 let _ftStep = parseInt(localStorage.getItem('ft_step_' + studentId()) || '0');
 let _ftServerOk = false;   // true once a server pathway has been seen
 
+// Button copy per session, keyed by step number — restored on the active/locked
+// states and swapped for a checked-off confirmation once a session is done, so
+// clicking reads as "this happened" rather than just going gray with no change.
+const FT_LABELS         = { 1:'Schedule a sitting →', 2:'Begin formation →', 3:'Submit verification piece →' };
+const FT_PROGRESS_LABELS= { 1:'Scheduling…',           2:'Beginning…',       3:'Submitting…' };
+const FT_DONE_LABELS    = { 1:'✓ Sitting scheduled',   2:'✓ Session complete', 3:'✓ Verification submitted' };
+
 function updateFormationNav(show) {
   document.getElementById('navFormation').style.display = show ? 'flex' : 'none';
 }
@@ -1081,15 +1110,15 @@ function updateFormationUI() {
     if (!num) return;
     if (n <= _ftStep) {
       num.className = 'ft-num done';
-      if (btn) { btn.disabled = true; }
+      if (btn) { btn.disabled = true; btn.textContent = FT_DONE_LABELS[n]; }
       if (lk)  lk.style.display = 'none';
     } else if (n === _ftStep + 1) {
       num.className = 'ft-num active';
-      if (btn) btn.disabled = false;
+      if (btn) { btn.disabled = false; btn.textContent = FT_LABELS[n]; }
       if (lk)  lk.style.display = 'none';
     } else {
       num.className = 'ft-num';
-      if (btn) btn.disabled = true;
+      if (btn) { btn.disabled = true; btn.textContent = FT_LABELS[n]; }
       if (lk)  { lk.textContent = `Available after Session ${n-1}`; lk.style.display = ''; }
     }
   });
@@ -1126,7 +1155,7 @@ function syncFormation(active) {
 async function advanceFormation(step) {
   if (step !== _ftStep + 1) return;
   const btn = document.getElementById('ft'+step+'btn');
-  if (btn) btn.disabled = true;
+  if (btn) { btn.disabled = true; btn.textContent = FT_PROGRESS_LABELS[step] || 'Working…'; }
 
   if (!isGuest()) {
     // Authoritative path: the server advances (opening the pathway if needed,
@@ -1215,7 +1244,7 @@ function drawFingerprint(svgEl, current, early) {
     const a = (i/N)*2*Math.PI - Math.PI/2;
     const x = CX+(R+14)*Math.cos(a), y = CY+(R+14)*Math.sin(a);
     const lbl = (axes[i] && axes[i].label) || '';
-    html += `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-family="'EB Garamond',serif" font-size="8.5" fill="rgba(247,242,231,0.38)" text-anchor="middle" dominant-baseline="middle">${esc(lbl)}</text>`;
+    html += `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-family="'EB Garamond',serif" font-size="8.5" fill="rgba(247,242,231,0.7)" text-anchor="middle" dominant-baseline="middle">${esc(lbl)}</text>`;
   });
 
   svgEl.innerHTML = html;
@@ -1230,7 +1259,7 @@ function drawArc(svgEl, submissions) {
   svgEl.setAttribute('width', W);
 
   if (!submissions?.length) {
-    svgEl.innerHTML = `<text x="${W/2}" y="${H/2}" font-family="'EB Garamond',serif" font-style="italic" font-size="13" fill="rgba(26,26,26,0.28)" text-anchor="middle">Submit your first piece to reveal your arc.</text>`;
+    svgEl.innerHTML = `<text x="${W/2}" y="${H/2}" font-family="'EB Garamond',serif" font-style="italic" font-size="13" fill="rgba(26,26,26,0.62)" text-anchor="middle">Submit your first piece to reveal your arc.</text>`;
     return;
   }
 
@@ -1270,8 +1299,8 @@ function drawArc(svgEl, submissions) {
 
   // Date labels
   if (pts.length>=2) {
-    html += `<text x="${pts[0].x.toFixed(1)}" y="${(H-5).toFixed(1)}" font-family="'EB Garamond',serif" font-style="italic" font-size="9" fill="rgba(26,26,26,0.30)" text-anchor="start">${shortDate(pts[0].s.created_at)}</text>`;
-    html += `<text x="${pts[pts.length-1].x.toFixed(1)}" y="${(H-5).toFixed(1)}" font-family="'EB Garamond',serif" font-style="italic" font-size="9" fill="rgba(26,26,26,0.30)" text-anchor="end">${shortDate(pts[pts.length-1].s.created_at)}</text>`;
+    html += `<text x="${pts[0].x.toFixed(1)}" y="${(H-5).toFixed(1)}" font-family="'EB Garamond',serif" font-style="italic" font-size="9" fill="rgba(26,26,26,0.62)" text-anchor="start">${shortDate(pts[0].s.created_at)}</text>`;
+    html += `<text x="${pts[pts.length-1].x.toFixed(1)}" y="${(H-5).toFixed(1)}" font-family="'EB Garamond',serif" font-style="italic" font-size="9" fill="rgba(26,26,26,0.62)" text-anchor="end">${shortDate(pts[pts.length-1].s.created_at)}</text>`;
   }
 
   svgEl.innerHTML = html;
@@ -1308,9 +1337,9 @@ async function loadProfile() {
         return `<div style="flex:1;min-width:150px;padding:12px 14px;border:1px solid ${reached?'rgba(176,141,60,0.4)':'var(--hairline)'};border-radius:8px;background:${reached?'rgba(176,141,60,0.06)':'transparent'}">
           <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">
             <span style="width:7px;height:7px;border-radius:50%;background:${reached?'#B08D3C':'rgba(60,90,130,0.25)'}"></span>
-            <span style="font-family:var(--font-u);font-size:0.7rem;font-weight:600;letter-spacing:0.04em;color:${reached?'var(--gold-deep,#8a6d2a)':'rgba(26,26,26,0.55)'}">${esc(m.label)}</span>
+            <span style="font-family:var(--font-u);font-size:0.7rem;font-weight:600;letter-spacing:0.04em;color:${reached?'var(--gold-deep,#8a6d2a)':'rgba(26,26,26,0.62)'}">${esc(m.label)}</span>
           </div>
-          <div style="font-family:var(--font-b);font-style:italic;font-size:0.78rem;line-height:1.45;color:rgba(26,26,26,0.42)">${esc(m.blurb||'')}</div>
+          <div style="font-family:var(--font-b);font-style:italic;font-size:0.78rem;line-height:1.45;color:rgba(26,26,26,0.62)">${esc(m.blurb||'')}</div>
         </div>`;
       }).join('');
     }
@@ -1650,13 +1679,13 @@ async function loadWork() {
     // fixed modest height — they carry no fidelity score yet.
     if (s.pending) {
       const ph = 96;
-      return `<div class="spine" data-idx="${i}" style="width:36px;height:${ph}px" title="${esc(s.assignment||'Untitled')} — awaiting analysis">
+      return `<div class="spine" data-idx="${i}" role="button" tabindex="0" style="width:36px;height:${ph}px" title="${esc(s.assignment||'Untitled')} — awaiting analysis" aria-label="${esc(s.assignment||'Untitled')} — awaiting analysis">
         <div class="spine-inner" style="background:#22303f;color:#8aa0b4;border-left:2px solid var(--hairline-s)">${esc(s.assignment||'Untitled')}</div>
       </div>`;
     }
     const f=fidFromDev(s.divergence_score), div=s.action&&s.action!=='no_action';
     const c=spineCol(f,div), h=Math.round(82+Math.max(0,f-60)*2.4);
-    return `<div class="spine" data-idx="${i}" style="width:36px;height:${h}px" title="${esc(s.assignment||'Untitled')}">
+    return `<div class="spine" data-idx="${i}" role="button" tabindex="0" style="width:36px;height:${h}px" title="${esc(s.assignment||'Untitled')}" aria-label="${esc(s.assignment||'Untitled')}">
       <div class="spine-inner" style="background:${c.bg};color:${c.text};border-left:2px solid ${c.bdr}">${esc(s.assignment||'Untitled')}</div>
     </div>`;
   }).join('') + '<div style="flex:1"></div>';
@@ -1665,7 +1694,7 @@ async function loadWork() {
   list.innerHTML = history.map((s,i)=>{
     const div=s.action&&s.action!=='no_action';
     const [bc,bl] = s.pending ? ['pending','Awaiting analysis'] : fidLabel(fidFromDev(s.divergence_score), div);
-    return `<div class="sub-row" data-idx="${i}">
+    return `<div class="sub-row" data-idx="${i}" role="button" tabindex="0" aria-label="${esc(s.assignment||'Untitled')}, ${shortDate(s.created_at)}">
       <span class="sub-date">${shortDate(s.created_at)}</span>
       <span class="sub-title-col">${esc(s.assignment||'Untitled')}</span>
       <span class="sub-type" style="font-family:var(--font-b);font-style:italic">${esc(s.pending?'':(s.action==='schedule_conversation'?'Worth reviewing':''))}</span>
@@ -1723,8 +1752,19 @@ async function loadWork() {
     document.querySelectorAll('.sub-row[data-idx]').forEach(r=>r.classList.toggle('selected',parseInt(r.dataset.idx)===idx));
   }
 
-  document.querySelectorAll('.spine[data-idx]').forEach(sp=>sp.addEventListener('click',()=>openDetail(parseInt(sp.dataset.idx))));
-  document.querySelectorAll('.sub-row[data-idx]').forEach(r=>r.addEventListener('click',()=>openDetail(parseInt(r.dataset.idx))));
+  function onActivateKey(fn) {
+    return (event) => {
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); fn(); }
+    };
+  }
+  document.querySelectorAll('.spine[data-idx]').forEach(sp=>{
+    sp.addEventListener('click',()=>openDetail(parseInt(sp.dataset.idx)));
+    sp.addEventListener('keydown', onActivateKey(()=>openDetail(parseInt(sp.dataset.idx))));
+  });
+  document.querySelectorAll('.sub-row[data-idx]').forEach(r=>{
+    r.addEventListener('click',()=>openDetail(parseInt(r.dataset.idx)));
+    r.addEventListener('keydown', onActivateKey(()=>openDetail(parseInt(r.dataset.idx))));
+  });
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1764,7 +1804,7 @@ async function loadNotes() {
     <div class="note-item">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
         <span style="font-family:var(--font-u);font-size:0.69rem;font-weight:600;color:var(--marginal);letter-spacing:0.06em">${esc(n.reviewer||'Your tutor')}</span>
-        <span style="font-family:var(--font-b);font-style:italic;font-size:0.74rem;color:rgba(26,26,26,0.32)">${shortDate(n.created_at)}</span>
+        <span style="font-family:var(--font-b);font-style:italic;font-size:0.74rem;color:rgba(26,26,26,0.62)">${shortDate(n.created_at)}</span>
       </div>
       <div style="font-family:var(--font-b);font-size:1rem;line-height:1.65;color:var(--ink)">${esc(n.notes||'')}</div>
     </div>`).join('');
@@ -1895,7 +1935,7 @@ function init() {
   document.getElementById('signOutBtn').textContent = isGuest() ? 'Exit demo' : 'Sign out';
   updateFormationUI();
   if (_ftStep>0&&_ftStep<3) updateFormationNav(true);
-  loadProfile();
+  showView(viewFromHash() || 'profile');
 }
 
 /* ═══════════════════════════════════════════════════════════════

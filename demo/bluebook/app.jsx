@@ -1,8 +1,21 @@
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { BB_API } from './components.jsx';
+import { LandingScreen, LoginScreen } from './Landing.jsx';
+import { DashboardLayout, DashboardScreen, ExamsScreen } from './Dashboard.jsx';
+import { BriefingScreen, ExamScreen, SubmittedScreen } from './Exam.jsx';
+import { CoursesScreen } from './Courses.jsx';
+import { StudentsScreen } from './Students.jsx';
+import { ResultsScreen } from './Results.jsx';
+import { NewExamScreen } from './NewExam.jsx';
+import {
+  useTweaks, TweaksPanel, TweakSection, TweakSelect, TweakSlider, TweakColor,
+} from './tweaks-panel.jsx';
+
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — App root (router + Tweaks panel)
-//  Loaded last; all screen components are already on window.
 // ════════════════════════════════════════════════════════════════
-const { useState, useEffect } = React;
+const { useState } = React;
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "currentScreen": "",

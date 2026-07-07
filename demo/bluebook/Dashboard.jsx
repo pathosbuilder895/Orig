@@ -1,3 +1,6 @@
+import React from 'react';
+import { BB, BB_API, BtnPrimary, GoldRule, Logotype, MetaLabel, Ornament, StatusBadge, fontBody, fontDisplay, fontMono } from './components.jsx';
+
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Dashboard Screens
 //  Instructor Overview · Examinations List
@@ -10,6 +13,13 @@ const MOCK_EXAMS = [
   { id:'4', title:'Constitutional Principles',          course:'LAW 101',   duration:90,  submissions:0,  status:'DRAFT'     },
   { id:'5', title:'History of Economic Thought',        course:'ECON 203',  duration:75,  submissions:18, status:'COMPLETED' },
 ];
+
+// Keydown handler for div-as-button rows: Enter/Space activates like a click.
+function rowKeyDown(fn) {
+  return (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); }
+  };
+}
 
 const NAV_ITEMS = [
   { label: 'Overview',      screen: 'dashboard' },
@@ -150,7 +160,7 @@ function StatCard({ label, value, note }) {
 }
 
 // ─── Dashboard Overview ───────────────────────────────────────────────────────
-function DashboardScreen({ onNavigate }) {
+export function DashboardScreen({ onNavigate }) {
   const [serverExams, setServerExams] = React.useState(null);
   const [subs, setSubs] = React.useState([]);
   React.useEffect(() => {
@@ -231,9 +241,11 @@ function DashboardScreen({ onNavigate }) {
                 cursor: 'pointer',
                 transition: 'background 0.2s',
               }}
+                role="button" tabIndex={0} aria-label={exam.title}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(201,169,97,0.04)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 onClick={() => openExam(exam, onNavigate)}
+                onKeyDown={rowKeyDown(() => openExam(exam, onNavigate))}
               >
                 <div>
                   <p style={{
@@ -273,7 +285,7 @@ function openExam(exam, onNavigate) {
 }
 
 // ─── Exams List Screen ────────────────────────────────────────────────────────
-function ExamsScreen({ onNavigate }) {
+export function ExamsScreen({ onNavigate }) {
   // null = loading; real exams from the server, falling back to the demo set.
   const [serverExams, setServerExams] = React.useState(null);
   React.useEffect(() => {
@@ -355,7 +367,7 @@ function ExamsScreen({ onNavigate }) {
 }
 
 // ─── Dashboard Layout (sidebar + content) ────────────────────────────────────
-function DashboardLayout({ activeScreen, onNavigate, children }) {
+export function DashboardLayout({ activeScreen, onNavigate, children }) {
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <Sidebar activeScreen={activeScreen} onNavigate={onNavigate} />
@@ -363,5 +375,3 @@ function DashboardLayout({ activeScreen, onNavigate, children }) {
     </div>
   );
 }
-
-Object.assign(window, { DashboardLayout, DashboardScreen, ExamsScreen });
