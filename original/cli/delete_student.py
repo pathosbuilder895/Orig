@@ -4,6 +4,16 @@ original/cli/delete_student.py — CLI command to delete a student and all assoc
 Deletes a student record and all associated data (submissions, scoring results, baselines).
 Requires confirmation via --confirm flag.
 
+NOT the live FERPA deletion path. This CLI targets the dormant v1 SQLAlchemy stack
+(original/db/models) and is 0% covered / unverified against a real DB. The pilot's
+actual FERPA deletion path is the live API endpoint `DELETE /students/{id}` in
+original/api.py, which is already proven by
+tests/test_pilot_lockdown.py::test_delete_purges_display_name_and_audit_history.
+WS-6 will delete the entire dormant v1 stack (including this file); per WS-5 §5.5
+(T6), the lower-cost interim choice is this header redirect rather than adding new
+tests for code that is slated for removal. Do not treat this CLI as authoritative
+for student data deletion.
+
 Usage:
     python -m original.cli.delete_student --student-id <UUID> [--confirm]
 

@@ -223,31 +223,6 @@ class SecurityAudit:
         else:
             self._print_warn("schemas_v1 directory not found")
 
-    # ── RBAC Middleware ──────────────────────────────────────────────────────────
-
-    def check_rbac_middleware(self) -> None:
-        """Check for RBAC middleware implementation."""
-        self._print_header("RBAC Middleware")
-
-        repo_root = Path(__file__).parent.parent.parent
-        middleware_dir = repo_root / "original" / "middleware"
-
-        if middleware_dir.exists():
-            rbac_file = middleware_dir / "rbac.py"
-            if rbac_file.exists():
-                self._print_ok("RBAC middleware file exists (original/middleware/rbac.py)")
-            else:
-                self._print_warn("RBAC middleware not yet implemented")
-        else:
-            self._print_warn("Middleware directory not found (original/middleware/)")
-
-        # Check auth middleware in main.py or api.py
-        api_file = repo_root / "original" / "api.py"
-        if api_file.exists():
-            content = api_file.read_text()
-            if "middleware" in content.lower() or "depend" in content.lower():
-                self._print_ok("Auth/dependency injection found in API")
-
     # ── pip audit ────────────────────────────────────────────────────────────────
 
     def check_pip_audit(self) -> None:
@@ -377,7 +352,9 @@ class SecurityAudit:
             self.check_raw_sql()
             self.check_rate_limiting()
             self.check_input_validation()
-            self.check_rbac_middleware()
+            # NOTE: check_rbac_middleware() removed (WS-5 §5.5, T6) — it only did a
+            # filesystem existence check against original/middleware/rbac.py, which
+            # was deleted as dead code (no Python importer anywhere in the codebase).
             self.check_pip_audit()
             self.check_tls_readiness()
             self.check_database_security()

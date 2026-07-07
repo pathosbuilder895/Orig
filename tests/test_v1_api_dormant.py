@@ -1,7 +1,10 @@
 """
-tests/test_api.py — Integration tests for API endpoints.
+tests/test_v1_api_dormant.py — Integration tests for API endpoints.
 
 Tests full request/response flows including auth, baseline, and scoring.
+
+Dormant v1 API surface — retained until WS-6 Phase 6 deletes the v1 stack.
+New live-stack API tests belong in test_bluebook_api.py / the live fixture.
 """
 
 import pytest
@@ -89,7 +92,10 @@ class TestHealthEndpoints:
 class TestAuthEndpoints:
     """Tests for authentication endpoints."""
 
-    @pytest.mark.xfail(strict=False, reason="rate-limit exhaustion (429) when the full suite runs — pre-existing, documented in CLAUDE.md")
+    @pytest.mark.xfail(
+        strict=False,
+        reason="rate-limit exhaustion (429) when the full suite runs — pre-existing, documented in CLAUDE.md",
+    )
     def test_login_success(self, client: TestClient, instructor_user):
         """Login with valid credentials succeeds."""
         response = client.post(
@@ -106,7 +112,10 @@ class TestAuthEndpoints:
         assert data["token_type"] == "bearer"
         assert data["expires_in"] > 0
 
-    @pytest.mark.xfail(strict=False, reason="rate-limit exhaustion (429) when the full suite runs — pre-existing, documented in CLAUDE.md")
+    @pytest.mark.xfail(
+        strict=False,
+        reason="rate-limit exhaustion (429) when the full suite runs — pre-existing, documented in CLAUDE.md",
+    )
     def test_login_wrong_password(self, client: TestClient, instructor_user):
         """Login with wrong password fails."""
         response = client.post(
@@ -120,7 +129,10 @@ class TestAuthEndpoints:
         data = response.json()
         assert data["error_code"] == "auth_error"
 
-    @pytest.mark.xfail(strict=False, reason="rate-limit exhaustion (429) when the full suite runs — pre-existing, documented in CLAUDE.md")
+    @pytest.mark.xfail(
+        strict=False,
+        reason="rate-limit exhaustion (429) when the full suite runs — pre-existing, documented in CLAUDE.md",
+    )
     def test_login_nonexistent_user(self, client: TestClient):
         """Login with nonexistent email fails."""
         response = client.post(
@@ -132,7 +144,10 @@ class TestAuthEndpoints:
         )
         assert response.status_code == 401
 
-    @pytest.mark.xfail(strict=False, reason="rate-limit exhaustion (429) when the full suite runs — pre-existing, documented in CLAUDE.md")
+    @pytest.mark.xfail(
+        strict=False,
+        reason="rate-limit exhaustion (429) when the full suite runs — pre-existing, documented in CLAUDE.md",
+    )
     def test_refresh_success(self, client: TestClient, instructor_user):
         """Refresh returns a new access token when refresh token is valid."""
         login = client.post(
@@ -151,7 +166,10 @@ class TestAuthEndpoints:
         assert response.status_code == 200
         assert "access_token" in response.json()
 
-    @pytest.mark.xfail(strict=False, reason="rate-limit exhaustion (429) when the full suite runs — pre-existing, documented in CLAUDE.md")
+    @pytest.mark.xfail(
+        strict=False,
+        reason="rate-limit exhaustion (429) when the full suite runs — pre-existing, documented in CLAUDE.md",
+    )
     def test_logout_revokes_refresh_token(self, client: TestClient, instructor_user):
         """After logout, refresh with the same token fails."""
         login = client.post(
@@ -187,9 +205,7 @@ class TestAuthEndpoints:
         response = client.post("/api/v1/auth/logout-all")
         assert response.status_code == 401
 
-    def test_logout_all_revokes_all_sessions(
-        self, client: TestClient, instructor_user, db
-    ):
+    def test_logout_all_revokes_all_sessions(self, client: TestClient, instructor_user, db):
         """Two refresh tokens for one user; logout-all invalidates both.
 
         No POST /login here — earlier tests already consume the per-minute login budget.
@@ -204,9 +220,7 @@ class TestAuthEndpoints:
         rt_a, hash_a = create_refresh_token(instructor_user)
         rt_b, hash_b = create_refresh_token(instructor_user)
         assert rt_a != rt_b
-        exp = datetime.now(timezone.utc) + timedelta(
-            days=settings.REFRESH_TOKEN_EXPIRE_DAYS
-        )
+        exp = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
         db.add(
             RefreshToken(
                 user_id=instructor_user.id,
@@ -256,9 +270,7 @@ class TestAuthEndpoints:
             if response.status_code == 429:
                 got_rate_limited = True
                 break
-            assert response.status_code == 401, (
-                f"Expected 401 or 429, got {response.status_code}"
-            )
+            assert response.status_code == 401, f"Expected 401 or 429, got {response.status_code}"
         assert got_rate_limited, "Expected to be rate limited within 10 attempts"
 
 
@@ -270,9 +282,7 @@ class TestStudentEndpoints:
         response = client.get("/api/v1/students/")
         assert response.status_code == 401
 
-    def test_list_students_success(
-        self, client: TestClient, instructor_auth_headers, test_student
-    ):
+    def test_list_students_success(self, client: TestClient, instructor_auth_headers, test_student):
         """List students returns student data."""
         response = client.get(
             "/api/v1/students/",
@@ -283,9 +293,7 @@ class TestStudentEndpoints:
         assert "items" in data
         assert "total" in data
 
-    def test_get_student_success(
-        self, client: TestClient, instructor_auth_headers, test_student
-    ):
+    def test_get_student_success(self, client: TestClient, instructor_auth_headers, test_student):
         """Get specific student returns student data."""
         response = client.get(
             f"/api/v1/students/{test_student.id}",
@@ -377,9 +385,7 @@ class TestSubmissionEndpoints:
         data = response.json()
         assert data["error_code"] == "insufficient_baseline"
 
-    def test_score_with_baseline(
-        self, client: TestClient, instructor_auth_headers, test_student
-    ):
+    def test_score_with_baseline(self, client: TestClient, instructor_auth_headers, test_student):
         """Scoring with sufficient baseline succeeds."""
         # Add 3 baseline samples
         for i in range(3):
@@ -411,9 +417,7 @@ class TestSubmissionEndpoints:
         assert 0.0 <= data["deviation_score"] <= 1.0
         assert 0.0 <= data["authorship_probability"] <= 1.0
 
-    def test_score_idempotency(
-        self, client: TestClient, instructor_auth_headers, test_student
-    ):
+    def test_score_idempotency(self, client: TestClient, instructor_auth_headers, test_student):
         """Scoring same text twice returns cached result."""
         # Setup baseline
         for i in range(3):
