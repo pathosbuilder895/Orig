@@ -98,7 +98,7 @@ def _split_name_email(line: str) -> Optional[tuple[str, str]]:
         return None
     email = m.group(0).strip().lower()
     # Everything that isn't the email, stripped of separators/brackets, is the name.
-    name = (line[: m.start()] + " " + line[m.end():]).strip(" \t,;<>\"'")
+    name = (line[: m.start()] + " " + line[m.end() :]).strip(" \t,;<>\"'")
     name = re.sub(r"[\s,;]+", " ", name).strip(" ,;<>\"'")
     return name, email
 
@@ -120,7 +120,9 @@ def parse_roster(text: str) -> List[tuple[str, str]]:
         reader = csv.DictReader(io.StringIO(text), dialect=dialect)
         cols = {(c or "").strip().lower(): c for c in (reader.fieldnames or [])}
         ecol = next((cols[k] for k in cols if "email" in k or "e-mail" in k), None)
-        ncol = next((cols[k] for k in cols if k in ("name", "student", "full name", "fullname")), None)
+        ncol = next(
+            (cols[k] for k in cols if k in ("name", "student", "full name", "fullname")), None
+        )
         if ecol:
             for r in reader:
                 email = (r.get(ecol) or "").strip().lower()
@@ -146,7 +148,9 @@ def parse_roster(text: str) -> List[tuple[str, str]]:
     return rows
 
 
-def build_link(base_url: str, tenant: str, sid: str, exam: str, name: str, include_name: bool) -> str:
+def build_link(
+    base_url: str, tenant: str, sid: str, exam: str, name: str, include_name: bool
+) -> str:
     base = base_url.rstrip("/")
     params = [("sid", sid), ("tenant", tenant)]
     if exam:
@@ -166,7 +170,7 @@ def syllabus_paragraph() -> Optional[str]:
     idx = text.find(marker)
     if idx == -1:
         return None
-    after = text[idx + len(marker):]
+    after = text[idx + len(marker) :]
     lines = []
     for ln in after.splitlines():
         s = ln.strip()
@@ -197,27 +201,55 @@ def main() -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    ap.add_argument("-r", "--roster", required=True,
-                    help="path to roster file (CSV or one student per line), or '-' for stdin")
+    ap.add_argument(
+        "-r",
+        "--roster",
+        required=True,
+        help="path to roster file (CSV or one student per line), or '-' for stdin",
+    )
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("-i", "--institution", help="institution name → slugified to the tenant id")
-    g.add_argument("-t", "--tenant", help="tenant slug directly (use the exact slug the tenant was provisioned with)")
-    ap.add_argument("-b", "--base-url", default="",
-                    help="pilot host, e.g. https://original-pilot.onrender.com (required for usable links)")
-    ap.add_argument("-e", "--exam", default="Week 1 Writing Sample",
-                    help="exam title shown on the briefing (default: 'Week 1 Writing Sample')")
-    ap.add_argument("--format", choices=["csv", "md", "links"], default="csv",
-                    help="output format (default: csv)")
+    g.add_argument(
+        "-t",
+        "--tenant",
+        help="tenant slug directly (use the exact slug the tenant was provisioned with)",
+    )
+    ap.add_argument(
+        "-b",
+        "--base-url",
+        default="",
+        help="pilot host, e.g. https://original-pilot.onrender.com (required for usable links)",
+    )
+    ap.add_argument(
+        "-e",
+        "--exam",
+        default="Week 1 Writing Sample",
+        help="exam title shown on the briefing (default: 'Week 1 Writing Sample')",
+    )
+    ap.add_argument(
+        "--format",
+        choices=["csv", "md", "links"],
+        default="csv",
+        help="output format (default: csv)",
+    )
     ap.add_argument("-o", "--out", help="write links to this file (default: stdout)")
-    ap.add_argument("--expected-out",
-                    help="also write the expected-roster JSON [{sid,name,email}] here "
-                         "(the spine for a later 'N of M submitted' view)")
-    ap.add_argument("--include-name", action="store_true",
-                    help="put the student's name in the URL as candidate= so the briefing greets "
-                         "them by name. OPTS OUT of FERPA URL-minimisation — the name then appears "
-                         "in the link. Default off: links carry only the opaque sid.")
-    ap.add_argument("--no-disclosure", action="store_true",
-                    help="suppress the syllabus-disclosure reminder printed to stderr")
+    ap.add_argument(
+        "--expected-out",
+        help="also write the expected-roster JSON [{sid,name,email}] here "
+        "(the spine for a later 'N of M submitted' view)",
+    )
+    ap.add_argument(
+        "--include-name",
+        action="store_true",
+        help="put the student's name in the URL as candidate= so the briefing greets "
+        "them by name. OPTS OUT of FERPA URL-minimisation — the name then appears "
+        "in the link. Default off: links carry only the opaque sid.",
+    )
+    ap.add_argument(
+        "--no-disclosure",
+        action="store_true",
+        help="suppress the syllabus-disclosure reminder printed to stderr",
+    )
     args = ap.parse_args()
 
     # Resolve tenant slug.
@@ -254,8 +286,14 @@ def main() -> int:
             name=name,
             email=email,
             sid=derive_student_id(tenant, email),
-            link=build_link(args.base_url, tenant, derive_student_id(tenant, email),
-                            args.exam, name, args.include_name),
+            link=build_link(
+                args.base_url,
+                tenant,
+                derive_student_id(tenant, email),
+                args.exam,
+                name,
+                args.include_name,
+            ),
         )
         for (name, email) in pairs
     ]
@@ -277,7 +315,9 @@ def main() -> int:
             "students": [{"sid": s.sid, "name": s.name, "email": s.email} for s in students],
         }
         Path(args.expected_out).write_text(json.dumps(payload, indent=2), encoding="utf-8")
-        sys.stderr.write(f"wrote expected-roster spine ({len(students)} students) → {args.expected_out}\n")
+        sys.stderr.write(
+            f"wrote expected-roster spine ({len(students)} students) → {args.expected_out}\n"
+        )
 
     # Operator reminders to stderr (never mixed into the links on stdout).
     sys.stderr.write(
@@ -299,11 +339,15 @@ def main() -> int:
     if not args.no_disclosure:
         para = syllabus_paragraph()
         if para:
-            sys.stderr.write("\n--- Syllabus disclosure paragraph (put in every participating course) ---\n")
+            sys.stderr.write(
+                "\n--- Syllabus disclosure paragraph (put in every participating course) ---\n"
+            )
             sys.stderr.write(para + "\n")
             sys.stderr.write("--- Full student disclosure: docs/STUDENT_DISCLOSURE.md ---\n")
         else:
-            sys.stderr.write("\n(note: docs/STUDENT_DISCLOSURE.md not found — give students the disclosure manually.)\n")
+            sys.stderr.write(
+                "\n(note: docs/STUDENT_DISCLOSURE.md not found — give students the disclosure manually.)\n"
+            )
 
     return 0
 

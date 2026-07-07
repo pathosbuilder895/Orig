@@ -15,6 +15,7 @@ Samples:
 
 import sys
 import os
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from original import store
@@ -332,6 +333,7 @@ the false clarity with which I arrived.
 
 # ── Seed function ─────────────────────────────────────────────────────────────
 
+
 def seed(verbose: bool = True) -> None:
     """Populate the store with synthetic student profiles."""
 
@@ -340,11 +342,11 @@ def seed(verbose: bool = True) -> None:
             "id": "whitfield_j",
             "name": "James Whitfield",
             "baselines": [
-                ("Week 1 Reflection — Baseline",       "proctored", "2025-01-24", BASELINE_A),
-                ("Week 3 Reflection — Baseline",       "proctored", "2025-02-07", BASELINE_B),
-                ("Week 5 Reflection",                   "verified",  "2025-02-21", BASELINE_C),
-                ("Barth Election Essay",                "proctored", "2025-03-07", BASELINE_D),
-                ("Covenant Theology Final Reflection",  "verified",  "2025-03-14", BASELINE_LONG),
+                ("Week 1 Reflection — Baseline", "proctored", "2025-01-24", BASELINE_A),
+                ("Week 3 Reflection — Baseline", "proctored", "2025-02-07", BASELINE_B),
+                ("Week 5 Reflection", "verified", "2025-02-21", BASELINE_C),
+                ("Barth Election Essay", "proctored", "2025-03-07", BASELINE_D),
+                ("Covenant Theology Final Reflection", "verified", "2025-03-14", BASELINE_LONG),
             ],
             # Clear AI signal — high deviation expected
             "submission": ("Christology Final Paper", "2025-04-01", ANOMALOUS_SUBMISSION),
@@ -353,11 +355,11 @@ def seed(verbose: bool = True) -> None:
             "id": "okonkwo_s",
             "name": "Sarah Okonkwo",
             "baselines": [
-                ("Week 1 Reflection — Baseline",      "proctored", "2025-01-24", BASELINE_B),
-                ("Week 3 Reflection — Baseline",      "proctored", "2025-02-07", BASELINE_A),
-                ("Week 5 Reflection",                  "proctored", "2025-02-21", BASELINE_C),
-                ("Hermeneutics Long Essay",            "proctored", "2025-03-07", BASELINE_LONG),
-                ("Covenant Theology Reflection",       "verified",  "2025-03-14", BASELINE_E),
+                ("Week 1 Reflection — Baseline", "proctored", "2025-01-24", BASELINE_B),
+                ("Week 3 Reflection — Baseline", "proctored", "2025-02-07", BASELINE_A),
+                ("Week 5 Reflection", "proctored", "2025-02-21", BASELINE_C),
+                ("Hermeneutics Long Essay", "proctored", "2025-03-07", BASELINE_LONG),
+                ("Covenant Theology Reflection", "verified", "2025-03-14", BASELINE_E),
             ],
             # Second anomalous pattern — slightly different AI style
             "submission": ("Soteriology Research Paper", "2025-04-01", ANOMALOUS_SUBMISSION_2),
@@ -366,27 +368,28 @@ def seed(verbose: bool = True) -> None:
             "id": "osei_d",
             "name": "Daniel Osei",
             "baselines": [
-                ("Week 1 Reflection — Baseline",  "proctored", "2025-01-24", BASELINE_C),
-                ("Week 3 Reflection — Baseline",  "verified",  "2025-02-07", BASELINE_A),
-                ("Week 5 Reflection",              "verified",  "2025-02-21", BASELINE_B),
-                ("Barth Election Essay",           "proctored", "2025-03-07", BASELINE_D),
-                ("Long Essay — Hermeneutics",      "verified",  "2025-03-14", BASELINE_LONG),
+                ("Week 1 Reflection — Baseline", "proctored", "2025-01-24", BASELINE_C),
+                ("Week 3 Reflection — Baseline", "verified", "2025-02-07", BASELINE_A),
+                ("Week 5 Reflection", "verified", "2025-02-21", BASELINE_B),
+                ("Barth Election Essay", "proctored", "2025-03-07", BASELINE_D),
+                ("Long Essay — Hermeneutics", "verified", "2025-03-14", BASELINE_LONG),
             ],
             # Moderately anomalous (mix of authentic + shifted rhetoric)
             "submission": (
-                "Pneumatology Essay", "2025-04-01",
-                BASELINE_B[:800] + "\n\n" + ANOMALOUS_SUBMISSION[:600]
+                "Pneumatology Essay",
+                "2025-04-01",
+                BASELINE_B[:800] + "\n\n" + ANOMALOUS_SUBMISSION[:600],
             ),
         },
         {
             "id": "mercer_l",
             "name": "Lydia Mercer",
             "baselines": [
-                ("Week 1 Reflection — Baseline",     "proctored", "2025-01-24", BASELINE_A),
-                ("Week 3 Reflection — Baseline",     "proctored", "2025-02-07", BASELINE_C),
-                ("Week 5 Reflection",                 "proctored", "2025-02-21", BASELINE_B),
-                ("Covenant Theology Essay",           "verified",  "2025-03-07", BASELINE_E),
-                ("Hermeneutics Final — Long Form",    "verified",  "2025-03-14", BASELINE_LONG),
+                ("Week 1 Reflection — Baseline", "proctored", "2025-01-24", BASELINE_A),
+                ("Week 3 Reflection — Baseline", "proctored", "2025-02-07", BASELINE_C),
+                ("Week 5 Reflection", "proctored", "2025-02-21", BASELINE_B),
+                ("Covenant Theology Essay", "verified", "2025-03-07", BASELINE_E),
+                ("Hermeneutics Final — Long Form", "verified", "2025-03-14", BASELINE_LONG),
             ],
             # Authentic-style submission — low deviation expected
             "submission": ("Christology Week 7 Reflection", "2025-04-01", AUTHENTIC_SUBMISSION),
@@ -406,6 +409,7 @@ def seed(verbose: bool = True) -> None:
         state = store.get_or_create(s["id"])
         for assignment, provenance, date, text in s["baselines"]:
             from original.constants import AUTH_WEIGHTS
+
             vec = feature_vector(text)
             sample = BaselineSample(
                 text=text,
@@ -420,8 +424,10 @@ def seed(verbose: bool = True) -> None:
         store.put(state)  # persist to SQLite so --skip-seed can load from DB
 
         if verbose:
-            print(f"  {s['name']} ({s['id']}): {state.authenticated_count} baseline samples, "
-                  f"purity={state.purity:.3f}")
+            print(
+                f"  {s['name']} ({s['id']}): {state.authenticated_count} baseline samples, "
+                f"purity={state.purity:.3f}"
+            )
 
     if verbose:
         print(f"Seeded {len(students)} students into store.")

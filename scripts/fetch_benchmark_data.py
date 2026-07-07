@@ -61,6 +61,7 @@ AUTEXTIFICATION_DIR = CACHE_DIR / "autextification"
 
 # ── Utilities ──────────────────────────────────────────────────────────────────
 
+
 def _get(url: str, timeout: int = 30, retries: int = 3) -> bytes:
     """Fetch URL with retries and polite delay."""
     headers = {
@@ -75,7 +76,7 @@ def _get(url: str, timeout: int = 30, retries: int = 3) -> bytes:
         except Exception as e:
             if attempt == retries - 1:
                 raise
-            wait = 2 ** attempt
+            wait = 2**attempt
             log.warning("  Attempt %d failed (%s), retrying in %ds...", attempt + 1, e, wait)
             time.sleep(wait)
     raise RuntimeError(f"Failed to fetch {url} after {retries} attempts")
@@ -83,8 +84,22 @@ def _get(url: str, timeout: int = 30, retries: int = 3) -> bytes:
 
 class _TextExtractor(HTMLParser):
     """Minimal HTML→text extractor. Strips scripts, styles, nav, figure captions."""
-    SKIP_TAGS = {"script", "style", "nav", "header", "footer", "figure", "figcaption",
-                 "aside", "button", "select", "noscript", "svg", "math"}
+
+    SKIP_TAGS = {
+        "script",
+        "style",
+        "nav",
+        "header",
+        "footer",
+        "figure",
+        "figcaption",
+        "aside",
+        "button",
+        "select",
+        "noscript",
+        "svg",
+        "math",
+    }
 
     def __init__(self):
         super().__init__()
@@ -133,14 +148,14 @@ def html_to_text(html: bytes) -> str:
 # recognisable, (c) spanning multiple topic areas (the hard test for Original).
 ARXIV_AUTHORS = [
     # id used for filenames          arXiv search query
-    ("bengio_yoshua",               "Bengio, Yoshua"),
-    ("lecun_yann",                  "LeCun, Yann"),
-    ("manning_christopher",         "Manning, Christopher"),
-    ("karpathy_andrej",             "Karpathy, Andrej"),
-    ("abbeel_pieter",               "Abbeel, Pieter"),
-    ("chollet_francois",            "Chollet, Francois"),
-    ("ng_andrew",                   "Ng, Andrew"),
-    ("goodfellow_ian",              "Goodfellow, Ian"),
+    ("bengio_yoshua", "Bengio, Yoshua"),
+    ("lecun_yann", "LeCun, Yann"),
+    ("manning_christopher", "Manning, Christopher"),
+    ("karpathy_andrej", "Karpathy, Andrej"),
+    ("abbeel_pieter", "Abbeel, Pieter"),
+    ("chollet_francois", "Chollet, Francois"),
+    ("ng_andrew", "Ng, Andrew"),
+    ("goodfellow_ian", "Goodfellow, Ian"),
 ]
 
 # Maximum papers to fetch per author (baseline + test budget)
@@ -192,7 +207,7 @@ def _fetch_arxiv_html(paper_id: str) -> str:
             if len(text) > cutoff:
                 # Break at last paragraph boundary before cutoff
                 break_pos = text.rfind("\n\n", 0, cutoff)
-                text = text[:break_pos if break_pos > 2000 else cutoff]
+                text = text[: break_pos if break_pos > 2000 else cutoff]
             return text.strip()
     except Exception as e:
         log.debug("  ar5iv failed for %s: %s", paper_id, e)
@@ -279,8 +294,10 @@ def fetch_arxiv(force: bool = False) -> dict[str, list[dict]]:
             log.info("  + %s (%d chars)", paper_id, len(text))
 
         # Save metadata (without text inline — text lives in .txt files)
-        meta = [{"paper_id": p["paper_id"], "title": p["title"], "text_len": len(p["text"])}
-                for p in papers]
+        meta = [
+            {"paper_id": p["paper_id"], "title": p["title"], "text_len": len(p["text"])}
+            for p in papers
+        ]
         meta_path.write_text(json.dumps(meta, indent=2))
 
         log.info("✓ arXiv %s: %d papers total", author_id, len(papers))
@@ -400,10 +417,12 @@ def fetch_pan(years: list[int] = None, force: bool = False) -> dict[int, dict]:
                 obj = json.loads(line.strip())
                 texts = obj.get("pair", [])
                 if len(texts) == 2 and all(len(t) > 100 for t in texts):
-                    pairs.append({
-                        "id": obj["id"],
-                        "texts": texts,
-                    })
+                    pairs.append(
+                        {
+                            "id": obj["id"],
+                            "texts": texts,
+                        }
+                    )
 
         # Parse truth labels
         truth = {}
@@ -421,13 +440,18 @@ def fetch_pan(years: list[int] = None, force: bool = False) -> dict[int, dict]:
             "n_labeled": len(truth),
             "n_same": sum(1 for v in truth.values() if v),
             "n_different": sum(1 for v in truth.values() if not v),
-            "pairs": pairs[:2000],   # cap at 2000 pairs to keep cache manageable
+            "pairs": pairs[:2000],  # cap at 2000 pairs to keep cache manageable
             "truth": truth,
         }
 
         cache_file.write_text(json.dumps(data))
-        log.info("✓ PAN %d: %d pairs (%d same, %d different)",
-                 year, len(pairs), data["n_same"], data["n_different"])
+        log.info(
+            "✓ PAN %d: %d pairs (%d same, %d different)",
+            year,
+            len(pairs),
+            data["n_same"],
+            data["n_different"],
+        )
         results[year] = data
 
     return results
@@ -453,13 +477,12 @@ def fetch_pan(years: list[int] = None, force: bool = False) -> dict[int, dict]:
 #   (a row with model="human" is a human-written reference)
 
 RAID_TRAIN_URL = "https://huggingface.co/datasets/liamdugan/raid/resolve/main/train.csv"
-RAID_TRAIN_SIZE = 11_779_491_051   # from HF API, 2026-07
+RAID_TRAIN_SIZE = 11_779_491_051  # from HF API, 2026-07
 
 
-def fetch_raid(force: bool = False,
-               n_offsets: int = 10,
-               chunk_bytes: int = 5_000_000,
-               shuffle_seed: int = 1729) -> Optional[Path]:
+def fetch_raid(
+    force: bool = False, n_offsets: int = 10, chunk_bytes: int = 5_000_000, shuffle_seed: int = 1729
+) -> Optional[Path]:
     """
     Multi-offset Range-sample RAID's train.csv into a ~50 MB CSV under
     ``.benchmark_cache/raid/raid_sample.csv``. Returns the cached
@@ -499,7 +522,7 @@ def fetch_raid(force: bool = False,
         last_nl = data.rfind(b"\n")
         if first_nl == -1 or last_nl == -1 or first_nl >= last_nl:
             continue
-        chunks.append(data[first_nl + 1:last_nl])
+        chunks.append(data[first_nl + 1 : last_nl])
 
     merged = header_line + b"\n" + b"\n".join(chunks)
 
@@ -520,17 +543,24 @@ def fetch_raid(force: bool = False,
         w.writeheader()
         w.writerows(clean)
 
-    log.info("✓ RAID: %d rows shuffled → %s (%.1f MB)",
-             len(clean), out_path, out_path.stat().st_size / 1e6)
+    log.info(
+        "✓ RAID: %d rows shuffled → %s (%.1f MB)",
+        len(clean),
+        out_path,
+        out_path.stat().st_size / 1e6,
+    )
     return out_path
 
 
 def _get_range(url: str, start: int, end: int, timeout: int = 180) -> bytes:
     """HTTP Range request (bytes=start-end, inclusive)."""
-    req = urllib.request.Request(url, headers={
-        "User-Agent": "Original-Benchmark/1.0 (academic research)",
-        "Range": f"bytes={start}-{end}",
-    })
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Original-Benchmark/1.0 (academic research)",
+            "Range": f"bytes={start}-{end}",
+        },
+    )
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.read()
 
@@ -610,7 +640,7 @@ def fetch_m4(force: bool = False) -> List[Path]:
 
 AUTEXTIFICATION_URLS = {
     "train": "https://huggingface.co/datasets/symanto/autextification2023/resolve/main/data/train/subtask_1/en/train.tsv",
-    "test":  "https://huggingface.co/datasets/symanto/autextification2023/resolve/main/data/test/subtask_1/en/test.tsv",
+    "test": "https://huggingface.co/datasets/symanto/autextification2023/resolve/main/data/test/subtask_1/en/test.tsv",
 }
 
 
@@ -644,6 +674,7 @@ def fetch_autextification(force: bool = False) -> List[Path]:
 
 # ── Summary ────────────────────────────────────────────────────────────────────
 
+
 def print_summary(arxiv_data: dict, pan_data: dict):
     print("\n" + "=" * 60)
     print("  BENCHMARK DATA SUMMARY")
@@ -654,15 +685,19 @@ def print_summary(arxiv_data: dict, pan_data: dict):
     for author_id, papers in arxiv_data.items():
         usable = [p for p in papers if len(p.get("text", "")) >= 500]
         total_papers += len(usable)
-        print(f"  {author_id:<28} {len(usable):>3} papers  "
-              f"(avg {sum(len(p['text']) for p in usable) // max(len(usable), 1):,} chars)")
+        print(
+            f"  {author_id:<28} {len(usable):>3} papers  "
+            f"(avg {sum(len(p['text']) for p in usable) // max(len(usable), 1):,} chars)"
+        )
     print(f"  Total: {total_papers} papers across {len(arxiv_data)} authors")
     print(f"  Baseline: 5 papers/author → Test: 2-3 papers/author + cross-author pairs")
 
     print("\n▸ PAN Authorship Verification")
     for year, data in pan_data.items():
-        print(f"  PAN {year}: {data['n_pairs']:,} pairs  "
-              f"({data['n_same']:,} same-author, {data['n_different']:,} different)")
+        print(
+            f"  PAN {year}: {data['n_pairs']:,} pairs  "
+            f"({data['n_same']:,} same-author, {data['n_different']:,} different)"
+        )
 
     print("\n▸ Ready to run:")
     print("  python scripts/benchmark.py --dataset arxiv")
@@ -674,6 +709,7 @@ def print_summary(arxiv_data: dict, pan_data: dict):
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
+
 def main():
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -681,18 +717,23 @@ def main():
     )
     parser.add_argument("--arxiv", action="store_true", help="Fetch arXiv papers only")
     parser.add_argument("--pan", action="store_true", help="Fetch PAN datasets only")
-    parser.add_argument("--pan-year", type=int, choices=[2021, 2022, 2023],
-                        help="Fetch specific PAN year only")
+    parser.add_argument(
+        "--pan-year", type=int, choices=[2021, 2022, 2023], help="Fetch specific PAN year only"
+    )
     parser.add_argument("--raid", action="store_true", help="Fetch RAID sample CSV only")
     parser.add_argument("--m4", action="store_true", help="Fetch M4 JSONL files only")
-    parser.add_argument("--autextification", action="store_true",
-                        help="Fetch AuTexTification English subtask-1 TSVs only")
+    parser.add_argument(
+        "--autextification",
+        action="store_true",
+        help="Fetch AuTexTification English subtask-1 TSVs only",
+    )
     parser.add_argument("--force", action="store_true", help="Re-download even if cached")
     args = parser.parse_args()
 
-    any_specific = (args.arxiv or args.pan or args.pan_year or args.raid or args.m4
-                    or args.autextification)
-    fetch_legacy = not any_specific   # default: arXiv + PAN for back-compat
+    any_specific = (
+        args.arxiv or args.pan or args.pan_year or args.raid or args.m4 or args.autextification
+    )
+    fetch_legacy = not any_specific  # default: arXiv + PAN for back-compat
 
     arxiv_data = {}
     pan_data = {}
@@ -740,8 +781,10 @@ def main():
     if autext_paths:
         log.info("AuTexTification ready: %d files in %s", len(autext_paths), AUTEXTIFICATION_DIR)
     if not (arxiv_data or pan_data or raid_path or m4_paths or autext_paths):
-        log.warning("No data fetched. Run with --arxiv, --pan, --raid, --m4, --autextification, "
-                    "or no flags for arXiv+PAN.")
+        log.warning(
+            "No data fetched. Run with --arxiv, --pan, --raid, --m4, --autextification, "
+            "or no flags for arXiv+PAN."
+        )
 
 
 if __name__ == "__main__":

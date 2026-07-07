@@ -42,8 +42,8 @@ import numpy as np
 # ---------------------------------------------------------------------------
 # Path setup — allow running from the repo root or from original_backend/
 # ---------------------------------------------------------------------------
-_HERE = Path(__file__).resolve().parent          # scripts/
-_BACKEND = _HERE.parent                          # original_backend/
+_HERE = Path(__file__).resolve().parent  # scripts/
+_BACKEND = _HERE.parent  # original_backend/
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
@@ -56,7 +56,10 @@ try:
     from original.features.tier6 import extract_tier6
     from original.features.tier7 import extract_tier7
     from original.constants import (
-        BASE_FEATURE_CODES, FEATURE_TIER, FEATURE_NAMES, NORM_BOUNDS,
+        BASE_FEATURE_CODES,
+        FEATURE_TIER,
+        FEATURE_NAMES,
+        NORM_BOUNDS,
     )
 except ImportError as exc:
     print(
@@ -70,6 +73,7 @@ except ImportError as exc:
 # ---------------------------------------------------------------------------
 # Extraction
 # ---------------------------------------------------------------------------
+
 
 def extract_raw(text: str) -> Dict[str, float]:
     """Return a dict of raw (un-normalised) feature values for *text*."""
@@ -137,7 +141,7 @@ def compute_stats(
             continue
         arr = np.array(vals, dtype=float)
         out[code] = {
-            "n":   float(len(arr)),
+            "n": float(len(arr)),
             "min": float(arr.min()),
             "p01": float(np.percentile(arr, 1)),
             "p05": float(np.percentile(arr, p_lo)),
@@ -270,7 +274,7 @@ def print_suggested_bounds(
                 return f"{v:.2f}"
             return f"{v:.3f}"
 
-        name_str = f'# P{p_lo:02d}={raw_lo:.4f}, P{p_hi:02d}={raw_hi:.4f}  ← {FEATURE_NAMES.get(code, code)}'
+        name_str = f"# P{p_lo:02d}={raw_lo:.4f}, P{p_hi:02d}={raw_hi:.4f}  ← {FEATURE_NAMES.get(code, code)}"
         pad = max(1, 44 - len(code))
         print(f'    "{code}":{" " * pad}({_round(sug_lo)}, {_round(sug_hi)}),  {name_str}')
 
@@ -284,6 +288,7 @@ def print_suggested_bounds(
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="calibrate_bounds",
@@ -296,7 +301,10 @@ def main() -> None:
     )
     parser.add_argument(
         "--percentile",
-        nargs=2, type=int, default=[5, 95], metavar=("P_LO", "P_HI"),
+        nargs=2,
+        type=int,
+        default=[5, 95],
+        metavar=("P_LO", "P_HI"),
         help="Lower and upper percentile bounds (default: 5 95)",
     )
     parser.add_argument(
@@ -306,7 +314,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--margin",
-        type=float, default=0.05,
+        type=float,
+        default=0.05,
         help="Safety margin applied to suggested bounds (default: 0.05 = 5%%)",
     )
     args = parser.parse_args()

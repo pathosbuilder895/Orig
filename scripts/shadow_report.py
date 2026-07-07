@@ -45,6 +45,7 @@ DEFAULT_ARTIFACT = _ROOT / "original" / "data" / "ai_detector_v1.joblib"
 
 def _load_thresholds(model_path: Path) -> Dict[str, float]:
     import joblib
+
     art = joblib.load(model_path)
     return {k: float(v) for k, v in art["thresholds"].items()}
 
@@ -64,9 +65,15 @@ def _fetch(conn: sqlite3.Connection) -> List[Dict]:
         """
     ).fetchall()
     return [
-        {"submission_id": r[0], "student_id": r[1], "probability": float(r[2]),
-         "band": r[3], "model_version": r[4], "created_at": r[5],
-         "is_authentic": (None if r[6] is None else int(r[6]))}
+        {
+            "submission_id": r[0],
+            "student_id": r[1],
+            "probability": float(r[2]),
+            "band": r[3],
+            "model_version": r[4],
+            "created_at": r[5],
+            "is_authentic": (None if r[6] is None else int(r[6])),
+        }
         for r in rows
     ]
 
@@ -113,15 +120,13 @@ def build_report(rows: List[Dict], thresholds: Dict[str, float]) -> Dict:
         s["n"] += 1
         if r["probability"] >= thresholds["elevated"]:
             s["flagged"] += 1
-    concentrated = {sid: s for sid, s in per_student.items()
-                    if s["flagged"] > 0}
+    concentrated = {sid: s for sid, s in per_student.items() if s["flagged"] > 0}
 
     return {
         "thresholds": thresholds,
         "totals": {
             "shadow_rows": len(rows),
-            "date_range": ([rows[0]["created_at"], rows[-1]["created_at"]]
-                           if rows else None),
+            "date_range": ([rows[0]["created_at"], rows[-1]["created_at"]] if rows else None),
             "with_authentic_label": len(authentic),
             "with_anomalous_label": len(flagged_anomalous),
             "unjoined_no_ground_truth": len(unjoined),
@@ -131,11 +136,13 @@ def build_report(rows: List[Dict], thresholds: Dict[str, float]) -> Dict:
         "authentic_labeled": {
             **_dist(auth_p),
             "real_world_fpr": _flag_rates(auth_p, thresholds),
-            "note": ("real_world_fpr.at_t_elevated is the number the "
-                     "MODEL_CARD enablement gate compares against 0.05. "
-                     "Labels come from instructor corrections — small n "
-                     "early in the pilot; do not read percentages off "
-                     "fewer than ~30 labeled submissions."),
+            "note": (
+                "real_world_fpr.at_t_elevated is the number the "
+                "MODEL_CARD enablement gate compares against 0.05. "
+                "Labels come from instructor corrections — small n "
+                "early in the pilot; do not read percentages off "
+                "fewer than ~30 labeled submissions."
+            ),
         },
         "per_student_flag_concentration": concentrated,
         "students_seen": len(per_student),
@@ -149,7 +156,8 @@ def to_markdown(report: Dict) -> str:
         "",
         f"- Shadow rows: **{t['shadow_rows']}** "
         f"({t['date_range'][0][:10]} → {t['date_range'][1][:10]})"
-        if t["date_range"] else "- Shadow rows: **0**",
+        if t["date_range"]
+        else "- Shadow rows: **0**",
         f"- Instructor-labeled authentic: {t['with_authentic_label']} · "
         f"labeled anomalous: {t['with_anomalous_label']} · "
         f"no ground truth yet: {t['unjoined_no_ground_truth']}",
@@ -184,8 +192,10 @@ def to_markdown(report: Dict) -> str:
             f"(gate: ≤ 0.05), at t_strong: {a['real_world_fpr']['at_t_strong']}",
         ]
     else:
-        lines.append("- no instructor-labeled authentic submissions yet — "
-                     "the gate cannot be evaluated. Encourage corrections.")
+        lines.append(
+            "- no instructor-labeled authentic submissions yet — "
+            "the gate cannot be evaluated. Encourage corrections."
+        )
     lines.append(f"- caveat: {a['note']}")
 
     conc = report["per_student_flag_concentration"]
@@ -201,10 +211,12 @@ def to_markdown(report: Dict) -> str:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--db", required=True, help="Path to the SQLite database.")
-    ap.add_argument("--model", default=str(DEFAULT_ARTIFACT),
-                    help="Detector artifact (for thresholds).")
+    ap.add_argument(
+        "--model", default=str(DEFAULT_ARTIFACT), help="Detector artifact (for thresholds)."
+    )
     ap.add_argument("--out-md", default=None, help="Write markdown here (default stdout).")
     ap.add_argument("--out-json", default=None, help="Also write the raw report JSON.")
     args = ap.parse_args(argv)
@@ -216,8 +228,7 @@ def main(argv=None) -> int:
     try:
         thresholds = _load_thresholds(Path(args.model))
     except Exception as e:
-        print(f"[shadow-report] could not load thresholds from {args.model}: {e}",
-              file=sys.stderr)
+        print(f"[shadow-report] could not load thresholds from {args.model}: {e}", file=sys.stderr)
         return 1
 
     conn = _connect_readonly(db_path)
@@ -225,8 +236,11 @@ def main(argv=None) -> int:
         try:
             rows = _fetch(conn)
         except sqlite3.OperationalError as e:
-            print(f"[shadow-report] query failed ({e}) — is this a pre-shadow "
-                  f"database without the ai_likelihood_scores table?", file=sys.stderr)
+            print(
+                f"[shadow-report] query failed ({e}) — is this a pre-shadow "
+                f"database without the ai_likelihood_scores table?",
+                file=sys.stderr,
+            )
             return 1
     finally:
         conn.close()

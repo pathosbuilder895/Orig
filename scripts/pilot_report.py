@@ -38,9 +38,12 @@ def _connect_readonly(db_path: Path) -> sqlite3.Connection:
 
 
 def _table_exists(conn: sqlite3.Connection, name: str) -> bool:
-    return conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)
-    ).fetchone() is not None
+    return (
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)
+        ).fetchone()
+        is not None
+    )
 
 
 def collect(conn: sqlite3.Connection, since_iso: str) -> Dict:
@@ -51,13 +54,15 @@ def collect(conn: sqlite3.Connection, since_iso: str) -> Dict:
         rows = conn.execute(
             "SELECT action, substr(created_at, 1, 10) AS day, COUNT(*) "
             "FROM audit_log WHERE created_at >= ? GROUP BY action, day "
-            "ORDER BY day, action", (since_iso,)).fetchall()
-        data["activity_by_action_day"] = [
-            {"action": r[0], "day": r[1], "n": r[2]} for r in rows]
+            "ORDER BY day, action",
+            (since_iso,),
+        ).fetchall()
+        data["activity_by_action_day"] = [{"action": r[0], "day": r[1], "n": r[2]} for r in rows]
         data["active_students"] = conn.execute(
             "SELECT COUNT(DISTINCT student_id) FROM audit_log "
             "WHERE created_at >= ? AND student_id IS NOT NULL",
-            (since_iso,)).fetchone()[0]
+            (since_iso,),
+        ).fetchone()[0]
     else:
         data["activity_by_action_day"] = []
         data["active_students"] = 0
@@ -67,14 +72,21 @@ def collect(conn: sqlite3.Connection, since_iso: str) -> Dict:
     if _table_exists(conn, "fidelity_scores"):
         scored, auth_n = conn.execute(
             "SELECT COUNT(*), COALESCE(SUM(is_authentic), 0) FROM fidelity_scores "
-            "WHERE created_at >= ?", (since_iso,)).fetchone()
+            "WHERE created_at >= ?",
+            (since_iso,),
+        ).fetchone()
         anom_n = scored - auth_n
-    data["scoring"] = {"fidelity_rows": scored, "labeled_authentic": auth_n,
-                       "labeled_anomalous": anom_n}
+    data["scoring"] = {
+        "fidelity_rows": scored,
+        "labeled_authentic": auth_n,
+        "labeled_anomalous": anom_n,
+    }
     if _table_exists(conn, "submission_manifests"):
         rows = conn.execute(
             "SELECT COALESCE(action, 'unknown'), COUNT(*) FROM submission_manifests "
-            "WHERE created_at >= ? GROUP BY action", (since_iso,)).fetchall()
+            "WHERE created_at >= ? GROUP BY action",
+            (since_iso,),
+        ).fetchall()
         data["scoring"]["manifests_by_action"] = {r[0]: r[1] for r in rows}
         data["scoring"]["manifests_total"] = sum(r[1] for r in rows)
     else:
@@ -86,9 +98,10 @@ def collect(conn: sqlite3.Connection, since_iso: str) -> Dict:
     if _table_exists(conn, "corrections"):
         n_corr, n_correct = conn.execute(
             "SELECT COUNT(*), COALESCE(SUM(is_correct), 0) FROM corrections "
-            "WHERE created_at >= ?", (since_iso,)).fetchone()
-    denominator = max(data["scoring"]["manifests_total"],
-                      data["scoring"]["fidelity_rows"], 1)
+            "WHERE created_at >= ?",
+            (since_iso,),
+        ).fetchone()
+    denominator = max(data["scoring"]["manifests_total"], data["scoring"]["fidelity_rows"], 1)
     data["corrections"] = {
         "count": n_corr,
         "verdict_confirmed": n_correct,
@@ -100,8 +113,9 @@ def collect(conn: sqlite3.Connection, since_iso: str) -> Dict:
     ai: Dict = {"rows": 0}
     if _table_exists(conn, "ai_likelihood_scores"):
         rows = conn.execute(
-            "SELECT probability, band FROM ai_likelihood_scores "
-            "WHERE created_at >= ?", (since_iso,)).fetchall()
+            "SELECT probability, band FROM ai_likelihood_scores " "WHERE created_at >= ?",
+            (since_iso,),
+        ).fetchall()
         probs = [float(r[0]) for r in rows]
         bands: Dict[str, int] = {}
         for _, band in rows:
@@ -109,10 +123,10 @@ def collect(conn: sqlite3.Connection, since_iso: str) -> Dict:
         ai = {
             "rows": len(rows),
             "band_counts": bands,
-            "median_probability": (round(statistics.median(probs), 4)
-                                   if probs else None),
-            "p90_probability": (round(sorted(probs)[int(0.9 * (len(probs) - 1))], 4)
-                                if probs else None),
+            "median_probability": (round(statistics.median(probs), 4) if probs else None),
+            "p90_probability": (
+                round(sorted(probs)[int(0.9 * (len(probs) - 1))], 4) if probs else None
+            ),
             "would_flag_at_elevated": bands.get("elevated", 0) + bands.get("strong", 0),
             "would_flag_at_strong": bands.get("strong", 0),
         }
@@ -122,8 +136,7 @@ def collect(conn: sqlite3.Connection, since_iso: str) -> Dict:
     below_ready: List[str] = []
     n_students = 0
     if _table_exists(conn, "student_profiles"):
-        for sid, blob in conn.execute(
-                "SELECT student_id, data FROM student_profiles").fetchall():
+        for sid, blob in conn.execute("SELECT student_id, data FROM student_profiles").fetchall():
             n_students += 1
             try:
                 samples = json.loads(blob).get("samples", [])
@@ -131,9 +144,11 @@ def collect(conn: sqlite3.Connection, since_iso: str) -> Dict:
                 samples = []
             if len(samples) < 5:
                 below_ready.append(sid)
-    data["hygiene"] = {"students_total": n_students,
-                       "students_below_5_samples": len(below_ready),
-                       "below_ready_ids": sorted(below_ready)[:25]}
+    data["hygiene"] = {
+        "students_total": n_students,
+        "students_below_5_samples": len(below_ready),
+        "below_ready_ids": sorted(below_ready)[:25],
+    }
     return data
 
 
@@ -150,17 +165,19 @@ def to_markdown(d: Dict, since_days: int) -> str:
         by_day.setdefault(row["day"], {})[row["action"]] = row["n"]
     if by_day:
         actions = sorted({a for v in by_day.values() for a in v})
-        lines += ["", "| day | " + " | ".join(actions) + " |",
-                  "|---|" + "---|" * len(actions)]
+        lines += ["", "| day | " + " | ".join(actions) + " |", "|---|" + "---|" * len(actions)]
         for day in sorted(by_day):
-            lines.append(f"| {day} | " + " | ".join(
-                str(by_day[day].get(a, 0)) for a in actions) + " |")
+            lines.append(
+                f"| {day} | " + " | ".join(str(by_day[day].get(a, 0)) for a in actions) + " |"
+            )
     else:
         lines.append("- no audit activity in window")
 
     s = d["scoring"]
     lines += [
-        "", "## Scoring outcomes", "",
+        "",
+        "## Scoring outcomes",
+        "",
         f"- Submissions scored (fidelity rows): **{s['fidelity_rows']}** "
         f"(labeled authentic: {s['labeled_authentic']}, anomalous: {s['labeled_anomalous']})",
         f"- Manifests by action: {s['manifests_by_action'] or '—'}",
@@ -168,7 +185,9 @@ def to_markdown(d: Dict, since_days: int) -> str:
 
     c = d["corrections"]
     lines += [
-        "", "## Corrections", "",
+        "",
+        "## Corrections",
+        "",
         f"- Count: **{c['count']}** (confirmed: {c['verdict_confirmed']}, "
         f"overturned: {c['verdict_overturned']})",
         f"- Correction rate: {c['correction_rate']} of scored submissions",
@@ -189,7 +208,9 @@ def to_markdown(d: Dict, since_days: int) -> str:
 
     h = d["hygiene"]
     lines += [
-        "", "## Data hygiene", "",
+        "",
+        "## Data hygiene",
+        "",
         f"- Students below the 5-sample readiness bar: "
         f"**{h['students_below_5_samples']}** of {h['students_total']}",
     ]
@@ -201,7 +222,8 @@ def to_markdown(d: Dict, since_days: int) -> str:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--db", required=True)
     ap.add_argument("--since-days", type=int, default=7)
     ap.add_argument("--out", default=None, help="Write markdown here (default stdout).")
@@ -212,8 +234,7 @@ def main(argv=None) -> int:
     if not db_path.exists():
         print(f"[pilot-report] DB not found: {db_path}", file=sys.stderr)
         return 1
-    since_iso = (datetime.now(timezone.utc)
-                 - timedelta(days=args.since_days)).isoformat()
+    since_iso = (datetime.now(timezone.utc) - timedelta(days=args.since_days)).isoformat()
 
     conn = _connect_readonly(db_path)
     try:
