@@ -16,6 +16,12 @@ extend-exclude = [
   "frontend", "web", "legacy_mvp", "demo/bluebook/vendor",
 ]
 
+[tool.ruff.format]
+# Deliberate column-aligned tables (ALL_FEATURE_CODES/NORM_BOUNDS); ruff format
+# would collapse the alignment. Baked in here (not just a CLI --exclude flag)
+# so pre-commit's ruff-format hook and a bare `ruff format .` respect it too.
+exclude = ["original/constants.py"]
+
 [tool.ruff.lint]
 select = [
   "E", "F",        # pycodestyle / pyflakes

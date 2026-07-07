@@ -42,7 +42,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from . import backup as backup_mod
-from . import baseline_requests, bbook_client, store, student_auth
+
+# `store` itself: no call site in this module reaches it directly anymore
+# (WS-6 P1 — all persistence goes through `_repo()`). Kept as a re-export
+# because several tests patch `<api module>.store._DB_PATH` / call
+# `<api module>.store.*` directly for fixture setup.
+from . import (
+    baseline_requests,
+    bbook_client,
+    store,  # noqa: F401
+    student_auth,
+)
 from . import principal as principal_mod
 from . import users as users_mod
 from . import voice as voice_mod
@@ -159,12 +169,12 @@ async def lifespan(app: FastAPI):
     # so the periodic consistent .backup runs inside this process. Demo stays
     # off unless BACKUP_DIR is set explicitly. See original/backup.py.
     _backup_task = None
-    _bdir = backup_mod.resolve_backup_dir(store._DB_PATH, _IS_REAL_DEPLOY)
+    _bdir = backup_mod.resolve_backup_dir(_repo().db_path(), _IS_REAL_DEPLOY)
     if _bdir is not None:
         _interval = float(os.environ.get("BACKUP_INTERVAL_MINUTES", "30") or 30)
         _keep = int(os.environ.get("BACKUP_KEEP", "48") or 48)
         _backup_task = asyncio.create_task(
-            backup_mod.backup_loop(store._DB_PATH, _bdir, _interval, _keep)
+            backup_mod.backup_loop(_repo().db_path(), _bdir, _interval, _keep)
         )
         _log.info("Backups: every %.0f min to %s (keep %d).", _interval, _bdir, _keep)
     else:
@@ -371,7 +381,7 @@ def _persist_or_503(state: StudentState) -> None:  # noqa: F821 -- StudentState 
     back, only the disk write is reported as failed. Not persisted; retry.
     """
     try:
-        store.put(state)
+        _repo().put(state)
     except sqlite3.Error as exc:
         raise HTTPException(
             status_code=503,
@@ -410,7 +420,7 @@ def health():
     return HealthResponse(
         status="ok",
         feature_dim=FEATURE_DIM,
-        students_in_store=store.count(),
+        students_in_store=_repo().count(),
         environment=ORIGINAL_ENV,
         commit=os.environ.get("RENDER_GIT_COMMIT", "dev"),
     )
@@ -424,11 +434,11 @@ def admin_health():
     Returns student count, manifest totals, and queue depth from the live store.
     Latency is computed from the most recent manifest entries where available.
     """
-    student_count = store.count()
+    student_count = _repo().count()
 
     # Pull manifest stats for submission / flag counts
     try:
-        stats = store.manifest_stats()
+        stats = _repo().manifest_stats()
     except Exception:
         stats = {}
 
@@ -440,7 +450,7 @@ def admin_health():
     # Estimate avg latency from recent manifests (created_at timestamps)
     avg_latency_ms = None
     try:
-        recent = store.list_manifests(limit=20)
+        recent = _repo().list_manifests(limit=20)
         items = recent.get("items", [])
         if items:
             # Use latency stored in manifest if present, else report None
@@ -454,7 +464,7 @@ def admin_health():
 
     # Backup recency — None when backups are disabled (demo) or none exist
     # yet. Ops alerting: on a pilot this should never exceed ~2× the interval.
-    _bdir = backup_mod.resolve_backup_dir(store._DB_PATH, _IS_REAL_DEPLOY)
+    _bdir = backup_mod.resolve_backup_dir(_repo().db_path(), _IS_REAL_DEPLOY)
     last_backup_age = backup_mod.latest_backup_age_seconds(_bdir)
 
     return {
@@ -558,7 +568,7 @@ def auth_register(body: dict, request: Request):
         raise HTTPException(status_code=422, detail="role must be professor, admin, or operator")
     if len(password) < 8:
         raise HTTPException(status_code=422, detail="password must be at least 8 characters")
-    if store.get_user_by_email(email):
+    if _repo().get_user_by_email(email):
         raise HTTPException(status_code=409, detail="a user with that email already exists")
     user = users_mod.create_user(email, password, role, tenant_id, name)
     _repo().log_audit(
@@ -695,7 +705,7 @@ def bluebook_create_exam(body: dict, request: Request):
         "conditions": body.get("conditions") if isinstance(body.get("conditions"), dict) else {},
         "status": (str(body.get("status") or "DRAFT").upper())[:20],
     }
-    store.put_bluebook_exam(rec)
+    _repo().put_bluebook_exam(rec)
     _repo().log_audit(action="bluebook_exam_create", tenant_id=tenant, details={"title": title})
     rec["submissions"] = 0
     return rec
@@ -705,17 +715,17 @@ def bluebook_create_exam(body: dict, request: Request):
 def bluebook_list_exams(request: Request):
     p = getattr(request.state, "principal", None)
     if p and not p.is_demo and p.role not in principal_mod.SUPER_ROLES:
-        exams = store.list_bluebook_exams(p.tenant_id)
+        exams = _repo().list_bluebook_exams(p.tenant_id)
     elif p and p.is_demo:
-        exams = store.list_bluebook_exams(principal_mod.DEMO_TENANT)
+        exams = _repo().list_bluebook_exams(principal_mod.DEMO_TENANT)
     else:  # super / operator → all tenants
-        exams = store.list_bluebook_exams(None)
+        exams = _repo().list_bluebook_exams(None)
     return {"exams": exams}
 
 
 @app.get("/bluebook/exams/{exam_id}")
 def bluebook_get_exam(exam_id: str, request: Request):
-    rec = store.get_bluebook_exam(exam_id)
+    rec = _repo().get_bluebook_exam(exam_id)
     if not rec:
         raise HTTPException(status_code=404, detail="exam not found")
     p = getattr(request.state, "principal", None)
@@ -750,7 +760,7 @@ def bluebook_record_submission(body: dict, request: Request):
         "ai_score": _clamp_pct(body.get("ai_score")),
         "status": (str(body.get("status") or "SUBMITTED").upper())[:20],
     }
-    store.put_bluebook_submission(rec)
+    _repo().put_bluebook_submission(rec)
     _repo().log_audit(
         action="bluebook_submission",
         tenant_id=tenant,
@@ -764,11 +774,11 @@ def bluebook_record_submission(body: dict, request: Request):
 def bluebook_list_submissions(request: Request):
     p = getattr(request.state, "principal", None)
     if p and not p.is_demo and p.role not in principal_mod.SUPER_ROLES:
-        subs = store.list_bluebook_submissions(p.tenant_id)
+        subs = _repo().list_bluebook_submissions(p.tenant_id)
     elif p and p.is_demo:
-        subs = store.list_bluebook_submissions(principal_mod.DEMO_TENANT)
+        subs = _repo().list_bluebook_submissions(principal_mod.DEMO_TENANT)
     else:
-        subs = store.list_bluebook_submissions(None)
+        subs = _repo().list_bluebook_submissions(None)
     return {"submissions": subs}
 
 
@@ -786,7 +796,7 @@ def bluebook_create_course(body: dict, request: Request):
         "term": str(body.get("term") or "")[:60],
         "status": (str(body.get("status") or "ACTIVE").upper())[:20],
     }
-    store.put_bluebook_course(rec)
+    _repo().put_bluebook_course(rec)
     _repo().log_audit(
         action="bluebook_course_create", tenant_id=tenant, details={"code": rec["code"]}
     )
@@ -797,11 +807,11 @@ def bluebook_create_course(body: dict, request: Request):
 def bluebook_list_courses(request: Request):
     p = getattr(request.state, "principal", None)
     if p and not p.is_demo and p.role not in principal_mod.SUPER_ROLES:
-        courses = store.list_bluebook_courses(p.tenant_id)
+        courses = _repo().list_bluebook_courses(p.tenant_id)
     elif p and p.is_demo:
-        courses = store.list_bluebook_courses(principal_mod.DEMO_TENANT)
+        courses = _repo().list_bluebook_courses(principal_mod.DEMO_TENANT)
     else:
-        courses = store.list_bluebook_courses(None)
+        courses = _repo().list_bluebook_courses(None)
     return {"courses": courses}
 
 
@@ -822,16 +832,16 @@ def list_students(request: Request, tenant_id: str = ""):
     roster_tenant = None
     if principal and not principal.is_demo and principal.role not in principal_mod.SUPER_ROLES:
         roster_tenant = principal.tenant_id
-        ids = store.list_ids_for_tenant(roster_tenant)
+        ids = _repo().list_ids_for_tenant(roster_tenant)
     elif tenant_id:
         roster_tenant = tenant_id
-        ids = store.list_ids_for_tenant(tenant_id)
+        ids = _repo().list_ids_for_tenant(tenant_id)
     else:
-        ids = store.list_ids()
+        ids = _repo().list_ids()
     # `students` stays a list of ids (back-compat). `roster` adds the
     # display-ready rows (real names, baseline counts, status) the dashboards
     # render — only when scoped to a single tenant.
-    roster = store.roster_for_tenant(roster_tenant) if roster_tenant else None
+    roster = _repo().roster_for_tenant(roster_tenant) if roster_tenant else None
     return {"students": ids, "roster": roster}
 
 
@@ -840,7 +850,7 @@ def list_students(request: Request, tenant_id: str = ""):
 
 @app.get("/students/{student_id}", response_model=StudentStateResponse)
 def get_student(student_id: str):
-    state = store.get(student_id)
+    state = _repo().get(student_id)
     if state is None:
         raise HTTPException(status_code=404, detail=f"Student '{student_id}' not found")
 
@@ -886,7 +896,7 @@ def get_student(student_id: str):
 
 @app.get("/students/{student_id}/readiness", response_model=ReadinessResponse)
 def get_student_readiness(student_id: str):
-    state = store.get(student_id)
+    state = _repo().get(student_id)
     if state is None:
         raise HTTPException(status_code=404, detail=f"Student '{student_id}' not found")
 
@@ -971,7 +981,7 @@ def get_sample_text(student_id: str, index: int):
     render headers + body in a single round-trip without re-fetching the
     student state.
     """
-    state = store.get(student_id)
+    state = _repo().get(student_id)
     if state is None:
         raise HTTPException(status_code=404, detail=f"Student '{student_id}' not found")
     if index < 0 or index >= len(state.samples):
@@ -1015,7 +1025,7 @@ def delete_student(student_id: str, request: Request):
     """
     _require_guard(request)
     remote = getattr(request.client, "host", "unknown") if request.client else "unknown"
-    deleted = store.delete_student(student_id)
+    deleted = _repo().delete_student(student_id)
     if not deleted:
         _repo().log_audit(
             action="student_delete", student_id=student_id, actor=remote, result="not_found"
@@ -1154,7 +1164,7 @@ def delete_tenant_students(tenant_id: str, request: Request):
     t = _repo().get_tenant(tenant_id)
     if not t:
         raise HTTPException(status_code=404, detail=f"Tenant '{tenant_id}' not found")
-    result = store.delete_tenant_students(tenant_id)
+    result = _repo().delete_tenant_students(tenant_id)
     return {
         "tenant_id": tenant_id,
         "deleted_count": result["deleted_count"],
@@ -1201,10 +1211,10 @@ def student_login(body: dict, request: Request):
         )
 
     # Ensure the student record exists so the dashboard has somewhere to read.
-    store.get_or_create(student_id)
+    _repo().get_or_create(student_id)
     # Record the display name so the professor roster shows a real person, not
     # the opaque tenant-scoped id.
-    store.set_display_name(student_id, name or email.split("@")[0])
+    _repo().set_display_name(student_id, name or email.split("@")[0])
 
     token = student_auth.mint_session(student_id, name or email.split("@")[0])
     remote = getattr(request.client, "host", "unknown") if request.client else "unknown"
@@ -1276,7 +1286,7 @@ def my_voice(request: Request):
     sid = str(session["sid"])
     name = str(session.get("name", "") or "")
 
-    state = store.get(sid)
+    state = _repo().get(sid)
     if state is not None:
         from .constants import ALL_FEATURE_CODES
 
@@ -1290,8 +1300,8 @@ def my_voice(request: Request):
         sample_count = 0
         authenticated_count = 0
 
-    manifests = store.list_manifests(student_id=sid, limit=50).get("items", [])
-    corrections = store.list_corrections(student_id=sid, limit=20).get("items", [])
+    manifests = _repo().list_manifests(student_id=sid, limit=50).get("items", [])
+    corrections = _repo().list_corrections(student_id=sid, limit=20).get("items", [])
     pathway = _repo().get_formation_pathway(sid)
 
     view = voice_mod.project_voice_view(
@@ -1321,7 +1331,7 @@ def my_work(request: Request, body: VoiceSubmitRequest):
     name = str(session.get("name", "") or "")
 
     # Ensure a record exists, then add this piece to the body of work.
-    store.get_or_create(sid)
+    _repo().get_or_create(sid)
     try:
         add_baseline(
             sid, AddSampleRequest(text=body.text, assignment=body.title, provenance="unverified")
@@ -1385,7 +1395,7 @@ def student_data_inventory(student_id: str):
     Intended for: student data-access requests, FERPA compliance officers,
     deletion confirmations ("prove everything was purged").
     """
-    inv = store.student_data_inventory(student_id)
+    inv = _repo().student_data_inventory(student_id)
     if inv is None:
         raise HTTPException(status_code=404, detail=f"Student '{student_id}' not found")
     return inv
@@ -1428,7 +1438,7 @@ def add_baseline(student_id: str, req: AddSampleRequest):
             status_code=422, detail=f"provenance must be one of: {list(AUTH_WEIGHTS)}"
         )
 
-    state = store.get_or_create(student_id)
+    state = _repo().get_or_create(student_id)
     vec = feature_vector(req.text, keystroke_data=req.keystroke_data)
 
     # Genre label — classify the text at ingestion time so the Hierarchical
@@ -1756,7 +1766,7 @@ async def upload_file(student_id: str, file: UploadFile = File(...)):
 
 @app.post("/students/{student_id}/score", response_model=Layer7OutputResponse)
 def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool = False):
-    state = store.get(student_id)
+    state = _repo().get(student_id)
     if state is None:
         raise HTTPException(
             status_code=404, detail=f"Student '{student_id}' not found. Add baseline samples first."
@@ -1832,7 +1842,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
         try:
             from .quantum.null_pool import build_impostor_stats
 
-            _impostor_stats = build_impostor_stats(student_id, store.all_states())
+            _impostor_stats = build_impostor_stats(student_id, _repo().all_states())
         except Exception:
             logging.getLogger(__name__).exception(
                 "impostor pool build failed for %s — llr score skipped", student_id
@@ -1844,7 +1854,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # internally, and pass the results through.
     _authentic_fidelities = None
     if _scoring_config_env.amplitude_scoring_enabled:
-        _authentic_fidelities = store.get_authentic_fidelities(student_id)
+        _authentic_fidelities = _repo().get_authentic_fidelities(student_id)
     _genre_stats = None
     if _scoring_config_env.bayesian_prior_enabled and state.sample_count < 10:
         _genre = (
@@ -1853,7 +1863,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             else None
         )
         if _genre:
-            _genre_stats = store.get_genre_stats(_genre)
+            _genre_stats = _repo().get_genre_stats(_genre)
     _scoring_config = dataclasses.replace(
         _scoring_config_env,
         authentic_fidelities=_authentic_fidelities,
@@ -1894,7 +1904,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             # Deliberately outside the quantum_fidelity > 0 gate below —
             # shadow rows must persist for every scored submission.
             try:
-                store.put_ai_likelihood_score(
+                _repo().put_ai_likelihood_score(
                     submission_id=submission_id,
                     student_id=student_id,
                     probability=_ai_res.probability,
@@ -1914,7 +1924,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # this for any verdict the professor marks as wrong.
     if result.authorship.quantum_fidelity > 0:
         try:
-            store.put_fidelity_score(
+            _repo().put_fidelity_score(
                 submission_id=submission_id,
                 student_id=student_id,
                 fidelity=result.authorship.quantum_fidelity,
@@ -1930,7 +1940,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # ── Persist manifest to audit log when one was built ──────────────────────
     if manifest is not None:
         try:
-            store.put_manifest(
+            _repo().put_manifest(
                 submission_id=submission_id,
                 student_id=student_id,
                 manifest=manifest,
@@ -2119,7 +2129,7 @@ def score_blend(student_id: str, req: BlendDetectionRequest):
     Cost is N× the regular `/score` endpoint (one full feature extraction
     per window) — kept on a separate route so callers opt in explicitly.
     """
-    state = store.get(student_id)
+    state = _repo().get(student_id)
     if state is None:
         raise HTTPException(
             status_code=404,
@@ -2175,7 +2185,7 @@ async def upload_baseline_batch(
             status_code=422, detail=f"provenance must be one of: {list(AUTH_WEIGHTS)}"
         )
 
-    state = store.get_or_create(student_id)
+    state = _repo().get_or_create(student_id)
     imported = 0
     skipped_duplicates = 0
     errors: list[str] = []
@@ -2341,9 +2351,9 @@ async def import_turnitin_csv(course_id: str, file: UploadFile = File(...)):
 
         student_id = sid or name.lower().replace(" ", "_")
 
-        state = store.get(student_id)
+        state = _repo().get(student_id)
         if state is None:
-            state = store.get_or_create(student_id)
+            state = _repo().get_or_create(student_id)
             created_students += 1
         else:
             matched_students += 1
@@ -2413,7 +2423,7 @@ def admin_list_manifests(
         raise HTTPException(status_code=422, detail="limit must be in [1, 1000]")
     if offset < 0:
         raise HTTPException(status_code=422, detail="offset must be ≥ 0")
-    res = store.list_manifests(
+    res = _repo().list_manifests(
         student_id=student_id,
         action=action,
         flag=flag,
@@ -2436,7 +2446,7 @@ def admin_manifest_stats(
     until: str | None = None,
 ):
     """Roll-up counts for the admin dashboard summary cards."""
-    return ManifestStatsResponse(**store.manifest_stats(since=since, until=until))
+    return ManifestStatsResponse(**_repo().manifest_stats(since=since, until=until))
 
 
 @app.post(
@@ -2476,7 +2486,7 @@ def submit_correction(submission_id: str, req: CorrectionRequest):
             '"schedule_conversation" | "escalate"',
         )
 
-    correction_id = store.put_correction(
+    correction_id = _repo().put_correction(
         submission_id=submission_id,
         is_correct=req.is_correct,
         corrected_verdict=req.corrected_verdict,
@@ -2489,13 +2499,23 @@ def submit_correction(submission_id: str, req: CorrectionRequest):
 
     # Round-trip the inserted row so the response carries the auto-filled
     # student_id / original_action / created_at fields the form didn't have.
-    listed = store.list_corrections(submission_id=submission_id, limit=1)
+    listed = _repo().list_corrections(submission_id=submission_id, limit=1)
     if not listed["items"]:
         raise HTTPException(
             status_code=500, detail="Correction inserted but not found on read-back"
         )
     # The most recent (and only matching) row is the one we just wrote.
     latest = listed["items"][0]
+
+    # /admin/audit's own docstring promises "correction" as a filterable
+    # action type — log it so that contract is actually true (WS-9).
+    _repo().log_audit(
+        action="correction",
+        student_id=latest.get("student_id"),
+        actor=req.reviewer,
+        result="ok",
+        details={"submission_id": submission_id, "is_correct": req.is_correct},
+    )
 
     # ── Close the conformal feedback loop ────────────────────────────────────
     # Determine whether this correction establishes the submission as authentic,
@@ -2515,7 +2535,7 @@ def submit_correction(submission_id: str, req: CorrectionRequest):
             _is_now_authentic = (
                 req.corrected_verdict == "authentic" or req.corrected_action == "no_action"
             )
-        store.update_fidelity_authenticity(submission_id, _is_now_authentic)
+        _repo().update_fidelity_authenticity(submission_id, _is_now_authentic)
     except Exception as _fid_exc:
         # Non-fatal: the correction row was saved; the fidelity update is
         # best-effort. Log at DEBUG so production noise stays low.
@@ -2541,7 +2561,7 @@ def admin_list_corrections(
         raise HTTPException(status_code=422, detail="limit must be in [1, 1000]")
     if offset < 0:
         raise HTTPException(status_code=422, detail="offset must be ≥ 0")
-    res = store.list_corrections(
+    res = _repo().list_corrections(
         submission_id=submission_id,
         student_id=student_id,
         is_correct=is_correct,
@@ -2731,7 +2751,7 @@ def admin_list_calibration_runs(
         raise HTTPException(status_code=422, detail="limit must be in [1, 500]")
     if offset < 0:
         raise HTTPException(status_code=422, detail="offset must be ≥ 0")
-    res = store.list_calibration_runs(
+    res = _repo().list_calibration_runs(
         status=status,
         dataset_label=dataset_label,
         limit=limit,
@@ -2748,7 +2768,7 @@ def admin_list_calibration_runs(
 @app.get("/admin/calibration/runs/{run_id}", response_model=CalibrationRunDetail)
 def admin_get_calibration_run(run_id: int, include_report: bool = True):
     """Fetch one run with optional report inclusion."""
-    res = store.get_calibration_run(run_id, include_report=include_report)
+    res = _repo().get_calibration_run(run_id, include_report=include_report)
     if res is None:
         raise HTTPException(status_code=404, detail=f"calibration run {run_id} not found")
     return CalibrationRunDetail(**res)
@@ -2761,7 +2781,7 @@ def admin_run_suggestions(run_id: int):
     feedback log. Returns recommended threshold + tier-weight changes with
     explanatory rationale + per-suggestion confidence.
     """
-    res = store.get_calibration_run(run_id, include_report=True)
+    res = _repo().get_calibration_run(run_id, include_report=True)
     if res is None:
         raise HTTPException(status_code=404, detail=f"calibration run {run_id} not found")
     if res.get("status") != "completed":
@@ -2774,7 +2794,7 @@ def admin_run_suggestions(run_id: int):
 
     # Pull current thresholds from active tuned set if available; fall back
     # to Phase-1 defaults.
-    active = store.get_active_tuned_thresholds()
+    active = _repo().get_active_tuned_thresholds()
     if active is not None:
         current = {
             "no_action": active["no_action"],
@@ -2784,7 +2804,7 @@ def admin_run_suggestions(run_id: int):
     else:
         current = None
 
-    corrections = store.list_corrections(limit=1000)["items"]
+    corrections = _repo().list_corrections(limit=1000)["items"]
     out = generate_suggestions(
         report=res["report"] or {},
         corrections=corrections,
@@ -2810,11 +2830,11 @@ def admin_apply_thresholds(run_id: int, req: ApplyThresholdsRequest, request: Re
     for admins in pilot/production mode.
     """
     _require_guard(request)
-    res = store.get_calibration_run(run_id, include_report=False)
+    res = _repo().get_calibration_run(run_id, include_report=False)
     if res is None:
         raise HTTPException(status_code=404, detail=f"calibration run {run_id} not found")
 
-    new_id = store.put_tuned_thresholds(
+    new_id = _repo().put_tuned_thresholds(
         no_action=req.no_action,
         monitor=req.monitor,
         escalate=req.escalate,
@@ -2832,14 +2852,14 @@ def admin_apply_thresholds(run_id: int, req: ApplyThresholdsRequest, request: Re
     )
     if new_id is None:
         raise HTTPException(status_code=500, detail="Failed to persist tuned thresholds")
-    active = store.get_active_tuned_thresholds()
+    active = _repo().get_active_tuned_thresholds()
     return TunedThresholdsRecord(**active)
 
 
 @app.get("/admin/tuned-thresholds", response_model=Optional[TunedThresholdsRecord])
 def admin_get_tuned_thresholds():
     """Return the currently-active tuned thresholds (or null if none set)."""
-    active = store.get_active_tuned_thresholds()
+    active = _repo().get_active_tuned_thresholds()
     return TunedThresholdsRecord(**active) if active else None
 
 
@@ -2918,7 +2938,7 @@ def admin_list_tuned_thresholds(limit: int = 50, offset: int = 0):
     """Audit list of all tuned-threshold versions ever applied."""
     if limit < 1 or limit > 500:
         raise HTTPException(status_code=422, detail="limit must be in [1, 500]")
-    res = store.list_tuned_thresholds(limit=limit, offset=offset)
+    res = _repo().list_tuned_thresholds(limit=limit, offset=offset)
     return TunedThresholdsListResponse(
         total=res["total"],
         limit=res["limit"],
