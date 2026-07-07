@@ -1,7 +1,14 @@
 # Original — Setup Guide
 
 Authorship verification engine for academic integrity. Measures whether a submission
-matches a student's own authenticated writing voice across 74 stylometric features.
+matches a student's own authenticated writing voice across 103 stylometric features
+(`original/constants.py`, `FEATURE_DIM = 103`).
+
+> This guide covers the **live stack** (`original/api.py` + `demo/`) — the app
+> `render.yaml` deploys and `./start.sh` runs. See
+> [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full live-vs-dormant
+> split before assuming any other doc, script, or `original/api/` route
+> applies here.
 
 ### Prerequisites
 
@@ -50,78 +57,40 @@ The demo includes:
 
 ### Step 3 — Deploy for a real institution
 
-Copy and edit the environment file:
+The live deploy target is **Render**, defined in `render.yaml`. The
+`original-pilot` service runs the same dashboard app as the demo, hardened by
+setting `ORIGINAL_ENV=pilot`, which:
 
-```bash
-cp .env.dev .env
-# Edit .env — set DATABASE_URL, SECRET_KEY, FIRST_ADMIN_PASSWORD
-```
+- fails fast at boot if `SECRET_KEY` isn't set
+- locks CORS to `ALLOWED_ORIGINS`
+- turns on HSTS
+- guards destructive endpoints behind `MAINTENANCE_TOKEN`
 
-Then start the production server:
+Read `render.yaml` directly for the full, commented list of env vars
+(backups, LTI keys, adaptive-scoring flags). Deploys are manual (not
+auto-on-merge) — see `docs/OPS_RUNBOOK.md` for the maintenance-window
+process and `docs/PROVISIONING_CHECKLIST.md` for bringing up a new tenant.
 
-```bash
-./start-prod.sh
-```
-
-This runs Alembic database migrations and launches uvicorn on port 8000.
-Set `PORT=8080` (or any port) as an environment variable to override.
-
-For HTTPS in production, put Original behind nginx or Caddy and set:
-```
-BEHIND_PROXY=true
-ALLOWED_HOSTS=yourdomain.edu
-```
+A Docker Compose / nginx / Alembic self-hosting path exists at
+[deploy/DEPLOY.md](deploy/DEPLOY.md), but it is **not** the current
+deployment path — it targets the dormant v1 API, not this app.
 
 ---
 
 ### Step 4 — Connect Canvas LTI
 
-1. In Canvas Admin → Developer Keys → **+ LTI Key** → select **"Paste JSON"**
-2. Paste the URL: `https://your-server/lti/config`
-   - Canvas will fetch the configuration JSON automatically.
-3. Note the **client_id** Canvas assigns.
-4. Register the deployment in Original:
-   ```
-   POST /api/v1/admin/canvas/registrations
-   {
-     "platform_iss": "https://your-institution.instructure.com",
-     "client_id": "<from Canvas>",
-     "auth_endpoint": "https://your-institution.instructure.com/api/lti/authorize_redirect",
-     "jwks_url": "https://your-institution.instructure.com/api/lti/security/jwks",
-     "label": "My Seminary Canvas",
-     "api_token": "<Canvas system-level token for baseline import>"
-   }
-   ```
-5. Verify the token works:
-   ```
-   GET /lti/registrations/{registration_id}/verify
-   # Returns: {"ok": true, "canvas_user": {...}}
-   ```
-6. Instructors can now use **"Import from Canvas"** in the professor dashboard
-   to pull past student submissions directly as verified baselines.
+The live LTI 1.3 implementation is `original/lti.py` (routes `/lti/login`,
+`/lti/launch`, `/lti/jwks`), configured via the `LTI_PLATFORMS` environment
+variable — there is no registration API or database table to POST to.
 
----
+Follow these two docs in order:
 
-### Step 5 — Connect Blackboard
-
-Blackboard Ultra uses the same LTI 1.3 standard as Canvas.
-
-1. In Blackboard Admin → **LTI Tool Providers** → Register by URL:
-   `https://your-server/lti/blackboard/config`
-2. Register in Original with `"platform_type": "blackboard"`:
-   ```
-   POST /api/v1/admin/canvas/registrations
-   {
-     "platform_iss": "https://blackboard.com",
-     "platform_type": "blackboard",
-     "client_id": "<from Blackboard>",
-     "auth_endpoint": "https://developer.blackboard.com/api/v1/gateway/oidcauth",
-     "jwks_url": "https://developer.blackboard.com/api/v1/management/applications/<appId>/jwks.json",
-     "label": "My Seminary Blackboard"
-   }
-   ```
-3. Blackboard pushes submission events via AGS to `POST /lti/ags/submissions`.
-   Wire this to your task queue for production scoring.
+1. **[docs/canvas_developer_key.md](docs/canvas_developer_key.md)** — the
+   one-pager to send your Canvas administrator. They return a **Client ID**
+   and **Deployment ID**.
+2. **[docs/CANVAS_RUNBOOK.md](docs/CANVAS_RUNBOOK.md)** — the full operator
+   runbook: generating the LTI signing key, setting `LTI_PLATFORMS` on the
+   Render service, and verifying `/lti/jwks` and a real launch end-to-end.
 
 ---
 
@@ -140,14 +109,17 @@ Or use the API directly:
 ```bash
 # Upload a single file and get extracted text
 curl -F "file=@essay.pdf" \
-     -H "Authorization: Bearer <token>" \
-     https://your-server/api/v1/students/{student_id}/upload
+     https://your-server/students/{student_id}/upload
 
 # Add extracted text as a baseline sample
-curl -X POST https://your-server/api/v1/students/{student_id}/baseline \
+curl -X POST https://your-server/students/{student_id}/baseline \
      -H "Content-Type: application/json" \
-     -H "Authorization: Bearer <token>" \
      -d '{"text": "...", "provenance": "verified", "assignment": "Essay 1"}'
+
+# Or send multiple files in one request
+curl -X POST https://your-server/students/{student_id}/baseline/upload-batch \
+     -F "files=@essay1.pdf" -F "files=@essay2.docx" \
+     -F "provenance=verified" -F "assignment=Essay 1"
 ```
 
 ### Option B — Turnitin CSV export
@@ -159,24 +131,17 @@ which students have papers, then upload the PDF files via Option A.
 
 ## Data privacy (FERPA)
 
-By default, every institution is created with FERPA-safe defaults:
+Raw submission and baseline text **is stored** in the live stack — there is
+no automatic deletion pipeline. An authorized instructor can retrieve the raw
+prose of any baseline sample via `GET /students/{id}/samples/{index}/text`.
 
-```json
-{
-  "retain_raw_text_days": 365,
-  "retain_scores_days": 1825,
-  "ferpa_mode": true
-}
-```
+Deletion is manual: `store.delete_student()`, the CLI
+`python -m original.cli.delete_student --student-id <id> --confirm`, or the
+live `DELETE /students/{id}` endpoint all remove a student and every
+associated record. No scheduled/automatic retention job runs.
 
-With `ferpa_mode: true`, raw submission text is deleted after feature extraction.
-Only the 74-dimensional feature vector and scoring results are retained.
-
-To update an institution's data policy:
-```
-PATCH /api/v1/admin/institutions/{id}/data-policy
-{"retain_raw_text_days": 90, "ferpa_mode": true}
-```
+See `docs/data_inventory.md` and `docs/encryption_policy.md` for the full
+compliance detail.
 
 ---
 
@@ -185,28 +150,27 @@ PATCH /api/v1/admin/institutions/{id}/data-policy
 | Layer | Tech |
 |-------|------|
 | API | FastAPI + uvicorn |
-| Database | PostgreSQL (production) / SQLite (testing) |
-| Feature extraction | Python: spaCy, sentence-transformers, numpy |
-| Scoring | Quantum density matrix (74-dim Born rule) |
-| LTI | IMS LTI 1.3 / OIDC (Canvas + Blackboard) |
-| Auth | JWT (python-jose) + bcrypt |
+| Database | Hardened SQLite/WAL for the pilot (`original/store.py`, `ORIGINAL_DB`) — see `docs/adr/004-postgres-migration.md`. A Postgres path exists only in the dormant v1 API. |
+| Feature extraction | Python: spaCy, sentence-transformers (optional), numpy |
+| Scoring | Quantum density matrix (103-dim Born rule) |
+| LTI | IMS LTI 1.3 / OIDC, platform-agnostic via `LTI_PLATFORMS` (Canvas, Blackboard, Moodle, …) |
+| Auth | Principal tokens + PBKDF2 staff/student auth (`original/api.py`) |
 
-74 stylometric features across 12 tiers:
+103 stylometric features across 17 tiers (`original/constants.py`,
+`FEATURE_DIM = 103`) — see the [README's feature table](README.md#the-103-dimensional-pipeline)
+for the full tier-by-tier breakdown. Briefly:
 
-| Tier | Features |
-|------|----------|
-| 1 | Surface stylometrics (TTR, sentence length, hapax…) |
-| 2 | Discourse & cohesion |
-| 3 | Rhetorical register & theological vocabulary |
-| 4 | Character & punctuation fingerprint |
-| 5 | POS / syntax patterns |
-| 6 | Idiosyncratic markers |
-| 7 | Voice authenticity signals |
-| 8 | Prosodic rhythm (stress entropy) |
-| 9 | Cognitive sequencing (Markov argument alignment) |
-| 10 | Semantic gravity wells |
-| 11 | Error ecology (KL-divergence of error profile) |
-| 12 | Tension arc integration (catastrophe index κ) |
+| Tiers | Coverage |
+|-------|----------|
+| 1–7 | Surface stylometrics, discourse/cohesion, rhetorical register, char/punct fingerprint, POS/syntax, idiosyncratic markers, AI-detection signals |
+| 8–11 | Prosodic rhythm, cognitive sequencing, semantic gravity wells, error ecology |
+| 12–17 | Tension arc, prosodic depth, error topology, lexical architecture, citation fingerprint, behavioral biometrics |
+| 0 | Comparison/profile features computed at scoring time |
+
+**Legacy baselines:** profiles serialized with an older 74- or 89-feature
+vector are padded to 103 dimensions with 0.5 (neutral) on load — you'll see a
+warning. Run `rebuild-baselines` to re-extract at full accuracy. (See
+CLAUDE.md "Feature Dimensions" for the exact behavior.)
 
 ---
 
@@ -227,7 +191,8 @@ PORT=8002 python3 run.py --demo --frontend-dir demo --port 8002
 pip install pydantic-settings==2.3.4
 ```
 
-**Stored baselines have wrong dimension after Tier 8-12 upgrade**
-The store automatically pads old 62-dimension vectors to 74 dimensions with 0.5
-(neutral mid-range). To restore full accuracy, re-add those baseline samples
-via the professor dashboard or the API.
+**Stored baselines have wrong dimension after a feature tier upgrade**
+Legacy baselines serialized at 74 or 89 dimensions are automatically padded
+to the current 103-dimensional vector with 0.5 (neutral mid-range) on load —
+you'll see a warning. To restore full accuracy, re-add those baseline
+samples via the professor dashboard, the API, or run `rebuild-baselines`.

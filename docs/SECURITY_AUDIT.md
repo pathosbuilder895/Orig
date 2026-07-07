@@ -1,3 +1,15 @@
+> ## ⚠️ NOT the current deployment path
+> This report audited the **dormant v1 backend** (`original/core/config.py` JWT,
+> SQLAlchemy ORM injection surface, `deploy/nginx.conf` TLS, `/api/v1/*` rate
+> limits) — none of which the pilot runs. The live stack is `original/api.py`
+> + `demo/` + `/lti/*`, with principal tokens, PBKDF2, hardened SQLite/WAL, and
+> Render-managed TLS, none of it examined here. This report's "SECURE for
+> pilot deployment" conclusion does not reflect the live stack.
+> A live-stack re-audit is scheduled — see WS-3 task 3 follow-up
+> (auth throttle, `X-Guard-Token`/`MAINTENANCE_TOKEN` guard, tenant isolation,
+> CORS fail-fast via `ALLOWED_ORIGINS`).
+> See `docs/ARCHITECTURE.md` for which stack is live.
+
 # Original Security Audit Report
 
 **Date:** 2026-05-11  

@@ -1,7 +1,7 @@
 # Owner's Manual — driving Original + Bluebook yourself
 
 
-`OPS_RUNBOOK.md`; this is **how you personally use and present the product**.
+Where `OPS_RUNBOOK.md` covers operating the server, this is **how you personally use and present the product**.
 
 ---
 

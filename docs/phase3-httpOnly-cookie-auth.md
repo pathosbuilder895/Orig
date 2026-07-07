@@ -1,3 +1,10 @@
+> ## ⚠️ NOT the current deployment path
+> This document describes the **dormant v1** auth/frontend stack
+> (`original/api/v1/auth.py`, `frontend/auth.js`). The live stack is
+> `original/api.py` + `demo/` + `/lti/*` and does not use this JWT/cookie flow.
+> Kept as historical reference only.
+> See `docs/ARCHITECTURE.md` for which stack is live.
+
 # Phase 3 follow-up — httpOnly cookie authentication
 
 Today, the API returns JWTs in JSON from `POST /api/v1/auth/login` and `POST /api/v1/auth/refresh` ([original/api/v1/auth.py](../original/api/v1/auth.py)). The static frontend ([frontend/auth.js](../frontend/auth.js)) stores tokens in **sessionStorage** (with an in-memory preference noted in comments).

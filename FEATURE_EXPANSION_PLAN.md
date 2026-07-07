@@ -1,5 +1,10 @@
 # Original — Feature Expansion Plan
 
+> **Status: historical / superseded.** This plan targeted expansion from 34
+> features; the live pipeline has since shipped 103 features across 17 tiers
+> (`original/constants.py:206` `FEATURE_DIM = 103`). Kept for historical
+> context only — do not treat the feature counts below as current.
+
 ## Executive Summary
 
 Original currently extracts 34 features across 3 tiers (surface stylometrics, discourse structure, rhetorical fingerprint). The research literature identifies several high-value feature families that we don't cover at all — most critically **character n-grams**, **POS n-grams**, **punctuation/whitespace habits**, and **idiosyncratic error patterns**. These families are specifically chosen because they survive light-to-moderate editing, resist topic confounds, and work well at seminary-paper lengths (1000–5000 words).

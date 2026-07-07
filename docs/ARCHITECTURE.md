@@ -7,7 +7,7 @@ and three frontend generations**. Exactly one of each is live.
 
 ```
 Browser ── demo/*.html  (Oxford-themed dashboards: professor/admin/operator/student)
-       ── demo/bluebook/ (secure-exam app; serve index.prod.html in production)
+       ── demo/bluebook/ (secure-exam app; index.html, same file dev + prod — React bundled in, no CDN)
             │
             ▼
 original/api.py  ←──── THE pilot backend ("legacy demo app", 1 file)
