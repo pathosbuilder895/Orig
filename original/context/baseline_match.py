@@ -34,14 +34,13 @@ baseline_indices=...)`. When fewer than two samples score above
 from __future__ import annotations
 
 import logging
-from typing import Any, List, Optional, Tuple
 
 import numpy as np
 
 try:
     from sklearn.feature_extraction.text import TfidfVectorizer
-except Exception:                  # pragma: no cover — dev environments without sklearn
-    TfidfVectorizer = None         # type: ignore[assignment]
+except Exception:  # pragma: no cover — dev environments without sklearn
+    TfidfVectorizer = None  # type: ignore[assignment]
 
 from ..constants import GENRE_FAMILIES
 from .resolvers import resolve_genre
@@ -61,8 +60,8 @@ _MIN_CLUSTER_SIZE: int = 2
 # Helpers
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _genre_similarity(submission_genre: Optional[str],
-                       sample_genre: Optional[str]) -> float:
+
+def _genre_similarity(submission_genre: str | None, sample_genre: str | None) -> float:
     """Three-step ladder: 1.0 same label, 0.5 same family, 0.0 otherwise."""
     if submission_genre is None or sample_genre is None:
         # Conservative: an unknown genre can't be claimed as a match. We
@@ -78,8 +77,9 @@ def _genre_similarity(submission_genre: Optional[str],
     return 0.0
 
 
-def _topic_similarity(submission_centroid: Optional[np.ndarray],
-                       sample_centroid: Optional[np.ndarray]) -> float:
+def _topic_similarity(
+    submission_centroid: np.ndarray | None, sample_centroid: np.ndarray | None
+) -> float:
     """Cosine similarity (1 − cosine distance), null-safe."""
     if submission_centroid is None or sample_centroid is None:
         # Unknown topic ⇒ neutral 0.5 (different from genre handling: a
@@ -109,7 +109,8 @@ def _recency_weight(sample_index: int, total: int) -> float:
 # Per-student TF-IDF vectoriser (cached transiently on StudentState)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _ensure_tfidf_vectorizer(state: "object") -> Optional["TfidfVectorizer"]:
+
+def _ensure_tfidf_vectorizer(state: object) -> TfidfVectorizer | None:
     """
     Fit a TF-IDF vectoriser over the student's full sample corpus and cache
     it on `state._tfidf_vectorizer`. Transient (not serialised); rebuilt on
@@ -143,7 +144,7 @@ def _ensure_tfidf_vectorizer(state: "object") -> Optional["TfidfVectorizer"]:
     return vec
 
 
-def _transform_centroid(vec: "TfidfVectorizer", text: str) -> Optional[np.ndarray]:
+def _transform_centroid(vec: TfidfVectorizer, text: str) -> np.ndarray | None:
     """Transform `text` to a dense centroid vector (or None if empty/error)."""
     if not (text or "").strip():
         return None
@@ -158,7 +159,8 @@ def _transform_centroid(vec: "TfidfVectorizer", text: str) -> Optional[np.ndarra
 # Lazy backfill of legacy samples
 # ══════════════════════════════════════════════════════════════════════════════
 
-def ensure_sample_context_metadata(state: "object") -> bool:
+
+def ensure_sample_context_metadata(state: object) -> bool:
     """
     Lazily compute genre + topic_centroid for samples missing them.
 
@@ -200,13 +202,14 @@ def ensure_sample_context_metadata(state: "object") -> bool:
 # Cluster matching
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def match_baseline_cluster(
-    manifest: "object",
-    state: "object",
-    submission_text: Optional[str] = None,
+    manifest: object,
+    state: object,
+    submission_text: str | None = None,
     n_top: int = 3,
     min_similarity: float = 0.5,
-) -> Tuple[List[int], bool]:
+) -> tuple[list[int], bool]:
     """
     Pick the top-N baseline samples whose context most closely matches the
     submission's manifest.
@@ -247,7 +250,7 @@ def match_baseline_cluster(
     ensure_sample_context_metadata(state)
 
     # Submission centroid (None if vectoriser missing or text missing).
-    sub_centroid: Optional[np.ndarray] = None
+    sub_centroid: np.ndarray | None = None
     if submission_text:
         vec = _ensure_tfidf_vectorizer(state)
         if vec is not None:
@@ -260,7 +263,7 @@ def match_baseline_cluster(
         sub_genre = (getattr(manifest, "genre", {}) or {}).get("primary")
 
     total = len(samples)
-    scored: List[Tuple[int, float]] = []
+    scored: list[tuple[int, float]] = []
     for i, s in enumerate(samples):
         gs = _genre_similarity(sub_genre, s.genre)
         ts = _topic_similarity(sub_centroid, s.topic_centroid)

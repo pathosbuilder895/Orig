@@ -16,22 +16,20 @@ Proves the invariants a seminary deployment depends on:
 Every pilot-only behaviour is toggled via module globals on the loaded
 legacy app (monkeypatch), so the anonymous demo — covered by the rest of
 the suite — stays byte-identical.
+
+Uses the shared live_app/live_client fixtures from conftest.py (WS-5 §5.1)
+instead of re-deriving `run.load_legacy_demo_app()` at module scope.
 """
 
 import sqlite3
 import sys
 
 import pytest
-from fastapi.testclient import TestClient
 
 import run  # repo-root launcher
 from original import principal as pr
 from original import backup as backup_mod
 from original import store
-
-app = run.load_legacy_demo_app()
-client = TestClient(app)
-api_mod = sys.modules["original._legacy_demo_api"]
 
 GUARD_TOKEN = "test-guard-token"
 GUARD = {"X-Guard-Token": GUARD_TOKEN}
@@ -58,14 +56,20 @@ def _auth(token: str):
 
 
 @pytest.fixture
-def real_deploy(monkeypatch):
+def api_mod(live_app):
+    """The loaded legacy demo module, guaranteed importable via live_app."""
+    return sys.modules["original._legacy_demo_api"]
+
+
+@pytest.fixture
+def real_deploy(api_mod, monkeypatch):
     """Flip the loaded app into pilot behaviour without reloading it."""
     monkeypatch.setattr(api_mod, "_IS_REAL_DEPLOY", True)
     yield
 
 
 @pytest.fixture
-def guarded(monkeypatch):
+def guarded(api_mod, monkeypatch):
     monkeypatch.setattr(api_mod, "_GUARD_DESTRUCTIVE", True)
     monkeypatch.setattr(api_mod, "_MAINTENANCE_TOKEN", GUARD_TOKEN)
     yield
@@ -73,21 +77,22 @@ def guarded(monkeypatch):
 
 # ── 1. Tenant writes ──────────────────────────────────────────────────────────
 
-def test_tenant_write_requires_guard(guarded):
+
+def test_tenant_write_requires_guard(guarded, live_client):
     body = {"tenant_id": "lockacme", "name": "Lock Acme", "environment": "pilot"}
-    r = client.post("/tenants", json=body)
+    r = live_client.post("/tenants", json=body)
     assert r.status_code == 403
-    r = client.post("/tenants", json=body, headers=GUARD)
+    r = live_client.post("/tenants", json=body, headers=GUARD)
     assert r.status_code == 201, r.text
 
 
-def test_tenant_downgrade_to_demo_refused(guarded):
-    client.post(
+def test_tenant_downgrade_to_demo_refused(guarded, live_client):
+    live_client.post(
         "/tenants",
         json={"tenant_id": "lockpilot", "name": "Lock Pilot", "environment": "pilot"},
         headers=GUARD,
     )
-    r = client.post(
+    r = live_client.post(
         "/tenants",
         json={"tenant_id": "lockpilot", "name": "Lock Pilot", "environment": "demo"},
         headers=GUARD,
@@ -95,7 +100,7 @@ def test_tenant_downgrade_to_demo_refused(guarded):
     assert r.status_code == 409
     assert "downgrade" in r.json()["detail"].lower()
     # Same-environment update stays allowed.
-    r = client.post(
+    r = live_client.post(
         "/tenants",
         json={"tenant_id": "lockpilot", "name": "Lock Pilot Renamed", "environment": "pilot"},
         headers=GUARD,
@@ -103,9 +108,9 @@ def test_tenant_downgrade_to_demo_refused(guarded):
     assert r.status_code == 201, r.text
 
 
-def test_fresh_demo_tenant_still_creatable(guarded):
+def test_fresh_demo_tenant_still_creatable(guarded, live_client):
     """Registering a brand-new demo tenant (with the guard) keeps working."""
-    r = client.post(
+    r = live_client.post(
         "/tenants",
         json={"tenant_id": "lockdemo", "name": "Lock Demo", "environment": "demo"},
         headers=GUARD,
@@ -126,69 +131,72 @@ STAFF_ONLY_GETS = [
 
 
 @pytest.mark.parametrize("path", STAFF_ONLY_GETS)
-def test_anonymous_blocked_on_staff_paths_in_pilot(real_deploy, path):
-    r = client.get(path)
+def test_anonymous_blocked_on_staff_paths_in_pilot(real_deploy, live_client, path):
+    r = live_client.get(path)
     assert r.status_code == 401, f"{path} -> {r.status_code}"
 
 
-def test_staff_principal_passes_in_pilot(real_deploy):
+def test_staff_principal_passes_in_pilot(real_deploy, live_client):
     prof = pr.mint_principal_token("prof_lock", "professor", "lockacme")
-    r = client.get("/students", headers=_auth(prof))
+    r = live_client.get("/students", headers=_auth(prof))
     assert r.status_code == 200, r.text
     op = pr.mint_principal_token("op_lock", "operator", "lockacme")
-    r = client.get("/tenants", headers=_auth(op))
+    r = live_client.get("/tenants", headers=_auth(op))
     assert r.status_code == 200, r.text
 
 
-def test_student_principal_blocked_on_staff_paths_in_pilot(real_deploy):
+def test_student_principal_blocked_on_staff_paths_in_pilot(real_deploy, live_client):
     stu = pr.mint_principal_token("lockacme:bob", "student", "lockacme")
-    r = client.get("/students", headers=_auth(stu))
+    r = live_client.get("/students", headers=_auth(stu))
     assert r.status_code == 401
 
 
-def test_demo_keeps_anonymous_roster():
+def test_demo_keeps_anonymous_roster(live_client):
     """No real_deploy fixture → demo behaviour unchanged."""
-    r = client.get("/students")
+    r = live_client.get("/students")
     assert r.status_code == 200
 
 
 # ── 3. Demo surfaces disabled on real deploys ─────────────────────────────────
 
-@pytest.mark.parametrize("path", ["/seed.db", "/lab.html", "/playground.html",
-                                  "/validation_report.json"])
-def test_demo_statics_404_in_pilot(real_deploy, path):
-    assert client.get(path).status_code == 404
+
+@pytest.mark.parametrize(
+    "path", ["/seed.db", "/lab.html", "/playground.html", "/validation_report.json"]
+)
+def test_demo_statics_404_in_pilot(real_deploy, live_client, path):
+    assert live_client.get(path).status_code == 404
 
 
-def test_v1_demo_login_unmounted_in_pilot(real_deploy):
-    r = client.post("/api/v1/auth/login", json={"email": "x@y.z", "password": "p"})
+def test_v1_demo_login_unmounted_in_pilot(real_deploy, live_client):
+    r = live_client.post("/api/v1/auth/login", json={"email": "x@y.z", "password": "p"})
     assert r.status_code == 404
 
 
-def test_v1_demo_login_works_in_demo():
-    r = client.post("/api/v1/auth/login", json={"email": "prof@y.z", "password": "p"})
+def test_v1_demo_login_works_in_demo(live_client):
+    r = live_client.post("/api/v1/auth/login", json={"email": "prof@y.z", "password": "p"})
     assert r.status_code == 200
     assert r.json()["role"] == "professor"
 
 
-def test_health_reports_environment():
-    r = client.get("/health")
+def test_health_reports_environment(live_client):
+    r = live_client.get("/health")
     assert r.status_code == 200
     assert r.json()["environment"] == "demo"
 
 
-def test_wildcard_origins_rejected_in_pilot(real_deploy, monkeypatch):
+def test_wildcard_origins_rejected_in_pilot(real_deploy, api_mod, monkeypatch):
     monkeypatch.setenv("ALLOWED_ORIGINS", "*")
     with pytest.raises(RuntimeError, match="wildcard"):
         api_mod._resolve_allowed_origins()
 
 
-def test_wildcard_origins_fine_in_demo(monkeypatch):
+def test_wildcard_origins_fine_in_demo(api_mod, monkeypatch):
     monkeypatch.setenv("ALLOWED_ORIGINS", "")
     assert api_mod._resolve_allowed_origins() == ["*"]
 
 
 # ── 4. Seeder refusal ─────────────────────────────────────────────────────────
+
 
 @pytest.mark.parametrize("env", ["pilot", "staging", "production"])
 def test_seeder_refuses_real_env(monkeypatch, env):
@@ -199,9 +207,10 @@ def test_seeder_refuses_real_env(monkeypatch, env):
 
 # ── 5. FERPA deletion completeness ────────────────────────────────────────────
 
-def test_delete_purges_display_name_and_audit_history():
+
+def test_delete_purges_display_name_and_audit_history(live_client):
     sid = "lockdel_bob"
-    r = client.post(
+    r = live_client.post(
         f"/students/{sid}/baseline",
         json={"text": LONG_TEXT, "assignment": "a1"},
     )
@@ -209,11 +218,11 @@ def test_delete_purges_display_name_and_audit_history():
     store.set_display_name(sid, "Bob Example")
     store.log_audit(action="score", student_id=sid, actor="test")
 
-    inv = client.get(f"/students/{sid}/data-inventory").json()
+    inv = live_client.get(f"/students/{sid}/data-inventory").json()
     assert inv["data_categories"]["display_name"]["on_file"] is True
     assert inv["data_categories"]["audit_log_entries"]["count"] >= 1
 
-    r = client.delete(f"/students/{sid}")
+    r = live_client.delete(f"/students/{sid}")
     assert r.status_code == 200, r.text
     assert "display name" in r.json()["message"]
 
@@ -230,6 +239,7 @@ def test_delete_purges_display_name_and_audit_history():
 
 
 # ── 6. Backup module ──────────────────────────────────────────────────────────
+
 
 def _make_db(path):
     conn = sqlite3.connect(str(path))
@@ -261,6 +271,7 @@ def test_run_backup_prunes_to_keep(tmp_path):
         p = dest / f"{backup_mod.BACKUP_PREFIX}202001010000{i:02d}.db"
         p.write_bytes(b"old")
         import os as _os
+
         _os.utime(p, (1000 + i, 1000 + i))
     backup_mod.run_backup(db, dest, keep=3)
     remaining = sorted(dest.glob(f"{backup_mod.BACKUP_PREFIX}*.db"))
@@ -291,8 +302,8 @@ def test_resolve_backup_dir(tmp_path, monkeypatch):
     assert backup_mod.resolve_backup_dir(db, is_real_deploy=False) == tmp_path / "elsewhere"
 
 
-def test_admin_health_reports_backup_age():
-    r = client.get("/admin/health")
+def test_admin_health_reports_backup_age(live_client):
+    r = live_client.get("/admin/health")
     assert r.status_code == 200
     body = r.json()
     assert "backups_enabled" in body

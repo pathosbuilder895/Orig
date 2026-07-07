@@ -1,3 +1,6 @@
+import React from 'react';
+import { BB, BB_API, GoldRule, MetaLabel, StatusBadge, fontBody, fontDisplay, fontMono } from './components.jsx';
+
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Students Screen
 // ════════════════════════════════════════════════════════════════
@@ -28,7 +31,7 @@ function relTime(iso) {
   return days + (days === 1 ? ' day ago' : ' days ago');
 }
 
-function StudentsScreen({ onNavigate }) {
+export function StudentsScreen({ onNavigate }) {
   const [filter, setFilter] = useStuState('all');
   const [subs, setSubs] = useStuState(null);
   React.useEffect(() => {
@@ -141,5 +144,3 @@ function StudentsScreen({ onNavigate }) {
     </div>
   );
 }
-
-Object.assign(window, { StudentsScreen });

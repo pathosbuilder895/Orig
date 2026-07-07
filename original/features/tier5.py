@@ -8,10 +8,11 @@ POS patterns persist.
 Requires spaCy with en_core_web_sm model.
 """
 
+from __future__ import annotations
+
 import logging
 import math
 from collections import Counter
-from typing import Dict, List, Optional
 
 from .tier1 import TextDoc
 
@@ -29,6 +30,7 @@ def _get_nlp():
     if _nlp is None:
         try:
             import spacy
+
             _nlp = spacy.load("en_core_web_sm", disable=["ner", "lemmatizer"])
         except (ImportError, OSError):
             _nlp = "unavailable"
@@ -59,7 +61,7 @@ def _shannon_entropy(counter: Counter) -> float:
     return entropy
 
 
-def _get_pos_tags(doc: TextDoc) -> Optional[List[str]]:
+def _get_pos_tags(doc: TextDoc) -> list[str] | None:
     """Return list of POS tags for all tokens, or None if spaCy unavailable."""
     nlp = _get_nlp()
     if nlp == "unavailable":
@@ -68,7 +70,7 @@ def _get_pos_tags(doc: TextDoc) -> Optional[List[str]]:
     return [token.pos_ for token in spacy_doc if not token.is_space]
 
 
-def _get_dep_depths(doc: TextDoc) -> Optional[List[int]]:
+def _get_dep_depths(doc: TextDoc) -> list[int] | None:
     """Return max dependency tree depth for each sentence."""
     nlp = _get_nlp()
     if nlp == "unavailable":
@@ -78,14 +80,16 @@ def _get_dep_depths(doc: TextDoc) -> Optional[List[int]]:
     depths = []
 
     for sent in spacy_doc.sents:
+
         def _depth(token, seen=None):
             if seen is None:
                 seen = set()
             if token.i in seen:
                 return 0
             seen.add(token.i)
-            children_depths = [_depth(child, seen) for child in token.children
-                               if child.i not in seen]
+            children_depths = [
+                _depth(child, seen) for child in token.children if child.i not in seen
+            ]
             return 1 + max(children_depths) if children_depths else 1
 
         root = [t for t in sent if t.head == t]
@@ -98,6 +102,7 @@ def _get_dep_depths(doc: TextDoc) -> Optional[List[int]]:
 
 
 # ── Tier 5 feature extractors ───────────────────────────────────────────────
+
 
 def pos_bigram_entropy(doc: TextDoc) -> float:
     """Shannon entropy of POS tag bigram distribution."""
@@ -176,13 +181,14 @@ def clause_depth_mean(doc: TextDoc) -> float:
 
 # ── Public extraction function ───────────────────────────────────────────────
 
-def extract_tier5(doc: TextDoc) -> Dict[str, float]:
+
+def extract_tier5(doc: TextDoc) -> dict[str, float]:
     return {
-        "pos_bigram_entropy":   pos_bigram_entropy(doc),
-        "pos_trigram_entropy":  pos_trigram_entropy(doc),
-        "noun_verb_ratio":      noun_verb_ratio(doc),
-        "adjective_rate":       adjective_rate(doc),
-        "adverb_rate":          adverb_rate(doc),
-        "subordination_ratio":  subordination_ratio(doc),
-        "clause_depth_mean":    clause_depth_mean(doc),
+        "pos_bigram_entropy": pos_bigram_entropy(doc),
+        "pos_trigram_entropy": pos_trigram_entropy(doc),
+        "noun_verb_ratio": noun_verb_ratio(doc),
+        "adjective_rate": adjective_rate(doc),
+        "adverb_rate": adverb_rate(doc),
+        "subordination_ratio": subordination_ratio(doc),
+        "clause_depth_mean": clause_depth_mean(doc),
     }

@@ -1,38 +1,33 @@
 # Bluebook — build & deploy
 
-Bluebook is a React app written as classic global-scope `.jsx` scripts (no
-module system) that share one scope in a fixed load order.
+Bluebook is a React app written as real ES modules (`import`/`export`),
+rooted at `app.jsx`. esbuild resolves the module graph itself — there's no
+fixed load order to keep in sync with `index.html`.
 
-## Two ways to run it
+## One index.html, dev and prod
 
-### Dev (`index.html`) — zero build
-Loads React + **Babel-standalone** from a CDN and compiles the `.jsx` in the
-browser. Convenient for iterating, but Babel-in-browser adds ~1–2s to first
-paint and the `?v=N` query on each `<script src>` is a manual cache-buster.
-This is what the demo server serves at `/bluebook/`.
-
-### Production (`index.prod.html`) — precompiled bundle
-Loads **minified production React** + a single precompiled `bluebook.bundle.js`.
-No in-browser Babel, no per-file cache-buster. This is what you deploy.
+`index.html` just loads the precompiled `bluebook.bundle.js`. React and
+ReactDOM are bundled into it as real dependencies (not left external), so
+there's no CDN script tag and no vendored global `<script>` — the same
+bundle runs in dev and production. This is what the demo server serves at
+`/bluebook/` in every `ORIGINAL_ENV`.
 
 ## Build the bundle
 
 ```bash
 cd demo/bluebook
-npm install        # installs esbuild (devDependency)
+npm install        # installs esbuild + react/react-dom
 npm run build      # → bluebook.bundle.js
 ```
 
-`build.mjs` concatenates the files in load order (`components → Landing →
-Dashboard → Exam → Courses → Students → Results → NewExam → tweaks-panel →
-app`), transforms the JSX with esbuild, and emits one minified IIFE. React /
-ReactDOM stay external (loaded by `index.prod.html` from the CDN).
-
-Then serve `index.prod.html` (rename to `index.html` on the deploy target, or
-point the route at it). Re-run `npm run build` after editing any `.jsx`.
+`build.mjs` bundles from `app.jsx` as the esbuild entry point, transforms
+JSX with the automatic runtime, and emits one minified IIFE with React
+bundled in. Re-run `npm run build` after editing any `.jsx` and commit the
+regenerated `bluebook.bundle.js` (Render has no Node — the committed
+artifact is what production serves).
 
 ## Notes
-- `app.jsx` holds the router/root (previously inline in `index.html`).
-- Keep `build.mjs`'s `ORDER` in sync with the `<script>` order in `index.html`.
+- `app.jsx` holds the router/root and the `ReactDOM.createRoot` call.
+- Cross-file references go through `import`/`export`, not `window` globals.
 - For cache-busting in production, serve the bundle with a content hash in the
   filename (or an immutable `Cache-Control` + a query the deploy step rotates).

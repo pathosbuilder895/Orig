@@ -47,11 +47,12 @@ import numpy as np
 # top of the runner; this module stays import-cheap.
 try:
     from validation.calibration import ScoringResult  # noqa: F401
-except Exception:                                      # pragma: no cover
-    ScoringResult = None    # type: ignore
+except Exception:  # pragma: no cover
+    ScoringResult = None  # type: ignore
 
 
 # ── Conversion helpers ────────────────────────────────────────────────────────
+
 
 def arrays_from_results(results) -> Tuple[np.ndarray, np.ndarray]:
     """
@@ -62,14 +63,13 @@ def arrays_from_results(results) -> Tuple[np.ndarray, np.ndarray]:
     source (e.g. a custom corpus) — they can call the metric functions
     directly with NumPy arrays and skip this helper.
     """
-    y_true = np.array(
-        [1 if r.is_same_author else 0 for r in results], dtype=np.int8
-    )
+    y_true = np.array([1 if r.is_same_author else 0 for r in results], dtype=np.int8)
     y_score = np.array([float(r.authorship_probability) for r in results], dtype=np.float64)
     return y_true, y_score
 
 
 # ── Brier score ───────────────────────────────────────────────────────────────
+
 
 def brier_score(y_true: Sequence[int], y_score: Sequence[float]) -> float:
     """
@@ -90,12 +90,14 @@ def brier_score(y_true: Sequence[int], y_score: Sequence[float]) -> float:
 
 # ── Calibration curve (reliability diagram) ───────────────────────────────────
 
+
 @dataclass(frozen=True)
 class CalibrationBin:
     """One bin of the reliability diagram."""
-    lower: float           # bin lower bound (inclusive)
-    upper: float           # bin upper bound (exclusive, except last)
-    count: int             # how many samples in this bin
+
+    lower: float  # bin lower bound (inclusive)
+    upper: float  # bin upper bound (exclusive, except last)
+    count: int  # how many samples in this bin
     mean_predicted: float  # mean predicted probability in the bin
     fraction_positive: float  # fraction of those samples that were actually positive
 
@@ -146,13 +148,15 @@ def calibration_curve(
         n = int(mask.sum())
         if n == 0:
             continue
-        out.append(CalibrationBin(
-            lower=lo,
-            upper=hi,
-            count=n,
-            mean_predicted=float(y_score[mask].mean()),
-            fraction_positive=float(y_true[mask].mean()),
-        ))
+        out.append(
+            CalibrationBin(
+                lower=lo,
+                upper=hi,
+                count=n,
+                mean_predicted=float(y_score[mask].mean()),
+                fraction_positive=float(y_true[mask].mean()),
+            )
+        )
     return out
 
 
@@ -163,9 +167,11 @@ def calibration_curve(
 # predicted authentic"). The thresholds are the action thresholds defined
 # in original/constants.py:ACTION_THRESHOLDS.
 
+
 @dataclass(frozen=True)
 class ConfusionAtThreshold:
     """Confusion matrix at a single deviation threshold."""
+
     threshold: float
     tp: int
     fp: int
@@ -211,7 +217,7 @@ def confusion_at_threshold(
     """
     y_true = np.asarray(y_true, dtype=np.int8)
     dev = np.asarray(deviation, dtype=np.float64)
-    pred = (dev < threshold).astype(np.int8)   # 1 = predicted authentic
+    pred = (dev < threshold).astype(np.int8)  # 1 = predicted authentic
 
     tp = int(((pred == 1) & (y_true == 1)).sum())
     fp = int(((pred == 1) & (y_true == 0)).sum())
@@ -230,6 +236,7 @@ def f1_at_threshold(
 
 
 # ── Convenience: dictify for JSON reports ─────────────────────────────────────
+
 
 def metrics_dict(
     y_true: Sequence[int],
@@ -253,10 +260,7 @@ def metrics_dict(
         thresholds = {"no_action": 0.40, "monitor": 0.55, "escalate": 0.75}
 
     cal = calibration_curve(y_true, y_score_prob, n_bins=n_calibration_bins)
-    conf = {
-        name: confusion_at_threshold(y_true, y_score_dev, t)
-        for name, t in thresholds.items()
-    }
+    conf = {name: confusion_at_threshold(y_true, y_score_dev, t) for name, t in thresholds.items()}
     return {
         "brier": brier_score(y_true, y_score_prob),
         "calibration_curve": [

@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, Float, ForeignKey, String, UniqueConstraint, Index
+from sqlalchemy import Boolean, Float, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from original.db.base import Base, UUIDMixin, TimestampMixin

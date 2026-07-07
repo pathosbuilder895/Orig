@@ -14,7 +14,8 @@ import original.store as store
 
 _ROOT = Path(__file__).resolve().parent.parent
 _spec = importlib.util.spec_from_file_location(
-    "pilot_report", _ROOT / "scripts" / "pilot_report.py")
+    "pilot_report", _ROOT / "scripts" / "pilot_report.py"
+)
 pilot_report = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(pilot_report)
 
@@ -38,8 +39,13 @@ def seeded_db(tmp_path, monkeypatch):
 def test_report_renders_all_sections(seeded_db, capsys):
     assert pilot_report.main(["--db", str(seeded_db), "--since-days", "7"]) == 0
     out = capsys.readouterr().out
-    for heading in ("## Activity", "## Scoring outcomes", "## Corrections",
-                    "## AI-likelihood (shadow)", "## Data hygiene"):
+    for heading in (
+        "## Activity",
+        "## Scoring outcomes",
+        "## Corrections",
+        "## AI-likelihood (shadow)",
+        "## Data hygiene",
+    ):
         assert heading in out
     assert "Distinct active students: **2**" in out
     assert "'elevated': 1" in out and "'strong': 1" in out
@@ -49,8 +55,7 @@ def test_report_renders_all_sections(seeded_db, capsys):
 
 def test_json_output(seeded_db, tmp_path):
     out_json = tmp_path / "report.json"
-    assert pilot_report.main(
-        ["--db", str(seeded_db), "--json", str(out_json)]) == 0
+    assert pilot_report.main(["--db", str(seeded_db), "--json", str(out_json)]) == 0
     data = json.loads(out_json.read_text())
     assert data["ai_likelihood"]["rows"] == 3
     assert data["ai_likelihood"]["would_flag_at_elevated"] == 2

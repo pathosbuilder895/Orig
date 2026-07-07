@@ -45,7 +45,7 @@ from .metrics import arrays_from_results, brier_score
 # Built once at import time so the ablation loop is cheap.
 TIER_POSITIONS: Dict[int, np.ndarray] = {}
 for _pos, _code in enumerate(ALL_FEATURE_CODES):
-    _tier = FEATURE_TIER.get(_code, 0)   # comparison features → tier 0
+    _tier = FEATURE_TIER.get(_code, 0)  # comparison features → tier 0
     TIER_POSITIONS.setdefault(_tier, []).append(_pos)
 TIER_POSITIONS = {t: np.array(ps, dtype=np.int64) for t, ps in TIER_POSITIONS.items()}
 
@@ -56,14 +56,15 @@ TIERS: List[int] = sorted(TIER_POSITIONS.keys())
 @dataclass(frozen=True)
 class TierAblationResult:
     """Result of knocking one tier out and re-scoring."""
+
     tier: int
     n_features_zeroed: int
     baseline_auc: float
     ablated_auc: float
-    delta_auc: float          # baseline_auc − ablated_auc; positive = tier matters
+    delta_auc: float  # baseline_auc − ablated_auc; positive = tier matters
     baseline_brier: float
     ablated_brier: float
-    delta_brier: float        # ablated_brier − baseline_brier; positive = tier matters
+    delta_brier: float  # ablated_brier − baseline_brier; positive = tier matters
     notes: str = ""
 
 
@@ -123,16 +124,18 @@ def per_tier_ablation(
         ablated_auc = float(report.auc)
         ablated_brier = brier_score(y_true_a, y_prob_a)
 
-        out.append(TierAblationResult(
-            tier=tier,
-            n_features_zeroed=int(positions.size),
-            baseline_auc=round(baseline_auc, 4),
-            ablated_auc=round(ablated_auc, 4),
-            delta_auc=round(baseline_auc - ablated_auc, 4),
-            baseline_brier=round(baseline_brier, 4),
-            ablated_brier=round(ablated_brier, 4),
-            delta_brier=round(ablated_brier - baseline_brier, 4),
-        ))
+        out.append(
+            TierAblationResult(
+                tier=tier,
+                n_features_zeroed=int(positions.size),
+                baseline_auc=round(baseline_auc, 4),
+                ablated_auc=round(ablated_auc, 4),
+                delta_auc=round(baseline_auc - ablated_auc, 4),
+                baseline_brier=round(baseline_brier, 4),
+                ablated_brier=round(ablated_brier, 4),
+                delta_brier=round(ablated_brier - baseline_brier, 4),
+            )
+        )
 
     out.sort(key=lambda r: r.tier)
     return out
@@ -144,6 +147,7 @@ def per_tier_ablation(
 # feature_vector + compute_full_features calls via module-level shims while
 # the ablation run is active. Once this is merged we can give run_calibration
 # a first-class `ablation_positions` kwarg.
+
 
 def _run_with_position_ablation(
     run_calibration_fn,

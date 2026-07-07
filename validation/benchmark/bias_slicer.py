@@ -33,23 +33,25 @@ from .metrics import arrays_from_results
 @dataclass(frozen=True)
 class BiasSlice:
     """One slice of the bias audit."""
-    field: str          # "native_english" | "ai_provider" | "theological_tradition" | "word_count_bucket"
-    value: str          # the group value (e.g. "true", "claude", "Reformed", "1000-2000")
+
+    field: str  # "native_english" | "ai_provider" | "theological_tradition" | "word_count_bucket"
+    value: str  # the group value (e.g. "true", "claude", "Reformed", "1000-2000")
     count: int
     mean_deviation: float
     std_deviation: float
-    auc_in_group: float    # AUC computed on essays IN this group only
-    false_positive_rate: float   # P(deviation>=0.55 | authentic AND in this group)
+    auc_in_group: float  # AUC computed on essays IN this group only
+    false_positive_rate: float  # P(deviation>=0.55 | authentic AND in this group)
 
 
 # ── Slicers (one per field) ──────────────────────────────────────────────────
+
 
 def _value_of(entry, field: str) -> Optional[str]:
     """Pull a manifest field off a ScoringResult, normalised to a string."""
     # ScoringResult doesn't carry every manifest field on it directly. The
     # bias slicer therefore takes a separate ``manifest_lookup`` parameter
     # in slice_by(); _value_of pulls from there.
-    raise NotImplementedError   # see slice_by()
+    raise NotImplementedError  # see slice_by()
 
 
 def slice_by(
@@ -112,36 +114,47 @@ def slice_by(
         # FPR: fraction of authentic essays flagged in this group
         authentic_mask = y_true_g == 1
         if authentic_mask.any():
-            flagged = ((np.asarray([r.deviation_score for r in items], dtype=np.float64) >= flag_threshold) & authentic_mask).sum()
+            flagged = (
+                (np.asarray([r.deviation_score for r in items], dtype=np.float64) >= flag_threshold)
+                & authentic_mask
+            ).sum()
             fpr = float(flagged) / float(authentic_mask.sum())
         else:
             fpr = float("nan")
 
-        out.append(BiasSlice(
-            field=field,
-            value=value,
-            count=int(devs.size),
-            mean_deviation=round(float(devs.mean()), 4),
-            std_deviation=round(float(devs.std()), 4),
-            auc_in_group=round(float(auc), 4),
-            false_positive_rate=round(fpr, 4) if not np.isnan(fpr) else float("nan"),
-        ))
+        out.append(
+            BiasSlice(
+                field=field,
+                value=value,
+                count=int(devs.size),
+                mean_deviation=round(float(devs.mean()), 4),
+                std_deviation=round(float(devs.std()), 4),
+                auc_in_group=round(float(auc), 4),
+                false_positive_rate=round(fpr, 4) if not np.isnan(fpr) else float("nan"),
+            )
+        )
     out.sort(key=lambda b: b.value)
     return out
 
 
 # ── Common bucketers ────────────────────────────────────────────────────────
 
+
 def WORD_COUNT_BUCKETER(wc: int) -> str:
     """Bucket a word count into a coarse range for bias slicing."""
-    if wc < 500:    return "<500"
-    if wc < 1000:   return "500-1000"
-    if wc < 2000:   return "1000-2000"
-    if wc < 3000:   return "2000-3000"
+    if wc < 500:
+        return "<500"
+    if wc < 1000:
+        return "500-1000"
+    if wc < 2000:
+        return "1000-2000"
+    if wc < 3000:
+        return "2000-3000"
     return "3000+"
 
 
 # ── AUC helper (pure NumPy — sklearn would do, but we keep deps light) ───────
+
 
 def _auc(y_true: np.ndarray, y_score: np.ndarray) -> float:
     """Compute AUC via the trapezoidal rule. Robust to tied scores."""

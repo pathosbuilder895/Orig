@@ -48,14 +48,12 @@ keystroke feature mask.
 
 from __future__ import annotations
 
-import math
 import statistics
-from typing import Dict, List, Any, Optional
-
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
-def _iki_deltas(keystrokes: List[Dict]) -> List[float]:
+
+def _iki_deltas(keystrokes: list[dict]) -> list[float]:
     """
     Extract inter-keystroke intervals (IKI) in milliseconds from a list of
     keystroke event dicts.
@@ -67,8 +65,8 @@ def _iki_deltas(keystrokes: List[Dict]) -> List[float]:
     """
     if not keystrokes:
         return []
-    deltas: List[float] = []
-    prev: Optional[float] = None
+    deltas: list[float] = []
+    prev: float | None = None
     for ks in keystrokes:
         t = ks.get("elapsed") or ks.get("timestamp")
         if t is None:
@@ -76,7 +74,7 @@ def _iki_deltas(keystrokes: List[Dict]) -> List[float]:
         t = float(t)
         if prev is not None:
             d = t - prev
-            if 0 < d < 30_000:   # ignore gaps > 30 s (focus lost)
+            if 0 < d < 30_000:  # ignore gaps > 30 s (focus lost)
                 deltas.append(d)
         prev = t
     return deltas
@@ -86,14 +84,15 @@ def _is_deletion(key: str) -> bool:
     return key in ("Backspace", "Delete")
 
 
-def _is_paste(event_type: Optional[str], key: str) -> bool:
-    return event_type == "paste" or key in ("v",)   # 'v' alone is not enough;
+def _is_paste(event_type: str | None, key: str) -> bool:
+    return event_type == "paste" or key in ("v",)  # 'v' alone is not enough;
     # Bbook tags paste events in revision records; key-level is a secondary check
 
 
 # ── Feature extractors ────────────────────────────────────────────────────────
 
-def typing_speed_cv(keystroke_data: Dict) -> float:
+
+def typing_speed_cv(keystroke_data: dict) -> float:
     """
     CV (std / mean) of inter-keystroke intervals.
 
@@ -110,7 +109,7 @@ def typing_speed_cv(keystroke_data: Dict) -> float:
     return stdev / mean
 
 
-def burst_ratio(keystroke_data: Dict) -> float:
+def burst_ratio(keystroke_data: dict) -> float:
     """
     Fraction of keystrokes with IKI < 150 ms (rapid burst).
 
@@ -124,7 +123,7 @@ def burst_ratio(keystroke_data: Dict) -> float:
     return burst / len(deltas)
 
 
-def deletion_rate(keystroke_data: Dict) -> float:
+def deletion_rate(keystroke_data: dict) -> float:
     """
     Deletion keystrokes / total keystrokes.
 
@@ -142,7 +141,7 @@ def deletion_rate(keystroke_data: Dict) -> float:
     return deletions / len(keystrokes)
 
 
-def pause_density(keystroke_data: Dict) -> float:
+def pause_density(keystroke_data: dict) -> float:
     """
     Long pauses (> 3 000 ms) per 100 words of final output.
 
@@ -152,14 +151,11 @@ def pause_density(keystroke_data: Dict) -> float:
     word_count = keystroke_data.get("wordCount") or 0
     if word_count < 1:
         return 0.0
-    long_pauses = sum(
-        1 for p in pauses
-        if (p.get("duration") or p.get("durationMs") or 0) >= 3_000
-    )
+    long_pauses = sum(1 for p in pauses if (p.get("duration") or p.get("durationMs") or 0) >= 3_000)
     return (long_pauses / word_count) * 100
 
 
-def paste_event_rate(keystroke_data: Dict) -> float:
+def paste_event_rate(keystroke_data: dict) -> float:
     """
     Paste events per 100 words.
 
@@ -167,16 +163,13 @@ def paste_event_rate(keystroke_data: Dict) -> float:
     """
     revisions = keystroke_data.get("revisions", [])
     word_count = keystroke_data.get("wordCount") or 0
-    paste_events = sum(
-        1 for r in revisions
-        if (r.get("type") or "") == "paste"
-    )
+    paste_events = sum(1 for r in revisions if (r.get("type") or "") == "paste")
     if word_count < 1:
-        return float(paste_events)   # can't normalise; return raw count
+        return float(paste_events)  # can't normalise; return raw count
     return (paste_events / word_count) * 100
 
 
-def revision_depth(keystroke_data: Dict) -> float:
+def revision_depth(keystroke_data: dict) -> float:
     """
     Mean characters affected per deletion/revision event.
 
@@ -187,10 +180,7 @@ def revision_depth(keystroke_data: Dict) -> float:
     """
     revisions = keystroke_data.get("revisions", [])
     # Keep only deletion-type revisions
-    deletions = [
-        r for r in revisions
-        if (r.get("type") or "") in ("delete", "backspace", "")
-    ]
+    deletions = [r for r in revisions if (r.get("type") or "") in ("delete", "backspace", "")]
     if not deletions:
         return 0.0
     chars = [abs(r.get("charsAffected") or 1) for r in deletions]
@@ -199,7 +189,8 @@ def revision_depth(keystroke_data: Dict) -> float:
 
 # ── Public extractor ──────────────────────────────────────────────────────────
 
-def extract_tier17(keystroke_data: Dict) -> Dict[str, float]:
+
+def extract_tier17(keystroke_data: dict) -> dict[str, float]:
     """
     Compute all 6 Tier 17 behavioral biometric features from Bbook keystroke data.
 
@@ -215,10 +206,10 @@ def extract_tier17(keystroke_data: Dict) -> Dict[str, float]:
         Dict of {feature_code: raw_value}.
     """
     return {
-        "typing_speed_cv":   typing_speed_cv(keystroke_data),
-        "burst_ratio":       burst_ratio(keystroke_data),
-        "deletion_rate":     deletion_rate(keystroke_data),
-        "pause_density":     pause_density(keystroke_data),
-        "paste_event_rate":  paste_event_rate(keystroke_data),
-        "revision_depth":    revision_depth(keystroke_data),
+        "typing_speed_cv": typing_speed_cv(keystroke_data),
+        "burst_ratio": burst_ratio(keystroke_data),
+        "deletion_rate": deletion_rate(keystroke_data),
+        "pause_density": pause_density(keystroke_data),
+        "paste_event_rate": paste_event_rate(keystroke_data),
+        "revision_depth": revision_depth(keystroke_data),
     }

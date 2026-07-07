@@ -29,12 +29,9 @@ citation_data : CitationData
 
 from __future__ import annotations
 
-import math
 import re
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Back-matter section headings
@@ -123,42 +120,42 @@ _IBID_RE = re.compile(r"\bibid(?:\.|,)?\b|\bop\.\s*cit\.\b|\bloc\.\s*cit\.\b", r
 # Maps each signal verb (lowercase) to its assertiveness score [0, 1].
 # 0 = maximally hedging/neutral ("hints", "seems")
 # 1 = maximally assertive/demonstrative ("proves", "demonstrates")
-SIGNAL_VERB_ASSERTIVENESS: Dict[str, float] = {
+SIGNAL_VERB_ASSERTIVENESS: dict[str, float] = {
     # Assertive (0.8 – 1.0)
-    "proves":        1.0,
-    "demonstrates":  0.95,
-    "establishes":   0.90,
-    "confirms":      0.88,
-    "shows":         0.85,
-    "reveals":       0.82,
-    "makes clear":   0.80,
+    "proves": 1.0,
+    "demonstrates": 0.95,
+    "establishes": 0.90,
+    "confirms": 0.88,
+    "shows": 0.85,
+    "reveals": 0.82,
+    "makes clear": 0.80,
     # Moderate (0.5 – 0.79)
-    "argues":        0.75,
-    "contends":      0.72,
-    "maintains":     0.70,
-    "insists":       0.68,
-    "asserts":       0.65,
-    "claims":        0.62,
-    "states":        0.60,
-    "explains":      0.58,
-    "concludes":     0.55,
-    "emphasizes":    0.55,
-    "emphasises":    0.55,
-    "highlights":    0.52,
-    "observes":      0.50,
+    "argues": 0.75,
+    "contends": 0.72,
+    "maintains": 0.70,
+    "insists": 0.68,
+    "asserts": 0.65,
+    "claims": 0.62,
+    "states": 0.60,
+    "explains": 0.58,
+    "concludes": 0.55,
+    "emphasizes": 0.55,
+    "emphasises": 0.55,
+    "highlights": 0.52,
+    "observes": 0.50,
     # Hedging / neutral (0.0 – 0.49)
-    "notes":         0.45,
-    "writes":        0.45,
-    "remarks":       0.42,
-    "comments":      0.40,
-    "mentions":      0.35,
-    "points out":    0.35,
-    "acknowledges":  0.30,
-    "admits":        0.28,
-    "suggests":      0.25,
-    "implies":       0.20,
-    "hints":         0.10,
-    "seems to":      0.08,
+    "notes": 0.45,
+    "writes": 0.45,
+    "remarks": 0.42,
+    "comments": 0.40,
+    "mentions": 0.35,
+    "points out": 0.35,
+    "acknowledges": 0.30,
+    "admits": 0.28,
+    "suggests": 0.25,
+    "implies": 0.20,
+    "hints": 0.10,
+    "seems to": 0.08,
 }
 
 # Regex to capture "Author <verb>" signal phrases (the verb comes after the name).
@@ -183,6 +180,7 @@ _PARAPHRASE_MARKERS = re.compile(
 # CitationData — structured output for Tier 16
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class CitationData:
     """
@@ -190,13 +188,14 @@ class CitationData:
 
     All counts are raw; normalisation happens in tier16.py.
     """
+
     # Signal verbs: {verb: count}
     signal_verb_counts: Counter = field(default_factory=Counter)
     # Assertiveness scores of all signal verbs found (list for mean/distribution)
-    signal_verb_assertiveness_scores: List[float] = field(default_factory=list)
+    signal_verb_assertiveness_scores: list[float] = field(default_factory=list)
 
     # Author names extracted from parenthetical citations
-    cited_authors: List[str] = field(default_factory=list)
+    cited_authors: list[str] = field(default_factory=list)
 
     # Total parenthetical + scripture citation count
     paren_citation_count: int = 0
@@ -211,10 +210,10 @@ class CitationData:
     short_quote_count: int = 0
 
     # Per-paragraph citation counts (for CV calculation)
-    citations_per_paragraph: List[int] = field(default_factory=list)
+    citations_per_paragraph: list[int] = field(default_factory=list)
 
     # Citation position encoding: list of values in {0:"end", 0.5:"mid", 1:"start"}
-    citation_positions: List[float] = field(default_factory=list)
+    citation_positions: list[float] = field(default_factory=list)
 
     # Paraphrase marker count
     paraphrase_marker_count: int = 0
@@ -227,7 +226,8 @@ class CitationData:
 # Public API
 # ══════════════════════════════════════════════════════════════════════════════
 
-def preprocess(text: str) -> Tuple[str, CitationData]:
+
+def preprocess(text: str) -> tuple[str, CitationData]:
     """
     Prepare text for stylometric feature extraction.
 
@@ -267,6 +267,7 @@ def preprocess(text: str) -> Tuple[str, CitationData]:
 # ══════════════════════════════════════════════════════════════════════════════
 # Internal helpers
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def _extract_citation_data(body: str) -> CitationData:
     """Extract all citation fingerprint data from the body text."""
@@ -311,9 +312,13 @@ def _extract_citation_data(body: str) -> CitationData:
     # ── Per-paragraph citation density ────────────────────────────────────────
     paragraphs = [p.strip() for p in re.split(r"\n\s*\n", body) if p.strip()]
     all_citation_re = re.compile(
-        _PAREN_CITATION.pattern + r"|" + _SCRIPTURE_PAREN.pattern
-        + r"|" + _FOOTNOTE_SUPERSCRIPT.pattern
-        + r"|" + _IBID_RE.pattern,
+        _PAREN_CITATION.pattern
+        + r"|"
+        + _SCRIPTURE_PAREN.pattern
+        + r"|"
+        + _FOOTNOTE_SUPERSCRIPT.pattern
+        + r"|"
+        + _IBID_RE.pattern,
         re.IGNORECASE | re.UNICODE,
     )
     for para in paragraphs:

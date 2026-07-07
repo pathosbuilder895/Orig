@@ -33,29 +33,40 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Set
+from datetime import UTC, datetime
+from typing import Any
 
 from ..constants import (
-    TIER1_CODES, TIER2_CODES, TIER3_CODES, TIER4_CODES, TIER5_CODES,
-    TIER6_CODES, TIER7_CODES, TIER8_CODES, TIER9_CODES, TIER10_CODES,
-    TIER11_CODES, TIER13_CODES, TIER14_CODES, TIER15_CODES, TIER16_CODES,
+    TIER1_CODES,
+    TIER2_CODES,
+    TIER3_CODES,
+    TIER4_CODES,
+    TIER5_CODES,
+    TIER6_CODES,
+    TIER7_CODES,
+    TIER8_CODES,
+    TIER9_CODES,
+    TIER10_CODES,
+    TIER11_CODES,
+    TIER13_CODES,
+    TIER14_CODES,
+    TIER15_CODES,
+    TIER16_CODES,
     TIER17_CODES,
 )
 
-
 # Tier index → list of feature codes — used to expand tier-level directives
 # from the table above into the per-feature-code working set.
-_TIER_TO_CODES: Dict[int, List[str]] = {
-    1:  TIER1_CODES,
-    2:  TIER2_CODES,
-    3:  TIER3_CODES,
-    4:  TIER4_CODES,
-    5:  TIER5_CODES,
-    6:  TIER6_CODES,
-    7:  TIER7_CODES,
-    8:  TIER8_CODES,
-    9:  TIER9_CODES,
+_TIER_TO_CODES: dict[int, list[str]] = {
+    1: TIER1_CODES,
+    2: TIER2_CODES,
+    3: TIER3_CODES,
+    4: TIER4_CODES,
+    5: TIER5_CODES,
+    6: TIER6_CODES,
+    7: TIER7_CODES,
+    8: TIER8_CODES,
+    9: TIER9_CODES,
     10: TIER10_CODES,
     11: TIER11_CODES,
     13: TIER13_CODES,
@@ -68,7 +79,7 @@ _TIER_TO_CODES: Dict[int, List[str]] = {
 
 # Genres that retain their prosodic identity even under context shift —
 # they get T8 (prosody) and T13 (prosodic depth) promoted to anchor status.
-_PROSODIC_ANCHOR_GENRES: Set[str] = {
+_PROSODIC_ANCHOR_GENRES: set[str] = {
     "academic_exegesis",
     "scholarly_essay",
     "sermon",
@@ -78,6 +89,7 @@ _PROSODIC_ANCHOR_GENRES: Set[str] = {
 # ══════════════════════════════════════════════════════════════════════════════
 # ContextManifest dataclass
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 @dataclass
 class ContextManifest:
@@ -93,23 +105,23 @@ class ContextManifest:
     submission_id: str
 
     # Verbatim resolver outputs.
-    language: Dict[str, Any]
-    genre: Dict[str, Any]
-    topic: Dict[str, Any]
+    language: dict[str, Any]
+    genre: dict[str, Any]
+    topic: dict[str, Any]
     length_regime: str
-    citations: Dict[str, Any]
-    composition_mode: Dict[str, Any]
+    citations: dict[str, Any]
+    composition_mode: dict[str, Any]
 
     # Derived directives, applied at the per-feature-code level so Phase 5
     # weight-vector construction is a trivial dict lookup.
-    weight_modifications: Dict[str, List[str]] = field(default_factory=dict)
-    anchor_tiers: List[int] = field(default_factory=list)
+    weight_modifications: dict[str, list[str]] = field(default_factory=dict)
+    anchor_tiers: list[int] = field(default_factory=list)
 
     # Filled by Phase 4 baseline matching; left empty in Phase 3.
-    baseline_match: Dict[str, Any] = field(default_factory=dict)
+    baseline_match: dict[str, Any] = field(default_factory=dict)
 
     # Human-readable flags, useful for the report narrative + UI surfacing.
-    flags: List[str] = field(default_factory=list)
+    flags: list[str] = field(default_factory=list)
 
     # ISO 8601 UTC timestamp.
     created_at: str = ""
@@ -117,27 +129,27 @@ class ContextManifest:
     # ── Convenience accessors ────────────────────────────────────────────────
 
     @property
-    def amplify_codes(self) -> List[str]:
+    def amplify_codes(self) -> list[str]:
         return list(self.weight_modifications.get("amplify_codes", []))
 
     @property
-    def attenuate_codes(self) -> List[str]:
+    def attenuate_codes(self) -> list[str]:
         return list(self.weight_modifications.get("attenuate_codes", []))
 
     @property
-    def mute_codes(self) -> List[str]:
+    def mute_codes(self) -> list[str]:
         return list(self.weight_modifications.get("mute_codes", []))
 
     # ── Serialisation ────────────────────────────────────────────────────────
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), sort_keys=True)
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "ContextManifest":
+    def from_dict(cls, d: dict[str, Any]) -> ContextManifest:
         # Filter unknown keys (forward-compat) and ensure list/dict defaults.
         known = {f for f in cls.__dataclass_fields__}
         clean = {k: v for k, v in d.items() if k in known}
@@ -153,15 +165,16 @@ class ContextManifest:
 # Directive derivation
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _codes_in_tiers(tiers: List[int]) -> List[str]:
+
+def _codes_in_tiers(tiers: list[int]) -> list[str]:
     """Flatten a list of tier indices into the union of their feature codes."""
-    out: List[str] = []
+    out: list[str] = []
     for t in tiers:
         out.extend(_TIER_TO_CODES.get(t, []))
     return out
 
 
-def _derive_directives(resolver_outputs: Dict[str, Dict]) -> Dict[str, Any]:
+def _derive_directives(resolver_outputs: dict[str, dict]) -> dict[str, Any]:
     """
     Apply the directive table to resolver outputs.
 
@@ -180,11 +193,11 @@ def _derive_directives(resolver_outputs: Dict[str, Dict]) -> Dict[str, Any]:
     Sets are used internally to dedupe; the public dict converts back to
     sorted lists for stable serialisation.
     """
-    mute: Set[str] = set()
-    attenuate: Set[str] = set()
-    amplify: Set[str] = set()
-    anchors: Set[int] = {4, 6}     # always-on anchors
-    flags: Set[str] = set()
+    mute: set[str] = set()
+    attenuate: set[str] = set()
+    amplify: set[str] = set()
+    anchors: set[int] = {4, 6}  # always-on anchors
+    flags: set[str] = set()
 
     length = resolver_outputs.get("length", {}) or {}
     genre = resolver_outputs.get("genre", {}) or {}
@@ -244,12 +257,12 @@ def _derive_directives(resolver_outputs: Dict[str, Dict]) -> Dict[str, Any]:
 
     return {
         "weight_modifications": {
-            "amplify_codes":   sorted(amplify),
+            "amplify_codes": sorted(amplify),
             "attenuate_codes": sorted(attenuate),
-            "mute_codes":      sorted(mute),
+            "mute_codes": sorted(mute),
         },
         "anchor_tiers": sorted(anchors),
-        "flags":        sorted(flags),
+        "flags": sorted(flags),
     }
 
 
@@ -257,9 +270,10 @@ def _derive_directives(resolver_outputs: Dict[str, Dict]) -> Dict[str, Any]:
 # Public builder
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def build_manifest(
     submission_id: str,
-    resolver_outputs: Dict[str, Dict],
+    resolver_outputs: dict[str, dict],
 ) -> ContextManifest:
     """
     Construct a `ContextManifest` from a `run_resolvers()` output dict.
@@ -282,9 +296,9 @@ def build_manifest(
         composition_mode=resolver_outputs.get("composition_mode", {}) or {},
         weight_modifications=directives["weight_modifications"],
         anchor_tiers=directives["anchor_tiers"],
-        baseline_match={},   # filled in Phase 4
+        baseline_match={},  # filled in Phase 4
         flags=directives["flags"],
-        created_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        created_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
     )
 
 

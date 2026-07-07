@@ -34,7 +34,6 @@ import threading
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
 
 import numpy as np
 
@@ -71,8 +70,9 @@ _INDICATOR_WHITELIST = [
     "stop_word_ratio",
     "function_word_ratio",
 ]
-_INDICATOR_IDX = [(c, ALL_FEATURE_CODES.index(c)) for c in _INDICATOR_WHITELIST
-                  if c in ALL_FEATURE_CODES]
+_INDICATOR_IDX = [
+    (c, ALL_FEATURE_CODES.index(c)) for c in _INDICATOR_WHITELIST if c in ALL_FEATURE_CODES
+]
 
 MAX_INDICATORS = 3
 INDICATOR_Z_FLOOR = 2.0
@@ -81,27 +81,29 @@ INDICATOR_Z_FLOOR = 2.0
 @dataclass
 class AiIndicator:
     """One professor-explainable feature driving the AI-likelihood signal."""
+
     code: str
-    label: str        # plain-English feature name
-    z: float          # z-score vs the training-corpus human centroid
-    direction: str    # "higher" | "lower" than typical human writing
+    label: str  # plain-English feature name
+    z: float  # z-score vs the training-corpus human centroid
+    direction: str  # "higher" | "lower" than typical human writing
 
 
 @dataclass
 class AiLikelihoodResult:
     """Corpus-level AI-likelihood for one submission. Report-only signal."""
-    probability: float                 # calibrated p(AI-generated) ∈ [0, 1]
-    band: str                          # "low" | "elevated" | "strong"
-    model_version: str                 # e.g. "v1"
-    trained_on: str                    # dataset identifier from the artifact
-    top_indicators: List[AiIndicator] = field(default_factory=list)
+
+    probability: float  # calibrated p(AI-generated) ∈ [0, 1]
+    band: str  # "low" | "elevated" | "strong"
+    model_version: str  # e.g. "v1"
+    trained_on: str  # dataset identifier from the artifact
+    top_indicators: list[AiIndicator] = field(default_factory=list)
 
 
 # ── Lazy singleton with fail-closed tri-state ─────────────────────────────────
 
 _UNLOADED, _READY, _FAILED = 0, 1, 2
 _state = _UNLOADED
-_artifact: Optional[dict] = None
+_artifact: dict | None = None
 _lock = threading.Lock()
 
 
@@ -113,9 +115,13 @@ def _artifact_path() -> Path:
 def _fail(reason: str) -> None:
     """Disable the detector for the life of the process. Logs exactly once."""
     global _state, _artifact
-    log.warning("AI-likelihood detector disabled: %s "
-                "(scoring continues without it; retrain or fix the artifact "
-                "at %s to re-enable)", reason, _artifact_path())
+    log.warning(
+        "AI-likelihood detector disabled: %s "
+        "(scoring continues without it; retrain or fix the artifact "
+        "at %s to re-enable)",
+        reason,
+        _artifact_path(),
+    )
     _state = _FAILED
     _artifact = None
 
@@ -129,6 +135,7 @@ def _load_artifact() -> None:
             _fail(f"artifact not found at {path}")
             return
         import joblib
+
         with warnings.catch_warnings():
             # A model pickled under a different sklearn version may silently
             # deserialize into something that predicts differently. Escalate
@@ -136,6 +143,7 @@ def _load_artifact() -> None:
             # the authoritative gate for versions that don't warn.
             try:
                 from sklearn.exceptions import InconsistentVersionWarning
+
                 warnings.simplefilter("error", InconsistentVersionWarning)
             except ImportError:
                 pass
@@ -145,12 +153,16 @@ def _load_artifact() -> None:
             _fail("artifact is not the expected dict schema")
             return
         if art.get("schema_version") != EXPECTED_SCHEMA_VERSION:
-            _fail(f"artifact schema_version {art.get('schema_version')!r} "
-                  f"!= expected {EXPECTED_SCHEMA_VERSION}")
+            _fail(
+                f"artifact schema_version {art.get('schema_version')!r} "
+                f"!= expected {EXPECTED_SCHEMA_VERSION}"
+            )
             return
         if art.get("feature_codes") != list(ALL_FEATURE_CODES):
-            _fail("artifact feature_codes do not match ALL_FEATURE_CODES — "
-                  "the feature pipeline changed since training; retrain")
+            _fail(
+                "artifact feature_codes do not match ALL_FEATURE_CODES — "
+                "the feature pipeline changed since training; retrain"
+            )
             return
 
         ref_X = np.asarray(art["reference_vectors"], dtype=np.float64)
@@ -158,17 +170,22 @@ def _load_artifact() -> None:
         got = art["model"].predict_proba(ref_X)[:, 1]
         drift = float(np.max(np.abs(got - ref_p)))
         if drift > REFERENCE_DRIFT_TOLERANCE:
-            _fail(f"reference-vector predictions drifted by {drift:.4f} "
-                  f"(> {REFERENCE_DRIFT_TOLERANCE}) — likely an sklearn "
-                  f"version skew; retrain the artifact on this environment")
+            _fail(
+                f"reference-vector predictions drifted by {drift:.4f} "
+                f"(> {REFERENCE_DRIFT_TOLERANCE}) — likely an sklearn "
+                f"version skew; retrain the artifact on this environment"
+            )
             return
 
         _artifact = art
         _state = _READY
         prov = art.get("provenance", {})
-        log.info("AI-likelihood detector ready: %s trained %s (sklearn %s)",
-                 art.get("model_name", "?"), prov.get("trained_at", "?"),
-                 prov.get("sklearn_version", "?"))
+        log.info(
+            "AI-likelihood detector ready: %s trained %s (sklearn %s)",
+            art.get("model_name", "?"),
+            prov.get("trained_at", "?"),
+            prov.get("sklearn_version", "?"),
+        )
     except Exception as exc:  # noqa: BLE001 — fail closed on anything
         _fail(f"{type(exc).__name__}: {exc}")
 
@@ -200,6 +217,7 @@ def reset_for_tests() -> None:
 
 # ── Prediction ────────────────────────────────────────────────────────────────
 
+
 def _band(probability: float, thresholds: dict) -> str:
     if probability >= thresholds["strong"]:
         return "strong"
@@ -208,7 +226,7 @@ def _band(probability: float, thresholds: dict) -> str:
     return "low"
 
 
-def _indicators(vec: np.ndarray, art: dict) -> List[AiIndicator]:
+def _indicators(vec: np.ndarray, art: dict) -> list[AiIndicator]:
     centroid = np.asarray(art["human_centroid"], dtype=np.float64)
     # Floor the std at 0.02 (features are normalized to [0,1]): a feature that
     # was near-constant in the training humans would otherwise produce absurd
@@ -218,17 +236,19 @@ def _indicators(vec: np.ndarray, art: dict) -> List[AiIndicator]:
     for code, idx in _INDICATOR_IDX:
         z = float((vec[idx] - centroid[idx]) / std[idx])
         if abs(z) >= INDICATOR_Z_FLOOR:
-            scored.append(AiIndicator(
-                code=code,
-                label=FEATURE_NAMES.get(code, code.replace("_", " ")),
-                z=round(z, 2),
-                direction="higher" if z > 0 else "lower",
-            ))
+            scored.append(
+                AiIndicator(
+                    code=code,
+                    label=FEATURE_NAMES.get(code, code.replace("_", " ")),
+                    z=round(z, 2),
+                    direction="higher" if z > 0 else "lower",
+                )
+            )
     scored.sort(key=lambda ind: -abs(ind.z))
     return scored[:MAX_INDICATORS]
 
 
-def predict_ai_likelihood(vec: np.ndarray) -> Optional[AiLikelihoodResult]:
+def predict_ai_likelihood(vec: np.ndarray) -> AiLikelihoodResult | None:
     """
     Score one submission's 103-dim feature vector. Returns None whenever the
     detector cannot produce a trustworthy answer — callers treat None as
@@ -243,7 +263,7 @@ def predict_ai_likelihood(vec: np.ndarray) -> Optional[AiLikelihoodResult]:
         v = np.asarray(vec, dtype=np.float64).reshape(-1).copy()
         if v.shape[0] != FEATURE_DIM:
             return None
-        v[_MASKED_IDX] = 0.5   # present the exact training-time distribution
+        v[_MASKED_IDX] = 0.5  # present the exact training-time distribution
 
         probability = float(art["model"].predict_proba(v.reshape(1, -1))[0, 1])
         prov = art.get("provenance", {})
@@ -255,6 +275,7 @@ def predict_ai_likelihood(vec: np.ndarray) -> Optional[AiLikelihoodResult]:
             top_indicators=_indicators(v, art),
         )
     except Exception as exc:  # noqa: BLE001 — never let this 500 a request
-        log.warning("AI-likelihood prediction failed (%s: %s) — returning None",
-                    type(exc).__name__, exc)
+        log.warning(
+            "AI-likelihood prediction failed (%s: %s) — returning None", type(exc).__name__, exc
+        )
         return None

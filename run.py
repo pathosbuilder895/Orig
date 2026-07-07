@@ -2,8 +2,8 @@
 run.py — Entry point for the Original backend server.
 
 Usage:
-    python run.py [--port 8000]
-    python run.py --demo [--port 8000] [--frontend-dir PATH]
+    python run.py [--port 8001]
+    python run.py --demo [--port 8001] [--frontend-dir PATH]
 
 Modes:
     default   Start the DB-backed API in original.main
@@ -17,8 +17,8 @@ import os
 import sys
 from pathlib import Path
 
-BACKEND_ROOT = Path(__file__).resolve().parent   # /path/to/Original
-PROJECT_ROOT = BACKEND_ROOT                       # run.py lives at the project root
+BACKEND_ROOT = Path(__file__).resolve().parent  # /path/to/Original
+PROJECT_ROOT = BACKEND_ROOT  # run.py lives at the project root
 
 # Ensure the backend directory is on the path
 sys.path.insert(0, str(BACKEND_ROOT))
@@ -75,8 +75,7 @@ def seed_demo_store():
 
 def create_demo_app(frontend_dir: Path):
     """Return the legacy demo app with the static frontend mounted."""
-    import os
-    from fastapi.responses import FileResponse, RedirectResponse
+    from fastapi.responses import RedirectResponse
     from fastapi.staticfiles import StaticFiles
 
     app = load_legacy_demo_app()
@@ -87,22 +86,9 @@ def create_demo_app(frontend_dir: Path):
     def demo_root():
         return RedirectResponse(url="/professor.html")
 
-    # ── Bluebook prod-index swap ────────────────────────────────────────────
-    # In pilot/staging/production, serve the precompiled bundle entry
-    # (index.prod.html with vendored React, no CDN dependencies at exam time).
-    # In dev, keep serving the dev index.html (CDN React + in-browser Babel).
-    # The static mount below would otherwise always serve index.html for
-    # /bluebook/ — these explicit handlers take precedence.
-    _ENV = (os.getenv("ORIGINAL_ENV") or "demo").lower()
-    _USE_PROD_BLUEBOOK = _ENV in ("pilot", "staging", "production")
-    _bluebook_root = frontend_dir / "bluebook"
-    _bluebook_prod_index = _bluebook_root / "index.prod.html"
-    if _USE_PROD_BLUEBOOK and _bluebook_prod_index.is_file():
-        @app.get("/bluebook/", include_in_schema=False)
-        @app.get("/bluebook/index.html", include_in_schema=False)
-        def _bluebook_prod_root():
-            return FileResponse(str(_bluebook_prod_index), media_type="text/html")
-
+    # Bluebook's index.html is the same file in dev and production — React is
+    # bundled into bluebook.bundle.js (build.mjs), not loaded from a CDN or
+    # vendored globals, so there's no separate prod entrypoint to swap in.
     app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
     app.state._original_demo_frontend_mounted = True
     return app
@@ -110,7 +96,7 @@ def create_demo_app(frontend_dir: Path):
 
 def main():
     parser = argparse.ArgumentParser(description="Original authorship API server")
-    parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--port", type=int, default=8001)
     parser.add_argument(
         "--demo",
         action="store_true",
@@ -129,7 +115,7 @@ def main():
     parser.add_argument(
         "--seed",
         action="store_true",
-        help="Deprecated: only meaningful with --demo; the modern API reads from its database",
+        help="Force-seed synthetic demo data in --demo mode, clearing any existing rows first",
     )
     args = parser.parse_args()
 
@@ -137,6 +123,7 @@ def main():
     # Done here (the entrypoint) rather than at module import so that importing
     # the app in tests never pollutes os.environ for the v1 Settings.
     from original._env import load_env_file
+
     load_env_file()
 
     if args.demo:
@@ -154,23 +141,32 @@ def main():
         # score and recommended action are unchanged.
         os.environ.setdefault("NULL_MODEL", "impostor")
 
-        if not args.skip_seed:
+        if args.seed:
             seed_demo_store()
+        elif not args.skip_seed:
+            from original import store
+
+            if store.count() == 0:
+                print(
+                    "WARNING: empty store, auto-seeding synthetic demo data. "
+                    "Pass --seed to silence, --skip-seed to disable."
+                )
+                seed_demo_store()
+            else:
+                print(
+                    f"Store has {store.count()} profiles; not reseeding "
+                    "(pass --seed to force, which CLEARS synthetic data first)."
+                )
 
         app = create_demo_app(frontend_dir)
 
         print(f"Starting Original demo on http://localhost:{args.port}")
-        print(f"  Landing page: http://localhost:{args.port}/original.html")
-        print(f"  Review page:  http://localhost:{args.port}/original-review.html")
+        print(f"  Landing page: http://localhost:{args.port}/professor.html")
+        print(f"  Bluebook:     http://localhost:{args.port}/bluebook/")
         print(f"  Health:       http://localhost:{args.port}/health")
         print()
 
     else:
-        if args.seed:
-            print("Note: --seed now applies to the legacy demo mode only.")
-            print("      Run `python run.py --demo` to start the seeded frontend demo.")
-            print()
-
         from original.main import app
 
         print(f"Starting Original API on http://localhost:{args.port}")

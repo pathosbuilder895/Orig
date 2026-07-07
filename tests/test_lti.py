@@ -45,8 +45,14 @@ def keypair():
         b = n.to_bytes((n.bit_length() + 7) // 8, "big")
         return base64.urlsafe_b64encode(b).decode().rstrip("=")
 
-    jwk = {"kty": "RSA", "alg": "RS256", "use": "sig", "kid": "test-kid-1",
-           "n": b64u_int(nums.n), "e": b64u_int(nums.e)}
+    jwk = {
+        "kty": "RSA",
+        "alg": "RS256",
+        "use": "sig",
+        "kid": "test-kid-1",
+        "n": b64u_int(nums.n),
+        "e": b64u_int(nums.e),
+    }
     return pem, jwk
 
 
@@ -54,22 +60,51 @@ def keypair():
 def configure(monkeypatch, keypair):
     pem, jwk = keypair
     monkeypatch.setenv("LTI_TOOL_URL", "https://app.northfield.edu")
-    monkeypatch.setenv("LTI_PLATFORMS", json.dumps([{
-        "issuer": ISSUER, "client_id": CLIENT_ID, "jwks_url": JWKS_URL,
-        "auth_login_url": "https://canvas.test/api/lti/authorize_redirect",
-        "deployment_ids": [DEPLOYMENT], "tenant_id": TENANT, "name": "Northfield Canvas",
-    }]))
+    monkeypatch.setenv(
+        "LTI_PLATFORMS",
+        json.dumps(
+            [
+                {
+                    "issuer": ISSUER,
+                    "client_id": CLIENT_ID,
+                    "jwks_url": JWKS_URL,
+                    "auth_login_url": "https://canvas.test/api/lti/authorize_redirect",
+                    "deployment_ids": [DEPLOYMENT],
+                    "tenant_id": TENANT,
+                    "name": "Northfield Canvas",
+                }
+            ]
+        ),
+    )
     monkeypatch.setattr(lti, "fetch_jwks", lambda url: {"keys": [jwk]})
     yield
 
 
-def _id_token(pem, *, roles, nonce, sub="lms-user-1", email="dr@northfield.edu",
-              aud=CLIENT_ID, iss=ISSUER, dep=DEPLOYMENT, exp_delta=600, extra=None):
+def _id_token(
+    pem,
+    *,
+    roles,
+    nonce,
+    sub="lms-user-1",
+    email="dr@northfield.edu",
+    aud=CLIENT_ID,
+    iss=ISSUER,
+    dep=DEPLOYMENT,
+    exp_delta=600,
+    extra=None,
+):
     from jose import jwt as jose_jwt
+
     now = int(time.time())
     claims = {
-        "iss": iss, "aud": aud, "sub": sub, "email": email, "name": "Dr Test",
-        "nonce": nonce, "iat": now, "exp": now + exp_delta,
+        "iss": iss,
+        "aud": aud,
+        "sub": sub,
+        "email": email,
+        "name": "Dr Test",
+        "nonce": nonce,
+        "iat": now,
+        "exp": now + exp_delta,
         lti.CLAIM_DEPLOYMENT: dep,
         lti.CLAIM_MESSAGE_TYPE: "LtiResourceLinkRequest",
         lti.CLAIM_ROLES: roles,
@@ -116,7 +151,8 @@ def test_student_exam_launch_into_bluebook(keypair):
     nonce = "exam-nonce"
     state = lti.mint_state(nonce, ISSUER)
     token = _id_token(
-        pem, roles=["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
+        pem,
+        roles=["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
         nonce=nonce,
         extra={
             lti.CLAIM_TARGET_LINK_URI: "https://app.northfield.edu/bluebook/",
@@ -125,9 +161,9 @@ def test_student_exam_launch_into_bluebook(keypair):
     )
     r = client.post("/lti/launch", data={"id_token": token, "state": state})
     assert r.status_code == 200, r.text
-    assert "/bluebook/" in r.text          # redirected into Bluebook
+    assert "/bluebook/" in r.text  # redirected into Bluebook
     assert "bluebook_student_id" in r.text  # the student is bound
-    assert "exam=Ethics" in r.text          # exam title passed as a param
+    assert "exam=Ethics" in r.text  # exam title passed as a param
     assert "original_session_token" in r.text
 
 
@@ -137,7 +173,8 @@ def test_instructor_exam_launch_into_bluebook(keypair):
     nonce = "exam-nonce-2"
     state = lti.mint_state(nonce, ISSUER)
     token = _id_token(
-        pem, roles=["http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"],
+        pem,
+        roles=["http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"],
         nonce=nonce,
         extra={lti.CLAIM_TARGET_LINK_URI: "https://app.northfield.edu/bluebook/"},
     )
@@ -180,8 +217,11 @@ def test_unknown_deployment_rejected(keypair):
 
 
 def test_login_redirects_to_platform():
-    r = client.post("/lti/login", data={"iss": ISSUER, "login_hint": "u1", "client_id": CLIENT_ID},
-                    follow_redirects=False)
+    r = client.post(
+        "/lti/login",
+        data={"iss": ISSUER, "login_hint": "u1", "client_id": CLIENT_ID},
+        follow_redirects=False,
+    )
     assert r.status_code == 302
     loc = r.headers["location"]
     assert loc.startswith("https://canvas.test/api/lti/authorize_redirect")
@@ -189,6 +229,9 @@ def test_login_redirects_to_platform():
 
 
 def test_login_unknown_issuer_400():
-    r = client.post("/lti/login", data={"iss": "https://evil.example", "login_hint": "u1"},
-                    follow_redirects=False)
+    r = client.post(
+        "/lti/login",
+        data={"iss": "https://evil.example", "login_hint": "u1"},
+        follow_redirects=False,
+    )
     assert r.status_code == 400

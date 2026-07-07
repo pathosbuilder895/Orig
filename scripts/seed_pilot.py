@@ -29,10 +29,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Load .env so the minted professor token is signed with the SAME SECRET_KEY the
 # running server uses — otherwise the token won't verify and the roster falls
 # back to the unscoped/demo view.
-from original._env import load_env_file          # noqa: E402
+from original._env import load_env_file  # noqa: E402
+
 load_env_file()
 
-from original import store                       # noqa: E402
+from original import store  # noqa: E402
 from original import principal as principal_mod  # noqa: E402
 from original.schemas import AddSampleRequest, ScoreSubmissionRequest  # noqa: E402
 
@@ -40,6 +41,7 @@ from original.schemas import AddSampleRequest, ScoreSubmissionRequest  # noqa: E
 # demo module by path (exactly as run.py / the test-suite do) to reach its
 # endpoint functions directly.
 import run  # noqa: E402
+
 run.load_legacy_demo_app()
 _legacy = sys.modules["original._legacy_demo_api"]
 add_baseline = _legacy.add_baseline
@@ -51,7 +53,8 @@ TENANT_NAME = "Pilot Seminary"
 # Five students, each with a distinct, recognisable voice across three samples.
 STUDENTS = [
     {
-        "slug": "alewis", "name": "Aiden Lewis",
+        "slug": "alewis",
+        "name": "Aiden Lewis",
         "samples": [
             "Justification is not a reward the conscience earns but a verdict the "
             "conscience receives. The believer does not climb toward acceptance; "
@@ -74,7 +77,8 @@ STUDENTS = [
         ],
     },
     {
-        "slug": "bokafor", "name": "Blessing Okafor",
+        "slug": "bokafor",
+        "name": "Blessing Okafor",
         "samples": [
             "The doctrine of the Trinity is not a puzzle to be solved but a communion to "
             "be entered. We do not first understand and then adore; we adore, and in "
@@ -95,7 +99,8 @@ STUDENTS = [
         ],
     },
     {
-        "slug": "cmendez", "name": "Camila Mendez",
+        "slug": "cmendez",
+        "name": "Camila Mendez",
         "samples": [
             "Augustine's restlessness is not a flaw in the human heart but its compass. "
             "The same hunger that drives us toward lesser goods, when reordered, drives us "
@@ -115,7 +120,8 @@ STUDENTS = [
         ],
     },
     {
-        "slug": "dpark", "name": "Daniel Park",
+        "slug": "dpark",
+        "name": "Daniel Park",
         "samples": [
             "Scripture interprets scripture, but it does so in the company of the church "
             "and under the lamp of the Spirit. The lone reader, however brilliant, is "
@@ -134,7 +140,8 @@ STUDENTS = [
         ],
     },
     {
-        "slug": "erahman", "name": "Esther Rahman",
+        "slug": "erahman",
+        "name": "Esther Rahman",
         "samples": [
             "Lament is not the failure of faith but one of its native tongues. The psalmist "
             "who cries out is not less devout than the one who praises; he is praying with "
@@ -160,8 +167,9 @@ def main() -> int:
 
     # 1) Register the tenant as a demo-visible environment so it is readable and a
     #    minted professor token works against it immediately.
-    store.put_tenant(TENANT_ID, TENANT_NAME, environment="demo",
-                     meta={"seeded_by": "seed_pilot.py"})
+    store.put_tenant(
+        TENANT_ID, TENANT_NAME, environment="demo", meta={"seeded_by": "seed_pilot.py"}
+    )
     print(f"✓ tenant {TENANT_ID!r} ({TENANT_NAME})")
 
     seeded = 0
@@ -171,8 +179,12 @@ def main() -> int:
         store.set_display_name(sid, s["name"])
         for j, text in enumerate(s["samples"]):
             try:
-                add_baseline(sid, AddSampleRequest(
-                    text=text, assignment=f"Reflection {j + 1}", provenance="verified"))
+                add_baseline(
+                    sid,
+                    AddSampleRequest(
+                        text=text, assignment=f"Reflection {j + 1}", provenance="verified"
+                    ),
+                )
             except Exception as e:  # pragma: no cover - seed is best-effort
                 print(f"  ! baseline {j} failed for {s['name']}: {e}")
 
@@ -180,7 +192,7 @@ def main() -> int:
         # Most students submit in-voice (→ clear); one is given a different
         # author's text so the roster shows a genuine "needs review".
         if i == len(STUDENTS) - 1:
-            probe_text = STUDENTS[0]["samples"][0]      # someone else's voice
+            probe_text = STUDENTS[0]["samples"][0]  # someone else's voice
             label = "Take-home Essay (cross-voice probe)"
         else:
             probe_text = s["samples"][-1]

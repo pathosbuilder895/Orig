@@ -11,18 +11,16 @@ In production this would be backed by Postgres + pgvector.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional
-
-import logging
 
 import numpy as np
 
-from .quantum.state import BaselineSample, StudentState
 from .constants import FEATURE_DIM
+from .quantum.state import BaselineSample, StudentState
 
 log = logging.getLogger(__name__)
 
@@ -38,14 +36,11 @@ def _escape_like(s: str) -> str:
 
 # ── Database path ─────────────────────────────────────────────────────────────
 
-_DB_PATH = Path(os.environ.get(
-    "ORIGINAL_DB",
-    Path(__file__).parent.parent / "profiles.db"
-))
+_DB_PATH = Path(os.environ.get("ORIGINAL_DB", Path(__file__).parent.parent / "profiles.db"))
 
 # ── In-memory cache ───────────────────────────────────────────────────────────
 
-_STORE: Dict[str, StudentState] = {}
+_STORE: dict[str, StudentState] = {}
 _loaded = False
 
 # ── Bayesian genre-stats cache ────────────────────────────────────────────────
@@ -54,10 +49,11 @@ _loaded = False
 # samples are reflected in the next call. The hot path reads from this dict in
 # O(1). Dict clear is thread-safe in CPython (GIL-protected), matching the
 # lock-free approach used by _STORE itself.
-_GENRE_STATS_CACHE: Dict[str, Optional[Dict]] = {}
+_GENRE_STATS_CACHE: dict[str, dict | None] = {}
 
 
 # ── SQLite helpers ────────────────────────────────────────────────────────────
+
 
 def _get_conn() -> sqlite3.Connection:
     conn = sqlite3.connect(str(_DB_PATH), timeout=10.0)
@@ -388,32 +384,33 @@ def _serialize(state: StudentState) -> str:
     """Convert StudentState to a JSON string for SQLite storage."""
     samples = [
         {
-            "text":         s.text,
-            "vector":       s.vector.tolist(),
-            "provenance":   s.provenance,
-            "auth_weight":  s.auth_weight,
-            "assignment":   s.assignment,
+            "text": s.text,
+            "vector": s.vector.tolist(),
+            "provenance": s.provenance,
+            "auth_weight": s.auth_weight,
+            "assignment": s.assignment,
             "submitted_at": s.submitted_at,
             # Phase 4 context metadata — null-safe for legacy samples that
             # haven't been backfilled yet (caller persists after lazy
             # ensure_sample_context_metadata()).
-            "genre":            s.genre,
-            "topic_centroid":   (s.topic_centroid.tolist()
-                                  if s.topic_centroid is not None else None),
+            "genre": s.genre,
+            "topic_centroid": (s.topic_centroid.tolist() if s.topic_centroid is not None else None),
             "context_manifest": s.context_manifest,
         }
         for s in state.samples
     ]
-    return json.dumps({
-        "student_id":     state.student_id,
-        "samples":        samples,
-        "baseline_kappa": state.baseline_kappa,
-        "kappa_log":      state.kappa_log,
-        # Phase 8 — drift counter survives restarts so a student who got
-        # one outlier today + one outlier next week still triggers
-        # rebaseline. Defaults to 0 on legacy rows that predate the field.
-        "consecutive_drift_count": state._consecutive_drift_count,
-    })
+    return json.dumps(
+        {
+            "student_id": state.student_id,
+            "samples": samples,
+            "baseline_kappa": state.baseline_kappa,
+            "kappa_log": state.kappa_log,
+            # Phase 8 — drift counter survives restarts so a student who got
+            # one outlier today + one outlier next week still triggers
+            # rebaseline. Defaults to 0 on legacy rows that predate the field.
+            "consecutive_drift_count": state._consecutive_drift_count,
+        }
+    )
 
 
 def _deserialize(data: str) -> StudentState:
@@ -438,7 +435,9 @@ def _deserialize(data: str) -> StudentState:
                 "Baseline vector for student %s has dimension %d; expected %d. "
                 "Padding missing dimensions with 0.5. "
                 "Run 'rebuild-baselines' to restore full accuracy.",
-                d["student_id"], v.shape[0], FEATURE_DIM,
+                d["student_id"],
+                v.shape[0],
+                FEATURE_DIM,
             )
             padded = np.full(FEATURE_DIM, 0.5, dtype=np.float64)
             n = min(v.shape[0], FEATURE_DIM)
@@ -449,7 +448,8 @@ def _deserialize(data: str) -> StudentState:
         topic_centroid_raw = s.get("topic_centroid")
         topic_centroid = (
             np.array(topic_centroid_raw, dtype=np.float64)
-            if topic_centroid_raw is not None else None
+            if topic_centroid_raw is not None
+            else None
         )
         state.samples.append(
             BaselineSample(
@@ -472,13 +472,18 @@ def _load_all() -> None:
     global _loaded
     if _loaded:
         return
+    db_missing = not _DB_PATH.exists()
     try:
         with _get_conn() as conn:
             for row in conn.execute("SELECT student_id, data FROM student_profiles"):
                 state = _deserialize(row[1])
                 _STORE[state.student_id] = state
-    except Exception:
-        pass  # Fresh DB or filesystem error — start empty
+    except sqlite3.Error as e:
+        if db_missing:
+            pass  # First boot — no DB yet, start empty
+        else:
+            log.error("profile DB exists but is unreadable: %s", e)
+            raise  # Corrupt/locked DB must fail startup, not present as empty
     _loaded = True
 
 
@@ -490,13 +495,15 @@ def _persist(state: StudentState) -> None:
                 "INSERT OR REPLACE INTO student_profiles (student_id, data) VALUES (?, ?)",
                 (state.student_id, _serialize(state)),
             )
-    except Exception:
-        pass  # Non-fatal — data is still live in memory
+    except sqlite3.Error as e:
+        log.error("persist failed for student %s: %s", state.student_id, e)
+        raise
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def get(student_id: str) -> Optional[StudentState]:
+
+def get(student_id: str) -> StudentState | None:
     _load_all()
     return _STORE.get(student_id)
 
@@ -518,12 +525,12 @@ def put(state: StudentState) -> None:
     _GENRE_STATS_CACHE.clear()
 
 
-def list_ids() -> List[str]:
+def list_ids() -> list[str]:
     _load_all()
     return list(_STORE.keys())
 
 
-def all_states() -> List[StudentState]:
+def all_states() -> list[StudentState]:
     """Every cached StudentState (the impostor-pool builder's input)."""
     _load_all()
     return list(_STORE.values())
@@ -541,12 +548,13 @@ def clear() -> None:
 
 # ── Phase 5: manifest audit log ──────────────────────────────────────────────
 
+
 def put_manifest(
     submission_id: str,
     student_id: str,
-    manifest: "object",                  # ContextManifest or its to_dict()
-    divergence_score: Optional[float] = None,
-    action: Optional[str] = None,
+    manifest: object,  # ContextManifest or its to_dict()
+    divergence_score: float | None = None,
+    action: str | None = None,
 ) -> None:
     """
     Append (or replace) a row in the `submission_manifests` audit table.
@@ -574,14 +582,13 @@ def put_manifest(
                      divergence_score, action)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (submission_id, student_id, created_at, manifest_json,
-                 divergence_score, action),
+                (submission_id, student_id, created_at, manifest_json, divergence_score, action),
             )
     except Exception as e:
         log.warning("put_manifest failed for %s: %s", submission_id, e)
 
 
-def get_manifest(submission_id: str) -> Optional[Dict]:
+def get_manifest(submission_id: str) -> dict | None:
     """Return the manifest_json + sidecar fields for a submission, or None."""
     try:
         with _get_conn() as conn:
@@ -595,26 +602,27 @@ def get_manifest(submission_id: str) -> Optional[Dict]:
     if not row:
         return None
     return {
-        "submission_id":    submission_id,
-        "student_id":       row[0],
-        "created_at":       row[1],
-        "manifest":         json.loads(row[2]),
+        "submission_id": submission_id,
+        "student_id": row[0],
+        "created_at": row[1],
+        "manifest": json.loads(row[2]),
         "divergence_score": row[3],
-        "action":           row[4],
+        "action": row[4],
     }
 
 
 # ── PR 7: manifest list / stats queries ──────────────────────────────────────
 
+
 def list_manifests(
-    student_id: Optional[str] = None,
-    action: Optional[str] = None,
-    flag: Optional[str] = None,
-    since: Optional[str] = None,
-    until: Optional[str] = None,
+    student_id: str | None = None,
+    action: str | None = None,
+    flag: str | None = None,
+    since: str | None = None,
+    until: str | None = None,
     limit: int = 100,
     offset: int = 0,
-) -> Dict:
+) -> dict:
     """
     Paginated query over the submission_manifests audit table.
 
@@ -644,8 +652,8 @@ def list_manifests(
         ],
     }
     """
-    where_clauses: List[str] = []
-    params: List = []
+    where_clauses: list[str] = []
+    params: list = []
 
     if student_id is not None:
         where_clauses.append("student_id = ?")
@@ -671,7 +679,8 @@ def list_manifests(
     try:
         with _get_conn() as conn:
             total = conn.execute(
-                f"SELECT COUNT(*) FROM submission_manifests{where}", params,
+                f"SELECT COUNT(*) FROM submission_manifests{where}",
+                params,
             ).fetchone()[0]
             rows = conn.execute(
                 f"""
@@ -688,44 +697,46 @@ def list_manifests(
         log.warning("list_manifests failed: %s", e)
         return {"total": 0, "limit": limit, "offset": offset, "items": []}
 
-    items: List[Dict] = []
+    items: list[dict] = []
     for row in rows:
         try:
             manifest = json.loads(row[3])
         except Exception:
             manifest = {}
-        items.append({
-            "submission_id":    row[0],
-            "student_id":       row[1],
-            "created_at":       row[2],
-            "divergence_score": row[4],
-            "action":           row[5],
-            # Stripped-down summary so the list endpoint is cheap to render.
-            "flags":            list(manifest.get("flags") or []),
-            "anchor_tiers":     list(manifest.get("anchor_tiers") or []),
-            "length_regime":    manifest.get("length_regime") or "unknown",
-        })
+        items.append(
+            {
+                "submission_id": row[0],
+                "student_id": row[1],
+                "created_at": row[2],
+                "divergence_score": row[4],
+                "action": row[5],
+                # Stripped-down summary so the list endpoint is cheap to render.
+                "flags": list(manifest.get("flags") or []),
+                "anchor_tiers": list(manifest.get("anchor_tiers") or []),
+                "length_regime": manifest.get("length_regime") or "unknown",
+            }
+        )
 
     return {
-        "total":  int(total),
-        "limit":  limit,
+        "total": int(total),
+        "limit": limit,
         "offset": offset,
-        "items":  items,
+        "items": items,
     }
 
 
 def manifest_stats(
-    since: Optional[str] = None,
-    until: Optional[str] = None,
-) -> Dict:
+    since: str | None = None,
+    until: str | None = None,
+) -> dict:
     """
     Roll-up counts over the manifest audit table for the dashboard
     summary cards. Uses one pass through the result set rather than N
     separate aggregation queries — manifests are small JSON blobs and
     we expect O(thousands) of rows in normal use.
     """
-    where_clauses: List[str] = []
-    params: List = []
+    where_clauses: list[str] = []
+    params: list = []
     if since is not None:
         where_clauses.append("created_at >= ?")
         params.append(since)
@@ -734,11 +745,11 @@ def manifest_stats(
         params.append(until)
     where = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
 
-    by_action: Dict[str, int] = {}
-    by_flag: Dict[str, int] = {}
-    by_length_regime: Dict[str, int] = {}
+    by_action: dict[str, int] = {}
+    by_flag: dict[str, int] = {}
+    by_length_regime: dict[str, int] = {}
     divergence_sum = 0.0
-    divergence_n   = 0
+    divergence_n = 0
     total = 0
 
     try:
@@ -755,7 +766,7 @@ def manifest_stats(
                     m = json.loads(row[1])
                 except Exception:
                     m = {}
-                for f in (m.get("flags") or []):
+                for f in m.get("flags") or []:
                     by_flag[f] = by_flag.get(f, 0) + 1
                 regime = m.get("length_regime") or "unknown"
                 by_length_regime[regime] = by_length_regime.get(regime, 0) + 1
@@ -766,17 +777,18 @@ def manifest_stats(
         log.warning("manifest_stats failed: %s", e)
 
     return {
-        "total":               total,
-        "by_action":           by_action,
-        "by_flag":             by_flag,
-        "by_length_regime":    by_length_regime,
-        "mean_divergence":     round(divergence_sum / divergence_n, 4) if divergence_n else None,
-        "since":               since,
-        "until":               until,
+        "total": total,
+        "by_action": by_action,
+        "by_flag": by_flag,
+        "by_length_regime": by_length_regime,
+        "mean_divergence": round(divergence_sum / divergence_n, 4) if divergence_n else None,
+        "since": since,
+        "until": until,
     }
 
 
 # ── Production Phase 6: quantum fidelity store ───────────────────────────────
+
 
 def put_fidelity_score(
     submission_id: str,
@@ -799,6 +811,7 @@ def put_fidelity_score(
     is_authentic  : True if the submission was confirmed authentic
     """
     import datetime
+
     created_at = datetime.datetime.utcnow().isoformat()
     try:
         with _get_conn() as conn:
@@ -808,8 +821,7 @@ def put_fidelity_score(
                     (submission_id, student_id, fidelity, is_authentic, created_at)
                 VALUES (?, ?, ?, ?, ?)
                 """,
-                (submission_id, student_id, float(fidelity),
-                 1 if is_authentic else 0, created_at),
+                (submission_id, student_id, float(fidelity), 1 if is_authentic else 0, created_at),
             )
             conn.commit()
     except Exception:
@@ -819,7 +831,7 @@ def put_fidelity_score(
 def get_authentic_fidelities(
     student_id: str,
     limit: int = 200,
-) -> List[float]:
+) -> list[float]:
     """
     Return the most recent ``limit`` confirmed-authentic fidelity scores
     for a student, for use as the conformal calibration set.
@@ -866,6 +878,7 @@ def put_ai_likelihood_score(
     never break the scoring endpoint.
     """
     import datetime
+
     created_at = datetime.datetime.utcnow().isoformat()
     try:
         with _get_conn() as conn:
@@ -876,8 +889,14 @@ def put_ai_likelihood_score(
                      model_version, created_at)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (submission_id, student_id, float(probability), str(band),
-                 str(model_version), created_at),
+                (
+                    submission_id,
+                    student_id,
+                    float(probability),
+                    str(band),
+                    str(model_version),
+                    created_at,
+                ),
             )
             conn.commit()
     except Exception:
@@ -885,9 +904,9 @@ def put_ai_likelihood_score(
 
 
 def get_ai_likelihood_scores(
-    student_id: Optional[str] = None,
+    student_id: str | None = None,
     limit: int = 500,
-) -> List[Dict]:
+) -> list[dict]:
     """
     Fetch persisted AI-likelihood rows, newest first, optionally filtered by
     student. Used by tests and ops tooling (scripts/shadow_report.py reads
@@ -917,9 +936,14 @@ def get_ai_likelihood_scores(
                     (limit,),
                 ).fetchall()
             return [
-                {"submission_id": r[0], "student_id": r[1],
-                 "probability": float(r[2]), "band": r[3],
-                 "model_version": r[4], "created_at": r[5]}
+                {
+                    "submission_id": r[0],
+                    "student_id": r[1],
+                    "probability": float(r[2]),
+                    "band": r[3],
+                    "model_version": r[4],
+                    "created_at": r[5],
+                }
                 for r in rows
             ]
     except Exception:
@@ -929,7 +953,8 @@ def get_ai_likelihood_scores(
 
 # ── Hierarchical Bayesian prior: cross-student genre statistics ───────────────
 
-def get_genre_stats(genre: str) -> Optional[Dict]:
+
+def get_genre_stats(genre: str) -> dict | None:
     """
     Compute cross-student mean, std, and sample count for a given writing genre.
 
@@ -962,30 +987,27 @@ def get_genre_stats(genre: str) -> Optional[Dict]:
     if genre in _GENRE_STATS_CACHE:
         return _GENRE_STATS_CACHE[genre]
 
-    vectors: List[np.ndarray] = []
+    vectors: list[np.ndarray] = []
     # list() snapshots _STORE.values() to avoid RuntimeError if a concurrent
     # put() call mutates the dict while we iterate (FastAPI uses a thread pool
     # for sync handlers; _STORE is not protected by an explicit lock).
     for student_state in list(_STORE.values()):
         for sample in student_state.samples:
-            if (
-                sample.auth_weight > 0
-                and getattr(sample, "genre", None) == genre
-            ):
+            if sample.auth_weight > 0 and getattr(sample, "genre", None) == genre:
                 vectors.append(sample.vector)
 
     if len(vectors) < 5:
         _GENRE_STATS_CACHE[genre] = None
         return None
 
-    mat = np.stack(vectors, axis=0)          # shape (N, FEATURE_DIM)
-    mean_vec = mat.mean(axis=0)              # shape (FEATURE_DIM,)
+    mat = np.stack(vectors, axis=0)  # shape (N, FEATURE_DIM)
+    mean_vec = mat.mean(axis=0)  # shape (FEATURE_DIM,)
     # Use the same 0.005 floor as StudentState.baseline_std to keep the
     # prior std compatible with the per-student sigma floor.
     std_vec = np.maximum(mat.std(axis=0), 0.005)
     result = {
-        "mean":      mean_vec,
-        "std":       std_vec,
+        "mean": mean_vec,
+        "std": std_vec,
         "n_samples": len(vectors),
     }
     _GENRE_STATS_CACHE[genre] = result
@@ -1013,9 +1035,7 @@ def update_fidelity_authenticity(submission_id: str, is_authentic: bool) -> None
             )
             conn.commit()
     except Exception:
-        log.exception(
-            "update_fidelity_authenticity failed for submission %s", submission_id
-        )
+        log.exception("update_fidelity_authenticity failed for submission %s", submission_id)
 
 
 def delete_student(student_id: str) -> bool:
@@ -1056,23 +1076,13 @@ def delete_student(student_id: str) -> bool:
             ).fetchall()
             sub_ids = [r[0] for r in rows]
 
-            conn.execute(
-                "DELETE FROM student_profiles WHERE student_id = ?", (student_id,)
-            )
-            conn.execute(
-                "DELETE FROM fidelity_scores WHERE student_id = ?", (student_id,)
-            )
-            conn.execute(
-                "DELETE FROM ai_likelihood_scores WHERE student_id = ?", (student_id,)
-            )
-            conn.execute(
-                "DELETE FROM submission_manifests WHERE student_id = ?", (student_id,)
-            )
+            conn.execute("DELETE FROM student_profiles WHERE student_id = ?", (student_id,))
+            conn.execute("DELETE FROM fidelity_scores WHERE student_id = ?", (student_id,))
+            conn.execute("DELETE FROM ai_likelihood_scores WHERE student_id = ?", (student_id,))
+            conn.execute("DELETE FROM submission_manifests WHERE student_id = ?", (student_id,))
             # Delete corrections by student_id AND by submission_id to cover
             # any rows where student_id was left NULL (FERPA completeness).
-            conn.execute(
-                "DELETE FROM corrections WHERE student_id = ?", (student_id,)
-            )
+            conn.execute("DELETE FROM corrections WHERE student_id = ?", (student_id,))
             if sub_ids:
                 placeholders = ",".join("?" * len(sub_ids))
                 conn.execute(
@@ -1084,12 +1094,8 @@ def delete_student(student_id: str) -> bool:
             # them too. The caller records ONE fresh audit row for the
             # deletion itself (the deletion receipt), which is disclosed in
             # docs/dpa_template.md §5.3.
-            conn.execute(
-                "DELETE FROM student_names WHERE student_id = ?", (student_id,)
-            )
-            conn.execute(
-                "DELETE FROM audit_log WHERE student_id = ?", (student_id,)
-            )
+            conn.execute("DELETE FROM student_names WHERE student_id = ?", (student_id,))
+            conn.execute("DELETE FROM audit_log WHERE student_id = ?", (student_id,))
             conn.commit()
     except Exception:
         log.exception("delete_student failed for %s — no data was removed", student_id)
@@ -1097,26 +1103,27 @@ def delete_student(student_id: str) -> bool:
 
     # SQLite committed successfully — now evict from memory.
     del _STORE[student_id]
-    _GENRE_STATS_CACHE.clear()   # genre stats may have included this student
+    _GENRE_STATS_CACHE.clear()  # genre stats may have included this student
     return True
 
 
 # ── PR 7: corrections feedback log ───────────────────────────────────────────
 
+
 def put_correction(
     submission_id: str,
     is_correct: bool,
     *,
-    student_id: Optional[str] = None,
-    original_verdict: Optional[str] = None,
-    original_action: Optional[str] = None,
-    original_divergence_score: Optional[float] = None,
-    corrected_verdict: Optional[str] = None,
-    corrected_action: Optional[str] = None,
-    reviewer: Optional[str] = None,
-    notes: Optional[str] = None,
-    created_at: Optional[str] = None,
-) -> Optional[int]:
+    student_id: str | None = None,
+    original_verdict: str | None = None,
+    original_action: str | None = None,
+    original_divergence_score: float | None = None,
+    corrected_verdict: str | None = None,
+    corrected_action: str | None = None,
+    reviewer: str | None = None,
+    notes: str | None = None,
+    created_at: str | None = None,
+) -> int | None:
     """
     Append a correction row. ``is_correct`` is the simplest signal — even
     without a corrected_verdict, "this was wrong" is useful labelled data
@@ -1128,13 +1135,18 @@ def put_correction(
     caller doesn't supply them — saves the dashboard from a separate
     lookup round-trip.
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
+
     if created_at is None:
-        created_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        created_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     # Auto-fill from manifest if available and not provided.
-    if (original_verdict is None or original_action is None
-            or original_divergence_score is None or student_id is None):
+    if (
+        original_verdict is None
+        or original_action is None
+        or original_divergence_score is None
+        or student_id is None
+    ):
         existing = get_manifest(submission_id)
         if existing is not None:
             student_id = student_id or existing.get("student_id")
@@ -1145,6 +1157,24 @@ def put_correction(
             # we leave it None unless explicitly provided. The retraining
             # job can re-derive verdict from divergence_score + the same
             # threshold table that was active at scoring time.
+
+    if student_id is None:
+        # Manifests are gated behind CONTEXT_MANIFEST_ENABLED and often
+        # empty even when the flag is on; the audit_log's unconditional
+        # "score" row for this submission always carries student_id — fall
+        # back to it so a correction can still be found per-student without
+        # that flag (see /admin/audit's own action=score entries).
+        try:
+            with _get_conn() as conn:
+                row = conn.execute(
+                    "SELECT student_id FROM audit_log WHERE action = 'score' "
+                    "AND details_json LIKE ? ORDER BY created_at DESC LIMIT 1",
+                    (f'%"submission_id": "{submission_id}"%',),
+                ).fetchone()
+                if row is not None:
+                    student_id = row[0]
+        except Exception:
+            pass
 
     try:
         with _get_conn() as conn:
@@ -1157,10 +1187,19 @@ def put_correction(
                     is_correct, reviewer, notes, created_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (submission_id, student_id,
-                 original_verdict, original_action, original_divergence_score,
-                 corrected_verdict, corrected_action,
-                 1 if is_correct else 0, reviewer, notes, created_at),
+                (
+                    submission_id,
+                    student_id,
+                    original_verdict,
+                    original_action,
+                    original_divergence_score,
+                    corrected_verdict,
+                    corrected_action,
+                    1 if is_correct else 0,
+                    reviewer,
+                    notes,
+                    created_at,
+                ),
             )
             return int(cur.lastrowid)
     except Exception as e:
@@ -1169,15 +1208,15 @@ def put_correction(
 
 
 def list_corrections(
-    submission_id: Optional[str] = None,
-    student_id: Optional[str] = None,
-    is_correct: Optional[bool] = None,
+    submission_id: str | None = None,
+    student_id: str | None = None,
+    is_correct: bool | None = None,
     limit: int = 100,
     offset: int = 0,
-) -> Dict:
+) -> dict:
     """List corrections with optional filters."""
-    where_clauses: List[str] = []
-    params: List = []
+    where_clauses: list[str] = []
+    params: list = []
     if submission_id is not None:
         where_clauses.append("submission_id = ?")
         params.append(submission_id)
@@ -1192,7 +1231,8 @@ def list_corrections(
     try:
         with _get_conn() as conn:
             total = conn.execute(
-                f"SELECT COUNT(*) FROM corrections{where}", params,
+                f"SELECT COUNT(*) FROM corrections{where}",
+                params,
             ).fetchone()[0]
             rows = conn.execute(
                 f"""
@@ -1211,44 +1251,48 @@ def list_corrections(
         log.warning("list_corrections failed: %s", e)
         return {"total": 0, "limit": limit, "offset": offset, "items": []}
 
-    items: List[Dict] = []
+    items: list[dict] = []
     for r in rows:
-        items.append({
-            "id":                        r[0],
-            "submission_id":             r[1],
-            "student_id":                r[2],
-            "original_verdict":          r[3],
-            "original_action":           r[4],
-            "original_divergence_score": r[5],
-            "corrected_verdict":         r[6],
-            "corrected_action":          r[7],
-            "is_correct":                bool(r[8]),
-            "reviewer":                  r[9],
-            "notes":                     r[10],
-            "created_at":                r[11],
-        })
+        items.append(
+            {
+                "id": r[0],
+                "submission_id": r[1],
+                "student_id": r[2],
+                "original_verdict": r[3],
+                "original_action": r[4],
+                "original_divergence_score": r[5],
+                "corrected_verdict": r[6],
+                "corrected_action": r[7],
+                "is_correct": bool(r[8]),
+                "reviewer": r[9],
+                "notes": r[10],
+                "created_at": r[11],
+            }
+        )
 
     return {
-        "total":  int(total),
-        "limit":  limit,
+        "total": int(total),
+        "limit": limit,
         "offset": offset,
-        "items":  items,
+        "items": items,
     }
 
 
 # ── PR 8a: calibration runs ──────────────────────────────────────────────────
 
+
 def start_calibration_run(
     dataset_label: str,
-    run_label: Optional[str] = None,
-    config: Optional[Dict] = None,
-) -> Optional[int]:
+    run_label: str | None = None,
+    config: dict | None = None,
+) -> int | None:
     """
     Insert a `running` row and return its row id. The lab UI polls
     ``get_calibration_run`` until status flips to `completed` or `failed`.
     """
-    from datetime import datetime, timezone
-    started_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    from datetime import datetime
+
+    started_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     try:
         with _get_conn() as conn:
             cur = conn.execute(
@@ -1257,8 +1301,7 @@ def start_calibration_run(
                     run_label, dataset_label, started_at, status, config_json
                 ) VALUES (?, ?, ?, ?, ?)
                 """,
-                (run_label, dataset_label, started_at, "running",
-                 json.dumps(config or {})),
+                (run_label, dataset_label, started_at, "running", json.dumps(config or {})),
             )
             return int(cur.lastrowid)
     except Exception as e:
@@ -1272,11 +1315,12 @@ def complete_calibration_run(
     auc: float,
     n_essays_scored: int,
     n_authors: int,
-    report: Dict,
+    report: dict,
 ) -> bool:
     """Mark a run completed and store the full report."""
-    from datetime import datetime, timezone
-    completed_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    from datetime import datetime
+
+    completed_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     try:
         with _get_conn() as conn:
             conn.execute(
@@ -1286,8 +1330,14 @@ def complete_calibration_run(
                     n_essays_scored=?, n_authors=?, report_json=?
                 WHERE id=?
                 """,
-                (completed_at, float(auc), int(n_essays_scored),
-                 int(n_authors), json.dumps(report), run_id),
+                (
+                    completed_at,
+                    float(auc),
+                    int(n_essays_scored),
+                    int(n_authors),
+                    json.dumps(report),
+                    run_id,
+                ),
             )
             return True
     except Exception as e:
@@ -1297,8 +1347,9 @@ def complete_calibration_run(
 
 def fail_calibration_run(run_id: int, error: str) -> bool:
     """Mark a run failed and capture the exception message."""
-    from datetime import datetime, timezone
-    completed_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    from datetime import datetime
+
+    completed_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     try:
         with _get_conn() as conn:
             conn.execute(
@@ -1316,14 +1367,14 @@ def fail_calibration_run(run_id: int, error: str) -> bool:
 
 
 def list_calibration_runs(
-    status: Optional[str] = None,
-    dataset_label: Optional[str] = None,
+    status: str | None = None,
+    dataset_label: str | None = None,
     limit: int = 50,
     offset: int = 0,
-) -> Dict:
+) -> dict:
     """List calibration runs (newest first), with optional filters."""
-    where_clauses: List[str] = []
-    params: List = []
+    where_clauses: list[str] = []
+    params: list = []
     if status is not None:
         where_clauses.append("status = ?")
         params.append(status)
@@ -1335,7 +1386,8 @@ def list_calibration_runs(
     try:
         with _get_conn() as conn:
             total = conn.execute(
-                f"SELECT COUNT(*) FROM calibration_runs{where}", params,
+                f"SELECT COUNT(*) FROM calibration_runs{where}",
+                params,
             ).fetchone()[0]
             rows = conn.execute(
                 f"""
@@ -1352,32 +1404,36 @@ def list_calibration_runs(
         log.warning("list_calibration_runs failed: %s", e)
         return {"total": 0, "limit": limit, "offset": offset, "items": []}
 
-    items: List[Dict] = []
+    items: list[dict] = []
     for r in rows:
-        items.append({
-            "id":               r[0],
-            "run_label":        r[1],
-            "dataset_label":    r[2],
-            "started_at":       r[3],
-            "completed_at":     r[4],
-            "status":           r[5],
-            "auc":              r[6],
-            "n_essays_scored":  r[7],
-            "n_authors":        r[8],
-            "error":            r[9],
-        })
+        items.append(
+            {
+                "id": r[0],
+                "run_label": r[1],
+                "dataset_label": r[2],
+                "started_at": r[3],
+                "completed_at": r[4],
+                "status": r[5],
+                "auc": r[6],
+                "n_essays_scored": r[7],
+                "n_authors": r[8],
+                "error": r[9],
+            }
+        )
     return {
-        "total":  int(total),
-        "limit":  limit,
+        "total": int(total),
+        "limit": limit,
         "offset": offset,
-        "items":  items,
+        "items": items,
     }
 
 
-def get_calibration_run(run_id: int, include_report: bool = True) -> Optional[Dict]:
+def get_calibration_run(run_id: int, include_report: bool = True) -> dict | None:
     """Fetch one run; ``include_report=False`` skips the heavy JSON column."""
-    cols = ("id, run_label, dataset_label, started_at, completed_at, status, "
-            "auc, n_essays_scored, n_authors, config_json, error")
+    cols = (
+        "id, run_label, dataset_label, started_at, completed_at, status, "
+        "auc, n_essays_scored, n_authors, config_json, error"
+    )
     if include_report:
         cols += ", report_json"
     try:
@@ -1391,17 +1447,17 @@ def get_calibration_run(run_id: int, include_report: bool = True) -> Optional[Di
     if not row:
         return None
     out = {
-        "id":               row[0],
-        "run_label":        row[1],
-        "dataset_label":    row[2],
-        "started_at":       row[3],
-        "completed_at":     row[4],
-        "status":           row[5],
-        "auc":              row[6],
-        "n_essays_scored":  row[7],
-        "n_authors":        row[8],
-        "config":           json.loads(row[9] or "{}"),
-        "error":            row[10],
+        "id": row[0],
+        "run_label": row[1],
+        "dataset_label": row[2],
+        "started_at": row[3],
+        "completed_at": row[4],
+        "status": row[5],
+        "auc": row[6],
+        "n_essays_scored": row[7],
+        "n_authors": row[8],
+        "config": json.loads(row[9] or "{}"),
+        "error": row[10],
     }
     if include_report:
         try:
@@ -1413,25 +1469,27 @@ def get_calibration_run(run_id: int, include_report: bool = True) -> Optional[Di
 
 # ── PR 8b: tuned thresholds (versioned) ──────────────────────────────────────
 
+
 def put_tuned_thresholds(
     *,
     no_action: float,
     monitor: float,
     escalate: float,
     source: str,
-    source_run_id: Optional[int] = None,
-    verdict_authentic_below: Optional[float] = None,
-    verdict_anomalous_at_or_above: Optional[float] = None,
-    notes: Optional[str] = None,
-    provenance: Optional[Dict] = None,
-) -> Optional[int]:
+    source_run_id: int | None = None,
+    verdict_authentic_below: float | None = None,
+    verdict_anomalous_at_or_above: float | None = None,
+    notes: str | None = None,
+    provenance: dict | None = None,
+) -> int | None:
     """
     Append a new active-thresholds row. The latest row (by ``created_at``)
     is the active set; older rows are preserved for audit. ``source`` is
     one of {"manual", "calibration_run", "correction_retrain"}.
     """
-    from datetime import datetime, timezone
-    created_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    from datetime import datetime
+
+    created_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     try:
         with _get_conn() as conn:
             cur = conn.execute(
@@ -1443,10 +1501,18 @@ def put_tuned_thresholds(
                     notes, provenance_json
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (created_at, source, source_run_id,
-                 float(no_action), float(monitor), float(escalate),
-                 verdict_authentic_below, verdict_anomalous_at_or_above,
-                 notes, json.dumps(provenance or {})),
+                (
+                    created_at,
+                    source,
+                    source_run_id,
+                    float(no_action),
+                    float(monitor),
+                    float(escalate),
+                    verdict_authentic_below,
+                    verdict_anomalous_at_or_above,
+                    notes,
+                    json.dumps(provenance or {}),
+                ),
             )
             return int(cur.lastrowid)
     except Exception as e:
@@ -1454,7 +1520,7 @@ def put_tuned_thresholds(
         return None
 
 
-def get_active_tuned_thresholds() -> Optional[Dict]:
+def get_active_tuned_thresholds() -> dict | None:
     """Most-recent row in ``tuned_thresholds_v2`` (the in-effect active set)."""
     try:
         with _get_conn() as conn:
@@ -1474,21 +1540,21 @@ def get_active_tuned_thresholds() -> Optional[Dict]:
     if not row:
         return None
     return {
-        "id":                            row[0],
-        "created_at":                    row[1],
-        "source":                        row[2],
-        "source_run_id":                 row[3],
-        "no_action":                     row[4],
-        "monitor":                       row[5],
-        "escalate":                      row[6],
-        "verdict_authentic_below":       row[7],
+        "id": row[0],
+        "created_at": row[1],
+        "source": row[2],
+        "source_run_id": row[3],
+        "no_action": row[4],
+        "monitor": row[5],
+        "escalate": row[6],
+        "verdict_authentic_below": row[7],
         "verdict_anomalous_at_or_above": row[8],
-        "notes":                         row[9],
-        "provenance":                    json.loads(row[10] or "{}"),
+        "notes": row[9],
+        "provenance": json.loads(row[10] or "{}"),
     }
 
 
-def list_tuned_thresholds(limit: int = 50, offset: int = 0) -> Dict:
+def list_tuned_thresholds(limit: int = 50, offset: int = 0) -> dict:
     """Audit list of historical threshold sets."""
     try:
         with _get_conn() as conn:
@@ -1510,21 +1576,21 @@ def list_tuned_thresholds(limit: int = 50, offset: int = 0) -> Dict:
     except Exception:
         return {"total": 0, "limit": limit, "offset": offset, "items": []}
     return {
-        "total":  int(total),
-        "limit":  limit,
+        "total": int(total),
+        "limit": limit,
         "offset": offset,
-        "items":  [
+        "items": [
             {
-                "id":                            r[0],
-                "created_at":                    r[1],
-                "source":                        r[2],
-                "source_run_id":                 r[3],
-                "no_action":                     r[4],
-                "monitor":                       r[5],
-                "escalate":                      r[6],
-                "verdict_authentic_below":       r[7],
+                "id": r[0],
+                "created_at": r[1],
+                "source": r[2],
+                "source_run_id": r[3],
+                "no_action": r[4],
+                "monitor": r[5],
+                "escalate": r[6],
+                "verdict_authentic_below": r[7],
                 "verdict_anomalous_at_or_above": r[8],
-                "notes":                         r[9],
+                "notes": r[9],
             }
             for r in rows
         ],
@@ -1537,11 +1603,12 @@ def list_tuned_thresholds(limit: int = 50, offset: int = 0) -> Dict:
 # meta_json carries arbitrary key/value pairs (contact email, Canvas URL, etc.)
 # without schema migrations as needs evolve.
 
+
 def put_tenant(
     tenant_id: str,
     name: str,
     environment: str = "demo",
-    meta: Optional[Dict] = None,
+    meta: dict | None = None,
 ) -> None:
     """
     Upsert a tenant record.
@@ -1552,7 +1619,7 @@ def put_tenant(
         environment: One of 'demo', 'pilot', 'production'. Defaults to 'demo'.
         meta:        Optional dict of arbitrary metadata (contact, LMS URL, etc.).
     """
-    created_at = datetime.now(timezone.utc).isoformat()
+    created_at = datetime.now(UTC).isoformat()
     meta_json = json.dumps(meta or {})
     try:
         with _get_conn() as conn:
@@ -1570,7 +1637,7 @@ def put_tenant(
         log.exception("put_tenant failed for %s", tenant_id)
 
 
-def get_tenant(tenant_id: str) -> Optional[Dict]:
+def get_tenant(tenant_id: str) -> dict | None:
     """Return tenant dict or None if not found."""
     try:
         with _get_conn() as conn:
@@ -1582,11 +1649,11 @@ def get_tenant(tenant_id: str) -> Optional[Dict]:
         if not row:
             return None
         return {
-            "tenant_id":   row[0],
-            "name":        row[1],
+            "tenant_id": row[0],
+            "name": row[1],
             "environment": row[2],
-            "created_at":  row[3],
-            "meta":        json.loads(row[4] or "{}"),
+            "created_at": row[3],
+            "meta": json.loads(row[4] or "{}"),
         }
     except Exception:
         log.exception("get_tenant failed for %s", tenant_id)
@@ -1602,11 +1669,12 @@ def put_user(
     name: str = "",
 ) -> None:
     """Upsert a staff user (professor / admin / operator). Email is unique."""
-    created_at = datetime.now(timezone.utc).isoformat()
+    created_at = datetime.now(UTC).isoformat()
     try:
         with _get_conn() as conn:
             conn.execute(
-                """INSERT INTO users (user_id, email, password_hash, role, tenant_id, name, created_at)
+                """INSERT INTO users
+                   (user_id, email, password_hash, role, tenant_id, name, created_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(user_id) DO UPDATE SET
                      email         = excluded.email,
@@ -1621,7 +1689,7 @@ def put_user(
         log.exception("put_user failed for %s", email)
 
 
-def get_user_by_email(email: str) -> Optional[Dict]:
+def get_user_by_email(email: str) -> dict | None:
     """Return the user dict (including password_hash) or None."""
     try:
         with _get_conn() as conn:
@@ -1633,27 +1701,40 @@ def get_user_by_email(email: str) -> Optional[Dict]:
         if not row:
             return None
         return {
-            "user_id": row[0], "email": row[1], "password_hash": row[2],
-            "role": row[3], "tenant_id": row[4], "name": row[5], "created_at": row[6],
+            "user_id": row[0],
+            "email": row[1],
+            "password_hash": row[2],
+            "role": row[3],
+            "tenant_id": row[4],
+            "name": row[5],
+            "created_at": row[6],
         }
     except Exception:
         log.exception("get_user_by_email failed for %s", email)
         return None
 
 
-def _bluebook_exam_to_dict(row) -> Dict:
+def _bluebook_exam_to_dict(row) -> dict:
     return {
-        "id": row[0], "tenant_id": row[1], "title": row[2], "course": row[3],
-        "duration": row[4], "minWords": row[5], "maxWords": row[6], "prompt": row[7],
-        "conditions": json.loads(row[8] or "{}"), "status": row[9],
-        "submissions": 0, "created_at": row[10],
+        "id": row[0],
+        "tenant_id": row[1],
+        "title": row[2],
+        "course": row[3],
+        "duration": row[4],
+        "minWords": row[5],
+        "maxWords": row[6],
+        "prompt": row[7],
+        "conditions": json.loads(row[8] or "{}"),
+        "status": row[9],
+        "submissions": 0,
+        "created_at": row[10],
     }
 
 
-def put_bluebook_exam(rec: Dict) -> None:
+def put_bluebook_exam(rec: dict) -> None:
     """Upsert a Bluebook exam. `rec` carries id, tenant_id, title, course,
     duration, minWords, maxWords, prompt, conditions (dict), status."""
-    created_at = datetime.now(timezone.utc).isoformat()
+    created_at = datetime.now(UTC).isoformat()
     try:
         with _get_conn() as conn:
             conn.execute(
@@ -1666,17 +1747,27 @@ def put_bluebook_exam(rec: Dict) -> None:
                      duration=excluded.duration, min_words=excluded.min_words,
                      max_words=excluded.max_words, prompt=excluded.prompt,
                      conditions_json=excluded.conditions_json, status=excluded.status""",
-                (rec["id"], rec["tenant_id"], rec["title"], rec.get("course", ""),
-                 rec.get("duration"), rec.get("minWords"), rec.get("maxWords"),
-                 rec.get("prompt", ""), json.dumps(rec.get("conditions") or {}),
-                 rec.get("status", "DRAFT"), created_at),
+                (
+                    rec["id"],
+                    rec["tenant_id"],
+                    rec["title"],
+                    rec.get("course", ""),
+                    rec.get("duration"),
+                    rec.get("minWords"),
+                    rec.get("maxWords"),
+                    rec.get("prompt", ""),
+                    json.dumps(rec.get("conditions") or {}),
+                    rec.get("status", "DRAFT"),
+                    created_at,
+                ),
             )
             conn.commit()
-    except Exception:
-        log.exception("put_bluebook_exam failed for %s", rec.get("id"))
+    except sqlite3.Error as e:
+        log.error("put_bluebook_exam failed for %s: %s", rec.get("id"), e)
+        raise
 
 
-def get_bluebook_exam(exam_id: str) -> Optional[Dict]:
+def get_bluebook_exam(exam_id: str) -> dict | None:
     try:
         with _get_conn() as conn:
             row = conn.execute(
@@ -1691,7 +1782,7 @@ def get_bluebook_exam(exam_id: str) -> Optional[Dict]:
         return None
 
 
-def list_bluebook_exams(tenant_id: Optional[str]) -> List[Dict]:
+def list_bluebook_exams(tenant_id: str | None) -> list[dict]:
     """List exams for a tenant, or all when tenant_id is None (operator view)."""
     try:
         with _get_conn() as conn:
@@ -1714,21 +1805,29 @@ def list_bluebook_exams(tenant_id: Optional[str]) -> List[Dict]:
         return []
 
 
-def _bluebook_sub_to_dict(row) -> Dict:
+def _bluebook_sub_to_dict(row) -> dict:
     sid = row[3] or ""
     return {
-        "id": row[0], "exam_id": row[1], "tenant_id": row[2], "student_id": sid,
+        "id": row[0],
+        "exam_id": row[1],
+        "tenant_id": row[2],
+        "student_id": sid,
         "student": row[4] or "Candidate",
         "candidateId": (sid.split(":")[-1][:6] if ":" in sid else (sid[:6] or "—")),
-        "candidate": row[4], "exam": row[5] or "", "course": row[6] or "",
-        "words": row[7] or 0, "timeMin": row[8] or 0,
-        "stylometric": row[9], "aiScore": row[10],
-        "status": row[11], "created_at": row[12],
+        "candidate": row[4],
+        "exam": row[5] or "",
+        "course": row[6] or "",
+        "words": row[7] or 0,
+        "timeMin": row[8] or 0,
+        "stylometric": row[9],
+        "aiScore": row[10],
+        "status": row[11],
+        "created_at": row[12],
     }
 
 
-def put_bluebook_submission(rec: Dict) -> None:
-    created_at = datetime.now(timezone.utc).isoformat()
+def put_bluebook_submission(rec: dict) -> None:
+    created_at = datetime.now(UTC).isoformat()
     try:
         with _get_conn() as conn:
             conn.execute(
@@ -1737,19 +1836,33 @@ def put_bluebook_submission(rec: Dict) -> None:
                       exam_title, course, word_count, time_min, stylometric,
                       ai_score, status, created_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (rec["id"], rec.get("exam_id"), rec["tenant_id"], rec.get("student_id"),
-                 rec.get("candidate"), rec.get("exam_title"), rec.get("course"),
-                 rec.get("word_count"), rec.get("time_min"), rec.get("stylometric"),
-                 rec.get("ai_score"), rec.get("status", "SUBMITTED"), created_at),
+                (
+                    rec["id"],
+                    rec.get("exam_id"),
+                    rec["tenant_id"],
+                    rec.get("student_id"),
+                    rec.get("candidate"),
+                    rec.get("exam_title"),
+                    rec.get("course"),
+                    rec.get("word_count"),
+                    rec.get("time_min"),
+                    rec.get("stylometric"),
+                    rec.get("ai_score"),
+                    rec.get("status", "SUBMITTED"),
+                    created_at,
+                ),
             )
             conn.commit()
-    except Exception:
-        log.exception("put_bluebook_submission failed for %s", rec.get("id"))
+    except sqlite3.Error as e:
+        log.error("put_bluebook_submission failed for %s: %s", rec.get("id"), e)
+        raise
 
 
-def list_bluebook_submissions(tenant_id: Optional[str]) -> List[Dict]:
-    cols = ("submission_id, exam_id, tenant_id, student_id, candidate, exam_title, "
-            "course, word_count, time_min, stylometric, ai_score, status, created_at")
+def list_bluebook_submissions(tenant_id: str | None) -> list[dict]:
+    cols = (
+        "submission_id, exam_id, tenant_id, student_id, candidate, exam_title, "
+        "course, word_count, time_min, stylometric, ai_score, status, created_at"
+    )
     try:
         with _get_conn() as conn:
             if tenant_id is None:
@@ -1759,7 +1872,8 @@ def list_bluebook_submissions(tenant_id: Optional[str]) -> List[Dict]:
             else:
                 rows = conn.execute(
                     f"SELECT {cols} FROM bluebook_submissions WHERE tenant_id = ? "
-                    "ORDER BY created_at DESC", (tenant_id,),
+                    "ORDER BY created_at DESC",
+                    (tenant_id,),
                 ).fetchall()
         return [_bluebook_sub_to_dict(r) for r in rows]
     except Exception:
@@ -1767,16 +1881,23 @@ def list_bluebook_submissions(tenant_id: Optional[str]) -> List[Dict]:
         return []
 
 
-def _bluebook_course_to_dict(row) -> Dict:
+def _bluebook_course_to_dict(row) -> dict:
     return {
-        "id": row[0], "tenant_id": row[1], "code": row[2], "name": row[3],
-        "term": row[4], "status": row[5], "active": (row[5] or "").upper() == "ACTIVE",
-        "students": 0, "exams": 0, "created_at": row[6],
+        "id": row[0],
+        "tenant_id": row[1],
+        "code": row[2],
+        "name": row[3],
+        "term": row[4],
+        "status": row[5],
+        "active": (row[5] or "").upper() == "ACTIVE",
+        "students": 0,
+        "exams": 0,
+        "created_at": row[6],
     }
 
 
-def put_bluebook_course(rec: Dict) -> None:
-    created_at = datetime.now(timezone.utc).isoformat()
+def put_bluebook_course(rec: dict) -> None:
+    created_at = datetime.now(UTC).isoformat()
     try:
         with _get_conn() as conn:
             conn.execute(
@@ -1786,15 +1907,23 @@ def put_bluebook_course(rec: Dict) -> None:
                    ON CONFLICT(course_id) DO UPDATE SET
                      code=excluded.code, name=excluded.name,
                      term=excluded.term, status=excluded.status""",
-                (rec["id"], rec["tenant_id"], rec.get("code", ""), rec["name"],
-                 rec.get("term", ""), rec.get("status", "ACTIVE"), created_at),
+                (
+                    rec["id"],
+                    rec["tenant_id"],
+                    rec.get("code", ""),
+                    rec["name"],
+                    rec.get("term", ""),
+                    rec.get("status", "ACTIVE"),
+                    created_at,
+                ),
             )
             conn.commit()
-    except Exception:
-        log.exception("put_bluebook_course failed for %s", rec.get("id"))
+    except sqlite3.Error as e:
+        log.error("put_bluebook_course failed for %s: %s", rec.get("id"), e)
+        raise
 
 
-def list_bluebook_courses(tenant_id: Optional[str]) -> List[Dict]:
+def list_bluebook_courses(tenant_id: str | None) -> list[dict]:
     cols = "course_id, tenant_id, code, name, term, status, created_at"
     try:
         with _get_conn() as conn:
@@ -1805,7 +1934,8 @@ def list_bluebook_courses(tenant_id: Optional[str]) -> List[Dict]:
             else:
                 rows = conn.execute(
                     f"SELECT {cols} FROM bluebook_courses WHERE tenant_id = ? "
-                    "ORDER BY created_at DESC", (tenant_id,),
+                    "ORDER BY created_at DESC",
+                    (tenant_id,),
                 ).fetchall()
         return [_bluebook_course_to_dict(r) for r in rows]
     except Exception:
@@ -1813,7 +1943,7 @@ def list_bluebook_courses(tenant_id: Optional[str]) -> List[Dict]:
         return []
 
 
-def list_tenants(environment: Optional[str] = None) -> List[Dict]:
+def list_tenants(environment: str | None = None) -> list[dict]:
     """
     List all tenants, optionally filtered by environment.
 
@@ -1836,11 +1966,11 @@ def list_tenants(environment: Optional[str] = None) -> List[Dict]:
                 ).fetchall()
         return [
             {
-                "tenant_id":   r[0],
-                "name":        r[1],
+                "tenant_id": r[0],
+                "name": r[1],
                 "environment": r[2],
-                "created_at":  r[3],
-                "meta":        json.loads(r[4] or "{}"),
+                "created_at": r[3],
+                "meta": json.loads(r[4] or "{}"),
             }
             for r in rows
         ]
@@ -1853,13 +1983,14 @@ def list_tenants(environment: Optional[str] = None) -> List[Dict]:
 # Best-effort append-only log of significant system actions. Never raises —
 # audit failure must not break the hot path (scoring, baseline ingest, etc.).
 
+
 def log_audit(
     action: str,
-    student_id: Optional[str] = None,
-    tenant_id: Optional[str] = None,
-    actor: Optional[str] = None,
+    student_id: str | None = None,
+    tenant_id: str | None = None,
+    actor: str | None = None,
     result: str = "ok",
-    details: Optional[Dict] = None,
+    details: dict | None = None,
 ) -> None:
     """
     Append one row to the audit log.
@@ -1888,7 +2019,7 @@ def log_audit(
                    (created_at, action, student_id, tenant_id, actor, result, details_json)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (
-                    datetime.now(timezone.utc).isoformat(),
+                    datetime.now(UTC).isoformat(),
                     action,
                     student_id,
                     tenant_id,
@@ -1903,11 +2034,11 @@ def log_audit(
 
 
 def list_audit(
-    student_id: Optional[str] = None,
-    action: Optional[str] = None,
+    student_id: str | None = None,
+    action: str | None = None,
     limit: int = 100,
     offset: int = 0,
-) -> Dict:
+) -> dict:
     """
     Query audit log entries. All filters are optional AND-combined.
 
@@ -1928,28 +2059,26 @@ def list_audit(
                 clauses.append("action = ?")
                 params.append(action)
             where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
-            total = conn.execute(
-                f"SELECT COUNT(*) FROM audit_log {where}", params
-            ).fetchone()[0]
+            total = conn.execute(f"SELECT COUNT(*) FROM audit_log {where}", params).fetchone()[0]
             rows = conn.execute(
-                f"SELECT id, created_at, action, student_id, tenant_id, actor, result, details_json "
-                f"FROM audit_log {where} ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                f"SELECT id, created_at, action, student_id, tenant_id, actor, result, "
+                f"details_json FROM audit_log {where} ORDER BY created_at DESC LIMIT ? OFFSET ?",
                 params + [limit, offset],
             ).fetchall()
         return {
-            "total":  int(total),
-            "limit":  limit,
+            "total": int(total),
+            "limit": limit,
             "offset": offset,
-            "items":  [
+            "items": [
                 {
-                    "id":         r[0],
+                    "id": r[0],
                     "created_at": r[1],
-                    "action":     r[2],
+                    "action": r[2],
                     "student_id": r[3],
-                    "tenant_id":  r[4],
-                    "actor":      r[5],
-                    "result":     r[6],
-                    "details":    json.loads(r[7] or "{}"),
+                    "tenant_id": r[4],
+                    "actor": r[5],
+                    "result": r[6],
+                    "details": json.loads(r[7] or "{}"),
                 }
                 for r in rows
             ],
@@ -1965,7 +2094,8 @@ def list_audit(
 # These helpers filter the existing flat store by prefix, enabling
 # per-institution dashboards and bulk operations without a schema change.
 
-def list_ids_for_tenant(tenant_id: str) -> List[str]:
+
+def list_ids_for_tenant(tenant_id: str) -> list[str]:
     """
     Return all student IDs that belong to a given tenant (prefix match).
 
@@ -1979,6 +2109,7 @@ def list_ids_for_tenant(tenant_id: str) -> List[str]:
 
 # ── Student display names + roster ────────────────────────────────────────────
 
+
 def set_display_name(student_id: str, name: str) -> None:
     """Record a human-readable display name for a student (best-effort, upsert).
 
@@ -1988,7 +2119,7 @@ def set_display_name(student_id: str, name: str) -> None:
     name = (name or "").strip()
     if not name:
         return
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     try:
         with _get_conn() as conn:
             conn.execute(
@@ -2017,7 +2148,7 @@ def get_display_name(student_id: str) -> str:
         return ""
 
 
-def _display_names_for(student_ids: List[str]) -> Dict[str, str]:
+def _display_names_for(student_ids: list[str]) -> dict[str, str]:
     """Bulk-fetch display names for a set of student ids."""
     if not student_ids:
         return {}
@@ -2034,7 +2165,7 @@ def _display_names_for(student_ids: List[str]) -> Dict[str, str]:
         return {}
 
 
-def _latest_actions_for(student_ids: List[str]) -> Dict[str, str]:
+def _latest_actions_for(student_ids: list[str]) -> dict[str, str]:
     """Most-recent scoring action per student (for roster status)."""
     if not student_ids:
         return {}
@@ -2048,7 +2179,7 @@ def _latest_actions_for(student_ids: List[str]) -> Dict[str, str]:
                 student_ids,
             ).fetchall()
         # ASC so the last write per student wins → most recent action.
-        latest: Dict[str, str] = {}
+        latest: dict[str, str] = {}
         for sid, action in rows:
             if action:
                 latest[sid] = action
@@ -2057,7 +2188,7 @@ def _latest_actions_for(student_ids: List[str]) -> Dict[str, str]:
         return {}
 
 
-def _status_for(sample_count: int, action: Optional[str]) -> str:
+def _status_for(sample_count: int, action: str | None) -> str:
     """Roster status label from baseline count + latest action."""
     if sample_count <= 0:
         return "no_baseline"
@@ -2068,7 +2199,7 @@ def _status_for(sample_count: int, action: Optional[str]) -> str:
     return "clear"
 
 
-def roster_for_tenant(tenant_id: str) -> List[Dict]:
+def roster_for_tenant(tenant_id: str) -> list[dict]:
     """A display-ready roster for one tenant: name, baseline counts, status.
 
     This is what the professor/admin dashboards render — real names instead of
@@ -2078,24 +2209,26 @@ def roster_for_tenant(tenant_id: str) -> List[Dict]:
     ids = list_ids_for_tenant(tenant_id)
     names = _display_names_for(ids)
     actions = _latest_actions_for(ids)
-    roster: List[Dict] = []
+    roster: list[dict] = []
     for sid in sorted(ids):
         state = _STORE.get(sid)
         sample_count = state.sample_count if state else 0
         authenticated_count = state.authenticated_count if state else 0
         local = sid.split(":", 1)[1] if ":" in sid else sid
-        roster.append({
-            "id": sid,
-            "name": names.get(sid) or f"Student {local[:6]}",
-            "has_name": bool(names.get(sid)),
-            "sample_count": sample_count,
-            "authenticated_count": authenticated_count,
-            "status": _status_for(sample_count, actions.get(sid)),
-        })
+        roster.append(
+            {
+                "id": sid,
+                "name": names.get(sid) or f"Student {local[:6]}",
+                "has_name": bool(names.get(sid)),
+                "sample_count": sample_count,
+                "authenticated_count": authenticated_count,
+                "status": _status_for(sample_count, actions.get(sid)),
+            }
+        )
     return roster
 
 
-def tenant_stats(tenant_id: str) -> Dict:
+def tenant_stats(tenant_id: str) -> dict:
     """
     Aggregate statistics for a single tenant from the live store + SQLite.
 
@@ -2108,9 +2241,7 @@ def tenant_stats(tenant_id: str) -> Dict:
     """
     student_ids = list_ids_for_tenant(tenant_id)
     student_count = len(student_ids)
-    sample_count = sum(
-        _STORE[sid].sample_count for sid in student_ids if sid in _STORE
-    )
+    sample_count = sum(_STORE[sid].sample_count for sid in student_ids if sid in _STORE)
 
     # Escape SQL LIKE wildcards so a tenant_id containing '_' or '%' cannot
     # accidentally match other tenants' rows (e.g. 'sem_a' must not match
@@ -2140,16 +2271,16 @@ def tenant_stats(tenant_id: str) -> Dict:
         submission_count, last_active_at, action_counts = 0, None, {}
 
     return {
-        "tenant_id":        tenant_id,
-        "student_count":    student_count,
-        "sample_count":     sample_count,
+        "tenant_id": tenant_id,
+        "student_count": student_count,
+        "sample_count": sample_count,
         "submission_count": submission_count,
-        "last_active_at":   last_active_at,
-        "action_counts":    action_counts,
+        "last_active_at": last_active_at,
+        "action_counts": action_counts,
     }
 
 
-def delete_tenant_students(tenant_id: str) -> Dict:
+def delete_tenant_students(tenant_id: str) -> dict:
     """
     FERPA-safe bulk deletion of all students belonging to a tenant.
 
@@ -2179,7 +2310,8 @@ def delete_tenant_students(tenant_id: str) -> Dict:
 
 # ── Phase 3: FERPA data inventory ─────────────────────────────────────────────
 
-def student_data_inventory(student_id: str) -> Optional[Dict]:
+
+def student_data_inventory(student_id: str) -> dict | None:
     """
     Return a structured inventory of all data held for a student.
 
@@ -2231,23 +2363,21 @@ def student_data_inventory(student_id: str) -> Optional[Dict]:
         ai_likelihood_count = 0
         name_row = None
 
-    manifests_by_action: Dict = {}
+    manifests_by_action: dict = {}
     if manifest_rows:
         for r in manifest_rows:
             count, earliest, latest, action = r[0], r[1], r[2], r[3] or "unknown"
-            manifests_by_action[action] = {
-                "count": count, "earliest": earliest, "latest": latest
-            }
+            manifests_by_action[action] = {"count": count, "earliest": earliest, "latest": latest}
 
     samples = state.samples
     return {
-        "student_id":  student_id,
+        "student_id": student_id,
         "data_categories": {
             "baseline_samples": {
-                "count":    len(samples),
+                "count": len(samples),
                 "provenances": list({s.provenance for s in samples}),
                 "earliest": min((s.submitted_at for s in samples if s.submitted_at), default=None),
-                "latest":   max((s.submitted_at for s in samples if s.submitted_at), default=None),
+                "latest": max((s.submitted_at for s in samples if s.submitted_at), default=None),
             },
             "fidelity_scores": {
                 "count": int(fidelity_count),
@@ -2270,7 +2400,7 @@ def student_data_inventory(student_id: str) -> Optional[Dict]:
             },
         },
         "effective_sample_weight": state.effective_sample_count,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -2282,21 +2412,21 @@ def student_data_inventory(student_id: str) -> Optional[Dict]:
 FORMATION_STEPS = 3
 
 
-def _formation_row_to_dict(row) -> Dict:
+def _formation_row_to_dict(row) -> dict:
     return {
-        "id":            row[0],
-        "student_id":    row[1],
+        "id": row[0],
+        "student_id": row[1],
         "submission_id": row[2],
-        "status":        row[3],
-        "current_step":  row[4],
-        "reason":        row[5],
-        "created_at":    row[6],
-        "updated_at":    row[7],
-        "total_steps":   FORMATION_STEPS,
+        "status": row[3],
+        "current_step": row[4],
+        "reason": row[5],
+        "created_at": row[6],
+        "updated_at": row[7],
+        "total_steps": FORMATION_STEPS,
     }
 
 
-def get_formation_pathway(student_id: str) -> Optional[Dict]:
+def get_formation_pathway(student_id: str) -> dict | None:
     """Return the student's open pathway, or the most recent if none open."""
     try:
         with _get_conn() as conn:
@@ -2317,9 +2447,9 @@ def get_formation_pathway(student_id: str) -> Optional[Dict]:
 
 def open_formation_pathway(
     student_id: str,
-    submission_id: Optional[str] = None,
-    reason: Optional[str] = None,
-) -> Optional[Dict]:
+    submission_id: str | None = None,
+    reason: str | None = None,
+) -> dict | None:
     """
     Open a formation pathway for a student. Idempotent: if an open pathway
     already exists, it is returned unchanged (a student has at most one).
@@ -2327,7 +2457,7 @@ def open_formation_pathway(
     existing = get_formation_pathway(student_id)
     if existing and existing["status"] == "open":
         return existing
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     try:
         with _get_conn() as conn:
             cur = conn.execute(
@@ -2341,12 +2471,15 @@ def open_formation_pathway(
     except Exception:
         log.exception("open_formation_pathway failed for %s", student_id)
         return None
-    log_audit(action="formation_open", student_id=student_id,
-              details={"submission_id": submission_id, "pathway_id": new_id})
+    log_audit(
+        action="formation_open",
+        student_id=student_id,
+        details={"submission_id": submission_id, "pathway_id": new_id},
+    )
     return get_formation_pathway(student_id)
 
 
-def advance_formation_pathway(student_id: str) -> Optional[Dict]:
+def advance_formation_pathway(student_id: str) -> dict | None:
     """
     Advance the student's open pathway by one session. On reaching the final
     step the pathway is marked 'completed' and the triggering submission's
@@ -2358,7 +2491,7 @@ def advance_formation_pathway(student_id: str) -> Optional[Dict]:
         return None
     new_step = min(p["current_step"] + 1, FORMATION_STEPS)
     completed = new_step >= FORMATION_STEPS
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     try:
         with _get_conn() as conn:
             conn.execute(
@@ -2387,8 +2520,7 @@ def advance_formation_pathway(student_id: str) -> Optional[Dict]:
     log_audit(
         action="formation_complete" if completed else "formation_advance",
         student_id=student_id,
-        details={"pathway_id": p["id"], "step": new_step,
-                 "submission_id": p["submission_id"]},
+        details={"pathway_id": p["id"], "step": new_step, "submission_id": p["submission_id"]},
     )
     return get_formation_pathway(student_id)
 
@@ -2396,6 +2528,7 @@ def advance_formation_pathway(student_id: str) -> Optional[Dict]:
 # ── Proctored baseline requests (durable persistence) ─────────────────────────
 # Write-through storage for the baseline_requests registry, so pending
 # proctored requests survive a process restart.
+
 
 def put_baseline_request(
     external_request_id: str,
@@ -2423,14 +2556,14 @@ def put_baseline_request(
         log.exception("put_baseline_request failed for %s", external_request_id)
 
 
-def load_baseline_requests() -> List[Dict]:
+def load_baseline_requests() -> list[dict]:
     """Return every persisted baseline request as a raw dict (data_json parsed)."""
     try:
         with _get_conn() as conn:
             rows = conn.execute(
                 "SELECT data_json FROM baseline_requests ORDER BY requested_at"
             ).fetchall()
-        out: List[Dict] = []
+        out: list[dict] = []
         for r in rows:
             try:
                 out.append(json.loads(r[0]))

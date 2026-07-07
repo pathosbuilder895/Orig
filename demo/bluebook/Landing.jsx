@@ -1,10 +1,13 @@
+import React from 'react';
+import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, Logotype, MetaLabel, Ornament, Seal, fontBody, fontDisplay, fontMono } from './components.jsx';
+
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Landing & Login Screens
 // ════════════════════════════════════════════════════════════════
 const { useState: useLState } = React;
 
 // ─── Landing Screen ──────────────────────────────────────────────────────────
-function LandingScreen({ onNavigate }) {
+export function LandingScreen({ onNavigate }) {
   return (
     <div className="bb-screen" style={{
       minHeight: '100vh', background: BB.oxford,
@@ -155,7 +158,7 @@ function LandingScreen({ onNavigate }) {
 }
 
 // ─── Login Screen ─────────────────────────────────────────────────────────────
-function LoginScreen({ onNavigate }) {
+export function LoginScreen({ onNavigate }) {
   const [email,   setEmail]   = useLState('');
   const [pass,    setPass]    = useLState('');
   const [loading, setLoading] = useLState(false);
@@ -213,10 +216,11 @@ function LoginScreen({ onNavigate }) {
         <div style={{ border: '1px solid rgba(201,169,97,0.28)', padding: '32px 36px' }}>
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: 22 }}>
-              <MetaLabel style={{ display: 'block', marginBottom: 8 }}>
+              <MetaLabel htmlFor="bbLoginEmail" style={{ display: 'block', marginBottom: 8 }}>
                 Electronic Address
               </MetaLabel>
               <input
+                id="bbLoginEmail"
                 type="email" value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="you@institution.edu"
@@ -225,10 +229,11 @@ function LoginScreen({ onNavigate }) {
               />
             </div>
             <div style={{ marginBottom: 30 }}>
-              <MetaLabel style={{ display: 'block', marginBottom: 8 }}>
+              <MetaLabel htmlFor="bbLoginPass" style={{ display: 'block', marginBottom: 8 }}>
                 Passphrase
               </MetaLabel>
               <input
+                id="bbLoginPass"
                 type="password" value={pass}
                 onChange={e => setPass(e.target.value)}
                 placeholder="••••••••••"
@@ -236,7 +241,7 @@ function LoginScreen({ onNavigate }) {
               />
             </div>
             {error && (
-              <p style={{
+              <p role="alert" style={{
                 fontFamily: fontBody, fontStyle: 'italic', fontSize: 14,
                 color: '#C47A6B', textAlign: 'center', letterSpacing: '0.02em',
                 margin: '0 0 14px',
@@ -262,7 +267,7 @@ function LoginScreen({ onNavigate }) {
           <div style={{ textAlign: 'center' }}>
             <button onClick={() => onNavigate('dashboard')} style={{
               fontFamily: fontMono, fontSize: 10, letterSpacing: '0.18em',
-              textTransform: 'uppercase', color: 'rgba(139,155,180,0.6)',
+              textTransform: 'uppercase', color: 'rgba(139,155,180,0.9)',
               background: 'none', border: 'none', cursor: 'pointer',
             }}>Explore the demo →</button>
           </div>
@@ -271,11 +276,9 @@ function LoginScreen({ onNavigate }) {
         <p style={{
           textAlign: 'center', marginTop: 20,
           fontFamily: fontMono, fontSize: 10, letterSpacing: '0.18em',
-          color: 'rgba(139,155,180,0.45)', textTransform: 'uppercase',
+          color: 'rgba(139,155,180,0.9)', textTransform: 'uppercase',
         }}>Secure · Encrypted · Monitored</p>
       </div>
     </div>
   );
 }
-
-Object.assign(window, { LandingScreen, LoginScreen });

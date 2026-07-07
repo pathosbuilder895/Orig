@@ -6,7 +6,7 @@ Represents a course within an institution.
 
 from __future__ import annotations
 
-from sqlalchemy import Boolean, ForeignKey, String, Index
+from sqlalchemy import Boolean, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from original.db.base import Base, UUIDMixin, TimestampMixin

@@ -72,13 +72,14 @@ def _mk_state(student_id: str, n_samples: int, seed: int) -> StudentState:
 
 # ── Unit: pool construction ───────────────────────────────────────────────────
 
+
 def test_pool_excludes_claimed_student_and_other_tenants():
     states = [
         _mk_state("acme:target", 3, seed=1),
         _mk_state("acme:peer1", 2, seed=2),
         _mk_state("acme:peer2", 2, seed=3),
         _mk_state("acme:peer3", 2, seed=4),
-        _mk_state("rival:outsider", 5, seed=5),   # other tenant — never pooled
+        _mk_state("rival:outsider", 5, seed=5),  # other tenant — never pooled
     ]
     stats = build_impostor_stats("acme:target", states)
     assert stats is not None
@@ -123,11 +124,12 @@ def test_unverified_samples_never_pooled():
         _mk_state("acme:peer3", 2, seed=4),
     ]
     for s in states[1].samples:
-        s.auth_weight = 0.0   # unverified — excluded, dropping peer1 entirely
+        s.auth_weight = 0.0  # unverified — excluded, dropping peer1 entirely
     assert build_impostor_stats("acme:target", states) is None
 
 
 # ── API: flag-gated attach-only behaviour ─────────────────────────────────────
+
 
 @pytest.fixture(scope="module")
 def cohort():

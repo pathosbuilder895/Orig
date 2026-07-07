@@ -7,8 +7,7 @@ for different rate limit tiers.
 
 from __future__ import annotations
 
-from functools import wraps
-from typing import Callable, Optional
+from typing import Callable
 
 from fastapi import Request
 from slowapi import Limiter

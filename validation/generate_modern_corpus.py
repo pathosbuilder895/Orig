@@ -29,43 +29,44 @@ STUDENTS = {
         "name": "student_01",
         "tradition": "Reformed",
         "native_english": True,
-        "style": "analytical",   # short declarative sentences, heavy citation, Calvinist vocab
+        "style": "analytical",  # short declarative sentences, heavy citation, Calvinist vocab
     },
     "seminary_02": {
         "name": "student_02",
         "tradition": "Catholic",
         "native_english": True,
-        "style": "rhetorical",   # long complex sentences, Latin phrases, scholastic structure
+        "style": "rhetorical",  # long complex sentences, Latin phrases, scholastic structure
     },
     "seminary_03": {
         "name": "student_03",
         "tradition": "Wesleyan",
         "native_english": False,
-        "style": "pastoral",     # personal anecdotes, questions to reader, simpler syntax
+        "style": "pastoral",  # personal anecdotes, questions to reader, simpler syntax
     },
     "seminary_04": {
         "name": "student_04",
         "tradition": "Lutheran",
         "native_english": True,
-        "style": "systematic",   # numbered sub-points, passive voice, academic hedging
+        "style": "systematic",  # numbered sub-points, passive voice, academic hedging
     },
     "seminary_05": {
         "name": "student_05",
         "tradition": "Baptist",
         "native_english": False,
-        "style": "narrative",    # story-driven, present tense, direct address, shorter paragraphs
+        "style": "narrative",  # story-driven, present tense, direct address, shorter paragraphs
     },
 }
 
 TOPICS = [
     ("justification", "The doctrine of justification by faith alone"),
-    ("grace",         "The nature of divine grace and human freedom"),
-    ("ecclesiology",  "The nature and mission of the Church"),
-    ("prayer",        "The theology and practice of Christian prayer"),
-    ("sin",           "The doctrine of original sin and its consequences"),
+    ("grace", "The nature of divine grace and human freedom"),
+    ("ecclesiology", "The nature and mission of the Church"),
+    ("prayer", "The theology and practice of Christian prayer"),
+    ("sin", "The doctrine of original sin and its consequences"),
 ]
 
 # ── Essay text templates by style ─────────────────────────────────────────────
+
 
 def essay_reformed_justification(variation: int) -> str:
     intros = [
@@ -141,6 +142,7 @@ For ministry, the doctrine of original sin is not a stick with which to beat the
 
 # Catholic / Rhetorical style essays
 
+
 def essay_catholic_justification(variation: int) -> str:
     intros = [
         "The Council of Trent's decree on justification, promulgated in 1547, represents the most comprehensive Catholic treatment of this doctrine in history.",
@@ -207,6 +209,7 @@ The Church's penitential practice reflects this anthropology. The sacrament of p
 
 
 # Wesleyan / Pastoral style essays
+
 
 def essay_wesleyan_justification(variation: int) -> str:
     intros = [
@@ -277,6 +280,7 @@ Working with people in crisis—addiction, broken relationships, patterns of beh
 
 # Lutheran / Systematic style essays
 
+
 def essay_lutheran_justification(variation: int) -> str:
     intros = [
         "It is generally recognized in systematic theology that the doctrine of justification constitutes what Luther termed the articulus stantis et cadentis ecclesiae.",
@@ -343,6 +347,7 @@ The Lutheran tradition has engaged with the question of inherited guilt with som
 
 
 # Baptist / Narrative style essays
+
 
 def essay_baptist_justification(variation: int) -> str:
     intros = [
@@ -412,8 +417,11 @@ Sin, in the Baptist account, is not primarily about rule-breaking. It is about t
 # AI-generated essays (uniform, balanced, hedged style)
 
 AI_ESSAYS = [
-    ("ai_001.txt", "justification", "The Doctrine of Justification in Christian Theology",
-     """The doctrine of justification occupies a central place in Christian systematic theology, particularly within the Protestant tradition. At its core, justification addresses the question of how a sinful human being can stand righteous before a holy God. The Reformation debates of the sixteenth century brought this doctrine to the forefront of theological discourse, and it continues to generate significant scholarly discussion today.
+    (
+        "ai_001.txt",
+        "justification",
+        "The Doctrine of Justification in Christian Theology",
+        """The doctrine of justification occupies a central place in Christian systematic theology, particularly within the Protestant tradition. At its core, justification addresses the question of how a sinful human being can stand righteous before a holy God. The Reformation debates of the sixteenth century brought this doctrine to the forefront of theological discourse, and it continues to generate significant scholarly discussion today.
 
 Protestant theologians have generally understood justification in forensic terms. According to this view, God declares the sinner righteous on the basis of Christ's atoning work, with faith serving as the instrument through which the sinner receives this declaration. The imputation of Christ's righteousness to the believer is a key component of this account. It is important to note that this forensic declaration is understood to be distinct from, though inseparable from, the process of sanctification.
 
@@ -423,10 +431,13 @@ Ecumenical dialogue has produced some notable convergences between Protestant an
 
 The practical implications of the doctrine of justification for Christian preaching and pastoral care are significant. Understanding how a person is justified before God shapes the way ministers address questions of guilt, assurance, and the motivation for ethical behavior. A forensic account tends to emphasize the objective basis of assurance in Christ's accomplished work, while a more transformative account may place greater emphasis on the evidence of grace in the believer's life.
 
-Contemporary theological discussions have also engaged with questions raised by biblical scholars regarding the first-century Jewish context of Paul's letters. The New Perspective on Paul has proposed that Paul's concerns about justification were primarily sociological rather than individual, relating to the inclusion of Gentiles within the covenant community. Responses to this proposal have varied widely among New Testament scholars and systematic theologians."""),
-
-    ("ai_002.txt", "grace", "Understanding Divine Grace in Christian Theology",
-     """Divine grace is a foundational concept in Christian theology, referring to the unmerited favor and assistance that God extends to human beings. The doctrine of grace intersects with a wide range of theological topics including salvation, human freedom, predestination, and the nature of the divine-human relationship. Different theological traditions have developed distinctive accounts of grace that reflect their broader theological commitments.
+Contemporary theological discussions have also engaged with questions raised by biblical scholars regarding the first-century Jewish context of Paul's letters. The New Perspective on Paul has proposed that Paul's concerns about justification were primarily sociological rather than individual, relating to the inclusion of Gentiles within the covenant community. Responses to this proposal have varied widely among New Testament scholars and systematic theologians.""",
+    ),
+    (
+        "ai_002.txt",
+        "grace",
+        "Understanding Divine Grace in Christian Theology",
+        """Divine grace is a foundational concept in Christian theology, referring to the unmerited favor and assistance that God extends to human beings. The doctrine of grace intersects with a wide range of theological topics including salvation, human freedom, predestination, and the nature of the divine-human relationship. Different theological traditions have developed distinctive accounts of grace that reflect their broader theological commitments.
 
 The Augustinian tradition, which has profoundly influenced both Catholic and Protestant theology, emphasizes the priority and sovereignty of divine grace in salvation. Augustine developed his doctrine of grace in controversy with Pelagius, who argued that human beings possess the natural capacity to fulfill God's commands. Augustine responded that the fall had so damaged human nature that divine grace is necessary not merely for easier performance of God's will but for any genuine movement toward God at all.
 
@@ -436,10 +447,13 @@ Arminian theology, which emerged in the early seventeenth century as a response 
 
 The Catholic tradition has maintained a nuanced position on grace and freedom, permitting debate between Thomist and Molinist accounts while affirming both the necessity of grace and the reality of human freedom. The Thomist account emphasizes that divine causality operates on a different level than human causality, enabling both to be affirmed without competition. The Molinist account employs the concept of middle knowledge to explain how God achieves his purposes through the free choices of creatures.
 
-Contemporary theology has engaged with these questions through the lens of process theology, open theism, and various philosophical frameworks. These developments have raised new questions about the compatibility of divine sovereignty and human freedom, and about the nature of divine knowledge and action in relation to the created world."""),
-
-    ("ai_003.txt", "ecclesiology", "The Nature and Mission of the Church",
-     """Ecclesiology, the theological study of the church, addresses questions about the nature, structure, and mission of the Christian community. These questions have been central to theological debate throughout Christian history, and they continue to be significant in contemporary ecumenical dialogue and practical ministry.
+Contemporary theology has engaged with these questions through the lens of process theology, open theism, and various philosophical frameworks. These developments have raised new questions about the compatibility of divine sovereignty and human freedom, and about the nature of divine knowledge and action in relation to the created world.""",
+    ),
+    (
+        "ai_003.txt",
+        "ecclesiology",
+        "The Nature and Mission of the Church",
+        """Ecclesiology, the theological study of the church, addresses questions about the nature, structure, and mission of the Christian community. These questions have been central to theological debate throughout Christian history, and they continue to be significant in contemporary ecumenical dialogue and practical ministry.
 
 The New Testament presents a variety of images of the church that have informed theological reflection throughout Christian history. The church is described as the body of Christ, the people of God, the temple of the Holy Spirit, the bride of Christ, and the community of the new covenant, among other images. Each of these images captures a different dimension of the church's identity and calling. Systematic theologians have worked to integrate these diverse images into coherent accounts of ecclesial existence.
 
@@ -449,10 +463,13 @@ The relationship between the visible and invisible church has been a significant
 
 Questions of church governance and polity have also been theologically contested. Episcopal, presbyterian, and congregational forms of church governance each reflect different theological convictions about the nature of apostolic authority and the locus of decision-making within the church community. Ecumenical dialogue has sought to identify areas of convergence among these different polities while acknowledging remaining differences.
 
-The mission of the church encompasses both proclamation of the gospel and engagement with human needs in the world. Different theological traditions have understood the relationship between these dimensions of mission differently, with some emphasizing the priority of evangelism and others emphasizing holistic engagement with social and political realities."""),
-
-    ("ai_004.txt", "prayer", "The Theology and Practice of Christian Prayer",
-     """Christian prayer is a multifaceted practice that encompasses adoration, confession, thanksgiving, and supplication. Theological reflection on prayer addresses questions about its nature, its efficacy, its proper forms, and its relationship to the divine-human interaction. These questions have occupied Christian thinkers from the patristic period to the present day.
+The mission of the church encompasses both proclamation of the gospel and engagement with human needs in the world. Different theological traditions have understood the relationship between these dimensions of mission differently, with some emphasizing the priority of evangelism and others emphasizing holistic engagement with social and political realities.""",
+    ),
+    (
+        "ai_004.txt",
+        "prayer",
+        "The Theology and Practice of Christian Prayer",
+        """Christian prayer is a multifaceted practice that encompasses adoration, confession, thanksgiving, and supplication. Theological reflection on prayer addresses questions about its nature, its efficacy, its proper forms, and its relationship to the divine-human interaction. These questions have occupied Christian thinkers from the patristic period to the present day.
 
 The biblical witness to prayer is rich and varied. The Psalms provide the primary scriptural resource for understanding and practicing prayer within the Christian tradition, offering examples of praise, lament, confession, and intercession. The Lord's Prayer, as recorded in Matthew and Luke, provides the paradigmatic form of Christian prayer taught by Jesus himself. The New Testament epistles contain numerous references to prayer and provide theological reflection on its nature and purpose.
 
@@ -462,10 +479,13 @@ The distinction between liturgical and spontaneous prayer reflects different und
 
 Contemplative traditions within Christianity have developed sophisticated accounts of the stages of prayer life, from discursive meditation through various forms of affective and infused contemplation. Mystical theologians such as John of the Cross and Teresa of Avila have charted the movements of the soul toward union with God through prayer. These accounts have influenced not only Catholic spirituality but also Protestant spiritual theology in various periods.
 
-The practice of intercessory prayer raises particular theological questions. When Christians pray for others, what is the relationship between these prayers and God's provision for those persons? Different theological accounts have understood intercession differently, with some emphasizing the participation of believers in the mediatorial work of Christ and others emphasizing the relational character of prayer within a community of faith."""),
-
-    ("ai_005.txt", "sin", "The Doctrine of Sin in Christian Theology",
-     """The doctrine of sin addresses the fundamental disruption in the relationship between human beings and God that characterizes human existence as Christians understand it. This doctrine intersects with anthropology, soteriology, and ethical reflection, providing the background against which the gospel of redemption is proclaimed and understood.
+The practice of intercessory prayer raises particular theological questions. When Christians pray for others, what is the relationship between these prayers and God's provision for those persons? Different theological accounts have understood intercession differently, with some emphasizing the participation of believers in the mediatorial work of Christ and others emphasizing the relational character of prayer within a community of faith.""",
+    ),
+    (
+        "ai_005.txt",
+        "sin",
+        "The Doctrine of Sin in Christian Theology",
+        """The doctrine of sin addresses the fundamental disruption in the relationship between human beings and God that characterizes human existence as Christians understand it. This doctrine intersects with anthropology, soteriology, and ethical reflection, providing the background against which the gospel of redemption is proclaimed and understood.
 
 The biblical narrative locates the origin of sin in the disobedience of the first human beings, as recorded in the third chapter of Genesis. Theological interpretation of this narrative has generated significant discussion about the nature of the fall, the transmission of sin to subsequent generations, and the effects of sin on human nature. Different theological traditions have developed different accounts of these questions, though there is broad agreement that human beings as they now exist are in a state that requires divine redemption.
 
@@ -475,10 +495,13 @@ The Reformers of the sixteenth century emphasized the comprehensive character of
 
 Contemporary theological anthropology has engaged with questions raised by evolutionary biology and psychology regarding the nature and origin of human sin. If human beings evolved from prior species, the historical Adam of traditional Christian theology requires reinterpretation. Various proposals have been offered, ranging from a symbolic reading of the Genesis narrative to the identification of a specific point in evolutionary history at which genuine human moral agency and its corruption emerged.
 
-The relationship between personal sin and structural or social evil has also been a significant topic in twentieth-century theology. Liberation theology in particular has emphasized the ways in which sinful human choices become embedded in social, economic, and political structures that perpetuate injustice and oppression. This emphasis on structural sin has been both affirmed and challenged by other theological traditions, with debates centering on whether it adequately maintains individual moral responsibility."""),
-
-    ("ai_006.txt", "justification", "Justification and Moral Transformation",
-     """One of the persistent questions in the theology of justification concerns its relationship to moral transformation. If justification is understood primarily in forensic terms as a divine declaration of righteousness, how does it relate to the actual moral renewal of the believer? This question has been central to Protestant theology since the Reformation and continues to generate significant discussion.
+The relationship between personal sin and structural or social evil has also been a significant topic in twentieth-century theology. Liberation theology in particular has emphasized the ways in which sinful human choices become embedded in social, economic, and political structures that perpetuate injustice and oppression. This emphasis on structural sin has been both affirmed and challenged by other theological traditions, with debates centering on whether it adequately maintains individual moral responsibility.""",
+    ),
+    (
+        "ai_006.txt",
+        "justification",
+        "Justification and Moral Transformation",
+        """One of the persistent questions in the theology of justification concerns its relationship to moral transformation. If justification is understood primarily in forensic terms as a divine declaration of righteousness, how does it relate to the actual moral renewal of the believer? This question has been central to Protestant theology since the Reformation and continues to generate significant discussion.
 
 The Lutheran tradition has generally maintained a clear distinction between justification and sanctification, understanding the former as the forensic declaration of righteousness and the latter as the ongoing process of moral renewal. This distinction is considered essential to the proper proclamation of the gospel. If justification and sanctification are conflated, the result is either works-righteousness (basing acceptance before God on moral achievement) or antinomianism (treating moral effort as irrelevant to the Christian life).
 
@@ -488,10 +511,13 @@ The Catholic tradition has, as noted, understood justification itself to include
 
 Contemporary systematic theology has returned to the theme of union with Christ as a way of understanding the relationship between justification and sanctification. Both Lutheran and Reformed theologians have argued that union with Christ is the broader soteriological framework within which justification and sanctification are properly understood. This approach has found some resonance in ecumenical dialogue, as it provides a way of affirming both the forensic and transformative dimensions of salvation without simply collapsing one into the other.
 
-The practical implications of these theological discussions for preaching and pastoral ministry are significant. How a minister understands justification will shape the way he or she addresses questions of assurance, motivation for ethical behavior, and the relationship between grace and human effort. A robust theology of justification that maintains its distinction from sanctification while affirming their inseparability provides a framework for pastoral care that is neither moralistic nor antinomian."""),
-
-    ("ai_007.txt", "grace", "Prevenient Grace and Human Response",
-     """The concept of prevenient grace has occupied an important place in the theological traditions that seek to maintain both the necessity of divine grace for salvation and the genuine freedom of human response. The term refers to the grace that precedes and enables human turning toward God, making genuine faith and repentance possible without predetermining the human response.
+The practical implications of these theological discussions for preaching and pastoral ministry are significant. How a minister understands justification will shape the way he or she addresses questions of assurance, motivation for ethical behavior, and the relationship between grace and human effort. A robust theology of justification that maintains its distinction from sanctification while affirming their inseparability provides a framework for pastoral care that is neither moralistic nor antinomian.""",
+    ),
+    (
+        "ai_007.txt",
+        "grace",
+        "Prevenient Grace and Human Response",
+        """The concept of prevenient grace has occupied an important place in the theological traditions that seek to maintain both the necessity of divine grace for salvation and the genuine freedom of human response. The term refers to the grace that precedes and enables human turning toward God, making genuine faith and repentance possible without predetermining the human response.
 
 The theological context for the doctrine of prevenient grace is the problem of how human freedom and divine grace can both be affirmed. If sin has so corrupted human nature that genuine movement toward God is impossible without grace, then any account of salvation that attributes a decisive role to human response faces the challenge of explaining how that response is possible. Prevenient grace provides one answer to this challenge: God's grace acts upon the human person prior to any human initiative, restoring the capacity for genuine response.
 
@@ -501,10 +527,13 @@ The Reformed tradition has generally understood what might be called prevenient 
 
 The practical implications of these different accounts of grace for evangelism and pastoral care deserve attention. If prevenient grace is understood as genuinely universal and not determining the response, then the evangelist can extend the gospel invitation to all persons with the confidence that God has prepared them to respond, while acknowledging that this response may or may not occur. If efficacious grace is understood as effectively determining the response of the elect, the evangelistic confidence is differently grounded but no less real.
 
-These theological discussions also intersect with questions in philosophical theology about the nature of divine foreknowledge, middle knowledge, and the compatibility of divine sovereignty and human freedom. The metaphysical questions are often complex, and different theological traditions have generally been willing to acknowledge that the precise relationship between divine grace and human freedom involves genuine mystery that human reason cannot fully resolve."""),
-
-    ("ai_008.txt", "ecclesiology", "Church and Mission in Contemporary Theology",
-     """The relationship between the nature of the church and its mission in the world has been a central concern of twentieth and twenty-first century ecclesiology. Missiological reflection has prompted theologians to reconsider traditional accounts of the church's identity and to develop more dynamic understandings of the church's participation in the mission of God.
+These theological discussions also intersect with questions in philosophical theology about the nature of divine foreknowledge, middle knowledge, and the compatibility of divine sovereignty and human freedom. The metaphysical questions are often complex, and different theological traditions have generally been willing to acknowledge that the precise relationship between divine grace and human freedom involves genuine mystery that human reason cannot fully resolve.""",
+    ),
+    (
+        "ai_008.txt",
+        "ecclesiology",
+        "Church and Mission in Contemporary Theology",
+        """The relationship between the nature of the church and its mission in the world has been a central concern of twentieth and twenty-first century ecclesiology. Missiological reflection has prompted theologians to reconsider traditional accounts of the church's identity and to develop more dynamic understandings of the church's participation in the mission of God.
 
 The concept of the missio Dei, or mission of God, has been influential in contemporary missiology and ecclesiology. According to this concept, mission is not primarily a human activity or an institutional program but the activity of God in the world, in which the church is invited to participate. This understanding shifts the focus from the church as the subject of mission to God as the subject of mission, with the church as the instrument or participant in God's missionary activity.
 
@@ -514,10 +543,13 @@ The growth of Christianity in the Global South has significantly shaped contempo
 
 The emergence of new forms of church in the contemporary period, including house churches, fresh expressions, and various forms of networked and online communities, has raised questions about what is essential to genuine ecclesial existence. Theological reflection on these developments seeks to identify the elements that are constitutive of the church as such, distinguishing them from historically contingent forms that may appropriately vary across cultures and contexts.
 
-The ecumenical movement has continued to generate theological reflection on the unity of the church and its relationship to the diversity of Christian traditions. Documents produced by ecumenical dialogues seek to identify areas of agreement and to develop theological frameworks that acknowledge remaining differences while advancing the cause of visible Christian unity."""),
-
-    ("ai_009.txt", "prayer", "Intercessory Prayer and Divine Providence",
-     """Intercessory prayer, the practice of praying on behalf of others, raises fundamental questions about the relationship between human petition and divine action. If God's knowledge and purposes are comprehensive and unchanging, what is the role of human intercession in bringing about outcomes in the world? This question has engaged Christian theologians across different traditions and continues to be a significant topic in philosophical theology and practical spiritual theology.
+The ecumenical movement has continued to generate theological reflection on the unity of the church and its relationship to the diversity of Christian traditions. Documents produced by ecumenical dialogues seek to identify areas of agreement and to develop theological frameworks that acknowledge remaining differences while advancing the cause of visible Christian unity.""",
+    ),
+    (
+        "ai_009.txt",
+        "prayer",
+        "Intercessory Prayer and Divine Providence",
+        """Intercessory prayer, the practice of praying on behalf of others, raises fundamental questions about the relationship between human petition and divine action. If God's knowledge and purposes are comprehensive and unchanging, what is the role of human intercession in bringing about outcomes in the world? This question has engaged Christian theologians across different traditions and continues to be a significant topic in philosophical theology and practical spiritual theology.
 
 Classical Christian theology has generally maintained that God's purposes are not changed by human prayer, while also insisting that intercessory prayer is both commanded and efficacious. These two affirmations create a tension that theologians have sought to resolve in various ways. One approach suggests that God has ordained the prayers of his people as part of the means by which he accomplishes his purposes. In this account, prayer is not the cause of God's action in a simple sense, but it is a genuine secondary cause within the order of providence that God has established.
 
@@ -527,10 +559,13 @@ The Thomistic tradition has developed a sophisticated account of how intercessor
 
 Practical spiritual theology across different traditions has emphasized the importance of intercessory prayer for the life of the Christian community, regardless of the metaphysical questions about its precise relationship to divine providence. Prayer for one another creates bonds of solidarity and mutual care within the community. The discipline of intercession shapes the character of the one who prays, cultivating concern for others and dependence on God. The experience of answered prayer reinforces trust in God and gratitude.
 
-Contemporary discussions of intercessory prayer have also engaged with questions raised by scientific understandings of causality and the natural world. If the natural world operates according to regular causal laws, how is it possible for prayer to influence outcomes in that world? Different theological responses range from the affirmation of miracles as genuine exceptions to natural regularities to accounts of divine action through quantum indeterminacy to models of prayer's efficacy in terms of its formation of the one who prays rather than any direct causal impact on external events."""),
-
-    ("ai_010.txt", "sin", "Original Sin and Human Nature",
-     """The doctrine of original sin addresses the fundamental condition of humanity as Christians understand it, affirming that the sinfulness that characterizes human existence is not merely a matter of bad choices or poor socialization but reflects a deep disruption in human nature itself. This doctrine has been formulated and debated across Christian history, with significant theological, anthropological, and practical implications.
+Contemporary discussions of intercessory prayer have also engaged with questions raised by scientific understandings of causality and the natural world. If the natural world operates according to regular causal laws, how is it possible for prayer to influence outcomes in that world? Different theological responses range from the affirmation of miracles as genuine exceptions to natural regularities to accounts of divine action through quantum indeterminacy to models of prayer's efficacy in terms of its formation of the one who prays rather than any direct causal impact on external events.""",
+    ),
+    (
+        "ai_010.txt",
+        "sin",
+        "Original Sin and Human Nature",
+        """The doctrine of original sin addresses the fundamental condition of humanity as Christians understand it, affirming that the sinfulness that characterizes human existence is not merely a matter of bad choices or poor socialization but reflects a deep disruption in human nature itself. This doctrine has been formulated and debated across Christian history, with significant theological, anthropological, and practical implications.
 
 Augustine's account of original sin remains the most influential in the history of Christian theology. Developed in controversy with Pelagius, who argued that human beings possess the natural capacity to fulfill God's requirements, Augustine insisted that the fall of Adam resulted in the transmission of both guilt and corruption to all subsequent human beings. This transmission, Augustine argued, occurs through natural generation and is connected to the disordering of the human will and its relationship to the body.
 
@@ -540,10 +575,13 @@ Contemporary theology has engaged with challenges to the doctrine of original si
 
 The relationship between original sin and social structures of evil has been a significant theme in twentieth-century theology. Reinhold Niebuhr's account of sin as pride and sensuality, developed in his Gifford Lectures on The Nature and Destiny of Man, provided resources for understanding both individual and collective forms of human sinfulness. Liberation theologians have emphasized the ways in which individual sin becomes embedded in social, economic, and political structures that perpetuate injustice.
 
-The pastoral implications of the doctrine of original sin are significant. A clear account of the human condition provides the context within which the gospel of redemption can be properly understood and proclaimed. At the same time, pastoral wisdom requires sensitivity to the ways in which the doctrine can be misused to reinforce shame and self-condemnation in unhealthy ways. A balanced account affirms the reality of human sinfulness while pointing consistently toward the grace that addresses it."""),
-
-    ("ai_011.txt", "grace", "Grace, Merit, and the Christian Life",
-     """The relationship between grace and merit in the Christian life has been among the most contested topics in the theology of salvation. The question of whether human actions within the Christian life can be described as meritorious has significant implications for understanding the nature of divine-human cooperation, the basis of Christian hope, and the motivation for ethical action.
+The pastoral implications of the doctrine of original sin are significant. A clear account of the human condition provides the context within which the gospel of redemption can be properly understood and proclaimed. At the same time, pastoral wisdom requires sensitivity to the ways in which the doctrine can be misused to reinforce shame and self-condemnation in unhealthy ways. A balanced account affirms the reality of human sinfulness while pointing consistently toward the grace that addresses it.""",
+    ),
+    (
+        "ai_011.txt",
+        "grace",
+        "Grace, Merit, and the Christian Life",
+        """The relationship between grace and merit in the Christian life has been among the most contested topics in the theology of salvation. The question of whether human actions within the Christian life can be described as meritorious has significant implications for understanding the nature of divine-human cooperation, the basis of Christian hope, and the motivation for ethical action.
 
 The Protestant Reformation was defined in significant measure by the rejection of merit as a category applicable to human actions in relation to salvation. Luther, Calvin, and other Reformers argued that the Catholic theology of merit, particularly as it applied to supererogatory works and the treasury of merit available through indulgences, had fundamentally distorted the gospel of grace by introducing a commercial framework into the divine-human relationship. The doctrine of justification by faith alone was intended to exclude any human meritorious contribution to the sinner's acceptance before God.
 
@@ -553,10 +591,13 @@ Reformed theology has developed the concept of reward as a way of affirming that
 
 The practical implications of these different accounts for Christian ethics and spiritual formation are significant. If human actions can contribute to final salvation in some meaningful sense, then the motivation for ethical behavior is different from an account in which salvation is entirely a matter of divine grace with human ethical action understood as a response to grace already received. These differences shape the practice of spiritual direction, the teaching of ethics, and the understanding of the Christian life as a whole.
 
-Contemporary ecumenical dialogue has sought to find common ground on these questions. The agreement that all human good action is enabled by divine grace, and that grace always precedes and accompanies meritorious action, provides a basis for dialogue. Remaining differences concern whether the language of merit is theologically appropriate for describing human action within grace and what precisely is claimed when such language is used."""),
-
-    ("ai_012.txt", "ecclesiology", "Baptism and Church Membership",
-     """The theology of baptism is closely connected to questions of church membership and the nature of Christian initiation. Different theological traditions have understood baptism differently, with significant implications for the understanding of the church and the nature of saving faith.
+Contemporary ecumenical dialogue has sought to find common ground on these questions. The agreement that all human good action is enabled by divine grace, and that grace always precedes and accompanies meritorious action, provides a basis for dialogue. Remaining differences concern whether the language of merit is theologically appropriate for describing human action within grace and what precisely is claimed when such language is used.""",
+    ),
+    (
+        "ai_012.txt",
+        "ecclesiology",
+        "Baptism and Church Membership",
+        """The theology of baptism is closely connected to questions of church membership and the nature of Christian initiation. Different theological traditions have understood baptism differently, with significant implications for the understanding of the church and the nature of saving faith.
 
 The major fault line in Christian baptismal theology runs between those who practice infant baptism and those who practice believer's baptism. Paedobaptist traditions, which include Roman Catholic, Eastern Orthodox, Lutheran, Reformed, and Anglican churches, administer baptism to the infants of believing parents, understanding baptism as the sign and seal of covenant membership. Credobaptist traditions, including Baptists and many other free church communities, administer baptism only upon personal confession of faith, understanding it as the public sign of regeneration and personal commitment.
 
@@ -566,10 +607,13 @@ The theological arguments for believer's baptism typically draw on the New Testa
 
 The relationship between baptism and regeneration has also been contested. Some traditions understand baptism as the sacramental means through which regeneration is ordinarily effected. Others understand it as the outward sign of an inward regeneration that has already occurred. Still others understand baptism primarily in terms of public confession and entry into the covenant community, without strong causal claims about its relationship to regeneration.
 
-These theological differences about baptism have practical implications for questions of church membership, the treatment of those baptized as infants who later make personal professions of faith, and the recognition of baptism across denominational lines in ecumenical contexts. Ecumenical dialogue on baptism has produced significant convergence, but meaningful differences remain that reflect deep convictions about the nature of faith, grace, and the church."""),
-
-    ("ai_013.txt", "prayer", "Contemplative Prayer and Christian Mysticism",
-     """Contemplative prayer and Christian mysticism represent a significant dimension of Christian spirituality that has developed across different traditions and historical periods. Theological reflection on contemplative experience raises fundamental questions about the nature of the divine-human relationship, the role of human effort in the spiritual life, and the possibility of genuine union with God in this life.
+These theological differences about baptism have practical implications for questions of church membership, the treatment of those baptized as infants who later make personal professions of faith, and the recognition of baptism across denominational lines in ecumenical contexts. Ecumenical dialogue on baptism has produced significant convergence, but meaningful differences remain that reflect deep convictions about the nature of faith, grace, and the church.""",
+    ),
+    (
+        "ai_013.txt",
+        "prayer",
+        "Contemplative Prayer and Christian Mysticism",
+        """Contemplative prayer and Christian mysticism represent a significant dimension of Christian spirituality that has developed across different traditions and historical periods. Theological reflection on contemplative experience raises fundamental questions about the nature of the divine-human relationship, the role of human effort in the spiritual life, and the possibility of genuine union with God in this life.
 
 The mystical tradition within Christianity draws on a range of biblical resources, including the Psalms, the Song of Solomon, the Gospel of John, and the letters of Paul with their emphasis on union with Christ and the indwelling of the Spirit. Patristic theologians including Origen, Gregory of Nyssa, and Pseudo-Dionysius developed accounts of the soul's ascent toward God through stages of purification, illumination, and union. These early accounts established patterns of mystical theology that were developed through the medieval period.
 
@@ -579,10 +623,13 @@ The Carmelite tradition, represented by John of the Cross and Teresa of Avila in
 
 Protestant theology has generally been more reserved about the mystical tradition than Catholic and Orthodox Christianity, though Protestant mysticism has existed in various forms, including the German mysticism represented by figures like Jacob Boehme and the Quaker tradition's emphasis on the inner light. The Wesleyan tradition's emphasis on entire sanctification has some structural parallels to Catholic accounts of the transforming union, though the theological frameworks differ significantly.
 
-Contemporary interest in contemplative prayer has crossed traditional boundaries, with Christians from many different traditions drawing on the resources of the contemplative tradition. The centering prayer movement, associated with figures like Thomas Merton and Basil Pennington, has made contemplative approaches to prayer accessible to many Christians who would not identify with formal mystical theology. These developments have generated both enthusiasm and theological critique."""),
-
-    ("ai_014.txt", "sin", "Sin, Repentance, and Restoration",
-     """The theological relationship between sin, repentance, and restoration is central to the practical life of the Christian community. Understanding what sin is, how it is addressed through repentance, and how restoration to right relationship with God and the community occurs are matters of both theological significance and practical pastoral importance.
+Contemporary interest in contemplative prayer has crossed traditional boundaries, with Christians from many different traditions drawing on the resources of the contemplative tradition. The centering prayer movement, associated with figures like Thomas Merton and Basil Pennington, has made contemplative approaches to prayer accessible to many Christians who would not identify with formal mystical theology. These developments have generated both enthusiasm and theological critique.""",
+    ),
+    (
+        "ai_014.txt",
+        "sin",
+        "Sin, Repentance, and Restoration",
+        """The theological relationship between sin, repentance, and restoration is central to the practical life of the Christian community. Understanding what sin is, how it is addressed through repentance, and how restoration to right relationship with God and the community occurs are matters of both theological significance and practical pastoral importance.
 
 Repentance in the New Testament involves both a change of mind and a change of direction. The Greek term metanoia suggests a fundamental reorientation of the mind and will, not merely regret for past actions or a resolution to behave differently in the future. True repentance, in the Christian understanding, involves recognition of sin as sin—as an offense against God and a departure from the good for which human beings were created—and a genuine turning away from sin toward God.
 
@@ -592,10 +639,13 @@ Protestant traditions have generally understood forgiveness as received through 
 
 The social dimension of sin and repentance has received increased attention in contemporary theology. When sin takes corporate or structural forms, repentance and restoration cannot be understood solely in individual terms. Communities, institutions, and nations can engage in forms of corporate acknowledgment of wrongdoing and commitment to reparative action. The theology of truth and reconciliation, developed in response to situations of historical injustice, draws on Christian understandings of repentance, forgiveness, and restoration while attending to the social and political dimensions that individual models of repentance do not fully address.
 
-The role of the Christian community in the process of repentance and restoration is also theologically significant. The community provides accountability through the practice of church discipline, encouragement through the proclamation of the gospel promise of forgiveness, and practical support for the person seeking to address the consequences of sin. This communal dimension of restoration reflects the corporate character of Christian identity and the mutual responsibility of members of the body of Christ."""),
-
-    ("ai_015.txt", "justification", "Assurance of Salvation and the Doctrine of Justification",
-     """The question of assurance of salvation has been a significant pastoral and theological concern throughout Christian history. How can the believer know that he or she is truly justified, truly a member of the community of salvation? The answer to this question is closely connected to the theological account of justification and the grounds on which assurance is appropriately based.
+The role of the Christian community in the process of repentance and restoration is also theologically significant. The community provides accountability through the practice of church discipline, encouragement through the proclamation of the gospel promise of forgiveness, and practical support for the person seeking to address the consequences of sin. This communal dimension of restoration reflects the corporate character of Christian identity and the mutual responsibility of members of the body of Christ.""",
+    ),
+    (
+        "ai_015.txt",
+        "justification",
+        "Assurance of Salvation and the Doctrine of Justification",
+        """The question of assurance of salvation has been a significant pastoral and theological concern throughout Christian history. How can the believer know that he or she is truly justified, truly a member of the community of salvation? The answer to this question is closely connected to the theological account of justification and the grounds on which assurance is appropriately based.
 
 The Protestant Reformation brought the question of assurance to the center of theological discussion. The Reformers argued that the medieval Catholic system, with its emphasis on the ongoing cooperation of grace and human effort in the process of justification, made genuine assurance impossible. If the ultimate outcome of one's salvation depends in part on one's own perseverance and cooperation with grace, then the appropriate attitude is hope mingled with fear rather than confident assurance.
 
@@ -605,10 +655,13 @@ The Reformed tradition developed the doctrine of the perseverance of the saints 
 
 Catholic theology has generally been more reserved about subjective certainty of one's own salvation, understanding such certainty as presumption in the absence of special revelation. The Council of Trent taught that no one can know with certainty of faith, which cannot be subject to error, that he has obtained God's grace. This does not mean that Catholics have no basis for hope or that they must live in constant anxiety, but it does mean that the grounds of assurance are differently understood than in the Protestant account.
 
-Contemporary pastoral theology has engaged with the question of assurance in the context of widespread anxiety and spiritual insecurity among Christians. The tendency to base assurance on subjective spiritual experience creates vulnerability to fluctuating spiritual states. A theological account that grounds assurance primarily in the objective work of Christ and the promises of the gospel provides a more stable foundation, though it must also attend to the question of how the objective promise is appropriated by faith in the individual's experience."""),
-
-    ("ai_016.txt", "ecclesiology", "Ecumenism and Christian Unity",
-     """The ecumenical movement of the twentieth century represented a significant development in the history of Christian theology and practice. After centuries of division, Christian churches from different traditions began to engage in sustained theological dialogue aimed at identifying areas of convergence and developing frameworks for greater visible unity. The theological challenges and achievements of this movement continue to shape contemporary ecclesiology.
+Contemporary pastoral theology has engaged with the question of assurance in the context of widespread anxiety and spiritual insecurity among Christians. The tendency to base assurance on subjective spiritual experience creates vulnerability to fluctuating spiritual states. A theological account that grounds assurance primarily in the objective work of Christ and the promises of the gospel provides a more stable foundation, though it must also attend to the question of how the objective promise is appropriated by faith in the individual's experience.""",
+    ),
+    (
+        "ai_016.txt",
+        "ecclesiology",
+        "Ecumenism and Christian Unity",
+        """The ecumenical movement of the twentieth century represented a significant development in the history of Christian theology and practice. After centuries of division, Christian churches from different traditions began to engage in sustained theological dialogue aimed at identifying areas of convergence and developing frameworks for greater visible unity. The theological challenges and achievements of this movement continue to shape contemporary ecclesiology.
 
 The World Council of Churches, founded in Amsterdam in 1948, provided an institutional framework for ecumenical dialogue among Protestant and Orthodox churches. The Second Vatican Council, which opened in 1962, marked a significant shift in Roman Catholic engagement with ecumenism, affirming the presence of elements of the church and means of sanctification outside the visible boundaries of the Catholic Church. The decades following the Council saw extensive bilateral and multilateral dialogues between the Catholic Church and various Protestant and Anglican partners.
 
@@ -618,10 +671,13 @@ The question of visible unity and what form it should take remains contested amo
 
 The reception of ecumenical agreements by local churches and congregations has been uneven. Theological agreements reached in formal dialogue do not automatically translate into changed practice or changed attitudes at the congregational level. The gap between theological convergence at the level of expert dialogue and the lived reality of Christian division at the local level remains a significant challenge for the ecumenical movement.
 
-Contemporary ecumenism faces new challenges arising from the diversification of Christianity in the Global South and the emergence of new Christian movements that do not fit neatly into the categories that shaped the ecumenical movement of the twentieth century. Pentecostal and charismatic Christianity, which represents a significant proportion of global Christianity, has engaged with the ecumenical movement in complex and sometimes ambivalent ways. New forms of Christian community that cross traditional denominational boundaries are emerging in ways that both advance and complicate the ecumenical goal."""),
-
-    ("ai_017.txt", "prayer", "Liturgical Prayer and Corporate Worship",
-     """Liturgical prayer, the structured corporate prayer of the assembled Christian community, represents a dimension of Christian worship that has been practiced in various forms across all major Christian traditions. Theological reflection on liturgical prayer addresses questions about the nature of corporate worship, the role of form and structure in prayer, and the relationship between the church's corporate prayer and the divine-human encounter.
+Contemporary ecumenism faces new challenges arising from the diversification of Christianity in the Global South and the emergence of new Christian movements that do not fit neatly into the categories that shaped the ecumenical movement of the twentieth century. Pentecostal and charismatic Christianity, which represents a significant proportion of global Christianity, has engaged with the ecumenical movement in complex and sometimes ambivalent ways. New forms of Christian community that cross traditional denominational boundaries are emerging in ways that both advance and complicate the ecumenical goal.""",
+    ),
+    (
+        "ai_017.txt",
+        "prayer",
+        "Liturgical Prayer and Corporate Worship",
+        """Liturgical prayer, the structured corporate prayer of the assembled Christian community, represents a dimension of Christian worship that has been practiced in various forms across all major Christian traditions. Theological reflection on liturgical prayer addresses questions about the nature of corporate worship, the role of form and structure in prayer, and the relationship between the church's corporate prayer and the divine-human encounter.
 
 The history of Christian liturgy reveals both remarkable continuity and significant development. The earliest Christian communities gathered for worship that included the reading and proclamation of scripture, prayers of various kinds, and celebration of the Lord's Supper. By the fourth century, as Christianity became the religion of the Roman Empire, more elaborate liturgical forms developed that were shaped by both the Jewish heritage of Christianity and the cultural forms of the Greco-Roman world.
 
@@ -631,10 +687,13 @@ Reformed and free church traditions have generally placed greater emphasis on th
 
 The renewal of interest in liturgical worship among evangelical and free church Christians in recent decades has been significant. Many congregations that historically emphasized simplicity and spontaneity in worship have recovered elements of structured liturgy, including the use of historic collects and prayers, the recovery of the church calendar, and greater attention to the sacramental dimensions of worship. This liturgical renewal has been accompanied by theological reflection on the formative character of corporate prayer and worship.
 
-The relationship between the liturgical prayer of the gathered congregation and the prayer life of individual Christians has been a recurring theme in spiritual theology. Corporate worship is understood in most traditions as both expressive of and formative for the faith of individual believers. The patterns, rhythms, and content of corporate prayer shape the dispositions, expectations, and practices of individual Christians in ways that purely private prayer cannot."""),
-
-    ("ai_018.txt", "sin", "The Theology of Forgiveness",
-     """Forgiveness occupies a central place in Christian theology and practice. The divine forgiveness of human sin is foundational to the gospel of salvation, while the practice of interpersonal forgiveness is a central requirement of the Christian ethical life. Theological reflection on forgiveness addresses questions about its nature, its conditions, its relationship to justice, and its psychological and social dimensions.
+The relationship between the liturgical prayer of the gathered congregation and the prayer life of individual Christians has been a recurring theme in spiritual theology. Corporate worship is understood in most traditions as both expressive of and formative for the faith of individual believers. The patterns, rhythms, and content of corporate prayer shape the dispositions, expectations, and practices of individual Christians in ways that purely private prayer cannot.""",
+    ),
+    (
+        "ai_018.txt",
+        "sin",
+        "The Theology of Forgiveness",
+        """Forgiveness occupies a central place in Christian theology and practice. The divine forgiveness of human sin is foundational to the gospel of salvation, while the practice of interpersonal forgiveness is a central requirement of the Christian ethical life. Theological reflection on forgiveness addresses questions about its nature, its conditions, its relationship to justice, and its psychological and social dimensions.
 
 Divine forgiveness, as understood in Christian theology, is not a simple remission of penalty that treats sin as though it had never occurred. Christian theology has generally insisted that forgiveness is consistent with divine justice, that God does not simply overlook sin but addresses it through the atoning work of Christ. The penal substitutionary account of atonement, associated with Anselm's satisfaction theory and its Protestant developments, understands Christ's death as the means by which divine justice is satisfied so that forgiveness can be extended to sinners without compromising the divine righteousness.
 
@@ -644,10 +703,13 @@ Interpersonal forgiveness is a requirement of the Christian life that the New Te
 
 The theology of forgiveness has been developed in dialogue with psychological accounts of forgiveness in recent decades. Psychologists have produced significant research on the nature of forgiveness, its relationship to resentment and anger, its conditions and stages, and its psychological benefits for both the person who forgives and the person forgiven. Christian theologians have engaged with this research in various ways, affirming some insights while questioning others, particularly regarding the relationship between forgiveness and reconciliation.
 
-The social and political dimensions of forgiveness have received significant attention in the context of transitional justice following situations of historical injustice. The Truth and Reconciliation Commission in South Africa drew explicitly on Christian theological resources in developing its approach to addressing the injustices of the apartheid era. Theological reflection on these experiences has both drawn on and contributed to the broader theology of forgiveness, attending to the distinctive challenges that arise when forgiveness is sought in political and social contexts."""),
-
-    ("ai_019.txt", "grace", "Grace and Human Dignity",
-     """The relationship between the doctrine of divine grace and Christian understandings of human dignity is a significant topic in theological anthropology and ethics. How the Christian tradition understands grace—its necessity, its scope, its effects—shapes the understanding of what it means to be human and what claims human beings can properly make on one another.
+The social and political dimensions of forgiveness have received significant attention in the context of transitional justice following situations of historical injustice. The Truth and Reconciliation Commission in South Africa drew explicitly on Christian theological resources in developing its approach to addressing the injustices of the apartheid era. Theological reflection on these experiences has both drawn on and contributed to the broader theology of forgiveness, attending to the distinctive challenges that arise when forgiveness is sought in political and social contexts.""",
+    ),
+    (
+        "ai_019.txt",
+        "grace",
+        "Grace and Human Dignity",
+        """The relationship between the doctrine of divine grace and Christian understandings of human dignity is a significant topic in theological anthropology and ethics. How the Christian tradition understands grace—its necessity, its scope, its effects—shapes the understanding of what it means to be human and what claims human beings can properly make on one another.
 
 The imago Dei, the doctrine that human beings are created in the image and likeness of God, provides the foundational basis for Christian affirmations of human dignity. Theological traditions have understood the content of this image differently, with some emphasizing structural characteristics such as rationality and will, others emphasizing relational characteristics such as the capacity for relationship with God and with other persons, and still others emphasizing the vocation of stewardship and dominion. Despite these differences, the doctrine consistently grounds human dignity in the divine creative act rather than in human achievement or social recognition.
 
@@ -657,10 +719,13 @@ Divine grace, understood as the unmerited favor of God extended to sinful human 
 
 The doctrine of prevenient grace, particularly in its Wesleyan formulation, has implications for Christian engagement with all human beings. If God's grace is genuinely universal, working in every human conscience and drawing all persons toward the good, then every human being is the object of divine concern and care. This has implications for how Christians relate to those outside the visible community of the church, including people of other faiths and no faith.
 
-The relationship between grace and human dignity has practical implications for Christian ethics, particularly in relation to the care of the vulnerable—the poor, the sick, the prisoner, the immigrant, the person with disability. A theology of grace that affirms the unmerited character of divine favor provides resources for extending care and respect beyond the boundaries of merit, achievement, and social utility. The practices of Christian community life that express this theology of grace can form persons who extend to others the unconditional regard that they themselves have received from God."""),
-
-    ("ai_020.txt", "ecclesiology", "The Church as Community of Practice",
-     """The understanding of the church as a community of practice has received significant attention in contemporary ecclesiology, drawing on sociological and philosophical accounts of how communities form persons through shared practices and how practices embody and transmit the convictions and commitments of a community. This perspective offers resources for understanding how the church shapes the character and identity of its members and how it sustains its distinctive way of life across time.
+The relationship between grace and human dignity has practical implications for Christian ethics, particularly in relation to the care of the vulnerable—the poor, the sick, the prisoner, the immigrant, the person with disability. A theology of grace that affirms the unmerited character of divine favor provides resources for extending care and respect beyond the boundaries of merit, achievement, and social utility. The practices of Christian community life that express this theology of grace can form persons who extend to others the unconditional regard that they themselves have received from God.""",
+    ),
+    (
+        "ai_020.txt",
+        "ecclesiology",
+        "The Church as Community of Practice",
+        """The understanding of the church as a community of practice has received significant attention in contemporary ecclesiology, drawing on sociological and philosophical accounts of how communities form persons through shared practices and how practices embody and transmit the convictions and commitments of a community. This perspective offers resources for understanding how the church shapes the character and identity of its members and how it sustains its distinctive way of life across time.
 
 The concept of practice, as developed by philosophers such as Alasdair MacIntyre, refers to coherent, cooperative activities through which goods internal to the practice are realized and the virtues necessary to participate in it are developed. The church's constitutive practices—proclamation of the Word, celebration of the sacraments, prayer, care for the poor, and mutual accountability—are practices in this sense. Participating in them forms persons in distinctive ways, cultivating dispositions, habits, and skills that shape how those persons understand and engage with the world.
 
@@ -670,7 +735,8 @@ The practice of preaching and the reading of scripture functions formatively wit
 
 The practice of care for the poor and the vulnerable has been understood across Christian traditions as an essential expression of Christian identity. The corporal works of mercy in the Catholic tradition, the diaconal ministry of Lutheran and Reformed churches, and the emphasis on social holiness in the Wesleyan tradition all reflect the conviction that care for those in need is not an optional addition to Christian community life but an essential practice through which the community expresses and forms its distinctive identity.
 
-Contemporary ecclesiology has also attended to the practices of mutual accountability and discipline that have historically been part of Christian community life. The class meeting in the Wesleyan tradition, the practice of fraternal admonition in the Mennonite tradition, and various forms of small group accountability in contemporary evangelical communities represent attempts to maintain practices of mutual care and accountability that shape character and sustain commitment within the community."""),
+Contemporary ecclesiology has also attended to the practices of mutual accountability and discipline that have historically been part of Christian community life. The class meeting in the Wesleyan tradition, the practice of fraternal admonition in the Mennonite tradition, and various forms of small group accountability in contemporary evangelical communities represent attempts to maintain practices of mutual care and accountability that shape character and sustain commitment within the community.""",
+    ),
 ]
 
 # ── Cross-author ghostwriting cases ───────────────────────────────────────────
@@ -680,8 +746,8 @@ Contemporary ecclesiology has also attended to the practices of mutual accountab
 GHOSTWRITING_CASES = [
     {
         "filename": "ghost_001.txt",
-        "baseline_author": "seminary_01",   # Reformed student's baseline used
-        "actual_style": "catholic",         # but text is in Catholic style
+        "baseline_author": "seminary_01",  # Reformed student's baseline used
+        "actual_style": "catholic",  # but text is in Catholic style
         "topic": "justification",
         "text": essay_catholic_justification(0),
     },
@@ -719,38 +785,38 @@ GHOSTWRITING_CASES = [
 ESSAY_FUNCS = {
     "seminary_01": {
         "justification": essay_reformed_justification,
-        "grace":         essay_reformed_grace,
-        "ecclesiology":  essay_reformed_ecclesiology,
-        "prayer":        essay_reformed_prayer,
-        "sin":           essay_reformed_sin,
+        "grace": essay_reformed_grace,
+        "ecclesiology": essay_reformed_ecclesiology,
+        "prayer": essay_reformed_prayer,
+        "sin": essay_reformed_sin,
     },
     "seminary_02": {
         "justification": essay_catholic_justification,
-        "grace":         essay_catholic_grace,
-        "ecclesiology":  essay_catholic_ecclesiology,
-        "prayer":        essay_catholic_prayer,
-        "sin":           essay_catholic_sin,
+        "grace": essay_catholic_grace,
+        "ecclesiology": essay_catholic_ecclesiology,
+        "prayer": essay_catholic_prayer,
+        "sin": essay_catholic_sin,
     },
     "seminary_03": {
         "justification": essay_wesleyan_justification,
-        "grace":         essay_wesleyan_grace,
-        "ecclesiology":  essay_wesleyan_ecclesiology,
-        "prayer":        essay_wesleyan_prayer,
-        "sin":           essay_wesleyan_sin,
+        "grace": essay_wesleyan_grace,
+        "ecclesiology": essay_wesleyan_ecclesiology,
+        "prayer": essay_wesleyan_prayer,
+        "sin": essay_wesleyan_sin,
     },
     "seminary_04": {
         "justification": essay_lutheran_justification,
-        "grace":         essay_lutheran_grace,
-        "ecclesiology":  essay_lutheran_ecclesiology,
-        "prayer":        essay_lutheran_prayer,
-        "sin":           essay_lutheran_sin,
+        "grace": essay_lutheran_grace,
+        "ecclesiology": essay_lutheran_ecclesiology,
+        "prayer": essay_lutheran_prayer,
+        "sin": essay_lutheran_sin,
     },
     "seminary_05": {
         "justification": essay_baptist_justification,
-        "grace":         essay_baptist_grace,
-        "ecclesiology":  essay_baptist_ecclesiology,
-        "prayer":        essay_baptist_prayer,
-        "sin":           essay_baptist_sin,
+        "grace": essay_baptist_grace,
+        "ecclesiology": essay_baptist_ecclesiology,
+        "prayer": essay_baptist_prayer,
+        "sin": essay_baptist_sin,
     },
 }
 
@@ -776,7 +842,7 @@ def generate_corpus() -> None:
 
         for i, (topic_key, topic_prompt) in enumerate(topic_list):
             fn = f"{author_id}_{topic_key}.txt"
-            is_baseline = i < 3   # first 3 topics are baseline
+            is_baseline = i < 3  # first 3 topics are baseline
             variation = 0 if is_baseline else (i - 3)
 
             text = ESSAY_FUNCS[author_id][topic_key](variation)
@@ -786,18 +852,20 @@ def generate_corpus() -> None:
             fpath.write_text(text, encoding="utf-8")
             print(f"  {'[baseline]' if is_baseline else '[scoring]'} {fn} ({wc} words)")
 
-            new_entries.append({
-                "filename": fn,
-                "author_id": author_id,
-                "label": "authentic",
-                "prompt": topic_prompt,
-                "word_count": wc,
-                "is_baseline": is_baseline,
-                "ai_provider": "none",
-                "theological_tradition": profile["tradition"],
-                "native_english": profile["native_english"],
-                "notes": f"Synthetic {profile['style']}-style essay, variation {variation}",
-            })
+            new_entries.append(
+                {
+                    "filename": fn,
+                    "author_id": author_id,
+                    "label": "authentic",
+                    "prompt": topic_prompt,
+                    "word_count": wc,
+                    "is_baseline": is_baseline,
+                    "ai_provider": "none",
+                    "theological_tradition": profile["tradition"],
+                    "native_english": profile["native_english"],
+                    "notes": f"Synthetic {profile['style']}-style essay, variation {variation}",
+                }
+            )
 
     # ── Generate AI essays ───────────────────────────────────────────────────
     print("\nGenerating AI-authored essays...")
@@ -807,18 +875,20 @@ def generate_corpus() -> None:
         fpath.write_text(text, encoding="utf-8")
         print(f"  [ai] {fn} ({wc} words)")
 
-        new_entries.append({
-            "filename": fn,
-            "author_id": "ai_author",
-            "label": "ai_generated",
-            "prompt": prompt_text,
-            "word_count": wc,
-            "is_baseline": False,
-            "ai_provider": "claude",
-            "theological_tradition": None,
-            "native_english": None,
-            "notes": "AI-generated theological essay for validation corpus",
-        })
+        new_entries.append(
+            {
+                "filename": fn,
+                "author_id": "ai_author",
+                "label": "ai_generated",
+                "prompt": prompt_text,
+                "word_count": wc,
+                "is_baseline": False,
+                "ai_provider": "claude",
+                "theological_tradition": None,
+                "native_english": None,
+                "notes": "AI-generated theological essay for validation corpus",
+            }
+        )
 
     # ── Generate ghostwriting cases ──────────────────────────────────────────
     print("\nGenerating ghostwriting cases...")
@@ -829,18 +899,20 @@ def generate_corpus() -> None:
         fpath.write_text(case["text"], encoding="utf-8")
         print(f"  [ghostwritten] {fn} ({wc} words) — baseline: {case['baseline_author']}")
 
-        new_entries.append({
-            "filename": fn,
-            "author_id": case["baseline_author"],   # attributed to baseline author
-            "label": "ghostwritten",
-            "prompt": f"The doctrine of {case['topic']} in Christian theology",
-            "word_count": wc,
-            "is_baseline": False,
-            "ai_provider": "none",
-            "theological_tradition": None,
-            "native_english": None,
-            "notes": f"Ghostwritten: actual style is {case['actual_style']}, submitted under {case['baseline_author']} baseline",
-        })
+        new_entries.append(
+            {
+                "filename": fn,
+                "author_id": case["baseline_author"],  # attributed to baseline author
+                "label": "ghostwritten",
+                "prompt": f"The doctrine of {case['topic']} in Christian theology",
+                "word_count": wc,
+                "is_baseline": False,
+                "ai_provider": "none",
+                "theological_tradition": None,
+                "native_english": None,
+                "notes": f"Ghostwritten: actual style is {case['actual_style']}, submitted under {case['baseline_author']} baseline",
+            }
+        )
 
     # ── Update manifest.json ─────────────────────────────────────────────────
     # Add new authors metadata
@@ -870,10 +942,10 @@ def generate_corpus() -> None:
 
     # Summary
     authentic = sum(1 for e in new_entries if e["label"] == "authentic")
-    ai_gen    = sum(1 for e in new_entries if e["label"] == "ai_generated")
-    ghosted   = sum(1 for e in new_entries if e["label"] == "ghostwritten")
-    baseline  = sum(1 for e in new_entries if e.get("is_baseline"))
-    scoring   = sum(1 for e in new_entries if not e.get("is_baseline") and e["label"] == "authentic")
+    ai_gen = sum(1 for e in new_entries if e["label"] == "ai_generated")
+    ghosted = sum(1 for e in new_entries if e["label"] == "ghostwritten")
+    baseline = sum(1 for e in new_entries if e.get("is_baseline"))
+    scoring = sum(1 for e in new_entries if not e.get("is_baseline") and e["label"] == "authentic")
 
     print(f"\n{'='*60}")
     print(f"CORPUS GENERATION COMPLETE")

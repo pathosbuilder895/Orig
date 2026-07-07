@@ -1,3 +1,6 @@
+import React from 'react';
+import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, Logotype, MetaLabel, Ornament, PARCHMENT_SHADES, Seal, fontBody, fontDisplay, fontMono } from './components.jsx';
+
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Examination Screens
 //  Briefing · Active Examination · Submitted
@@ -172,7 +175,7 @@ async function bbSubmitToOriginal({ text, assignment, keystrokeData, cfg, studen
 }
 
 // ─── Briefing Screen ──────────────────────────────────────────────────────────
-function BriefingScreen({ onNavigate }) {
+export function BriefingScreen({ onNavigate }) {
   const cfg = getExamConfig();
   const conditions = buildConditions(cfg);
   return (
@@ -283,7 +286,7 @@ function BriefingScreen({ onNavigate }) {
 }
 
 // ─── Active Examination Screen ────────────────────────────────────────────────
-function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_SHADES.warm }) {
+export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_SHADES.warm }) {
   const cfg = getExamConfig();
   // Draft persistence: an exam must survive a crash, reload, or accidental
   // exit. Keyed per exam, restored on mount, cleared on successful seal.
@@ -300,10 +303,11 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
       : cfg.duration);
   const [saving,      setSaving]      = useExState(false);
   const [warnings,    setWarnings]    = useExState(0);
-  const [warnMsg,     setWarnMsg]     = useExState('');
-  const [showWarn,    setShowWarn]    = useExState(false);
+  const [warnLog,     setWarnLog]     = useExState([]); // [{ id, msg }] — persists for the session, never auto-dismissed
+  const [warnLogOpen,  setWarnLogOpen] = useExState(true);
   const [submitting,  setSubmitting]  = useExState(false);
   const [fsLost,      setFsLost]      = useExState(false);
+  const [liveMsg,     setLiveMsg]     = useExState(''); // polite announcements: autosave + timer milestones
   const textareaRef = useExRef(null);
   const saveTimer   = useExRef(null);
   // Live refs so interval/debounce callbacks always persist current values.
@@ -331,9 +335,8 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
     if (now - lastWarnRef.current < 1500) return;
     lastWarnRef.current = now;
     setWarnings(n => n + 1);
-    setWarnMsg(msg);
-    setShowWarn(true);
-    setTimeout(() => setShowWarn(false), 5000);
+    setWarnLog(log => [...log, { id: now, msg }]);
+    setWarnLogOpen(true);
   }
 
   // ── Keystroke-dynamics capture (fed to Original's Tier 17) ──
@@ -460,6 +463,7 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
     const deb = setTimeout(() => {
       if (writeDraftNow()) {
         setSaving(true);
+        setLiveMsg('Draft saved.');
         setTimeout(() => setSaving(false), 1800);
       }
     }, 2000);
@@ -529,6 +533,19 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
   const atMin     = words >= cfg.minWords;
   const lineH     = writingSize + 12;
 
+  // Polite timer milestones — announced once per transition, not every tick.
+  const lowAnnouncedRef = useExRef(false);
+  const veryLowAnnouncedRef = useExRef(false);
+  useExEffect(() => {
+    if (isVeryLow && !veryLowAnnouncedRef.current) {
+      veryLowAnnouncedRef.current = true;
+      setLiveMsg('One minute remaining.');
+    } else if (isLow && !lowAnnouncedRef.current) {
+      lowAnnouncedRef.current = true;
+      setLiveMsg('Five minutes remaining.');
+    }
+  }, [isLow, isVeryLow]);
+
   const lineStyle = {
     background: parchmentColor,
     backgroundImage: `repeating-linear-gradient(
@@ -545,24 +562,50 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       overflow: 'hidden',
     }}>
-      {/* Examiner's warning note */}
-      {showWarn && (
-        <div style={{
+      {/* Polite live region: autosave + timer milestones — never interrupts */}
+      <div role="status" aria-live="polite" style={{
+        position: 'absolute', width: 1, height: 1, padding: 0, margin: -1,
+        overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0,
+      }}>{liveMsg}</div>
+
+      {/* Examiner's warning notices — recorded proctoring events. Assertive
+          and persistent: a candidate must hear every one, and it must not
+          vanish before they can review it. */}
+      {warnLog.length > 0 && (
+        <div role="alert" style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-          background: BB.parchment, padding: '10px 48px',
+          background: BB.parchment,
           borderBottom: '1px solid rgba(201,169,97,0.7)',
           borderTop: '1px solid rgba(201,169,97,0.7)',
           animation: 'bbFadeIn 0.5s ease both',
         }}>
           <GoldRule style={{ marginBottom: 8 }} />
-          <p style={{
-            fontFamily: fontBody, fontStyle: 'italic',
-            fontSize: 16, color: BB.indigo,
-            margin: '0 0 6px', textAlign: 'center',
-            letterSpacing: '0.03em',
-          }}>
-            {warnMsg}
-          </p>
+          <div style={{ padding: '0 48px 10px', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <MetaLabel style={{ color: BB.indigo }}>Recorded Notices ({warnLog.length})</MetaLabel>
+            <button
+              onClick={() => setWarnLogOpen(o => !o)}
+              style={{
+                fontFamily: fontMono, fontSize: 11, letterSpacing: '0.1em',
+                textTransform: 'uppercase', color: BB.indigo,
+                background: 'none', border: 'none', cursor: 'pointer',
+              }}
+            >{warnLogOpen ? 'Hide' : 'Show'}</button>
+          </div>
+          {warnLogOpen && (
+            <ul style={{
+              listStyle: 'none', margin: 0, padding: '0 48px 10px',
+              maxHeight: 140, overflowY: 'auto',
+            }}>
+              {warnLog.map(w => (
+                <li key={w.id} style={{
+                  fontFamily: fontBody, fontStyle: 'italic',
+                  fontSize: 16, color: BB.indigo,
+                  margin: '0 0 6px', textAlign: 'center',
+                  letterSpacing: '0.03em',
+                }}>{w.msg}</li>
+              ))}
+            </ul>
+          )}
           <GoldRule style={{ marginTop: 8 }} />
         </div>
       )}
@@ -704,6 +747,8 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
             autoComplete="off"
             autoCorrect="off"
             placeholder="Begin writing here…"
+            aria-label="Your examination answer"
+            aria-describedby="bbWordCount"
             style={{
               position: 'absolute', inset: 0,
               width: '100%', height: '100%',
@@ -741,7 +786,7 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
           }}>
             {/* Left — word count */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{
+              <span id="bbWordCount" style={{
                 fontFamily: fontMono, fontSize: 12,
                 letterSpacing: '0.12em',
                 color: overMax ? '#C47A6B' : atMin ? BB.gold : BB.fade,
@@ -798,7 +843,7 @@ function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_S
 }
 
 // ─── Submitted Screen ─────────────────────────────────────────────────────────
-function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
+export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
   const sub = (typeof window !== 'undefined' && window.BB_LAST_SUBMISSION) || {};
   const finalWords = sub.words != null ? sub.words : wordsFinal;
   const examTitle  = sub.title || EXAM_META.title;
@@ -932,5 +977,3 @@ function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
     </div>
   );
 }
-
-Object.assign(window, { BriefingScreen, ExamScreen, SubmittedScreen });

@@ -25,6 +25,7 @@ from original.quantum.state import BaselineSample
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
+
 def _weight_vec() -> np.ndarray:
     """Tier-weight vector matching scoring.py's _TIER_WEIGHT_VECTOR."""
     return np.array(
@@ -52,6 +53,7 @@ def _make_samples(n: int, value: float = 0.5) -> List[BaselineSample]:
 
 
 # ── encode_amplitudes ─────────────────────────────────────────────────────────
+
 
 class TestEncodeAmplitudes:
     def test_zero_z_gives_max_magnitude(self):
@@ -112,7 +114,7 @@ class TestEncodeAmplitudes:
         w = _weight_vec()
         z = np.random.default_rng(42).standard_normal(FEATURE_DIM)
         active = np.zeros(FEATURE_DIM, dtype=bool)
-        active[:5] = True   # only first 5 active
+        active[:5] = True  # only first 5 active
         psi = encode_amplitudes(z, w, active, n_tokens=200)
         assert np.all(np.abs(psi[5:]) < 1e-12)
         assert np.any(np.abs(psi[:5]) > 1e-6)
@@ -120,13 +122,18 @@ class TestEncodeAmplitudes:
 
 # ── build_superposition_baseline ─────────────────────────────────────────────
 
+
 class TestBuildSuperpositionBaseline:
     def test_empty_samples_gives_zeros(self):
         w = _weight_vec()
         active = _active_all()
         psi_b = build_superposition_baseline(
-            [], w, active,
-            np.full(FEATURE_DIM, 0.5), np.full(FEATURE_DIM, 0.1), 200,
+            [],
+            w,
+            active,
+            np.full(FEATURE_DIM, 0.5),
+            np.full(FEATURE_DIM, 0.1),
+            200,
         )
         assert np.all(psi_b == 0)
 
@@ -164,11 +171,11 @@ class TestBuildSuperpositionBaseline:
 
 # ── quantum_fidelity ──────────────────────────────────────────────────────────
 
+
 class TestQuantumFidelity:
     def test_identical_gives_one(self):
         rng = np.random.default_rng(0)
-        psi = (rng.standard_normal(FEATURE_DIM) +
-               1j * rng.standard_normal(FEATURE_DIM))
+        psi = rng.standard_normal(FEATURE_DIM) + 1j * rng.standard_normal(FEATURE_DIM)
         F = quantum_fidelity(psi, psi)
         assert abs(F - 1.0) < 1e-9
 
@@ -204,6 +211,7 @@ class TestQuantumFidelity:
 
 
 # ── keyed_unitary + apply_keyed_projection ────────────────────────────────────
+
 
 class TestKeyedUnitary:
     def test_fidelity_invariant_under_unitary(self):
@@ -253,12 +261,13 @@ class TestKeyedUnitary:
 
 # ── von_neumann_entropy ───────────────────────────────────────────────────────
 
+
 class TestVonNeumannEntropy:
     def test_pure_state_gives_zero(self):
         """Rank-1 density matrix → entropy = 0."""
         v = np.random.default_rng(1).random(FEATURE_DIM)
         v = v / np.linalg.norm(v)
-        rho = np.outer(v, v)   # rank-1, trace=1
+        rho = np.outer(v, v)  # rank-1, trace=1
         S = von_neumann_entropy(rho)
         assert abs(S) < 0.01
 
@@ -299,13 +308,16 @@ class TestVonNeumannEntropy:
 
 # ── interference_components ───────────────────────────────────────────────────
 
+
 class TestInterferenceComponents:
     def test_returns_three_categories(self):
         rng = np.random.default_rng(3)
-        psi_b = (rng.standard_normal(FEATURE_DIM) +
-                 1j * rng.standard_normal(FEATURE_DIM)).astype(np.complex128)
-        psi_s = (rng.standard_normal(FEATURE_DIM) +
-                 1j * rng.standard_normal(FEATURE_DIM)).astype(np.complex128)
+        psi_b = (rng.standard_normal(FEATURE_DIM) + 1j * rng.standard_normal(FEATURE_DIM)).astype(
+            np.complex128
+        )
+        psi_s = (rng.standard_normal(FEATURE_DIM) + 1j * rng.standard_normal(FEATURE_DIM)).astype(
+            np.complex128
+        )
         result = interference_components(psi_b, psi_s)
         assert set(result.keys()) == {"constructive", "destructive", "novel"}
 
@@ -329,10 +341,12 @@ class TestInterferenceComponents:
 
     def test_sorted_by_descending_strength(self):
         rng = np.random.default_rng(55)
-        psi_b = (rng.standard_normal(FEATURE_DIM) +
-                 1j * rng.standard_normal(FEATURE_DIM)).astype(np.complex128)
-        psi_s = (rng.standard_normal(FEATURE_DIM) +
-                 1j * rng.standard_normal(FEATURE_DIM)).astype(np.complex128)
+        psi_b = (rng.standard_normal(FEATURE_DIM) + 1j * rng.standard_normal(FEATURE_DIM)).astype(
+            np.complex128
+        )
+        psi_s = (rng.standard_normal(FEATURE_DIM) + 1j * rng.standard_normal(FEATURE_DIM)).astype(
+            np.complex128
+        )
         result = interference_components(psi_b, psi_s)
         for key in result:
             strengths = [v for _, v in result[key]]

@@ -35,16 +35,16 @@ M4_CACHE_ROOT = Path(__file__).resolve().parent.parent.parent / ".benchmark_cach
 
 
 _PROVIDER_BY_FILENAME = [
-    ("chatgpt",   AIProvider.CHATGPT),
-    ("davinci",   AIProvider.CHATGPT),
-    ("gpt",       AIProvider.CHATGPT),
-    ("claude",    AIProvider.CLAUDE),
-    ("cohere",    AIProvider.NONE),    # cohere not in our enum; bucket "none"
-    ("dolly",     AIProvider.NONE),
-    ("bloomz",    AIProvider.NONE),
-    ("flan-t5",   AIProvider.NONE),
-    ("gemini",    AIProvider.GEMINI),
-    ("bard",      AIProvider.GEMINI),
+    ("chatgpt", AIProvider.CHATGPT),
+    ("davinci", AIProvider.CHATGPT),
+    ("gpt", AIProvider.CHATGPT),
+    ("claude", AIProvider.CLAUDE),
+    ("cohere", AIProvider.NONE),  # cohere not in our enum; bucket "none"
+    ("dolly", AIProvider.NONE),
+    ("bloomz", AIProvider.NONE),
+    ("flan-t5", AIProvider.NONE),
+    ("gemini", AIProvider.GEMINI),
+    ("bard", AIProvider.GEMINI),
 ]
 
 
@@ -91,7 +91,7 @@ def build_corpus(
         )
 
     per_domain_human_cap = max(8, sample_size // 16)
-    per_domain_ai_cap    = max(8, sample_size // 16)
+    per_domain_ai_cap = max(8, sample_size // 16)
     human_counts: Dict[str, int] = {}
     ai_counts: Dict[str, int] = {}
 
@@ -136,31 +136,35 @@ def build_corpus(
                             continue
                         human_counts[source] = human_counts.get(source, 0) + 1
                         idx = human_counts[source]
-                        entries.append(WideEntry(
-                            author_id=author_id,
-                            label=AuthorshipLabel.AUTHENTIC,
-                            text=text,
-                            prompt=source,
-                            is_baseline=(idx <= 3),
-                            ai_provider=AIProvider.NONE,
-                            native_english=True,
-                            source_id=str(row.get("id") or ""),
-                        ))
+                        entries.append(
+                            WideEntry(
+                                author_id=author_id,
+                                label=AuthorshipLabel.AUTHENTIC,
+                                text=text,
+                                prompt=source,
+                                is_baseline=(idx <= 3),
+                                ai_provider=AIProvider.NONE,
+                                native_english=True,
+                                source_id=str(row.get("id") or ""),
+                            )
+                        )
                     else:
                         if ai_counts.get(source, 0) >= per_domain_ai_cap:
                             continue
                         ai_counts[source] = ai_counts.get(source, 0) + 1
-                        entries.append(WideEntry(
-                            author_id=author_id,
-                            label=AuthorshipLabel.AI_GENERATED,
-                            text=text,
-                            prompt=source,
-                            is_baseline=False,
-                            ai_provider=provider,
-                            native_english=None,
-                            source_id=str(row.get("id") or ""),
-                            notes=f"file={path.name}",
-                        ))
+                        entries.append(
+                            WideEntry(
+                                author_id=author_id,
+                                label=AuthorshipLabel.AI_GENERATED,
+                                text=text,
+                                prompt=source,
+                                is_baseline=False,
+                                ai_provider=provider,
+                                native_english=None,
+                                source_id=str(row.get("id") or ""),
+                                notes=f"file={path.name}",
+                            )
+                        )
 
     return materialize(
         entries,

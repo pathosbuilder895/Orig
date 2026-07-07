@@ -6,6 +6,14 @@ Designed for seminaries and colleges that want a pastoral, explainable, FERPA-co
 
 Original is a **decision-support system, not a disciplinary decision-maker**. A score can recommend monitoring, a conversation, or formal review, but institutional action remains with instructors and academic integrity officers.
 
+> **Which stack is live?** This repo contains two backends and three frontend
+> generations; exactly one of each is live. See
+> [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) before touching auth, LTI, or
+> deployment — it is the single source of truth for the live-vs-dormant split.
+> Short version: the live stack is `original/api.py` + `demo/` +
+> `demo/bluebook/`, with LTI at `/lti/*`. The `original/api/` v1 package and
+> `frontend/` are dormant; `web/` is abandoned.
+
 ---
 
 ## How it works
@@ -104,8 +112,8 @@ Original currently uses 103 ordered feature dimensions from `original/constants.
 | Score | Action | Meaning |
 |-------|--------|---------|
 | 0.00 – 0.40 | `no_action` | Consistent with established voice |
-| 0.40 – 0.55 | `monitor` | Minor deviation — watch future submissions |
-| 0.55 – 0.75 | `schedule_conversation` | Notable deviation — discuss with student |
+| 0.40 – 0.60 | `monitor` | Minor deviation — watch future submissions |
+| 0.60 – 0.75 | `schedule_conversation` | Notable deviation — discuss with student |
 | 0.75 – 1.00 | `escalate` | Significant deviation — formal review |
 | RMS z > 3.0 | `escalate` (override) | Catastrophic drift — immediate review regardless of score |
 
@@ -125,16 +133,12 @@ Open http://localhost:8001/onboard.html and follow the four-step wizard:
 3. Add students — type names, paste a list, or **drop a CSV** (columns: `external_id, full_name, email`)
 4. Copy the generated links
 
-### Option 2 — Roster CSV API
+### Option 2 — CSV drop in the wizard
 
-```bash
-curl -X POST https://your-server/api/v1/students/roster/import \
-  -H "Authorization: Bearer <token>" \
-  -F "file=@roster.csv" \
-  -F "course_id=<course-uuid>"
-```
-
-Returns `{created, skipped_duplicates, enrolled, errors[]}`.
+The onboarding wizard's "Add students" step (above) accepts a dropped CSV
+directly — there is no separate bulk-roster API endpoint in the live stack.
+For programmatic provisioning of many students/tenants at once, see
+`docs/PROVISIONING_CHECKLIST.md`.
 
 ---
 
@@ -153,8 +157,7 @@ Click **📥 Import Papers** in the header. The drawer has three tabs:
 ### API — batch file upload
 
 ```bash
-curl -X POST https://your-server/api/v1/submissions/{student_id}/baseline/upload-batch \
-  -H "Authorization: Bearer <token>" \
+curl -X POST https://your-server/students/{student_id}/baseline/upload-batch \
   -F "files=@essay1.pdf" \
   -F "files=@essay2.docx" \
   -F "provenance=verified" \
@@ -165,8 +168,7 @@ curl -X POST https://your-server/api/v1/submissions/{student_id}/baseline/upload
 ### API — Turnitin CSV
 
 ```bash
-curl -X POST https://your-server/api/v1/import/courses/{course_id}/turnitin-csv \
-  -H "Authorization: Bearer <token>" \
+curl -X POST https://your-server/import/courses/{course_id}/turnitin-csv \
   -F "file=@turnitin_export.csv"
 ```
 
@@ -186,109 +188,108 @@ Expected columns (case-insensitive, order-independent): `Student Name`, `Student
 
 ## LTI integrations
 
-### Canvas
+The live LTI 1.3 implementation is `original/lti.py` (routes `/lti/login`,
+`/lti/launch`, `/lti/jwks`), configured entirely through the `LTI_PLATFORMS`
+environment variable — there is no registration API/database table in the
+live stack.
 
-1. Admin → Developer Keys → **+ LTI Key** → paste `https://your-server/lti/config`
-2. Note the **client_id**.
-3. Register in Original:
-   ```
-   POST /api/v1/admin/canvas/registrations
-   { "platform_iss": "https://your.instructure.com", "client_id": "...",
-     "auth_endpoint": "...", "jwks_url": "...", "api_token": "..." }
-   ```
-4. Verify: `GET /lti/registrations/{id}/verify` → `{"ok": true}`
+Full walkthrough for connecting a Canvas institution end-to-end (developer
+key, `LTI_PLATFORMS` JSON, verification steps):
 
-### Blackboard
-
-Register with `"platform_type": "blackboard"` in the same endpoint. Blackboard config JSON is served at `GET /lti/blackboard/config`. Submission events arrive via AGS at `POST /lti/ags/submissions`.
-
-### LTI claim normalisation
-
-Canvas and Blackboard structure their OIDC claims differently. Original normalises both into a single `LTIContext` dataclass in `canvas/lti.py`, so all downstream logic is platform-agnostic. Platform type is auto-detected from the `iss` claim if not explicitly set.
+- **Operator runbook:** [docs/CANVAS_RUNBOOK.md](docs/CANVAS_RUNBOOK.md)
+- **One-pager to send the Canvas admin:** [docs/canvas_developer_key.md](docs/canvas_developer_key.md)
 
 ---
 
 ## Runtime surfaces
 
-Original currently has two backend surfaces:
+Original currently has two backend surfaces — only one is live:
 
-| Surface | Entry point | Purpose |
-|---------|-------------|---------|
-| Dashboard/pilot app | `python run.py --demo --frontend-dir demo/` | Static professor, student, admin, operator, and Bluebook dashboards. This is the current pilot-facing app, hardened with tenant isolation, staff login, guarded destructive operations, audit logging, and SQLite WAL backups. |
-| v1 API | `python run.py` | Long-term DB-backed API with JWT auth, SQLAlchemy models, rate limiting, Canvas/LTI routes, and a Postgres path. |
+| Surface | Entry point | Status | Purpose |
+|---------|-------------|--------|---------|
+| Dashboard/pilot app | `python run.py --demo --frontend-dir demo/` | **Live** | `original/api.py` — static professor, student, admin, operator, and Bluebook dashboards. Hardened with tenant isolation, staff login, guarded destructive operations, audit logging, and SQLite WAL backups. This is what `render.yaml` deploys. |
+| v1 API | `python run.py` | Dormant | `original/main.py` + `original/api/` — JWT auth, SQLAlchemy models, rate limiting, and a Postgres path. Not deployed anywhere; see `docs/ARCHITECTURE.md`. |
 
 The zero-login seeded demo remains the sales showcase. Real pilot tenants must run with `ORIGINAL_ENV=pilot`, a stable `SECRET_KEY`, locked CORS, `GUARD_DESTRUCTIVE=1`, and a configured `ORIGINAL_DB` backup path.
 
 ## Key API endpoints
 
+`original/api.py` registers 59 routes. The minimum set most integrators need, grouped by audience:
+
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/v1/auth/login` | JWT access + refresh tokens |
-| POST | `/api/v1/auth/refresh` | Rotate access token |
-| GET | `/api/v1/students/` | List students |
-| POST | `/api/v1/students/` | Create student |
-| POST | `/api/v1/students/roster/import` | Bulk CSV roster import |
-| POST | `/api/v1/submissions/{id}/baseline` | Add baseline sample (text) |
-| POST | `/api/v1/submissions/{id}/baseline/upload-batch` | Add baseline samples (files) |
-| POST | `/api/v1/submissions/{id}/score` | Score submission |
-| POST | `/api/v1/submissions/{id}/submissions/{sid}/decision` | Record instructor decision |
-| POST | `/api/v1/import/courses/{id}/turnitin-csv` | Import Turnitin metadata CSV |
-| GET | `/lti/config` | Canvas LTI tool configuration JSON |
-| GET | `/lti/blackboard/config` | Blackboard LTI tool configuration JSON |
-| POST | `/canvas/lti/login` | LTI 1.3 OIDC login initiation |
-| GET | `/canvas/lti/jwks` | LTI 1.3 public key set |
-| GET | `/lti/registrations/{id}/verify` | Verify Canvas API token |
-| POST | `/lti/ags/submissions` | Blackboard AGS event receiver |
 | GET | `/health` | Liveness probe |
+| POST | `/auth/login` | Instructor/admin login |
+| GET | `/auth/me` | Current principal |
+| POST | `/student-auth/login` | Student login |
+| GET | `/students/{id}` | Student state summary |
+| GET | `/students/{id}/samples/{index}/text` | Raw text of a single baseline sample |
+| POST | `/students/{id}/baseline` | Add a baseline sample (text) |
+| POST | `/students/{id}/baseline/upload-batch` | Add baseline samples (files) |
+| POST | `/students/{id}/score` | Score a submission |
+| DELETE | `/students/{id}` | Delete a student and associated data |
+| GET | `/lti/jwks` | LTI 1.3 public key set |
+| POST | `/lti/launch` | LTI 1.3 launch (id_token) |
+| GET/POST | `/lti/login` | LTI 1.3 OIDC login initiation |
 
-Full interactive docs at `/docs`.
+This is a curated subset, not the full list — endpoint tables in prose drift
+fast against a 59-route file. For everything else:
+
+- **Full interactive docs (always current):** `/docs` (Swagger UI, served by the running app)
+- **Prose API reference grouped by audience:** [docs/API_REFERENCE.md](docs/API_REFERENCE.md)
 
 ---
 
 ## Data privacy (FERPA)
 
-Every institution is created with FERPA-safe defaults:
+**Raw submission and baseline text IS stored** in the live stack — there is no
+automatic `ferpa_mode` deletion pipeline. Authorized instructors can retrieve
+the raw prose of any baseline sample via `GET /students/{id}/samples/{index}/text`,
+which exists specifically so an instructor can re-read a student's writing
+before authenticating a sample as a trusted baseline.
 
-```json
-{
-  "retain_raw_text_days": 365,
-  "retain_scores_days": 1825,
-  "ferpa_mode": true
-}
-```
+What retention actually looks like today:
 
-With `ferpa_mode: true`, raw submission text is deleted after feature extraction unless an institution explicitly configures a different retention policy. Only hashes, metadata, the 103-dimensional feature vector, baseline state, audit records, and scoring results are retained. Student data is never sold or used to train external models.
+- **No automatic/scheduled deletion runs** in the live app. (A retention
+  scheduler exists only in the dormant v1 stack and is not deployed.)
+- **Manual deletion is real and supported**: `store.delete_student()` and the
+  CLI `python -m original.cli.delete_student --student-id <id> --confirm`
+  both remove a student and all associated data (submissions, scoring
+  results, baselines). The live `DELETE /students/{id}` endpoint does the
+  same over HTTP.
+- Feature vectors (the 103-dimensional stylometric encoding) are
+  non-reversible — they cannot be used to reconstruct the original text.
+- Student data is never sold or used to train external models.
 
-Update an institution's policy:
-```
-PATCH /api/v1/admin/institutions/{id}/data-policy
-{"retain_raw_text_days": 90, "ferpa_mode": true}
-```
+See `docs/data_inventory.md` and `docs/encryption_policy.md` for the full
+compliance detail, and `docs/dpa_template.md` for the DPA text.
 
 ---
 
 ## Production deployment
 
-**Full runbook (Docker Compose + nginx + Let’s Encrypt + backups + static frontend):** see [deploy/DEPLOY.md](deploy/DEPLOY.md).
+The live deploy target is **Render**, defined in `render.yaml`. Two services
+are declared:
 
-```bash
-cp .env.dev .env
-# Set: DATABASE_URL, SECRET_KEY, FIRST_ADMIN_PASSWORD
-./start-prod.sh
-```
+- **`original-demo`** — free-tier, always-live, zero-login sales demo.
+  Ephemeral (writes reset on each deploy); seeded from the committed
+  `demo/seed.db`. `startCommand: python run.py --demo --port $PORT --skip-seed`.
+- **`original-pilot`** — Starter plan with a persistent disk, for a real
+  institutional pilot. Same dashboard app, hardened by `ORIGINAL_ENV=pilot`
+  (fails fast without a stable `SECRET_KEY`; CORS locked to
+  `ALLOWED_ORIGINS`; HSTS on; destructive endpoints guarded by
+  `MAINTENANCE_TOKEN`). Manual deploys only — see `docs/OPS_RUNBOOK.md` for
+  the maintenance-window process.
 
-`start-prod.sh` runs `alembic upgrade head`, then launches uvicorn. Set `PORT` and `WORKERS` environment variables to override defaults. Put Original behind nginx or Caddy for HTTPS.
+For the full set of env vars each service sets (backup scheduler, LTI keys,
+adaptive-scoring flags, AI-likelihood gate), read `render.yaml` directly —
+it's heavily commented and is the source of truth.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | *(required)* | PostgreSQL connection string |
-| `SECRET_KEY` | *(required)* | JWT signing key |
-| `ENVIRONMENT` | `development` | `development` / `production` |
-| `MIN_BASELINE_SAMPLES` | `3` | Minimum baselines to allow scoring |
-| `MIN_BASELINE_FOR_ESCALATE` | `5` | Minimum baselines to allow escalation |
-| `RATE_LIMIT_SCORING` | `10/minute` | Per-IP scoring rate limit |
-| `PORT` | `8000` | uvicorn port |
-| `WORKERS` | `2` | uvicorn worker count |
+A Docker Compose / nginx / Let's Encrypt / Alembic self-hosting path exists
+at [deploy/DEPLOY.md](deploy/DEPLOY.md), but **it is not the current
+deployment path** — that document targets the dormant v1 stack. Treat it as
+a documented future option for self-hosting outside Render, not as the
+pilot's actual deploy process.
 
 ---
 
@@ -309,21 +310,28 @@ cp .env.dev .env
 | DOCX parsing | python-docx |
 | Rate limiting | slowapi |
 
+Directory map — **live files first**, dormant v1 package called out explicitly
+(see `docs/ARCHITECTURE.md` for the full split):
+
 ```
 original/
-├── api/v1/
+├── api.py                    ★ LIVE — the pilot FastAPI app (59 routes:
+│                               students, scoring, auth, Bluebook, admin, LTI)
+├── lti.py                    ★ LIVE — LTI 1.3 OIDC (/lti/login, /lti/launch, /lti/jwks)
+├── store.py                  ★ LIVE — SQLite (WAL) persistence + in-memory cache
+├── api/v1/                   dormant — v1 REST package, not deployed
 │   ├── auth.py               JWT login + refresh
 │   ├── students.py           Student CRUD + roster CSV import
 │   ├── submissions.py        Baseline add, batch upload, scoring, decisions
 │   ├── paper_import.py       Turnitin CSV import
 │   ├── admin.py              Institution + LTI registration management
 │   └── upload_utils.py       Shared PDF/DOCX/TXT text extraction
-├── canvas/
+├── canvas/                   dormant — v1's own LTI stack (/canvas/lti/*)
 │   ├── lti.py                LTI 1.3 OIDC launch, Canvas + Blackboard config,
 │   │                         LTIContext normalisation, AGS receiver
 │   └── baseline_import.py    Canvas submission list + import (paginated, file-aware)
-├── core/                     Config, logging, exceptions, rate limiting
-├── db/
+├── core/                     dormant — config, logging, exceptions, rate limiting (v1)
+├── db/                       dormant — v1 SQLAlchemy/Alembic
 │   ├── models/               SQLAlchemy models (Student, BaselineSample,
 │   │                         Submission, ScoringResult, LTIRegistration…)
 │   └── alembic/              Migration versions (001–003)
@@ -374,7 +382,7 @@ python3 -m pytest tests/test_features.py tests/test_quantum.py \
   tests/test_tension_arc_integration.py --noconftest -v
 ```
 
-32 tests covering feature extraction, quantum invariants (Born probability bounds, density matrix trace normalisation, purity bounds, trajectory), and tension arc integration. No database or Docker required.
+A narrow slice covering feature extraction, quantum invariants (Born probability bounds, density matrix trace normalisation, purity bounds, trajectory), and tension arc integration. No database or Docker required. The full suite (`.venv/bin/pytest tests/ -q`, see `CLAUDE.md`) is 605 tests.
 
 ---
 

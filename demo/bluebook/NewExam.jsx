@@ -1,3 +1,6 @@
+import React from 'react';
+import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, Logotype, MetaLabel, Seal, fontBody, fontDisplay, fontMono } from './components.jsx';
+
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — New Examination Screen
 //  Create and configure a new examination
@@ -13,11 +16,11 @@ const COURSES = [
 ];
 
 // ─── Form Field Components ────────────────────────────────────────────────────
-function FormField({ label, hint, children }) {
+function FormField({ label, hint, children, id }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <MetaLabel>{label}</MetaLabel>
+        <MetaLabel htmlFor={id}>{label}</MetaLabel>
         {hint && <span style={{
           fontFamily: fontBody, fontStyle: 'italic',
           fontSize: 13, color: BB.fade, opacity: 0.7,
@@ -40,10 +43,11 @@ const fieldBase = {
   transition: 'border-color 0.3s',
 };
 
-function TextInput({ value, onChange, placeholder, type = 'text' }) {
+function TextInput({ value, onChange, placeholder, type = 'text', id }) {
   const [focused, setFocused] = useNEState(false);
   return (
     <input
+      id={id}
       type={type} value={value} onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
       onFocus={() => setFocused(true)}
@@ -57,10 +61,11 @@ function TextInput({ value, onChange, placeholder, type = 'text' }) {
   );
 }
 
-function SelectInput({ value, onChange, options }) {
+function SelectInput({ value, onChange, options, id }) {
   const [focused, setFocused] = useNEState(false);
   return (
     <select
+      id={id}
       value={value} onChange={e => onChange(e.target.value)}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
@@ -82,10 +87,11 @@ function SelectInput({ value, onChange, options }) {
   );
 }
 
-function NumberInput({ value, onChange, placeholder, min = 0 }) {
+function NumberInput({ value, onChange, placeholder, min = 0, id }) {
   const [focused, setFocused] = useNEState(false);
   return (
     <input
+      id={id}
       type="number" value={value} min={min}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
@@ -117,6 +123,9 @@ function ToggleRow({ label, desc, value, onChange }) {
       </div>
       <button
         onClick={() => onChange(!value)}
+        role="switch"
+        aria-checked={value}
+        aria-label={label}
         style={{
           width: 44, height: 24, borderRadius: 12, border: 'none',
           background: value ? BB.gold : 'rgba(139,155,180,0.2)',
@@ -137,7 +146,7 @@ function ToggleRow({ label, desc, value, onChange }) {
 }
 
 // ─── New Exam Screen ──────────────────────────────────────────────────────────
-function NewExamScreen({ onNavigate }) {
+export function NewExamScreen({ onNavigate }) {
   const [title,     setTitle]     = useNEState('');
   const [course,    setCourse]    = useNEState('PHIL 301A');
   const [duration,  setDuration]  = useNEState(90);
@@ -274,14 +283,16 @@ function NewExamScreen({ onNavigate }) {
         <div style={{ marginBottom: 40 }}>
           <MetaLabel style={{ display: 'block', marginBottom: 20 }}>I. Identity</MetaLabel>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-            <FormField label="Examination Title">
+            <FormField label="Examination Title" id="neTitle">
               <TextInput
+                id="neTitle"
                 value={title} onChange={setTitle}
                 placeholder="e.g. Ethics in the Modern World — Final Examination"
               />
             </FormField>
-            <FormField label="Course">
+            <FormField label="Course" id="neCourse">
               <SelectInput
+                id="neCourse"
                 value={course} onChange={setCourse}
                 options={COURSES.map(c => ({ value: c.code, label: `${c.code} · ${c.name}` }))}
               />
@@ -295,14 +306,14 @@ function NewExamScreen({ onNavigate }) {
         <div style={{ marginBottom: 40 }}>
           <MetaLabel style={{ display: 'block', marginBottom: 20 }}>II. Time & Length</MetaLabel>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 28 }}>
-            <FormField label="Duration" hint="minutes">
-              <NumberInput value={duration} onChange={setDuration} placeholder="90" min={10} />
+            <FormField label="Duration" hint="minutes" id="neDuration">
+              <NumberInput id="neDuration" value={duration} onChange={setDuration} placeholder="90" min={10} />
             </FormField>
-            <FormField label="Minimum Words" hint="optional">
-              <NumberInput value={minWords} onChange={setMinWords} placeholder="600" />
+            <FormField label="Minimum Words" hint="optional" id="neMinWords">
+              <NumberInput id="neMinWords" value={minWords} onChange={setMinWords} placeholder="600" />
             </FormField>
-            <FormField label="Maximum Words" hint="optional">
-              <NumberInput value={maxWords} onChange={setMaxWords} placeholder="1200" />
+            <FormField label="Maximum Words" hint="optional" id="neMaxWords">
+              <NumberInput id="neMaxWords" value={maxWords} onChange={setMaxWords} placeholder="1200" />
             </FormField>
           </div>
         </div>
@@ -316,7 +327,7 @@ function NewExamScreen({ onNavigate }) {
             {prompts.map((prompt, i) => (
               <div key={i}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7 }}>
-                  <MetaLabel>Question {['I','II','III','IV','V'][i] || i + 1}</MetaLabel>
+                  <MetaLabel htmlFor={`nePrompt${i}`}>Question {['I','II','III','IV','V'][i] || i + 1}</MetaLabel>
                   {prompts.length > 1 && (
                     <button onClick={() => removePrompt(i)} style={{
                       fontFamily: fontMono, fontSize: 9, letterSpacing: '0.15em',
@@ -326,6 +337,7 @@ function NewExamScreen({ onNavigate }) {
                   )}
                 </div>
                 <textarea
+                  id={`nePrompt${i}`}
                   value={prompt}
                   onChange={e => updatePrompt(i, e.target.value)}
                   placeholder="Write the examination question here…"
@@ -412,5 +424,3 @@ function NewExamScreen({ onNavigate }) {
     </div>
   );
 }
-
-Object.assign(window, { NewExamScreen });

@@ -32,10 +32,16 @@ DB = Path(os.environ.get("ORIGINAL_DB", Path(__file__).resolve().parent.parent /
 
 STATEMENTS = [
     ("bluebook_submissions (demo)", "DELETE FROM bluebook_submissions WHERE tenant_id = 'demo'"),
-    ("bluebook_exams (demo)",       "DELETE FROM bluebook_exams       WHERE tenant_id = 'demo'"),
-    ("bluebook_courses (demo)",     "DELETE FROM bluebook_courses     WHERE tenant_id = 'demo'"),
-    ("student_profiles (demo:*)",   "DELETE FROM student_profiles     WHERE student_id LIKE 'demo:%'"),
-    ("fidelity_scores (dev stubs)", "DELETE FROM fidelity_scores      WHERE student_id IN ('student-A')"),
+    ("bluebook_exams (demo)", "DELETE FROM bluebook_exams       WHERE tenant_id = 'demo'"),
+    ("bluebook_courses (demo)", "DELETE FROM bluebook_courses     WHERE tenant_id = 'demo'"),
+    (
+        "student_profiles (demo:*)",
+        "DELETE FROM student_profiles     WHERE student_id LIKE 'demo:%'",
+    ),
+    (
+        "fidelity_scores (dev stubs)",
+        "DELETE FROM fidelity_scores      WHERE student_id IN ('student-A')",
+    ),
 ]
 AUDIT_STMT = ("audit_log (demo)", "DELETE FROM audit_log WHERE tenant_id = 'demo'")
 
@@ -43,8 +49,11 @@ AUDIT_STMT = ("audit_log (demo)", "DELETE FROM audit_log WHERE tenant_id = 'demo
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--apply", action="store_true", help="actually delete (default is a dry run)")
-    ap.add_argument("--purge-audit-demo", action="store_true",
-                    help="also delete audit_log rows tagged tenant 'demo'")
+    ap.add_argument(
+        "--purge-audit-demo",
+        action="store_true",
+        help="also delete audit_log rows tagged tenant 'demo'",
+    )
     args = ap.parse_args()
 
     if not DB.exists():
@@ -58,7 +67,7 @@ def main() -> int:
         print(f"[{mode}] {DB}")
         total = 0
         for label, stmt in stmts:
-            count_sql = "SELECT COUNT(*) " + stmt[stmt.index("FROM"):]
+            count_sql = "SELECT COUNT(*) " + stmt[stmt.index("FROM") :]
             n = conn.execute(count_sql).fetchone()[0]
             total += n
             print(f"  {label:32} {n:4d} row(s)")

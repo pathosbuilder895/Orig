@@ -14,7 +14,6 @@ human-readable reason so callers can attach it to per-file error reports.
 from __future__ import annotations
 
 import io
-from typing import Optional
 
 
 def extract_text_from_bytes(raw: bytes, filename: str) -> str:

@@ -15,6 +15,7 @@ from original.quantum.conformal import (
 
 # ── conformal_pvalue ──────────────────────────────────────────────────────────
 
+
 class TestConformalPvalue:
     def test_empty_calibration_returns_half(self):
         """No calibration data → neutral p-value 0.5."""
@@ -35,7 +36,7 @@ class TestConformalPvalue:
 
     def test_half_below_half_above(self):
         """Exactly half the calibration is ≤ query."""
-        cal = [0.2, 0.4, 0.6, 0.8]   # 4 values
+        cal = [0.2, 0.4, 0.6, 0.8]  # 4 values
         # query = 0.5 → 2 values ≤ 0.5 (0.2, 0.4)
         p = conformal_pvalue(0.5, cal)
         expected = 2 / (4 + 1)
@@ -51,6 +52,7 @@ class TestConformalPvalue:
     def test_bounded(self):
         """p-value is always in [0, 1]."""
         import random
+
         rng = random.Random(42)
         for _ in range(50):
             cal = [rng.random() for _ in range(rng.randint(1, 20))]
@@ -67,6 +69,7 @@ class TestConformalPvalue:
 
 
 # ── verdict_from_pvalue ───────────────────────────────────────────────────────
+
 
 class TestVerdictFromPvalue:
     def test_high_p_no_action(self):
@@ -100,6 +103,7 @@ class TestVerdictFromPvalue:
 
 # ── asymmetric_threshold ──────────────────────────────────────────────────────
 
+
 class TestAsymmetricThreshold:
     def test_equal_costs_gives_half(self):
         """Equal FP and FN costs → threshold = 0.5."""
@@ -123,6 +127,7 @@ class TestAsymmetricThreshold:
     def test_bounded(self):
         """Result always in (0, 1)."""
         import random
+
         rng = random.Random(0)
         for _ in range(20):
             fp = rng.uniform(0.01, 10.0)

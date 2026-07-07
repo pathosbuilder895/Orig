@@ -45,7 +45,7 @@
   --amber:         #8a6a28;
   --text-primary:  #1A1A1A;
   --text-secondary:#3C5A82;
-  --text-muted:    #7d8794;
+  --text-muted:    #5d6773;
   --text-cream:    #F7F2E7;
   --text-cream-dim:rgba(247,242,231,0.55);
   --flag-red:      #6B2737;
@@ -194,7 +194,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   font-size:1rem;line-height:1.6;color:var(--text-secondary);
 }
 .input-notice strong{font-style:normal;font-weight:600;color:var(--text-primary)}
-.input-notice em{font-style:italic;color:var(--gold)}
+.input-notice em{font-style:italic;color:var(--amber)}
 .submission-textarea{
   width:100%;min-height:130px;
   padding:14px 16px;
@@ -560,7 +560,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   transition:color 0.15s,border-color 0.15s;
 }
 .tab-btn:hover{color:var(--text)}
-.tab-btn.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:600}
+.tab-btn.active{color:var(--amber);border-bottom-color:var(--gold);font-weight:600}
 
 /* History items */
 .hist-item{
@@ -650,11 +650,14 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 
 /* ── Drop zone ── */
 .drop-zone{
+  display:block;position:relative;
   border:2px dashed var(--gold-muted);border-radius:var(--radius);
   padding:28px 20px;text-align:center;cursor:pointer;transition:all 0.2s;
   background:var(--cream-warm);
 }
 .drop-zone.drag-over{border-color:var(--gold);background:var(--gold-light)}
+.drop-zone-input{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.drop-zone-input:focus-visible ~ *,.drop-zone:has(.drop-zone-input:focus-visible){outline:none;box-shadow:0 0 0 3px var(--gold)}
 .drop-zone-icon{display:flex;justify-content:center;margin-bottom:10px}
 .drop-zone-icon svg{width:28px;height:28px;stroke:var(--text-muted);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .drop-zone-label{font-size:0.84rem;font-weight:500;color:var(--text)}
@@ -813,7 +816,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;
   transition:all 0.15s;
 }
-.import-tab.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:600}
+.import-tab.active{color:var(--amber);border-bottom-color:var(--gold);font-weight:600}
 .import-tab-panels{flex:1;overflow-y:auto;padding:18px 22px 24px}
 .import-tab-panel{display:none}
 .import-tab-panel.active{display:block}
@@ -1369,7 +1372,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
                 <div>
-                  <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:6px">Corrected verdict</label>
+                  <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:6px" for="cVerdict">Corrected verdict</label>
                   <select id="cVerdict" style="width:100%;padding:8px 12px;border:1px solid var(--cream-border);border-radius:6px;font-size:0.9rem">
                     <option value="">—</option>
                     <option value="authentic">authentic</option>
@@ -1378,7 +1381,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
                   </select>
                 </div>
                 <div>
-                  <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:6px">Corrected action</label>
+                  <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:6px" for="cAction">Corrected action</label>
                   <select id="cAction" style="width:100%;padding:8px 12px;border:1px solid var(--cream-border);border-radius:6px;font-size:0.9rem">
                     <option value="">—</option>
                     <option value="no_action">no_action</option>
@@ -1389,7 +1392,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
                 </div>
               </div>
               <div style="margin-bottom:14px">
-                <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:6px">Notes</label>
+                <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:6px" for="cNotes">Notes</label>
                 <textarea id="cNotes" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--cream-border);border-radius:6px;font-family:'EB Garamond',serif;font-size:0.95rem;resize:vertical" placeholder="Why is the original verdict wrong?"></textarea>
               </div>
               <div style="display:flex;gap:10px;justify-content:flex-end">
@@ -1497,18 +1500,18 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
         <div style="font-family:'Cormorant Garamond',serif;font-size:1.05rem;margin-bottom:14px">Register an institution</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
           <div>
-            <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:5px;color:var(--text-secondary)">Institution ID (slug)</label>
+            <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:5px;color:var(--text-secondary)" for="tIdInput">Institution ID (slug)</label>
             <input id="tIdInput" placeholder="e.g. seminary-of-dallas" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--cream-border);border-radius:6px;font-size:0.9rem;font-family:'EB Garamond',serif">
             <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px">Stable identifier — used in URLs and student cohort scoping</div>
           </div>
           <div>
-            <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:5px;color:var(--text-secondary)">Institution Name</label>
+            <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:5px;color:var(--text-secondary)" for="tNameInput">Institution Name</label>
             <input id="tNameInput" placeholder="e.g. Dallas Theological Seminary" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--cream-border);border-radius:6px;font-size:0.9rem;font-family:'EB Garamond',serif">
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">
           <div>
-            <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:5px;color:var(--text-secondary)">Environment</label>
+            <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:5px;color:var(--text-secondary)" for="tEnvInput">Environment</label>
             <select id="tEnvInput" style="width:100%;padding:8px 12px;border:1px solid var(--cream-border);border-radius:6px;font-size:0.9rem">
               <option value="demo">Demo — open access, no guards</option>
               <option value="pilot">Pilot — destructive ops require guard token</option>
@@ -1516,7 +1519,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
             </select>
           </div>
           <div>
-            <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:5px;color:var(--text-secondary)">Contact email (optional)</label>
+            <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:5px;color:var(--text-secondary)" for="tContactInput">Contact email (optional)</label>
             <input id="tContactInput" placeholder="registrar@institution.edu" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--cream-border);border-radius:6px;font-size:0.9rem;font-family:'EB Garamond',serif">
           </div>
         </div>
@@ -2394,24 +2397,23 @@ function renderBaselines() {
   // Drop zone
   html += `
   <div style="margin-top:12px">
-    <div class="drop-zone" id="blDropZone"
+    <label class="drop-zone" id="blDropZone" for="blFileInput"
          ondragover="event.preventDefault();this.classList.add('drag-over')"
          ondragleave="this.classList.remove('drag-over')"
-         ondrop="_onDrop(event)"
-         onclick="document.getElementById('blFileInput').click()">
+         ondrop="_onDrop(event)">
       <div class="drop-zone-icon"><svg viewBox="0 0 24 24"><path d="M12 16V8"/><path d="m8 11 4-4 4 4"/><path d="M20 16.5A4.5 4.5 0 0 0 17 8a6 6 0 0 0-11.3 1.5A4 4 0 0 0 6 17"/></svg></div>
       <div class="drop-zone-label">Drop PDF, DOCX or TXT files here</div>
       <div class="drop-zone-sub">Or click to browse · Multiple files accepted</div>
-    </div>
-    <input type="file" id="blFileInput" multiple accept=".pdf,.docx,.txt" style="display:none" onchange="_onFilePick(event)">
+      <input type="file" id="blFileInput" multiple accept=".pdf,.docx,.txt" class="drop-zone-input" onchange="_onFilePick(event)">
+    </label>
 
     <div class="file-queue" id="blFileQueue"></div>
 
     <div id="blQueueControls" style="display:none;margin-top:8px">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
         <input type="text" id="blAssignment" placeholder="Assignment name (e.g. In-class Essay: Christology)"
-               style="flex:1;min-width:180px;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:0.83rem;background:var(--surface);color:var(--text)">
-        <select id="blProvenance" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+               style="flex:1;min-width:180px;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:0.83rem;background:var(--surface);color:var(--text)" aria-label="Assignment name">
+        <select id="blProvenance" aria-label="Baseline provenance" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
           <option value="proctored">Proctored (highest trust)</option>
           <option value="verified" selected>Verified by professor</option>
         </select>
@@ -2429,11 +2431,11 @@ function renderBaselines() {
       <div id="canvasImportPanel" style="display:none;margin-top:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
         <div style="font-size:0.8rem;font-weight:600;margin-bottom:10px;color:var(--text)">Canvas Submissions Import</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-          <input id="ciCourseId" placeholder="Canvas Course ID" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
-          <input id="ciUserId" placeholder="Canvas User ID" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+          <input id="ciCourseId" placeholder="Canvas Course ID" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)" aria-label="Canvas Course ID">
+          <input id="ciUserId" placeholder="Canvas User ID" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)" aria-label="Canvas User ID">
         </div>
         <div style="display:flex;gap:8px;margin-bottom:8px">
-          <input id="ciToken" type="password" placeholder="Canvas API token (leave blank if set server-side)" style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+          <input id="ciToken" type="password" placeholder="Canvas API token (leave blank if set server-side)" style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)" aria-label="Canvas API token">
           <button onclick="listCanvasSubmissions()" style="padding:8px 14px;background:var(--green-deep);color:var(--text-cream);border:none;border-radius:7px;font-family:Inter,sans-serif;font-weight:600;font-size:0.82rem;cursor:pointer;white-space:nowrap">List Papers</button>
         </div>
         <div id="ciList" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto"></div>
@@ -2456,22 +2458,22 @@ function renderBaselines() {
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
           <input id="bbReqEmail" type="email" placeholder="Student email"
-                 style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+                 style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)" aria-label="Student email">
           <input id="bbReqName" placeholder="Student name (as it appears)"
-                 style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+                 style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)" aria-label="Student name">
         </div>
         <input id="bbReqTitle" placeholder="Exam title (e.g. Week 5 Baseline)" value="Proctored Baseline Sitting"
-               style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text);margin-bottom:8px">
+               style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text);margin-bottom:8px" aria-label="Exam title">
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
           <input id="bbReqDuration" type="number" min="5" max="480" value="45" placeholder="Minutes"
-                 style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+                 style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)" aria-label="Exam duration in minutes">
           <input id="bbReqMinWords" type="number" min="0" placeholder="Min words"
-                 style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+                 style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)" aria-label="Minimum word count">
           <input id="bbReqMaxWords" type="number" min="0" placeholder="Max words"
-                 style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+                 style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)" aria-label="Maximum word count">
         </div>
         <textarea id="bbReqPrompt" rows="3" placeholder="Prompt (leave blank for default)"
-                  style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:0.82rem;resize:vertical;background:var(--surface);color:var(--text);margin-bottom:8px"></textarea>
+                  style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:0.82rem;resize:vertical;background:var(--surface);color:var(--text);margin-bottom:8px" aria-label="Exam prompt"></textarea>
         <div style="display:flex;justify-content:flex-end;gap:8px">
           <button onclick="submitBbookRequest()" id="bbReqSubmitBtn"
                   style="padding:8px 18px;background:var(--green-deep);color:var(--text-cream);border:none;border-radius:8px;font-family:Inter,sans-serif;font-weight:600;font-size:0.83rem;cursor:pointer">Send Request</button>
@@ -2485,7 +2487,7 @@ function renderBaselines() {
       <button class="add-base-btn" onclick="toggleAddBaseline()" id="addBaseBtn">+ Paste text instead</button>
       <div id="addBasePanel" style="display:none;margin-top:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
         <textarea id="blPasteText" rows="4" placeholder="Paste authenticated text…"
-                  style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:0.83rem;resize:vertical;background:var(--surface);color:var(--text)"></textarea>
+                  style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:0.83rem;resize:vertical;background:var(--surface);color:var(--text)" aria-label="Paste authenticated baseline text"></textarea>
         <div style="display:flex;justify-content:flex-end;margin-top:8px">
           <button onclick="submitPasted()" style="padding:8px 18px;background:var(--green-deep);color:var(--text-cream);border:none;border-radius:8px;font-family:Inter,sans-serif;font-weight:600;font-size:0.83rem;cursor:pointer">Add Baseline</button>
         </div>
@@ -3559,25 +3561,24 @@ async function runTurnitinCsvImport() {
       <!-- Tab 1: Upload Files -->
       <div class="import-tab-panel active" id="importPanel_files">
         <div class="import-section-label">Drag PDF, DOCX or TXT files for the selected student</div>
-        <div class="drop-zone" id="importDropZone"
+        <label class="drop-zone" id="importDropZone" for="importFileInput"
              ondragover="event.preventDefault();this.classList.add('drag-over')"
              ondragleave="this.classList.remove('drag-over')"
-             ondrop="_onImportDrop(event)"
-             onclick="document.getElementById('importFileInput').click()">
+             ondrop="_onImportDrop(event)">
           <div class="drop-zone-icon"><svg viewBox="0 0 24 24"><path d="M12 16V8"/><path d="m8 11 4-4 4 4"/><path d="M20 16.5A4.5 4.5 0 0 0 17 8a6 6 0 0 0-11.3 1.5A4 4 0 0 0 6 17"/></svg></div>
           <div class="drop-zone-label">Drop files here or click to browse</div>
           <div class="drop-zone-sub">PDF · DOCX · TXT · Multiple files accepted</div>
-        </div>
-        <input type="file" id="importFileInput" multiple accept=".pdf,.docx,.txt"
-               style="display:none" onchange="_onImportPick(event)">
+          <input type="file" id="importFileInput" multiple accept=".pdf,.docx,.txt"
+                 class="drop-zone-input" onchange="_onImportPick(event)">
+        </label>
 
         <div id="importBatchList" style="margin-top:10px;display:flex;flex-direction:column;gap:5px"></div>
 
         <div id="importBatchControls" style="display:none;margin-top:10px">
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
             <input id="importBatchAssignment" placeholder="Assignment name (optional)"
-                   style="flex:1;min-width:160px;padding:8px 12px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
-            <select id="importBatchProvenance" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+                   style="flex:1;min-width:160px;padding:8px 12px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)" aria-label="Assignment name">
+            <select id="importBatchProvenance" aria-label="Baseline provenance" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
               <option value="proctored">Proctored</option>
               <option value="verified" selected>Verified by professor</option>
             </select>
@@ -3604,13 +3605,13 @@ async function runTurnitinCsvImport() {
         <div style="padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm)">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
             <input id="imCiCourseId" placeholder="Canvas Course ID"
-                   style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+                   style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)" aria-label="Canvas Course ID">
             <input id="imCiUserId" placeholder="Canvas User ID"
-                   style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+                   style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)" aria-label="Canvas User ID">
           </div>
           <div style="display:flex;gap:8px;margin-bottom:8px">
             <input id="imCiToken" type="password" placeholder="Canvas API token (optional if set server-side)"
-                   style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+                   style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)" aria-label="Canvas API token">
             <button onclick="listCanvasFromDrawer()"
                     style="padding:8px 14px;background:var(--green-deep);color:var(--text-cream);border:none;border-radius:7px;font-family:Inter,sans-serif;font-weight:600;font-size:0.82rem;cursor:pointer;white-space:nowrap">
               List Papers
@@ -3636,7 +3637,7 @@ async function runTurnitinCsvImport() {
         </div>
         <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;margin-bottom:10px">
           <input id="ttCourseId" placeholder="Course ID (from this system)"
-                 style="flex:1;min-width:180px;padding:8px 12px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)">
+                 style="flex:1;min-width:180px;padding:8px 12px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)" aria-label="Course ID">
           <label style="display:flex;flex-direction:column;gap:4px;font-size:0.78rem;color:var(--text-muted)">
             <span>Turnitin CSV file</span>
             <input type="file" id="ttCsvFile" accept=".csv"
@@ -3662,7 +3663,7 @@ async function runTurnitinCsvImport() {
   </div><!-- end import-drawer -->
 </div><!-- end import-overlay -->
 
-<div class="toast-container" id="toastContainer"></div>
+<div class="toast-container" id="toastContainer" role="status" aria-live="polite"></div>
 
 <script>
 /* Canvas helpers for drawer (re-use existing logic with drawer-specific element IDs) */

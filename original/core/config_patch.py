@@ -2,7 +2,6 @@
 # Replace the field definition to use a string instead of List[str]
 # Then convert it in a validator
 
-import sys
 
 # Read the original config.py
 with open('original/core/config.py', 'r') as f:
@@ -19,7 +18,7 @@ old_definition = '''    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "
         return v'''
 
 new_definition = '''    _ALLOWED_ORIGINS_STR: str = "http://localhost:3000,http://localhost:8080"
-    
+
     @property
     def ALLOWED_ORIGINS(self) -> List[str]:
         """Parse comma-separated origins string into list."""

@@ -11,7 +11,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint, Index
+from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from original.db.base import Base, UUIDMixin, TimestampMixin

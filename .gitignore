@@ -102,3 +102,8 @@ validation/benchmarks/*
 # length-stability PR.
 validation/stability/2*/
 !validation/stability/2026-06-30/
+
+# FUSE-mount deletion artifacts (accumulate on synced/FUSE filesystems)
+.fuse_hidden*
+# pytest-benchmark cache
+.benchmark_cache/

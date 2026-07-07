@@ -19,7 +19,7 @@ from __future__ import annotations
 import hashlib
 import io
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -27,7 +27,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from original.api.deps import get_current_instructor, get_db, require_same_institution
-from original.constants import ALL_FEATURE_CODES, AUTH_WEIGHTS
+from original.constants import AUTH_WEIGHTS
 from original.core.config import get_settings
 from original.core.logging import get_logger
 from original.db.models import BaselineSample, Provenance, Student

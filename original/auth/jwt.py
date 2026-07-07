@@ -10,7 +10,7 @@ import hashlib
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Literal, Optional
+from typing import Literal
 
 from jose import JWTError, jwt
 
@@ -123,7 +123,7 @@ def decode_token(token: str) -> TokenData:
             settings.SECRET_KEY,
             algorithms=[settings.ALGORITHM],
         )
-    except JWTError as e:
+    except JWTError:
         raise AuthError(detail="Invalid or expired token", error_code="invalid_token")
 
     return TokenData(

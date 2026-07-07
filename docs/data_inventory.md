@@ -1,8 +1,19 @@
 # Student Data Inventory
 
-**Last Updated:** 2026-03-25
+**Last Updated:** 2026-07-07
 **Classification:** Internal / Sensitive
 **Compliance:** FERPA, GDPR, CCPA
+
+> **Accuracy note (2026-07-07):** This document previously marked every
+> data category `AES-256`, claimed raw text is "NOT stored by default,"
+> and described an automatic/scheduled deletion job. None of that is
+> accurate to the live pilot stack. Encryption claims have been corrected
+> to "Render disk encryption (platform)" — see `docs/encryption_policy.md`
+> for the full explanation. Raw text storage and deletion claims have been
+> corrected below; automatic-deletion language is marked **Planned — not
+> implemented** rather than removed outright, so the intended design isn't
+> lost. This document now describes only the live stack
+> (`original/api.py` + `demo/`).
 
 This document provides a complete inventory of all student data collected, processed, and stored by Original.
 
@@ -12,11 +23,18 @@ This document provides a complete inventory of all student data collected, proce
 
 | Category | Data Type | Collection Method | Retention | Access | Encryption |
 |----------|-----------|-------------------|-----------|--------|------------|
-| PII | Student name, ID, email | LTI / Canvas API | 1 year after relationship | Teachers, Admins | AES-256 |
-| Submissions | Essay text, metadata | Student upload | 1 year after submission | Student, Teachers | AES-256 |
-| Baseline | Authorized writing samples | Instructor upload | Duration + 1 year | Admins, Teachers | AES-256 |
-| Results | Authorship scores, vectors | Original computation | 1 year after generation | Student, Teachers | AES-256 |
-| Audit | Access logs, decisions | System logging | 2 years | Admins only | AES-256 |
+| PII | Student name, ID, email | LTI / Canvas API | 1 year after relationship (policy; not auto-enforced — see §10) | Teachers, Admins | Render disk encryption (platform) |
+| Submissions | Essay text, metadata | Student upload | 1 year after submission (policy; not auto-enforced — see §10) | Student, Teachers | Render disk encryption (platform) |
+| Baseline | Authorized writing samples | Instructor upload | Duration + 1 year (policy; not auto-enforced — see §10) | Admins, Teachers | Render disk encryption (platform) |
+| Results | Authorship scores, vectors | Original computation | 1 year after generation (policy; not auto-enforced — see §10) | Student, Teachers | Render disk encryption (platform) |
+| Audit | Access logs, decisions | System logging | 2 years (policy; not auto-enforced — see §10) | Admins only | Render disk encryption (platform) |
+
+Application-level encryption (e.g., AES-256) is **not** implemented for
+any of these categories. "Render disk encryption (platform)" is Render's
+managed-disk encryption guarantee, inherited from the hosting platform —
+not something the application implements itself. See
+`docs/encryption_policy.md` §2.1 for the full explanation, including why
+this differs from encrypting row data at the application layer.
 
 ---
 
@@ -51,11 +69,11 @@ Size: ~150 bytes per student
 
 **Retention:**
 - **Active Period:** While student enrolled + 1 year after
-- **Automatic Deletion:** Triggers 1 year after last submission or enrollment ends
-- **Manual Deletion:** Via `original.cli.delete_student` command
+- **Automatic Deletion:** > Planned — not implemented in the pilot stack (no retention scheduler runs). Retention beyond the active period is a policy target, not a code-enforced trigger.
+- **Manual Deletion:** Via `original.cli.delete_student` command (real, live — see §10.2)
 
 **Security:**
-- Encrypted at rest (AES-256-GCM)
+- Render disk encryption at rest (platform-level; not application-level — see `docs/encryption_policy.md`)
 - Encrypted in transit (TLS 1.3)
 - Indexed for fast lookup (by external_id)
 - Password-hashed for auth (bcrypt)
@@ -83,10 +101,10 @@ Relationship: Many-to-many (student_enrollments join table)
 - **Delete:** Admins only
 
 **Retention:**
-- Same as student data (1 year after relationship ends)
+- Same as student data (1 year after relationship ends; policy target, not auto-enforced — see §10)
 
 **Security:**
-- Encrypted at rest
+- Render disk encryption at rest (platform-level)
 - Access controlled by RBAC middleware
 
 ---
@@ -96,7 +114,7 @@ Relationship: Many-to-many (student_enrollments join table)
 ### 3.1 Submission Texts
 
 **Data Elements:**
-- Raw essay/assignment text (stored as hash only by default)
+- Raw essay/assignment text (stored — see Security below)
 - Text hash (SHA-256)
 - Word count, character count
 - Assignment name/title
@@ -111,10 +129,8 @@ Relationship: Many-to-many (student_enrollments join table)
 
 **Storage Location:**
 ```
-Database: submissions table
-Fields: id, student_id, course_id, assignment, text_hash, word_count, char_count, submitted_at, status
-Size: ~500 bytes per submission (hash-only)
-Optional: raw_text column (encrypted, disabled by default)
+Database: submissions table (SQLite, live pilot store)
+Fields: id, student_id, course_id, assignment, text_hash, raw_text, word_count, char_count, submitted_at, status
 ```
 
 **Text Hash Computation:**
@@ -125,17 +141,23 @@ text_hash = SHA-256(submission_text.encode('utf-8'))
 **Access:**
 - **Read:** Student (own submission), course instructors, admins
 - **Write:** Student (create), admins (delete)
-- **Raw Text Access:** Disabled by default; enabled only for instructors with explicit "view raw text" permission
+- **Raw Text Access:** Raw baseline/submission text **is stored** and is
+  retrievable by authorized instructors via the live endpoint
+  `GET /students/{id}/samples/{index}/text` (`original/api.py:889`), gated
+  by the endpoint's normal authn/authz. This matches
+  `PILOT_RUNBOOK.md:150` ("Raw text is stored.").
 
 **Retention:**
-- **Active Period:** For 1 year after submission
-- **Automatic Deletion:** Via background job; overwrites with null
-- **Manual Deletion:** Via `original.cli.delete_student`
+- **Active Period:** For 1 year after submission (policy target)
+- **Automatic Deletion:** > Planned — not implemented in the pilot stack (no retention scheduler runs). No background job deletes or nulls out submission text.
+- **Manual Deletion:** Via `original.cli.delete_student` (real, live — see §10.2)
 
 **Security:**
-- Text hash computed immediately upon receipt
-- Raw text NOT stored by default (privacy-preserving mode)
-- If stored: encrypted with institution key (AES-256-GCM)
+- Text hash computed immediately upon receipt (used for deduplication, not for hiding the text)
+- Raw text **is stored** in plain form in SQLite; it is not
+  application-level encrypted (see `docs/encryption_policy.md`)
+- Protected by Render disk encryption at rest (platform-level) and by the
+  endpoint's access control, not by encryption or by omission
 - Hashes indexed for fast deduplication
 
 ### 3.2 Baseline Writing Samples
@@ -168,13 +190,13 @@ Size: ~2 KB per sample (includes feature vector)
 - **Delete:** Admins only
 
 **Retention:**
-- **Active Period:** For 1 year after student relationship ends
-- **Automatic Deletion:** Via background job
-- **Manual Deletion:** Via admin interface or delete_student CLI
+- **Active Period:** For 1 year after student relationship ends (policy target)
+- **Automatic Deletion:** > Planned — not implemented in the pilot stack (no retention scheduler runs).
+- **Manual Deletion:** Via admin-triggered `delete_student` CLI (real, live — see §10.2)
 
 **Security:**
-- Raw text encrypted (AES-256-GCM) if stored
-- Feature vector JSON stored unencrypted (non-reversible)
+- Raw text is stored in plain form; not application-level encrypted (Render disk encryption at rest applies — see `docs/encryption_policy.md`)
+- Feature vector JSON stored unencrypted (non-reversible by construction, not by encryption)
 - Provenance tracked to assess confidence
 - is_active flag allows soft-delete
 
@@ -219,8 +241,8 @@ Cache: Redis (if ENABLE_REDIS_CACHE=True, TTL 1 hour)
 - Same as baseline samples (1 year after relationship)
 
 **Security:**
-- Derived from encrypted baselines
-- Not a reversible representation of original text
+- Derived from baseline text (baseline text itself is not application-level encrypted — see §3.2)
+- Not a reversible representation of original text (non-reversible by construction)
 - Quantum-weighted metrics non-attributable
 
 ---
@@ -254,12 +276,12 @@ Indexed: submission_id, scored_at
 - **Delete:** Admins only
 
 **Retention:**
-- **Active Period:** 1 year after submission
-- **Automatic Deletion:** Via background job
-- **Manual Deletion:** Via delete_student CLI
+- **Active Period:** 1 year after submission (policy target)
+- **Automatic Deletion:** > Planned — not implemented in the pilot stack (no retention scheduler runs).
+- **Manual Deletion:** Via `delete_student` CLI (real, live — see §10.2)
 
 **Security:**
-- Encrypted at rest
+- Render disk encryption at rest (platform-level; not application-level)
 - Indexed for fast retrieval
 - Full audit trail of changes (InstructorDecision table)
 
@@ -305,7 +327,7 @@ Immutable: Decisions are immutable; new decisions replace old ones
 
 **Retention:**
 - **Active Period:** 2 years (for institutional records)
-- **Automatic Deletion:** After 2 years
+- **Automatic Deletion:** > Planned — not implemented in the pilot stack (no retention scheduler runs). No job currently purges decisions after 2 years.
 - **Legal Hold:** Indefinite if subject to investigation
 
 **Security:**
@@ -427,7 +449,7 @@ Rotation: Monthly log files (if file-based)
 - **Legal Hold:** Indefinite if subject to investigation
 
 **Security:**
-- Encrypted at rest
+- Render disk encryption at rest (platform-level; not application-level)
 - Immutable (write-once)
 - Centralized logging for audit trail
 - Log integrity verification (HMAC signed)
@@ -457,7 +479,7 @@ Retention: 2 years
 
 **Security:**
 - Immutable
-- Encrypted at rest
+- Render disk encryption at rest (platform-level; not application-level)
 - Signed and timestamped
 
 ---
@@ -536,9 +558,18 @@ Retention: 1 year
 
 ### 10.1 Automatic Deletion
 
-**Trigger:** Student reaches retention period (default 1 year after last activity)
+> **Planned — not implemented in the pilot stack (no retention scheduler
+> runs).** The design below describes the intended future behavior. A
+> retention-scheduler with this shape exists only in the dormant v1
+> package (`original/core/config.py:135` `DEFAULT_RETENTION_DAYS`,
+> `original/api/v1/admin.py:289-290`); no scheduled job runs against the
+> live database today. Retention periods in §1 and elsewhere in this
+> document are policy targets, not code-enforced triggers, until this is
+> built. Today, deletion happens only via the manual path in §10.2.
 
-**Scope:**
+**Trigger (planned):** Student reaches retention period (default 1 year after last activity)
+
+**Scope (planned):**
 1. Baseline samples (all for student)
 2. Submissions (all for student)
 3. Scoring results (all related submissions)
@@ -547,7 +578,7 @@ Retention: 1 year
 6. Student enrollment records (cascade delete)
 7. Student record itself (only if no remaining data)
 
-**Process:**
+**Process (planned):**
 ```python
 def delete_student_data(student_id):
   1. Begin transaction
@@ -571,7 +602,11 @@ def delete_student_data(student_id):
 - `--confirm` flag on command line
 - Operator confirmation prompt before deletion
 
-**Scope:** Same as automatic deletion
+**Scope:** Deletes the student's baselines, submissions, scoring results,
+and enrollment records via `store.delete_student()` (`original/store.py:1027`)
+— the real, live implementation this section describes. The §10.1 scope
+list above documents the same intended coverage for the (not-yet-built)
+automatic path.
 
 **Audit Trail:** Deletion logged with timestamp, reason, and operator
 
@@ -587,7 +622,7 @@ def delete_student_data(student_id):
 
 **Original Response:** Provides ZIP containing:
 - Student profile (demographics)
-- All submissions (with hashes, not raw text by default)
+- All submissions (including raw text, which is stored — see §3.1)
 - All baseline samples (with feature vectors)
 - All scoring results
 - All instructor decisions
@@ -628,7 +663,7 @@ def delete_student_data(student_id):
 **Current Practice:** Original does NOT share student data with third parties.
 
 **Exceptions:**
-- Cloud hosting provider (infrastructure only, encrypted data)
+- Cloud hosting provider (Render — infrastructure only; data at rest benefits from Render's platform-level disk encryption, see `docs/encryption_policy.md`)
 - Monitoring vendor (anonymized metrics only)
 
 **All Exceptions:** Require school's written approval

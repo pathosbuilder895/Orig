@@ -29,7 +29,8 @@ from original.constants import FEATURE_DIM
 
 # ── Test fixtures ────────────────────────────────────────────────────────────
 
-_API_MODULE = None         # Loaded once per process — costly import.
+_API_MODULE = None  # Loaded once per process — costly import.
+
 
 def _load_api_module_once():
     """Load api.py via the run.py shim once per process and reuse."""
@@ -67,11 +68,13 @@ def _fresh_db_and_app():
     # `_DB_PATH` is read each time `_get_conn()` is called, so flipping the
     # module-level constant takes effect immediately.
     from pathlib import Path as _Path
+
     module.store._DB_PATH = _Path(tmp.name)
     module.store._STORE.clear()
     module.store._loaded = False
 
     from fastapi.testclient import TestClient
+
     return TestClient(module.app), module, tmp.name
 
 
@@ -89,6 +92,7 @@ def _seed_manifests(module, n: int = 5):
     """Populate the manifest audit table with N synthetic rows."""
     from original.context.manifest import build_manifest
     from original.context.resolvers import run_resolvers
+
     for i in range(n):
         text = "test text " * (50 + i * 20)
         out = run_resolvers(text, ["B1.", "B2."])
@@ -96,14 +100,18 @@ def _seed_manifests(module, n: int = 5):
         action = "no_action" if i < 3 else "monitor"
         div = 0.1 + i * 0.15
         module.store.put_manifest(
-            f"sub_{i}", f"student_{i % 2}", m,
-            divergence_score=div, action=action,
+            f"sub_{i}",
+            f"student_{i % 2}",
+            m,
+            divergence_score=div,
+            action=action,
         )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Direct store-helper tests (no HTTP)
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestStoreHelpers:
     def test_list_manifests_pagination(self, client_module_db):
@@ -158,16 +166,18 @@ class TestStoreHelpers:
         _client, module, _db = client_module_db
         _seed_manifests(module, n=5)
         cid = module.store.put_correction(
-            "sub_3", is_correct=False,
+            "sub_3",
+            is_correct=False,
             corrected_verdict="authentic",
-            reviewer="prof_a", notes="Stylistically consistent.",
+            reviewer="prof_a",
+            notes="Stylistically consistent.",
         )
         assert cid is not None and cid > 0
         listed = module.store.list_corrections()
         assert listed["total"] == 1
         item = listed["items"][0]
         # Auto-filled from the manifest audit log.
-        assert item["student_id"] == "student_1"      # sub_3 → student_(3%2)
+        assert item["student_id"] == "student_1"  # sub_3 → student_(3%2)
         assert item["original_action"] == "monitor"
         assert item["original_divergence_score"] is not None
         assert item["is_correct"] is False
@@ -192,6 +202,7 @@ class TestStoreHelpers:
 # HTTP endpoint tests
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestAdminManifestsEndpoint:
     def test_empty_db_returns_zero(self, client_module_db):
         client, _module, _db = client_module_db
@@ -212,8 +223,14 @@ class TestAdminManifestsEndpoint:
         # All four were inserted in the same loop so ordering by created_at
         # may be ambiguous; only check the shape.
         for item in body["items"]:
-            assert {"submission_id", "student_id", "created_at", "flags",
-                    "anchor_tiers", "length_regime"}.issubset(item.keys())
+            assert {
+                "submission_id",
+                "student_id",
+                "created_at",
+                "flags",
+                "anchor_tiers",
+                "length_regime",
+            }.issubset(item.keys())
 
     def test_filter_by_action_via_http(self, client_module_db):
         client, module, _db = client_module_db
@@ -230,8 +247,9 @@ class TestAdminManifestsEndpoint:
         page2 = client.get("/admin/manifests", params={"limit": 2, "offset": 2}).json()
         assert page1["total"] == 5 and page2["total"] == 5
         assert len(page1["items"]) == 2 and len(page2["items"]) == 2
-        assert {i["submission_id"] for i in page1["items"]} \
-                .isdisjoint({i["submission_id"] for i in page2["items"]})
+        assert {i["submission_id"] for i in page1["items"]}.isdisjoint(
+            {i["submission_id"] for i in page2["items"]}
+        )
 
     def test_invalid_limit_returns_422(self, client_module_db):
         client, _module, _db = client_module_db
@@ -315,7 +333,8 @@ class TestCorrectionEndpoint:
             )
             assert resp.status_code == 200
         listed = client.get(
-            "/admin/corrections", params={"submission_id": "sub_x"},
+            "/admin/corrections",
+            params={"submission_id": "sub_x"},
         ).json()
         assert listed["total"] == 3
 
@@ -336,7 +355,8 @@ class TestAdminCorrectionsListEndpoint:
         client.post("/submissions/s2/correct", json={"is_correct": False})
         client.post("/submissions/s3/correct", json={"is_correct": False})
         wrong_only = client.get(
-            "/admin/corrections", params={"is_correct": "false"},
+            "/admin/corrections",
+            params={"is_correct": "false"},
         ).json()
         assert wrong_only["total"] == 2
 
@@ -344,6 +364,7 @@ class TestAdminCorrectionsListEndpoint:
 # ══════════════════════════════════════════════════════════════════════════════
 # Playground endpoint
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestPlaygroundEndpoint:
     def test_playground_runs_pipeline(self, client_module_db):

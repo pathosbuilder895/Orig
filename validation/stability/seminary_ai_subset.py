@@ -29,6 +29,7 @@ from __future__ import annotations
 
 # Lock env BEFORE any original.* import; TestClient will pull it in.
 from validation.benchmark.reproducibility import lock_environment  # noqa: E402
+
 ENV_LOCK = lock_environment()
 
 import argparse
@@ -64,12 +65,20 @@ def _auc(y_true: np.ndarray, y_score: np.ndarray) -> float:
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__,
-                                formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--out", type=Path,
-                   default=_ROOT / "validation" / "stability" / "seminary_ai_subset_2026-07-01.json")
-    p.add_argument("--max-real-authors", type=int, default=8,
-                   help="Cap on real authors used as baseline targets (default 8).")
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p.add_argument(
+        "--out",
+        type=Path,
+        default=_ROOT / "validation" / "stability" / "seminary_ai_subset_2026-07-01.json",
+    )
+    p.add_argument(
+        "--max-real-authors",
+        type=int,
+        default=8,
+        help="Cap on real authors used as baseline targets (default 8).",
+    )
     args = p.parse_args()
 
     import run as _run_module
@@ -91,17 +100,22 @@ def main():
 
     # Pick the top-N real authors by baseline count.
     eligible = sorted(
-        (a for a, items in by_author.items() if len(items["baseline"]) >= 3
-         and items["scored_authentic"]),
+        (
+            a
+            for a, items in by_author.items()
+            if len(items["baseline"]) >= 3 and items["scored_authentic"]
+        ),
         key=lambda a: -len(by_author[a]["baseline"]),
-    )[:args.max_real_authors]
+    )[: args.max_real_authors]
     if not eligible:
         print("[seminary-ai] no eligible real authors!", file=sys.stderr)
         return 1
 
-    print(f"[seminary-ai] {len(ai_essays)} AI essays × {len(eligible)} real authors"
-          f" = {len(ai_essays) * len(eligible)} AI scorings",
-          file=sys.stderr)
+    print(
+        f"[seminary-ai] {len(ai_essays)} AI essays × {len(eligible)} real authors"
+        f" = {len(ai_essays) * len(eligible)} AI scorings",
+        file=sys.stderr,
+    )
     print(f"[seminary-ai] eligible: {eligible}", file=sys.stderr)
 
     client = TestClient(_run_module.load_legacy_demo_app())
@@ -111,41 +125,47 @@ def main():
         sid = f"demo:sem_{aid}"
         for entry in by_author[aid]["baseline"]:
             text = (_CORPUS / entry["filename"]).read_text(encoding="utf-8")
-            r = client.post(f"/students/{sid}/baseline", json={
-                "text": text,
-                "provenance": "verified",
-                "assignment": entry.get("prompt", "n/a"),
-                "submitted_at": "2026-01-01",
-            })
+            r = client.post(
+                f"/students/{sid}/baseline",
+                json={
+                    "text": text,
+                    "provenance": "verified",
+                    "assignment": entry.get("prompt", "n/a"),
+                    "submitted_at": "2026-01-01",
+                },
+            )
             if r.status_code != 200:
-                print(f"  ⚠ baseline {aid} {entry['filename']}: "
-                      f"{r.status_code} {r.text[:120]}", file=sys.stderr)
-        print(f"  baseline built: {aid} ({len(by_author[aid]['baseline'])} samples)",
-              file=sys.stderr)
+                print(
+                    f"  ⚠ baseline {aid} {entry['filename']}: " f"{r.status_code} {r.text[:120]}",
+                    file=sys.stderr,
+                )
+        print(
+            f"  baseline built: {aid} ({len(by_author[aid]['baseline'])} samples)", file=sys.stderr
+        )
 
     # ── 2. Score each authentic scoring essay against its OWN author.
     #      (Same-author baseline — should be LOW deviation.)
-    print(f"[seminary-ai] scoring authentic essays against their own author…",
-          file=sys.stderr)
+    print(f"[seminary-ai] scoring authentic essays against their own author…", file=sys.stderr)
     authentic_devs: List[float] = []
     for aid in eligible:
         for entry in by_author[aid]["scored_authentic"]:
             text = (_CORPUS / entry["filename"]).read_text(encoding="utf-8")
-            rr = client.post(f"/students/demo:sem_{aid}/score", json={
-                "text": text,
-                "assignment": entry.get("prompt", "n/a"),
-                "submission_id": f"authentic#{entry['filename']}",
-            })
+            rr = client.post(
+                f"/students/demo:sem_{aid}/score",
+                json={
+                    "text": text,
+                    "assignment": entry.get("prompt", "n/a"),
+                    "submission_id": f"authentic#{entry['filename']}",
+                },
+            )
             if rr.status_code == 200:
                 authentic_devs.append(float(rr.json()["authorship"]["deviation_score"]))
-    print(f"  {len(authentic_devs)} authentic-vs-own scorings",
-          file=sys.stderr)
+    print(f"  {len(authentic_devs)} authentic-vs-own scorings", file=sys.stderr)
 
     # ── 3. Score each AI essay against every real author.
     #      Take the MIN across authors as the best-case (attacker gets
     #      lucky). Take the MEAN as the average impersonation-anomaly.
-    print(f"[seminary-ai] scoring AI essays against each real author…",
-          file=sys.stderr)
+    print(f"[seminary-ai] scoring AI essays against each real author…", file=sys.stderr)
     ai_min_devs: List[float] = []
     ai_mean_devs: List[float] = []
     ai_all_devs: List[float] = []
@@ -153,11 +173,14 @@ def main():
         text = (_CORPUS / entry["filename"]).read_text(encoding="utf-8")
         devs_this_essay: List[float] = []
         for aid in eligible:
-            rr = client.post(f"/students/demo:sem_{aid}/score", json={
-                "text": text,
-                "assignment": entry.get("prompt", "n/a"),
-                "submission_id": f"ai_essay_{i}#{aid}",
-            })
+            rr = client.post(
+                f"/students/demo:sem_{aid}/score",
+                json={
+                    "text": text,
+                    "assignment": entry.get("prompt", "n/a"),
+                    "submission_id": f"ai_essay_{i}#{aid}",
+                },
+            )
             if rr.status_code == 200:
                 d = float(rr.json()["authorship"]["deviation_score"])
                 devs_this_essay.append(d)
@@ -170,9 +193,8 @@ def main():
     #      y_true=1 for own-author authentic, 0 for AI-vs-any-author.
     ad = np.array(authentic_devs, dtype=np.float64)
     aid = np.array(ai_all_devs, dtype=np.float64)
-    y_true = np.concatenate([np.ones(ad.size, dtype=np.int8),
-                             np.zeros(aid.size, dtype=np.int8)])
-    y_prob = 1.0 - np.concatenate([ad, aid])          # authorship_probability ≈ 1 − deviation
+    y_true = np.concatenate([np.ones(ad.size, dtype=np.int8), np.zeros(aid.size, dtype=np.int8)])
+    y_prob = 1.0 - np.concatenate([ad, aid])  # authorship_probability ≈ 1 − deviation
     auc = _auc(y_true, y_prob)
 
     def _pct(vs, q):
@@ -186,26 +208,31 @@ def main():
         "n_ai_scorings": len(ai_all_devs),
         "authentic": {
             "mean": round(float(ad.mean()), 4) if ad.size else None,
-            "std":  round(float(ad.std()), 4)  if ad.size else None,
-            "p25":  _pct(ad, 25), "p50": _pct(ad, 50), "p75": _pct(ad, 75),
+            "std": round(float(ad.std()), 4) if ad.size else None,
+            "p25": _pct(ad, 25),
+            "p50": _pct(ad, 50),
+            "p75": _pct(ad, 75),
         },
         "ai_all": {
             "mean": round(float(aid.mean()), 4) if aid.size else None,
-            "std":  round(float(aid.std()), 4)  if aid.size else None,
-            "p25":  _pct(aid, 25), "p50": _pct(aid, 50), "p75": _pct(aid, 75),
+            "std": round(float(aid.std()), 4) if aid.size else None,
+            "p25": _pct(aid, 25),
+            "p50": _pct(aid, 50),
+            "p75": _pct(aid, 75),
         },
         "ai_min_per_essay": {
             "mean": round(float(np.mean(ai_min_devs)), 4) if ai_min_devs else None,
-            "std":  round(float(np.std(ai_min_devs)), 4)  if ai_min_devs else None,
+            "std": round(float(np.std(ai_min_devs)), 4) if ai_min_devs else None,
         },
         "ai_mean_per_essay": {
             "mean": round(float(np.mean(ai_mean_devs)), 4) if ai_mean_devs else None,
-            "std":  round(float(np.std(ai_mean_devs)), 4)  if ai_mean_devs else None,
+            "std": round(float(np.std(ai_mean_devs)), 4) if ai_mean_devs else None,
         },
         "auc_authentic_vs_ai": round(auc, 4),
         # How often does AI look MORE authentic than a real essay?
         "pct_ai_lower_dev_than_authentic_p50": round(
-            float(np.mean(aid < np.median(ad))) if aid.size and ad.size else 0.0, 4,
+            float(np.mean(aid < np.median(ad))) if aid.size and ad.size else 0.0,
+            4,
         ),
         "env": ENV_LOCK.__dict__,
     }
@@ -216,12 +243,20 @@ def main():
     print()
     print(f"┌────────────────────────────────────────────────────────────────┐")
     print(f"│  seminary AI-detection: 20 AI essays × 8 real authors            │")
-    print(f"│  authentic_vs_ai AUC:  {summary['auc_authentic_vs_ai']:.4f}                                  │")
+    print(
+        f"│  authentic_vs_ai AUC:  {summary['auc_authentic_vs_ai']:.4f}                                  │"
+    )
     print(f"│  authentic mean_dev:    {summary['authentic']['mean']}                             │")
     print(f"│         AI mean_dev:    {summary['ai_all']['mean']}                             │")
-    print(f"│  AI-min per essay:      {summary['ai_min_per_essay']['mean']} (best-case attacker score)  │")
-    print(f"│  AI-mean per essay:     {summary['ai_mean_per_essay']['mean']} (average impersonation)   │")
-    print(f"│  % AI scoring below median-authentic: {summary['pct_ai_lower_dev_than_authentic_p50']:.1%}       │")
+    print(
+        f"│  AI-min per essay:      {summary['ai_min_per_essay']['mean']} (best-case attacker score)  │"
+    )
+    print(
+        f"│  AI-mean per essay:     {summary['ai_mean_per_essay']['mean']} (average impersonation)   │"
+    )
+    print(
+        f"│  % AI scoring below median-authentic: {summary['pct_ai_lower_dev_than_authentic_p50']:.1%}       │"
+    )
     print(f"│  Report: {args.out}")
     print(f"└────────────────────────────────────────────────────────────────┘")
     return 0

@@ -23,7 +23,6 @@ from __future__ import annotations
 import logging
 import os
 import uuid
-from typing import Optional
 
 import httpx
 from pydantic import BaseModel
@@ -39,9 +38,9 @@ class BaselineRequestResult(BaseModel):
     externalRequestId: str
     examId: str
     status: str  # "pending" | "completed" | "expired"
-    expiresAt: Optional[str] = None
+    expiresAt: str | None = None
     emailDelivered: bool = False
-    magicLink: Optional[str] = None  # only included when email delivery failed/disabled
+    magicLink: str | None = None  # only included when email delivery failed/disabled
     idempotent: bool = False
 
 
@@ -53,9 +52,9 @@ class BaselineRequestStatus(BaseModel):
     status: str
     intendedForEmail: str
     examTitle: str
-    expiresAt: Optional[str] = None
-    consumedAt: Optional[str] = None
-    submission: Optional[dict] = None
+    expiresAt: str | None = None
+    consumedAt: str | None = None
+    submission: dict | None = None
 
 
 def is_enabled() -> bool:
@@ -66,9 +65,7 @@ def is_enabled() -> bool:
 def _headers() -> dict:
     secret = os.getenv("BBOOK_EXTERNAL_SECRET", "")
     if not secret:
-        raise RuntimeError(
-            "BBOOK_EXTERNAL_SECRET is unset — cannot authenticate to Bbook"
-        )
+        raise RuntimeError("BBOOK_EXTERNAL_SECRET is unset — cannot authenticate to Bbook")
     return {
         "Content-Type": "application/json",
         "x-external-secret": secret,
@@ -80,13 +77,13 @@ def request_baseline(
     student_email: str,
     student_name: str,
     exam_title: str = "Proctored Baseline Sitting",
-    institution_name: Optional[str] = None,
-    requested_by: Optional[str] = None,
+    institution_name: str | None = None,
+    requested_by: str | None = None,
     duration_mins: int = 45,
-    min_word_count: Optional[int] = None,
-    max_word_count: Optional[int] = None,
-    prompt_text: Optional[str] = None,
-    external_request_id: Optional[str] = None,
+    min_word_count: int | None = None,
+    max_word_count: int | None = None,
+    prompt_text: str | None = None,
+    external_request_id: str | None = None,
 ) -> BaselineRequestResult:
     """
     Provision a magic-link proctored baseline exam in Bbook.
@@ -96,7 +93,8 @@ def request_baseline(
         student_name:         display name (used in the email + welcome card).
         exam_title:           shown to the student.
         institution_name:     groups exams within a single Bbook institution.
-        requested_by:         free-form identifier of the requester for audit (e.g. professor email).
+        requested_by:         free-form identifier of the requester for audit
+                               (e.g. professor email).
         duration_mins:        exam window in minutes (Bbook clamps to [5, 480]).
         min_word_count/max:   optional bounds enforced by Bbook's exam page.
         prompt_text:          essay prompt; Bbook substitutes a sensible default if omitted.
@@ -118,10 +116,10 @@ def request_baseline(
 
     payload = {
         "externalRequestId": external_request_id or str(uuid.uuid4()),
-        "studentEmail":      student_email,
-        "studentName":       student_name,
-        "examTitle":         exam_title,
-        "durationMins":      duration_mins,
+        "studentEmail": student_email,
+        "studentName": student_name,
+        "examTitle": exam_title,
+        "durationMins": duration_mins,
     }
     if institution_name is not None:
         payload["institutionName"] = institution_name
@@ -144,7 +142,7 @@ def request_baseline(
         return BaselineRequestResult.model_validate(resp.json())
 
 
-def fetch_status(external_request_id: str) -> Optional[BaselineRequestStatus]:
+def fetch_status(external_request_id: str) -> BaselineRequestStatus | None:
     """
     Poll Bbook for the current state of a previously-issued request.
 

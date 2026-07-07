@@ -24,9 +24,7 @@ import sys
 import threading
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import asdict
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 from .. import store
 from .datasets import DatasetSpec, get_dataset
@@ -42,13 +40,14 @@ _POOL_LOCK = threading.Lock()
 # Public API
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def trigger_run(
     dataset_label: str,
     *,
-    run_label: Optional[str] = None,
-    max_scoring: Optional[int] = None,
-    thresholds: Optional[Dict[str, float]] = None,
-) -> Tuple[Optional[int], Optional[str]]:
+    run_label: str | None = None,
+    max_scoring: int | None = None,
+    thresholds: dict[str, float] | None = None,
+) -> tuple[int | None, str | None]:
     """
     Insert a `running` row and queue a background thread to execute the
     calibration. Returns ``(run_id, error)``; on success ``error`` is None.
@@ -66,18 +65,18 @@ def trigger_run(
         # demand from cached public data; the lab UI runs against a
         # pre-built corpus on disk, so the user has to run the wide
         # orchestrator first.
-        return None, (
-            f"dataset {dataset_label!r} must be built first: {spec.build_cmd}"
-        )
+        return None, (f"dataset {dataset_label!r} must be built first: {spec.build_cmd}")
 
     config = {
-        "dataset_label":  dataset_label,
-        "max_scoring":    max_scoring,
-        "thresholds":     thresholds,
-        "author_filter":  spec.author_filter,
+        "dataset_label": dataset_label,
+        "max_scoring": max_scoring,
+        "thresholds": thresholds,
+        "author_filter": spec.author_filter,
     }
     run_id = store.start_calibration_run(
-        dataset_label=dataset_label, run_label=run_label, config=config,
+        dataset_label=dataset_label,
+        run_label=run_label,
+        config=config,
     )
     if run_id is None:
         return None, "Failed to insert calibration run row"
@@ -92,8 +91,8 @@ def trigger_run(
 def _execute_run(
     run_id: int,
     spec: DatasetSpec,
-    max_scoring: Optional[int],
-    thresholds: Optional[Dict[str, float]],
+    max_scoring: int | None,
+    thresholds: dict[str, float] | None,
 ) -> None:
     """
     Background-thread body. Runs calibration; persists result or error.
@@ -137,8 +136,11 @@ def _execute_run(
             n_authors=report_dict.get("summary", {}).get("total_authors", 0),
             report=report_dict,
         )
-        log.info("calibration run %d completed (AUC=%.4f)",
-                 run_id, report_dict.get("summary", {}).get("auc", 0.0))
+        log.info(
+            "calibration run %d completed (AUC=%.4f)",
+            run_id,
+            report_dict.get("summary", {}).get("auc", 0.0),
+        )
     except Exception as exc:
         # Capture the full traceback in the error column for debugging.
         tb = traceback.format_exc()
@@ -150,55 +152,56 @@ def _execute_run(
 # Report serialisation + filter
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _serialize_report(report) -> Dict:
+
+def _serialize_report(report) -> dict:
     """
     Convert a ``validation.calibration.CalibrationReport`` dataclass into
     the JSON shape the dashboard expects (mirrors ``save_report``).
     """
     return {
         "summary": {
-            "total_authors":         report.total_authors,
-            "total_essays_scored":   report.total_essays_scored,
+            "total_authors": report.total_authors,
+            "total_essays_scored": report.total_essays_scored,
             "total_baseline_samples": report.total_baseline_samples,
-            "avg_scoring_time_ms":   report.avg_scoring_time_ms,
-            "auc":                   report.auc,
+            "avg_scoring_time_ms": report.avg_scoring_time_ms,
+            "auc": report.auc,
         },
         "threshold_metrics": {
             name: {
-                "threshold":       m.threshold,
-                "true_positives":  m.true_positives,
+                "threshold": m.threshold,
+                "true_positives": m.true_positives,
                 "false_positives": m.false_positives,
-                "true_negatives":  m.true_negatives,
+                "true_negatives": m.true_negatives,
                 "false_negatives": m.false_negatives,
-                "tpr":             round(m.tpr, 4),
-                "fpr":             round(m.fpr, 4),
-                "precision":       round(m.precision, 4),
-                "accuracy":        round(m.accuracy, 4),
+                "tpr": round(m.tpr, 4),
+                "fpr": round(m.fpr, 4),
+                "precision": round(m.precision, 4),
+                "accuracy": round(m.accuracy, 4),
             }
             for name, m in report.threshold_metrics.items()
         },
-        "per_label_stats":  report.per_label_stats,
-        "tier_importance":  report.tier_importance,
-        "roc_points":       report.roc_points,
+        "per_label_stats": report.per_label_stats,
+        "tier_importance": report.tier_importance,
+        "roc_points": report.roc_points,
         "individual_results": [
             {
-                "filename":               r.filename,
-                "author_id":              r.author_id,
-                "label":                  r.label.value,
-                "deviation_score":        round(r.deviation_score, 4),
+                "filename": r.filename,
+                "author_id": r.author_id,
+                "label": r.label.value,
+                "deviation_score": round(r.deviation_score, 4),
                 "authorship_probability": round(r.authorship_probability, 4),
-                "recommended_action":     r.recommended_action,
-                "is_same_author":         r.is_same_author,
-                "word_count":             r.word_count,
-                "scoring_time_ms":        r.scoring_time_ms,
-                "notes":                  getattr(r, "notes", "") or "",
+                "recommended_action": r.recommended_action,
+                "is_same_author": r.is_same_author,
+                "word_count": r.word_count,
+                "scoring_time_ms": r.scoring_time_ms,
+                "notes": getattr(r, "notes", "") or "",
             }
             for r in report.results
         ],
     }
 
 
-def _filter_report_by_authors(report_dict: Dict, authors: List[str]) -> Dict:
+def _filter_report_by_authors(report_dict: dict, authors: list[str]) -> dict:
     """
     Re-derive summary + per-label stats over a subset of results.
 
@@ -209,13 +212,13 @@ def _filter_report_by_authors(report_dict: Dict, authors: List[str]) -> Dict:
     if not authors:
         return report_dict
     keep = set(authors)
-    results = [r for r in report_dict.get("individual_results", [])
-               if r.get("author_id") in keep]
+    results = [r for r in report_dict.get("individual_results", []) if r.get("author_id") in keep]
 
     # Re-derive AUC + per-label stats from the filtered set so the
     # dashboard doesn't show inflated numbers from authors the user
     # filtered out.
     import numpy as np
+
     if results:
         positives = [r["deviation_score"] for r in results if r["is_same_author"]]
         negatives = [r["deviation_score"] for r in results if not r["is_same_author"]]
@@ -243,18 +246,19 @@ def _filter_report_by_authors(report_dict: Dict, authors: List[str]) -> Dict:
 
         # Per-label stats roll-up.
         from collections import defaultdict
-        by_label: Dict[str, List[float]] = defaultdict(list)
+
+        by_label: dict[str, list[float]] = defaultdict(list)
         for r in results:
             by_label[r["label"]].append(r["deviation_score"])
-        per_label_stats: Dict[str, Dict] = {}
+        per_label_stats: dict[str, dict] = {}
         for label, scores in by_label.items():
             arr = np.array(scores)
             per_label_stats[label] = {
-                "count":           len(scores),
-                "mean_deviation":  round(float(arr.mean()), 4),
-                "std_deviation":   round(float(arr.std()), 4),
-                "min_deviation":   round(float(arr.min()), 4),
-                "max_deviation":   round(float(arr.max()), 4),
+                "count": len(scores),
+                "mean_deviation": round(float(arr.mean()), 4),
+                "std_deviation": round(float(arr.std()), 4),
+                "min_deviation": round(float(arr.min()), 4),
+                "max_deviation": round(float(arr.max()), 4),
             }
     else:
         roc_points = [(0.0, 0.0), (1.0, 1.0)]

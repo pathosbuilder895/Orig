@@ -11,7 +11,7 @@ import secrets
 from functools import lru_cache
 from typing import List, Literal
 
-from pydantic import AnyHttpUrl, EmailStr, field_validator, model_validator
+from pydantic import EmailStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -35,7 +35,7 @@ class Settings(BaseSettings):
         "http://localhost:3000,http://localhost:8080,"
         "http://localhost:8000,http://127.0.0.1:8000"
     )
-    
+
     @property
     def ALLOWED_ORIGINS(self) -> List[str]:
         """Parse comma-separated origins string into list."""
@@ -68,7 +68,6 @@ class Settings(BaseSettings):
 
             # Validate CORS origins: production must not use only localhost
             allowed_origins = self.ALLOWED_ORIGINS
-            localhost_origins = {o for o in allowed_origins if 'localhost' in o.lower() or '127.0.0.1' in o}
 
             # If all origins are localhost (or empty), raise an error
             if not allowed_origins or all('localhost' in o.lower() or '127.0.0.1' in o for o in allowed_origins):

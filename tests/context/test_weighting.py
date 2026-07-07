@@ -8,27 +8,44 @@ import numpy as np
 import pytest
 
 from original.constants import (
-    ALL_FEATURE_CODES, FEATURE_DIM, FEATURE_TIER, TIER_WEIGHTS,
-    TIER4_CODES, TIER6_CODES, TIER10_CODES, TIER11_CODES,
-    TIER14_CODES, TIER15_CODES, TIER16_CODES,
+    ALL_FEATURE_CODES,
+    FEATURE_DIM,
+    FEATURE_TIER,
+    TIER_WEIGHTS,
+    TIER4_CODES,
+    TIER6_CODES,
+    TIER10_CODES,
+    TIER11_CODES,
+    TIER14_CODES,
+    TIER15_CODES,
+    TIER16_CODES,
 )
 from original.context.manifest import ContextManifest, build_manifest
 from original.context.weighting import (
-    AMPLIFY_FACTOR, ATTENUATE_FACTOR, build_adaptive_weight_vector,
+    AMPLIFY_FACTOR,
+    ATTENUATE_FACTOR,
+    build_adaptive_weight_vector,
 )
 
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
+
 def _empty_manifest() -> ContextManifest:
     """Manifest with no directives — vector should equal static base weights."""
     return ContextManifest(
         submission_id="empty",
-        language={}, genre={}, topic={}, length_regime="standard",
-        citations={}, composition_mode={},
+        language={},
+        genre={},
+        topic={},
+        length_regime="standard",
+        citations={},
+        composition_mode={},
         weight_modifications={"amplify_codes": [], "attenuate_codes": [], "mute_codes": []},
         anchor_tiers=[],
-        baseline_match={}, flags=[], created_at="",
+        baseline_match={},
+        flags=[],
+        created_at="",
     )
 
 
@@ -43,6 +60,7 @@ def _static_base_vector() -> np.ndarray:
 # ══════════════════════════════════════════════════════════════════════════════
 # Shape + identity invariants
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestShapeAndIdentity:
     def test_build_weight_vector_shape(self):
@@ -62,13 +80,14 @@ class TestShapeAndIdentity:
         # the dataclass — must handle both equivalently.
         m = _empty_manifest()
         from_dataclass = build_adaptive_weight_vector(m)
-        from_dict      = build_adaptive_weight_vector(m.to_dict())
+        from_dict = build_adaptive_weight_vector(m.to_dict())
         assert np.allclose(from_dataclass, from_dict)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Anchor amplification
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestAnchorAmplification:
     def test_amplify_anchor_tiers_t4_t6(self):
@@ -100,11 +119,14 @@ class TestAnchorAmplification:
 # Mute
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestMuting:
     def test_mute_t16_when_no_citations(self):
         m = _empty_manifest()
         m.weight_modifications = {
-            "amplify_codes": [], "attenuate_codes": [], "mute_codes": list(TIER16_CODES),
+            "amplify_codes": [],
+            "attenuate_codes": [],
+            "mute_codes": list(TIER16_CODES),
         }
         v = build_adaptive_weight_vector(m)
         for code in TIER16_CODES:
@@ -117,7 +139,9 @@ class TestMuting:
         m = _empty_manifest()
         m.anchor_tiers = [16]
         m.weight_modifications = {
-            "amplify_codes": [], "attenuate_codes": [], "mute_codes": list(TIER16_CODES),
+            "amplify_codes": [],
+            "attenuate_codes": [],
+            "mute_codes": list(TIER16_CODES),
         }
         v = build_adaptive_weight_vector(m)
         for code in TIER16_CODES:
@@ -129,12 +153,15 @@ class TestMuting:
 # Attenuation
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestAttenuation:
     def test_attenuate_t11_t14_when_tool_cleaned(self):
         m = _empty_manifest()
         attenuate = list(TIER11_CODES) + list(TIER14_CODES)
         m.weight_modifications = {
-            "amplify_codes": [], "attenuate_codes": attenuate, "mute_codes": [],
+            "amplify_codes": [],
+            "attenuate_codes": attenuate,
+            "mute_codes": [],
         }
         v = build_adaptive_weight_vector(m)
         for code in TIER11_CODES:
@@ -153,19 +180,23 @@ class TestAttenuation:
         m = _empty_manifest()
         m.anchor_tiers = [10]
         m.weight_modifications = {
-            "amplify_codes": [], "attenuate_codes": list(TIER10_CODES), "mute_codes": [],
+            "amplify_codes": [],
+            "attenuate_codes": list(TIER10_CODES),
+            "mute_codes": [],
         }
         v = build_adaptive_weight_vector(m)
         for code in TIER10_CODES:
             i = ALL_FEATURE_CODES.index(code)
             expected = TIER_WEIGHTS[10] * ATTENUATE_FACTOR
-            assert abs(v[i] - expected) < 1e-9, \
-                f"T10 code {code} should be attenuated, not amplified"
+            assert (
+                abs(v[i] - expected) < 1e-9
+            ), f"T10 code {code} should be attenuated, not amplified"
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Composite (multiple directives at once)
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestComposite:
     def test_full_directive_combo(self):
@@ -173,10 +204,12 @@ class TestComposite:
         m = _empty_manifest()
         m.anchor_tiers = [4, 6, 8, 13]
         m.weight_modifications = {
-            "amplify_codes":   [],
-            "attenuate_codes": list(TIER10_CODES) + list(TIER11_CODES)
-                                + list(TIER14_CODES) + list(TIER15_CODES),
-            "mute_codes":      list(TIER16_CODES),
+            "amplify_codes": [],
+            "attenuate_codes": list(TIER10_CODES)
+            + list(TIER11_CODES)
+            + list(TIER14_CODES)
+            + list(TIER15_CODES),
+            "mute_codes": list(TIER16_CODES),
         }
         v = build_adaptive_weight_vector(m)
 
@@ -197,11 +230,13 @@ class TestComposite:
 # Real-manifest smoke test
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestRealManifest:
     def test_built_from_resolver_outputs(self):
         # Build a manifest from real resolver outputs (no citations, low
         # novelty etc. in this short text), then feed it to weighting.
         from original.context.resolvers import run_resolvers
+
         text = "The committee considered the proposal carefully. " * 50
         out = run_resolvers(text, ["Baseline a.", "Baseline b."])
         m = build_manifest("smoke", out)

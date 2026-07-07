@@ -26,12 +26,13 @@ from __future__ import annotations
 import math
 import os
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
 from ..constants import (
-    ALL_FEATURE_CODES, FEATURE_DIM, AUTH_WEIGHTS, RECENCY_DECAY,
+    ALL_FEATURE_CODES,
+    FEATURE_DIM,
+    RECENCY_DECAY,
     TRAJECTORY_MIN_SAMPLES,
 )
 
@@ -39,32 +40,34 @@ from ..constants import (
 @dataclass
 class BaselineSample:
     """One authenticated writing sample."""
+
     text: str
-    vector: np.ndarray          # normalised feature vector, shape (D,)
-    provenance: str             # "proctored" | "verified" | "unverified"
-    auth_weight: float          # AUTH_WEIGHTS[provenance]
+    vector: np.ndarray  # normalised feature vector, shape (D,)
+    provenance: str  # "proctored" | "verified" | "unverified"
+    auth_weight: float  # AUTH_WEIGHTS[provenance]
     assignment: str = ""
-    submitted_at: str = ""      # ISO date string
+    submitted_at: str = ""  # ISO date string
 
     # ── Phase 4 context metadata (additive — None for legacy samples) ─────────
     # Lazily backfilled by ensure_sample_context_metadata() on first adaptive
     # scoring call against a student. None = "not yet computed"; empty
     # string / array indicates the value has been computed and is empty.
-    genre: Optional[str] = None                       # rule-based genre label
-    topic_centroid: Optional[np.ndarray] = None       # TF-IDF centroid, shape (K,)
-    context_manifest: Optional[Dict] = None           # captured at the time of ingestion
+    genre: str | None = None  # rule-based genre label
+    topic_centroid: np.ndarray | None = None  # TF-IDF centroid, shape (K,)
+    context_manifest: dict | None = None  # captured at the time of ingestion
 
 
 @dataclass
 class TrajectoryResult:
-    direction: str              # "growth" | "lateral" | "regressive" | "insufficient_data"
-    alignment: float            # cosine similarity of submission with trajectory, −1…1
-    confidence: float           # R² of linear fit, 0…1
-    vector: Optional[np.ndarray] = None  # normalised trajectory direction, shape (D,)
+    direction: str  # "growth" | "lateral" | "regressive" | "insufficient_data"
+    alignment: float  # cosine similarity of submission with trajectory, −1…1
+    confidence: float  # R² of linear fit, 0…1
+    vector: np.ndarray | None = None  # normalised trajectory direction, shape (D,)
     adjustment_factor: float = 1.0
 
 
 # ── Phase 8: Baseline Drift Detection ────────────────────────────────────────
+
 
 @dataclass
 class DriftResult:
@@ -84,19 +87,20 @@ class DriftResult:
                        student's writing has genuinely shifted, the existing
                        baseline is no longer valid
     """
-    drift_detected: bool
-    drift_magnitude: float                      # mean abs deviation across anchor tiers
-    anchor_tier_deviations: Dict[int, float]    # per-tier mean |delta|
-    recommendation: str                         # "accept" | "flag_for_review" | "rebaseline"
-    consecutive_drift_count: int                # state's counter AFTER this check
 
-    def to_dict(self) -> Dict:
+    drift_detected: bool
+    drift_magnitude: float  # mean abs deviation across anchor tiers
+    anchor_tier_deviations: dict[int, float]  # per-tier mean |delta|
+    recommendation: str  # "accept" | "flag_for_review" | "rebaseline"
+    consecutive_drift_count: int  # state's counter AFTER this check
+
+    def to_dict(self) -> dict:
         # Tier-keyed dict needs str keys for JSON safety.
         return {
-            "drift_detected":         self.drift_detected,
-            "drift_magnitude":        self.drift_magnitude,
+            "drift_detected": self.drift_detected,
+            "drift_magnitude": self.drift_magnitude,
             "anchor_tier_deviations": {str(k): v for k, v in self.anchor_tier_deviations.items()},
-            "recommendation":         self.recommendation,
+            "recommendation": self.recommendation,
             "consecutive_drift_count": self.consecutive_drift_count,
         }
 
@@ -113,17 +117,18 @@ class StudentState:
     Also maintains the Tension Arc baseline: a running mean of the
     catastrophe index κ across all verified submissions.
     """
+
     student_id: str
-    samples: List[BaselineSample] = field(default_factory=list)
+    samples: list[BaselineSample] = field(default_factory=list)
 
     # Tension Arc baseline — updated when a submission is marked authentic
-    baseline_kappa: Optional[float] = field(default=None)
-    kappa_log: List[float]          = field(default_factory=list)
+    baseline_kappa: float | None = field(default=None)
+    kappa_log: list[float] = field(default_factory=list)
 
     # Cached computed values — invalidated on each update
-    _rho: Optional[np.ndarray]         = field(default=None, repr=False)
-    _purity: Optional[float]           = field(default=None, repr=False)
-    _trajectory: Optional[TrajectoryResult] = field(default=None, repr=False)
+    _rho: np.ndarray | None = field(default=None, repr=False)
+    _purity: float | None = field(default=None, repr=False)
+    _trajectory: TrajectoryResult | None = field(default=None, repr=False)
 
     # Phase 8: drift detection — running count of consecutive baseline
     # ingestion attempts whose anchor-tier deviation exceeded the threshold.
@@ -131,7 +136,7 @@ class StudentState:
     # workflow survives restarts (a single outlier today + a single outlier
     # next week should still trigger rebaseline). Underscore prefix matches
     # the convention used for cached values; check_drift mutates it.
-    _consecutive_drift_count: int      = field(default=0, repr=False)
+    _consecutive_drift_count: int = field(default=0, repr=False)
 
     # ── Mutation ─────────────────────────────────────────────────────────────
 
@@ -171,10 +176,10 @@ class StudentState:
             # No authenticated samples — return uniform prior (identity/D)
             return np.eye(FEATURE_DIM, dtype=np.float64) / FEATURE_DIM
 
-        weights = np.array([
-            s.auth_weight * (RECENCY_DECAY ** (N - 1 - i))
-            for i, s in enumerate(contributing)
-        ], dtype=np.float64)
+        weights = np.array(
+            [s.auth_weight * (RECENCY_DECAY ** (N - 1 - i)) for i, s in enumerate(contributing)],
+            dtype=np.float64,
+        )
 
         rho = np.zeros((FEATURE_DIM, FEATURE_DIM), dtype=np.float64)
         for i, s in enumerate(contributing):
@@ -188,8 +193,8 @@ class StudentState:
         # every byte of rho above this line is identical whether or not
         # RANK_REMEDIATION is set. Shrinkage only touches the return value.
         if os.environ.get("RANK_REMEDIATION", "none") == "shrinkage":
-            vectors = np.stack([_unit(s.vector) for s in contributing])   # (N, D)
-            norm_weights = weights / weights.sum()                        # Σw_i = 1
+            vectors = np.stack([_unit(s.vector) for s in contributing])  # (N, D)
+            norm_weights = weights / weights.sum()  # Σw_i = 1
             rho = _ledoit_wolf_shrink(rho, vectors, norm_weights)
 
         return rho
@@ -222,7 +227,7 @@ class StudentState:
         rho = self.density_matrix
         eigenvalues = np.linalg.eigvalsh(rho)
         eigenvalues = np.clip(eigenvalues, 1e-12, 1.0)
-        eigenvalues = eigenvalues / eigenvalues.sum()   # renormalise
+        eigenvalues = eigenvalues / eigenvalues.sum()  # renormalise
         S = -float(np.sum(eigenvalues * np.log(eigenvalues)))
         return float(np.clip(S / math.log(FEATURE_DIM), 0.0, 1.0))
 
@@ -248,7 +253,7 @@ class StudentState:
         contributing = [s for s in self.samples if s.auth_weight > 0]
         N = len(contributing)
         if N < 2:
-            return np.full(FEATURE_DIM, 0.15)   # flat uncertainty prior
+            return np.full(FEATURE_DIM, 0.15)  # flat uncertainty prior
         V = np.stack([s.vector for s in contributing])
         adaptive_floor = max(0.005, 0.15 / math.sqrt(N))
         return np.maximum(V.std(axis=0), adaptive_floor)
@@ -275,7 +280,7 @@ class StudentState:
         contributing = [s for s in self.samples if s.auth_weight > 0]
         if len(contributing) < 2:
             return np.ones(FEATURE_DIM, dtype=bool)
-        V = np.stack([s.vector for s in contributing])   # (N, D)
+        V = np.stack([s.vector for s in contributing])  # (N, D)
 
         # Condition 1: stuck at neutral placeholder
         stuck_at_neutral = np.all(np.abs(V - 0.5) < 0.002, axis=0)
@@ -305,11 +310,10 @@ class StudentState:
         N = len(contributing)
         if N == 0:
             return 0.0
-        weights = np.array([
-            s.auth_weight * (RECENCY_DECAY ** (N - 1 - i))
-            for i, s in enumerate(contributing)
-        ])
-        return float(weights.sum() ** 2 / (weights ** 2).sum())
+        weights = np.array(
+            [s.auth_weight * (RECENCY_DECAY ** (N - 1 - i)) for i, s in enumerate(contributing)]
+        )
+        return float(weights.sum() ** 2 / (weights**2).sum())
 
     @property
     def baseline_mean(self) -> np.ndarray:
@@ -318,10 +322,9 @@ class StudentState:
         if not contributing:
             return np.full(FEATURE_DIM, 0.5)
         N = len(contributing)
-        weights = np.array([
-            s.auth_weight * (RECENCY_DECAY ** (N - 1 - i))
-            for i, s in enumerate(contributing)
-        ])
+        weights = np.array(
+            [s.auth_weight * (RECENCY_DECAY ** (N - 1 - i)) for i, s in enumerate(contributing)]
+        )
         vectors = np.stack([s.vector for s in contributing])  # (N, D)
         return (weights[:, None] * vectors).sum(axis=0) / weights.sum()
 
@@ -329,10 +332,10 @@ class StudentState:
 
     def check_drift(
         self,
-        new_sample: "BaselineSample",
+        new_sample: BaselineSample,
         threshold: float = 0.25,
         consecutive_required: int = 2,
-    ) -> "DriftResult":
+    ) -> DriftResult:
         """
         Compare ``new_sample`` against the existing baseline on anchor tiers
         and decide whether to accept, flag, or rebaseline.
@@ -382,8 +385,10 @@ class StudentState:
         responsibility, gated on ``recommendation``.
         """
         from ..constants import (
-            TIER4_CODES, TIER6_CODES, TIER8_CODES, TIER13_CODES,
-            ALL_FEATURE_CODES,
+            TIER4_CODES,
+            TIER6_CODES,
+            TIER8_CODES,
+            TIER13_CODES,
         )
 
         # ── Bootstrap: nothing to compare against → accept ───────────────────
@@ -391,35 +396,40 @@ class StudentState:
         if not contributing:
             self._consecutive_drift_count = 0
             return DriftResult(
-                drift_detected=False, drift_magnitude=0.0,
-                anchor_tier_deviations={}, recommendation="accept",
+                drift_detected=False,
+                drift_magnitude=0.0,
+                anchor_tier_deviations={},
+                recommendation="accept",
                 consecutive_drift_count=0,
             )
 
         # ── Anchor tier selection ────────────────────────────────────────────
-        anchor_tiers: List[int] = [4, 6]
+        anchor_tiers: list[int] = [4, 6]
         manifest = getattr(new_sample, "context_manifest", None) or {}
         # Manifest may be stored as the dataclass dict; check the genre that
         # was assigned at ingestion time (matches Phase 3's derivation rules).
-        new_genre = (manifest.get("genre") or {}).get("primary") if isinstance(manifest, dict) else None
+        new_genre = (
+            (manifest.get("genre") or {}).get("primary") if isinstance(manifest, dict) else None
+        )
         if new_genre in {"academic_exegesis", "scholarly_essay", "sermon"}:
             anchor_tiers.extend([8, 13])
 
         # Collect (tier, list-of-feature-indices) for each anchor tier.
         # Build the index list once from ALL_FEATURE_CODES so vector access
         # is positional and matches everywhere else in the codebase.
-        tier_codes: Dict[int, List[str]] = {
-            4: list(TIER4_CODES), 6: list(TIER6_CODES),
-            8: list(TIER8_CODES), 13: list(TIER13_CODES),
+        tier_codes: dict[int, list[str]] = {
+            4: list(TIER4_CODES),
+            6: list(TIER6_CODES),
+            8: list(TIER8_CODES),
+            13: list(TIER13_CODES),
         }
         code_to_index = {c: i for i, c in enumerate(ALL_FEATURE_CODES)}
 
         # ── Compute per-tier mean |delta| against baseline mean ──────────────
-        mu = self.baseline_mean   # already weighted (shape D,)
-        per_tier: Dict[int, float] = {}
+        mu = self.baseline_mean  # already weighted (shape D,)
+        per_tier: dict[int, float] = {}
         for tier in anchor_tiers:
-            indices = [code_to_index[c] for c in tier_codes[tier]
-                        if c in code_to_index]
+            indices = [code_to_index[c] for c in tier_codes[tier] if c in code_to_index]
             if not indices:
                 continue
             delta = np.abs(new_sample.vector[indices] - mu[indices])
@@ -430,8 +440,10 @@ class StudentState:
             # default {4, 6} but defensive). Treat as accept.
             self._consecutive_drift_count = 0
             return DriftResult(
-                drift_detected=False, drift_magnitude=0.0,
-                anchor_tier_deviations={}, recommendation="accept",
+                drift_detected=False,
+                drift_magnitude=0.0,
+                anchor_tier_deviations={},
+                recommendation="accept",
                 consecutive_drift_count=0,
             )
 
@@ -490,7 +502,7 @@ class StudentState:
 
         # Per-dimension linear fit: slope = δψ[d]
         t_mean = t.mean()
-        t_var  = ((t - t_mean) ** 2).sum()
+        t_var = ((t - t_mean) ** 2).sum()
         if t_var < 1e-12:
             delta = np.zeros(FEATURE_DIM)
             r2 = 0.0
@@ -506,7 +518,7 @@ class StudentState:
 
         return TrajectoryResult(
             direction="computed",
-            alignment=0.0,      # filled in by scoring.py when a submission arrives
+            alignment=0.0,  # filled in by scoring.py when a submission arrives
             confidence=float(np.clip(r2, 0.0, 1.0)),
             vector=_unit(delta) if np.linalg.norm(delta) > 1e-12 else None,
             adjustment_factor=1.0,
@@ -524,6 +536,7 @@ class StudentState:
 
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
+
 
 def _unit(v: np.ndarray) -> np.ndarray:
     """Return L2-unit normalised vector; return v unchanged if near-zero."""
@@ -596,15 +609,15 @@ def _ledoit_wolf_shrink(
         (a convex combination of two tr=1 matrices has tr=1).
     """
     D = rho.shape[0]
-    target_scale = float(np.trace(rho)) / D     # == 1/D exactly, computed
-                                                 # generally in case a
-                                                 # caller ever passes an
-                                                 # un-normalised rho.
+    target_scale = float(np.trace(rho)) / D  # == 1/D exactly, computed
+    # generally in case a
+    # caller ever passes an
+    # un-normalised rho.
     target = target_scale * np.eye(D, dtype=np.float64)
 
     gamma = float(np.sum((rho - target) ** 2))  # ‖ρ − F‖²_F
     if gamma < 1e-18:
-        return rho    # ρ already equals the target — nothing to shrink toward
+        return rho  # ρ already equals the target — nothing to shrink toward
 
     pi_hat = 0.0
     for i in range(vectors.shape[0]):
@@ -612,6 +625,6 @@ def _ledoit_wolf_shrink(
         pi_hat += (norm_weights[i] ** 2) * float(np.sum((outer_i - rho) ** 2))
 
     alpha = min(1.0, pi_hat / gamma) if gamma > 0 else 1.0
-    alpha = max(0.0, alpha)          # guard against float noise pushing <0
+    alpha = max(0.0, alpha)  # guard against float noise pushing <0
 
     return (1.0 - alpha) * rho + alpha * target

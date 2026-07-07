@@ -14,24 +14,27 @@ from pydantic import BaseModel, Field
 
 class AuthorshipLabel(str, Enum):
     """Ground truth label for a validation essay."""
-    AUTHENTIC = "authentic"           # Written entirely by the claimed author
-    AI_GENERATED = "ai_generated"     # Written entirely by an AI
-    MIXED = "mixed"                   # Partially human, partially AI
-    GHOSTWRITTEN = "ghostwritten"     # Written by a different human
-    PARAPHRASED = "paraphrased"       # Authentic content paraphrased by AI
+
+    AUTHENTIC = "authentic"  # Written entirely by the claimed author
+    AI_GENERATED = "ai_generated"  # Written entirely by an AI
+    MIXED = "mixed"  # Partially human, partially AI
+    GHOSTWRITTEN = "ghostwritten"  # Written by a different human
+    PARAPHRASED = "paraphrased"  # Authentic content paraphrased by AI
 
 
 class AIProvider(str, Enum):
     """AI provider used for AI-generated or mixed content."""
+
     CHATGPT = "chatgpt"
     CLAUDE = "claude"
     GEMINI = "gemini"
-    OTHER = "other"    # open models / unnamed providers (add_ai_essays.py)
+    OTHER = "other"  # open models / unnamed providers (add_ai_essays.py)
     NONE = "none"
 
 
 class CorpusEntry(BaseModel):
     """A single essay in the validation corpus."""
+
     filename: str = Field(..., description="Path relative to corpus/ directory.")
     author_id: str = Field(..., description="Pseudonymised author identifier (e.g. 'author_01').")
     label: AuthorshipLabel
@@ -55,6 +58,7 @@ class CorpusEntry(BaseModel):
 
 class ValidationManifest(BaseModel):
     """Top-level manifest for the validation corpus."""
+
     version: str = "1.0"
     created_at: str
     description: str = "Original authorship verification validation corpus"

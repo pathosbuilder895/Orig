@@ -25,7 +25,7 @@ degraded by an absent pool.
 
 from __future__ import annotations
 
-from typing import Iterable, List, Optional, Tuple
+from collections.abc import Iterable
 
 import numpy as np
 
@@ -43,7 +43,7 @@ MIN_IMPOSTOR_VECTORS = 5
 SIGMA_FLOOR = 0.005
 
 
-def fit_impostor_gaussian(vectors: List[np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
+def fit_impostor_gaussian(vectors: list[np.ndarray]) -> tuple[np.ndarray, np.ndarray]:
     """
     Fit a per-feature diagonal Gaussian (mu, sigma) from a pool of
     impostor baseline vectors.
@@ -59,7 +59,7 @@ def fit_impostor_gaussian(vectors: List[np.ndarray]) -> Tuple[np.ndarray, np.nda
     """
     if not vectors:
         raise ValueError("fit_impostor_gaussian: need at least 1 impostor vector")
-    stacked = np.stack(vectors).astype(np.float64)   # (N, D)
+    stacked = np.stack(vectors).astype(np.float64)  # (N, D)
     mu = stacked.mean(axis=0)
     sigma = stacked.std(axis=0)
     sigma = np.maximum(sigma, SIGMA_FLOOR)
@@ -69,7 +69,7 @@ def fit_impostor_gaussian(vectors: List[np.ndarray]) -> Tuple[np.ndarray, np.nda
 def build_impostor_stats(
     claimed_student_id: str,
     states: Iterable[StudentState],
-) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+) -> tuple[np.ndarray, np.ndarray] | None:
     """
     Pool authenticated baseline vectors from every SAME-TENANT student other
     than the claimed one and fit the impostor Gaussian.
@@ -85,7 +85,7 @@ def build_impostor_stats(
     """
     claimed_tenant = tenant_of(claimed_student_id)
 
-    vectors: List[np.ndarray] = []
+    vectors: list[np.ndarray] = []
     contributing_students = 0
     for state in states:
         if state.student_id == claimed_student_id:

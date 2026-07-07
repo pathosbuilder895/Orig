@@ -31,14 +31,14 @@ from typing import Dict, List, Optional, Tuple
 ROOT = Path(__file__).resolve().parent.parent
 
 AUTHOR_DISPLAY = {
-    "hamilton":             "Hamilton",
-    "madison":              "Madison",
-    "jay":                  "Jay",
-    "disputed_vs_madison":  "Disputed→Madison",
-    "paine":                "Paine",
-    "burke":                "Burke",
-    "lincoln":              "Lincoln",
-    "douglass":             "Douglass",
+    "hamilton": "Hamilton",
+    "madison": "Madison",
+    "jay": "Jay",
+    "disputed_vs_madison": "Disputed→Madison",
+    "paine": "Paine",
+    "burke": "Burke",
+    "lincoln": "Lincoln",
+    "douglass": "Douglass",
 }
 
 # Preferred display order
@@ -89,18 +89,18 @@ def build_matrix(
     n = len(author_ids)
     idx = {aid: i for i, aid in enumerate(author_ids)}
 
-    sums   = defaultdict(float)
+    sums = defaultdict(float)
     counts = defaultdict(int)
 
     for r in results:
         baseline_author = r["author_id"]
-        scored_author   = extract_scored_author(r)
+        scored_author = extract_scored_author(r)
 
         if baseline_author not in idx or scored_author not in idx:
             continue
 
         key = (baseline_author, scored_author)
-        sums[key]   += r["deviation_score"]
+        sums[key] += r["deviation_score"]
         counts[key] += 1
 
     matrix = []
@@ -111,7 +111,7 @@ def build_matrix(
             if counts[key] > 0:
                 row.append(round(sums[key] / counts[key], 4))
             else:
-                row.append(None)   # no data for this pair
+                row.append(None)  # no data for this pair
         matrix.append(row)
 
     return matrix
@@ -147,13 +147,13 @@ def main():
     hi = round(max(flat), 4) if flat else 1.0
 
     output = {
-        "authors":         display_names,
-        "author_ids":      author_ids,
-        "matrix":          matrix,
-        "min":             lo,
-        "max":             hi,
-        "interpretation":  "lower deviation = more stylistically similar to baseline author",
-        "note":            "diagonal (same author) excluded from min/max range",
+        "authors": display_names,
+        "author_ids": author_ids,
+        "matrix": matrix,
+        "min": lo,
+        "max": hi,
+        "interpretation": "lower deviation = more stylistically similar to baseline author",
+        "note": "diagonal (same author) excluded from min/max range",
     }
 
     Path(args.output).write_text(json.dumps(output, indent=2), encoding="utf-8")

@@ -19,6 +19,7 @@ from original.context import resolvers as r
 
 # ── Fixture text generators ──────────────────────────────────────────────────
 
+
 def _english_paragraph(words_per_sentence: int = 18, sentences: int = 60) -> str:
     """Build a long-ish English paragraph (~1k words) that langdetect tags as 'en'."""
     base = (
@@ -106,6 +107,7 @@ def _build_baseline_corpus() -> List[str]:
 # Language resolver
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestResolveLanguage:
     def test_pure_english(self):
         out = r.resolve_language(_english_paragraph())
@@ -132,6 +134,7 @@ class TestResolveLanguage:
 # Genre resolver
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestResolveGenre:
     def test_rule_based_exegesis(self):
         out = r.resolve_genre(_academic_exegesis_text())
@@ -157,6 +160,7 @@ class TestResolveGenre:
 # ══════════════════════════════════════════════════════════════════════════════
 # Topic resolver
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestResolveTopic:
     def test_low_novelty_when_submission_matches_baseline(self):
@@ -190,6 +194,7 @@ class TestResolveTopic:
 # Length resolver
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestResolveLength:
     def test_micro(self):
         out = r.resolve_length("Just a tiny note.")
@@ -219,6 +224,7 @@ class TestResolveLength:
 # Citation resolver
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestResolveCitations:
     def test_chicago_format_detected(self):
         out = r.resolve_citations(_academic_exegesis_text())
@@ -236,6 +242,7 @@ class TestResolveCitations:
 # ══════════════════════════════════════════════════════════════════════════════
 # Composition-mode resolver
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestResolveCompositionMode:
     def test_natural_drafted_normal_text(self):
@@ -257,8 +264,10 @@ class TestResolveCompositionMode:
             "The vice-chair offered to circulate a revised version before the next meeting!! "
         ) * 2
         out = r.resolve_composition_mode(text)
-        assert out["mode"] in ("natural_drafted", "structured"), \
-            f"Expected natural_drafted/structured, got {out}"
+        assert out["mode"] in (
+            "natural_drafted",
+            "structured",
+        ), f"Expected natural_drafted/structured, got {out}"
 
     def test_paste_event_marks_software_mediated(self):
         # Synthetic keystroke data with one paste revision.
@@ -275,10 +284,12 @@ class TestResolveCompositionMode:
 
     def test_structured_uniform_sentence_length(self):
         # Five sentences of identical length → low variance.
-        text = "One two three four five. Six seven eight nine ten. " \
-               "Eleven twelve thirteen fourteen fifteen. " \
-               "Sixteen seventeen eighteen nineteen twenty. " \
-               "Alpha beta gamma delta epsilon."
+        text = (
+            "One two three four five. Six seven eight nine ten. "
+            "Eleven twelve thirteen fourteen fifteen. "
+            "Sixteen seventeen eighteen nineteen twenty. "
+            "Alpha beta gamma delta epsilon."
+        )
         out = r.resolve_composition_mode(text)
         assert out["mode"] in ("structured", "natural_drafted")
 
@@ -286,6 +297,7 @@ class TestResolveCompositionMode:
 # ══════════════════════════════════════════════════════════════════════════════
 # Orchestrator — parallel + graceful degradation
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestRunResolvers:
     def test_parallel_no_exceptions(self):

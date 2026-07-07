@@ -46,14 +46,15 @@ Implementation choices
 from __future__ import annotations
 
 import logging
-from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import asdict, dataclass
+from typing import Any
 
 import numpy as np
 
 from ..constants import ALL_FEATURE_CODES
-from ..features.pipeline import compute_full_features, feature_vector
+from ..features.pipeline import compute_full_features
 from ..features.tier1 import _tokenize
+from ..quantum.scoring import ScoringConfig
 from ..quantum.scoring import score as quantum_score
 from .pipeline import run_adaptive_pipeline
 
@@ -100,13 +101,15 @@ MIN_WINDOWS_FOR_SHIFT_DETECTION: int = 4
 # Data classes
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class WindowScore:
     """One overlapping window's deviation score against the student's state."""
-    start: int            # token offset (inclusive)
-    end: int              # token offset (exclusive)
-    score: float          # authorship deviation_score in [0, 1]
-    confidence: str       # "low" (window < 500 tokens) | "medium"
+
+    start: int  # token offset (inclusive)
+    end: int  # token offset (exclusive)
+    score: float  # authorship deviation_score in [0, 1]
+    confidence: str  # "low" (window < 500 tokens) | "medium"
 
 
 @dataclass
@@ -117,14 +120,15 @@ class BlendResult:
     ``per_section`` is the raw window timeline; ``blend_index`` and
     ``shift_positions`` are the diagnostic summary.
     """
-    blend_detected: bool
-    blend_index: float                          # 0.0 uniform → 1.0 maximally blended
-    shift_positions: List[int]                  # token offsets of detected transitions
-    per_section: List[WindowScore]
-    n_tokens: int = 0                           # total token count (audit field)
-    fallback_reason: Optional[str] = None       # populated when graceful degradation kicked in
 
-    def to_dict(self) -> Dict[str, Any]:
+    blend_detected: bool
+    blend_index: float  # 0.0 uniform → 1.0 maximally blended
+    shift_positions: list[int]  # token offsets of detected transitions
+    per_section: list[WindowScore]
+    n_tokens: int = 0  # total token count (audit field)
+    fallback_reason: str | None = None  # populated when graceful degradation kicked in
+
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -132,7 +136,8 @@ class BlendResult:
 # Pettitt change-point detection
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _pettitt_change_point(x: np.ndarray) -> Tuple[Optional[int], float]:
+
+def _pettitt_change_point(x: np.ndarray) -> tuple[int | None, float]:
     """
     Pettitt's non-parametric rank-based change-point statistic.
 
@@ -167,7 +172,7 @@ def _pettitt_change_point(x: np.ndarray) -> Tuple[Optional[int], float]:
     # Last index is degenerate (no "after" segment) — exclude.
     U_interior = U[:-1]
     K = float(np.max(np.abs(U_interior)))
-    p = 2.0 * float(np.exp(-6.0 * K * K / (n ** 3 + n ** 2)))
+    p = 2.0 * float(np.exp(-6.0 * K * K / (n**3 + n**2)))
     p = min(1.0, max(0.0, p))
 
     return int(np.argmax(np.abs(U_interior))), p
@@ -177,9 +182,12 @@ def _pettitt_change_point(x: np.ndarray) -> Tuple[Optional[int], float]:
 # Window enumeration
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def _window_offsets(
-    n_tokens: int, window_tokens: int, overlap: float,
-) -> List[Tuple[int, int]]:
+    n_tokens: int,
+    window_tokens: int,
+    overlap: float,
+) -> list[tuple[int, int]]:
     """
     Compute the (start, end) token-offset pairs for the sliding windows.
 
@@ -192,7 +200,7 @@ def _window_offsets(
         return [(0, n_tokens)]
 
     step = max(1, int(round(window_tokens * (1.0 - overlap))))
-    offsets: List[Tuple[int, int]] = []
+    offsets: list[tuple[int, int]] = []
     start = 0
     while start + window_tokens <= n_tokens:
         offsets.append((start, start + window_tokens))
@@ -209,9 +217,10 @@ def _window_offsets(
 # Public API
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def detect_blend(
     text: str,
-    state: "object",
+    state: object,
     window_tokens: int = 300,
     overlap: float = 0.5,
     submission_id: str = "blend",
@@ -254,16 +263,22 @@ def detect_blend(
     # ── Edge cases — fall through with a meaningful fallback_reason ──────────
     if n_tokens < window_tokens:
         return BlendResult(
-            blend_detected=False, blend_index=0.0, shift_positions=[],
-            per_section=[], n_tokens=n_tokens,
+            blend_detected=False,
+            blend_index=0.0,
+            shift_positions=[],
+            per_section=[],
+            n_tokens=n_tokens,
             fallback_reason="text_too_short",
         )
 
     samples = getattr(state, "samples", None) or []
     if not samples:
         return BlendResult(
-            blend_detected=False, blend_index=0.0, shift_positions=[],
-            per_section=[], n_tokens=n_tokens,
+            blend_detected=False,
+            blend_index=0.0,
+            shift_positions=[],
+            per_section=[],
+            n_tokens=n_tokens,
             fallback_reason="no_baseline_samples",
         )
 
@@ -271,13 +286,16 @@ def detect_blend(
     # All windows share the same cluster so per-window comparison features
     # are commensurable. We also reuse the orchestrator's resolver outputs
     # for free — but discard the manifest here; blend reports its own shape.
-    cluster_indices: List[int] = []
+    cluster_indices: list[int] = []
     baseline_texts = [s.text for s in samples if (s.auth_weight or 0) > 0]
     try:
         adaptive = run_adaptive_pipeline(
-            text=text, state=state, submission_id=submission_id,
+            text=text,
+            state=state,
+            submission_id=submission_id,
             keystroke_data=None,
-            enable_manifest=True, enable_adaptive_weights=True,
+            enable_manifest=True,
+            enable_adaptive_weights=True,
         )
         cluster_indices = list(adaptive.cluster_indices or [])
     except Exception as e:
@@ -292,27 +310,36 @@ def detect_blend(
     confidence_label = "low" if window_tokens < WINDOW_RELIABILITY_THRESHOLD else "medium"
 
     # ── Score each window ────────────────────────────────────────────────────
-    per_section: List[WindowScore] = []
-    for (start, end) in offsets:
+    per_section: list[WindowScore] = []
+    for start, end in offsets:
         window_text = " ".join(tokens[start:end])
         try:
             if cluster_indices:
                 feat_dict = compute_full_features(
-                    window_text, baseline_texts,
+                    window_text,
+                    baseline_texts,
                     baseline_indices=cluster_indices,
                 )
-                vec = np.array([feat_dict[c] for c in ALL_FEATURE_CODES],
-                                dtype=np.float64)
+                vec = np.array([feat_dict[c] for c in ALL_FEATURE_CODES], dtype=np.float64)
             else:
                 # No cluster → fall back to the legacy path. Comparison
                 # features will be against the full baseline corpus; not
                 # ideal but better than skipping the window.
                 feat_dict = compute_full_features(window_text, baseline_texts)
-                vec = np.array([feat_dict[c] for c in ALL_FEATURE_CODES],
-                                dtype=np.float64)
-            layer7 = quantum_score(state=state, submission_vector=vec,
-                                    feature_dict=feat_dict,
-                                    submission_id=f"{submission_id}_w{start}")
+                vec = np.array([feat_dict[c] for c in ALL_FEATURE_CODES], dtype=np.float64)
+            layer7 = quantum_score(
+                state=state,
+                submission_vector=vec,
+                feature_dict=feat_dict,
+                submission_id=f"{submission_id}_w{start}",
+                # Per-window rescoring — flags still come
+                # from env for parity with the pre-WS-7
+                # live os.environ reads; no store lookups
+                # (this is a diagnostic re-score, not the
+                # primary scored call, so no calibration
+                # data is threaded through).
+                scoring_config=ScoringConfig.from_env(),
+            )
             window_score = float(layer7.authorship.deviation_score)
         except Exception as e:
             # Per-window failure → mark with NaN and move on; the aggregator
@@ -320,10 +347,14 @@ def detect_blend(
             log.warning("blend: window [%d, %d) scoring failed: %s", start, end, e)
             window_score = float("nan")
 
-        per_section.append(WindowScore(
-            start=start, end=end, score=window_score,
-            confidence=confidence_label,
-        ))
+        per_section.append(
+            WindowScore(
+                start=start,
+                end=end,
+                score=window_score,
+                confidence=confidence_label,
+            )
+        )
 
     # ── Aggregate: blend_index, shift detection ──────────────────────────────
     valid_scores = np.array(
@@ -333,36 +364,37 @@ def detect_blend(
 
     if len(valid_scores) < 2:
         return BlendResult(
-            blend_detected=False, blend_index=0.0, shift_positions=[],
-            per_section=per_section, n_tokens=n_tokens,
+            blend_detected=False,
+            blend_index=0.0,
+            shift_positions=[],
+            per_section=per_section,
+            n_tokens=n_tokens,
             fallback_reason="insufficient_valid_windows",
         )
 
     std_score = float(np.std(valid_scores))
     blend_index = float(np.clip(std_score / BLEND_INDEX_NOISE_FLOOR, 0.0, 1.0))
 
-    shift_positions: List[int] = []
+    shift_positions: list[int] = []
     # Locate the most-likely shift only when blend_index suggests there's
     # actually a regime change to find. This avoids reporting the argmax
     # of pure noise on uniform documents.
-    if (blend_index >= SHIFT_LOCATION_MIN_BLEND_INDEX
-            and len(valid_scores) >= MIN_WINDOWS_FOR_SHIFT_DETECTION):
+    if (
+        blend_index >= SHIFT_LOCATION_MIN_BLEND_INDEX
+        and len(valid_scores) >= MIN_WINDOWS_FOR_SHIFT_DETECTION
+    ):
         change_idx, _p_value = _pettitt_change_point(valid_scores)
         if change_idx is not None:
             # Map back to a token offset: the END of the window AT the
             # change point is the boundary between the two regimes.
             # change_idx indexes into valid_scores (after NaN filtering);
             # remap to per_section index space.
-            valid_indices = [i for i, w in enumerate(per_section)
-                             if not np.isnan(w.score)]
+            valid_indices = [i for i, w in enumerate(per_section) if not np.isnan(w.score)]
             if change_idx < len(valid_indices):
                 section_idx = valid_indices[change_idx]
                 shift_positions.append(per_section[section_idx].end)
 
-    blend_detected = (
-        blend_index >= BLEND_DETECT_THRESHOLD
-        or len(shift_positions) > 0
-    )
+    blend_detected = blend_index >= BLEND_DETECT_THRESHOLD or len(shift_positions) > 0
 
     return BlendResult(
         blend_detected=blend_detected,
@@ -375,8 +407,12 @@ def detect_blend(
 
 
 __all__ = [
-    "WindowScore", "BlendResult", "detect_blend",
-    "BLEND_INDEX_NOISE_FLOOR", "BLEND_DETECT_THRESHOLD",
+    "WindowScore",
+    "BlendResult",
+    "detect_blend",
+    "BLEND_INDEX_NOISE_FLOOR",
+    "BLEND_DETECT_THRESHOLD",
     "SHIFT_LOCATION_MIN_BLEND_INDEX",
-    "PETTITT_ALPHA", "WINDOW_RELIABILITY_THRESHOLD",
+    "PETTITT_ALPHA",
+    "WINDOW_RELIABILITY_THRESHOLD",
 ]

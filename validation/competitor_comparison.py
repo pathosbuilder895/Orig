@@ -33,8 +33,8 @@ COMPETITOR_BENCHMARKS = {
         "product_name": "Turnitin Similarity + AI Writing Detection",
         "detection_method": "Text-matching database + AI classifier",
         "published_metrics": {
-            "ai_detection_accuracy": 0.98,      # Turnitin's claimed rate
-            "false_positive_rate": 0.01,         # Claimed <1%
+            "ai_detection_accuracy": 0.98,  # Turnitin's claimed rate
+            "false_positive_rate": 0.01,  # Claimed <1%
             "coverage": "200M+ student papers, journals, web",
             "languages_supported": 30,
         },
@@ -54,10 +54,10 @@ COMPETITOR_BENCHMARKS = {
         "product_name": "GPTZero",
         "detection_method": "Perplexity + burstiness AI classifier",
         "published_metrics": {
-            "ai_detection_accuracy": 0.95,       # Claimed on marketing site
-            "false_positive_rate": 0.02,          # Claimed <2%
+            "ai_detection_accuracy": 0.95,  # Claimed on marketing site
+            "false_positive_rate": 0.02,  # Claimed <2%
             "coverage": "AI text detection only — no plagiarism",
-            "languages_supported": 1,             # English primarily
+            "languages_supported": 1,  # English primarily
         },
         "known_limitations": [
             "AI-detection only — does not verify authorship",
@@ -202,24 +202,27 @@ COMPARISON_DIMENSIONS = [
 
 # ── Comparison generator ─────────────────────────────────────────────────────
 
+
 @dataclass
 class DimensionScore:
     """Score for a single dimension."""
+
     dimension: str
     weight: float
-    original_score: float          # 1-5
+    original_score: float  # 1-5
     original_rationale: str
-    competitor_scores: Dict[str, float]    # competitor → 1-5
+    competitor_scores: Dict[str, float]  # competitor → 1-5
     competitor_rationales: Dict[str, str]
 
 
 @dataclass
 class CompetitorComparisonReport:
     """Full competitor comparison."""
+
     original_calibration_summary: Dict[str, Any]
     competitor_benchmarks: Dict[str, dict]
     dimension_scores: List[DimensionScore]
-    weighted_totals: Dict[str, float]        # product → weighted score
+    weighted_totals: Dict[str, float]  # product → weighted score
     original_advantages: List[str]
     original_gaps: List[str]
     sales_positioning: str
@@ -252,14 +255,16 @@ def generate_comparison(
             comp_scores[comp_name] = s
             comp_rationales[comp_name] = r
 
-        dimension_scores.append(DimensionScore(
-            dimension=dim["dimension"],
-            weight=dim["weight"],
-            original_score=orig_score,
-            original_rationale=orig_rationale,
-            competitor_scores=comp_scores,
-            competitor_rationales=comp_rationales,
-        ))
+        dimension_scores.append(
+            DimensionScore(
+                dimension=dim["dimension"],
+                weight=dim["weight"],
+                original_score=orig_score,
+                original_rationale=orig_rationale,
+                competitor_scores=comp_scores,
+                competitor_rationales=comp_rationales,
+            )
+        )
 
     # Compute weighted totals
     weighted_totals = {"original": 0.0}
@@ -279,10 +284,14 @@ def generate_comparison(
     for ds in dimension_scores:
         max_comp = max(ds.competitor_scores.values())
         if ds.original_score > max_comp:
-            advantages.append(f"{ds.dimension}: Original leads ({ds.original_score}/5 vs best competitor {max_comp}/5)")
+            advantages.append(
+                f"{ds.dimension}: Original leads ({ds.original_score}/5 vs best competitor {max_comp}/5)"
+            )
         elif ds.original_score < max_comp:
             best_comp = max(ds.competitor_scores, key=ds.competitor_scores.get)
-            gaps.append(f"{ds.dimension}: {COMPETITOR_BENCHMARKS[best_comp]['product_name']} leads ({max_comp}/5 vs Original {ds.original_score}/5)")
+            gaps.append(
+                f"{ds.dimension}: {COMPETITOR_BENCHMARKS[best_comp]['product_name']} leads ({max_comp}/5 vs Original {ds.original_score}/5)"
+            )
 
     # Sales positioning statement
     sales_positioning = _generate_positioning(dimension_scores, weighted_totals, cal_summary)
@@ -300,19 +309,44 @@ def generate_comparison(
 
 # ── Scoring helpers ──────────────────────────────────────────────────────────
 
+
 def _score_original(dim: dict, cal_summary: dict) -> tuple[float, str]:
     """Score Original on a dimension (1-5 scale)."""
     name = dim["dimension"]
 
     scores = {
-        "Authorship Verification": (5.0, "Core differentiator — per-student quantum density matrix baseline with 62 features"),
-        "AI Content Detection": (3.5, "Tier 7 features provide signal but not primary focus; augmented by stylometric deviation"),
-        "Ghostwriting Detection": (5.0, "Unique capability — stylometric baseline detects any author change regardless of method"),
-        "Pedagogical Integration": (5.0, "Four-tier graduated recommendations designed for pastoral seminary context"),
-        "False Positive Handling": (4.5, "Built-in bias analysis, demographic fairness constraints, conservative thresholds"),
-        "Longitudinal Tracking": (5.0, "Trajectory analysis with chronological feature vector regression"),
-        "Privacy & Data Sovereignty": (5.0, "Self-hosted, institution owns all data, no third-party storage"),
-        "LMS Integration Depth": (3.5, "LTI 1.3 complete but newer than Turnitin's established integration"),
+        "Authorship Verification": (
+            5.0,
+            "Core differentiator — per-student quantum density matrix baseline with 62 features",
+        ),
+        "AI Content Detection": (
+            3.5,
+            "Tier 7 features provide signal but not primary focus; augmented by stylometric deviation",
+        ),
+        "Ghostwriting Detection": (
+            5.0,
+            "Unique capability — stylometric baseline detects any author change regardless of method",
+        ),
+        "Pedagogical Integration": (
+            5.0,
+            "Four-tier graduated recommendations designed for pastoral seminary context",
+        ),
+        "False Positive Handling": (
+            4.5,
+            "Built-in bias analysis, demographic fairness constraints, conservative thresholds",
+        ),
+        "Longitudinal Tracking": (
+            5.0,
+            "Trajectory analysis with chronological feature vector regression",
+        ),
+        "Privacy & Data Sovereignty": (
+            5.0,
+            "Self-hosted, institution owns all data, no third-party storage",
+        ),
+        "LMS Integration Depth": (
+            3.5,
+            "LTI 1.3 complete but newer than Turnitin's established integration",
+        ),
         "Cost Efficiency": (5.0, "Self-hosted infrastructure cost only, no per-student licensing"),
     }
 
@@ -329,19 +363,40 @@ def _score_competitor(dim: dict, comp_name: str) -> tuple[float, str]:
         ("Authorship Verification", "turnitin"): (1.0, "No per-student baseline capability"),
         ("Authorship Verification", "gptzero"): (1.0, "Binary AI/human only"),
         ("Authorship Verification", "originality_ai"): (1.0, "No authorship verification"),
-        ("AI Content Detection", "turnitin"): (4.5, "Dedicated AI detection module, regularly updated"),
-        ("AI Content Detection", "gptzero"): (4.0, "Primary function, good accuracy on English text"),
-        ("AI Content Detection", "originality_ai"): (4.0, "Solid AI classifier with regular updates"),
+        ("AI Content Detection", "turnitin"): (
+            4.5,
+            "Dedicated AI detection module, regularly updated",
+        ),
+        ("AI Content Detection", "gptzero"): (
+            4.0,
+            "Primary function, good accuracy on English text",
+        ),
+        ("AI Content Detection", "originality_ai"): (
+            4.0,
+            "Solid AI classifier with regular updates",
+        ),
         ("Ghostwriting Detection", "turnitin"): (1.0, "Cannot detect human ghostwriting"),
         ("Ghostwriting Detection", "gptzero"): (1.0, "Cannot distinguish human authors"),
         ("Ghostwriting Detection", "originality_ai"): (1.0, "Cannot detect human ghostwriting"),
-        ("Pedagogical Integration", "turnitin"): (2.5, "Similarity report with highlighted matches"),
+        ("Pedagogical Integration", "turnitin"): (
+            2.5,
+            "Similarity report with highlighted matches",
+        ),
         ("Pedagogical Integration", "gptzero"): (1.5, "Score only, no recommendations"),
         ("Pedagogical Integration", "originality_ai"): (1.5, "Score only, no recommendations"),
-        ("False Positive Handling", "turnitin"): (3.0, "Institutional processes, some ESL concerns"),
+        ("False Positive Handling", "turnitin"): (
+            3.0,
+            "Institutional processes, some ESL concerns",
+        ),
         ("False Positive Handling", "gptzero"): (2.0, "Known ESL false positive issues"),
-        ("False Positive Handling", "originality_ai"): (2.5, "Binary threshold, no fairness analysis"),
-        ("Longitudinal Tracking", "turnitin"): (1.5, "Stores history but no developmental analysis"),
+        ("False Positive Handling", "originality_ai"): (
+            2.5,
+            "Binary threshold, no fairness analysis",
+        ),
+        ("Longitudinal Tracking", "turnitin"): (
+            1.5,
+            "Stores history but no developmental analysis",
+        ),
         ("Longitudinal Tracking", "gptzero"): (1.0, "No longitudinal capability"),
         ("Longitudinal Tracking", "originality_ai"): (1.0, "No longitudinal capability"),
         ("Privacy & Data Sovereignty", "turnitin"): (2.0, "Cloud-stored, FERPA concerns raised"),
@@ -391,6 +446,7 @@ def _generate_positioning(
 
 
 # ── Serialisation ────────────────────────────────────────────────────────────
+
 
 def save_comparison(report: CompetitorComparisonReport, output_path: str) -> None:
     """Save comparison report as JSON."""

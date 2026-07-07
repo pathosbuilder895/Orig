@@ -42,7 +42,13 @@ def provision():
     # demo mode: GUARD_DESTRUCTIVE off → register is open
     client.post(
         "/auth/register",
-        json={"email": EMAIL, "password": PW, "role": "professor", "tenant_id": TENANT, "name": "Dr Auth"},
+        json={
+            "email": EMAIL,
+            "password": PW,
+            "role": "professor",
+            "tenant_id": TENANT,
+            "name": "Dr Auth",
+        },
     )
     yield
 
@@ -85,7 +91,12 @@ def test_duplicate_register_conflict():
 def test_register_short_password_rejected():
     r = client.post(
         "/auth/register",
-        json={"email": "x@acmeu.edu", "password": "short", "role": "professor", "tenant_id": TENANT},
+        json={
+            "email": "x@acmeu.edu",
+            "password": "short",
+            "role": "professor",
+            "tenant_id": TENANT,
+        },
     )
     assert r.status_code == 422
 
@@ -111,7 +122,7 @@ def test_login_throttled_after_repeated_attempts():
         assert all(c == 401 for c in codes[:10]), codes
         assert codes[10] == 429, codes
     finally:
-        legacy._login_attempts.clear()   # don't poison other tests' window
+        legacy._login_attempts.clear()  # don't poison other tests' window
 
 
 def test_logged_in_professor_is_tenant_scoped_end_to_end():
@@ -119,7 +130,14 @@ def test_logged_in_professor_is_tenant_scoped_end_to_end():
     token = client.post("/auth/login", json={"email": EMAIL, "password": PW}).json()["token"]
     # can create + read within own tenant
     sid = f"{TENANT}:essay1"
-    assert client.post(f"/students/{sid}/baseline", json={"text": LONG_TEXT, "assignment": "a1"}, headers=_auth(token)).status_code == 200
+    assert (
+        client.post(
+            f"/students/{sid}/baseline",
+            json={"text": LONG_TEXT, "assignment": "a1"},
+            headers=_auth(token),
+        ).status_code
+        == 200
+    )
     assert client.get(f"/students/{sid}", headers=_auth(token)).status_code == 200
     # cannot reach another tenant
     assert client.get("/students/otheru:essay1", headers=_auth(token)).status_code == 403

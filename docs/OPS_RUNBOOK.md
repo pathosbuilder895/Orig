@@ -19,12 +19,48 @@ Never point a professor at `original-demo`. Never run sales demos on `original-p
 | Var | What | Generate |
 |---|---|---|
 | `SECRET_KEY` | signs every session token; service REFUSES to boot without it | `python -c "import secrets; print(secrets.token_urlsafe(64))"` |
-| `MAINTENANCE_TOKEN` | `X-Guard-Token` header for provisioning/destructive endpoints | `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
+| `MAINTENANCE_TOKEN` | `X-Guard-Token` header for provisioning/destructive endpoints; also the demo-only break-glass admin password — see [Destructive-endpoint guard](#destructive-endpoint-guard-maintenance_token--guard_destructive) | `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
 | `LTI_PRIVATE_KEY` | tool RSA key for LTI | `openssl genrsa 2048` (paste PEM, `\n`-escaped) |
 | `LTI_PLATFORMS` | JSON array binding the Canvas issuer/client_id → tenant | see docs/CANVAS_RUNBOOK.md |
 
 Keep copies in the password manager. **Rotating `SECRET_KEY` logs everyone out**
 (tokens are stateless); do it outside teaching hours and tell the professors.
+
+## Destructive-endpoint guard (MAINTENANCE_TOKEN + GUARD_DESTRUCTIVE)
+
+`MAINTENANCE_TOKEN` has two distinct effects — both keyed off the same env
+var, only one of which is live on the pilot:
+
+1. **Destructive-endpoint guard (live on the pilot).** `GUARD_DESTRUCTIVE=1`
+   makes `_require_guard` (`original/api.py`) require an `X-Guard-Token`
+   header equal to `MAINTENANCE_TOKEN` on every guarded endpoint: student
+   deletion, tenant writes, calibration-threshold apply, baseline-request
+   list, admin corrections. Requests without a matching header get **403**.
+   If `GUARD_DESTRUCTIVE=1` is set but `MAINTENANCE_TOKEN` is empty, those
+   endpoints return **503** instead — a misconfiguration signal, not an open
+   door. `render.yaml` sets `GUARD_DESTRUCTIVE=1` on `original-pilot`; the
+   free `original-demo` service leaves it unset so the sales demo stays
+   click-through.
+2. **Demo-only admin-login backdoor (not live on the pilot).** The same
+   `MAINTENANCE_TOKEN` value, presented as the password to
+   `POST /api/v1/auth/login`, grants the **admin** role and writes a WARNING
+   audit log entry. This path is 404'd on real deploys (`_IS_REAL_DEPLOY` in
+   `original/api.py`), so it has no effect on `original-pilot` — but it does
+   mean the token is a live admin password on any demo/dev deployment where
+   `_IS_REAL_DEPLOY` is false. Treat the value as sensitive everywhere, not
+   just where the guard is active: never put it in a demo config, README, or
+   commit.
+
+**Rotation:** change the env var in the Render dashboard and restart the
+service — no code deploy needed. Unlike `SECRET_KEY`, rotating
+`MAINTENANCE_TOKEN` does **not** log anyone out (it isn't used to sign
+sessions). Rotation is a scheduled action — do not restart the pilot to
+rotate it without operator sign-off (server restarts require explicit
+permission per project policy).
+
+**Action item:** rotate the pilot's `MAINTENANCE_TOKEN` if the current value
+predates this documentation — it may have been set before its dual role
+(guard token + demo admin password) was understood.
 
 ## Backups
 

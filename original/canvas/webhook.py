@@ -28,7 +28,6 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
-import time
 from typing import Any, Dict, Optional
 
 import httpx
@@ -38,7 +37,7 @@ from sqlalchemy.orm import Session
 from original.core.config import get_settings
 from original.core.logging import get_logger
 from original.db.session import SessionLocal
-from original.db.models.canvas import LTIRegistration, CanvasSubmission, CanvasSubmissionStatus
+from original.db.models.canvas import CanvasSubmission, CanvasSubmissionStatus
 from original.canvas.reporter import post_reports_to_canvas, post_speedgrader_comment
 
 log = get_logger(__name__)
@@ -252,9 +251,6 @@ async def _process_canvas_submission(record_id: str, payload: Dict[str, Any]) ->
             return
 
         # Run Original scoring pipeline (with comparison features)
-        from original.features.pipeline import compute_full_features
-        from original.constants import ALL_FEATURE_CODES
-        import numpy as np
 
         # Look up or create the student + baseline in Original's DB
         original_submission_id, deviation_score, authorship_prob, recommended_action, feature_dict = (

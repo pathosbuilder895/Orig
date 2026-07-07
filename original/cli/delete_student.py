@@ -4,13 +4,24 @@ original/cli/delete_student.py — CLI command to delete a student and all assoc
 Deletes a student record and all associated data (submissions, scoring results, baselines).
 Requires confirmation via --confirm flag.
 
+NOT the live FERPA deletion path. This CLI targets the dormant v1 SQLAlchemy stack
+(original/db/models) and is 0% covered / unverified against a real DB. The pilot's
+actual FERPA deletion path is the live API endpoint `DELETE /students/{id}` in
+original/api.py, which is already proven by
+tests/test_pilot_lockdown.py::test_delete_purges_display_name_and_audit_history.
+WS-6 will delete the entire dormant v1 stack (including this file); per WS-5 §5.5
+(T6), the lower-cost interim choice is this header redirect rather than adding new
+tests for code that is slated for removal. Do not treat this CLI as authoritative
+for student data deletion.
+
 Usage:
     python -m original.cli.delete_student --student-id <UUID> [--confirm]
 
 Options:
     --student-id UUID     The UUID of the student to delete (required)
     --confirm             Confirms the deletion (required; prevents accidental deletions)
-    --hard-delete         If specified, permanently deletes all data (default: soft-delete audit trail)
+    --hard-delete         If specified, permanently deletes all data
+                           (default: soft-delete audit trail)
     --force               Skip confirmation prompt
 
 Example:
@@ -22,20 +33,19 @@ from __future__ import annotations
 import argparse
 import sys
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy.exc import SQLAlchemyError
 
 from original.core.logging import get_logger
-from original.db.session import SessionLocal, init_db
 from original.db.models import (
+    BaselineSample,
+    InstructorDecision,
+    ScoringResult,
     Student,
     StudentEnrollment,
-    BaselineSample,
     Submission,
-    ScoringResult,
-    InstructorDecision,
 )
+from original.db.session import SessionLocal, init_db
 
 log = get_logger(__name__)
 
@@ -66,7 +76,7 @@ def _print_info(msg: str) -> None:
     print(f"\033[36mℹ\033[0m  {msg}")
 
 
-def _confirm_deletion(student_id: str, student_name: Optional[str], force: bool = False) -> bool:
+def _confirm_deletion(student_id: str, student_name: str | None, force: bool = False) -> bool:
     """
     Prompt the user to confirm deletion.
 
@@ -198,7 +208,7 @@ def delete_student_data(
 
         # 6. Delete the student record
         session.query(Student).filter(Student.id == student_id).delete()
-        _print_ok(f"Deleted student record")
+        _print_ok("Deleted student record")
 
         # Commit transaction
         session.commit()
@@ -207,7 +217,8 @@ def delete_student_data(
         timestamp = datetime.utcnow().isoformat()
         log.info(
             f"Student deleted: {student_id} ({student.full_name}) at {timestamp} — "
-            f"{submission_count} submissions, {baseline_count} baselines, {enrollment_count} enrollments"
+            f"{submission_count} submissions, {baseline_count} baselines, "
+            f"{enrollment_count} enrollments"
         )
 
         print()
@@ -232,7 +243,7 @@ def delete_student_data(
         session.close()
 
 
-def main(args: Optional[list[str]] = None) -> int:
+def main(args: list[str] | None = None) -> int:
     """
     Main entry point for the delete-student CLI command.
 

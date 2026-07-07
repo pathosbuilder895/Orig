@@ -38,6 +38,7 @@ from __future__ import annotations
 
 # Lock the environment FIRST — the imports below pull original.* in.
 from validation.benchmark.reproducibility import lock_environment  # noqa: E402
+
 ENV_LOCK = lock_environment()
 
 import argparse
@@ -70,6 +71,7 @@ def _build_corpus_for(
 
     if dataset == "raid":
         from validation.wide.raid import build_corpus
+
         print(f"[wide] building RAID corpus (sample={sample})…")
         stats = build_corpus(
             corpus_dir=corpus_dir,
@@ -79,6 +81,7 @@ def _build_corpus_for(
         label = "raid"
     elif dataset == "pan":
         from validation.wide.pan_av import build_corpus
+
         print(f"[wide] building PAN {pan_year} corpus (pairs={sample_pairs})…")
         stats = build_corpus(
             year=pan_year,
@@ -89,6 +92,7 @@ def _build_corpus_for(
         label = f"pan_av_{pan_year}"
     elif dataset == "m4":
         from validation.wide.m4 import build_corpus
+
         print(f"[wide] building M4 corpus (sample={sample})…")
         stats = build_corpus(
             corpus_dir=corpus_dir,
@@ -98,6 +102,7 @@ def _build_corpus_for(
         label = "m4_en"
     elif dataset == "autextification":
         from validation.wide.autextification import build_corpus
+
         print(f"[wide] building AuTexTification corpus (sample={sample})…")
         stats = build_corpus(
             corpus_dir=corpus_dir,
@@ -148,15 +153,16 @@ def _bench_one(
         # Bias slices.
         ml = manifest_lookup_for(manifest_path)
         bias = {
-            "ai_provider":  slice_by(report.results, "ai_provider",  manifest_lookup=ml),
+            "ai_provider": slice_by(report.results, "ai_provider", manifest_lookup=ml),
             "word_count_bucket": slice_by(report.results, "word_count_bucket"),
-            "label":        slice_by(report.results, "label",        manifest_lookup=ml),
+            "label": slice_by(report.results, "label", manifest_lookup=ml),
         }
 
         # Optional per-tier ablation (the expensive one).
         ablation = None
         if include_ablation:
             from validation.benchmark.ablation import per_tier_ablation
+
             print(f"[wide] {label}: running per-tier ablation (this takes a while)…")
             ablation = per_tier_ablation(
                 run_calibration,
@@ -184,38 +190,49 @@ def _bench_one(
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__,
-                                formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--dataset", required=True, choices=sorted(DATASETS),
-                   help="Which dataset to benchmark. 'all' runs raid + pan + m4 + autextification.")
-    p.add_argument("--sample", type=int, default=800,
-                   help="Row cap for RAID + M4 (default: 800).")
-    p.add_argument("--pan-year", type=int, default=2021,
-                   choices=[2021, 2022, 2023], help="PAN edition to use.")
-    p.add_argument("--sample-pairs", type=int, default=400,
-                   help="Pair cap for PAN (default: 400).")
-    p.add_argument("--max-scoring", type=int, default=None,
-                   help="Cap on scoring entries per author. Useful for laptop runs.")
-    p.add_argument("--include-ablation", action="store_true",
-                   help="Run per-tier ablation. Slow (~18× cost).")
-    p.add_argument("--out-base", default="validation/benchmarks",
-                   help="Output root for report directories.")
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p.add_argument(
+        "--dataset",
+        required=True,
+        choices=sorted(DATASETS),
+        help="Which dataset to benchmark. 'all' runs raid + pan + m4 + autextification.",
+    )
+    p.add_argument("--sample", type=int, default=800, help="Row cap for RAID + M4 (default: 800).")
+    p.add_argument(
+        "--pan-year", type=int, default=2021, choices=[2021, 2022, 2023], help="PAN edition to use."
+    )
+    p.add_argument("--sample-pairs", type=int, default=400, help="Pair cap for PAN (default: 400).")
+    p.add_argument(
+        "--max-scoring",
+        type=int,
+        default=None,
+        help="Cap on scoring entries per author. Useful for laptop runs.",
+    )
+    p.add_argument(
+        "--include-ablation", action="store_true", help="Run per-tier ablation. Slow (~18× cost)."
+    )
+    p.add_argument(
+        "--out-base", default="validation/benchmarks", help="Output root for report directories."
+    )
     args = p.parse_args()
 
-    targets = (["raid", "pan", "m4", "autextification"] if args.dataset == "all"
-              else [args.dataset])
+    targets = ["raid", "pan", "m4", "autextification"] if args.dataset == "all" else [args.dataset]
     paths = []
     for d in targets:
         try:
-            paths.append(_bench_one(
-                d,
-                sample=args.sample,
-                pan_year=args.pan_year,
-                sample_pairs=args.sample_pairs,
-                max_scoring=args.max_scoring,
-                include_ablation=args.include_ablation,
-                out_base=Path(args.out_base),
-            ))
+            paths.append(
+                _bench_one(
+                    d,
+                    sample=args.sample,
+                    pan_year=args.pan_year,
+                    sample_pairs=args.sample_pairs,
+                    max_scoring=args.max_scoring,
+                    include_ablation=args.include_ablation,
+                    out_base=Path(args.out_base),
+                )
+            )
         except FileNotFoundError as e:
             print(f"[wide] SKIP {d}: {e}", file=sys.stderr)
         except Exception as e:

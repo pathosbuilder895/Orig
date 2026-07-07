@@ -19,8 +19,7 @@ Tone rules:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
-
+from typing import Any
 
 # ── Feature plain-language mapping ────────────────────────────────────────────
 # Each entry:
@@ -30,7 +29,7 @@ from typing import Any, Dict, List, Optional
 #   ai_signal   — True if anomaly here is especially relevant as an AI-writing signal
 #   behavioral  — True for Tier 17 keystroke/paste features
 
-_FEATURE_PLAIN: Dict[str, Dict[str, Any]] = {
+_FEATURE_PLAIN: dict[str, dict[str, Any]] = {
     # Tier 1 — Surface stylometry
     "passive_voice_ratio": {
         "label": "use of passive voice",
@@ -355,7 +354,8 @@ _FEATURE_PLAIN: Dict[str, Dict[str, Any]] = {
 
 # ── Magnitude qualifier ────────────────────────────────────────────────────────
 
-def _magnitude(delta: float) -> Optional[str]:
+
+def _magnitude(delta: float) -> str | None:
     """Return a magnitude adverb, or None if the delta is too small to mention."""
     abs_d = abs(delta)
     if abs_d < 0.10:
@@ -371,23 +371,25 @@ def _magnitude(delta: float) -> Optional[str]:
 
 # ── Output dataclass ───────────────────────────────────────────────────────────
 
+
 @dataclass
 class ProfessorExplanation:
-    headline: str                  # one-sentence verdict in plain English
-    summary: str                   # 2-3 sentence opening paragraph
-    observations: List[str]        # 3-5 specific observations, each a complete sentence
-    hypotheses: List[str]          # 2-4 non-accusatory possible explanations
-    suggested_action: str          # concrete next step the professor can take
-    confidence_note: str           # plain language about reliability of comparison
-    has_behavioral_signals: bool   # True if keystroke/paste data contributed
-    has_ai_signals: bool           # True if AI-detection features were anomalous
+    headline: str  # one-sentence verdict in plain English
+    summary: str  # 2-3 sentence opening paragraph
+    observations: list[str]  # 3-5 specific observations, each a complete sentence
+    hypotheses: list[str]  # 2-4 non-accusatory possible explanations
+    suggested_action: str  # concrete next step the professor can take
+    confidence_note: str  # plain language about reliability of comparison
+    has_behavioral_signals: bool  # True if keystroke/paste data contributed
+    has_ai_signals: bool  # True if AI-detection features were anomalous
     # Corpus-level AI-likelihood band ("low"/"elevated"/"strong") when the
     # AI_LIKELIHOOD_ENABLED detector produced a signal; None otherwise.
     # Defaults keep existing consumers byte-stable when the flag is off.
-    ai_likelihood_band: Optional[str] = None
+    ai_likelihood_band: str | None = None
 
 
 # ── Headline logic ─────────────────────────────────────────────────────────────
+
 
 def _build_headline(deviation: float, student_name: str) -> str:
     """
@@ -422,6 +424,7 @@ def _build_headline(deviation: float, student_name: str) -> str:
 
 # ── Summary paragraph ──────────────────────────────────────────────────────────
 
+
 def _build_summary(
     deviation: float,
     action: str,
@@ -441,8 +444,8 @@ def _build_summary(
         )
         if trajectory_direction == "growth":
             base += (
-                f" There are also signs of continued writing development, "
-                f"which is an encouraging trend."
+                " There are also signs of continued writing development, "
+                "which is an encouraging trend."
             )
         return base
 
@@ -484,18 +487,19 @@ def _build_summary(
 
 # ── Observation builder ────────────────────────────────────────────────────────
 
+
 def _build_observations(
     destructive_features: list,
     constructive_features: list,
     student_name: str,
-) -> List[str]:
+) -> list[str]:
     """
     Build 3-5 observation sentences from the interference decomposition.
     Destructive features (anomalous) are primary; constructive (consistent)
     are added as reassuring context if there are few destructive ones.
     """
     name = student_name
-    observations: List[str] = []
+    observations: list[str] = []
 
     for fc in destructive_features:
         entry = _FEATURE_PLAIN.get(fc.code)
@@ -542,15 +546,16 @@ def _build_observations(
 
 # ── Hypothesis builder ────────────────────────────────────────────────────────
 
+
 def _build_hypotheses(
     deviation: float,
     has_behavioral: bool,
     has_ai: bool,
     quantum_fidelity: float,
     action: str,
-    ai_band: Optional[str] = None,
-) -> List[str]:
-    hyps: List[str] = []
+    ai_band: str | None = None,
+) -> list[str]:
+    hyps: list[str] = []
 
     # Always first: innocent situational explanation
     hyps.append(
@@ -612,6 +617,7 @@ def _build_hypotheses(
 
 # ── Suggested action ──────────────────────────────────────────────────────────
 
+
 def _build_suggested_action(action: str, student_name: str) -> str:
     name = student_name
     if action == "no_action":
@@ -643,7 +649,8 @@ def _build_suggested_action(action: str, student_name: str) -> str:
 
 # ── Confidence note ───────────────────────────────────────────────────────────
 
-def _build_confidence_note(sample_count: int, n_tokens: Optional[int] = None) -> str:
+
+def _build_confidence_note(sample_count: int, n_tokens: int | None = None) -> str:
     if sample_count >= 8:
         note = (
             f"This comparison is based on {sample_count} authenticated writing "
@@ -674,10 +681,11 @@ def _build_confidence_note(sample_count: int, n_tokens: Optional[int] = None) ->
 # Public builder
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def build_professor_explanation(
-    layer7: "object",
+    layer7: object,
     student_name: str = "this student",
-    n_tokens: Optional[int] = None,
+    n_tokens: int | None = None,
 ) -> ProfessorExplanation:
     """
     Translate a Layer7Output into professor-facing plain-English explanation.

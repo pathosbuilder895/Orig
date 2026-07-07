@@ -22,15 +22,22 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 import time
 import uuid
-from dataclasses import dataclass, asdict, field, fields as dataclass_fields
-from typing import Dict, List, Literal, Optional
+from dataclasses import asdict, dataclass
+from dataclasses import fields as dataclass_fields
+from datetime import UTC
+from typing import Literal
 
-from . import store
+from .repository import get_repository
 
 log = logging.getLogger(__name__)
+
+
+def _repo():
+    return get_repository(os.environ.get("ENVIRONMENT", "demo"))
 
 
 Status = Literal["pending", "completed", "expired", "failed"]
@@ -43,15 +50,15 @@ class BaselineRequest:
     student_email: str
     student_name: str
     exam_title: str
-    bbook_exam_id: Optional[str]
-    magic_link: Optional[str]
-    requested_at: float                # unix epoch seconds
-    expires_at: Optional[float]        # unix epoch seconds; None if unknown
-    requested_by: Optional[str] = None
+    bbook_exam_id: str | None
+    magic_link: str | None
+    requested_at: float  # unix epoch seconds
+    expires_at: float | None  # unix epoch seconds; None if unknown
+    requested_by: str | None = None
     status: Status = "pending"
-    completed_at: Optional[float] = None
+    completed_at: float | None = None
     email_delivered: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -63,15 +70,16 @@ class BaselineRequest:
 
 
 def _iso(epoch: float) -> str:
-    from datetime import datetime, timezone
-    return datetime.fromtimestamp(epoch, tz=timezone.utc).isoformat()
+    from datetime import datetime
+
+    return datetime.fromtimestamp(epoch, tz=UTC).isoformat()
 
 
 # ── Module-level registry ────────────────────────────────────────────────────
 
 _lock = threading.Lock()
-_registry: Dict[str, BaselineRequest] = {}   # external_request_id → request
-_by_student: Dict[str, List[str]] = {}       # student_id → list of external_request_ids
+_registry: dict[str, BaselineRequest] = {}  # external_request_id → request
+_by_student: dict[str, list[str]] = {}  # student_id → list of external_request_ids
 _hydrated = False
 
 
@@ -104,7 +112,7 @@ def _persist_snapshot(
     """
     global _persist_failures
     try:
-        store.put_baseline_request(
+        _repo().put_baseline_request(
             external_request_id=external_request_id,
             student_id=student_id,
             status=status,
@@ -119,7 +127,8 @@ def _persist_snapshot(
         if _persist_failures % 10 == 1:
             log.exception(
                 "persist baseline request %s failed (%d total failures since start)",
-                external_request_id, _persist_failures,
+                external_request_id,
+                _persist_failures,
             )
 
 
@@ -134,7 +143,7 @@ def _ensure_hydrated() -> None:
     if _hydrated:
         return
     try:
-        for d in store.load_baseline_requests():
+        for d in _repo().load_baseline_requests():
             payload = {k: v for k, v in d.items() if k in _FIELD_NAMES}
             req = BaselineRequest(**payload)
             _registry[req.external_request_id] = req
@@ -175,17 +184,17 @@ def record(req: BaselineRequest) -> None:
     _persist_snapshot(ext_id, student_id, status, requested_at, snap)
 
 
-def get(external_request_id: str) -> Optional[BaselineRequest]:
+def get(external_request_id: str) -> BaselineRequest | None:
     with _lock:
         _ensure_hydrated()
         return _registry.get(external_request_id)
 
 
-def list_pending() -> List[BaselineRequest]:
+def list_pending() -> list[BaselineRequest]:
     """Return all requests with status='pending' (oldest first)."""
     now = time.time()
-    out: List[BaselineRequest] = []
-    expired_snaps: List[tuple] = []
+    out: list[BaselineRequest] = []
+    expired_snaps: list[tuple] = []
     with _lock:
         _ensure_hydrated()
         for r in _registry.values():
@@ -206,7 +215,7 @@ def list_pending() -> List[BaselineRequest]:
     return out
 
 
-def list_all() -> List[BaselineRequest]:
+def list_all() -> list[BaselineRequest]:
     """Return all requests (newest first), regardless of status."""
     with _lock:
         _ensure_hydrated()
@@ -215,7 +224,7 @@ def list_all() -> List[BaselineRequest]:
     return items
 
 
-def mark_completed_for_student(student_id: str) -> List[BaselineRequest]:
+def mark_completed_for_student(student_id: str) -> list[BaselineRequest]:
     """
     Mark every pending request for this student as completed.
 
@@ -224,8 +233,8 @@ def mark_completed_for_student(student_id: str) -> List[BaselineRequest]:
     any outstanding request. Returns the list of requests that were
     transitioned (empty if none were pending).
     """
-    completed: List[BaselineRequest] = []
-    completed_snaps: List[tuple] = []
+    completed: list[BaselineRequest] = []
+    completed_snaps: list[tuple] = []
     now = time.time()
     with _lock:
         _ensure_hydrated()
@@ -246,13 +255,19 @@ def mark_completed_for_student(student_id: str) -> List[BaselineRequest]:
 
 def mark_failed(external_request_id: str, error: str) -> None:
     """Mark a single request as failed (Bbook call exploded, etc.)."""
-    snap_args: Optional[tuple] = None
+    snap_args: tuple | None = None
     with _lock:
         _ensure_hydrated()
         r = _registry.get(external_request_id)
         if r:
             r.status = "failed"
             r.error = error
-            snap_args = (r.external_request_id, r.student_id, r.status, r.requested_at, _snapshot(r))
+            snap_args = (
+                r.external_request_id,
+                r.student_id,
+                r.status,
+                r.requested_at,
+                _snapshot(r),
+            )
     if snap_args:
         _persist_snapshot(*snap_args)

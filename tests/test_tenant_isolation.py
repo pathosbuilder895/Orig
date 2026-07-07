@@ -59,6 +59,7 @@ def pilot_setup():
 
 # ── Invariant 1: the demo still works ─────────────────────────────────────────
 
+
 def test_demo_flat_student_round_trip():
     """Anonymous demo can create and read a flat-id (sandbox) student."""
     r = client.post(
@@ -71,6 +72,7 @@ def test_demo_flat_student_round_trip():
 
 
 # ── Invariant 2: real tenants are isolated ────────────────────────────────────
+
 
 def test_demo_cannot_read_pilot_student():
     """Anonymous demo is denied access to pilot-tenant data."""

@@ -7,32 +7,28 @@ in its natural unit. Normalization to [0,1] happens in pipeline.py.
 """
 
 import re
-import math
-from typing import List, Dict
 
-from ..constants import (
-    FUNCTION_WORDS, STOP_WORDS, MODAL_VERBS, PASSIVE_PATTERNS
-)
-
+from ..constants import FUNCTION_WORDS, MODAL_VERBS, PASSIVE_PATTERNS, STOP_WORDS
 
 # ── TextDoc: lightweight NLP container ──────────────────────────────────────
+
 
 class TextDoc:
     """Pre-processed representation of a text sample."""
 
     def __init__(self, text: str):
         self.raw = text
-        self.text = text          # alias — used by tension_arc via pipeline
+        self.text = text  # alias — used by tension_arc via pipeline
         self.clean = _clean(text)
-        self.sentences: List[str] = _split_sentences(self.clean)
-        self.paragraphs: List[List[str]] = _split_paragraphs(text)
-        self.tokens: List[str] = _tokenize(self.clean)
-        self.words: List[str] = [t for t in self.tokens if t.isalpha()]
-        self.lower_words: List[str] = [w.lower() for w in self.words]
+        self.sentences: list[str] = _split_sentences(self.clean)
+        self.paragraphs: list[list[str]] = _split_paragraphs(text)
+        self.tokens: list[str] = _tokenize(self.clean)
+        self.words: list[str] = [t for t in self.tokens if t.isalpha()]
+        self.lower_words: list[str] = [w.lower() for w in self.words]
         self.word_count: int = len(self.words)
         self.sentence_count: int = len(self.sentences)
 
-    def sent_words(self) -> List[List[str]]:
+    def sent_words(self) -> list[list[str]]:
         """List of word lists, one per sentence."""
         return [_tokenize(s) for s in self.sentences]
 
@@ -43,11 +39,13 @@ def _clean(text: str) -> str:
     return text.strip()
 
 
-def _split_sentences(text: str) -> List[str]:
+def _split_sentences(text: str) -> list[str]:
     """Regex sentence splitter — handles theological abbreviations."""
     # Protect common abbreviations from being split on
-    text = re.sub(r"\b(Dr|Mr|Mrs|Ms|Prof|Rev|Gen|Col|Cor|Eph|Phil|Col|etc|vs|cf|ibid|op)\.", r"\1<DOT>", text)
-    text = re.sub(r"\b([A-Z])\.", r"\1<DOT>", text)   # initials
+    text = re.sub(
+        r"\b(Dr|Mr|Mrs|Ms|Prof|Rev|Gen|Col|Cor|Eph|Phil|Col|etc|vs|cf|ibid|op)\.", r"\1<DOT>", text
+    )
+    text = re.sub(r"\b([A-Z])\.", r"\1<DOT>", text)  # initials
     # Split
     sentences = re.split(r"(?<=[.!?])\s+(?=[A-Z\"\'(])", text)
     # Restore dots
@@ -55,7 +53,7 @@ def _split_sentences(text: str) -> List[str]:
     return [s.strip() for s in sentences if s.strip()]
 
 
-def _split_paragraphs(text: str) -> List[List[str]]:
+def _split_paragraphs(text: str) -> list[list[str]]:
     """Return paragraphs as lists of sentences."""
     paras = re.split(r"\n\s*\n", text)
     result = []
@@ -68,12 +66,13 @@ def _split_paragraphs(text: str) -> List[List[str]]:
     return result if result else [[text]]
 
 
-def _tokenize(text: str) -> List[str]:
+def _tokenize(text: str) -> list[str]:
     """Simple word-boundary tokenizer that preserves apostrophes."""
     return re.findall(r"\b\w+(?:'\w+)?\b", text)
 
 
 # ── Tier 1 feature extractors ────────────────────────────────────────────────
+
 
 def type_token_ratio(doc: TextDoc) -> float:
     """Unique word types / total word tokens."""
@@ -86,7 +85,7 @@ def hapax_legomena_rate(doc: TextDoc) -> float:
     """Words appearing exactly once / total word tokens."""
     if not doc.lower_words:
         return 0.0
-    freq: Dict[str, int] = {}
+    freq: dict[str, int] = {}
     for w in doc.lower_words:
         freq[w] = freq.get(w, 0) + 1
     hapax = sum(1 for v in freq.values() if v == 1)
@@ -154,15 +153,16 @@ def avg_word_length(doc: TextDoc) -> float:
 
 # ── Public extraction function ───────────────────────────────────────────────
 
-def extract_tier1(doc: TextDoc) -> Dict[str, float]:
+
+def extract_tier1(doc: TextDoc) -> dict[str, float]:
     return {
-        "type_token_ratio":         type_token_ratio(doc),
-        "hapax_legomena_rate":      hapax_legomena_rate(doc),
-        "mean_sentence_length":     mean_sentence_length(doc),
+        "type_token_ratio": type_token_ratio(doc),
+        "hapax_legomena_rate": hapax_legomena_rate(doc),
+        "mean_sentence_length": mean_sentence_length(doc),
         "sentence_length_variance": sentence_length_variance(doc),
-        "function_word_ratio":      function_word_ratio(doc),
-        "passive_voice_ratio":      passive_voice_ratio(doc),
-        "modal_verb_ratio":         modal_verb_ratio(doc),
-        "stop_word_ratio":          stop_word_ratio(doc),
-        "avg_word_length":          avg_word_length(doc),
+        "function_word_ratio": function_word_ratio(doc),
+        "passive_voice_ratio": passive_voice_ratio(doc),
+        "modal_verb_ratio": modal_verb_ratio(doc),
+        "stop_word_ratio": stop_word_ratio(doc),
+        "avg_word_length": avg_word_length(doc),
     }

@@ -1,3 +1,6 @@
+import React from 'react';
+import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, MetaLabel, StatusBadge, fontBody, fontDisplay, fontMono } from './components.jsx';
+
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Courses Screen
 // ════════════════════════════════════════════════════════════════
@@ -11,7 +14,7 @@ const MOCK_COURSES_DATA = [
   { id:'c5', code:'ECON 203',  name:'History of Economic Thought',          term:'Michaelmas 2026', students:18, exams:1, active:false },
 ];
 
-function CoursesScreen({ onNavigate }) {
+export function CoursesScreen({ onNavigate }) {
   const [showNew, setShowNew] = useCState(false);
   const [newCode, setNewCode] = useCState('');
   const [newName, setNewName] = useCState('');
@@ -131,5 +134,3 @@ function CoursesScreen({ onNavigate }) {
     </div>
   );
 }
-
-Object.assign(window, { CoursesScreen });

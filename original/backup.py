@@ -29,14 +29,13 @@ import sqlite3
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 log = logging.getLogger(__name__)
 
 BACKUP_PREFIX = "profiles-"
 
 
-def resolve_backup_dir(db_path: Path, is_real_deploy: bool) -> Optional[Path]:
+def resolve_backup_dir(db_path: Path, is_real_deploy: bool) -> Path | None:
     """The destination directory, or None when backups are disabled.
 
     Explicit ``BACKUP_DIR`` always wins (any environment). Otherwise real
@@ -51,7 +50,7 @@ def resolve_backup_dir(db_path: Path, is_real_deploy: bool) -> Optional[Path]:
     return None
 
 
-def run_backup(db_path: Path, dest_dir: Path, keep: int = 48) -> Optional[Path]:
+def run_backup(db_path: Path, dest_dir: Path, keep: int = 48) -> Path | None:
     """One consistent online backup + prune. Never raises.
 
     Returns the path written, or None (missing DB / failure — logged).
@@ -88,7 +87,7 @@ def _prune(dest_dir: Path, keep: int) -> int:
         reverse=True,
     )
     removed = 0
-    for old in backups[max(keep, 1):]:
+    for old in backups[max(keep, 1) :]:
         try:
             old.unlink()
             removed += 1
@@ -97,7 +96,7 @@ def _prune(dest_dir: Path, keep: int) -> int:
     return removed
 
 
-def latest_backup_age_seconds(dest_dir: Optional[Path]) -> Optional[float]:
+def latest_backup_age_seconds(dest_dir: Path | None) -> float | None:
     """Age of the newest backup, or None when none exist / backups disabled."""
     if dest_dir is None or not dest_dir.is_dir():
         return None
@@ -111,8 +110,7 @@ def latest_backup_age_seconds(dest_dir: Optional[Path]) -> Optional[float]:
     return max(0.0, time.time() - newest)
 
 
-async def backup_loop(db_path: Path, dest_dir: Path,
-                      interval_minutes: float, keep: int) -> None:
+async def backup_loop(db_path: Path, dest_dir: Path, interval_minutes: float, keep: int) -> None:
     """Run forever: back up immediately, then every ``interval_minutes``.
 
     The immediate first run means a fresh deploy has a backup within seconds,

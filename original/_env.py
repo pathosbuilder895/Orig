@@ -16,7 +16,7 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
-def load_env_file(path: "str | Path | None" = None) -> bool:
+def load_env_file(path: str | Path | None = None) -> bool:
     """Load KEY=VALUE lines from `.env` into os.environ (without overriding).
 
     Returns True if a file was found and read. Silent and safe to call multiple

@@ -205,7 +205,9 @@ def upgrade() -> None:
         "submissions",
         sa.Column("id", sa.String(36), nullable=False),
         sa.Column("student_id", sa.String(36), nullable=False),
-        sa.Column("course_id", sa.String(36), nullable=True),   # optional — not all submissions are course-linked
+        sa.Column(
+            "course_id", sa.String(36), nullable=True
+        ),  # optional — not all submissions are course-linked
         sa.Column("assignment", sa.String(255), nullable=False),
         sa.Column("text_hash", sa.String(64), nullable=False, unique=True),
         sa.Column("word_count", sa.Integer(), nullable=False),
@@ -284,7 +286,9 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_instructor_decisions_submission_id", "instructor_decisions", ["submission_id"])
+    op.create_index(
+        "ix_instructor_decisions_submission_id", "instructor_decisions", ["submission_id"]
+    )
     op.create_index("ix_instructor_decisions_action", "instructor_decisions", ["action"])
 
 

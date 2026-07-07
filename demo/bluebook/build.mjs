@@ -1,48 +1,29 @@
-// build.mjs — compile Bluebook's JSX into a single browser bundle.
+// build.mjs — bundle Bluebook's ESM React app into a single browser bundle.
 //
 //   npm install && npm run build   →   bluebook.bundle.js
 //
-// The .jsx files are classic global-scope scripts (they attach to `window` and
-// reference each other as globals, in a fixed load order) — NOT ES modules.
-// So we concatenate them in order into one virtual file, then let esbuild
-// transform the JSX and emit a single minified IIFE. React / ReactDOM stay as
-// externals (loaded from the CDN by index.prod.html before this bundle).
-//
-// Result: production drops in-browser Babel (~the slowest part of first paint)
-// and the per-file ?v= cache-buster — one hashed bundle instead.
+// The .jsx files are real ES modules (import/export) rooted at app.jsx.
+// esbuild resolves the module graph itself — no manual concatenation, no
+// fixed load-order array to keep in sync. React/ReactDOM are bundled in as
+// real dependencies (not left external), so the emitted IIFE is fully
+// self-contained: no CDN, no vendored global <script> tags, same bundle in
+// dev and prod.
 
 import { build } from 'esbuild';
-import { readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const here = (f) => fileURLToPath(new URL(f, import.meta.url));
 
-// Load order MUST match index.html (components → screens → tweaks → app).
-const ORDER = [
-  'components.jsx', 'Landing.jsx', 'Dashboard.jsx', 'Exam.jsx', 'Courses.jsx',
-  'Students.jsx', 'Results.jsx', 'NewExam.jsx', 'tweaks-panel.jsx', 'app.jsx',
-];
+await build({
+  entryPoints: [here('app.jsx')],
+  bundle: true,
+  jsx: 'automatic',
+  format: 'iife',
+  target: ['es2019'],
+  minify: true,
+  legalComments: 'none',
+  sourcemap: 'linked',
+  outfile: here('bluebook.bundle.js'),
+});
 
-const combined = ORDER
-  .map((f) => `// ─────────── ${f} ───────────\n` + readFileSync(here(f), 'utf8'))
-  .join('\n\n');
-
-const tmp = here('._bluebook_combined.jsx');
-writeFileSync(tmp, combined);
-
-try {
-  await build({
-    entryPoints: [tmp],
-    bundle: true,                 // single file; React/ReactDOM remain globals
-    loader: { '.jsx': 'jsx' },
-    jsx: 'transform',
-    format: 'iife',
-    target: ['es2019'],
-    minify: true,
-    legalComments: 'none',
-    outfile: here('bluebook.bundle.js'),
-  });
-  console.log('✓ Built bluebook.bundle.js');
-} finally {
-  rmSync(tmp, { force: true });
-}
+console.log('✓ Built bluebook.bundle.js');

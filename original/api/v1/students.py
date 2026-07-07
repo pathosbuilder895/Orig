@@ -206,7 +206,6 @@ def get_student_state(
     Returns:
         StudentStateResponse with state metrics
     """
-    from original.constants import AUTH_WEIGHTS
     from original.quantum.state import StudentState, BaselineSample as QBaselineSample
 
     # Load all active baseline samples

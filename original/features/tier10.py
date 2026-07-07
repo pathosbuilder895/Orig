@@ -29,8 +29,10 @@ semantic_centroid_proximity (comparison):
     Large distance → score ≈ 0.0 (semantic trespasser).
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -54,7 +56,7 @@ _st_model: Any = None
 _st_failed: bool = False
 
 
-def _get_st_model() -> Optional[Any]:
+def _get_st_model() -> Any | None:
     """Load sentence-transformers model if available (requires torch)."""
     global _st_model, _st_failed
     if _st_failed:
@@ -63,6 +65,7 @@ def _get_st_model() -> Optional[Any]:
         return _st_model
     try:
         from sentence_transformers import SentenceTransformer
+
         _st_model = SentenceTransformer("all-MiniLM-L6-v2")
         log.info("Tier 10: using sentence-transformers backend (all-MiniLM-L6-v2)")
         return _st_model
@@ -72,7 +75,7 @@ def _get_st_model() -> Optional[Any]:
         return None
 
 
-def _tfidf_encode(sentences: List[str], vocab: Optional[Any] = None) -> Optional[np.ndarray]:
+def _tfidf_encode(sentences: list[str], vocab: Any | None = None) -> np.ndarray | None:
     """
     Encode sentences as L2-normalised TF-IDF vectors.
 
@@ -87,10 +90,17 @@ def _tfidf_encode(sentences: List[str], vocab: Optional[Any] = None) -> Optional
     try:
         from sklearn.feature_extraction.text import TfidfVectorizer
         from sklearn.preprocessing import normalize
-        vec = TfidfVectorizer(
-            min_df=1, max_features=300,
-            sublinear_tf=True, strip_accents="unicode",
-        ) if vocab is None else vocab
+
+        vec = (
+            TfidfVectorizer(
+                min_df=1,
+                max_features=300,
+                sublinear_tf=True,
+                strip_accents="unicode",
+            )
+            if vocab is None
+            else vocab
+        )
         if vocab is None:
             M = vec.fit_transform(sentences).toarray()
         else:
@@ -102,7 +112,7 @@ def _tfidf_encode(sentences: List[str], vocab: Optional[Any] = None) -> Optional
         return None
 
 
-def _encode_sentences(doc: TextDoc) -> Optional[np.ndarray]:
+def _encode_sentences(doc: TextDoc) -> np.ndarray | None:
     """
     Return L2-normalised sentence embeddings (N × D) for sentences > 10 chars.
     Uses sentence-transformers if available; falls back to TF-IDF.
@@ -121,7 +131,8 @@ def _encode_sentences(doc: TextDoc) -> Optional[np.ndarray]:
 
 # ── Standalone feature ────────────────────────────────────────────────────────
 
-def extract_tier10_standalone(doc: TextDoc) -> Dict[str, float]:
+
+def extract_tier10_standalone(doc: TextDoc) -> dict[str, float]:
     """
     semantic_field_dispersion: variance of pairwise cosine distances within
     the submission's sentence embeddings.
@@ -138,13 +149,9 @@ def extract_tier10_standalone(doc: TextDoc) -> Dict[str, float]:
 
     # Pairwise cosine distances via dot-product of L2-normalised embeddings
     # sim_matrix[i,j] = eᵢ · eⱼ  (cosine similarity)
-    sim_matrix = embs @ embs.T                          # (N, N)
+    sim_matrix = embs @ embs.T  # (N, N)
     n = len(embs)
-    dists = [
-        1.0 - float(sim_matrix[i, j])
-        for i in range(n)
-        for j in range(i + 1, n)
-    ]
+    dists = [1.0 - float(sim_matrix[i, j]) for i in range(n) for j in range(i + 1, n)]
     variance = float(np.var(dists))
     dispersion = float(np.clip(variance / 0.1, 0.0, 1.0))
     return {"semantic_field_dispersion": dispersion}
@@ -152,7 +159,8 @@ def extract_tier10_standalone(doc: TextDoc) -> Dict[str, float]:
 
 # ── Profile extraction (for comparison at scoring time) ──────────────────────
 
-def extract_tier10_profile(doc: TextDoc) -> Dict[str, object]:
+
+def extract_tier10_profile(doc: TextDoc) -> dict[str, object]:
     """
     Extract sentence embeddings for storage as a baseline profile.
     Returns a (N, 384) array, or a (1, 384) zero array if text is too short.
@@ -165,10 +173,11 @@ def extract_tier10_profile(doc: TextDoc) -> Dict[str, object]:
 
 # ── Comparison feature ────────────────────────────────────────────────────────
 
+
 def compute_tier10_comparison(
-    sub_profile: Dict[str, object],
-    baseline_profiles: Dict[str, object],
-) -> Dict[str, float]:
+    sub_profile: dict[str, object],
+    baseline_profiles: dict[str, object],
+) -> dict[str, float]:
     """
     semantic_centroid_proximity: how close the submission's sentences are
     to the student's established semantic gravity wells.
@@ -207,15 +216,11 @@ def compute_tier10_comparison(
         all_sents = sub_sents + [s for grp in base_sents_list for s in grp]
         try:
             from sklearn.feature_extraction.text import TfidfVectorizer
-            from sklearn.preprocessing import normalize
+
             vectorizer = TfidfVectorizer(min_df=1, max_features=300, sublinear_tf=True)
             vectorizer.fit(all_sents)
             sub_embs = _tfidf_encode(sub_sents, vocab=vectorizer)
-            base_emb_list = [
-                _tfidf_encode(grp, vocab=vectorizer)
-                for grp in base_sents_list
-                if grp
-            ]
+            base_emb_list = [_tfidf_encode(grp, vocab=vectorizer) for grp in base_sents_list if grp]
             base_emb_list = [e for e in base_emb_list if e is not None]
         except Exception:
             return {"semantic_centroid_proximity": 0.5}

@@ -30,10 +30,8 @@ import json
 import os
 import re
 import time
-from typing import Optional, Dict
 
-
-_DEFAULT_TTL = 7 * 24 * 3600   # one week
+_DEFAULT_TTL = 7 * 24 * 3600  # one week
 
 
 def _secret() -> bytes:
@@ -81,7 +79,7 @@ def mint_session(student_id: str, name: str = "", ttl_seconds: int = _DEFAULT_TT
     return f"{payload}.{_sign(payload)}"
 
 
-def verify_session(token: str) -> Optional[Dict]:
+def verify_session(token: str) -> dict | None:
     """
     Return the session body {sid, name, exp} if the token is valid and
     unexpired, else None. Constant-time signature comparison.

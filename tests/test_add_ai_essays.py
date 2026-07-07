@@ -16,12 +16,15 @@ import pytest
 
 _ROOT = Path(__file__).resolve().parent.parent
 _spec = importlib.util.spec_from_file_location(
-    "add_ai_essays", _ROOT / "scripts" / "add_ai_essays.py")
+    "add_ai_essays", _ROOT / "scripts" / "add_ai_essays.py"
+)
 add_ai_essays = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(add_ai_essays)
 
-_ESSAY_TEXT = ("Grace is the unmerited favor of God toward humanity, "
-               "a theme every tradition treats with care. " * 20)   # ~320 words
+_ESSAY_TEXT = (
+    "Grace is the unmerited favor of God toward humanity, "
+    "a theme every tradition treats with care. " * 20
+)  # ~320 words
 
 
 @pytest.fixture()
@@ -35,13 +38,20 @@ def tmp_corpus(tmp_path):
         "created_at": "2026-01-01T00:00:00",
         "description": "test manifest",
         "authors": [],
-        "entries": [{
-            "filename": "ai_007.txt", "author_id": "ai_author",
-            "label": "ai_generated", "prompt": "Grace", "word_count": 400,
-            "is_baseline": False, "ai_provider": "claude",
-            "theological_tradition": None, "native_english": None,
-            "notes": "existing",
-        }],
+        "entries": [
+            {
+                "filename": "ai_007.txt",
+                "author_id": "ai_author",
+                "label": "ai_generated",
+                "prompt": "Grace",
+                "word_count": 400,
+                "is_baseline": False,
+                "ai_provider": "claude",
+                "theological_tradition": None,
+                "native_english": None,
+                "notes": "existing",
+            }
+        ],
     }
     manifest_path = tmp_path / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2))
@@ -54,13 +64,18 @@ def tmp_corpus(tmp_path):
 
 
 def _run(tmp_corpus, *extra):
-    return add_ai_essays.main([
-        str(tmp_corpus["essays"]),
-        "--provider", "chatgpt",
-        "--manifest", str(tmp_corpus["manifest"]),
-        "--corpus-dir", str(tmp_corpus["corpus"]),
-        *extra,
-    ])
+    return add_ai_essays.main(
+        [
+            str(tmp_corpus["essays"]),
+            "--provider",
+            "chatgpt",
+            "--manifest",
+            str(tmp_corpus["manifest"]),
+            "--corpus-dir",
+            str(tmp_corpus["corpus"]),
+            *extra,
+        ]
+    )
 
 
 def test_ingest_continues_numbering_and_round_trips(tmp_corpus):
@@ -79,6 +94,7 @@ def test_ingest_continues_numbering_and_round_trips(tmp_corpus):
 
     # The whole manifest still validates through the schema.
     from validation.manifest_schema import CorpusEntry
+
     for e in manifest["entries"]:
         CorpusEntry(**e)
 

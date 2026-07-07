@@ -23,32 +23,44 @@ import pytest
 
 from original.constants import FEATURE_DIM
 from original.context.blend import (
-    BLEND_DETECT_THRESHOLD, BLEND_INDEX_NOISE_FLOOR,
+    BLEND_DETECT_THRESHOLD,
+    BLEND_INDEX_NOISE_FLOOR,
     SHIFT_LOCATION_MIN_BLEND_INDEX,
-    BlendResult, WindowScore,
-    _pettitt_change_point, _window_offsets, detect_blend,
+    BlendResult,
+    WindowScore,
+    _pettitt_change_point,
+    _window_offsets,
+    detect_blend,
 )
 from original.quantum.state import BaselineSample, StudentState
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
+
 def _state(n_samples: int = 3) -> StudentState:
-    return StudentState(student_id="s", samples=[
-        BaselineSample(
-            text=(f"Baseline sample {i} containing realistic prose with "
-                  "natural sentence structure and varied vocabulary." * 5),
-            vector=np.random.RandomState(i).uniform(0.3, 0.7, FEATURE_DIM),
-            provenance="verified", auth_weight=1.0,
-            assignment=f"a{i}",
-        )
-        for i in range(n_samples)
-    ])
+    return StudentState(
+        student_id="s",
+        samples=[
+            BaselineSample(
+                text=(
+                    f"Baseline sample {i} containing realistic prose with "
+                    "natural sentence structure and varied vocabulary." * 5
+                ),
+                vector=np.random.RandomState(i).uniform(0.3, 0.7, FEATURE_DIM),
+                provenance="verified",
+                auth_weight=1.0,
+                assignment=f"a{i}",
+            )
+            for i in range(n_samples)
+        ],
+    )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Window enumeration
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestWindowOffsets:
     def test_window_count_matches_overlap_3(self):
@@ -89,6 +101,7 @@ class TestWindowOffsets:
 # Pettitt change-point
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestPettittChangePoint:
     def test_too_short_returns_none(self):
         idx, p = _pettitt_change_point(np.array([0.1, 0.5, 0.9]))
@@ -113,9 +126,9 @@ class TestPettittChangePoint:
     def test_p_value_in_unit_interval(self):
         # Asymptotic approximation can over-shoot; we clamp to [0, 1].
         for x in [
-            np.linspace(0, 1, 10),                    # monotone
-            np.full(10, 0.5),                          # flat (K=0)
-            np.array([0.0]*5 + [1.0]*5),               # strong shift
+            np.linspace(0, 1, 10),  # monotone
+            np.full(10, 0.5),  # flat (K=0)
+            np.array([0.0] * 5 + [1.0] * 5),  # strong shift
         ]:
             _idx, p = _pettitt_change_point(x)
             assert 0.0 <= p <= 1.0
@@ -125,10 +138,10 @@ class TestPettittChangePoint:
 # detect_blend edge cases
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestDetectBlendEdgeCases:
     def test_text_too_short(self):
-        result = detect_blend("Just a few words.", _state(),
-                               window_tokens=300)
+        result = detect_blend("Just a few words.", _state(), window_tokens=300)
         assert result.fallback_reason == "text_too_short"
         assert result.per_section == []
         assert result.blend_detected is False
@@ -157,6 +170,7 @@ class TestDetectBlendEdgeCases:
 # Aggregation logic (unit-tested via direct construction)
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestBlendAggregation:
     """
     The aggregation math (blend_index, shift_positions) is testable in
@@ -174,8 +188,9 @@ class TestBlendAggregation:
             MIN_WINDOWS_FOR_SHIFT_DETECTION as mw,
             _pettitt_change_point,
         )
+
         per_section = [
-            WindowScore(start=i*150, end=i*150+300, score=s, confidence="low")
+            WindowScore(start=i * 150, end=i * 150 + 300, score=s, confidence="low")
             for i, s in enumerate(scores)
         ]
         valid = np.array(scores, dtype=np.float64)
@@ -216,8 +231,9 @@ class TestBlendAggregation:
         # In token space: the boundary should be in the middle third.
         total_tokens = result.n_tokens
         shift = result.shift_positions[0]
-        assert total_tokens / 3 <= shift <= 2 * total_tokens / 3, \
-            f"shift {shift} not near midpoint of {total_tokens}"
+        assert (
+            total_tokens / 3 <= shift <= 2 * total_tokens / 3
+        ), f"shift {shift} not near midpoint of {total_tokens}"
 
     def test_no_shift_when_below_location_threshold(self):
         # Mild variation: blend_index is below SHIFT_LOCATION_MIN_BLEND_INDEX
@@ -240,6 +256,7 @@ class TestBlendAggregation:
 # End-to-end (slow — full feature extraction)
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestEndToEnd:
     """
     Hits the actual `detect_blend` with a 600-token text. Exercises the
@@ -252,34 +269,42 @@ class TestEndToEnd:
     def test_uniform_text_produces_low_blend(self):
         # A genuinely uniform text against a similar-style baseline —
         # blend_index should stay well below 0.5.
-        text = ("The committee met on Monday to discuss the proposal. "
-                "Members reviewed the timeline carefully. ") * 50
+        text = (
+            "The committee met on Monday to discuss the proposal. "
+            "Members reviewed the timeline carefully. "
+        ) * 50
         state = _state(n_samples=3)
-        result = detect_blend(text, state, window_tokens=300, overlap=0.5,
-                                submission_id="e2e_uniform")
+        result = detect_blend(
+            text, state, window_tokens=300, overlap=0.5, submission_id="e2e_uniform"
+        )
         # Per-section must be non-empty (text is long enough).
         assert len(result.per_section) >= 2
         # Each window has a finite score.
         for w in result.per_section:
             assert not np.isnan(w.score)
             assert 0.0 <= w.score <= 1.0
-            assert w.confidence == "low"     # window_tokens=300 < 500
+            assert w.confidence == "low"  # window_tokens=300 < 500
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Pydantic schema interop
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestPydanticInterop:
     def test_blend_result_to_pydantic(self):
         from original.schemas import BlendResultOut, WindowScoreOut
+
         windows = [
             WindowScore(start=0, end=300, score=0.2, confidence="low"),
             WindowScore(start=150, end=450, score=0.8, confidence="low"),
         ]
         result = BlendResult(
-            blend_detected=True, blend_index=0.85,
-            shift_positions=[300], per_section=windows, n_tokens=450,
+            blend_detected=True,
+            blend_index=0.85,
+            shift_positions=[300],
+            per_section=windows,
+            n_tokens=450,
         )
         # Convert each WindowScore → WindowScoreOut, then build the response.
         pyd = BlendResultOut(
@@ -287,8 +312,7 @@ class TestPydanticInterop:
             blend_index=result.blend_index,
             shift_positions=list(result.shift_positions),
             per_section=[
-                WindowScoreOut(start=w.start, end=w.end,
-                                score=w.score, confidence=w.confidence)
+                WindowScoreOut(start=w.start, end=w.end, score=w.score, confidence=w.confidence)
                 for w in result.per_section
             ],
             n_tokens=result.n_tokens,
@@ -302,9 +326,12 @@ class TestPydanticInterop:
 
     def test_to_dict_is_json_safe(self):
         import json
+
         result = BlendResult(
-            blend_detected=False, blend_index=0.1,
-            shift_positions=[], per_section=[
+            blend_detected=False,
+            blend_index=0.1,
+            shift_positions=[],
+            per_section=[
                 WindowScore(start=0, end=300, score=0.1, confidence="low"),
             ],
             n_tokens=300,

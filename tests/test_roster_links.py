@@ -23,12 +23,15 @@ _spec.loader.exec_module(rl)
 
 # ── parity with the server's id derivation (the whole point) ──────────────────
 
+
 class TestSidParity:
     def test_link_sid_matches_server_derivation(self):
         tenant = sa.slugify("Northfield Seminary")
         email = "jane.doe@northfield.edu"
         expected = sa.derive_student_id(tenant, email)
-        link = rl.build_link("https://x.test", tenant, expected, "Exam", "Jane Doe", include_name=False)
+        link = rl.build_link(
+            "https://x.test", tenant, expected, "Exam", "Jane Doe", include_name=False
+        )
         sid = parse_qs(urlparse(link).query)["sid"][0]
         assert sid == expected
         # and an LTI launch derives the same id from the same (tenant, email)
@@ -36,6 +39,7 @@ class TestSidParity:
 
 
 # ── roster parsing ────────────────────────────────────────────────────────────
+
 
 class TestParseRoster:
     def test_csv_with_header(self):
@@ -67,16 +71,21 @@ class TestParseRoster:
 
 # ── FERPA URL-minimisation ────────────────────────────────────────────────────
 
+
 class TestBuildLink:
     def test_default_carries_only_sid_tenant_exam_no_pii(self):
-        link = rl.build_link("https://h.test/", "t", "t:abc123", "Week 1", "Jane Doe", include_name=False)
+        link = rl.build_link(
+            "https://h.test/", "t", "t:abc123", "Week 1", "Jane Doe", include_name=False
+        )
         q = parse_qs(urlparse(link).query)
         assert set(q) == {"sid", "tenant", "exam"}
         assert "candidate" not in q and "email" not in q
         assert q["sid"] == ["t:abc123"] and q["tenant"] == ["t"]
 
     def test_include_name_adds_candidate(self):
-        link = rl.build_link("https://h.test", "t", "t:abc", "Week 1", "Jane Doe", include_name=True)
+        link = rl.build_link(
+            "https://h.test", "t", "t:abc", "Week 1", "Jane Doe", include_name=True
+        )
         assert parse_qs(urlparse(link).query)["candidate"] == ["Jane Doe"]
 
     def test_base_url_trailing_slash_normalised(self):
@@ -85,6 +94,7 @@ class TestBuildLink:
 
 
 # ── disclosure single-source-of-truth ─────────────────────────────────────────
+
 
 class TestSyllabusParagraph:
     def test_extracts_nonempty_paragraph(self):

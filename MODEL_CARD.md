@@ -1,4 +1,4 @@
-# Model Card — Original Stylometric Scorer v1.1.0
+# Model Card — Original Stylometric Scorer v1.3.0
 
 This document describes the current feature pipeline, scoring model, output actions, reliability limits, and intended institutional use of Original.
 
@@ -100,8 +100,8 @@ Weights combine sample provenance and recency. New submissions are scored with a
 | Action | Typical deviation range | Meaning |
 |--------|-------------------------|---------|
 | `no_action` | 0.00-0.40 | Submission is consistent with the student's established voice. |
-| `monitor` | 0.40-0.55 | Mild deviation; watch future submissions and context. |
-| `schedule_conversation` | 0.55-0.75 | Notable deviation; instructor should discuss the submission with the student. |
+| `monitor` | 0.40-0.60 | Mild deviation; watch future submissions and context. |
+| `schedule_conversation` | 0.60-0.75 | Notable deviation; instructor should discuss the submission with the student. |
 | `escalate` | 0.75-1.00 | Significant deviation; begin formal institutional review if baseline confidence is adequate. |
 | `escalate` override | RMS z > 3.0 | Catastrophic drift; immediate review recommended. |
 

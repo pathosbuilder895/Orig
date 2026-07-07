@@ -41,16 +41,18 @@ from validation.manifest_schema import (
 
 # ── Data classes ──────────────────────────────────────────────────────────────
 
+
 @dataclass
 class ScoringResult:
     """Result of scoring a single essay."""
+
     filename: str
     author_id: str
     label: AuthorshipLabel
     deviation_score: float
     authorship_probability: float
     recommended_action: str
-    is_same_author: bool          # True if label == authentic
+    is_same_author: bool  # True if label == authentic
     word_count: int
     scoring_time_ms: float
     notes: str = ""
@@ -60,11 +62,12 @@ class ScoringResult:
 @dataclass
 class ThresholdMetrics:
     """Metrics at a specific threshold."""
+
     threshold: float
-    true_positives: int           # authentic correctly below threshold
-    false_positives: int          # authentic incorrectly above threshold
-    true_negatives: int           # non-authentic correctly above threshold
-    false_negatives: int          # non-authentic incorrectly below threshold
+    true_positives: int  # authentic correctly below threshold
+    false_positives: int  # authentic incorrectly above threshold
+    true_negatives: int  # non-authentic correctly above threshold
+    false_negatives: int  # non-authentic incorrectly below threshold
 
     @property
     def tpr(self) -> float:
@@ -82,26 +85,30 @@ class ThresholdMetrics:
 
     @property
     def accuracy(self) -> float:
-        total = self.true_positives + self.false_positives + self.true_negatives + self.false_negatives
+        total = (
+            self.true_positives + self.false_positives + self.true_negatives + self.false_negatives
+        )
         return (self.true_positives + self.true_negatives) / max(1, total)
 
 
 @dataclass
 class CalibrationReport:
     """Complete calibration study report."""
+
     total_authors: int
     total_essays_scored: int
     total_baseline_samples: int
     avg_scoring_time_ms: float
     results: List[ScoringResult]
-    roc_points: List[Tuple[float, float]]     # (FPR, TPR) pairs
+    roc_points: List[Tuple[float, float]]  # (FPR, TPR) pairs
     auc: float
     threshold_metrics: Dict[str, ThresholdMetrics]  # keyed by threshold name
-    tier_importance: Dict[str, float]               # tier → avg contribution
+    tier_importance: Dict[str, float]  # tier → avg contribution
     per_label_stats: Dict[str, dict]
 
 
 # ── Main runner ───────────────────────────────────────────────────────────────
+
 
 def run_calibration(
     corpus_dir: str,
@@ -134,6 +141,7 @@ def run_calibration(
         CalibrationReport with all metrics.
     """
     import random as _random
+
     if thresholds is None:
         thresholds = {
             "no_action": 0.40,
@@ -166,8 +174,10 @@ def run_calibration(
     if max_scoring:
         print(f"  (capped at {max_scoring} scoring entries per author)")
     if bypass_entries:
-        print(f"  bypass ({len(bypass_labels)} label{'s' if len(bypass_labels)>1 else ''}): "
-              f"{len(bypass_entries)} entries will score against every eligible author")
+        print(
+            f"  bypass ({len(bypass_labels)} label{'s' if len(bypass_labels)>1 else ''}): "
+            f"{len(bypass_entries)} entries will score against every eligible author"
+        )
 
     for author_id in authors:
         baseline_entries = manifest.baseline_entries(author_id)
@@ -191,14 +201,16 @@ def run_calibration(
                 continue
             print(f"    baseline {b_idx+1}/{len(baseline_entries)}: {entry.filename}", flush=True)
             fv = feature_vector(text)
-            baseline_samples.append(BaselineSample(
-                text=text,
-                vector=fv,
-                provenance="verified",
-                auth_weight=0.7,
-                assignment=entry.prompt,
-                submitted_at="2026-01-01T00:00:00",
-            ))
+            baseline_samples.append(
+                BaselineSample(
+                    text=text,
+                    vector=fv,
+                    provenance="verified",
+                    auth_weight=0.7,
+                    assignment=entry.prompt,
+                    submitted_at="2026-01-01T00:00:00",
+                )
+            )
             baseline_texts.append(text)
 
         if len(baseline_samples) < 3:
@@ -230,23 +242,27 @@ def run_calibration(
 
             # Extract tier contributions from interference decomposition
             tier_contribs = {}
-            for fc in (result.interference.constructive_features + result.interference.destructive_features):
+            for fc in (
+                result.interference.constructive_features + result.interference.destructive_features
+            ):
                 tier = _feature_to_tier(fc.code)
                 tier_contribs[tier] = tier_contribs.get(tier, 0.0) + abs(fc.contribution)
 
-            all_results.append(ScoringResult(
-                filename=entry.filename,
-                author_id=author_id,
-                label=entry.label,
-                notes=getattr(entry, 'notes', ''),
-                deviation_score=result.authorship.deviation_score,
-                authorship_probability=result.authorship.authorship_probability,
-                recommended_action=result.recommendation.action,
-                is_same_author=is_same,
-                word_count=entry.word_count,
-                scoring_time_ms=round(elapsed_ms, 2),
-                tier_contributions=tier_contribs,
-            ))
+            all_results.append(
+                ScoringResult(
+                    filename=entry.filename,
+                    author_id=author_id,
+                    label=entry.label,
+                    notes=getattr(entry, "notes", ""),
+                    deviation_score=result.authorship.deviation_score,
+                    authorship_probability=result.authorship.authorship_probability,
+                    recommended_action=result.recommendation.action,
+                    is_same_author=is_same,
+                    word_count=entry.word_count,
+                    scoring_time_ms=round(elapsed_ms, 2),
+                    tier_contributions=tier_contribs,
+                )
+            )
 
         print(f"  {author_id}: {len(baseline_samples)} baseline, {len(scoring_entries)} scored")
 
@@ -264,31 +280,32 @@ def run_calibration(
             print(f"    bypass {entry.filename} against {target_author}", flush=True)
             t0 = time.perf_counter()
             features = compute_full_features(text, baseline_texts)
-            sub_vector = np.array([features[c] for c in ALL_FEATURE_CODES],
-                                  dtype=np.float64)
-            result = score(state, sub_vector, features,
-                           f"{entry.filename}@{target_author}")
+            sub_vector = np.array([features[c] for c in ALL_FEATURE_CODES], dtype=np.float64)
+            result = score(state, sub_vector, features, f"{entry.filename}@{target_author}")
             elapsed_ms = (time.perf_counter() - t0) * 1000
 
             tier_contribs: Dict[str, float] = {}
-            for fc in (result.interference.constructive_features
-                       + result.interference.destructive_features):
+            for fc in (
+                result.interference.constructive_features + result.interference.destructive_features
+            ):
                 tier = _feature_to_tier(fc.code)
                 tier_contribs[tier] = tier_contribs.get(tier, 0.0) + abs(fc.contribution)
 
-            all_results.append(ScoringResult(
-                filename=f"{entry.filename}@{target_author}",
-                author_id=target_author,
-                label=entry.label,
-                notes=(getattr(entry, "notes", "") or "") + " [bypass]",
-                deviation_score=result.authorship.deviation_score,
-                authorship_probability=result.authorship.authorship_probability,
-                recommended_action=result.recommendation.action,
-                is_same_author=False,      # bypass entries are BY DEFINITION not target_author
-                word_count=entry.word_count,
-                scoring_time_ms=round(elapsed_ms, 2),
-                tier_contributions=tier_contribs,
-            ))
+            all_results.append(
+                ScoringResult(
+                    filename=f"{entry.filename}@{target_author}",
+                    author_id=target_author,
+                    label=entry.label,
+                    notes=(getattr(entry, "notes", "") or "") + " [bypass]",
+                    deviation_score=result.authorship.deviation_score,
+                    authorship_probability=result.authorship.authorship_probability,
+                    recommended_action=result.recommendation.action,
+                    is_same_author=False,  # bypass entries are BY DEFINITION not target_author
+                    word_count=entry.word_count,
+                    scoring_time_ms=round(elapsed_ms, 2),
+                    tier_contributions=tier_contribs,
+                )
+            )
 
     if not all_results:
         raise ValueError("No results — check corpus and manifest")
@@ -296,8 +313,7 @@ def run_calibration(
     # Compute metrics
     roc_points, auc = _compute_roc_auc(all_results)
     threshold_metrics = {
-        name: _compute_threshold_metrics(all_results, thresh)
-        for name, thresh in thresholds.items()
+        name: _compute_threshold_metrics(all_results, thresh) for name, thresh in thresholds.items()
     }
     tier_importance = _compute_tier_importance(all_results)
     per_label_stats = _compute_per_label_stats(all_results)
@@ -319,6 +335,7 @@ def run_calibration(
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _read_essay(corpus_dir: str, filename: str) -> Optional[str]:
     """Read an essay file and return its text."""
     path = os.path.join(corpus_dir, filename)
@@ -333,9 +350,10 @@ def _read_essay(corpus_dir: str, filename: str) -> Optional[str]:
 def _feature_to_tier(code: str) -> str:
     """Map a feature code to its tier name using the authoritative FEATURE_TIER dict."""
     from original.constants import FEATURE_TIER
+
     t = FEATURE_TIER.get(code)
     if t is None:
-        return "comparison"   # comparison features not in FEATURE_TIER
+        return "comparison"  # comparison features not in FEATURE_TIER
     return f"tier{t}"
 
 
@@ -344,7 +362,7 @@ def _compute_roc_auc(results: List[ScoringResult]) -> Tuple[List[Tuple[float, fl
     # Sort by deviation score
     sorted_results = sorted(results, key=lambda r: r.deviation_score)
 
-    total_positive = sum(1 for r in results if r.is_same_author)      # authentic
+    total_positive = sum(1 for r in results if r.is_same_author)  # authentic
     total_negative = sum(1 for r in results if not r.is_same_author)  # non-authentic
 
     if total_positive == 0 or total_negative == 0:
@@ -375,9 +393,7 @@ def _compute_roc_auc(results: List[ScoringResult]) -> Tuple[List[Tuple[float, fl
     return roc_points, round(auc, 4)
 
 
-def _compute_threshold_metrics(
-    results: List[ScoringResult], threshold: float
-) -> ThresholdMetrics:
+def _compute_threshold_metrics(results: List[ScoringResult], threshold: float) -> ThresholdMetrics:
     """Compute TP/FP/TN/FN at a given deviation threshold."""
     tp = sum(1 for r in results if r.is_same_author and r.deviation_score < threshold)
     fp = sum(1 for r in results if r.is_same_author and r.deviation_score >= threshold)
@@ -401,14 +417,14 @@ def _compute_tier_importance(results: List[ScoringResult]) -> Dict[str, float]:
             tier_totals[tier] = tier_totals.get(tier, 0.0) + contrib
             tier_counts[tier] = tier_counts.get(tier, 0) + 1
     return {
-        tier: round(tier_totals[tier] / tier_counts[tier], 4)
-        for tier in sorted(tier_totals.keys())
+        tier: round(tier_totals[tier] / tier_counts[tier], 4) for tier in sorted(tier_totals.keys())
     }
 
 
 def _compute_per_label_stats(results: List[ScoringResult]) -> Dict[str, dict]:
     """Compute mean/std deviation for each label category."""
     from collections import defaultdict
+
     by_label = defaultdict(list)
     for r in results:
         by_label[r.label.value].append(r.deviation_score)
@@ -478,29 +494,41 @@ def save_report(report: CalibrationReport, output_path: str) -> None:
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser(description="Run Original calibration study")
     parser.add_argument("--corpus", required=True, help="Path to corpus directory")
     parser.add_argument("--manifest", required=True, help="Path to manifest.json")
     parser.add_argument("--output", default="validation/calibration_report.json")
-    parser.add_argument("--max-scoring", type=int, default=None,
-                        help="Cap scoring entries per author (default: no cap)")
     parser.add_argument(
-        "--bypass-labels", default="ai_generated",
+        "--max-scoring",
+        type=int,
+        default=None,
+        help="Cap scoring entries per author (default: no cap)",
+    )
+    parser.add_argument(
+        "--bypass-labels",
+        default="ai_generated",
         help="Comma-separated AuthorshipLabel values that should be scored "
-             "against EVERY eligible author's baseline, bypassing the "
-             "≥3-baseline gate on their own author_id. Default 'ai_generated' "
-             "— without this, essays attributed to an author with <3 "
-             "baselines (e.g. a synthetic ai_author bucket) are silently "
-             "dropped from the reported AUC. Pass '' to disable.",
+        "against EVERY eligible author's baseline, bypassing the "
+        "≥3-baseline gate on their own author_id. Default 'ai_generated' "
+        "— without this, essays attributed to an author with <3 "
+        "baselines (e.g. a synthetic ai_author bucket) are silently "
+        "dropped from the reported AUC. Pass '' to disable.",
     )
     args = parser.parse_args()
 
-    bypass_labels = {
-        AuthorshipLabel(v.strip()) for v in args.bypass_labels.split(",") if v.strip()
-    } if args.bypass_labels else set()
+    bypass_labels = (
+        {AuthorshipLabel(v.strip()) for v in args.bypass_labels.split(",") if v.strip()}
+        if args.bypass_labels
+        else set()
+    )
 
-    report = run_calibration(args.corpus, args.manifest, max_scoring=args.max_scoring,
-                             min_baseline_bypass_labels=bypass_labels)
+    report = run_calibration(
+        args.corpus,
+        args.manifest,
+        max_scoring=args.max_scoring,
+        min_baseline_bypass_labels=bypass_labels,
+    )
 
     print(f"\n{'='*60}")
     print(f"CALIBRATION RESULTS")
@@ -516,7 +544,9 @@ if __name__ == "__main__":
     print()
     print("Per-label stats:")
     for label, stats in report.per_label_stats.items():
-        print(f"  {label}: mean={stats['mean_deviation']:.3f} std={stats['std_deviation']:.3f} (n={stats['count']})")
+        print(
+            f"  {label}: mean={stats['mean_deviation']:.3f} std={stats['std_deviation']:.3f} (n={stats['count']})"
+        )
     print()
     print("Tier importance:")
     for tier, imp in report.tier_importance.items():

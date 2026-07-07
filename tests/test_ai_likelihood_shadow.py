@@ -30,6 +30,7 @@ client = TestClient(app)
 @pytest.fixture()
 def detector_reset():
     from original.ai_likelihood import reset_for_tests
+
     reset_for_tests()
     yield
     reset_for_tests()
@@ -44,14 +45,12 @@ def fixture_model(tmp_path, monkeypatch, detector_reset):
 
 
 def _seed_student(sid: str) -> None:
-    r = client.post(f"/students/{sid}/baseline",
-                    json={"text": _ESSAY, "provenance": "proctored"})
+    r = client.post(f"/students/{sid}/baseline", json={"text": _ESSAY, "provenance": "proctored"})
     assert r.status_code == 200, r.text
 
 
 def _score(sid: str, submission_id: str):
-    r = client.post(f"/students/{sid}/score",
-                    json={"text": _ESSAY, "submission_id": submission_id})
+    r = client.post(f"/students/{sid}/score", json={"text": _ESSAY, "submission_id": submission_id})
     assert r.status_code == 200, r.text
     return r.json()
 
@@ -61,6 +60,7 @@ def _rows_for(sid: str):
 
 
 # ── 1. Shadow: persists, never surfaces ───────────────────────────────────────
+
 
 def test_shadow_persists_row_but_response_stays_null(monkeypatch, fixture_model):
     monkeypatch.delenv("AI_LIKELIHOOD_ENABLED", raising=False)
@@ -82,13 +82,17 @@ def test_shadow_persists_row_but_response_stays_null(monkeypatch, fixture_model)
     # The persisted number matches what the detector says for the same vec.
     from original.ai_likelihood import predict_ai_likelihood
     from original.features.pipeline import feature_vector
+
     direct = predict_ai_likelihood(feature_vector(_ESSAY))
     assert direct is not None
-    assert abs(direct.probability - row["probability"]) < 0.05  # adaptive-pipeline vec may differ slightly
+    assert (
+        abs(direct.probability - row["probability"]) < 0.05
+    )  # adaptive-pipeline vec may differ slightly
     assert isinstance(row["created_at"], str) and row["created_at"]
 
 
 # ── 2. Both flags off: no row ─────────────────────────────────────────────────
+
 
 def test_flags_off_writes_no_row(monkeypatch, fixture_model):
     monkeypatch.delenv("AI_LIKELIHOOD_ENABLED", raising=False)
@@ -103,6 +107,7 @@ def test_flags_off_writes_no_row(monkeypatch, fixture_model):
 
 # ── 3. Enabled: attaches AND persists ─────────────────────────────────────────
 
+
 def test_enabled_attaches_and_persists(monkeypatch, fixture_model):
     monkeypatch.setenv("AI_LIKELIHOOD_ENABLED", "1")
     monkeypatch.delenv("AI_LIKELIHOOD_SHADOW", raising=False)
@@ -114,12 +119,12 @@ def test_enabled_attaches_and_persists(monkeypatch, fixture_model):
     assert resp["ai_likelihood"] is not None
     rows = _rows_for(sid)
     assert len(rows) == 1
-    assert rows[0]["probability"] == pytest.approx(
-        resp["ai_likelihood"]["probability"], abs=1e-9)
+    assert rows[0]["probability"] == pytest.approx(resp["ai_likelihood"]["probability"], abs=1e-9)
     assert rows[0]["band"] == resp["ai_likelihood"]["band"]
 
 
 # ── 4. Shadow is byte-invisible ───────────────────────────────────────────────
+
 
 def test_shadow_response_identical_to_flags_off(monkeypatch, fixture_model):
     # Deterministic Phase 1 path for the comparison.
@@ -135,12 +140,12 @@ def test_shadow_response_identical_to_flags_off(monkeypatch, fixture_model):
     monkeypatch.setenv("AI_LIKELIHOOD_SHADOW", "1")
     resp_shadow = _score(sid, "ident_sub")
 
-    assert resp_shadow == resp_off, (
-        "shadow mode must be byte-invisible in the API response")
+    assert resp_shadow == resp_off, "shadow mode must be byte-invisible in the API response"
     assert len(_rows_for(sid)) == 1  # but the row landed
 
 
 # ── 5. Re-score keeps one row ─────────────────────────────────────────────────
+
 
 def test_rescore_same_submission_keeps_one_row(monkeypatch, fixture_model):
     monkeypatch.setenv("AI_LIKELIHOOD_SHADOW", "1")
@@ -149,12 +154,14 @@ def test_rescore_same_submission_keeps_one_row(monkeypatch, fixture_model):
     sid = f"shadow_rescore_{uuid.uuid4().hex[:8]}"
     _seed_student(sid)
     _score(sid, "rescore_sub")
-    client.post(f"/students/{sid}/score?force=true",
-                json={"text": _ESSAY, "submission_id": "rescore_sub"})
+    client.post(
+        f"/students/{sid}/score?force=true", json={"text": _ESSAY, "submission_id": "rescore_sub"}
+    )
     assert len(_rows_for(sid)) == 1, "INSERT OR REPLACE must keep one row"
 
 
 # ── 6. FERPA surfaces ─────────────────────────────────────────────────────────
+
 
 def test_delete_student_purges_shadow_rows(monkeypatch, fixture_model):
     monkeypatch.setenv("AI_LIKELIHOOD_SHADOW", "1")
@@ -176,6 +183,7 @@ def test_delete_student_purges_shadow_rows(monkeypatch, fixture_model):
 
 
 # ── 7. Store round-trip on an isolated DB ─────────────────────────────────────
+
 
 def test_store_roundtrip_isolated(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "_DB_PATH", tmp_path / "shadow_test.db")

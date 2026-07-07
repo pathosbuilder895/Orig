@@ -42,39 +42,43 @@ import numpy as np
 
 # ── Data structures ──────────────────────────────────────────────────────────
 
+
 @dataclass
 class GroupStats:
     """Statistics for a single demographic group."""
+
     group_name: str
     n: int
     mean_deviation: float
     std_deviation: float
     median_deviation: float
-    fpr_at_thresholds: Dict[str, float]   # threshold_name → FPR
+    fpr_at_thresholds: Dict[str, float]  # threshold_name → FPR
 
 
 @dataclass
 class PairwiseComparison:
     """Comparison between two groups."""
+
     group_a: str
     group_b: str
     cohens_d: float
     t_statistic: float
     p_value: float
-    is_significant: bool    # p < 0.05
-    effect_magnitude: str   # negligible / small / medium / large
+    is_significant: bool  # p < 0.05
+    effect_magnitude: str  # negligible / small / medium / large
 
 
 @dataclass
 class DimensionAnalysis:
     """Full analysis for one demographic dimension."""
-    dimension: str                           # e.g. "native_english"
+
+    dimension: str  # e.g. "native_english"
     groups: Dict[str, GroupStats]
     pairwise: List[PairwiseComparison]
     anova_f: Optional[float]
     anova_p: Optional[float]
     eta_squared: Optional[float]
-    max_fpr_ratio: float                     # max(group_fpr) / min(group_fpr)
+    max_fpr_ratio: float  # max(group_fpr) / min(group_fpr)
     is_fair: bool
     fairness_notes: List[str]
 
@@ -82,6 +86,7 @@ class DimensionAnalysis:
 @dataclass
 class BiasReport:
     """Complete bias analysis report."""
+
     total_authentic_samples: int
     dimensions: Dict[str, DimensionAnalysis]
     overall_fairness: bool
@@ -89,6 +94,7 @@ class BiasReport:
 
 
 # ── Core analysis ────────────────────────────────────────────────────────────
+
 
 def run_bias_analysis(
     results: List[dict],
@@ -116,13 +122,15 @@ def run_bias_analysis(
     enriched = []
     for r in results:
         meta = manifest_lookup.get(r["filename"], {})
-        enriched.append({
-            **r,
-            "native_english": meta.get("native_english"),
-            "theological_tradition": meta.get("theological_tradition"),
-            "ai_provider": meta.get("ai_provider", "none"),
-            "word_count": r.get("word_count", meta.get("word_count", 0)),
-        })
+        enriched.append(
+            {
+                **r,
+                "native_english": meta.get("native_english"),
+                "theological_tradition": meta.get("theological_tradition"),
+                "ai_provider": meta.get("ai_provider", "none"),
+                "word_count": r.get("word_count", meta.get("word_count", 0)),
+            }
+        )
 
     # Filter to authentic samples for fairness analysis
     # (we want to know: among students who ARE the author, does the system
@@ -133,9 +141,9 @@ def run_bias_analysis(
     dimensions = {}
 
     # ── Native English ────────────────────────────────────────────────
-    native_groups = _group_by(authentic, "native_english", {
-        True: "native", False: "non_native", None: "unknown"
-    })
+    native_groups = _group_by(
+        authentic, "native_english", {True: "native", False: "non_native", None: "unknown"}
+    )
     # Drop unknown group if it's > 50% of data (not informative)
     if "unknown" in native_groups and len(native_groups) > 1:
         unknown_pct = len(native_groups["unknown"]) / max(1, total_authentic)
@@ -164,7 +172,9 @@ def run_bias_analysis(
         )
 
     # ── AI provider (for non-authentic samples) ───────────────────────
-    non_authentic = [r for r in enriched if not r.get("is_same_author", r.get("label") == "authentic")]
+    non_authentic = [
+        r for r in enriched if not r.get("is_same_author", r.get("label") == "authentic")
+    ]
     ai_groups = _group_by(non_authentic, "ai_provider")
     ai_groups = {k: v for k, v in ai_groups.items() if len(v) >= 3 and k != "none"}
     if len(ai_groups) >= 2:
@@ -181,7 +191,11 @@ def run_bias_analysis(
         for note in dim.fairness_notes:
             summary_parts.append(f"  - {note}")
 
-    summary = "\n".join(summary_parts) if summary_parts else "No demographic dimensions available for analysis."
+    summary = (
+        "\n".join(summary_parts)
+        if summary_parts
+        else "No demographic dimensions available for analysis."
+    )
 
     return BiasReport(
         total_authentic_samples=total_authentic,
@@ -192,6 +206,7 @@ def run_bias_analysis(
 
 
 # ── Dimension analysis ───────────────────────────────────────────────────────
+
 
 def _analyze_dimension(
     dimension: str,
@@ -287,8 +302,12 @@ def _analyze_dimension(
 
 # ── Statistical helpers ──────────────────────────────────────────────────────
 
+
 def _welch_t_test(
-    a: np.ndarray, b: np.ndarray, name_a: str, name_b: str,
+    a: np.ndarray,
+    b: np.ndarray,
+    name_a: str,
+    name_b: str,
 ) -> PairwiseComparison:
     """Welch's t-test (unequal variance) + Cohen's d."""
     n_a, n_b = len(a), len(b)
@@ -301,9 +320,8 @@ def _welch_t_test(
 
     # Welch-Satterthwaite degrees of freedom
     num = (var_a / max(1, n_a) + var_b / max(1, n_b)) ** 2
-    denom = (
-        (var_a / max(1, n_a)) ** 2 / max(1, n_a - 1)
-        + (var_b / max(1, n_b)) ** 2 / max(1, n_b - 1)
+    denom = (var_a / max(1, n_a)) ** 2 / max(1, n_a - 1) + (var_b / max(1, n_b)) ** 2 / max(
+        1, n_b - 1
     )
     df = num / max(1e-10, denom)
 
@@ -312,9 +330,7 @@ def _welch_t_test(
     p_value = 2 * _normal_cdf(-abs(t_stat))
 
     # Cohen's d (pooled)
-    pooled_std = math.sqrt(
-        ((n_a - 1) * var_a + (n_b - 1) * var_b) / max(1, n_a + n_b - 2)
-    )
+    pooled_std = math.sqrt(((n_a - 1) * var_a + (n_b - 1) * var_b) / max(1, n_a + n_b - 2))
     cohens_d = abs(mean_a - mean_b) / max(1e-10, pooled_std)
 
     # Effect magnitude
@@ -380,11 +396,12 @@ def _f_to_p_approx(f: float, df1: int, df2: int) -> float:
     if chi2 <= 0:
         return 1.0
     # Wilson-Hilferty approximation
-    z = ((chi2 / df1) ** (1/3) - (1 - 2 / (9 * max(1, df1)))) / math.sqrt(2 / (9 * max(1, df1)))
+    z = ((chi2 / df1) ** (1 / 3) - (1 - 2 / (9 * max(1, df1)))) / math.sqrt(2 / (9 * max(1, df1)))
     return 1 - _normal_cdf(z)
 
 
 # ── Grouping helpers ─────────────────────────────────────────────────────────
+
 
 def _group_by(
     items: List[dict],
@@ -421,6 +438,7 @@ def _group_by_word_count(items: List[dict]) -> Dict[str, List[dict]]:
 
 
 # ── Serialisation ────────────────────────────────────────────────────────────
+
 
 def save_bias_report(report: BiasReport, output_path: str) -> None:
     """Save the bias report as JSON."""

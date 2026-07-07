@@ -1,3 +1,9 @@
+> ## ⚠️ NOT the current deployment path
+> This document describes auth/session work on the **dormant v1 backend**
+> (`original/api/v1/`). The live stack is `original/api.py` + `demo/` +
+> `/lti/*`. Kept as historical reference only.
+> See `docs/ARCHITECTURE.md` for which stack is live.
+
 # Beta Phase 1 — Technical readiness
 
 Phase 1 covers **session lifecycle**, **safe defaults for auth endpoints**, and **operational smoke checks** before a wider beta.

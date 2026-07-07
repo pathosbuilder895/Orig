@@ -25,16 +25,15 @@ breath_group_variance   — CV(sentence_stress_lengths) / 2
 import math
 import re
 from collections import Counter
-from typing import Dict, List
 
 import numpy as np
 
 from .tier1 import TextDoc, _tokenize
 
-
 # ── Syllable stress heuristic ─────────────────────────────────────────────────
 
-def _word_to_stress(word: str) -> List[int]:
+
+def _word_to_stress(word: str) -> list[int]:
     """
     Map a single word to a binary stress sequence using a phonological heuristic.
 
@@ -45,19 +44,20 @@ def _word_to_stress(word: str) -> List[int]:
         This captures the most common English stress pattern (e.g. *DAta*, *proGRESS*).
       - All remaining syllables are unstressed (0).
     """
-    groups = re.findall(r'[aeiouAEIOU]+', word)
+    groups = re.findall(r"[aeiouAEIOU]+", word)
     n = max(1, len(groups))
     stress = [0] * n
     if n == 1:
         stress[0] = 1
     else:
-        stress[-2] = 1   # penultimate stress
+        stress[-2] = 1  # penultimate stress
     return stress
 
 
 # ── Entropy helpers ───────────────────────────────────────────────────────────
 
-def _stress_entropy(seq: List[int], k: int = 1) -> float:
+
+def _stress_entropy(seq: list[int], k: int = 1) -> float:
     """
     Shannon entropy H(S,k) of k-length stress n-grams, normalised to [0, 1].
 
@@ -77,20 +77,21 @@ def _stress_entropy(seq: List[int], k: int = 1) -> float:
 
 # ── Main extractor ────────────────────────────────────────────────────────────
 
-def extract_tier8(doc: TextDoc) -> Dict[str, float]:
+
+def extract_tier8(doc: TextDoc) -> dict[str, float]:
     """
     Extract 4 prosodic rhythm features from a TextDoc.
 
     All returned values are already in [0, 1] — NORM_BOUNDS is (0, 1) for all,
     so _normalise() is a no-op clip.
     """
-    all_stress: List[int] = []
-    sentence_final_stress: List[int] = []
-    sentence_stress_lengths: List[int] = []
+    all_stress: list[int] = []
+    sentence_final_stress: list[int] = []
+    sentence_stress_lengths: list[int] = []
 
     # doc.sentences is a List[str]; _tokenize() gives word-token strings.
     for sent_text in doc.sentences:
-        sent_stress: List[int] = []
+        sent_stress: list[int] = []
         for tok in _tokenize(sent_text):
             if tok.isalpha():
                 sent_stress.extend(_word_to_stress(tok.lower()))
@@ -121,7 +122,7 @@ def extract_tier8(doc: TextDoc) -> Dict[str, float]:
         clausulae_var = float(np.std(sentence_final_stress))
         clausulae_consistency = 1.0 - float(np.clip(clausulae_var / 0.5, 0.0, 1.0))
     else:
-        clausulae_consistency = 0.5   # insufficient data
+        clausulae_consistency = 0.5  # insufficient data
 
     # ── Feature 4: Breath-group length variance ───────────────────────────────
     # Coefficient of variation of stress-unit counts per sentence.
@@ -133,11 +134,11 @@ def extract_tier8(doc: TextDoc) -> Dict[str, float]:
         # CV for academic prose typically 0.2–1.0; cap at 2.0 for normalisation
         breath_group_variance = float(np.clip(cv / 2.0, 0.0, 1.0))
     else:
-        breath_group_variance = 0.5   # insufficient data
+        breath_group_variance = 0.5  # insufficient data
 
     return {
         "stress_entropy_unigram": stress_entropy_unigram,
-        "stress_entropy_bigram":  stress_entropy_bigram,
-        "clausulae_consistency":  clausulae_consistency,
-        "breath_group_variance":  breath_group_variance,
+        "stress_entropy_bigram": stress_entropy_bigram,
+        "clausulae_consistency": clausulae_consistency,
+        "breath_group_variance": breath_group_variance,
     }

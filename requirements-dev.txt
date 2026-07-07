@@ -1,13 +1,26 @@
 # requirements-dev.txt — dev-only dependencies.
 #
-# These are needed for the accuracy benchmarks (validation/benchmark/,
-# validation/wide/, validation/public_authors/) and the documentation
-# pipeline. They are NOT needed at runtime — the production deploy on
-# Render uses requirements-pilot.txt (and the legacy demo uses
+# These are needed for tests, linting, the accuracy benchmarks
+# (validation/benchmark/, validation/wide/, validation/public_authors/), and
+# the documentation pipeline. They are NOT needed at runtime — the production
+# deploy on Render uses requirements-pilot.txt (and the legacy demo uses
 # requirements-demo.txt), neither of which depend on these.
 #
 # Install once:
 #     pip install -r requirements-dev.txt
+
+# Testing.
+# pytest-asyncio (all versions through 1.2.0) caps at pytest<9. Pin to
+# >=8.2,<9 to stay compatible.
+pytest>=8.2,<9
+pytest-asyncio==0.24.0
+pytest-cov==5.0.0
+hypothesis==6.112.2
+
+# Lint/format/type-check + git hook runner.
+ruff==0.6.9
+mypy==1.11.2
+pre-commit>=3.7,<4
 
 # Plotting (ROC + calibration SVGs in the benchmark report).
 matplotlib>=3.7,<4

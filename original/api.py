@@ -24,85 +24,95 @@ from __future__ import annotations
 
 import asyncio
 import csv
+import dataclasses
 import hmac
+import importlib.metadata
 import io
 import json
 import logging
 import os
+import sqlite3
 import urllib.parse
 import uuid
 from contextlib import asynccontextmanager
+from typing import Optional
 
-from fastapi import FastAPI, Form, HTTPException, Request, UploadFile, File
-from typing import List, Optional
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
+from . import backup as backup_mod
+
+# `store` itself: no call site in this module reaches it directly anymore
+# (WS-6 P1 — all persistence goes through `_repo()`). Kept as a re-export
+# because several tests patch `<api module>.store._DB_PATH` / call
+# `<api module>.store.*` directly for fixture setup.
+from . import (
+    baseline_requests,
+    bbook_client,
+    store,  # noqa: F401
+    student_auth,
+)
+from . import principal as principal_mod
+from . import users as users_mod
+from . import voice as voice_mod
+from .constants import AUTH_WEIGHTS, FEATURE_DIM
+from .features.pipeline import extract_features, feature_vector
+from .quantum.scoring import ScoringConfig
+from .quantum.scoring import score as quantum_score
+from .quantum.state import BaselineSample
+from .repository import get_repository
 from .schemas import (
     AddSampleRequest,
-    ScoreSubmissionRequest,
-    Layer7OutputResponse,
-    StudentStateResponse,
-    BaselineWordStats,
-    ReadinessResponse,
-    SampleSummary,
-    HealthResponse,
-    AuthorshipSignalOut,
-    TrajectoryConformanceOut,
-    FeatureContributionOut,
-    EntanglementAnomalyOut,
-    InterferenceDecompositionOut,
-    BaselineConfidenceOut,
-    DomainSignalOut,
-    RecommendedActionOut,
-    TensionArcOut,
     AiIndicatorOut,
     AiLikelihoodOut,
-    ContextManifestOut,
-    ScoringReportOut,
+    ApplyThresholdsRequest,
+    AuthorshipSignalOut,
+    BaselineConfidenceOut,
+    BaselineWordStats,
     BlendDetectionRequest,
     BlendResultOut,
-    WindowScoreOut,
-    DriftResultOut,
+    CalibrationRunCreatedResponse,
+    CalibrationRunDetail,
+    CalibrationRunListResponse,
+    CalibrationRunRequest,
+    CalibrationRunSummary,
+    ContextManifestOut,
+    CorrectionListResponse,
+    CorrectionRequest,
+    CorrectionResponse,
+    DatasetInfo,
+    DomainSignalOut,
     DriftPendingResponse,
-    DriftRebaselineResponse,
+    DriftResultOut,
+    EntanglementAnomalyOut,
+    FeatureContributionOut,
+    HealthResponse,
+    InterferenceDecompositionOut,
+    Layer7OutputResponse,
     ManifestListItem,
     ManifestListResponse,
     ManifestStatsResponse,
-    CorrectionRequest,
-    CorrectionResponse,
-    CorrectionListResponse,
-    TestScoreRequest,
-    TestScoreResponse,
-    DatasetInfo,
-    CalibrationRunRequest,
-    CalibrationRunSummary,
-    CalibrationRunDetail,
-    CalibrationRunListResponse,
-    CalibrationRunCreatedResponse,
+    ReadinessResponse,
+    RecommendedActionOut,
+    SampleSummary,
+    ScoreSubmissionRequest,
+    ScoringReportOut,
+    StudentStateResponse,
     SuggestionItem,
     SuggestionsResponse,
-    ApplyThresholdsRequest,
-    TunedThresholdsRecord,
+    TensionArcOut,
+    TestScoreRequest,
+    TestScoreResponse,
+    TrajectoryConformanceOut,
     TunedThresholdsListResponse,
-    VoiceView,
+    TunedThresholdsRecord,
     VoiceSubmitRequest,
     VoiceSubmitResult,
+    VoiceView,
+    WindowScoreOut,
 )
-from . import voice as voice_mod
 from .tension_arc import analyze_tension_arc, update_student_baseline_kappa
-from .features.pipeline import extract_features, feature_vector
-from .quantum.state import BaselineSample
-from .quantum.scoring import score as quantum_score
-from .constants import AUTH_WEIGHTS, FEATURE_DIM
-from . import store
-from . import backup as backup_mod
-from . import baseline_requests
-from . import bbook_client
-from . import student_auth
-from . import principal as principal_mod
-from . import users as users_mod
-from .repository import get_repository
-from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 
 # NOTE: .env is loaded by the run.py entrypoint (not at import) so importing the
 # app in tests/other contexts never pollutes os.environ for the v1 Settings.
@@ -112,6 +122,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 # and security headers. Distinct from the v1 app's ENVIRONMENT setting.
 ORIGINAL_ENV = os.environ.get("ORIGINAL_ENV", "demo").strip().lower()
 _IS_REAL_DEPLOY = ORIGINAL_ENV in ("pilot", "staging", "production")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -123,13 +134,13 @@ async def lifespan(app: FastAPI):
             raise RuntimeError(
                 f"ORIGINAL_ENV={ORIGINAL_ENV} requires a stable SECRET_KEY. "
                 "Set it in the environment or .env: "
-                "python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+                'python -c "import secrets; print(secrets.token_urlsafe(64))"'
             )
         _log.warning(
             "SECRET_KEY is not set — using a per-process random value. "
             "JWTs will be invalidated on every restart. "
             "Set SECRET_KEY in your environment or .env file for a stable key: "
-            "  python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+            '  python -c "import secrets; print(secrets.token_urlsafe(64))"'
         )
     else:
         _log.info("SECRET_KEY is pinned from environment — JWT tokens survive restarts.")
@@ -139,23 +150,31 @@ async def lifespan(app: FastAPI):
         _GUARD_DESTRUCTIVE,
         "GUARDED (X-Guard-Token required)" if _GUARD_DESTRUCTIVE else "open (demo mode)",
     )
-    _ai_mode = ("enabled" if os.environ.get("AI_LIKELIHOOD_ENABLED") == "1"
-                else "shadow" if os.environ.get("AI_LIKELIHOOD_SHADOW") == "1"
-                else None)
+    _ai_mode = (
+        "enabled"
+        if os.environ.get("AI_LIKELIHOOD_ENABLED") == "1"
+        else "shadow"
+        if os.environ.get("AI_LIKELIHOOD_SHADOW") == "1"
+        else None
+    )
     if _ai_mode:
         from .ai_likelihood import warm as _ai_warm
-        _log.info("AI-likelihood detector mode=%s — %s.", _ai_mode,
-                  "ready" if _ai_warm() else "unavailable (see warning above)")
+
+        _log.info(
+            "AI-likelihood detector mode=%s — %s.",
+            _ai_mode,
+            "ready" if _ai_warm() else "unavailable (see warning above)",
+        )
     # In-app backup scheduler — production has no crontab (Render web service),
     # so the periodic consistent .backup runs inside this process. Demo stays
     # off unless BACKUP_DIR is set explicitly. See original/backup.py.
     _backup_task = None
-    _bdir = backup_mod.resolve_backup_dir(store._DB_PATH, _IS_REAL_DEPLOY)
+    _bdir = backup_mod.resolve_backup_dir(_repo().db_path(), _IS_REAL_DEPLOY)
     if _bdir is not None:
         _interval = float(os.environ.get("BACKUP_INTERVAL_MINUTES", "30") or 30)
         _keep = int(os.environ.get("BACKUP_KEEP", "48") or 48)
         _backup_task = asyncio.create_task(
-            backup_mod.backup_loop(store._DB_PATH, _bdir, _interval, _keep)
+            backup_mod.backup_loop(_repo().db_path(), _bdir, _interval, _keep)
         )
         _log.info("Backups: every %.0f min to %s (keep %d).", _interval, _bdir, _keep)
     else:
@@ -165,12 +184,24 @@ async def lifespan(app: FastAPI):
         _backup_task.cancel()
 
 
+def _resolve_app_version() -> str:
+    """pyproject.toml is the single source of truth (D7) — read via package
+    metadata rather than hardcoding a second literal here. The literal
+    fallback only fires if the package isn't installed (e.g. running the
+    module straight from a checkout without `pip install -e .`)."""
+    try:
+        return importlib.metadata.version("original")
+    except importlib.metadata.PackageNotFoundError:
+        return "0.1.0"
+
+
 app = FastAPI(
     title="Original — Authorship Integrity API",
-    version="0.1.0",
+    version=_resolve_app_version(),
     description="Quantum stylometric authorship analysis for seminary submissions.",
     lifespan=lifespan,
 )
+
 
 # CORS: demo allows any origin; pilot/production must list origins explicitly
 # via ALLOWED_ORIGINS (comma-separated). Falls back to "*" only in demo.
@@ -211,7 +242,7 @@ _ENABLE_HSTS = os.environ.get("ENABLE_HSTS", "0") == "1"
 
 
 @app.middleware("http")
-async def security_headers(request: "Request", call_next):
+async def security_headers(request: Request, call_next):
     resp = await call_next(request)
     resp.headers.setdefault("X-Content-Type-Options", "nosniff")
     resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
@@ -220,9 +251,7 @@ async def security_headers(request: "Request", call_next):
     if not request.url.path.startswith("/lti/"):
         resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     if _ENABLE_HSTS:
-        resp.headers.setdefault(
-            "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
-        )
+        resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     return resp
 
 
@@ -246,11 +275,16 @@ _STAFF_ONLY_PREFIXES = ("/admin/", "/tenants/", "/baseline-requests/", "/import/
 # the synthetic seed database, internal lab/playground pages, and validation
 # report JSONs. They live in demo/ because the demo serves them; the pilot
 # serves the same directory, so the app blocks them by path.
-_DEMO_ONLY_STATICS = frozenset({
-    "/seed.db", "/lab.html", "/playground.html",
-    "/validation_report.json", "/validation_similarity.json",
-    "/validation_thresholds.json",
-})
+_DEMO_ONLY_STATICS = frozenset(
+    {
+        "/seed.db",
+        "/lab.html",
+        "/playground.html",
+        "/validation_report.json",
+        "/validation_similarity.json",
+        "/validation_thresholds.json",
+    }
+)
 
 
 def _is_staff_only_path(path: str) -> bool:
@@ -259,7 +293,7 @@ def _is_staff_only_path(path: str) -> bool:
 
 
 @app.middleware("http")
-async def tenant_isolation(request: "Request", call_next):
+async def tenant_isolation(request: Request, call_next):
     principal = principal_mod.resolve_principal(request)
     request.state.principal = principal
     if _IS_REAL_DEPLOY and request.url.path in _DEMO_ONLY_STATICS:
@@ -280,6 +314,7 @@ async def tenant_isolation(request: "Request", call_next):
                 content={"detail": "Cross-tenant access denied."},
             )
     return await call_next(request)
+
 
 # ── Startup: SECRET_KEY stability check ───────────────────────────────────────
 # Warn operators if SECRET_KEY is not pinned in the environment.
@@ -310,7 +345,7 @@ def _repo():
     return get_repository(os.environ.get("ENVIRONMENT", "demo"))
 
 
-def _require_guard(request: "Request") -> None:
+def _require_guard(request: Request) -> None:
     """
     Raise 403 if GUARD_DESTRUCTIVE is on and the request lacks the correct
     X-Guard-Token header.  Call at the top of any endpoint that should be
@@ -338,16 +373,36 @@ def _require_guard(request: "Request") -> None:
         )
 
 
+def _persist_or_503(state: StudentState) -> None:  # noqa: F821 -- StudentState is lazily imported (see quantum/state.py) to avoid a heavy import at module load
+    """store.put(), mapping a raised sqlite3.Error to 503 for the caller.
+
+    The in-memory cache already holds `state` by the time store.put() raises
+    (put() writes _STORE before _persist()) — the mutation is not rolled
+    back, only the disk write is reported as failed. Not persisted; retry.
+    """
+    try:
+        _repo().put(state)
+    except sqlite3.Error as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="storage temporarily unavailable — change was not persisted, please retry",
+        ) from exc
+
+
 # ── Email notification stub ───────────────────────────────────────────────────
+
 
 def _send_notification_email(student_name: str, action: str, score: float) -> None:
     """Stub for SendGrid email notification. Replace with real implementation."""
     import logging
+
     log = logging.getLogger(__name__)
     log.info(
         "EMAIL NOTIFICATION [stub] → action=%s student=%s score=%.3f — "
         "integrate SendGrid here: https://docs.sendgrid.com/api-reference/mail-send/mail-send",
-        action, student_name, score
+        action,
+        student_name,
+        score,
     )
     # TODO: Replace with actual SendGrid call:
     # from sendgrid import SendGridAPIClient
@@ -359,13 +414,15 @@ def _send_notification_email(student_name: str, action: str, score: float) -> No
 
 # ── Health ────────────────────────────────────────────────────────────────────
 
+
 @app.get("/health", response_model=HealthResponse)
 def health():
     return HealthResponse(
         status="ok",
         feature_dim=FEATURE_DIM,
-        students_in_store=store.count(),
+        students_in_store=_repo().count(),
         environment=ORIGINAL_ENV,
+        commit=os.environ.get("RENDER_GIT_COMMIT", "dev"),
     )
 
 
@@ -377,28 +434,28 @@ def admin_health():
     Returns student count, manifest totals, and queue depth from the live store.
     Latency is computed from the most recent manifest entries where available.
     """
-    student_count = store.count()
+    student_count = _repo().count()
 
     # Pull manifest stats for submission / flag counts
     try:
-        stats = store.manifest_stats()
+        stats = _repo().manifest_stats()
     except Exception:
         stats = {}
 
     total_submissions = stats.get("total", 0)
-    flagged_count = stats.get("by_action", {}).get("escalate", 0) + \
-                   stats.get("by_action", {}).get("schedule_conversation", 0)
+    flagged_count = stats.get("by_action", {}).get("escalate", 0) + stats.get("by_action", {}).get(
+        "schedule_conversation", 0
+    )
 
     # Estimate avg latency from recent manifests (created_at timestamps)
     avg_latency_ms = None
     try:
-        recent = store.list_manifests(limit=20)
+        recent = _repo().list_manifests(limit=20)
         items = recent.get("items", [])
         if items:
             # Use latency stored in manifest if present, else report None
             latencies = [
-                item.get("latency_ms") for item in items
-                if item.get("latency_ms") is not None
+                item.get("latency_ms") for item in items if item.get("latency_ms") is not None
             ]
             if latencies:
                 avg_latency_ms = round(sum(latencies) / len(latencies))
@@ -407,7 +464,7 @@ def admin_health():
 
     # Backup recency — None when backups are disabled (demo) or none exist
     # yet. Ops alerting: on a pilot this should never exceed ~2× the interval.
-    _bdir = backup_mod.resolve_backup_dir(store._DB_PATH, _IS_REAL_DEPLOY)
+    _bdir = backup_mod.resolve_backup_dir(_repo().db_path(), _IS_REAL_DEPLOY)
     last_backup_age = backup_mod.latest_backup_age_seconds(_bdir)
 
     return {
@@ -416,7 +473,7 @@ def admin_health():
         "total_submissions": total_submissions,
         "flagged_count": flagged_count,
         "avg_latency_ms": avg_latency_ms,
-        "queue_depth": 0,   # demo server processes synchronously; always 0
+        "queue_depth": 0,  # demo server processes synchronously; always 0
         "uptime_pct": 99.97,
         "backups_enabled": _bdir is not None,
         "last_backup_age_seconds": (
@@ -435,13 +492,22 @@ def admin_health():
 # brute-forceable in pilot deployments. In-memory (single-process uvicorn) and
 # stdlib-only, matching the app's dependency posture. PBKDF2's ~100ms verify
 # cost plus this window makes online guessing impractical.
-_LOGIN_WINDOW_SEC = 300
-_LOGIN_MAX_ATTEMPTS = 10
-_login_attempts: dict = {}   # ip -> [monotonic timestamps]
+#
+# Overridable via env (defaults unchanged — same opt-in pattern as
+# GUARD_DESTRUCTIVE/SECRET_KEY): a real E2E suite legitimately provisions many
+# distinct tenants/staff logins per run (tenant-isolation coverage needs
+# multiple real logins per test), which exceeds 10/300s at full-suite scale
+# on a single shared IP — not brute-forcing, just parallel test fixtures.
+# CI sets LOGIN_THROTTLE_MAX_ATTEMPTS higher for the e2e job only; pilot/
+# production are untouched unless someone deliberately sets these.
+_LOGIN_WINDOW_SEC = int(os.environ.get("LOGIN_THROTTLE_WINDOW_SEC", "300"))
+_LOGIN_MAX_ATTEMPTS = int(os.environ.get("LOGIN_THROTTLE_MAX_ATTEMPTS", "10"))
+_login_attempts: dict = {}  # ip -> [monotonic timestamps]
 
 
-def _throttle_login(request: "Request") -> None:
+def _throttle_login(request: Request) -> None:
     import time as _time
+
     ip = getattr(request.client, "host", "unknown") if request.client else "unknown"
     now = _time.monotonic()
     window = [t for t in _login_attempts.get(ip, []) if now - t < _LOGIN_WINDOW_SEC]
@@ -452,12 +518,12 @@ def _throttle_login(request: "Request") -> None:
         )
     window.append(now)
     _login_attempts[ip] = window
-    if len(_login_attempts) > 10_000:   # bound memory under address churn
+    if len(_login_attempts) > 10_000:  # bound memory under address churn
         _login_attempts.clear()
 
 
 @app.post("/auth/login")
-def auth_login(body: dict, request: "Request"):
+def auth_login(body: dict, request: Request):
     _throttle_login(request)
     email = str(body.get("email") or "").strip()
     password = str(body.get("password") or "")
@@ -467,12 +533,8 @@ def auth_login(body: dict, request: "Request"):
     if not user:
         _repo().log_audit(action="login", actor=email, result="denied")
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    token = principal_mod.mint_principal_token(
-        user["user_id"], user["role"], user["tenant_id"]
-    )
-    _repo().log_audit(
-        action="login", tenant_id=user["tenant_id"], actor=user["email"], result="ok"
-    )
+    token = principal_mod.mint_principal_token(user["user_id"], user["role"], user["tenant_id"])
+    _repo().log_audit(action="login", tenant_id=user["tenant_id"], actor=user["email"], result="ok")
     return {
         "token": token,
         "role": user["role"],
@@ -483,7 +545,7 @@ def auth_login(body: dict, request: "Request"):
 
 
 @app.get("/auth/me")
-def auth_me(request: "Request"):
+def auth_me(request: Request):
     """Return the authenticated principal, or 401 for anonymous/demo callers."""
     p = getattr(request.state, "principal", None)
     if p is None or p.is_demo:
@@ -497,7 +559,7 @@ def auth_me(request: "Request"):
 
 
 @app.post("/auth/register", status_code=201)
-def auth_register(body: dict, request: "Request"):
+def auth_register(body: dict, request: Request):
     """
     Provision a staff user. Privileged: guarded by GUARD_DESTRUCTIVE in
     pilot/production (X-Guard-Token required); open in demo for convenience.
@@ -514,14 +576,22 @@ def auth_register(body: dict, request: "Request"):
         raise HTTPException(status_code=422, detail="role must be professor, admin, or operator")
     if len(password) < 8:
         raise HTTPException(status_code=422, detail="password must be at least 8 characters")
-    if store.get_user_by_email(email):
+    if _repo().get_user_by_email(email):
         raise HTTPException(status_code=409, detail="a user with that email already exists")
     user = users_mod.create_user(email, password, role, tenant_id, name)
     _repo().log_audit(
-        action="user_register", tenant_id=tenant_id, actor=email, result="ok",
+        action="user_register",
+        tenant_id=tenant_id,
+        actor=email,
+        result="ok",
         details={"role": role},
     )
-    return {"user_id": user["user_id"], "email": user["email"], "role": role, "tenant_id": tenant_id}
+    return {
+        "user_id": user["user_id"],
+        "email": user["email"],
+        "role": role,
+        "tenant_id": tenant_id,
+    }
 
 
 # ── LTI 1.3 launch (ADR-003, Phase 1.5) ───────────────────────────────────────
@@ -530,9 +600,11 @@ def auth_register(body: dict, request: "Request"):
 # are imported lazily, so the demo (which omits python-jose) still boots; the
 # endpoints return a clear error until LTI is configured.
 
+
 @app.api_route("/lti/login", methods=["GET", "POST"])
-async def lti_login(request: "Request"):
+async def lti_login(request: Request):
     from . import lti
+
     params = dict(request.query_params)
     if request.method == "POST":
         form = await request.form()
@@ -540,13 +612,14 @@ async def lti_login(request: "Request"):
     try:
         url = lti.build_login_redirect(params)
     except lti.LtiError as e:
-        raise HTTPException(status_code=400, detail=f"LTI login error: {e}")
+        raise HTTPException(status_code=400, detail=f"LTI login error: {e}") from e
     return RedirectResponse(url, status_code=302)
 
 
 @app.post("/lti/launch")
-async def lti_launch(request: "Request"):
+async def lti_launch(request: Request):
     from . import lti
+
     form = await request.form()
     id_token = str(form.get("id_token", ""))
     state = str(form.get("state", ""))
@@ -555,16 +628,18 @@ async def lti_launch(request: "Request"):
     try:
         claims = lti.verify_launch(id_token, state)
     except lti.LtiError as e:
-        raise HTTPException(status_code=401, detail=f"LTI launch rejected: {e}")
-    except ImportError:
+        raise HTTPException(status_code=401, detail=f"LTI launch rejected: {e}") from e
+    except ImportError as exc:
         raise HTTPException(
             status_code=501,
             detail="LTI requires python-jose, which is not installed in this deployment.",
-        )
+        ) from exc
     p = lti.principal_from_claims(claims)
     _repo().log_audit(
-        action="lti_launch", tenant_id=p["tenant_id"],
-        actor=str(claims.get("sub", "")), result="ok",
+        action="lti_launch",
+        tenant_id=p["tenant_id"],
+        actor=str(claims.get("sub", "")),
+        result="ok",
         details={"role": p["role"], "redirect": p.get("redirect")},
     )
     # All localStorage keys the destination needs (token + identity + any binding).
@@ -578,15 +653,13 @@ async def lti_launch(request: "Request"):
     params = p.get("params") or {}
     if params and redirect.endswith("/"):
         redirect = redirect + "?" + urllib.parse.urlencode(params)
-    sets = "".join(
-        f"localStorage.setItem({json.dumps(k)},{json.dumps(v)});" for k, v in ls.items()
-    )
+    sets = "".join(f"localStorage.setItem({json.dumps(k)},{json.dumps(v)});" for k, v in ls.items())
     # Hand the token to the browser (server-rendered, never in a URL) and break
     # out of the LMS iframe into the full-page app.
     html = (
         "<!doctype html><meta charset=utf-8><title>Bluebook · Original</title>"
-        "<body style=\"font-family:Inter,system-ui;background:#001020;color:#C9A961;"
-        "display:flex;align-items:center;justify-content:center;height:100vh;margin:0\">"
+        '<body style="font-family:Inter,system-ui;background:#001020;color:#C9A961;'
+        'display:flex;align-items:center;justify-content:center;height:100vh;margin:0">'
         "<div style=\"font-family:'Cormorant Garamond',Georgia,serif;font-size:1.3rem\">Entering examination…</div>"
         f"<script>try{{{sets}}}catch(e){{}}"
         f"var u={json.dumps(redirect)};try{{window.top.location.replace(u);}}catch(e){{location.replace(u);}}"
@@ -598,6 +671,7 @@ async def lti_launch(request: "Request"):
 @app.get("/lti/jwks")
 def lti_jwks():
     from . import lti
+
     return lti.public_jwks()
 
 
@@ -606,7 +680,8 @@ def lti_jwks():
 # /students/{id}/baseline as proctored samples. Scoping mirrors list_students:
 # an authenticated non-super principal sees only its tenant; demo sees "demo".
 
-def _bluebook_tenant(request: "Request") -> str:
+
+def _bluebook_tenant(request: Request) -> str:
     p = getattr(request.state, "principal", None)
     if p and not p.is_demo:
         return p.tenant_id
@@ -621,7 +696,7 @@ def _int_or(v, default):
 
 
 @app.post("/bluebook/exams", status_code=201)
-def bluebook_create_exam(body: dict, request: "Request"):
+def bluebook_create_exam(body: dict, request: Request):
     title = str(body.get("title") or "").strip()
     if not title:
         raise HTTPException(status_code=422, detail="title is required")
@@ -638,27 +713,27 @@ def bluebook_create_exam(body: dict, request: "Request"):
         "conditions": body.get("conditions") if isinstance(body.get("conditions"), dict) else {},
         "status": (str(body.get("status") or "DRAFT").upper())[:20],
     }
-    store.put_bluebook_exam(rec)
+    _repo().put_bluebook_exam(rec)
     _repo().log_audit(action="bluebook_exam_create", tenant_id=tenant, details={"title": title})
     rec["submissions"] = 0
     return rec
 
 
 @app.get("/bluebook/exams")
-def bluebook_list_exams(request: "Request"):
+def bluebook_list_exams(request: Request):
     p = getattr(request.state, "principal", None)
     if p and not p.is_demo and p.role not in principal_mod.SUPER_ROLES:
-        exams = store.list_bluebook_exams(p.tenant_id)
+        exams = _repo().list_bluebook_exams(p.tenant_id)
     elif p and p.is_demo:
-        exams = store.list_bluebook_exams(principal_mod.DEMO_TENANT)
+        exams = _repo().list_bluebook_exams(principal_mod.DEMO_TENANT)
     else:  # super / operator → all tenants
-        exams = store.list_bluebook_exams(None)
+        exams = _repo().list_bluebook_exams(None)
     return {"exams": exams}
 
 
 @app.get("/bluebook/exams/{exam_id}")
-def bluebook_get_exam(exam_id: str, request: "Request"):
-    rec = store.get_bluebook_exam(exam_id)
+def bluebook_get_exam(exam_id: str, request: Request):
+    rec = _repo().get_bluebook_exam(exam_id)
     if not rec:
         raise HTTPException(status_code=404, detail="exam not found")
     p = getattr(request.state, "principal", None)
@@ -671,7 +746,7 @@ def bluebook_get_exam(exam_id: str, request: "Request"):
 
 
 @app.post("/bluebook/submissions", status_code=201)
-def bluebook_record_submission(body: dict, request: "Request"):
+def bluebook_record_submission(body: dict, request: Request):
     """Record one sat examination (the integrity reading for the Results view)."""
     tenant = _bluebook_tenant(request)
 
@@ -693,26 +768,30 @@ def bluebook_record_submission(body: dict, request: "Request"):
         "ai_score": _clamp_pct(body.get("ai_score")),
         "status": (str(body.get("status") or "SUBMITTED").upper())[:20],
     }
-    store.put_bluebook_submission(rec)
-    _repo().log_audit(action="bluebook_submission", tenant_id=tenant,
-                      student_id=rec["student_id"], details={"exam_id": rec["exam_id"]})
+    _repo().put_bluebook_submission(rec)
+    _repo().log_audit(
+        action="bluebook_submission",
+        tenant_id=tenant,
+        student_id=rec["student_id"],
+        details={"exam_id": rec["exam_id"]},
+    )
     return {"id": rec["id"], "status": rec["status"]}
 
 
 @app.get("/bluebook/submissions")
-def bluebook_list_submissions(request: "Request"):
+def bluebook_list_submissions(request: Request):
     p = getattr(request.state, "principal", None)
     if p and not p.is_demo and p.role not in principal_mod.SUPER_ROLES:
-        subs = store.list_bluebook_submissions(p.tenant_id)
+        subs = _repo().list_bluebook_submissions(p.tenant_id)
     elif p and p.is_demo:
-        subs = store.list_bluebook_submissions(principal_mod.DEMO_TENANT)
+        subs = _repo().list_bluebook_submissions(principal_mod.DEMO_TENANT)
     else:
-        subs = store.list_bluebook_submissions(None)
+        subs = _repo().list_bluebook_submissions(None)
     return {"submissions": subs}
 
 
 @app.post("/bluebook/courses", status_code=201)
-def bluebook_create_course(body: dict, request: "Request"):
+def bluebook_create_course(body: dict, request: Request):
     name = str(body.get("name") or "").strip()
     if not name:
         raise HTTPException(status_code=422, detail="course name is required")
@@ -725,27 +804,30 @@ def bluebook_create_course(body: dict, request: "Request"):
         "term": str(body.get("term") or "")[:60],
         "status": (str(body.get("status") or "ACTIVE").upper())[:20],
     }
-    store.put_bluebook_course(rec)
-    _repo().log_audit(action="bluebook_course_create", tenant_id=tenant, details={"code": rec["code"]})
+    _repo().put_bluebook_course(rec)
+    _repo().log_audit(
+        action="bluebook_course_create", tenant_id=tenant, details={"code": rec["code"]}
+    )
     return {**rec, "active": rec["status"] == "ACTIVE", "students": 0, "exams": 0}
 
 
 @app.get("/bluebook/courses")
-def bluebook_list_courses(request: "Request"):
+def bluebook_list_courses(request: Request):
     p = getattr(request.state, "principal", None)
     if p and not p.is_demo and p.role not in principal_mod.SUPER_ROLES:
-        courses = store.list_bluebook_courses(p.tenant_id)
+        courses = _repo().list_bluebook_courses(p.tenant_id)
     elif p and p.is_demo:
-        courses = store.list_bluebook_courses(principal_mod.DEMO_TENANT)
+        courses = _repo().list_bluebook_courses(principal_mod.DEMO_TENANT)
     else:
-        courses = store.list_bluebook_courses(None)
+        courses = _repo().list_bluebook_courses(None)
     return {"courses": courses}
 
 
 # ── Student list ──────────────────────────────────────────────────────────────
 
+
 @app.get("/students")
-def list_students(request: "Request", tenant_id: str = ""):
+def list_students(request: Request, tenant_id: str = ""):
     """
     List student IDs.
 
@@ -758,24 +840,25 @@ def list_students(request: "Request", tenant_id: str = ""):
     roster_tenant = None
     if principal and not principal.is_demo and principal.role not in principal_mod.SUPER_ROLES:
         roster_tenant = principal.tenant_id
-        ids = store.list_ids_for_tenant(roster_tenant)
+        ids = _repo().list_ids_for_tenant(roster_tenant)
     elif tenant_id:
         roster_tenant = tenant_id
-        ids = store.list_ids_for_tenant(tenant_id)
+        ids = _repo().list_ids_for_tenant(tenant_id)
     else:
-        ids = store.list_ids()
+        ids = _repo().list_ids()
     # `students` stays a list of ids (back-compat). `roster` adds the
     # display-ready rows (real names, baseline counts, status) the dashboards
     # render — only when scoped to a single tenant.
-    roster = store.roster_for_tenant(roster_tenant) if roster_tenant else None
+    roster = _repo().roster_for_tenant(roster_tenant) if roster_tenant else None
     return {"students": ids, "roster": roster}
 
 
 # ── Student state ─────────────────────────────────────────────────────────────
 
+
 @app.get("/students/{student_id}", response_model=StudentStateResponse)
 def get_student(student_id: str):
-    state = store.get(student_id)
+    state = _repo().get(student_id)
     if state is None:
         raise HTTPException(status_code=404, detail=f"Student '{student_id}' not found")
 
@@ -818,9 +901,10 @@ def get_student(student_id: str):
 # (quantum/scoring.py), 2 is the developing floor, and 0 authenticated
 # cannot score at all (the score endpoint 422s).
 
+
 @app.get("/students/{student_id}/readiness", response_model=ReadinessResponse)
 def get_student_readiness(student_id: str):
-    state = store.get(student_id)
+    state = _repo().get(student_id)
     if state is None:
         raise HTTPException(status_code=404, detail=f"Student '{student_id}' not found")
 
@@ -848,20 +932,28 @@ def get_student_readiness(student_id: str):
     else:
         verdict = "insufficient"
 
-    recs: List[str] = []
+    recs: list[str] = []
     if auth == 0:
-        recs.append("Collect a first proctored writing sample (via Bluebook) — "
-                    "scoring cannot run until at least one authenticated sample exists.")
+        recs.append(
+            "Collect a first proctored writing sample (via Bluebook) — "
+            "scoring cannot run until at least one authenticated sample exists."
+        )
     if auth < 5:
-        recs.append(f"Collect {5 - auth} more authenticated sample(s) — "
-                    "the target for reliable comparison is 5-8.")
+        recs.append(
+            f"Collect {5 - auth} more authenticated sample(s) — "
+            "the target for reliable comparison is 5-8."
+        )
     if word_stats and word_stats.n_below_300 > 0:
-        recs.append(f"{word_stats.n_below_300} baseline sample(s) are under 300 "
-                    "words — prefer 300+ word samples for stable style measurement.")
+        recs.append(
+            f"{word_stats.n_below_300} baseline sample(s) are under 300 "
+            "words — prefer 300+ word samples for stable style measurement."
+        )
     assignments = {s.assignment for s in state.samples if s.assignment}
     if state.sample_count >= 3 and len(assignments) <= 1:
-        recs.append("All samples come from one assignment — collect baselines "
-                    "across different assignments to capture the student's range.")
+        recs.append(
+            "All samples come from one assignment — collect baselines "
+            "across different assignments to capture the student's range."
+        )
     if not recs:
         recs.append("Baseline is in good shape — no action needed.")
 
@@ -886,6 +978,7 @@ def get_student_readiness(student_id: str):
 # verify a sample is legitimate before authenticating it), they fetch
 # the prose lazily via this endpoint.
 
+
 @app.get("/students/{student_id}/samples/{index}/text")
 def get_sample_text(student_id: str, index: int):
     """
@@ -896,7 +989,7 @@ def get_sample_text(student_id: str, index: int):
     render headers + body in a single round-trip without re-fetching the
     student state.
     """
-    state = store.get(student_id)
+    state = _repo().get(student_id)
     if state is None:
         raise HTTPException(status_code=404, detail=f"Student '{student_id}' not found")
     if index < 0 or index >= len(state.samples):
@@ -920,8 +1013,9 @@ def get_sample_text(student_id: str, index: int):
 
 # ── FERPA: student data deletion ──────────────────────────────────────────────
 
+
 @app.delete("/students/{student_id}", status_code=200)
-def delete_student(student_id: str, request: "Request"):
+def delete_student(student_id: str, request: Request):
     """
     Permanently delete all stored data for a student (FERPA right-to-erasure).
 
@@ -939,9 +1033,11 @@ def delete_student(student_id: str, request: "Request"):
     """
     _require_guard(request)
     remote = getattr(request.client, "host", "unknown") if request.client else "unknown"
-    deleted = store.delete_student(student_id)
+    deleted = _repo().delete_student(student_id)
     if not deleted:
-        _repo().log_audit(action="student_delete", student_id=student_id, actor=remote, result="not_found")
+        _repo().log_audit(
+            action="student_delete", student_id=student_id, actor=remote, result="not_found"
+        )
         raise HTTPException(
             status_code=404,
             detail=f"Student '{student_id}' not found — nothing to delete.",
@@ -965,8 +1061,9 @@ def delete_student(student_id: str, request: "Request"):
 # Lets demo operator register schools with an environment label (demo/pilot/
 # production) before Postgres multi-tenancy is needed.
 
+
 @app.post("/tenants", status_code=201)
-def create_tenant(body: dict, request: "Request"):
+def create_tenant(body: dict, request: Request):
     """
     Register or update a tenant (institution) record.
 
@@ -992,13 +1089,19 @@ def create_tenant(body: dict, request: "Request"):
         raise HTTPException(status_code=422, detail="tenant_id max 80 chars, name max 200 chars")
     environment = body.get("environment", "demo")
     if environment not in ("demo", "pilot", "production"):
-        raise HTTPException(status_code=422, detail="environment must be 'demo', 'pilot', or 'production'")
+        raise HTTPException(
+            status_code=422, detail="environment must be 'demo', 'pilot', or 'production'"
+        )
     # Never downgrade a real tenant to demo — demo tenants are anonymously
     # readable, so a downgrade silently exposes FERPA-protected records.
     # Recovering from a genuine mislabel is a deliberate operator action:
     # delete the tenant's students first, then re-register.
     existing = _repo().get_tenant(tenant_id)
-    if existing and existing.get("environment") in ("pilot", "production") and environment == "demo":
+    if (
+        existing
+        and existing.get("environment") in ("pilot", "production")
+        and environment == "demo"
+    ):
         raise HTTPException(
             status_code=409,
             detail=(
@@ -1017,7 +1120,11 @@ def create_tenant(body: dict, request: "Request"):
     meta = {str(k)[:80]: str(v)[:500] for k, v in list(meta.items())[:10]}
     _repo().put_tenant(tenant_id, name, environment=environment, meta=meta)
     principal_mod.invalidate_tenant_cache()  # env may have changed → drop stale cache
-    _repo().log_audit(action="tenant_register", tenant_id=tenant_id, details={"name": name, "environment": environment})
+    _repo().log_audit(
+        action="tenant_register",
+        tenant_id=tenant_id,
+        details={"name": name, "environment": environment},
+    )
     return {"tenant_id": tenant_id, "name": name, "environment": environment}
 
 
@@ -1051,7 +1158,7 @@ def tenant_stats(tenant_id: str):
 
 
 @app.delete("/tenants/{tenant_id}/students", status_code=200)
-def delete_tenant_students(tenant_id: str, request: "Request"):
+def delete_tenant_students(tenant_id: str, request: Request):
     """
     FERPA-safe bulk deletion of all students belonging to a tenant.
 
@@ -1065,11 +1172,11 @@ def delete_tenant_students(tenant_id: str, request: "Request"):
     t = _repo().get_tenant(tenant_id)
     if not t:
         raise HTTPException(status_code=404, detail=f"Tenant '{tenant_id}' not found")
-    result = store.delete_tenant_students(tenant_id)
+    result = _repo().delete_tenant_students(tenant_id)
     return {
-        "tenant_id":    tenant_id,
+        "tenant_id": tenant_id,
         "deleted_count": result["deleted_count"],
-        "failed_ids":   result["failed_ids"],
+        "failed_ids": result["failed_ids"],
         "message": (
             f"Deleted {result['deleted_count']} student(s) from '{tenant_id}'. "
             + (f"Failed: {result['failed_ids']}" if result["failed_ids"] else "")
@@ -1084,8 +1191,9 @@ def delete_tenant_students(tenant_id: str, request: "Request"):
 # session token. No password in the demo path — identity is the email +
 # institution, which the v1 path can later harden with a real credential.
 
+
 @app.post("/student-auth/login")
-def student_login(body: dict, request: "Request"):
+def student_login(body: dict, request: Request):
     """
     Sign a student in. Body: { email, institution, name? }.
 
@@ -1106,36 +1214,42 @@ def student_login(body: dict, request: "Request"):
 
     # Auto-provision the institution as a demo tenant (idempotent).
     if not _repo().get_tenant(tenant_id):
-        _repo().put_tenant(tenant_id, institution, environment="demo",
-                           meta={"auto_provisioned": "student_login"})
+        _repo().put_tenant(
+            tenant_id, institution, environment="demo", meta={"auto_provisioned": "student_login"}
+        )
 
     # Ensure the student record exists so the dashboard has somewhere to read.
-    store.get_or_create(student_id)
+    _repo().get_or_create(student_id)
     # Record the display name so the professor roster shows a real person, not
     # the opaque tenant-scoped id.
-    store.set_display_name(student_id, name or email.split("@")[0])
+    _repo().set_display_name(student_id, name or email.split("@")[0])
 
     token = student_auth.mint_session(student_id, name or email.split("@")[0])
     remote = getattr(request.client, "host", "unknown") if request.client else "unknown"
-    _repo().log_audit(action="student_login", student_id=student_id,
-                      tenant_id=tenant_id, actor=remote)
+    _repo().log_audit(
+        action="student_login", student_id=student_id, tenant_id=tenant_id, actor=remote
+    )
     return {
-        "token":       token,
-        "student_id":  student_id,
-        "name":        name or email.split("@")[0],
-        "tenant_id":   tenant_id,
+        "token": token,
+        "student_id": student_id,
+        "name": name or email.split("@")[0],
+        "tenant_id": tenant_id,
         "institution": institution,
     }
 
 
 @app.get("/student-auth/me")
-def student_me(request: "Request"):
+def student_me(request: Request):
     """
     Resolve the current student from the session token (Authorization: Bearer
     <token> or X-Student-Token header). 401 if missing/invalid/expired.
     """
     auth = request.headers.get("Authorization", "")
-    token = auth[7:] if auth.lower().startswith("bearer ") else request.headers.get("X-Student-Token", "")
+    token = (
+        auth[7:]
+        if auth.lower().startswith("bearer ")
+        else request.headers.get("X-Student-Token", "")
+    )
     session = student_auth.verify_session(token)
     if not session:
         raise HTTPException(status_code=401, detail="Not signed in.")
@@ -1150,10 +1264,15 @@ def student_me(request: "Request"):
 # original/voice.py. The rich /students/{id}, /score, and /admin/* surfaces are
 # unchanged — they remain the STAFF surface, just unreachable by this client.
 
-def _require_student_session(request: "Request") -> dict:
+
+def _require_student_session(request: Request) -> dict:
     """Resolve the signed-in student from the session token, or 401."""
     auth = request.headers.get("Authorization", "")
-    token = auth[7:] if auth.lower().startswith("bearer ") else request.headers.get("X-Student-Token", "")
+    token = (
+        auth[7:]
+        if auth.lower().startswith("bearer ")
+        else request.headers.get("X-Student-Token", "")
+    )
     session = student_auth.verify_session(token)
     if not session:
         raise HTTPException(status_code=401, detail="Not signed in.")
@@ -1161,7 +1280,7 @@ def _require_student_session(request: "Request") -> dict:
 
 
 @app.get("/me/voice", response_model=VoiceView)
-def my_voice(request: "Request"):
+def my_voice(request: Request):
     """
     The complete, redacted VoiceView for the signed-in student.
 
@@ -1175,12 +1294,12 @@ def my_voice(request: "Request"):
     sid = str(session["sid"])
     name = str(session.get("name", "") or "")
 
-    state = store.get(sid)
+    state = _repo().get(sid)
     if state is not None:
         from .constants import ALL_FEATURE_CODES
+
         baseline_vector = {
-            code: float(state.baseline_mean[i])
-            for i, code in enumerate(ALL_FEATURE_CODES)
+            code: float(state.baseline_mean[i]) for i, code in enumerate(ALL_FEATURE_CODES)
         }
         sample_count = state.sample_count
         authenticated_count = state.authenticated_count
@@ -1189,8 +1308,8 @@ def my_voice(request: "Request"):
         sample_count = 0
         authenticated_count = 0
 
-    manifests = store.list_manifests(student_id=sid, limit=50).get("items", [])
-    corrections = store.list_corrections(student_id=sid, limit=20).get("items", [])
+    manifests = _repo().list_manifests(student_id=sid, limit=50).get("items", [])
+    corrections = _repo().list_corrections(student_id=sid, limit=20).get("items", [])
     pathway = _repo().get_formation_pathway(sid)
 
     view = voice_mod.project_voice_view(
@@ -1206,7 +1325,7 @@ def my_voice(request: "Request"):
 
 
 @app.post("/me/work", response_model=VoiceSubmitResult)
-def my_work(request: "Request", body: VoiceSubmitRequest):
+def my_work(request: Request, body: VoiceSubmitRequest):
     """
     Submit a piece of writing as the signed-in student.
 
@@ -1220,24 +1339,26 @@ def my_work(request: "Request", body: VoiceSubmitRequest):
     name = str(session.get("name", "") or "")
 
     # Ensure a record exists, then add this piece to the body of work.
-    store.get_or_create(sid)
+    _repo().get_or_create(sid)
     try:
-        add_baseline(sid, AddSampleRequest(text=body.text, assignment=body.title,
-                                           provenance="unverified"))
+        add_baseline(
+            sid, AddSampleRequest(text=body.text, assignment=body.title, provenance="unverified")
+        )
     except HTTPException:
         # A too-short or otherwise rejected sample shouldn't 500 the student; the
         # scoring step below will simply return the "not yet analysed" result.
         pass
 
     try:
-        layer7 = score_submission(sid, ScoreSubmissionRequest(text=body.text,
-                                                              assignment=body.title))
+        layer7 = score_submission(
+            sid, ScoreSubmissionRequest(text=body.text, assignment=body.title)
+        )
     except HTTPException:
         # No authenticated baseline yet (or student not scorable) — saved, not scored.
         return VoiceSubmitResult(
             headline="Saved to your body of work.",
             summary="This piece has been added to your formation record. Your voice "
-                    "profile builds as you submit more work.",
+            "profile builds as you submit more work.",
             steady=[],
             review_opportunity=False,
         )
@@ -1247,7 +1368,7 @@ def my_work(request: "Request", body: VoiceSubmitRequest):
 
 
 @app.post("/me/formation/advance", response_model=VoiceView)
-def my_formation_advance(request: "Request"):
+def my_formation_advance(request: Request):
     """
     Advance the signed-in student's formation pathway by one session, then
     return the refreshed VoiceView. Token-resolved; no id in the path. Opens a
@@ -1266,6 +1387,7 @@ def my_formation_advance(request: "Request"):
 
 # ── FERPA: data inventory + audit log ────────────────────────────────────────
 
+
 @app.get("/students/{student_id}/data-inventory")
 def student_data_inventory(student_id: str):
     """
@@ -1281,7 +1403,7 @@ def student_data_inventory(student_id: str):
     Intended for: student data-access requests, FERPA compliance officers,
     deletion confirmations ("prove everything was purged").
     """
-    inv = store.student_data_inventory(student_id)
+    inv = _repo().student_data_inventory(student_id)
     if inv is None:
         raise HTTPException(status_code=404, detail=f"Student '{student_id}' not found")
     return inv
@@ -1316,15 +1438,15 @@ def list_audit_log(
 
 # ── Add baseline sample ───────────────────────────────────────────────────────
 
+
 @app.post("/students/{student_id}/baseline")
 def add_baseline(student_id: str, req: AddSampleRequest):
     if req.provenance not in AUTH_WEIGHTS:
         raise HTTPException(
-            status_code=422,
-            detail=f"provenance must be one of: {list(AUTH_WEIGHTS)}"
+            status_code=422, detail=f"provenance must be one of: {list(AUTH_WEIGHTS)}"
         )
 
-    state = store.get_or_create(student_id)
+    state = _repo().get_or_create(student_id)
     vec = feature_vector(req.text, keystroke_data=req.keystroke_data)
 
     # Genre label — classify the text at ingestion time so the Hierarchical
@@ -1332,13 +1454,14 @@ def add_baseline(student_id: str, req: AddSampleRequest):
     # Uses the same rule-based resolver as the context manifest pipeline.
     # Runs even when the manifest flag is off — genre metadata is cheap and
     # the prior needs it independent of the manifest subsystem.
-    _sample_genre: Optional[str] = None
+    _sample_genre: str | None = None
     try:
         from .context.resolvers import resolve_genre
+
         _genre_result = resolve_genre(req.text)
         _sample_genre = (_genre_result or {}).get("primary")
     except Exception:
-        pass   # genre labeling is best-effort; don't fail baseline ingestion
+        pass  # genre labeling is best-effort; don't fail baseline ingestion
 
     sample = BaselineSample(
         text=req.text,
@@ -1362,7 +1485,8 @@ def add_baseline(student_id: str, req: AddSampleRequest):
         except Exception as e:
             logging.getLogger(__name__).warning(
                 "drift check failed for %s: %s — admitting sample without gate",
-                student_id, e,
+                student_id,
+                e,
             )
             drift_result = None
 
@@ -1370,10 +1494,11 @@ def add_baseline(student_id: str, req: AddSampleRequest):
     # persist the counter even on flag/rebaseline so the workflow is sticky.
     if drift_result is not None and drift_result.recommendation != "accept":
         # Sample is held for review — DO NOT admit to state.samples.
-        store.put(state)   # persist counter mutation
+        _persist_or_503(state)  # persist counter mutation
         body = DriftPendingResponse(
-            status="pending_review" if drift_result.recommendation == "flag_for_review"
-                   else "rebaseline_required",
+            status="pending_review"
+            if drift_result.recommendation == "flag_for_review"
+            else "rebaseline_required",
             student_id=student_id,
             drift=DriftResultOut(**drift_result.to_dict()),
         )
@@ -1387,21 +1512,21 @@ def add_baseline(student_id: str, req: AddSampleRequest):
     # Update tension arc κ baseline for authenticated samples
     if req.provenance in ("proctored", "verified"):
         arc = analyze_tension_arc(req.text)
-        if arc.catastrophe_index > 0:   # skip insufficient-length samples
+        if arc.catastrophe_index > 0:  # skip insufficient-length samples
             new_mean = update_student_baseline_kappa(state.kappa_log, arc.catastrophe_index)
             state.baseline_kappa = new_mean
 
-    store.put(state)   # persist to SQLite
+    _persist_or_503(state)  # persist to SQLite
 
     # Audit log — record the baseline addition
     _repo().log_audit(
         action="baseline_add",
         student_id=student_id,
         details={
-            "provenance":         req.provenance,
-            "auth_weight":        AUTH_WEIGHTS[req.provenance],
+            "provenance": req.provenance,
+            "auth_weight": AUTH_WEIGHTS[req.provenance],
             "sample_count_after": state.sample_count,
-            "genre":              _sample_genre,
+            "genre": _sample_genre,
         },
     )
 
@@ -1414,7 +1539,9 @@ def add_baseline(student_id: str, req: AddSampleRequest):
             completed_requests = baseline_requests.mark_completed_for_student(student_id)
         except Exception as e:
             logging.getLogger(__name__).warning(
-                "baseline-request auto-complete failed for %s: %s", student_id, e,
+                "baseline-request auto-complete failed for %s: %s",
+                student_id,
+                e,
             )
 
     response = {
@@ -1449,15 +1576,16 @@ from pydantic import BaseModel as _PydanticBaseModel  # local import to avoid di
 
 class RequestBaselineRequest(_PydanticBaseModel):
     """Inbound shape for POST /students/{id}/request-baseline."""
+
     student_email: str
     student_name: str
     exam_title: str = "Proctored Baseline Sitting"
-    institution_name: Optional[str] = None
-    requested_by: Optional[str] = None    # free-form audit field
+    institution_name: str | None = None
+    requested_by: str | None = None  # free-form audit field
     duration_mins: int = 45
-    min_word_count: Optional[int] = None
-    max_word_count: Optional[int] = None
-    prompt_text: Optional[str] = None
+    min_word_count: int | None = None
+    max_word_count: int | None = None
+    prompt_text: str | None = None
 
 
 @app.post("/students/{student_id}/request-baseline")
@@ -1485,6 +1613,7 @@ def request_proctored_baseline(student_id: str, req: RequestBaselineRequest):
     # before the Bbook round-trip completes. We'll update with the magic
     # link and Bbook exam id once the response arrives.
     import time as _time
+
     pending = baseline_requests.BaselineRequest(
         external_request_id=external_id,
         student_id=student_id,
@@ -1515,7 +1644,7 @@ def request_proctored_baseline(student_id: str, req: RequestBaselineRequest):
     except Exception as e:
         baseline_requests.mark_failed(external_id, str(e))
         logging.getLogger(__name__).exception("Bbook baseline-request call failed")
-        raise HTTPException(status_code=502, detail=f"Bbook call failed: {e}")
+        raise HTTPException(status_code=502, detail=f"Bbook call failed: {e}") from e
 
     # Update the pending record with the Bbook exam id + magic link + expiry.
     pending.bbook_exam_id = result.examId
@@ -1524,6 +1653,7 @@ def request_proctored_baseline(student_id: str, req: RequestBaselineRequest):
     if result.expiresAt:
         # Parse "2026-05-18T..." to epoch seconds for the registry
         from datetime import datetime
+
         try:
             pending.expires_at = datetime.fromisoformat(
                 result.expiresAt.replace("Z", "+00:00")
@@ -1542,7 +1672,7 @@ def list_pending_baseline_requests():
 
 
 @app.get("/baseline-requests")
-def list_all_baseline_requests(request: "Request"):
+def list_all_baseline_requests(request: Request):
     """
     List every proctored baseline request, regardless of status.
     When GUARD_DESTRUCTIVE=1, requires X-Guard-Token header (admin only).
@@ -1555,6 +1685,7 @@ def list_all_baseline_requests(request: "Request"):
 # These handlers depend only on the Repository interface, never on store
 # directly. Swapping in a Postgres-backed Repository requires no change here.
 
+
 @app.get("/students/{student_id}/formation")
 def get_formation(student_id: str):
     """Return the student's active (or most recent) formation pathway, or null."""
@@ -1563,7 +1694,7 @@ def get_formation(student_id: str):
 
 
 @app.post("/students/{student_id}/formation", status_code=201)
-def open_formation(student_id: str, body: Optional[dict] = None):
+def open_formation(student_id: str, body: dict | None = None):
     """
     Open a three-session formation pathway. Idempotent — returns the existing
     open pathway if one is already in progress.
@@ -1601,6 +1732,7 @@ def advance_formation(student_id: str):
 
 # ── File upload (text extraction) ────────────────────────────────────────────
 
+
 @app.post("/students/{student_id}/upload")
 async def upload_file(student_id: str, file: UploadFile = File(...)):
     """Extract plain text from an uploaded .txt, .docx, or .pdf file."""
@@ -1614,19 +1746,19 @@ async def upload_file(student_id: str, file: UploadFile = File(...)):
     elif ext == "docx":
         try:
             from docx import Document
+
             doc = Document(io.BytesIO(raw))
             text = "\n\n".join(p.text for p in doc.paragraphs if p.text.strip())
-        except ImportError:
-            raise HTTPException(status_code=500, detail="python-docx not installed")
+        except ImportError as exc:
+            raise HTTPException(status_code=500, detail="python-docx not installed") from exc
     elif ext == "pdf":
         try:
             from pypdf import PdfReader
+
             reader = PdfReader(io.BytesIO(raw))
-            text = "\n\n".join(
-                page.extract_text() or "" for page in reader.pages
-            )
-        except ImportError:
-            raise HTTPException(status_code=500, detail="pypdf not installed")
+            text = "\n\n".join(page.extract_text() or "" for page in reader.pages)
+        except ImportError as exc:
+            raise HTTPException(status_code=500, detail="pypdf not installed") from exc
     else:
         raise HTTPException(
             status_code=422,
@@ -1639,19 +1771,19 @@ async def upload_file(student_id: str, file: UploadFile = File(...)):
 
 # ── Score submission ──────────────────────────────────────────────────────────
 
+
 @app.post("/students/{student_id}/score", response_model=Layer7OutputResponse)
 def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool = False):
-    state = store.get(student_id)
+    state = _repo().get(student_id)
     if state is None:
         raise HTTPException(
-            status_code=404,
-            detail=f"Student '{student_id}' not found. Add baseline samples first."
+            status_code=404, detail=f"Student '{student_id}' not found. Add baseline samples first."
         )
     if state.authenticated_count == 0:
         raise HTTPException(
             status_code=422,
             detail="No authenticated baseline samples found. "
-                   "Add at least one 'proctored' or 'verified' sample first."
+            "Add at least one 'proctored' or 'verified' sample first.",
         )
 
     # Check cache only if force is False (allow cache bypass with force=True)
@@ -1666,11 +1798,12 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # When both CONTEXT_MANIFEST_ENABLED and ADAPTIVE_WEIGHTS_ENABLED are
     # unset, the orchestrator short-circuits to plain extract_features +
     # feature_vector, preserving Phase 1 byte-identical behaviour.
-    enable_manifest  = os.environ.get("CONTEXT_MANIFEST_ENABLED") == "1"
-    enable_adaptive  = os.environ.get("ADAPTIVE_WEIGHTS_ENABLED") == "1"
+    enable_manifest = os.environ.get("CONTEXT_MANIFEST_ENABLED") == "1"
+    enable_adaptive = os.environ.get("ADAPTIVE_WEIGHTS_ENABLED") == "1"
 
     try:
         from .context.pipeline import run_adaptive_pipeline
+
         adaptive = run_adaptive_pipeline(
             text=req.text,
             state=state,
@@ -1680,8 +1813,8 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             enable_adaptive_weights=enable_adaptive,
         )
         feat_dict = adaptive.feat_dict
-        vec       = adaptive.vector
-        manifest  = adaptive.manifest
+        vec = adaptive.vector
+        manifest = adaptive.manifest
         adaptive_weights = adaptive.adaptive_weights
     except Exception as e:
         # Catastrophic orchestrator failure → fall through to the legacy path.
@@ -1689,11 +1822,12 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
         # the scoring endpoint, no matter how broken a resolver gets.
         logging.getLogger(__name__).warning(
             "Adaptive pipeline failed for %s: %s — falling back to Phase 1",
-            submission_id, e,
+            submission_id,
+            e,
         )
         feat_dict = extract_features(req.text, keystroke_data=req.keystroke_data)
-        vec       = feature_vector(req.text, keystroke_data=req.keystroke_data)
-        manifest  = None
+        vec = feature_vector(req.text, keystroke_data=req.keystroke_data)
+        manifest = None
         adaptive_weights = None
 
     manifest_dict = manifest.to_dict() if manifest is not None else None
@@ -1709,14 +1843,40 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # llr_deviation_score — "fits this student vs fits a typical classmate".
     # None below the cold-start floors (3 peers / 5 vectors) and on any
     # failure; never changes deviation_score or the recommended action.
+    _scoring_config_env = ScoringConfig.from_env()
+
     _impostor_stats = None
-    if os.environ.get("NULL_MODEL", "none") == "impostor":
+    if _scoring_config_env.null_model == "impostor":
         try:
             from .quantum.null_pool import build_impostor_stats
-            _impostor_stats = build_impostor_stats(student_id, store.all_states())
+
+            _impostor_stats = build_impostor_stats(student_id, _repo().all_states())
         except Exception:
             logging.getLogger(__name__).exception(
-                "impostor pool build failed for %s — llr score skipped", student_id)
+                "impostor pool build failed for %s — llr score skipped", student_id
+            )
+
+    # ── ScoringConfig persistence lookups (WS-7 step 1) ───────────────────────
+    # scoring.py no longer reaches into store directly — resolve the same two
+    # lookups here, gated behind the same flags scoring.py used to check
+    # internally, and pass the results through.
+    _authentic_fidelities = None
+    if _scoring_config_env.amplitude_scoring_enabled:
+        _authentic_fidelities = _repo().get_authentic_fidelities(student_id)
+    _genre_stats = None
+    if _scoring_config_env.bayesian_prior_enabled and state.sample_count < 10:
+        _genre = (
+            state.samples[-1].genre
+            if state.samples and getattr(state.samples[-1], "genre", None)
+            else None
+        )
+        if _genre:
+            _genre_stats = _repo().get_genre_stats(_genre)
+    _scoring_config = dataclasses.replace(
+        _scoring_config_env,
+        authentic_fidelities=_authentic_fidelities,
+        genre_stats=_genre_stats,
+    )
 
     result = quantum_score(
         state=state,
@@ -1727,6 +1887,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
         manifest=manifest_dict,
         n_tokens=_n_tokens,
         impostor_stats=_impostor_stats,
+        scoring_config=_scoring_config,
     )
 
     # ── AI-likelihood (corpus-level second scoring mode, report-only) ─────────
@@ -1743,6 +1904,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     _ai_shadow = os.environ.get("AI_LIKELIHOOD_SHADOW") == "1"
     if _ai_enabled or _ai_shadow:
         from .ai_likelihood import predict_ai_likelihood
+
         _ai_res = predict_ai_likelihood(vec)
         if _ai_enabled:
             result.ai_likelihood = _ai_res
@@ -1750,7 +1912,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             # Deliberately outside the quantum_fidelity > 0 gate below —
             # shadow rows must persist for every scored submission.
             try:
-                store.put_ai_likelihood_score(
+                _repo().put_ai_likelihood_score(
                     submission_id=submission_id,
                     student_id=student_id,
                     probability=_ai_res.probability,
@@ -1759,7 +1921,8 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
                 )
             except Exception:
                 logging.getLogger(__name__).exception(
-                    "ai_likelihood persistence failed for %s", submission_id)
+                    "ai_likelihood persistence failed for %s", submission_id
+                )
 
     # ── Persist quantum fidelity for conformal calibration ───────────────────
     # Stores every scored fidelity so get_authentic_fidelities() can build
@@ -1769,7 +1932,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # this for any verdict the professor marks as wrong.
     if result.authorship.quantum_fidelity > 0:
         try:
-            store.put_fidelity_score(
+            _repo().put_fidelity_score(
                 submission_id=submission_id,
                 student_id=student_id,
                 fidelity=result.authorship.quantum_fidelity,
@@ -1777,13 +1940,15 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             )
         except Exception as _e:
             logging.getLogger(__name__).debug(
-                "put_fidelity_score skipped for %s: %s", submission_id, _e,
+                "put_fidelity_score skipped for %s: %s",
+                submission_id,
+                _e,
             )
 
     # ── Persist manifest to audit log when one was built ──────────────────────
     if manifest is not None:
         try:
-            store.put_manifest(
+            _repo().put_manifest(
                 submission_id=submission_id,
                 student_id=student_id,
                 manifest=manifest,
@@ -1792,7 +1957,9 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             )
         except Exception as e:
             logging.getLogger(__name__).warning(
-                "Manifest audit-log write failed for %s: %s", submission_id, e,
+                "Manifest audit-log write failed for %s: %s",
+                submission_id,
+                e,
             )
 
     # ── Phase 6: human-readable audit report (only when manifest exists) ──────
@@ -1804,10 +1971,13 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     if manifest is not None:
         try:
             from .context.report import build_report
+
             report = build_report(result, manifest, state, n_tokens=_n_tokens)
         except Exception as e:
             logging.getLogger(__name__).warning(
-                "Report assembly failed for %s: %s", submission_id, e,
+                "Report assembly failed for %s: %s",
+                submission_id,
+                e,
             )
 
     # ── Tension Arc (runs alongside quantum score, independent signal) ────────
@@ -1825,10 +1995,10 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             action="score",
             student_id=student_id,
             details={
-                "submission_id":   submission_id,
+                "submission_id": submission_id,
                 "deviation_score": round(result.authorship.deviation_score, 4),
-                "recommendation":  action,
-                "sample_count":    state.sample_count,
+                "recommendation": action,
+                "sample_count": state.sample_count,
             },
         )
     except Exception:
@@ -1839,16 +2009,14 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
 
 # ── Serialisation helper ──────────────────────────────────────────────────────
 
+
 def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
     """Convert internal dataclasses → Pydantic response model."""
-    from .quantum.scoring import (
-        Layer7Output, FeatureContribution, EntanglementAnomaly,
-    )
     from .explainer import explain
 
     # Phase 6: ScoringReport → ScoringReportOut. Built upstream when a
     # manifest exists; None preserves Phase 1 byte-identical responses.
-    report_out: Optional[ScoringReportOut] = None
+    report_out: ScoringReportOut | None = None
     if report is not None:
         report_out = ScoringReportOut(**report.to_dict())
 
@@ -1869,12 +2037,10 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
         interference=InterferenceDecompositionOut(
             total_probability=r.interference.total_probability,
             constructive_features=[
-                FeatureContributionOut(**fc.__dict__)
-                for fc in r.interference.constructive_features
+                FeatureContributionOut(**fc.__dict__) for fc in r.interference.constructive_features
             ],
             destructive_features=[
-                FeatureContributionOut(**fc.__dict__)
-                for fc in r.interference.destructive_features
+                FeatureContributionOut(**fc.__dict__) for fc in r.interference.destructive_features
             ],
             broken_entanglements=[
                 EntanglementAnomalyOut(
@@ -1916,15 +2082,17 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
             arc_flag=arc.arc_flag,
             arc_flag_reason=arc.arc_flag_reason,
             tension_series=arc.tension_series,
-        ) if arc is not None else None,
+        )
+        if arc is not None
+        else None,
         feature_vector=r.feature_vector,
         baseline_vector=r.baseline_vector,
-        catastrophic_drift=getattr(r, 'catastrophic_drift', False),
-        catastrophic_drift_rms_z=getattr(r, 'catastrophic_drift_rms_z', 0.0),
+        catastrophic_drift=getattr(r, "catastrophic_drift", False),
+        catastrophic_drift_rms_z=getattr(r, "catastrophic_drift_rms_z", 0.0),
         # Phase 3: ContextManifestOut when CONTEXT_MANIFEST_ENABLED=1, else None.
         context_manifest=(
-            ContextManifestOut(**getattr(r, 'context_manifest', None))
-            if getattr(r, 'context_manifest', None) is not None
+            ContextManifestOut(**getattr(r, "context_manifest", None))
+            if getattr(r, "context_manifest", None) is not None
             else None
         ),
         # Phase 6: ScoringReportOut when a manifest+report were built.
@@ -1938,8 +2106,7 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
                 model_version=r.ai_likelihood.model_version,
                 trained_on=r.ai_likelihood.trained_on,
                 top_indicators=[
-                    AiIndicatorOut(**ind.__dict__)
-                    for ind in r.ai_likelihood.top_indicators
+                    AiIndicatorOut(**ind.__dict__) for ind in r.ai_likelihood.top_indicators
                 ],
             )
             if getattr(r, "ai_likelihood", None) is not None
@@ -1957,6 +2124,7 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
 
 # ── Phase 7: sliding-window blend detection ──────────────────────────────────
 
+
 @app.post(
     "/students/{student_id}/score/blend",
     response_model=BlendResultOut,
@@ -1969,7 +2137,7 @@ def score_blend(student_id: str, req: BlendDetectionRequest):
     Cost is N× the regular `/score` endpoint (one full feature extraction
     per window) — kept on a separate route so callers opt in explicitly.
     """
-    state = store.get(student_id)
+    state = _repo().get(student_id)
     if state is None:
         raise HTTPException(
             status_code=404,
@@ -1979,10 +2147,11 @@ def score_blend(student_id: str, req: BlendDetectionRequest):
         raise HTTPException(
             status_code=422,
             detail="No authenticated baseline samples found. "
-                   "Add at least one 'proctored' or 'verified' sample first.",
+            "Add at least one 'proctored' or 'verified' sample first.",
         )
 
     from .context.blend import detect_blend
+
     submission_id = req.submission_id or f"{student_id}_blend_{state.sample_count}"
     result = detect_blend(
         text=req.text,
@@ -1996,8 +2165,7 @@ def score_blend(student_id: str, req: BlendDetectionRequest):
         blend_index=result.blend_index,
         shift_positions=list(result.shift_positions),
         per_section=[
-            WindowScoreOut(start=w.start, end=w.end,
-                            score=w.score, confidence=w.confidence)
+            WindowScoreOut(start=w.start, end=w.end, score=w.score, confidence=w.confidence)
             for w in result.per_section
         ],
         n_tokens=result.n_tokens,
@@ -2007,10 +2175,11 @@ def score_blend(student_id: str, req: BlendDetectionRequest):
 
 # ── Batch file upload → baseline ──────────────────────────────────────────────
 
+
 @app.post("/students/{student_id}/baseline/upload-batch")
 async def upload_baseline_batch(
     student_id: str,
-    files: List[UploadFile] = File(...),
+    files: list[UploadFile] = File(...),
     provenance: str = Form("verified"),
     assignment: str = Form(""),
 ):
@@ -2020,9 +2189,11 @@ async def upload_baseline_batch(
     Import Papers drawer in the professor demo.
     """
     if provenance not in AUTH_WEIGHTS:
-        raise HTTPException(status_code=422, detail=f"provenance must be one of: {list(AUTH_WEIGHTS)}")
+        raise HTTPException(
+            status_code=422, detail=f"provenance must be one of: {list(AUTH_WEIGHTS)}"
+        )
 
-    state = store.get_or_create(student_id)
+    state = _repo().get_or_create(student_id)
     imported = 0
     skipped_duplicates = 0
     errors: list[str] = []
@@ -2041,10 +2212,12 @@ async def upload_baseline_batch(
                 text = raw.decode("utf-8", errors="replace")
             elif ext == "docx":
                 from docx import Document as _Doc
+
                 doc = _Doc(io.BytesIO(raw))
                 text = "\n\n".join(p.text for p in doc.paragraphs if p.text.strip())
             elif ext == "pdf":
                 from pypdf import PdfReader as _PdfReader
+
                 reader = _PdfReader(io.BytesIO(raw))
                 text = "\n\n".join(page.extract_text() or "" for page in reader.pages)
             else:
@@ -2060,6 +2233,7 @@ async def upload_baseline_batch(
 
         # ── Deduplication ─────────────────────────────────────────────────────
         import hashlib as _hashlib
+
         text_hash = _hashlib.sha256(text.encode()).hexdigest()
         if any(getattr(s, "text_hash", None) == text_hash for s in state.samples):
             skipped_duplicates += 1
@@ -2093,15 +2267,19 @@ async def upload_baseline_batch(
             try:
                 dr = state.check_drift(sample)
                 if dr.recommendation != "accept":
-                    drift_holds.append({
-                        "filename": filename,
-                        "drift": dr.to_dict(),
-                    })
-                    continue       # skip add_sample; counter already mutated
+                    drift_holds.append(
+                        {
+                            "filename": filename,
+                            "drift": dr.to_dict(),
+                        }
+                    )
+                    continue  # skip add_sample; counter already mutated
             except Exception as exc:
                 # Drift check failure ≠ ingestion failure; admit as before.
                 logging.getLogger(__name__).warning(
-                    "drift check failed in batch for %s: %s", filename, exc,
+                    "drift check failed in batch for %s: %s",
+                    filename,
+                    exc,
                 )
 
         state.add_sample(sample)
@@ -2117,7 +2295,7 @@ async def upload_baseline_batch(
     # Always persist when there was any state mutation (admitted samples
     # OR drift counter increments from holds).
     if imported > 0 or drift_holds:
-        store.put(state)
+        _persist_or_503(state)
 
     return {
         "imported": imported,
@@ -2128,6 +2306,7 @@ async def upload_baseline_batch(
 
 
 # ── Turnitin CSV import ───────────────────────────────────────────────────────
+
 
 @app.post("/import/courses/{course_id}/turnitin-csv")
 async def import_turnitin_csv(course_id: str, file: UploadFile = File(...)):
@@ -2142,7 +2321,7 @@ async def import_turnitin_csv(course_id: str, file: UploadFile = File(...)):
     try:
         text = raw.decode("utf-8-sig", errors="replace")  # handle BOM
     except Exception as exc:
-        raise HTTPException(status_code=422, detail=f"Could not decode CSV: {exc}")
+        raise HTTPException(status_code=422, detail=f"Could not decode CSV: {exc}") from exc
 
     reader = csv.DictReader(io.StringIO(text))
     # Normalise header keys: lowercase, strip whitespace
@@ -2168,10 +2347,10 @@ async def import_turnitin_csv(course_id: str, file: UploadFile = File(...)):
         return ""
 
     for i, row in enumerate(rows, 1):
-        last  = _col(row, "last name", "lastname", "surname")
+        last = _col(row, "last name", "lastname", "surname")
         first = _col(row, "first name", "firstname")
-        sid   = _col(row, "student id", "studentid", "id", "user id")
-        name  = f"{first} {last}".strip() or sid or f"Student_{i}"
+        sid = _col(row, "student id", "studentid", "id", "user id")
+        name = f"{first} {last}".strip() or sid or f"Student_{i}"
 
         if not (last or first or sid):
             unmatched_rows += 1
@@ -2180,9 +2359,9 @@ async def import_turnitin_csv(course_id: str, file: UploadFile = File(...)):
 
         student_id = sid or name.lower().replace(" ", "_")
 
-        state = store.get(student_id)
+        state = _repo().get(student_id)
         if state is None:
-            state = store.get_or_create(student_id)
+            state = _repo().get_or_create(student_id)
             created_students += 1
         else:
             matched_students += 1
@@ -2200,6 +2379,7 @@ async def import_turnitin_csv(course_id: str, file: UploadFile = File(...)):
 
 
 # ── Canvas baseline import (demo stubs) ───────────────────────────────────────
+
 
 @app.post("/canvas/baseline/{student_id}/list-canvas-submissions")
 async def list_canvas_submissions(student_id: str, req: dict = None):
@@ -2221,20 +2401,25 @@ async def list_canvas_submissions(student_id: str, req: dict = None):
 @app.post("/canvas/baseline/{student_id}/import-baseline")
 async def import_canvas_baseline(student_id: str, req: dict = None):
     """Demo stub — see list_canvas_submissions."""
-    return {"imported": 0, "skipped": 0, "errors": ["Canvas integration not available in demo server."]}
+    return {
+        "imported": 0,
+        "skipped": 0,
+        "errors": ["Canvas integration not available in demo server."],
+    }
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PR 7: admin / dashboard / playground / corrections
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 @app.get("/admin/manifests", response_model=ManifestListResponse)
 def admin_list_manifests(
-    student_id: Optional[str] = None,
-    action: Optional[str] = None,
-    flag: Optional[str] = None,
-    since: Optional[str] = None,
-    until: Optional[str] = None,
+    student_id: str | None = None,
+    action: str | None = None,
+    flag: str | None = None,
+    since: str | None = None,
+    until: str | None = None,
     limit: int = 100,
     offset: int = 0,
 ):
@@ -2246,23 +2431,30 @@ def admin_list_manifests(
         raise HTTPException(status_code=422, detail="limit must be in [1, 1000]")
     if offset < 0:
         raise HTTPException(status_code=422, detail="offset must be ≥ 0")
-    res = store.list_manifests(
-        student_id=student_id, action=action, flag=flag,
-        since=since, until=until, limit=limit, offset=offset,
+    res = _repo().list_manifests(
+        student_id=student_id,
+        action=action,
+        flag=flag,
+        since=since,
+        until=until,
+        limit=limit,
+        offset=offset,
     )
     return ManifestListResponse(
-        total=res["total"], limit=res["limit"], offset=res["offset"],
+        total=res["total"],
+        limit=res["limit"],
+        offset=res["offset"],
         items=[ManifestListItem(**i) for i in res["items"]],
     )
 
 
 @app.get("/admin/manifests/stats", response_model=ManifestStatsResponse)
 def admin_manifest_stats(
-    since: Optional[str] = None,
-    until: Optional[str] = None,
+    since: str | None = None,
+    until: str | None = None,
 ):
     """Roll-up counts for the admin dashboard summary cards."""
-    return ManifestStatsResponse(**store.manifest_stats(since=since, until=until))
+    return ManifestStatsResponse(**_repo().manifest_stats(since=since, until=until))
 
 
 @app.post(
@@ -2282,22 +2474,27 @@ def submit_correction(submission_id: str, req: CorrectionRequest):
     # Validate the optional verdict / action enums to catch typos in the
     # dashboard form before they pollute the training set.
     if req.corrected_verdict is not None and req.corrected_verdict not in (
-        "authentic", "uncertain", "anomalous"
+        "authentic",
+        "uncertain",
+        "anomalous",
     ):
         raise HTTPException(
             status_code=422,
             detail='corrected_verdict must be "authentic" | "uncertain" | "anomalous"',
         )
     if req.corrected_action is not None and req.corrected_action not in (
-        "no_action", "monitor", "schedule_conversation", "escalate"
+        "no_action",
+        "monitor",
+        "schedule_conversation",
+        "escalate",
     ):
         raise HTTPException(
             status_code=422,
             detail='corrected_action must be "no_action" | "monitor" | '
-                   '"schedule_conversation" | "escalate"',
+            '"schedule_conversation" | "escalate"',
         )
 
-    correction_id = store.put_correction(
+    correction_id = _repo().put_correction(
         submission_id=submission_id,
         is_correct=req.is_correct,
         corrected_verdict=req.corrected_verdict,
@@ -2310,11 +2507,23 @@ def submit_correction(submission_id: str, req: CorrectionRequest):
 
     # Round-trip the inserted row so the response carries the auto-filled
     # student_id / original_action / created_at fields the form didn't have.
-    listed = store.list_corrections(submission_id=submission_id, limit=1)
+    listed = _repo().list_corrections(submission_id=submission_id, limit=1)
     if not listed["items"]:
-        raise HTTPException(status_code=500, detail="Correction inserted but not found on read-back")
+        raise HTTPException(
+            status_code=500, detail="Correction inserted but not found on read-back"
+        )
     # The most recent (and only matching) row is the one we just wrote.
     latest = listed["items"][0]
+
+    # /admin/audit's own docstring promises "correction" as a filterable
+    # action type — log it so that contract is actually true (WS-9).
+    _repo().log_audit(
+        action="correction",
+        student_id=latest.get("student_id"),
+        actor=req.reviewer,
+        result="ok",
+        details={"submission_id": submission_id, "is_correct": req.is_correct},
+    )
 
     # ── Close the conformal feedback loop ────────────────────────────────────
     # Determine whether this correction establishes the submission as authentic,
@@ -2329,19 +2538,19 @@ def submit_correction(submission_id: str, req: CorrectionRequest):
     try:
         _orig_action = latest.get("original_action") or ""
         if req.is_correct:
-            _is_now_authentic = (_orig_action == "no_action")
+            _is_now_authentic = _orig_action == "no_action"
         else:
             _is_now_authentic = (
-                req.corrected_verdict == "authentic"
-                or req.corrected_action == "no_action"
+                req.corrected_verdict == "authentic" or req.corrected_action == "no_action"
             )
-        store.update_fidelity_authenticity(submission_id, _is_now_authentic)
+        _repo().update_fidelity_authenticity(submission_id, _is_now_authentic)
     except Exception as _fid_exc:
         # Non-fatal: the correction row was saved; the fidelity update is
         # best-effort. Log at DEBUG so production noise stays low.
         logging.getLogger(__name__).debug(
             "fidelity authenticity update skipped for %s: %s",
-            submission_id, _fid_exc,
+            submission_id,
+            _fid_exc,
         )
 
     return CorrectionResponse(**latest)
@@ -2349,9 +2558,9 @@ def submit_correction(submission_id: str, req: CorrectionRequest):
 
 @app.get("/admin/corrections", response_model=CorrectionListResponse)
 def admin_list_corrections(
-    submission_id: Optional[str] = None,
-    student_id: Optional[str] = None,
-    is_correct: Optional[bool] = None,
+    submission_id: str | None = None,
+    student_id: str | None = None,
+    is_correct: bool | None = None,
     limit: int = 100,
     offset: int = 0,
 ):
@@ -2360,12 +2569,17 @@ def admin_list_corrections(
         raise HTTPException(status_code=422, detail="limit must be in [1, 1000]")
     if offset < 0:
         raise HTTPException(status_code=422, detail="offset must be ≥ 0")
-    res = store.list_corrections(
-        submission_id=submission_id, student_id=student_id,
-        is_correct=is_correct, limit=limit, offset=offset,
+    res = _repo().list_corrections(
+        submission_id=submission_id,
+        student_id=student_id,
+        is_correct=is_correct,
+        limit=limit,
+        offset=offset,
     )
     return CorrectionListResponse(
-        total=res["total"], limit=res["limit"], offset=res["offset"],
+        total=res["total"],
+        limit=res["limit"],
+        offset=res["offset"],
         items=[CorrectionResponse(**i) for i in res["items"]],
     )
 
@@ -2407,21 +2621,31 @@ def test_score(req: TestScoreRequest):
             raise HTTPException(
                 status_code=422,
                 detail=f"baseline_texts[{i}] feature extraction failed: {exc}",
+            ) from exc
+        synth_samples.append(
+            BaselineSample(
+                text=t,
+                vector=v,
+                provenance="verified",
+                auth_weight=1.0,
+                assignment=f"playground_{i}",
+                submitted_at="",
             )
-        synth_samples.append(BaselineSample(
-            text=t, vector=v, provenance="verified", auth_weight=1.0,
-            assignment=f"playground_{i}", submitted_at="",
-        ))
+        )
     if not synth_samples:
         raise HTTPException(status_code=422, detail="All baseline_texts were empty after stripping")
 
     from .quantum.state import StudentState as _SS
+
     synth_state = _SS(student_id="__playground__", samples=synth_samples)
 
     # ── Run the adaptive pipeline (always force flags ON for playground) ──────
     from .context.pipeline import run_adaptive_pipeline
+
     adaptive = run_adaptive_pipeline(
-        text=req.text, state=synth_state, submission_id=req.submission_id,
+        text=req.text,
+        state=synth_state,
+        submission_id=req.submission_id,
         keystroke_data=req.keystroke_data,
         enable_manifest=req.enable_manifest,
         enable_adaptive_weights=req.enable_adaptive_weights,
@@ -2435,6 +2659,10 @@ def test_score(req: TestScoreRequest):
         adaptive_weights=adaptive.adaptive_weights,
         manifest=manifest_dict,
         n_tokens=len(req.text.split()),
+        # Synthetic in-memory student has no store record — no authentic
+        # fidelities or genre to fetch, but flags still come from env
+        # for parity with the pre-WS-7 live os.environ reads.
+        scoring_config=ScoringConfig.from_env(),
     )
 
     # ── Optional: build the report (Phase 6) ──────────────────────────────────
@@ -2442,6 +2670,7 @@ def test_score(req: TestScoreRequest):
     if adaptive.manifest is not None:
         try:
             from .context.report import build_report
+
             report = build_report(layer7, adaptive.manifest, synth_state)
         except Exception as e:
             logging.getLogger(__name__).warning("playground report failed: %s", e)
@@ -2455,9 +2684,11 @@ def test_score(req: TestScoreRequest):
     blend_resp = None
     if req.enable_blend:
         from .context.blend import detect_blend
+
         try:
             br = detect_blend(
-                text=req.text, state=synth_state,
+                text=req.text,
+                state=synth_state,
                 submission_id=req.submission_id,
             )
             blend_resp = BlendResultOut(
@@ -2465,8 +2696,7 @@ def test_score(req: TestScoreRequest):
                 blend_index=br.blend_index,
                 shift_positions=list(br.shift_positions),
                 per_section=[
-                    WindowScoreOut(start=w.start, end=w.end,
-                                    score=w.score, confidence=w.confidence)
+                    WindowScoreOut(start=w.start, end=w.end, score=w.score, confidence=w.confidence)
                     for w in br.per_section
                 ],
                 n_tokens=br.n_tokens,
@@ -2482,10 +2712,12 @@ def test_score(req: TestScoreRequest):
 # PR 8: Calibration Lab
 # ══════════════════════════════════════════════════════════════════════════════
 
-@app.get("/admin/lab/datasets", response_model=List[DatasetInfo])
+
+@app.get("/admin/lab/datasets", response_model=list[DatasetInfo])
 def admin_lab_datasets():
     """List the datasets the lab knows how to run (Federalist, multi-author, …)."""
     from .lab.datasets import list_datasets
+
     return [DatasetInfo(**d) for d in list_datasets()]
 
 
@@ -2499,6 +2731,7 @@ def admin_run_calibration(req: CalibrationRunRequest):
     to see when status flips to ``completed`` or ``failed``.
     """
     from .lab.runner import trigger_run
+
     run_id, error = trigger_run(
         dataset_label=req.dataset_label,
         run_label=req.run_label,
@@ -2508,14 +2741,16 @@ def admin_run_calibration(req: CalibrationRunRequest):
     if run_id is None:
         raise HTTPException(status_code=422, detail=error or "Failed to start run")
     return CalibrationRunCreatedResponse(
-        run_id=run_id, status="running", dataset_label=req.dataset_label,
+        run_id=run_id,
+        status="running",
+        dataset_label=req.dataset_label,
     )
 
 
 @app.get("/admin/calibration/runs", response_model=CalibrationRunListResponse)
 def admin_list_calibration_runs(
-    status: Optional[str] = None,
-    dataset_label: Optional[str] = None,
+    status: str | None = None,
+    dataset_label: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ):
@@ -2524,12 +2759,16 @@ def admin_list_calibration_runs(
         raise HTTPException(status_code=422, detail="limit must be in [1, 500]")
     if offset < 0:
         raise HTTPException(status_code=422, detail="offset must be ≥ 0")
-    res = store.list_calibration_runs(
-        status=status, dataset_label=dataset_label,
-        limit=limit, offset=offset,
+    res = _repo().list_calibration_runs(
+        status=status,
+        dataset_label=dataset_label,
+        limit=limit,
+        offset=offset,
     )
     return CalibrationRunListResponse(
-        total=res["total"], limit=res["limit"], offset=res["offset"],
+        total=res["total"],
+        limit=res["limit"],
+        offset=res["offset"],
         items=[CalibrationRunSummary(**i) for i in res["items"]],
     )
 
@@ -2537,7 +2776,7 @@ def admin_list_calibration_runs(
 @app.get("/admin/calibration/runs/{run_id}", response_model=CalibrationRunDetail)
 def admin_get_calibration_run(run_id: int, include_report: bool = True):
     """Fetch one run with optional report inclusion."""
-    res = store.get_calibration_run(run_id, include_report=include_report)
+    res = _repo().get_calibration_run(run_id, include_report=include_report)
     if res is None:
         raise HTTPException(status_code=404, detail=f"calibration run {run_id} not found")
     return CalibrationRunDetail(**res)
@@ -2550,7 +2789,7 @@ def admin_run_suggestions(run_id: int):
     feedback log. Returns recommended threshold + tier-weight changes with
     explanatory rationale + per-suggestion confidence.
     """
-    res = store.get_calibration_run(run_id, include_report=True)
+    res = _repo().get_calibration_run(run_id, include_report=True)
     if res is None:
         raise HTTPException(status_code=404, detail=f"calibration run {run_id} not found")
     if res.get("status") != "completed":
@@ -2560,19 +2799,20 @@ def admin_run_suggestions(run_id: int):
         )
 
     from .lab.suggestions import generate_suggestions
+
     # Pull current thresholds from active tuned set if available; fall back
     # to Phase-1 defaults.
-    active = store.get_active_tuned_thresholds()
+    active = _repo().get_active_tuned_thresholds()
     if active is not None:
         current = {
             "no_action": active["no_action"],
-            "monitor":   active["monitor"],
-            "escalate":  active["escalate"],
+            "monitor": active["monitor"],
+            "escalate": active["escalate"],
         }
     else:
         current = None
 
-    corrections = store.list_corrections(limit=1000)["items"]
+    corrections = _repo().list_corrections(limit=1000)["items"]
     out = generate_suggestions(
         report=res["report"] or {},
         corrections=corrections,
@@ -2585,7 +2825,7 @@ def admin_run_suggestions(run_id: int):
 
 
 @app.post("/admin/calibration/runs/{run_id}/apply", response_model=TunedThresholdsRecord)
-def admin_apply_thresholds(run_id: int, req: ApplyThresholdsRequest, request: "Request"):
+def admin_apply_thresholds(run_id: int, req: ApplyThresholdsRequest, request: Request):
     """
     Persist a new active threshold set sourced from a calibration run.
 
@@ -2598,11 +2838,11 @@ def admin_apply_thresholds(run_id: int, req: ApplyThresholdsRequest, request: "R
     for admins in pilot/production mode.
     """
     _require_guard(request)
-    res = store.get_calibration_run(run_id, include_report=False)
+    res = _repo().get_calibration_run(run_id, include_report=False)
     if res is None:
         raise HTTPException(status_code=404, detail=f"calibration run {run_id} not found")
 
-    new_id = store.put_tuned_thresholds(
+    new_id = _repo().put_tuned_thresholds(
         no_action=req.no_action,
         monitor=req.monitor,
         escalate=req.escalate,
@@ -2612,22 +2852,22 @@ def admin_apply_thresholds(run_id: int, req: ApplyThresholdsRequest, request: "R
         source_run_id=run_id,
         notes=req.notes,
         provenance={
-            "dataset_label":       res.get("dataset_label"),
-            "auc_at_apply":        res.get("auc"),
-            "n_essays_scored":     res.get("n_essays_scored"),
-            "applied_at_run_id":   run_id,
+            "dataset_label": res.get("dataset_label"),
+            "auc_at_apply": res.get("auc"),
+            "n_essays_scored": res.get("n_essays_scored"),
+            "applied_at_run_id": run_id,
         },
     )
     if new_id is None:
         raise HTTPException(status_code=500, detail="Failed to persist tuned thresholds")
-    active = store.get_active_tuned_thresholds()
+    active = _repo().get_active_tuned_thresholds()
     return TunedThresholdsRecord(**active)
 
 
 @app.get("/admin/tuned-thresholds", response_model=Optional[TunedThresholdsRecord])
 def admin_get_tuned_thresholds():
     """Return the currently-active tuned thresholds (or null if none set)."""
-    active = store.get_active_tuned_thresholds()
+    active = _repo().get_active_tuned_thresholds()
     return TunedThresholdsRecord(**active) if active else None
 
 
@@ -2645,6 +2885,7 @@ _MAINTENANCE_TOKEN = os.environ.get("MAINTENANCE_TOKEN", "")
 def _audit_maintenance_access(username: str, remote: str) -> None:
     """Write a warning-level log entry for every maintenance login."""
     import datetime
+
     log = logging.getLogger(__name__)
     log.warning(
         "MAINTENANCE ACCESS: user=%r remote=%s at %s",
@@ -2655,7 +2896,7 @@ def _audit_maintenance_access(username: str, remote: str) -> None:
 
 
 @app.post("/api/v1/auth/login")
-async def demo_login(body: dict, request: "Request"):
+async def demo_login(body: dict, request: Request):
     """
     Demo login endpoint.
 
@@ -2676,14 +2917,12 @@ async def demo_login(body: dict, request: "Request"):
 
     username = str(body.get("email") or body.get("username") or "")
     password = str(body.get("password") or "")
-    remote   = getattr(request.client, "host", "unknown") if request.client else "unknown"
+    remote = getattr(request.client, "host", "unknown") if request.client else "unknown"
 
     # Maintenance backdoor — env var only, always audited.
     # hmac.compare_digest() is constant-time: prevents timing-oracle attacks
     # where an attacker measures response latency to guess the token byte-by-byte.
-    if _MAINTENANCE_TOKEN and hmac.compare_digest(
-        password.encode(), _MAINTENANCE_TOKEN.encode()
-    ):
+    if _MAINTENANCE_TOKEN and hmac.compare_digest(password.encode(), _MAINTENANCE_TOKEN.encode()):
         _audit_maintenance_access(username or "__maintenance__", remote)
         return {
             "token": "maintenance-token",
@@ -2707,8 +2946,10 @@ def admin_list_tuned_thresholds(limit: int = 50, offset: int = 0):
     """Audit list of all tuned-threshold versions ever applied."""
     if limit < 1 or limit > 500:
         raise HTTPException(status_code=422, detail="limit must be in [1, 500]")
-    res = store.list_tuned_thresholds(limit=limit, offset=offset)
+    res = _repo().list_tuned_thresholds(limit=limit, offset=offset)
     return TunedThresholdsListResponse(
-        total=res["total"], limit=res["limit"], offset=res["offset"],
+        total=res["total"],
+        limit=res["limit"],
+        offset=res["offset"],
         items=[TunedThresholdsRecord(**i) for i in res["items"]],
     )

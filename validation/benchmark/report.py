@@ -33,6 +33,7 @@ from typing import Dict, List, Optional
 
 # ── Paths the runner cares about ─────────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class ReportPaths:
     root: Path
@@ -67,14 +68,15 @@ def paths_for(dataset_label: str, base: str = "validation/benchmarks") -> Report
 
 # ── Main writer ───────────────────────────────────────────────────────────────
 
+
 def write_report(
     paths: ReportPaths,
     *,
     dataset_label: str,
-    env_lock: object,            # _EnvLockReport from reproducibility.py
-    calibration_report,          # CalibrationReport from validation.calibration
-    metrics: dict,               # metrics_dict() output
-    ablation: Optional[list] = None,        # List[TierAblationResult] or None
+    env_lock: object,  # _EnvLockReport from reproducibility.py
+    calibration_report,  # CalibrationReport from validation.calibration
+    metrics: dict,  # metrics_dict() output
+    ablation: Optional[list] = None,  # List[TierAblationResult] or None
     bias_slices: Optional[Dict[str, list]] = None,  # field name → List[BiasSlice]
     extra: Optional[dict] = None,
 ) -> ReportPaths:
@@ -131,6 +133,7 @@ def write_report(
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
+
 def _env_lock_to_dict(env_lock) -> dict:
     if env_lock is None:
         return {}
@@ -171,24 +174,60 @@ def _json_default(o):
 def _write_ablation_csv(path: Path, ablation: list) -> None:
     with open(path, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["tier", "n_features_zeroed", "baseline_auc",
-                    "ablated_auc", "delta_auc", "baseline_brier",
-                    "ablated_brier", "delta_brier"])
+        w.writerow(
+            [
+                "tier",
+                "n_features_zeroed",
+                "baseline_auc",
+                "ablated_auc",
+                "delta_auc",
+                "baseline_brier",
+                "ablated_brier",
+                "delta_brier",
+            ]
+        )
         for r in ablation:
-            w.writerow([r.tier, r.n_features_zeroed, r.baseline_auc,
-                        r.ablated_auc, r.delta_auc, r.baseline_brier,
-                        r.ablated_brier, r.delta_brier])
+            w.writerow(
+                [
+                    r.tier,
+                    r.n_features_zeroed,
+                    r.baseline_auc,
+                    r.ablated_auc,
+                    r.delta_auc,
+                    r.baseline_brier,
+                    r.ablated_brier,
+                    r.delta_brier,
+                ]
+            )
 
 
 def _write_bias_csv(path: Path, bias_slices: Dict[str, list]) -> None:
     with open(path, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["field", "value", "count", "mean_deviation",
-                    "std_deviation", "auc_in_group", "false_positive_rate"])
+        w.writerow(
+            [
+                "field",
+                "value",
+                "count",
+                "mean_deviation",
+                "std_deviation",
+                "auc_in_group",
+                "false_positive_rate",
+            ]
+        )
         for field, slices in bias_slices.items():
             for s in slices:
-                w.writerow([s.field, s.value, s.count, s.mean_deviation,
-                            s.std_deviation, s.auc_in_group, s.false_positive_rate])
+                w.writerow(
+                    [
+                        s.field,
+                        s.value,
+                        s.count,
+                        s.mean_deviation,
+                        s.std_deviation,
+                        s.auc_in_group,
+                        s.false_positive_rate,
+                    ]
+                )
 
 
 def _render_markdown(j: dict) -> str:
@@ -203,7 +242,9 @@ def _render_markdown(j: dict) -> str:
     lines.append("## Summary")
     lines.append("")
     lines.append(f"- **AUC**: {s['auc']}")
-    lines.append(f"- **Brier**: {m.get('brier', 'n/a'):.4f}" if "brier" in m else "- **Brier**: n/a")
+    lines.append(
+        f"- **Brier**: {m.get('brier', 'n/a'):.4f}" if "brier" in m else "- **Brier**: n/a"
+    )
     lines.append(f"- **Authors**: {s['total_authors']}")
     lines.append(f"- **Essays scored**: {s['total_essays_scored']}")
     lines.append(f"- **Baseline samples**: {s['total_baseline_samples']}")
@@ -214,7 +255,9 @@ def _render_markdown(j: dict) -> str:
     lines.append("| label | n | mean | std |")
     lines.append("|---|---|---|---|")
     for label, st in sorted((j.get("per_label_stats") or {}).items()):
-        lines.append(f"| {label} | {st['count']} | {st['mean_deviation']} | {st['std_deviation']} |")
+        lines.append(
+            f"| {label} | {st['count']} | {st['mean_deviation']} | {st['std_deviation']} |"
+        )
     lines.append("")
     if m.get("threshold_metrics"):
         lines.append("## Action-threshold metrics")
@@ -241,7 +284,9 @@ def _render_markdown(j: dict) -> str:
     if j.get("ablation"):
         lines.append("## Per-tier ablation")
         lines.append("")
-        lines.append("Each row: zero out that tier's features → re-score → compare AUC + Brier vs the baseline run.")
+        lines.append(
+            "Each row: zero out that tier's features → re-score → compare AUC + Brier vs the baseline run."
+        )
         lines.append("")
         lines.append("| tier | n features | baseline AUC | ablated AUC | ΔAUC | ΔBrier |")
         lines.append("|---|---|---|---|---|---|")
@@ -271,15 +316,18 @@ def _render_markdown(j: dict) -> str:
 def _write_roc_svg(path: Path, roc_points) -> None:
     """Plot the ROC curve. Skips silently if matplotlib isn't installed."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+
     fig, ax = plt.subplots(figsize=(4.2, 4.2))
     if roc_points:
         xs = [p[0] for p in roc_points]
         ys = [p[1] for p in roc_points]
         ax.plot(xs, ys, color="#002147", linewidth=1.5, label="ROC")
     ax.plot([0, 1], [0, 1], color="#888", linestyle="--", linewidth=0.8, label="chance")
-    ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
     ax.set_xlabel("False positive rate")
     ax.set_ylabel("True positive rate")
     ax.set_title("ROC curve")
@@ -293,8 +341,10 @@ def _write_roc_svg(path: Path, roc_points) -> None:
 def _write_calibration_svg(path: Path, bins: list) -> None:
     """Plot the calibration curve (reliability diagram)."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+
     fig, ax = plt.subplots(figsize=(4.2, 4.2))
     ax.plot([0, 1], [0, 1], color="#888", linestyle="--", linewidth=0.8, label="perfect")
     if bins:
@@ -304,7 +354,8 @@ def _write_calibration_svg(path: Path, bins: list) -> None:
         ax.scatter(x, y, s=sizes, color="#002147", alpha=0.85, label="bin")
         # Connect points with a thin line for the eye.
         ax.plot(x, y, color="#002147", linewidth=0.7, alpha=0.5)
-    ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
     ax.set_xlabel("Mean predicted probability")
     ax.set_ylabel("Observed fraction of positives")
     ax.set_title("Calibration curve")

@@ -48,14 +48,13 @@ from __future__ import annotations
 
 import math
 from collections import Counter
-from typing import Dict
 
 from .preprocess import CitationData
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Feature extractors
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def signal_verb_entropy(cd: CitationData) -> float:
     """
@@ -134,7 +133,7 @@ def citation_density_cv(cd: CitationData) -> float:
     if mean < 1e-9:
         return 0.0  # no citations at all
     variance = sum((c - mean) ** 2 for c in counts) / n
-    std = variance ** 0.5
+    std = variance**0.5
     return std / mean
 
 
@@ -182,7 +181,8 @@ def paraphrase_density(cd: CitationData) -> float:
 # Public extractor
 # ══════════════════════════════════════════════════════════════════════════════
 
-def extract_tier16(cd: CitationData) -> Dict[str, float]:
+
+def extract_tier16(cd: CitationData) -> dict[str, float]:
     """
     Compute all 8 Tier 16 citation fingerprint features from a CitationData.
 
@@ -190,12 +190,12 @@ def extract_tier16(cd: CitationData) -> Dict[str, float]:
     applied by pipeline.py via NORM_BOUNDS.
     """
     return {
-        "signal_verb_entropy":       signal_verb_entropy(cd),
+        "signal_verb_entropy": signal_verb_entropy(cd),
         "signal_verb_assertiveness": signal_verb_assertiveness(cd),
-        "source_loyalty_index":      source_loyalty_index(cd),
-        "block_quote_rate":          block_quote_rate(cd),
-        "citation_density_cv":       citation_density_cv(cd),
-        "ibid_usage_rate":           ibid_usage_rate(cd),
-        "citation_position_pref":    citation_position_pref(cd),
-        "paraphrase_density":        paraphrase_density(cd),
+        "source_loyalty_index": source_loyalty_index(cd),
+        "block_quote_rate": block_quote_rate(cd),
+        "citation_density_cv": citation_density_cv(cd),
+        "ibid_usage_rate": ibid_usage_rate(cd),
+        "citation_position_pref": citation_position_pref(cd),
+        "paraphrase_density": paraphrase_density(cd),
     }

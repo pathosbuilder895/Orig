@@ -66,7 +66,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import math
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -77,6 +77,7 @@ if TYPE_CHECKING:
 
 
 # ── Amplitude encoding ────────────────────────────────────────────────────────
+
 
 def encode_amplitudes(
     z: np.ndarray,
@@ -122,8 +123,9 @@ def encode_amplitudes(
 
 # ── Superposition baseline ────────────────────────────────────────────────────
 
+
 def build_superposition_baseline(
-    samples: "List[BaselineSample]",
+    samples: list[BaselineSample],
     weight_vec: np.ndarray,
     active: np.ndarray,
     baseline_mean: np.ndarray,
@@ -173,6 +175,7 @@ def build_superposition_baseline(
 
 # ── Quantum fidelity ──────────────────────────────────────────────────────────
 
+
 def quantum_fidelity(
     psi_b: np.ndarray,
     psi_s: np.ndarray,
@@ -209,6 +212,7 @@ def quantum_fidelity(
 
 # ── Keyed random unitary projection ──────────────────────────────────────────
 
+
 def keyed_unitary(
     secret_key: str,
     student_id: str,
@@ -239,7 +243,7 @@ def keyed_unitary(
     -------
     U : complex128, shape (dim, dim), unitary
     """
-    message = f"{student_id}|{submission_id}".encode("utf-8")
+    message = f"{student_id}|{submission_id}".encode()
     digest = hmac.new(
         secret_key.encode("utf-8"),
         message,
@@ -250,10 +254,7 @@ def keyed_unitary(
     rng = np.random.default_rng(seed_int)
 
     # Complex Gaussian random matrix: G = A + iB, A,B ~ N(0,1)
-    G = (
-        rng.standard_normal((dim, dim))
-        + 1j * rng.standard_normal((dim, dim))
-    )
+    G = rng.standard_normal((dim, dim)) + 1j * rng.standard_normal((dim, dim))
     Q, _ = np.linalg.qr(G)
     return Q.astype(np.complex128)
 
@@ -264,7 +265,7 @@ def apply_keyed_projection(
     secret_key: str,
     student_id: str,
     submission_id: str,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Apply a keyed random unitary to both amplitude vectors.
 
@@ -281,6 +282,7 @@ def apply_keyed_projection(
 
 
 # ── Von Neumann entropy ───────────────────────────────────────────────────────
+
 
 def von_neumann_entropy(rho: np.ndarray) -> float:
     """
@@ -309,11 +311,12 @@ def von_neumann_entropy(rho: np.ndarray) -> float:
 
 # ── 3-way interference decomposition ─────────────────────────────────────────
 
+
 def interference_components(
     psi_b: np.ndarray,
     psi_s: np.ndarray,
-    feature_codes: Optional[List[str]] = None,
-) -> Dict[str, List[Tuple[str, float]]]:
+    feature_codes: list[str] | None = None,
+) -> dict[str, list[tuple[str, float]]]:
     """
     Decompose the inner product ⟨ψ_b|ψ_s⟩ into per-feature contributions.
 
@@ -340,8 +343,8 @@ def interference_components(
     if feature_codes is None:
         feature_codes = ALL_FEATURE_CODES
 
-    contributions = np.conj(psi_b) * psi_s   # element-wise: conj(ψ_b[i])·ψ_s[i]
-    result: Dict[str, List[Tuple[str, float]]] = {
+    contributions = np.conj(psi_b) * psi_s  # element-wise: conj(ψ_b[i])·ψ_s[i]
+    result: dict[str, list[tuple[str, float]]] = {
         "constructive": [],
         "destructive": [],
         "novel": [],

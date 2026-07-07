@@ -1,3 +1,10 @@
+> ## ⚠️ NOT the current deployment path
+> This document describes the **dormant v1** auth/frontend stack
+> (`original/api/v1/auth.py`, `frontend/auth.js`). The live stack is
+> `original/api.py` + `demo/` + `/lti/*` and does not use this JWT/cookie flow.
+> Kept as historical reference only.
+> See `docs/ARCHITECTURE.md` for which stack is live.
+
 # Phase 3 follow-up — httpOnly cookie authentication
 
 Today, the API returns JWTs in JSON from `POST /api/v1/auth/login` and `POST /api/v1/auth/refresh` ([original/api/v1/auth.py](../original/api/v1/auth.py)). The static frontend ([frontend/auth.js](../frontend/auth.js)) stores tokens in **sessionStorage** (with an in-memory preference noted in comments).
@@ -9,14 +16,14 @@ Today, the API returns JWTs in JSON from `POST /api/v1/auth/login` and `POST /ap
 
 ## High-level design options
 
-1. **Access + refresh in httpOnly cookies**  
-   - Login response: `Set-Cookie` for both; body may omit raw tokens or return non-sensitive metadata only.  
+1. **Access + refresh in httpOnly cookies**
+   - Login response: `Set-Cookie` for both; body may omit raw tokens or return non-sensitive metadata only.
    - `Authorization: Bearer` optional for API clients; browser uses cookies.
 
-2. **Access in memory / header, refresh in httpOnly only** (common)  
+2. **Access in memory / header, refresh in httpOnly only** (common)
    - Short-lived access token still returned in JSON for SPA, or use a **BFF** pattern.
 
-3. **Double-submit or CSRF token**  
+3. **Double-submit or CSRF token**
    - If cookies are sent on `POST` from the SPA, use **SameSite=strict** or **lax** where possible, and add a **CSRF** header for mutating requests when `SameSite` cannot be strict (cross-site iframes, etc.).
 
 ## Code touchpoints (when implementing)

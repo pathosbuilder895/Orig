@@ -52,6 +52,7 @@ log = logging.getLogger("benchmark")
 
 # ── Data structures ────────────────────────────────────────────────────────────
 
+
 @dataclass
 class AuthorDoc:
     author_id: str
@@ -63,10 +64,11 @@ class AuthorDoc:
 @dataclass
 class BenchmarkPair:
     """One test case: baseline_author vs. test_doc (same or different author)."""
+
     baseline_author: str
     test_doc: AuthorDoc
-    same_author: bool          # ground truth
-    predicted_score: float = 0.0   # Original's authorship probability
+    same_author: bool  # ground truth
+    predicted_score: float = 0.0  # Original's authorship probability
     predicted_label: Optional[bool] = None  # True = same author predicted
 
 
@@ -85,6 +87,7 @@ class DatasetResult:
 
 
 # ── Original API client ────────────────────────────────────────────────────────
+
 
 class OriginalClient:
     def __init__(self, base_url: str = "http://localhost:8001"):
@@ -123,11 +126,14 @@ class OriginalClient:
 
     def add_baseline(self, student_id: str, text: str, provenance: str = "benchmark") -> bool:
         try:
-            self._post(f"/students/{student_id}/baseline", {
-                "text": text,
-                "provenance": provenance,
-                "assignment": "benchmark-baseline",
-            })
+            self._post(
+                f"/students/{student_id}/baseline",
+                {
+                    "text": text,
+                    "provenance": provenance,
+                    "assignment": "benchmark-baseline",
+                },
+            )
             return True
         except Exception as e:
             log.warning("add_baseline failed for %s: %s", student_id, e)
@@ -155,18 +161,23 @@ ARXIV_CACHE_DIR = BENCHMARK_CACHE / "arxiv"
 
 # Author IDs must match what fetch_benchmark_data.py used
 ARXIV_AUTHOR_IDS = [
-    "bengio_yoshua", "lecun_yann", "manning_christopher",
-    "karpathy_andrej", "abbeel_pieter", "chollet_francois",
-    "ng_andrew", "goodfellow_ian",
+    "bengio_yoshua",
+    "lecun_yann",
+    "manning_christopher",
+    "karpathy_andrej",
+    "abbeel_pieter",
+    "chollet_francois",
+    "ng_andrew",
+    "goodfellow_ian",
 ]
 
 # Fallback: minimal author list for live API abstract fetch
 ARXIV_AUTHORS_LIVE = [
-    ("Yoshua_Bengio",   "Bengio, Yoshua"),
-    ("Yann_LeCun",      "LeCun, Yann"),
+    ("Yoshua_Bengio", "Bengio, Yoshua"),
+    ("Yann_LeCun", "LeCun, Yann"),
     ("Geoffrey_Hinton", "Hinton, Geoffrey"),
     ("Andrej_Karpathy", "Karpathy, Andrej"),
-    ("Pieter_Abbeel",   "Abbeel, Pieter"),
+    ("Pieter_Abbeel", "Abbeel, Pieter"),
 ]
 
 
@@ -179,12 +190,14 @@ def _load_arxiv_from_cache(author_id: str) -> list[AuthorDoc]:
     for txt_file in sorted(author_dir.glob("*.txt")):
         text = txt_file.read_text(encoding="utf-8", errors="ignore").strip()
         if len(text) >= 500:
-            docs.append(AuthorDoc(
-                author_id=author_id,
-                text=text,
-                title=txt_file.stem,
-                source="arxiv_cached",
-            ))
+            docs.append(
+                AuthorDoc(
+                    author_id=author_id,
+                    text=text,
+                    title=txt_file.stem,
+                    source="arxiv_cached",
+                )
+            )
     return docs
 
 
@@ -213,12 +226,14 @@ def _fetch_arxiv_live(author_query: str, max_results: int = 10) -> list[AuthorDo
             abstract = re.sub(r"\s+", " ", summary_el.text or "").strip()
             if len(abstract) < 200:
                 continue
-            docs.append(AuthorDoc(
-                author_id=author_query,
-                text=f"{title}\n\n{abstract}",
-                title=title,
-                source="arxiv_live",
-            ))
+            docs.append(
+                AuthorDoc(
+                    author_id=author_query,
+                    text=f"{title}\n\n{abstract}",
+                    title=title,
+                    source="arxiv_live",
+                )
+            )
         time.sleep(0.5)
     except Exception as e:
         log.warning("arXiv live fetch failed for %s: %s", author_query, e)
@@ -236,16 +251,23 @@ def load_arxiv(baseline_n: int, test_n: int) -> tuple[dict[str, list], list[Auth
         if len(docs) >= baseline_n + 1:
             cache_authors_found += 1
             baselines[author_id] = docs[:baseline_n]
-            for doc in docs[baseline_n:baseline_n + test_n]:
+            for doc in docs[baseline_n : baseline_n + test_n]:
                 test_docs.append(doc)
-            log.info("  [cache] %s: %d baseline, %d test (avg %.0f chars/doc)",
-                     author_id, len(baselines[author_id]),
-                     min(test_n, len(docs) - baseline_n),
-                     sum(len(d.text) for d in baselines[author_id]) / len(baselines[author_id]))
+            log.info(
+                "  [cache] %s: %d baseline, %d test (avg %.0f chars/doc)",
+                author_id,
+                len(baselines[author_id]),
+                min(test_n, len(docs) - baseline_n),
+                sum(len(d.text) for d in baselines[author_id]) / len(baselines[author_id]),
+            )
 
     if cache_authors_found >= 3:
-        log.info("arXiv: loaded %d authors from cache (%d baseline docs, %d test docs)",
-                 cache_authors_found, sum(len(v) for v in baselines.values()), len(test_docs))
+        log.info(
+            "arXiv: loaded %d authors from cache (%d baseline docs, %d test docs)",
+            cache_authors_found,
+            sum(len(v) for v in baselines.values()),
+            len(test_docs),
+        )
         return baselines, test_docs
 
     # Fallback: live API (abstracts only — run fetch_benchmark_data.py for full text)
@@ -260,11 +282,15 @@ def load_arxiv(baseline_n: int, test_n: int) -> tuple[dict[str, list], list[Auth
             log.warning("Not enough arXiv papers for %s (got %d)", author_id, len(docs))
             continue
         baselines[author_id] = docs[:baseline_n]
-        for doc in docs[baseline_n:baseline_n + test_n]:
+        for doc in docs[baseline_n : baseline_n + test_n]:
             doc.author_id = author_id
             test_docs.append(doc)
-        log.info("  [live] %s: %d baseline, %d test", author_id,
-                 len(baselines[author_id]), min(test_n, len(docs) - baseline_n))
+        log.info(
+            "  [live] %s: %d baseline, %d test",
+            author_id,
+            len(baselines[author_id]),
+            min(test_n, len(docs) - baseline_n),
+        )
 
     return baselines, test_docs
 
@@ -275,32 +301,93 @@ FEDERALIST_URL = "https://www.gutenberg.org/cache/epub/1404/pg1404.txt"
 
 # Known attributions: Hamilton=H, Madison=M, Jay=J, Disputed=D
 FEDERALIST_ATTRIBUTION = {
-    1: "Jay", 2: "Jay", 3: "Jay", 4: "Jay", 5: "Jay",
-    6: "Hamilton", 7: "Hamilton", 8: "Hamilton", 9: "Hamilton", 10: "Madison",
-    11: "Hamilton", 12: "Hamilton", 13: "Hamilton", 14: "Madison",
-    15: "Hamilton", 16: "Hamilton", 17: "Hamilton", 18: "Madison",
-    19: "Madison", 20: "Madison", 21: "Hamilton", 22: "Hamilton",
-    23: "Hamilton", 24: "Hamilton", 25: "Hamilton", 26: "Hamilton",
-    27: "Hamilton", 28: "Hamilton", 29: "Hamilton", 30: "Hamilton",
-    31: "Hamilton", 32: "Hamilton", 33: "Hamilton", 34: "Hamilton",
-    35: "Hamilton", 36: "Hamilton", 37: "Madison", 38: "Madison",
-    39: "Madison", 40: "Madison", 41: "Madison", 42: "Madison",
-    43: "Madison", 44: "Madison", 45: "Madison", 46: "Madison",
-    47: "Madison", 48: "Madison", 49: "Madison", 50: "Madison",
-    51: "Madison", 52: "Madison", 53: "Madison", 54: "Madison",
-    55: "Madison", 56: "Madison", 57: "Madison", 58: "Madison",
-    62: "Madison", 63: "Madison",
+    1: "Jay",
+    2: "Jay",
+    3: "Jay",
+    4: "Jay",
+    5: "Jay",
+    6: "Hamilton",
+    7: "Hamilton",
+    8: "Hamilton",
+    9: "Hamilton",
+    10: "Madison",
+    11: "Hamilton",
+    12: "Hamilton",
+    13: "Hamilton",
+    14: "Madison",
+    15: "Hamilton",
+    16: "Hamilton",
+    17: "Hamilton",
+    18: "Madison",
+    19: "Madison",
+    20: "Madison",
+    21: "Hamilton",
+    22: "Hamilton",
+    23: "Hamilton",
+    24: "Hamilton",
+    25: "Hamilton",
+    26: "Hamilton",
+    27: "Hamilton",
+    28: "Hamilton",
+    29: "Hamilton",
+    30: "Hamilton",
+    31: "Hamilton",
+    32: "Hamilton",
+    33: "Hamilton",
+    34: "Hamilton",
+    35: "Hamilton",
+    36: "Hamilton",
+    37: "Madison",
+    38: "Madison",
+    39: "Madison",
+    40: "Madison",
+    41: "Madison",
+    42: "Madison",
+    43: "Madison",
+    44: "Madison",
+    45: "Madison",
+    46: "Madison",
+    47: "Madison",
+    48: "Madison",
+    49: "Madison",
+    50: "Madison",
+    51: "Madison",
+    52: "Madison",
+    53: "Madison",
+    54: "Madison",
+    55: "Madison",
+    56: "Madison",
+    57: "Madison",
+    58: "Madison",
+    62: "Madison",
+    63: "Madison",
     64: "Jay",
-    65: "Hamilton", 66: "Hamilton", 67: "Hamilton", 68: "Hamilton",
-    69: "Hamilton", 70: "Hamilton", 71: "Hamilton", 72: "Hamilton",
-    73: "Hamilton", 74: "Hamilton", 75: "Hamilton", 76: "Hamilton",
-    77: "Hamilton", 78: "Hamilton", 79: "Hamilton", 80: "Hamilton",
-    81: "Hamilton", 82: "Hamilton", 83: "Hamilton", 84: "Hamilton",
+    65: "Hamilton",
+    66: "Hamilton",
+    67: "Hamilton",
+    68: "Hamilton",
+    69: "Hamilton",
+    70: "Hamilton",
+    71: "Hamilton",
+    72: "Hamilton",
+    73: "Hamilton",
+    74: "Hamilton",
+    75: "Hamilton",
+    76: "Hamilton",
+    77: "Hamilton",
+    78: "Hamilton",
+    79: "Hamilton",
+    80: "Hamilton",
+    81: "Hamilton",
+    82: "Hamilton",
+    83: "Hamilton",
+    84: "Hamilton",
     85: "Hamilton",
     # 49-58 and 62-63 disputed — attributed to Madison by modern scholarship
 }
 
 _federalist_cache: Optional[str] = None
+
 
 def fetch_federalist() -> str:
     global _federalist_cache
@@ -317,8 +404,7 @@ def fetch_federalist() -> str:
     log.info("Downloading Federalist Papers from Project Gutenberg...")
     try:
         req = urllib.request.Request(
-            FEDERALIST_URL,
-            headers={"User-Agent": "Original-Benchmark/1.0"}
+            FEDERALIST_URL, headers={"User-Agent": "Original-Benchmark/1.0"}
         )
         with urllib.request.urlopen(req, timeout=30) as resp:
             text = resp.read().decode("utf-8", errors="ignore")
@@ -366,12 +452,14 @@ def load_federalist(baseline_n: int, test_n: int) -> tuple[dict[str, list], list
     for num, text in essays.items():
         author = FEDERALIST_ATTRIBUTION.get(num)
         if author and author in by_author:
-            by_author[author].append(AuthorDoc(
-                author_id=author,
-                text=text,
-                title=f"Federalist No. {num}",
-                source="federalist",
-            ))
+            by_author[author].append(
+                AuthorDoc(
+                    author_id=author,
+                    text=text,
+                    title=f"Federalist No. {num}",
+                    source="federalist",
+                )
+            )
 
     baselines: dict[str, list[AuthorDoc]] = {}
     test_docs: list[AuthorDoc] = []
@@ -381,10 +469,14 @@ def load_federalist(baseline_n: int, test_n: int) -> tuple[dict[str, list], list
             log.warning("Not enough Federalist essays for %s (got %d)", author, len(docs))
             continue
         baselines[author] = docs[:baseline_n]
-        for doc in docs[baseline_n:baseline_n + test_n]:
+        for doc in docs[baseline_n : baseline_n + test_n]:
             test_docs.append(doc)
-        log.info("  %s: %d baseline, %d test", author, len(baselines[author]),
-                 min(test_n, len(docs) - baseline_n))
+        log.info(
+            "  %s: %d baseline, %d test",
+            author,
+            len(baselines[author]),
+            min(test_n, len(docs) - baseline_n),
+        )
 
     return baselines, test_docs
 
@@ -395,13 +487,20 @@ def load_federalist(baseline_n: int, test_n: int) -> tuple[dict[str, list], list
 # by fetching samples from the NLTK corpus or a known GitHub mirror.
 
 REUTERS_AUTHORS_SUBSET = [
-    "AaronPressman", "AlanCrosby", "AlexanderSmith", "BenjaminKangLim",
-    "BradDorfman", "DarrenSchuettler", "DavidLawder", "EdnaFernandes",
+    "AaronPressman",
+    "AlanCrosby",
+    "AlexanderSmith",
+    "BenjaminKangLim",
+    "BradDorfman",
+    "DarrenSchuettler",
+    "DavidLawder",
+    "EdnaFernandes",
 ]
 
 REUTERS_GITHUB_BASE = (
     "https://raw.githubusercontent.com/selva86/datasets/master/reuters_50/C50train/"
 )
+
 
 def fetch_reuters_author(author: str, max_docs: int = 10) -> list[AuthorDoc]:
     """Fetch Reuters articles for one author from GitHub mirror."""
@@ -428,12 +527,14 @@ def fetch_reuters_author(author: str, max_docs: int = 10) -> list[AuthorDoc]:
                 break  # No more files for this author
 
         if len(text) > 200:
-            docs.append(AuthorDoc(
-                author_id=author,
-                text=text,
-                title=f"{author} article {i}",
-                source="reuters",
-            ))
+            docs.append(
+                AuthorDoc(
+                    author_id=author,
+                    text=text,
+                    title=f"{author} article {i}",
+                    source="reuters",
+                )
+            )
 
     return docs
 
@@ -449,10 +550,14 @@ def load_reuters(baseline_n: int, test_n: int) -> tuple[dict[str, list], list[Au
             log.warning("Not enough Reuters articles for %s (got %d)", author, len(docs))
             continue
         baselines[author] = docs[:baseline_n]
-        for doc in docs[baseline_n:baseline_n + test_n]:
+        for doc in docs[baseline_n : baseline_n + test_n]:
             test_docs.append(doc)
-        log.info("  %s: %d baseline, %d test", author, len(baselines[author]),
-                 min(test_n, len(docs) - baseline_n))
+        log.info(
+            "  %s: %d baseline, %d test",
+            author,
+            len(baselines[author]),
+            min(test_n, len(docs) - baseline_n),
+        )
 
     return baselines, test_docs
 
@@ -479,7 +584,10 @@ def _load_pan_dataset(year: int) -> Optional[dict]:
 
 
 def _cluster_pan_pairs(
-    pairs: list[dict], truth: dict[str, bool], min_cluster: int = 3, max_clusters: int = 20,
+    pairs: list[dict],
+    truth: dict[str, bool],
+    min_cluster: int = 3,
+    max_clusters: int = 20,
 ) -> dict[str, list[str]]:
     """
     Group same-author pairs into pseudo-author clusters via union-find.
@@ -509,6 +617,7 @@ def _cluster_pan_pairs(
         union(k0, k1)
 
     from collections import defaultdict
+
     groups: dict[str, list[str]] = defaultdict(list)
     for k in texts:
         groups[find(k)].append(k)
@@ -526,13 +635,22 @@ def _cluster_pan_pairs(
 def _load_pan(year: int, baseline_n: int, test_n: int) -> tuple[dict[str, list], list[AuthorDoc]]:
     data = _load_pan_dataset(year)
     if data is None:
-        log.warning("PAN %d cache not found. Run:  python scripts/fetch_benchmark_data.py --pan-year %d", year, year)
+        log.warning(
+            "PAN %d cache not found. Run:  python scripts/fetch_benchmark_data.py --pan-year %d",
+            year,
+            year,
+        )
         return {}, []
 
     pairs = data["pairs"]
     truth = data["truth"]
-    log.info("PAN %d: %d pairs (%d same-author, %d different)",
-             year, len(pairs), data.get("n_same", 0), data.get("n_different", 0))
+    log.info(
+        "PAN %d: %d pairs (%d same-author, %d different)",
+        year,
+        len(pairs),
+        data.get("n_same", 0),
+        data.get("n_different", 0),
+    )
 
     clusters = _cluster_pan_pairs(pairs, truth, min_cluster=baseline_n + 1)
     log.info("  Formed %d pseudo-author clusters (≥%d texts each)", len(clusters), baseline_n + 1)
@@ -544,47 +662,71 @@ def _load_pan(year: int, baseline_n: int, test_n: int) -> tuple[dict[str, list],
         for cluster_id, cluster_texts in clusters.items():
             author_id = f"pan{year}_{cluster_id}"
             baselines[author_id] = [
-                AuthorDoc(author_id=author_id, text=t, title=f"pan{year}-{cluster_id}-b{i}",
-                          source=f"pan{year}")
+                AuthorDoc(
+                    author_id=author_id,
+                    text=t,
+                    title=f"pan{year}-{cluster_id}-b{i}",
+                    source=f"pan{year}",
+                )
                 for i, t in enumerate(cluster_texts[:baseline_n])
             ]
-            for i, t in enumerate(cluster_texts[baseline_n:baseline_n + test_n]):
-                test_docs.append(AuthorDoc(
-                    author_id=author_id, text=t,
-                    title=f"pan{year}-{cluster_id}-t{i}", source=f"pan{year}",
-                ))
+            for i, t in enumerate(cluster_texts[baseline_n : baseline_n + test_n]):
+                test_docs.append(
+                    AuthorDoc(
+                        author_id=author_id,
+                        text=t,
+                        title=f"pan{year}-{cluster_id}-t{i}",
+                        source=f"pan{year}",
+                    )
+                )
     else:
         # Fallback: paired mode — text[0]=baseline, text[1]=test
         log.info("  Falling back to paired mode (1 baseline doc per author)")
-        same_pairs = [p for p in pairs if truth.get(p["id"], False)
-                      and all(len(t) >= 400 for t in p["texts"])][:50]
+        same_pairs = [
+            p for p in pairs if truth.get(p["id"], False) and all(len(t) >= 400 for t in p["texts"])
+        ][:50]
         for i, pair in enumerate(same_pairs):
             author_id = f"pan{year}_pair{i}"
-            baselines[author_id] = [AuthorDoc(
-                author_id=author_id, text=pair["texts"][0],
-                title=f"{pair['id']}_baseline", source=f"pan{year}",
-            )]
-            test_docs.append(AuthorDoc(
-                author_id=author_id, text=pair["texts"][1],
-                title=f"{pair['id']}_test", source=f"pan{year}",
-            ))
+            baselines[author_id] = [
+                AuthorDoc(
+                    author_id=author_id,
+                    text=pair["texts"][0],
+                    title=f"{pair['id']}_baseline",
+                    source=f"pan{year}",
+                )
+            ]
+            test_docs.append(
+                AuthorDoc(
+                    author_id=author_id,
+                    text=pair["texts"][1],
+                    title=f"{pair['id']}_test",
+                    source=f"pan{year}",
+                )
+            )
 
-    log.info("  %d authors, %d baseline docs, %d test docs",
-             len(baselines), sum(len(v) for v in baselines.values()), len(test_docs))
+    log.info(
+        "  %d authors, %d baseline docs, %d test docs",
+        len(baselines),
+        sum(len(v) for v in baselines.values()),
+        len(test_docs),
+    )
     return baselines, test_docs
 
 
 def load_pan2021(baseline_n: int, test_n: int) -> tuple[dict[str, list], list[AuthorDoc]]:
     return _load_pan(2021, baseline_n, test_n)
 
+
 def load_pan2022(baseline_n: int, test_n: int) -> tuple[dict[str, list], list[AuthorDoc]]:
     return _load_pan(2022, baseline_n, test_n)
+
 
 def load_pan2023(baseline_n: int, test_n: int) -> tuple[dict[str, list], list[AuthorDoc]]:
     return _load_pan(2023, baseline_n, test_n)
 
 
 # ── PAN-style synthetic dataset (legacy) ──────────────────────────────────────
+
 
 def load_pan_style(baseline_n: int, test_n: int) -> tuple[dict[str, list], list[AuthorDoc]]:
     """
@@ -597,9 +739,9 @@ def load_pan_style(baseline_n: int, test_n: int) -> tuple[dict[str, list], list[
     log.warning("Real PAN cache unavailable. Using synthetic arXiv pairs.")
     log.warning("Run:  python scripts/fetch_benchmark_data.py --pan")
     pan_authors = [
-        ("pan_Bengio",  "Bengio, Yoshua"),
+        ("pan_Bengio", "Bengio, Yoshua"),
         ("pan_Manning", "Manning, Christopher"),
-        ("pan_LeCun",   "LeCun, Yann"),
+        ("pan_LeCun", "LeCun, Yann"),
     ]
     baselines: dict[str, list[AuthorDoc]] = {}
     test_docs: list[AuthorDoc] = []
@@ -608,13 +750,14 @@ def load_pan_style(baseline_n: int, test_n: int) -> tuple[dict[str, list], list[
         if len(docs) < baseline_n + 1:
             continue
         baselines[author_id] = docs[:baseline_n]
-        for doc in docs[baseline_n:baseline_n + test_n]:
+        for doc in docs[baseline_n : baseline_n + test_n]:
             doc.author_id = author_id
             test_docs.append(doc)
     return baselines, test_docs
 
 
 # ── Benchmark engine ───────────────────────────────────────────────────────────
+
 
 def build_pairs(
     baselines: dict[str, list[AuthorDoc]],
@@ -632,20 +775,24 @@ def build_pairs(
     for doc in test_docs:
         # Same-author pair
         if doc.author_id in baselines:
-            pairs.append(BenchmarkPair(
-                baseline_author=doc.author_id,
-                test_doc=doc,
-                same_author=True,
-            ))
+            pairs.append(
+                BenchmarkPair(
+                    baseline_author=doc.author_id,
+                    test_doc=doc,
+                    same_author=True,
+                )
+            )
 
         # Different-author pairs
         others = [a for a in author_ids if a != doc.author_id]
         for other in others[:different_author_samples]:
-            pairs.append(BenchmarkPair(
-                baseline_author=other,
-                test_doc=doc,
-                same_author=False,
-            ))
+            pairs.append(
+                BenchmarkPair(
+                    baseline_author=other,
+                    test_doc=doc,
+                    same_author=False,
+                )
+            )
 
     return pairs
 
@@ -664,10 +811,13 @@ def run_dataset(
         return result
 
     pairs = build_pairs(baselines, test_docs)
-    log.info("%s: %d pairs (%d same, %d different)",
-             name, len(pairs),
-             sum(1 for p in pairs if p.same_author),
-             sum(1 for p in pairs if not p.same_author))
+    log.info(
+        "%s: %d pairs (%d same, %d different)",
+        name,
+        len(pairs),
+        sum(1 for p in pairs if p.same_author),
+        sum(1 for p in pairs if not p.same_author),
+    )
 
     # Load all baselines into Original
     log.info("Loading baselines into Original...")
@@ -717,6 +867,7 @@ def run_dataset(
 
 # ── Report ─────────────────────────────────────────────────────────────────────
 
+
 def print_report(results: list[DatasetResult]):
     print("\n" + "=" * 70)
     print("  ORIGINAL BENCHMARK RESULTS")
@@ -726,7 +877,9 @@ def print_report(results: list[DatasetResult]):
 
     for r in results:
         print(f"\n▸ {r.name.upper()}")
-        print(f"  Pairs:     {len(r.pairs)} total  ({r.n_same} same-author, {r.n_different} different)")
+        print(
+            f"  Pairs:     {len(r.pairs)} total  ({r.n_same} same-author, {r.n_different} different)"
+        )
         print(f"  Accuracy:  {r.accuracy:.1%}")
         print(f"  Precision: {r.precision:.1%}  (of predicted 'same', how many actually were)")
         print(f"  Recall:    {r.recall:.1%}  (of actual 'same', how many did we catch)")
@@ -763,13 +916,13 @@ def print_report(results: list[DatasetResult]):
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 DATASETS = {
-    "arxiv":      load_arxiv,
+    "arxiv": load_arxiv,
     "federalist": load_federalist,
-    "reuters":    load_reuters,
-    "pan":        load_pan_style,    # tries real PAN 2021, falls back to synthetic
-    "pan2021":    load_pan2021,
-    "pan2022":    load_pan2022,
-    "pan2023":    load_pan2023,
+    "reuters": load_reuters,
+    "pan": load_pan_style,  # tries real PAN 2021, falls back to synthetic
+    "pan2021": load_pan2021,
+    "pan2022": load_pan2022,
+    "pan2023": load_pan2023,
 }
 
 
@@ -793,9 +946,9 @@ def run_synthetic_benchmark(baseline_n: int = 6, test_n: int = 4) -> None:
     from original.quantum.scoring import score as quantum_score
 
     SUSPICIOUS_ACTIONS = {"schedule_conversation", "escalate"}
-    N_AUTHORS   = 10
-    N_BASELINE  = baseline_n   # samples per author baseline
-    N_HOLDOUTS  = 3            # same-author holdout trials per author
+    N_AUTHORS = 10
+    N_BASELINE = baseline_n  # samples per author baseline
+    N_HOLDOUTS = 3  # same-author holdout trials per author
 
     log.info("SYNTHETIC BENCHMARK — no network access required")
     log.info("Generating %d synthetic authors, FEATURE_DIM=%d", N_AUTHORS, FEATURE_DIM)
@@ -810,11 +963,12 @@ def run_synthetic_benchmark(baseline_n: int = 6, test_n: int = 4) -> None:
         state = StudentState(student_id=f"author_{author_seed}")
         for i in range(N_BASELINE):
             v = np.clip(base + rng.normal(0, 0.04, FEATURE_DIM), 0, 1)
-            state.samples.append(BaselineSample(
-                text=f"s{i}", vector=v, provenance="proctored", auth_weight=1.0))
+            state.samples.append(
+                BaselineSample(text=f"s{i}", vector=v, provenance="proctored", auth_weight=1.0)
+            )
         return state
 
-    bases  = [make_base(s * 137 + 7) for s in range(N_AUTHORS)]
+    bases = [make_base(s * 137 + 7) for s in range(N_AUTHORS)]
     states = [build_state(b, s) for s, b in enumerate(bases)]
 
     def fd(v):
@@ -830,7 +984,7 @@ def run_synthetic_benchmark(baseline_n: int = 6, test_n: int = 4) -> None:
     # ── 2. Collect (true_suspicious, deviation_score) pairs ──────────────────
     # true_suspicious = True  → should be flagged (cross-author or AI)
     # true_suspicious = False → should be authentic  (same-author holdout)
-    records = []   # (true_suspicious, dev_score, action, scenario_name)
+    records = []  # (true_suspicious, dev_score, action, scenario_name)
 
     # Scenario 1: same-author holdouts (authentic, N_AUTHORS × N_HOLDOUTS)
     for ai in range(N_AUTHORS):
@@ -875,20 +1029,20 @@ def run_synthetic_benchmark(baseline_n: int = 6, test_n: int = 4) -> None:
 
     # ── 3. Action-based classification metrics ────────────────────────────────
     # Predicted suspicious = action in {schedule_conversation, escalate}
-    tp = sum(1 for sus, _, act, _ in records if sus     and act in SUSPICIOUS_ACTIONS)
+    tp = sum(1 for sus, _, act, _ in records if sus and act in SUSPICIOUS_ACTIONS)
     fp = sum(1 for sus, _, act, _ in records if not sus and act in SUSPICIOUS_ACTIONS)
     tn = sum(1 for sus, _, act, _ in records if not sus and act not in SUSPICIOUS_ACTIONS)
-    fn = sum(1 for sus, _, act, _ in records if sus     and act not in SUSPICIOUS_ACTIONS)
+    fn = sum(1 for sus, _, act, _ in records if sus and act not in SUSPICIOUS_ACTIONS)
 
-    accuracy  = (tp + tn) / n_total if n_total else 0
+    accuracy = (tp + tn) / n_total if n_total else 0
     precision = tp / (tp + fp) if (tp + fp) else 0
-    recall    = tp / (tp + fn) if (tp + fn) else 0
-    f1        = 2*precision*recall / (precision+recall) if (precision+recall) else 0
-    fpr       = fp / (fp + tn) if (fp + tn) else 0
-    fnr       = fn / (fn + tp) if (fn + tp) else 0
+    recall = tp / (tp + fn) if (tp + fn) else 0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0
+    fpr = fp / (fp + tn) if (fp + tn) else 0
+    fnr = fn / (fn + tp) if (fn + tp) else 0
 
     # ── 4. AUC from continuous deviation_score (higher D = more suspicious) ──
-    pos_scores = sorted([D for sus, D, _, _ in records if sus],     reverse=True)
+    pos_scores = sorted([D for sus, D, _, _ in records if sus], reverse=True)
     neg_scores = sorted([D for sus, D, _, _ in records if not sus], reverse=True)
     all_thresh = sorted(set(D for _, D, _, _ in records), reverse=True) + [0.0]
 
@@ -896,43 +1050,47 @@ def run_synthetic_benchmark(baseline_n: int = 6, test_n: int = 4) -> None:
     n_pos = sum(1 for sus, _, _, _ in records if sus)
     n_neg = sum(1 for sus, _, _, _ in records if not sus)
     for thresh in all_thresh:
-        tp_t = sum(1 for sus, D, _, _ in records if sus     and D >= thresh)
+        tp_t = sum(1 for sus, D, _, _ in records if sus and D >= thresh)
         fp_t = sum(1 for sus, D, _, _ in records if not sus and D >= thresh)
         tpr_pts.append(tp_t / n_pos if n_pos else 0)
         fpr_pts.append(fp_t / n_neg if n_neg else 0)
-    tpr_pts.append(1.0); fpr_pts.append(1.0)
+    tpr_pts.append(1.0)
+    fpr_pts.append(1.0)
     auc = sum(
-        (fpr_pts[i] - fpr_pts[i-1]) * (tpr_pts[i] + tpr_pts[i-1]) / 2
+        (fpr_pts[i] - fpr_pts[i - 1]) * (tpr_pts[i] + tpr_pts[i - 1]) / 2
         for i in range(1, len(fpr_pts))
     )
 
     # ── 5. Per-scenario breakdown ─────────────────────────────────────────────
     from collections import defaultdict
+
     by_scenario = defaultdict(lambda: {"correct": 0, "total": 0, "mean_D": []})
     for sus, D, act, scen in records:
         correct = (sus and act in SUSPICIOUS_ACTIONS) or (not sus and act not in SUSPICIOUS_ACTIONS)
         by_scenario[scen]["correct"] += int(correct)
-        by_scenario[scen]["total"]   += 1
+        by_scenario[scen]["total"] += 1
         by_scenario[scen]["mean_D"].append(D)
 
     # ── 6. Print report ───────────────────────────────────────────────────────
     W = 72
-    print("\n" + "="*W)
+    print("\n" + "=" * W)
     print("  Ωriginal — SYNTHETIC BENCHMARK REPORT")
-    print("="*W)
-    print(f"  Authors: {N_AUTHORS}   Baseline samples/author: {N_BASELINE}   "
-          f"Feature dim: {FEATURE_DIM}")
+    print("=" * W)
+    print(
+        f"  Authors: {N_AUTHORS}   Baseline samples/author: {N_BASELINE}   "
+        f"Feature dim: {FEATURE_DIM}"
+    )
     print(f"  Total test cases: {n_total}")
     print()
     print("  ┌──────────────────────────────┬───────┬───────┬──────────┐")
     print("  │ scenario                     │ n     │ ok    │ mean D   │")
     print("  ├──────────────────────────────┼───────┼───────┼──────────┤")
-    for scen in ["same-author","cross-author","ai-uniform","ai-jittered","ai-surgical"]:
+    for scen in ["same-author", "cross-author", "ai-uniform", "ai-jittered", "ai-surgical"]:
         row = by_scenario[scen]
         mean_D = np.mean(row["mean_D"]) if row["mean_D"] else 0
-        ok  = row["correct"]
+        ok = row["correct"]
         tot = row["total"]
-        bar = "✓" if ok==tot else "△" if ok/tot>=0.8 else "✗"
+        bar = "✓" if ok == tot else "△" if ok / tot >= 0.8 else "✗"
         print(f"  │ {scen:<28s} │ {tot:>5d} │ {ok:>4d}{bar} │ {mean_D:.3f}    │")
     print("  └──────────────────────────────┴───────┴───────┴──────────┘")
     print()
@@ -948,7 +1106,7 @@ def run_synthetic_benchmark(baseline_n: int = 6, test_n: int = 4) -> None:
     print(f"    FNR:        {fnr:6.1%}   ({fn} suspicious texts missed entirely)")
     print()
     sep = np.mean([D for sus, D, _, _ in records if not sus])  # mean D for authentic
-    sus_d = np.mean([D for sus, D, _, _ in records if sus])     # mean D for suspicious
+    sus_d = np.mean([D for sus, D, _, _ in records if sus])  # mean D for suspicious
     print(f"  Score separation:  authentic mean D={sep:.3f}  |  suspicious mean D={sus_d:.3f}")
     print(f"  Gap: {sus_d-sep:+.3f}  ({'STRONG ✓' if sus_d-sep>0.3 else 'MARGINAL'})")
     print()
@@ -963,20 +1121,29 @@ def run_synthetic_benchmark(baseline_n: int = 6, test_n: int = 4) -> None:
         readiness = "NOT READY  ✗"
 
     print(f"  Readiness: {readiness}")
-    print("="*W)
+    print("=" * W)
     print()
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--synthetic", action="store_true",
-                        help="Run synthetic benchmark (no network required)")
-    parser.add_argument("--dataset", choices=list(DATASETS.keys()) + ["all"], default="all",
-                        help="Dataset to run (default: all). pan=PAN2021+synthetic fallback; pan2021/2022/2023=specific PAN edition")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--synthetic", action="store_true", help="Run synthetic benchmark (no network required)"
+    )
+    parser.add_argument(
+        "--dataset",
+        choices=list(DATASETS.keys()) + ["all"],
+        default="all",
+        help="Dataset to run (default: all). pan=PAN2021+synthetic fallback; pan2021/2022/2023=specific PAN edition",
+    )
     parser.add_argument("--api", default="http://localhost:8001", help="Original API base URL")
     parser.add_argument("--baseline-n", type=int, default=4, help="Docs per author for baseline")
     parser.add_argument("--test-n", type=int, default=2, help="Docs per author for testing")
-    parser.add_argument("--threshold", type=float, default=0.5, help="Score threshold for same-author prediction")
+    parser.add_argument(
+        "--threshold", type=float, default=0.5, help="Score threshold for same-author prediction"
+    )
     parser.add_argument("--output", default=None, help="Save results to JSON file")
     args = parser.parse_args()
 
@@ -992,7 +1159,7 @@ def main():
         log.error(
             "Original API not reachable at %s\n"
             "Start the server first:  python -m original.api  (or  uvicorn original.api:app --port 8001)",
-            args.api
+            args.api,
         )
         sys.exit(1)
     log.info("API is healthy ✓")
@@ -1021,7 +1188,11 @@ def main():
             d = asdict(r)
             # pairs list can be large; summarize
             d["pair_scores"] = [
-                {"same": p["same_author"], "score": p["predicted_score"], "correct": p["same_author"] == p["predicted_label"]}
+                {
+                    "same": p["same_author"],
+                    "score": p["predicted_score"],
+                    "correct": p["same_author"] == p["predicted_label"],
+                }
                 for p in d.pop("pairs", [])
             ]
             serializable.append(d)

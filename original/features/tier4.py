@@ -12,19 +12,18 @@ All pure Python + collections.Counter. No NLP dependencies.
 import math
 import re
 from collections import Counter
-from typing import Dict, List
 
 from .tier1 import TextDoc
 
-
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
 
 def _char_trigrams(text: str) -> Counter:
     """Build a Counter of all character 3-grams in lower-cased text."""
     lower = text.lower()
     trigrams: Counter = Counter()
     for i in range(len(lower) - 2):
-        trigrams[lower[i:i + 3]] += 1
+        trigrams[lower[i : i + 3]] += 1
     return trigrams
 
 
@@ -47,6 +46,7 @@ def _count_pattern(text: str, pattern: str) -> int:
 
 
 # ── Tier 4 feature extractors ───────────────────────────────────────────────
+
 
 def char_trigram_entropy(doc: TextDoc) -> float:
     """
@@ -106,11 +106,7 @@ def dash_rate(doc: TextDoc) -> float:
     if not doc.word_count:
         return 0.0
     # Em-dash (—), en-dash (–), and double-hyphen (--)
-    count = (
-        doc.raw.count("\u2014")
-        + doc.raw.count("\u2013")
-        + doc.raw.count("--")
-    )
+    count = doc.raw.count("\u2014") + doc.raw.count("\u2013") + doc.raw.count("--")
     return count / doc.word_count * 100
 
 
@@ -120,13 +116,13 @@ def quote_rate(doc: TextDoc) -> float:
         return 0.0
     # Count opening quotes (straight + smart)
     count = (
-        _count_pattern(doc.raw, r'(?<!\w)"(?=\w)')   # straight opening "
-        + doc.raw.count("\u201C")                      # smart opening "
+        _count_pattern(doc.raw, r'(?<!\w)"(?=\w)')  # straight opening "
+        + doc.raw.count("\u201c")  # smart opening "
     )
     return count / doc.word_count * 100
 
 
-def char_trigram_profile(doc: TextDoc) -> Dict[str, int]:
+def char_trigram_profile(doc: TextDoc) -> dict[str, int]:
     """
     Return the top-200 character trigram profile for comparison features.
 
@@ -139,19 +135,20 @@ def char_trigram_profile(doc: TextDoc) -> Dict[str, int]:
 
 # ── Public extraction function ───────────────────────────────────────────────
 
-def extract_tier4(doc: TextDoc) -> Dict[str, float]:
+
+def extract_tier4(doc: TextDoc) -> dict[str, float]:
     return {
-        "char_trigram_entropy":     char_trigram_entropy(doc),
-        "punctuation_diversity":    punctuation_diversity(doc),
-        "comma_rate":               comma_rate(doc),
-        "semicolon_colon_rate":     semicolon_colon_rate(doc),
-        "parenthetical_rate":       parenthetical_rate(doc),
-        "dash_rate":                dash_rate(doc),
-        "quote_rate":               quote_rate(doc),
+        "char_trigram_entropy": char_trigram_entropy(doc),
+        "punctuation_diversity": punctuation_diversity(doc),
+        "comma_rate": comma_rate(doc),
+        "semicolon_colon_rate": semicolon_colon_rate(doc),
+        "parenthetical_rate": parenthetical_rate(doc),
+        "dash_rate": dash_rate(doc),
+        "quote_rate": quote_rate(doc),
     }
 
 
-def extract_tier4_profiles(doc: TextDoc) -> Dict[str, object]:
+def extract_tier4_profiles(doc: TextDoc) -> dict[str, object]:
     """Extract comparison profiles (stored alongside feature_vector)."""
     return {
         "_char_trigram_profile": char_trigram_profile(doc),

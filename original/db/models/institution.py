@@ -13,9 +13,9 @@ Data-policy defaults (FERPA mode):
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
-from sqlalchemy import JSON, Boolean, String, UniqueConstraint, event
+from sqlalchemy import JSON, Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from original.db.base import Base, UUIDMixin, TimestampMixin

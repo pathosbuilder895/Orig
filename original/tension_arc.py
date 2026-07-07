@@ -31,8 +31,8 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass, field
-from typing import Any, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -40,9 +40,9 @@ log = logging.getLogger(__name__)
 
 # ── Model handles (loaded once at startup) ────────────────────────────────────
 
-_nlp = None   # spacy.language.Language — loaded lazily
-_embedder = None   # SentenceTransformer — typed loosely to avoid import-time crash
-_spacy_available = None   # None = untested, True/False = cached result
+_nlp = None  # spacy.language.Language — loaded lazily
+_embedder = None  # SentenceTransformer — typed loosely to avoid import-time crash
+_spacy_available = None  # None = untested, True/False = cached result
 
 
 def load_models() -> None:
@@ -51,17 +51,20 @@ def load_models() -> None:
     if _nlp is None:
         try:
             import spacy as _spacy
+
             _nlp = _spacy.load("en_core_web_sm")
             _spacy_available = True
         except (ImportError, OSError) as exc:
             _spacy_available = False
             log.warning(
                 "spaCy unavailable — tension_arc analysis will return fallback κ=0.0. "
-                "Run: pip install spacy && python -m spacy download en_core_web_sm  (%s)", exc
+                "Run: pip install spacy && python -m spacy download en_core_web_sm  (%s)",
+                exc,
             )
     if _embedder is None:
         try:
             from sentence_transformers import SentenceTransformer
+
             _embedder = SentenceTransformer("all-MiniLM-L6-v2")
         except ImportError:
             log.warning("sentence-transformers unavailable — cohesion tension will be 0.")
@@ -83,24 +86,25 @@ def _get_embedder() -> Any:
 
 # ── Data classes ──────────────────────────────────────────────────────────────
 
+
 @dataclass
 class SentenceTension:
     index: int
     text: str
-    syntactic: float     # S(i)
-    logical: float       # L(i)
-    cohesion: float      # C(i)
-    total: float         # T(i) = α·S + β·L + γ·C
-    move_type: str       # Q / C / E / K / R / N
+    syntactic: float  # S(i)
+    logical: float  # L(i)
+    cohesion: float  # C(i)
+    total: float  # T(i) = α·S + β·L + γ·C
+    move_type: str  # Q / C / E / K / R / N
 
 
 @dataclass
 class ParagraphArc:
     index: int
-    sentences: List[SentenceTension]
+    sentences: list[SentenceTension]
     peak_count: int
     resolved_peaks: int
-    resolution_ratio: float   # ρ for this paragraph
+    resolution_ratio: float  # ρ for this paragraph
     mean_tension: float
     max_tension: float
 
@@ -108,54 +112,55 @@ class ParagraphArc:
 @dataclass
 class TensionArcResult:
     """Full tension arc analysis for one submission. Attach to your Layer7Output."""
-    tension_series: List[float]           # per-sentence T(i), for chart rendering
-    paragraph_arcs: List[ParagraphArc]
-    resolution_ratio_mean: float          # μ(ρ)
-    resolution_ratio_std: float           # σ(ρ)
-    catastrophe_index: float              # κ = σ(ρ)·(1 - μ(ρ))
-    mean_tension: float                   # μ(T) — amplitude signal (AI is much flatter)
-    max_tension: float                    # max T(i) — AI rarely exceeds 0.25
-    authenticity_signal: Optional[float]  # None if no student baseline yet
-    arc_flag: str                         # "authentic" | "ai_typical" | "review"
+
+    tension_series: list[float]  # per-sentence T(i), for chart rendering
+    paragraph_arcs: list[ParagraphArc]
+    resolution_ratio_mean: float  # μ(ρ)
+    resolution_ratio_std: float  # σ(ρ)
+    catastrophe_index: float  # κ = σ(ρ)·(1 - μ(ρ))
+    mean_tension: float  # μ(T) — amplitude signal (AI is much flatter)
+    max_tension: float  # max T(i) — AI rarely exceeds 0.25
+    authenticity_signal: float | None  # None if no student baseline yet
+    arc_flag: str  # "authentic" | "ai_typical" | "review"
     arc_flag_reason: str
 
 
 # ── Tuning constants ──────────────────────────────────────────────────────────
 
-ALPHA = 0.40   # syntactic weight
-BETA  = 0.35   # logical weight
-GAMMA = 0.25   # cohesion weight
+ALPHA = 0.40  # syntactic weight
+BETA = 0.35  # logical weight
+GAMMA = 0.25  # cohesion weight
 
-TENSION_THRESHOLD = 0.28   # θ — minimum T(i) to count as a tension peak
+TENSION_THRESHOLD = 0.28  # θ — minimum T(i) to count as a tension peak
 #                            (academic prose scores 0.15–0.45; creative prose higher)
-RESOLUTION_DROP   = 0.10   # δ — peak must drop by this much to count as resolved
-RESOLUTION_WINDOW = 3      # k — sentences within which the drop must occur
+RESOLUTION_DROP = 0.10  # δ — peak must drop by this much to count as resolved
+RESOLUTION_WINDOW = 3  # k — sentences within which the drop must occur
 
 # Dependency labels representing open syntactic structures
 OPEN_DEP_LABELS = {"advcl", "ccomp", "xcomp", "acl", "relcl"}
 
 # Lightweight move-type classifiers
-_RE_RESOLUTION  = re.compile(
+_RE_RESOLUTION = re.compile(
     r"^(therefore |thus |in conclusion |ultimately |finally |"
     r"this means |the answer |we can see |it is (clear|evident))",
     re.IGNORECASE,
 )
-_RE_CONCESSION  = re.compile(
+_RE_CONCESSION = re.compile(
     r"^(admittedly |granted |of course |to be (sure|fair)|"
     r"one must acknowledge |it is true that |while it is true)",
     re.IGNORECASE,
 )
-_RE_CLAIM       = re.compile(
+_RE_CLAIM = re.compile(
     r"^(therefore |thus |hence |this (shows|means|demonstrates|suggests)|"
     r"clearly |obviously |the (key|central|main)|in (short|sum|brief))",
     re.IGNORECASE,
 )
-_RE_QUESTION    = re.compile(
+_RE_QUESTION = re.compile(
     r"^(but |however |although |even though |yet |while |despite |"
     r"one might |critics |some argue |it could be |admittedly |granted )",
     re.IGNORECASE,
 )
-_RE_EVIDENCE    = re.compile(
+_RE_EVIDENCE = re.compile(
     r"\d{4}|et al\.|ibid\.|op\. cit\.|for (example|instance)|"
     r"as (shown|demonstrated|evidenced|seen)",
     re.IGNORECASE,
@@ -163,6 +168,7 @@ _RE_EVIDENCE    = re.compile(
 
 
 # ── Feature extractors ────────────────────────────────────────────────────────
+
 
 def _cosine(a: np.ndarray, b: np.ndarray) -> float:
     """Pure numpy cosine similarity — no sklearn required."""
@@ -187,8 +193,8 @@ def _syntactic_tension(sent: Any) -> float:
                 resolved_count += 1
 
     text_lower = sent.text.lower()
-    corr_open  = sum(1 for p in ["not only", "either ", "neither ", "both "] if p in text_lower)
-    corr_close = sum(1 for p in ["but also", "or ", "nor ", "and "]          if p in text_lower)
+    corr_open = sum(1 for p in ["not only", "either ", "neither ", "both "] if p in text_lower)
+    corr_close = sum(1 for p in ["but also", "or ", "nor ", "and "] if p in text_lower)
     corr_unres = max(0, corr_open - corr_close)
 
     total_open = open_count + corr_unres
@@ -201,16 +207,22 @@ def _classify_move(text: str) -> str:
     K = concession       | R = resolution | N = neutral
     """
     s = text.strip()
-    if s.endswith("?"):                return "Q"
-    if _RE_RESOLUTION.match(s):       return "R"
-    if _RE_CONCESSION.match(s):       return "K"
-    if _RE_CLAIM.match(s):            return "C"
-    if _RE_QUESTION.match(s):         return "Q"
-    if _RE_EVIDENCE.search(s):        return "E"
+    if s.endswith("?"):
+        return "Q"
+    if _RE_RESOLUTION.match(s):
+        return "R"
+    if _RE_CONCESSION.match(s):
+        return "K"
+    if _RE_CLAIM.match(s):
+        return "C"
+    if _RE_QUESTION.match(s):
+        return "Q"
+    if _RE_EVIDENCE.search(s):
+        return "E"
     return "N"
 
 
-def _logical_tension(move_sequence: List[str], current_index: int) -> float:
+def _logical_tension(move_sequence: list[str], current_index: int) -> float:
     """
     L(i) = (Q_count + K_count − R_count) / (i + 1)   clipped to [0, 1]
     Cumulative tension debt up to position i.
@@ -229,26 +241,28 @@ def _cohesion_tension(embeddings: np.ndarray, current_index: int, window: int = 
     """
     if current_index == 0:
         return 0.0
-    start  = max(0, current_index - window)
-    prior  = embeddings[start:current_index]
-    ctx    = prior.mean(axis=0)
+    start = max(0, current_index - window)
+    prior = embeddings[start:current_index]
+    ctx = prior.mean(axis=0)
     return float(np.clip(1.0 - _cosine(embeddings[current_index], ctx), 0.0, 1.0))
 
 
 # ── Paragraph splitter ────────────────────────────────────────────────────────
 
-def _split_paragraphs(text: str) -> List[str]:
+
+def _split_paragraphs(text: str) -> list[str]:
     raw = re.split(r"\n\s*\n", text.strip())
     return [p.strip() for p in raw if len(p.strip()) > 30]
 
 
 # ── Peak detection & resolution ───────────────────────────────────────────────
 
-def _find_peaks(vals: List[float]) -> List[int]:
+
+def _find_peaks(vals: list[float]) -> list[int]:
     n = len(vals)
-    peaks: List[int] = []
+    peaks: list[int] = []
     for i in range(1, n - 1):
-        if vals[i] > vals[i-1] and vals[i] > vals[i+1] and vals[i] >= TENSION_THRESHOLD:
+        if vals[i] > vals[i - 1] and vals[i] > vals[i + 1] and vals[i] >= TENSION_THRESHOLD:
             peaks.append(i)
     if n >= 2 and vals[0] >= TENSION_THRESHOLD and vals[0] > vals[1]:
         peaks.insert(0, 0)
@@ -257,11 +271,11 @@ def _find_peaks(vals: List[float]) -> List[int]:
     return peaks
 
 
-def _count_resolved_peaks(vals: List[float], peaks: List[int]) -> int:
+def _count_resolved_peaks(vals: list[float], peaks: list[int]) -> int:
     resolved = 0
     n = len(vals)
     for p in peaks:
-        peak_val   = vals[p]
+        peak_val = vals[p]
         window_end = min(p + RESOLUTION_WINDOW + 1, n)
         for j in range(p + 1, window_end):
             if peak_val - vals[j] >= RESOLUTION_DROP:
@@ -272,36 +286,47 @@ def _count_resolved_peaks(vals: List[float], peaks: List[int]) -> int:
 
 # ── Paragraph analysis ────────────────────────────────────────────────────────
 
+
 def _analyze_paragraph(para_text: str, para_index: int) -> ParagraphArc:
-    nlp      = _get_nlp()
+    nlp = _get_nlp()
     embedder = _get_embedder()
 
     if nlp is None:
         # spaCy not available — return a neutral arc so the pipeline can continue
         return ParagraphArc(
-            index=para_index, sentences=[],
-            peak_count=0, resolved_peaks=0, resolution_ratio=1.0,
-            mean_tension=0.0, max_tension=0.0,
+            index=para_index,
+            sentences=[],
+            peak_count=0,
+            resolved_peaks=0,
+            resolution_ratio=1.0,
+            mean_tension=0.0,
+            max_tension=0.0,
         )
 
-    doc       = nlp(para_text)
+    doc = nlp(para_text)
     sentences = list(doc.sents)
 
     if not sentences:
         return ParagraphArc(
-            index=para_index, sentences=[],
-            peak_count=0, resolved_peaks=0, resolution_ratio=1.0,
-            mean_tension=0.0, max_tension=0.0,
+            index=para_index,
+            sentences=[],
+            peak_count=0,
+            resolved_peaks=0,
+            resolution_ratio=1.0,
+            mean_tension=0.0,
+            max_tension=0.0,
         )
 
     sent_texts = [s.text.strip() for s in sentences]
-    embeddings = (embedder.encode(sent_texts, convert_to_numpy=True)   # (N, D)
-                  if embedder is not None
-                  else np.zeros((len(sent_texts), 1), dtype=np.float32))
-    moves      = [_classify_move(t) for t in sent_texts]
+    embeddings = (
+        embedder.encode(sent_texts, convert_to_numpy=True)  # (N, D)
+        if embedder is not None
+        else np.zeros((len(sent_texts), 1), dtype=np.float32)
+    )
+    moves = [_classify_move(t) for t in sent_texts]
 
-    sentence_tensions: List[SentenceTension] = []
-    tension_values:    List[float]           = []
+    sentence_tensions: list[SentenceTension] = []
+    tension_values: list[float] = []
 
     for i, sent in enumerate(sentences):
         s_val = _syntactic_tension(sent)
@@ -310,17 +335,22 @@ def _analyze_paragraph(para_text: str, para_index: int) -> ParagraphArc:
 
         t_val = float(np.clip(ALPHA * s_val + BETA * l_val + GAMMA * c_val, 0.0, 1.0))
 
-        sentence_tensions.append(SentenceTension(
-            index=i, text=sent_texts[i],
-            syntactic=round(s_val, 4), logical=round(l_val, 4),
-            cohesion=round(c_val, 4),  total=round(t_val, 4),
-            move_type=moves[i],
-        ))
+        sentence_tensions.append(
+            SentenceTension(
+                index=i,
+                text=sent_texts[i],
+                syntactic=round(s_val, 4),
+                logical=round(l_val, 4),
+                cohesion=round(c_val, 4),
+                total=round(t_val, 4),
+                move_type=moves[i],
+            )
+        )
         tension_values.append(t_val)
 
-    peaks    = _find_peaks(tension_values)
+    peaks = _find_peaks(tension_values)
     resolved = _count_resolved_peaks(tension_values, peaks)
-    rho      = resolved / len(peaks) if peaks else 1.0
+    rho = resolved / len(peaks) if peaks else 1.0
 
     return ParagraphArc(
         index=para_index,
@@ -335,11 +365,12 @@ def _analyze_paragraph(para_text: str, para_index: int) -> ParagraphArc:
 
 # ── Document-level aggregation ────────────────────────────────────────────────
 
-def _compute_catastrophe(rho_values: List[float]) -> Tuple[float, float, float]:
+
+def _compute_catastrophe(rho_values: list[float]) -> tuple[float, float, float]:
     """Returns (μ, σ, κ)  where κ = σ·(1 - μ)."""
     if not rho_values:
         return 1.0, 0.0, 0.0
-    mu  = float(np.mean(rho_values))
+    mu = float(np.mean(rho_values))
     sig = float(np.std(rho_values))
     kappa = sig * (1.0 - mu)
     return round(mu, 4), round(sig, 4), round(kappa, 4)
@@ -361,9 +392,9 @@ def _arc_flag(
     mu_rho: float,
     mean_tension: float,
     max_tension: float,
-    authenticity: Optional[float],
+    authenticity: float | None,
     num_rho_values: int = 0,
-) -> Tuple[str, str]:
+) -> tuple[str, str]:
     """
     Multi-signal flag combining:
     - κ (catastrophe index) — structural variance in resolution
@@ -429,9 +460,10 @@ def _arc_flag(
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+
 def analyze_tension_arc(
     text: str,
-    baseline_kappa: Optional[float] = None,
+    baseline_kappa: float | None = None,
 ) -> TensionArcResult:
     """
     Main entry point.  Call from your existing score pipeline.
@@ -448,9 +480,13 @@ def analyze_tension_arc(
     word_count = len(text.split())
     if word_count < 200:
         return TensionArcResult(
-            tension_series=[], paragraph_arcs=[],
-            resolution_ratio_mean=1.0, resolution_ratio_std=0.0,
-            catastrophe_index=0.0, mean_tension=0.0, max_tension=0.0,
+            tension_series=[],
+            paragraph_arcs=[],
+            resolution_ratio_mean=1.0,
+            resolution_ratio_std=0.0,
+            catastrophe_index=0.0,
+            mean_tension=0.0,
+            max_tension=0.0,
             authenticity_signal=None,
             arc_flag="insufficient_length",
             arc_flag_reason=(
@@ -462,30 +498,36 @@ def analyze_tension_arc(
     paragraphs = _split_paragraphs(text)
     if not paragraphs:
         return TensionArcResult(
-            tension_series=[], paragraph_arcs=[],
-            resolution_ratio_mean=1.0, resolution_ratio_std=0.0,
-            catastrophe_index=0.0, mean_tension=0.0, max_tension=0.0,
+            tension_series=[],
+            paragraph_arcs=[],
+            resolution_ratio_mean=1.0,
+            resolution_ratio_std=0.0,
+            catastrophe_index=0.0,
+            mean_tension=0.0,
+            max_tension=0.0,
             authenticity_signal=None,
             arc_flag="review",
             arc_flag_reason="Insufficient text structure for tension arc analysis.",
         )
 
-    arcs: List[ParagraphArc] = [_analyze_paragraph(p, i) for i, p in enumerate(paragraphs)]
+    arcs: list[ParagraphArc] = [_analyze_paragraph(p, i) for i, p in enumerate(paragraphs)]
 
     tension_series = [s.total for arc in arcs for s in arc.sentences]
-    rho_values     = [arc.resolution_ratio for arc in arcs if arc.peak_count > 0]
+    rho_values = [arc.resolution_ratio for arc in arcs if arc.peak_count > 0]
 
     mu_rho, sig_rho, kappa = _compute_catastrophe(rho_values)
 
     mean_t = float(np.mean(tension_series)) if tension_series else 0.0
-    max_t  = float(np.max(tension_series))  if tension_series else 0.0
+    max_t = float(np.max(tension_series)) if tension_series else 0.0
 
-    auth_signal = (_authenticity_signal(kappa, baseline_kappa)
-                   if baseline_kappa is not None else None)
+    auth_signal = (
+        _authenticity_signal(kappa, baseline_kappa) if baseline_kappa is not None else None
+    )
 
     num_rho_values = len(rho_values)
-    flag, reason = _arc_flag(kappa, mu_rho, mean_t, max_t, auth_signal,
-                             num_rho_values=num_rho_values)
+    flag, reason = _arc_flag(
+        kappa, mu_rho, mean_t, max_t, auth_signal, num_rho_values=num_rho_values
+    )
 
     return TensionArcResult(
         tension_series=[round(v, 4) for v in tension_series],
@@ -501,7 +543,7 @@ def analyze_tension_arc(
     )
 
 
-def update_student_baseline_kappa(existing_kappa_values: List[float], new_kappa: float) -> float:
+def update_student_baseline_kappa(existing_kappa_values: list[float], new_kappa: float) -> float:
     """
     Running mean of κ across a student's authenticated submissions.
     Append new_kappa, return updated mean to store as student.baseline_kappa.
@@ -568,8 +610,10 @@ if __name__ == "__main__":
     they have been broken by sin, misunderstanding, or conflict.
     """
 
-    for label, text in [("HUMAN (borderline ~250w)", HUMAN_SHORT),
-                        ("AI    (academic ~250w)", AI_SHORT)]:
+    for label, text in [
+        ("HUMAN (borderline ~250w)", HUMAN_SHORT),
+        ("AI    (academic ~250w)", AI_SHORT),
+    ]:
         r = analyze_tension_arc(text)
         words = len(text.split())
         num_rho = len([a for a in r.paragraph_arcs if a.peak_count > 0])
@@ -584,4 +628,5 @@ if __name__ == "__main__":
         print(f"  num paragraphs w/ peaks:  {num_rho}")
         print(f"  Flag:                     {r.arc_flag}")
         print(f"  Reason:                   {r.arc_flag_reason[:80]}…")
-        print(f"  Series ({len(r.tension_series)} pts): {[round(v,3) for v in r.tension_series[:8]]}...")
+        series_preview = [round(v, 3) for v in r.tension_series[:8]]
+        print(f"  Series ({len(r.tension_series)} pts): {series_preview}...")
