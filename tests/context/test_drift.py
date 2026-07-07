@@ -171,12 +171,23 @@ class TestPersistence:
         tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
         tmp.close()
         os.environ["ORIGINAL_DB"] = tmp.name
+        import sys
+
+        # Snapshot the module object(s) we're about to swap out so `finally`
+        # can put them back. Without this, the swap leaks for the rest of the
+        # pytest session: anything that bound `from . import store` at ITS
+        # OWN import time (e.g. original/repository.py, evaluated once when
+        # first imported) keeps pointing at the pre-swap object forever,
+        # while a fresh `from original import store` elsewhere (e.g.
+        # conftest.py's store_reset) picks up the post-swap object — the two
+        # silently diverge and later tests patch/reset the wrong one.
+        _saved_store_modules = {
+            mod: sys.modules[mod] for mod in list(sys.modules) if mod.startswith("original.store")
+        }
         try:
             # Force a fresh store import that picks up the new DB path.
-            import sys
-            for mod in list(sys.modules):
-                if mod.startswith("original.store"):
-                    del sys.modules[mod]
+            for mod in _saved_store_modules:
+                del sys.modules[mod]
             from original import store as fresh_store
 
             state = _state_with_baseline(value=0.5, n=3)
@@ -199,6 +210,7 @@ class TestPersistence:
             r2 = reloaded.check_drift(outlier)
             assert r2.recommendation == "rebaseline"
         finally:
+            sys.modules.update(_saved_store_modules)
             os.unlink(tmp.name)
 
     def test_legacy_row_defaults_counter_to_zero(self):
@@ -270,9 +282,18 @@ class TestApiIntegration:
         tmp.close()
         os.environ["ORIGINAL_DB"] = tmp.name
         # Reset all original.store state so the DB-path env var takes effect.
-        for mod in list(sys.modules):
-            if mod.startswith("original.store") or mod.endswith("_legacy_demo_api"):
-                del sys.modules[mod]
+        # Snapshot what we're about to remove so it can be restored below —
+        # otherwise this leaks for the rest of the pytest session: anything
+        # that bound `from . import store` at ITS OWN import time (e.g.
+        # original/repository.py) keeps pointing at the pre-swap object
+        # while a fresh import elsewhere picks up the post-swap one, and the
+        # two silently diverge (see TestPersistence's identical fix above).
+        _saved_modules = {
+            mod: sys.modules[mod] for mod in list(sys.modules)
+            if mod.startswith("original.store") or mod.endswith("_legacy_demo_api")
+        }
+        for mod in _saved_modules:
+            del sys.modules[mod]
 
         BACKEND_ROOT = Path(__file__).resolve().parents[2]
         spec = importlib.util.spec_from_file_location(
@@ -287,6 +308,8 @@ class TestApiIntegration:
 
         yield client, tmp.name, module
 
+        sys.modules.pop("original._legacy_demo_api_drift", None)
+        sys.modules.update(_saved_modules)
         os.unlink(tmp.name)
 
     def test_first_authenticated_sample_accepts(self, client_and_db):
