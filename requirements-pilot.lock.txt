@@ -45,7 +45,7 @@ cymem==2.0.13
     #   thinc
 ecdsa==0.19.2
     # via python-jose
-fastapi==0.128.8
+fastapi==0.139.0
     # via -r requirements-demo.txt
 h11==0.16.0
     # via
@@ -160,7 +160,7 @@ srsly==2.5.3
     #   spacy
     #   thinc
     #   weasel
-starlette==0.52.1
+starlette==1.3.1
     # via
     #   -r requirements-demo.txt
     #   fastapi
