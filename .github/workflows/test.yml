@@ -207,7 +207,15 @@ jobs:
       - name: pip-audit (pilot lockset)
         run: |
           pip install pip-audit
-          pip-audit -r requirements-pilot.lock.txt
+          # PYSEC-2026-1325 (ecdsa, transitive via python-jose): no fixed
+          # version exists upstream — this is the long-documented python-ecdsa
+          # pure-Python timing side-channel that the maintainers treat as
+          # out of scope for a version bump. Original's LTI JWT verification
+          # is hardcoded to RS256 only (original/lti.py:252), so python-jose's
+          # ecdsa-backed ES256/384/512 path is never invoked — unreachable in
+          # this app. Re-check this ignore if a fix ships, or if ES* algorithms
+          # are ever added to lti.py's `algorithms=` allowlist.
+          pip-audit -r requirements-pilot.lock.txt --ignore-vuln PYSEC-2026-1325
 
       - name: gitleaks
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
