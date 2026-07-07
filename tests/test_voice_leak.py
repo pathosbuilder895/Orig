@@ -51,43 +51,47 @@ LONG_TEXT = (
 # When project_voice_view or project_submission_result legitimately grows a
 # new top-level key, add it here in the same commit. That's the design — the
 # allow-list IS the contract.
-ALLOWED_VOICE_VIEW_KEYS = frozenset({
-    "name",
-    "headline",
-    "subhead",
-    "fingerprint",
-    "fingerprint.name",
-    "fingerprint.value",
-    "arc",
-    "arc.period",
-    "arc.fidelity",
-    "arc.attention",
-    "voice_notes",
-    "voice_notes.note",
-    "voice_notes.reviewer",
-    "voice_notes.date",
-    "review_opportunities",
-    "review_opportunities.invitation_prose",
-    "review_opportunities.locator",
-    "milestones",
-    "milestones.label",
-    "milestones.state",
-    "milestones.blurb",
-    "formation",
-    "formation.active",
-    "formation.status",
-    "formation.current_step",
-    "formation.total_steps",
-    "formation.step_label",
-    "formation.supportive_copy",
-})
+ALLOWED_VOICE_VIEW_KEYS = frozenset(
+    {
+        "name",
+        "headline",
+        "subhead",
+        "fingerprint",
+        "fingerprint.name",
+        "fingerprint.value",
+        "arc",
+        "arc.period",
+        "arc.fidelity",
+        "arc.attention",
+        "voice_notes",
+        "voice_notes.note",
+        "voice_notes.reviewer",
+        "voice_notes.date",
+        "review_opportunities",
+        "review_opportunities.invitation_prose",
+        "review_opportunities.locator",
+        "milestones",
+        "milestones.label",
+        "milestones.state",
+        "milestones.blurb",
+        "formation",
+        "formation.active",
+        "formation.status",
+        "formation.current_step",
+        "formation.total_steps",
+        "formation.step_label",
+        "formation.supportive_copy",
+    }
+)
 
-ALLOWED_SUBMIT_RESULT_KEYS = frozenset({
-    "headline",
-    "summary",
-    "steady",
-    "review_opportunity",
-})
+ALLOWED_SUBMIT_RESULT_KEYS = frozenset(
+    {
+        "headline",
+        "summary",
+        "steady",
+        "review_opportunity",
+    }
+)
 
 # The substring scan is RETAINED as a secondary defence — it catches values
 # (not just keys) that look like surveillance internals. Tightly scoped so
@@ -163,34 +167,56 @@ _assert_clean = _assert_voice_view_clean
 
 # ── Unit: projection redacts adversarial raw inputs ──────────────────────────
 
+
 def test_projection_drops_feature_codes_and_scores():
     # A baseline vector keyed by the REAL feature codes, with raw scores.
     baseline = {code: 0.6 for code in ALL_FEATURE_CODES}
     manifests = [
-        {"submission_id": "s2", "created_at": "2025-11-14T00:00:00",
-         "divergence_score": 0.61, "action": "schedule_conversation"},
-        {"submission_id": "s1", "created_at": "2025-10-09T00:00:00",
-         "divergence_score": 0.12, "action": "no_action"},
+        {
+            "submission_id": "s2",
+            "created_at": "2025-11-14T00:00:00",
+            "divergence_score": 0.61,
+            "action": "schedule_conversation",
+        },
+        {
+            "submission_id": "s1",
+            "created_at": "2025-10-09T00:00:00",
+            "divergence_score": 0.12,
+            "action": "no_action",
+        },
     ]
     corrections = [
-        {"notes": "Your handling of apophatic language is genuinely your own now.",
-         "reviewer": "Dr. Pemberton", "created_at": "2025-12-18T00:00:00",
-         "original_divergence_score": 0.61, "original_action": "schedule_conversation"},
+        {
+            "notes": "Your handling of apophatic language is genuinely your own now.",
+            "reviewer": "Dr. Pemberton",
+            "created_at": "2025-12-18T00:00:00",
+            "original_divergence_score": 0.61,
+            "original_action": "schedule_conversation",
+        },
     ]
-    pathway = {"current_step": 1, "total_steps": 3, "status": "open",
-               "reason": "voice divergence", "submission_id": "s2"}
+    pathway = {
+        "current_step": 1,
+        "total_steps": 3,
+        "status": "open",
+        "reason": "voice divergence",
+        "submission_id": "s2",
+    }
 
     view = voice_mod.project_voice_view(
-        name="Thomas Merton", baseline_vector=baseline,
-        sample_count=5, authenticated_count=2,
-        manifests=manifests, corrections=corrections, pathway=pathway,
+        name="Thomas Merton",
+        baseline_vector=baseline,
+        sample_count=5,
+        authenticated_count=2,
+        manifests=manifests,
+        corrections=corrections,
+        pathway=pathway,
     )
     _assert_voice_view_clean(view)
 
     # The shape is still useful: 7 blended dimensions, an ascending arc, a note.
     assert len(view["fingerprint"]) == 7
     assert [p["fidelity"] for p in view["arc"]] == [88, 39]  # oldest→newest, resolved
-    assert view["arc"][1]["attention"] is True               # the flagged piece
+    assert view["arc"][1]["attention"] is True  # the flagged piece
     assert view["voice_notes"][0]["reviewer"] == "Dr. Pemberton"
     assert view["review_opportunities"], "a flagged manifest should invite a conversation"
     assert view["formation"]["current_step"] == 1
@@ -201,10 +227,12 @@ def test_submission_result_redaction():
     layer7 = {
         "recommendation": {"action": "monitor"},
         "authorship": {"deviation_score": 0.52},
-        "interference": {"constructive_features": [
-            {"code": "type_token_ratio", "name": "Type-token ratio"},
-            {"code": "burstiness", "name": "Burstiness"},
-        ]},
+        "interference": {
+            "constructive_features": [
+                {"code": "type_token_ratio", "name": "Type-token ratio"},
+                {"code": "burstiness", "name": "Burstiness"},
+            ]
+        },
         "human_explanation": {"summary": "deviation score 0.52; anomalies detected"},
     }
     res = voice_mod.project_submission_result(layer7, "Thomas Merton")
@@ -215,12 +243,17 @@ def test_submission_result_redaction():
 
 # ── Integration: live endpoints over a signed-in student ─────────────────────
 
+
 @pytest.fixture(scope="module")
 def student_token():
-    r = client.post("/student-auth/login", json={
-        "email": "merton@gethsemani.edu", "institution": "Gethsemani Demo",
-        "name": "Thomas Merton",
-    })
+    r = client.post(
+        "/student-auth/login",
+        json={
+            "email": "merton@gethsemani.edu",
+            "institution": "Gethsemani Demo",
+            "name": "Thomas Merton",
+        },
+    )
     assert r.status_code == 200, r.text
     body = r.json()
     tok = body["token"]
@@ -228,9 +261,11 @@ def student_token():
     hdr = {"Authorization": f"Bearer {tok}"}
     # Seed two authenticated baselines so scoring is possible.
     for i in range(2):
-        rr = client.post(f"/students/{sid}/baseline",
-                         json={"text": LONG_TEXT, "assignment": f"a{i}", "provenance": "verified"},
-                         headers=hdr)
+        rr = client.post(
+            f"/students/{sid}/baseline",
+            json={"text": LONG_TEXT, "assignment": f"a{i}", "provenance": "verified"},
+            headers=hdr,
+        )
         assert rr.status_code == 200, rr.text
     return tok, sid
 
@@ -249,8 +284,11 @@ def test_me_voice_is_clean(student_token):
 
 def test_me_work_is_clean(student_token):
     tok, _sid = student_token
-    r = client.post("/me/work", headers={"Authorization": f"Bearer {tok}"},
-                    json={"text": LONG_TEXT, "title": "Conscience & Formation"})
+    r = client.post(
+        "/me/work",
+        headers={"Authorization": f"Bearer {tok}"},
+        json={"text": LONG_TEXT, "title": "Conscience & Formation"},
+    )
     assert r.status_code == 200, r.text
     _assert_submit_result_clean(r.json())
 
@@ -315,7 +353,7 @@ STUDENT_FORBIDDEN_STATIC = [
     # action enum names (formal config, not formation register)
     "no_action",
     "schedule_conversation",
-    "escalate ",   # trailing space so "escalating" doesn't trip
+    "escalate ",  # trailing space so "escalating" doesn't trip
 ]
 
 

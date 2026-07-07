@@ -16,6 +16,7 @@ import dataclasses
 
 # ── 1. analyze_tension_arc returns a valid TensionArcResult ──────────────────
 
+
 def test_analyze_tension_arc_returns_result():
     from original.tension_arc import analyze_tension_arc, TensionArcResult
 
@@ -55,6 +56,7 @@ def test_analyze_tension_arc_returns_result():
 
 # ── 2. analyze_tension_arc with a baseline_kappa ─────────────────────────────
 
+
 def test_analyze_tension_arc_with_baseline_kappa():
     from original.tension_arc import analyze_tension_arc
 
@@ -93,6 +95,7 @@ def test_analyze_tension_arc_with_baseline_kappa():
 
 # ── 3. update_student_baseline_kappa running-mean helper ─────────────────────
 
+
 def test_update_student_baseline_kappa():
     from original.tension_arc import update_student_baseline_kappa
 
@@ -113,6 +116,7 @@ def test_update_student_baseline_kappa():
 
 # ── 4. Layer7Output has tension_arc field defaulting to None ─────────────────
 
+
 def test_layer7_output_has_tension_arc_field():
     from original.quantum.scoring import Layer7Output
 
@@ -125,6 +129,7 @@ def test_layer7_output_has_tension_arc_field():
 
 
 # ── 5. ScoreResponse schema includes tension_arc field ───────────────────────
+
 
 def test_score_response_includes_tension_arc_field():
     """
@@ -142,8 +147,15 @@ def test_score_response_includes_tension_arc_field():
 
     # TensionArcOut must have the expected fields
     expected_fields = {
-        "catastrophe_index", "resolution_ratio_mean", "resolution_ratio_std",
-        "mean_tension", "max_tension", "authenticity_signal",
-        "arc_flag", "arc_flag_reason", "tension_series", "paragraph_arcs",
+        "catastrophe_index",
+        "resolution_ratio_mean",
+        "resolution_ratio_std",
+        "mean_tension",
+        "max_tension",
+        "authenticity_signal",
+        "arc_flag",
+        "arc_flag_reason",
+        "tension_series",
+        "paragraph_arcs",
     }
     assert expected_fields.issubset(set(TensionArcOut.model_fields.keys()))

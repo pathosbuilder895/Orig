@@ -17,6 +17,7 @@ import original.repository as repository
 @pytest.fixture(autouse=True)
 def _isolated_store(tmp_path, monkeypatch):
     import original.store as store_mod
+
     db_file = tmp_path / "test_profiles.db"
     monkeypatch.setenv("ORIGINAL_DB", str(db_file))
     _seen: set = set()
@@ -42,12 +43,18 @@ def _isolated_store(tmp_path, monkeypatch):
 
 
 def _seed_divergent(student_id="sem:alice", sub="sub-1"):
-    store.put_manifest(sub, student_id, {"created_at": "2026-01-01T00:00:00Z"},
-                       divergence_score=0.61, action="schedule_conversation")
+    store.put_manifest(
+        sub,
+        student_id,
+        {"created_at": "2026-01-01T00:00:00Z"},
+        divergence_score=0.61,
+        action="schedule_conversation",
+    )
     return sub
 
 
 # ── store-level lifecycle ─────────────────────────────────────────────────────
+
 
 class TestFormationLifecycle:
     def test_none_initially(self):
@@ -87,6 +94,7 @@ class TestFormationLifecycle:
 
 # ── flag clearing on completion ───────────────────────────────────────────────
 
+
 class TestFlagClearing:
     def test_completion_clears_manifest_flag(self):
         sub = _seed_divergent()
@@ -122,6 +130,7 @@ class TestFlagClearing:
 
 # ── audit trail ───────────────────────────────────────────────────────────────
 
+
 class TestFormationAudit:
     def test_open_advance_complete_audited(self):
         store.open_formation_pathway("sem:alice", submission_id="s")
@@ -134,6 +143,7 @@ class TestFormationAudit:
 
 
 # ── Repository seam ───────────────────────────────────────────────────────────
+
 
 class TestRepositorySeam:
     def test_factory_returns_sqlite_repo(self):

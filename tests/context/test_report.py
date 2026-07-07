@@ -14,26 +14,39 @@ import numpy as np
 import pytest
 
 from original.constants import (
-    ALL_FEATURE_CODES, FEATURE_DIM, FEATURE_TIER,
-    TIER4_CODES, TIER6_CODES, TIER16_CODES,
+    ALL_FEATURE_CODES,
+    FEATURE_DIM,
+    FEATURE_TIER,
+    TIER4_CODES,
+    TIER6_CODES,
+    TIER16_CODES,
 )
 from original.context.manifest import ContextManifest
 from original.context.report import (
-    CONFIDENCE_LOW_UNDER, CONFIDENCE_MEDIUM_UNDER,
-    VERDICT_AUTHENTIC_BELOW, VERDICT_ANOMALOUS_AT_OR_ABOVE,
+    CONFIDENCE_LOW_UNDER,
+    CONFIDENCE_MEDIUM_UNDER,
+    VERDICT_AUTHENTIC_BELOW,
+    VERDICT_ANOMALOUS_AT_OR_ABOVE,
     ScoringReport,
-    _verdict_for, _confidence_for,
-    build_report, generate_narrative,
+    _verdict_for,
+    _confidence_for,
+    build_report,
+    generate_narrative,
 )
 from original.quantum.scoring import (
-    AuthorshipSignal, BaselineConfidence, DomainSignal,
-    InterferenceDecomposition, Layer7Output, RecommendedAction,
+    AuthorshipSignal,
+    BaselineConfidence,
+    DomainSignal,
+    InterferenceDecomposition,
+    Layer7Output,
+    RecommendedAction,
     TrajectoryConformance,
 )
 from original.quantum.state import BaselineSample, StudentState
 
 
 # ── Test helpers ─────────────────────────────────────────────────────────────
+
 
 def _make_manifest(
     *,
@@ -57,8 +70,8 @@ def _make_manifest(
         anchor_tiers=anchor_tiers if anchor_tiers is not None else [4, 6],
         baseline_match={
             "cluster_indices": cluster_indices if cluster_indices is not None else [0, 1, 2],
-            "n_samples":       len(cluster_indices) if cluster_indices is not None else 3,
-            "anchor_only":     anchor_only,
+            "n_samples": len(cluster_indices) if cluster_indices is not None else 3,
+            "anchor_only": anchor_only,
         },
         flags=flags or [],
         created_at="2026-05-06T00:00:00Z",
@@ -87,40 +100,53 @@ def _make_layer7(
     return Layer7Output(
         student_id="s",
         submission_id="sub1",
-        authorship=AuthorshipSignal(authorship_probability=0.7,
-                                     deviation_score=deviation_score),
-        trajectory=TrajectoryConformance(direction="lateral", alignment=0.0,
-                                          confidence=0.0, adjustment_factor=1.0),
+        authorship=AuthorshipSignal(authorship_probability=0.7, deviation_score=deviation_score),
+        trajectory=TrajectoryConformance(
+            direction="lateral", alignment=0.0, confidence=0.0, adjustment_factor=1.0
+        ),
         interference=InterferenceDecomposition(
-            total_probability=0.7, constructive_features=[], destructive_features=[],
-            broken_entanglements=[], tier_breakdown={}),
+            total_probability=0.7,
+            constructive_features=[],
+            destructive_features=[],
+            broken_entanglements=[],
+            tier_breakdown={},
+        ),
         baseline_confidence=BaselineConfidence(
-            purity=0.5, sample_count=int(effective_sample_count),
+            purity=0.5,
+            sample_count=int(effective_sample_count),
             authenticated_count=int(effective_sample_count),
             effective_sample_count=effective_sample_count,
-            trajectory_confidence=0.0),
-        domain=DomainSignal(theological_register_score=0.0, register_anomaly=False,
-                             confessional_balance="balanced"),
-        recommendation=RecommendedAction(action="no_action", confidence=0.8,
-                                          rationale=""),
-        feature_vector=feat, baseline_vector=base,
+            trajectory_confidence=0.0,
+        ),
+        domain=DomainSignal(
+            theological_register_score=0.0, register_anomaly=False, confessional_balance="balanced"
+        ),
+        recommendation=RecommendedAction(action="no_action", confidence=0.8, rationale=""),
+        feature_vector=feat,
+        baseline_vector=base,
     )
 
 
 def _make_state(n_samples: int = 3) -> StudentState:
-    return StudentState(student_id="s", samples=[
-        BaselineSample(
-            text=f"sample {i}", vector=np.full(FEATURE_DIM, 0.5),
-            provenance="verified", auth_weight=1.0,
-            assignment=f"assignment_{i}",
-        )
-        for i in range(n_samples)
-    ])
+    return StudentState(
+        student_id="s",
+        samples=[
+            BaselineSample(
+                text=f"sample {i}",
+                vector=np.full(FEATURE_DIM, 0.5),
+                provenance="verified",
+                auth_weight=1.0,
+                assignment=f"assignment_{i}",
+            )
+            for i in range(n_samples)
+        ],
+    )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Verdict thresholds
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestVerdict:
     def test_verdict_authentic_below_0_3(self):
@@ -143,6 +169,7 @@ class TestVerdict:
 # ══════════════════════════════════════════════════════════════════════════════
 # Confidence levels
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestConfidence:
     def test_anchor_only_returns_insufficient_data(self):
@@ -172,6 +199,7 @@ class TestConfidence:
 # Anchor-tier consistency scoring
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestAnchorTierScores:
     def test_anchor_scores_only_include_anchor_tiers(self):
         # Manifest anchors [4, 6] — report.anchor_tier_scores must contain
@@ -188,17 +216,15 @@ class TestAnchorTierScores:
         layer7 = _make_layer7()
         report = build_report(layer7, m, _make_state())
         for tier, score in report.anchor_tier_scores.items():
-            assert abs(score - 1.0) < 1e-6, \
-                f"tier {tier}: expected 1.0, got {score}"
+            assert abs(score - 1.0) < 1e-6, f"tier {tier}: expected 1.0, got {score}"
 
     def test_max_divergence_gives_consistency_0(self):
         # If submission features are all 0.0 and baseline all 1.0, |delta| = 1
         # for every code → consistency = 0.0.
-        feat_zero  = {c: 0.0 for c in TIER4_CODES}
-        base_one   = {c: 1.0 for c in TIER4_CODES}
+        feat_zero = {c: 0.0 for c in TIER4_CODES}
+        base_one = {c: 1.0 for c in TIER4_CODES}
         m = _make_manifest(anchor_tiers=[4])
-        layer7 = _make_layer7(feature_overrides=feat_zero,
-                               baseline_overrides=base_one)
+        layer7 = _make_layer7(feature_overrides=feat_zero, baseline_overrides=base_one)
         report = build_report(layer7, m, _make_state())
         assert report.anchor_tier_scores[4] == 0.0
 
@@ -217,6 +243,7 @@ class TestAnchorTierScores:
 # Baseline cluster resolution
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestBaselineCluster:
     def test_resolves_assignment_labels(self):
         m = _make_manifest(cluster_indices=[0, 2])
@@ -229,11 +256,18 @@ class TestBaselineCluster:
         m = _make_manifest(cluster_indices=[0])
         layer7 = _make_layer7()
         # Sample with empty assignment.
-        state = StudentState(student_id="s", samples=[
-            BaselineSample(text="x", vector=np.full(FEATURE_DIM, 0.5),
-                            provenance="verified", auth_weight=1.0,
-                            assignment=""),
-        ])
+        state = StudentState(
+            student_id="s",
+            samples=[
+                BaselineSample(
+                    text="x",
+                    vector=np.full(FEATURE_DIM, 0.5),
+                    provenance="verified",
+                    auth_weight=1.0,
+                    assignment="",
+                ),
+            ],
+        )
         report = build_report(layer7, m, state)
         assert report.baseline_cluster == ["sample_0"]
 
@@ -255,6 +289,7 @@ class TestBaselineCluster:
 # ══════════════════════════════════════════════════════════════════════════════
 # Narrative builder
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestNarrative:
     def test_includes_baseline_cluster_size(self):
@@ -333,6 +368,7 @@ class TestNarrative:
 # build_report end-to-end
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestBuildReport:
     def test_full_field_population(self):
         m = _make_manifest(flags=["software_mediated"])
@@ -342,11 +378,11 @@ class TestBuildReport:
 
         assert report.submission_id == "sub1"
         assert abs(report.divergence_score - 0.4) < 1e-9
-        assert report.verdict == "uncertain"     # 0.4 is in the middle band
-        assert report.confidence == "medium"     # eff=5.0
+        assert report.verdict == "uncertain"  # 0.4 is in the middle band
+        assert report.confidence == "medium"  # eff=5.0
         assert report.flags == ["software_mediated"]
         assert len(report.baseline_cluster) == 3
-        assert len(report.anchor_tier_scores) == 2     # T4, T6
+        assert len(report.anchor_tier_scores) == 2  # T4, T6
         assert "sub1" in report.narrative
         assert "uncertain" in report.narrative
 
@@ -359,6 +395,7 @@ class TestBuildReport:
         d = report.to_dict()
 
         import json
+
         # Should round-trip through JSON without TypeErrors.
         s = json.dumps(d)
         d2 = json.loads(s)
@@ -386,6 +423,7 @@ class TestBuildReport:
 # ══════════════════════════════════════════════════════════════════════════════
 # Pydantic schema interop
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestPydanticInterop:
     def test_to_dict_matches_pydantic_model(self):

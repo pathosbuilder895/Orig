@@ -14,6 +14,7 @@ from original import student_auth as sa
 
 # ── slugify ───────────────────────────────────────────────────────────────────
 
+
 class TestSlugify:
     def test_basic(self):
         assert sa.slugify("Wycliffe College") == "wycliffe-college"
@@ -27,6 +28,7 @@ class TestSlugify:
 
 
 # ── derive_student_id ─────────────────────────────────────────────────────────
+
 
 class TestDeriveStudentId:
     def test_format_is_tenant_prefixed(self):
@@ -42,7 +44,7 @@ class TestDeriveStudentId:
 
     def test_institution_scoped(self):
         a = sa.derive_student_id("Wycliffe College", "jane@example.com")
-        b = sa.derive_student_id("Other Seminary",  "jane@example.com")
+        b = sa.derive_student_id("Other Seminary", "jane@example.com")
         assert a != b
 
     def test_email_not_present_in_id(self):
@@ -55,6 +57,7 @@ class TestDeriveStudentId:
 
 
 # ── sessions ──────────────────────────────────────────────────────────────────
+
 
 class TestSessions:
     def test_mint_verify_roundtrip(self):

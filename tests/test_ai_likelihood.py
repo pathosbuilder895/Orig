@@ -59,8 +59,9 @@ _ESSAY = (
 )
 
 
-def _make_fixture_artifact(tmp_path: Path, *, thresholds=None,
-                           shuffle_codes=False, drift_refs=False) -> Path:
+def _make_fixture_artifact(
+    tmp_path: Path, *, thresholds=None, shuffle_codes=False, drift_refs=False
+) -> Path:
     """Train a tiny LogisticRegression and wrap it in the exact artifact schema."""
     import joblib
     from sklearn.linear_model import LogisticRegression
@@ -89,16 +90,21 @@ def _make_fixture_artifact(tmp_path: Path, *, thresholds=None,
         "model": model,
         "model_name": "fixture_logreg",
         "feature_codes": codes,
-        "masked_codes": list(TIER17_CODES) + list(MUSICAL_COMPARISON_CODES)
-                        + list(COMPARISON_CODES),
+        "masked_codes": list(TIER17_CODES)
+        + list(MUSICAL_COMPARISON_CODES)
+        + list(COMPARISON_CODES),
         "thresholds": thresholds or {"elevated": 0.6, "strong": 0.9},
         "human_centroid": human_X.mean(axis=0),
         "human_std": np.maximum(human_X.std(axis=0), 1e-6),
         "reference_vectors": reference_vectors,
         "reference_probs": reference_probs,
-        "provenance": {"trained_at": "fixture", "git_sha": "fixture",
-                       "sklearn_version": "fixture", "numpy_version": "fixture",
-                       "dataset": {"name": "fixture-dataset"}},
+        "provenance": {
+            "trained_at": "fixture",
+            "git_sha": "fixture",
+            "sklearn_version": "fixture",
+            "numpy_version": "fixture",
+            "dataset": {"name": "fixture-dataset"},
+        },
     }
     path = tmp_path / "fixture_detector.joblib"
     joblib.dump(artifact, path)
@@ -109,21 +115,23 @@ def _make_fixture_artifact(tmp_path: Path, *, thresholds=None,
 def detector_reset():
     """Fresh singleton before and after each test that touches the loader."""
     from original.ai_likelihood import reset_for_tests
+
     reset_for_tests()
     yield
     reset_for_tests()
 
 
 def _seed_student(sid: str) -> None:
-    r = client.post(f"/students/{sid}/baseline",
-                    json={"text": _ESSAY, "provenance": "proctored"})
+    r = client.post(f"/students/{sid}/baseline", json={"text": _ESSAY, "provenance": "proctored"})
     assert r.status_code == 200, r.text
 
 
 # ── 1 + 6. Dataclass field + schema round-trip ────────────────────────────────
 
+
 def test_layer7_output_has_ai_likelihood_field_default_none():
     from original.quantum.scoring import Layer7Output
+
     defaults = {f.name: f.default for f in dataclasses.fields(Layer7Output)}
     assert "ai_likelihood" in defaults
     assert defaults["ai_likelihood"] is None
@@ -131,6 +139,7 @@ def test_layer7_output_has_ai_likelihood_field_default_none():
 
 def test_response_schema_has_optional_ai_likelihood():
     from original.schemas import Layer7OutputResponse, AiLikelihoodOut, AiIndicatorOut
+
     assert Layer7OutputResponse.model_fields["ai_likelihood"].default is None
     expected = {"probability", "band", "model_version", "trained_on", "top_indicators"}
     assert expected.issubset(set(AiLikelihoodOut.model_fields.keys()))
@@ -139,8 +148,10 @@ def test_response_schema_has_optional_ai_likelihood():
 
 # ── 2. Flag-off null + attach-only identity ───────────────────────────────────
 
+
 def test_flag_off_response_null_and_flag_on_changes_nothing_else(
-        tmp_path, monkeypatch, detector_reset):
+    tmp_path, monkeypatch, detector_reset
+):
     # Deterministic Phase 1 path for the comparison (flags read at call time).
     monkeypatch.setenv("CONTEXT_MANIFEST_ENABLED", "0")
     monkeypatch.setenv("ADAPTIVE_WEIGHTS_ENABLED", "0")
@@ -157,11 +168,11 @@ def test_flag_off_response_null_and_flag_on_changes_nothing_else(
 
     # Flag on with a fixture whose thresholds guarantee band == "low", so the
     # narrative layers stay silent and the ONLY difference is the new field.
-    fixture = _make_fixture_artifact(
-        tmp_path, thresholds={"elevated": 0.999, "strong": 0.9999})
+    fixture = _make_fixture_artifact(tmp_path, thresholds={"elevated": 0.999, "strong": 0.9999})
     monkeypatch.setenv("AI_LIKELIHOOD_ENABLED", "1")
     monkeypatch.setenv("AI_LIKELIHOOD_MODEL_PATH", str(fixture))
     from original.ai_likelihood import reset_for_tests
+
     reset_for_tests()
 
     r_on = client.post(f"/students/{sid}/score", json=body)
@@ -182,6 +193,7 @@ def test_flag_off_response_null_and_flag_on_changes_nothing_else(
 
 # ── 3. Happy path ─────────────────────────────────────────────────────────────
 
+
 def test_happy_path_predicts_band_and_indicators(tmp_path, monkeypatch, detector_reset):
     fixture = _make_fixture_artifact(tmp_path)
     monkeypatch.setenv("AI_LIKELIHOOD_MODEL_PATH", str(fixture))
@@ -190,7 +202,7 @@ def test_happy_path_predicts_band_and_indicators(tmp_path, monkeypatch, detector
     assert warm() is True
 
     vec = np.full(FEATURE_DIM, 0.5)
-    vec[_PPX_IDX] = 0.85   # deep in the fixture's "AI" class, z >> 2
+    vec[_PPX_IDX] = 0.85  # deep in the fixture's "AI" class, z >> 2
     result = predict_ai_likelihood(vec)
 
     assert result is not None
@@ -202,24 +214,29 @@ def test_happy_path_predicts_band_and_indicators(tmp_path, monkeypatch, detector
     assert result.trained_on == "fixture-dataset"
     assert len(result.top_indicators) <= 3
     assert all(ind.code in _INDICATOR_WHITELIST for ind in result.top_indicators)
-    assert any(ind.code == "perplexity_proxy" and ind.direction == "higher"
-               for ind in result.top_indicators)
+    assert any(
+        ind.code == "perplexity_proxy" and ind.direction == "higher"
+        for ind in result.top_indicators
+    )
 
 
 # ── 4. Graceful degradation ───────────────────────────────────────────────────
 
+
 def test_missing_artifact_returns_none_and_warns_once(
-        tmp_path, monkeypatch, detector_reset, caplog):
+    tmp_path, monkeypatch, detector_reset, caplog
+):
     monkeypatch.setenv("AI_LIKELIHOOD_MODEL_PATH", str(tmp_path / "nope.joblib"))
     from original.ai_likelihood import predict_ai_likelihood
 
     vec = np.full(FEATURE_DIM, 0.5)
     with caplog.at_level(logging.WARNING, logger="original.ai_likelihood"):
         assert predict_ai_likelihood(vec) is None
-        assert predict_ai_likelihood(vec) is None   # second call: silent
+        assert predict_ai_likelihood(vec) is None  # second call: silent
 
-    warnings_ = [rec for rec in caplog.records
-                 if "AI-likelihood detector disabled" in rec.getMessage()]
+    warnings_ = [
+        rec for rec in caplog.records if "AI-likelihood detector disabled" in rec.getMessage()
+    ]
     assert len(warnings_) == 1, "load failure must log exactly once"
 
 
@@ -236,10 +253,12 @@ def test_missing_artifact_endpoint_still_200(tmp_path, monkeypatch, detector_res
 
 # ── 5. Load-time validation failures ──────────────────────────────────────────
 
+
 def test_shuffled_feature_codes_disable_detector(tmp_path, monkeypatch, detector_reset):
     fixture = _make_fixture_artifact(tmp_path, shuffle_codes=True)
     monkeypatch.setenv("AI_LIKELIHOOD_MODEL_PATH", str(fixture))
     from original.ai_likelihood import predict_ai_likelihood, warm
+
     assert warm() is False
     assert predict_ai_likelihood(np.full(FEATURE_DIM, 0.5)) is None
 
@@ -248,11 +267,13 @@ def test_reference_prob_drift_disables_detector(tmp_path, monkeypatch, detector_
     fixture = _make_fixture_artifact(tmp_path, drift_refs=True)
     monkeypatch.setenv("AI_LIKELIHOOD_MODEL_PATH", str(fixture))
     from original.ai_likelihood import predict_ai_likelihood, warm
+
     assert warm() is False
     assert predict_ai_likelihood(np.full(FEATURE_DIM, 0.5)) is None
 
 
 # ── 6. Masking invariance ─────────────────────────────────────────────────────
+
 
 def test_masked_dims_do_not_affect_prediction(tmp_path, monkeypatch, detector_reset):
     fixture = _make_fixture_artifact(tmp_path)
@@ -262,7 +283,7 @@ def test_masked_dims_do_not_affect_prediction(tmp_path, monkeypatch, detector_re
     vec_a = np.full(FEATURE_DIM, 0.5)
     vec_a[_PPX_IDX] = 0.85
     vec_b = vec_a.copy()
-    vec_b[_MASKED_IDX] = 0.93   # keystroke/comparison data present at scoring time
+    vec_b[_MASKED_IDX] = 0.93  # keystroke/comparison data present at scoring time
 
     res_a = predict_ai_likelihood(vec_a)
     res_b = predict_ai_likelihood(vec_b)
@@ -273,6 +294,7 @@ def test_masked_dims_do_not_affect_prediction(tmp_path, monkeypatch, detector_re
 
 # ── 7. Narrative banding ──────────────────────────────────────────────────────
 
+
 class _Band:
     def __init__(self, band: str):
         self.band = band
@@ -280,6 +302,7 @@ class _Band:
 
 class _FakeLayer7:
     """Minimal stand-in; build_professor_explanation getattrs defensively."""
+
     def __init__(self, ai_likelihood=None):
         self.ai_likelihood = ai_likelihood
 
@@ -291,13 +314,15 @@ def test_narrative_strong_band_is_non_accusatory_and_digit_free():
     ai_sentences = [h for h in result.hypotheses if "AI-generated" in h]
     assert ai_sentences, "strong band must surface an AI hypothesis"
     sentence = ai_sentences[0]
-    assert not any(ch.isdigit() for ch in sentence), \
-        "professor-facing prose must stay number-free (tone rule)"
+    assert not any(
+        ch.isdigit() for ch in sentence
+    ), "professor-facing prose must stay number-free (tone rule)"
     for banned in ("cheat", "fraud", "plagiar"):
         assert banned not in sentence.lower()
     # Innocent situational explanation still leads the list.
-    assert "pressure" in result.hypotheses[0].lower() \
-        or "unfamiliar" in result.hypotheses[0].lower()
+    assert (
+        "pressure" in result.hypotheses[0].lower() or "unfamiliar" in result.hypotheses[0].lower()
+    )
     assert result.has_ai_signals is True
     assert result.ai_likelihood_band == "strong"
 

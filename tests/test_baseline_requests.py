@@ -19,6 +19,7 @@ import original.baseline_requests as br
 @pytest.fixture(autouse=True)
 def _isolated(tmp_path, monkeypatch):
     import original.store as store_mod
+
     db_file = tmp_path / "br.db"
     monkeypatch.setenv("ORIGINAL_DB", str(db_file))
     for mod in {id(store_mod): store_mod, id(store): store}.values():
@@ -33,10 +34,15 @@ def _isolated(tmp_path, monkeypatch):
 def _make(student_id="sem:marcus", status="pending", expires_in=72 * 3600):
     return br.BaselineRequest(
         external_request_id=br.make_external_id(),
-        student_id=student_id, student_email="m@x.edu", student_name="Marcus",
-        exam_title="Week 3 Baseline", bbook_exam_id="exam-1",
-        magic_link="http://x/link", requested_at=time.time(),
-        expires_at=time.time() + expires_in, status=status,
+        student_id=student_id,
+        student_email="m@x.edu",
+        student_name="Marcus",
+        exam_title="Week 3 Baseline",
+        bbook_exam_id="exam-1",
+        magic_link="http://x/link",
+        requested_at=time.time(),
+        expires_at=time.time() + expires_in,
+        status=status,
     )
 
 
@@ -44,9 +50,9 @@ class TestDurability:
     def test_pending_survives_restart(self):
         br.record(_make())
         assert len(br.list_pending()) == 1
-        br._reset_cache()                      # simulate process restart
+        br._reset_cache()  # simulate process restart
         assert len(br._registry) == 0
-        pending = br.list_pending()            # reading re-hydrates from SQLite
+        pending = br.list_pending()  # reading re-hydrates from SQLite
         assert len(pending) == 1
         assert pending[0].student_id == "sem:marcus"
 
@@ -55,7 +61,7 @@ class TestDurability:
         done = br.mark_completed_for_student("sem:marcus")
         assert len(done) == 1
         br._reset_cache()
-        assert br.list_pending() == []          # not pending after restart
+        assert br.list_pending() == []  # not pending after restart
         allr = br.list_all()
         assert len(allr) == 1 and allr[0].status == "completed"
 
@@ -69,8 +75,8 @@ class TestDurability:
         assert got.error == "bbook exploded"
 
     def test_expiry_persists(self):
-        br.record(_make(expires_in=-10))        # already expired
-        assert br.list_pending() == []          # auto-expired on read
+        br.record(_make(expires_in=-10))  # already expired
+        assert br.list_pending() == []  # auto-expired on read
         br._reset_cache()
         allr = br.list_all()
         assert len(allr) == 1 and allr[0].status == "expired"
@@ -78,7 +84,9 @@ class TestDurability:
     def test_hydrate_is_idempotent(self):
         br.record(_make())
         # Multiple reads must not duplicate the by-student index
-        br.list_pending(); br.list_all(); br.get("nope")
+        br.list_pending()
+        br.list_all()
+        br.get("nope")
         assert len(br._by_student.get("sem:marcus", [])) == 1
 
 
@@ -87,6 +95,7 @@ class TestRepositorySeamWidened:
 
     def test_tenant_ops_through_repo(self):
         import original.repository as repository
+
         repository.reset_repository()
         repo = repository.get_repository()
         repo.put_tenant("sem-x", "Seminary X", environment="pilot")
@@ -97,6 +106,7 @@ class TestRepositorySeamWidened:
 
     def test_audit_through_repo(self):
         import original.repository as repository
+
         repository.reset_repository()
         repo = repository.get_repository()
         repo.log_audit("formation_open", student_id="sem:alice", details={"x": 1})
@@ -106,6 +116,7 @@ class TestRepositorySeamWidened:
 
     def test_postgres_repo_is_explicit_skeleton(self):
         import original.repository as repository
+
         pg = repository.PostgresRepository()
         with pytest.raises(NotImplementedError):
             pg.get_formation_pathway("x")

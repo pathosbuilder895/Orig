@@ -27,6 +27,7 @@ _CANVAS_JWKS = "https://seminary.instructure.com/api/lti/security/jwks"
 
 # ── LTI public endpoints ───────────────────────────────────────────────────────
 
+
 class TestLTIPublicEndpoints:
     """Tests for LTI endpoints that require no auth (Canvas fetches these)."""
 
@@ -70,6 +71,7 @@ class TestLTIPublicEndpoints:
 
 # ── Canvas webhook signature verification ─────────────────────────────────────
 
+
 class TestWebhookSignatureVerification:
     """Tests for HMAC-SHA256 Canvas webhook signature verification."""
 
@@ -78,14 +80,18 @@ class TestWebhookSignatureVerification:
 
     def _patch_settings(self, monkeypatch, secret: str):
         """Patch the settings used by both webhook and lti modules."""
-        fake = type("S", (), {
-            "CANVAS_WEBHOOK_SECRET": secret,
-            "CANVAS_BASE_URL": "https://seminary.instructure.com",
-            "CANVAS_API_TOKEN": "",
-            "ENVIRONMENT": "testing",
-            "MODEL_VERSION": "1.0.0",
-            "MIN_BASELINE_SAMPLES": 3,
-        })()
+        fake = type(
+            "S",
+            (),
+            {
+                "CANVAS_WEBHOOK_SECRET": secret,
+                "CANVAS_BASE_URL": "https://seminary.instructure.com",
+                "CANVAS_API_TOKEN": "",
+                "ENVIRONMENT": "testing",
+                "MODEL_VERSION": "1.0.0",
+                "MIN_BASELINE_SAMPLES": 3,
+            },
+        )()
         monkeypatch.setattr("original.canvas.webhook.get_settings", lambda: fake)
 
     def test_valid_signature_accepted(self, client: TestClient, db: Session, monkeypatch):
@@ -103,14 +109,16 @@ class TestWebhookSignatureVerification:
             lambda: db,
         )
 
-        payload = json.dumps({
-            "id": "sub_001",
-            "assignment_id": "asgn_001",
-            "course_id": "course_001",
-            "user_id": "user_001",
-            "submission_type": "online_text_entry",
-            "body": "Test submission body text for the canvas essay.",
-        }).encode()
+        payload = json.dumps(
+            {
+                "id": "sub_001",
+                "assignment_id": "asgn_001",
+                "course_id": "course_001",
+                "user_id": "user_001",
+                "submission_type": "online_text_entry",
+                "body": "Test submission body text for the canvas essay.",
+            }
+        ).encode()
 
         sig = self._make_signature(payload, secret)
 
@@ -168,6 +176,7 @@ class TestWebhookSignatureVerification:
 
 
 # ── Canvas baseline import validation ────────────────────────────────────────
+
 
 class TestCanvasBaselineImport:
     """Tests for the Canvas baseline import endpoints."""
@@ -232,6 +241,7 @@ class TestCanvasBaselineImport:
 
 # ── Admin Canvas registration CRUD ────────────────────────────────────────────
 
+
 class TestAdminCanvasRegistrations:
     """Tests for the admin LTI registration management API.
 
@@ -248,9 +258,7 @@ class TestAdminCanvasRegistrations:
             "jwks_url": _CANVAS_JWKS,
         }
 
-    def test_list_registrations_requires_admin(
-        self, client: TestClient, instructor_auth_headers
-    ):
+    def test_list_registrations_requires_admin(self, client: TestClient, instructor_auth_headers):
         """Non-admin cannot list LTI registrations."""
         resp = client.get(
             "/api/v1/admin/canvas/registrations",
@@ -258,9 +266,7 @@ class TestAdminCanvasRegistrations:
         )
         assert resp.status_code == 403
 
-    def test_list_registrations_returns_list(
-        self, client: TestClient, admin_auth_headers
-    ):
+    def test_list_registrations_returns_list(self, client: TestClient, admin_auth_headers):
         """Admin gets a list (possibly empty) of registrations."""
         resp = client.get(
             "/api/v1/admin/canvas/registrations",
@@ -269,9 +275,7 @@ class TestAdminCanvasRegistrations:
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
 
-    def test_create_registration(
-        self, client: TestClient, admin_auth_headers
-    ):
+    def test_create_registration(self, client: TestClient, admin_auth_headers):
         """Admin can create a new LTI registration."""
         resp = client.post(
             "/api/v1/admin/canvas/registrations",
@@ -284,9 +288,7 @@ class TestAdminCanvasRegistrations:
         assert data["platform_iss"] == "https://seminary-create01.instructure.com"
         assert "id" in data
 
-    def test_create_duplicate_returns_409(
-        self, client: TestClient, admin_auth_headers
-    ):
+    def test_create_duplicate_returns_409(self, client: TestClient, admin_auth_headers):
         """Creating two registrations with the same iss+client_id returns 409."""
         payload = self._reg_payload("dup01")
         client.post(
@@ -301,9 +303,7 @@ class TestAdminCanvasRegistrations:
         )
         assert resp2.status_code == 409
 
-    def test_update_registration(
-        self, client: TestClient, admin_auth_headers
-    ):
+    def test_update_registration(self, client: TestClient, admin_auth_headers):
         """Admin can update an existing LTI registration via PUT."""
         create_resp = client.post(
             "/api/v1/admin/canvas/registrations",
@@ -335,9 +335,7 @@ class TestAdminCanvasRegistrations:
         )
         assert resp.status_code == 404
 
-    def test_create_registration_appears_in_list(
-        self, client: TestClient, admin_auth_headers
-    ):
+    def test_create_registration_appears_in_list(self, client: TestClient, admin_auth_headers):
         """A newly created registration appears in the GET list."""
         create_resp = client.post(
             "/api/v1/admin/canvas/registrations",

@@ -14,7 +14,8 @@ import pytest
 
 _ROOT = Path(__file__).resolve().parent.parent
 _spec = importlib.util.spec_from_file_location(
-    "pilot_preflight", _ROOT / "scripts" / "pilot_preflight.py")
+    "pilot_preflight", _ROOT / "scripts" / "pilot_preflight.py"
+)
 pilot_preflight = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(pilot_preflight)
 
@@ -60,8 +61,14 @@ def test_wildcard_origins_fails(pilot_env, monkeypatch):
 
 def test_demo_profile_downgrades_env_failures_to_warn(tmp_path, monkeypatch):
     monkeypatch.setenv("ORIGINAL_ENV", "demo")
-    for var in ("SECRET_KEY", "GUARD_DESTRUCTIVE", "MAINTENANCE_TOKEN",
-                "ALLOWED_ORIGINS", "AI_LIKELIHOOD_ENABLED", "AI_LIKELIHOOD_SHADOW"):
+    for var in (
+        "SECRET_KEY",
+        "GUARD_DESTRUCTIVE",
+        "MAINTENANCE_TOKEN",
+        "ALLOWED_ORIGINS",
+        "AI_LIKELIHOOD_ENABLED",
+        "AI_LIKELIHOOD_SHADOW",
+    ):
         monkeypatch.delenv(var, raising=False)
     assert _run(tmp_path / "demo.db", "--env", "demo") == 0
 
@@ -72,7 +79,8 @@ def test_stale_backups_warn_not_fail(pilot_env, tmp_path, monkeypatch, capsys):
     old = bdir / "profiles-20200101-000000.db"
     old.write_text("stale")
     import os
-    os.utime(old, (0, 0))   # epoch — definitely older than 26h
+
+    os.utime(old, (0, 0))  # epoch — definitely older than 26h
     assert _run(pilot_env, "--backup-dir", str(bdir)) == 0
     assert "[WARN] backups" in capsys.readouterr().out
 
@@ -83,4 +91,5 @@ def test_detector_flag_on_with_missing_artifact_fails(pilot_env, monkeypatch, tm
     assert _run(pilot_env) == 1
     # reset the singleton so later tests see a clean detector
     from original.ai_likelihood import reset_for_tests
+
     reset_for_tests()

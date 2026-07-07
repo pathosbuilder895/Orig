@@ -9,14 +9,18 @@ import pytest
 
 from original.constants import FEATURE_DIM
 from original.context.baseline_match import (
-    _genre_similarity, _topic_similarity, _recency_weight,
-    ensure_sample_context_metadata, match_baseline_cluster,
+    _genre_similarity,
+    _topic_similarity,
+    _recency_weight,
+    ensure_sample_context_metadata,
+    match_baseline_cluster,
 )
 from original.context.manifest import ContextManifest
 from original.quantum.state import BaselineSample, StudentState
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
 
 def _sample(text: str, *, genre: str = None, centroid: np.ndarray = None) -> BaselineSample:
     return BaselineSample(
@@ -31,16 +35,25 @@ def _sample(text: str, *, genre: str = None, centroid: np.ndarray = None) -> Bas
 
 def _manifest(genre: str = "blog_post") -> ContextManifest:
     return ContextManifest(
-        submission_id="sub", language={}, genre={"primary": genre},
-        topic={}, length_regime="standard", citations={}, composition_mode={},
+        submission_id="sub",
+        language={},
+        genre={"primary": genre},
+        topic={},
+        length_regime="standard",
+        citations={},
+        composition_mode={},
         weight_modifications={"amplify_codes": [], "attenuate_codes": [], "mute_codes": []},
-        anchor_tiers=[4, 6], baseline_match={}, flags=[], created_at="",
+        anchor_tiers=[4, 6],
+        baseline_match={},
+        flags=[],
+        created_at="",
     )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Helper functions
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestGenreSimilarity:
     def test_same_label_returns_one(self):
@@ -101,14 +114,18 @@ class TestRecencyWeight:
 # Lazy backfill
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestEnsureSampleContextMetadata:
     def test_lazy_backfill_populates_legacy_samples(self):
         # 3 legacy samples (genre=None, topic_centroid=None) → all populated.
-        state = StudentState(student_id="s", samples=[
-            _sample("Plato writes about the form of justice extensively in the Republic."),
-            _sample("Modern democracy thrives only when citizens deliberate honestly."),
-            _sample("The pizza recipe varies widely across regions of Italy."),
-        ])
+        state = StudentState(
+            student_id="s",
+            samples=[
+                _sample("Plato writes about the form of justice extensively in the Republic."),
+                _sample("Modern democracy thrives only when citizens deliberate honestly."),
+                _sample("The pizza recipe varies widely across regions of Italy."),
+            ],
+        )
         mutated = ensure_sample_context_metadata(state)
         assert mutated is True
         for s in state.samples:
@@ -118,19 +135,26 @@ class TestEnsureSampleContextMetadata:
 
     def test_idempotent(self):
         # Second call on already-populated samples should NOT mutate again.
-        state = StudentState(student_id="s", samples=[
-            _sample("Plato discusses the soul.", genre="academic_exegesis",
-                    centroid=np.array([0.5, 0.5])),
-        ])
-        mutated_first  = ensure_sample_context_metadata(state)
+        state = StudentState(
+            student_id="s",
+            samples=[
+                _sample(
+                    "Plato discusses the soul.",
+                    genre="academic_exegesis",
+                    centroid=np.array([0.5, 0.5]),
+                ),
+            ],
+        )
+        mutated_first = ensure_sample_context_metadata(state)
         mutated_second = ensure_sample_context_metadata(state)
-        assert mutated_first is False     # already populated
-        assert mutated_second is False    # still no change
+        assert mutated_first is False  # already populated
+        assert mutated_second is False  # still no change
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # match_baseline_cluster
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestMatchBaselineCluster:
     def test_empty_state_returns_anchor_only(self):
@@ -143,16 +167,21 @@ class TestMatchBaselineCluster:
         # 3 academic samples + 2 fiction samples; submission=academic →
         # the academic samples should rank highest (genre similarity 1.0
         # vs 0.0/0.5 for the others).
-        state = StudentState(student_id="s", samples=[
-            _sample("Academic 1", genre="academic_exegesis"),
-            _sample("Academic 2", genre="academic_exegesis"),
-            _sample("Academic 3", genre="academic_exegesis"),
-            _sample("Fiction 1",  genre="creative_fiction"),
-            _sample("Fiction 2",  genre="creative_fiction"),
-        ])
+        state = StudentState(
+            student_id="s",
+            samples=[
+                _sample("Academic 1", genre="academic_exegesis"),
+                _sample("Academic 2", genre="academic_exegesis"),
+                _sample("Academic 3", genre="academic_exegesis"),
+                _sample("Fiction 1", genre="creative_fiction"),
+                _sample("Fiction 2", genre="creative_fiction"),
+            ],
+        )
         m = _manifest("academic_exegesis")
         idx, anchor_only = match_baseline_cluster(
-            m, state, submission_text="Academic submission text",
+            m,
+            state,
+            submission_text="Academic submission text",
         )
         # Top-N should not include fiction indices (3 or 4).
         assert anchor_only is False
@@ -162,14 +191,18 @@ class TestMatchBaselineCluster:
     def test_prefers_recent_when_genre_uniform(self):
         # All same genre, all (effectively) same topic — recency tiebreaker
         # should pick the highest indices.
-        state = StudentState(student_id="s", samples=[
-            _sample("Same genre A", genre="blog_post"),
-            _sample("Same genre B", genre="blog_post"),
-            _sample("Same genre C", genre="blog_post"),
-            _sample("Same genre D", genre="blog_post"),
-        ])
+        state = StudentState(
+            student_id="s",
+            samples=[
+                _sample("Same genre A", genre="blog_post"),
+                _sample("Same genre B", genre="blog_post"),
+                _sample("Same genre C", genre="blog_post"),
+                _sample("Same genre D", genre="blog_post"),
+            ],
+        )
         idx, anchor_only = match_baseline_cluster(
-            _manifest("blog_post"), state,
+            _manifest("blog_post"),
+            state,
             submission_text="Same genre submission",
         )
         # n_top defaults to 3; recency-favoured → [3, 2, 1].
@@ -178,23 +211,29 @@ class TestMatchBaselineCluster:
     def test_anchor_only_when_no_matches_above_threshold(self):
         # All samples have genre that doesn't match AND no centroid yet,
         # so genre_sim=0 + topic_sim=0.5 + recency tiny → composite < 0.5.
-        state = StudentState(student_id="s", samples=[
-            _sample("Random A", genre="creative_fiction"),
-            _sample("Random B", genre="creative_fiction"),
-        ])
+        state = StudentState(
+            student_id="s",
+            samples=[
+                _sample("Random A", genre="creative_fiction"),
+                _sample("Random B", genre="creative_fiction"),
+            ],
+        )
         idx, anchor_only = match_baseline_cluster(
-            _manifest("academic_exegesis"), state, submission_text=None,
-            min_similarity=0.95,        # pull threshold up — force fallback
+            _manifest("academic_exegesis"),
+            state,
+            submission_text=None,
+            min_similarity=0.95,  # pull threshold up — force fallback
         )
         assert anchor_only is True
         assert idx == []
 
     def test_returns_at_most_n_top(self):
-        state = StudentState(student_id="s", samples=[
-            _sample(f"Sample {i}", genre="blog_post") for i in range(10)
-        ])
+        state = StudentState(
+            student_id="s", samples=[_sample(f"Sample {i}", genre="blog_post") for i in range(10)]
+        )
         idx, _ = match_baseline_cluster(
-            _manifest("blog_post"), state,
+            _manifest("blog_post"),
+            state,
             submission_text="A blog post submission",
             n_top=3,
         )
@@ -205,11 +244,13 @@ class TestMatchBaselineCluster:
 # Integration with compute_full_features
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestComputeFullFeaturesWithBaselineIndices:
     def test_subset_indices_filter_baseline(self):
         # Two baseline texts that differ stylistically; computing with one
         # subset vs the other should yield different char-trigram divergence.
         from original.features.pipeline import compute_full_features
+
         text = "This is the submission text about something specific and unusual."
         baseline = [
             "An academic paper analysing constitutional theory at length and in great detail.",
@@ -223,12 +264,11 @@ class TestComputeFullFeaturesWithBaselineIndices:
         # baseline_indices is actually filtering, not just decorative.
         # Use char-trigram divergence which is the most baseline-sensitive.
         key = "char_trigram_profile_divergence"
-        assert f_sub0[key] != f_sub1[key], (
-            f"subset 0 and subset 1 produced identical {key}"
-        )
+        assert f_sub0[key] != f_sub1[key], f"subset 0 and subset 1 produced identical {key}"
 
     def test_empty_indices_yields_neutral_placeholder(self):
         from original.features.pipeline import compute_full_features
+
         text = "Submission text."
         baseline = ["Baseline 1.", "Baseline 2."]
         f = compute_full_features(text, baseline, baseline_indices=[])
@@ -237,6 +277,7 @@ class TestComputeFullFeaturesWithBaselineIndices:
 
     def test_none_indices_preserves_phase1(self):
         from original.features.pipeline import compute_full_features
+
         text = "Submission text."
         baseline = ["Baseline 1.", "Baseline 2."]
         f_legacy = compute_full_features(text, baseline)

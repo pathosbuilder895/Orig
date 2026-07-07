@@ -16,20 +16,22 @@ import pytest
 from fastapi.testclient import TestClient
 
 import run
-from tests.test_ai_likelihood import _ESSAY   # ~214 words — under the 300 floor
+from tests.test_ai_likelihood import _ESSAY  # ~214 words — under the 300 floor
 
 app = run.load_legacy_demo_app()
 client = TestClient(app)
 
-_SHORT_TEXT = " ".join(_ESSAY.split()[:150])       # 150 words — well under
-_LONG_TEXT = _ESSAY + " " + _ESSAY                 # ~428 words — over the floor
+_SHORT_TEXT = " ".join(_ESSAY.split()[:150])  # 150 words — well under
+_LONG_TEXT = _ESSAY + " " + _ESSAY  # ~428 words — over the floor
 
 
-def _add_baseline(sid: str, text: str = _LONG_TEXT, provenance: str = "proctored",
-                  assignment: str = "") -> None:
-    r = client.post(f"/students/{sid}/baseline",
-                    json={"text": text, "provenance": provenance,
-                          "assignment": assignment})
+def _add_baseline(
+    sid: str, text: str = _LONG_TEXT, provenance: str = "proctored", assignment: str = ""
+) -> None:
+    r = client.post(
+        f"/students/{sid}/baseline",
+        json={"text": text, "provenance": provenance, "assignment": assignment},
+    )
     assert r.status_code == 200, r.text
 
 
@@ -40,6 +42,7 @@ def _readiness(sid: str):
 
 
 # ── Endpoint verdicts ─────────────────────────────────────────────────────────
+
 
 def test_readiness_404_unknown_student():
     assert client.get(f"/students/nope_{uuid.uuid4().hex[:8]}/readiness").status_code == 404
@@ -86,6 +89,7 @@ def test_single_assignment_diversity_recommendation():
 
 # ── Short-submission note (scoring rationale) ─────────────────────────────────
 
+
 def _score(sid: str, text: str):
     r = client.post(f"/students/{sid}/score", json={"text": text})
     assert r.status_code == 200, r.text
@@ -104,10 +108,14 @@ def test_short_submission_note_in_rationale_action_unchanged(monkeypatch):
     long_resp = _score(sid, _LONG_TEXT)
     short_resp = _score(sid, _SHORT_TEXT)
 
-    assert "short submissions reduce stylometric confidence" \
+    assert (
+        "short submissions reduce stylometric confidence"
         in short_resp["recommendation"]["rationale"]
-    assert "short submissions reduce stylometric confidence" \
+    )
+    assert (
+        "short submissions reduce stylometric confidence"
         not in long_resp["recommendation"]["rationale"]
+    )
 
 
 def test_short_note_is_prose_only():
@@ -115,21 +123,32 @@ def test_short_note_is_prose_only():
     is untouched (it is appended after the action is already decided)."""
     from original.quantum.scoring import _recommend, SHORT_SUBMISSION_TOKENS
     from original.quantum.scoring import (
-        InterferenceDecomposition, DomainSignal, BaselineConfidence,
+        InterferenceDecomposition,
+        DomainSignal,
+        BaselineConfidence,
     )
 
     interference = InterferenceDecomposition(
-        total_probability=0.9, constructive_features=[],
-        destructive_features=[], broken_entanglements=[], tier_breakdown={})
-    domain = DomainSignal(theological_register_score=0.5,
-                          register_anomaly=False, confessional_balance="balanced")
-    bc = BaselineConfidence(purity=0.8, sample_count=6, authenticated_count=6,
-                            effective_sample_count=5.0, trajectory_confidence=0.7)
+        total_probability=0.9,
+        constructive_features=[],
+        destructive_features=[],
+        broken_entanglements=[],
+        tier_breakdown={},
+    )
+    domain = DomainSignal(
+        theological_register_score=0.5, register_anomaly=False, confessional_balance="balanced"
+    )
+    bc = BaselineConfidence(
+        purity=0.8,
+        sample_count=6,
+        authenticated_count=6,
+        effective_sample_count=5.0,
+        trajectory_confidence=0.7,
+    )
 
     with_note = _recommend(0.9, 0.2, interference, domain, bc, n_tokens=120)
     without = _recommend(0.9, 0.2, interference, domain, bc, n_tokens=None)
-    long_enough = _recommend(0.9, 0.2, interference, domain, bc,
-                             n_tokens=SHORT_SUBMISSION_TOKENS)
+    long_enough = _recommend(0.9, 0.2, interference, domain, bc, n_tokens=SHORT_SUBMISSION_TOKENS)
 
     assert with_note.action == without.action == long_enough.action
     assert with_note.confidence == without.confidence
@@ -139,6 +158,7 @@ def test_short_note_is_prose_only():
 
 
 # ── Professor confidence note ─────────────────────────────────────────────────
+
 
 def test_confidence_note_short_text_caveat():
     from original.quantum.professor_narrative import _build_confidence_note

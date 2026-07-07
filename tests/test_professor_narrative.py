@@ -28,6 +28,7 @@ from original.quantum.professor_narrative import (
 
 # ── _magnitude ────────────────────────────────────────────────────────────────
 
+
 class TestMagnitude:
     def test_below_threshold_returns_none(self):
         assert _magnitude(0.05) is None
@@ -61,6 +62,7 @@ class TestMagnitude:
 
 
 # ── _build_headline ───────────────────────────────────────────────────────────
+
 
 class TestBuildHeadline:
     def test_low_deviation_no_concern(self):
@@ -119,11 +121,13 @@ class TestBuildHeadline:
             assert "%" in h, f"Missing % for deviation={dev}"
             # Extract the number before the %
             import re
+
             pct_vals = [int(m) for m in re.findall(r"(\d+)%", h)]
             assert all(p >= 0 for p in pct_vals), f"Negative % in headline: {h}"
 
 
 # ── _build_summary ────────────────────────────────────────────────────────────
+
 
 class TestBuildSummary:
     def test_low_deviation_strong_match(self):
@@ -154,6 +158,7 @@ class TestBuildSummary:
 
 
 # ── _build_observations ───────────────────────────────────────────────────────
+
 
 @dataclass
 class _FakeFC:
@@ -194,7 +199,11 @@ class TestBuildObservations:
         assert len(obs) >= 1
         # Negative delta → "less" description for type_token_ratio:
         # "used a narrower vocabulary range than usual, repeating words more frequently"
-        assert "narrower" in obs[0].lower() or "vocabulary" in obs[0].lower() or "repeating" in obs[0].lower()
+        assert (
+            "narrower" in obs[0].lower()
+            or "vocabulary" in obs[0].lower()
+            or "repeating" in obs[0].lower()
+        )
 
     def test_capped_at_five(self):
         features = [_FakeFC(code="type_token_ratio", delta=0.5 + i * 0.1) for i in range(10)]
@@ -218,12 +227,17 @@ class TestBuildObservations:
 
 # ── _build_hypotheses ─────────────────────────────────────────────────────────
 
+
 class TestBuildHypotheses:
     def test_always_includes_innocent_first(self):
         hyps = _build_hypotheses(0.40, False, False, 0.8, "monitor")
         assert len(hyps) >= 2
         # First hypothesis is always an innocent situational explanation
-        assert "stress" in hyps[0].lower() or "fatigue" in hyps[0].lower() or "pressure" in hyps[0].lower()
+        assert (
+            "stress" in hyps[0].lower()
+            or "fatigue" in hyps[0].lower()
+            or "pressure" in hyps[0].lower()
+        )
 
     def test_behavioral_signal_adds_pasting_hypothesis(self):
         hyps = _build_hypotheses(0.50, True, False, 0.5, "schedule_conversation")
@@ -256,6 +270,7 @@ class TestBuildHypotheses:
 
 # ── _build_suggested_action ───────────────────────────────────────────────────
 
+
 class TestBuildSuggestedAction:
     def test_no_action(self):
         s = _build_suggested_action("no_action", "Jane")
@@ -281,6 +296,7 @@ class TestBuildSuggestedAction:
 
 
 # ── _build_confidence_note ────────────────────────────────────────────────────
+
 
 class TestBuildConfidenceNote:
     def test_many_samples_well_established(self):
@@ -311,22 +327,27 @@ class TestBuildConfidenceNote:
 
 # Minimal stub objects that look like Layer7Output attributes
 
+
 @dataclass
 class _AuthSignal:
     deviation_score: float = 0.5
     quantum_fidelity: float = 0.7
 
+
 @dataclass
 class _Rec:
     action: str = "monitor"
+
 
 @dataclass
 class _Traj:
     direction: str = "lateral"
 
+
 @dataclass
 class _BC:
     sample_count: int = 4
+
 
 @dataclass
 class _FC:
@@ -334,10 +355,12 @@ class _FC:
     delta: float
     direction: str = "destructive"
 
+
 @dataclass
 class _Interference:
     destructive_features: List = field(default_factory=list)
     constructive_features: List = field(default_factory=list)
+
 
 @dataclass
 class _Layer7:
@@ -369,7 +392,9 @@ class TestBuildProfessorExplanation:
     def test_default_name_fallback(self):
         # No student_name → default "this student"
         result = build_professor_explanation(_Layer7())
-        assert "this student" in result.headline.lower() or result.headline  # at least has something
+        assert (
+            "this student" in result.headline.lower() or result.headline
+        )  # at least has something
 
     def test_behavioral_signals_detected(self):
         paste_fc = _FC(code="paste_event_rate", delta=0.30)
@@ -390,21 +415,36 @@ class TestBuildProfessorExplanation:
 
     def test_graceful_with_none_fields(self):
         """Handles a completely empty object without raising."""
+
         class Empty:
             pass
+
         result = build_professor_explanation(Empty(), "Jane")
         assert isinstance(result, ProfessorExplanation)
 
     def test_no_jargon_in_output(self):
         """The narrative should not contain quantum or mathematical jargon."""
         result = build_professor_explanation(_Layer7(), "Jane")
-        all_text = " ".join([
-            result.headline, result.summary,
-            *result.observations, *result.hypotheses,
-            result.suggested_action, result.confidence_note,
-        ]).lower()
-        jargon = ["quantum", "fidelity", "rms", "z-score", "eigenvalue",
-                  "born probability", "density matrix", "tanh"]
+        all_text = " ".join(
+            [
+                result.headline,
+                result.summary,
+                *result.observations,
+                *result.hypotheses,
+                result.suggested_action,
+                result.confidence_note,
+            ]
+        ).lower()
+        jargon = [
+            "quantum",
+            "fidelity",
+            "rms",
+            "z-score",
+            "eigenvalue",
+            "born probability",
+            "density matrix",
+            "tanh",
+        ]
         for term in jargon:
             assert term not in all_text, f"Jargon term '{term}' found in narrative"
 
@@ -415,7 +455,10 @@ class TestBuildProfessorExplanation:
             baseline_confidence=_BC(sample_count=6),
         )
         result = build_professor_explanation(layer7, "Jane")
-        assert "meet" in result.suggested_action.lower() or "submission" in result.suggested_action.lower()
+        assert (
+            "meet" in result.suggested_action.lower()
+            or "submission" in result.suggested_action.lower()
+        )
 
     def test_hypotheses_not_empty(self):
         result = build_professor_explanation(_Layer7(), "Jane")
@@ -427,6 +470,7 @@ class TestBuildProfessorExplanation:
 
 
 # ── AI-likelihood band (corpus-level second scoring mode) ─────────────────────
+
 
 class _AiBand:
     def __init__(self, band):
