@@ -16,14 +16,14 @@ Today, the API returns JWTs in JSON from `POST /api/v1/auth/login` and `POST /ap
 
 ## High-level design options
 
-1. **Access + refresh in httpOnly cookies**  
-   - Login response: `Set-Cookie` for both; body may omit raw tokens or return non-sensitive metadata only.  
+1. **Access + refresh in httpOnly cookies**
+   - Login response: `Set-Cookie` for both; body may omit raw tokens or return non-sensitive metadata only.
    - `Authorization: Bearer` optional for API clients; browser uses cookies.
 
-2. **Access in memory / header, refresh in httpOnly only** (common)  
+2. **Access in memory / header, refresh in httpOnly only** (common)
    - Short-lived access token still returned in JSON for SPA, or use a **BFF** pattern.
 
-3. **Double-submit or CSRF token**  
+3. **Double-submit or CSRF token**
    - If cookies are sent on `POST` from the SPA, use **SameSite=strict** or **lax** where possible, and add a **CSRF** header for mutating requests when `SameSite` cannot be strict (cross-site iframes, etc.).
 
 ## Code touchpoints (when implementing)

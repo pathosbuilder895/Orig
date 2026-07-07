@@ -3,8 +3,8 @@
 ## Project Overview
 Stylometric authorship verification system for academic integrity. Per-student quantum density matrix profiles scored via Born-rule projection. Targets seminaries and colleges. Positioned as pastoral, explainable, FERPA-compliant.
 
-**Working directory:** `~/Desktop/Original`  
-**Python environment:** always use `.venv/bin/python` and `.venv/bin/pytest` — NOT system python3  
+**Working directory:** `~/Desktop/Original`
+**Python environment:** always use `.venv/bin/python` and `.venv/bin/pytest` — NOT system python3
 **Run server:** `python run.py --demo` (port 8001 by default)
 
 ---
@@ -96,12 +96,12 @@ Text → 103-feature pipeline (original/features/)
      → API response (deviation_score, action, quantum_fidelity, professor_explanation)
 ```
 
-**Feature pipeline:** `original/features/` — 103 features across 17 tiers  
-**Quantum state:** `original/quantum/state.py` — density matrix builder  
-**Scoring:** `original/quantum/scoring.py` — Born-rule + amplitude (Phase 6)  
-**Professor narrative:** `original/quantum/professor_narrative.py` — plain-English explanation  
-**Context pipeline:** `original/context/pipeline.py` — adaptive Stage 5+6 (parallelized)  
-**Store:** `original/store.py` — SQLite persistence + in-memory cache  
+**Feature pipeline:** `original/features/` — 103 features across 17 tiers
+**Quantum state:** `original/quantum/state.py` — density matrix builder
+**Scoring:** `original/quantum/scoring.py` — Born-rule + amplitude (Phase 6)
+**Professor narrative:** `original/quantum/professor_narrative.py` — plain-English explanation
+**Context pipeline:** `original/context/pipeline.py` — adaptive Stage 5+6 (parallelized)
+**Store:** `original/store.py` — SQLite persistence + in-memory cache
 **API:** `original/api.py` — FastAPI endpoints (THE pilot backend)
 
 ⚠️ **Two backends / three frontends exist** — see `docs/ARCHITECTURE.md` before
