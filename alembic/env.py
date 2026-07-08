@@ -1,4 +1,14 @@
-"""Alembic environment configuration."""
+"""Alembic environment — LIVE pilot schema (WS-6 P2, ADR-006).
+
+Targets the live 16-table metadata in ``original/db/models/live.py``
+(``LiveBase.metadata``), NOT the dormant v1 ``original.db.base.Base``.
+The 7 stale v1 revisions live in ``alembic/versions_v1_archive/`` — readable,
+but off the migration path.
+
+URL resolution order:
+1. ``DATABASE_URL`` environment variable (Render / CI / local override).
+2. The ``sqlalchemy.url`` default in ``alembic.ini`` (local postgres).
+"""
 
 from __future__ import annotations
 
@@ -9,24 +19,10 @@ from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
-# Import Base and all models to ensure they're registered
-from original.db.base import Base
-from original.db.models import (  # noqa: F401 — ensure all models registered with Base
-    Institution,
-    User,
-    RefreshToken,
-    Course,
-    Student,
-    StudentEnrollment,
-    BaselineSample,
-    Submission,
-    ScoringResult,
-    InstructorDecision,
-    LTIRegistration,
-    LTINonce,
-    CanvasSubmission,
-)
-from original.core.config import get_settings
+# Import ONLY the live models so exactly the 16 live tables register with
+# the target metadata. (Importing the v1 models would not collide — they use
+# a separate MetaData — but they are not alembic's concern anymore.)
+from original.db.models.live import LiveBase
 
 # This is the Alembic Config object
 config = context.config
@@ -35,12 +31,13 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Set target metadata
-target_metadata = Base.metadata
+# Set target metadata — the LIVE schema
+target_metadata = LiveBase.metadata
 
-# Load database URL from settings
-settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# DATABASE_URL env var wins over the alembic.ini fallback default.
+_env_url = os.environ.get("DATABASE_URL")
+if _env_url:
+    config.set_main_option("sqlalchemy.url", _env_url)
 
 
 def run_migrations_offline() -> None:
@@ -59,8 +56,8 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-    configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = settings.DATABASE_URL
+    configuration = config.get_section(config.config_ini_section, {})
+    configuration["sqlalchemy.url"] = config.get_main_option("sqlalchemy.url")
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",
