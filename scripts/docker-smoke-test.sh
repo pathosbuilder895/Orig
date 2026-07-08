@@ -33,7 +33,7 @@ info() { echo -e "${YELLOW}→${NC} $1"; }
 FAILURES=0
 
 # ── Config ───────────────────────────────────────────────────────────────────
-COMPOSE_FILE="docker-compose.yml"
+COMPOSE_FILE="deploy/legacy-v1/docker-compose.yml"  # v1 stack quarantined 2026-07-07 (audit B15)
 API_URL="http://localhost:8000"
 MAX_WAIT=90       # seconds to wait for the API to become healthy
 POLL_INTERVAL=3   # seconds between health polls

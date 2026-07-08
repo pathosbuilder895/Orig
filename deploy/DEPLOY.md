@@ -5,6 +5,11 @@
 > This VPS/nginx/Postgres runbook targets the dormant v1 backend and is kept
 > only as a reference for a future self-hosted option. Its `backup.sh` is NOT
 > the pilot backup script (that's `scripts/backup_db.sh`).
+> The v1 container artifacts it uses (`Dockerfile`, `docker-compose*.yml`,
+> `docker-entrypoint.sh`, `start-prod.sh`, `fly.toml`) were quarantined to
+> `deploy/legacy-v1/` on 2026-07-07 (audit B15) — paths below reflect that.
+> The static `frontend/` tree it deployed was removed 2026-07-07 (ADR-006);
+> recover it from git history if ever needed.
 > See `docs/ARCHITECTURE.md` for which stack is live.
 
 Single **Ubuntu 22.04** host (DigitalOcean, Lightsail, or similar): **Docker Compose** for `api` + `postgres` + `redis`, **system nginx** for TLS and static frontend, **Let’s Encrypt** for certificates, **cron** for daily DB backups, **UptimeRobot** (or similar) for `/health`.
@@ -32,7 +37,7 @@ cp .env.example .env
 nano .env
 ```
 
-`docker-compose.yml` is pinned with `name: original` so service containers are named predictably (e.g. `original-postgres-1`).
+`deploy/legacy-v1/docker-compose.yml` is pinned with `name: original` so service containers are named predictably (e.g. `original-postgres-1`).
 
 ## 3. DNS
 
@@ -56,12 +61,16 @@ certbot --nginx -d yourdomain.com
 
 ```bash
 cd /opt/original
-docker compose -f docker-compose.yml up -d --build
-docker compose -f docker-compose.yml ps
-docker compose exec api python -m original.cli create-admin
+docker compose -f deploy/legacy-v1/docker-compose.yml up -d --build
+docker compose -f deploy/legacy-v1/docker-compose.yml ps
+docker compose -f deploy/legacy-v1/docker-compose.yml exec api python -m original.cli create-admin
 ```
 
 ## 6. Deploy the static frontend
+
+> ⚠️ The `frontend/` tree was removed 2026-07-07 (ADR-006); see git history.
+> To follow this step you must first check it out from history, e.g.
+> `git checkout <pre-2026-07-07-sha> -- frontend/`.
 
 From the repo, sync HTML/JS/CSS to the path nginx serves:
 
@@ -69,8 +78,8 @@ From the repo, sync HTML/JS/CSS to the path nginx serves:
 rsync -av --delete ./frontend/ /opt/original/frontend/
 ```
 
-- [api-client.js](../frontend/api-client.js) resolves the API to **same-origin** when the site is served over `https://yourdomain.com`, so calls go to `/api/...` through nginx without CORS changes.
-- Optional override: set `window.ORIGINAL_API_BASE` or `?api=` per [api-client.js](../frontend/api-client.js).
+- `frontend/api-client.js` (removed 2026-07-07, ADR-006 — see git history) resolves the API to **same-origin** when the site is served over `https://yourdomain.com`, so calls go to `/api/...` through nginx without CORS changes.
+- Optional override: set `window.ORIGINAL_API_BASE` or `?api=` per `frontend/api-client.js` (git history).
 
 ## 7. Daily PostgreSQL backups
 
@@ -105,8 +114,8 @@ curl -fsS -o /dev/null -w '%{http_code}\n' https://yourdomain.com/api/docs
 
 ```bash
 cd /opt/original
-docker compose -f docker-compose.yml pull   # if using a registry
-docker compose -f docker-compose.yml up -d --build
+docker compose -f deploy/legacy-v1/docker-compose.yml pull   # if using a registry
+docker compose -f deploy/legacy-v1/docker-compose.yml up -d --build
 ```
 
 Restore DB from a `.sql.gz` made by [backup.sh](backup.sh) using `pg_restore` or `gunzip` + `psql` as appropriate to your format.

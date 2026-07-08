@@ -1,4 +1,6 @@
-# Multi-stage build for the Original API
+# Multi-stage build for the Original API (dormant v1 stack — see README.md here)
+# Quarantined to deploy/legacy-v1/ 2026-07-07 (audit B15). Build from the REPO ROOT:
+#   docker build -f deploy/legacy-v1/Dockerfile .
 
 # Stage 1: Builder — install dependencies in isolation
 FROM python:3.11-slim AS builder
@@ -36,6 +38,10 @@ COPY --from=builder /install /usr/local
 
 # Copy application code
 COPY . .
+
+# The entrypoint lives in deploy/legacy-v1/ since the 2026-07-07 quarantine;
+# copy it to the path the ENTRYPOINT expects.
+COPY deploy/legacy-v1/docker-entrypoint.sh /app/docker-entrypoint.sh
 
 # Set permissions; make the entrypoint executable
 RUN chown -R original:original /app \

@@ -1,10 +1,14 @@
-# docker-compose.yml — Production base configuration.
+# docker-compose.yml — v1 (dormant) production base configuration.
+# Quarantined to deploy/legacy-v1/ 2026-07-07 (audit B15) — see README.md here.
+# Relative paths below (build context, env_file) resolve against this file's
+# directory, hence the ../.. back-references to the repo root.
 #
-# For LOCAL DEV: just run `docker compose up --build`.
+# For LOCAL DEV: run `docker compose up --build` FROM THIS DIRECTORY.
 # Docker automatically merges docker-compose.override.yml (dev settings).
 #
-# For PRODUCTION: run `docker compose -f docker-compose.yml up` (skips override)
-# and make sure your .env has real secrets.
+# For PRODUCTION: run
+#   docker compose -f deploy/legacy-v1/docker-compose.yml up
+# (skips override) and make sure your .env has real secrets.
 #
 # Fixed project name → predictable container names (e.g. original-postgres-1) for
 # backup scripts and ops.
@@ -14,8 +18,8 @@ name: original
 services:
   api:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: deploy/legacy-v1/Dockerfile
     ports:
       - "8000:8000"
     depends_on:
@@ -24,7 +28,7 @@ services:
       redis:
         condition: service_healthy
     env_file:
-      - .env
+      - ../../.env
     environment:
       DATABASE_URL: postgresql://original:${POSTGRES_PASSWORD:-original}@postgres:5432/original_db
       REDIS_URL: redis://redis:6379/0
