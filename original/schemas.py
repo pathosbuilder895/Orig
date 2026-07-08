@@ -73,11 +73,14 @@ class BluebookCreateExamRequest(BaseModel):
 
     title: str = Field(..., description="Exam title")
     course: str = Field("", description="Course label")
-    duration: int = Field(90, description="Exam duration in minutes")
+    # Numeric fields are Optional: the pre-typed dict contract accepted
+    # explicit nulls (e2e fixtures and older clients send maxWords: null for
+    # "no limit"), and the handler already coerces via _int_or(..., default).
+    duration: int | None = Field(90, description="Exam duration in minutes")
     # camelCase mirrors the JSON keys the Bluebook frontend already sends
     # (same rationale as the file-wide N815 ignore for bbook_client.py).
-    minWords: int = Field(0, description="Minimum required word count")  # noqa: N815
-    maxWords: int = Field(0, description="Maximum allowed word count (0 = unlimited)")  # noqa: N815
+    minWords: int | None = Field(0, description="Minimum required word count")  # noqa: N815
+    maxWords: int | None = Field(0, description="Maximum allowed word count (0/null = unlimited)")  # noqa: N815
     prompt: str = Field("", description="Exam prompt text")
     conditions: dict = Field(default_factory=dict, description="Arbitrary exam-condition metadata")
     status: str = Field("DRAFT", description="Exam status label")
@@ -91,8 +94,10 @@ class BluebookRecordSubmissionRequest(BaseModel):
     candidate: str = Field("", description="Candidate display name")
     exam_title: str = Field("", description="Denormalised exam title for the Results view")
     course: str = Field("", description="Course label")
-    word_count: int = Field(0, description="Submission word count")
-    time_min: int = Field(0, description="Time taken, in minutes")
+    # Optional for the same null-tolerance reason as the exam model above;
+    # the handler coerces via _int_or(..., 0).
+    word_count: int | None = Field(0, description="Submission word count")
+    time_min: int | None = Field(0, description="Time taken, in minutes")
     stylometric: int | None = Field(None, description="Stylometric integrity score, 0-100")
     ai_score: int | None = Field(None, description="AI-likelihood score, 0-100")
     status: str = Field("SUBMITTED", description="Submission status label")
