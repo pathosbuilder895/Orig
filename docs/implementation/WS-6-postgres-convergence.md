@@ -97,7 +97,7 @@ Each phase is gated. **The critical decision gate is after P1: an explicit "abor
   1. Demote the in-memory `_STORE` dict (`store.py`): reads go through the repository; keep at most a bounded per-request cache (A4, A8). **This unlocks `--workers N` and Render horizontal scaling** — move the login throttle to the DB or accept per-worker limits *explicitly and documented*.
   2. Delete the v1 API surface: `original/api/`, `original/canvas/`, `original/main.py`, `original/middleware/`, `original/auth/`, `original/schemas_v1/`, **plus the 62 v1 tests** (`test_api.py`, `test_auth.py`, `test_canvas.py`, v1 fixtures in `conftest.py`) (F1, T4, T6). Also delete the confirmed-dead `original/tasks/` (F4) and `middleware/rbac.py` if WS-5 hasn't already. Use `git rm` (deletion requires explicit permission per CLAUDE.md).
   3. Deleting `original/api/` **dissolves the module-shadowing collision** — `run.py`'s importlib `spec_from_file_location` hack (`run.py:41–45`) goes away *without renaming anything* (A9). Restore a plain `import`.
-  4. Delete `frontend/`, `web/`, `legacy_mvp/` (F1); update or delete `Dockerfile`/`docker-compose.yml`/`fly.toml`/`start-prod.sh`/`docker-entrypoint.sh` to target the converged stack (B15, F6).
+  4. Delete `frontend/`, `web/`, `legacy_mvp/` (F1); update or delete `Dockerfile`/`docker-compose.yml`/`fly.toml`/`start-prod.sh`/`docker-entrypoint.sh` to target the converged stack (B15, F6). *Status 2026-07-07: `frontend/` and `web/` deleted (ADR-006; see git history); the v1 deploy artifacts are quarantined under `deploy/legacy-v1/` pending retargeting; `legacy_mvp/` is untracked and remains on disk only.*
   5. **Keep (now live):** `original/db/` models, alembic, `Settings`.
 - **Files touched:** `original/store.py` (`_STORE` demotion), `run.py` (drop importlib hack), + the deletions above.
 - **Acceptance / proof:** `uvicorn --workers 2` serves consistent reads across workers (no divergent `_STORE`); full test suite green after the 62 v1 tests are removed and CI no longer hard-depends on SQLAlchemy/pydantic_settings for dead code; `import original.api` resolves to the live module (collision gone); `docker compose up` runs the converged stack, not `original.main:app`.
@@ -113,7 +113,7 @@ Each phase is gated. **The critical decision gate is after P1: an explicit "abor
 - [ ] **Migration report** shows row-count + checksum parity for all 16 tables; shadow soak clean ≥1 week; restore drill passed.
 - [ ] **Cutover reversible** — SQLite file kept read-only ≥4 weeks; revert command documented in OPS_RUNBOOK.
 - [ ] **Multi-worker unlocked** — `_STORE` demoted to bounded cache; `--workers 2` serves consistent reads; throttle relocated or per-worker behavior documented (A4, A8).
-- [ ] **v1 dissolved** — `original/api/`, `canvas/`, `main.py`, `middleware/`, `auth/`, `schemas_v1/`, `tasks/` + 62 v1 tests deleted; `run.py` importlib hack gone; `frontend/`/`web/`/`legacy_mvp/` removed; Docker/fly targets retargeted (F1, F4, F6, B15, A9, T4, T6).
+- [ ] **v1 dissolved** — `original/api/`, `canvas/`, `main.py`, `middleware/`, `auth/`, `schemas_v1/`, `tasks/` + 62 v1 tests deleted; `run.py` importlib hack gone; `frontend/`/`web/`/`legacy_mvp/` removed *(frontend/ + web/ done 2026-07-07, ADR-006)*; Docker/fly targets retargeted *(quarantined to `deploy/legacy-v1/` 2026-07-07, retarget pending)* (F1, F4, F6, B15, A9, T4, T6).
 - [ ] Flags-OFF scoring remains byte-identical to Phase 1 at every phase (WS-5 flag-matrix guard green throughout).
 
 ## Risks & watch-outs

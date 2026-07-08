@@ -1,10 +1,14 @@
-# docker-compose.override.yml — LOCAL DEV overrides.
+# docker-compose.override.yml — LOCAL DEV overrides (dormant v1 stack).
+# Quarantined to deploy/legacy-v1/ 2026-07-07 (audit B15) — see README.md here.
 #
-# Docker Compose automatically merges this file when you run:
+# Docker Compose automatically merges this file when you run, FROM THIS
+# DIRECTORY:
 #   docker compose up --build
+# (auto-merge only applies to default file discovery; running from the repo
+# root with -f requires passing both files explicitly.)
 #
 # For PRODUCTION, skip this file explicitly:
-#   docker compose -f docker-compose.yml up
+#   docker compose -f deploy/legacy-v1/docker-compose.yml up
 #
 # This file overrides env_file to use .env.dev so your production
 # .env stays untouched.
@@ -14,7 +18,7 @@ services:
     # Sequences merge by appending — without !override, both .env and .env.dev
     # would load (production secrets + dev). !override replaces the list entirely.
     env_file: !override
-      - .env.dev
+      - ../../.env.dev
     environment:
       DATABASE_URL: postgresql://original:original@postgres:5432/original_db
       REDIS_URL: redis://redis:6379/0

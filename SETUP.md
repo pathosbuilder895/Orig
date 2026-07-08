@@ -12,7 +12,7 @@ matches a student's own authenticated writing voice across 103 stylometric featu
 
 ### Prerequisites
 
-- **Python 3.10+** (3.11 recommended — matches [Dockerfile](Dockerfile) and [CI](.github/workflows/test.yml)).
+- **Python 3.10+** (3.11 recommended — matches [Dockerfile.demo](Dockerfile.demo) and [CI](.github/workflows/test.yml); the v1 `Dockerfile` now lives at [deploy/legacy-v1/Dockerfile](deploy/legacy-v1/Dockerfile)).
 - **Tier 10** (`semantic_field_dispersion`, `semantic_centroid_proximity`) uses `sentence-transformers` when installed; if it is missing or fails to load, Tier 10 returns neutral values so the rest of the pipeline still runs.
 
 ---

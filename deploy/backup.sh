@@ -16,7 +16,7 @@ set -euo pipefail
 # `docker compose exec -T postgres pg_dump ...` from that directory — no need to
 # guess the postgres container name. Otherwise falls back to docker exec + DB_CONTAINER.
 COMPOSE_DIR="${COMPOSE_DIR:-}"
-COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
+COMPOSE_FILE="${COMPOSE_FILE:-deploy/legacy-v1/docker-compose.yml}"  # v1 stack quarantined 2026-07-07 (audit B15)
 BACKUP_DIR="${BACKUP_DIR:-/opt/original/backups}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
 DB_CONTAINER="${DB_CONTAINER:-original-postgres-1}"

@@ -41,7 +41,7 @@ one-pager once documented `/canvas/lti/*` (v1's routes) instead of `/lti/*`
 
 - `frontend/`, `web/` — dead frontend trees (v1's HTML UI; a React/TSX rewrite attempt superseded by `demo/`). Removed 2026-07-07 (ADR-006); see git history.
 - `legacy_mvp/`, `variantexam/` — gitignored local artifacts.
-- `deploy/` — pre-Render VPS provisioning (nginx/systemd). The chosen path is Render (`render.yaml` + `docs/OPS_RUNBOOK.md`); see the banner in `deploy/DEPLOY.md`.
+- `deploy/` — pre-Render VPS provisioning (nginx/systemd). The chosen path is Render (`render.yaml` + `docs/OPS_RUNBOOK.md`); see the banner in `deploy/DEPLOY.md`. The v1 container/deploy artifacts (`Dockerfile`, `docker-compose*.yml`, `docker-entrypoint.sh`, `start-prod.sh`, `fly.toml`) were quarantined to `deploy/legacy-v1/` (audit B15); only `Dockerfile.demo` remains at the repo root.
 
 ## Rules of thumb
 

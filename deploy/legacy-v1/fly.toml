@@ -1,8 +1,12 @@
+# Quarantined to deploy/legacy-v1/ 2026-07-07 (audit B15) — see README.md here.
+# NOT the live deploy path (that is render.yaml at the repo root). If ever
+# resurrected, run `fly deploy --config deploy/legacy-v1/fly.toml` from the
+# repo root; Dockerfile.demo still lives at the repo root.
 app = "original-demo"
 primary_region = "iad"
 
 [build]
-  dockerfile = "Dockerfile.demo"
+  dockerfile = "../../Dockerfile.demo"
 
 [http_service]
   internal_port = 8000
