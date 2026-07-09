@@ -11,7 +11,7 @@
 pydantic-settings==2.14.2
 email-validator==2.1.0
 sqlalchemy==2.0.35
-alembic==1.13.3
+alembic==1.18.5
 psycopg2-binary==2.9.12
 # python-jose 3.3.0 had PYSEC-2024-232/233 (algorithm confusion + JWT decode bypass).
 # Fixed in 3.4.0.
