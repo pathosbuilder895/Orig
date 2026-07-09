@@ -18,7 +18,7 @@ filelock==3.29.6
     #   virtualenv
 fonttools==4.63.0
     # via matplotlib
-hypothesis==6.112.2
+hypothesis==6.156.4
     # via -r requirements-dev.txt
 identify==2.6.19
     # via pre-commit
