@@ -74,20 +74,28 @@ links to hand out.
   `…/bluebook/`. Verify per [CANVAS_RUNBOOK.md](CANVAS_RUNBOOK.md) §3.
 
 **Path B — No-Canvas fallback.** Generate one bound, disclosure-minimized link
-per student from the class roster:
+per student from the class roster. **Export the pilot's `SECRET_KEY` first** —
+the links are signed with it and a pilot rejects links signed with anything else:
 ```bash
+export SECRET_KEY=<the pilot's SECRET_KEY>   # same value as the Render service
 .venv/bin/python scripts/roster_links.py \
   --roster roster.csv --tenant <slug> \
   --base-url $HOST --exam "Week 1 Writing Sample" \
   --out links.csv --expected-out expected_roster.json
 ```
-- [ ] Links carry only the opaque `sid` (no name/email) — send **each link to its
-  own student privately**; one link == one bound profile.
+- [ ] Each link is a signed `/bluebook/launch?t=…` token carrying no name/email —
+  redeemed server-side into a short session + proctor attestation so the sitting
+  **lands as `proctored`** on the pilot. Send **each link to its own student
+  privately**; one link == one bound profile. (A link is a bearer credential and
+  reusable until it expires — `--link-ttl-days`, default 14.)
 - [ ] Keep `links.csv` (maps sid→student, for you) and `expected_roster.json`
   (the "N of M submitted" spine) in the password manager / course folder.
 - [ ] The `sid` a link produces is **identical** to what a Canvas launch would
   derive, so a class can start on links today and move to Canvas later with no
   profile split.
+- [ ] If SECRET_KEY is unset the script warns and signs with an insecure dev
+  fallback (demo only); `--unsigned` emits the legacy `?sid=` link, which
+  **cannot** land proctored on a pilot.
 
 ### Step 4 — Disclosure + smoke test
 
@@ -125,4 +133,6 @@ writing; the payoff is week 2–3.** → [PROFESSOR_QUICKSTART.md](PROFESSOR_QUI
 | Canvas launch lands in wrong data | `LTI_PLATFORMS` `tenant_id` ≠ slug | [CANVAS_RUNBOOK.md](CANVAS_RUNBOOK.md) §4 |
 | Anonymous can read student | tenant is `demo`, not `pilot` | recreate tenant `environment=pilot` |
 | Magic link 404 / not clickable | `--base-url` omitted when generating | rerun `roster_links.py` with `$HOST` |
+| Magic link → "invalid or expired launch link" | link signed with a different `SECRET_KEY` than the pilot's (or expired) | regenerate with the pilot's `SECRET_KEY` exported |
+| Magic-link sitting lands `unverified`, not `proctored` | `--unsigned` link used on a pilot (no attestation) | regenerate signed (drop `--unsigned`, set `SECRET_KEY`) |
 | Student appears twice | link `sid` ≠ Canvas `sid` | shouldn't happen — same derivation; check the slug matches the tenant |
