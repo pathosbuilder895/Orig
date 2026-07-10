@@ -44,7 +44,7 @@ Full version: [PROVISIONING_CHECKLIST.md](PROVISIONING_CHECKLIST.md).
   isolated). Slug is lowercase-kebab and **permanent** — it prefixes every
   student id.
   - [ ] `GET $HOST/tenants` shows it with `environment: pilot`.
-- [ ] **Register the professor** (guarded upsert):
+- [ ] **Register the professor** (guarded create — returns 409 if that email already exists; it does not update an existing account):
   ```bash
   curl -s -X POST $HOST/auth/register \
     -H 'Content-Type: application/json' -H "X-Guard-Token: $MAINTENANCE_TOKEN" \
@@ -103,7 +103,7 @@ export SECRET_KEY=<the pilot's SECRET_KEY>   # same value as the Render service
   [STUDENT_DISCLOSURE.md](STUDENT_DISCLOSURE.md)).
 - [ ] One volunteer runs the loop end-to-end:
   [PILOT_SMOKE_TEST.md](PILOT_SMOKE_TEST.md) §C — launches, lands in the briefing
-  as themselves, types past the minimum, Seal & Surrender → appears on the
+  as themselves, types past the minimum, Seal & Submit → appears on the
   professor's roster with provenance `proctored`.
 
 ### Step 5 — Run it
@@ -119,8 +119,10 @@ export SECRET_KEY=<the pilot's SECRET_KEY>   # same value as the Render service
 prior baseline to compare against, so the **AI/authorship score is blank** and
 the stylometric bar reads ~100% (drift vs an empty profile). A row with scores
 *does* appear that day — but the meaningful integrity signal starts at the
-**second** sitting, and escalation stays suppressed until the profile is built
-(~3+ authenticated samples). Tell the professor: **week 1 = enrollment by
+**second** sitting. Thin early profiles score at **low confidence** — an
+`escalate` on a one- or two-sample baseline is a "look closer," not an "act,"
+and becomes trustworthy only once the profile is built (~3–5 authenticated
+samples). Tell the professor: **week 1 = enrollment by
 writing; the payoff is week 2–3.** → [PROFESSOR_QUICKSTART.md](PROFESSOR_QUICKSTART.md).
 
 ---
@@ -134,5 +136,5 @@ writing; the payoff is week 2–3.** → [PROFESSOR_QUICKSTART.md](PROFESSOR_QUI
 | Anonymous can read student | tenant is `demo`, not `pilot` | recreate tenant `environment=pilot` |
 | Magic link 404 / not clickable | `--base-url` omitted when generating | rerun `roster_links.py` with `$HOST` |
 | Magic link → "invalid or expired launch link" | link signed with a different `SECRET_KEY` than the pilot's (or expired) | regenerate with the pilot's `SECRET_KEY` exported |
-| Magic-link sitting lands `unverified`, not `proctored` | `--unsigned` link used on a pilot (no attestation) | regenerate signed (drop `--unsigned`, set `SECRET_KEY`) |
+| Student can't submit on a pilot — 403 "Cross-tenant access denied" | `--unsigned` `?sid=` link used on a pilot: it carries no session/attestation, so the write is anonymous and blocked (on a *demo* tenant it would instead land `unverified`) | regenerate signed (drop `--unsigned`, set `SECRET_KEY`) |
 | Student appears twice | link `sid` ≠ Canvas `sid` | shouldn't happen — same derivation; check the slug matches the tenant |
