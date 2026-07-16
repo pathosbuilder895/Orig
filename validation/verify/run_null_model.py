@@ -44,7 +44,7 @@ sys.path.insert(0, str(_ROOT))
 
 from original.features.pipeline import feature_vector
 from original.quantum.state import StudentState, BaselineSample
-from original.quantum.scoring import score
+from original.quantum.scoring import ScoringConfig, score
 from validation.verify.binary_auc import _ScoringPair, summarize
 from validation.verify.null_models import fit_impostor_gaussian
 from validation.verify.report import paths_for, write_report
@@ -191,6 +191,11 @@ def run(
                     adaptive_weights=adaptive.adaptive_weights,
                     manifest=adaptive.manifest.to_dict() if adaptive.manifest is not None else None,
                     impostor_stats=impostor_stats[target],
+                    # WS-7 step 1 made score() a pure function of its arguments —
+                    # it no longer reads NULL_MODEL from os.environ, so the
+                    # env-locked flag must be passed in explicitly or the
+                    # impostor-null A/B arm never computes llr_deviation_score.
+                    scoring_config=ScoringConfig.from_env(),
                 )
                 baseline_pairs.append(
                     _ScoringPair(

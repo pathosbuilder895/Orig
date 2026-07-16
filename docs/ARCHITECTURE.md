@@ -1,7 +1,9 @@
 # Architecture Map — which surface is live
 
-One page to prevent the recurring confusion: this repo contains **two backends
-and three frontend generations**. Exactly one of each is live.
+One page to prevent the recurring confusion: this repo contains **two
+backends**. Exactly one is live. (It used to contain three frontend
+generations; the dead `frontend/` and `web/` trees were removed 2026-07-07
+(ADR-006) — see git history.)
 
 ## ✅ LIVE — the pilot stack (what professors use)
 
@@ -25,7 +27,7 @@ paid + disk). Ops: `docs/OPS_RUNBOOK.md`. Canvas: `docs/CANVAS_RUNBOOK.md`.
 ## 🧊 DORMANT — the v1 stack (future Postgres path, ADR-004 Route B)
 
 ```
-frontend/*.html  ←  v1's own UI (own login/dashboards — NOT served anywhere)
+(v1's own UI, frontend/*.html, was removed 2026-07-07 (ADR-006); see git history)
 original/main.py + original/api/ (v1 package)
   • SQLAlchemy/Postgres/Alembic; own auth (api/v1/auth.py, core/security.py)
   • own LTI: original/canvas/lti.py → routes /canvas/lti/*   ← the OTHER LTI
@@ -37,9 +39,9 @@ one-pager once documented `/canvas/lti/*` (v1's routes) instead of `/lti/*`
 
 ## 🪦 ABANDONED
 
-- `web/` — React/TSX/PostCSS rewrite attempt; superseded by `demo/`. Not served, not maintained.
+- `frontend/`, `web/` — dead frontend trees (v1's HTML UI; a React/TSX rewrite attempt superseded by `demo/`). Removed 2026-07-07 (ADR-006); see git history.
 - `legacy_mvp/`, `variantexam/` — gitignored local artifacts.
-- `deploy/` — pre-Render VPS provisioning (nginx/systemd). The chosen path is Render (`render.yaml` + `docs/OPS_RUNBOOK.md`); see the banner in `deploy/DEPLOY.md`.
+- `deploy/` — pre-Render VPS provisioning (nginx/systemd). The chosen path is Render (`render.yaml` + `docs/OPS_RUNBOOK.md`); see the banner in `deploy/DEPLOY.md`. The v1 container/deploy artifacts (`Dockerfile`, `docker-compose*.yml`, `docker-entrypoint.sh`, `start-prod.sh`, `fly.toml`) were quarantined to `deploy/legacy-v1/` (audit B15); only `Dockerfile.demo` remains at the repo root.
 
 ## Rules of thumb
 

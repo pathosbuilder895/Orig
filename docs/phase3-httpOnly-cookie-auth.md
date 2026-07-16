@@ -3,11 +3,13 @@
 > (`original/api/v1/auth.py`, `frontend/auth.js`). The live stack is
 > `original/api.py` + `demo/` + `/lti/*` and does not use this JWT/cookie flow.
 > Kept as historical reference only.
+> The `frontend/` tree it references was removed 2026-07-07 (ADR-006); see git
+> history for `frontend/auth.js`.
 > See `docs/ARCHITECTURE.md` for which stack is live.
 
 # Phase 3 follow-up — httpOnly cookie authentication
 
-Today, the API returns JWTs in JSON from `POST /api/v1/auth/login` and `POST /api/v1/auth/refresh` ([original/api/v1/auth.py](../original/api/v1/auth.py)). The static frontend ([frontend/auth.js](../frontend/auth.js)) stores tokens in **sessionStorage** (with an in-memory preference noted in comments).
+Today, the API returns JWTs in JSON from `POST /api/v1/auth/login` and `POST /api/v1/auth/refresh` ([original/api/v1/auth.py](../original/api/v1/auth.py)). The static frontend (`frontend/auth.js`, removed 2026-07-07 (ADR-006) — see git history) stored tokens in **sessionStorage** (with an in-memory preference noted in comments).
 
 ## Goal
 
@@ -36,6 +38,6 @@ Today, the API returns JWTs in JSON from `POST /api/v1/auth/login` and `POST /ap
 ## Session expiry (frontend)
 
 - Rely on **401** from API and a single **refresh** attempt, then redirect to login; avoid trusting client clocks for expiry when using httpOnly cookies.
-- [frontend/auth.js](../frontend/auth.js) would use `fetch(..., { credentials: 'include' })` and drop manual `Authorization` header when cookies carry the session.
+- `frontend/auth.js` (removed 2026-07-07 (ADR-006); see git history) would use `fetch(..., { credentials: 'include' })` and drop manual `Authorization` header when cookies carry the session.
 
 This is intentionally a design stub for **Phase 3**; Phase 2 ships with Bearer + sessionStorage as today.

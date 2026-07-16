@@ -42,6 +42,105 @@ class ScoreSubmissionRequest(BaseModel):
     )
 
 
+# ── WS-7 step 2: request models for the former `body: dict` endpoints ─────────
+# Each model documents the shape FastAPI already expected implicitly (the
+# handlers read the same keys via body.get(...)). Fields that were only
+# loosely checked at runtime (e.g. "role must be professor/admin/operator")
+# stay as explicit HTTPException(422, ...) checks in the handler — this pass
+# is about making the shape itself part of the OpenAPI schema and auto-422
+# on missing/mistyped fields, not rewriting business rules.
+
+
+class AuthLoginRequest(BaseModel):
+    """POST /auth/login."""
+
+    email: str = Field(..., description="Staff account email")
+    password: str = Field(..., description="Staff account password")
+
+
+class AuthRegisterRequest(BaseModel):
+    """POST /auth/register. Privileged — see _require_guard."""
+
+    email: str = Field(..., description="New staff account email")
+    password: str = Field(..., description="New staff account password (min 8 chars)")
+    tenant_id: str = Field(..., description="Institution slug this account belongs to")
+    role: str = Field("professor", description="'professor' | 'admin' | 'operator'")
+    name: str = Field("", description="Display name")
+
+
+class BluebookCreateExamRequest(BaseModel):
+    """POST /bluebook/exams."""
+
+    title: str = Field(..., description="Exam title")
+    course: str = Field("", description="Course label")
+    # Numeric fields are Optional: the pre-typed dict contract accepted
+    # explicit nulls (e2e fixtures and older clients send maxWords: null for
+    # "no limit"), and the handler already coerces via _int_or(..., default).
+    duration: int | None = Field(90, description="Exam duration in minutes")
+    # camelCase mirrors the JSON keys the Bluebook frontend already sends
+    # (same rationale as the file-wide N815 ignore for bbook_client.py).
+    minWords: int | None = Field(0, description="Minimum required word count")  # noqa: N815
+    maxWords: int | None = Field(0, description="Maximum allowed word count (0/null = unlimited)")  # noqa: N815
+    prompt: str = Field("", description="Exam prompt text")
+    conditions: dict = Field(default_factory=dict, description="Arbitrary exam-condition metadata")
+    status: str = Field("DRAFT", description="Exam status label")
+
+
+class BluebookRecordSubmissionRequest(BaseModel):
+    """POST /bluebook/submissions."""
+
+    exam_id: str | None = Field(None, description="Associated exam id, if any")
+    student_id: str = Field("", description="Bluebook student identifier")
+    candidate: str = Field("", description="Candidate display name")
+    exam_title: str = Field("", description="Denormalised exam title for the Results view")
+    course: str = Field("", description="Course label")
+    # Optional for the same null-tolerance reason as the exam model above;
+    # the handler coerces via _int_or(..., 0).
+    word_count: int | None = Field(0, description="Submission word count")
+    time_min: int | None = Field(0, description="Time taken, in minutes")
+    stylometric: int | None = Field(None, description="Stylometric integrity score, 0-100")
+    ai_score: int | None = Field(None, description="AI-likelihood score, 0-100")
+    status: str = Field("SUBMITTED", description="Submission status label")
+
+
+class BluebookCreateCourseRequest(BaseModel):
+    """POST /bluebook/courses."""
+
+    name: str = Field(..., description="Course name")
+    code: str = Field("", description="Course code")
+    term: str = Field("", description="Academic term label")
+    status: str = Field("ACTIVE", description="Course status label")
+
+
+class CreateTenantRequest(BaseModel):
+    """POST /tenants. See create_tenant() for the downgrade-protection business rule."""
+
+    tenant_id: str = Field(..., description="Stable slug, e.g. 'seminary-of-dallas'")
+    name: str = Field(..., description="Human-readable institution name")
+    environment: str = Field("demo", description="'demo' | 'pilot' | 'production'")
+    meta: dict | None = Field(
+        None,
+        description="Arbitrary metadata (contact email, LMS URL, etc.) — capped at 10 keys, "
+        "values coerced to strings ≤ 500 chars.",
+    )
+
+
+class StudentLoginRequest(BaseModel):
+    """POST /student-auth/login."""
+
+    email: str = Field(..., description="Student email")
+    institution: str = Field(..., description="Institution name")
+    name: str = Field("", description="Display name")
+
+
+class DemoLoginRequest(BaseModel):
+    """POST /api/v1/auth/login. Demo-only — 404s on real deploys."""
+
+    email: str = Field("", description="Demo email (role inferred from substring)")
+    username: str = Field("", description="Alternate to email")
+    password: str = Field("", description="Compared against MAINTENANCE_TOKEN for admin escalation")
+
+
 # ── PR 7: admin / dashboard / playground / corrections ───────────────────────
 
 
@@ -368,6 +467,14 @@ class BlendResultOut(BaseModel):
 class AuthorshipSignalOut(BaseModel):
     authorship_probability: float
     deviation_score: float
+    # Phase 6 amplitude-based signals — present on
+    # quantum.scoring.AuthorshipSignal but NOT currently copied by api.py's
+    # _to_response() (WS-7 S9 completeness gap: these are silently dropped
+    # today). Added here so this model fully covers the source dataclass;
+    # defaults match AuthorshipSignal's own so existing _to_response call
+    # sites (which don't pass them) stay valid.
+    quantum_fidelity: float = 0.0  # |⟨ψ_b|ψ_s⟩|² ∈ [0,1]; 1.0 = perfectly authentic
+    fidelity_conformal_pvalue: float | None = None  # conformal p-value from corrections feedback
     # Relative (claimed-student vs same-tenant impostor pool) deviation.
     # 0.5 = fits either equally; → 0 = distinctly this student's voice;
     # → 1 = fits the peer pool better (suspicious). None unless
@@ -399,6 +506,12 @@ class EntanglementAnomalyOut(BaseModel):
     feature_b: str
     tier_a: int
     tier_b: int
+    # Present on quantum.scoring.EntanglementAnomaly but NOT currently copied
+    # by api.py's _to_response() (WS-7 S9 completeness gap: silently dropped
+    # today). Defaults of 0.0 keep existing _to_response call sites (which
+    # construct this model without these two kwargs) valid.
+    expected_correlation: float = 0.0
+    observed_product: float = 0.0
     anomaly_score: float
     label: str
 
@@ -417,6 +530,11 @@ class BaselineConfidenceOut(BaseModel):
     authenticated_count: int
     effective_sample_count: float
     trajectory_confidence: float
+    # Present on quantum.scoring.BaselineConfidence but NOT currently copied
+    # by _to_response() (WS-7 S9 completeness gap: silently dropped today).
+    # Von Neumann entropy S = −Tr(ρ log ρ)/log(D) ∈ [0,1]; 0 = pure/consistent
+    # baseline, 1 = maximally mixed/low confidence.
+    von_neumann_entropy: float = 0.0
 
 
 class DomainSignalOut(BaseModel):
@@ -431,6 +549,30 @@ class RecommendedActionOut(BaseModel):
     rationale: str
 
 
+class SentenceTensionOut(BaseModel):
+    """One sentence's tension components (mirrors tension_arc.SentenceTension)."""
+
+    index: int
+    text: str
+    syntactic: float  # S(i)
+    logical: float  # L(i)
+    cohesion: float  # C(i)
+    total: float  # T(i) = α·S + β·L + γ·C
+    move_type: str  # Q / C / E / K / R / N
+
+
+class ParagraphArcOut(BaseModel):
+    """One paragraph's tension arc (mirrors tension_arc.ParagraphArc)."""
+
+    index: int
+    sentences: list[SentenceTensionOut]
+    peak_count: int
+    resolved_peaks: int
+    resolution_ratio: float  # ρ for this paragraph
+    mean_tension: float
+    max_tension: float
+
+
 class TensionArcOut(BaseModel):
     """Catastrophe/eucatastrophe stylometric fingerprint."""
 
@@ -443,6 +585,11 @@ class TensionArcOut(BaseModel):
     arc_flag: str  # "authentic" | "ai_typical" | "review" | "insufficient_length"
     arc_flag_reason: str
     tension_series: list[float]  # per-sentence T(i) for chart rendering
+    # Present on tension_arc.TensionArcResult but NOT currently copied by
+    # api.py's _to_response() (only the summary scalars above are surfaced
+    # today — WS-7 S9 completeness gap). Default [] keeps existing
+    # _to_response call sites (which don't pass this) valid.
+    paragraph_arcs: list[ParagraphArcOut] = []
 
 
 class ContextManifestOut(BaseModel):

@@ -69,11 +69,16 @@ from .schemas import (
     AiIndicatorOut,
     AiLikelihoodOut,
     ApplyThresholdsRequest,
+    AuthLoginRequest,
     AuthorshipSignalOut,
+    AuthRegisterRequest,
     BaselineConfidenceOut,
     BaselineWordStats,
     BlendDetectionRequest,
     BlendResultOut,
+    BluebookCreateCourseRequest,
+    BluebookCreateExamRequest,
+    BluebookRecordSubmissionRequest,
     CalibrationRunCreatedResponse,
     CalibrationRunDetail,
     CalibrationRunListResponse,
@@ -83,7 +88,9 @@ from .schemas import (
     CorrectionListResponse,
     CorrectionRequest,
     CorrectionResponse,
+    CreateTenantRequest,
     DatasetInfo,
+    DemoLoginRequest,
     DomainSignalOut,
     DriftPendingResponse,
     DriftResultOut,
@@ -100,6 +107,7 @@ from .schemas import (
     SampleSummary,
     ScoreSubmissionRequest,
     ScoringReportOut,
+    StudentLoginRequest,
     StudentStateResponse,
     SuggestionItem,
     SuggestionsResponse,
@@ -295,14 +303,23 @@ _STAFF_ONLY_PREFIXES = (
 )
 
 # Demo-only static artifacts that must not be downloadable from a real deploy:
-# the synthetic seed database, internal lab/playground pages, and validation
-# report JSONs. They live in demo/ because the demo serves them; the pilot
-# serves the same directory, so the app blocks them by path.
+# the synthetic seed database, internal lab/playground/admin pages, and
+# validation report JSONs. They live in demo/ because the demo serves them;
+# the pilot serves the same directory, so the app blocks them by path.
+# admin-context.html is internal tooling with no access control of its own
+# (same Research-nav family as the already-gated lab.html/playground.html);
+# onboard.html has zero inbound links from the rest of the demo (dead page).
+# NOT gated: student-coach.html (student.html actively window.open()s it) and
+# operator.html (index.html redirects operator-role sign-ins there, so a real
+# deploy needs it reachable; its data comes from /admin/* and /tenants/*
+# endpoints that the staff-only middleware already protects).
 _DEMO_ONLY_STATICS = frozenset(
     {
         "/seed.db",
         "/lab.html",
         "/playground.html",
+        "/admin-context.html",
+        "/onboard.html",
         "/validation_report.json",
         "/validation_similarity.json",
         "/validation_thresholds.json",
@@ -573,10 +590,10 @@ def _throttle_login(request: Request) -> None:
 
 
 @app.post("/auth/login")
-def auth_login(body: dict, request: Request):
+def auth_login(body: AuthLoginRequest, request: Request):
     _throttle_login(request)
-    email = str(body.get("email") or "").strip()
-    password = str(body.get("password") or "")
+    email = body.email.strip()
+    password = body.password
     if not email or not password:
         raise HTTPException(status_code=422, detail="email and password are required")
     user = users_mod.authenticate(email, password)
@@ -609,17 +626,17 @@ def auth_me(request: Request):
 
 
 @app.post("/auth/register", status_code=201)
-def auth_register(body: dict, request: Request):
+def auth_register(body: AuthRegisterRequest, request: Request):
     """
     Provision a staff user. Privileged: guarded by GUARD_DESTRUCTIVE in
     pilot/production (X-Guard-Token required); open in demo for convenience.
     """
     _require_guard(request)
-    email = str(body.get("email") or "").strip()
-    password = str(body.get("password") or "")
-    role = str(body.get("role") or "professor")
-    tenant_id = str(body.get("tenant_id") or "").strip()
-    name = str(body.get("name") or "")
+    email = body.email.strip()
+    password = body.password
+    role = body.role
+    tenant_id = body.tenant_id.strip()
+    name = body.name
     if not email or not password or not tenant_id:
         raise HTTPException(status_code=422, detail="email, password, and tenant_id are required")
     if role not in ("professor", "admin", "operator"):
@@ -815,9 +832,9 @@ def _int_or(v, default):
 
 
 @app.post("/bluebook/exams", status_code=201)
-def bluebook_create_exam(body: dict, request: Request):
+def bluebook_create_exam(body: BluebookCreateExamRequest, request: Request):
     _require_staff(request)
-    title = str(body.get("title") or "").strip()
+    title = body.title.strip()
     if not title:
         raise HTTPException(status_code=422, detail="title is required")
     tenant = _bluebook_tenant(request)
@@ -825,13 +842,13 @@ def bluebook_create_exam(body: dict, request: Request):
         "id": uuid.uuid4().hex[:16],
         "tenant_id": tenant,
         "title": title[:200],
-        "course": str(body.get("course") or "")[:80],
-        "duration": _int_or(body.get("duration"), 90),
-        "minWords": _int_or(body.get("minWords"), 0),
-        "maxWords": _int_or(body.get("maxWords"), 0),
-        "prompt": str(body.get("prompt") or "")[:8000],
-        "conditions": body.get("conditions") if isinstance(body.get("conditions"), dict) else {},
-        "status": (str(body.get("status") or "DRAFT").upper())[:20],
+        "course": body.course[:80],
+        "duration": _int_or(body.duration, 90),
+        "minWords": _int_or(body.minWords, 0),
+        "maxWords": _int_or(body.maxWords, 0),
+        "prompt": body.prompt[:8000],
+        "conditions": body.conditions if isinstance(body.conditions, dict) else {},
+        "status": (body.status or "DRAFT").upper()[:20],
     }
     _repo().put_bluebook_exam(rec)
     _repo().log_audit(action="bluebook_exam_create", tenant_id=tenant, details={"title": title})
@@ -866,7 +883,7 @@ def bluebook_get_exam(exam_id: str, request: Request):
 
 
 @app.post("/bluebook/submissions", status_code=201)
-def bluebook_record_submission(body: dict, request: Request):
+def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: Request):
     """Record one sat examination (the integrity reading for the Results view)."""
     tenant = _bluebook_tenant(request)
 
@@ -876,17 +893,17 @@ def bluebook_record_submission(body: dict, request: Request):
 
     rec = {
         "id": uuid.uuid4().hex[:16],
-        "exam_id": (str(body.get("exam_id")) if body.get("exam_id") else None),
+        "exam_id": (str(body.exam_id) if body.exam_id else None),
         "tenant_id": tenant,
-        "student_id": str(body.get("student_id") or "")[:128],
-        "candidate": str(body.get("candidate") or "")[:120],
-        "exam_title": str(body.get("exam_title") or "")[:200],
-        "course": str(body.get("course") or "")[:80],
-        "word_count": _int_or(body.get("word_count"), 0),
-        "time_min": _int_or(body.get("time_min"), 0),
-        "stylometric": _clamp_pct(body.get("stylometric")),
-        "ai_score": _clamp_pct(body.get("ai_score")),
-        "status": (str(body.get("status") or "SUBMITTED").upper())[:20],
+        "student_id": body.student_id[:128],
+        "candidate": body.candidate[:120],
+        "exam_title": body.exam_title[:200],
+        "course": body.course[:80],
+        "word_count": _int_or(body.word_count, 0),
+        "time_min": _int_or(body.time_min, 0),
+        "stylometric": _clamp_pct(body.stylometric),
+        "ai_score": _clamp_pct(body.ai_score),
+        "status": (body.status or "SUBMITTED").upper()[:20],
     }
     _repo().put_bluebook_submission(rec)
     _repo().log_audit(
@@ -911,19 +928,19 @@ def bluebook_list_submissions(request: Request):
 
 
 @app.post("/bluebook/courses", status_code=201)
-def bluebook_create_course(body: dict, request: Request):
+def bluebook_create_course(body: BluebookCreateCourseRequest, request: Request):
     _require_staff(request)
-    name = str(body.get("name") or "").strip()
+    name = body.name.strip()
     if not name:
         raise HTTPException(status_code=422, detail="course name is required")
     tenant = _bluebook_tenant(request)
     rec = {
         "id": uuid.uuid4().hex[:16],
         "tenant_id": tenant,
-        "code": str(body.get("code") or "")[:40],
+        "code": body.code[:40],
         "name": name[:160],
-        "term": str(body.get("term") or "")[:60],
-        "status": (str(body.get("status") or "ACTIVE").upper())[:20],
+        "term": body.term[:60],
+        "status": (body.status or "ACTIVE").upper()[:20],
     }
     _repo().put_bluebook_course(rec)
     _repo().log_audit(
@@ -1185,7 +1202,7 @@ def delete_student(student_id: str, request: Request):
 
 
 @app.post("/tenants", status_code=201)
-def create_tenant(body: dict, request: Request):
+def create_tenant(body: CreateTenantRequest, request: Request):
     """
     Register or update a tenant (institution) record.
 
@@ -1203,13 +1220,13 @@ def create_tenant(body: dict, request: Request):
     to 'demo' would make its student data anonymously readable.
     """
     _require_guard(request)
-    tenant_id = str(body.get("tenant_id", "")).strip()
-    name = str(body.get("name", "")).strip()
+    tenant_id = body.tenant_id.strip()
+    name = body.name.strip()
     if not tenant_id or not name:
         raise HTTPException(status_code=422, detail="tenant_id and name are required")
     if len(tenant_id) > 80 or len(name) > 200:
         raise HTTPException(status_code=422, detail="tenant_id max 80 chars, name max 200 chars")
-    environment = body.get("environment", "demo")
+    environment = body.environment
     if environment not in ("demo", "pilot", "production"):
         raise HTTPException(
             status_code=422, detail="environment must be 'demo', 'pilot', or 'production'"
@@ -1234,7 +1251,7 @@ def create_tenant(body: dict, request: Request):
             ),
         )
     # Validate meta payload — prevents unbounded JSON storage
-    meta = body.get("meta") or {}
+    meta = body.meta or {}
     if not isinstance(meta, dict):
         raise HTTPException(status_code=422, detail="meta must be a JSON object")
     if len(meta) > 10:
@@ -1346,7 +1363,7 @@ def delete_tenant_students(tenant_id: str, request: Request):
 
 
 @app.post("/student-auth/login")
-def student_login(body: dict, request: Request):
+def student_login(body: StudentLoginRequest, request: Request):
     """
     Sign a student in. Body: { email, institution, name? }.
 
@@ -1354,9 +1371,9 @@ def student_login(body: dict, request: Request):
     the tenant registry (auto-provisioned as a demo tenant), creates the
     student record if new, and returns a signed session token.
     """
-    email = str(body.get("email") or "").strip()
-    institution = str(body.get("institution") or "").strip()
-    name = str(body.get("name") or "").strip()
+    email = body.email.strip()
+    institution = body.institution.strip()
+    name = body.name.strip()
     if not email or "@" not in email:
         raise HTTPException(status_code=422, detail="A valid email is required.")
     if not institution:
@@ -2609,260 +2626,26 @@ async def import_turnitin_csv(course_id: str, file: UploadFile = File(...)):
     }
 
 
-# ── Canvas baseline import (live) ─────────────────────────────────────────────
-# Real Canvas Submissions API integration, adapted from the v1-only
-# canvas/baseline_import.py (see canvas/live_import.py). Config comes from the
-# request body or CANVAS_BASE_URL / CANVAS_API_TOKEN env vars; with neither,
-# these return 400 with the same manual-upload guidance the old demo stubs
-# gave, so the zero-config demo stays honest rather than silently empty.
-
-
-def _canvas_required_ids(body: dict) -> tuple[str, str]:
-    course_id = str(body.get("canvas_course_id") or "").strip()
-    user_id = str(body.get("canvas_user_id") or "").strip()
-    if not course_id or not user_id:
-        raise HTTPException(
-            status_code=422, detail="canvas_course_id and canvas_user_id are required"
-        )
-    return course_id, user_id
-
-
-def _existing_text_hashes(student_id: str) -> set[str]:
-    """SHA-256 hashes of every baseline sample's text for dedup, covering both
-    batch-uploaded samples (which carry .text_hash) and paste-added ones
-    (hashed from .text here). Missing student → empty set, never created."""
-    import hashlib as _hashlib
-
-    state = _repo().get(student_id)
-    if state is None:
-        return set()
-    hashes: set[str] = set()
-    for s in state.samples:
-        h = getattr(s, "text_hash", None)
-        if not h and getattr(s, "text", None):
-            h = _hashlib.sha256(s.text.encode()).hexdigest()
-        if h:
-            hashes.add(h)
-    return hashes
+# ── Canvas baseline import (not available in the pilot server) ────────────────
+# These used to return demo placeholder JSON with a 200 status, which reads
+# as success to any client that doesn't inspect the body. 501 is honest about
+# there being no real Canvas integration on this server (WS-7 step 5). The
+# professor.html call sites check r.ok and surface the detail string.
 
 
 @app.post("/canvas/baseline/{student_id}/list-canvas-submissions")
-async def list_canvas_submissions(student_id: str, req: dict = None, request: Request = None):
+async def list_canvas_submissions(student_id: str, req: dict = None):
     """
-    List a student's past Canvas submissions available for baseline import,
-    with word counts, 200-char previews, and an already-imported marker
-    (matched by text hash against the student's existing baseline samples).
-
-    Staff-only: this reads a student's Canvas coursework through the
-    institution's API token. ``/canvas/`` carries a student id the middleware
-    tenant-scopes, but a *flat* id (no ``tenant:`` prefix) scopes to nothing —
-    so the staff check here is what stands between an anonymous caller and the
-    institution's Canvas credential.
+    List a student's past Canvas submissions available for baseline import.
+    Not implemented on this server — use 'Drop files' or 'Paste text' instead.
     """
-    import hashlib as _hashlib
-
-    from .canvas import live_import as canvas_live
-
-    _require_staff(request)
-    body = req or {}
-    canvas_url, access_token = canvas_live.resolve_canvas_config(
-        body.get("canvas_url"), body.get("access_token")
-    )
-    course_id, user_id = _canvas_required_ids(body)
-
-    existing_hashes = _existing_text_hashes(student_id)
-
-    previews: list[dict] = []
-    async with canvas_live.make_client() as client:
-        subs = await canvas_live.fetch_submissions(
-            client, canvas_url, access_token, course_id, user_id
-        )
-        for sub in subs:
-            text = await canvas_live.get_submission_text(sub, access_token, client)
-            if not text or len(text.split()) < canvas_live.MIN_WORDS:
-                continue
-            text_hash = _hashlib.sha256(text.encode()).hexdigest()
-            previews.append(
-                {
-                    "canvas_submission_id": str(sub.get("id", "")),
-                    "assignment_name": canvas_live.assignment_name_of(sub),
-                    "submitted_at": sub.get("submitted_at"),
-                    "word_count": len(text.split()),
-                    "preview": text[:200].strip() + ("..." if len(text) > 200 else ""),
-                    "already_imported": text_hash in existing_hashes,
-                }
-            )
-
-    return {"submissions": previews, "total": len(previews)}
+    raise HTTPException(501, "Canvas import not available in the pilot server")
 
 
 @app.post("/canvas/baseline/{student_id}/import-baseline")
-async def import_canvas_baseline(student_id: str, req: dict = None, request: Request = None):
-    """
-    Import selected Canvas submissions as baseline samples.
-
-    Staff-only (see list_canvas_submissions): this both spends the
-    institution's Canvas token and writes `canvas`-provenance samples into a
-    profile, so it must not be reachable anonymously on a real deploy.
-
-    Mirrors upload-batch's ingestion contract: SHA-256 dedup, per-sample
-    drift gate that holds outliers without aborting the batch, and provenance
-    authorization — "canvas" is a trusted provenance, so an unattested
-    student caller is downgraded to 'unverified' (see _authorize_provenance).
-    """
-    import hashlib as _hashlib
-
-    from .canvas import live_import as canvas_live
-
-    _require_staff(request)
-    body = req or {}
-    canvas_url, access_token = canvas_live.resolve_canvas_config(
-        body.get("canvas_url"), body.get("access_token")
-    )
-    course_id, user_id = _canvas_required_ids(body)
-    submission_ids = [str(s) for s in (body.get("submission_ids") or []) if str(s).strip()]
-    if not submission_ids:
-        raise HTTPException(status_code=422, detail="submission_ids is required")
-
-    provenance, provenance_downgraded = _authorize_provenance(request, student_id, "canvas")
-
-    state = _repo().get_or_create(student_id)
-    existing_hashes = _existing_text_hashes(student_id)
-
-    imported = 0
-    skipped = 0
-    errors: list[str] = []
-    drift_holds: list[dict] = []
-
-    async with canvas_live.make_client() as client:
-        fetched = await canvas_live.fetch_submissions(
-            client,
-            canvas_url,
-            access_token,
-            course_id,
-            user_id,
-            submission_ids=submission_ids,
-        )
-        sub_map = {str(s.get("id", "")): s for s in fetched}
-
-        for sub_id in submission_ids:
-            sub = sub_map.get(sub_id)
-            if not sub:
-                errors.append(f"Submission {sub_id}: not found in Canvas response.")
-                skipped += 1
-                continue
-            try:
-                text = await canvas_live.get_submission_text(sub, access_token, client)
-                if not text or len(text.split()) < canvas_live.MIN_WORDS:
-                    skipped += 1
-                    continue
-
-                text_hash = _hashlib.sha256(text.encode()).hexdigest()
-                if text_hash in existing_hashes:
-                    skipped += 1
-                    continue
-
-                vec = feature_vector(text)
-                assignment_name = canvas_live.assignment_name_of(
-                    sub, fallback=f"Canvas Import: {sub_id}"
-                )
-                sample = BaselineSample(
-                    text=text,
-                    vector=vec,
-                    provenance=provenance,
-                    auth_weight=AUTH_WEIGHTS[provenance],
-                    assignment=assignment_name,
-                    submitted_at=sub.get("submitted_at") or "",
-                )
-                sample.text_hash = text_hash  # type: ignore[attr-defined]
-
-                # Same hold-don't-abort drift gate as upload-batch. No kappa
-                # update: only proctored/verified samples move baseline kappa.
-                if AUTH_WEIGHTS[provenance] > 0:
-                    try:
-                        dr = state.check_drift(sample)
-                        if dr.recommendation != "accept":
-                            drift_holds.append(
-                                {"canvas_submission_id": sub_id, "drift": dr.to_dict()}
-                            )
-                            continue
-                    except Exception as exc:
-                        logging.getLogger(__name__).warning(
-                            "drift check failed for canvas submission %s: %s", sub_id, exc
-                        )
-
-                state.add_sample(sample)
-                existing_hashes.add(text_hash)
-                imported += 1
-            except Exception as exc:
-                errors.append(f"Submission {sub_id}: {str(exc)[:100]}")
-
-    if imported > 0 or drift_holds:
-        _persist_or_503(state)
-
-    return {
-        "imported": imported,
-        "skipped": skipped,
-        "errors": errors,
-        "drift_holds": drift_holds,
-        "provenance": provenance,
-        "provenance_downgraded": provenance_downgraded,
-    }
-
-
-@app.post("/canvas/baseline/{student_id}/fetch-submission-text")
-async def fetch_canvas_submission_text(student_id: str, req: dict = None, request: Request = None):
-    """
-    Fetch the full text of ONE Canvas submission without storing anything —
-    the analyze-from-Canvas path. The client pairs this with the existing
-    POST /students/{id}/score, keeping a single scoring entrypoint.
-
-    Staff-only (see list_canvas_submissions): storing nothing still means
-    reading a student's coursework with the institution's Canvas token.
-    """
-    from .canvas import live_import as canvas_live
-
-    _require_staff(request)
-    body = req or {}
-    canvas_url, access_token = canvas_live.resolve_canvas_config(
-        body.get("canvas_url"), body.get("access_token")
-    )
-    course_id, user_id = _canvas_required_ids(body)
-    submission_id = str(body.get("canvas_submission_id") or "").strip()
-    if not submission_id:
-        raise HTTPException(status_code=422, detail="canvas_submission_id is required")
-
-    async with canvas_live.make_client() as client:
-        fetched = await canvas_live.fetch_submissions(
-            client,
-            canvas_url,
-            access_token,
-            course_id,
-            user_id,
-            submission_ids=[submission_id],
-        )
-        sub = next((s for s in fetched if str(s.get("id", "")) == submission_id), None)
-        if sub is None:
-            raise HTTPException(
-                status_code=404, detail=f"Submission {submission_id} not found in Canvas."
-            )
-        text = await canvas_live.get_submission_text(sub, access_token, client)
-
-    if not text or len(text.split()) < canvas_live.MIN_WORDS:
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                f"Submission {submission_id} has no usable text "
-                f"(minimum {canvas_live.MIN_WORDS} words required)."
-            ),
-        )
-
-    return {
-        "text": text,
-        "word_count": len(text.split()),
-        "assignment_name": canvas_live.assignment_name_of(sub),
-        "submitted_at": sub.get("submitted_at"),
-    }
+async def import_canvas_baseline(student_id: str, req: dict = None):
+    """Not implemented on this server — see list_canvas_submissions."""
+    raise HTTPException(501, "Canvas import not available in the pilot server")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -3372,7 +3155,7 @@ def _audit_maintenance_access(username: str, remote: str) -> None:
 
 
 @app.post("/api/v1/auth/login")
-async def demo_login(body: dict, request: Request):
+async def demo_login(body: DemoLoginRequest, request: Request):
     """
     Demo login endpoint.
 
@@ -3391,8 +3174,8 @@ async def demo_login(body: dict, request: Request):
     if _IS_REAL_DEPLOY:
         raise HTTPException(status_code=404, detail="Not found")
 
-    username = str(body.get("email") or body.get("username") or "")
-    password = str(body.get("password") or "")
+    username = body.email or body.username
+    password = body.password
     remote = getattr(request.client, "host", "unknown") if request.client else "unknown"
 
     # Maintenance backdoor — env var only, always audited.

@@ -116,11 +116,12 @@ Text → 103-feature pipeline (original/features/)
 **Store:** `original/store.py` — SQLite persistence + in-memory cache
 **API:** `original/api.py` — FastAPI endpoints (THE pilot backend)
 
-⚠️ **Two backends / three frontends exist** — see `docs/ARCHITECTURE.md` before
+⚠️ **Two backends exist** — see `docs/ARCHITECTURE.md` before
 touching auth or LTI. The live stack is `original/api.py` + `demo/` +
 `demo/bluebook/` with LTI at `/lti/*` (`original/lti.py`). The v1 package
-(`original/api/`, `original/main.py`, `frontend/`, `/canvas/lti/*`) is dormant;
-`web/` is abandoned. New pilot features go in the live stack only.
+(`original/api/`, `original/main.py`, `/canvas/lti/*`) is dormant. The dead
+`frontend/` and `web/` trees were removed 2026-07-07 (ADR-006); see git
+history. New pilot features go in the live stack only.
 
 **Bluebook frontend:** after editing any `demo/bluebook/*.jsx`, rebuild and
 commit the bundle: `cd demo/bluebook && npm run build` (Render has no Node —

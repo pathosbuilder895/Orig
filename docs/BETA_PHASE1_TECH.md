@@ -47,7 +47,7 @@ BASE_URL=https://your-host SMOKE_EMAIL=... SMOKE_PASSWORD='...' ./scripts/smoke_
 
 ## Tests
 
-Run the suite (recommended: same Python version as `Dockerfile`, e.g. 3.11):
+Run the suite (recommended: same Python version as `deploy/legacy-v1/Dockerfile`, e.g. 3.11):
 
 ```bash
 python -m pytest tests/ -q

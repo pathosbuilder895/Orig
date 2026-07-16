@@ -18,7 +18,7 @@ filelock==3.29.6
     #   virtualenv
 fonttools==4.63.0
     # via matplotlib
-hypothesis==6.112.2
+hypothesis==6.156.4
     # via -r requirements-dev.txt
 identify==2.6.19
     # via pre-commit
@@ -60,14 +60,14 @@ pygments==2.20.0
     # via pytest
 pyparsing==3.3.2
     # via matplotlib
-pytest==8.4.2
+pytest==9.1.1
     # via
     #   -r requirements-dev.txt
     #   pytest-asyncio
     #   pytest-cov
 pytest-asyncio==0.24.0
     # via -r requirements-dev.txt
-pytest-cov==5.0.0
+pytest-cov==7.1.0
     # via -r requirements-dev.txt
 python-dateutil==2.9.0.post0
     # via matplotlib

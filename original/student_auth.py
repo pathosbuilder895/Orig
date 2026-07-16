@@ -95,6 +95,107 @@ def verify_session(token: str) -> dict | None:
         return None
     if not isinstance(body, dict) or "sid" not in body:
         return None
+    # A proctor attestation is signed with the same secret but is NOT a login
+    # session — reject it here so it can only unlock a proctored baseline write,
+    # never authenticate a request.
+    if body.get("typ"):
+        return None
+    if float(body.get("exp", 0)) < time.time():
+        return None
+    return body
+
+
+# ── Proctor attestation ───────────────────────────────────────────────────────
+# A short-lived, signed grant that a *proctored* baseline write for a specific
+# student is authorized. Minted server-side at exam launch (see lti.py) and
+# presented by the exam client on POST /students/{id}/baseline. Because a bare
+# student session token cannot forge it, a student cannot self-author
+# high-trust (proctored/verified/canvas) samples into their own profile.
+
+_PROCTOR_TTL = 6 * 3600  # one exam-day window
+
+
+def mint_proctor_attestation(
+    student_id: str, exam: str = "", ttl_seconds: int = _PROCTOR_TTL
+) -> str:
+    """Mint a signed proctor attestation authorizing one student's proctored
+    baseline writes for a bounded window (issued at exam launch)."""
+    body = {
+        "typ": "proctor",
+        "sid": student_id,
+        "exam": exam,
+        "exp": int(time.time()) + ttl_seconds,
+    }
+    payload = _b64(json.dumps(body, separators=(",", ":")).encode())
+    return f"{payload}.{_sign(payload)}"
+
+
+def verify_proctor_attestation(token: str, student_id: str) -> bool:
+    """True iff ``token`` is a valid, unexpired proctor attestation issued for
+    exactly ``student_id``. Constant-time signature comparison."""
+    if not token or "." not in token:
+        return False
+    payload, sig = token.split(".", 1)
+    if not hmac.compare_digest(sig, _sign(payload)):
+        return False
+    try:
+        body = json.loads(_unb64(payload))
+    except Exception:
+        return False
+    if not isinstance(body, dict) or body.get("typ") != "proctor":
+        return False
+    if body.get("sid") != student_id:
+        return False
+    if float(body.get("exp", 0)) < time.time():
+        return False
+    return True
+
+
+# ── Magic-link launch token ───────────────────────────────────────────────────
+# A signed, self-contained launch credential the offline roster_links.py builds
+# (one per student) for the no-Canvas fallback. Redeemed by GET /bluebook/launch,
+# which trades it for a short session + a proctor attestation. Because it is
+# signed, a student cannot forge a launch for an arbitrary id; because the real
+# session/attestation are minted only at redemption, no long-lived bearer token
+# is ever placed in the distributed URL.
+
+_LAUNCH_TTL = 14 * 24 * 3600  # links are distributed, then used over the next days
+
+
+def mint_launch_token(
+    student_id: str,
+    tenant: str,
+    exam: str = "",
+    name: str = "",
+    ttl_seconds: int = _LAUNCH_TTL,
+) -> str:
+    """Mint a signed Bluebook magic-link launch token binding a student."""
+    body = {
+        "typ": "launch",
+        "sid": student_id,
+        "tid": tenant,
+        "exam": exam,
+        "name": name,
+        "exp": int(time.time()) + ttl_seconds,
+    }
+    payload = _b64(json.dumps(body, separators=(",", ":")).encode())
+    return f"{payload}.{_sign(payload)}"
+
+
+def verify_launch_token(token: str) -> dict | None:
+    """Return the launch body ``{sid, tid, exam, name, exp}`` if valid and
+    unexpired, else None. Constant-time signature comparison."""
+    if not token or "." not in token:
+        return None
+    payload, sig = token.split(".", 1)
+    if not hmac.compare_digest(sig, _sign(payload)):
+        return None
+    try:
+        body = json.loads(_unb64(payload))
+    except Exception:
+        return None
+    if not isinstance(body, dict) or body.get("typ") != "launch" or "sid" not in body:
+        return None
     if float(body.get("exp", 0)) < time.time():
         return None
     return body

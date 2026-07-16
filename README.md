@@ -6,13 +6,13 @@ Designed for seminaries and colleges that want a pastoral, explainable, FERPA-co
 
 Original is a **decision-support system, not a disciplinary decision-maker**. A score can recommend monitoring, a conversation, or formal review, but institutional action remains with instructors and academic integrity officers.
 
-> **Which stack is live?** This repo contains two backends and three frontend
-> generations; exactly one of each is live. See
-> [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) before touching auth, LTI, or
-> deployment — it is the single source of truth for the live-vs-dormant split.
-> Short version: the live stack is `original/api.py` + `demo/` +
-> `demo/bluebook/`, with LTI at `/lti/*`. The `original/api/` v1 package and
-> `frontend/` are dormant; `web/` is abandoned.
+> **Which stack is live?** This repo contains two backends; exactly one is
+> live. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) before touching auth,
+> LTI, or deployment — it is the single source of truth for the
+> live-vs-dormant split. Short version: the live stack is `original/api.py` +
+> `demo/` + `demo/bluebook/`, with LTI at `/lti/*`. The `original/api/` v1
+> package is dormant. The dead `frontend/` and `web/` trees were removed
+> 2026-07-07 (ADR-006); see git history.
 
 ---
 

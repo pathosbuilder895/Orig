@@ -8,23 +8,23 @@
 
 -r requirements-demo.txt
 
-pydantic-settings==2.3.4
-email-validator==2.1.0
+pydantic-settings==2.14.2
+email-validator==2.3.0
 sqlalchemy==2.0.35
-alembic==1.13.3
-psycopg2-binary==2.9.9
+alembic==1.18.5
+psycopg2-binary==2.9.12
 # python-jose 3.3.0 had PYSEC-2024-232/233 (algorithm confusion + JWT decode bypass).
 # Fixed in 3.4.0.
 python-jose[cryptography]>=3.4.0
 passlib[bcrypt]==1.7.4
 # Pin for passlib 1.7.4 — bcrypt 4.1+ removed passlib's expected API and breaks hashing.
 bcrypt==3.2.2
-slowapi==0.1.9
+slowapi==0.1.10
 # prometheus-fastapi-instrumentator 7.1.0 pinned starlette<1.0.0, incompatible with
 # the starlette>=1.3.1 security pin in requirements-demo.txt. 8.0.2 requires
 # starlette>=1.0.0,<2.0.0, which satisfies it.
 prometheus-fastapi-instrumentator==8.0.2
-sentence-transformers>=2.2.0,<3.0
+sentence-transformers>=5.6.0,<6.0
 httpx==0.27.2
 
 # Dev/test tooling (pytest, hypothesis, ruff, mypy, pre-commit) lives in
