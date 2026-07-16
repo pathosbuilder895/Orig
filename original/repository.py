@@ -68,6 +68,7 @@ class Repository(Protocol):
         since: str | None = None,
         until: str | None = None,
     ) -> dict: ...
+    def submission_student_id(self, submission_id: str) -> str | None: ...
 
     # ── Scores (fidelity + AI-likelihood + genre stats) ─────────────────────
     def put_fidelity_score(
@@ -326,6 +327,9 @@ class SqliteRepository:
 
     def manifest_stats(self, since: str | None = None, until: str | None = None) -> dict:
         return store.manifest_stats(since=since, until=until)
+
+    def submission_student_id(self, submission_id: str) -> str | None:
+        return store.submission_student_id(submission_id)
 
     # ── Scores ────────────────────────────────────────────────────────────
     def put_fidelity_score(
@@ -695,6 +699,9 @@ class PostgresRepository:
 
     def manifest_stats(self, since=None, until=None):
         self._todo("manifest_stats")
+
+    def submission_student_id(self, submission_id):
+        self._todo("submission_student_id")
 
     # ── Scores ────────────────────────────────────────────────────────────
     def put_fidelity_score(self, submission_id, student_id, fidelity, is_authentic):
