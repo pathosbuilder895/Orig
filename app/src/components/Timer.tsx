@@ -144,6 +144,10 @@ export function Timer({
     }
     if (crossed) {
       nextMilestoneIndexRef.current = index;
+      // Not derived state: this fires exactly once per milestone crossing
+      // (gated by nextMilestoneIndexRef above), the same one-shot-side-effect
+      // shape as onExpire? just above — not a value recomputable at render time.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAnnouncement(crossed.message(formatSpoken(remaining)));
     }
   }, [remaining, durationSeconds, mode, onExpire]);
