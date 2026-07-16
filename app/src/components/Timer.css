@@ -1,0 +1,46 @@
+@import '../tokens.css';
+
+.timer {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  font-family: var(--font-ui);
+}
+
+.timer-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.timer-face {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+  transition: color 0.4s;
+}
+
+/* Low/critical time styling is a visual-only cue — the LiveRegion carries
+   the same information to screen-reader users via milestone announcements.
+   Reduced-motion handling comes from the single global rule in tokens.css
+   (see Modal.tsx's comment for the same convention) — no component-local
+   @media query here. */
+.timer-face--low {
+  color: var(--color-amber);
+}
+
+.timer-face--critical {
+  color: var(--color-wine);
+  animation: timer-pulse 1s ease-in-out infinite;
+}
+
+@keyframes timer-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}

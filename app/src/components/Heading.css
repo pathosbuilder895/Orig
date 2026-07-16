@@ -1,0 +1,17 @@
+@import '../tokens.css';
+
+.page-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 2rem;
+  color: var(--color-ink);
+  margin: 0 0 var(--space-12);
+}
+
+.card-title {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--color-ink);
+  margin: 0 0 var(--space-8);
+}
