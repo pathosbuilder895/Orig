@@ -31,10 +31,12 @@ import io
 import json
 import logging
 import os
+import re
 import sqlite3
 import urllib.parse
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -186,13 +188,25 @@ async def lifespan(app: FastAPI):
 
 def _resolve_app_version() -> str:
     """pyproject.toml is the single source of truth (D7) — read via package
-    metadata rather than hardcoding a second literal here. The literal
-    fallback only fires if the package isn't installed (e.g. running the
-    module straight from a checkout without `pip install -e .`)."""
+    metadata rather than hardcoding a second literal here. Most real
+    environments (a bare checkout, `python run.py`) never run
+    `pip install -e .`, so package metadata is routinely absent; in that case
+    parse pyproject.toml directly rather than silently falling back to a
+    second hand-maintained literal that can drift from it. The bare literal
+    below is a last resort for the case pyproject.toml itself is unreadable
+    (e.g. a stripped-down deployment artifact)."""
     try:
         return importlib.metadata.version("original")
     except importlib.metadata.PackageNotFoundError:
-        return "0.1.0"
+        pass
+    try:
+        pyproject_text = (Path(__file__).resolve().parent.parent / "pyproject.toml").read_text()
+        match = re.search(r'(?m)^version\s*=\s*"([^"]+)"', pyproject_text)
+        if match:
+            return match.group(1)
+    except OSError:
+        pass
+    return "0.1.0"
 
 
 app = FastAPI(
@@ -268,8 +282,17 @@ async def security_headers(request: Request, call_next):
 # proctoring queues, bulk import, and the internal scoring test endpoint.
 # extract_scoped_id() can't cover these (no student id in the path), so on
 # real deploys the middleware requires an authenticated staff principal.
+# /submissions/{id}/correct also lives here: its path carries a submission id,
+# not a student id, so the middleware blocks anonymous/student callers on real
+# deploys while the handler adds staff-role + tenant scoping in every env.
 _STAFF_ONLY_EXACT = frozenset({"/students", "/tenants", "/baseline-requests", "/test/score"})
-_STAFF_ONLY_PREFIXES = ("/admin/", "/tenants/", "/baseline-requests/", "/import/")
+_STAFF_ONLY_PREFIXES = (
+    "/admin/",
+    "/tenants/",
+    "/baseline-requests/",
+    "/import/",
+    "/submissions/",
+)
 
 # Demo-only static artifacts that must not be downloadable from a real deploy:
 # the synthetic seed database, internal lab/playground pages, and validation
@@ -343,6 +366,33 @@ _GUARD_DESTRUCTIVE: bool = os.environ.get("GUARD_DESTRUCTIVE", "0") == "1"
 def _repo():
     """The persistence Repository for this environment (ADR-002 seam)."""
     return get_repository(os.environ.get("ENVIRONMENT", "demo"))
+
+
+# Staff roles allowed to touch instructor-only write surfaces that carry no
+# student id in the path (so the tenant-isolation middleware can't scope them).
+_STAFF_ROLES = frozenset({"professor", "admin", "operator", "super_admin"})
+
+
+def _require_staff(request: Request) -> principal_mod.Principal:
+    """Return the request's principal iff it is a staff account, else raise.
+
+    Students are rejected in every environment. The anonymous demo principal is
+    accepted only off real deploys (the zero-login sales sandbox); on a real
+    deploy it is rejected — the same rule the tenant-isolation middleware
+    applies to the staff-only paths. Callers that also need tenant scoping
+    should follow this with ``principal_mod.assert_student_access``.
+    """
+    p = getattr(request.state, "principal", None)
+    if p is None or p.role == "student":
+        raise HTTPException(status_code=403, detail="Staff role required.")
+    if p.is_demo and _IS_REAL_DEPLOY:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required — sign in with a staff account.",
+        )
+    if p.role not in _STAFF_ROLES:
+        raise HTTPException(status_code=403, detail="Staff role required.")
+    return p
 
 
 def _require_guard(request: Request) -> None:
@@ -594,6 +644,26 @@ def auth_register(body: dict, request: Request):
     }
 
 
+def _render_launch_localstorage(ls: dict, redirect: str) -> HTMLResponse:
+    """Server-render a page that seeds ``ls`` into localStorage then redirects.
+
+    Shared by the LTI launch and the Bluebook magic-link launch so the token is
+    handed to the browser server-side (never left sitting in the destination
+    URL) and the app boots with its session/binding already in place.
+    """
+    sets = "".join(f"localStorage.setItem({json.dumps(k)},{json.dumps(v)});" for k, v in ls.items())
+    html = (
+        "<!doctype html><meta charset=utf-8><title>Bluebook · Original</title>"
+        '<body style="font-family:Inter,system-ui;background:#001020;color:#C9A961;'
+        'display:flex;align-items:center;justify-content:center;height:100vh;margin:0">'
+        "<div style=\"font-family:'Cormorant Garamond',Georgia,serif;font-size:1.3rem\">Entering examination…</div>"
+        f"<script>try{{{sets}}}catch(e){{}}"
+        f"var u={json.dumps(redirect)};try{{window.top.location.replace(u);}}catch(e){{location.replace(u);}}"
+        "</script></body>"
+    )
+    return HTMLResponse(html)
+
+
 # ── LTI 1.3 launch (ADR-003, Phase 1.5) ───────────────────────────────────────
 # Lets an LMS (Canvas/Blackboard/Moodle) launch Original directly. The launch
 # terminates in the same principal token as email/password login. Crypto deps
@@ -653,19 +723,7 @@ async def lti_launch(request: Request):
     params = p.get("params") or {}
     if params and redirect.endswith("/"):
         redirect = redirect + "?" + urllib.parse.urlencode(params)
-    sets = "".join(f"localStorage.setItem({json.dumps(k)},{json.dumps(v)});" for k, v in ls.items())
-    # Hand the token to the browser (server-rendered, never in a URL) and break
-    # out of the LMS iframe into the full-page app.
-    html = (
-        "<!doctype html><meta charset=utf-8><title>Bluebook · Original</title>"
-        '<body style="font-family:Inter,system-ui;background:#001020;color:#C9A961;'
-        'display:flex;align-items:center;justify-content:center;height:100vh;margin:0">'
-        "<div style=\"font-family:'Cormorant Garamond',Georgia,serif;font-size:1.3rem\">Entering examination…</div>"
-        f"<script>try{{{sets}}}catch(e){{}}"
-        f"var u={json.dumps(redirect)};try{{window.top.location.replace(u);}}catch(e){{location.replace(u);}}"
-        "</script></body>"
-    )
-    return HTMLResponse(html)
+    return _render_launch_localstorage(ls, redirect)
 
 
 @app.get("/lti/jwks")
@@ -673,6 +731,67 @@ def lti_jwks():
     from . import lti
 
     return lti.public_jwks()
+
+
+# ── Bluebook magic-link launch (no-Canvas fallback) ───────────────────────────
+# The offline roster_links.py builds one signed launch token per student. This
+# endpoint redeems it: it authenticates the bound student (a short session) AND
+# issues a proctor attestation, both server-side, so a magic-link proctored
+# sitting lands a `proctored` sample on a real pilot — the same end state as an
+# LTI/Canvas exam launch. Mirrors /lti/launch: the credentials are minted here
+# and handed to the browser via localStorage, never left in the distributed URL.
+# The link carries only a signed, purpose-built launch token (no session token).
+
+_MAGIC_SESSION_TTL = 12 * 3600  # a single exam-day sitting, not a week
+
+
+@app.get("/bluebook/launch")
+def bluebook_magic_launch(request: Request, t: str = ""):
+    body = student_auth.verify_launch_token(t)
+    if not body:
+        raise HTTPException(
+            status_code=400,
+            detail="This launch link is invalid or has expired. Ask your instructor for a new one.",
+        )
+    sid = str(body.get("sid") or "")
+    tenant = str(body.get("tid") or "")
+    exam = str(body.get("exam") or "")
+    name = str(body.get("name") or "")
+    if not sid:
+        raise HTTPException(status_code=400, detail="Launch link is missing its student binding.")
+
+    # Record the LMS-style display name only if the operator opted to include it
+    # (roster_links --include-name); links are name-free by default (FERPA).
+    if name:
+        try:
+            _repo().set_display_name(sid, name)
+        except Exception:
+            pass
+
+    ls = {
+        # Authenticates the bound student to the isolation middleware so the
+        # proctored write to their own id is permitted on a pilot tenant.
+        "original_session_token": student_auth.mint_session(
+            sid, name, ttl_seconds=_MAGIC_SESSION_TTL
+        ),
+        "bluebook_student_id": sid,
+        "original_tenant": tenant,
+        # Authorizes the `proctored` provenance (see _authorize_provenance) —
+        # without it the sitting would be downgraded to 'unverified'.
+        "bluebook_proctor_token": student_auth.mint_proctor_attestation(sid, exam),
+    }
+    _repo().log_audit(
+        action="bluebook_magic_launch",
+        student_id=sid,
+        tenant_id=tenant,
+        result="ok",
+        details={"exam": exam},
+    )
+    redirect = "/bluebook/"
+    params = {k: v for k, v in {"exam": exam, "candidate": name}.items() if v}
+    if params:
+        redirect = redirect + "?" + urllib.parse.urlencode(params)
+    return _render_launch_localstorage(ls, redirect)
 
 
 # ── Bluebook examinations (secure-exam layer, tenant-scoped) ──────────────────
@@ -697,6 +816,7 @@ def _int_or(v, default):
 
 @app.post("/bluebook/exams", status_code=201)
 def bluebook_create_exam(body: dict, request: Request):
+    _require_staff(request)
     title = str(body.get("title") or "").strip()
     if not title:
         raise HTTPException(status_code=422, detail="title is required")
@@ -792,6 +912,7 @@ def bluebook_list_submissions(request: Request):
 
 @app.post("/bluebook/courses", status_code=201)
 def bluebook_create_course(body: dict, request: Request):
+    _require_staff(request)
     name = str(body.get("name") or "").strip()
     if not name:
         raise HTTPException(status_code=422, detail="course name is required")
@@ -886,6 +1007,7 @@ def get_student(student_id: str):
         sample_count=state.sample_count,
         authenticated_count=state.authenticated_count,
         purity=state.purity,
+        von_neumann_entropy=state.von_neumann_entropy,
         effective_sample_count=state.effective_sample_count,
         trajectory_direction=traj.direction,
         trajectory_confidence=traj.confidence,
@@ -1129,14 +1251,28 @@ def create_tenant(body: dict, request: Request):
 
 
 @app.get("/tenants")
-def list_tenants(environment: str = ""):
-    """List all registered tenants, optionally filtered by environment."""
+def list_tenants(request: Request, environment: str = ""):
+    """
+    List all registered tenants, optionally filtered by environment.
+
+    Staff-only (any role) — this intentionally stays cross-tenant-visible
+    rather than scoped to SUPER_ROLES, matching the existing professor.html
+    Settings-panel registry view that lists/registers institutions. It was
+    previously reachable with NO auth check at all; this closes that gap
+    without changing who can see it.
+    """
+    _require_staff(request)
     return _repo().list_tenants(environment=environment or None)
 
 
 @app.get("/tenants/{tenant_id}")
-def get_tenant(tenant_id: str):
-    """Get a single tenant record."""
+def get_tenant(tenant_id: str, request: Request):
+    """Get a single tenant record. Cross-tenant reads require operator/super_admin."""
+    principal = _require_staff(request)
+    try:
+        principal_mod.assert_tenant_access(principal, tenant_id)
+    except principal_mod.TenantAccessError:
+        raise HTTPException(status_code=403, detail="Cross-tenant access denied.") from None
     t = _repo().get_tenant(tenant_id)
     if not t:
         raise HTTPException(status_code=404, detail=f"Tenant '{tenant_id}' not found")
@@ -1144,13 +1280,20 @@ def get_tenant(tenant_id: str):
 
 
 @app.get("/tenants/{tenant_id}/stats")
-def tenant_stats(tenant_id: str):
+def tenant_stats(tenant_id: str, request: Request):
     """
     Aggregate statistics for a tenant — student count, submission volume,
     action breakdown, last active timestamp.
 
-    Used by the operator dashboard to show all-schools-at-a-glance.
+    Used by the operator dashboard to show all-schools-at-a-glance (operator/
+    super_admin principals are cross-tenant by design); any other staff role
+    may only fetch stats for its own tenant.
     """
+    principal = _require_staff(request)
+    try:
+        principal_mod.assert_tenant_access(principal, tenant_id)
+    except principal_mod.TenantAccessError:
+        raise HTTPException(status_code=403, detail="Cross-tenant access denied.") from None
     t = _repo().get_tenant(tenant_id)
     if not t:
         raise HTTPException(status_code=404, detail=f"Tenant '{tenant_id}' not found")
@@ -1166,8 +1309,18 @@ def delete_tenant_students(tenant_id: str, request: Request):
     the same code path as individual deletion, so all linked records
     (fidelity scores, manifests, corrections, audit rows) are purged.
 
-    When GUARD_DESTRUCTIVE=1, requires X-Guard-Token header.
+    Requires operator/super_admin — or, for any other staff role, that the
+    caller's own tenant matches ``tenant_id`` — in addition to the existing
+    X-Guard-Token requirement when GUARD_DESTRUCTIVE=1. Previously this was
+    guarded ONLY by the shared guard token (a no-op when GUARD_DESTRUCTIVE is
+    unset), so any staff principal could bulk-delete any other tenant's
+    entire roster; this closes that gap.
     """
+    principal = _require_staff(request)
+    try:
+        principal_mod.assert_tenant_access(principal, tenant_id)
+    except principal_mod.TenantAccessError:
+        raise HTTPException(status_code=403, detail="Cross-tenant access denied.") from None
     _require_guard(request)
     t = _repo().get_tenant(tenant_id)
     if not t:
@@ -1338,11 +1491,15 @@ def my_work(request: Request, body: VoiceSubmitRequest):
     sid = str(session["sid"])
     name = str(session.get("name", "") or "")
 
-    # Ensure a record exists, then add this piece to the body of work.
+    # Ensure a record exists, then add this piece to the body of work. The
+    # student-submitted piece is always 'unverified' (self-upload trust), so the
+    # provenance gate is a no-op here — pass the request through for its signature.
     _repo().get_or_create(sid)
     try:
         add_baseline(
-            sid, AddSampleRequest(text=body.text, assignment=body.title, provenance="unverified")
+            sid,
+            AddSampleRequest(text=body.text, assignment=body.title, provenance="unverified"),
+            request,
         )
     except HTTPException:
         # A too-short or otherwise rejected sample shouldn't 500 the student; the
@@ -1411,13 +1568,17 @@ def student_data_inventory(student_id: str):
 
 @app.get("/admin/audit")
 def list_audit_log(
+    request: Request,
     student_id: str = "",
     action: str = "",
     limit: int = 100,
     offset: int = 0,
 ):
     """
-    Query the system audit log.
+    Query the system audit log. Staff-only: the tenant-isolation middleware
+    already 401s anonymous callers on real deploys (tests/test_pilot_lockdown);
+    the explicit guard here additionally rejects STUDENT tokens in the demo —
+    audit rows carry other students' identifiers.
 
     Optional filters:
         student_id — restrict to a specific student
@@ -1427,6 +1588,7 @@ def list_audit_log(
 
     Results are ordered most-recent-first.
     """
+    _require_staff(request)
     limit = min(limit, 500)
     return _repo().list_audit(
         student_id=student_id or None,
@@ -1438,13 +1600,68 @@ def list_audit_log(
 
 # ── Add baseline sample ───────────────────────────────────────────────────────
 
+# Provenances that carry weight into the baseline_mean (auth_weight > 0). A
+# student must not be able to self-assert any of these — that would let them
+# inject ghostwritten/AI text as trusted "voice" and drag their own baseline
+# toward the very thing the system should flag. 'unverified' (weight 0.5) is
+# the only self-assertable provenance.
+_TRUSTED_PROVENANCE = frozenset({"proctored", "verified", "canvas"})
+
+
+def _authorize_provenance(
+    request: Request | None, student_id: str, requested: str
+) -> tuple[str, bool]:
+    """Resolve the *effective* provenance for a baseline write.
+
+    Trusted provenances must be attested; an unattested student write is
+    downgraded (never rejected — the sample is still recorded, just at the
+    self-upload trust level). Rules:
+
+      • unverified / unknown        → unchanged.
+      • in-process server call (request is None, e.g. seed scripts) → unchanged
+                                       (server authority, no HTTP principal).
+      • authenticated staff principal → unchanged (professor/admin/operator/super).
+      • anonymous demo principal    → unchanged OFF a real deploy (the zero-login
+                                       sandbox); on a real deploy it is not
+                                       authenticated, so it gets no trust and
+                                       falls through to the attestation rule —
+                                       same posture as ``_require_staff``.
+      • student with a valid proctor attestation (``X-Proctor-Attestation``,
+        minted server-side at exam launch) for THIS student → unchanged.
+      • otherwise (student, no attestation) → downgraded to 'unverified'.
+
+    Returns ``(effective_provenance, was_downgraded)``.
+    """
+    if requested not in _TRUSTED_PROVENANCE or request is None:
+        return requested, False
+    p = getattr(request.state, "principal", None)
+    if p is not None:
+        if p.is_demo:
+            # The anonymous principal carries a synthetic staff role
+            # ("operator" by default, see principal.py), so it must be settled
+            # here and never reach the _STAFF_ROLES rule below — otherwise
+            # dropping the Authorization header would buy *more* trust than
+            # sending a real student session.
+            if not _IS_REAL_DEPLOY:
+                return requested, False
+        elif p.role in _STAFF_ROLES:
+            return requested, False
+    attestation = request.headers.get("X-Proctor-Attestation", "")
+    if attestation and student_auth.verify_proctor_attestation(attestation, student_id):
+        return requested, False
+    return "unverified", True
+
 
 @app.post("/students/{student_id}/baseline")
-def add_baseline(student_id: str, req: AddSampleRequest):
+def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None):
     if req.provenance not in AUTH_WEIGHTS:
         raise HTTPException(
             status_code=422, detail=f"provenance must be one of: {list(AUTH_WEIGHTS)}"
         )
+
+    # Gate high-trust provenance behind staff/attestation (see _authorize_provenance).
+    provenance, provenance_downgraded = _authorize_provenance(request, student_id, req.provenance)
+    auth_weight = AUTH_WEIGHTS[provenance]
 
     state = _repo().get_or_create(student_id)
     vec = feature_vector(req.text, keystroke_data=req.keystroke_data)
@@ -1466,8 +1683,8 @@ def add_baseline(student_id: str, req: AddSampleRequest):
     sample = BaselineSample(
         text=req.text,
         vector=vec,
-        provenance=req.provenance,
-        auth_weight=AUTH_WEIGHTS[req.provenance],
+        provenance=provenance,
+        auth_weight=auth_weight,
         assignment=req.assignment,
         submitted_at=req.submitted_at,
         genre=_sample_genre,
@@ -1479,7 +1696,7 @@ def add_baseline(student_id: str, req: AddSampleRequest):
     # so we skip the check for them. The check is best-effort: a failure is
     # logged and the sample is admitted as before (Phase 1 behaviour).
     drift_result = None
-    if AUTH_WEIGHTS[req.provenance] > 0:
+    if auth_weight > 0:
         try:
             drift_result = state.check_drift(sample)
         except Exception as e:
@@ -1510,7 +1727,7 @@ def add_baseline(student_id: str, req: AddSampleRequest):
     state.add_sample(sample)
 
     # Update tension arc κ baseline for authenticated samples
-    if req.provenance in ("proctored", "verified"):
+    if provenance in ("proctored", "verified"):
         arc = analyze_tension_arc(req.text)
         if arc.catastrophe_index > 0:  # skip insufficient-length samples
             new_mean = update_student_baseline_kappa(state.kappa_log, arc.catastrophe_index)
@@ -1523,10 +1740,15 @@ def add_baseline(student_id: str, req: AddSampleRequest):
         action="baseline_add",
         student_id=student_id,
         details={
-            "provenance": req.provenance,
-            "auth_weight": AUTH_WEIGHTS[req.provenance],
+            "provenance": provenance,
+            "auth_weight": auth_weight,
             "sample_count_after": state.sample_count,
             "genre": _sample_genre,
+            **(
+                {"requested_provenance": req.provenance, "provenance_downgraded": True}
+                if provenance_downgraded
+                else {}
+            ),
         },
     )
 
@@ -1534,7 +1756,7 @@ def add_baseline(student_id: str, req: AddSampleRequest):
     # student (Phase 2). Only fires for authenticated provenance — an
     # unverified self-upload doesn't satisfy a "proctored baseline" request.
     completed_requests: list = []
-    if AUTH_WEIGHTS[req.provenance] > 0:
+    if auth_weight > 0:
         try:
             completed_requests = baseline_requests.mark_completed_for_student(student_id)
         except Exception as e:
@@ -1547,11 +1769,17 @@ def add_baseline(student_id: str, req: AddSampleRequest):
     response = {
         "student_id": student_id,
         "sample_index": state.sample_count - 1,
-        "provenance": req.provenance,
-        "auth_weight": AUTH_WEIGHTS[req.provenance],
+        "provenance": provenance,
+        "auth_weight": auth_weight,
         "authenticated_count": state.authenticated_count,
         "purity": state.purity,
     }
+    # Signal to the caller when a requested high-trust provenance was downgraded
+    # for lack of staff/attestation, so a UI can explain it rather than silently
+    # showing a weaker sample than asked for.
+    if provenance_downgraded:
+        response["provenance_downgraded"] = True
+        response["requested_provenance"] = req.provenance
     # Include the drift result on accept too — useful for UIs that want to
     # show the trend even when no action was triggered.
     if drift_result is not None:
@@ -2061,6 +2289,9 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
             authenticated_count=r.baseline_confidence.authenticated_count,
             effective_sample_count=r.baseline_confidence.effective_sample_count,
             trajectory_confidence=r.baseline_confidence.trajectory_confidence,
+            # Closes the WS-7 S9 completeness gap flagged on the schema field:
+            # scoring.py has always computed this; it was dropped here.
+            von_neumann_entropy=r.baseline_confidence.von_neumann_entropy,
         ),
         domain=DomainSignalOut(
             theological_register_score=r.domain.theological_register_score,
@@ -2378,33 +2609,259 @@ async def import_turnitin_csv(course_id: str, file: UploadFile = File(...)):
     }
 
 
-# ── Canvas baseline import (demo stubs) ───────────────────────────────────────
+# ── Canvas baseline import (live) ─────────────────────────────────────────────
+# Real Canvas Submissions API integration, adapted from the v1-only
+# canvas/baseline_import.py (see canvas/live_import.py). Config comes from the
+# request body or CANVAS_BASE_URL / CANVAS_API_TOKEN env vars; with neither,
+# these return 400 with the same manual-upload guidance the old demo stubs
+# gave, so the zero-config demo stays honest rather than silently empty.
+
+
+def _canvas_required_ids(body: dict) -> tuple[str, str]:
+    course_id = str(body.get("canvas_course_id") or "").strip()
+    user_id = str(body.get("canvas_user_id") or "").strip()
+    if not course_id or not user_id:
+        raise HTTPException(
+            status_code=422, detail="canvas_course_id and canvas_user_id are required"
+        )
+    return course_id, user_id
+
+
+def _existing_text_hashes(student_id: str) -> set[str]:
+    """SHA-256 hashes of every baseline sample's text for dedup, covering both
+    batch-uploaded samples (which carry .text_hash) and paste-added ones
+    (hashed from .text here). Missing student → empty set, never created."""
+    import hashlib as _hashlib
+
+    state = _repo().get(student_id)
+    if state is None:
+        return set()
+    hashes: set[str] = set()
+    for s in state.samples:
+        h = getattr(s, "text_hash", None)
+        if not h and getattr(s, "text", None):
+            h = _hashlib.sha256(s.text.encode()).hexdigest()
+        if h:
+            hashes.add(h)
+    return hashes
 
 
 @app.post("/canvas/baseline/{student_id}/list-canvas-submissions")
-async def list_canvas_submissions(student_id: str, req: dict = None):
+async def list_canvas_submissions(student_id: str, req: dict = None, request: Request = None):
     """
-    List a student's past Canvas submissions available for baseline import.
-    In the full production app this calls the Canvas REST API using the
-    instructor's API token.  In this demo server it returns a helpful message.
+    List a student's past Canvas submissions available for baseline import,
+    with word counts, 200-char previews, and an already-imported marker
+    (matched by text hash against the student's existing baseline samples).
+
+    Staff-only: this reads a student's Canvas coursework through the
+    institution's API token. ``/canvas/`` carries a student id the middleware
+    tenant-scopes, but a *flat* id (no ``tenant:`` prefix) scopes to nothing —
+    so the staff check here is what stands between an anonymous caller and the
+    institution's Canvas credential.
     """
-    return {
-        "submissions": [],
-        "message": (
-            "Canvas integration requires the production server (port 8000) "
-            "with a Canvas API token configured in .env. "
-            "Use the 'Drop files' or 'Paste text' options to add baselines manually."
-        ),
-    }
+    import hashlib as _hashlib
+
+    from .canvas import live_import as canvas_live
+
+    _require_staff(request)
+    body = req or {}
+    canvas_url, access_token = canvas_live.resolve_canvas_config(
+        body.get("canvas_url"), body.get("access_token")
+    )
+    course_id, user_id = _canvas_required_ids(body)
+
+    existing_hashes = _existing_text_hashes(student_id)
+
+    previews: list[dict] = []
+    async with canvas_live.make_client() as client:
+        subs = await canvas_live.fetch_submissions(
+            client, canvas_url, access_token, course_id, user_id
+        )
+        for sub in subs:
+            text = await canvas_live.get_submission_text(sub, access_token, client)
+            if not text or len(text.split()) < canvas_live.MIN_WORDS:
+                continue
+            text_hash = _hashlib.sha256(text.encode()).hexdigest()
+            previews.append(
+                {
+                    "canvas_submission_id": str(sub.get("id", "")),
+                    "assignment_name": canvas_live.assignment_name_of(sub),
+                    "submitted_at": sub.get("submitted_at"),
+                    "word_count": len(text.split()),
+                    "preview": text[:200].strip() + ("..." if len(text) > 200 else ""),
+                    "already_imported": text_hash in existing_hashes,
+                }
+            )
+
+    return {"submissions": previews, "total": len(previews)}
 
 
 @app.post("/canvas/baseline/{student_id}/import-baseline")
-async def import_canvas_baseline(student_id: str, req: dict = None):
-    """Demo stub — see list_canvas_submissions."""
+async def import_canvas_baseline(student_id: str, req: dict = None, request: Request = None):
+    """
+    Import selected Canvas submissions as baseline samples.
+
+    Staff-only (see list_canvas_submissions): this both spends the
+    institution's Canvas token and writes `canvas`-provenance samples into a
+    profile, so it must not be reachable anonymously on a real deploy.
+
+    Mirrors upload-batch's ingestion contract: SHA-256 dedup, per-sample
+    drift gate that holds outliers without aborting the batch, and provenance
+    authorization — "canvas" is a trusted provenance, so an unattested
+    student caller is downgraded to 'unverified' (see _authorize_provenance).
+    """
+    import hashlib as _hashlib
+
+    from .canvas import live_import as canvas_live
+
+    _require_staff(request)
+    body = req or {}
+    canvas_url, access_token = canvas_live.resolve_canvas_config(
+        body.get("canvas_url"), body.get("access_token")
+    )
+    course_id, user_id = _canvas_required_ids(body)
+    submission_ids = [str(s) for s in (body.get("submission_ids") or []) if str(s).strip()]
+    if not submission_ids:
+        raise HTTPException(status_code=422, detail="submission_ids is required")
+
+    provenance, provenance_downgraded = _authorize_provenance(request, student_id, "canvas")
+
+    state = _repo().get_or_create(student_id)
+    existing_hashes = _existing_text_hashes(student_id)
+
+    imported = 0
+    skipped = 0
+    errors: list[str] = []
+    drift_holds: list[dict] = []
+
+    async with canvas_live.make_client() as client:
+        fetched = await canvas_live.fetch_submissions(
+            client,
+            canvas_url,
+            access_token,
+            course_id,
+            user_id,
+            submission_ids=submission_ids,
+        )
+        sub_map = {str(s.get("id", "")): s for s in fetched}
+
+        for sub_id in submission_ids:
+            sub = sub_map.get(sub_id)
+            if not sub:
+                errors.append(f"Submission {sub_id}: not found in Canvas response.")
+                skipped += 1
+                continue
+            try:
+                text = await canvas_live.get_submission_text(sub, access_token, client)
+                if not text or len(text.split()) < canvas_live.MIN_WORDS:
+                    skipped += 1
+                    continue
+
+                text_hash = _hashlib.sha256(text.encode()).hexdigest()
+                if text_hash in existing_hashes:
+                    skipped += 1
+                    continue
+
+                vec = feature_vector(text)
+                assignment_name = canvas_live.assignment_name_of(
+                    sub, fallback=f"Canvas Import: {sub_id}"
+                )
+                sample = BaselineSample(
+                    text=text,
+                    vector=vec,
+                    provenance=provenance,
+                    auth_weight=AUTH_WEIGHTS[provenance],
+                    assignment=assignment_name,
+                    submitted_at=sub.get("submitted_at") or "",
+                )
+                sample.text_hash = text_hash  # type: ignore[attr-defined]
+
+                # Same hold-don't-abort drift gate as upload-batch. No kappa
+                # update: only proctored/verified samples move baseline kappa.
+                if AUTH_WEIGHTS[provenance] > 0:
+                    try:
+                        dr = state.check_drift(sample)
+                        if dr.recommendation != "accept":
+                            drift_holds.append(
+                                {"canvas_submission_id": sub_id, "drift": dr.to_dict()}
+                            )
+                            continue
+                    except Exception as exc:
+                        logging.getLogger(__name__).warning(
+                            "drift check failed for canvas submission %s: %s", sub_id, exc
+                        )
+
+                state.add_sample(sample)
+                existing_hashes.add(text_hash)
+                imported += 1
+            except Exception as exc:
+                errors.append(f"Submission {sub_id}: {str(exc)[:100]}")
+
+    if imported > 0 or drift_holds:
+        _persist_or_503(state)
+
     return {
-        "imported": 0,
-        "skipped": 0,
-        "errors": ["Canvas integration not available in demo server."],
+        "imported": imported,
+        "skipped": skipped,
+        "errors": errors,
+        "drift_holds": drift_holds,
+        "provenance": provenance,
+        "provenance_downgraded": provenance_downgraded,
+    }
+
+
+@app.post("/canvas/baseline/{student_id}/fetch-submission-text")
+async def fetch_canvas_submission_text(student_id: str, req: dict = None, request: Request = None):
+    """
+    Fetch the full text of ONE Canvas submission without storing anything —
+    the analyze-from-Canvas path. The client pairs this with the existing
+    POST /students/{id}/score, keeping a single scoring entrypoint.
+
+    Staff-only (see list_canvas_submissions): storing nothing still means
+    reading a student's coursework with the institution's Canvas token.
+    """
+    from .canvas import live_import as canvas_live
+
+    _require_staff(request)
+    body = req or {}
+    canvas_url, access_token = canvas_live.resolve_canvas_config(
+        body.get("canvas_url"), body.get("access_token")
+    )
+    course_id, user_id = _canvas_required_ids(body)
+    submission_id = str(body.get("canvas_submission_id") or "").strip()
+    if not submission_id:
+        raise HTTPException(status_code=422, detail="canvas_submission_id is required")
+
+    async with canvas_live.make_client() as client:
+        fetched = await canvas_live.fetch_submissions(
+            client,
+            canvas_url,
+            access_token,
+            course_id,
+            user_id,
+            submission_ids=[submission_id],
+        )
+        sub = next((s for s in fetched if str(s.get("id", "")) == submission_id), None)
+        if sub is None:
+            raise HTTPException(
+                status_code=404, detail=f"Submission {submission_id} not found in Canvas."
+            )
+        text = await canvas_live.get_submission_text(sub, access_token, client)
+
+    if not text or len(text.split()) < canvas_live.MIN_WORDS:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Submission {submission_id} has no usable text "
+                f"(minimum {canvas_live.MIN_WORDS} words required)."
+            ),
+        )
+
+    return {
+        "text": text,
+        "word_count": len(text.split()),
+        "assignment_name": canvas_live.assignment_name_of(sub),
+        "submitted_at": sub.get("submitted_at"),
     }
 
 
@@ -2461,7 +2918,7 @@ def admin_manifest_stats(
     "/submissions/{submission_id}/correct",
     response_model=CorrectionResponse,
 )
-def submit_correction(submission_id: str, req: CorrectionRequest):
+def submit_correction(submission_id: str, req: CorrectionRequest, request: Request):
     """
     Record an instructor correction on a scoring verdict.
 
@@ -2470,7 +2927,25 @@ def submit_correction(submission_id: str, req: CorrectionRequest):
     were not supplied. Multiple corrections per submission are allowed
     (e.g. an initial flag + a later override) — the most recent row wins
     when the retraining job (PR 8) consumes them.
+
+    Authorization: corrections flip the authenticity labels that feed
+    conformal calibration and threshold tuning, so this is a staff-only
+    write. A non-super staff principal may only correct submissions whose
+    student is in its own tenant (operator/super are cross-tenant by design).
     """
+    principal = _require_staff(request)
+    # Tenant-scope the correction to the submission's student. Resolve the owner
+    # the same way put_correction back-fills it (manifest, then the score audit
+    # row); when the submission is unknown there is no cross-tenant target to
+    # protect, so a staff principal is allowed through and the row is written
+    # with a null student_id (unchanged behaviour).
+    owner_id = _repo().submission_student_id(submission_id)
+    if owner_id is not None:
+        try:
+            principal_mod.assert_student_access(principal, owner_id)
+        except principal_mod.TenantAccessError:
+            raise HTTPException(status_code=403, detail="Cross-tenant access denied.") from None
+
     # Validate the optional verdict / action enums to catch typos in the
     # dashboard form before they pollute the training set.
     if req.corrected_verdict is not None and req.corrected_verdict not in (
@@ -2497,6 +2972,7 @@ def submit_correction(submission_id: str, req: CorrectionRequest):
     correction_id = _repo().put_correction(
         submission_id=submission_id,
         is_correct=req.is_correct,
+        student_id=owner_id,
         corrected_verdict=req.corrected_verdict,
         corrected_action=req.corrected_action,
         reviewer=req.reviewer,
