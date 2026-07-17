@@ -248,7 +248,9 @@ def assert_tenant_access(principal: Principal, tenant_id: str) -> None:
         return  # operator / super-admin: cross-tenant by design
     if tenant_id == principal.tenant_id:
         return
-    raise TenantAccessError(f"{principal.role}@{principal.tenant_id} cannot access tenant '{tenant_id}'")
+    raise TenantAccessError(
+        f"{principal.role}@{principal.tenant_id} cannot access tenant '{tenant_id}'"
+    )
 
 
 def extract_scoped_id(path: str) -> str | None:
