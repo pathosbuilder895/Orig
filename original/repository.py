@@ -31,13 +31,20 @@ from .core.logging import get_logger
 from .db.models.live import (
     AiLikelihoodScore,
     AuditLogEntry,
+    BaselineRequest,
+    BluebookCourse,
+    BluebookExam,
+    BluebookSubmission,
+    CalibrationRun,
     Correction,
     FidelityScore,
+    FormationPathway,
     StaffUser,
     StudentName,
     StudentProfile,
     SubmissionManifest,
     Tenant,
+    TunedThresholds,
 )
 from .db.postgres_session import session_scope
 from .db.tenancy_shim import join_scoped_id, split_scoped_id
@@ -662,6 +669,15 @@ class PostgresRepository:
         "SQLAlchemy models to cover this, then wire it here (see ADR-002)."
     )
 
+    def __init__(self):
+        # Mirrors store.py's module-level _GENRE_STATS_CACHE, but scoped to
+        # this instance rather than the process: get_repository() caches a
+        # single PostgresRepository singleton in production (so this behaves
+        # identically to a process-global cache there), while each test in
+        # test_repository_contract.py gets its own fresh instance/cache —
+        # avoiding cross-test leakage a module-level dict would risk.
+        self._genre_stats_cache: dict[str, dict | None] = {}
+
     def _todo(self, op: str):
         raise NotImplementedError(self._NOT_READY.format(op=op))
 
@@ -817,6 +833,9 @@ class PostgresRepository:
                     )
                 )
                 session.execute(stmt)
+            # Bust the genre-stats cache — a new sample may shift the
+            # cross-student genre distribution get_genre_stats() aggregates.
+            self._genre_stats_cache.clear()
         except Exception:
             log.exception("put failed for %s", state.student_id)
             raise  # mirror store.py's _persist: a write failure must surface, not vanish
@@ -1333,24 +1352,156 @@ class PostgresRepository:
 
     # ── Scores ────────────────────────────────────────────────────────────
     def put_fidelity_score(self, submission_id, student_id, fidelity, is_authentic):
-        self._todo("put_fidelity_score")
+        try:
+            with session_scope() as session:
+                tenant_id, local_id = split_scoped_id(student_id)
+                self._ensure_tenant_exists(session, tenant_id)
+                stmt = (
+                    pg_insert(FidelityScore)
+                    .values(
+                        submission_id=submission_id,
+                        tenant_id=tenant_id,
+                        student_id=local_id,
+                        fidelity=float(fidelity),
+                        is_authentic=bool(is_authentic),
+                        created_at=datetime.now(UTC),
+                    )
+                    .on_conflict_do_update(
+                        index_elements=["submission_id"],
+                        set_={
+                            "tenant_id": tenant_id,
+                            "student_id": local_id,
+                            "fidelity": float(fidelity),
+                            "is_authentic": bool(is_authentic),
+                            "created_at": datetime.now(UTC),
+                        },
+                    )
+                )
+                session.execute(stmt)
+        except Exception:
+            log.exception("put_fidelity_score failed for %s", submission_id)
 
     def get_authentic_fidelities(self, student_id, limit=200):
-        self._todo("get_authentic_fidelities")
+        try:
+            with session_scope() as session:
+                tenant_id, local_id = split_scoped_id(student_id)
+                rows = session.execute(
+                    select(FidelityScore.fidelity)
+                    .where(
+                        FidelityScore.tenant_id == tenant_id,
+                        FidelityScore.student_id == local_id,
+                        FidelityScore.is_authentic.is_(True),
+                    )
+                    .order_by(FidelityScore.created_at.desc())
+                    .limit(limit)
+                ).all()
+                return [float(f) for (f,) in rows]
+        except Exception:
+            log.exception("get_authentic_fidelities failed for %s", student_id)
+            return []
 
     def update_fidelity_authenticity(self, submission_id, is_authentic):
-        self._todo("update_fidelity_authenticity")
+        try:
+            with session_scope() as session:
+                session.execute(
+                    FidelityScore.__table__.update()
+                    .where(FidelityScore.submission_id == submission_id)
+                    .values(is_authentic=bool(is_authentic))
+                )
+        except Exception:
+            log.exception("update_fidelity_authenticity failed for submission %s", submission_id)
 
     def put_ai_likelihood_score(
         self, submission_id, student_id, probability, band, model_version=""
     ):
-        self._todo("put_ai_likelihood_score")
+        try:
+            with session_scope() as session:
+                tenant_id, local_id = split_scoped_id(student_id)
+                self._ensure_tenant_exists(session, tenant_id)
+                stmt = (
+                    pg_insert(AiLikelihoodScore)
+                    .values(
+                        submission_id=submission_id,
+                        tenant_id=tenant_id,
+                        student_id=local_id,
+                        probability=float(probability),
+                        band=str(band),
+                        model_version=str(model_version),
+                        created_at=datetime.now(UTC),
+                    )
+                    .on_conflict_do_update(
+                        index_elements=["submission_id"],
+                        set_={
+                            "tenant_id": tenant_id,
+                            "student_id": local_id,
+                            "probability": float(probability),
+                            "band": str(band),
+                            "model_version": str(model_version),
+                            "created_at": datetime.now(UTC),
+                        },
+                    )
+                )
+                session.execute(stmt)
+        except Exception:
+            log.exception("put_ai_likelihood_score failed for %s", submission_id)
 
     def get_ai_likelihood_scores(self, student_id=None, limit=500):
-        self._todo("get_ai_likelihood_scores")
+        try:
+            with session_scope() as session:
+                stmt = select(AiLikelihoodScore)
+                if student_id is not None:
+                    tenant_id, local_id = split_scoped_id(student_id)
+                    stmt = stmt.where(
+                        AiLikelihoodScore.tenant_id == tenant_id,
+                        AiLikelihoodScore.student_id == local_id,
+                    )
+                rows = (
+                    session.execute(stmt.order_by(AiLikelihoodScore.created_at.desc()).limit(limit))
+                    .scalars()
+                    .all()
+                )
+                return [
+                    {
+                        "submission_id": row.submission_id,
+                        "student_id": join_scoped_id(row.tenant_id, row.student_id),
+                        "probability": float(row.probability),
+                        "band": row.band,
+                        "model_version": row.model_version,
+                        "created_at": row.created_at.isoformat(),
+                    }
+                    for row in rows
+                ]
+        except Exception:
+            log.exception("get_ai_likelihood_scores failed")
+            return []
 
     def get_genre_stats(self, genre):
-        self._todo("get_genre_stats")
+        if genre in self._genre_stats_cache:
+            return self._genre_stats_cache[genre]
+
+        try:
+            with session_scope() as session:
+                rows = session.execute(select(StudentProfile.data)).scalars().all()
+        except Exception:
+            log.exception("get_genre_stats DB query failed for genre %s", genre)
+            return None
+
+        vectors = []
+        for data in rows:
+            for sample in data.get("samples", []):
+                if (sample.get("auth_weight") or 0) > 0 and sample.get("genre") == genre:
+                    vectors.append(np.array(sample["vector"], dtype=np.float64))
+
+        if len(vectors) < 5:
+            self._genre_stats_cache[genre] = None
+            return None
+
+        mat = np.stack(vectors, axis=0)
+        mean_vec = mat.mean(axis=0)
+        std_vec = np.maximum(mat.std(axis=0), 0.005)
+        result = {"mean": mean_vec, "std": std_vec, "n_samples": len(vectors)}
+        self._genre_stats_cache[genre] = result
+        return result
 
     # ── Corrections ──────────────────────────────────────────────────────
     def put_correction(
@@ -1368,28 +1519,225 @@ class PostgresRepository:
         notes=None,
         created_at=None,
     ):
-        self._todo("put_correction")
+        try:
+            created_at_dt = self._parse_iso_or_now(created_at) if created_at else datetime.now(UTC)
+            if (
+                original_verdict is None
+                or original_action is None
+                or original_divergence_score is None
+                or student_id is None
+            ):
+                existing = self.get_manifest(submission_id)
+                if existing is not None:
+                    student_id = student_id or existing.get("student_id")
+                    original_action = original_action or existing.get("action")
+                    if original_divergence_score is None:
+                        original_divergence_score = existing.get("divergence_score")
+            if student_id is None:
+                # submission_student_id already covers the same manifest ->
+                # audit_log fallback chain store.py's put_correction inlines.
+                student_id = self.submission_student_id(submission_id)
+
+            tenant_id, local_id = (None, None)
+            if student_id is not None:
+                tenant_id, local_id = split_scoped_id(student_id)
+
+            with session_scope() as session:
+                if tenant_id is not None:
+                    self._ensure_tenant_exists(session, tenant_id)
+                row = Correction(
+                    submission_id=submission_id,
+                    tenant_id=tenant_id,
+                    student_id=local_id,
+                    original_verdict=original_verdict,
+                    original_action=original_action,
+                    original_divergence_score=original_divergence_score,
+                    corrected_verdict=corrected_verdict,
+                    corrected_action=corrected_action,
+                    is_correct=bool(is_correct),
+                    reviewer=reviewer,
+                    notes=notes,
+                    created_at=created_at_dt,
+                )
+                session.add(row)
+                session.flush()
+                return row.id
+        except Exception as e:
+            log.warning("put_correction failed for %s: %s", submission_id, e)
+            return None
 
     def list_corrections(
         self, submission_id=None, student_id=None, is_correct=None, limit=100, offset=0
     ):
-        self._todo("list_corrections")
+        try:
+            with session_scope() as session:
+                stmt = select(Correction)
+                if submission_id is not None:
+                    stmt = stmt.where(Correction.submission_id == submission_id)
+                if student_id is not None:
+                    tenant_id, local_id = split_scoped_id(student_id)
+                    stmt = stmt.where(
+                        Correction.tenant_id == tenant_id, Correction.student_id == local_id
+                    )
+                if is_correct is not None:
+                    stmt = stmt.where(Correction.is_correct == bool(is_correct))
+                total = session.execute(
+                    select(func.count()).select_from(stmt.subquery())
+                ).scalar_one()
+                rows = (
+                    session.execute(
+                        stmt.order_by(Correction.created_at.desc()).limit(limit).offset(offset)
+                    )
+                    .scalars()
+                    .all()
+                )
+
+                items = []
+                for row in rows:
+                    items.append(
+                        {
+                            "id": row.id,
+                            "submission_id": row.submission_id,
+                            "student_id": (
+                                join_scoped_id(row.tenant_id, row.student_id)
+                                if row.tenant_id
+                                else row.student_id
+                            ),
+                            "original_verdict": row.original_verdict,
+                            "original_action": row.original_action,
+                            "original_divergence_score": row.original_divergence_score,
+                            "corrected_verdict": row.corrected_verdict,
+                            "corrected_action": row.corrected_action,
+                            "is_correct": bool(row.is_correct),
+                            "reviewer": row.reviewer,
+                            "notes": row.notes,
+                            "created_at": row.created_at.isoformat(),
+                        }
+                    )
+                return {"total": int(total), "limit": limit, "offset": offset, "items": items}
+        except Exception as e:
+            log.warning("list_corrections failed: %s", e)
+            return {"total": 0, "limit": limit, "offset": offset, "items": []}
 
     # ── Calibration runs ─────────────────────────────────────────────────
     def start_calibration_run(self, dataset_label, run_label=None, config=None):
-        self._todo("start_calibration_run")
+        try:
+            with session_scope() as session:
+                row = CalibrationRun(
+                    run_label=run_label,
+                    dataset_label=dataset_label,
+                    started_at=datetime.now(UTC),
+                    status="running",
+                    config_json=config or {},
+                )
+                session.add(row)
+                session.flush()
+                return row.id
+        except Exception as e:
+            log.warning("start_calibration_run failed: %s", e)
+            return None
 
     def complete_calibration_run(self, run_id, *, auc, n_essays_scored, n_authors, report):
-        self._todo("complete_calibration_run")
+        try:
+            with session_scope() as session:
+                # An UPDATE with no matching row still succeeds in SQL terms
+                # (0 rows affected, no exception) -- matches
+                # SqliteRepository's documented "returns True for an unknown
+                # run_id" quirk (test_complete_unknown_run_returns_true_store_quirk).
+                session.execute(
+                    CalibrationRun.__table__.update()
+                    .where(CalibrationRun.id == run_id)
+                    .values(
+                        status="completed",
+                        completed_at=datetime.now(UTC),
+                        auc=float(auc),
+                        n_essays_scored=int(n_essays_scored),
+                        n_authors=int(n_authors),
+                        report_json=report,
+                    )
+                )
+                return True
+        except Exception as e:
+            log.warning("complete_calibration_run %d failed: %s", run_id, e)
+            return False
 
     def fail_calibration_run(self, run_id, error):
-        self._todo("fail_calibration_run")
+        try:
+            with session_scope() as session:
+                session.execute(
+                    CalibrationRun.__table__.update()
+                    .where(CalibrationRun.id == run_id)
+                    .values(
+                        status="failed", completed_at=datetime.now(UTC), error=str(error)[:2000]
+                    )
+                )
+                return True
+        except Exception as e:
+            log.warning("fail_calibration_run %d failed: %s", run_id, e)
+            return False
 
     def list_calibration_runs(self, status=None, dataset_label=None, limit=50, offset=0):
-        self._todo("list_calibration_runs")
+        try:
+            with session_scope() as session:
+                stmt = select(CalibrationRun)
+                if status is not None:
+                    stmt = stmt.where(CalibrationRun.status == status)
+                if dataset_label is not None:
+                    stmt = stmt.where(CalibrationRun.dataset_label == dataset_label)
+                total = session.execute(
+                    select(func.count()).select_from(stmt.subquery())
+                ).scalar_one()
+                rows = (
+                    session.execute(
+                        stmt.order_by(CalibrationRun.started_at.desc()).limit(limit).offset(offset)
+                    )
+                    .scalars()
+                    .all()
+                )
+                items = [
+                    {
+                        "id": row.id,
+                        "run_label": row.run_label,
+                        "dataset_label": row.dataset_label,
+                        "started_at": row.started_at.isoformat(),
+                        "completed_at": row.completed_at.isoformat() if row.completed_at else None,
+                        "status": row.status,
+                        "auc": row.auc,
+                        "n_essays_scored": row.n_essays_scored,
+                        "n_authors": row.n_authors,
+                        "error": row.error,
+                    }
+                    for row in rows
+                ]
+                return {"total": int(total), "limit": limit, "offset": offset, "items": items}
+        except Exception as e:
+            log.warning("list_calibration_runs failed: %s", e)
+            return {"total": 0, "limit": limit, "offset": offset, "items": []}
 
     def get_calibration_run(self, run_id, include_report=True):
-        self._todo("get_calibration_run")
+        try:
+            with session_scope() as session:
+                row = session.get(CalibrationRun, run_id)
+                if row is None:
+                    return None
+                out = {
+                    "id": row.id,
+                    "run_label": row.run_label,
+                    "dataset_label": row.dataset_label,
+                    "started_at": row.started_at.isoformat(),
+                    "completed_at": row.completed_at.isoformat() if row.completed_at else None,
+                    "status": row.status,
+                    "auc": row.auc,
+                    "n_essays_scored": row.n_essays_scored,
+                    "n_authors": row.n_authors,
+                    "config": row.config_json or {},
+                    "error": row.error,
+                }
+                if include_report:
+                    out["report"] = row.report_json or {}
+                return out
+        except Exception:
+            return None
 
     # ── Tuned thresholds ──────────────────────────────────────────────────
     def put_tuned_thresholds(
@@ -1405,13 +1753,89 @@ class PostgresRepository:
         notes=None,
         provenance=None,
     ):
-        self._todo("put_tuned_thresholds")
+        try:
+            with session_scope() as session:
+                row = TunedThresholds(
+                    created_at=datetime.now(UTC),
+                    source=source,
+                    source_run_id=source_run_id,
+                    no_action=float(no_action),
+                    monitor=float(monitor),
+                    escalate=float(escalate),
+                    verdict_authentic_below=verdict_authentic_below,
+                    verdict_anomalous_at_or_above=verdict_anomalous_at_or_above,
+                    notes=notes,
+                    provenance_json=provenance or {},
+                )
+                session.add(row)
+                session.flush()
+                return row.id
+        except Exception as e:
+            log.warning("put_tuned_thresholds failed: %s", e)
+            return None
 
     def get_active_tuned_thresholds(self):
-        self._todo("get_active_tuned_thresholds")
+        try:
+            with session_scope() as session:
+                row = (
+                    session.execute(
+                        select(TunedThresholds).order_by(TunedThresholds.created_at.desc()).limit(1)
+                    )
+                    .scalars()
+                    .first()
+                )
+                if row is None:
+                    return None
+                return {
+                    "id": row.id,
+                    "created_at": row.created_at.isoformat(),
+                    "source": row.source,
+                    "source_run_id": row.source_run_id,
+                    "no_action": row.no_action,
+                    "monitor": row.monitor,
+                    "escalate": row.escalate,
+                    "verdict_authentic_below": row.verdict_authentic_below,
+                    "verdict_anomalous_at_or_above": row.verdict_anomalous_at_or_above,
+                    "notes": row.notes,
+                    "provenance": row.provenance_json or {},
+                }
+        except Exception:
+            return None
 
     def list_tuned_thresholds(self, limit=50, offset=0):
-        self._todo("list_tuned_thresholds")
+        try:
+            with session_scope() as session:
+                total = session.execute(
+                    select(func.count()).select_from(TunedThresholds)
+                ).scalar_one()
+                rows = (
+                    session.execute(
+                        select(TunedThresholds)
+                        .order_by(TunedThresholds.created_at.desc())
+                        .limit(limit)
+                        .offset(offset)
+                    )
+                    .scalars()
+                    .all()
+                )
+                items = [
+                    {
+                        "id": row.id,
+                        "created_at": row.created_at.isoformat(),
+                        "source": row.source,
+                        "source_run_id": row.source_run_id,
+                        "no_action": row.no_action,
+                        "monitor": row.monitor,
+                        "escalate": row.escalate,
+                        "verdict_authentic_below": row.verdict_authentic_below,
+                        "verdict_anomalous_at_or_above": row.verdict_anomalous_at_or_above,
+                        "notes": row.notes,
+                    }
+                    for row in rows
+                ]
+                return {"total": int(total), "limit": limit, "offset": offset, "items": items}
+        except Exception:
+            return {"total": 0, "limit": limit, "offset": offset, "items": []}
 
     # ── Tenants ───────────────────────────────────────────────────────────
     @staticmethod
@@ -1579,26 +2003,193 @@ class PostgresRepository:
             return None
 
     # ── Bluebook ──────────────────────────────────────────────────────────
+    @staticmethod
+    def _bluebook_exam_to_dict(row: BluebookExam) -> dict:
+        return {
+            "id": row.exam_id,
+            "tenant_id": row.tenant_id,
+            "title": row.title,
+            "course": row.course,
+            "duration": row.duration,
+            "minWords": row.min_words,
+            "maxWords": row.max_words,
+            "prompt": row.prompt,
+            "conditions": row.conditions_json or {},
+            "status": row.status,
+            "submissions": 0,
+            "created_at": row.created_at.isoformat(),
+        }
+
     def put_bluebook_exam(self, rec):
-        self._todo("put_bluebook_exam")
+        try:
+            with session_scope() as session:
+                self._ensure_tenant_exists(session, rec["tenant_id"])
+                values = {
+                    "title": rec["title"],
+                    "course": rec.get("course", ""),
+                    "duration": rec.get("duration"),
+                    "min_words": rec.get("minWords"),
+                    "max_words": rec.get("maxWords"),
+                    "prompt": rec.get("prompt", ""),
+                    "conditions_json": rec.get("conditions") or {},
+                    "status": rec.get("status", "DRAFT"),
+                }
+                stmt = (
+                    pg_insert(BluebookExam)
+                    .values(
+                        exam_id=rec["id"],
+                        tenant_id=rec["tenant_id"],
+                        created_at=datetime.now(UTC),
+                        **values,
+                    )
+                    .on_conflict_do_update(index_elements=["exam_id"], set_=values)
+                )
+                session.execute(stmt)
+        except Exception as e:
+            log.error("put_bluebook_exam failed for %s: %s", rec.get("id"), e)
+            raise
 
     def get_bluebook_exam(self, exam_id):
-        self._todo("get_bluebook_exam")
+        try:
+            with session_scope() as session:
+                row = session.get(BluebookExam, exam_id)
+                return self._bluebook_exam_to_dict(row) if row else None
+        except Exception:
+            log.exception("get_bluebook_exam failed for %s", exam_id)
+            return None
 
     def list_bluebook_exams(self, tenant_id):
-        self._todo("list_bluebook_exams")
+        try:
+            with session_scope() as session:
+                stmt = select(BluebookExam)
+                if tenant_id is not None:
+                    stmt = stmt.where(BluebookExam.tenant_id == tenant_id)
+                rows = (
+                    session.execute(stmt.order_by(BluebookExam.created_at.desc())).scalars().all()
+                )
+                return [self._bluebook_exam_to_dict(r) for r in rows]
+        except Exception:
+            log.exception("list_bluebook_exams failed for %s", tenant_id)
+            return []
+
+    @staticmethod
+    def _bluebook_sub_to_dict(row: BluebookSubmission) -> dict:
+        scoped_sid = join_scoped_id(row.tenant_id, row.student_id) if row.student_id else ""
+        candidate_id = row.student_id[:6] if row.student_id else "—"
+        return {
+            "id": row.submission_id,
+            "exam_id": row.exam_id,
+            "tenant_id": row.tenant_id,
+            "student_id": scoped_sid,
+            "student": row.candidate or "Candidate",
+            "candidateId": candidate_id,
+            "candidate": row.candidate,
+            "exam": row.exam_title or "",
+            "course": row.course or "",
+            "words": row.word_count or 0,
+            "timeMin": row.time_min or 0,
+            "stylometric": row.stylometric,
+            "aiScore": row.ai_score,
+            "status": row.status,
+            "created_at": row.created_at.isoformat(),
+        }
 
     def put_bluebook_submission(self, rec):
-        self._todo("put_bluebook_submission")
+        try:
+            with session_scope() as session:
+                self._ensure_tenant_exists(session, rec["tenant_id"])
+                raw_student_id = rec.get("student_id")
+                local_student_id = split_scoped_id(raw_student_id)[1] if raw_student_id else None
+                session.add(
+                    BluebookSubmission(
+                        submission_id=rec["id"],
+                        exam_id=rec.get("exam_id"),
+                        tenant_id=rec["tenant_id"],
+                        student_id=local_student_id,
+                        candidate=rec.get("candidate"),
+                        exam_title=rec.get("exam_title"),
+                        course=rec.get("course"),
+                        word_count=rec.get("word_count"),
+                        time_min=rec.get("time_min"),
+                        stylometric=rec.get("stylometric"),
+                        ai_score=rec.get("ai_score"),
+                        status=rec.get("status", "SUBMITTED"),
+                        created_at=datetime.now(UTC),
+                    )
+                )
+        except Exception as e:
+            log.error("put_bluebook_submission failed for %s: %s", rec.get("id"), e)
+            raise
 
     def list_bluebook_submissions(self, tenant_id):
-        self._todo("list_bluebook_submissions")
+        try:
+            with session_scope() as session:
+                stmt = select(BluebookSubmission)
+                if tenant_id is not None:
+                    stmt = stmt.where(BluebookSubmission.tenant_id == tenant_id)
+                rows = (
+                    session.execute(stmt.order_by(BluebookSubmission.created_at.desc()))
+                    .scalars()
+                    .all()
+                )
+                return [self._bluebook_sub_to_dict(r) for r in rows]
+        except Exception:
+            log.exception("list_bluebook_submissions failed for %s", tenant_id)
+            return []
+
+    @staticmethod
+    def _bluebook_course_to_dict(row: BluebookCourse) -> dict:
+        return {
+            "id": row.course_id,
+            "tenant_id": row.tenant_id,
+            "code": row.code,
+            "name": row.name,
+            "term": row.term,
+            "status": row.status,
+            "active": (row.status or "").upper() == "ACTIVE",
+            "students": 0,
+            "exams": 0,
+            "created_at": row.created_at.isoformat(),
+        }
 
     def put_bluebook_course(self, rec):
-        self._todo("put_bluebook_course")
+        try:
+            with session_scope() as session:
+                self._ensure_tenant_exists(session, rec["tenant_id"])
+                values = {
+                    "code": rec.get("code", ""),
+                    "name": rec["name"],
+                    "term": rec.get("term", ""),
+                    "status": rec.get("status", "ACTIVE"),
+                }
+                stmt = (
+                    pg_insert(BluebookCourse)
+                    .values(
+                        course_id=rec["id"],
+                        tenant_id=rec["tenant_id"],
+                        created_at=datetime.now(UTC),
+                        **values,
+                    )
+                    .on_conflict_do_update(index_elements=["course_id"], set_=values)
+                )
+                session.execute(stmt)
+        except Exception as e:
+            log.error("put_bluebook_course failed for %s: %s", rec.get("id"), e)
+            raise
 
     def list_bluebook_courses(self, tenant_id):
-        self._todo("list_bluebook_courses")
+        try:
+            with session_scope() as session:
+                stmt = select(BluebookCourse)
+                if tenant_id is not None:
+                    stmt = stmt.where(BluebookCourse.tenant_id == tenant_id)
+                rows = (
+                    session.execute(stmt.order_by(BluebookCourse.created_at.desc())).scalars().all()
+                )
+                return [self._bluebook_course_to_dict(r) for r in rows]
+        except Exception:
+            log.exception("list_bluebook_courses failed for %s", tenant_id)
+            return []
 
     # ── Audit ─────────────────────────────────────────────────────────────
     @staticmethod
@@ -1687,23 +2278,155 @@ class PostgresRepository:
             return {"total": 0, "limit": limit, "offset": offset, "items": []}
 
     # ── Formation ─────────────────────────────────────────────────────────
+    _FORMATION_STEPS = 3
+
+    @staticmethod
+    def _formation_row_to_dict(row: FormationPathway, scoped_student_id: str) -> dict:
+        return {
+            "id": row.id,
+            "student_id": scoped_student_id,
+            "submission_id": row.submission_id,
+            "status": row.status,
+            "current_step": row.current_step,
+            "reason": row.reason,
+            "created_at": row.created_at.isoformat(),
+            "updated_at": row.updated_at.isoformat(),
+            "total_steps": PostgresRepository._FORMATION_STEPS,
+        }
+
     def get_formation_pathway(self, student_id):
-        self._todo("get_formation_pathway")
+        try:
+            with session_scope() as session:
+                tenant_id, local_id = split_scoped_id(student_id)
+                row = (
+                    session.execute(
+                        select(FormationPathway)
+                        .where(
+                            FormationPathway.tenant_id == tenant_id,
+                            FormationPathway.student_id == local_id,
+                        )
+                        .order_by(
+                            (FormationPathway.status == "open").desc(),
+                            FormationPathway.updated_at.desc(),
+                        )
+                        .limit(1)
+                    )
+                    .scalars()
+                    .first()
+                )
+                return self._formation_row_to_dict(row, student_id) if row else None
+        except Exception:
+            log.exception("get_formation_pathway failed for %s", student_id)
+            return None
 
     def open_formation_pathway(self, student_id, submission_id=None, reason=None):
-        self._todo("open_formation_pathway")
+        existing = self.get_formation_pathway(student_id)
+        if existing and existing["status"] == "open":
+            return existing
+        try:
+            with session_scope() as session:
+                tenant_id, local_id = split_scoped_id(student_id)
+                self._ensure_tenant_exists(session, tenant_id)
+                now = datetime.now(UTC)
+                row = FormationPathway(
+                    tenant_id=tenant_id,
+                    student_id=local_id,
+                    submission_id=submission_id,
+                    status="open",
+                    current_step=0,
+                    reason=reason,
+                    created_at=now,
+                    updated_at=now,
+                )
+                session.add(row)
+                session.flush()
+                new_id = row.id
+        except Exception:
+            log.exception("open_formation_pathway failed for %s", student_id)
+            return None
+        self.log_audit(
+            action="formation_open",
+            student_id=student_id,
+            details={"submission_id": submission_id, "pathway_id": new_id},
+        )
+        return self.get_formation_pathway(student_id)
 
     def advance_formation_pathway(self, student_id):
-        self._todo("advance_formation_pathway")
+        p = self.get_formation_pathway(student_id)
+        if not p or p["status"] != "open":
+            return None
+        new_step = min(p["current_step"] + 1, self._FORMATION_STEPS)
+        completed = new_step >= self._FORMATION_STEPS
+        try:
+            with session_scope() as session:
+                session.execute(
+                    FormationPathway.__table__.update()
+                    .where(FormationPathway.id == p["id"])
+                    .values(
+                        current_step=new_step,
+                        status="completed" if completed else "open",
+                        updated_at=datetime.now(UTC),
+                    )
+                )
+                if completed and p["submission_id"]:
+                    session.execute(
+                        SubmissionManifest.__table__.update()
+                        .where(SubmissionManifest.submission_id == p["submission_id"])
+                        .values(action="no_action")
+                    )
+        except Exception:
+            log.exception("advance_formation_pathway failed for %s", student_id)
+            return None
+
+        if completed and p["submission_id"]:
+            self.update_fidelity_authenticity(p["submission_id"], True)
+
+        self.log_audit(
+            action="formation_complete" if completed else "formation_advance",
+            student_id=student_id,
+            details={
+                "pathway_id": p["id"],
+                "step": new_step,
+                "submission_id": p["submission_id"],
+            },
+        )
+        return self.get_formation_pathway(student_id)
 
     # ── Baseline requests ─────────────────────────────────────────────────
     def put_baseline_request(
         self, external_request_id, student_id, status, requested_at, data_json
     ):
-        self._todo("put_baseline_request")
+        try:
+            doc = json.loads(data_json) if isinstance(data_json, str) else data_json
+            with session_scope() as session:
+                tenant_id, local_id = split_scoped_id(student_id)
+                self._ensure_tenant_exists(session, tenant_id)
+                values = {
+                    "tenant_id": tenant_id,
+                    "student_id": local_id,
+                    "status": status,
+                    "requested_at": float(requested_at),
+                    "data_json": doc,
+                }
+                stmt = (
+                    pg_insert(BaselineRequest)
+                    .values(external_request_id=external_request_id, **values)
+                    .on_conflict_do_update(index_elements=["external_request_id"], set_=values)
+                )
+                session.execute(stmt)
+        except Exception:
+            log.exception("put_baseline_request failed for %s", external_request_id)
 
     def load_baseline_requests(self):
-        self._todo("load_baseline_requests")
+        try:
+            with session_scope() as session:
+                rows = session.execute(
+                    select(BaselineRequest.data_json).order_by(BaselineRequest.requested_at)
+                ).all()
+                return [doc for (doc,) in rows if doc is not None]
+        except Exception:
+            log.exception("load_baseline_requests failed")
+            return []
 
     # ── DB path ───────────────────────────────────────────────────────────
     def db_path(self):

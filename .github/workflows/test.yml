@@ -44,6 +44,26 @@ jobs:
     runs-on: ubuntu-latest
     needs: lint
     timeout-minutes: 20
+    # WS-6 P3: gives the contract suite's "postgres" backend parametrization
+    # (tests/test_repository_contract.py) something real to run against —
+    # it self-skips cleanly without this, so its absence was silent rather
+    # than a failure. DATABASE_URL below is picked up by
+    # original/db/postgres_session.py and the contract suite's own
+    # `_postgres_available()` check.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: original
+          POSTGRES_PASSWORD: original
+          POSTGRES_DB: original_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
@@ -67,6 +87,8 @@ jobs:
         # api.py 75, store.py 85) are NOT yet met -- api.py sits at 71% and
         # store.py at 80% (measured 2026-07-16), both still short. Do not raise this past what
         # `--cov-report=term-missing` actually shows passing locally.
+        env:
+          DATABASE_URL: postgresql://original:original@localhost:5432/original_test
         run: |
           python -m pytest tests/ validation/test_tier10_optional.py \
             --cov=original --cov-report=xml --cov-fail-under=72

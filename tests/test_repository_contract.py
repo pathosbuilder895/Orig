@@ -5,12 +5,12 @@ These assertions exercise the ``Repository`` protocol (original/repository.py)
 purely through its public interface — no reaching into ``store._get_conn()``,
 ``store._escape_like()``, or other SQLite-only internals. That's what makes
 this suite backend-agnostic: the same assertions run unchanged against
-``SqliteRepository`` today and, once WS-6 P3 lands, ``PostgresRepository`` —
-see the ``BACKENDS`` list below. The postgres parametrization is marked
+``SqliteRepository`` and ``PostgresRepository`` (WS-6 P3) — see the
+``BACKENDS`` list below. The postgres parametrization is marked
 ``@pytest.mark.postgres`` and skips cleanly when no Postgres instance is
 reachable (``_postgres_available()``), so this file is safe to run in any
 sandbox: `pytest -m "not postgres"` to skip it explicitly, or just run
-normally and let it self-skip.
+normally and let it self-skip when ``DATABASE_URL`` isn't set.
 
 Formerly two hand-maintained files (test_store_tenants.py's tenant/roster
 classes, test_store_fidelity.py's fidelity/genre-stats/delete classes) that
@@ -29,17 +29,21 @@ import os
 
 import numpy as np
 import pytest
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
 from original.constants import FEATURE_DIM
 from original.quantum.state import BaselineSample, StudentState
 from original.repository import PostgresRepository, get_repository, reset_repository
 
-# WS-6 P3 has NOT landed: PostgresRepository is still an all-``_todo()``
-# skeleton, so the "postgres" parametrization is staged ahead of P3. It only
-# runs when a Postgres instance is actually reachable (see
-# `_postgres_available()` below) and will fail until P3 ships — CI has no
-# postgres service container yet, so it self-skips everywhere today.
-# `pytest -m "not postgres"` deselects this parametrization entirely.
+# WS-6 P3: PostgresRepository implements every method except db_path()
+# (SQLite-file-specific backup tooling with no Postgres equivalent — see
+# test_baseline_requests.py's test_postgres_repo_db_path_has_no_equivalent).
+# This parametrization only runs when a Postgres instance is actually
+# reachable (see `_postgres_available()` below); it self-skips when
+# DATABASE_URL isn't set to a postgresql:// instance, so this file stays
+# safe to run in any sandbox. `pytest -m "not postgres"` deselects it
+# entirely.
 BACKENDS = ["sqlite", pytest.param("postgres", marks=pytest.mark.postgres)]
 
 
@@ -469,6 +473,87 @@ class TestGetOrCreateAndBasics:
         assert repo.get("sem:replace").sample_count == 1
 
 
+class TestDensityMatrixRoundtrip:
+    """WS-6 P3's own named acceptance bar: "Property-test the round-trip:
+    fidelity(rho_in, rho_out) ~= 1.0 for random density matrices through the
+    Postgres path" -- the model docstring in db/models/live.py calls this
+    "the highest-stakes round-trip" (BYTEA/JSONB must reproduce numpy bytes
+    exactly). Genuine Hypothesis property test, parametrized over both
+    backends (see tests/test_quantum.py for the project's other `@given`
+    property and its conventions, matched here)."""
+
+    @staticmethod
+    def _fidelity(rho_a: np.ndarray, rho_b: np.ndarray) -> float:
+        """Uhlmann fidelity F(rho, sigma) = [tr(sqrt(sqrt(rho) sigma sqrt(rho)))]^2
+        for two density matrices. 1.0 iff rho_a == rho_b (up to floating
+        point); this is the literal metric the P3 acceptance bar names.
+
+        A single-sample state's rho is legitimately rank-1 (a pure state,
+        not a bug) -- sqrtm() warns "matrix is singular" on those inputs
+        even though the result is numerically fine for a PSD matrix, so
+        that specific warning is suppressed rather than papered over by
+        avoiding rank-deficient (i.e. perfectly valid) test cases.
+        """
+        import warnings
+
+        from scipy.linalg import LinAlgWarning, sqrtm
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=LinAlgWarning)
+            sqrt_a = sqrtm(rho_a).real
+            inner = sqrt_a @ rho_b @ sqrt_a
+            sqrt_inner = sqrtm(inner).real
+        return float(np.clip(np.trace(sqrt_inner) ** 2, 0.0, 1.0))
+
+    # deadline=None: a Postgres round-trip per example is a real network
+    # round-trip, not just numpy math -- a wall-clock deadline here would
+    # flake on slower CI runners for reasons unrelated to the invariant.
+    # Each example writes a distinct student_id (case_id-suffixed), so
+    # sharing the function-scoped `repo` fixture across examples is safe
+    # (no cross-example state leakage) -- suppressing Hypothesis's default
+    # health check for that pattern deliberately.
+    @settings(
+        deadline=None, max_examples=15, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+    @given(
+        vectors=st.lists(
+            st.lists(
+                st.floats(min_value=1e-3, max_value=1.0, allow_nan=False, allow_infinity=False),
+                min_size=FEATURE_DIM,
+                max_size=FEATURE_DIM,
+            ),
+            min_size=1,
+            max_size=5,
+        ),
+        case_id=st.integers(min_value=0, max_value=1_000_000),
+    )
+    def test_density_matrix_survives_roundtrip(self, repo, vectors, case_id):
+        student_id = f"sem:dm-roundtrip-{case_id}"
+        state = StudentState(student_id=student_id)
+        for i, v in enumerate(vectors):
+            state.add_sample(
+                BaselineSample(
+                    text="",
+                    vector=np.array(v, dtype=np.float64),
+                    provenance="proctored",
+                    auth_weight=1.0,
+                    assignment=f"A{i}",
+                )
+            )
+        rho_in = state.density_matrix.copy()
+
+        repo.put(state)
+        retrieved = repo.get(student_id)
+        assert retrieved is not None
+        rho_out = retrieved.density_matrix
+
+        assert np.allclose(
+            rho_in, rho_out, atol=1e-9
+        ), "rho drifted across the repository round-trip"
+        fidelity = self._fidelity(rho_in, rho_out)
+        assert abs(fidelity - 1.0) < 1e-6, f"round-trip fidelity {fidelity} != 1.0"
+
+
 # ── Manifests ──────────────────────────────────────────────────────────────
 
 
@@ -495,7 +580,9 @@ class TestManifests:
         assert repo.submission_student_id("sub-m2") == "sem:bob"
 
     def test_submission_student_id_falls_back_to_audit(self, repo):
-        repo.log_audit(action="score", student_id="sem:carol", details={"submission_id": "sub-noManifest"})
+        repo.log_audit(
+            action="score", student_id="sem:carol", details={"submission_id": "sub-noManifest"}
+        )
         assert repo.submission_student_id("sub-noManifest") == "sem:carol"
 
     def test_submission_student_id_unknown_returns_none(self, repo):
@@ -510,24 +597,36 @@ class TestManifests:
         assert repo.submission_student_id("sub_1") == "sem:dan"
 
     def test_list_manifests_filters_by_student(self, repo):
-        repo.put_manifest("sub-l1", "sem:dave", {"created_at": "2026-01-01T00:00:00Z"}, action="no_action")
-        repo.put_manifest("sub-l2", "sem:erin", {"created_at": "2026-01-02T00:00:00Z"}, action="monitor")
+        repo.put_manifest(
+            "sub-l1", "sem:dave", {"created_at": "2026-01-01T00:00:00Z"}, action="no_action"
+        )
+        repo.put_manifest(
+            "sub-l2", "sem:erin", {"created_at": "2026-01-02T00:00:00Z"}, action="monitor"
+        )
         result = repo.list_manifests(student_id="sem:dave")
         assert result["total"] == 1
         assert result["items"][0]["submission_id"] == "sub-l1"
 
     def test_list_manifests_filters_by_action(self, repo):
-        repo.put_manifest("sub-l3", "sem:frank", {"created_at": "2026-01-01T00:00:00Z"}, action="escalate")
+        repo.put_manifest(
+            "sub-l3", "sem:frank", {"created_at": "2026-01-01T00:00:00Z"}, action="escalate"
+        )
         result = repo.list_manifests(action="escalate")
         assert result["total"] >= 1
         assert all(i["action"] == "escalate" for i in result["items"])
 
     def test_list_manifests_filters_by_flag(self, repo):
         repo.put_manifest(
-            "sub-l4", "sem:gwen", {"created_at": "2026-01-01T00:00:00Z", "flags": ["outlier"]}, action="monitor"
+            "sub-l4",
+            "sem:gwen",
+            {"created_at": "2026-01-01T00:00:00Z", "flags": ["outlier"]},
+            action="monitor",
         )
         repo.put_manifest(
-            "sub-l5", "sem:hank", {"created_at": "2026-01-01T00:00:00Z", "flags": []}, action="monitor"
+            "sub-l5",
+            "sem:hank",
+            {"created_at": "2026-01-01T00:00:00Z", "flags": []},
+            action="monitor",
         )
         result = repo.list_manifests(flag="outlier")
         assert result["total"] == 1
@@ -577,7 +676,11 @@ class TestCorrections:
 
     def test_put_correction_autofills_from_manifest(self, repo):
         repo.put_manifest(
-            "sub-c2", "sem:bob", {"created_at": "2026-01-01T00:00:00Z"}, divergence_score=0.6, action="escalate"
+            "sub-c2",
+            "sem:bob",
+            {"created_at": "2026-01-01T00:00:00Z"},
+            divergence_score=0.6,
+            action="escalate",
         )
         cid = repo.put_correction("sub-c2", False)
         assert cid is not None
@@ -628,7 +731,12 @@ class TestCalibrationRuns:
         # a quirk, but faithfully porting existing behavior (not silently
         # "fixing" it) is this phase's job — see PostgresRepository's
         # matching comment.
-        assert repo.complete_calibration_run(999999, auc=0.5, n_essays_scored=1, n_authors=1, report={}) is True
+        assert (
+            repo.complete_calibration_run(
+                999999, auc=0.5, n_essays_scored=1, n_authors=1, report={}
+            )
+            is True
+        )
 
     def test_list_calibration_runs_filters_by_status(self, repo):
         repo.start_calibration_run("dataset-C")
@@ -639,7 +747,9 @@ class TestCalibrationRuns:
 
     def test_get_calibration_run_include_report_false_omits_report(self, repo):
         run_id = repo.start_calibration_run("dataset-D")
-        repo.complete_calibration_run(run_id, auc=0.5, n_essays_scored=1, n_authors=1, report={"x": 1})
+        repo.complete_calibration_run(
+            run_id, auc=0.5, n_essays_scored=1, n_authors=1, report={"x": 1}
+        )
         run = repo.get_calibration_run(run_id, include_report=False)
         assert "report" not in run
 
@@ -650,7 +760,9 @@ class TestCalibrationRuns:
 class TestTunedThresholds:
     def test_put_and_get_active(self, repo):
         repo.put_tuned_thresholds(no_action=0.1, monitor=0.4, escalate=0.7, source="manual")
-        tid = repo.put_tuned_thresholds(no_action=0.15, monitor=0.45, escalate=0.75, source="calibration_run")
+        tid = repo.put_tuned_thresholds(
+            no_action=0.15, monitor=0.45, escalate=0.75, source="calibration_run"
+        )
         active = repo.get_active_tuned_thresholds()
         assert active["id"] == tid
         assert active["source"] == "calibration_run"
@@ -672,7 +784,14 @@ class TestTunedThresholds:
 class TestBluebook:
     def test_exam_put_get_list(self, repo):
         repo.put_bluebook_exam(
-            {"id": "exam-A", "tenant_id": "sem", "title": "Final", "course": "THEO101", "minWords": 300, "maxWords": 900}
+            {
+                "id": "exam-A",
+                "tenant_id": "sem",
+                "title": "Final",
+                "course": "THEO101",
+                "minWords": 300,
+                "maxWords": 900,
+            }
         )
         exam = repo.get_bluebook_exam("exam-A")
         assert exam["title"] == "Final"
@@ -683,7 +802,9 @@ class TestBluebook:
 
     def test_exam_upsert(self, repo):
         repo.put_bluebook_exam({"id": "exam-B", "tenant_id": "sem", "title": "Draft"})
-        repo.put_bluebook_exam({"id": "exam-B", "tenant_id": "sem", "title": "Final", "status": "PUBLISHED"})
+        repo.put_bluebook_exam(
+            {"id": "exam-B", "tenant_id": "sem", "title": "Final", "status": "PUBLISHED"}
+        )
         exam = repo.get_bluebook_exam("exam-B")
         assert exam["title"] == "Final"
         assert exam["status"] == "PUBLISHED"
@@ -709,7 +830,9 @@ class TestBluebook:
         assert subs[0]["words"] == 500
 
     def test_course_put_get_list(self, repo):
-        repo.put_bluebook_course({"id": "course-A", "tenant_id": "sem", "name": "Theology 101", "code": "THEO101"})
+        repo.put_bluebook_course(
+            {"id": "course-A", "tenant_id": "sem", "name": "Theology 101", "code": "THEO101"}
+        )
         courses = repo.list_bluebook_courses("sem")
         assert len(courses) == 1
         assert courses[0]["name"] == "Theology 101"
@@ -726,7 +849,9 @@ class TestBluebook:
 
 class TestUsers:
     def test_put_and_get_user(self, repo):
-        repo.put_user("user-A", "Prof.X@Example.com", "hashed-pw", "professor", "sem", name="Prof X")
+        repo.put_user(
+            "user-A", "Prof.X@Example.com", "hashed-pw", "professor", "sem", name="Prof X"
+        )
         u = repo.get_user_by_email("prof.x@example.com")
         assert u is not None
         assert u["role"] == "professor"
@@ -786,7 +911,9 @@ class TestFormationPathway:
         assert p1["id"] == p2["id"]
 
     def test_advance_to_completion_clears_manifest_action(self, repo):
-        repo.put_manifest("sub-f2", "sem:carol", {"created_at": "2026-01-01T00:00:00Z"}, action="escalate")
+        repo.put_manifest(
+            "sub-f2", "sem:carol", {"created_at": "2026-01-01T00:00:00Z"}, action="escalate"
+        )
         repo.open_formation_pathway("sem:carol", submission_id="sub-f2")
         repo.advance_formation_pathway("sem:carol")
         repo.advance_formation_pathway("sem:carol")
@@ -808,14 +935,22 @@ class TestFormationPathway:
 
 class TestBaselineRequests:
     def test_put_and_load(self, repo):
-        repo.put_baseline_request("req-A", "sem:alice", "pending", 1000.0, json.dumps({"foo": "bar"}))
+        repo.put_baseline_request(
+            "req-A", "sem:alice", "pending", 1000.0, json.dumps({"foo": "bar"})
+        )
         loaded = repo.load_baseline_requests()
         assert any(d.get("foo") == "bar" for d in loaded)
 
     def test_upsert_keeps_one_row_per_request_id(self, repo):
-        repo.put_baseline_request("req-B", "sem:bob", "pending", 1000.0, json.dumps({"tag": "req-B", "status": "pending"}))
         repo.put_baseline_request(
-            "req-B", "sem:bob", "completed", 1000.0, json.dumps({"tag": "req-B", "status": "completed"})
+            "req-B", "sem:bob", "pending", 1000.0, json.dumps({"tag": "req-B", "status": "pending"})
+        )
+        repo.put_baseline_request(
+            "req-B",
+            "sem:bob",
+            "completed",
+            1000.0,
+            json.dumps({"tag": "req-B", "status": "completed"}),
         )
         loaded = repo.load_baseline_requests()
         matches = [d for d in loaded if d.get("tag") == "req-B"]
