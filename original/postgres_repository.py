@@ -1835,6 +1835,3 @@ class PostgresRepository:
     # ── DB path ───────────────────────────────────────────────────────────
     def db_path(self):
         self._todo("db_path")
-
-
-
