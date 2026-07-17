@@ -8,10 +8,11 @@ already uses for the live schema, so a single env var configures both
 migrations and the repository.
 
 The engine is built lazily on first use, not at import time. This module is
-imported transitively by ``original/repository.py`` (``PostgresRepository``),
-which ``api.py`` always imports even when the active backend is SQLite-only
-— eager construction here would mean every process pays for a Postgres
-engine/pool it may never use.
+imported by ``original/postgres_repository.py`` (``PostgresRepository``) —
+kept out of ``original/repository.py`` itself, which ``api.py`` always
+imports regardless of active backend, specifically so a plain SQLite demo/
+pilot process never pays for a Postgres engine/pool (or the sqlalchemy
+import) it may never use.
 """
 
 from __future__ import annotations
