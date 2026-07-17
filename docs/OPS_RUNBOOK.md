@@ -64,6 +64,14 @@ predates this documentation — it may have been set before its dual role
 
 ## Backups
 
+The pilot's backup story changes at the WS-6 P5 cutover (SQLite → Postgres).
+Both procedures are documented here; **follow the one matching where the
+pilot currently runs** (check `GET /health` → `environment`, and whether
+`DATABASE_URL` is set in the Render dashboard — a live `DATABASE_URL` with
+`get_repository()` flipped to Postgres means you are post-cutover).
+
+### While on SQLite (current — pre-P5)
+
 - **On-disk (automatic, in-app):** the web process itself runs a backup
   scheduler (`original/backup.py`, started by the API lifespan) — a
   **consistent online** SQLite `.backup` to `BACKUP_DIR` (render.yaml pins
@@ -82,7 +90,37 @@ predates this documentation — it may have been set before its dual role
   `sqlite3 backup.db "SELECT COUNT(*) FROM student_profiles;"` and compare with
   `/students` on the live service. A backup that's never been restored is a wish.
 
+### After the Postgres cutover (P5+)
+
+Once the pilot runs on Render managed Postgres, the in-app SQLite scheduler
+(`original/backup.py`) no longer backs up the authoritative store — Postgres
+does. `BACKUP_DIR`/`BACKUP_INTERVAL_MINUTES`/`BACKUP_KEEP` become no-ops for
+the live data (the SQLite file, kept read-only for ≥4 weeks as the P5
+rollback, still exists but is frozen).
+
+- **Managed (automatic):** Render's managed Postgres takes automatic daily
+  backups; retention and point-in-time-recovery depth depend on the instance
+  plan tier — **confirm the pilot tier's retention window in the Render
+  dashboard** and record it here once known. This is the primary backup.
+- **Off-box (nightly `pg_dump`):** the managed backups live inside Render, so
+  keep an independent off-box copy the same way the SQLite off-box copy
+  worked. From the operator's machine (or a scheduled job with the Render
+  external connection string):
+  `pg_dump "$DATABASE_URL" --format=custom --file ~/orig-backups/orig-$(date +%Y%m%d).dump`
+  The custom format restores with `pg_restore` and is compressed. FERPA: run
+  over the Render-provided TLS connection string; never leave the dump on a
+  shared machine.
+- **Restore drill (rehearse BEFORE cutover, then monthly):** restore the
+  newest dump into a **scratch** database (never the live one) and compare row
+  counts against the live service:
+  `createdb orig_restore_drill && pg_restore --dbname orig_restore_drill --clean --if-exists ~/orig-backups/orig-YYYYMMDD.dump`
+  then `psql orig_restore_drill -c "SELECT count(*) FROM student_profiles;"`
+  and compare with `/students` on the live service. The P4 acceptance bar
+  requires one successful restore drill on staging before the P5 window opens.
+
 ## Disk-loss / corruption recovery
+
+**On SQLite (pre-P5):**
 
 1. Create a fresh disk (Render dashboard) or redeploy the service.
 2. Upload the newest off-box backup to `/data/profiles.db`
@@ -90,6 +128,19 @@ predates this documentation — it may have been set before its dual role
 3. Resume, hit `/health`, then spot-check one professor login and one student profile.
 4. Anything written after the last backup is gone — tell the professors which
    window was lost (audit log in the backup shows the last captured action).
+
+**On Postgres (post-P5):**
+
+1. Prefer Render's point-in-time recovery (dashboard) if the corruption window
+   is inside the retention tier — it loses the least data.
+2. Otherwise provision a fresh managed Postgres, `pg_restore` the newest
+   off-box dump into it, and point `DATABASE_URL` at it (redeploy).
+3. Hit `/health`, spot-check a professor login and a student profile.
+4. Data written after the restored dump/PITR point is gone — same disclosure
+   to professors as the SQLite case (the audit log in the restore shows the
+   last captured action).
+5. The frozen read-only SQLite file from the P5 cutover is the last-resort
+   floor if Postgres backups are also lost within the ≥4-week rollback window.
 
 ## Deploys
 

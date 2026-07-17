@@ -23,10 +23,14 @@ demonstrator slice) so ``api.py`` never reaches ``store`` directly.
 
 from __future__ import annotations
 
+import os
 from typing import Protocol, runtime_checkable
 
 from . import store
+from .core.logging import get_logger
 from .quantum.state import StudentState
+
+log = get_logger(__name__)
 
 
 def __getattr__(name: str):
@@ -635,6 +639,86 @@ class SqliteRepository:
         return store._DB_PATH
 
 
+# Every mutating Repository method. A ShadowRepository mirrors exactly these
+# to the shadow backend; everything else (reads) goes to the primary only.
+# get_or_create is included: it inserts an empty state when absent.
+_WRITE_METHODS = frozenset(
+    {
+        "get_or_create",
+        "put",
+        "clear",
+        "delete_student",
+        "delete_tenant_students",
+        "set_display_name",
+        "put_manifest",
+        "put_fidelity_score",
+        "update_fidelity_authenticity",
+        "put_ai_likelihood_score",
+        "put_correction",
+        "start_calibration_run",
+        "complete_calibration_run",
+        "fail_calibration_run",
+        "put_tuned_thresholds",
+        "put_tenant",
+        "put_user",
+        "put_bluebook_exam",
+        "put_bluebook_submission",
+        "put_bluebook_course",
+        "log_audit",
+        "open_formation_pathway",
+        "advance_formation_pathway",
+        "put_baseline_request",
+    }
+)
+
+
+class ShadowRepository:
+    """WS-6 P4 shadow-mode mirror (``REPO_SHADOW=postgres``).
+
+    Every write goes to the ``primary`` backend (SQLite, authoritative — its
+    return value is what the caller sees) and is then mirrored to the
+    ``shadow`` backend (Postgres). Reads come from the primary only. A shadow
+    write that raises is logged as a divergence and swallowed — the shadow
+    must never affect the running pilot. This is the pre-cutover soak tool:
+    run it against real traffic to surface Postgres-path bugs before the P5
+    cutover, then discard the shadow copy.
+
+    Divergence signal is deliberately scoped to "the shadow write raised":
+    autoincrement ids (corrections, calibration_runs, ...) legitimately drift
+    between backends, so comparing return values would be pure noise. A shadow
+    write that *raises* is the actionable signal — a constraint the Postgres
+    path enforces that SQLite didn't, a serialization difference, a missing
+    tenant. Those are exactly the bugs the soak exists to catch.
+    """
+
+    def __init__(self, primary: Repository, shadow: Repository):
+        self._primary = primary
+        self._shadow = shadow
+
+    def __getattr__(self, name: str):
+        # Only reached for names not set on the instance/class, i.e. every
+        # Repository method. Reads and non-callables pass straight through to
+        # the primary; writes get wrapped to also mirror to the shadow.
+        primary_attr = getattr(self._primary, name)
+        if name not in _WRITE_METHODS or not callable(primary_attr):
+            return primary_attr
+
+        def _mirrored(*args, **kwargs):
+            result = primary_attr(*args, **kwargs)  # authoritative
+            try:
+                getattr(self._shadow, name)(*args, **kwargs)
+            except Exception as e:
+                log.warning(
+                    "REPO_SHADOW divergence: %s() raised on the shadow (Postgres) "
+                    "backend but succeeded on the primary (SQLite): %s",
+                    name,
+                    e,
+                )
+            return result
+
+        return _mirrored
+
+
 _REPO: Repository | None = None
 
 
@@ -649,14 +733,25 @@ def get_repository(environment: str = "demo") -> Repository:
                              and the NotImplementedError surfaces only when an
                              unported operation is actually called.
 
+    When ``REPO_SHADOW=postgres`` (WS-6 P4), the resolved repository is wrapped
+    in a ``ShadowRepository`` that mirrors writes to a shadow Postgres backend
+    for pre-cutover validation. This is the only place sqlalchemy is imported
+    from this module, and only when shadow mode is actually on — so a plain
+    SQLite demo/pilot process never pays for the Postgres import.
+
     Cached as a module singleton.
     """
     global _REPO
     if _REPO is None:
-        # Postgres impl is a skeleton today; keep SQLite as the working default
-        # for every environment. Flip this to PostgresRepository() per
-        # environment as the v1 models are extended.
-        _REPO = SqliteRepository()
+        # Postgres impl is complete (WS-6 P3) but get_repository still returns
+        # SQLite for every environment — the production cutover is P5.
+        primary = SqliteRepository()
+        if os.environ.get("REPO_SHADOW") == "postgres":
+            from .postgres_repository import PostgresRepository
+
+            _REPO = ShadowRepository(primary, PostgresRepository())
+        else:
+            _REPO = primary
     return _REPO
 
 

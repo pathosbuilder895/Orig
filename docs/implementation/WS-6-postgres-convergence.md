@@ -75,12 +75,13 @@ Each phase is gated. **The critical decision gate is after P1: an explicit "abor
 - **Rollback posture:** `PostgresRepository` exists but `get_repository()` still returns SQLite for every environment — production untouched. Rollback = leave the flip un-flipped.
 
 ### P4 — Data migration & shadow validation — FERPA-sensitive
-- **Entry gate:** P3 merged; contract suite green on both backends.
+- **Status: code landed** (migration script + shadow mirror + tests + runbook). The *operational* steps remain per-deploy actions, not code: run the 1–2 week `REPO_SHADOW` soak against real pilot traffic, and rehearse a `pg_dump` restore on staging, before the P5 window opens.
+- **Entry gate:** P3 merged; contract suite green on both backends. ✅
 - **Deliverable (see §10 P4):**
-  1. `scripts/migrate_sqlite_to_pg.py`: read via `SqliteRepository`, write via `PostgresRepository`; emit per-table row counts + content checksums as an explicit **report artifact**. **FERPA: run on the Render host or over an encrypted tunnel — no student data on laptops.**
-  2. (Recommended) `REPO_SHADOW=postgres`: writes mirrored to both backends, reads from SQLite, divergences logged. Soak **1–2 weeks** of pilot traffic. The repo already has a shadow-mode culture, so this is idiomatic.
-  3. Backup story: switch OPS_RUNBOOK from `backup.py` file copies to Render managed backups + nightly `pg_dump`; **rehearse a restore before cutover.**
-- **Files touched:** `scripts/migrate_sqlite_to_pg.py` (new), `docs/OPS_RUNBOOK.md`, shadow-mirror hook in `repository.py` (behind `REPO_SHADOW`).
+  1. `scripts/migrate_sqlite_to_pg.py` ✅ — reads raw SQLite rows and inserts the live models directly (NOT via `PostgresRepository.put_*`, which would re-stamp `created_at` and drop `is_authentic=False` fidelity rows — see the script docstring); emits a per-table row-count + content-checksum parity report (`--report PATH`, `--dry-run` for a pre-cutover check). Proven faithful across all 16 tables in `tests/test_migration.py`. **FERPA: run on the Render host or over an encrypted tunnel — no student data on laptops.**
+  2. `REPO_SHADOW=postgres` ✅ — `ShadowRepository` (`repository.py`) mirrors writes to a shadow Postgres, reads from SQLite, logs divergences; wired lazily in `get_repository()` so the sqlalchemy-free default path is untouched. Tests: `tests/test_shadow_repository.py`. Soak **1–2 weeks** of pilot traffic (operational).
+  3. Backup story ✅ — `docs/OPS_RUNBOOK.md` now documents the post-cutover Postgres backups (Render managed + nightly `pg_dump` + restore drill) alongside the still-current SQLite one; **rehearse a restore before cutover** (operational).
+- **Files touched:** `scripts/migrate_sqlite_to_pg.py` (new), `tests/test_migration.py` (new), `tests/test_shadow_repository.py` (new), `docs/OPS_RUNBOOK.md`, `ShadowRepository` + `get_repository()` hook in `repository.py` (behind `REPO_SHADOW`), `pytest.ini` (`postgres` marker).
 - **Acceptance / proof:** migration report shows row-count + checksum parity for all 16 tables; shadow soak logs **zero unexplained divergences** over the soak window; a restore drill from `pg_dump` succeeds on staging.
 - **Rollback posture:** SQLite remains the source of truth throughout P4 (shadow reads from SQLite). Abort = stop mirroring, discard the PG copy; no pilot impact.
 
