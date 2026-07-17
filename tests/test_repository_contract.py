@@ -483,26 +483,32 @@ class TestDensityMatrixRoundtrip:
     property and its conventions, matched here)."""
 
     @staticmethod
-    def _fidelity(rho_a: np.ndarray, rho_b: np.ndarray) -> float:
+    def _sqrt_psd(rho: np.ndarray) -> np.ndarray:
+        """Matrix square root of a real symmetric PSD matrix via
+        eigendecomposition. scipy.linalg.sqrtm's general Schur-based
+        algorithm is not built for this case -- CI hit both a hard
+        `LinAlgError: Internal error in scipy.linalg.sqrtm: -102` and a
+        silent NaN result on rank-1 rho (a single-sample state's density
+        matrix is legitimately rank-1 -- a pure state, not a bug). ``rho``
+        here is always real and symmetric by construction, so eigh (which
+        exploits that structure) is both the numerically correct tool and
+        immune to the failure mode: negative eigenvalues (floating-point
+        noise on a true PSD matrix, never a real negative eigenvalue) are
+        clipped to zero before the square root, so degenerate/near-singular
+        rho can never produce NaN or raise.
+        """
+        eigenvalues, eigenvectors = np.linalg.eigh(rho)
+        sqrt_eigenvalues = np.sqrt(np.clip(eigenvalues, 0.0, None))
+        return eigenvectors @ np.diag(sqrt_eigenvalues) @ eigenvectors.T
+
+    @classmethod
+    def _fidelity(cls, rho_a: np.ndarray, rho_b: np.ndarray) -> float:
         """Uhlmann fidelity F(rho, sigma) = [tr(sqrt(sqrt(rho) sigma sqrt(rho)))]^2
         for two density matrices. 1.0 iff rho_a == rho_b (up to floating
-        point); this is the literal metric the P3 acceptance bar names.
-
-        A single-sample state's rho is legitimately rank-1 (a pure state,
-        not a bug) -- sqrtm() warns "matrix is singular" on those inputs
-        even though the result is numerically fine for a PSD matrix, so
-        that specific warning is suppressed rather than papered over by
-        avoiding rank-deficient (i.e. perfectly valid) test cases.
-        """
-        import warnings
-
-        from scipy.linalg import LinAlgWarning, sqrtm
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=LinAlgWarning)
-            sqrt_a = sqrtm(rho_a).real
-            inner = sqrt_a @ rho_b @ sqrt_a
-            sqrt_inner = sqrtm(inner).real
+        point); this is the literal metric the P3 acceptance bar names."""
+        sqrt_a = cls._sqrt_psd(rho_a)
+        inner = sqrt_a @ rho_b @ sqrt_a
+        sqrt_inner = cls._sqrt_psd(inner)
         return float(np.clip(np.trace(sqrt_inner) ** 2, 0.0, 1.0))
 
     # deadline=None: a Postgres round-trip per example is a real network
