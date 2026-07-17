@@ -12,8 +12,8 @@ import time
 
 import pytest
 
-import original.store as store
 import original.baseline_requests as br
+import original.store as store
 
 
 @pytest.fixture(autouse=True)
@@ -114,13 +114,19 @@ class TestRepositorySeamWidened:
         assert res["total"] >= 1
         assert res["items"][0]["action"] == "formation_open"
 
-    def test_postgres_repo_is_still_a_skeleton(self):
+    def test_postgres_repo_db_path_has_no_equivalent(self):
         """
-        WS-6 P3 (repository parity) has NOT landed yet: every
-        ``PostgresRepository`` method still raises NotImplementedError via
-        ``_todo(...)``, and ``get_repository()`` stays hard-wired to SQLite
-        for every environment. This pins the current P2 state so P3 flips
-        this test deliberately rather than the gap going unnoticed.
+        WS-6 P3 (repository parity) is in progress: most ``PostgresRepository``
+        methods are implemented and contract-tested against a real Postgres
+        instance (see tests/test_repository_contract.py). ``db_path()`` is a
+        deliberate, permanent exception -- it exists only so SQLite's
+        file-based backup tooling (``backup_mod.resolve_backup_dir``) has a
+        path to copy, and Postgres backups need a completely different
+        mechanism (pg_dump / WAL archiving), which is P4 scope, not P3.
+
+        ``get_repository()`` also still hard-wires every environment to
+        SQLite -- the production cutover is P5, deliberately independent of
+        how much of PostgresRepository is implemented.
         """
         import original.repository as repository
 

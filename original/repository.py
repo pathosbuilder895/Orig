@@ -5,10 +5,16 @@ A single interface that every new feature routes through, so the demo
 (SQLite) and v1 (Postgres) backends stop being parallel universes. The API
 layer depends on ``Repository``, never on ``original.store`` directly.
 
-Today only ``SqliteRepository`` exists (delegating to ``original.store``).
-A ``PostgresRepository`` plugs in at ``get_repository()`` for the pilot /
-production environments once the v1 SQLAlchemy models are extended to cover
-these features. The ``environment`` argument is where that choice is made.
+``SqliteRepository`` (delegating to ``original.store``) lives here.
+``PostgresRepository`` (WS-6 P3) lives in ``postgres_repository.py`` instead
+— not for size, but because it imports sqlalchemy at module level, and
+requirements-demo.txt / requirements-pilot.txt deliberately exclude
+sqlalchemy/psycopg2/alembic to keep the demo/pilot dependency set light
+("demo uses SQLite via store.py, no ORM"). Importing it here unconditionally
+would break that for every environment, since api.py imports this module
+regardless of which backend is active. ``__getattr__`` below re-exports it
+lazily (PEP 562) so ``from original.repository import PostgresRepository``
+still works without importing sqlalchemy until that name is actually used.
 
 WS-6 P1 (docs/implementation/WS-6-postgres-convergence.md): this Protocol now
 covers every public ``store.*`` function (formerly just the 9-method Formation
@@ -21,6 +27,14 @@ from typing import Protocol, runtime_checkable
 
 from . import store
 from .quantum.state import StudentState
+
+
+def __getattr__(name: str):
+    if name == "PostgresRepository":
+        from .postgres_repository import PostgresRepository
+
+        return PostgresRepository
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 @runtime_checkable
@@ -620,247 +634,6 @@ class SqliteRepository:
     def db_path(self) -> str:
         return store._DB_PATH
 
-
-class PostgresRepository:
-    """
-    Repository backed by the v1 Postgres/SQLAlchemy models — the pilot /
-    production implementation (ADR-002 action item 4).
-
-    Skeleton: the v1 models do not yet cover any of these aggregates. Each
-    method raises until its model + query land, so the convergence work is
-    explicit and discoverable rather than silently absent.
-
-    When implemented, ``get_repository()`` selects this for
-    ``environment in {"pilot", "production"}`` — the single switch point.
-    """
-
-    _NOT_READY = (
-        "PostgresRepository.{op} is not implemented yet. Extend the v1 "
-        "SQLAlchemy models to cover this, then wire it here (see ADR-002)."
-    )
-
-    def _todo(self, op: str):
-        raise NotImplementedError(self._NOT_READY.format(op=op))
-
-    # ── Student state ────────────────────────────────────────────────────
-    def get(self, student_id):
-        self._todo("get")
-
-    def get_or_create(self, student_id):
-        self._todo("get_or_create")
-
-    def put(self, state):
-        self._todo("put")
-
-    def list_ids(self):
-        self._todo("list_ids")
-
-    def all_states(self):
-        self._todo("all_states")
-
-    def count(self):
-        self._todo("count")
-
-    def clear(self):
-        self._todo("clear")
-
-    def delete_student(self, student_id):
-        self._todo("delete_student")
-
-    def list_ids_for_tenant(self, tenant_id):
-        self._todo("list_ids_for_tenant")
-
-    def set_display_name(self, student_id, name):
-        self._todo("set_display_name")
-
-    def get_display_name(self, student_id):
-        self._todo("get_display_name")
-
-    def roster_for_tenant(self, tenant_id):
-        self._todo("roster_for_tenant")
-
-    def delete_tenant_students(self, tenant_id):
-        self._todo("delete_tenant_students")
-
-    def student_data_inventory(self, student_id):
-        self._todo("student_data_inventory")
-
-    # ── Manifests ─────────────────────────────────────────────────────────
-    def put_manifest(self, submission_id, student_id, manifest, divergence_score=None, action=None):
-        self._todo("put_manifest")
-
-    def get_manifest(self, submission_id):
-        self._todo("get_manifest")
-
-    def list_manifests(
-        self, student_id=None, action=None, flag=None, since=None, until=None, limit=100, offset=0
-    ):
-        self._todo("list_manifests")
-
-    def manifest_stats(self, since=None, until=None):
-        self._todo("manifest_stats")
-
-    def submission_student_id(self, submission_id):
-        self._todo("submission_student_id")
-
-    # ── Scores ────────────────────────────────────────────────────────────
-    def put_fidelity_score(self, submission_id, student_id, fidelity, is_authentic):
-        self._todo("put_fidelity_score")
-
-    def get_authentic_fidelities(self, student_id, limit=200):
-        self._todo("get_authentic_fidelities")
-
-    def update_fidelity_authenticity(self, submission_id, is_authentic):
-        self._todo("update_fidelity_authenticity")
-
-    def put_ai_likelihood_score(
-        self, submission_id, student_id, probability, band, model_version=""
-    ):
-        self._todo("put_ai_likelihood_score")
-
-    def get_ai_likelihood_scores(self, student_id=None, limit=500):
-        self._todo("get_ai_likelihood_scores")
-
-    def get_genre_stats(self, genre):
-        self._todo("get_genre_stats")
-
-    # ── Corrections ──────────────────────────────────────────────────────
-    def put_correction(
-        self,
-        submission_id,
-        is_correct,
-        *,
-        student_id=None,
-        original_verdict=None,
-        original_action=None,
-        original_divergence_score=None,
-        corrected_verdict=None,
-        corrected_action=None,
-        reviewer=None,
-        notes=None,
-        created_at=None,
-    ):
-        self._todo("put_correction")
-
-    def list_corrections(
-        self, submission_id=None, student_id=None, is_correct=None, limit=100, offset=0
-    ):
-        self._todo("list_corrections")
-
-    # ── Calibration runs ─────────────────────────────────────────────────
-    def start_calibration_run(self, dataset_label, run_label=None, config=None):
-        self._todo("start_calibration_run")
-
-    def complete_calibration_run(self, run_id, *, auc, n_essays_scored, n_authors, report):
-        self._todo("complete_calibration_run")
-
-    def fail_calibration_run(self, run_id, error):
-        self._todo("fail_calibration_run")
-
-    def list_calibration_runs(self, status=None, dataset_label=None, limit=50, offset=0):
-        self._todo("list_calibration_runs")
-
-    def get_calibration_run(self, run_id, include_report=True):
-        self._todo("get_calibration_run")
-
-    # ── Tuned thresholds ──────────────────────────────────────────────────
-    def put_tuned_thresholds(
-        self,
-        *,
-        no_action,
-        monitor,
-        escalate,
-        source,
-        source_run_id=None,
-        verdict_authentic_below=None,
-        verdict_anomalous_at_or_above=None,
-        notes=None,
-        provenance=None,
-    ):
-        self._todo("put_tuned_thresholds")
-
-    def get_active_tuned_thresholds(self):
-        self._todo("get_active_tuned_thresholds")
-
-    def list_tuned_thresholds(self, limit=50, offset=0):
-        self._todo("list_tuned_thresholds")
-
-    # ── Tenants ───────────────────────────────────────────────────────────
-    def get_tenant(self, tenant_id):
-        self._todo("get_tenant")
-
-    def list_tenants(self, environment=None):
-        self._todo("list_tenants")
-
-    def put_tenant(self, tenant_id, name, environment="demo", meta=None):
-        self._todo("put_tenant")
-
-    def tenant_stats(self, tenant_id):
-        self._todo("tenant_stats")
-
-    # ── Users ─────────────────────────────────────────────────────────────
-    def put_user(self, user_id, email, password_hash, role, tenant_id, name=""):
-        self._todo("put_user")
-
-    def get_user_by_email(self, email):
-        self._todo("get_user_by_email")
-
-    # ── Bluebook ──────────────────────────────────────────────────────────
-    def put_bluebook_exam(self, rec):
-        self._todo("put_bluebook_exam")
-
-    def get_bluebook_exam(self, exam_id):
-        self._todo("get_bluebook_exam")
-
-    def list_bluebook_exams(self, tenant_id):
-        self._todo("list_bluebook_exams")
-
-    def put_bluebook_submission(self, rec):
-        self._todo("put_bluebook_submission")
-
-    def list_bluebook_submissions(self, tenant_id):
-        self._todo("list_bluebook_submissions")
-
-    def put_bluebook_course(self, rec):
-        self._todo("put_bluebook_course")
-
-    def list_bluebook_courses(self, tenant_id):
-        self._todo("list_bluebook_courses")
-
-    # ── Audit ─────────────────────────────────────────────────────────────
-    def log_audit(
-        self, action, student_id=None, tenant_id=None, actor=None, result="ok", details=None
-    ):
-        self._todo("log_audit")
-
-    def list_audit(self, student_id=None, action=None, limit=100, offset=0):
-        self._todo("list_audit")
-
-    # ── Formation ─────────────────────────────────────────────────────────
-    def get_formation_pathway(self, student_id):
-        self._todo("get_formation_pathway")
-
-    def open_formation_pathway(self, student_id, submission_id=None, reason=None):
-        self._todo("open_formation_pathway")
-
-    def advance_formation_pathway(self, student_id):
-        self._todo("advance_formation_pathway")
-
-    # ── Baseline requests ─────────────────────────────────────────────────
-    def put_baseline_request(
-        self, external_request_id, student_id, status, requested_at, data_json
-    ):
-        self._todo("put_baseline_request")
-
-    def load_baseline_requests(self):
-        self._todo("load_baseline_requests")
-
-    # ── DB path ───────────────────────────────────────────────────────────
-    def db_path(self):
-        self._todo("db_path")
-
-
-# ── Factory ───────────────────────────────────────────────────────────────────
 
 _REPO: Repository | None = None
 
