@@ -20,7 +20,7 @@ hypothesis==6.156.4
 # Lint/format/type-check + git hook runner.
 ruff==0.6.9
 mypy==1.11.2
-pre-commit>=3.7,<4
+pre-commit>=4.6.0,<5
 
 # Plotting (ROC + calibration SVGs in the benchmark report).
 matplotlib>=3.7,<4
