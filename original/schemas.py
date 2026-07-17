@@ -467,6 +467,14 @@ class BlendResultOut(BaseModel):
 class AuthorshipSignalOut(BaseModel):
     authorship_probability: float
     deviation_score: float
+    # Phase 6 amplitude-based signals — present on
+    # quantum.scoring.AuthorshipSignal but NOT currently copied by api.py's
+    # _to_response() (WS-7 S9 completeness gap: these are silently dropped
+    # today). Added here so this model fully covers the source dataclass;
+    # defaults match AuthorshipSignal's own so existing _to_response call
+    # sites (which don't pass them) stay valid.
+    quantum_fidelity: float = 0.0  # |⟨ψ_b|ψ_s⟩|² ∈ [0,1]; 1.0 = perfectly authentic
+    fidelity_conformal_pvalue: float | None = None  # conformal p-value from corrections feedback
     # Relative (claimed-student vs same-tenant impostor pool) deviation.
     # 0.5 = fits either equally; → 0 = distinctly this student's voice;
     # → 1 = fits the peer pool better (suspicious). None unless
@@ -498,6 +506,12 @@ class EntanglementAnomalyOut(BaseModel):
     feature_b: str
     tier_a: int
     tier_b: int
+    # Present on quantum.scoring.EntanglementAnomaly but NOT currently copied
+    # by api.py's _to_response() (WS-7 S9 completeness gap: silently dropped
+    # today). Defaults of 0.0 keep existing _to_response call sites (which
+    # construct this model without these two kwargs) valid.
+    expected_correlation: float = 0.0
+    observed_product: float = 0.0
     anomaly_score: float
     label: str
 
@@ -516,6 +530,11 @@ class BaselineConfidenceOut(BaseModel):
     authenticated_count: int
     effective_sample_count: float
     trajectory_confidence: float
+    # Present on quantum.scoring.BaselineConfidence but NOT currently copied
+    # by _to_response() (WS-7 S9 completeness gap: silently dropped today).
+    # Von Neumann entropy S = −Tr(ρ log ρ)/log(D) ∈ [0,1]; 0 = pure/consistent
+    # baseline, 1 = maximally mixed/low confidence.
+    von_neumann_entropy: float = 0.0
 
 
 class DomainSignalOut(BaseModel):
@@ -530,6 +549,30 @@ class RecommendedActionOut(BaseModel):
     rationale: str
 
 
+class SentenceTensionOut(BaseModel):
+    """One sentence's tension components (mirrors tension_arc.SentenceTension)."""
+
+    index: int
+    text: str
+    syntactic: float  # S(i)
+    logical: float  # L(i)
+    cohesion: float  # C(i)
+    total: float  # T(i) = α·S + β·L + γ·C
+    move_type: str  # Q / C / E / K / R / N
+
+
+class ParagraphArcOut(BaseModel):
+    """One paragraph's tension arc (mirrors tension_arc.ParagraphArc)."""
+
+    index: int
+    sentences: list[SentenceTensionOut]
+    peak_count: int
+    resolved_peaks: int
+    resolution_ratio: float  # ρ for this paragraph
+    mean_tension: float
+    max_tension: float
+
+
 class TensionArcOut(BaseModel):
     """Catastrophe/eucatastrophe stylometric fingerprint."""
 
@@ -542,6 +585,11 @@ class TensionArcOut(BaseModel):
     arc_flag: str  # "authentic" | "ai_typical" | "review" | "insufficient_length"
     arc_flag_reason: str
     tension_series: list[float]  # per-sentence T(i) for chart rendering
+    # Present on tension_arc.TensionArcResult but NOT currently copied by
+    # api.py's _to_response() (only the summary scalars above are surfaced
+    # today — WS-7 S9 completeness gap). Default [] keeps existing
+    # _to_response call sites (which don't pass this) valid.
+    paragraph_arcs: list[ParagraphArcOut] = []
 
 
 class ContextManifestOut(BaseModel):

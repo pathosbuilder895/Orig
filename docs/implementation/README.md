@@ -10,16 +10,61 @@ matrix, and a candid list of concerns about the plan's scope and approach.
 > and *how you know it's done*. Where a workstream has a dedicated audit section (WS-6→§10,
 > WS-8→§11, WS-9→§12, WS-2 configs→§13), the file is an execution checklist that references
 > that section rather than repeating it.
+>
+> Related: [`docs/adr/`](../adr/README.md) records the decisions behind several of these
+> workstreams (WS-6 in particular rests on ADR-002/004/006) — check there before re-deciding
+> something a workstream file only executes.
 
-> ⚠️ **The working tree is under active concurrent edit (observed 2026-07-07 ~09:45).** During this
-> verification pass, `original/api.py`, `original/schemas.py`, and `demo/bluebook/playwright.config.mjs`
-> were being modified in real time (uncommitted `M`, mtimes seconds old, content changing *between*
-> reads) — apparently a concurrent session already **implementing WS-9**: `_resolve_app_version()`
-> (= R.2) exists at `api.py:177`, and `playwright.config.mjs` is `fullyParallel: true` with a
-> literal "WS-9 Stage 0.2" comment. **Consequence:** every `path:line` reference in these plans is a
-> point-in-time snapshot and will drift as work lands — at execution, grep the symbol, don't trust the
-> line, and reconcile WS-9 against what's already been built before starting it. **[ANCHORS.md](ANCHORS.md)**
-> gives a greppable symbol for every load-bearing site so refs survive the drift.
+> ⚠️ **Multiple concurrent worker threads land on this repo.** `path:line` references in these
+> plans drift as work lands elsewhere — at execution, grep the symbol, don't trust the line.
+> **[ANCHORS.md](ANCHORS.md)** gives a greppable symbol for every load-bearing site so refs
+> survive the drift. Before starting any workstream, `git fetch origin main` and diff against
+> that workstream's "Current state" section — it may already be partially or fully landed.
+
+---
+
+## Current status (updated 2026-07-16, against `origin/main` HEAD `835b655`)
+
+Source: audit-remediation status review (`docs/AUDIT_2026-07-06.md` + this directory + live
+`git log`/`pytest`), cross-checked against actual code in this pass — see "Verified this pass"
+below. Percentages are estimated against each workstream's own acceptance criteria, not a
+metric tracked automatically.
+
+| WS | Status | Notes |
+|---|---|---|
+| 1 Security hotfixes | ✅ Done (100%) | No open items against its own criteria. |
+| 2 Guardrails | ✅ Done (100%) | 4-job gated CI, `.venv` on 3.11.15, ruff/black/mypy + pre-commit all landed. |
+| 3 Trust surface | ✅ Done (100%) | Docs/compliance corrected; VPAT correctly deferred to WS-4/WS-8. |
+| 4 Accessibility (exam-flow) | 🟡 ~78% | Open: several Bluebook rows still click-only `<div>`s (not keyboard-reachable); axe CI scan is non-blocking. |
+| 5 Test depth | 🟡 ~60% | Suite green (648 passed / 0 failed at last check). Open: no flag-matrix scoring tests, no full Bluebook-API CRUD tests; coverage 73% vs. 78% goal (`api.py` 62% vs. 75%), `--cov-fail-under` still 70. |
+| 6 Postgres convergence | 🔵 ~28% | **WS-7 step 1 (`ScoringConfig`) and WS-6 P1 (seam-widening) are landed on `origin/main` and verified in this pass** — see below. P2 (SQLAlchemy models for all 16 tables + fresh alembic baseline) also landed (`34a45f3`). `PostgresRepository` is still a stub — every method raises `NotImplementedError`; the app always runs on SQLite. No migration script, no cutover plan, v1 API surface not yet removed (P3–P6 open). |
+| 7 API-layer refactor | 🟡 ~40% | Step 1 (`ScoringConfig`) + step 2 (typed pydantic request models, all but 1 of 8 endpoints) + step 5 (static gating, Canvas 501 stubs) landed. Step 3 (router split into `original/routers/`) **not started** — zero `APIRouter` usage; step 4 (de-async, flag GA, merge `ORIGINAL_ENV`/`ENVIRONMENT`) not started. |
+| 8 React migration | 🔵 ~15% | R0 (Vite/TS/eslint/vitest/axe scaffold) + R1 (Bluebook ESM, ahead of schedule) landed. R2 (shared components) is a single 7-line `SkipLink.tsx`. R3 (page migration) not started — no page migrated yet. |
+| 9 E2E + release hygiene | 🟡 ~87% | 4 parallel workers, professor-journey spec + Stage-2 breadth (~55 specs), `/health` returns real `commit` + single-sourced version. Open: no `pilot-YYYY-MM-DD` release-tag convention written down yet. |
+
+**Verified this pass (2026-07-16):** confirmed directly against `origin/main` (not just the
+status report) —
+- `original/quantum/scoring.py` has no `store` import (only comments); `ScoringConfig` present
+  and wired through `api.py` via `ScoringConfig.from_env()` + explicit store lookups.
+- `original/api.py` has only 3 remaining `store.` matches, all in comments/docstrings — zero
+  live `store.*` call sites; everything routes through `_repo()`.
+- `original/repository.py` covers the store's public surface (168 methods across
+  `Repository`/`SqliteRepository`/`PostgresRepository`); `PostgresRepository` is confirmed a
+  pure `NotImplementedError` skeleton (P2/P3 boundary correctly held).
+- Full test suite green: 603+ passed, 0 failed, on both this session's branch and `origin/main`.
+
+**Open items worth a deliberate decision, not a default:**
+1. **WS-6's decision gate (Concern #1 below) was never explicitly recorded as decided** — ADR-006
+   shipped with its go/no-go checklist unchecked, and P2 (schema work) landed the next day
+   regardless. Before P3 (real `PostgresRepository` wiring) starts, get an explicit call: continue
+   into Postgres, or hold on hardened SQLite per ADR-004.
+2. **`api.py` is trending the wrong way**: 2,714 → 2,964 lines since the audit. The one step that
+   shrinks it (WS-7 step 3, the router split) is the piece still untouched. Concern #4 below
+   recommended serializing WS-7.1 → WS-6 P1 → WS-7.3 — worth confirming that ordering is still
+   being honored before more schema work lands on `api.py`.
+3. **Coverage gate hasn't caught up to the coverage goal** — `--cov-fail-under` is 70 against a
+   78% target, so a regression in the still-missing WS-5 tests (flag-matrix, Bluebook CRUD)
+   wouldn't currently fail CI.
 
 ---
 
@@ -34,7 +79,7 @@ matrix, and a candid list of concerns about the plan's scope and approach.
 | 5 | [Test depth: unit/API](WS-5-test-depth.md) | T1–T6, T10 · *T7→WS-9* | 4–6 days | WS-2 |
 | 6 | [Postgres convergence](WS-6-postgres-convergence.md) (§10) | A3, A4, A5, A8, A9, F1, F4, F6, B15, B19, T4, T6, S2, S3, part S4 | 6–9 weeks | WS-1, WS-2, **WS-7.1** |
 | 7 | [API-layer refactor](WS-7-api-refactor.md) | A2, A6, A7, A10, S1, S4, S5, S7, S8, S9, F2, F5 | 2–3 weeks | (WS-5 net) |
-| 8 | [Frontend → React](WS-8-react-migration.md) (§11) | W5–W8, W11–W15 (durable), F5 | ~2 months | WS-4, **WS-7 models** |
+| 8 | [Frontend → React](WS-8-react-migration.md) (§11) | W5–W15 (durable), F5 | ~2 months | WS-4, **WS-7 models** |
 | 9 | [E2E build-out + release hygiene](WS-9-e2e-release-hygiene.md) (§12) | T7, B20, D7 | 2–3 weeks | WS-2, WS-8 (partial) |
 
 ---
@@ -85,11 +130,16 @@ as a **strictly ordered backlog**, not a parallel schedule. Suggested waves:
 8. WS-5 (test depth) — now that WS-2 gives the shared fixture + coverage gate.
 
 **Wave 2 — the long haul (months):**
-9. WS-7 step 1 (`ScoringConfig`) — small, unblocks WS-6.
-10. WS-6 P0→P1 (seam-widening; pure refactor, still on SQLite) → **decision gate** (Concern #1).
-11. If gate passes: WS-6 P2→P6 (actual Postgres). Interleave WS-7 steps 2–5 *sequentially*
-    with WS-6 phases, not concurrently, since both rewrite `api.py` (Concern #4).
-12. WS-8 (React migration) once WS-4 is live and WS-7 models exist. WS-9 rides alongside.
+9. ✅ WS-7 step 1 (`ScoringConfig`) — landed.
+10. ✅ WS-6 P0→P1 (seam-widening; pure refactor, still on SQLite) — landed; P2 (schema/models)
+    also landed, but **the decision gate (Concern #1) was never explicitly recorded as decided**
+    before P2 shipped — see "Current status" above. Resolve that before P3.
+11. If the (retroactive) gate passes: WS-6 P3→P6 (actual `PostgresRepository` wiring, migration,
+    cutover). Interleave WS-7 steps 3–4 *sequentially* with WS-6 phases, not concurrently, since
+    both rewrite `api.py` (Concern #4) — WS-7 step 3 (router split) is next in line and hasn't
+    started.
+12. WS-8 (React migration) once WS-4 is live and WS-7 models exist. WS-9 rides alongside — it's
+    already ~87% done, further along than WS-8 would suggest.
 
 ---
 
@@ -104,7 +154,7 @@ orphaned — each row's pieces must all land for the finding to be closed.
 | **F5** (demo surface) | — | — | — | — | gate `operator.html`/`admin-context.html`; 501 Canvas stubs | retire `landing.html`/`student-coach.html` |
 | **S4** (`score()` config) | — | — | — | genre-stats-as-parameter (via P0 prereq) | `ScoringConfig` injection + collapse flag branches | — |
 | **T4/T6** (dead code, test naming) | — | — | interim: delete `rbac.py`/`tasks`, rename `test_api.py` | final: delete v1 API + its 62 tests (P6) | — | — |
-| **W1–W15** (a11y) | — | — | — | — | — | durable AA (W5–W8, W11–W15) |
+| **W1–W15** (a11y) | — | — | — | — | — | durable AA (W5–W15, incl. W9 `Chart` alt-text + W10 `Timer` extended-time) |
 | ↳ *and* WS-4 | *(WS-4 owns the now-hotfix subset of all W-findings in raw HTML/JSX)* | | | | | |
 | **B20/D7** (versioning) | — | D7 version source coordinates | — | — | — | — → **WS-9** owns B20 + D7 execution |
 
@@ -171,9 +221,13 @@ is multi-worker scaling (A4) — but a seminary/small-college pilot almost certa
 `--workers >1`; SQLite/WAL is adequate for this load. The migration's biggest *correctness* win
 (tenancy as a DB constraint instead of a string-prefix convention, P2) is achievable in SQLite too.
 → **Recommend:** make "stop after P1" an explicit, pre-committed option. P0–P1 (widen the Repository
-seam, route the 68 direct `store.*` calls through it) is valuable *regardless* of backend and
+seam, route direct `store.*` calls through it) is valuable *regardless* of backend and
 de-risks everything. Insert a real go/no-go gate before P2 (first schema/model work) and don't
 touch student data until the gate is passed on evidence, not momentum.
+**Status (2026-07-16): P1 landed and de-risked the codebase as predicted — but the gate itself
+was skipped, not inserted. P2 landed the day after ADR-006 with the go/no-go checklist still
+unchecked.** The recommendation to gate P2 wasn't followed; get an explicit retroactive decision
+before P3 (real Postgres wiring) starts.
 
 **2. Effort estimates assume parallelism a solo maintainer doesn't have, and are individually optimistic.**
 "WS-1/2/3 in parallel" and the per-WS numbers imply ~4–5 months *with* parallelism; serialized for
@@ -198,6 +252,10 @@ The router split (WS-7.3) and routing every `store.*` call through the seam (WS-
 2,714-line file. Truly concurrent, they will churn and conflict.
 → **Recommend:** serialize the shared-file steps: WS-7.1 (`ScoringConfig`) → WS-6 P1 (seam) →
 WS-7.3 (router split). "Interleave" should mean "alternate in sequence," not "edit in parallel."
+**Status (2026-07-16): the first two landed in the recommended order** (WS-7.1 → WS-6 P1, both
+confirmed on `origin/main`). **WS-7.3 (router split) is next and hasn't started** — `api.py` has
+grown to 2,964 lines in the meantime (WS-6 P2 + WS-7 steps 2/5 all landed on it too). Do the
+router split before any more schema/handler work touches this file.
 
 **5. Deferring the v1 deletion to WS-6 P6 keeps the root-cause cruft alive for the whole migration.**
 §8 names the dormant v1 stack the root cause of ~a dozen findings, yet it's only deleted at the *end*

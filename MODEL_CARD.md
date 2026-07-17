@@ -31,14 +31,25 @@ Not recommended:
 - **Submission** — A new text submission. The API accepts short text, but practical reliability begins around 300 words and improves with longer, genre-matched essays.
 - **Optional proctored keystroke data** — Used by Tier 17 behavioral biometrics when a Bluebook/proctored writing session supplies timing, deletion, pause, paste, and revision signals. When absent, these dimensions default to neutral values.
 
-Minimum baseline policy:
+Minimum baseline policy (recommended thresholds):
 
 | Condition | Effect |
 |-----------|--------|
-| < 3 authenticated baselines | Scoring is blocked or should be treated as insufficient. |
-| 3-4 authenticated baselines | Scoring can run, but `escalate` is suppressed. |
+| < 3 authenticated baselines | Treat as insufficient — read any score as low-confidence enrollment, not a verdict. |
+| 3-4 authenticated baselines | Scoring runs at reduced confidence; treat any `escalate` as "review," not "act." |
 | >= 5 authenticated baselines | Full action range is available, subject to confidence checks. |
 | Low baseline purity | Treat recommendations with caution and consider rebaselining. |
+
+**Enforcement note.** These are *recommended* thresholds. The current pilot scoring
+surface (`original/api.py`) enforces only the zero-sample block — scoring is refused
+until at least one authenticated sample exists — and expresses thin baselines through
+a reduced `baseline_confidence` and a "confidence is limited" note in the rationale,
+rather than hard-suppressing `escalate`. The stricter hard gates —
+`MIN_BASELINE_SAMPLES = 3` (below which scoring is blocked) and
+`MIN_BASELINE_FOR_ESCALATE = 5` (below which `escalate` is downgraded to
+`schedule_conversation`) — are enforced on the v1 policy path (`original/api/v1/`).
+Until they are enforced on the pilot surface, institutions should apply the
+suppression thresholds during human review.
 
 ---
 
@@ -47,7 +58,7 @@ Minimum baseline policy:
 The current engine uses `FEATURE_DIM = 103` from `original/constants.py`.
 
 - **96 base dimensions** are extracted from text, citation behavior, and optional proctored keystroke data.
-- **7 comparison/profile dimensions** are computed during scoring when baseline context is available.
+- **7 comparison/profile dimensions** are computed during scoring when baseline context is available — 2 pure comparison features (Tier 0 below) plus 5 baseline-relative features distributed across Tiers 9–11.
 - Legacy profiles with older dimensions are padded on load for backward compatibility.
 
 | Tier | Name | Count | Purpose |
@@ -69,7 +80,7 @@ The current engine uses `FEATURE_DIM = 103` from `original/constants.py`.
 | 15 | Lexical architecture | 5 | Semantic concentration, polysyndeton, chiasmus, Latinate ratio, nominalizations. |
 | 16 | Citation fingerprint | 8 | Signal verbs, source loyalty, block quotes, citation clustering, ibid., paraphrase style. |
 | 17 | Behavioral biometrics | 6 | Keystroke rhythm, bursts, deletion rate, pauses, paste events, revision depth. |
-| 0 | Comparison/profile features | 7 | Baseline-relative divergence dimensions computed during scoring. |
+| 0 | Comparison/profile features | 2 | The two pure baseline-relative comparison dimensions computed at scoring time. (The other 5 of the 7 comparison/profile dims are the baseline-relative features already counted in Tiers 9–11, so this Count column sums to 103.) |
 
 Preprocessing removes bibliography, appendix, notes, parenthetical citation markers, footnote superscripts, and block quotes from prose features while preserving citation behavior for Tier 16.
 
@@ -88,10 +99,10 @@ Weights combine sample provenance and recency. New submissions are scored with a
 - `deviation_score` — distance from the student's established baseline, normalized to 0-1.
 - `authorship_probability` / fidelity-style signal — how strongly the submission projects onto the student's baseline state.
 - `baseline_confidence` — sample count, purity, and confidence indicators.
-- `interference_decomposition` — feature/tier contributions that drove the recommendation.
-- `trajectory_conformance` — whether observed deviation resembles natural growth.
+- `interference_decomposition` (response key: `interference`) — feature/tier contributions that drove the recommendation.
+- `trajectory_conformance` (response key: `trajectory`) — whether observed deviation resembles natural growth.
 - `context_manifest` and scoring report when enabled — auditable context and weighting decisions.
-- `recommended_action` — `no_action`, `monitor`, `schedule_conversation`, or `escalate`.
+- `recommended_action` (response key: `recommendation.action`) — `no_action`, `monitor`, `schedule_conversation`, or `escalate`.
 
 ---
 
@@ -103,9 +114,9 @@ Weights combine sample provenance and recency. New submissions are scored with a
 | `monitor` | 0.40-0.60 | Mild deviation; watch future submissions and context. |
 | `schedule_conversation` | 0.60-0.75 | Notable deviation; instructor should discuss the submission with the student. |
 | `escalate` | 0.75-1.00 | Significant deviation; begin formal institutional review if baseline confidence is adequate. |
-| `escalate` override | RMS z > 3.0 | Catastrophic drift; immediate review recommended. |
+| `escalate` override | RMS z ≥ 3.0 | Catastrophic drift; immediate review recommended. |
 
-Escalation is suppressed when fewer than 5 authenticated baselines are available. A recommendation is never equivalent to a finding of misconduct.
+By policy, escalation is suppressed when fewer than 5 authenticated baselines are available — but see the enforcement note under *Inputs*: on the current pilot surface this is expressed as reduced confidence and a thin-baseline caution rather than a hard downgrade, so a sparse-profile `escalate` can still surface and must be corroborated by human review. A recommendation is never equivalent to a finding of misconduct.
 
 ---
 

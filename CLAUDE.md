@@ -18,10 +18,13 @@ Stylometric authorship verification system for academic integrity. Per-student q
 
 ## Testing
 ```bash
-.venv/bin/python -m pytest tests/ -q                  # full suite (605 tests, ~42s; 608 with validation/test_tier10_optional.py)
+.venv/bin/python -m pytest tests/ -q                  # full suite (~882 tests as of 2026-07-16, ~70s; ~885 with validation/test_tier10_optional.py)
 .venv/bin/python -m pytest tests/quantum/ -v          # quantum module only
 .venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -q   # exact CI command
 ```
+Test count grows regularly — treat the numbers above as approximate (get the
+current count with `.venv/bin/python -m pytest --collect-only -q tests/ 2>&1 | tail -1`),
+not a pinned figure to keep in sync by hand.
 The 5 `TestAuthEndpoints` tests that 429 under full-suite rate-limit exhaustion are
 marked `xfail(strict=False)` — they show as XFAIL/XPASS, never as failures. A clean
 run is **0 failed**; treat any failure as real. (Historical note: counts before
@@ -55,6 +58,8 @@ All production features are opt-in via env flags. Default OFF preserves Phase 1 
 | `AI_LIKELIHOOD_MODEL_PATH` | unset | Path to the committed calibrated classifier artifact for the AI-likelihood detector. |
 | `GUARD_DESTRUCTIVE` | — | Security/ops flag — see `docs/OPS_RUNBOOK.md` (owned by WS-1) for semantics. |
 | `MAINTENANCE_TOKEN` | — | Role-granting `X-Guard-Token` secret (`api.py:2642`) — see `docs/OPS_RUNBOOK.md` (owned by WS-1). |
+| `LOGIN_THROTTLE_MAX_ATTEMPTS` | `10` | Failed-login attempts allowed within the throttle window before lockout (`api.py`, near the login-throttle helpers). CI sets this higher for the e2e job's login volume only. |
+| `LOGIN_THROTTLE_WINDOW_SEC` | `300` | Rolling window (seconds) the above attempt count is measured over (`api.py`). |
 | `ENABLE_HSTS` | — | Security/ops flag — see `docs/OPS_RUNBOOK.md` (owned by WS-1). |
 | `ALLOWED_ORIGINS` | — | CORS allowlist; fails closed if unset in production — see `docs/OPS_RUNBOOK.md` (owned by WS-1). |
 | `ORIGINAL_ENV` | — | Deploy gate (`run.py:59,96`). Documented as-is alongside `ENVIRONMENT` below; the WS-7 merge of the two is pending — don't pre-document it. |
@@ -65,6 +70,8 @@ All production features are opt-in via env flags. Default OFF preserves Phase 1 
 | `BACKUP_KEEP` | — | No-op without config. Backup retention count. |
 | `BBOOK_API_URL` | — | No-op without config. Bluebook integration endpoint. |
 | `BBOOK_EXTERNAL_SECRET` | — | No-op without config. Bluebook shared secret. |
+| `CANVAS_BASE_URL` | — | Canvas instance URL for `/canvas/baseline/*` live import (`canvas/live_import.py`). Without it (and no request-supplied token) those endpoints 400 with manual-upload guidance. |
+| `CANVAS_API_TOKEN` | — | Canvas API bearer token for the same endpoints; a request-body `access_token` overrides it. |
 | `LTI_PLATFORMS` | — | No-op without config. Registered LTI platform configs for `/lti/*`. |
 | `LTI_PRIVATE_KEY` | — | No-op without config. LTI signing key (inline). |
 | `LTI_PRIVATE_KEY_FILE` | — | No-op without config. LTI signing key (file path). |
@@ -81,8 +88,13 @@ Demo mode turns on CONTEXT_MANIFEST_ENABLED, ADAPTIVE_WEIGHTS_ENABLED, and NULL_
 biometrics (6 features: `typing_speed_cv, burst_ratio, deletion_rate,
 pause_density, paste_event_rate, revision_depth`) is in `DISABLED_FEATURE_GROUPS`
 by default pending live keystroke data from Bbook; Tier 10 semantic (2 features:
-`semantic_field_dispersion, semantic_centroid_proximity`) degrades to neutral 0.5
-without sentence-transformers installed. `BASE_FEATURE_DIM = 96` (`constants.py:222`)
+`semantic_field_dispersion, semantic_centroid_proximity`) has a genuine TF-IDF
+fallback backend (`original/features/tier10.py`) that produces real, non-neutral
+values when sentence-transformers is unavailable — it is not a placeholder-only
+degrade. The 0.5 neutral value only fires when there are too few usable
+sentences to encode at all (< 3 for `semantic_field_dispersion`, < 2 for the
+embeddings behind `semantic_centroid_proximity`), regardless of which backend
+would otherwise run. `BASE_FEATURE_DIM = 96` (`constants.py:222`)
 is the stored-baseline width (tier-17 included as 0.5 placeholders) — a distinct
 number from the 97 "active" count; don't conflate the two.
 

@@ -236,6 +236,23 @@ def assert_student_access(principal: Principal, student_id: str) -> None:
     raise TenantAccessError(f"{principal.role}@{principal.tenant_id} cannot access '{student_id}'")
 
 
+def assert_tenant_access(principal: Principal, tenant_id: str) -> None:
+    """Raise ``TenantAccessError`` if ``principal`` may not read ``tenant_id``'s record.
+
+    A staff principal may always read their own institution's tenant record.
+    Cross-tenant reads require operator/super_admin (the "all schools"
+    registry view — see ``SUPER_ROLES``). Callers are expected to have
+    already rejected non-staff principals (e.g. via ``_require_staff``).
+    """
+    if principal.role in SUPER_ROLES:
+        return  # operator / super-admin: cross-tenant by design
+    if tenant_id == principal.tenant_id:
+        return
+    raise TenantAccessError(
+        f"{principal.role}@{principal.tenant_id} cannot access tenant '{tenant_id}'"
+    )
+
+
 def extract_scoped_id(path: str) -> str | None:
     """Return the tenant-scoped identity id embedded in a request path, else None.
 

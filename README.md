@@ -293,6 +293,27 @@ pilot's actual deploy process.
 
 ---
 
+## Architecture decision records
+
+Load-bearing decisions and their rationale live in `docs/adr/`, each dated and
+numbered — read the newest-relevant one before revisiting a decision that's
+already been made:
+
+| ADR | Decision |
+|---|---|
+| [001](docs/adr/001-quantum-scoring.md) | Quantum-inspired density-matrix scoring |
+| [002](docs/adr/002-data-layer-convergence.md) | Converge demo/v1 data layers behind a `Repository` seam |
+| [003](docs/adr/003-multi-tenant-auth-without-losing-demo.md) | Multi-institution readiness without losing the demo |
+| [004](docs/adr/004-postgres-migration.md) | Hardened SQLite for the pilot; Postgres path documented |
+| [005](docs/adr/005-student-read-model.md) | Redacting read-model for the student dashboard |
+| [006](docs/adr/006-postgres-convergence.md) | Converge on Postgres via the `Repository` seam (Route A) |
+| [007](docs/adr/007-ai-likelihood-gating.md) | AI-likelihood detector: report-only contract + gating |
+
+See [docs/adr/README.md](docs/adr/README.md) for the fuller index (status
+column + reading order for the Postgres decision thread).
+
+---
+
 ## Architecture
 
 | Layer | Technology |
@@ -302,7 +323,7 @@ pilot's actual deploy process.
 | ORM & migrations | SQLAlchemy + Alembic in v1; repository/store layer in the dashboard app |
 | Auth | Principal tokens + PBKDF2 staff auth in dashboard app; JWT (python-jose) + bcrypt in v1 |
 | NLP | spaCy `en_core_web_sm` |
-| Embeddings | sentence-transformers `all-MiniLM-L6-v2` (optional — Tier 10 falls back to neutral if unavailable) |
+| Embeddings | sentence-transformers `all-MiniLM-L6-v2` (optional — Tier 10 falls back to a genuine TF-IDF encoding, not a neutral placeholder, if unavailable) |
 | Feature extraction | Pure Python + numpy (Tiers 1–17, with optional Tier 17 keystroke inputs) |
 | Scoring | Quantum density matrix, Born rule (numpy) |
 | LTI | IMS LTI 1.3 / OIDC (Canvas + Blackboard) |
@@ -382,7 +403,7 @@ python3 -m pytest tests/test_features.py tests/test_quantum.py \
   tests/test_tension_arc_integration.py --noconftest -v
 ```
 
-A narrow slice covering feature extraction, quantum invariants (Born probability bounds, density matrix trace normalisation, purity bounds, trajectory), and tension arc integration. No database or Docker required. The full suite (`.venv/bin/pytest tests/ -q`, see `CLAUDE.md`) is 605 tests.
+A narrow slice covering feature extraction, quantum invariants (Born probability bounds, density matrix trace normalisation, purity bounds, trajectory), and tension arc integration. No database or Docker required. The full suite (`.venv/bin/pytest tests/ -q`, see `CLAUDE.md`) is ~882 tests as of 2026-07-16 (test count grows regularly — treat this as approximate, not a pinned number).
 
 ---
 

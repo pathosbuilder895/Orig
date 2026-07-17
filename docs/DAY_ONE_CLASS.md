@@ -44,7 +44,7 @@ Full version: [PROVISIONING_CHECKLIST.md](PROVISIONING_CHECKLIST.md).
   isolated). Slug is lowercase-kebab and **permanent** — it prefixes every
   student id.
   - [ ] `GET $HOST/tenants` shows it with `environment: pilot`.
-- [ ] **Register the professor** (guarded upsert):
+- [ ] **Register the professor** (guarded create — returns 409 if that email already exists; it does not update an existing account):
   ```bash
   curl -s -X POST $HOST/auth/register \
     -H 'Content-Type: application/json' -H "X-Guard-Token: $MAINTENANCE_TOKEN" \
@@ -74,20 +74,28 @@ links to hand out.
   `…/bluebook/`. Verify per [CANVAS_RUNBOOK.md](CANVAS_RUNBOOK.md) §3.
 
 **Path B — No-Canvas fallback.** Generate one bound, disclosure-minimized link
-per student from the class roster:
+per student from the class roster. **Export the pilot's `SECRET_KEY` first** —
+the links are signed with it and a pilot rejects links signed with anything else:
 ```bash
+export SECRET_KEY=<the pilot's SECRET_KEY>   # same value as the Render service
 .venv/bin/python scripts/roster_links.py \
   --roster roster.csv --tenant <slug> \
   --base-url $HOST --exam "Week 1 Writing Sample" \
   --out links.csv --expected-out expected_roster.json
 ```
-- [ ] Links carry only the opaque `sid` (no name/email) — send **each link to its
-  own student privately**; one link == one bound profile.
+- [ ] Each link is a signed `/bluebook/launch?t=…` token carrying no name/email —
+  redeemed server-side into a short session + proctor attestation so the sitting
+  **lands as `proctored`** on the pilot. Send **each link to its own student
+  privately**; one link == one bound profile. (A link is a bearer credential and
+  reusable until it expires — `--link-ttl-days`, default 14.)
 - [ ] Keep `links.csv` (maps sid→student, for you) and `expected_roster.json`
   (the "N of M submitted" spine) in the password manager / course folder.
 - [ ] The `sid` a link produces is **identical** to what a Canvas launch would
   derive, so a class can start on links today and move to Canvas later with no
   profile split.
+- [ ] If SECRET_KEY is unset the script warns and signs with an insecure dev
+  fallback (demo only); `--unsigned` emits the legacy `?sid=` link, which
+  **cannot** land proctored on a pilot.
 
 ### Step 4 — Disclosure + smoke test
 
@@ -95,7 +103,7 @@ per student from the class roster:
   [STUDENT_DISCLOSURE.md](STUDENT_DISCLOSURE.md)).
 - [ ] One volunteer runs the loop end-to-end:
   [PILOT_SMOKE_TEST.md](PILOT_SMOKE_TEST.md) §C — launches, lands in the briefing
-  as themselves, types past the minimum, Seal & Surrender → appears on the
+  as themselves, types past the minimum, Seal & Submit → appears on the
   professor's roster with provenance `proctored`.
 
 ### Step 5 — Run it
@@ -111,8 +119,10 @@ per student from the class roster:
 prior baseline to compare against, so the **AI/authorship score is blank** and
 the stylometric bar reads ~100% (drift vs an empty profile). A row with scores
 *does* appear that day — but the meaningful integrity signal starts at the
-**second** sitting, and escalation stays suppressed until the profile is built
-(~3+ authenticated samples). Tell the professor: **week 1 = enrollment by
+**second** sitting. Thin early profiles score at **low confidence** — an
+`escalate` on a one- or two-sample baseline is a "look closer," not an "act,"
+and becomes trustworthy only once the profile is built (~3–5 authenticated
+samples). Tell the professor: **week 1 = enrollment by
 writing; the payoff is week 2–3.** → [PROFESSOR_QUICKSTART.md](PROFESSOR_QUICKSTART.md).
 
 ---
@@ -125,4 +135,6 @@ writing; the payoff is week 2–3.** → [PROFESSOR_QUICKSTART.md](PROFESSOR_QUI
 | Canvas launch lands in wrong data | `LTI_PLATFORMS` `tenant_id` ≠ slug | [CANVAS_RUNBOOK.md](CANVAS_RUNBOOK.md) §4 |
 | Anonymous can read student | tenant is `demo`, not `pilot` | recreate tenant `environment=pilot` |
 | Magic link 404 / not clickable | `--base-url` omitted when generating | rerun `roster_links.py` with `$HOST` |
+| Magic link → "invalid or expired launch link" | link signed with a different `SECRET_KEY` than the pilot's (or expired) | regenerate with the pilot's `SECRET_KEY` exported |
+| Student can't submit on a pilot — 403 "Cross-tenant access denied" | `--unsigned` `?sid=` link used on a pilot: it carries no session/attestation, so the write is anonymous and blocked (on a *demo* tenant it would instead land `unverified`) | regenerate signed (drop `--unsigned`, set `SECRET_KEY`) |
 | Student appears twice | link `sid` ≠ Canvas `sid` | shouldn't happen — same derivation; check the slug matches the tenant |

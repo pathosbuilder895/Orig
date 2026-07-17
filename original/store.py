@@ -588,6 +588,31 @@ def put_manifest(
         log.warning("put_manifest failed for %s: %s", submission_id, e)
 
 
+def submission_student_id(submission_id: str) -> str | None:
+    """Resolve the student a submission belongs to (manifest, then score audit).
+
+    Mirrors ``put_correction``'s student back-fill precedence so a caller can
+    tenant-scope a correction *before* writing it. Returns None when the
+    submission is unknown — no manifest row (manifests are gated behind
+    CONTEXT_MANIFEST_ENABLED) and no ``action='score'`` audit row yet.
+    """
+    m = get_manifest(submission_id)
+    if m is not None and m.get("student_id"):
+        return str(m["student_id"])
+    try:
+        with _get_conn() as conn:
+            row = conn.execute(
+                "SELECT student_id FROM audit_log WHERE action = 'score' "
+                r"AND details_json LIKE ? ESCAPE '\' ORDER BY created_at DESC LIMIT 1",
+                (f'%"submission_id": "{_escape_like(submission_id)}"%',),
+            ).fetchone()
+            if row is not None and row[0]:
+                return str(row[0])
+    except Exception:
+        pass
+    return None
+
+
 def get_manifest(submission_id: str) -> dict | None:
     """Return the manifest_json + sidecar fields for a submission, or None."""
     try:
@@ -1168,8 +1193,8 @@ def put_correction(
             with _get_conn() as conn:
                 row = conn.execute(
                     "SELECT student_id FROM audit_log WHERE action = 'score' "
-                    "AND details_json LIKE ? ORDER BY created_at DESC LIMIT 1",
-                    (f'%"submission_id": "{submission_id}"%',),
+                    r"AND details_json LIKE ? ESCAPE '\' ORDER BY created_at DESC LIMIT 1",
+                    (f'%"submission_id": "{_escape_like(submission_id)}"%',),
                 ).fetchone()
                 if row is not None:
                     student_id = row[0]

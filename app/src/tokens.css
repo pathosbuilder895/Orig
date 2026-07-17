@@ -1,0 +1,116 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   tokens.css — shared design tokens for the app/ accessible component
+   library (WS-8 R2, docs/implementation/WS-8-react-migration.md).
+
+   Values are ported from the converged `:root` custom properties in
+   demo/student.html and demo/professor.html, with the WS-4 accessibility
+   fixes (docs/AUDIT_2026-07-06.md — findings W6, W11, W14) baked in as the
+   canonical numbers, not the pre-fix legacy ones:
+
+     W6  — ink-alpha floor raised to >= 0.62 on parchment (4.69:1),
+           --text-muted darkened to #5d6773, gold text-on-cream uses the
+           amber #8a6a28 (the raw gold #b08d3c fails 4.5:1 as text).
+     W14 — hairlines/dividers raised to >= 0.55 alpha; every focusable
+           element gets a visible :focus-visible box-shadow ring (never
+           outline: none with nothing to replace it).
+     W11 — a single @media (prefers-reduced-motion: reduce) block,
+           app-wide. Component stylesheets should rely on this one block
+           rather than adding their own copies.
+
+   Component stylesheets pull this in via `@import '../tokens.css';` so the
+   global rules below are active wherever a component from this library is
+   used, without requiring every consumer to remember to import it.
+   ───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ── Palette ── */
+  --color-oxford: #002147;
+  --color-oxford-mid: #0a2f5c;
+  --color-gold: #b08d3c;
+  --color-gold-dim: rgba(176, 141, 60, 0.15);
+  --color-amber: #8a6a28; /* W6: text-safe gold-on-cream */
+  --color-wine: #6b2737;
+  --color-wine-dim: rgba(107, 39, 55, 0.08);
+  --color-sage: #4a6b5c;
+  --color-sage-dim: rgba(74, 107, 92, 0.1);
+
+  --color-parchment: #f7f2e7;
+  --color-vellum: #fbf8f1;
+
+  /* ── Text — W6: ink-alpha floor >= 0.62 on parchment ── */
+  --color-ink: #1a1a1a;
+  --text-ink: rgba(26, 26, 26, 0.62);
+  --text-muted: #5d6773;
+  --text-on-dark: #f7f2e7;
+  --text-on-dark-dim: rgba(247, 242, 231, 0.7);
+
+  /* ── Hairlines / dividers — W14: >= 0.55 alpha ── */
+  --hairline: rgba(60, 90, 130, 0.55);
+  --hairline-strong: rgba(60, 90, 130, 0.65);
+
+  /* ── Focus ring — W14: visible box-shadow ring, never outline: none ── */
+  --focus-ring: 0 0 0 3px var(--color-gold);
+
+  /* ── Structure ── */
+  --radius: 6px;
+  --radius-sm: 4px;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.05);
+  --overlay-scrim: rgba(0, 0, 0, 0.45);
+
+  /* ── Spacing — value-named scale (--space-N = Npx). Components must use
+     these for padding/margin/gap/inset instead of inventing raw px. ── */
+  --space-2: 2px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --space-32: 32px;
+
+  /* ── Type ── */
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'EB Garamond', Georgia, serif;
+  --font-ui: 'Inter', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', Menlo, monospace;
+}
+
+/* ── Focus-visible ring (W14) — the default for every interactive element
+   in the library. Components must not set outline: none without also
+   supplying this (or an equivalent) box-shadow. ── */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 2px;
+}
+
+/* ── Visually-hidden utility — content stays in the accessibility tree but
+   is clipped from visual layout (screen-reader-only text, LiveRegion
+   announcer, supplementary labels). ── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Reduced motion (W11) — the single app-wide switch. Author transitions
+   and animations to run at full speed by default; this is what neutralizes
+   them when the user has asked for reduced motion. Do not add
+   component-local copies of this query — extend this one instead. ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

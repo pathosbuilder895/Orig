@@ -1,0 +1,292 @@
+"""
+tests/test_schemas.py — Pydantic schema round-trip coverage (WS-7 §7.2, S9).
+
+WS-7's audit flags api.py's `_to_response(r, arc=None, report=None)` as "the
+load-bearing dataclass→pydantic mapper... untyped" and recommends guarding
+its `report=None`/`arc=None` defaulting path with a round-trip test:
+
+    Layer7Output → asdict → model_validate → response
+
+i.e. build a `Layer7OutputResponse` directly from `dataclasses.asdict()` of
+the internal `Layer7Output`/`TensionArcResult` dataclasses (bypassing
+`_to_response`'s hand-rolled field copying) and confirm nothing is silently
+dropped. Writing this test surfaced several fields that `_to_response`
+silently dropped at the time (`AuthorshipSignal.quantum_fidelity`,
+`AuthorshipSignal.fidelity_conformal_pvalue`,
+`EntanglementAnomaly.expected_correlation`/`observed_product`,
+`TensionArcResult.paragraph_arcs`; `BaselineConfidence.von_neumann_entropy`
+was also on that list but has since been wired up in `_to_response`) —
+schemas.py's response models were
+extended (with defaults, so existing `_to_response` call sites still
+construct fine) to cover them. This file does not modify or call
+`_to_response` itself; that wiring is a later, separate pass.
+"""
+
+from __future__ import annotations
+
+import dataclasses
+
+import pytest
+
+from original.ai_likelihood import AiIndicator, AiLikelihoodResult
+from original.quantum.scoring import (
+    AuthorshipSignal,
+    BaselineConfidence,
+    DomainSignal,
+    EntanglementAnomaly,
+    FeatureContribution,
+    InterferenceDecomposition,
+    Layer7Output,
+    RecommendedAction,
+    TrajectoryConformance,
+)
+from original.schemas import Layer7OutputResponse
+from original.tension_arc import ParagraphArc, SentenceTension, TensionArcResult
+
+
+def _sentence(i: int) -> SentenceTension:
+    return SentenceTension(
+        index=i,
+        text=f"Sentence {i}.",
+        syntactic=0.4,
+        logical=0.3,
+        cohesion=0.2,
+        total=0.3,
+        move_type="Q",
+    )
+
+
+def _paragraph_arc() -> ParagraphArc:
+    return ParagraphArc(
+        index=0,
+        sentences=[_sentence(0), _sentence(1)],
+        peak_count=1,
+        resolved_peaks=1,
+        resolution_ratio=1.0,
+        mean_tension=0.3,
+        max_tension=0.4,
+    )
+
+
+def _tension_arc_result() -> TensionArcResult:
+    return TensionArcResult(
+        tension_series=[0.1, 0.2, 0.3],
+        paragraph_arcs=[_paragraph_arc()],
+        resolution_ratio_mean=0.8,
+        resolution_ratio_std=0.1,
+        catastrophe_index=0.05,
+        mean_tension=0.2,
+        max_tension=0.35,
+        authenticity_signal=0.9,
+        arc_flag="authentic",
+        arc_flag_reason="resolution ratio within authentic band",
+    )
+
+
+def _feature_contribution(code: str, direction: str) -> FeatureContribution:
+    return FeatureContribution(
+        code=code,
+        name=code.replace("_", " ").title(),
+        tier=3,
+        contribution=0.05 if direction == "constructive" else -0.05,
+        direction=direction,
+        baseline_value=0.5,
+        submission_value=0.55,
+        delta=0.05,
+    )
+
+
+def _entanglement_anomaly() -> EntanglementAnomaly:
+    return EntanglementAnomaly(
+        feature_a="lexical_diversity",
+        feature_b="syntactic_complexity",
+        tier_a=2,
+        tier_b=3,
+        expected_correlation=0.6,
+        observed_product=0.1,
+        anomaly_score=0.5,
+        label="T2-T3 discourse-rhetorical",
+    )
+
+
+def _ai_likelihood_result() -> AiLikelihoodResult:
+    return AiLikelihoodResult(
+        probability=0.72,
+        band="elevated",
+        model_version="v1",
+        trained_on="corpus-2026-06",
+        top_indicators=[
+            AiIndicator(code="burstiness", label="Burstiness", z=2.1, direction="lower"),
+        ],
+    )
+
+
+def _full_layer7_output() -> Layer7Output:
+    """A Layer7Output with every optional field populated (non-default path)."""
+    return Layer7Output(
+        student_id="student-1",
+        submission_id="sub-1",
+        authorship=AuthorshipSignal(
+            authorship_probability=0.62,
+            deviation_score=0.31,
+            quantum_fidelity=0.87,
+            fidelity_conformal_pvalue=0.043,
+            llr_deviation_score=0.28,
+        ),
+        trajectory=TrajectoryConformance(
+            direction="stable", alignment=0.9, confidence=0.8, adjustment_factor=1.0
+        ),
+        interference=InterferenceDecomposition(
+            total_probability=1.0,
+            constructive_features=[_feature_contribution("lexical_diversity", "constructive")],
+            destructive_features=[_feature_contribution("syntactic_complexity", "destructive")],
+            broken_entanglements=[_entanglement_anomaly()],
+            tier_breakdown={"tier_2": 0.4, "tier_3": 0.6},
+        ),
+        baseline_confidence=BaselineConfidence(
+            purity=0.95,
+            sample_count=6,
+            authenticated_count=5,
+            effective_sample_count=4.5,
+            trajectory_confidence=0.8,
+            von_neumann_entropy=0.12,
+        ),
+        domain=DomainSignal(
+            theological_register_score=0.4, register_anomaly=False, confessional_balance="balanced"
+        ),
+        recommendation=RecommendedAction(
+            action="no_action", confidence=0.9, rationale="Well within baseline."
+        ),
+        feature_vector={"lexical_diversity": 0.55},
+        baseline_vector={"lexical_diversity": 0.5},
+        catastrophic_drift=False,
+        catastrophic_drift_rms_z=1.2,
+        tension_arc=_tension_arc_result(),
+        context_manifest=None,
+        ai_likelihood=_ai_likelihood_result(),
+    )
+
+
+def _minimal_layer7_output() -> Layer7Output:
+    """
+    The Phase-1 byte-identical default path: tension_arc, context_manifest,
+    and ai_likelihood all None (the "arc=None"/"report=None" defaulting path
+    WS-7 calls out as where a drift bug would hide).
+    """
+    return Layer7Output(
+        student_id="student-2",
+        submission_id="sub-2",
+        authorship=AuthorshipSignal(authorship_probability=0.5, deviation_score=0.1),
+        trajectory=TrajectoryConformance(
+            direction="stable", alignment=0.5, confidence=0.5, adjustment_factor=1.0
+        ),
+        interference=InterferenceDecomposition(
+            total_probability=1.0,
+            constructive_features=[],
+            destructive_features=[],
+            broken_entanglements=[],
+            tier_breakdown={},
+        ),
+        baseline_confidence=BaselineConfidence(
+            purity=1.0,
+            sample_count=1,
+            authenticated_count=1,
+            effective_sample_count=1.0,
+            trajectory_confidence=0.5,
+        ),
+        domain=DomainSignal(
+            theological_register_score=0.0, register_anomaly=False, confessional_balance="balanced"
+        ),
+        recommendation=RecommendedAction(action="no_action", confidence=0.5, rationale=""),
+        feature_vector={},
+        baseline_vector={},
+    )
+
+
+def test_layer7_output_dataclass_fields_all_have_response_counterparts():
+    """Every Layer7Output dataclass field must exist on Layer7OutputResponse."""
+    result = _full_layer7_output()
+    response = Layer7OutputResponse.model_validate(dataclasses.asdict(result))
+    for f in dataclasses.fields(result):
+        assert hasattr(response, f.name), (
+            f"Layer7Output.{f.name} has no Layer7OutputResponse counterpart — "
+            "a field would be silently dropped on the way to the API response."
+        )
+
+
+def test_layer7_output_round_trip_full_no_dropped_fields():
+    """
+    Full round trip with every optional branch populated. Guards the fields
+    that _to_response's hand-rolled copying silently drops today: this
+    exercises schemas.py's models directly (not _to_response), so it proves
+    schemas.py itself is a complete, accurate typed contract.
+    """
+    result = _full_layer7_output()
+    response = Layer7OutputResponse.model_validate(dataclasses.asdict(result))
+
+    assert response.student_id == result.student_id
+    assert response.submission_id == result.submission_id
+
+    # AuthorshipSignal — quantum_fidelity/fidelity_conformal_pvalue are the
+    # fields _to_response never copies into AuthorshipSignalOut today.
+    assert response.authorship.authorship_probability == result.authorship.authorship_probability
+    assert response.authorship.deviation_score == result.authorship.deviation_score
+    assert response.authorship.quantum_fidelity == result.authorship.quantum_fidelity
+    assert (
+        response.authorship.fidelity_conformal_pvalue
+        == result.authorship.fidelity_conformal_pvalue
+    )
+    assert response.authorship.llr_deviation_score == result.authorship.llr_deviation_score
+
+    # BaselineConfidence — von_neumann_entropy was dropped by _to_response when
+    # this test was written; it's since been wired up (api.py:2294), so this
+    # now asserts the round-trip rather than documenting a gap.
+    assert response.baseline_confidence.von_neumann_entropy == pytest.approx(0.12)
+
+    # EntanglementAnomaly — expected_correlation/observed_product are dropped
+    # by _to_response today.
+    anomaly = response.interference.broken_entanglements[0]
+    src_anomaly = result.interference.broken_entanglements[0]
+    assert anomaly.expected_correlation == src_anomaly.expected_correlation
+    assert anomaly.observed_product == src_anomaly.observed_product
+    assert anomaly.anomaly_score == src_anomaly.anomaly_score
+
+    # TensionArcResult.paragraph_arcs is dropped by _to_response today (only
+    # the summary scalars are surfaced).
+    assert response.tension_arc is not None
+    assert len(response.tension_arc.paragraph_arcs) == 1
+    para = response.tension_arc.paragraph_arcs[0]
+    assert para.peak_count == 1
+    assert len(para.sentences) == 2
+    assert para.sentences[0].move_type == "Q"
+
+    # AI-likelihood — already fully covered, sanity-check it survives too.
+    assert response.ai_likelihood is not None
+    assert response.ai_likelihood.probability == pytest.approx(0.72)
+    assert response.ai_likelihood.top_indicators[0].code == "burstiness"
+
+    # context_manifest stayed None (not populated in this fixture).
+    assert response.context_manifest is None
+
+
+def test_layer7_output_round_trip_minimal_defaults_path():
+    """
+    The flags-OFF / Phase-1 default path: tension_arc, context_manifest, and
+    ai_likelihood are all None. Confirms the round trip degrades cleanly
+    (no validation error, optional fields land as None) rather than hiding
+    a drift bug behind the defaulting branch, per WS-7's explicit call-out.
+    """
+    result = _minimal_layer7_output()
+    response = Layer7OutputResponse.model_validate(dataclasses.asdict(result))
+
+    assert response.tension_arc is None
+    assert response.context_manifest is None
+    assert response.ai_likelihood is None
+    assert response.interference.broken_entanglements == []
+    assert response.authorship.quantum_fidelity == 0.0
+    assert response.authorship.fidelity_conformal_pvalue is None
+    assert response.baseline_confidence.von_neumann_entropy == 0.0
+    # report/human_explanation are not part of Layer7Output at all (built
+    # separately by _to_response) — should default to None, not error.
+    assert response.report is None
+    assert response.human_explanation is None

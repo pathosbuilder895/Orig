@@ -1,0 +1,46 @@
+@import '../tokens.css';
+
+.labeled-input {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  font-family: var(--font-ui);
+}
+
+.labeled-input-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.labeled-input-required {
+  color: var(--color-wine);
+}
+
+.labeled-input-field {
+  font: inherit;
+  font-size: 0.95rem;
+  padding: var(--space-8) var(--space-10);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--color-vellum);
+  color: var(--color-ink);
+  transition: border-color 0.15s;
+}
+
+.labeled-input-field--error {
+  border-color: var(--color-wine);
+}
+
+.labeled-input-help {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.labeled-input-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-wine);
+  font-weight: 500;
+}

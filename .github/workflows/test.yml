@@ -60,9 +60,16 @@ jobs:
         run: python -m spacy download en_core_web_sm
 
       - name: Run pytest with coverage
+        # Ratcheted from 70 (WS-2) to 72 (WS-5) -- the measured floor after
+        # the WS-5 test-depth work (live-fixture migration, bluebook API +
+        # store tests, scoring flag-matrix tests, tier10 ST-backend test,
+        # dead-module deletion). The doc's aspirational targets (overall 78,
+        # api.py 75, store.py 85) are NOT yet met -- api.py sits at 71% and
+        # store.py at 80% (measured 2026-07-16), both still short. Do not raise this past what
+        # `--cov-report=term-missing` actually shows passing locally.
         run: |
           python -m pytest tests/ validation/test_tier10_optional.py \
-            --cov=original --cov-report=xml --cov-fail-under=70
+            --cov=original --cov-report=xml --cov-fail-under=72
 
       - name: Upload coverage report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -174,6 +181,10 @@ jobs:
       - name: Run Playwright E2E tests
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:8001
+          # exam-flow.spec.mjs mints a proctor attestation client-side (the
+          # mint is intentionally never exposed over HTTP) and must sign it
+          # with the same secret the server above was started with.
+          SECRET_KEY: ci-test-only-secret-do-not-deploy
         # @serial-lockout is excluded: it deliberately trips the login
         # throttle, which would otherwise 429 every other spec's staff
         # login in this same run (see e2e/auth.spec.mjs) — and the raised
@@ -197,7 +208,10 @@ jobs:
   security:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    continue-on-error: true # non-blocking until findings are triaged once
+    # Blocking: the one known finding (PYSEC-2026-1325, ecdsa timing
+    # side-channel) has already been triaged and explicitly ignored below
+    # with a documented reachability argument. A new finding should fail
+    # the build until it gets the same treatment.
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:

@@ -114,11 +114,20 @@ class TestRepositorySeamWidened:
         assert res["total"] >= 1
         assert res["items"][0]["action"] == "formation_open"
 
-    def test_postgres_repo_is_explicit_skeleton(self):
+    def test_postgres_repo_is_still_a_skeleton(self):
+        """
+        WS-6 P3 (repository parity) has NOT landed yet: every
+        ``PostgresRepository`` method still raises NotImplementedError via
+        ``_todo(...)``, and ``get_repository()`` stays hard-wired to SQLite
+        for every environment. This pins the current P2 state so P3 flips
+        this test deliberately rather than the gap going unnoticed.
+        """
         import original.repository as repository
 
         pg = repository.PostgresRepository()
         with pytest.raises(NotImplementedError):
-            pg.get_formation_pathway("x")
-        with pytest.raises(NotImplementedError):
-            pg.list_tenants()
+            pg.db_path()
+
+        repository.reset_repository()
+        assert isinstance(repository.get_repository("pilot"), repository.SqliteRepository)
+        repository.reset_repository()

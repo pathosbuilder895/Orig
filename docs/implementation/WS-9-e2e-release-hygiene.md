@@ -81,13 +81,14 @@ Extend Playwright from 13 student-flow tests to ~55–70 covering the professor'
 - **Verify:** `.venv/bin/python -c "import importlib.metadata as m; print(m.version('original'))"` → `0.1.0`; `/health` app version and pyproject agree; `grep -n '0\.0\.0' pyproject.toml` empty.
 
 ## Acceptance criteria
-- [ ] `professor-journey.spec` is green in CI (create course → exam → seal → Dashboard → Results score → explanation → correction → audit). **(the T7 acceptance gate)**
-- [ ] `workers` > 1 in `playwright.config.mjs` with per-worker tenancy isolation; the stale `config:12-13` single-worker comment is updated/removed.
-- [ ] Total collected E2E tests ≈ **55–70** (`npx playwright test --list`).
-- [ ] `@a11y`-tagged specs exist and run (non-blocking initially); promotable to blocking per page as WS-8 lands.
-- [ ] CI e2e job installs `requirements-pilot.txt` (B11) and has `@axe-core/playwright` available; trace-on-first-retry + failure-artifact upload preserved; CI retries = 1.
-- [ ] `/health` returns a `commit` field = `RENDER_GIT_COMMIT` (fallback `"dev"`); the pilot deploy is tagged `pilot-<date>`; `CHANGELOG.md` exists with ≥1 deploy line. **(B20)**
-- [ ] `pyproject.toml` = `0.1.0`; FastAPI app version derives from it (not a second literal); the three version surfaces no longer disagree — with MODEL_CARD's model-version axis reconciled by WS-3. **(D7)**
+> Verified against the working tree 2026-07-09.
+- [x] `professor-journey.spec` is green in CI (create course → exam → seal → Dashboard → Results score → explanation → correction → audit). **(the T7 acceptance gate)** — Landed: `demo/bluebook/e2e/professor-journey.spec.mjs` is a substantive 197-line spec walking that exact sequence, wired into the `bundle-e2e` CI job. Re-verified green 2026-07-16 against a live pilot-mode server after the `submission_student_id` repository-seam fix — the spec was failing at the correction step (AttributeError on `POST /submissions/{id}/correct`) until that fix.
+- [x] `workers` > 1 in `playwright.config.mjs` with per-worker tenancy isolation; the stale `config:12-13` single-worker comment is updated/removed. — Landed: `workers: 4`, `fullyParallel: true`, `fixtures/tenancy.mjs` + `tenancy-isolation.spec.mjs` prove per-worker isolation; the old single-worker comment is replaced.
+- [ ] Total collected E2E tests ≈ **55–70** (`npx playwright test --list`). — NOT DONE: `npx playwright test --list` collects **38** tests across 9 spec files today (`lti.spec`/`visual.spec` are still the doc's own optional/gated items, but even accounting for those the breadth target isn't met).
+- [x] `@a11y`-tagged specs exist and run (non-blocking initially); promotable to blocking per page as WS-8 lands. — Landed: `a11y.spec.mjs` scans 8 screens + a keyboard-walk test, gated by an (currently empty) `MIGRATED_SCREENS` array — correct, since no WS-8 page has landed yet.
+- [x] CI e2e job installs `requirements-pilot.txt` (B11) and has `@axe-core/playwright` available; trace-on-first-retry + failure-artifact upload preserved; CI retries = 1. — Landed, confirmed in `.github/workflows/test.yml`, `demo/bluebook/package.json`, and `playwright.config.mjs`.
+- [ ] `/health` returns a `commit` field = `RENDER_GIT_COMMIT` (fallback `"dev"`); the pilot deploy is tagged `pilot-<date>`; `CHANGELOG.md` exists with ≥1 deploy line. **(B20)** — PARTIAL: `/health`/`HealthResponse` `commit` field and `CHANGELOG.md` (with real entries) are both landed; no `pilot-<date>` git tag exists yet and the tag convention isn't documented in `docs/OPS_RUNBOOK.md` — that sub-item remains open.
+- [x] `pyproject.toml` = `0.1.0`; FastAPI app version derives from it (not a second literal); the three version surfaces no longer disagree — with MODEL_CARD's model-version axis reconciled by WS-3. **(D7)** — Landed: `pyproject.toml` is `0.1.0`; `_resolve_app_version()` in `api.py` reads it via `importlib.metadata` with a parse/hardcode fallback chain; MODEL_CARD's title already reconciled to `v1.3.0` by WS-3.
 
 ## Risks & watch-outs
 - **Tenancy isolation is load-bearing for parallelism.** If per-worker tenants leak (shared global store, a fixture that reuses one tenant id), raising `workers` will produce flaky cross-talk that looks like product bugs. Validate 0.2 with an explicit cross-tenant negative assertion before trusting green runs.
