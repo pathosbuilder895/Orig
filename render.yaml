@@ -76,8 +76,27 @@ services:
       # In-app backup scheduler (original/backup.py): consistent .backup
       # copies on the persistent disk, every 30 min, pruned to 48. The daily
       # off-box pull is still a manual runbook step (docs/OPS_RUNBOOK.md).
+      # (No-op once REPO_BACKEND=postgres — Postgres backups are external.)
       - key: BACKUP_DIR
         value: /data/backups
+      # ── WS-6 Postgres cutover controls (dashboard-managed, inert until set) ──
+      # All four are `sync: false` so they stay UNSET until an operator sets
+      # them in the Render dashboard — the app defaults to SQLite. See the
+      # cutover procedure in docs/OPS_RUNBOOK.md.
+      #   DATABASE_URL   — the managed Postgres connection string (internal URL).
+      #   REPO_SHADOW    — set to "postgres" for the P4 pre-cutover soak
+      #                    (SQLite primary, writes mirrored to Postgres).
+      #   MAINTENANCE_MODE — set to "1" to freeze writes during the P5 window.
+      #   REPO_BACKEND   — set to "postgres" to CUT OVER (Postgres authoritative);
+      #                    UNSET it to roll back to the read-only SQLite file.
+      - key: DATABASE_URL
+        sync: false
+      - key: REPO_SHADOW
+        sync: false
+      - key: MAINTENANCE_MODE
+        sync: false
+      - key: REPO_BACKEND
+        sync: false
       # ── Hardening mode: pilot fails fast without SECRET_KEY ──
       - key: ORIGINAL_ENV
         value: pilot

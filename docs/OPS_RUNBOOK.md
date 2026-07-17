@@ -154,6 +154,56 @@ rollback, still exists but is frozen).
 - After editing any `demo/bluebook/*.jsx`: `cd demo/bluebook && npm run build`
   and commit the regenerated `bluebook.bundle.js` — Render does not run Node.
 
+## Postgres cutover (WS-6 P5 — the one user-visible migration)
+
+This is the SQLite → Postgres cutover. It is a **single scheduled maintenance
+window**. The code ships inert: the app runs on SQLite until an operator sets
+`REPO_BACKEND=postgres`, and rolling back is unsetting that one variable. All
+four controls are `sync: false` in `render.yaml` (dashboard-managed, unset by
+default).
+
+**Do not start the window until all prerequisites are met** (WS-6 P5 entry gate):
+- The managed Render Postgres exists and `alembic upgrade head` has provisioned
+  its schema (`DATABASE_URL` set in the dashboard).
+- **Shadow soak passed:** `REPO_SHADOW=postgres` ran against real pilot traffic
+  for 1–2 weeks with **zero unexplained divergences** in the logs
+  (grep `REPO_SHADOW divergence`).
+- **Restore drill passed** on staging (see Backups → restore drill).
+- Owner sign-off; window scheduled outside any exam (shared calendar).
+
+**The window (writes are frozen for its duration — keep it short):**
+
+1. **Freeze writes.** Dashboard → `MAINTENANCE_MODE=1` → deploy. Verify:
+   `GET /health` still 200; any write (`POST …`) returns 503 with `Retry-After`.
+2. **Final parity check.** With the shadow soak, Postgres is already current, so
+   this is a *verification*, not a re-migration. On the Render host / over the
+   TLS tunnel:
+   `ORIGINAL_DB=/data/profiles.db DATABASE_URL=<pg-url> python -m scripts.migrate_sqlite_to_pg --dry-run --report /tmp/cutover-report.json`
+   — **abort if it does not print `overall parity: OK`.** Record the
+   `student_profiles` row count for step 5. (Cutting over *without* a prior
+   shadow soak instead: drop `--dry-run` to run the full one-shot migration into
+   an empty Postgres.)
+3. **Flip the backend.** Dashboard → `REPO_BACKEND=postgres` → deploy.
+4. **Keep the SQLite file as the rollback floor.** Do **not** delete
+   `/data/profiles.db`; it stays read-only on disk for **≥4 weeks**. (The app no
+   longer writes to it once `REPO_BACKEND=postgres`.)
+5. **Smoke test.**
+   `python -m scripts.pilot_smoke_test --base-url https://original-pilot.onrender.com --expect-count <count-from-step-2>`
+   Must print `smoke test: PASS` — it confirms `/health.backend == "postgres"`
+   and the student count matches. Abort → rollback (below) if it fails.
+6. **Unfreeze.** Dashboard → unset `MAINTENANCE_MODE` → deploy. Confirm a real
+   write succeeds and `GET /health` shows `"backend":"postgres"`.
+7. Tell professors the window is closed.
+
+**Rollback (instant, for ≥4 weeks after cutover):**
+- Dashboard → **unset `REPO_BACKEND`** (and unset `MAINTENANCE_MODE` if still
+  set) → deploy. The app is back on the read-only SQLite file exactly as before
+  the window. This is the whole reason the file is kept — writes made on
+  Postgres after cutover are lost on rollback, so only roll back for a genuine
+  cutover failure, and tell professors which window was lost.
+- After the ≥4-week soak with no issues, WS-6 P6 removes the SQLite path and the
+  dormant v1 stack; the rollback floor is intentionally forfeited then.
+
 ## Monitoring
 
 - UptimeRobot (or BetterStack) on `https://original-pilot.onrender.com/health`,

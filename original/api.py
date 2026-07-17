@@ -178,16 +178,29 @@ async def lifespan(app: FastAPI):
     # In-app backup scheduler — production has no crontab (Render web service),
     # so the periodic consistent .backup runs inside this process. Demo stays
     # off unless BACKUP_DIR is set explicitly. See original/backup.py.
+    #
+    # After the P5 Postgres cutover the authoritative store is Postgres, whose
+    # backups are managed externally (Render managed + pg_dump — see
+    # OPS_RUNBOOK), and PostgresRepository.db_path() has no SQLite file to
+    # point at. Skip the in-app scheduler entirely in that case rather than
+    # crash startup on the NotImplementedError.
     _backup_task = None
-    _bdir = backup_mod.resolve_backup_dir(_repo().db_path(), _IS_REAL_DEPLOY)
+    try:
+        _db_path = _repo().db_path()
+    except NotImplementedError:
+        _db_path = None
+        _log.info(
+            "Backups: in-app SQLite scheduler off (Postgres backend; backups managed externally)."
+        )
+    _bdir = backup_mod.resolve_backup_dir(_db_path, _IS_REAL_DEPLOY) if _db_path else None
     if _bdir is not None:
         _interval = float(os.environ.get("BACKUP_INTERVAL_MINUTES", "30") or 30)
         _keep = int(os.environ.get("BACKUP_KEEP", "48") or 48)
         _backup_task = asyncio.create_task(
-            backup_mod.backup_loop(_repo().db_path(), _bdir, _interval, _keep)
+            backup_mod.backup_loop(_db_path, _bdir, _interval, _keep)
         )
         _log.info("Backups: every %.0f min to %s (keep %d).", _interval, _bdir, _keep)
-    else:
+    elif _db_path is not None:
         _log.info("Backups: disabled (demo mode, no BACKUP_DIR set).")
     yield
     if _backup_task is not None:
@@ -356,6 +369,32 @@ async def tenant_isolation(request: Request, call_next):
     return await call_next(request)
 
 
+# ── Maintenance-mode write freeze (WS-6 P5 cutover) ───────────────────────────
+# During the P5 cutover window the operator sets MAINTENANCE_MODE=1 to freeze
+# writes while the final SQLite→Postgres sync runs and get_repository() is
+# flipped, so the two stores can't diverge mid-copy. Reads stay open (GET/HEAD/
+# OPTIONS) so /health and monitoring keep working. Read at request time so the
+# flag takes effect on the env-var flip's restart (and is unit-testable).
+# Off (unset) by default — this is inert until an operator opens a window.
+_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+
+@app.middleware("http")
+async def maintenance_write_freeze(request: Request, call_next):
+    if os.environ.get("MAINTENANCE_MODE") == "1" and request.method not in _SAFE_METHODS:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": (
+                    "Maintenance in progress — writes are temporarily frozen while the "
+                    "service completes a scheduled migration. Please retry shortly."
+                )
+            },
+            headers={"Retry-After": "120"},
+        )
+    return await call_next(request)
+
+
 # ── Startup: SECRET_KEY stability check ───────────────────────────────────────
 # Warn operators if SECRET_KEY is not pinned in the environment.
 # A random per-process key means all JWTs issued by a prior process are
@@ -484,12 +523,15 @@ def _send_notification_email(student_name: str, action: str, score: float) -> No
 
 @app.get("/health", response_model=HealthResponse)
 def health():
+    from .repository import backend_name
+
     return HealthResponse(
         status="ok",
         feature_dim=FEATURE_DIM,
         students_in_store=_repo().count(),
         environment=ORIGINAL_ENV,
         commit=os.environ.get("RENDER_GIT_COMMIT", "dev"),
+        backend=backend_name(),
     )
 
 
@@ -531,8 +573,17 @@ def admin_health():
 
     # Backup recency — None when backups are disabled (demo) or none exist
     # yet. Ops alerting: on a pilot this should never exceed ~2× the interval.
-    _bdir = backup_mod.resolve_backup_dir(_repo().db_path(), _IS_REAL_DEPLOY)
-    last_backup_age = backup_mod.latest_backup_age_seconds(_bdir)
+    # After the P5 Postgres cutover the in-app SQLite backup scheduler no
+    # longer backs up the authoritative store (Postgres does — see
+    # OPS_RUNBOOK), and PostgresRepository.db_path() has no file to point at,
+    # so backups_enabled is False and the in-app recency signal is absent
+    # (None) on Postgres rather than crashing on the NotImplementedError.
+    try:
+        _bdir = backup_mod.resolve_backup_dir(_repo().db_path(), _IS_REAL_DEPLOY)
+        last_backup_age = backup_mod.latest_backup_age_seconds(_bdir)
+    except NotImplementedError:
+        _bdir = None
+        last_backup_age = None
 
     return {
         "api_status": "operational",
