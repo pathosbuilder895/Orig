@@ -19,6 +19,7 @@
  */
 
 import { test, expect } from '@playwright/test'
+import { createHmac } from 'node:crypto'
 
 // A deterministic, test-only student id we can verify by API afterwards.
 // Must be under the "demo" tenant prefix because the principal-scoping layer
@@ -28,15 +29,37 @@ import { test, expect } from '@playwright/test'
 const TEST_STUDENT_ID = `demo:e2e-bluebook-${Date.now()}`
 const TEST_STUDENT_NAME = 'E2E Test Candidate'
 
+function base64url(buf) {
+  return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+// Mirrors original/student_auth.py:mint_proctor_attestation. A real exam
+// launch (GET /bluebook/launch) mints this server-side and stores it for the
+// client — the mint itself is intentionally never exposed over HTTP (see that
+// endpoint's comment), so a harness that boots straight to the exam screen
+// (bypassing the magic-link redirect) has to mint one directly, signed with
+// the same SECRET_KEY the running server verifies against.
+function mintProctorAttestation(studentId, exam = '') {
+  const secret = process.env.SECRET_KEY || 'demo-insecure-student-secret'
+  const body = { typ: 'proctor', sid: studentId, exam, exp: Math.floor(Date.now() / 1000) + 6 * 3600 }
+  const payload = base64url(Buffer.from(JSON.stringify(body)))
+  const sig = base64url(createHmac('sha256', secret).update(payload).digest())
+  return `${payload}.${sig}`
+}
+
 /**
  * Inject demo + auth state so the React app routes straight to the briefing
  * (BB_API.isStudentLaunch() returns true) with a low minWords so a test can
  * actually type past it.
  */
 async function bootInExam(page, { minWords = 12 } = {}) {
-  await page.addInitScript(([studentId, candidate, mw]) => {
+  const proctorToken = mintProctorAttestation(TEST_STUDENT_ID, 'e2e-exam-1')
+  await page.addInitScript(([studentId, candidate, mw, proctorToken]) => {
     // Force the "bound student launch" path in BB_API.isStudentLaunch()
     localStorage.setItem('bluebook_student_id', studentId)
+    // What a real /bluebook/launch redemption would have stored — without
+    // it, the seal submission is downgraded to provenance=unverified.
+    localStorage.setItem('bluebook_proctor_token', proctorToken)
     // Pre-configure the exam so the briefing → exam transition is trivial
     window.BB_EXAM_CONFIG = {
       title: 'E2E Smoke Examination',
@@ -51,7 +74,7 @@ async function bootInExam(page, { minWords = 12 } = {}) {
       spellChk: false,
       id: 'e2e-exam-1',
     }
-  }, [TEST_STUDENT_ID, TEST_STUDENT_NAME, minWords])
+  }, [TEST_STUDENT_ID, TEST_STUDENT_NAME, minWords, proctorToken])
 }
 
 test.describe('Bluebook exam lockdown — full flow', () => {

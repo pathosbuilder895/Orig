@@ -181,6 +181,10 @@ jobs:
       - name: Run Playwright E2E tests
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:8001
+          # exam-flow.spec.mjs mints a proctor attestation client-side (the
+          # mint is intentionally never exposed over HTTP) and must sign it
+          # with the same secret the server above was started with.
+          SECRET_KEY: ci-test-only-secret-do-not-deploy
         # @serial-lockout is excluded: it deliberately trips the login
         # throttle, which would otherwise 429 every other spec's staff
         # login in this same run (see e2e/auth.spec.mjs) — and the raised

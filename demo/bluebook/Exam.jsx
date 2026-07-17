@@ -118,12 +118,17 @@ async function bbResolveStudentId(cfg) {
   return bbDeriveStudentId(tenant, (cfg && cfg.candidate) || 'candidate');
 }
 
-// Auth header for whatever session is present (principal or student token).
+// Auth header for whatever session is present (principal or student token),
+// plus the proctor attestation a magic-link/LTI launch stores in localStorage
+// (see original/api.py:bluebook_magic_launch) — without it, a proctored
+// baseline write is silently downgraded to 'unverified' (_authorize_provenance).
 function bbAuthHeaders() {
   const h = { 'Content-Type': 'application/json' };
   const token = localStorage.getItem('original_principal_token')
     || localStorage.getItem('original_session_token') || '';
   if (token) h['Authorization'] = 'Bearer ' + token;
+  const attestation = localStorage.getItem('bluebook_proctor_token');
+  if (attestation) h['X-Proctor-Attestation'] = attestation;
   return h;
 }
 
