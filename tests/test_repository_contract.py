@@ -75,17 +75,16 @@ def repo(request, store_reset):
                 "no reachable Postgres — set DATABASE_URL to a postgresql:// "
                 "instance to run the WS-6 P3 contract tests against it"
             )
-        import original.db.models  # noqa: F401 — register all models with Base
         from original.db import postgres_session
-        from original.db.base import Base
+        from original.db.models.live import LiveBase
 
         engine = postgres_session.get_engine()
-        Base.metadata.create_all(bind=engine)
+        LiveBase.metadata.create_all(bind=engine)
         # Isolate this test: wipe every table (children before parents, per
-        # Base.metadata.sorted_tables' dependency order reversed) rather than
-        # dropping/recreating the schema on every test for speed.
+        # LiveBase.metadata.sorted_tables' dependency order reversed) rather
+        # than dropping/recreating the schema on every test for speed.
         with engine.begin() as conn:
-            for table in reversed(Base.metadata.sorted_tables):
+            for table in reversed(LiveBase.metadata.sorted_tables):
                 conn.execute(table.delete())
         yield PostgresRepository()
     else:
