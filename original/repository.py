@@ -722,36 +722,55 @@ class ShadowRepository:
 _REPO: Repository | None = None
 
 
+def backend_name() -> str:
+    """The active persistence backend, from the env, without constructing a
+    repository. Used by /health so operators can confirm the P5 cutover took.
+
+    - ``postgres``        → REPO_BACKEND=postgres (post-cutover, PG authoritative)
+    - ``sqlite+shadow``   → REPO_SHADOW=postgres (P4 soak: SQLite primary,
+                            writes mirrored to a shadow Postgres)
+    - ``sqlite``          → default
+    """
+    if os.environ.get("REPO_BACKEND") == "postgres":
+        return "postgres"
+    if os.environ.get("REPO_SHADOW") == "postgres":
+        return "sqlite+shadow"
+    return "sqlite"
+
+
 def get_repository(environment: str = "demo") -> Repository:
     """
-    Return the repository for the given environment — the single switch point
-    for the demo/v1 split (ADR-002).
+    Return the persistence Repository — the single backend switch point (ADR-002).
 
-    - demo                 → SqliteRepository (local, zero-dependency)
-    - pilot | production   → PostgresRepository once its models land; until
-                             then it also resolves to SQLite so nothing breaks,
-                             and the NotImplementedError surfaces only when an
-                             unported operation is actually called.
+    Backend selection, from the environment (see ``backend_name``):
 
-    When ``REPO_SHADOW=postgres`` (WS-6 P4), the resolved repository is wrapped
-    in a ``ShadowRepository`` that mirrors writes to a shadow Postgres backend
-    for pre-cutover validation. This is the only place sqlalchemy is imported
-    from this module, and only when shadow mode is actually on — so a plain
-    SQLite demo/pilot process never pays for the Postgres import.
+    - ``REPO_BACKEND=postgres`` → ``PostgresRepository`` (WS-6 P5 cutover:
+      Postgres is authoritative). This is the deliberate, reversible flip the
+      cutover performs; rolling back is unsetting the var (→ SQLite).
+    - ``REPO_SHADOW=postgres`` (and REPO_BACKEND not postgres) → the repository
+      is wrapped in a ``ShadowRepository`` that mirrors writes to a shadow
+      Postgres for the P4 pre-cutover soak (reads still come from SQLite).
+    - default → ``SqliteRepository``.
+
+    sqlalchemy is imported here only when Postgres is actually selected (either
+    mode), so a plain SQLite demo/pilot process never pays for the import.
 
     Cached as a module singleton.
     """
     global _REPO
     if _REPO is None:
-        # Postgres impl is complete (WS-6 P3) but get_repository still returns
-        # SQLite for every environment — the production cutover is P5.
-        primary = SqliteRepository()
-        if os.environ.get("REPO_SHADOW") == "postgres":
+        if os.environ.get("REPO_BACKEND") == "postgres":
+            # P5 cutover: Postgres is the authoritative store. No shadow — the
+            # shadow's whole purpose was validating this path before the flip.
             from .postgres_repository import PostgresRepository
 
-            _REPO = ShadowRepository(primary, PostgresRepository())
+            _REPO = PostgresRepository()
+        elif os.environ.get("REPO_SHADOW") == "postgres":
+            from .postgres_repository import PostgresRepository
+
+            _REPO = ShadowRepository(SqliteRepository(), PostgresRepository())
         else:
-            _REPO = primary
+            _REPO = SqliteRepository()
     return _REPO
 
 

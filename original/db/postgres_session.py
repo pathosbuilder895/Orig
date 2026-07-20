@@ -17,13 +17,13 @@ import) it may never use.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Generator
 from contextlib import contextmanager
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from original.core.config import get_settings
 from original.core.logging import get_logger
 
 from .models.live import LiveBase
@@ -33,27 +33,40 @@ log = get_logger(__name__)
 _engine = None
 _SessionLocal: sessionmaker | None = None
 
+# Default connection URL. Overridden by DATABASE_URL in every real environment;
+# this fallback only lets the sqlite-variant test path resolve a URL locally.
+_DEFAULT_DATABASE_URL = "postgresql://original:original@localhost:5432/original_db"
+
 
 def get_engine():
-    """Build (once, lazily) and return the SQLAlchemy engine for LiveBase."""
+    """Build (once, lazily) and return the SQLAlchemy engine for LiveBase.
+
+    Reads DATABASE_URL + pool settings straight from the environment, NOT via
+    ``original.core.config.Settings``. That Settings object is the dormant v1
+    config: its ``ENVIRONMENT`` field is a strict ``Literal`` that rejects the
+    live app's own values (``demo``/``pilot``), so routing the live Postgres
+    engine through its validation crashes exactly at the P5 cutover, when
+    ENVIRONMENT=pilot and Postgres is finally the backend. ``alembic/env.py``
+    already reads DATABASE_URL directly for the same reason; this matches it.
+    """
     global _engine
     if _engine is None:
-        settings = get_settings()
-        db_url = settings.DATABASE_URL
+        db_url = os.environ.get("DATABASE_URL") or _DEFAULT_DATABASE_URL
+        echo = os.environ.get("DEBUG", "").lower() in ("1", "true")
         if db_url.startswith("sqlite"):
             # Supports pointing the live schema at a throwaway SQLite file in
             # tests without a real Postgres instance — production always uses
             # a postgresql:// URL.
             _engine = create_engine(
-                db_url, connect_args={"check_same_thread": False}, echo=settings.DEBUG
+                db_url, connect_args={"check_same_thread": False}, echo=echo
             )
         else:
             _engine = create_engine(
                 db_url,
-                pool_size=settings.DB_POOL_SIZE,
-                max_overflow=settings.DB_MAX_OVERFLOW,
-                pool_recycle=settings.DB_POOL_RECYCLE,
-                echo=settings.DEBUG,
+                pool_size=int(os.environ.get("DB_POOL_SIZE", "10") or 10),
+                max_overflow=int(os.environ.get("DB_MAX_OVERFLOW", "20") or 20),
+                pool_recycle=int(os.environ.get("DB_POOL_RECYCLE", "3600") or 3600),
+                echo=echo,
             )
         log.info("Live-schema engine created for %s", db_url.split("@")[-1])
     return _engine
