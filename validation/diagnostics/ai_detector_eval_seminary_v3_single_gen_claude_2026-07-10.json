@@ -79,5 +79,36 @@
       "LENGTH_ADAPTIVE_WEIGHTS": "0"
     }
   },
-  "_MISLABELED": "This filename says multigen but per_ai_provider below shows claude-only (n=20, no other provider). This is a single-generator in-domain eval, mislabeled at generation time by a hand-chosen --report filename. Do NOT cite this file as multi-generator evidence for the AI_LIKELIHOOD_ENABLED enablement gate. See validation/diagnostics/README_multigen_eval.md and use validation/diagnostics/multigen_harness.py for a self-labeling successor that cannot make this mistake."
+  "generator_harness": {
+    "harness_script": "validation/diagnostics/multigen_harness.py",
+    "generators": {
+      "claude": {
+        "status": "ok",
+        "mode": "static_replay",
+        "n_samples": 20,
+        "note": "reused existing committed essays; no live API call made"
+      },
+      "openai": {
+        "status": "skipped",
+        "reason": "env var OPENAI_API_KEY not set; package 'openai' not installed",
+        "live_api": true
+      },
+      "gemini": {
+        "status": "skipped",
+        "reason": "env var GEMINI_API_KEY (or GOOGLE_API_KEY) not set; package 'google.generativeai' not installed",
+        "live_api": true
+      },
+      "cohere": {
+        "status": "skipped",
+        "reason": "env var COHERE_API_KEY not set; package 'cohere' not installed",
+        "live_api": true
+      }
+    },
+    "providers_with_samples_in_eval": [
+      "claude"
+    ],
+    "actually_multigen": false,
+    "honesty_note": "This field, not a filename chosen by hand, is what determines whether the report is allowed to claim multi-generator evidence. See README_multigen_eval.md.",
+    "single_generator_caveat": "Only claude generator(s) contributed samples to this in-domain eval. Do not cite this report as multi-generator evidence for the AI_LIKELIHOOD_ENABLED enablement gate. Configure another provider's API key (see README_multigen_eval.md) and re-run."
+  }
 }
