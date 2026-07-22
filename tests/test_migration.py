@@ -176,6 +176,12 @@ def _seed_sqlite(store) -> None:
         {"id": "course-1", "tenant_id": "sem", "name": "Theology 101", "code": "THEO101"}
     )
 
+    # bluebook_sessions (composite PK exam_id+student_key -- two rows sharing
+    # the same exam_id, distinguished only by student_key, so a naive
+    # single-column checksum/parity key would collide them)
+    store.get_or_create_bluebook_session("exam-1", "sem:alice", "sem", 3600)
+    store.get_or_create_bluebook_session("exam-1", "sem:bob", "sem", 1800)
+
     # audit_log (student-scoped derives tenant; system action has student=None)
     store.log_audit("baseline_add", student_id="sem:alice", details={"n": 1})
     store.log_audit("tenant_register", tenant_id="sem", details={"name": "Seminary of Dallas"})
@@ -299,6 +305,9 @@ class TestMigrationParity:
         assert by_table["corrections"]["sqlite_rows"] == 2
         # colon-less flat id student migrated alongside scoped ones
         assert by_table["student_profiles"]["sqlite_rows"] == 3
+        # two sessions sharing exam_id, distinguished only by student_key --
+        # proves the composite-PK checksum/parity keys on both columns
+        assert by_table["bluebook_sessions"]["sqlite_rows"] == 2
         # audit rows: the 3 explicit log_audit calls PLUS the ones the
         # formation-pathway open/advance ops log internally -- includes a
         # system-action row (student=None) and a legacy-flat-id row.
