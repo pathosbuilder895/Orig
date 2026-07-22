@@ -36,35 +36,36 @@ metric tracked automatically.
 | 2 Guardrails | ✅ Done (100%) | 4-job gated CI, `.venv` on 3.11.15, ruff/black/mypy + pre-commit all landed. |
 | 3 Trust surface | ✅ Done (100%) | Docs/compliance corrected; VPAT correctly deferred to WS-4/WS-8. |
 | 4 Accessibility (exam-flow) | 🟡 ~78% | Open: several Bluebook rows still click-only `<div>`s (not keyboard-reachable); axe CI scan is non-blocking. |
-| 5 Test depth | 🟡 ~60% | Suite green (648 passed / 0 failed at last check). Open: no flag-matrix scoring tests, no full Bluebook-API CRUD tests; coverage 73% vs. 78% goal (`api.py` 62% vs. 75%), `--cov-fail-under` still 70. |
-| 6 Postgres convergence | 🔵 ~28% | **WS-7 step 1 (`ScoringConfig`) and WS-6 P1 (seam-widening) are landed on `origin/main` and verified in this pass** — see below. P2 (SQLAlchemy models for all 16 tables + fresh alembic baseline) also landed (`34a45f3`). `PostgresRepository` is still a stub — every method raises `NotImplementedError`; the app always runs on SQLite. No migration script, no cutover plan, v1 API surface not yet removed (P3–P6 open). |
+| 5 Test depth | 🟡 ~60% | Suite green (648 passed / 0 failed at last check). Open: no flag-matrix scoring tests, no full Bluebook-API CRUD tests; coverage 76.98% vs. 78% goal as of 2026-07-22 (the P6 v1 deletion removed ~2,100 dead statements from the denominator), `--cov-fail-under` now 72. |
+| 6 Postgres convergence | 🟢 code-complete | **All seven phases (P0–P6) merged to `main` 2026-07-17→22** (PRs #76 P3, #77 P4, #78 P5, #90 P6). `PostgresRepository` implements the full Protocol (only `db_path()` deliberately raises — SQLite-file backup tooling, P4 scope note); `scripts/migrate_sqlite_to_pg.py` proven at checksum parity across all 16 tables; `REPO_SHADOW=postgres` mirror + `REPO_BACKEND=postgres` cutover flip ship inert (default stays SQLite); in-memory `_STORE` demoted (multi-worker unlocked, proven cross-process); dormant v1 stack + its 62 tests deleted, importlib hack dissolved. **Remaining items are operational, not code:** deploy → shadow soak → restore drill → the one-env-var cutover per OPS_RUNBOOK. |
 | 7 API-layer refactor | 🟡 ~40% | Step 1 (`ScoringConfig`) + step 2 (typed pydantic request models, all but 1 of 8 endpoints) + step 5 (static gating, Canvas 501 stubs) landed. Step 3 (router split into `original/routers/`) **not started** — zero `APIRouter` usage; step 4 (de-async, flag GA, merge `ORIGINAL_ENV`/`ENVIRONMENT`) not started. |
 | 8 React migration | 🔵 ~15% | R0 (Vite/TS/eslint/vitest/axe scaffold) + R1 (Bluebook ESM, ahead of schedule) landed. R2 (shared components) is a single 7-line `SkipLink.tsx`. R3 (page migration) not started — no page migrated yet. |
 | 9 E2E + release hygiene | 🟡 ~87% | 4 parallel workers, professor-journey spec + Stage-2 breadth (~55 specs), `/health` returns real `commit` + single-sourced version. Open: no `pilot-YYYY-MM-DD` release-tag convention written down yet. |
 
-**Verified this pass (2026-07-16):** confirmed directly against `origin/main` (not just the
-status report) —
-- `original/quantum/scoring.py` has no `store` import (only comments); `ScoringConfig` present
-  and wired through `api.py` via `ScoringConfig.from_env()` + explicit store lookups.
-- `original/api.py` has only 3 remaining `store.` matches, all in comments/docstrings — zero
-  live `store.*` call sites; everything routes through `_repo()`.
-- `original/repository.py` covers the store's public surface (168 methods across
-  `Repository`/`SqliteRepository`/`PostgresRepository`); `PostgresRepository` is confirmed a
-  pure `NotImplementedError` skeleton (P2/P3 boundary correctly held).
-- Full test suite green: 603+ passed, 0 failed, on both this session's branch and `origin/main`.
+**Verified this pass (2026-07-22):** confirmed directly against `origin/main` —
+- WS-6 P3–P6 all merged (#76, #77, #78, #90). `PostgresRepository` is a full implementation
+  (the 2026-07-16 note below that it was a skeleton is superseded); the contract suite runs
+  against a real `postgres:16` CI service container on every PR.
+- The dormant v1 stack is **gone**: `original/api|canvas|middleware|auth|schemas_v1|tasks` +
+  `main.py` + 62 v1 tests deleted; `run.py` imports `original.api` plainly (A9 dissolved);
+  the in-memory `_STORE` is demoted, so `--workers N` is safe (proven cross-process).
+- Full suite green: 775 passed, 0 failed, zero xfail noise, on both backends; coverage 76.98%
+  against the 72 gate. `original/api.py` measures 3,265 lines.
+- The app still defaults to SQLite everywhere; Postgres activates only via the
+  `REPO_SHADOW`/`REPO_BACKEND` env vars (OPS_RUNBOOK cutover procedure).
 
 **Open items worth a deliberate decision, not a default:**
-1. **WS-6's decision gate (Concern #1 below) was never explicitly recorded as decided** — ADR-006
-   shipped with its go/no-go checklist unchecked, and P2 (schema work) landed the next day
-   regardless. Before P3 (real `PostgresRepository` wiring) starts, get an explicit call: continue
-   into Postgres, or hold on hardened SQLite per ADR-004.
-2. **`api.py` is trending the wrong way**: 2,714 → 2,964 lines since the audit. The one step that
-   shrinks it (WS-7 step 3, the router split) is the piece still untouched. Concern #4 below
-   recommended serializing WS-7.1 → WS-6 P1 → WS-7.3 — worth confirming that ordering is still
-   being honored before more schema work lands on `api.py`.
-3. **Coverage gate hasn't caught up to the coverage goal** — `--cov-fail-under` is 70 against a
-   78% target, so a regression in the still-missing WS-5 tests (flag-matrix, Bluebook CRUD)
-   wouldn't currently fail CI.
+1. ~~WS-6's decision gate was never explicitly recorded as decided~~ **Resolved 2026-07-17:**
+   the owner made the explicit go call ("Commit to Postgres → start P4") before P4 began;
+   P3 had landed inert ahead of it (nothing production-facing depended on it). ADR-004's
+   hold-on-SQLite posture is superseded by the executed WS-6 P3–P6.
+2. **`api.py` is still trending the wrong way**: 2,714 → 2,964 → 3,265 lines (2026-07-22; the
+   P5 maintenance middleware and db_path guards landed there). The one step that shrinks it
+   (WS-7 step 3, the router split) remains untouched — and with WS-6 code-complete, the
+   serialization concern is moot: WS-7.3 is now unambiguously next in line for `api.py`.
+3. **Coverage gate nearly caught up** — `--cov-fail-under` is 72 with actual coverage at
+   76.98% (2026-07-22) against the 78% target; the remaining WS-5 gaps (flag-matrix,
+   Bluebook CRUD tests) are what close the last point.
 
 ---
 
@@ -131,13 +132,12 @@ as a **strictly ordered backlog**, not a parallel schedule. Suggested waves:
 
 **Wave 2 — the long haul (months):**
 9. ✅ WS-7 step 1 (`ScoringConfig`) — landed.
-10. ✅ WS-6 P0→P1 (seam-widening; pure refactor, still on SQLite) — landed; P2 (schema/models)
-    also landed, but **the decision gate (Concern #1) was never explicitly recorded as decided**
-    before P2 shipped — see "Current status" above. Resolve that before P3.
-11. If the (retroactive) gate passes: WS-6 P3→P6 (actual `PostgresRepository` wiring, migration,
-    cutover). Interleave WS-7 steps 3–4 *sequentially* with WS-6 phases, not concurrently, since
-    both rewrite `api.py` (Concern #4) — WS-7 step 3 (router split) is next in line and hasn't
-    started.
+10. ✅ WS-6 P0→P2 — landed (seam-widening, schema/models, alembic baseline). The decision
+    gate was resolved explicitly on 2026-07-17 (owner go call).
+11. ✅ WS-6 P3→P6 — landed 2026-07-17→22 (#76 PostgresRepository parity, #77 migration +
+    shadow, #78 inert cutover mechanism, #90 `_STORE` demotion + v1 deletion). The cutover
+    itself is now an operator action (OPS_RUNBOOK). **WS-7 step 3 (router split) is next in
+    line and hasn't started.**
 12. WS-8 (React migration) once WS-4 is live and WS-7 models exist. WS-9 rides alongside — it's
     already ~87% done, further along than WS-8 would suggest.
 
