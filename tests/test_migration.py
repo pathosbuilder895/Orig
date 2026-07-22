@@ -350,3 +350,94 @@ class TestMigrationParity:
         migrate(seeded_sqlite, dry_run=False)
         with pytest.raises(IntegrityError):
             migrate(seeded_sqlite, dry_run=False)
+
+
+class TestChecksumCompositePK:
+    """Direct unit tests on scripts.migrate_sqlite_to_pg._checksum()'s
+    composite-key handling. No Postgres required -- pure function, deterministic.
+
+    Why this exists: the parity tests above (TestMigrationParity) seed
+    bluebook_sessions with two rows sharing exam_id but differing in
+    student_key, and assert sqlite/pg checksums match. That's necessary but
+    not sufficient -- a reviewer proved by mutation testing that reverting
+    _BluebookSessionMigrator.pk from ("exam_id", "student_key") down to the
+    naive single column "exam_id" still passed the full suite 3/3 runs,
+    because SQLite's and Postgres's row-read order happened to coincide for
+    the small seeded dataset. Row-count and end-to-end checksum equality are
+    pk-agnostic by construction and can never catch that class of bug on
+    their own.
+
+    test_bluebook_session_checksum_is_order_invariant_for_composite_pk below
+    closes that gap: it reads _BluebookSessionMigrator.pk directly (not a
+    hardcoded tuple), so if that attribute ever regresses to a single column,
+    this test fails immediately -- verified by performing that exact revert
+    locally (see tests/test_migration.py history / task report for the proof
+    transcript).
+    """
+
+    @staticmethod
+    def _tied_session_rows() -> list[dict]:
+        """Two bluebook_sessions rows that tie on exam_id and differ only in
+        student_key (and downstream fields) -- the exact shape that lets a
+        naive single-column-exam_id checksum silently depend on input order."""
+        return [
+            {
+                "exam_id": "exam-1",
+                "student_key": "sem:alice",
+                "tenant_id": "sem",
+                "started_at": "2026-01-01T00:00:00+00:00",
+                "deadline_at": "2026-01-01T01:00:00+00:00",
+            },
+            {
+                "exam_id": "exam-1",
+                "student_key": "sem:bob",
+                "tenant_id": "sem",
+                "started_at": "2026-01-01T00:30:00+00:00",
+                "deadline_at": "2026-01-01T00:30:00+00:00",
+            },
+        ]
+
+    def test_bluebook_session_checksum_is_order_invariant_for_composite_pk(self):
+        """Feeds the SAME two tied rows to _checksum() forward and reversed,
+        keyed on the live _BluebookSessionMigrator.pk. A correct composite-key
+        checksum must be identical either way.
+
+        This is the regression-proof test: if _BluebookSessionMigrator.pk is
+        ever reverted to a bare "exam_id" string, both rows tie on that single
+        key, Python's sort is stable, so the two rows keep their (opposite)
+        input orders in the sorted output -- forward and reversed then hash to
+        DIFFERENT digests and this assertion fails.
+        """
+        from scripts.migrate_sqlite_to_pg import _BluebookSessionMigrator, _checksum
+
+        rows = self._tied_session_rows()
+        forward = _checksum(rows, _BluebookSessionMigrator.pk)
+        backward = _checksum(list(reversed(rows)), _BluebookSessionMigrator.pk)
+        assert forward == backward, (
+            "_checksum() over bluebook_sessions rows must be order-invariant; "
+            "a mismatch here means _BluebookSessionMigrator.pk is no longer a "
+            "composite key covering every column that distinguishes rows "
+            "(e.g. it regressed to a single column such as 'exam_id')"
+        )
+
+    def test_single_column_pk_would_not_be_order_invariant_on_the_same_rows(self):
+        """Demonstrates the composite key is doing real discriminating work
+        (not just cosmetic): applying the SAME tied rows to a naive
+        single-column pk="exam_id" -- what _BluebookSessionMigrator.pk would
+        be under the exact regression above -- is NOT order-invariant, so it
+        would produce spurious parity failures (or, as the reviewer found,
+        an incidental pass that means nothing) depending on backend read
+        order. This test hardcodes "exam_id" rather than reading it off the
+        live migrator, so it stays meaningful even if the class attribute is
+        fixed correctly -- it documents *why* the fix was needed.
+        """
+        from scripts.migrate_sqlite_to_pg import _checksum
+
+        rows = self._tied_session_rows()
+        naive_forward = _checksum(rows, "exam_id")
+        naive_backward = _checksum(list(reversed(rows)), "exam_id")
+        assert naive_forward != naive_backward, (
+            "expected a naive single-column pk to be order-DEPENDENT on rows "
+            "that tie on that column -- if this now passes, the two tied rows "
+            "stopped ticking a genuine test of composite-key necessity"
+        )
