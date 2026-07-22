@@ -48,9 +48,8 @@ def shadow_repo(tmp_path, monkeypatch):
     db_file = tmp_path / "shadow_primary.db"
     monkeypatch.setenv("ORIGINAL_DB", str(db_file))
     monkeypatch.setattr(store, "_DB_PATH", db_file)
-    store._STORE.clear()
     store._GENRE_STATS_CACHE.clear()
-    store._loaded = False
+    store._GENRE_STATS_CACHE.clear()
 
     # Fresh shadow Postgres schema.
     engine = postgres_session.get_engine()
@@ -62,8 +61,7 @@ def shadow_repo(tmp_path, monkeypatch):
     repo = repository.get_repository("pilot")
     yield repo
     repository.reset_repository()
-    store._STORE.clear()
-    store._loaded = False
+    store._GENRE_STATS_CACHE.clear()
     LiveBase.metadata.drop_all(bind=engine)
 
 

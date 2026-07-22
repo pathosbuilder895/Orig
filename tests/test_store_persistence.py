@@ -1,10 +1,13 @@
 """
 tests/test_store_persistence.py — write/load failures must surface, not vanish.
 
-Regression coverage for A1 (WS-1): _persist() and _load_all() used to swallow
-every exception (`except Exception: pass`), so a failed SQLite write left the
-in-memory cache and disk silently diverged. Both now re-raise sqlite3.Error
-after logging, so callers (and the API's 503 mapping) see the failure.
+Regression coverage for A1 (WS-1): _persist() (and, historically, _load_all())
+used to swallow every exception (`except Exception: pass`), so a failed SQLite
+write left memory and disk silently diverged. Post WS-6 P6 there is no
+in-memory cache to diverge FROM, but the guarantees themselves survive in
+read-through form: a write failure raises to the caller (API 503 mapping), a
+missing DB file starts empty, and an existing-but-corrupt DB file raises at
+the first read rather than presenting as an empty store.
 """
 
 from __future__ import annotations
@@ -21,19 +24,15 @@ from original.quantum.state import BaselineSample, StudentState
 
 @pytest.fixture(autouse=True)
 def _isolated_store(tmp_path, monkeypatch):
-    """Point the store at a fresh temp SQLite DB and reset in-memory state."""
+    """Point the store at a fresh temp SQLite DB and reset cache state."""
     db_file = tmp_path / "test_profiles.db"
     monkeypatch.setenv("ORIGINAL_DB", str(db_file))
     monkeypatch.setattr(store, "_DB_PATH", db_file)
-    store._STORE.clear()
     store._GENRE_STATS_CACHE.clear()
-    store._loaded = False
 
     yield
 
-    store._STORE.clear()
     store._GENRE_STATS_CACHE.clear()
-    store._loaded = False
 
 
 def _make_state(student_id: str = "student-a1") -> StudentState:
@@ -88,23 +87,25 @@ def test_put_raises_on_persist_failure(monkeypatch):
         store.put(state)
 
 
-def test_load_all_starts_empty_when_db_missing(tmp_path, monkeypatch):
-    """A genuinely absent DB file (first boot) must start empty, not raise."""
+def test_reads_start_empty_when_db_missing(tmp_path, monkeypatch):
+    """A genuinely absent DB file (first boot) must start empty, not raise —
+    _get_conn() provisions the schema on first touch."""
     missing_db = tmp_path / "does_not_exist_yet.db"
     monkeypatch.setattr(store, "_DB_PATH", missing_db)
-    store._loaded = False
 
-    store._load_all()  # must not raise
+    assert store.count() == 0  # must not raise
+    assert store.get("nobody") is None
+    assert store.list_ids() == []
 
-    assert store.count() == 0
 
-
-def test_load_all_raises_on_unreadable_existing_db(tmp_path, monkeypatch):
-    """An existing but corrupt/non-DB file must fail startup, not present as empty."""
+def test_reads_raise_on_unreadable_existing_db(tmp_path, monkeypatch):
+    """An existing but corrupt/non-DB file must fail loudly at the first read,
+    not present as an empty store (the A1 guarantee, read-through form)."""
     junk_db = tmp_path / "junk.db"
     junk_db.write_text("this is not a sqlite database")
     monkeypatch.setattr(store, "_DB_PATH", junk_db)
-    store._loaded = False
 
     with pytest.raises(sqlite3.Error):
-        store._load_all()
+        store.count()
+    with pytest.raises(sqlite3.Error):
+        store.get("anyone")

@@ -38,17 +38,15 @@ def _escape_like(s: str) -> str:
 
 _DB_PATH = Path(os.environ.get("ORIGINAL_DB", Path(__file__).parent.parent / "profiles.db"))
 
-# ── In-memory cache ───────────────────────────────────────────────────────────
-
-_STORE: dict[str, StudentState] = {}
-_loaded = False
-
 # ── Bayesian genre-stats cache ────────────────────────────────────────────────
 # get_genre_stats() is O(N×S) — iterates every student and every sample.
 # Cache the result keyed on genre; bust on every put() so newly-added baseline
 # samples are reflected in the next call. The hot path reads from this dict in
-# O(1). Dict clear is thread-safe in CPython (GIL-protected), matching the
-# lock-free approach used by _STORE itself.
+# O(1). Dict clear is thread-safe in CPython (GIL-protected). This is the ONE
+# process-local cache that survives WS-6 P6 (the _STORE profile cache is gone):
+# it's a derived aggregate, invalidated on every write in THIS worker, and a
+# cross-worker staleness window on a slow-moving population statistic is
+# acceptable where stale student profiles were not.
 _GENRE_STATS_CACHE: dict[str, dict | None] = {}
 
 
@@ -467,24 +465,14 @@ def _deserialize(data: str) -> StudentState:
     return state
 
 
-def _load_all() -> None:
-    """Load all profiles from SQLite into the in-memory cache (once)."""
-    global _loaded
-    if _loaded:
-        return
-    db_missing = not _DB_PATH.exists()
-    try:
-        with _get_conn() as conn:
-            for row in conn.execute("SELECT student_id, data FROM student_profiles"):
-                state = _deserialize(row[1])
-                _STORE[state.student_id] = state
-    except sqlite3.Error as e:
-        if db_missing:
-            pass  # First boot — no DB yet, start empty
-        else:
-            log.error("profile DB exists but is unreadable: %s", e)
-            raise  # Corrupt/locked DB must fail startup, not present as empty
-    _loaded = True
+# WS-6 P6: the process-global ``_STORE`` cache is gone — every read goes to
+# SQLite (read-through), which is what makes ``--workers N`` safe: no worker
+# holds private state that another worker's write can silently invalidate.
+# The WS-1 A1 guarantee ("an existing-but-corrupt DB must fail loudly, never
+# present as empty") is preserved without a hydration step: ``_get_conn()``
+# runs the CREATE TABLE ladder on every connect, and on a corrupt/non-DB file
+# that itself raises ``sqlite3.DatabaseError`` at the first call site rather
+# than any function quietly returning empty results.
 
 
 def _persist(state: StudentState) -> None:
@@ -504,21 +492,30 @@ def _persist(state: StudentState) -> None:
 
 
 def get(student_id: str) -> StudentState | None:
-    _load_all()
-    return _STORE.get(student_id)
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT data FROM student_profiles WHERE student_id = ?", (student_id,)
+        ).fetchone()
+    return _deserialize(row[0]) if row else None
 
 
 def get_or_create(student_id: str) -> StudentState:
-    _load_all()
-    if student_id not in _STORE:
-        _STORE[student_id] = StudentState(student_id=student_id)
-    return _STORE[student_id]
+    """Return the stored state, creating (and persisting) an empty one if absent.
+
+    The empty state is persisted immediately — with no in-memory cache, a
+    follow-up ``get()`` can only see it via SQLite. Matches
+    ``PostgresRepository.get_or_create``'s documented semantics exactly.
+    """
+    existing = get(student_id)
+    if existing is not None:
+        return existing
+    state = StudentState(student_id=student_id)
+    _persist(state)
+    return state
 
 
 def put(state: StudentState) -> None:
-    """Update the cache and persist to SQLite."""
-    _load_all()
-    _STORE[state.student_id] = state
+    """Persist a full student state (whole-document upsert)."""
     _persist(state)
     # Bust the Bayesian genre-stats cache — a new sample may shift the
     # cross-student genre distribution that get_genre_stats() aggregates.
@@ -526,24 +523,32 @@ def put(state: StudentState) -> None:
 
 
 def list_ids() -> list[str]:
-    _load_all()
-    return list(_STORE.keys())
+    with _get_conn() as conn:
+        rows = conn.execute("SELECT student_id FROM student_profiles").fetchall()
+    return [r[0] for r in rows]
 
 
 def all_states() -> list[StudentState]:
-    """Every cached StudentState (the impostor-pool builder's input)."""
-    _load_all()
-    return list(_STORE.values())
+    """Every stored StudentState (the impostor-pool builder's input)."""
+    with _get_conn() as conn:
+        rows = conn.execute("SELECT data FROM student_profiles").fetchall()
+    return [_deserialize(r[0]) for r in rows]
 
 
 def count() -> int:
-    _load_all()
-    return len(_STORE)
+    with _get_conn() as conn:
+        return int(conn.execute("SELECT COUNT(*) FROM student_profiles").fetchone()[0])
 
 
 def clear() -> None:
-    """Clear in-memory cache only (does not wipe SQLite)."""
-    _STORE.clear()
+    """No-op (WS-6 P6): persisted data always survives ``clear()``.
+
+    Historically cleared the in-memory cache without touching SQLite; with the
+    cache gone there is nothing volatile to clear, which converges on
+    ``PostgresRepository.clear()``'s documented contract. Deliberately does NOT
+    delete rows — ``seed_demo_store()``'s reseed is an idempotent upsert, and a
+    ``clear()`` that wiped SQLite would recreate the B16 data-loss footgun.
+    """
 
 
 # ── Phase 5: manifest audit log ──────────────────────────────────────────────
@@ -1005,18 +1010,16 @@ def get_genre_stats(genre: str) -> dict | None:
     dict with keys "mean" (np.ndarray), "std" (np.ndarray), "n_samples" (int)
     or None if fewer than 5 matching authentic samples are found.
     """
-    _load_all()
-
     # O(1) fast path — return cached result if available.
     # Cache is busted by put() whenever a new baseline sample is stored.
     if genre in _GENRE_STATS_CACHE:
         return _GENRE_STATS_CACHE[genre]
 
     vectors: list[np.ndarray] = []
-    # list() snapshots _STORE.values() to avoid RuntimeError if a concurrent
-    # put() call mutates the dict while we iterate (FastAPI uses a thread pool
-    # for sync handlers; _STORE is not protected by an explicit lock).
-    for student_state in list(_STORE.values()):
+    # Full read-through scan (WS-6 P6): all_states() snapshots the table, so
+    # concurrent writers can't perturb the iteration the way the old shared
+    # _STORE dict could.
+    for student_state in all_states():
         for sample in student_state.samples:
             if sample.auth_weight > 0 and getattr(sample, "genre", None) == genre:
                 vectors.append(sample.vector)
@@ -1078,15 +1081,11 @@ def delete_student(student_id: str) -> bool:
     - audit_log             (SQLite — the student's action history; the
                              deletion itself is re-logged by the API caller
                              as the single retained deletion receipt)
-    - The in-memory store (_STORE) — evicted AFTER the SQLite commit so that
-      a commit failure returns False and leaves the server in a consistent state
-      (rows still in DB + still in memory).
 
     Returns True if the student existed and was deleted, False if not found or
     if the SQLite commit failed.
     """
-    _load_all()
-    if student_id not in _STORE:
+    if get(student_id) is None:
         return False
 
     try:
@@ -1126,8 +1125,6 @@ def delete_student(student_id: str) -> bool:
         log.exception("delete_student failed for %s — no data was removed", student_id)
         return False
 
-    # SQLite committed successfully — now evict from memory.
-    del _STORE[student_id]
     _GENRE_STATS_CACHE.clear()  # genre stats may have included this student
     return True
 
@@ -2126,10 +2123,11 @@ def list_ids_for_tenant(tenant_id: str) -> list[str]:
 
     Works with both the naming convention `{tenant_id}:{local_id}` and
     unscoped IDs (for backward compatibility, unscoped students are omitted).
+    Python ``startswith`` on the id list, not SQL LIKE — exact by construction,
+    no wildcard-escaping concern (see tenant_stats for the LIKE-escaped case).
     """
-    _load_all()
     prefix = f"{tenant_id}:"
-    return [sid for sid in _STORE if sid.startswith(prefix)]
+    return [sid for sid in list_ids() if sid.startswith(prefix)]
 
 
 # ── Student display names + roster ────────────────────────────────────────────
@@ -2230,13 +2228,12 @@ def roster_for_tenant(tenant_id: str) -> list[dict]:
     This is what the professor/admin dashboards render — real names instead of
     the opaque tenant-scoped ids, so the logged-in product is actually usable.
     """
-    _load_all()
     ids = list_ids_for_tenant(tenant_id)
     names = _display_names_for(ids)
     actions = _latest_actions_for(ids)
     roster: list[dict] = []
     for sid in sorted(ids):
-        state = _STORE.get(sid)
+        state = get(sid)
         sample_count = state.sample_count if state else 0
         authenticated_count = state.authenticated_count if state else 0
         local = sid.split(":", 1)[1] if ":" in sid else sid
@@ -2266,7 +2263,8 @@ def tenant_stats(tenant_id: str) -> dict:
     """
     student_ids = list_ids_for_tenant(tenant_id)
     student_count = len(student_ids)
-    sample_count = sum(_STORE[sid].sample_count for sid in student_ids if sid in _STORE)
+    _states = (get(sid) for sid in student_ids)
+    sample_count = sum(s.sample_count for s in _states if s is not None)
 
     # Escape SQL LIKE wildcards so a tenant_id containing '_' or '%' cannot
     # accidentally match other tenants' rows (e.g. 'sem_a' must not match
@@ -2345,8 +2343,7 @@ def student_data_inventory(student_id: str) -> dict | None:
 
     Returns None if the student is not in the store.
     """
-    _load_all()
-    state = _STORE.get(student_id)
+    state = get(student_id)
     if state is None:
         return None
 

@@ -94,7 +94,8 @@ Each phase is gated. **The critical decision gate is after P1: an explicit "abor
 - **Rollback posture:** **unset `REPO_BACKEND`** (dashboard) → back on the read-only SQLite file, instant, for ≥4 weeks. The exact command is in OPS_RUNBOOK.
 
 ### P6 — Decommission & unlock — A4, A8, F1, F4, F6, B15, T4, T6, A9
-- **Entry gate:** P5 stable for ≥4 weeks (the SQLite rollback window elapsed without needing it).
+- **Status: code landed** (2026-07: `_STORE` demoted to read-through SQLite — multi-worker unlocked and proven with a cross-process write test; v1 API surface + its 62 tests + `cli_app`/`__main__` deleted; the run.py importlib hack dissolved into a plain `original.api` import). Landed ahead of the 4-week-soak gate deliberately: that gate protects a live pilot's rollback, and no pilot was deployed — `SqliteRepository` and the SQLite file remain the default backend, so no rollback path was forfeited.
+- **Entry gate (as originally planned):** P5 stable for ≥4 weeks (the SQLite rollback window elapsed without needing it).
 - **Deliverable (see §10 P6):**
   1. Demote the in-memory `_STORE` dict (`store.py`): reads go through the repository; keep at most a bounded per-request cache (A4, A8). **This unlocks `--workers N` and Render horizontal scaling** — move the login throttle to the DB or accept per-worker limits *explicitly and documented*.
   2. Delete the v1 API surface: `original/api/`, `original/canvas/`, `original/main.py`, `original/middleware/`, `original/auth/`, `original/schemas_v1/`, **plus the 62 v1 tests** (`test_api.py`, `test_auth.py`, `test_canvas.py`, v1 fixtures in `conftest.py`) (F1, T4, T6). Also delete the confirmed-dead `original/tasks/` (F4) and `middleware/rbac.py` if WS-5 hasn't already. Use `git rm` (deletion requires explicit permission per CLAUDE.md).

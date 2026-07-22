@@ -131,7 +131,7 @@ the committed `bluebook.bundle.js` is what production serves).
 
 ## Feature Dimensions
 - `FEATURE_DIM = 103` (current)
-- Legacy profiles serialized with 74 or 89 features will be padded with 0.5 on load (you'll see warnings). Run `rebuild-baselines` to fix.
+- Legacy profiles serialized with 74 or 89 features will be padded with 0.5 on load (you'll see warnings). Fix with `python scripts/reextract_baselines.py` (the old `python -m original.cli rebuild-baselines` was deleted with the v1 stack in WS-6 P6 — it only ever operated on the v1 database).
 - `ALL_FEATURE_CODES` in `original/constants.py` is the canonical ordered list — don't reorder it.
 
 ---

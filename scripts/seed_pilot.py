@@ -33,17 +33,13 @@ from original._env import load_env_file  # noqa: E402
 
 load_env_file()
 
-from original import store  # noqa: E402
+# original.api imports plainly since WS-6 P6 deleted the v1 package that
+# shadowed it — reach its endpoint functions directly.
+from original import api as _legacy  # noqa: E402
 from original import principal as principal_mod  # noqa: E402
+from original import store  # noqa: E402
 from original.schemas import AddSampleRequest, ScoreSubmissionRequest  # noqa: E402
 
-# original/api.py is shadowed by the original.api package, so load the legacy
-# demo module by path (exactly as run.py / the test-suite do) to reach its
-# endpoint functions directly.
-import run  # noqa: E402
-
-run.load_legacy_demo_app()
-_legacy = sys.modules["original._legacy_demo_api"]
 add_baseline = _legacy.add_baseline
 score_submission = _legacy.score_submission
 

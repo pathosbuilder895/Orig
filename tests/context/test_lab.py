@@ -16,16 +16,13 @@ what's exercised here.
 from __future__ import annotations
 
 import importlib.util
-import json
 import os
 import sys
 import tempfile
-import threading
 import time
 from pathlib import Path
 
 import pytest
-
 
 # ── Test fixtures (shared across PR 7+8 tests) ───────────────────────────────
 
@@ -56,8 +53,7 @@ def _fresh_db_and_app():
     from pathlib import Path as _Path
 
     module.store._DB_PATH = _Path(tmp.name)
-    module.store._STORE.clear()
-    module.store._loaded = False
+    module.store._GENRE_STATS_CACHE.clear()
     from fastapi.testclient import TestClient
 
     return TestClient(module.app), module, tmp.name
@@ -67,8 +63,7 @@ def _fresh_db_and_app():
 def client_module_db():
     client, module, db_path = _fresh_db_and_app()
     yield client, module, db_path
-    module.store._STORE.clear()
-    module.store._loaded = False
+    module.store._GENRE_STATS_CACHE.clear()
     os.unlink(db_path)
 
 

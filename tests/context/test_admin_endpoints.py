@@ -19,13 +19,8 @@ import os
 import sys
 import tempfile
 from pathlib import Path
-from typing import Tuple
 
-import numpy as np
 import pytest
-
-from original.constants import FEATURE_DIM
-
 
 # ── Test fixtures ────────────────────────────────────────────────────────────
 
@@ -70,8 +65,7 @@ def _fresh_db_and_app():
     from pathlib import Path as _Path
 
     module.store._DB_PATH = _Path(tmp.name)
-    module.store._STORE.clear()
-    module.store._loaded = False
+    module.store._GENRE_STATS_CACHE.clear()
 
     from fastapi.testclient import TestClient
 
@@ -83,8 +77,7 @@ def client_module_db():
     client, module, db_path = _fresh_db_and_app()
     yield client, module, db_path
     # Clean up: clear caches so the next test sees a clean store.
-    module.store._STORE.clear()
-    module.store._loaded = False
+    module.store._GENRE_STATS_CACHE.clear()
     os.unlink(db_path)
 
 

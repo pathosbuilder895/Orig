@@ -128,22 +128,25 @@ def test_layer7_output_has_tension_arc_field():
     assert field_defaults["tension_arc"] is None
 
 
-# ── 5. ScoreResponse schema includes tension_arc field ───────────────────────
+# ── 5. Live response schema includes tension_arc field ───────────────────────
 
 
 def test_score_response_includes_tension_arc_field():
     """
-    Verifies the Pydantic schema exposes tension_arc.
-    We test the schema directly rather than making a live API call,
-    because the API requires a fully seeded DB with baselines.
+    Verifies the LIVE Pydantic response schema (original/schemas.py — the
+    v1 schemas_v1 copy this used to check was deleted in WS-6 P6) exposes
+    tension_arc as a nullable field. Schema-direct rather than a live API
+    call, because the API requires a fully seeded DB with baselines.
     """
-    from original.schemas_v1.submission import ScoreResponse, TensionArcOut
+    from original.schemas import Layer7OutputResponse, TensionArcOut
 
-    # tension_arc must be an Optional field on ScoreResponse
-    assert "tension_arc" in ScoreResponse.model_fields
-    field_info = ScoreResponse.model_fields["tension_arc"]
-    # default must be None (optional)
-    assert field_info.default is None
+    # tension_arc must be a nullable field on the live scoring response
+    assert "tension_arc" in Layer7OutputResponse.model_fields
+    annotation = Layer7OutputResponse.model_fields["tension_arc"].annotation
+    assert type(None) in getattr(annotation, "__args__", ()), (
+        "tension_arc must be nullable (TensionArcOut | None) — it is absent "
+        "for short submissions"
+    )
 
     # TensionArcOut must have the expected fields
     expected_fields = {

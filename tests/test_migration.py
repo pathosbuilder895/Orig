@@ -181,13 +181,11 @@ def seeded_sqlite(tmp_path, monkeypatch):
     db_file = tmp_path / "migrate_src.db"
     monkeypatch.setenv("ORIGINAL_DB", str(db_file))
     monkeypatch.setattr(store, "_DB_PATH", db_file)
-    store._STORE.clear()
     store._GENRE_STATS_CACHE.clear()
-    store._loaded = False
+    store._GENRE_STATS_CACHE.clear()
     _seed_sqlite(store)
     yield str(db_file)
-    store._STORE.clear()
-    store._loaded = False
+    store._GENRE_STATS_CACHE.clear()
 
 
 @pytest.fixture

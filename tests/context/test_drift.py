@@ -20,11 +20,9 @@ import numpy as np
 import pytest
 
 from original.constants import (
-    ALL_FEATURE_CODES, FEATURE_DIM, TIER4_CODES, TIER6_CODES,
-    TIER8_CODES, TIER13_CODES,
+    FEATURE_DIM,
 )
 from original.quantum.state import BaselineSample, DriftResult, StudentState
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -198,8 +196,7 @@ class TestPersistence:
             fresh_store.put(state)
 
             # Wipe cache and reload from disk.
-            fresh_store._STORE.clear()
-            fresh_store._loaded = False
+            fresh_store._GENRE_STATS_CACHE.clear()
             reloaded = fresh_store.get("drift_persist")
             assert reloaded is not None
             assert reloaded._consecutive_drift_count == 1, (
@@ -216,8 +213,9 @@ class TestPersistence:
     def test_legacy_row_defaults_counter_to_zero(self):
         # Rows that predate the field — `consecutive_drift_count` missing
         # from the JSON — must deserialise with counter = 0.
-        from original.store import _deserialize, _serialize
         import json
+
+        from original.store import _deserialize, _serialize
 
         state = _state_with_baseline(value=0.5, n=2)
         state.student_id = "legacy"
@@ -275,7 +273,9 @@ class TestApiIntegration:
 
     @pytest.fixture
     def client_and_db(self):
-        import sys, importlib.util, tempfile
+        import importlib.util
+        import sys
+        import tempfile
         from pathlib import Path
 
         tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
@@ -337,8 +337,8 @@ class TestApiIntegration:
         client, _db, module = client_and_db
 
         # Seed via the module's own store with controlled vectors.
-        from original import store as drift_store
-        from original.quantum.state import StudentState as _SS, BaselineSample as _BS
+        from original.quantum.state import BaselineSample as _BS
+        from original.quantum.state import StudentState as _SS
 
         # Use the module's `store` reference (same module — they share state).
         seed_state = _SS(student_id="test_drift_outlier", samples=[

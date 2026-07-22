@@ -22,7 +22,6 @@ instead of re-deriving `run.load_legacy_demo_app()` at module scope.
 """
 
 import sqlite3
-import sys
 
 import pytest
 
@@ -57,8 +56,10 @@ def _auth(token: str):
 
 @pytest.fixture
 def api_mod(live_app):
-    """The loaded legacy demo module, guaranteed importable via live_app."""
-    return sys.modules["original._legacy_demo_api"]
+    """The loaded app module (plain original.api since WS-6 P6)."""
+    import original.api
+
+    return original.api
 
 
 @pytest.fixture

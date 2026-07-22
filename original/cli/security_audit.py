@@ -203,25 +203,17 @@ class SecurityAudit:
 
         repo_root = Path(__file__).parent.parent.parent
 
-        # Check schemas
-        schemas_dir = repo_root / "original" / "schemas_v1"
-        if schemas_dir.exists():
-            schema_files = list(schemas_dir.glob("*.py"))
-            self._print_info(f"Found {len(schema_files)} schema files")
-
-            has_validators = False
-            for schema_file in schema_files:
-                content = schema_file.read_text()
-                if "field_validator" in content or "validator" in content:
-                    has_validators = True
-                    break
-
-            if has_validators:
-                self._print_ok("Pydantic validators found in schemas")
+        # Check the live schema module (original/schemas.py — the v1
+        # schemas_v1/ directory this used to scan was deleted in WS-6 P6).
+        schemas_file = repo_root / "original" / "schemas.py"
+        if schemas_file.exists():
+            content = schemas_file.read_text()
+            if "field_validator" in content or "validator" in content:
+                self._print_ok("Pydantic validators found in original/schemas.py")
             else:
-                self._print_warn("No obvious input validators found in schemas")
+                self._print_warn("No obvious input validators found in original/schemas.py")
         else:
-            self._print_warn("schemas_v1 directory not found")
+            self._print_warn("original/schemas.py not found")
 
     # ── pip audit ────────────────────────────────────────────────────────────────
 
