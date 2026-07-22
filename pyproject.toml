@@ -9,10 +9,14 @@ requires-python = ">=3.10"
 line-length = 100
 target-version = "py311"          # aligns with CI/Render; local .venv is still 3.9 (WS-2 task 2.6)
 extend-exclude = [
-  # dormant v1 tree — do not lint code scheduled for deletion (WS-6/WS-7 delete
-  # against this list; keep it verbatim, see docs/implementation/WS-2-guardrails.md)
-  "original/api", "original/canvas", "original/db", "original/core",
-  "original/schemas_v1", "original/middleware", "original/auth", "original/tasks",
+  # The dormant v1 API surface (original/api, canvas, schemas_v1, middleware,
+  # auth, tasks, main.py) was DELETED in WS-6 P6 and left this list. What
+  # remains excluded: original/db + original/core still mix live modules
+  # (db/models/live.py, db/postgres_session.py, db/tenancy_shim.py,
+  # core/logging.py) with never-linted v1 leftovers (v1 models, db/session.py,
+  # core/config.py) — bringing them into lint scope is a deliberate follow-up,
+  # not a side effect (see docs/implementation/WS-2-guardrails.md).
+  "original/db", "original/core",
   "frontend", "web", "legacy_mvp", "demo/bluebook/vendor",
 ]
 
@@ -56,7 +60,6 @@ convention = "numpy"
 # wrapping them makes the text harder to read and edit for no lint value.
 "original/quantum/professor_narrative.py" = ["E501"]
 "original/context/report.py" = ["E501"]
-"original/main.py" = ["E501"]
 "original/explainer.py" = ["E501"]
 "original/schemas.py" = ["E501"]
 "original/lab/suggestions.py" = ["E501"]

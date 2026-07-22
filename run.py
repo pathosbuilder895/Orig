@@ -1,18 +1,15 @@
 """
-run.py — Entry point for the Original backend server.
+run.py — Entry point for the Original server (the original/api.py app).
 
 Usage:
-    python run.py [--port 8001]
     python run.py --demo [--port 8001] [--frontend-dir PATH]
 
-Modes:
-    default   Start the DB-backed API in original.main
-    --demo    Start the legacy demo API expected by the static HTML pages
-              and serve the frontend files from the project root
+The dormant v1 stack (original.main + the original/api/ package) was deleted
+in WS-6 P6, which also dissolved the api.py-vs-api/ module-name collision —
+``original.api`` now resolves to the one real app module, imported plainly.
 """
 
 import argparse
-import importlib.util
 import os
 import sys
 from pathlib import Path
@@ -27,26 +24,16 @@ import uvicorn
 
 
 def load_legacy_demo_app():
-    """Load the legacy FastAPI demo app from original/api.py.
+    """Return the FastAPI app from original/api.py (plain import).
 
-    That module name collides with the original.api package, so we load it from
-    its file path and give it a private module name.
+    Kept under its historical name — tests' ``live_app`` fixture and older
+    tooling call this. The importlib.spec_from_file_location hack that used
+    to live here existed only because the deleted v1 ``original/api/``
+    package shadowed the module name (audit A9).
     """
-    module_name = "original._legacy_demo_api"
-    module = sys.modules.get(module_name)
-    if module is not None:
-        return module.app
+    from original import api
 
-    module_path = BACKEND_ROOT / "original" / "api.py"
-    spec = importlib.util.spec_from_file_location(module_name, module_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Unable to load legacy demo app from {module_path}")
-
-    module = importlib.util.module_from_spec(spec)
-    module.__package__ = "original"
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module.app
+    return api.app
 
 
 def seed_demo_store():
@@ -101,7 +88,10 @@ def main():
     parser.add_argument(
         "--demo",
         action="store_true",
-        help="Run the legacy demo API and serve the static Original frontend pages",
+        required=True,
+        help="Run the Original app and serve the static frontend pages "
+        "(the only mode since WS-6 P6 deleted the v1 stack; kept as an "
+        "explicit flag so every existing start command keeps working)",
     )
     parser.add_argument(
         "--frontend-dir",
@@ -165,14 +155,6 @@ def main():
         print(f"  Landing page: http://localhost:{args.port}/professor.html")
         print(f"  Bluebook:     http://localhost:{args.port}/bluebook/")
         print(f"  Health:       http://localhost:{args.port}/health")
-        print()
-
-    else:
-        from original.main import app
-
-        print(f"Starting Original API on http://localhost:{args.port}")
-        print(f"  Docs: http://localhost:{args.port}/api/docs")
-        print(f"  Health: http://localhost:{args.port}/health")
         print()
 
     uvicorn.run(

@@ -8,16 +8,16 @@ mints a principal the tenant-isolation middleware enforces.
 import pytest
 from fastapi.testclient import TestClient
 
-import sys
+# The app lives in the plainly-imported original.api module (WS-6 P6
+# dissolved the module-shadowing importlib hack). tests/context/test_drift.py
+# loads private fresh copies mid-suite, but this module reference (where our
+# `app` actually lives) stays valid.
+import original.api as _legacy_mod
 import run
 from original import principal as pr
 
 app = run.load_legacy_demo_app()
 client = TestClient(app)
-# Capture the module object NOW: tests/context/test_drift.py evicts the
-# "_legacy_demo_api" entry from sys.modules mid-suite, but this reference
-# (the module our `app` actually lives in) stays valid.
-_legacy_mod = sys.modules["original._legacy_demo_api"]
 
 EMAIL = "prof.auth@acmeu.edu"
 PW = "s3cret-passw0rd"

@@ -23,7 +23,6 @@ the very thing the system exists to flag. This gate proves:
   6. The proctor attestation and the login session token are not interchangeable.
 """
 
-import sys
 
 import pytest
 from fastapi.testclient import TestClient
@@ -64,7 +63,9 @@ def client(app, store_reset):
 @pytest.fixture
 def real_deploy(monkeypatch):
     """Flip the loaded app into pilot behaviour without reloading it."""
-    monkeypatch.setattr(sys.modules["original._legacy_demo_api"], "_IS_REAL_DEPLOY", True)
+    import original.api
+
+    monkeypatch.setattr(original.api, "_IS_REAL_DEPLOY", True)
     yield
 
 
