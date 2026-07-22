@@ -24,6 +24,20 @@ original/api.py  ←──── THE pilot backend ("legacy demo app", 1 file)
 Deployed per `render.yaml` (`original-demo` free sandbox, `original-pilot`
 paid + disk). Ops: `docs/OPS_RUNBOOK.md`. Canvas: `docs/CANVAS_RUNBOOK.md`.
 
+### The repository seam ([ADR-002](adr/002-data-layer-convergence.md), [ADR-006](adr/006-postgres-convergence.md))
+
+`original/repository.py` defines a `Repository` protocol — every persistence
+operation the live API needs, backend-agnostic. `api.py` depends on
+`Repository` (via `get_repository(environment)`), never on `original/store.py`
+directly. Today the only implementation is `SqliteRepository`, delegating to
+`store.py`; a `PostgresRepository` plugs into the same seam once ADR-006's
+Postgres convergence lands, without the API layer changing. The seam started
+as a 9-method slice covering just the Formation feature; WS-6 Phase P1
+widened it to cover essentially every public `store.*` function, so this is
+now load-bearing for the whole app, not an optional abstraction — a new
+feature that calls `store` directly instead of going through `Repository`
+reopens exactly the two-backends-diverge problem ADR-002 exists to prevent.
+
 ## 🧊 DORMANT — the v1 stack (future Postgres path, ADR-004 Route B)
 
 ```
@@ -36,6 +50,18 @@ original/main.py + original/api/ (v1 package)
 ⚠️ The duplicated LTI stack has already caused one real incident: the Canvas
 one-pager once documented `/canvas/lti/*` (v1's routes) instead of `/lti/*`
 (the pilot's). When touching anything LTI/auth, check which stack you're in.
+
+⚠️ **A second, narrower trap: the live `/canvas/baseline/*` routes share a URL
+prefix with the dormant `original/canvas/` package.** `original/api.py` (live)
+registers `POST /canvas/baseline/{student_id}/list-canvas-submissions` and
+`POST /canvas/baseline/{student_id}/import-baseline` — demo-grade Canvas
+submission-import stubs on the live pilot backend. These have nothing to do
+with `original/canvas/lti.py`'s dormant `/canvas/lti/*` routes above, but the
+shared `/canvas` prefix invites exactly the same mistake as the
+`original/api.py` vs `original/api/` module-shadowing trap this doc exists to
+warn about: seeing a `/canvas/...` path is not enough to tell which stack
+you're in. Check which *file* defines the route (`original/api.py` vs
+`original/canvas/`), not just the URL prefix.
 
 ## 🪦 ABANDONED
 
