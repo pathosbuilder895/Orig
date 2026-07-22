@@ -413,6 +413,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
     </div>
 
     <div class="content">
+      <div id="accessWarning" style="display:none;padding:10px 14px;margin-bottom:14px;border:1px solid var(--flag-red);border-radius:8px;background:rgba(220,38,38,0.08);color:var(--flag-red);font-size:0.85rem"></div>
       <!-- Stats -->
       <div class="stats-grid">
         <div class="stat-card">
@@ -420,7 +421,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           <div class="stat-icon-wrap" style="background:var(--gold-light)"></div>
           <div class="stat-value" style="color:var(--green-deep)">—</div>
           <div class="stat-label">Enrolled Students</div>
-          
+
         </div>
         <div class="stat-card">
           <div class="stat-accent" style="background:var(--flag-red)"></div>
@@ -434,14 +435,14 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           <div class="stat-icon-wrap" style="background:var(--flag-amber-bg)"></div>
           <div class="stat-value" style="color:var(--amber)">—</div>
           <div class="stat-label">Submissions Scored</div>
-          
+
         </div>
         <div class="stat-card">
           <div class="stat-accent" style="background:var(--flag-green)"></div>
           <div class="stat-icon-wrap" style="background:var(--flag-green-bg)"></div>
           <div class="stat-value" style="color:var(--flag-green)">—</div>
           <div class="stat-label">Require Attention</div>
-          
+
         </div>
       </div>
 
@@ -690,9 +691,21 @@ async function loadDashboard() {
     // Fetch up to 12 student states in parallel
     const slice = ids.slice(0, 12);
     const states = await Promise.all(
-      slice.map(id => fetch(API + '/students/' + id).then(r => r.json()).catch(() => null))
+      slice.map(id => fetch(API + '/students/' + id)
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null))
     );
+    const deniedIds = slice.filter((id, i) => states[i] === null);
     const students = states.map((st, i) => st ? {...st, _id: slice[i], _name: (nameMap[slice[i]] && nameMap[slice[i]].name) || null} : null).filter(Boolean);
+
+    // Surface access failures instead of silently rendering incomplete rows (BUG-3).
+    const accessWarning = document.getElementById('accessWarning');
+    if (accessWarning) {
+      accessWarning.textContent = deniedIds.length
+        ? `Could not load details for ${deniedIds.length} student${deniedIds.length===1?'':'s'} (access denied): ${deniedIds.join(', ')}`
+        : '';
+      accessWarning.style.display = deniedIds.length ? '' : 'none';
+    }
 
     const totalBaselines = students.reduce((sum, s) => sum + (s.sample_count || 0), 0);
     if (cards[1]) cards[1].textContent = totalBaselines;

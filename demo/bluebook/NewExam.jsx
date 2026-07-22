@@ -7,6 +7,10 @@ import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, Logotype, MetaLabel, Seal, 
 // ════════════════════════════════════════════════════════════════
 const { useState: useNEState } = React;
 
+// Demo-mode fallback only — used when unauthenticated (no tenant to fetch
+// courses for) or when the live /bluebook/courses fetch fails outright.
+// Authenticated sessions always prefer the tenant's real course list so
+// exams can only reference courses that actually exist (see NewExamScreen).
 const COURSES = [
   { code: 'PHIL 301A', name: 'Ethics in the Modern World' },
   { code: 'POLS 204',  name: 'Foundations of Political Thought' },
@@ -148,7 +152,8 @@ function ToggleRow({ label, desc, value, onChange }) {
 // ─── New Exam Screen ──────────────────────────────────────────────────────────
 export function NewExamScreen({ onNavigate }) {
   const [title,     setTitle]     = useNEState('');
-  const [course,    setCourse]    = useNEState('PHIL 301A');
+  const [course,    setCourse]    = useNEState('');
+  const [liveCourses, setLiveCourses] = useNEState(null); // null = not yet fetched
   const [duration,  setDuration]  = useNEState(90);
   const [minWords,  setMinWords]  = useNEState(600);
   const [maxWords,  setMaxWords]  = useNEState(1200);
@@ -164,7 +169,26 @@ export function NewExamScreen({ onNavigate }) {
   const [saving,    setSaving]    = useNEState(false);
   const [saved,     setSaved]     = useNEState(false);
 
-  const canSubmit = title.trim() && duration && prompts.some(p => p.trim());
+  React.useEffect(() => {
+    let live = true;
+    BB_API.listCourses().then(list => { if (live) setLiveCourses(list); });
+    return () => { live = false; };
+  }, []);
+
+  // GET /bluebook/courses succeeds (200) regardless of auth — scoped to the
+  // caller's tenant when authenticated, unscoped otherwise (same pattern
+  // Results.jsx already relies on for /bluebook/submissions) — so an empty
+  // array is a real, meaningful "this tenant has zero courses" result, not
+  // an auth gate. COURSES only fires on an outright fetch/network failure
+  // (listCourses() resolves null), matching Results.jsx's MOCK_RESULTS.
+  const courses = liveCourses !== null ? liveCourses : COURSES;
+  const noCoursesYet = liveCourses !== null && liveCourses.length === 0;
+
+  React.useEffect(() => {
+    if (!course && courses.length) setCourse(courses[0].code);
+  }, [courses, course]);
+
+  const canSubmit = title.trim() && duration && prompts.some(p => p.trim()) && course && !noCoursesYet;
 
   function addPrompt() {
     setPrompts(ps => [...ps, '']);
@@ -291,11 +315,24 @@ export function NewExamScreen({ onNavigate }) {
               />
             </FormField>
             <FormField label="Course" id="neCourse">
-              <SelectInput
-                id="neCourse"
-                value={course} onChange={setCourse}
-                options={COURSES.map(c => ({ value: c.code, label: `${c.code} · ${c.name}` }))}
-              />
+              {noCoursesYet ? (
+                <p style={{
+                  fontFamily: fontBody, fontStyle: 'italic', fontSize: 15,
+                  color: BB.fade, margin: '6px 0 0',
+                }}>
+                  No courses yet — <button onClick={() => onNavigate('courses')} style={{
+                    fontFamily: 'inherit', fontStyle: 'inherit', fontSize: 'inherit',
+                    color: BB.gold, background: 'none', border: 'none', padding: 0,
+                    cursor: 'pointer', textDecoration: 'underline',
+                  }}>create one</button> before scheduling an examination.
+                </p>
+              ) : (
+                <SelectInput
+                  id="neCourse"
+                  value={course} onChange={setCourse}
+                  options={courses.map(c => ({ value: c.code, label: `${c.code} · ${c.name}` }))}
+                />
+              )}
             </FormField>
           </div>
         </div>

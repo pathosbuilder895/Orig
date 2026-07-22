@@ -2228,6 +2228,7 @@ function switchTab(name) {
   });
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById(`tab-${name}`).classList.add('active');
+  if (name === 'history' && typeof renderHistory === 'function') renderHistory();
 }
 
 /* ── History — the shared portfolio: student.html submissions AND analyses
@@ -4393,52 +4394,41 @@ function _renderProfExplanation(pe, action) {
 
   // Colour scheme keyed by action
   const colours = {
-    no_action:            { border: '#4A6B5C', headColor: '#4A6B5C', actionBg: 'rgba(74,107,92,0.07)', actionBorder: '#4A6B5C' },
-    monitor:              { border: '#B08D3C', headColor: '#8a6a28', actionBg: 'rgba(176,141,60,0.08)', actionBorder: '#B08D3C' },
-    schedule_conversation:{ border: '#B08D3C', headColor: '#8a6a28', actionBg: 'rgba(176,141,60,0.08)', actionBorder: '#B08D3C' },
-    escalate:             { border: '#6B2737', headColor: '#5a2230', actionBg: 'rgba(107,39,55,0.07)', actionBorder: '#6B2737' },
+    no_action:            { border: '#4A6B5C', headColor: '#4A6B5C' },
+    monitor:              { border: '#B08D3C', headColor: '#8a6a28' },
+    schedule_conversation:{ border: '#B08D3C', headColor: '#8a6a28' },
+    escalate:             { border: '#6B2737', headColor: '#5a2230' },
   };
   const c = colours[action] || colours['monitor'];
 
-  const obsHtml = (pe.observations || []).map(o =>
-    `<li style="margin-bottom:6px">${escHtml(o)}</li>`
+  // Real shape from original/explainer.py:explain() — {verdict, severity,
+  // confidence_note, top_reasons[], ghostwriting_signal, summary}. This card
+  // previously read headline/observations/hypotheses/has_behavioral_signals/
+  // has_ai_signals/suggested_action, none of which exist on that object —
+  // pe was always undefined (wrong field) so the mismatch was never visible.
+  const reasonsHtml = (pe.top_reasons || []).map(r =>
+    `<li style="margin-bottom:6px">${escHtml(r)}</li>`
   ).join('');
 
-  const hypHtml = (pe.hypotheses || []).map(h =>
-    `<li style="margin-bottom:6px">${escHtml(h)}</li>`
-  ).join('');
-
-  const behavNote = pe.has_behavioral_signals
-    ? `<span style="display:inline-block;margin-left:8px;padding:2px 8px;border-radius:3px;background:rgba(74,107,92,0.1);color:#4A6B5C;font-size:0.72rem">keystroke data included</span>`
-    : '';
-  const aiNote = pe.has_ai_signals
-    ? `<span style="display:inline-block;margin-left:8px;padding:2px 8px;border-radius:3px;background:rgba(107,39,55,0.08);color:#5a2230;font-size:0.72rem">AI-pattern signals present</span>`
+  const ghostNote = pe.ghostwriting_signal
+    ? `<span style="display:inline-block;margin-left:8px;padding:2px 8px;border-radius:3px;background:rgba(107,39,55,0.08);color:#5a2230;font-size:0.72rem">ghostwriting signal</span>`
     : '';
 
   return `
     <div style="border-left:3px solid ${c.border};padding:14px 18px;margin:14px 0;background:var(--surface)">
       <div style="font-family:'EB Garamond',serif;font-size:1.18rem;font-weight:700;color:${c.headColor};line-height:1.35;margin-bottom:10px">
-        ${escHtml(pe.headline)}${behavNote}${aiNote}
+        ${escHtml(pe.verdict)}${ghostNote}
       </div>
       <p style="font-family:'EB Garamond',serif;font-size:0.97rem;line-height:1.6;color:var(--text-primary);margin:0 0 14px 0">
         ${escHtml(pe.summary)}
       </p>
-      ${obsHtml ? `
+      ${reasonsHtml ? `
       <div style="margin-bottom:14px">
         <div style="font-weight:600;font-size:0.78rem;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em">What the system noticed</div>
         <ul style="margin:0;padding-left:18px;font-family:'EB Garamond',serif;font-size:0.95rem;line-height:1.55;color:var(--text-primary)">
-          ${obsHtml}
+          ${reasonsHtml}
         </ul>
       </div>` : ''}
-      <div style="margin-bottom:14px">
-        <div style="font-weight:600;font-size:0.78rem;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em">What might explain this?</div>
-        <ul style="margin:0;padding-left:18px;font-family:'EB Garamond',serif;font-size:0.95rem;line-height:1.55;color:var(--text-primary)">
-          ${hypHtml}
-        </ul>
-      </div>
-      <div style="background:${c.actionBg};border:1px solid ${c.actionBorder};border-radius:6px;padding:10px 14px;margin-bottom:12px;font-family:'EB Garamond',serif;font-size:0.95rem;color:var(--text-primary)">
-        <strong>Suggested next step:</strong> ${escHtml(pe.suggested_action)}
-      </div>
       <div style="font-family:'EB Garamond',serif;font-style:italic;font-size:0.82rem;color:var(--text-muted)">
         ${escHtml(pe.confidence_note)}
       </div>
@@ -4647,8 +4637,12 @@ function renderContextPanel(raw) {
   if (!card) return;
   const m = raw?.context_manifest;
   const rep = raw?.report;
-  // Show the panel only when at least the manifest is populated.
-  if (!m && !rep) {
+  const he = raw?.human_explanation;
+  // Show the panel when the manifest/report is populated (Phase 3/6, flag-gated)
+  // OR when human_explanation is present — that field is set unconditionally
+  // by every /score call (original/api.py human_explanation=explain(r)), so it
+  // must not be hidden behind the Phase 3/6 CONTEXT_MANIFEST_ENABLED gate.
+  if (!m && !rep && !he) {
     card.style.display = 'none';
     return;
   }
@@ -4669,10 +4663,14 @@ function renderContextPanel(raw) {
   document.getElementById('ctxConfidenceBadge').textContent =
     rep?.confidence ? `confidence: ${rep.confidence}` : '—';
 
-  // Professor explanation — plain-English card rendered before technical details
+  // Professor explanation — plain-English card rendered before technical details.
+  // Bound to the top-level human_explanation (original/api.py sets this
+  // unconditionally via human_explanation=explain(r)); report has no
+  // professor_explanation field, so reading it from `rep` here always
+  // returned undefined and the card silently never rendered.
   const profExplEl = document.getElementById('profExplanation');
   if (profExplEl) {
-    const pe = rep?.professor_explanation;
+    const pe = raw?.human_explanation;
     const action = raw?.recommendation?.action || rep?.verdict || 'monitor';
     profExplEl.innerHTML = pe ? _renderProfExplanation(pe, action) : '';
   }
