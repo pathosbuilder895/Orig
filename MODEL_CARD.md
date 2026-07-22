@@ -1,4 +1,4 @@
-# Model Card — Original Stylometric Scorer v1.3.0
+# Model Card — Original Stylometric Scorer v1.3.1
 
 This document describes the current feature pipeline, scoring model, output actions, reliability limits, and intended institutional use of Original.
 
@@ -254,6 +254,122 @@ the null model alone accounts for the entire gain.
 
 ---
 
+## Length-Adaptive Tier Weighting (evaluated, kept OFF)
+
+`LENGTH_ADAPTIVE_WEIGHTS` rescales the per-feature deviation weight vector by
+submission length (`quantum/scoring.py:515`). **Evaluated 2026-06-30** on the
+seminary calibration corpus (N=717 scored essays, truncated to 500 words,
+`validation/stability/measure_lift_seminary.py`) across three candidate
+weight schedules: **+0.0035 to +0.0058 ΔAUC, ΔBrier ≈ 0.0** for all three —
+negligible, and the first schedule iteration collapsed `escalate`
+true-positives 165→1 before the shipped Σ(w²)-preserved schedule brought
+that back to 159→19. **Verdict: kept OFF.** Small, noisy lift does not
+justify a scoring-math change; this entry exists so nobody re-runs the
+experiment from scratch. Evidence: `validation/stability/lift_seminary_2026-06-30.json`,
+`lift_seminary_normalized_2026-06-30.json`, `lift_seminary_sum_w2_preserved_2026-06-30.json`.
+
+---
+
+## Amplitude Scoring / Quantum Fidelity (Phase 6, optional second signal)
+
+`AMPLITUDE_SCORING_ENABLED` turns on the complex-amplitude encoding path
+(`_amplitude_score()` in `original/quantum/scoring.py`), which attaches
+`authorship.quantum_fidelity` and `authorship.fidelity_conformal_pvalue` to
+the response. Structurally — confirmed by reading the scoring code and by
+measurement — **this flag cannot change `deviation_score` or
+`authorship_probability`.** `rms_z` (and therefore `deviation_score`) and the
+Born-rule `authorship_probability` are both computed before the amplitude
+branch runs and are never touched by it; the flag only adds the two new
+fields above.
+
+**Measured lift** (2026-07-09, ad hoc script mirroring
+`validation/verify/run_null_model.py`'s direct-`score()`-call pattern —
+see methodology note below): `validation/corpus` + `validation/manifest.json`,
+13 eligible authors (≥3 baselines), full-length essays, capped at 5 scoring
+entries/author for tractability (N=55 scored, seed 42). Confirmed
+max |Δ deviation_score| = max |Δ authorship_probability| = 0.000000 across
+every scored essay — the primary-score AUC/Brier is identically 0.6643 /
+0.1388 ON and OFF (ΔAUC = ΔBrier = 0.0000), exactly as the code predicts.
+The only new information is `quantum_fidelity` itself: taken alone as a
+discriminator on the same N=55, it reached **AUC 0.7633 / Brier 0.1828** —
+numerically higher AUC than the primary score, but on a small, capped
+sample, and not wired into `deviation_score` or `recommended_action` at all.
+
+**Verdict: kept OFF.** The flag is a pure no-op for the scores and action
+the product currently makes decisions on, so there is no regression risk
+in leaving it off — but there is also no measured lift to justify turning
+it on for its stated purpose (report-only fidelity/conformal fields). The
+apparent standalone discriminative power of `quantum_fidelity` (AUC 0.7633)
+is worth a properly-sized follow-up (full 737-essay corpus, uncapped) before
+any product conversation about surfacing or blending it — this measurement
+is too small and too capped to act on by itself.
+
+**Methodology caveat.** `validation/calibration.py`'s `run_calibration()`
+(used by `measure_lift_seminary.py`) calls `score()` without a
+`scoring_config` argument. Since the WS-7 `ScoringConfig` refactor
+(`original/quantum/scoring.py`), `score()` reads `scoring_config or
+ScoringConfig()` — the all-flags-off default — and **no longer reads
+`os.environ` itself**. Confirmed empirically: setting
+`AMPLITUDE_SCORING_ENABLED=1` and calling `run_calibration()` produces
+byte-identical output to the flag being unset, because the harness never
+builds a `ScoringConfig` at all. A naive rerun of `measure_lift_seminary.py`
+against this flag today would silently report "no lift" for the wrong
+reason. This measurement instead built `ScoringConfig.from_env()` explicitly
+and passed it into `score()`, mirroring `original/api.py`'s production
+wiring (`api.py:2010-2054`). The same gap likely affects any future flag
+benchmarked by pointing `measure_lift_seminary.py`/`run_calibration()` at an
+env var without first checking whether `score()` still reads it directly.
+
+---
+
+## Hierarchical Bayesian Cold-Start Prior (optional)
+
+`BAYESIAN_PRIOR_ENABLED` blends a student's personal baseline mean/std with a
+cross-student, same-genre prior when `state.sample_count < 10`
+(`quantum/scoring.py:532-561`, weighted by `PRIOR_WEIGHT`, default 3.0). Unlike
+amplitude scoring, this flag **does** change `deviation_score` (it feeds the
+blended mu/sigma into the z-score computation) but does **not** change
+`authorship_probability` (the Born-rule projection depends on the density
+matrix ρ, not on mu/sigma).
+
+**Measured lift** (2026-07-09, cold-start segment only, per this flag's
+stated use case): the only students in `validation/corpus` with fewer than 5
+baseline samples are the 5 `seminary_0N` authors (3 baselines each). Cross-scored
+each of their scoring essays (2 authentic + 1 ghostwritten per author)
+against every one of the 5 authors' baselines (N=75 pairs: 10 positive / 65
+negative). Since `validation/manifest.json` carries no `genre` field at all,
+this measurement assigned a synthetic `genre="seminary_exegesis"` label to
+these 5 authors' baseline samples only — justified because all 5 share an
+identical 3-prompt baseline set and identical scoring prompts (a real shared
+assignment structure, not an arbitrary grouping) — and fit each target's
+genre prior from the other 4 authors' baseline vectors (12 vectors/target,
+clearing `get_genre_stats()`'s ≥5 floor).
+
+Result: **AUC 0.8077 → 0.5569 (Δ = −0.2508)** — a large regression, not a
+lift. `authorship_probability`-based Brier is flag-blind here (0.5204 both
+ways, confirmed max |Δ| = 0, since Born P doesn't depend on mu/sigma); a
+supplementary Brier computed on `(1 − deviation_score)` as a proxy
+probability — which does reflect the blend — also got worse: **0.1261 →
+0.1804 (Δ = +0.0543)**.
+
+**Verdict: kept OFF.** The genre prior actively hurts AUC on the one segment
+it exists to help, on the only cold-start population available in this
+corpus. Working hypothesis: the cross-student genre pool's mean sits closer
+to the *ghostwritten* essays (same theological genre, different real human)
+than to any individual target's own 3-sample baseline, so blending toward it
+makes ghostwritten submissions look more "authentic," not less — the
+opposite of the intended effect. Caveats: N=75 pairs across only 5 real
+seminary identities (small, single-corpus), a synthetic (if well-justified)
+genre label standing in for real production genre metadata, and a
+methodology that (like the amplitude measurement above) had to build
+`ScoringConfig.from_env()` explicitly rather than reuse
+`run_calibration()`/`measure_lift_seminary.py` directly, since those never
+construct a `ScoringConfig` and would silently no-op this flag too. Do not
+enable without a larger, multi-institution cold-start sample and an
+investigation of the ghostwritten-pulls-prior-toward-it hypothesis above.
+
+---
+
 ## Data Protection and FERPA Posture
 
 Original is designed around data minimization:
@@ -285,6 +401,7 @@ The zero-login demo remains intentionally available for sales and evaluation. Re
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.3.1 | 2026-07-09 | Documentation-only: recorded verdicts for three previously-unbenchmarked scoring flags — `AMPLITUDE_SCORING_ENABLED` (structural no-op on deviation_score/authorship_probability; `quantum_fidelity` alone AUC 0.7633 on a small N=55 sample), `BAYESIAN_PRIOR_ENABLED` (ΔAUC −0.2508 on the cold-start segment — regression), and the previously-unrecorded 2026-06-30 `LENGTH_ADAPTIVE_WEIGHTS` measurement (+0.0035 to +0.0058 ΔAUC — negligible). All three remain default OFF; no scoring behavior changed. |
 | 1.3.0 | 2026-07-04 | Peer-pool null model in production: `NULL_MODEL=impostor` builds a per-tenant impostor cohort on the live scoring path and attaches `llr_deviation_score` (attach-only; cold-start abstention; on by default in demo mode only). |
 | 1.2.0 | 2026-07-01 | Added the optional AI-likelihood detector (corpus-level second scoring mode): committed calibrated classifier artifact, `AI_LIKELIHOOD_ENABLED` flag, report-only contract, enablement gate, and version-skew runbook. |
 | 1.1.0 | 2026-06-09 | Updated model card for 103-dimensional pipeline, Tier 17 behavioral biometrics, comparison dimensions, pilot runtime posture, and explicit human-review policy. |

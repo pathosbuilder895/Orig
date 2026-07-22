@@ -683,6 +683,10 @@ def submission_student_id(submission_id: str) -> str | None:
         return str(m["student_id"])
     try:
         with _get_conn() as conn:
+            # The pattern matches against the JSON-encoded details_json, so
+            # an id containing chars JSON escapes (\ or ") won't match its
+            # own row and resolves to None — fail-safe, and ids are locally
+            # generated so this doesn't occur in practice.
             row = conn.execute(
                 "SELECT student_id FROM audit_log WHERE action = 'score' "
                 r"AND details_json LIKE ? ESCAPE '\' ORDER BY created_at DESC LIMIT 1",

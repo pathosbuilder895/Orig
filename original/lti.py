@@ -319,7 +319,15 @@ def principal_from_claims(claims: dict) -> dict:
         }
         if exam:
             result["redirect"] = "/bluebook/"
-            result["extra"] = {"bluebook_student_id": sid, "original_tenant": tenant}
+            result["extra"] = {
+                "bluebook_student_id": sid,
+                "original_tenant": tenant,
+                # Server-minted attestation authorizing this bound student's
+                # proctored baseline write. Without it a bare student session
+                # token is downgraded to 'unverified' at ingestion, so a student
+                # cannot self-author high-trust samples (see api._authorize_provenance).
+                "bluebook_proctor_token": student_auth.mint_proctor_attestation(sid, exam_title),
+            }
             result["params"] = {
                 k: v for k, v in {"exam": exam_title, "candidate": name}.items() if v
             }
