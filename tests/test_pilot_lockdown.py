@@ -162,10 +162,25 @@ def test_demo_keeps_anonymous_roster(live_client):
 
 
 @pytest.mark.parametrize(
-    "path", ["/seed.db", "/lab.html", "/playground.html", "/validation_report.json"]
+    "path",
+    [
+        "/seed.db",
+        "/lab.html",
+        "/playground.html",
+        "/validation_report.json",
+        "/prototypes",
+        "/prototypes/",
+        "/prototypes/index.html",
+        "/prototypes/prototype.js",
+    ],
 )
 def test_demo_statics_404_in_pilot(real_deploy, live_client, path):
     assert live_client.get(path).status_code == 404
+
+
+def test_prototype_prefix_gate_is_path_boundary_safe(api_mod):
+    assert api_mod._is_demo_only_static_path("/prototypes/network-pulse-engine.js")
+    assert not api_mod._is_demo_only_static_path("/prototypes-public")
 
 
 def test_v1_demo_login_unmounted_in_pilot(real_deploy, live_client):
