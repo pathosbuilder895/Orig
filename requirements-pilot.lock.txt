@@ -98,7 +98,7 @@ preshed==3.0.13
     # via
     #   spacy
     #   thinc
-pyasn1==0.6.3
+pyasn1==0.6.4
     # via
     #   python-jose
     #   rsa
