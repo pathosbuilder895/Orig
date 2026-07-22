@@ -24,8 +24,7 @@ def _isolated(tmp_path, monkeypatch):
     monkeypatch.setenv("ORIGINAL_DB", str(db_file))
     for mod in {id(store_mod): store_mod, id(store): store}.values():
         monkeypatch.setattr(mod, "_DB_PATH", db_file)
-        mod._STORE.clear()
-        mod._loaded = False
+        mod._GENRE_STATS_CACHE.clear()
     br._reset_cache()
     yield
     br._reset_cache()

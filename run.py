@@ -64,10 +64,11 @@ def seed_demo_store():
             "or run against a scratch database."
         )
 
-    from original import store
     from synthetic.seed_data import seed
 
-    store.clear()
+    # (store.clear() was called here historically; it only ever cleared the
+    # in-memory cache, which WS-6 P6 removed. seed() itself upserts the
+    # synthetic profiles by id, so reseeding remains idempotent without it.)
     print("Seeding synthetic demo student profiles...")
     seed(verbose=True)
     print()

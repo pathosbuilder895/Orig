@@ -12,6 +12,8 @@ have in the same shape (``store._GENRE_STATS_CACHE``, raw SQL via
 
 from __future__ import annotations
 
+from datetime import UTC
+
 import numpy as np
 import pytest
 
@@ -21,8 +23,8 @@ import pytest
 # time — but keeping the import before the fixture makes the dependency
 # explicit and avoids surprising future maintainers.)
 import original.store as store
-from original.quantum.state import BaselineSample, StudentState
 from original.constants import FEATURE_DIM
+from original.quantum.state import BaselineSample, StudentState
 
 
 # Point the store at an isolated temp DB for each test
@@ -62,9 +64,8 @@ def _isolated_store(tmp_path, monkeypatch):
             return
         _mods_seen.add(id(mod))
         monkeypatch.setattr(mod, "_DB_PATH", db_file)
-        mod._STORE.clear()
         mod._GENRE_STATS_CACHE.clear()
-        mod._loaded = False
+        mod._GENRE_STATS_CACHE.clear()
 
     _patch_mod(store_mod)
     _patch_mod(store)  # module-level `store` import at the bottom of this file
@@ -74,9 +75,8 @@ def _isolated_store(tmp_path, monkeypatch):
     # Teardown: wipe in-memory state on every store object we touched.
     # monkeypatch automatically restores _DB_PATH on teardown.
     for _obj in (store_mod, store):
-        _obj._STORE.clear()
         _obj._GENRE_STATS_CACHE.clear()
-        _obj._loaded = False
+        _obj._GENRE_STATS_CACHE.clear()
 
 
 def _make_state(student_id: str, n_samples: int = 1, genre: str | None = None) -> StudentState:
@@ -121,7 +121,7 @@ class TestDeleteStudentRawSql:
         directly via SQL, then confirming delete_student() removes it via
         the submission_id→manifest path.
         """
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         state = _make_state("student-del-null-sid")
         store.put(state)
@@ -133,14 +133,14 @@ class TestDeleteStudentRawSql:
                 """INSERT OR IGNORE INTO submission_manifests
                    (submission_id, student_id, created_at, manifest_json)
                    VALUES (?, ?, ?, ?)""",
-                (sub_id, "student-del-null-sid", datetime.now(timezone.utc).isoformat(), "{}"),
+                (sub_id, "student-del-null-sid", datetime.now(UTC).isoformat(), "{}"),
             )
             # Insert an orphaned correction with student_id=NULL
             conn.execute(
                 """INSERT INTO corrections
                    (submission_id, student_id, is_correct, created_at)
                    VALUES (?, NULL, 1, ?)""",
-                (sub_id, datetime.now(timezone.utc).isoformat()),
+                (sub_id, datetime.now(UTC).isoformat()),
             )
             conn.commit()
 

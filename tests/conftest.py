@@ -10,13 +10,12 @@ from __future__ import annotations
 # get_settings() / db/session.py module-level initialisation use
 # test values rather than reading the on-disk .env file.
 import os
+
 os.environ.setdefault("ENVIRONMENT", "testing")
 os.environ.setdefault("SECRET_KEY", "test-secret-key-" * 5)
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("FIRST_ADMIN_PASSWORD", "TestAdmin123!")
 
-import hashlib
-from datetime import datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -24,20 +23,19 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from original.auth.jwt import create_access_token, create_refresh_token
+from original.auth.jwt import create_access_token
 from original.auth.password import hash_password
 from original.core.config import Settings
 from original.db.base import Base
-from original.db.session import get_db
-from original.main import app
 from original.db.models import (
+    Course,
     Institution,
+    Student,
     User,
     UserRole,
-    Course,
-    Student,
-    RefreshToken,
 )
+from original.db.session import get_db
+from original.main import app
 
 
 @pytest.fixture(scope="session")
@@ -63,6 +61,7 @@ def db(settings):
     )
     # Import all models so they register with Base.metadata before create_all
     import original.db.models  # noqa: F401
+
     Base.metadata.create_all(bind=engine)
 
     SessionLocal = sessionmaker(
@@ -194,6 +193,7 @@ def instructor_auth_headers(instructor_user: User) -> dict:
 # a throwaway per-test SQLite file and clears the in-memory cache so tests
 # don't bleed state — see WS-5 (docs/implementation/WS-5-test-depth.md §5.1).
 
+
 @pytest.fixture(scope="session")
 def live_app():
     import run  # repo-root launcher
@@ -214,12 +214,10 @@ def store_reset(tmp_path, monkeypatch):
     db_file = tmp_path / "test_profiles.db"
     monkeypatch.setenv("ORIGINAL_DB", str(db_file))
     monkeypatch.setattr(store, "_DB_PATH", db_file)
-    store._STORE.clear()
     store._GENRE_STATS_CACHE.clear()
-    store._loaded = False
+    store._GENRE_STATS_CACHE.clear()
 
     yield store
 
-    store._STORE.clear()
     store._GENRE_STATS_CACHE.clear()
-    store._loaded = False
+    store._GENRE_STATS_CACHE.clear()

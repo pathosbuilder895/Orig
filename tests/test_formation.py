@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-import original.store as store
 import original.repository as repository
+import original.store as store
 
 
 @pytest.fixture(autouse=True)
@@ -27,18 +27,16 @@ def _isolated_store(tmp_path, monkeypatch):
             return
         _seen.add(id(mod))
         monkeypatch.setattr(mod, "_DB_PATH", db_file)
-        mod._STORE.clear()
         mod._GENRE_STATS_CACHE.clear()
-        mod._loaded = False
+        mod._GENRE_STATS_CACHE.clear()
 
     _patch(store_mod)
     _patch(store)
     repository.reset_repository()
     yield
     for obj in (store_mod, store):
-        obj._STORE.clear()
         obj._GENRE_STATS_CACHE.clear()
-        obj._loaded = False
+        obj._GENRE_STATS_CACHE.clear()
     repository.reset_repository()
 
 

@@ -422,12 +422,10 @@ class TestGetOrCreateAndBasics:
         assert repo.get("nobody-at-all") is None
 
     def test_get_or_create_then_get_sees_the_same_empty_state(self, repo):
-        # store.get_or_create() inserts straight into the same in-memory
-        # `_STORE` dict `get()` reads from, so a follow-up `get()` in the
-        # same process sees the just-created empty state immediately — that
-        # observable contract is what's asserted here (see
-        # PostgresRepository.get_or_create's docstring for how the Postgres
-        # backend achieves the same contract without a shared cache).
+        # Both backends persist the empty state at get_or_create() time
+        # (WS-6 P6: no in-memory cache on either side), so a follow-up
+        # get() — from this process or any other worker — sees the
+        # just-created empty state immediately.
         state = repo.get_or_create("sem:fresh-goc")
         assert state.student_id == "sem:fresh-goc"
         assert state.sample_count == 0
