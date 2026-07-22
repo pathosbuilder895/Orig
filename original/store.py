@@ -2078,9 +2078,9 @@ def get_bluebook_submission_by_uuid(submission_uuid: str) -> dict | None:
                 (submission_uuid,),
             ).fetchone()
         return _bluebook_sub_to_dict(row) if row else None
-    except sqlite3.Error:
+    except Exception:
         log.exception("get_bluebook_submission_by_uuid failed for %s", submission_uuid)
-        raise
+        return None
 
 
 def get_or_create_bluebook_session(
@@ -2140,9 +2140,9 @@ def get_bluebook_session(exam_id: str, student_key: str) -> dict | None:
             "started_at": row[3],
             "deadline_at": row[4],
         }
-    except sqlite3.Error:
+    except Exception:
         log.exception("get_bluebook_session failed for %s/%s", exam_id, student_key)
-        raise
+        return None
 
 
 def _bluebook_course_to_dict(row) -> dict:
