@@ -1,12 +1,16 @@
-"""Bluebook magic-link launch + exam/submission/course CRUD.
+"""Bluebook magic-link launch + exam/session/submission/course CRUD.
 
-Moved verbatim from original/api.py.
+Moved verbatim from original/api.py; the exam-session endpoint and the
+idempotent-seal/late-tagging behaviour on ``bluebook_record_submission`` were
+added here directly (exam-day robustness).
 """
 
 from __future__ import annotations
 
+import sqlite3
 import urllib.parse
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -16,6 +20,8 @@ from ..schemas import (
     BluebookCreateCourseRequest,
     BluebookCreateExamRequest,
     BluebookRecordSubmissionRequest,
+    BluebookSessionResponse,
+    BluebookStartSessionRequest,
 )
 from ._shared import (
     _MAGIC_SESSION_TTL,
@@ -145,10 +151,52 @@ def bluebook_get_exam(exam_id: str, request: Request):
     return rec
 
 
+def _student_key(body) -> str:
+    """The (exam, student) session key: the resolved student id when we have
+    one, else a ``cand:``-prefixed candidate label for demo sittings that
+    never bound a real student. Truncated to the store's column width."""
+    return (body.student_id or (body.candidate and f"cand:{body.candidate}") or "")[:128]
+
+
+@router.post("/bluebook/exams/{exam_id}/session", response_model=BluebookSessionResponse)
+def bluebook_start_session(exam_id: str, body: BluebookStartSessionRequest, request: Request):
+    """Begin (or resume) a sitting: the first call pins the server deadline;
+    every later call returns the same one, so reopening the tab never
+    restarts or pauses the clock (exam-day robustness spec §1)."""
+    tenant = _bluebook_tenant(request)
+    exam = _repo().get_bluebook_exam(exam_id)
+    if exam is None or exam.get("tenant_id") not in (tenant, None):
+        raise HTTPException(status_code=404, detail="exam not found")
+    duration_seconds = max(60, _int_or(exam.get("duration"), 90) * 60)
+    student_key = _student_key(body)
+    if not student_key.strip():
+        raise HTTPException(status_code=422, detail="student_id or candidate is required")
+    s = _repo().get_or_create_bluebook_session(exam_id, student_key, tenant, duration_seconds)
+    return BluebookSessionResponse(
+        exam_id=exam_id,
+        started_at=s["started_at"],
+        deadline_at=s["deadline_at"],
+        server_now=datetime.now(UTC).isoformat(),
+        duration_seconds=duration_seconds,
+    )
+
+
 @router.post("/bluebook/submissions", status_code=201)
 def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: Request):
     """Record one sat examination (the integrity reading for the Results view)."""
     tenant = _bluebook_tenant(request)
+
+    # Idempotent sealing (robustness spec §2): a retried seal with the same
+    # client submission_uuid returns the prior row instead of writing again.
+    if body.submission_uuid:
+        prior = _repo().get_bluebook_submission_by_uuid(body.submission_uuid[:64])
+        if prior is not None:
+            return {
+                "id": prior["id"],
+                "status": prior["status"],
+                "late": prior.get("late", 0),
+                "duplicate": True,
+            }
 
     def _clamp_pct(v):
         n = _int_or(v, None)
@@ -168,14 +216,53 @@ def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: R
         "ai_score": _clamp_pct(body.ai_score),
         "status": (body.status or "SUBMITTED").upper()[:20],
     }
-    _repo().put_bluebook_submission(rec)
+    rec["submission_uuid"] = body.submission_uuid[:64] if body.submission_uuid else None
+    # Late tagging: only when this sitting has a server-pinned deadline. No
+    # session row (degrade-open client start) -> no late judgment possible.
+    rec["late"] = 0
+    if rec["exam_id"]:
+        student_key = _student_key(body)
+        sess = _repo().get_bluebook_session(rec["exam_id"], student_key) if student_key else None
+        if sess:
+            deadline = datetime.fromisoformat(sess["deadline_at"])
+            if datetime.now(UTC) > deadline + timedelta(seconds=300):
+                rec["late"] = 1
+    try:
+        _repo().put_bluebook_submission(rec)
+    except Exception as e:
+        # A racing replay: two requests carrying the same client submission_uuid
+        # can both pass the `prior is None` check above, then race to insert —
+        # the loser hits the unique index/constraint on submission_uuid. SQLite
+        # raises sqlite3.IntegrityError directly; Postgres (via SQLAlchemy) raises
+        # sqlalchemy.exc.IntegrityError. sqlalchemy is imported lazily here
+        # (not at module top) so a SQLite-only deployment never pays for
+        # importing it just to check an exception type it will never see —
+        # get_repository() applies the same lazy-import discipline for the
+        # same reason.
+        is_uuid_conflict = isinstance(e, sqlite3.IntegrityError)
+        if not is_uuid_conflict:
+            try:
+                from sqlalchemy.exc import IntegrityError as _SAIntegrityError
+            except ImportError:
+                _SAIntegrityError = ()
+            is_uuid_conflict = isinstance(e, _SAIntegrityError)
+        if is_uuid_conflict and rec["submission_uuid"]:
+            prior = _repo().get_bluebook_submission_by_uuid(rec["submission_uuid"])
+            if prior is not None:
+                return {
+                    "id": prior["id"],
+                    "status": prior["status"],
+                    "late": prior.get("late", 0),
+                    "duplicate": True,
+                }
+        raise
     _repo().log_audit(
         action="bluebook_submission",
         tenant_id=tenant,
         student_id=rec["student_id"],
-        details={"exam_id": rec["exam_id"]},
+        details={"exam_id": rec["exam_id"], "late": rec["late"]},
     )
-    return {"id": rec["id"], "status": rec["status"]}
+    return {"id": rec["id"], "status": rec["status"], "late": rec["late"]}
 
 
 @router.get("/bluebook/submissions")
