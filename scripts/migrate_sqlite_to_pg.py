@@ -721,7 +721,8 @@ class _BluebookSubmissionMigrator(_Migrator):
     def read_sqlite(self, conn):
         rows = conn.execute(
             "SELECT submission_id, exam_id, tenant_id, student_id, candidate, exam_title, "
-            "course, word_count, time_min, stylometric, ai_score, status, created_at "
+            "course, word_count, time_min, stylometric, ai_score, status, created_at, "
+            "submission_uuid, late "
             "FROM bluebook_submissions"
         ).fetchall()
         return [
@@ -739,6 +740,8 @@ class _BluebookSubmissionMigrator(_Migrator):
                 "ai_score": r[10],
                 "status": r[11],
                 "created_at": _canon_ts(r[12]),
+                "submission_uuid": r[13],
+                "late": r[14],
             }
             for r in rows
         ]
@@ -763,6 +766,8 @@ class _BluebookSubmissionMigrator(_Migrator):
             ai_score=row["ai_score"],
             status=row["status"],
             created_at=_parse_ts(row["created_at"]),
+            submission_uuid=row["submission_uuid"],
+            late=row["late"],
         )
 
     def read_pg(self, session):
@@ -784,6 +789,8 @@ class _BluebookSubmissionMigrator(_Migrator):
                     "ai_score": s.ai_score,
                     "status": s.status,
                     "created_at": _canon_ts(s.created_at),
+                    "submission_uuid": s.submission_uuid,
+                    "late": s.late,
                 }
             )
         return out

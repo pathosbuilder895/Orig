@@ -29,7 +29,7 @@
 - Both the baseline POST (`/students/{id}/baseline`) and `recordSubmission` (`/bluebook/submissions`) carry `submission_uuid`. Server-side: unique key; on replay, return the prior result instead of writing again. **This is the fix for double-weighted baseline sittings.**
 - **Retry loop:** the whole seal flow wrapped in try/catch; up to 3 attempts with backoff (2s/5s/10s); if `navigator.onLine === false`, wait for the `online` event instead of burning attempts.
 - **Final failure:** keep the draft, clear `submitting`, show "Your work is saved on this device — tell your proctor." The draft is only removed after a confirmed successful seal.
-- **Late seals:** server accepts seals after `deadline_at` up to a 5-minute grace, tagging the submission `late: true`; beyond grace still accepted but tagged (never destroy student work — lateness is the professor's call, surfaced in Results). If no session row exists for this student (degrade-open start, §1), no late tag is applied — the server can't judge lateness against a deadline it never issued.
+- **Late seals:** server accepts seals at any time; seals arriving more than 5 minutes past `deadline_at` are tagged `late: true` (the 5-minute grace is tolerance for clock skew/network latency before a seal counts as late; never destroy student work — lateness is the professor's call, surfaced in Results). If no session row exists for this student (degrade-open start, §1), no late tag is applied — the server can't judge lateness against a deadline it never issued.
 
 ## §3 — Offline awareness
 

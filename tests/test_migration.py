@@ -170,6 +170,8 @@ def _seed_sqlite(store) -> None:
             "student_id": "sem:alice",
             "candidate": "Alice",
             "word_count": 500,
+            "submission_uuid": "seal-uuid-bbsub-1",
+            "late": 1,
         }
     )
     store.put_bluebook_course(
@@ -326,6 +328,24 @@ class TestMigrationParity:
         )
         assert by_table["park_beats"]["sqlite_checksum"] == by_table["park_beats"]["pg_checksum"]
 
+    def test_bluebook_submission_uuid_and_late_survive_migration(self, seeded_sqlite, fresh_pg):
+        """Regression guard: _BluebookSubmissionMigrator predates the
+        submission_uuid/late columns and used to silently drop them on both
+        the read_sqlite and read_pg sides, so the checksum parity check in
+        test_full_migration_reports_parity_for_all_17_tables couldn't catch
+        it (both sides omitted the same columns symmetrically). Assert the
+        actual migrated values directly, not just checksum/row-count parity."""
+        from original.db import postgres_session
+        from original.db.models.live import BluebookSubmission
+        from scripts.migrate_sqlite_to_pg import migrate
+
+        migrate(seeded_sqlite, dry_run=False)
+
+        with postgres_session.session_scope() as session:
+            row = session.query(BluebookSubmission).filter_by(submission_id="bbsub-1").one()
+            assert row.submission_uuid == "seal-uuid-bbsub-1"
+            assert row.late == 1
+
     def test_dry_run_does_not_write(self, seeded_sqlite, fresh_pg):
         """--dry-run reads + checksums both sides but writes nothing, so the
         PG side stays empty and (empty != seeded) reports no parity."""
@@ -353,35 +373,45 @@ class TestMigrationParity:
 
 
 class TestChecksumCompositePK:
-    """Direct unit tests on scripts.migrate_sqlite_to_pg._checksum()'s
-    composite-key handling. No Postgres required -- pure function, deterministic.
+    """Direct unit tests on the composite-key sort key
+    ``_BluebookSessionMigrator.pk`` feeds to
+    ``scripts.migrate_sqlite_to_pg._checksum()``. No Postgres required --
+    pure function, deterministic.
 
     Why this exists: the parity tests above (TestMigrationParity) seed
     bluebook_sessions with two rows sharing exam_id but differing in
     student_key, and assert sqlite/pg checksums match. That's necessary but
     not sufficient -- a reviewer proved by mutation testing that reverting
-    _BluebookSessionMigrator.pk from ("exam_id", "student_key") down to the
-    naive single column "exam_id" still passed the full suite 3/3 runs,
-    because SQLite's and Postgres's row-read order happened to coincide for
-    the small seeded dataset. Row-count and end-to-end checksum equality are
-    pk-agnostic by construction and can never catch that class of bug on
-    their own.
+    _BluebookSessionMigrator.pk down to the naive single column "exam_id"
+    still passed the full suite 3/3 runs, because SQLite's and Postgres's
+    row-read order happened to coincide for the small seeded dataset.
+    Row-count and end-to-end checksum equality are pk-agnostic by
+    construction and can never catch that class of bug on their own.
+
+    bluebook_sessions has no single-column primary key, so the migrator
+    follows the convention _ParkBeatMigrator established for its own
+    (park_token, student_hint) key: both read_sqlite and read_pg emit a
+    synthetic ``session_key`` ("{exam_id}:{student_key}") into the canonical
+    dict, and pk names that column. _checksum() itself stays a plain
+    single-column sort -- there is exactly one composite-key mechanism in
+    this script, not two.
 
     test_bluebook_session_checksum_is_order_invariant_for_composite_pk below
-    closes that gap: it reads _BluebookSessionMigrator.pk directly (not a
-    hardcoded tuple), so if that attribute ever regresses to a single column,
-    this test fails immediately -- verified by performing that exact revert
-    locally (see tests/test_migration.py history / task report for the proof
-    transcript).
+    closes the gap: it reads _BluebookSessionMigrator.pk directly (never a
+    hardcoded column name), so if that attribute ever regresses to a column
+    that doesn't distinguish the two rows, this test fails immediately.
     """
 
     @staticmethod
     def _tied_session_rows() -> list[dict]:
-        """Two bluebook_sessions rows that tie on exam_id and differ only in
-        student_key (and downstream fields) -- the exact shape that lets a
-        naive single-column-exam_id checksum silently depend on input order."""
+        """Two bluebook_sessions rows in canonical form that tie on exam_id
+        and differ only in student_key (and downstream fields) -- the exact
+        shape that lets a naive single-column-exam_id checksum silently
+        depend on input order. ``session_key`` is built exactly as
+        _BluebookSessionMigrator.read_sqlite/read_pg build it."""
         return [
             {
+                "session_key": "exam-1:sem:alice",
                 "exam_id": "exam-1",
                 "student_key": "sem:alice",
                 "tenant_id": "sem",
@@ -389,6 +419,7 @@ class TestChecksumCompositePK:
                 "deadline_at": "2026-01-01T01:00:00+00:00",
             },
             {
+                "session_key": "exam-1:sem:bob",
                 "exam_id": "exam-1",
                 "student_key": "sem:bob",
                 "tenant_id": "sem",
@@ -397,27 +428,63 @@ class TestChecksumCompositePK:
             },
         ]
 
+    def test_session_key_matches_what_the_migrator_actually_emits(self):
+        """The fixture above hand-writes the canonical rows, so it is only
+        meaningful if it agrees with the migrator's real read path. Drive
+        _BluebookSessionMigrator.read_sqlite over a real SQLite store seeded
+        with the same two sittings and assert the emitted session_key values
+        match -- otherwise the order-invariance test below could pass against
+        a shape production never produces."""
+        import sqlite3 as _sqlite3
+
+        from scripts.migrate_sqlite_to_pg import _BluebookSessionMigrator
+
+        conn = _sqlite3.connect(":memory:")
+        conn.execute(
+            "CREATE TABLE bluebook_sessions (exam_id TEXT, student_key TEXT, "
+            "tenant_id TEXT, started_at TEXT, deadline_at TEXT)"
+        )
+        for r in self._tied_session_rows():
+            conn.execute(
+                "INSERT INTO bluebook_sessions VALUES (?, ?, ?, ?, ?)",
+                (
+                    r["exam_id"],
+                    r["student_key"],
+                    r["tenant_id"],
+                    r["started_at"],
+                    r["deadline_at"],
+                ),
+            )
+        emitted = _BluebookSessionMigrator().read_sqlite(conn)
+        conn.close()
+
+        pk = _BluebookSessionMigrator.pk
+        assert {row[pk] for row in emitted} == {
+            row[pk] for row in self._tied_session_rows()
+        }, "the hand-written canonical fixture drifted from read_sqlite's real output"
+
     def test_bluebook_session_checksum_is_order_invariant_for_composite_pk(self):
         """Feeds the SAME two tied rows to _checksum() forward and reversed,
-        keyed on the live _BluebookSessionMigrator.pk. A correct composite-key
-        checksum must be identical either way.
+        keyed on the live _BluebookSessionMigrator.pk. A correct composite
+        sort key must produce an identical digest either way.
 
         This is the regression-proof test: if _BluebookSessionMigrator.pk is
-        ever reverted to a bare "exam_id" string, both rows tie on that single
-        key, Python's sort is stable, so the two rows keep their (opposite)
-        input orders in the sorted output -- forward and reversed then hash to
+        ever reverted to a bare "exam_id", both rows tie on that single key,
+        Python's sort is stable, so the two rows keep their (opposite) input
+        orders in the sorted output -- forward and reversed then hash to
         DIFFERENT digests and this assertion fails.
         """
         from scripts.migrate_sqlite_to_pg import _BluebookSessionMigrator, _checksum
 
         rows = self._tied_session_rows()
-        forward = _checksum(rows, _BluebookSessionMigrator.pk)
-        backward = _checksum(list(reversed(rows)), _BluebookSessionMigrator.pk)
+        pk = _BluebookSessionMigrator.pk
+        forward = _checksum(rows, pk)
+        backward = _checksum(list(reversed(rows)), pk)
         assert forward == backward, (
             "_checksum() over bluebook_sessions rows must be order-invariant; "
-            "a mismatch here means _BluebookSessionMigrator.pk is no longer a "
-            "composite key covering every column that distinguishes rows "
-            "(e.g. it regressed to a single column such as 'exam_id')"
+            "a mismatch here means _BluebookSessionMigrator.pk no longer names "
+            "a column that distinguishes every row (e.g. it regressed to a "
+            "naive single column such as 'exam_id')"
         )
 
     def test_single_column_pk_would_not_be_order_invariant_on_the_same_rows(self):

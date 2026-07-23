@@ -477,7 +477,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
         await BB_API.recordSubmission({
           exam_id:     cfg.id || null,
           student_id:  seal.baselineData.studentId || studentId,
-          candidate:   cfg.candidate,
+          candidate:   cfg.candidateEmail || cfg.candidate,
           exam_title:  cfg.title,
           course:      cfg.course,
           word_count:  wordCount(content),
