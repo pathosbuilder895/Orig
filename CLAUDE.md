@@ -18,7 +18,7 @@ Stylometric authorship verification system for academic integrity. Per-student q
 
 ## Testing
 ```bash
-.venv/bin/python -m pytest tests/ -q                  # full suite (~882 tests as of 2026-07-16, ~70s; ~885 with validation/test_tier10_optional.py)
+.venv/bin/python -m pytest tests/ -q                  # full suite (~1050 tests as of 2026-08-01, ~145s; ~1053 with validation/test_tier10_optional.py)
 .venv/bin/python -m pytest tests/quantum/ -v          # quantum module only
 .venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -q   # exact CI command
 ```
