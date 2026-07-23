@@ -27,8 +27,28 @@ export function summarizeTemporalData(data=makeData()){
 }
 function el(name,attrs={}){const node=document.createElementNS(NS,name);Object.entries(attrs).forEach(([k,v])=>node.setAttribute(k,String(v)));return node}
 export class TemporalIntelligence{
-  constructor(svg){this.svg=svg;this.host=svg.closest('.temporal-main');this.shell=svg.closest('.temporal-shell');this.data=makeData();this.summary=summarizeTemporalData(this.data);this.mode='activity';this.selected=13;this.compare=null;this.playing=false;this.timer=null;this.tooltipTimer=null;this.hoveredColumn=null;this.cinemaTimers=[];this.abort=new AbortController();this.motionQuery=matchMedia('(prefers-reduced-motion: reduce)');this.reduceMotion=this.motionQuery.matches;this.bind();this.bindDepth();this.shell?.querySelector('[data-cinematic]')?.addEventListener('click',()=>this.cinematicTour(),{signal:this.abort.signal});this.resizeObserver=new ResizeObserver(()=>this.draw());this.resizeObserver.observe(svg.parentElement);this.syncSummary();this.syncCopy();this.draw();this.updateAnalyst();this.motionChange=event=>{this.reduceMotion=event.matches;if(this.reduceMotion&&this.playing)this.togglePlay()};this.motionQuery.addEventListener?.('change',this.motionChange)}
-  bind(){const opts={signal:this.abort.signal},root=this.shell||document;root.querySelectorAll('[data-temporal-mode]').forEach(b=>b.addEventListener('click',()=>{this.mode=b.dataset.temporalMode;root.querySelectorAll('[data-temporal-mode]').forEach(x=>x.classList.toggle('active',x===b));this.compare=null;this.syncCopy();this.draw();this.updateAnalyst()},opts));root.querySelector('[data-playback]')?.addEventListener('click',()=>this.togglePlay(),opts);root.querySelector('[data-compare]')?.addEventListener('click',()=>{this.compare=this.compare==null?Math.max(0,this.selected-4):null;this.draw();this.updateAnalyst()},opts);root.querySelector('[data-period-scrubber]')?.addEventListener('input',e=>{this.selected=Number(e.target.value);this.draw();this.updateAnalyst()},opts);root.querySelectorAll('[data-marker]').forEach(b=>b.addEventListener('click',()=>{this.selected=Number(b.dataset.marker);this.draw();this.updateAnalyst()},opts));root.querySelector('[data-inspect]')?.addEventListener('click',()=>{this.compare=Math.max(0,this.selected-4);this.draw()},opts)}
+  constructor(svg){
+    this.svg=svg;this.host=svg.closest('.temporal-main');this.shell=svg.closest('.temporal-shell');this.data=makeData();this.summary=summarizeTemporalData(this.data);this.mode='activity';this.selected=13;this.compare=null;this.playing=false;this.resumeAfterVisibility=false;this.timer=null;this.tooltipTimer=null;this.hoveredColumn=null;this.cinemaTimers=[];this.abort=new AbortController();this.motionQuery=matchMedia('(prefers-reduced-motion: reduce)');this.reduceMotion=this.motionQuery.matches;
+    this.motionChange=event=>{this.reduceMotion=event.matches;if(this.reduceMotion)this.setPlaying(false);this.syncMotionControls()};
+    this.visibilityChange=()=>this.handleVisibility();
+    this.bind();this.bindDepth();
+    this.shell?.querySelector('[data-cinematic]')?.addEventListener('click',()=>this.cinematicTour(),{signal:this.abort.signal});
+    this.resizeObserver=new ResizeObserver(()=>this.draw());this.resizeObserver.observe(svg.parentElement);
+    this.syncSummary();this.syncCopy();this.draw();this.updateAnalyst();this.syncMotionControls();
+    this.motionQuery.addEventListener?.('change',this.motionChange);
+  }
+  bind(){
+    const opts={signal:this.abort.signal},root=this.shell||document;
+    root.querySelectorAll('[data-temporal-mode]').forEach(button=>button.addEventListener('click',()=>{
+      this.mode=button.dataset.temporalMode;this.compare=null;this.syncCopy();this.draw();this.updateAnalyst();
+    },opts));
+    root.querySelector('[data-playback]')?.addEventListener('click',()=>this.togglePlay(),opts);
+    root.querySelector('[data-compare]')?.addEventListener('click',()=>{this.compare=this.compare==null?Math.max(0,this.selected-4):null;this.draw();this.updateAnalyst()},opts);
+    root.querySelector('[data-period-scrubber]')?.addEventListener('input',event=>this.selectPeriod(Number(event.target.value)),opts);
+    root.querySelectorAll('[data-marker]').forEach(button=>button.addEventListener('click',()=>this.selectPeriod(Number(button.dataset.marker)),opts));
+    root.querySelector('[data-inspect]')?.addEventListener('click',()=>{this.compare=Math.max(0,this.selected-4);this.draw()},opts);
+    document.addEventListener('visibilitychange',this.visibilityChange,opts);
+  }
   syncSummary(){
     const root=this.shell||document;
     const summary=this.summary;
@@ -75,9 +95,70 @@ export class TemporalIntelligence{
     if(readinessPeriod)readinessPeriod.textContent=`${summary.readiness.ready+summary.readiness.longitudinal} / ${summary.readiness.total}`;
     this.svg.dispatchEvent(new CustomEvent('temporal:summary',{bubbles:true,detail:summary}));
   }
-  syncCopy(){const m=MODES[this.mode],root=this.shell||document;root.querySelector('[data-chart-title]').textContent=m.title;root.querySelector('[data-chart-kicker]').textContent=m.kicker;root.querySelector('[data-mode-note]').textContent=m.note}
+  syncCopy(){
+    const mode=MODES[this.mode],root=this.shell||document;
+    root.querySelector('[data-chart-title]').textContent=mode.title;
+    root.querySelector('[data-chart-kicker]').textContent=mode.kicker;
+    root.querySelector('[data-mode-note]').textContent=mode.note;
+    root.querySelectorAll('[data-temporal-mode]').forEach(button=>{
+      const active=button.dataset.temporalMode===this.mode;
+      button.classList.toggle('active',active);
+      button.setAttribute('aria-pressed',String(active));
+    });
+  }
   totals(row){return MODES[this.mode].keys.reduce((sum,[key])=>sum+row[this.mode][key],0)}
-  draw(){const box=this.svg.parentElement.getBoundingClientRect(),w=Math.max(520,box.width),h=Math.max(400,box.height);this.w=w;this.h=h;this.svg.setAttribute('viewBox',`0 0 ${w} ${h}`);this.svg.setAttribute('aria-label',`${MODES[this.mode].title}; illustrative ${this.summary.weeks}-week data`);this.svg.innerHTML='';const defs=el('defs');MODES[this.mode].keys.forEach(([key,,color])=>{const g=el('linearGradient',{id:`bar-${key}`,x1:0,y1:0,x2:1,y2:0});g.append(el('stop',{offset:0,'stop-color':color,'stop-opacity':.72}),el('stop',{offset:.55,'stop-color':color,'stop-opacity':.98}),el('stop',{offset:1,'stop-color':color,'stop-opacity':.48}));defs.append(g)});this.svg.append(defs);const margin={l:62,r:22,t:32,b:58},cw=w-margin.l-margin.r,ch=h-margin.t-margin.b,max=Math.max(...this.data.map(d=>this.totals(d)))*1.14;for(let i=0;i<=5;i++){const y=margin.t+ch-i*ch/5;const line=el('line',{x1:margin.l,y1:y,x2:w-margin.r,y2:y,class:'chart-grid'});this.svg.append(line);const text=el('text',{x:margin.l-12,y:y+4,class:'axis-label','text-anchor':'end'});text.textContent=Math.round(max*i/5);this.svg.append(text)}const step=cw/this.data.length,bw=Math.max(12,step*.58);this.data.forEach((row,i)=>{const x=margin.l+i*step+(step-bw)/2;const group=el('g',{class:`chart-column${i===this.selected?' selected':''}`,'data-index':i,tabindex:0,role:'button','aria-label':`${row.full}, ${this.totals(row)} illustrative total`});if(i===this.selected){group.append(el('rect',{x:x-7,y:margin.t,width:bw+14,height:ch,class:'selection-slab'}))}if(i===this.compare){group.append(el('rect',{x:x-4,y:margin.t+ch-(this.totals(row)/max)*ch,width:bw+8,height:(this.totals(row)/max)*ch,class:'compare-outline'}))}let bottom=margin.t+ch;MODES[this.mode].keys.forEach(([key])=>{const value=row[this.mode][key],rh=value/max*ch;bottom-=rh;group.append(el('rect',{x,y:bottom,width:bw,height:Math.max(1,rh-.8),fill:`url(#bar-${key})`,class:'bar-segment'}));group.append(el('line',{x1:x+1,y1:bottom+.5,x2:x+bw-1,y2:bottom+.5,class:'bar-cap'}))});if(row.anomaly){const marker=el('g',{class:'anomaly-marker'});marker.append(el('circle',{cx:x+bw/2,cy:Math.max(12,bottom-11),r:4}));marker.append(el('line',{x1:x+bw/2,y1:Math.max(16,bottom-7),x2:x+bw/2,y2:bottom-2}));group.append(marker)}if(i%3===0||i===17){const text=el('text',{x:x+bw/2,y:h-25,class:'x-label','text-anchor':'middle'});text.textContent=row.label.split(' ')[0];group.append(text)}group.addEventListener('pointerenter',e=>this.showTooltip(i,e));group.addEventListener('pointerleave',()=>this.hideTooltip());group.addEventListener('click',()=>{this.selected=i;const scrubber=this.shell?.querySelector('[data-period-scrubber]');if(scrubber)scrubber.value=i;this.draw();this.updateAnalyst()});group.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();this.selected=i;this.draw();this.updateAnalyst()}});this.svg.append(group)});this.drawLandscape(w,h,margin);this.renderLegend()}
+  selectPeriod(index,{focus=false}={}){
+    this.selected=Math.max(0,Math.min(this.data.length-1,index));
+    const scrubber=this.shell?.querySelector('[data-period-scrubber]');
+    if(scrubber)scrubber.value=String(this.selected);
+    this.draw();this.updateAnalyst();
+    if(focus)requestAnimationFrame(()=>this.svg.querySelector(`.chart-column[data-index="${this.selected}"]`)?.focus());
+  }
+  renderDataTable(){
+    const table=this.shell?.querySelector('[data-temporal-table]');
+    if(!table)return;
+    const mode=MODES[this.mode];
+    const caption=document.createElement('caption');caption.textContent=`${mode.title}. Illustrative ${this.summary.weeks}-week dataset.`;
+    const head=document.createElement('thead');const headRow=document.createElement('tr');
+    ['Period',...mode.keys.map(([,label])=>label),'Total'].forEach(label=>{const cell=document.createElement('th');cell.scope='col';cell.textContent=label;headRow.append(cell)});head.append(headRow);
+    const body=document.createElement('tbody');
+    this.data.forEach((row,index)=>{const tr=document.createElement('tr');if(index===this.selected)tr.dataset.selected='true';const period=document.createElement('th');period.scope='row';period.textContent=row.full;tr.append(period);mode.keys.forEach(([key])=>{const cell=document.createElement('td');cell.textContent=String(row[this.mode][key]);tr.append(cell)});const total=document.createElement('td');total.textContent=String(this.totals(row));tr.append(total);body.append(tr)});
+    table.replaceChildren(caption,head,body);
+  }
+  draw(){
+    const box=this.svg.parentElement.getBoundingClientRect(),w=Math.max(520,box.width),h=Math.max(400,box.height);this.w=w;this.h=h;
+    this.svg.setAttribute('viewBox',`0 0 ${w} ${h}`);
+    this.svg.setAttribute('aria-label',`${MODES[this.mode].title}; illustrative ${this.summary.weeks}-week data. Period ${this.selected+1} of ${this.data.length} is selected.`);
+    this.svg.setAttribute('aria-activedescendant',`temporal-period-${this.selected}`);
+    this.svg.innerHTML='';
+    const defs=el('defs');
+    MODES[this.mode].keys.forEach(([key,,color])=>{const gradient=el('linearGradient',{id:`bar-${key}`,x1:0,y1:0,x2:1,y2:0});gradient.append(el('stop',{offset:0,'stop-color':color,'stop-opacity':.72}),el('stop',{offset:.55,'stop-color':color,'stop-opacity':.98}),el('stop',{offset:1,'stop-color':color,'stop-opacity':.48}));defs.append(gradient)});
+    this.svg.append(defs);
+    const margin={l:62,r:22,t:32,b:58},chartWidth=w-margin.l-margin.r,chartHeight=h-margin.t-margin.b,max=Math.max(...this.data.map(row=>this.totals(row)))*1.14;
+    for(let index=0;index<=5;index+=1){const y=margin.t+chartHeight-index*chartHeight/5;this.svg.append(el('line',{x1:margin.l,y1:y,x2:w-margin.r,y2:y,class:'chart-grid'}));const text=el('text',{x:margin.l-12,y:y+4,class:'axis-label','text-anchor':'end'});text.textContent=Math.round(max*index/5);this.svg.append(text)}
+    const step=chartWidth/this.data.length,barWidth=Math.max(12,step*.58);
+    this.data.forEach((row,index)=>{
+      const x=margin.l+index*step+(step-barWidth)/2;
+      const values=MODES[this.mode].keys.map(([key,label])=>`${label}: ${row[this.mode][key]}`).join(', ');
+      const group=el('g',{id:`temporal-period-${index}`,class:`chart-column${index===this.selected?' selected':''}`,'data-index':index,tabindex:index===this.selected?0:-1,role:'button','aria-pressed':index===this.selected,'aria-label':`${row.full}, ${this.totals(row)} illustrative total. ${values}`});
+      if(index===this.selected)group.append(el('rect',{x:x-7,y:margin.t,width:barWidth+14,height:chartHeight,class:'selection-slab'}));
+      if(index===this.compare)group.append(el('rect',{x:x-4,y:margin.t+chartHeight-(this.totals(row)/max)*chartHeight,width:barWidth+8,height:(this.totals(row)/max)*chartHeight,class:'compare-outline'}));
+      let bottom=margin.t+chartHeight;
+      MODES[this.mode].keys.forEach(([key])=>{const value=row[this.mode][key],height=value/max*chartHeight;bottom-=height;group.append(el('rect',{x,y:bottom,width:barWidth,height:Math.max(1,height-.8),fill:`url(#bar-${key})`,class:'bar-segment'}));group.append(el('line',{x1:x+1,y1:bottom+.5,x2:x+barWidth-1,y2:bottom+.5,class:'bar-cap'}))});
+      if(row.anomaly){const marker=el('g',{class:'anomaly-marker'});marker.append(el('circle',{cx:x+barWidth/2,cy:Math.max(12,bottom-11),r:4}));marker.append(el('line',{x1:x+barWidth/2,y1:Math.max(16,bottom-7),x2:x+barWidth/2,y2:bottom-2}));group.append(marker)}
+      if(index%3===0||index===this.data.length-1){const label=el('text',{x:x+barWidth/2,y:h-25,class:'x-label','text-anchor':'middle'});label.textContent=row.label.split(' ')[0];group.append(label)}
+      group.addEventListener('pointerenter',event=>this.showTooltip(index,event));
+      group.addEventListener('pointerleave',()=>this.hideTooltip());
+      group.addEventListener('click',()=>this.selectPeriod(index,{focus:true}));
+      group.addEventListener('keydown',event=>{
+        const target=event.key==='ArrowRight'?Math.min(this.data.length-1,index+1):event.key==='ArrowLeft'?Math.max(0,index-1):event.key==='Home'?0:event.key==='End'?this.data.length-1:null;
+        if(target!==null){event.preventDefault();this.selectPeriod(target,{focus:true});return}
+        if(event.key==='Enter'||event.key===' '){event.preventDefault();this.selectPeriod(index,{focus:true})}
+      });
+      this.svg.append(group);
+    });
+    this.drawLandscape(w,h,margin);this.renderLegend();this.renderDataTable();
+  }
   drawLandscape(w,h,m){const path=el('path',{d:`M${m.l} ${h-7} L${m.l+70} ${h-18} L${m.l+120} ${h-10} L${m.l+180} ${h-27} L${m.l+250} ${h-13} L${m.l+320} ${h-21} L${m.l+390} ${h-8} L${w-m.r} ${h-16} L${w-m.r} ${h} L${m.l} ${h}Z`,class:'chart-landscape'});this.svg.append(path)}
   renderLegend(){const root=this.shell?.querySelector('[data-chart-legend]');if(root)root.innerHTML=MODES[this.mode].keys.map(([,label,color])=>`<span><i style="--legend:${color}"></i>${label}</span>`).join('');this.enhanceDepth();requestAnimationFrame(()=>this.pinTooltip())}
   enhanceDepth(){const colors=MODES[this.mode].keys.map(([, ,color])=>color);this.svg.querySelectorAll('.chart-column').forEach(group=>{const rects=[...group.querySelectorAll('.bar-segment')];rects.forEach((rect,index)=>{const x=Number(rect.getAttribute('x')),y=Number(rect.getAttribute('y')),w=Number(rect.getAttribute('width')),h=Number(rect.getAttribute('height')),d=Math.max(2.4,Math.min(4,w*.22)),color=colors[index%colors.length];const side=el('polygon',{points:`${x+w},${y} ${x+w+d},${y-d} ${x+w+d},${y+h-d} ${x+w},${y+h}`,fill:color,class:'bar-side-face'});const top=el('polygon',{points:`${x},${y} ${x+d},${y-d} ${x+w+d},${y-d} ${x+w},${y}`,fill:color,class:'bar-top-face'});rect.after(side);side.after(top)});if(rects.length){const first=rects[0],x=Number(first.getAttribute('x')),w=Number(first.getAttribute('width')),floor=Math.max(...rects.map(r=>Number(r.getAttribute('y'))+Number(r.getAttribute('height')))),d=Math.max(2.4,Math.min(4,w*.22));const base=el('polygon',{points:`${x-2},${floor} ${x+d},${floor-d} ${x+w+d+2},${floor-d} ${x+w+2},${floor}`,class:'column-foot'});group.insertBefore(base,group.firstChild)}})}
@@ -86,7 +167,36 @@ export class TemporalIntelligence{
   showTooltip(i,e,pinned=false){clearTimeout(this.tooltipTimer);if(!pinned)this.hoveredColumn=i;const row=this.data[i],tip=this.shell?.querySelector('[data-chart-tooltip]'),m=MODES[this.mode];if(!tip)return;tip.innerHTML=`<header><span>${row.full}</span><b>${this.totals(row)} total</b></header>${m.keys.map(([key,label,color])=>`<div><i style="--tip:${color}"></i><span>${label}</span><b>${row[this.mode][key]}</b><small>${Math.round(row[this.mode][key]/this.totals(row)*100)}%</small></div>`).join('')}<footer>${row.anomaly?'◆ Illustrative context marker':'Compared with the illustrative period'}</footer>`;tip.hidden=false;const stage=this.svg.parentElement.getBoundingClientRect();tip.style.left=`${Math.max(10,Math.min(stage.width-268,e.clientX-stage.left+12))}px`;tip.style.top=`${Math.max(10,Math.min(stage.height-220,e.clientY-stage.top-50))}px`}
   hideTooltip(){this.hoveredColumn=null;clearTimeout(this.tooltipTimer);this.tooltipTimer=setTimeout(()=>{if(this.hoveredColumn===null)this.pinTooltip()},90)}
   updateAnalyst(){const row=this.data[this.selected],total=this.totals(row),copy={activity:['ILLUSTRATIVE RATE','Review suggestions remain proportional to submission volume.',`In this illustration, ${row.full} contains ${total} submissions. The categories are workflow context, not authorship conclusions.`,`${row.activity.review} review suggested`,`${Math.round(row.activity.conversation/total*100)}% conversation suggested`],readiness:['ILLUSTRATIVE FORMATION','Baseline profiles continue to mature.','In this illustration, ready and longitudinal profiles make up the majority of the latest-week comparison set.',`${row.readiness.ready} ready profiles`,`${row.readiness.longitudinal} longitudinal`],workflow:['ILLUSTRATIVE WORKLOAD','Faculty resolution keeps pace with review work.','In this illustration, resolved and reviewed cases remain balanced against the incoming review queue.',`${row.workflow.reviewed} reviewed`,`${row.workflow.resolved} resolved`],evidence:['ILLUSTRATIVE CONTEXT','Signals concentrate in specific evidence families.','Illustrative signal counts identify features for inspection; they are not independent authorship conclusions.',`${row.evidence.syntax} sentence signals`,`${row.evidence.citation} citation signals`]}[this.mode],root=this.shell||document;const values={'[data-analyst-tag]':copy[0],'[data-analyst-title]':copy[1],'[data-analyst-copy]':copy[2],'[data-fact-one]':copy[3],'[data-fact-two]':copy[4]};Object.entries(values).forEach(([selector,value])=>{const element=root.querySelector(selector);if(element)element.textContent=value})}
-  togglePlay(){this.playing=!this.playing;const button=this.shell?.querySelector('[data-playback]');if(button){button.textContent=this.playing?'Ⅱ':'▶';button.setAttribute('aria-label',this.playing?'Pause timeline':'Play timeline')}clearInterval(this.timer);if(this.playing)this.timer=setInterval(()=>{this.selected=(this.selected+1)%this.data.length;const scrubber=this.shell?.querySelector('[data-period-scrubber]');if(scrubber)scrubber.value=this.selected;this.draw();this.updateAnalyst()},900)}
-  cinematicTour(){const shell=this.shell;if(!shell)return;const button=shell.querySelector('[data-cinematic]');this.cinemaTimers.forEach(clearTimeout);this.cinemaTimers=[];if(this.reduceMotion){this.selected=Math.min(this.data.length-1,this.selected+1);this.draw();this.updateAnalyst();if(button)button.textContent='Guided view · updated';return}shell.className='temporal-shell cinema-active scene-left';if(button)button.textContent='● Playing';const scene=(name,delay)=>this.cinemaTimers.push(setTimeout(()=>{shell.className=`temporal-shell cinema-active ${name}`},delay));scene('scene-chart',1500);scene('scene-right',3300);scene('scene-chart',4850);this.cinemaTimers.push(setTimeout(()=>{shell.className='temporal-shell';if(button)button.textContent='◉ Guided view'},6500))}
+  syncMotionControls(){
+    const button=this.shell?.querySelector('[data-playback]');
+    if(!button)return;
+    button.disabled=this.reduceMotion;
+    button.setAttribute('aria-disabled',String(this.reduceMotion));
+    button.textContent=this.reduceMotion?'—':this.playing?'Ⅱ':'▶';
+    button.setAttribute('aria-label',this.reduceMotion?'Timeline playback disabled by reduced-motion preference':this.playing?'Pause timeline':'Play timeline');
+  }
+  setPlaying(next){
+    const allowed=Boolean(next)&&!this.reduceMotion&&!document.hidden;
+    this.playing=allowed;clearInterval(this.timer);this.timer=null;this.syncMotionControls();
+    if(this.playing)this.timer=setInterval(()=>this.selectPeriod((this.selected+1)%this.data.length),900);
+  }
+  togglePlay(){this.setPlaying(!this.playing)}
+  stopCinematic(){
+    this.cinemaTimers.forEach(clearTimeout);this.cinemaTimers=[];
+    if(this.shell)this.shell.className='temporal-shell';
+    const button=this.shell?.querySelector('[data-cinematic]');if(button)button.textContent='◉ Guided explanation';
+  }
+  handleVisibility(){
+    if(document.hidden){this.resumeAfterVisibility=this.playing;this.setPlaying(false);this.stopCinematic();return}
+    if(this.resumeAfterVisibility){this.resumeAfterVisibility=false;this.setPlaying(true)}
+  }
+  cinematicTour(){
+    const shell=this.shell;if(!shell)return;const button=shell.querySelector('[data-cinematic]');this.stopCinematic();
+    if(this.reduceMotion){this.selectPeriod(Math.min(this.data.length-1,this.selected+1));if(button)button.textContent='Guided view · updated';return}
+    shell.className='temporal-shell cinema-active scene-left';if(button)button.textContent='● Playing';
+    const scene=(name,delay)=>this.cinemaTimers.push(setTimeout(()=>{shell.className=`temporal-shell cinema-active ${name}`},delay));
+    scene('scene-chart',1500);scene('scene-right',3300);scene('scene-chart',4850);
+    this.cinemaTimers.push(setTimeout(()=>this.stopCinematic(),6500));
+  }
   destroy(){clearInterval(this.timer);clearTimeout(this.tooltipTimer);this.cinemaTimers.forEach(clearTimeout);this.resizeObserver?.disconnect();this.motionQuery.removeEventListener?.('change',this.motionChange);this.abort.abort()}
 }

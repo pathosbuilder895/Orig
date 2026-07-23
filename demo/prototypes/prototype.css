@@ -165,3 +165,66 @@ header h1{font-size:32px}.eyebrow,.panel-label{font-size:11px}.date-chip{font-si
 .pulse-controls{height:auto;grid-template-rows:auto auto auto auto}
 .revelation-side-panel{overflow:visible}
 .pulse-controls .panel-label{gap:14px}.pulse-controls .panel-label>b{flex:0 0 auto;white-space:nowrap;text-align:right}
+
+/* Production-polish pass: navigable views, large targets, accessible chart
+   equivalents, and motion that respects both user preference and page state. */
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.rail nav button{font-size:13px}.rail nav button[aria-current="page"]{background:#15201c;color:var(--acid);box-shadow:inset 2px 0 0 var(--acid)}
+header h1:focus{outline:2px solid var(--acid);outline-offset:7px;border-radius:2px}
+.panel-label [tabindex="-1"]:focus,.pulse-evidence-card h3:focus,.conversation-brief h3:focus{outline:2px solid var(--acid);outline-offset:5px}
+.panel-label{font-size:12px}.panel-label button,.analyst button{min-height:44px}
+
+/* The Command review action remains visible at laptop heights and browser zoom. */
+.dashboard-grid{grid-template-rows:minmax(520px,60vh) 142px minmax(220px,auto)}
+.signal-panel{display:flex;flex-direction:column;min-height:0}
+.signal-panel>.primary{flex:0 0 46px;min-height:46px;margin-top:auto;margin-bottom:18px}
+.signal-panel .signal-list{margin-top:14px;margin-bottom:14px}
+.signal-panel .score-ring{flex:0 0 auto}
+
+/* Canvas visualizations retain their cinematic canvas while exposing the same
+   choices as ordinary keyboard and screen-reader controls. */
+.canvas-access-panel{position:absolute;z-index:7;left:16px;top:56px;width:min(285px,calc(100% - 32px));color:#dce6e0;pointer-events:auto}
+.canvas-access-panel summary{display:flex;align-items:center;min-height:44px;width:max-content;max-width:100%;padding:0 13px;border:1px solid rgba(151,181,165,.28);background:rgba(5,15,10,.82);backdrop-filter:blur(14px);color:#dbe7e0;font:600 12px Manrope;cursor:pointer;list-style:none}
+.canvas-access-panel summary::-webkit-details-marker{display:none}.canvas-access-panel summary:before{content:"⌘";margin-right:8px;color:var(--acid);font:500 12px DM Mono}
+.canvas-access-panel[open]{max-height:calc(100% - 74px)}
+.canvas-access-panel>div{display:grid;max-height:290px;overflow:auto;margin-top:6px;padding:7px;border:1px solid rgba(151,181,165,.25);background:rgba(4,13,9,.94);box-shadow:0 18px 44px rgba(0,0,0,.4);backdrop-filter:blur(18px)}
+.canvas-access-panel button{min-height:52px;padding:8px 10px;border:0;border-bottom:1px solid rgba(151,181,165,.13);background:transparent;color:#edf3ef;text-align:left;cursor:pointer}
+.canvas-access-panel button:last-child{border-bottom:0}.canvas-access-panel button:hover,.canvas-access-panel button:focus-visible,.canvas-access-panel button[aria-pressed="true"]{background:rgba(213,243,111,.08);box-shadow:inset 2px 0 0 var(--acid)}
+.canvas-access-panel button b,.canvas-access-panel button span{display:block}.canvas-access-panel button b{font-size:14px}.canvas-access-panel button span{margin-top:3px;color:#aebdb5;font-size:12px}
+.graph-hud{gap:7px}.graph-hud button{width:44px;height:44px;font-size:17px}.selected-readout{right:72px}
+.graph-system-entry,.constellation-guide button,.detail-open{min-height:44px}
+
+.pulse-view-tools button{min-height:44px;font-size:12px}.pulse-fourth-axis>div button{min-height:44px;font-size:11px}.pulse-navigation>button{min-height:44px}.pulse-path button{min-height:44px;font-size:12px}.pulse-evidence-head button{width:44px;height:44px}.interest-panel .add-interest{min-height:44px;font-size:12px}.sentiment-tabs button{min-height:44px;font-size:12px}.revelation-side-panel button{min-height:44px;font-size:13px}.pulse-tooltip{font-size:12px}.pulse-tooltip small,.pulse-tooltip span{font-size:11px}.pulse-tooltip b{font-size:14px}
+.pulse-stage{grid-template-rows:124px minmax(0,1fr) 42px}
+.pulse-fourth-axis input,.time-control input{height:44px!important;background:linear-gradient(90deg,var(--gold),var(--acid)) center/100% 2px no-repeat!important}
+.pulse-fourth-axis input{background-image:linear-gradient(90deg,var(--gold),var(--green),var(--acid))!important}
+
+/* The SVG uses one roving tab stop. A disclosure presents the exact same data
+   as a conventional table for assistive technology and low-vision users. */
+.temporal-kpis button{font-size:14px}.filter-chips .cinematic-button{min-height:44px!important;font-size:12px!important}
+.playback button{width:44px!important;height:44px!important;font-size:15px}.playback input{height:44px!important;background:linear-gradient(90deg,var(--gold),var(--acid)) center/100% 2px no-repeat!important}
+.chart-column:focus-visible{outline:none;filter:drop-shadow(0 0 8px rgba(213,243,111,.78))}.chart-column[aria-pressed="true"] .selection-slab{stroke:rgba(213,243,111,.72);stroke-width:1.5}
+.temporal-data-disclosure{position:relative;z-index:8;justify-self:end}
+.temporal-data-disclosure summary{display:flex;align-items:center;justify-content:center;min-width:118px;min-height:44px;padding:0 12px;border:1px solid rgba(110,150,148,.3);background:rgba(5,22,22,.86);color:#d9e6e1;font:600 12px Manrope;cursor:pointer;list-style:none}
+.temporal-data-disclosure summary::-webkit-details-marker{display:none}.temporal-data-disclosure summary:before{content:"▦";margin-right:8px;color:#6bd0c9}
+.temporal-table-scroll{position:absolute;right:0;bottom:52px;width:min(620px,65vw);max-height:470px;overflow:auto;padding:12px;border:1px solid rgba(109,163,157,.35);background:rgba(4,19,19,.98);box-shadow:0 22px 60px rgba(0,0,0,.55);backdrop-filter:blur(18px)}
+.temporal-table-scroll table{width:100%;border-collapse:collapse;color:#e8efeb;font-size:13px}.temporal-table-scroll caption{padding:6px 8px 14px;text-align:left;color:#70cec8;font:600 12px DM Mono;letter-spacing:.08em}.temporal-table-scroll th,.temporal-table-scroll td{padding:9px 10px;border-bottom:1px solid rgba(113,157,153,.18);text-align:right;white-space:nowrap}.temporal-table-scroll th:first-child{text-align:left}.temporal-table-scroll thead th{position:sticky;top:-12px;background:#092523;color:#b9cac3;font-size:12px}.temporal-table-scroll tr[data-selected="true"]{background:rgba(213,243,111,.08);box-shadow:inset 3px 0 0 var(--acid)}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important}
+  .pulse-live i,.metric:after,.chart-column,.bar-segment{animation:none!important}
+  .graph-system-entry,.temporal-svg,.chart-aurora{transition:none!important}
+}
+@media(max-width:900px){.dashboard-grid{grid-template-rows:520px auto auto auto}.canvas-access-panel{top:62px}.pulse-view-tools{max-width:100%;overflow-x:auto}.temporal-table-scroll{position:fixed;right:14px;left:82px;bottom:14px;width:auto;max-height:70vh}}
+@media(max-width:680px){.temporal-table-scroll{left:82px}.canvas-access-panel{left:12px;width:calc(100% - 24px)}.graph-hud{top:58px}.pulse-stage{grid-template-rows:150px minmax(0,1fr) 42px}}
+
+/* Text Studio reading-focus escape hatch for people who find the cinematic
+   library scene or translucent panels visually busy. */
+.theme-switcher .background-focus-toggle{width:auto!important;min-width:70px!important;height:44px!important;padding:0 10px!important;gap:6px;border-radius:12px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;background:rgba(3,17,20,.72)!important;box-shadow:inset 0 1px rgba(255,255,255,.13)!important}
+.theme-switcher .background-focus-toggle span{font-size:15px}.theme-switcher .background-focus-toggle b{font:600 11px Manrope;color:inherit}
+.theme-switcher .background-focus-toggle[aria-pressed="true"]{color:var(--accent)!important;border-color:rgba(var(--highlight),.52)!important;background:rgba(var(--highlight),.13)!important}
+.editor-shell.background-reduced .editor-atmosphere{opacity:.13!important;filter:saturate(.32) contrast(.92) brightness(.52)!important;transform:none!important}
+.editor-shell.background-reduced .glass-panel{background:color-mix(in srgb,var(--ed-bg) 94%,black)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;box-shadow:inset 0 1px rgba(255,255,255,.08),0 16px 42px rgba(0,0,0,.32)!important}
+.editor-shell.background-reduced[data-editor-theme="light"] .glass-panel{background:rgba(247,249,245,.97)!important}
+@media(max-width:1180px){.theme-switcher .background-focus-toggle{min-width:44px!important;width:44px!important;padding:0!important}.theme-switcher .background-focus-toggle b{display:none}}
+@media(min-width:901px){.dashboard-grid{grid-template-rows:minmax(590px,68vh) 142px minmax(220px,auto)}.signal-panel{padding-bottom:0}}

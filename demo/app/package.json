@@ -1,0 +1,17 @@
+{
+  "name": "original-app",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Original professor/admin frontend — React, bundled to a static IIFE (mirrors demo/bluebook).",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}

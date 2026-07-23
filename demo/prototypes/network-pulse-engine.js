@@ -1,4 +1,4 @@
-import { SYSTEMS, TIERS, FEATURE_PLANETS, SYSTEM_BY_ID, TIER_BY_ID, FEATURE_BY_CODE } from './feature-universe-data.js?v=professor-solar-final4';
+import { SYSTEMS, TIERS, FEATURE_PLANETS, SYSTEM_BY_ID, TIER_BY_ID, FEATURE_BY_CODE } from './feature-universe-data.js?v=production-review-20260722';
 
 const TAU = Math.PI * 2;
 const STATUS_COLORS = { positive: '#67c995', neutral: '#9baca5', negative: '#ec786b', emergent: '#d5f36f' };
@@ -74,6 +74,8 @@ export class NetworkPulseEngine {
     this.transitionStarted = 0;
     this.motionQuery = matchMedia('(prefers-reduced-motion: reduce)');
     this.motion = !this.motionQuery.matches;
+    this.pageVisible = !document.hidden;
+    this.inViewport = true;
     this.abort = new AbortController();
     this.createField();
     this.bind();
@@ -82,7 +84,8 @@ export class NetworkPulseEngine {
     const engagement = this.layout.querySelector('[data-engagement]');
     if (engagement) engagement.checked = this.engagement;
     this.loop = this.loop.bind(this);
-    this.raf = requestAnimationFrame(this.loop);
+    this.raf = null;
+    this.syncLoop();
   }
 
   createField() {
@@ -224,7 +227,10 @@ export class NetworkPulseEngine {
     this.host.querySelectorAll('[data-related-feature]').forEach((button) => button.addEventListener('click', () => this.openFeature(button.dataset.relatedFeature), options));
     this.layout.querySelectorAll('[data-sentiment]').forEach((button) => button.addEventListener('click', () => {
       this.sentiment = button.dataset.sentiment;
-      this.layout.querySelectorAll('[data-sentiment]').forEach((item) => item.classList.toggle('active', item === button));
+      this.layout.querySelectorAll('[data-sentiment]').forEach((item) => {
+        item.classList.toggle('active', item === button);
+        item.setAttribute('aria-pressed', String(item === button));
+      });
       const value = this.layout.querySelector('[data-sentiment-value]');
       if (value) value.textContent = STATUS_LABELS[this.sentiment] || 'ALL';
     }, options));
@@ -270,6 +276,28 @@ export class NetworkPulseEngine {
       this.updateDimensionMotion();
     };
     this.motionQuery.addEventListener?.('change', this.motionChange);
+    this.visibilityChange = () => { this.pageVisible = !document.hidden; this.syncLoop(); };
+    document.addEventListener('visibilitychange', this.visibilityChange, options);
+    if ('IntersectionObserver' in window) {
+      this.intersectionObserver = new IntersectionObserver(entries => {
+        this.inViewport = entries[0]?.isIntersecting !== false;
+        this.syncLoop();
+      }, { threshold:.01 });
+      this.intersectionObserver.observe(this.host);
+    }
+  }
+
+  syncLoop() {
+    const shouldRun = this.pageVisible && this.inViewport;
+    if (!shouldRun && this.raf !== null) {
+      cancelAnimationFrame(this.raf);
+      this.raf = null;
+      return;
+    }
+    if (shouldRun && this.raf === null) {
+      this.lastTime = performance.now();
+      this.raf = requestAnimationFrame(this.loop);
+    }
   }
 
   focusRevelation() {
@@ -279,7 +307,9 @@ export class NetworkPulseEngine {
 
     this.sentiment = 'all';
     this.layout.querySelectorAll('[data-sentiment]').forEach((button) => {
-      button.classList.toggle('active', button.dataset.sentiment === 'all');
+      const active = button.dataset.sentiment === 'all';
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
     });
     const status = this.layout.querySelector('[data-sentiment-value]');
     if (status) status.textContent = 'ALL';
@@ -349,6 +379,18 @@ export class NetworkPulseEngine {
     this.selectedFeature = state.feature ?? null;
     this.restoreCameraState();
     this.updateInterface();
+    this.focusInterfaceHeading();
+  }
+
+  focusInterfaceHeading() {
+    requestAnimationFrame(() => {
+      const target = this.selectedFeature
+        ? this.host.querySelector('[data-evidence-title]')
+        : this.layout.querySelector('[data-index-title]');
+      if (!target) return;
+      target.tabIndex = -1;
+      target.focus({ preventScroll:true });
+    });
   }
 
   openGalaxy(options = {}) {
@@ -466,7 +508,7 @@ export class NetworkPulseEngine {
       if (copy) copy.textContent = 'Choose the Surface, Discourse, or Rhetoric sun. Its tier planets appear next, followed by concrete current and baseline examples.';
       list.innerHTML = SYSTEMS.map((system, index) => {
         const featureCount = FEATURE_PLANETS.filter((feature) => feature.system === system.id).length;
-        return `<button data-hierarchy-type="system" data-value="${system.id}" style="--c:${system.color}"><i></i><span><b>0${index + 1} · ${system.name}</b><small>${systemTierSummary(system).toLowerCase()} · ${featureCount} writing traits</small></span><em>↗</em></button>`;
+        return `<button type="button" data-hierarchy-type="system" data-value="${system.id}" style="--c:${system.color}"><i></i><span><b>0${index + 1} · ${system.name}</b><small>${systemTierSummary(system).toLowerCase()} · ${featureCount} writing traits</small></span><em>↗</em></button>`;
       }).join('');
       return;
     }
@@ -477,7 +519,7 @@ export class NetworkPulseEngine {
       if (title) title.textContent = system.short;
       if (count) count.textContent = `${systemTierSummary(system)} · ${FEATURE_PLANETS.filter((feature) => feature.system === system.id).length} FEATURES`;
       if (copy) copy.textContent = system.description;
-      list.innerHTML = tiers.map((tier) => `<button data-hierarchy-type="tier" data-value="${tier.id}" style="--c:${system.color}"><i></i><span><b>${tierLabel(tier.id)} · ${tier.name}</b><small>${tier.features.length} writing traits · ${tier.status}</small></span><em>↗</em></button>`).join('');
+      list.innerHTML = tiers.map((tier) => `<button type="button" data-hierarchy-type="tier" data-value="${tier.id}" style="--c:${system.color}"><i></i><span><b>${tierLabel(tier.id)} · ${tier.name}</b><small>${tier.features.length} writing traits · ${tier.status}</small></span><em>↗</em></button>`).join('');
       return;
     }
     const tier = TIER_BY_ID[this.selectedTier];
@@ -486,7 +528,7 @@ export class NetworkPulseEngine {
     if (title) title.textContent = `${tierLabel(tier.id)} · ${tier.name}`;
     if (count) count.textContent = `${features.length} WRITING TRAITS`;
     if (copy) copy.textContent = tier.description;
-    list.innerHTML = features.map((feature, index) => `<button data-hierarchy-type="feature" data-value="${feature.code}" class="${feature.code === this.selectedFeature ? 'selected-feature' : ''}" style="--c:${feature.color}"><i>${String(index + 1).padStart(2, '0')}</i><span><b>${feature.professorLabel}</b><small>${feature.technicalLabel} · ${feature.status}</small></span><em>↗</em></button>`).join('');
+    list.innerHTML = features.map((feature, index) => `<button type="button" data-hierarchy-type="feature" data-value="${feature.code}" class="${feature.code === this.selectedFeature ? 'selected-feature' : ''}" ${feature.code === this.selectedFeature ? 'aria-current="true"' : ''} style="--c:${feature.color}"><i>${String(index + 1).padStart(2, '0')}</i><span><b>${feature.professorLabel}</b><small>${feature.technicalLabel} · ${feature.status}</small></span><em>↗</em></button>`).join('');
   }
 
   updateInterface() {
@@ -550,6 +592,10 @@ export class NetworkPulseEngine {
           ? `${tier.name} with ${tier.features.length} selectable writing traits`
           : `${feature.professorLabel}, technical measure ${feature.technicalLabel}, compared with Morgan Lee’s illustrative baseline`;
     this.canvas.setAttribute('aria-label', `${aria}, fourth-dimension time ${Math.round(this.dimension * 100)} percent`);
+    const status = this.host.querySelector('[data-pulse-status]');
+    if (status) status.textContent = feature
+      ? `${feature.professorLabel} opened. Current and illustrative baseline examples are available.`
+      : `${labels[this.level]}. ${instructions[this.level]}`;
     this.updateDimensionMotion();
     this.updateDimensionReadout();
     this.setCameraMode(this.camera.mode);
@@ -1166,6 +1212,8 @@ export class NetworkPulseEngine {
   }
 
   loop(now) {
+    this.raf = null;
+    if (!this.pageVisible || !this.inViewport) return;
     if (now - this.lastRender < 27) { this.raf = requestAnimationFrame(this.loop); return; }
     const elapsed = clamp(now - this.lastTime, 0, 80);
     this.lastTime = now;
@@ -1209,8 +1257,9 @@ export class NetworkPulseEngine {
 
   destroy() {
     clearTimeout(this.focusTimer);
-    cancelAnimationFrame(this.raf);
+    if (this.raf !== null) cancelAnimationFrame(this.raf);
     this.resizeObserver?.disconnect();
+    this.intersectionObserver?.disconnect();
     this.motionQuery.removeEventListener?.('change', this.motionChange);
     this.abort.abort();
   }

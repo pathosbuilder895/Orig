@@ -1,13 +1,15 @@
-import { ConstellationEngine } from './constellation-engine.js?v=professor-solar-final4';
-import { NetworkPulseEngine } from './network-pulse-engine.js?v=professor-solar-final4';
-import { TemporalIntelligence } from './temporal-chart.js?v=professor-solar-final4';
-import { DocumentIntelligence } from './document-intelligence.js?v=professor-solar-final4';
-import { FEATURE_PLANETS, TIERS } from './feature-universe-data.js?v=professor-solar-final4';
+import { ConstellationEngine } from './constellation-engine.js?v=production-review-20260722';
+import { NetworkPulseEngine } from './network-pulse-engine.js?v=production-review-20260722';
+import { TemporalIntelligence } from './temporal-chart.js?v=production-review-20260722';
+import { DocumentIntelligence } from './document-intelligence.js?v=production-review-20260722';
+import { FEATURE_PLANETS, TIERS } from './feature-universe-data.js?v=production-review-20260722';
 
 let activeEngine = null;
+let activeEvidenceObserver = null;
 let pulseEntryCluster = null;
 let professorCatalogMode = 'essentials';
 let editorEntryFeature = null;
+let reduceEditorBackground = false;
 
 const SIGNAL_SYSTEMS = {
   s:'surface', b:'surface', s1:'surface', v:'rhetoric', r:'discourse', c:'discourse', p:'rhetoric'
@@ -73,8 +75,15 @@ function updateSignalPanel(event) {
 }
 
 function graph() {
-  return `<div class="graph graph-3d" aria-label="Interactive four-dimensional writing-pattern relationship graph">
-    <canvas class="constellation-canvas"></canvas>
+  return `<div class="graph graph-3d" aria-label="Four-dimensional writing-pattern relationship graph">
+    <canvas class="constellation-canvas" role="img" aria-label="Visual constellation of the current submission, baseline, Surface, Discourse, Rhetoric, revision, and course context" aria-describedby="constellation-keyboard-help"></canvas>
+    <p class="sr-only" id="constellation-keyboard-help">Use the Browse constellation signals disclosure for a complete keyboard-accessible version of this visualization.</p>
+    <details class="canvas-access-panel">
+      <summary>Browse constellation signals</summary>
+      <div role="group" aria-label="Constellation signals">
+        ${DATA.nodes.map(node => `<button type="button" data-constellation-node="${node.id}" aria-pressed="${node.id === 's1'}"><b>${node.label.charAt(0) + node.label.slice(1).toLowerCase()}</b><span>${node.sub}</span></button>`).join('')}
+      </div>
+    </details>
     <div class="graph-vignette"></div>
     <div class="dimension-readout"><span class="dim-live"></span><b>REVISION EVOLUTION · 4D MODEL</b><small>timeline = <span data-time-readout>72</span>%</small></div>
     <div class="selected-readout"><small>SELECTED SIGNAL</small><b data-selected-title>Submission</b><span data-selected-meta>Morgan Lee · Essay 4</span></div>
@@ -93,17 +102,17 @@ function graph() {
 function shell(content, active='overview') {
   return `<aside class="rail">
     <div class="brand"><div class="mark">O</div><span>ORIGINAL</span></div>
-    <nav>
-      <button class="${active==='overview'?'active':''}" data-view="overview">${icon('home')}<span>Command</span></button>
-      <button class="${active==='constellation'?'active':''}" data-view="constellation">${icon('nodes')}<span>Constellation</span></button>
-      <button class="${active==='pulse'?'active':''}" data-view="pulse">${icon('spark')}<span>Network pulse</span></button>
-      <button class="${active==='temporal'?'active':''}" data-view="temporal">${icon('bar')}<span>Temporal</span></button>
-      <button class="${active==='editor'?'active':''}" data-view="editor">${icon('editor')}<span>Text studio</span></button>
-      <button class="${active==='case'?'active':''}" data-view="case">${icon('file')}<span>Case file</span></button>
+    <nav aria-label="Prototype views">
+      <button type="button" class="${active==='overview'?'active':''}" data-view="overview" ${active==='overview'?'aria-current="page"':''}>${icon('home')}<span>Command</span></button>
+      <button type="button" class="${active==='constellation'?'active':''}" data-view="constellation" ${active==='constellation'?'aria-current="page"':''}>${icon('nodes')}<span>Constellation</span></button>
+      <button type="button" class="${active==='pulse'?'active':''}" data-view="pulse" ${active==='pulse'?'aria-current="page"':''}>${icon('spark')}<span>Network pulse</span></button>
+      <button type="button" class="${active==='temporal'?'active':''}" data-view="temporal" ${active==='temporal'?'aria-current="page"':''}>${icon('bar')}<span>Temporal</span></button>
+      <button type="button" class="${active==='editor'?'active':''}" data-view="editor" ${active==='editor'?'aria-current="page"':''}>${icon('editor')}<span>Text studio</span></button>
+      <button type="button" class="${active==='case'?'active':''}" data-view="case" ${active==='case'?'aria-current="page"':''}>${icon('file')}<span>Case file</span></button>
     </nav>
     <div class="rail-foot"><span class="live-dot"></span> Synthetic demo<div class="avatar">AC</div></div>
   </aside>
-  <main>${content}</main>`;
+  <main data-prototype-view="${active}">${content}</main>`;
 }
 
 function header(kicker,title,meta='Fall 2026 · Synthetic institution') {
@@ -161,7 +170,9 @@ function pulse() {
           </div>
         </div>
         <div class="pulse-canvas-wrap">
-          <canvas class="pulse-canvas" aria-label="Interactive writing-pattern relationship galaxy"></canvas>
+          <canvas class="pulse-canvas" role="img" aria-label="Visual writing-pattern relationship galaxy" aria-describedby="pulse-keyboard-help"></canvas>
+          <p class="sr-only" id="pulse-keyboard-help">The writing divisions, trait groups, and traits shown in the galaxy are also available as keyboard-accessible buttons in the Galaxy hierarchy panel.</p>
+          <p class="sr-only" data-pulse-status role="status" aria-live="polite" aria-atomic="true"></p>
           <div class="pulse-overlay">
             <div class="pulse-navigation">
               <button type="button" data-pulse-back hidden>← Back to galaxy</button>
@@ -197,7 +208,7 @@ function pulse() {
           <p>The same abstract passages contain both denser punctuation and deeper clauses. Review them together rather than treating them as two independent proofs.</p>
           <button type="button" data-focus-revelation>Inspect linked examples →</button>
         </div>
-        <div class="panel sentiment-panel"><div class="panel-label"><span>SIGNAL STATUS</span><b data-sentiment-value>ALL</b></div><div class="sentiment-tabs"><button class="active" data-sentiment="all">All</button><button data-sentiment="positive">Aligned</button><button data-sentiment="neutral">Watch</button><button data-sentiment="negative">Review</button></div>
+        <div class="panel sentiment-panel"><div class="panel-label"><span>SIGNAL STATUS</span><b data-sentiment-value>ALL</b></div><div class="sentiment-tabs" role="group" aria-label="Filter traits by status"><button type="button" class="active" data-sentiment="all" aria-pressed="true">All</button><button type="button" data-sentiment="positive" aria-pressed="false">Aligned</button><button type="button" data-sentiment="neutral" aria-pressed="false">Watch</button><button type="button" data-sentiment="negative" aria-pressed="false">Review</button></div>
           <div class="sentiment-meter"><div><span style="width:46%"></span><span style="width:38%"></span><span style="width:16%"></span></div><small><b>46%</b> aligned</small><small><b>38%</b> watch</small><small><b>16%</b> review</small></div>
         </div>
         <div class="panel interpretation-panel"><div class="panel-label"><span>HOW TO READ THIS</span><b>CONTEXT, NOT PROOF</b></div><p>Select a planet to see the actual sentence, the baseline example, and a plain-language interpretation. Relationships suggest where to look; they never decide authorship.</p><button type="button" data-view="editor">Open professor review mode →</button></div>
@@ -215,10 +226,10 @@ function temporal() {
       </aside>
       <div class="temporal-main panel">
         <div class="temporal-kpis">
-          <button class="active" data-temporal-mode="activity"><i style="--k:#59c5c7"></i><span>Submissions analyzed</span><strong>1,570</strong><small>derived from the chart</small></button>
-          <button data-temporal-mode="readiness"><i style="--k:#d7a94c"></i><span>Baselines ready</span><strong>71%</strong><small>110 of 155 profiles</small></button>
-          <button data-temporal-mode="workflow"><i style="--k:#8d9ba0"></i><span>Reviews opened</span><strong>382</strong><small>median 2.1 days</small></button>
-          <button data-temporal-mode="evidence"><i style="--k:#b783ef"></i><span>Evidence signals</span><strong>765</strong><small>across 4 review states</small></button>
+          <button type="button" class="active" data-temporal-mode="activity" aria-pressed="true"><i style="--k:#59c5c7"></i><span>Submissions analyzed</span><strong>1,570</strong><small>derived from the chart</small></button>
+          <button type="button" data-temporal-mode="readiness" aria-pressed="false"><i style="--k:#d7a94c"></i><span>Baselines ready</span><strong>71%</strong><small>110 of 155 profiles</small></button>
+          <button type="button" data-temporal-mode="workflow" aria-pressed="false"><i style="--k:#8d9ba0"></i><span>Reviews opened</span><strong>382</strong><small>median 2.1 days</small></button>
+          <button type="button" data-temporal-mode="evidence" aria-pressed="false"><i style="--k:#b783ef"></i><span>Evidence signals</span><strong>765</strong><small>across 4 review states</small></button>
         </div>
         <div class="temporal-toolbar">
           <div class="temporal-title"><span data-chart-kicker>INSTITUTIONAL ACTIVITY</span><b data-chart-title>Submission outcomes over time</b></div>
@@ -226,7 +237,8 @@ function temporal() {
         </div>
         <div class="chart-stage">
           <div class="chart-aurora"></div>
-          <svg class="temporal-svg" role="img" aria-label="Interactive stacked authorship activity chart"></svg>
+          <svg class="temporal-svg" role="group" aria-label="Interactive stacked writing-pattern activity chart" aria-describedby="temporal-chart-help"></svg>
+          <p class="sr-only" id="temporal-chart-help">Use Left and Right Arrow, Home, and End to move between periods. A complete data table is available below the chart.</p>
           <svg class="chart-crystal" viewBox="0 0 420 190" preserveAspectRatio="none" aria-hidden="true">
             <defs>
               <linearGradient id="crystal-fill" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d8e0dc" stop-opacity=".62"/><stop offset=".45" stop-color="#526865" stop-opacity=".42"/><stop offset="1" stop-color="#071211" stop-opacity=".9"/></linearGradient>
@@ -241,6 +253,10 @@ function temporal() {
         <div class="chart-footer">
           <div class="chart-legend" data-chart-legend></div>
           <div class="playback"><button data-playback aria-label="Play timeline">▶</button><span>JAN 12</span><input type="range" min="0" max="17" value="13" data-period-scrubber aria-label="Selected chart period"><span>MAY 18</span></div>
+          <details class="temporal-data-disclosure">
+            <summary>View data table</summary>
+            <div class="temporal-table-scroll" role="region" aria-label="Writing-pattern activity data table" tabindex="0"><table data-temporal-table></table></div>
+          </details>
         </div>
       </div>
       <aside class="temporal-side">
@@ -260,7 +276,7 @@ function caseView() {
         <div class="evidence-grid"><article><span>01 · REVIEW</span><h3>Sentence structure</h3><p>Long, layered clauses appear more often than in the illustrative baseline.</p><div class="quote">“Consequently, one must recognize the ontological distinction…”</div><button type="button" data-editor-feature="clause_depth_mean">Compare 6 passages →</button></article><article><span>02 · REVIEW</span><h3>Source transitions</h3><p>Three sources are introduced using patterns not seen in the illustrative baseline.</p><div class="compare"><div><small>BASELINE</small><b>As Augustine writes…</b></div><div><small>CURRENT</small><b>Scholarship establishes…</b></div></div><button type="button" data-editor-feature="source_integration_style">Compare source passages →</button></article><article><span>03 · ALIGNED COUNTEREVIDENCE</span><h3>Vocabulary continuity</h3><p>Topic vocabulary remains strongly consistent with prior work.</p><div class="tags"><i>grace</i><i>nature</i><i>Augustine</i><i>will</i></div><button type="button" data-editor-feature="type_token_ratio">Review aligned examples →</button></article></div>
         <section class="context-check"><div><span>CONTEXT TO CHECK</span><b>Before any instructor action</b></div><ul><li>Assignment genre and prompt</li><li>Required sources or template</li><li>Tutoring or writing-center support</li><li>Accommodations and assistive tools</li><li>Draft and revision history</li></ul></section>
       </div>
-      <aside class="decision panel"><div class="panel-label"><span>DECISION SUPPORT</span>${icon('spark')}</div><h2>Prepare the conversation</h2><p>Original keeps the instructor in control. Choose an action and generate a neutral, evidence-led brief.</p><label>Suggested next step</label><button class="choice selected" data-case-action="conversation"><i></i><span><b>Invite a conversation</b><small>Ask about process, sources, and revision</small></span></button><button class="choice" data-case-action="sample"><i></i><span><b>Request another sample</b><small>Gather more authorship evidence</small></span></button><button class="choice" data-case-action="clear"><i></i><span><b>Clear the case</b><small>Record reviewed, no further action</small></span></button><button class="primary" type="button" data-build-brief>Build conversation brief ${icon('arrow')}</button><button class="secondary" type="button" data-save-case>Save local demo state</button><div class="case-feedback" data-case-feedback role="status">No record has been saved.</div><section class="conversation-brief" data-conversation-brief hidden><div><span>CONVERSATION BRIEF</span><button type="button" data-close-brief aria-label="Close conversation brief">×</button></div><h3>Begin with the student’s process</h3><p>“I noticed that a few sentence and source-transition patterns differ from your earlier work, while your vocabulary remains consistent. Could you walk me through how you drafted and revised these passages?”</p><ul><li>Ask which sources shaped the revision.</li><li>Invite drafts, notes, or version history.</li><li>Record context before deciding any next step.</li></ul><small>Generated from illustrative data · instructor edits and decides</small></section><div class="audit-note">Production concept: decisions and evidence access would be recorded in an audit log.</div></aside>
+      <aside class="decision panel"><div class="panel-label"><span>DECISION SUPPORT</span>${icon('spark')}</div><h2>Prepare the conversation</h2><p>Original keeps the instructor in control. Choose an action and generate a neutral, evidence-led brief.</p><label>Suggested next step</label><button type="button" class="choice selected" data-case-action="conversation" aria-pressed="true"><i></i><span><b>Invite a conversation</b><small>Ask about process, sources, and revision</small></span></button><button type="button" class="choice" data-case-action="sample" aria-pressed="false"><i></i><span><b>Request another sample</b><small>Gather more authorship evidence</small></span></button><button type="button" class="choice" data-case-action="clear" aria-pressed="false"><i></i><span><b>Clear the case</b><small>Record reviewed, no further action</small></span></button><button class="primary" type="button" data-build-brief>Build conversation brief ${icon('arrow')}</button><button class="secondary" type="button" data-save-case>Save local demo state</button><div class="case-feedback" data-case-feedback role="status">No record has been saved.</div><section class="conversation-brief" data-conversation-brief hidden><div><span>CONVERSATION BRIEF</span><button type="button" data-close-brief aria-label="Close conversation brief">×</button></div><h3>Begin with the student’s process</h3><p>“I noticed that a few sentence and source-transition patterns differ from your earlier work, while your vocabulary remains consistent. Could you walk me through how you drafted and revised these passages?”</p><ul><li>Ask which sources shaped the revision.</li><li>Invite drafts, notes, or version history.</li><li>Record context before deciding any next step.</li></ul><small>Generated from illustrative data · instructor edits and decides</small></section><div class="audit-note">Production concept: decisions and evidence access would be recorded in an audit log.</div></aside>
     </section>`,'case');
 }
 
@@ -296,7 +312,7 @@ function featureCatalog() {
 function documentEditor() {
   const visibleFeatures = FEATURE_PLANETS.filter(feature => professorCatalogMode === 'all' || PROFESSOR_ESSENTIAL_CODES.has(feature.code));
   return shell(`${header('Professor demonstration · Passage review','Living document intelligence','Morgan Lee · Fictional Essay 4 · Draft 04')}
-    <section class="editor-shell" data-editor-theme="navy">
+    <section class="editor-shell${reduceEditorBackground?' background-reduced':''}" data-editor-theme="navy">
       <div class="editor-atmosphere" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
       <aside class="feature-library glass-panel">
         <div class="editor-panel-head"><div><span>AUTHORSHIP FEATURES</span><b>103 total · 97 available · 6 need live drafting</b></div><button data-feature-all aria-label="Show all feature overlays">∞</button></div>
@@ -318,9 +334,10 @@ function documentEditor() {
             <button data-theme="bodleian" aria-label="Bodleian library" data-tooltip="Bodleian library"></button>
             <button data-theme="forest" aria-label="Old forest" data-tooltip="Old forest"></button>
             <button data-theme="light" aria-label="Parchment daylight" data-tooltip="Parchment daylight"></button>
+            <button type="button" class="background-focus-toggle" data-focus-background aria-pressed="${reduceEditorBackground}" aria-label="${reduceEditorBackground?'Restore cinematic background':'Reduce background detail'}" title="${reduceEditorBackground?'Restore cinematic background':'Reduce background detail'}"><span aria-hidden="true">◐</span><b>Focus</b></button>
           </div>
         </div>
-        <div class="comparison-ribbon glass-panel" data-comparison-ribbon aria-hidden="true">
+        <div class="comparison-ribbon glass-panel" data-comparison-ribbon aria-hidden="true" hidden>
           <div class="ribbon-lens"><span>ACTIVE LENS</span><div><i data-ribbon-glyph>;</i><b data-ribbon-title>Punctuation usage</b></div></div>
           <div class="ribbon-metric"><span>CURRENT</span><b data-ribbon-current>18.4</b></div>
           <div class="ribbon-metric"><span>BASELINE</span><b data-ribbon-baseline>8.6—12.9</b></div>
@@ -361,12 +378,12 @@ function documentEditor() {
             <div class="difference-rail" data-difference-rail aria-hidden="true"></div>
             </article>
           </section>
-          <section class="paper-column baseline-paper-column" aria-label="Baseline reference paper" aria-hidden="true">
+          <section class="paper-column baseline-paper-column" aria-label="Baseline reference paper" aria-hidden="true" hidden>
             <div class="paper-context-bar baseline-context-bar">
               <span><i></i>BASELINE REFERENCE</span><b data-baseline-counter-secondary>PAPER 03 OF 03</b>
             </div>
             <div class="paper-depth" aria-hidden="true"></div>
-            <article class="paper baseline-paper" aria-label="Selected baseline paper" aria-live="polite">
+            <article class="paper baseline-paper" aria-label="Selected baseline paper">
               <div class="paper-running-head"><span data-baseline-code>ML / ST-402 / 03</span><span>ILLUSTRATIVE BASELINE</span><span data-baseline-page>5 OF 12</span></div>
               <div class="paper-title"><span data-baseline-course>SYSTEMATIC THEOLOGY · ESSAY III</span><h2 data-baseline-title>The Discipline of Attention</h2><p data-baseline-meta>Morgan Lee · submitted 02 April 2026</p></div>
               <div class="paper-body baseline-paper-body" data-baseline-body></div>
@@ -378,45 +395,116 @@ function documentEditor() {
         </div>
       </div>
 
-      <aside class="feature-inspector glass-panel" aria-live="polite">
-        <div class="inspector-hero"><span data-inspector-index>FEATURE 038 / 103</span><div class="inspector-glyph" data-inspector-glyph>;</div><small data-inspector-state>REVIEW SIGNAL</small><h2 data-inspector-title>Semicolon &amp; colon use</h2><p data-inspector-copy>These marks appear more often than in the illustrative baseline and cluster in the argument’s most abstract passages.</p><div class="interpretive-limit"><b>CONTEXT, NOT PROOF</b><span>Use this observation to guide review and conversation—never as an automatic verdict.</span></div></div>
-        <div class="comparison-orbit" data-position-state="outside">
-          <div class="comparison-head"><span>FEATURE POSITION</span><b data-deviation-badge>+2.1σ</b></div>
+      <aside class="feature-inspector glass-panel" aria-labelledby="evidence-inspector-title">
+        <p class="sr-only" data-evidence-status role="status" aria-live="polite" aria-atomic="true">Surface division examples are ready for review.</p>
+        <div class="inspector-hero">
+          <div class="inspector-heading-row"><div><span data-inspector-index>SELECTED FEATURE</span><small data-inspector-state>EXACT CHARACTER MARKS</small></div><div class="inspector-glyph" data-inspector-glyph>;</div></div>
+          <h2 id="evidence-inspector-title" data-inspector-title>Semicolon &amp; colon use</h2>
+          <p data-inspector-copy>Semicolons and colons create stronger boundaries inside a sentence.</p>
+          <div class="interpretive-limit"><b>CONTEXT, NOT PROOF</b><span>Use this to guide review—not as an authorship verdict.</span></div>
+        </div>
+        <section class="comparison-orbit" data-position-state="outside" aria-label="Current and baseline comparison">
+          <div class="comparison-head"><h3>Comparison</h3><b data-deviation-badge>REVIEW</b></div>
           <div class="comparison-values">
-            <div class="current-readout"><span>CURRENT RATE</span><div><strong data-current-value>18.4</strong><small data-current-unit>PER 1,000 WORDS</small></div></div>
-            <div class="baseline-readout"><span>ILLUSTRATIVE BASELINE RANGE</span><b data-baseline-value>8.6—12.9</b><small data-delta-value>outside usual range</small></div>
-          </div>
-          <div class="position-scale" data-deviation-scale role="img" aria-label="Current punctuation usage is above the established range">
-            <div class="position-track"><span class="baseline-corridor"></span><i class="current-pin"></i></div>
-            <div class="scale-labels"><span>LOWER</span><b>EXPECTED BAND</b><span>HIGHER</span></div>
+            <div class="current-readout"><span data-current-label>CURRENT PAPER</span><div><strong data-current-value>18.4</strong><small data-current-unit>PER 1,000 WORDS</small></div></div>
+            <div class="baseline-readout"><span data-baseline-label>ILLUSTRATIVE BASELINE</span><b data-baseline-value>8.6—12.9</b><small data-delta-value>outside usual range</small></div>
           </div>
           <div class="comparison-caption"><i></i><span data-position-caption>Current usage sits beyond Morgan’s expected range.</span></div>
-        </div>
-        <div class="passage-inspector" data-passage-inspector role="region" aria-live="polite" aria-label="Highlighted passage comparison">
+        </section>
+        <section class="passage-inspector" data-passage-inspector role="region" aria-labelledby="inspector-evidence-title">
+          <h3 class="inspector-section-title" id="inspector-evidence-title" data-evidence-heading>Evidence</h3>
           <div class="passage-inspector-empty" data-passage-empty>
-            <div class="inspector-label"><span>PASSAGE LENS</span><b>HOVER TO COMPARE</b></div>
-            <div class="passage-empty-cue"><i>↔</i><div><b>Inspect the writing in context</b><span>Hover any colored passage to compare its behavior with the selected baseline.</span></div></div>
+            <div class="inspector-label"><span>EVIDENCE</span><b>SELECT AN EXAMPLE</b></div>
+            <div class="passage-empty-cue"><i>↔</i><div><b>Inspect the writing in context</b><span>Choose a colored example to compare it with the selected baseline.</span></div></div>
           </div>
           <div class="passage-inspector-live" data-passage-live hidden>
             <div class="passage-preview-head"><span><i data-hover-glyph>;</i><b data-hover-feature>Punctuation usage</b></span><em data-hover-state>MEANINGFUL SHIFT</em></div>
+            <div class="passage-occurrence-nav" data-passage-navigation role="group" aria-label="Navigate evidence examples">
+              <button type="button" data-passage-prev><span aria-hidden="true">‹</span><b>Previous</b></button>
+              <span><b data-passage-position>1</b><small>of</small><b data-passage-total>1</b></span>
+              <button type="button" data-passage-next><b>Next</b><span aria-hidden="true">›</span></button>
+            </div>
             <div class="passage-compare-grid">
               <article class="passage-sample current-sample"><header><span>CURRENT</span><b data-hover-current-value>18.4</b></header><q data-hover-current></q><small>Observed in this submission</small></article>
               <article class="passage-sample baseline-sample"><header><span>BASELINE</span><b data-hover-baseline-value>8.6—12.9</b></header><q data-hover-baseline></q><small data-hover-baseline-paper>PAPER 03 · ILLUSTRATIVE</small></article>
             </div>
             <div class="passage-explanation"><i></i><p data-hover-explanation></p></div>
           </div>
+        </section>
+        <div class="inspector-actions" role="group" aria-label="Evidence actions">
+          <button type="button" class="open-comparison-action" data-open-comparison><span aria-hidden="true">▥</span><b>Open full comparison</b></button>
         </div>
-        <div class="correlation-detail"><div class="inspector-label"><span>CORRELATES WITH</span><b data-correlation-strength>r = 0.72</b></div><button data-correlate="syntax"><i></i><span><b data-related-one>Sentence architecture</b><small>shared clause-boundary behavior</small></span><em>72%</em></button><button data-correlate="cadence"><i></i><span><b data-related-two>Cadence & pacing</b><small>sentence-ending rhythm</small></span><em>58%</em></button></div>
-        <div class="evidence-note"><span>WHY IT MATTERS</span><p data-inspector-why>Punctuation is a low-level writing habit. A clustered change is useful context, but it is not independent proof of authorship.</p><button data-pin-evidence>◇ Pin illustrative observation</button></div>
+        <details class="inspector-more" data-inspector-more>
+          <summary><span>Method, provenance &amp; related features</span><i aria-hidden="true">⌄</i></summary>
+          <div class="inspector-more-body">
+            <dl class="inspector-method-grid">
+              <div><dt>Evidence scope</dt><dd data-method-scope>Exact character marks</dd></div>
+              <div><dt>Technical measure</dt><dd data-method-measure>Semicolon+Colon Rate</dd></div>
+              <div><dt>Baseline</dt><dd data-method-baseline>12-paper profile · 3 viewable papers</dd></div>
+              <div><dt>Provenance</dt><dd>Static professor demo · no records saved</dd></div>
+            </dl>
+            <div class="correlation-detail"><div class="inspector-label"><span data-related-label>RELATED MEASURES IN THIS TIER</span><b data-correlation-strength>TIER 04</b></div><button data-correlate="syntax"><i></i><span><b data-related-one>Sentence architecture</b><small>shared clause-boundary behavior</small></span><em>OPEN</em></button><button data-correlate="cadence"><i></i><span><b data-related-two>Cadence & pacing</b><small>sentence-ending rhythm</small></span><em>OPEN</em></button></div>
+            <div class="evidence-note"><span>INTERPRETATION NOTES</span><p data-inspector-why>Punctuation is a low-level writing habit. A clustered change is useful context, but it is not independent proof of authorship.</p></div>
+          </div>
+        </details>
       </aside>
       <div class="mark-tooltip glass-panel" data-mark-tooltip hidden></div>
     </section>`,'editor');
 }
 
 const views={overview,constellation,pulse,temporal,editor:documentEditor,case:caseView};
-function render(view='overview') {
+let activeView = null;
+
+function routeView() {
+  let decoded = '';
+  try { decoded = decodeURIComponent(location.hash.replace(/^#\/?/, '')); }
+  catch { decoded = ''; }
+  const raw = decoded.split(/[?&]/, 1)[0];
+  const candidate = raw.startsWith('view=') ? raw.slice(5) : raw;
+  return Object.hasOwn(views, candidate) ? candidate : 'overview';
+}
+
+function updateRoute(view, { replace = false } = {}) {
+  const nextHash = `#${view}`;
+  if (location.hash === nextHash) return;
+  history[replace ? 'replaceState' : 'pushState']({ prototypeView:view }, '', nextHash);
+}
+
+function navigate(view, { replace = false, focusHeading = true } = {}) {
+  const next = Object.hasOwn(views, view) ? view : 'overview';
+  if (activeView === next) return;
+  updateRoute(next, { replace });
+  render(next, { focusHeading });
+}
+
+function setupEvidenceAnnouncer() {
+  const status = document.querySelector('[data-evidence-status]');
+  const title = document.querySelector('[data-inspector-title]');
+  if (!status || !title) return;
+  let timer = null;
+  let lastMessage = '';
+  const announce = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const feature = title.textContent.trim() || 'Writing trait';
+      const message = `${feature} is selected. Matching passages and baseline context are ready.`;
+      if (message !== lastMessage) {
+        status.textContent = message;
+        lastMessage = message;
+      }
+    }, 120);
+  };
+  const observer = new MutationObserver(announce);
+  observer.observe(title, { childList:true, characterData:true, subtree:true });
+  activeEvidenceObserver = { disconnect(){ clearTimeout(timer); observer.disconnect(); } };
+  announce();
+}
+
+function render(view='overview', { focusHeading = false } = {}) {
   if (activeEngine) { activeEngine.destroy(); activeEngine = null; }
-  document.getElementById('app').innerHTML=views[view]();
+  if (activeEvidenceObserver) { activeEvidenceObserver.disconnect(); activeEvidenceObserver = null; }
+  activeView = Object.hasOwn(views, view) ? view : 'overview';
+  document.getElementById('app').innerHTML=views[activeView]();
   document.querySelector('main')?.scrollTo({ top:0, left:0, behavior:'auto' });
   bind();
   const canvas = document.querySelector('.constellation-canvas');
@@ -428,9 +516,12 @@ function render(view='overview') {
       if (systemButton && detail) systemButton.querySelector('[data-system-title]').textContent = detail.title;
       selectedSignal = id;
     };
-    canvas.addEventListener('signalchange', event => { updateSignalPanel(event); syncSystemButton(event.detail.id); });
-    systemButton?.addEventListener('click', () => { pulseEntryCluster = SIGNAL_SYSTEMS[selectedSignal] || 'authorship'; render('pulse'); });
-    activeEngine = new ConstellationEngine(canvas, DATA);
+    const syncConstellationButtons = id => document.querySelectorAll('[data-constellation-node]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.constellationNode === id)));
+    canvas.addEventListener('signalchange', event => { updateSignalPanel(event); syncSystemButton(event.detail.id); syncConstellationButtons(event.detail.id); });
+    systemButton?.addEventListener('click', () => { pulseEntryCluster = SIGNAL_SYSTEMS[selectedSignal] || 'authorship'; navigate('pulse'); });
+    const engine = new ConstellationEngine(canvas, DATA);
+    document.querySelectorAll('[data-constellation-node]').forEach(button => button.addEventListener('click', () => engine.selectById(button.dataset.constellationNode)));
+    activeEngine = engine;
   }
   const pulseCanvas = document.querySelector('.pulse-canvas');
   if (pulseCanvas) {
@@ -446,25 +537,43 @@ function render(view='overview') {
       activeEngine.selectCatalogFeature(editorEntryFeature);
       editorEntryFeature = null;
     }
+    setupEvidenceAnnouncer();
   }
+  if (focusHeading) requestAnimationFrame(() => {
+    const heading = document.querySelector('main h1');
+    if (!heading) return;
+    heading.tabIndex = -1;
+    heading.focus({ preventScroll:true });
+  });
 }
 function bindViewLinks(){
   document.querySelectorAll('[data-view]:not([data-view-bound])').forEach(el=>{
     el.dataset.viewBound='true';
-    el.addEventListener('click',()=>render(el.dataset.view));
+    el.addEventListener('click',()=>navigate(el.dataset.view));
   });
 }
 function bind(){
   bindViewLinks();
+  document.querySelector('[data-focus-background]')?.addEventListener('click',event=>{
+    const button=event.currentTarget;
+    const shell=document.querySelector('.editor-shell');
+    const reduced=button.getAttribute('aria-pressed')!=='true';
+    reduceEditorBackground=reduced;
+    button.setAttribute('aria-pressed',String(reduced));
+    button.setAttribute('aria-label',reduced?'Restore cinematic background':'Reduce background detail');
+    button.title=reduced?'Restore cinematic background':'Reduce background detail';
+    shell?.classList.toggle('background-reduced',reduced);
+  });
   document.querySelectorAll('[data-editor-feature]').forEach(el=>el.addEventListener('click',()=>{
     editorEntryFeature=el.dataset.editorFeature;
-    render('editor');
+    navigate('editor');
   }));
   document.querySelectorAll('[data-catalog-mode]').forEach(el=>el.addEventListener('click',()=>{
     const next=el.dataset.catalogMode;
     if(next===professorCatalogMode)return;
     professorCatalogMode=next;
     render('editor');
+    requestAnimationFrame(()=>document.querySelector(`[data-catalog-mode="${next}"]`)?.focus());
   }));
   document.querySelectorAll('.choice').forEach(el=>el.addEventListener('click',()=>{
     document.querySelectorAll('.choice').forEach(n=>{n.classList.remove('selected');n.setAttribute('aria-pressed','false')});
@@ -475,12 +584,25 @@ function bind(){
     const selected=document.querySelector('.choice.selected')?.dataset.caseAction||'conversation';
     const titles={conversation:'Begin with the student’s process',sample:'Request a short, low-stakes writing sample',clear:'Document the review and close the case'};
     const title=brief?.querySelector('h3');if(title)title.textContent=titles[selected];
-    if(brief){brief.hidden=false;brief.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})}
+    if(brief){
+      brief.hidden=false;
+      brief.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+      const heading=brief.querySelector('h3');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true})}
+    }
   });
-  document.querySelector('[data-close-brief]')?.addEventListener('click',()=>{const brief=document.querySelector('[data-conversation-brief]');if(brief)brief.hidden=true});
+  document.querySelector('[data-close-brief]')?.addEventListener('click',()=>{const brief=document.querySelector('[data-conversation-brief]');if(brief)brief.hidden=true;document.querySelector('[data-build-brief]')?.focus()});
   document.querySelector('[data-save-case]')?.addEventListener('click',()=>{
     const feedback=document.querySelector('[data-case-feedback]');
     if(feedback)feedback.textContent='Demo choice held in this tab only · no institutional record saved.';
   });
 }
-render();
+
+const initialView = routeView();
+updateRoute(initialView, { replace:true });
+render(initialView);
+const handleRouteChange = () => {
+  const next = routeView();
+  if (next !== activeView) render(next, { focusHeading:true });
+};
+window.addEventListener('popstate', handleRouteChange);
+window.addEventListener('hashchange', handleRouteChange);

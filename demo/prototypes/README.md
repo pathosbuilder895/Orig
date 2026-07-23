@@ -1,6 +1,6 @@
 # Original investigation workspace prototypes
 
-Three linked, front-end-only concepts inspired by the layered investigation
+Six linked, front-end-only concepts inspired by the layered investigation
 model in Fuselab's Control AI case study. They are intentionally isolated from
 the live professor UI and use synthetic data.
 
@@ -13,13 +13,41 @@ the live professor UI and use synthetic data.
 - **Temporal intelligence** — dimensional stacked activity, readiness,
   workflow, and evidence views with playback, comparisons, context markers,
   and analyst interpretation.
-- **Living document intelligence** — an editable paper with immediate
-  feature-to-passage correlation, glass evidence overlays, baseline statistics,
+- **Living document intelligence** — a read-only review paper with immediate
+  feature-to-passage correlation, glass evidence overlays, illustrative baseline statistics,
   a full-size switchable baseline-paper comparison, a correlation field,
   selection tools, and five reading atmospheres.
 
 Serve the live `demo/` directory and open `/prototypes/`. No build step or
-backend is required.
+backend is required. The entire `/prototypes` subtree is intentionally returned
+as `404` whenever Original detects a real deployment; it is a demonstration
+surface, not a production route.
+
+## Feature registry and evidence resolution
+
+The prototypes carry a deploy-safe, generated copy of Original's 103-feature
+contract in `feature-registry.generated.js`. It is generated directly from the
+canonical code order, tier membership, and technical labels in
+`original/constants.py`, plus professor-facing descriptions from
+`original/explainer.py`. It does not depend on the optional `demo/app/` React
+workspace, so a clean checkout can serve `/prototypes/` without missing module
+imports.
+
+After changing backend feature metadata, regenerate and verify the copy:
+
+```bash
+.venv/bin/python demo/prototypes/generate-feature-registry.py
+.venv/bin/python demo/prototypes/generate-feature-registry.py --check
+.venv/bin/python -m pytest tests/test_prototype_feature_registry.py -q
+```
+
+Every generated feature exposes four localization properties through
+`FEATURE_BY_CODE`: `localizationKind`, `localizationLabel`,
+`localizationGuidance`, and `supportsInlineHighlight`. The six allowed kinds
+are `character`, `token`, `sentence`, `paragraph`, `document`, and
+`behavioral`. Only the first four permit inline highlighting. Document-level
+signals use summaries or distributions, and behavioral signals require a live
+drafting timeline; the interface must not invent word highlights for either.
 
 ## Professor demonstration
 
@@ -51,6 +79,32 @@ Then open `http://127.0.0.1:8001/prototypes/` in a fresh browser window.
 | Feature constellation | fingerprint and quantum-state responses |
 | Case evidence | score output, flags, and professor explanation |
 | Decision trail | admin audit endpoints |
+
+## Production evidence contract
+
+The prototype deliberately does not infer evidence offsets from prose. A
+production adapter should render only trusted analysis records and should keep
+the backend feature code as the stable join key. Each record needs:
+
+- document and revision identifiers, a content hash, analysis/model version,
+  and generation time;
+- feature code, localization kind, raw value, display unit, interpretation,
+  and provenance;
+- baseline cohort identifiers, sample count, range/quantiles, and enough
+  dispersion data to explain a comparison honestly;
+- for `character` and `token` evidence, validated block IDs and start/end
+  offsets into immutable source text;
+- for `sentence` and `paragraph` evidence, the complete enclosing block range
+  rather than a manufactured word attribution;
+- for `behavioral` evidence, drafting-session event or time ranges rather than
+  document offsets.
+
+All submitted prose must enter the DOM as text nodes. Only application-owned,
+allowlisted markup may be parsed. The demonstration baseline renderer applies
+an element/attribute allowlist even though its three papers are local constants.
+Before integration, add explicit loading, empty, error, stale-analysis, and
+insufficient-baseline states to the API adapter; never substitute the current
+illustrative values when a request fails.
 
 The graph uses a custom Canvas 2D projection engine. A production version can
 retain the same information architecture while moving the renderer into a
@@ -107,16 +161,17 @@ column sink response, and pointer-driven perspective/parallax. It also gives
 the signal dial a layered elliptical chassis and expands authorship stability
 into baseline-range, movement, and confidence diagnostics.
 
-`document-intelligence.js` coordinates the forensic editor. Selecting any
+`document-intelligence.js` coordinates the read-only passage reviewer. Selecting any
 feature updates the annotated passages, difference rail, baseline comparison,
 feature position, related-feature field, and interpretive guidance as one
 synchronized lens. Its comparison workspace preserves identical paper geometry,
 fits a two-paper reading spread without horizontal panning, increases comparison
 typography, and adds paired passage markers, persistent
-comparison metrics, difference navigation, working editor commands, and cycles
+comparison metrics, difference navigation, and cycles
 among verified baseline papers without losing the active feature lens or reading
-position. The document viewport owns both scroll axes so long papers remain
-reachable inside the fixed investigation workspace. Hovering or selecting a
+position. At desktop widths the document participates in the page scroll while
+the feature library and inspector remain sticky; this removes the competing
+nested document scrollbar. Hovering, focusing, or selecting a
 colored passage replaces the crowded history plot with a focused current-versus-
 baseline excerpt, live measurements, and a plain-language explanation of the
 feature behavior. Selecting a feature also moves the local constellation camera
@@ -131,10 +186,13 @@ glass, higher-contrast typography, and calmer spacing inspired by modern system
 glass without sacrificing the bookish paper surface. Each visible feature family
 also has a stable semantic color that follows its library control, document
 highlights, inspector lens, passage comparison, and correlation constellation.
-The final legibility profile is sized for older readers: 15.5–16.5px document
+The final legibility profile is sized for older readers: 16–17px document
 text, enlarged navigation and inspector copy, taller controls, wider analysis
 panels, and generous line spacing while retaining a zero-horizontal-overflow
-two-paper comparison.
+two-paper comparison. Evidence occurrences use roving keyboard focus, and the
+correlation animation pauses offscreen, in background tabs, and under reduced
+motion. Whole-document and drafting-session features show an explicit evidence
+scope instead of receiving arbitrary inline highlights.
 
 The supplied Long Room photograph is included locally as
 `assets/long-room-library.jpg` and used as a color-graded, vignetted cinematic

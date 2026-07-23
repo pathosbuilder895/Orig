@@ -1,4 +1,10 @@
-import { CODES, FEATURES, TIER_META } from '../app/feature-names.js';
+import {
+  CODES,
+  FEATURES,
+  TIER_META,
+  LOCALIZATION_KINDS,
+  FEATURE_REGISTRY_SOURCE
+} from './feature-registry.generated.js?v=production-review-20260722';
 
 export const DIVISION_COLORS = Object.freeze({
   surface: '#d5f36f',
@@ -10,6 +16,10 @@ const LIVE_CAPTURE_TIER = 17;
 const COMPARISON_TIER = 0;
 const liveCaptureCodes = CODES.filter((code) => FEATURES[code].tier === LIVE_CAPTURE_TIER);
 const comparisonCodes = CODES.filter((code) => FEATURES[code].tier === COMPARISON_TIER);
+const localizationCounts = Object.fromEntries(Object.keys(LOCALIZATION_KINDS).map((kind) => [
+  kind,
+  CODES.filter((code) => FEATURES[code].localizationKind === kind).length
+]));
 
 /**
  * Availability and provenance for the prototype feature universe.
@@ -25,6 +35,8 @@ export const FEATURE_UNIVERSE = Object.freeze({
   comparisonOnlyCount: comparisonCodes.length,
   liveCaptureCodes: Object.freeze([...liveCaptureCodes]),
   comparisonCodes: Object.freeze([...comparisonCodes]),
+  localizationCounts: Object.freeze(localizationCounts),
+  registrySchemaVersion: FEATURE_REGISTRY_SOURCE.schemaVersion,
   dataMode: 'illustrative-prototype',
   isMeasuredStudentData: false,
   disclosure: 'Illustrative prototype values — not measured student data.'
@@ -196,6 +208,10 @@ export const FEATURE_PLANETS = CODES.map((code, index) => {
     technicalLabel: meta.name,
     professorLabel: PROFESSOR_LABEL_BY_CODE[code],
     plain: meta.plain,
+    localizationKind: meta.localizationKind,
+    localizationLabel: meta.localizationLabel,
+    localizationGuidance: meta.localizationGuidance,
+    supportsInlineHighlight: meta.supportsInlineHighlight,
     shortLabel: PROFESSOR_LABEL_BY_CODE[code],
     tier: meta.tier,
     tierName: tier.name,

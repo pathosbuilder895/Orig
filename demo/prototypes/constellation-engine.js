@@ -37,6 +37,10 @@ export class ConstellationEngine {
     this.hovered = null;
     this.selected = this.nodes.find(node => node.id === 's1') || this.nodes[0];
     this.pointer = { x: -1000, y: -1000 };
+    this.motionQuery = matchMedia('(prefers-reduced-motion: reduce)');
+    this.reduceMotion = this.motionQuery.matches;
+    this.pageVisible = !document.hidden;
+    this.inViewport = true;
     this.last = performance.now();
     this.lastRender = 0;
     this.frame = 0;
@@ -44,7 +48,8 @@ export class ConstellationEngine {
     this.resize();
     this.updateReadout();
     this.loop = this.loop.bind(this);
-    this.raf = requestAnimationFrame(this.loop);
+    this.raf = null;
+    this.syncLoop();
   }
 
   makeNodes(source) {
@@ -95,6 +100,7 @@ export class ConstellationEngine {
       if (action === 'in') this.targetZoom=clamp(this.targetZoom*1.15,.62,1.85);
       if (action === 'out') this.targetZoom=clamp(this.targetZoom*.85,.62,1.85);
       if (action === 'motion') {
+        if (this.reduceMotion) return;
         this.motion=!this.motion;
         button.classList.toggle('active',this.motion);
         button.setAttribute('aria-pressed',String(this.motion));
@@ -103,6 +109,41 @@ export class ConstellationEngine {
         button.textContent=this.motion?'Ⅱ':'▶';
       }
     }));
+    this.visibilityChange = () => { this.pageVisible = !document.hidden; this.syncLoop(); };
+    document.addEventListener('visibilitychange', this.visibilityChange);
+    this.motionChange = event => {
+      this.reduceMotion = event.matches;
+      if (this.reduceMotion) this.motion = false;
+      const button = this.host.querySelector('[data-camera="motion"]');
+      if (button) {
+        button.setAttribute('aria-disabled', String(this.reduceMotion));
+        button.setAttribute('aria-pressed', String(this.motion));
+        button.setAttribute('aria-label', this.reduceMotion ? 'Constellation motion disabled by reduced-motion preference' : this.motion ? 'Pause constellation motion' : 'Play constellation motion');
+        button.textContent = this.reduceMotion ? '—' : this.motion ? 'Ⅱ' : '▶';
+      }
+    };
+    this.motionQuery.addEventListener?.('change', this.motionChange);
+    this.motionChange(this.motionQuery);
+    if ('IntersectionObserver' in window) {
+      this.intersectionObserver = new IntersectionObserver(entries => {
+        this.inViewport = entries[0]?.isIntersecting !== false;
+        this.syncLoop();
+      }, { threshold:.01 });
+      this.intersectionObserver.observe(this.host);
+    }
+  }
+
+  syncLoop() {
+    const shouldRun = this.pageVisible && this.inViewport;
+    if (!shouldRun && this.raf !== null) {
+      cancelAnimationFrame(this.raf);
+      this.raf = null;
+      return;
+    }
+    if (shouldRun && this.raf === null) {
+      this.last = performance.now();
+      this.raf = requestAnimationFrame(this.loop);
+    }
   }
 
   resize() {
@@ -144,6 +185,14 @@ export class ConstellationEngine {
     }
   }
 
+  selectById(id) {
+    const node = this.nodes.find(candidate => candidate.id === id);
+    if (!node) return;
+    this.selected = node;
+    this.updateReadout();
+    this.canvas.dispatchEvent(new CustomEvent('signalchange',{detail:{id:node.id,label:node.label,sub:node.sub}}));
+  }
+
   updateReadout() {
     const title=this.host.querySelector('[data-selected-title]');
     const meta=this.host.querySelector('[data-selected-meta]');
@@ -179,7 +228,7 @@ export class ConstellationEngine {
     const ctx=this.ctx;
     const radial=ctx.createRadialGradient(this.width*.5,this.height*.42,0,this.width*.5,this.height*.42,Math.max(this.width,this.height)*.7);
     radial.addColorStop(0,'rgba(22,48,38,.72)');radial.addColorStop(.5,'rgba(9,23,18,.42)');radial.addColorStop(1,'rgba(4,10,8,.96)');ctx.fillStyle=radial;ctx.fillRect(0,0,this.width,this.height);
-    this.particles.forEach(p=>{const pt=this.project([p.x,p.y,p.z,p.w],now);const twinkle=.55+Math.sin(now*.0015+p.phase)*.35;ctx.fillStyle=`rgba(182,210,194,${p.alpha*twinkle*pt.alpha})`;ctx.beginPath();ctx.arc(pt.x,pt.y,p.size*pt.scale,0,TAU);ctx.fill();});
+    this.particles.forEach(p=>{const pt=this.project([p.x,p.y,p.z,p.w],now);const twinkle=this.reduceMotion ? .72 : .55+Math.sin(now*.0015+p.phase)*.35;ctx.fillStyle=`rgba(182,210,194,${p.alpha*twinkle*pt.alpha})`;ctx.beginPath();ctx.arc(pt.x,pt.y,p.size*pt.scale,0,TAU);ctx.fill();});
     ctx.strokeStyle='rgba(126,159,143,.055)';ctx.lineWidth=1;
     for(let r=1;r<5;r++){ctx.beginPath();ctx.ellipse(this.width*.5,this.height*.47,r*this.width*.092,r*this.height*.105,Math.sin(this.yaw)*.25,0,TAU);ctx.stroke();}
   }
@@ -190,7 +239,7 @@ export class ConstellationEngine {
       const a=edge.a.screen,b=edge.b.screen;if(!a||!b)return;
       const active=this.selected===edge.a||this.selected===edge.b;
       const grad=ctx.createLinearGradient(a.x,a.y,b.x,b.y);grad.addColorStop(0,active?'rgba(213,243,111,.5)':'rgba(97,122,110,.16)');grad.addColorStop(.5,active?'rgba(213,243,111,.22)':'rgba(97,122,110,.34)');grad.addColorStop(1,active?'rgba(213,243,111,.5)':'rgba(97,122,110,.16)');
-      ctx.strokeStyle=grad;ctx.lineWidth=active?1.25:.7;ctx.beginPath();ctx.moveTo(a.x,a.y);const bow=Math.sin(edge.phase+now*.0002)*12;ctx.quadraticCurveTo((a.x+b.x)/2+bow,(a.y+b.y)/2-bow,b.x,b.y);ctx.stroke();
+      ctx.strokeStyle=grad;ctx.lineWidth=active?1.25:.7;ctx.beginPath();ctx.moveTo(a.x,a.y);const bow=Math.sin(edge.phase+(this.reduceMotion?0:now*.0002))*12;ctx.quadraticCurveTo((a.x+b.x)/2+bow,(a.y+b.y)/2-bow,b.x,b.y);ctx.stroke();
     });
     this.signalParticles.forEach((sig,i)=>{
       const edge=this.edges[sig.edge],a=edge.a.screen,b=edge.b.screen;if(!a||!b)return;
@@ -203,20 +252,22 @@ export class ConstellationEngine {
   drawNode(node,now) {
     const ctx=this.ctx,p=node.screen,color=PALETTE[node.kind]||PALETTE.muted;
     const selected=node===this.selected,hovered=node===this.hovered;
-    const pulse=1+Math.sin(now*.002+node.pulse)*.045;
+    const pulse=this.reduceMotion?1:1+Math.sin(now*.002+node.pulse)*.045;
     const radius=node.baseSize*p.scale*pulse*(selected?1.12:1);
     this.glow(p.x,p.y,radius*(selected?3.2:2.2),color,selected?.23:.12);
     ctx.save();ctx.translate(p.x,p.y);
     ctx.strokeStyle=color;ctx.globalAlpha=p.alpha;ctx.lineWidth=selected?1.8:1;
     ctx.beginPath();ctx.arc(0,0,radius,0,TAU);ctx.stroke();
     ctx.globalAlpha=.26;ctx.beginPath();ctx.arc(0,0,radius*.76,0,TAU);ctx.stroke();
-    if(selected||hovered){ctx.globalAlpha=.5;ctx.setLineDash([2,5]);ctx.beginPath();ctx.arc(0,0,radius+8+Math.sin(now*.002)*2,now*.0003,now*.0003+TAU);ctx.stroke();ctx.setLineDash([]);}
+    if(selected||hovered){const spin=this.reduceMotion?0:now*.0003;ctx.globalAlpha=.5;ctx.setLineDash([2,5]);ctx.beginPath();ctx.arc(0,0,radius+8+(this.reduceMotion?0:Math.sin(now*.002)*2),spin,spin+TAU);ctx.stroke();ctx.setLineDash([]);}
     ctx.globalAlpha=1;ctx.fillStyle='#eef2ed';ctx.font=`600 ${clamp(10*p.scale,9,13)}px "DM Mono"`;ctx.textAlign='center';ctx.fillText(node.label,0,-1);
     ctx.fillStyle=color;ctx.font=`500 ${clamp(8.5*p.scale,8,11)}px Manrope`;ctx.fillText(node.sub,0,13*p.scale);
     ctx.restore();
   }
 
   loop(now) {
+    this.raf = null;
+    if (!this.pageVisible || !this.inViewport) return;
     if (now-this.lastRender < 25) { this.raf=requestAnimationFrame(this.loop); return; }
     this.lastRender=now;
     const dt=clamp((now-this.last)/16.67,.2,3);this.last=now;
@@ -230,7 +281,8 @@ export class ConstellationEngine {
   }
 
   destroy() {
-    cancelAnimationFrame(this.raf);this.resizeObserver?.disconnect();
+    if (this.raf !== null) cancelAnimationFrame(this.raf);this.resizeObserver?.disconnect();this.intersectionObserver?.disconnect();
+    document.removeEventListener('visibilitychange',this.visibilityChange);this.motionQuery.removeEventListener?.('change',this.motionChange);
     this.canvas.removeEventListener('pointermove',this.onMove);this.canvas.removeEventListener('pointerdown',this.onDown);this.canvas.removeEventListener('pointerup',this.onUp);this.canvas.removeEventListener('wheel',this.onWheel);
   }
 }
