@@ -1,5 +1,5 @@
 import React from 'react';
-import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, MetaLabel, Seal, StatusBadge, fontBody, fontDisplay, fontMono, rowKeyDown } from './components.jsx';
+import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, MetaLabel, StatusBadge, fontBody, fontDisplay, fontMono, rowKeyDown } from './components.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Results Screen
@@ -36,11 +36,206 @@ function ScoreBar({ score }) {
   );
 }
 
+const { useState: useCPState, useEffect: useCPEffect } = React;
+
+const VERDICT_OPTIONS = ['authentic', 'uncertain', 'anomalous'];
+const ACTION_OPTIONS = ['no_action', 'monitor', 'schedule_conversation', 'escalate'];
+
+function relativeTime(iso) {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return iso;
+  const diffMin = Math.round((Date.now() - then) / 60000);
+  if (diffMin < 1) return 'just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffH = Math.round(diffMin / 60);
+  if (diffH < 24) return `${diffH}h ago`;
+  return `${Math.round(diffH / 24)}d ago`;
+}
+
+function CorrectionHistoryItem({ c }) {
+  return (
+    <div style={{
+      padding:'10px 0', borderBottom:'1px solid rgba(201,169,97,0.12)',
+      fontFamily:fontBody, fontSize:13, color:BB.fade,
+    }}>
+      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+        <span style={{ color: c.is_correct ? '#5EB87C' : '#C47A6B', fontFamily:fontMono, fontSize:11, letterSpacing:'0.08em' }}>
+          {c.is_correct ? '✓ Verdict correct' : '✗ Verdict overridden'}
+        </span>
+        <span style={{ fontFamily:fontMono, fontSize:10, color:'rgba(139,155,180,0.6)' }}>
+          {c.reviewer || 'Unknown reviewer'} · {relativeTime(c.created_at)}
+        </span>
+      </div>
+      {!c.is_correct && (c.corrected_verdict || c.corrected_action) && (
+        <p style={{ margin:'0 0 4px', fontStyle:'italic' }}>
+          {c.corrected_verdict && `→ ${c.corrected_verdict}`}
+          {c.corrected_verdict && c.corrected_action && ' · '}
+          {c.corrected_action && `→ ${c.corrected_action}`}
+        </p>
+      )}
+      {c.notes && <p style={{ margin:0 }}>{c.notes}</p>}
+    </div>
+  );
+}
+
+function CorrectionPanel({ result }) {
+  const [history,       setHistory]       = useCPState(null);
+  const [isCorrect,     setIsCorrect]     = useCPState(null); // null = unset, true/false once chosen
+  const [correctedVerdict, setCorrectedVerdict] = useCPState('');
+  const [correctedAction,  setCorrectedAction]  = useCPState('');
+  const [notes,          setNotes]         = useCPState('');
+  const [submitting,     setSubmitting]    = useCPState(false);
+  const [error,          setError]         = useCPState(null);
+
+  const submissionId = result.submission_uuid;
+
+  useCPEffect(() => {
+    if (!submissionId) return;
+    let live = true;
+    BB_API.listCorrections(submissionId).then(items => { if (live) setHistory(items || []); });
+    return () => { live = false; };
+  }, [submissionId]);
+
+  function resetForm() {
+    setIsCorrect(null);
+    setCorrectedVerdict('');
+    setCorrectedAction('');
+    setNotes('');
+  }
+
+  async function handleFile() {
+    if (isCorrect === null || !submissionId) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const identity = BB_API.identity();
+      const created = await BB_API.fileCorrection(submissionId, {
+        isCorrect,
+        correctedVerdict: isCorrect ? null : (correctedVerdict || null),
+        correctedAction: isCorrect ? null : (correctedAction || null),
+        reviewer: identity.name || null,
+        notes: notes || null,
+      });
+      setHistory(h => [created, ...(h || [])]);
+      resetForm();
+    } catch (e) {
+      setError(String(e && e.message || e));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (!submissionId) {
+    return (
+      <div>
+        <MetaLabel style={{ display:'block', marginBottom:14 }}>Examiner's Correction</MetaLabel>
+        <p style={{
+          fontFamily:fontBody, fontStyle:'italic', fontSize:14, color:BB.fade,
+          padding:'12px 14px', border:'1px solid rgba(201,169,97,0.15)', margin:0,
+        }}>
+          This submission wasn't scored — no verdict to correct.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <MetaLabel style={{ display:'block', marginBottom:14 }}>Examiner's Correction</MetaLabel>
+
+      {history === null ? (
+        <p style={{ fontFamily:fontBody, fontStyle:'italic', fontSize:13, color:BB.fade }}>Loading history…</p>
+      ) : history.length > 0 ? (
+        <div style={{ marginBottom:16, maxHeight:180, overflowY:'auto' }}>
+          {history.map(c => <CorrectionHistoryItem key={c.id} c={c} />)}
+        </div>
+      ) : null}
+
+      <div style={{ display:'flex', gap:10, marginBottom:10 }}>
+        <button
+          onClick={() => setIsCorrect(true)}
+          style={{
+            flex:1, padding:'8px 14px', fontFamily:fontMono, fontSize:11, letterSpacing:'0.08em',
+            textTransform:'uppercase', cursor:'pointer',
+            background: isCorrect === true ? '#5EB87C' : 'transparent',
+            color: isCorrect === true ? BB.deep : '#5EB87C',
+            border:'1px solid #5EB87C',
+          }}
+        >Correct</button>
+        <button
+          onClick={() => setIsCorrect(false)}
+          style={{
+            flex:1, padding:'8px 14px', fontFamily:fontMono, fontSize:11, letterSpacing:'0.08em',
+            textTransform:'uppercase', cursor:'pointer',
+            background: isCorrect === false ? '#C47A6B' : 'transparent',
+            color: isCorrect === false ? BB.deep : '#C47A6B',
+            border:'1px solid #C47A6B',
+          }}
+        >Incorrect</button>
+      </div>
+
+      {isCorrect === false && (
+        <div style={{ display:'flex', gap:10, marginBottom:10 }}>
+          <select
+            value={correctedVerdict}
+            onChange={e => setCorrectedVerdict(e.target.value)}
+            style={{
+              flex:1, padding:'8px 10px', background:'rgba(0,0,0,0.25)',
+              border:'1px solid rgba(201,169,97,0.22)', color:BB.cream,
+              fontFamily:fontMono, fontSize:12,
+            }}
+          >
+            <option value="">No verdict change</option>
+            {VERDICT_OPTIONS.map(v => <option key={v} value={v}>{v}</option>)}
+          </select>
+          <select
+            value={correctedAction}
+            onChange={e => setCorrectedAction(e.target.value)}
+            style={{
+              flex:1, padding:'8px 10px', background:'rgba(0,0,0,0.25)',
+              border:'1px solid rgba(201,169,97,0.22)', color:BB.cream,
+              fontFamily:fontMono, fontSize:12,
+            }}
+          >
+            <option value="">No action change</option>
+            {ACTION_OPTIONS.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </div>
+      )}
+
+      <textarea
+        value={notes}
+        onChange={e => setNotes(e.target.value)}
+        placeholder="Record observations, decision rationale, or marginal notes…"
+        rows={4}
+        style={{
+          width:'100%', boxSizing:'border-box',
+          background:'rgba(0,0,0,0.25)',
+          border:'1px solid rgba(201,169,97,0.22)',
+          padding:'12px 14px',
+          fontFamily:fontBody, fontStyle:'italic', fontSize:15,
+          color:BB.cream, outline:'none', resize:'vertical',
+          lineHeight:1.65, letterSpacing:'0.01em', marginBottom:10,
+        }}
+      />
+
+      {error && (
+        <p style={{ color:'#C47A6B', fontFamily:fontMono, fontSize:12, margin:'0 0 10px' }}>{error}</p>
+      )}
+
+      <BtnPrimary
+        onClick={handleFile}
+        disabled={isCorrect === null || submitting}
+        style={{ padding:'8px 20px', fontSize:14, width:'100%', opacity: (isCorrect === null || submitting) ? 0.5 : 1 }}
+      >
+        {submitting ? 'Filing…' : 'File Correction'}
+      </BtnPrimary>
+    </div>
+  );
+}
+
 // ─── Expanded row detail ──────────────────────────────────────────────────────
 function ExpandedRow({ result, onClose }) {
-  const [notes, setNotes] = useResState('');
-  const [marked, setMarked] = useResState(result.status === 'REVIEWED');
-
   return (
     <div style={{
       padding:'20px 20px 20px 48px',
@@ -83,41 +278,13 @@ function ExpandedRow({ result, onClose }) {
           </div>
         </div>
 
-        {/* Right: review notes */}
+        {/* Right: correction form + history */}
         <div>
-          <MetaLabel style={{ display:'block', marginBottom:14 }}>Examiner's Notes</MetaLabel>
-          <textarea
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-            placeholder="Record observations, decision rationale, or marginal notes…"
-            rows={5}
-            style={{
-              width:'100%', boxSizing:'border-box',
-              background:'rgba(0,0,0,0.25)',
-              border:'1px solid rgba(201,169,97,0.22)',
-              padding:'12px 14px',
-              fontFamily:fontBody, fontStyle:'italic', fontSize:15,
-              color:BB.cream, outline:'none', resize:'vertical',
-              lineHeight:1.65, letterSpacing:'0.01em',
-            }}
-          />
-          <div style={{ display:'flex', gap:10, marginTop:12 }}>
-            <BtnGhost onClick={onClose} style={{ padding:'8px 20px', fontSize:14, flex:1 }}>
+          <CorrectionPanel result={result} />
+          <div style={{ marginTop:12 }}>
+            <BtnGhost onClick={onClose} style={{ padding:'8px 20px', fontSize:14, width:'100%' }}>
               Close
             </BtnGhost>
-            {!marked ? (
-              <BtnPrimary onClick={() => setMarked(true)} style={{ padding:'8px 20px', fontSize:14, flex:1 }}>
-                Mark Reviewed
-              </BtnPrimary>
-            ) : (
-              <div style={{
-                flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:8,
-                fontFamily:fontMono, fontSize:10, letterSpacing:'0.15em',
-                textTransform:'uppercase', color:'#5EB87C',
-              }}>
-                <Seal size={14} verified /> Reviewed
-              </div>
-            )}
           </div>
         </div>
       </div>
