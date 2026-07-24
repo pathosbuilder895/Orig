@@ -29,8 +29,9 @@
  * Incorrect, verdict/action selects, notes, "File Correction") that calls
  * POST /submissions/{id}/correct and lists history via GET
  * /admin/corrections — the correction test below drives that UI directly
- * rather than hitting the API standalone. "Mark Reviewed" is still local
- * component state only, exercised separately in step 8 above.
+ * rather than hitting the API standalone. The old "Mark Reviewed" button
+ * (local component state only, never persisted) is gone; step 8 now
+ * asserts on the CorrectionPanel heading instead.
  *
  * The two non-serial describes at the bottom are Stage-2 breadth on the
  * same surface: NewExam form gating, and the fresh-tenant empty states
