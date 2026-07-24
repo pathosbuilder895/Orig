@@ -88,13 +88,19 @@ function CorrectionPanel({ result }) {
   const [error,          setError]         = useCPState(null);
 
   const submissionId = result.submission_uuid;
+  // Disabled ("cold-start") state is keyed on whether an AI score was ever
+  // computed, not on uuid presence — a real sealed exam always carries a
+  // submission_uuid (threaded into the score call too), so uuid presence
+  // alone can't distinguish a cold-start 422 from a genuinely scored
+  // submission. aiScore is null exactly when no score was recorded.
+  const hasScore = result.aiScore != null;
 
   useCPEffect(() => {
-    if (!submissionId) return;
+    if (!hasScore) return;
     let live = true;
     BB_API.listCorrections(submissionId).then(items => { if (live) setHistory(items || []); });
     return () => { live = false; };
-  }, [submissionId]);
+  }, [hasScore, submissionId]);
 
   function resetForm() {
     setIsCorrect(null);
@@ -125,7 +131,7 @@ function CorrectionPanel({ result }) {
     }
   }
 
-  if (!submissionId) {
+  if (!hasScore) {
     return (
       <div>
         <MetaLabel style={{ display:'block', marginBottom:14 }}>Examiner's Correction</MetaLabel>

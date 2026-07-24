@@ -444,13 +444,15 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   })
 
   // ── 11 ───────────────────────────────────────────────────────────────
-  test('a submission with no linked score shows the disabled correction state', async ({
+  test('a cold-start sitting with no AI score shows the disabled correction state', async ({
     staffPage, request, workerTenant,
   }) => {
-    // Record a Bluebook submission directly via the API without ever calling
-    // /students/{id}/score first -- exactly the cold-start case (zero
-    // authenticated baseline samples) where scoring 422s and no
-    // submission_uuid-linked score exists.
+    // Record a Bluebook submission the way a real cold-start sitting looks:
+    // the seal always generates a submission_uuid (it's threaded into both
+    // the submission record and the score call), but scoring 422'd because
+    // there was no baseline yet to compare against, so ai_score is null.
+    // This is the actual reachable cold-start shape -- not a submission with
+    // no uuid at all, which the real Exam.jsx flow never produces.
     const headers = staffAuth(workerTenant)
     const res = await request.post('/bluebook/submissions', {
       headers,
@@ -462,7 +464,8 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
         word_count: 10,
         time_min: 1,
         status: 'SUBMITTED',
-        // deliberately no submission_uuid
+        submission_uuid: 'cold-start-seal-uuid',
+        ai_score: null,
       },
     })
     expect(res.ok()).toBe(true)
