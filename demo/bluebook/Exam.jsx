@@ -157,10 +157,11 @@ async function bbStartSession(cfg, studentId) {
 // Score the submission against the student's EXISTING baseline → returns an
 // AI/authorship score (0–100, higher = more authentically theirs), or null when
 // there is no baseline yet to compare against (a first proctored sitting).
-async function bbScoreWithOriginal(studentId, text, assignment) {
+async function bbScoreWithOriginal(studentId, text, assignment, submissionId) {
   try {
     const r = await fetch(`${BB_API_BASE}/students/${encodeURIComponent(studentId)}/score`, {
-      method: 'POST', headers: bbAuthHeaders(), body: JSON.stringify({ text, assignment }),
+      method: 'POST', headers: bbAuthHeaders(),
+      body: JSON.stringify({ text, assignment, submission_id: submissionId || undefined }),
     });
     if (!r.ok) return null;
     const data = await r.json();
@@ -453,7 +454,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
         await waitOnline();
         // 1) Score against the EXISTING baseline (skipped on retry once known).
         if (seal.aiScore === undefined) {
-          seal.aiScore = await bbScoreWithOriginal(studentId, content, cfg.title);
+          seal.aiScore = await bbScoreWithOriginal(studentId, content, cfg.title, seal.uuid);
           writeDraftNow();
         }
         // 2) Add this proctored sitting (server skips identical text on replay).
