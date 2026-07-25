@@ -153,6 +153,12 @@ rollback, still exists but is frozen).
   additive (`CREATE TABLE IF NOT EXISTS`), so rolling back code is safe.
 - After editing any `demo/bluebook/*.jsx`: `cd demo/bluebook && npm run build`
   and commit the regenerated `bluebook.bundle.js` — Render does not run Node.
+- **Tag every production deploy** — `pilot-YYYY-MM-DD`, on the sha you deployed:
+  `git tag pilot-2026-07-24 <sha> && git push origin --tags`. If more than one
+  deploy lands on the same date, suffix `-2`, `-3`, ... The tag is what
+  "roll back to last Friday" resolves to — find the tag nearest that date
+  (`git log --tags --simplify-by-decoration --oneline`) and use its sha with
+  the Render rollback in the section above.
 
 ## Postgres cutover (WS-6 P5 — the one user-visible migration)
 
