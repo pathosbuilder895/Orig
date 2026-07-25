@@ -307,7 +307,7 @@ def principal_from_claims(claims: dict) -> dict:
             try:
                 from .repository import get_repository
 
-                get_repository(os.environ.get("ENVIRONMENT", "demo")).set_display_name(sid, name)
+                get_repository().set_display_name(sid, name)
             except Exception:
                 pass
         token = student_auth.mint_session(sid, name)

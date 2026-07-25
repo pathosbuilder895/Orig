@@ -44,7 +44,7 @@ B is the default-by-inertia and the most expensive over any horizon beyond a few
 
 ## Action Items
 
-1. [x] Define `Repository` protocol + `SqliteRepository` (delegates to `store.py`) + `get_repository(environment)` factory. — `original/repository.py`
+1. [x] Define `Repository` protocol + `SqliteRepository` (delegates to `store.py`) + `get_repository()` factory (its vestigial `environment` parameter was retired in WS-7.4 — it was never read). — `original/repository.py`
 2. [x] First convergence slice: the **Formation backend** routed entirely through the seam (`formation_pathways` table, endpoints, frontend, tests).
 3. [ ] Route tenant/audit reads through the same protocol.
 4. [ ] Add the Postgres `Repository` implementation for pilot/production; retire the dual-app split.

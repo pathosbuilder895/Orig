@@ -799,9 +799,16 @@ def backend_name() -> str:
     return "sqlite"
 
 
-def get_repository(environment: str = "demo") -> Repository:
+def get_repository() -> Repository:
     """
     Return the persistence Repository — the single backend switch point (ADR-002).
+
+    Takes no arguments. It used to accept an ``environment`` string that callers
+    threaded through from an ``ENVIRONMENT`` env var, but the body never read it —
+    backend selection has always been by ``REPO_BACKEND``/``REPO_SHADOW`` alone,
+    so the parameter was silently discarded (WS-7.4). Deploy mode is
+    ``ORIGINAL_ENV``; tenant scoping lives on the tenant record's ``environment``
+    column, not here.
 
     Backend selection, from the environment (see ``backend_name``):
 

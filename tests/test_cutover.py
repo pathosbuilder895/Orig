@@ -50,7 +50,7 @@ class TestBackendSelection:
         monkeypatch.delenv("REPO_BACKEND", raising=False)
         monkeypatch.delenv("REPO_SHADOW", raising=False)
         repo.reset_repository()
-        assert isinstance(repo.get_repository("demo"), repo.SqliteRepository)
+        assert isinstance(repo.get_repository(), repo.SqliteRepository)
         repo.reset_repository()
 
     def test_get_repository_postgres_backend(self, monkeypatch):
@@ -60,7 +60,7 @@ class TestBackendSelection:
         monkeypatch.setenv("REPO_BACKEND", "postgres")
         repo.reset_repository()
         # Constructing PostgresRepository needs no live connection.
-        assert isinstance(repo.get_repository("pilot"), PostgresRepository)
+        assert isinstance(repo.get_repository(), PostgresRepository)
         repo.reset_repository()
 
     def test_get_repository_shadow_backend(self, monkeypatch):
@@ -69,7 +69,7 @@ class TestBackendSelection:
         monkeypatch.delenv("REPO_BACKEND", raising=False)
         monkeypatch.setenv("REPO_SHADOW", "postgres")
         repo.reset_repository()
-        assert isinstance(repo.get_repository("pilot"), repo.ShadowRepository)
+        assert isinstance(repo.get_repository(), repo.ShadowRepository)
         repo.reset_repository()
 
 
@@ -170,9 +170,12 @@ def _postgres_available() -> bool:
 class TestCutoverServesPostgres:
     def test_reads_come_from_postgres_with_environment_pilot(self, monkeypatch):
         """The core cutover proof + the ENVIRONMENT=pilot decoupling regression:
-        get_repository(REPO_BACKEND=postgres) must serve real data even when
-        ENVIRONMENT=pilot (which the dormant v1 Settings' Literal rejects -- the
-        reason postgres_session reads DATABASE_URL from os.environ directly)."""
+        with REPO_BACKEND=postgres, get_repository() must serve real data even
+        when ENVIRONMENT=pilot is set in the process (the dormant v1 Settings'
+        Literal rejects that value -- the reason postgres_session reads
+        DATABASE_URL from os.environ directly). Since WS-7.4 the live stack no
+        longer reads ENVIRONMENT at all; the setenv below stays as a guard that
+        a stray value can never re-couple this path to the v1 Settings."""
         if not _postgres_available():
             pytest.skip("no reachable Postgres — set DATABASE_URL to run the cutover regression")
 
@@ -186,6 +189,7 @@ class TestCutoverServesPostgres:
         LiveBase.metadata.create_all(bind=engine)
 
         # ENVIRONMENT=pilot is exactly what broke the v1-Settings-coupled path.
+        # The live stack ignores it now, but a stray value must stay harmless.
         monkeypatch.setenv("ENVIRONMENT", "pilot")
         monkeypatch.setenv("REPO_BACKEND", "postgres")
 
@@ -193,7 +197,7 @@ class TestCutoverServesPostgres:
         seed.put_tenant("sem", "Seminary", environment="pilot")
 
         repo.reset_repository()
-        active = repo.get_repository("pilot")
+        active = repo.get_repository()
         assert isinstance(active, PostgresRepository)
         assert active.get_tenant("sem")["name"] == "Seminary"  # reads served from PG
 

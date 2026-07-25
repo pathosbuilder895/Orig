@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import os
 import secrets
 import uuid
 
@@ -52,7 +51,7 @@ def _user_id(tenant_id: str, email: str) -> str:
 
 
 def _repo():
-    return get_repository(os.environ.get("ENVIRONMENT", "demo"))
+    return get_repository()
 
 
 def create_user(email: str, password: str, role: str, tenant_id: str, name: str = "") -> dict:
