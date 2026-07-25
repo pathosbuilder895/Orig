@@ -5,6 +5,14 @@ import React from 'react';
 //  Oxford Blue · Antique Gold · Parchment · EB Garamond
 // ════════════════════════════════════════════════════════════════
 
+// Keydown handler for div-as-button rows: Enter/Space activates like a
+// click (WS-4). Shared across every screen that renders a click-only row.
+export function rowKeyDown(fn) {
+  return (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); }
+  };
+}
+
 export const BB = {
   oxford:      '#002147',
   deep:        '#001020',

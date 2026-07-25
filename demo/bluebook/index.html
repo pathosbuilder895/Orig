@@ -85,6 +85,16 @@
     /* Normalize button / input */
     button { cursor: pointer; }
     input, textarea, button { font-family: inherit; }
+
+    /* ── Keyboard focus (WS-4) ──────────────────────────────────
+       Div-as-button rows (role="button") get no native focus ring,
+       so give every keyboard-focusable custom control a visible one. */
+    [role="button"]:focus-visible,
+    [role="switch"]:focus-visible,
+    [role="radio"]:focus-visible {
+      outline: 2px solid #C9A961;
+      outline-offset: 2px;
+    }
   </style>
 
   <!-- React is bundled inside bluebook.bundle.js (build.mjs) — no CDN, no

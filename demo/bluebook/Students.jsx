@@ -1,5 +1,5 @@
 import React from 'react';
-import { BB, BB_API, GoldRule, MetaLabel, StatusBadge, fontBody, fontDisplay, fontMono } from './components.jsx';
+import { BB, BB_API, GoldRule, MetaLabel, StatusBadge, fontBody, fontDisplay, fontMono, rowKeyDown } from './components.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Students Screen
@@ -105,9 +105,11 @@ export function StudentsScreen({ onNavigate }) {
           <div key={s.id}>
             <div
               style={{ display:'grid', gridTemplateColumns:'1fr 100px 120px 80px 120px 80px', padding:'13px 20px', alignItems:'center', cursor:'pointer', transition:'background 0.2s' }}
+              role="button" tabIndex={0} aria-label={`View results for ${s.name}`}
               onMouseEnter={e => e.currentTarget.style.background='rgba(201,169,97,0.04)'}
               onMouseLeave={e => e.currentTarget.style.background='transparent'}
               onClick={() => onNavigate('results')}
+              onKeyDown={rowKeyDown(() => onNavigate('results'))}
             >
               <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                 {/* Avatar initials */}

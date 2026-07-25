@@ -1,5 +1,5 @@
 import React from 'react';
-import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, MetaLabel, Seal, StatusBadge, fontBody, fontDisplay, fontMono } from './components.jsx';
+import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, MetaLabel, Seal, StatusBadge, fontBody, fontDisplay, fontMono, rowKeyDown } from './components.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Results Screen
@@ -227,9 +227,13 @@ export function ResultsScreen({ onNavigate }) {
                 background: expanded === result.id ? 'rgba(201,169,97,0.04)' : 'transparent',
                 borderLeft: expanded === result.id ? `2px solid ${BB.gold}` : '2px solid transparent',
               }}
+              role="button" tabIndex={0}
+              aria-expanded={expanded === result.id}
+              aria-label={`${result.student} — ${expanded === result.id ? 'hide' : 'view'} integrity analysis`}
               onMouseEnter={e => { if(expanded !== result.id) e.currentTarget.style.background='rgba(201,169,97,0.03)'; }}
               onMouseLeave={e => { if(expanded !== result.id) e.currentTarget.style.background='transparent'; }}
               onClick={() => setExpanded(expanded === result.id ? null : result.id)}
+              onKeyDown={rowKeyDown(() => setExpanded(expanded === result.id ? null : result.id))}
             >
               <div>
                 <p style={{ fontFamily:fontBody, fontSize:16, color:BB.cream, margin:'0 0 2px' }}>
