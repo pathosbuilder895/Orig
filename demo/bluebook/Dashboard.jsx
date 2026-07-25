@@ -76,7 +76,13 @@ function Sidebar({ activeScreen, onNavigate }) {
 
         <div style={{ margin: '10px 0', borderTop: '1px solid rgba(201,169,97,0.18)' }} />
 
-        {/* Original Analysis — cross-link back to the Original dashboard */}
+        {/* Original Analysis — cross-link back to the Original dashboard.
+            Sits at the sidebar's own resting colour (BB.fade, like every
+            inactive nav item above it) rather than below it: an extra
+            `opacity: 0.7` on top of BB.fade used to composite to #617188 and
+            read 3.85:1, under WCAG AA's 4.5:1 for 16px text (e2e/a11y.spec.mjs
+            measures it). The de-emphasis it bought was already carried by the
+            colour and the divider above. */}
         <button
           onClick={() => { window.location.href = '../professor.html'; }}
           onMouseEnter={() => setHovered('original')}
@@ -89,7 +95,7 @@ function Sidebar({ activeScreen, onNavigate }) {
             fontFamily: fontBody, fontSize: 16,
             color: hovered === 'original' ? BB.gold : BB.fade,
             cursor: 'pointer', letterSpacing: '0.02em',
-            opacity: 0.7, transition: 'color 0.25s',
+            transition: 'color 0.25s',
             textAlign: 'left',
           }}
         >
@@ -110,13 +116,18 @@ function Sidebar({ activeScreen, onNavigate }) {
           <MetaLabel>{displayRole}</MetaLabel>
         </div>
         <div style={{ padding: '0 12px 16px' }}>
+          {/* BB.fade, not a faded BB.fade: `rgba(139,155,180,0.55)` is the same
+              hue at 55%, which composites to #4c6483 and reads 2.64:1 — well
+              under AA for 15px text, and this is the control a professor needs
+              on a shared machine. Its smaller size and position below the rule
+              already mark it as secondary. */}
           <button
             onClick={() => { BB_API.logout(); onNavigate('landing'); }}
             style={{
               display: 'block', width: '100%', padding: '8px 12px',
               background: 'none', border: 'none', borderLeft: '2px solid transparent',
               fontFamily: fontBody, fontSize: 15,
-              color: 'rgba(139,155,180,0.55)',
+              color: BB.fade,
               cursor: 'pointer', textAlign: 'left', letterSpacing: '0.02em',
               transition: 'color 0.25s',
             }}
