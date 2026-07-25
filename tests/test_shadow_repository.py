@@ -58,7 +58,7 @@ def shadow_repo(tmp_path, monkeypatch):
 
     monkeypatch.setenv("REPO_SHADOW", "postgres")
     repository.reset_repository()
-    repo = repository.get_repository("pilot")
+    repo = repository.get_repository()
     yield repo
     repository.reset_repository()
     store._GENRE_STATS_CACHE.clear()

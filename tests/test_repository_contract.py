@@ -73,7 +73,7 @@ def repo(request, store_reset):
     """A Repository instance, isolated per test. Parametrized over backends."""
     reset_repository()
     if request.param == "sqlite":
-        yield get_repository("demo")
+        yield get_repository()
     elif request.param == "postgres":
         if not _postgres_available():
             pytest.skip(

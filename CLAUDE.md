@@ -62,8 +62,7 @@ All production features are opt-in via env flags. Default OFF preserves Phase 1 
 | `LOGIN_THROTTLE_WINDOW_SEC` | `300` | Rolling window (seconds) the above attempt count is measured over (`api.py`). |
 | `ENABLE_HSTS` | — | Security/ops flag — see `docs/OPS_RUNBOOK.md` (owned by WS-1). |
 | `ALLOWED_ORIGINS` | — | CORS allowlist; fails closed if unset in production — see `docs/OPS_RUNBOOK.md` (owned by WS-1). |
-| `ORIGINAL_ENV` | — | Deploy gate (`run.py:59,96`). Documented as-is alongside `ENVIRONMENT` below; the WS-7 merge of the two is pending — don't pre-document it. |
-| `ENVIRONMENT` | — | Repository/tenant seam, distinct from `ORIGINAL_ENV` above (confusing pair, kept as-is pending WS-7). |
+| `ORIGINAL_ENV` | — | **The** deploy-mode variable for the live stack (`run.py:59,96`; surfaced as `/health.environment`). The old `ENVIRONMENT` var was retired in WS-7.4 — it was passed into `get_repository()`, which never read it. Persistence backend is `REPO_BACKEND`/`REPO_SHADOW`; tenant scoping is the tenant record's `environment` column. `ENVIRONMENT` is now read only by the dormant v1 `Settings` (`original/core/config.py`, reached via `original/cli/*`) and has no effect on the live stack. |
 | `ORIGINAL_DB` | `profiles.db` | SQLite database path (`store.py:41`). |
 | `BACKUP_DIR` | — | No-op without config. Directory for in-app SQLite backups. |
 | `BACKUP_INTERVAL_MINUTES` | — | No-op without config. Backup cadence. |

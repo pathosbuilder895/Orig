@@ -63,8 +63,8 @@ def _api():
 
 
 def _repo():
-    """The persistence Repository for this environment (ADR-002 seam)."""
-    return get_repository(os.environ.get("ENVIRONMENT", "demo"))
+    """The persistence Repository (ADR-002 seam; backend from REPO_BACKEND)."""
+    return get_repository()
 
 
 # Staff roles allowed to touch instructor-only write surfaces that carry no

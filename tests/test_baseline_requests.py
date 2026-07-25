@@ -123,9 +123,10 @@ class TestRepositorySeamWidened:
         path to copy, and Postgres backups need a completely different
         mechanism (pg_dump / WAL archiving), which is P4 scope, not P3.
 
-        ``get_repository()`` also still hard-wires every environment to
-        SQLite -- the production cutover is P5, deliberately independent of
-        how much of PostgresRepository is implemented.
+        ``get_repository()`` also still defaults to SQLite when neither
+        REPO_BACKEND nor REPO_SHADOW is set -- the production cutover is P5,
+        deliberately independent of how much of PostgresRepository is
+        implemented.
         """
         import original.repository as repository
 
@@ -134,5 +135,5 @@ class TestRepositorySeamWidened:
             pg.db_path()
 
         repository.reset_repository()
-        assert isinstance(repository.get_repository("pilot"), repository.SqliteRepository)
+        assert isinstance(repository.get_repository(), repository.SqliteRepository)
         repository.reset_repository()

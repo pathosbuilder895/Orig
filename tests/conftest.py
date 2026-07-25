@@ -10,6 +10,12 @@ from __future__ import annotations
 # Set environment variables BEFORE any Original imports.
 import os
 
+# Pins the DORMANT v1 pydantic Settings (original/core/config.py, reached only
+# via original/cli/{delete_student,security_audit}.py) to its "testing" tier.
+# The LIVE stack does not read ENVIRONMENT at all — since WS-7.4 its only
+# deploy-mode variable is ORIGINAL_ENV. Verified: the full suite is green with
+# this line deleted (Settings just falls back to its "development" default), so
+# it is belt-and-braces for the dormant config, not a live-stack requirement.
 os.environ.setdefault("ENVIRONMENT", "testing")
 os.environ.setdefault("SECRET_KEY", "test-secret-key-" * 5)
 # Safety default for the LIVE-schema engine (original/db/postgres_session.py

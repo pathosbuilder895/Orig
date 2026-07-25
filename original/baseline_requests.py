@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import threading
 import time
 import uuid
@@ -37,7 +36,7 @@ log = logging.getLogger(__name__)
 
 
 def _repo():
-    return get_repository(os.environ.get("ENVIRONMENT", "demo"))
+    return get_repository()
 
 
 Status = Literal["pending", "completed", "expired", "failed"]

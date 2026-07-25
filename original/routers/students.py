@@ -11,7 +11,6 @@ students_scoring.py — same route group, split only for file size.
 from __future__ import annotations
 
 import io
-import os
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
@@ -294,7 +293,7 @@ def student_data_inventory(student_id: str):
 @router.get("/students/{student_id}/formation")
 def get_formation(student_id: str):
     """Return the student's active (or most recent) formation pathway, or null."""
-    repo = get_repository(os.environ.get("ENVIRONMENT", "demo"))
+    repo = get_repository()
     return {"pathway": repo.get_formation_pathway(student_id)}
 
 
@@ -307,7 +306,7 @@ def open_formation(student_id: str, body: dict | None = None):
     Optional body: { submission_id, reason }
     """
     body = body or {}
-    repo = get_repository(os.environ.get("ENVIRONMENT", "demo"))
+    repo = get_repository()
     pathway = repo.open_formation_pathway(
         student_id,
         submission_id=body.get("submission_id"),
@@ -325,7 +324,7 @@ def advance_formation(student_id: str):
     completes and the triggering submission's review flag is cleared.
     Returns 404 if there is no open pathway.
     """
-    repo = get_repository(os.environ.get("ENVIRONMENT", "demo"))
+    repo = get_repository()
     pathway = repo.advance_formation_pathway(student_id)
     if pathway is None:
         raise HTTPException(

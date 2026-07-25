@@ -145,7 +145,7 @@ class TestFormationAudit:
 
 class TestRepositorySeam:
     def test_factory_returns_sqlite_repo(self):
-        repo = repository.get_repository("demo")
+        repo = repository.get_repository()
         assert isinstance(repo, repository.SqliteRepository)
 
     def test_factory_is_singleton(self):
