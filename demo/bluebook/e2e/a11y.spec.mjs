@@ -8,11 +8,13 @@
  * passes axe (flipping early red-walls CI on legacy markup WS-4 only
  * hot-fixed). Until then, failures here are signal to read, not a gate.
  *
- * Scope: the 5 Bluebook screens the professor journey touches (Landing,
- * Login, Dashboard, Courses, Students, Results, NewExam) plus the student
- * Briefing screen. professor.html/operator.html (legacy, non-Bluebook) are
- * out of scope — WS-8's React migration doesn't cover them, so there's no
- * promotion path to hang a blocking gate on.
+ * Scope: the Bluebook screens the professor journey touches (Landing, Login,
+ * Dashboard, Examinations, Courses, Students, Results, NewExam), the student
+ * Briefing screen, and — added with T10 — the Proctor screen in both its idle
+ * and code-projected states plus the standalone parked.html a student's phone
+ * holds. professor.html/operator.html (legacy, non-Bluebook) are out of scope
+ * — WS-8's React migration doesn't cover them, so there's no promotion path
+ * to hang a blocking gate on.
  */
 
 import { test as base, expect } from '@playwright/test'
@@ -74,6 +76,23 @@ base.describe('Axe scan — public screens @a11y', () => {
     const results = await runAxe(page)
     checkA11y(results, 'Briefing')
   })
+
+  // parked.html — the standalone page a student's phone holds during a sitting
+  // (T9). Public and unauthenticated by design: the phone has no login, so it
+  // belongs in this describe rather than the tenancy one. Scanned in its
+  // name-entry state, which is where every control on the page lives.
+  //
+  // `?t=a11y` is deliberately a non-token: parked.html only checks that `t` is
+  // PRESENT before showing the form (it never validates it until the first
+  // beat, which this test never sends), so a real token would buy nothing and
+  // would put a high-entropy string in a spec for gitleaks to find. The
+  // round-trip against a real token is e2e/proctor.spec.mjs's job.
+  base('Parked phone page (parked.html, name entry)', async ({ page }) => {
+    await page.goto('/bluebook/parked.html?t=a11y')
+    await expect(page.getByRole('heading', { name: 'Park your phone' })).toBeVisible()
+    const results = await runAxe(page)
+    checkA11y(results, 'Parked phone page')
+  })
 })
 
 tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () => {
@@ -83,6 +102,7 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
     { label: 'Courses', navLabel: 'Courses' },
     { label: 'Students', navLabel: 'Students' },
     { label: 'Results', navLabel: 'Results' },
+    { label: 'Proctor', navLabel: 'Proctor' },
   ]
 
   for (const { label, navLabel } of SCREENS) {
@@ -96,6 +116,34 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
       checkA11y(results, label)
     })
   }
+
+  // The SCREENS entry above scans the Proctor screen idle. Its actual content
+  // — the projected QR and the tiles — only exists once a park is open, so it
+  // gets its own case for the same reason New Examination does: one extra
+  // interaction stands between navigation and the markup worth scanning.
+  tenancyTest('Proctor screen (code projected, one tile)', async ({ staffPage, workerTenant, request }) => {
+    await staffPage.goto('/bluebook/')
+    await staffPage.waitForLoadState('networkidle')
+    await staffPage.getByRole('button', { name: 'Proctor' }).click()
+    await staffPage.locator('#park-session').fill(`e2e-park-a11y-${workerTenant.tenant.tenant_id}`)
+    await staffPage.getByRole('button', { name: 'Start Phone Park' }).click()
+
+    const urlText = staffPage.locator('p', { hasText: /\/bluebook\/parked\.html\?t=/ })
+    await expect(urlText).toBeVisible({ timeout: 10_000 })
+    // Token read off the page, never a literal — see e2e/proctor.spec.mjs.
+    const token = new URL((await urlText.innerText()).trim()).searchParams.get('t')
+    await request.post('/proctor/park/beat', {
+      data: { park_token: token, student_hint: 'A11y.', state: 'parked' },
+    })
+    // Tiles poll every 5s (POLL_MS, ProctorTiles.jsx) — wait for the tile
+    // rather than scanning an empty grid.
+    const tile = staffPage.getByRole('button', { name: /^A11y\. — Parked/ })
+    await expect(tile).toBeVisible({ timeout: 15_000 })
+    await tile.click()   // expanded timeline is part of the surface
+
+    const results = await new AxeBuilder({ page: staffPage }).withTags(['wcag2a', 'wcag2aa']).analyze()
+    checkA11y(results, 'Proctor (code projected)')
+  })
 
   tenancyTest('New Examination screen', async ({ staffPage }) => {
     await staffPage.goto('/bluebook/')
