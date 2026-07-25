@@ -43,6 +43,12 @@ enforced (full-screen, no copy/paste, no other tabs). Your work autosaves every
 30 seconds. Leaving full-screen or switching windows is recorded and shown to
 you as a warning — it does not eject you from the exam.
 
+During proctored examinations you may also be asked to scan a QR code that
+opens a "parked" page on your own phone. That page reports only that the
+phone is present and its screen is on (foreground/heartbeat) — it collects no
+content, no location, and no identifiers beyond the exam session you typed in.
+That information is discarded once the session ends.
+
 ## Your rights
 
 - Under FERPA you may inspect your education records and request correction
