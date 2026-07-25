@@ -4,7 +4,7 @@ tests/test_db_models.py — WS-6 P2 live-schema SQLAlchemy model validation.
 Covers the acceptance points from docs/implementation/WS-6-postgres-convergence.md
 Phase P2 that are checkable without a live Postgres:
 
-- ``LiveBase.metadata.create_all`` builds all 16 live tables on SQLite.
+- ``LiveBase.metadata.create_all`` builds every live table on SQLite.
 - Per-model round-trip of a representative row (including JSON documents,
   raw bytes, datetimes, floats, booleans).
 - Tenancy-as-constraint: composite (tenant_id, student_id) uniqueness and
@@ -40,6 +40,8 @@ from original.db.models.live import (
     FidelityScore,
     FormationPathway,
     LiveBase,
+    ParkBeat,
+    ParkSession,
     StaffUser,
     StudentName,
     StudentProfile,
@@ -65,6 +67,9 @@ EXPECTED_TABLES = {
     "audit_log",
     "formation_pathways",
     "baseline_requests",
+    # T8 phone-park — authored against this schema, not ported from SQLite.
+    "park_sessions",
+    "park_beats",
 }
 
 TENANT_ID = "seminary-dallas"
@@ -104,9 +109,9 @@ def session(engine):
 # ── Schema shape ──────────────────────────────────────────────────────────────
 
 
-def test_create_all_builds_all_16_tables(engine):
+def test_create_all_builds_every_live_table(engine):
     assert set(inspect(engine).get_table_names()) == EXPECTED_TABLES
-    assert len(LIVE_MODELS) == 16
+    assert len(LIVE_MODELS) == len(EXPECTED_TABLES)
 
 
 def test_v1_imports_still_work():
@@ -306,6 +311,23 @@ REPRESENTATIVE_ROWS = {
         actor="prof@seminary.edu",
         result="ok",
         details_json={"submission_id": "sub-001", "provenance": "proctored"},
+    ),
+    # T8 phone-park. Note what is NOT here: no student_id, no email, no IP,
+    # no user-agent — `student_hint` is free text the student typed on their
+    # own phone, and it is the only student-supplied value either table holds.
+    ParkSession: dict(
+        exam_session_id="ST501-final-2026",
+        tenant_id=TENANT_ID,
+        park_token="not-a-secret-test-park-token",
+        created_at=NOW,
+    ),
+    ParkBeat: dict(
+        park_token="not-a-secret-test-park-token",
+        student_hint="M.R.",
+        state="parked",
+        first_seen_at=NOW,
+        last_seen_at=NOW,
+        transitions_json=[{"state": "parked", "at": "2026-07-08T12:00:00.000000+00:00"}],
     ),
 }
 

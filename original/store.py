@@ -374,6 +374,41 @@ def _get_conn() -> sqlite3.Connection:
         CREATE INDEX IF NOT EXISTS idx_baseline_requests_status
             ON baseline_requests(status, requested_at)
     """)
+    # QR phone-park (proctoring deterrence). PRIVACY CONTRACT — see
+    # docs/STUDENT_DISCLOSURE.md and the park_* functions at the bottom of this
+    # module: these two tables hold NO IP, NO user-agent, NO location, NO device
+    # fingerprint and NO roster identifier. `student_hint` is free text the
+    # student types on their own phone so a proctor can tell tiles apart; it is
+    # never one of our student ids and never an email. Rows purge after 24h.
+    #
+    # Note the absence of the "{tenant}:{local}" scoped student id this schema
+    # uses everywhere else: park rows key on an opaque token, so there is
+    # deliberately nothing here to join back to a student.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS park_sessions (
+            exam_session_id TEXT PRIMARY KEY,
+            tenant_id       TEXT NOT NULL,
+            park_token      TEXT NOT NULL UNIQUE,
+            created_at      TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_park_sessions_created
+            ON park_sessions(created_at)
+    """)
+    # Composite PK (park_token, student_hint) doubles as the park_token index —
+    # SQLite uses the leftmost prefix, so no separate index is needed.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS park_beats (
+            park_token       TEXT NOT NULL,
+            student_hint     TEXT NOT NULL,
+            state            TEXT NOT NULL,
+            first_seen_at    TEXT NOT NULL,
+            last_seen_at     TEXT NOT NULL,
+            transitions_json TEXT NOT NULL DEFAULT '[]',
+            PRIMARY KEY (park_token, student_hint)
+        )
+    """)
     conn.commit()
     return conn
 
@@ -2595,3 +2630,242 @@ def load_baseline_requests() -> list[dict]:
     except Exception:
         log.exception("load_baseline_requests failed")
         return []
+
+
+# ── QR phone-park (proctoring deterrence) ─────────────────────────────────────
+#
+# PRIVACY CONTRACT — mirrors docs/STUDENT_DISCLOSURE.md. Everything below
+# stores exactly five things: an opaque `park_token`, the `exam_session_id` a
+# professor chose, the `student_hint` a student typed on their own phone, UTC
+# timestamps, and state transitions. It stores NO IP address, NO user-agent, NO
+# location, NO device fingerprint, and NO roster identifier — no student_id, no
+# email, no scoped "{tenant}:{local}" key. Nothing here can be joined back to a
+# student profile, and that is the design, not an oversight. Rows purge after
+# 24h (`park_purge`).
+#
+# If you are about to add a column that logs a request, a header, or anything
+# derived from one: stop. That is the line this feature does not cross.
+#
+# What the data means: a parked phone beats every ~10s. A beat that stops
+# arriving is a signal for a human proctor to look up — deterrence, never
+# proof. A second phone or airplane mode defeats it entirely.
+
+#: Upper bound on a single row's transition list. The beat endpoint is
+#: anonymous (the token is the capability), so a phone flipping state in a loop
+#: must not be able to grow one row without limit. Oldest entries are dropped.
+PARK_MAX_TRANSITIONS = 200
+
+
+def park_utc(dt: datetime) -> datetime:
+    """Normalise a park timestamp to timezone-aware UTC.
+
+    A naive datetime is *assumed* to be UTC rather than rejected — callers in
+    this codebase build them with ``datetime.now(UTC)``, and silently shifting
+    a naive value by the server's local offset would corrupt the 30s
+    dropped-detection window in a way no test would notice.
+    """
+    return dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
+
+
+def park_iso_utc(dt: datetime) -> str:
+    """The canonical phone-park timestamp string: UTC, microsecond precision.
+
+    Both repository backends return park timestamps through this helper so
+    their dict shapes are byte-identical, and so SQLite's lexicographic TEXT
+    comparison (used by ``park_purge``) sorts chronologically — fixed-width
+    output is what makes that equivalence hold.
+    """
+    return park_utc(dt).isoformat(timespec="microseconds")
+
+
+def _park_session_row_to_dict(row) -> dict:
+    return {
+        "exam_session_id": row[0],
+        "tenant_id": row[1],
+        "park_token": row[2],
+        "created_at": row[3],
+    }
+
+
+def park_open(exam_session_id: str, tenant_id: str, park_token: str, created_at: datetime) -> None:
+    """Open (or re-open) a phone-park session for an exam sitting.
+
+    Upsert on ``exam_session_id``. When a re-open rotates the token — which
+    only happens once the previous one has expired, since the router hands back
+    a live token unchanged — the superseded token's beats are deleted in the
+    same transaction rather than left as orphans no session can reach.
+    """
+    ts = park_iso_utc(created_at)
+    with _get_conn() as conn:
+        prev = conn.execute(
+            "SELECT park_token FROM park_sessions WHERE exam_session_id = ?",
+            (exam_session_id,),
+        ).fetchone()
+        if prev and prev[0] != park_token:
+            conn.execute("DELETE FROM park_beats WHERE park_token = ?", (prev[0],))
+        conn.execute(
+            """INSERT INTO park_sessions (exam_session_id, tenant_id, park_token, created_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(exam_session_id) DO UPDATE SET
+                 tenant_id  = excluded.tenant_id,
+                 park_token = excluded.park_token,
+                 created_at = excluded.created_at""",
+            (exam_session_id, tenant_id, park_token, ts),
+        )
+        conn.commit()
+
+
+def park_get_session(park_token: str) -> dict | None:
+    """Look a park session up by its token (the phone's only credential)."""
+    with _get_conn() as conn:
+        row = conn.execute(
+            """SELECT exam_session_id, tenant_id, park_token, created_at
+                 FROM park_sessions WHERE park_token = ?""",
+            (park_token,),
+        ).fetchone()
+    return _park_session_row_to_dict(row) if row else None
+
+
+def park_get_session_by_exam(exam_session_id: str) -> dict | None:
+    """Look a park session up by exam id (the professor's handle on it)."""
+    with _get_conn() as conn:
+        row = conn.execute(
+            """SELECT exam_session_id, tenant_id, park_token, created_at
+                 FROM park_sessions WHERE exam_session_id = ?""",
+            (exam_session_id,),
+        ).fetchone()
+    return _park_session_row_to_dict(row) if row else None
+
+
+def park_beat(park_token: str, student_hint: str, state: str, at: datetime) -> None:
+    """Record one heartbeat from a parked phone.
+
+    Upserts the ``(park_token, student_hint)`` row's ``last_seen_at``. A
+    transition is appended **only** when ``state`` differs from the last
+    recorded state, so a 10s heartbeat holding steady adds nothing — the log
+    grows with real events (phone left the page, came back), not with time.
+    """
+    ts = park_iso_utc(at)
+    with _get_conn() as conn:
+        row = conn.execute(
+            """SELECT state, transitions_json
+                 FROM park_beats
+                WHERE park_token = ? AND student_hint = ?""",
+            (park_token, student_hint),
+        ).fetchone()
+        if row is None:
+            conn.execute(
+                """INSERT INTO park_beats
+                     (park_token, student_hint, state,
+                      first_seen_at, last_seen_at, transitions_json)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    park_token,
+                    student_hint,
+                    state,
+                    ts,
+                    ts,
+                    json.dumps([{"state": state, "at": ts}]),
+                ),
+            )
+        else:
+            prev_state, transitions_json = row
+            if prev_state == state:
+                conn.execute(
+                    """UPDATE park_beats
+                          SET last_seen_at = ?
+                        WHERE park_token = ? AND student_hint = ?""",
+                    (ts, park_token, student_hint),
+                )
+            else:
+                try:
+                    transitions = json.loads(transitions_json)
+                except Exception:
+                    transitions = []
+                transitions.append({"state": state, "at": ts})
+                transitions = transitions[-PARK_MAX_TRANSITIONS:]
+                conn.execute(
+                    """UPDATE park_beats
+                          SET state = ?, last_seen_at = ?, transitions_json = ?
+                        WHERE park_token = ? AND student_hint = ?""",
+                    (state, ts, json.dumps(transitions), park_token, student_hint),
+                )
+        conn.commit()
+
+
+def park_tiles(exam_session_id: str) -> list[dict]:
+    """Every parked phone on a session, oldest arrival first.
+
+    Returns raw stored state — the "dropped" reading of a phone that stopped
+    beating is derived at the API boundary from ``last_seen_at``, so the store
+    never has to know what the staleness threshold is.
+    """
+    with _get_conn() as conn:
+        rows = conn.execute(
+            """SELECT b.student_hint, b.state, b.first_seen_at, b.last_seen_at, b.transitions_json
+                 FROM park_beats b
+                 JOIN park_sessions s ON s.park_token = b.park_token
+                WHERE s.exam_session_id = ?
+                ORDER BY b.first_seen_at, b.student_hint""",
+            (exam_session_id,),
+        ).fetchall()
+    out: list[dict] = []
+    for hint, state, first_seen, last_seen, transitions_json in rows:
+        try:
+            transitions = json.loads(transitions_json)
+        except Exception:
+            transitions = []
+        out.append(
+            {
+                "student_hint": hint,
+                "state": state,
+                "first_seen_at": first_seen,
+                "last_seen_at": last_seen,
+                "transitions": transitions,
+            }
+        )
+    return out
+
+
+def park_delete(exam_session_id: str) -> int:
+    """Delete a park session and every beat on it. Returns rows removed."""
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT park_token FROM park_sessions WHERE exam_session_id = ?",
+            (exam_session_id,),
+        ).fetchone()
+        if row is None:
+            return 0
+        beats = conn.execute("DELETE FROM park_beats WHERE park_token = ?", (row[0],)).rowcount
+        sessions = conn.execute(
+            "DELETE FROM park_sessions WHERE exam_session_id = ?", (exam_session_id,)
+        ).rowcount
+        conn.commit()
+    return int(beats) + int(sessions)
+
+
+def park_purge(before: datetime) -> int:
+    """Delete every park session created before ``before``, and its beats.
+
+    The 24h retention sweep. Called opportunistically on session open so the
+    deployment needs no scheduler; safe to call at any time. Returns rows
+    removed.
+    """
+    cutoff = park_iso_utc(before)
+    with _get_conn() as conn:
+        tokens = [
+            r[0]
+            for r in conn.execute(
+                "SELECT park_token FROM park_sessions WHERE created_at < ?", (cutoff,)
+            ).fetchall()
+        ]
+        if not tokens:
+            return 0
+        beats = 0
+        for token in tokens:
+            beats += conn.execute("DELETE FROM park_beats WHERE park_token = ?", (token,)).rowcount
+        sessions = conn.execute(
+            "DELETE FROM park_sessions WHERE created_at < ?", (cutoff,)
+        ).rowcount
+        conn.commit()
+    return int(beats) + int(sessions)

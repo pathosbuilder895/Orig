@@ -14,7 +14,8 @@ Two model families live here (see live.py's module docstring):
   ``db/models/canvas.py`` (CanvasSubmission/LTINonce/LTIRegistration) had no
   such coupling and was deleted in the T3 db/core lint-scope cleanup.
 - LIVE pilot-schema models on ``live.LiveBase`` — the WS-6 P2 port of the
-  16-table store.py schema, target of the fresh alembic baseline.
+  16-table store.py schema (plus the two T8 phone-park tables authored
+  directly against it), target of the fresh alembic baseline.
 """
 
 from original.db.models.baseline import BaselineSample, Provenance
@@ -35,6 +36,8 @@ from original.db.models.live import (
     FidelityScore,
     FormationPathway,
     LiveBase,
+    ParkBeat,
+    ParkSession,
     StaffUser,
     StudentName,
     StudentProfile,
@@ -86,4 +89,6 @@ __all__ = [
     "FormationPathway",
     "BaselineRequest",
     "AuditLogEntry",
+    "ParkSession",
+    "ParkBeat",
 ]

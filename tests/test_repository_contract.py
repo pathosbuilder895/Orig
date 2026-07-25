@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import UTC, datetime, timedelta
 
 import numpy as np
 import pytest
@@ -983,3 +984,171 @@ class TestStudentDataInventory:
         assert inv["student_id"] == "sem:inv"
         assert inv["data_categories"]["baseline_samples"]["count"] == 2
         assert inv["data_categories"]["fidelity_scores"]["count"] == 1
+
+
+# ── QR phone-park (proctoring deterrence) ─────────────────────────────────
+
+
+class TestPhonePark:
+    """The T8 phone-park surface, against both backends.
+
+    Every timestamp is passed in explicitly rather than read from the wall
+    clock, so the TTL/staleness behaviour is exercised deterministically —
+    no test here sleeps.
+    """
+
+    T0 = datetime(2026, 7, 20, 9, 0, 0, tzinfo=UTC)
+
+    def test_open_then_get_by_token_and_by_exam(self, repo):
+        repo.park_open("exam-1", "sem-dallas", "tok-1", self.T0)
+
+        by_token = repo.park_get_session("tok-1")
+        by_exam = repo.park_get_session_by_exam("exam-1")
+        assert by_token == by_exam
+        assert by_token["exam_session_id"] == "exam-1"
+        assert by_token["tenant_id"] == "sem-dallas"
+        assert by_token["park_token"] == "tok-1"
+        # Both backends must agree on the timestamp shape, not just the value.
+        assert by_token["created_at"] == "2026-07-20T09:00:00.000000+00:00"
+
+    def test_unknown_lookups_return_none(self, repo):
+        assert repo.park_get_session("no-such-token") is None
+        assert repo.park_get_session_by_exam("no-such-exam") is None
+
+    def test_reopen_same_exam_keeps_one_row(self, repo):
+        repo.park_open("exam-2", "sem-dallas", "tok-2", self.T0)
+        repo.park_open("exam-2", "sem-dallas", "tok-2", self.T0)
+        assert repo.park_get_session_by_exam("exam-2")["park_token"] == "tok-2"
+
+    def test_rotating_the_token_drops_the_old_tokens_beats(self, repo):
+        """An expired session's phones must not haunt the new one's tiles."""
+        repo.park_open("exam-3", "sem-dallas", "old-tok", self.T0)
+        repo.park_beat("old-tok", "AB", "parked", self.T0)
+        assert len(repo.park_tiles("exam-3")) == 1
+
+        repo.park_open("exam-3", "sem-dallas", "new-tok", self.T0)
+        assert repo.park_tiles("exam-3") == []
+        assert repo.park_get_session("old-tok") is None
+
+    def test_first_beat_creates_a_tile_with_one_transition(self, repo):
+        repo.park_open("exam-4", "sem-dallas", "tok-4", self.T0)
+        repo.park_beat("tok-4", "MR", "parked", self.T0)
+
+        tiles = repo.park_tiles("exam-4")
+        assert len(tiles) == 1
+        assert tiles[0]["student_hint"] == "MR"
+        assert tiles[0]["state"] == "parked"
+        assert tiles[0]["transitions"] == [
+            {"state": "parked", "at": "2026-07-20T09:00:00.000000+00:00"}
+        ]
+
+    def test_repeated_identical_beats_do_not_grow_the_transition_log(self, repo):
+        """The whole point of the dedupe: a 10s heartbeat is not a log source."""
+        repo.park_open("exam-5", "sem-dallas", "tok-5", self.T0)
+        for i in range(10):
+            repo.park_beat("tok-5", "JT", "parked", self.T0 + timedelta(seconds=10 * i))
+
+        (tile,) = repo.park_tiles("exam-5")
+        assert len(tile["transitions"]) == 1
+        # …but liveness still advanced.
+        assert tile["last_seen_at"] == "2026-07-20T09:01:30.000000+00:00"
+
+    def test_state_change_appends_a_transition(self, repo):
+        repo.park_open("exam-6", "sem-dallas", "tok-6", self.T0)
+        repo.park_beat("tok-6", "KL", "parked", self.T0)
+        repo.park_beat("tok-6", "KL", "foreground_lost", self.T0 + timedelta(seconds=10))
+        repo.park_beat("tok-6", "KL", "foreground_lost", self.T0 + timedelta(seconds=20))
+        repo.park_beat("tok-6", "KL", "resumed", self.T0 + timedelta(seconds=30))
+
+        (tile,) = repo.park_tiles("exam-6")
+        assert [t["state"] for t in tile["transitions"]] == [
+            "parked",
+            "foreground_lost",
+            "resumed",
+        ]
+        assert tile["state"] == "resumed"
+
+    def test_beats_are_keyed_by_token_and_hint(self, repo):
+        repo.park_open("exam-7", "sem-dallas", "tok-7", self.T0)
+        repo.park_beat("tok-7", "AA", "parked", self.T0)
+        repo.park_beat("tok-7", "BB", "parked", self.T0 + timedelta(seconds=1))
+
+        tiles = repo.park_tiles("exam-7")
+        assert [t["student_hint"] for t in tiles] == ["AA", "BB"]
+
+    def test_transition_log_is_bounded(self, repo):
+        """Anonymous input must not be able to grow one row without limit."""
+        from original.store import PARK_MAX_TRANSITIONS
+
+        repo.park_open("exam-8", "sem-dallas", "tok-8", self.T0)
+        flips = PARK_MAX_TRANSITIONS + 25
+        for i in range(flips):
+            state = "parked" if i % 2 == 0 else "foreground_lost"
+            repo.park_beat("tok-8", "ZZ", state, self.T0 + timedelta(seconds=i))
+
+        (tile,) = repo.park_tiles("exam-8")
+        assert len(tile["transitions"]) == PARK_MAX_TRANSITIONS
+
+    def test_tiles_for_unknown_session_is_empty(self, repo):
+        assert repo.park_tiles("never-opened") == []
+
+    def test_delete_removes_session_and_beats(self, repo):
+        repo.park_open("exam-9", "sem-dallas", "tok-9", self.T0)
+        repo.park_beat("tok-9", "AA", "parked", self.T0)
+        repo.park_beat("tok-9", "BB", "parked", self.T0)
+
+        # 2 beats + 1 session row.
+        assert repo.park_delete("exam-9") == 3
+        assert repo.park_get_session_by_exam("exam-9") is None
+        assert repo.park_tiles("exam-9") == []
+
+    def test_delete_unknown_session_is_zero(self, repo):
+        assert repo.park_delete("never-opened") == 0
+
+    def test_purge_removes_only_rows_older_than_the_cutoff(self, repo):
+        repo.park_open("exam-old", "sem-dallas", "tok-old", self.T0)
+        repo.park_beat("tok-old", "AA", "parked", self.T0)
+        repo.park_open("exam-new", "sem-dallas", "tok-new", self.T0 + timedelta(hours=25))
+
+        # 24h retention, evaluated one hour after the newer session opened.
+        cutoff = self.T0 + timedelta(hours=26) - timedelta(hours=24)
+        assert repo.park_purge(cutoff) == 2  # 1 beat + 1 session
+
+        assert repo.park_get_session_by_exam("exam-old") is None
+        assert repo.park_get_session_by_exam("exam-new") is not None
+
+    def test_purge_with_nothing_to_do_is_zero(self, repo):
+        repo.park_open("exam-fresh", "sem-dallas", "tok-fresh", self.T0)
+        assert repo.park_purge(self.T0 - timedelta(days=1)) == 0
+        assert repo.park_get_session_by_exam("exam-fresh") is not None
+
+    def test_naive_datetimes_are_treated_as_utc(self, repo):
+        """A naive timestamp must not be silently shifted by the server's offset."""
+        repo.park_open("exam-naive", "sem-dallas", "tok-naive", datetime(2026, 7, 20, 9, 0, 0))
+        assert (
+            repo.park_get_session("tok-naive")["created_at"]
+            == "2026-07-20T09:00:00.000000+00:00"
+        )
+
+    def test_stores_no_identifying_columns(self, repo):
+        """The privacy contract, asserted rather than merely documented.
+
+        Whatever a park row round-trips, it is not an IP, a user-agent, a
+        location, a device fingerprint, or a roster id — the columns simply do
+        not exist. This guards against a future 'just add a column' change.
+        """
+        repo.park_open("exam-priv", "sem-dallas", "tok-priv", self.T0)
+        repo.park_beat("tok-priv", "AB", "parked", self.T0)
+
+        session_keys = set(repo.park_get_session("tok-priv"))
+        tile_keys = set(repo.park_tiles("exam-priv")[0])
+        assert session_keys == {"exam_session_id", "tenant_id", "park_token", "created_at"}
+        assert tile_keys == {
+            "student_hint",
+            "state",
+            "first_seen_at",
+            "last_seen_at",
+            "transitions",
+        }
+        forbidden = {"ip", "ip_address", "user_agent", "location", "device", "student_id", "email"}
+        assert not (session_keys | tile_keys) & forbidden

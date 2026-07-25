@@ -24,6 +24,7 @@ demonstrator slice) so ``api.py`` never reaches ``store`` directly.
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from typing import Protocol, runtime_checkable
 
 from . import store
@@ -252,6 +253,31 @@ class Repository(Protocol):
         data_json: str,
     ) -> None: ...
     def load_baseline_requests(self) -> list[dict]: ...
+
+    # ── QR phone-park (proctoring deterrence) ─────────────────────────────
+    # PRIVACY CONTRACT (docs/STUDENT_DISCLOSURE.md): this surface persists an
+    # opaque token, an exam id, a student-typed hint, timestamps, and state
+    # transitions — and nothing else. No IP, no user-agent, no location, no
+    # device fingerprint, no roster identifier. `student_hint` is free text a
+    # student types on their own phone (initials, a nickname), never one of our
+    # student ids and never an email; that is why these methods take no
+    # student_id and bypass the tenancy shim entirely. Rows purge after 24h.
+    #
+    # Timestamps in and out: `datetime` in, ISO-8601 UTC strings out (see
+    # `store.park_iso_utc`) — identical shapes from both backends.
+    def park_open(
+        self,
+        exam_session_id: str,
+        tenant_id: str,
+        park_token: str,
+        created_at: datetime,
+    ) -> None: ...
+    def park_get_session(self, park_token: str) -> dict | None: ...
+    def park_get_session_by_exam(self, exam_session_id: str) -> dict | None: ...
+    def park_beat(self, park_token: str, student_hint: str, state: str, at: datetime) -> None: ...
+    def park_tiles(self, exam_session_id: str) -> list[dict]: ...
+    def park_delete(self, exam_session_id: str) -> int: ...
+    def park_purge(self, before: datetime) -> int: ...
 
     # ── DB path (replaces private store._DB_PATH reaches) ───────────────────
     def db_path(self) -> str: ...
@@ -634,6 +660,37 @@ class SqliteRepository:
     def load_baseline_requests(self) -> list[dict]:
         return store.load_baseline_requests()
 
+    # ── QR phone-park (proctoring deterrence) ─────────────────────────────
+    # No IP / user-agent / location / device fingerprint / roster identifier is
+    # stored by any of these — see the Protocol's privacy contract above and
+    # the park_* block in store.py.
+    def park_open(
+        self,
+        exam_session_id: str,
+        tenant_id: str,
+        park_token: str,
+        created_at: datetime,
+    ) -> None:
+        store.park_open(exam_session_id, tenant_id, park_token, created_at)
+
+    def park_get_session(self, park_token: str) -> dict | None:
+        return store.park_get_session(park_token)
+
+    def park_get_session_by_exam(self, exam_session_id: str) -> dict | None:
+        return store.park_get_session_by_exam(exam_session_id)
+
+    def park_beat(self, park_token: str, student_hint: str, state: str, at: datetime) -> None:
+        store.park_beat(park_token, student_hint, state, at)
+
+    def park_tiles(self, exam_session_id: str) -> list[dict]:
+        return store.park_tiles(exam_session_id)
+
+    def park_delete(self, exam_session_id: str) -> int:
+        return store.park_delete(exam_session_id)
+
+    def park_purge(self, before: datetime) -> int:
+        return store.park_purge(before)
+
     # ── DB path ───────────────────────────────────────────────────────────
     def db_path(self) -> str:
         return store._DB_PATH
@@ -668,6 +725,10 @@ _WRITE_METHODS = frozenset(
         "open_formation_pathway",
         "advance_formation_pathway",
         "put_baseline_request",
+        "park_open",
+        "park_beat",
+        "park_delete",
+        "park_purge",
     }
 )
 
