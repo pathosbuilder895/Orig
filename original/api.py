@@ -44,10 +44,6 @@ from . import principal as principal_mod
 from . import (
     store,  # noqa: F401
 )
-
-# Helpers and shared state that moved to original/routers/_shared.py in the WS-7.3
-# router split. Re-imported here because `original.api.<helper>` is still a live
-# call site: scripts/seed_pilot.py, and tests that reach into the app module.
 from .routers import (
     admin,
     auth,
@@ -61,6 +57,10 @@ from .routers import (
     students_scoring,
     tenants,
 )
+
+# Helpers and shared state that moved to original/routers/_shared.py in the WS-7.3
+# router split. Re-imported here because `original.api.<helper>` is still a live
+# call site: scripts/seed_pilot.py, and tests that reach into the app module.
 from .routers._shared import (
     _LOGIN_MAX_ATTEMPTS,  # noqa: F401
     _LOGIN_WINDOW_SEC,  # noqa: F401
