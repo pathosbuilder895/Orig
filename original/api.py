@@ -56,7 +56,7 @@ from . import (
 from . import principal as principal_mod
 from . import users as users_mod
 from . import voice as voice_mod
-from .constants import AUTH_WEIGHTS, FEATURE_DIM
+from .constants import AUTH_WEIGHTS
 from .features.pipeline import extract_features, feature_vector
 from .quantum.scoring import ScoringConfig
 from .quantum.scoring import score as quantum_score
@@ -66,6 +66,7 @@ from .repository import get_repository
 # Helpers and shared state that moved to original/routers/_shared.py in the WS-7.3
 # router split. Re-imported here because `original.api.<helper>` is still a live
 # call site: scripts/seed_pilot.py, and tests that reach into the app module.
+from .routers import health
 from .routers._shared import (
     _LOGIN_MAX_ATTEMPTS,  # noqa: F401
     _LOGIN_WINDOW_SEC,  # noqa: F401
@@ -111,7 +112,6 @@ from .schemas import (
     DemoLoginRequest,
     DriftPendingResponse,
     DriftResultOut,
-    HealthResponse,
     Layer7OutputResponse,
     ManifestListItem,
     ManifestListResponse,
@@ -427,88 +427,6 @@ _secret_key_pinned: bool = bool(os.environ.get("SECRET_KEY", ""))
 #   3. The X-Guard-Token header value must equal MAINTENANCE_TOKEN
 
 _GUARD_DESTRUCTIVE: bool = os.environ.get("GUARD_DESTRUCTIVE", "0") == "1"
-
-
-# ── Health ────────────────────────────────────────────────────────────────────
-
-
-@app.get("/health", response_model=HealthResponse)
-def health():
-    from .repository import backend_name
-
-    return HealthResponse(
-        status="ok",
-        feature_dim=FEATURE_DIM,
-        students_in_store=_repo().count(),
-        environment=ORIGINAL_ENV,
-        commit=os.environ.get("RENDER_GIT_COMMIT", "dev"),
-        backend=backend_name(),
-    )
-
-
-@app.get("/admin/health")
-def admin_health():
-    """
-    System health summary for the admin dashboard.
-
-    Returns student count, manifest totals, and queue depth from the live store.
-    Latency is computed from the most recent manifest entries where available.
-    """
-    student_count = _repo().count()
-
-    # Pull manifest stats for submission / flag counts
-    try:
-        stats = _repo().manifest_stats()
-    except Exception:
-        stats = {}
-
-    total_submissions = stats.get("total", 0)
-    flagged_count = stats.get("by_action", {}).get("escalate", 0) + stats.get("by_action", {}).get(
-        "schedule_conversation", 0
-    )
-
-    # Estimate avg latency from recent manifests (created_at timestamps)
-    avg_latency_ms = None
-    try:
-        recent = _repo().list_manifests(limit=20)
-        items = recent.get("items", [])
-        if items:
-            # Use latency stored in manifest if present, else report None
-            latencies = [
-                item.get("latency_ms") for item in items if item.get("latency_ms") is not None
-            ]
-            if latencies:
-                avg_latency_ms = round(sum(latencies) / len(latencies))
-    except Exception:
-        pass
-
-    # Backup recency — None when backups are disabled (demo) or none exist
-    # yet. Ops alerting: on a pilot this should never exceed ~2× the interval.
-    # After the P5 Postgres cutover the in-app SQLite backup scheduler no
-    # longer backs up the authoritative store (Postgres does — see
-    # OPS_RUNBOOK), and PostgresRepository.db_path() has no file to point at,
-    # so backups_enabled is False and the in-app recency signal is absent
-    # (None) on Postgres rather than crashing on the NotImplementedError.
-    try:
-        _bdir = backup_mod.resolve_backup_dir(_repo().db_path(), _IS_REAL_DEPLOY)
-        last_backup_age = backup_mod.latest_backup_age_seconds(_bdir)
-    except NotImplementedError:
-        _bdir = None
-        last_backup_age = None
-
-    return {
-        "api_status": "operational",
-        "student_count": student_count,
-        "total_submissions": total_submissions,
-        "flagged_count": flagged_count,
-        "avg_latency_ms": avg_latency_ms,
-        "queue_depth": 0,  # demo server processes synchronously; always 0
-        "uptime_pct": 99.97,
-        "backups_enabled": _bdir is not None,
-        "last_backup_age_seconds": (
-            round(last_backup_age) if last_backup_age is not None else None
-        ),
-    }
 
 
 # ── Staff auth: email + password → principal token (ADR-003, Phase 1.x) ───────
@@ -2914,3 +2832,18 @@ def admin_list_tuned_thresholds(limit: int = 50, offset: int = 0):
         offset=res["offset"],
         items=[TunedThresholdsRecord(**i) for i in res["items"]],
     )
+
+
+# ── Routers ───────────────────────────────────────────────────────────────────
+# The route handlers live in original/routers/ (WS-7.3). Their routes are
+# spliced onto the app's own router, in the order they were declared in the
+# pre-split api.py.
+#
+# Deliberately not app.include_router(): FastAPI 0.139 records an include as a
+# lazy `_IncludedRouter` marker in `app.routes` instead of copying the routes
+# in, and `app.routes` is an introspection surface here — the route-inventory
+# guard in tests/test_bluebook_crud.py walks it and reads `.path`/`.methods`.
+# Extending keeps `app.routes` the flat list of APIRoute objects that the
+# `@app.get(...)` decorators used to build, so nothing downstream can tell the
+# split happened.
+app.router.routes.extend(health.router.routes)
