@@ -55,6 +55,10 @@ convention = "numpy"
 # N814: StudentState imported as `_SS` (see call site) to avoid a heavy
 # module-level import.
 "original/api.py" = ["E402", "UP007", "N814", "E501"]
+# The WS-7.3 router split moved api.py's handlers and their shared helpers into
+# original/routers/ verbatim, so they inherit api.py's ignores above unchanged
+# (the alternative is restructuring moved code purely to satisfy lint).
+"original/routers/*.py" = ["E402", "UP007", "N814", "E501"]
 # bbook_client field names mirror the external Bbook API's camelCase JSON.
 "original/bbook_client.py" = ["N815"]
 # Long lines here are professor-facing narrative prose / f-string templates --
