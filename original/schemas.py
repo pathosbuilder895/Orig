@@ -141,6 +141,45 @@ class DemoLoginRequest(BaseModel):
     password: str = Field("", description="Compared against MAINTENANCE_TOKEN for admin escalation")
 
 
+# ── T8: QR phone-park (proctoring deterrence) ────────────────────────────────
+#
+# PRIVACY: the request bodies below are the *complete* set of fields the
+# phone-park surface accepts. There is no field for an IP, a user-agent, a
+# location, a device fingerprint, or any roster identifier, and the handlers in
+# routers/proctor.py never read one off the request either.
+
+
+class ParkOpenRequest(BaseModel):
+    """POST /proctor/park/open — a professor opens a phone-park for one sitting."""
+
+    exam_session_id: str = Field(
+        ...,
+        description="The professor's own label for this exam sitting, e.g. 'ST501-final-2026'. "
+        "Not a roster id and not derived from one.",
+    )
+
+
+class ParkBeatRequest(BaseModel):
+    """POST /proctor/park/beat — one heartbeat from a parked phone.
+
+    Posted by an unauthenticated phone: the ``park_token`` (scanned from the
+    QR code) is the capability, which is why it is a 128-bit
+    ``secrets.token_urlsafe`` value rather than a guessable id.
+    """
+
+    park_token: str = Field(..., description="Opaque token scanned from the QR code")
+    student_hint: str = Field(
+        ...,
+        description="Free text the STUDENT types on their own phone (initials, a nickname) so a "
+        "proctor can tell one tile from another. Never one of our student ids, never an "
+        "email. Trimmed; max 64 chars; empty is rejected.",
+    )
+    state: str = Field(
+        ...,
+        description="'parked' | 'foreground_lost' | 'resumed' — page-visibility, nothing more",
+    )
+
+
 # ── PR 7: admin / dashboard / playground / corrections ───────────────────────
 
 

@@ -52,6 +52,7 @@ from .routers import (
     imports,
     lti_routes,
     me,
+    proctor,
     students,
     students_baseline,
     students_scoring,
@@ -417,3 +418,6 @@ app.router.routes.extend(tenants.router.routes)
 app.router.routes.extend(me.router.routes)
 app.router.routes.extend(imports.router.routes)
 app.router.routes.extend(admin.router.routes)
+# T8 QR phone-park. Additive and inert until a professor calls
+# /proctor/park/open — no flag, no startup cost, no effect on any other route.
+app.router.routes.extend(proctor.router.routes)
