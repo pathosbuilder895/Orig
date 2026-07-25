@@ -21,14 +21,60 @@ import { test as base, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { test as tenancyTest } from './fixtures/tenancy.mjs'
 
+/**
+ * Wait until the screen has stopped moving, so axe measures the UI a person
+ * actually reads rather than a frame of it on the way in.
+ *
+ * Why this exists. Every Bluebook screen is wrapped in a re-keyed fade
+ * (app.jsx: `<div key={screen} style={{ animation: 'bbFadeIn 0.65s ease both' }}>`),
+ * and three screens fade their own content again on top of it (Courses.jsx:67,
+ * Results.jsx:49, Exam.jsx:585). While a fade is in flight the wrapper's
+ * opacity is fractional, and axe's colour-contrast check is obliged to honour
+ * that: it composites each text colour against what shows through and reports
+ * the blend. Scanning mid-fade therefore invented contrast failures on
+ * ordinary, passing text and inflated this file's node counts roughly ten-fold
+ * — 169 nodes across the file before, 18 after, with no change to the markup
+ * (Results 31 → 2, New Examination 39 → 4, Login 12 → 0). Nothing is filtered
+ * or suppressed here; the scan is simply taken once the pixels have settled.
+ *
+ * `document.getAnimations()` asks the question directly — "is anything still
+ * animating?" — and covers every fade on the page at once, including the
+ * per-card ones this file would otherwise have to enumerate. Two animations in
+ * the app are infinite by design (bbPulse on the ACTIVE badge dot,
+ * components.jsx:256; `pulse` on parked.html's status dot, parked.html:95).
+ * Both are empty decorative dots with no text in or under them, so neither can
+ * move a contrast reading — and waiting on `finished` for an animation that
+ * never finishes would simply hang. They're skipped by iteration count rather
+ * than by name so a third one can't quietly reintroduce the hang.
+ *
+ * The `networkidle` wait comes first for a related reason: a list fetch landing
+ * after the scan would both change what was measured and start a fresh round
+ * of card fades behind it.
+ */
+async function settle(page) {
+  await page.waitForLoadState('networkidle')
+  await page.waitForFunction(() => document.getAnimations()
+    .filter((a) => a.effect?.getComputedTiming?.().iterations !== Infinity)
+    .every((a) => a.playState === 'finished'))
+}
+
 async function runAxe(page) {
+  await settle(page)
   return new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
 }
 
 function logViolations(results, label) {
-  if (results.violations.length) {
-    console.log(`[@a11y non-blocking] ${label}: ${results.violations.length} violation(s) — ` +
-      results.violations.map(v => `${v.id} (${v.nodes.length})`).join(', '))
+  if (!results.violations.length) return
+  console.log(`[@a11y non-blocking] ${label}: ${results.violations.length} violation(s) — ` +
+    results.violations.map(v => `${v.id} (${v.nodes.length})`).join(', '))
+  // A count alone is not the "signal to read" this file promises — "2 nodes"
+  // says nothing about whether they are the known shared chrome or a fresh
+  // regression. One line per node, with the selector, so the log answers that.
+  for (const v of results.violations) {
+    for (const n of v.nodes) {
+      console.log(`    ${label} · ${v.id} · ${n.target.join(' ')} · ` +
+        String(n.failureSummary || '').replace(/\s+/g, ' ').slice(0, 180))
+    }
   }
 }
 
@@ -50,6 +96,9 @@ base.describe('Axe scan — public screens @a11y', () => {
   base('Landing screen', async ({ page }) => {
     await page.goto('/bluebook/')
     await page.waitForLoadState('networkidle')
+    // React has painted the screen — see the SCREENS comment below on why
+    // every scan waits on real markup before `settle()` looks for animations.
+    await expect(page.getByRole('button', { name: 'Sign in' }).first()).toBeVisible()
     const results = await runAxe(page)
     checkA11y(results, 'Landing')
   })
@@ -96,23 +145,29 @@ base.describe('Axe scan — public screens @a11y', () => {
 })
 
 tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () => {
+  // `heading` is the screen's own <h1>. It is not decoration: `settle()` can
+  // only observe a fade that has been registered on the document timeline, so
+  // each scan first waits on markup that only the target screen renders. That
+  // also stops a nav click which silently did nothing from producing a green
+  // scan of whatever screen was already showing.
   const SCREENS = [
-    { label: 'Dashboard', navLabel: 'Overview' },
-    { label: 'Examinations', navLabel: 'Examinations' },
-    { label: 'Courses', navLabel: 'Courses' },
-    { label: 'Students', navLabel: 'Students' },
-    { label: 'Results', navLabel: 'Results' },
-    { label: 'Proctor', navLabel: 'Proctor' },
+    { label: 'Dashboard', navLabel: 'Overview', heading: /^Good morning,/ },
+    { label: 'Examinations', navLabel: 'Examinations', heading: 'Examinations' },
+    { label: 'Courses', navLabel: 'Courses', heading: 'Courses' },
+    { label: 'Students', navLabel: 'Students', heading: 'Students' },
+    { label: 'Results', navLabel: 'Results', heading: 'Results' },
+    { label: 'Proctor', navLabel: 'Proctor', heading: 'Phone Park' },
   ]
 
-  for (const { label, navLabel } of SCREENS) {
+  for (const { label, navLabel, heading } of SCREENS) {
     tenancyTest(`${label} screen`, async ({ staffPage }) => {
       await staffPage.goto('/bluebook/')
       await staffPage.waitForLoadState('networkidle')
       if (navLabel !== 'Dashboard') {
         await staffPage.getByRole('button', { name: navLabel }).click()
       }
-      const results = await new AxeBuilder({ page: staffPage }).withTags(['wcag2a', 'wcag2aa']).analyze()
+      await expect(staffPage.getByRole('heading', { name: heading })).toBeVisible({ timeout: 10_000 })
+      const results = await runAxe(staffPage)
       checkA11y(results, label)
     })
   }
@@ -140,8 +195,9 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
     const tile = staffPage.getByRole('button', { name: /^A11y\. — Parked/ })
     await expect(tile).toBeVisible({ timeout: 15_000 })
     await tile.click()   // expanded timeline is part of the surface
+    await expect(staffPage.getByText('Timeline', { exact: true })).toBeVisible()
 
-    const results = await new AxeBuilder({ page: staffPage }).withTags(['wcag2a', 'wcag2aa']).analyze()
+    const results = await runAxe(staffPage)
     checkA11y(results, 'Proctor (code projected)')
   })
 
@@ -149,8 +205,10 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
     await staffPage.goto('/bluebook/')
     await staffPage.waitForLoadState('networkidle')
     await staffPage.getByRole('button', { name: 'Examinations' }).click()
+    await expect(staffPage.getByRole('heading', { name: 'Examinations' })).toBeVisible()
     await staffPage.getByRole('button', { name: '+ New Examination' }).click()
-    const results = await new AxeBuilder({ page: staffPage }).withTags(['wcag2a', 'wcag2aa']).analyze()
+    await expect(staffPage.getByRole('heading', { name: 'New Examination' })).toBeVisible()
+    const results = await runAxe(staffPage)
     checkA11y(results, 'New Examination')
   })
 })
