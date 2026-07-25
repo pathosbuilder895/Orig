@@ -1126,8 +1126,7 @@ class TestPhonePark:
         """A naive timestamp must not be silently shifted by the server's offset."""
         repo.park_open("exam-naive", "sem-dallas", "tok-naive", datetime(2026, 7, 20, 9, 0, 0))
         assert (
-            repo.park_get_session("tok-naive")["created_at"]
-            == "2026-07-20T09:00:00.000000+00:00"
+            repo.park_get_session("tok-naive")["created_at"] == "2026-07-20T09:00:00.000000+00:00"
         )
 
     def test_stores_no_identifying_columns(self, repo):
