@@ -19,7 +19,7 @@ import sys
 import time
 import uuid
 from contextvars import ContextVar
-from typing import Any, Dict
+from typing import Any
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -28,7 +28,7 @@ from starlette.responses import Response
 # ── Context variables ─────────────────────────────────────────────────────────
 # These are set per-request and automatically included in every log line.
 _request_id: ContextVar[str] = ContextVar("request_id", default="")
-_user_id:     ContextVar[str] = ContextVar("user_id",    default="")
+_user_id: ContextVar[str] = ContextVar("user_id", default="")
 _institution: ContextVar[str] = ContextVar("institution", default="")
 
 
@@ -40,27 +40,47 @@ def set_request_context(request_id: str, user_id: str = "", institution: str = "
 
 # ── JSON formatter ────────────────────────────────────────────────────────────
 
+
 class JSONFormatter(logging.Formatter):
     """Emit each log record as a single-line JSON object."""
 
     def format(self, record: logging.LogRecord) -> str:  # noqa: A003
-        base: Dict[str, Any] = {
-            "timestamp":      self.formatTime(record, "%Y-%m-%dT%H:%M:%S.%fZ"),
-            "level":          record.levelname,
-            "logger":         record.name,
-            "message":        record.getMessage(),
-            "request_id":     _request_id.get() or None,
-            "user_id":        _user_id.get() or None,
+        base: dict[str, Any] = {
+            "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%S.%fZ"),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "request_id": _request_id.get() or None,
+            "user_id": _user_id.get() or None,
             "institution_id": _institution.get() or None,
         }
 
         # Merge any extra fields passed via log.info("msg", extra={...})
         for key, value in record.__dict__.items():
             if key not in {
-                "args", "asctime", "created", "exc_info", "exc_text", "filename",
-                "funcName", "id", "levelname", "levelno", "lineno", "module",
-                "msecs", "message", "msg", "name", "pathname", "process",
-                "processName", "relativeCreated", "stack_info", "thread", "threadName",
+                "args",
+                "asctime",
+                "created",
+                "exc_info",
+                "exc_text",
+                "filename",
+                "funcName",
+                "id",
+                "levelname",
+                "levelno",
+                "lineno",
+                "module",
+                "msecs",
+                "message",
+                "msg",
+                "name",
+                "pathname",
+                "process",
+                "processName",
+                "relativeCreated",
+                "stack_info",
+                "thread",
+                "threadName",
             } and not key.startswith("_"):
                 base[key] = value
 
@@ -72,6 +92,7 @@ class JSONFormatter(logging.Formatter):
 
 class PlainFormatter(logging.Formatter):
     """Human-readable formatter for local development."""
+
     FMT = "%(asctime)s [%(levelname)s] %(name)s — %(message)s"
 
     def __init__(self) -> None:
@@ -79,6 +100,7 @@ class PlainFormatter(logging.Formatter):
 
 
 # ── Logger factory ────────────────────────────────────────────────────────────
+
 
 def configure_logging(level: str = "INFO", use_json: bool = True) -> None:
     """Call once at application startup."""
@@ -100,6 +122,7 @@ def get_logger(name: str) -> logging.Logger:
 
 
 # ── Request logging middleware ────────────────────────────────────────────────
+
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """
@@ -137,11 +160,11 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             self._log.info(
                 "request",
                 extra={
-                    "method":      request.method,
-                    "path":        request.url.path,
+                    "method": request.method,
+                    "path": request.url.path,
                     "status_code": status_code,
-                    "latency_ms":  latency_ms,
-                    "client_ip":   request.client.host if request.client else None,
-                    "user_agent":  request.headers.get("user-agent"),
+                    "latency_ms": latency_ms,
+                    "client_ip": request.client.host if request.client else None,
+                    "user_agent": request.headers.get("user-agent"),
                 },
             )

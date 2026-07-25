@@ -9,12 +9,15 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from original.db.base import Base, UUIDMixin, TimestampMixin
+from original.db.base import Base, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from original.db.models.institution import Institution
 
 
 class UserRole(str, Enum):
@@ -50,11 +53,11 @@ class User(Base, UUIDMixin, TimestampMixin):
         index=True,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
-    last_login: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
-    institution: Mapped["Institution"] = relationship("Institution", back_populates="users")
-    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
+    institution: Mapped[Institution] = relationship("Institution", back_populates="users")
+    refresh_tokens: Mapped[list[RefreshToken]] = relationship(
         "RefreshToken",
         back_populates="user",
         cascade="all, delete-orphan",
@@ -83,7 +86,7 @@ class RefreshToken(Base, UUIDMixin, TimestampMixin):
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     revoked: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
-    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     user: Mapped[User] = relationship("User", back_populates="refresh_tokens")

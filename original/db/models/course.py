@@ -6,10 +6,17 @@ Represents a course within an institution.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Boolean, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from original.db.base import Base, UUIDMixin, TimestampMixin
+from original.db.base import Base, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from original.db.models.institution import Institution
+    from original.db.models.student import StudentEnrollment
+    from original.db.models.user import User
 
 
 class Course(Base, UUIDMixin, TimestampMixin):
@@ -35,9 +42,9 @@ class Course(Base, UUIDMixin, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
 
     # Relationships
-    institution: Mapped["Institution"] = relationship("Institution", back_populates="courses")
-    instructor: Mapped["User"] = relationship("User")
-    students: Mapped[list["StudentEnrollment"]] = relationship(
+    institution: Mapped[Institution] = relationship("Institution", back_populates="courses")
+    instructor: Mapped[User] = relationship("User")
+    students: Mapped[list[StudentEnrollment]] = relationship(
         "StudentEnrollment",
         back_populates="course",
         cascade="all, delete-orphan",
