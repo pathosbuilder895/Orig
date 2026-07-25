@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import secrets
 from functools import lru_cache
-from typing import List, Literal
+from typing import Literal
 
 from pydantic import EmailStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -32,12 +32,11 @@ class Settings(BaseSettings):
     # ── API ──────────────────────────────────────────────────────────────────
     API_V1_PREFIX: str = "/api/v1"
     _ALLOWED_ORIGINS_STR: str = (
-        "http://localhost:3000,http://localhost:8080,"
-        "http://localhost:8000,http://127.0.0.1:8000"
+        "http://localhost:3000,http://localhost:8080," "http://localhost:8000,http://127.0.0.1:8000"
     )
 
     @property
-    def ALLOWED_ORIGINS(self) -> List[str]:
+    def ALLOWED_ORIGINS(self) -> list[str]:  # noqa: N802 — mirrors the env var name
         """Parse comma-separated origins string into list."""
         if isinstance(self._ALLOWED_ORIGINS_STR, str):
             return [o.strip() for o in self._ALLOWED_ORIGINS_STR.split(",")]
@@ -50,14 +49,14 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     @model_validator(mode="after")
-    def validate_production_secrets(self) -> "Settings":
+    def validate_production_secrets(self) -> Settings:
         if self.ENVIRONMENT == "production":
             if len(self.SECRET_KEY) < 32:
                 raise ValueError("SECRET_KEY must be at least 32 chars in production")
             if "CHANGE_ME" in self.SECRET_KEY or self.SECRET_KEY == "":
                 raise ValueError(
                     "SECRET_KEY still contains placeholder. Generate one with: "
-                    "python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+                    'python -c "import secrets; print(secrets.token_urlsafe(64))"'
                 )
             if self.FIRST_ADMIN_PASSWORD in ("changeme123!", "CHANGE_ME_USE_A_STRONG_PASSWORD", ""):
                 raise ValueError("FIRST_ADMIN_PASSWORD must be changed from default in production")
@@ -70,7 +69,9 @@ class Settings(BaseSettings):
             allowed_origins = self.ALLOWED_ORIGINS
 
             # If all origins are localhost (or empty), raise an error
-            if not allowed_origins or all('localhost' in o.lower() or '127.0.0.1' in o for o in allowed_origins):
+            if not allowed_origins or all(
+                "localhost" in o.lower() or "127.0.0.1" in o for o in allowed_origins
+            ):
                 raise ValueError(
                     "ALLOWED_ORIGINS is not configured for production. "
                     "Set _ALLOWED_ORIGINS_STR environment variable to your real domain(s) "
@@ -91,13 +92,13 @@ class Settings(BaseSettings):
 
     # ── Rate limiting ─────────────────────────────────────────────────────────
     RATE_LIMIT_DEFAULT: str = "60/minute"
-    RATE_LIMIT_SCORING: str = "10/minute"   # compute-heavy
-    RATE_LIMIT_AUTH: str = "5/minute"       # brute-force protection
+    RATE_LIMIT_SCORING: str = "10/minute"  # compute-heavy
+    RATE_LIMIT_AUTH: str = "5/minute"  # brute-force protection
 
     # ── ML model ─────────────────────────────────────────────────────────────
     MODEL_VERSION: str = "1.0.0"
-    MIN_BASELINE_SAMPLES: int = 3           # below this → insufficient confidence
-    MIN_BASELINE_FOR_ESCALATE: int = 5      # below this → suppress escalate action
+    MIN_BASELINE_SAMPLES: int = 3  # below this → insufficient confidence
+    MIN_BASELINE_FOR_ESCALATE: int = 5  # below this → suppress escalate action
 
     # ── Logging ──────────────────────────────────────────────────────────────
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
@@ -110,7 +111,7 @@ class Settings(BaseSettings):
     # ── Feature flags ─────────────────────────────────────────────────────────
     ENABLE_BACKGROUND_SCORING: bool = True
     ENABLE_REDIS_CACHE: bool = False  # disabled until Redis is provisioned
-    ENABLE_METRICS: bool = True       # set to False to suppress /metrics endpoint
+    ENABLE_METRICS: bool = True  # set to False to suppress /metrics endpoint
 
     # ── Canvas / LTI 1.3 ──────────────────────────────────────────────────────
     # Base URL for this Original instance (used in LTI redirect URIs and report links)

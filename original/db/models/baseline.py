@@ -9,12 +9,17 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Dict, Optional
+from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, JSON, ForeignKey, String, Float, Integer, Text
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from original.db.base import Base, UUIDMixin, TimestampMixin
+from original.db.base import Base, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from original.db.models.course import Course
+    from original.db.models.student import Student
+    from original.db.models.user import User
 
 
 class Provenance(str, Enum):
@@ -36,7 +41,7 @@ class BaselineSample(Base, UUIDMixin, TimestampMixin):
         nullable=False,
         index=True,
     )
-    course_id: Mapped[Optional[str]] = mapped_column(
+    course_id: Mapped[str | None] = mapped_column(
         String(36),
         ForeignKey("courses.id", ondelete="SET NULL"),
         nullable=True,
@@ -48,8 +53,8 @@ class BaselineSample(Base, UUIDMixin, TimestampMixin):
         unique=True,
         index=True,
     )
-    raw_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    feature_vector: Mapped[Dict] = mapped_column(JSON, nullable=False)
+    raw_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    feature_vector: Mapped[dict] = mapped_column(JSON, nullable=False)
     provenance: Mapped[Provenance] = mapped_column(
         String(20),
         default=Provenance.VERIFIED,
@@ -67,9 +72,9 @@ class BaselineSample(Base, UUIDMixin, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
 
     # Relationships
-    student: Mapped["Student"] = relationship("Student", back_populates="baseline_samples")
-    course: Mapped["Course"] = relationship("Course")
-    added_by: Mapped["User"] = relationship("User")
+    student: Mapped[Student] = relationship("Student", back_populates="baseline_samples")
+    course: Mapped[Course] = relationship("Course")
+    added_by: Mapped[User] = relationship("User")
 
     def __repr__(self) -> str:
         return f"<BaselineSample {self.student_id[:8]}... {self.assignment}>"

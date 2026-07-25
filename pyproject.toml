@@ -10,13 +10,14 @@ line-length = 100
 target-version = "py311"          # aligns with CI/Render; local .venv is still 3.9 (WS-2 task 2.6)
 extend-exclude = [
   # The dormant v1 API surface (original/api, canvas, schemas_v1, middleware,
-  # auth, tasks, main.py) was DELETED in WS-6 P6 and left this list. What
-  # remains excluded: original/db + original/core still mix live modules
-  # (db/models/live.py, db/postgres_session.py, db/tenancy_shim.py,
-  # core/logging.py) with never-linted v1 leftovers (v1 models, db/session.py,
-  # core/config.py) — bringing them into lint scope is a deliberate follow-up,
-  # not a side effect (see docs/implementation/WS-2-guardrails.md).
-  "original/db", "original/core",
+  # auth, tasks, main.py) was DELETED in WS-6 P6. original/db + original/core
+  # were brought into lint scope in the T3 db/core cleanup: db/models/canvas.py
+  # and the unused core/{config_patch,exceptions,limiter}.py were deleted, and
+  # the rest (db/base.py, db/session.py, the remaining v1 models, core/config.py)
+  # was linted in place — it stays because original.cli.delete_student (the
+  # documented manual FERPA-deletion CLI) and original.cli.security_audit still
+  # depend on it, and FK/relationship coupling among the v1 models prevents a
+  # partial deletion (see original/db/models/__init__.py).
   "frontend", "web", "legacy_mvp", "demo/bluebook/vendor",
 ]
 

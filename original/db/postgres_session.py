@@ -57,9 +57,7 @@ def get_engine():
             # Supports pointing the live schema at a throwaway SQLite file in
             # tests without a real Postgres instance — production always uses
             # a postgresql:// URL.
-            _engine = create_engine(
-                db_url, connect_args={"check_same_thread": False}, echo=echo
-            )
+            _engine = create_engine(db_url, connect_args={"check_same_thread": False}, echo=echo)
         else:
             _engine = create_engine(
                 db_url,

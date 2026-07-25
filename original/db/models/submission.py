@@ -8,12 +8,17 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Dict, Optional
+from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, JSON, ForeignKey, String, Float, Integer, Index
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from original.db.base import Base, UUIDMixin, TimestampMixin
+from original.db.base import Base, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from original.db.models.course import Course
+    from original.db.models.student import Student
+    from original.db.models.user import User
 
 
 class SubmissionStatus(str, Enum):
@@ -39,7 +44,7 @@ class Submission(Base, UUIDMixin, TimestampMixin):
         nullable=False,
         index=True,
     )
-    course_id: Mapped[Optional[str]] = mapped_column(
+    course_id: Mapped[str | None] = mapped_column(
         String(36),
         ForeignKey("courses.id", ondelete="SET NULL"),
         nullable=True,
@@ -62,9 +67,9 @@ class Submission(Base, UUIDMixin, TimestampMixin):
     )
 
     # Relationships
-    student: Mapped["Student"] = relationship("Student", back_populates="submissions")
-    course: Mapped["Course"] = relationship("Course")
-    scoring_result: Mapped["ScoringResult"] = relationship(
+    student: Mapped[Student] = relationship("Student", back_populates="submissions")
+    course: Mapped[Course] = relationship("Course")
+    scoring_result: Mapped[ScoringResult] = relationship(
         "ScoringResult",
         back_populates="submission",
         uselist=False,
@@ -91,13 +96,13 @@ class ScoringResult(Base, UUIDMixin, TimestampMixin):
     deviation_score: Mapped[float] = mapped_column(Float, nullable=False)
     authorship_probability: Mapped[float] = mapped_column(Float, nullable=False)
     recommended_action: Mapped[str] = mapped_column(String(50), nullable=False)
-    baseline_confidence: Mapped[Dict] = mapped_column(JSON, nullable=False)
-    full_result: Mapped[Dict] = mapped_column(JSON, nullable=False)
-    feature_vector: Mapped[Dict] = mapped_column(JSON, nullable=False)
+    baseline_confidence: Mapped[dict] = mapped_column(JSON, nullable=False)
+    full_result: Mapped[dict] = mapped_column(JSON, nullable=False)
+    feature_vector: Mapped[dict] = mapped_column(JSON, nullable=False)
     scored_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     # Relationships
-    submission: Mapped["Submission"] = relationship(
+    submission: Mapped[Submission] = relationship(
         "Submission",
         back_populates="scoring_result",
     )
@@ -133,11 +138,11 @@ class InstructorDecision(Base, UUIDMixin, TimestampMixin):
         nullable=True,
     )
     action: Mapped[ActionType] = mapped_column(String(50), nullable=False, index=True)
-    notes: Mapped[Optional[str]] = mapped_column(String(2000), nullable=True)
+    notes: Mapped[str | None] = mapped_column(String(2000), nullable=True)
 
     # Relationships
-    submission: Mapped["Submission"] = relationship("Submission")
-    user: Mapped["User"] = relationship("User")
+    submission: Mapped[Submission] = relationship("Submission")
+    user: Mapped[User] = relationship("User")
 
     def __repr__(self) -> str:
         return f"<InstructorDecision {self.action}>"

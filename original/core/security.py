@@ -43,13 +43,19 @@ _CSP_DOCS = (
 # Strict CSP for all non-docs routes (pure JSON API — no scripts needed).
 _CSP_API = "default-src 'none'; frame-ancestors 'none'"
 
+
 def _docs_relaxed_csp(path: str) -> bool:
-    """Swagger/ReDoc/Scalar/OpenAPI and any subpaths need the permissive docs CSP (not default-src 'none')."""
+    """Swagger/ReDoc/Scalar/OpenAPI and any subpaths need the permissive docs CSP
+    (not default-src 'none')."""
     if path in ("/api", "/api/"):
         return True
     if path == "/api/openapi.json":
         return True
-    if path.startswith("/api/docs") or path.startswith("/api/redoc") or path.startswith("/api/reference"):
+    if (
+        path.startswith("/api/docs")
+        or path.startswith("/api/redoc")
+        or path.startswith("/api/reference")
+    ):
         return True
     return False
 
@@ -64,7 +70,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     settings   : application Settings; controls HSTS and environment checks
     """
 
-    def __init__(self, app, settings: "Settings") -> None:
+    def __init__(self, app, settings: Settings) -> None:
         super().__init__(app)
         self._production = settings.ENVIRONMENT == "production"
 

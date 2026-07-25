@@ -9,7 +9,8 @@ Phase P2 that are checkable without a live Postgres:
   raw bytes, datetimes, floats, booleans).
 - Tenancy-as-constraint: composite (tenant_id, student_id) uniqueness and
   the tenant FK actually enforce at the database level.
-- The v1 model imports are untouched (never break v1 imports).
+- The v1 model imports are untouched (``original.cli.delete_student`` — the
+  documented manual FERPA-deletion CLI — still depends on this ORM layer).
 
 These models are not wired into any live path yet (P3 does that); the tests
 exercise the schema itself.
@@ -109,7 +110,9 @@ def test_create_all_builds_all_16_tables(engine):
 
 
 def test_v1_imports_still_work():
-    # WS-6 P2 must not break the dormant v1 stack before P6 deletes it.
+    # v1 and live models share the process but must stay on separate metadata.
+    # v1 stays because original.cli.delete_student (the documented manual
+    # FERPA-deletion CLI) still depends on it — see db/models/__init__.py.
     from original.db.base import Base as V1Base
     from original.db.models import Institution, User
     from original.db.models import LiveBase as ReExported
