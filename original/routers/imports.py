@@ -94,7 +94,7 @@ async def import_turnitin_csv(course_id: str, file: UploadFile = File(...)):
 
 
 @router.post("/canvas/baseline/{student_id}/list-canvas-submissions")
-async def list_canvas_submissions(student_id: str, req: dict = None):
+def list_canvas_submissions(student_id: str, req: dict = None):
     """
     List a student's past Canvas submissions available for baseline import.
     Not implemented on this server — use 'Drop files' or 'Paste text' instead.
@@ -103,6 +103,6 @@ async def list_canvas_submissions(student_id: str, req: dict = None):
 
 
 @router.post("/canvas/baseline/{student_id}/import-baseline")
-async def import_canvas_baseline(student_id: str, req: dict = None):
+def import_canvas_baseline(student_id: str, req: dict = None):
     """Not implemented on this server — see list_canvas_submissions."""
     raise HTTPException(501, "Canvas import not available in the pilot server")

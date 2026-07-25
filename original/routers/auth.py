@@ -178,7 +178,7 @@ def student_me(request: Request):
 
 
 @router.post("/api/v1/auth/login")
-async def demo_login(body: DemoLoginRequest, request: Request):
+def demo_login(body: DemoLoginRequest, request: Request):
     """
     Demo login endpoint.
 
