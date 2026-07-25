@@ -47,7 +47,7 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
     # the prior needs it independent of the manifest subsystem.
     _sample_genre: str | None = None
     try:
-        from .context.resolvers import resolve_genre
+        from ..context.resolvers import resolve_genre
 
         _genre_result = resolve_genre(req.text)
         _sample_genre = (_genre_result or {}).get("primary")
