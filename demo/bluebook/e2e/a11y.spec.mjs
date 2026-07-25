@@ -2,11 +2,17 @@
  * a11y.spec.mjs — WS-9 Stage 2 breadth
  * (docs/implementation/WS-9-e2e-release-hygiene.md, Stage 2).
  *
- * Axe scan per Bluebook page + a keyboard-walk smoke. Tagged @a11y and
- * NON-BLOCKING for now — per the doc, a page's @a11y case is promoted to
- * blocking only once WS-8 lands that page's React rebuild and it actually
- * passes axe (flipping early red-walls CI on legacy markup WS-4 only
- * hot-fixed). Until then, failures here are signal to read, not a gate.
+ * Axe scan per Bluebook page + a keyboard-walk smoke. Tagged @a11y. Each
+ * screen is either BLOCKING (listed in `MIGRATED_SCREENS` — any violation
+ * fails the run) or logging-only; read the comment on that array for the
+ * entry criterion and for which screens are still out, and why. As of this
+ * commit 11 of the 12 scanned screens are blocking.
+ *
+ * The scans measure SETTLED UI — see `settle()`. Getting that wrong is not a
+ * cosmetic detail: while a screen is still fading in, axe reads every text
+ * colour as composited against what shows through, and reports contrast
+ * failures that do not exist. That artefact is what kept this file
+ * non-blocking, and removing it is what made the promotions above possible.
  *
  * Scope: the Bluebook screens the professor journey touches (Landing, Login,
  * Dashboard, Examinations, Courses, Students, Results, NewExam), the student
@@ -65,7 +71,8 @@ async function runAxe(page) {
 
 function logViolations(results, label) {
   if (!results.violations.length) return
-  console.log(`[@a11y non-blocking] ${label}: ${results.violations.length} violation(s) — ` +
+  const gate = MIGRATED_SCREENS.includes(label) ? 'BLOCKING' : 'non-blocking'
+  console.log(`[@a11y ${gate}] ${label}: ${results.violations.length} violation(s) — ` +
     results.violations.map(v => `${v.id} (${v.nodes.length})`).join(', '))
   // A count alone is not the "signal to read" this file promises — "2 nodes"
   // says nothing about whether they are the known shared chrome or a fresh
@@ -78,14 +85,82 @@ function logViolations(results, label) {
   }
 }
 
-// Screens whose React rebuild (WS-8) has landed and verified passing axe
-// with zero violations. A screen's @a11y case is blocking (hard-fails on
-// any violation) only once its label is added here -- until then, scans
-// only log. Empty until WS-8 R1 lands; add labels one at a time as each
-// screen is migrated and confirmed clean, never as a batch.
-const MIGRATED_SCREENS = []
+/**
+ * Every screen label this file scans. Both lists below are checked against it,
+ * so a renamed screen can't silently drop its blocking gate: `MIGRATED_SCREENS`
+ * would name a screen that no longer exists, and this file would fail to load.
+ */
+const ALL_SCREENS = [
+  'Landing', 'Login', 'Briefing', 'Parked phone page',
+  'Dashboard', 'Examinations', 'Courses', 'Students', 'Results',
+  'Proctor', 'Proctor (code projected)', 'New Examination',
+]
+
+/**
+ * Screens held to a BLOCKING axe standard: any wcag2a/wcag2aa violation fails
+ * the run. Everything else only logs.
+ *
+ * Each label here was measured at zero violations against the committed
+ * `bluebook.bundle.js`, scanned settled (see `settle()` above). That
+ * measurement is the whole entry criterion — a screen is listed because it
+ * passes, not because it is expected to.
+ *
+ * Two notes for whoever reads this next:
+ *
+ * 1. This list was empty until the `settle()` fix landed, and the reason is
+ *    worth knowing: the scans had been running mid-fade, so every screen
+ *    "failed" with 10–40 nodes of contrast findings that were artefacts of the
+ *    measurement, not of the markup. Nothing was suppressed to fill this list.
+ *    What made these screens promotable was measuring them correctly, plus one
+ *    real fix to the shared sidebar (Dashboard.jsx: the `Original Analysis` and
+ *    `Sign Out` controls sat below BB.fade at 3.85:1 and 2.64:1, and blocked
+ *    all six professor screens at once).
+ *
+ * 2. WS-9's plan (docs/implementation/WS-9-e2e-release-hygiene.md §Stage 2,
+ *    line 96) words this gate as a WS-8 handshake — "flip a page only when that
+ *    page's React rebuild has actually landed and passes axe" — and WS-8 R0/R1
+ *    have not landed. The concern it names is explicit: "flipping early
+ *    red-walls CI on the legacy markup WS-4 only hot-fixed." These screens are
+ *    not that markup. They are already React (`demo/bluebook/*.jsx`); WS-8 R1
+ *    re-homes them into a Vite workspace without rewriting them. So the
+ *    substance of the gate — React markup, measured green — holds today, and
+ *    what is outstanding is a toolchain move. Recorded here rather than left
+ *    implicit, because it is a deliberate reading of that rule and a reviewer
+ *    may want to argue with it.
+ *
+ * NOT promoted, and why: **New Examination** — 4 genuine nodes, all NewExam.jsx
+ * doing its own de-emphasis below AA. Three are `FormField`'s hint span
+ * (`color: BB.fade` + `opacity: 0.7` → #617188, 3.85:1 at 13px, NewExam.jsx:26);
+ * the fourth is the "Title and at least one prompt are required" note
+ * (`rgba(139,155,180,0.4)` → #38485b, 2.05:1 at 10px, NewExam.jsx:419). Same
+ * family as the sidebar problem, but screen-local rather than shared, and the
+ * 10px one needs a real design call (a 2.5× contrast jump on a validation hint
+ * that is also below the size this palette reads well at), not a token swap.
+ * Promote this screen when those four are fixed — not by relaxing the check.
+ */
+const MIGRATED_SCREENS = [
+  'Landing',
+  'Login',
+  'Briefing',
+  'Parked phone page',
+  'Dashboard',
+  'Examinations',
+  'Courses',
+  'Students',
+  'Results',
+  'Proctor',
+  'Proctor (code projected)',
+]
+
+for (const label of MIGRATED_SCREENS) {
+  if (!ALL_SCREENS.includes(label)) {
+    throw new Error(`MIGRATED_SCREENS names a screen this file does not scan: "${label}"`)
+  }
+}
 
 function checkA11y(results, label) {
+  expect(ALL_SCREENS, `checkA11y called with a label ALL_SCREENS does not know: "${label}"`)
+    .toContain(label)
   logViolations(results, label)
   if (MIGRATED_SCREENS.includes(label)) {
     expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([])
