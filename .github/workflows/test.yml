@@ -91,7 +91,7 @@ jobs:
           DATABASE_URL: postgresql://original:original@localhost:5432/original_test
         run: |
           python -m pytest tests/ validation/test_tier10_optional.py \
-            --cov=original --cov-report=xml --cov-fail-under=72
+            --cov=original --cov-report=xml --cov-fail-under=78
 
       - name: Upload coverage report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
