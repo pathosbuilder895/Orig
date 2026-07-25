@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="dark">
+<title>Examination in progress</title>
+<!--
+  ═══════════════════════════════════════════════════════════════════
+   parked.html — the page a student's phone holds during an exam
+  ═══════════════════════════════════════════════════════════════════
+
+  Deliberately OUTSIDE the React bundle: no build step, no framework, no
+  imports. It is one file that a five-year-old phone on classroom wi-fi can
+  open in one round trip. Fonts are system fonts, so there is nothing to
+  download and nothing to wait for.
+
+  What this page is
+  -----------------
+  It does not prevent anything, and the copy must never suggest it does. Its
+  whole job is to make "phones away" an auditable ritual: the page reports
+  that it is still open, and when it stops reporting, the proctor's tile
+  changes and a human decides what to do. So there is no "verified", no
+  "secure", no "locked", and nothing here accuses anyone of anything —
+  see docs/PROCTOR_SCRIPT.md for the language the proctor is taught to use.
+
+  Storage: NONE. No localStorage, no sessionStorage, no cookies. The student
+  disclosure (docs/STUDENT_DISCLOSURE.md) promises nothing is retained on the
+  device, so the name they type lives in a JS variable and dies with the tab.
+
+  Written in ES5 on purpose — no arrow functions, no const/let, no template
+  literals, no optional chaining, no async/await. A syntax error from a newer
+  construct would not degrade gracefully on an old browser, it would leave the
+  student staring at a blank page mid-exam.
+-->
+<style>
+  :root {
+    --deep: #001020;
+    --oxford: #002147;
+    --gold: #C9A961;
+    --cream: #F0EDE4;
+    --fade: #8B9BB4;
+    --calm: #5EB87C;
+    --attn: #C9A961;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--deep);
+    color: var(--cream);
+    font-family: Georgia, "Times New Roman", Times, serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+    -webkit-text-size-adjust: 100%;
+  }
+  main { width: 100%; max-width: 420px; text-align: center; }
+
+  .rule { border-top: 1px solid rgba(201,169,97,0.5); margin: 18px 0; }
+  .rule.faint { border-top-color: rgba(201,169,97,0.22); }
+
+  h1 {
+    font-size: 25px; font-weight: 500; letter-spacing: 0.01em;
+    color: var(--cream); margin: 0 0 6px; line-height: 1.25;
+  }
+  .meta {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--fade); margin: 0;
+  }
+  p { font-size: 17px; line-height: 1.55; color: var(--cream); margin: 14px 0; }
+  .muted { color: var(--fade); font-size: 15px; }
+  .fine { color: var(--fade); font-size: 13.5px; line-height: 1.5; }
+
+  /* The timer is the one thing readable at arm's length on a desk. */
+  .timer {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 54px; line-height: 1; color: var(--cream);
+    letter-spacing: 0.02em; margin: 8px 0 4px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .status { display: flex; align-items: center; justify-content: center; gap: 9px; margin-top: 14px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--calm); flex-shrink: 0; }
+  .dot.attn { background: var(--attn); }
+  .status-text {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fade);
+  }
+  /* Colour is never the only cue — the dot always sits beside its word. */
+  @media (prefers-reduced-motion: no-preference) {
+    .dot.pulse { animation: pulse 2.4s ease-in-out infinite; }
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  label { display: block; text-align: left; margin-bottom: 8px; }
+  input[type="text"] {
+    width: 100%; padding: 13px 14px; font-size: 17px;
+    font-family: inherit; color: var(--cream);
+    background: var(--oxford); border: 1px solid rgba(201,169,97,0.35);
+    border-radius: 0; -webkit-appearance: none; appearance: none;
+  }
+  input[type="text"]::placeholder { color: rgba(139,155,180,0.7); }
+  button {
+    width: 100%; margin-top: 14px; padding: 14px 20px;
+    font-family: inherit; font-size: 17px; font-weight: 500;
+    letter-spacing: 0.08em; color: var(--deep); background: var(--gold);
+    border: none; border-radius: 0; cursor: pointer;
+  }
+  button:disabled { opacity: 0.45; cursor: default; }
+
+  /* Focus must stay obvious — :focus first for older engines, then the
+     modern selector so a mouse click does not draw a ring. */
+  a:focus, button:focus, input:focus { outline: 3px solid var(--gold); outline-offset: 2px; }
+  a:focus:not(:focus-visible), button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: none; }
+  a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+  [hidden] { display: none !important; }
+  .err { color: #E8A598; font-size: 15px; margin: 10px 0 0; }
+</style>
+</head>
+<body>
+<main>
+
+  <!-- ① Ask for a name once. Kept in memory only. -->
+  <section id="screen-name" hidden>
+    <p class="meta">Examination</p>
+    <div class="rule"></div>
+    <h1>Park your phone</h1>
+    <p class="muted">Type your name or initials so your proctor can tell one phone from another.</p>
+    <form id="hint-form" novalidate>
+      <label class="meta" for="hint">Name or initials</label>
+      <input id="hint" name="hint" type="text" maxlength="64" autocomplete="off"
+             autocapitalize="words" autocorrect="off" spellcheck="false"
+             placeholder="e.g. M.R." required>
+      <p class="err" id="hint-err" role="alert" hidden>Please type a name or initials.</p>
+      <button type="submit" id="hint-submit">Park my phone</button>
+    </form>
+    <div class="rule faint"></div>
+    <p class="fine">
+      This page reports only that it is open — no content, no location, and no
+      identifiers beyond what you type above. Nothing is saved on your phone.
+    </p>
+  </section>
+
+  <!-- ② The parked view: a big clock and a calm status line. -->
+  <section id="screen-parked" hidden>
+    <p class="meta">Examination in progress</p>
+    <div class="rule"></div>
+    <p class="timer" id="timer">0:00</p>
+    <p class="meta" id="hint-echo"></p>
+    <div class="status" id="status-region" aria-live="polite">
+      <span class="dot pulse" id="status-dot"></span>
+      <span class="status-text" id="status-text">Parked</span>
+    </div>
+    <div class="rule faint"></div>
+    <p>Keep this page open. Your screen may dim — that's fine.</p>
+    <p class="fine">
+      Set your phone back down. If you need to use it, tell your proctor first.
+      Nothing is saved on your phone.
+    </p>
+  </section>
+
+  <!-- ③ Calm dead ends: no token in the link, or the link has expired. -->
+  <section id="screen-notice" hidden>
+    <p class="meta">Examination</p>
+    <div class="rule"></div>
+    <h1 id="notice-title"></h1>
+    <p class="muted" id="notice-body"></p>
+  </section>
+
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  // Three missed beats is what the server reads as "dropped" (30s), so this
+  // interval is the resolution of the whole signal.
+  var BEAT_MS = 10000;
+  var HINT_MAX = 64;        // matches STUDENT_HINT_MAX_LEN on the server
+
+  var el = function (id) { return document.getElementById(id); };
+
+  // ── Token from the query string ────────────────────────────────────────────
+  // Hand-rolled rather than URLSearchParams, which is missing on the older
+  // phones this page exists to support.
+  function queryParam(name) {
+    var m = new RegExp('[?&]' + name + '=([^&#]*)').exec(window.location.search);
+    return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : null;
+  }
+
+  var token = queryParam('t');
+  var hint = null;          // in memory only, never persisted
+  var startedAt = null;
+  var beatTimer = null;
+  var tickTimer = null;
+  var stopped = false;
+
+  // ── Screens ────────────────────────────────────────────────────────────────
+  function show(which) {
+    el('screen-name').hidden = which !== 'name';
+    el('screen-parked').hidden = which !== 'parked';
+    el('screen-notice').hidden = which !== 'notice';
+  }
+
+  function notice(title, body) {
+    stop();
+    el('notice-title').textContent = title;
+    el('notice-body').textContent = body;
+    show('notice');
+  }
+
+  function stop() {
+    stopped = true;
+    if (beatTimer) { clearInterval(beatTimer); beatTimer = null; }
+    if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+    releaseWakeLock();
+  }
+
+  // ── Status line ────────────────────────────────────────────────────────────
+  // Announced politely, and the dot is never the only cue — the word carries
+  // the meaning on its own.
+  function setStatus(text, attention) {
+    var dot = el('status-dot');
+    el('status-text').textContent = text;
+    dot.className = 'dot' + (attention ? ' attn' : ' pulse');
+  }
+
+  // ── Transport ──────────────────────────────────────────────────────────────
+  // fetch where available, XHR otherwise. `onStatus` receives the HTTP status,
+  // or 0 when the request never landed (offline, radio asleep) — which is not
+  // an error worth showing a student mid-exam.
+  function post(url, payload, onStatus) {
+    var body = JSON.stringify(payload);
+    if (window.fetch) {
+      window.fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: body,
+        cache: 'no-store'
+      }).then(function (r) { onStatus(r.status); })
+        .catch(function () { onStatus(0); });
+      return;
+    }
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', url, true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) { onStatus(xhr.status); }
+      };
+      xhr.send(body);
+    } catch (e) { onStatus(0); }
+  }
+
+  // The phone is being backgrounded, so the request has to outlive the page's
+  // foreground. sendBeacon is built for exactly this; the response is not
+  // available, but this beat's job is only to mark the moment it happened.
+  function postLeaving(url, payload) {
+    var body = JSON.stringify(payload);
+    try {
+      if (navigator.sendBeacon) {
+        var blob = new Blob([body], { type: 'application/json' });
+        if (navigator.sendBeacon(url, blob)) { return; }
+      }
+    } catch (e) { /* fall through */ }
+    if (window.fetch) {
+      try {
+        window.fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: body,
+          keepalive: true,
+          cache: 'no-store'
+        })['catch'](function () {});
+        return;
+      } catch (e) { /* fall through */ }
+    }
+    post(url, payload, function () {});
+  }
+
+  function beat(state, leaving) {
+    if (stopped || !hint) { return; }
+    var payload = { park_token: token, student_hint: hint, state: state };
+    if (leaving) {
+      postLeaving('/proctor/park/beat', payload);
+      return;
+    }
+    post('/proctor/park/beat', payload, function (status) {
+      if (status === 404) {
+        // Unknown or expired token — the sitting is over as far as this phone
+        // is concerned. Stop beating and say so gently.
+        notice('This exam link has expired',
+               'Please see your proctor. You can close this page.');
+        return;
+      }
+      if (status === 429) { return; }   // too quick after the last one; skip it
+      if (status === 0) {
+        setStatus('Reconnecting', true);
+        return;
+      }
+      if (status >= 200 && status < 300) { setStatus('Parked', false); }
+    });
+  }
+
+  // ── Screen wake lock ───────────────────────────────────────────────────────
+  // Best-effort only: unsupported on most iOS versions, and browsers drop the
+  // lock whenever the page is hidden, hence the re-acquire on return.
+  var wakeLock = null;
+
+  function acquireWakeLock() {
+    try {
+      if (!navigator.wakeLock || !navigator.wakeLock.request) { return; }
+      navigator.wakeLock.request('screen').then(function (lock) {
+        wakeLock = lock;
+        if (lock && lock.addEventListener) {
+          lock.addEventListener('release', function () { wakeLock = null; });
+        }
+      })['catch'](function () { /* denied or unsupported — degrade silently */ });
+    } catch (e) { /* degrade silently */ }
+  }
+
+  function releaseWakeLock() {
+    try {
+      if (wakeLock && wakeLock.release) { wakeLock.release(); }
+    } catch (e) { /* ignore */ }
+    wakeLock = null;
+  }
+
+  // ── Elapsed timer ──────────────────────────────────────────────────────────
+  // Derived from the clock rather than counted in ticks, so the background
+  // throttling that browsers apply to timers cannot make it drift.
+  function renderTimer() {
+    if (!startedAt) { return; }
+    var total = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+    var h = Math.floor(total / 3600);
+    var m = Math.floor((total % 3600) / 60);
+    var s = total % 60;
+    var pad = function (n) { return n < 10 ? '0' + n : String(n); };
+    el('timer').textContent = h > 0 ? h + ':' + pad(m) + ':' + pad(s) : m + ':' + pad(s);
+  }
+
+  // ── Visibility ─────────────────────────────────────────────────────────────
+  // The signal this whole feature is built on: the page going hidden is what a
+  // phone being picked up looks like from here.
+  function onVisibilityChange() {
+    if (stopped) { return; }
+    if (document.hidden) {
+      setStatus('Away', true);
+      beat('foreground_lost', true);
+    } else {
+      acquireWakeLock();
+      beat('resumed', false);
+      renderTimer();
+    }
+  }
+
+  // ── Start ──────────────────────────────────────────────────────────────────
+  function park() {
+    startedAt = Date.now();
+    show('parked');
+    el('hint-echo').textContent = hint;
+    setStatus('Parked', false);
+    renderTimer();
+    acquireWakeLock();
+    beat('parked', false);
+    beatTimer = setInterval(function () { beat('parked', false); }, BEAT_MS);
+    tickTimer = setInterval(renderTimer, 1000);
+  }
+
+  function init() {
+    if (!token) {
+      notice('Ask your proctor for the QR code',
+             'This page opens from the code your proctor displays at the start of the exam.');
+      return;
+    }
+
+    show('name');
+    var form = el('hint-form');
+    var input = el('hint');
+    var err = el('hint-err');
+
+    form.onsubmit = function (e) {
+      if (e && e.preventDefault) { e.preventDefault(); }
+      var value = (input.value || '').replace(/^\s+|\s+$/g, '');
+      if (!value) {
+        // The server answers 422 for an empty hint; catching it here keeps a
+        // student from meeting an error at all.
+        err.hidden = false;
+        input.focus();
+        return false;
+      }
+      if (value.length > HINT_MAX) { value = value.slice(0, HINT_MAX); }
+      err.hidden = true;
+      hint = value;
+      park();
+      return false;
+    };
+
+    setTimeout(function () { try { input.focus(); } catch (e) {} }, 0);
+  }
+
+  if (document.addEventListener) {
+    document.addEventListener('visibilitychange', onVisibilityChange, false);
+    // A phone that locks or navigates away should read as gone immediately
+    // rather than waiting out the server's 30s window.
+    window.addEventListener('pagehide', function () {
+      if (!stopped && hint) { beat('foreground_lost', true); }
+    }, false);
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

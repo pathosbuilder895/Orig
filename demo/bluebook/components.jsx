@@ -325,6 +325,53 @@ export const BB_API = {
     }
     return r.json();
   },
+  // ── QR phone park (proctoring deterrence) ──
+  // Staff-only endpoints; the phones themselves post to /proctor/park/beat
+  // anonymously and never touch this client.
+  async parkOpen(examSessionId) {
+    const r = await fetch(this.base + '/proctor/park/open', {
+      method: 'POST', headers: this._headers(),
+      body: JSON.stringify({ exam_session_id: examSessionId }),
+    });
+    if (!r.ok) {
+      let detail = r.statusText;
+      try { detail = (await r.json()).detail || detail; } catch (e) {}
+      throw new Error(detail);
+    }
+    return r.json();   // { park_token, qr_url }
+  },
+  // Resolves to `null` on a transient failure (keep the last tiles on screen)
+  // and to `{ tiles: [], missing: true }` on 404. A 404 here is the ordinary
+  // answer for "never opened, or just deleted" — the poll loop hits it every
+  // time a session is closed, so it must never read as an error.
+  async parkStatus(examSessionId) {
+    try {
+      const r = await fetch(
+        this.base + '/proctor/park/status?exam_session_id=' + encodeURIComponent(examSessionId),
+        { headers: this._headers() },
+      );
+      if (r.status === 404) return { tiles: [], missing: true };
+      if (!r.ok) return null;
+      const data = await r.json();
+      return { tiles: data.tiles || [], missing: false };
+    } catch (e) { return null; }
+  },
+  // 404 means it is already gone, which is the outcome the caller wanted.
+  // NOTE: `deleted` counts the session row plus every beat row, so it is not
+  // a phone count and must not be shown to anyone as one.
+  async parkDelete(examSessionId) {
+    const r = await fetch(this.base + '/proctor/park/' + encodeURIComponent(examSessionId), {
+      method: 'DELETE', headers: this._headers(),
+    });
+    if (r.status === 404) return { deleted: 0 };
+    if (!r.ok) {
+      let detail = r.statusText;
+      try { detail = (await r.json()).detail || detail; } catch (e) {}
+      throw new Error(detail);
+    }
+    return r.json();
+  },
+
   // ── Auth / session ──
   async login(email, password) {
     const r = await fetch(this.base + '/auth/login', {
