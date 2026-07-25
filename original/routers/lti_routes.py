@@ -19,7 +19,12 @@ router = APIRouter()
 # endpoints return a clear error until LTI is configured.
 
 
-@router.api_route("/lti/login", methods=["GET", "POST"])
+# The LTI spec requires this endpoint to accept both GET and POST, so it stays a
+# single two-verb route. FastAPI derives an implicit operationId from
+# `list(route.methods)[0]` — set iteration order, which varies per process — so
+# without an explicit operation_id the generated OpenAPI schema flips between
+# `..._get` and `..._post` between runs and generated clients churn. Pin it.
+@router.api_route("/lti/login", methods=["GET", "POST"], operation_id="lti_login")
 async def lti_login(request: Request):
     from .. import lti
 
