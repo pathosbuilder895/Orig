@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { label: 'Courses',       screen: 'courses'   },
   { label: 'Students',      screen: 'students'  },
   { label: 'Results',       screen: 'results'   },
+  { label: 'Proctor',       screen: 'proctor'   },
 ];
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────

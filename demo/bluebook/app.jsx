@@ -7,6 +7,7 @@ import { BriefingScreen, ExamScreen, SubmittedScreen } from './Exam.jsx';
 import { CoursesScreen } from './Courses.jsx';
 import { StudentsScreen } from './Students.jsx';
 import { ResultsScreen } from './Results.jsx';
+import { ProctorScreen } from './ProctorTiles.jsx';
 import { NewExamScreen } from './NewExam.jsx';
 import {
   useTweaks, TweaksPanel, TweakSection, TweakSelect, TweakSlider, TweakColor,
@@ -84,6 +85,13 @@ function App() {
         </DashboardLayout>
       );
       break;
+    case 'proctor':
+      content = (
+        <DashboardLayout activeScreen="proctor" onNavigate={navigate}>
+          <ProctorScreen />
+        </DashboardLayout>
+      );
+      break;
     case 'new-exam':
       content = <NewExamScreen onNavigate={navigate} />;
       break;
@@ -113,6 +121,7 @@ function App() {
             { label: '④b Courses',              value: 'courses'   },
             { label: '④c Students',             value: 'students'  },
             { label: '④d Results',              value: 'results'   },
+            { label: '④e Proctor',              value: 'proctor'   },
             { label: '⑤ Exam Briefing',         value: 'briefing'  },
             { label: '⑥ New Examination',        value: 'new-exam'  },
             { label: '⑦ Active Examination',    value: 'exam'      },
