@@ -41,6 +41,8 @@ from .db.models.live import (
     Correction,
     FidelityScore,
     FormationPathway,
+    ParkBeat,
+    ParkSession,
     StaffUser,
     StudentName,
     StudentProfile,
@@ -51,6 +53,11 @@ from .db.models.live import (
 from .db.postgres_session import session_scope
 from .db.tenancy_shim import join_scoped_id, split_scoped_id
 from .quantum.state import BaselineSample, StudentState
+
+# The phone-park timestamp format and transition cap are defined once, in the
+# SQLite store, and imported here so the two backends cannot drift apart on
+# either. store.py carries no sqlalchemy import, so this costs nothing.
+from .store import PARK_MAX_TRANSITIONS, park_iso_utc, park_utc
 
 log = get_logger(__name__)
 
@@ -1831,6 +1838,152 @@ class PostgresRepository:
         except Exception:
             log.exception("load_baseline_requests failed")
             return []
+
+    # ── QR phone-park (proctoring deterrence) ─────────────────────────────
+    #
+    # PRIVACY CONTRACT (docs/STUDENT_DISCLOSURE.md, mirrored on the Repository
+    # Protocol and in store.py): these methods persist an opaque park_token, an
+    # exam_session_id, a student-typed student_hint, UTC timestamps, and state
+    # transitions. NO IP address, NO user-agent, NO location, NO device
+    # fingerprint, NO roster identifier. Note that — uniquely on this class —
+    # nothing here calls split_scoped_id/join_scoped_id: park rows key on a
+    # token, not on a student, so the tenancy shim has nothing to translate.
+    # `tenant_id` scopes a professor's *reads*; it identifies an institution,
+    # never a person. Rows purge after 24h.
+    #
+    # Timestamps: `datetime` in; ISO-8601 UTC strings out via
+    # `store.park_iso_utc` — the same helper SqliteRepository uses, so both
+    # backends return byte-identical dicts (that equality is what makes the
+    # dual-backend contract suite meaningful).
+
+    @staticmethod
+    def _park_session_to_dict(row: ParkSession) -> dict:
+        return {
+            "exam_session_id": row.exam_session_id,
+            "tenant_id": row.tenant_id,
+            "park_token": row.park_token,
+            "created_at": park_iso_utc(row.created_at),
+        }
+
+    def park_open(self, exam_session_id, tenant_id, park_token, created_at):
+        with session_scope() as session:
+            self._ensure_tenant_exists(session, tenant_id)
+            prev = session.execute(
+                select(ParkSession.park_token).where(ParkSession.exam_session_id == exam_session_id)
+            ).scalar_one_or_none()
+            if prev is not None and prev != park_token:
+                # Token rotated (only possible once the old one expired) — the
+                # superseded token's beats are unreachable, so they go now
+                # rather than waiting for the 24h purge.
+                session.execute(ParkBeat.__table__.delete().where(ParkBeat.park_token == prev))
+            values = {
+                "tenant_id": tenant_id,
+                "park_token": park_token,
+                "created_at": park_utc(created_at),
+            }
+            session.execute(
+                pg_insert(ParkSession)
+                .values(exam_session_id=exam_session_id, **values)
+                .on_conflict_do_update(index_elements=["exam_session_id"], set_=values)
+            )
+
+    def park_get_session(self, park_token):
+        with session_scope() as session:
+            row = session.execute(
+                select(ParkSession).where(ParkSession.park_token == park_token)
+            ).scalar_one_or_none()
+            return self._park_session_to_dict(row) if row else None
+
+    def park_get_session_by_exam(self, exam_session_id):
+        with session_scope() as session:
+            row = session.execute(
+                select(ParkSession).where(ParkSession.exam_session_id == exam_session_id)
+            ).scalar_one_or_none()
+            return self._park_session_to_dict(row) if row else None
+
+    def park_beat(self, park_token, student_hint, state, at):
+        at = park_utc(at)
+        ts = park_iso_utc(at)
+        with session_scope() as session:
+            row = session.execute(
+                select(ParkBeat).where(
+                    ParkBeat.park_token == park_token,
+                    ParkBeat.student_hint == student_hint,
+                )
+            ).scalar_one_or_none()
+            if row is None:
+                session.execute(
+                    pg_insert(ParkBeat).values(
+                        park_token=park_token,
+                        student_hint=student_hint,
+                        state=state,
+                        first_seen_at=at,
+                        last_seen_at=at,
+                        transitions_json=[{"state": state, "at": ts}],
+                    )
+                )
+            elif row.state == state:
+                # Steady heartbeat: bump liveness only. Appending here is what
+                # would turn a 10s beat into an unbounded log.
+                row.last_seen_at = at
+            else:
+                transitions = list(row.transitions_json or [])
+                transitions.append({"state": state, "at": ts})
+                row.state = state
+                row.last_seen_at = at
+                row.transitions_json = transitions[-PARK_MAX_TRANSITIONS:]
+
+    def park_tiles(self, exam_session_id):
+        with session_scope() as session:
+            rows = session.execute(
+                select(ParkBeat)
+                .join(ParkSession, ParkSession.park_token == ParkBeat.park_token)
+                .where(ParkSession.exam_session_id == exam_session_id)
+                .order_by(ParkBeat.first_seen_at, ParkBeat.student_hint)
+            ).scalars()
+            return [
+                {
+                    "student_hint": r.student_hint,
+                    "state": r.state,
+                    "first_seen_at": park_iso_utc(r.first_seen_at),
+                    "last_seen_at": park_iso_utc(r.last_seen_at),
+                    "transitions": list(r.transitions_json or []),
+                }
+                for r in rows
+            ]
+
+    def park_delete(self, exam_session_id):
+        with session_scope() as session:
+            token = session.execute(
+                select(ParkSession.park_token).where(ParkSession.exam_session_id == exam_session_id)
+            ).scalar_one_or_none()
+            if token is None:
+                return 0
+            beats = session.execute(
+                ParkBeat.__table__.delete().where(ParkBeat.park_token == token)
+            ).rowcount
+            sessions = session.execute(
+                ParkSession.__table__.delete().where(ParkSession.exam_session_id == exam_session_id)
+            ).rowcount
+            return int(beats) + int(sessions)
+
+    def park_purge(self, before):
+        before = park_utc(before)
+        with session_scope() as session:
+            tokens = list(
+                session.execute(
+                    select(ParkSession.park_token).where(ParkSession.created_at < before)
+                ).scalars()
+            )
+            if not tokens:
+                return 0
+            beats = session.execute(
+                ParkBeat.__table__.delete().where(ParkBeat.park_token.in_(tokens))
+            ).rowcount
+            sessions = session.execute(
+                ParkSession.__table__.delete().where(ParkSession.created_at < before)
+            ).rowcount
+            return int(beats) + int(sessions)
 
     # ── DB path ───────────────────────────────────────────────────────────
     def db_path(self):

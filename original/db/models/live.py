@@ -38,7 +38,14 @@ BluebookSubmission      bluebook_submissions
 FormationPathway        formation_pathways
 BaselineRequest         baseline_requests
 AuditLogEntry           audit_log
+ParkSession             park_sessions
+ParkBeat                park_beats
 ======================  =========================
+
+``ParkSession``/``ParkBeat`` are the only two models here that were NOT ported
+from the SQLite store's original 16-table DDL — they arrived with the QR
+phone-park proctoring surface (T8) and were authored against both backends at
+once, so there is no legacy shape to stay faithful to.
 
 Design decisions (audit §10 P2, applied uniformly)
 --------------------------------------------------
@@ -533,7 +540,79 @@ class AuditLogEntry(LiveBase):
     )
 
 
-#: All 16 live models in store-DDL order, for tests and the P3 repository.
+# ── QR phone-park (proctoring deterrence) ─────────────────────────────────────
+#
+# PRIVACY CONTRACT (docs/STUDENT_DISCLOSURE.md) — these two tables are the
+# whole persistent footprint of the phone-park feature, and they are
+# deliberately anaemic. They store NO IP address, NO user-agent, NO location,
+# NO device fingerprint, and NO roster identifier: not a student_id, not an
+# email, not a tenant-scoped id. The only student-supplied datum is
+# ``ParkBeat.student_hint``, free text the student types on their own phone
+# (initials, a nickname) purely so a proctor can tell one tile from another.
+# That is why neither table carries the (tenant_id, student_id) composite the
+# rest of this schema uses — there is no student row to key against, and the
+# tenancy shim is bypassed entirely. Rows are purged after 24h.
+#
+# The feature is deterrence and signal, never proof: a beacon that stops
+# beating is a prompt for a human to look, not evidence of anything.
+
+
+class ParkSession(LiveBase):
+    """One QR phone-park session per exam sitting (``park_sessions``).
+
+    A professor opens a session at exam start; the returned ``park_token`` is
+    baked into a QR code that students scan. The token is the capability —
+    holding it is what lets an (anonymous, unauthenticated) phone beat against
+    the session, so it is a ``secrets.token_urlsafe`` value, not a guessable id.
+
+    ``tenant_id`` records the opening staff principal's institution and is the
+    only thing that scopes reads: a professor may only see sessions their own
+    tenant opened. It is emphatically NOT a per-student identifier.
+
+    TTL (6h from ``created_at``) is applied at the repository boundary rather
+    than stored, so the retention policy lives in exactly one place.
+    """
+
+    __tablename__ = "park_sessions"
+    __table_args__ = (Index("idx_park_sessions_created", "created_at"),)
+
+    exam_session_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, ForeignKey("tenants.tenant_id"), nullable=False)
+    park_token: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ParkBeat(LiveBase):
+    """One parked phone's heartbeat row (``park_beats``).
+
+    Keyed ``(park_token, student_hint)`` — a natural composite key, since a
+    phone identifies itself by nothing more than the token it scanned and the
+    hint its owner typed. There is no id column and no FK to
+    ``park_sessions``: a rotated or purged token's orphans are removed
+    explicitly by ``park_open``/``park_delete``/``park_purge`` (the same
+    "no invented FKs" posture the rest of this module takes), and adding one
+    would make SQLite and Postgres disagree, since the store runs with FK
+    enforcement off.
+
+    ``transitions_json`` is an append-only list of ``{"state", "at"}`` objects
+    recording only *changes* of state — a 10s heartbeat that keeps reporting
+    the same state appends nothing, so the list stays bounded by how often the
+    phone actually left and returned to the parked page.
+    """
+
+    __tablename__ = "park_beats"
+
+    park_token: Mapped[str] = mapped_column(Text, primary_key=True)
+    student_hint: Mapped[str] = mapped_column(Text, primary_key=True)
+    state: Mapped[str] = mapped_column(Text, nullable=False)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    transitions_json: Mapped[list[Any]] = mapped_column(
+        JSONDoc, nullable=False, server_default=text("'[]'")
+    )
+
+
+#: All 18 live models in store-DDL order, for tests and the P3 repository.
 LIVE_MODELS = [
     StudentProfile,
     StudentName,
@@ -551,4 +630,6 @@ LIVE_MODELS = [
     AuditLogEntry,
     FormationPathway,
     BaselineRequest,
+    ParkSession,
+    ParkBeat,
 ]
