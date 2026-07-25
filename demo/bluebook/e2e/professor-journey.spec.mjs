@@ -341,6 +341,54 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     }
   })
 
+  // ── WS-4 / T7 — click-only rows must be keyboard-operable ─────────────
+  // Three rows are `<div>`s wired with onClick only (Dashboard.jsx
+  // ExamsScreen, Results.jsx, Students.jsx) — Tab must reach each one and
+  // Enter/Space must fire the same handler a click would. Reuses the
+  // course/exam/submission this describe block already built rather than
+  // re-seeding data, matching the file's stated approach.
+
+  // ── 9a ───────────────────────────────────────────────────────────────
+  test('the Examinations list row is keyboard-operable', async ({
+    staffPage, workerTenant,
+  }) => {
+    const { examTitle } = names(workerTenant)
+    await openScreen(staffPage, 'Examinations')
+    const row = staffPage.getByRole('button', { name: examTitle })
+    await expect(row).toBeVisible({ timeout: 10_000 })
+    await row.focus()
+    await staffPage.keyboard.press('Enter')
+    await expect(staffPage.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
+  })
+
+  // ── 9b ───────────────────────────────────────────────────────────────
+  test('the Results row is keyboard-operable and expands the integrity analysis', async ({
+    staffPage, workerTenant,
+  }) => {
+    const { candidateName } = names(workerTenant)
+    await openScreen(staffPage, 'Results')
+    const row = staffPage.getByRole('button', { name: candidateName })
+    await expect(row).toBeVisible({ timeout: 10_000 })
+    await expect(row).toHaveAttribute('aria-expanded', 'false')
+    await row.focus()
+    await staffPage.keyboard.press(' ')
+    await expect(staffPage.getByText('Integrity Analysis')).toBeVisible({ timeout: 5_000 })
+    await expect(row).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  // ── 9c ───────────────────────────────────────────────────────────────
+  test('the Students roster row is keyboard-operable', async ({
+    staffPage, workerTenant,
+  }) => {
+    const { candidateName } = names(workerTenant)
+    await openScreen(staffPage, 'Students')
+    const row = staffPage.getByRole('button', { name: candidateName })
+    await expect(row).toBeVisible({ timeout: 10_000 })
+    await row.focus()
+    await staffPage.keyboard.press('Enter')
+    await expect(staffPage.getByText(/1 submissions/)).toBeVisible({ timeout: 10_000 })
+  })
+
   // ── 10 ───────────────────────────────────────────────────────────────
   test('a correction filed against the scored submission lands in corrections and the audit trail', async ({
     workerTenant, request,

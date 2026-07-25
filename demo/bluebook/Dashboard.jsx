@@ -1,5 +1,5 @@
 import React from 'react';
-import { BB, BB_API, BtnPrimary, GoldRule, Logotype, MetaLabel, Ornament, StatusBadge, fontBody, fontDisplay, fontMono } from './components.jsx';
+import { BB, BB_API, BtnPrimary, GoldRule, Logotype, MetaLabel, Ornament, StatusBadge, fontBody, fontDisplay, fontMono, rowKeyDown } from './components.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Dashboard Screens
@@ -13,13 +13,6 @@ const MOCK_EXAMS = [
   { id:'4', title:'Constitutional Principles',          course:'LAW 101',   duration:90,  submissions:0,  status:'DRAFT'     },
   { id:'5', title:'History of Economic Thought',        course:'ECON 203',  duration:75,  submissions:18, status:'COMPLETED' },
 ];
-
-// Keydown handler for div-as-button rows: Enter/Space activates like a click.
-function rowKeyDown(fn) {
-  return (e) => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); }
-  };
-}
 
 const NAV_ITEMS = [
   { label: 'Overview',      screen: 'dashboard' },
@@ -338,9 +331,11 @@ export function ExamsScreen({ onNavigate }) {
               cursor: 'pointer',
               transition: 'background 0.2s',
             }}
+              role="button" tabIndex={0} aria-label={exam.title}
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(201,169,97,0.04)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               onClick={() => openExam(exam, onNavigate)}
+              onKeyDown={rowKeyDown(() => openExam(exam, onNavigate))}
             >
               <div>
                 <p style={{ fontFamily: fontBody, fontSize: 16, color: BB.cream, margin: 0 }}>
