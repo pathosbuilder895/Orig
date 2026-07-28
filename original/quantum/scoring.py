@@ -628,7 +628,7 @@ def score(
     typicality_band: str | None = None
     typicality_n: int = 0
 
-    if config.typicality_scoring_enabled:
+    if config.typicality_scoring_enabled and adaptive_weights is None:
         from .typicality import band_from_p, p_central
         from .typicality import p_far as p_far_fn
 

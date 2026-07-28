@@ -151,3 +151,20 @@ class TestTypicalityFlagOn:
                 # next test for a genuinely-typical (near-median-distance)
                 # construction.
                 assert result.typicality_band in {"no_action", "schedule_conversation"}
+
+
+class TestTypicalityAdaptiveWeightsInteraction:
+    def test_typicality_degrades_to_none_when_adaptive_weights_also_active(self):
+        """Until loo_distances is computed under the same adaptive weight
+        vector as rms_z, the two must not be compared — see Task 3's note."""
+        state = _state_with_n_samples(6)
+        sub_vector = _vec()
+        result = score(
+            state=state,
+            submission_vector=sub_vector,
+            feature_dict=_feature_dict(sub_vector),
+            adaptive_weights=np.ones(FEATURE_DIM),  # non-None triggers the adaptive path
+            scoring_config=ScoringConfig(typicality_scoring_enabled=True),
+        )
+        assert result.typicality_p_far is None
+        assert result.typicality_band is None
