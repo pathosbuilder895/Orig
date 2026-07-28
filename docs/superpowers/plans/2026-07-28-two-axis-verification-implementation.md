@@ -1434,10 +1434,13 @@ def _score_corpus_for_g1(client, sid_prefix: str, texts_by_id: dict[str, list[st
 def run_all() -> list[GateResult]:
     os.environ["TYPICALITY_SCORING"] = "1"
 
-    import validation.plato.run as _plato_run_module  # provides load_legacy_demo_app, per public_authors/run.py's convention
+    import run as _run_module  # the project's run.py at repo root — same
+                                # convention as validation/public_authors/run.py:89,
+                                # validation/verify/run.py:140, etc. Requires
+                                # sys.path.insert(0, str(_ROOT)) above, already present.
     from fastapi.testclient import TestClient
 
-    client = TestClient(_plato_run_module.load_legacy_demo_app())
+    client = TestClient(_run_module.load_legacy_demo_app())
 
     results: list[GateResult] = []
 
@@ -1553,22 +1556,22 @@ def _compute_g2_q_values(client) -> tuple[list[float], list[float]]:
 
 
 def _compute_g4_group_means() -> dict[str, float]:
-    from validation.plato.chronology import ranked
+    from validation.plato.chronology import GROUP_NAMES, ranked
 
     dialogues = ranked()
     plato_texts = _load_plato_texts_by_dialogue()
     groups = {"early": [], "middle": [], "late": []}
     for d in dialogues:
-        group_key = {0: "early", 1: "middle", 2: "late"}.get(d.chron_rank_group, None)
-        if group_key is None:
-            continue
+        if d.group is None:
+            continue  # excluded from chronology (e.g. Eryxias, spurious=True)
+        group_key = GROUP_NAMES[d.group]
         groups[group_key].extend(plato_texts.get(f"plato_{d.slug}", []))
     # Baseline built from the "early" group; score middle and late against it.
     from fastapi.testclient import TestClient
 
-    import validation.plato.run as _plato_run_module
+    import run as _run_module  # repo-root run.py — see run_all()'s identical import
 
-    client = TestClient(_plato_run_module.load_legacy_demo_app())
+    client = TestClient(_run_module.load_legacy_demo_app())
     sid = "gate:g4_early_baseline"
     for chunk in groups["early"]:
         client.post(f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"})
@@ -1610,7 +1613,7 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
-**Note for the implementer:** `_plato_run_module.load_legacy_demo_app` and `run_public_authors`'s exact return shape (`top1_accuracy` key name) must be confirmed against the real `validation/public_authors/run.py` and whatever demo-app loader `validation/plato/run.py` ends up exposing once it exists (the Plato spec's own Phase 2 `run.py`/`analysis.py` were never built — the Plato study's Phase 1 corpus+gate work stopped after the gate failed, per its own phasing section). If `validation/plato/run.py` does not exist, import the demo-app loader from `validation/public_authors/run.py` instead (`from validation.public_authors.run import _run_module` or equivalent — confirm the exact re-export name by reading that file's imports before writing this line) — both point at the same demo app.
+**Note for the implementer:** `load_legacy_demo_app` lives in the repo-root `run.py` (`run.py:26`), imported as `import run as _run_module` — this is the exact convention `validation/public_authors/run.py:89`, `validation/verify/run.py:140`, and `validation/stability/measure_lift.py:77` all already use (each relies on a `sys.path.insert(0, str(_ROOT))` done earlier in the file, already present in this module's header). `run_public_authors()`'s exact return shape (in particular, confirm the `top1_accuracy` key name) must still be verified by reading `validation/public_authors/run.py`'s `run()` function/return value before wiring the G3 call — that file's own docstring states "Top-1 accuracy ≥ 0.7 across the corpus is the pass criterion," but the plan draft above did not have that function's source in hand when naming the dict key.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -2432,14 +2435,10 @@ def derive_weights(author_texts: dict[str, str], length: int = 2000) -> dict[int
     between = author_means.var(axis=0, ddof=0)
     per_feature_fisher = between / (within + 1e-9)
 
-    per_tier_fisher: dict[int, list[float]] = {}
-    for code, f in zip(matrices[next(iter(matrices))].dtype.names or [], per_feature_fisher):
-        pass  # placeholder loop shape — see note below
-
-    # NOTE for the implementer: per_feature_fisher is indexed positionally
-    # by ALL_FEATURE_CODES order (compute_feature_matrix's columns follow
-    # feature_vector()'s order, which is ALL_FEATURE_CODES). Aggregate to
-    # per-tier by zipping against ALL_FEATURE_CODES + FEATURE_TIER directly:
+    # per_feature_fisher is indexed positionally by ALL_FEATURE_CODES order
+    # (compute_feature_matrix's columns follow feature_vector()'s order,
+    # which is ALL_FEATURE_CODES) — aggregate to per-tier by zipping against
+    # ALL_FEATURE_CODES + FEATURE_TIER directly:
     from original.constants import ALL_FEATURE_CODES
 
     per_tier_values: dict[int, list[float]] = {}
@@ -2477,28 +2476,24 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
-**Note for the implementer:** the `derive_weights` function above has a dead placeholder loop (`for code, f in zip(matrices[...].dtype.names or [], ...)`) left visible intentionally to show the wrong approach was caught and replaced by the correct positional-zip approach immediately below it — **delete the dead loop** before committing; it must not ship. `main()`'s `NotImplementedError` is deliberate: end-to-end corpus loading depends on `validation.stability.run.load_corpus`'s exact signature, which must be read in full before wiring `main()` — this is real, necessary follow-up work within this same task, not a plan placeholder, since `split_authors`/`shrink_within_author_variance`/`derive_weights` (the three functions this task's tests actually cover) are complete and correct as written.
+**Note for the implementer:** `main()`'s `NotImplementedError` is deliberate: end-to-end corpus loading depends on `validation.stability.run.load_corpus`'s exact signature, which must be read in full before wiring `main()` — this is real, necessary follow-up work within this same task (Step 5 below), not a plan placeholder, since `split_authors`/`shrink_within_author_variance`/`derive_weights` (the three functions this task's tests actually cover) are complete and correct as written above.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `.venv/bin/python -m pytest tests/test_derive_measured_weights.py -v`
 Expected: all PASS.
 
-- [ ] **Step 5: Remove the dead placeholder loop from `derive_weights`**
-
-Delete the `for code, f in zip(matrices[next(iter(matrices))].dtype.names or [], per_feature_fisher): pass` block and its `# placeholder loop shape` comment entirely — confirm `derive_weights` still passes Step 4's tests after removal (they only exercise `split_authors`/`shrink_within_author_variance` directly, so this is a safe no-op for the test suite, but required for code cleanliness before commit).
-
-- [ ] **Step 6: Wire `main()` against `validation.stability.run.load_corpus`**
+- [ ] **Step 5: Wire `main()` against `validation.stability.run.load_corpus`**
 
 Read `validation/stability/run.py`'s `load_corpus` function signature in full, then complete `main()` to: load each corpus's `author_texts`, union them, call `split_authors()` on the combined author-id list, call `derive_weights()` on the derivation-side subset only, and print the resulting `{tier: weight}` dict as a Python-syntax `TIER_WEIGHTS` diff block (mirroring `scripts/calibrate_bounds.py`'s paste-ready-output convention).
 
-- [ ] **Step 7: STOP — run the script, present the generated diff to the user**
+- [ ] **Step 6: STOP — run the script, present the generated diff to the user**
 
 Run: `.venv/bin/python -m scripts.derive_measured_weights --derivation-fraction 0.7 --seed 1729`
 
-Present the printed `TIER_WEIGHTS` diff to the user exactly as generated. **Do not apply it to `original/constants.py` without explicit confirmation.** Once confirmed, apply it as a hand-verified edit (not a blind paste — check the direction of the change matches the spec's expected direction: T1/T5 up, T4/T16 sharply down) and commit `original/constants.py` and `docs/superpowers/specs/2026-07-28-two-axis-verification-design.md`'s Phase-3 section (adding an "Applied" note with the date and the actual before/after values) as a separate, focused commit from Step 8's script commit.
+Present the printed `TIER_WEIGHTS` diff to the user exactly as generated. **Do not apply it to `original/constants.py` without explicit confirmation.** Once confirmed, apply it as a hand-verified edit (not a blind paste — check the direction of the change matches the spec's expected direction: T1/T5 up, T4/T16 sharply down) and commit `original/constants.py` and `docs/superpowers/specs/2026-07-28-two-axis-verification-design.md`'s Phase-3 section (adding an "Applied" note with the date and the actual before/after values) as a separate, focused commit from Step 7's script commit.
 
-- [ ] **Step 8: Commit the script**
+- [ ] **Step 7: Commit the script**
 
 ```bash
 git add scripts/derive_measured_weights.py tests/test_derive_measured_weights.py
@@ -2968,7 +2963,7 @@ EOF
 
 ## Self-Review
 
-**1. Spec coverage.** §4 (G1–G6): Tasks 7, 8, 13, 14. §5 (Phase 1 typicality): Tasks 1–6. §6 (Phase 2 identity axis): Task 10. §7 (Phase 3 weights/bounds): Tasks 11, 12. §8 (Phase 4 uniformity features): Task 9. §9 (Rollout, shadow mode + tenant-volume arithmetic): Task 15. §10 (Risks): each risk is addressed by name at the task that closes or documents it (adaptive-weights mismatch → Task 5; double-dipping → Task 11; fairness → Tasks 9/14; conformal resolution floor → Task 1's docstring + Task 8's non-blocking note; the pre-existing `conformal.py` coexistence → Task 3 Step 3b's inline comment). §11 (Deliverables): every listed path has a corresponding task. Two gaps intentionally left open rather than papered over: (a) `validation/plato/run.py`/`analysis.py` referenced by Task 7 do not exist yet (the Plato study stopped at its Phase 1 gate failure) — Task 7's note tells the implementer to fall back to `public_authors/run.py`'s app loader; (b) G2b's paraphrase step is an explicitly-flagged proxy, not a real LLM attack, since no LLM-calling infrastructure exists elsewhere in this repo to build on.
+**1. Spec coverage.** §4 (G1–G6): Tasks 7, 8, 13, 14. §5 (Phase 1 typicality): Tasks 1–6. §6 (Phase 2 identity axis): Task 10. §7 (Phase 3 weights/bounds): Tasks 11, 12. §8 (Phase 4 uniformity features): Task 9. §9 (Rollout, shadow mode + tenant-volume arithmetic): Task 15. §10 (Risks): each risk is addressed by name at the task that closes or documents it (adaptive-weights mismatch → Task 5; double-dipping → Task 11; fairness → Tasks 9/14; conformal resolution floor → Task 1's docstring + Task 8's non-blocking note; the pre-existing `conformal.py` coexistence → Task 3 Step 3b's inline comment). §11 (Deliverables): every listed path has a corresponding task. One gap intentionally left open rather than papered over: G2b's paraphrase step is an explicitly-flagged proxy, not a real LLM attack, since no LLM-calling infrastructure exists elsewhere in this repo to build on. (Pre-flight review also corrected two factual errors found before dispatch: Task 7/13's demo-app loader now imports the verified `run.py:26` / `import run as _run_module` convention instead of a nonexistent `validation.plato.run` module, and G4's dialogue-grouping now uses `Dialogue.group`/`GROUP_NAMES` — the real fields — instead of an invented `chron_rank_group` attribute.)
 
 **2. Placeholder scan.** One deliberate, explained placeholder remains by design: Task 11 Step 3's dead loop, which Step 5 immediately deletes — this demonstrates a wrong approach being caught and corrected rather than leaving unresolved ambiguity, and Step 5 exists specifically to remove it before commit. `main()` in `scripts/derive_measured_weights.py` raises `NotImplementedError` deliberately, with Task 11 Step 6 as the explicit follow-up step that completes it — not an unfinished task.
 
