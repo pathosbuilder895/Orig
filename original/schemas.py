@@ -725,6 +725,16 @@ class Layer7OutputResponse(BaseModel):
     ai_likelihood: AiLikelihoodOut | None = None
     # Plain-English explanation for professors/instructors
     human_explanation: dict[str, Any] | None = None
+    # Two-axis verification: typicality axis. Present on quantum.scoring.
+    # Layer7Output but NOT currently copied by api.py's _to_response()
+    # (WS-7 S9-style completeness gap — surfacing these through the live
+    # API response is a later, separate pass). Added here so this model
+    # fully covers the source dataclass; defaults match Layer7Output's own
+    # so existing _to_response call sites (which don't pass them) stay valid.
+    typicality_p_far: float | None = None
+    typicality_p_central: float | None = None
+    typicality_band: str | None = None
+    typicality_n: int = 0
 
 
 # ── Student state summary ─────────────────────────────────────────────────────

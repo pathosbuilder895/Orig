@@ -221,6 +221,7 @@ class ScoringConfig:
     null_model: str = "none"  # was NULL_MODEL, :586
     amplitude_scoring_enabled: bool = False  # was AMPLITUDE_SCORING_ENABLED, :597
     secret_key: str = ""  # was SECRET_KEY, :602
+    typicality_scoring_enabled: bool = False  # was TYPICALITY_SCORING
 
     # ── formerly call-time `from ..store import ...` ──────────────────────────
     # Confirmed-authentic fidelity scores for this student, for the conformal
@@ -242,6 +243,7 @@ class ScoringConfig:
             null_model=os.environ.get("NULL_MODEL", "none"),
             amplitude_scoring_enabled=os.environ.get("AMPLITUDE_SCORING_ENABLED", "0") == "1",
             secret_key=os.environ.get("SECRET_KEY", ""),
+            typicality_scoring_enabled=os.environ.get("TYPICALITY_SCORING", "0") == "1",
         )
 
 
@@ -268,6 +270,16 @@ class Layer7Output:
     # is warranted independent of any AI-detection signal.
     catastrophic_drift: bool = field(default=False)
     catastrophic_drift_rms_z: float = field(default=0.0)  # raw RMS z-score
+
+    # ── Two-axis verification: typicality (conformal, LOO-distance-based) ────
+    # None/0 unless config.typicality_scoring_enabled and the student has
+    # >= 2 contributing baseline samples (state.loo_distances). See
+    # original/quantum/typicality.py and score()'s typicality computation
+    # block for the semantics of each field.
+    typicality_p_far: float | None = field(default=None)
+    typicality_p_central: float | None = field(default=None)
+    typicality_band: str | None = field(default=None)
+    typicality_n: int = field(default=0)
 
     # Tension arc (orthogonal signal, set at API layer after quantum score)
     tension_arc: TensionArcResult | None = field(default=None)
@@ -607,6 +619,33 @@ def score(
     else:
         rms_z = 0.0
 
+    # ── Two-axis verification: typicality axis (conformal, LOO-based) ────────
+    # Gated by config.typicality_scoring_enabled (default OFF, preserves
+    # byte-identical Phase 1 behaviour). See original/quantum/typicality.py
+    # for p_far/p_central/band_from_p semantics.
+    typicality_p_far: float | None = None
+    typicality_p_central: float | None = None
+    typicality_band: str | None = None
+    typicality_n: int = 0
+
+    if config.typicality_scoring_enabled:
+        from .typicality import band_from_p, p_central
+        from .typicality import p_far as p_far_fn
+
+        loo = state.loo_distances
+        typicality_n = len(loo)
+        if typicality_n >= 2:
+            # NOTE: state.loo_distances (state.py) is computed under the UNweighted
+            # tier-weight vector. If ADAPTIVE_WEIGHTS_ENABLED or LENGTH_ADAPTIVE_WEIGHTS
+            # are also on, rms_z above is computed under a DIFFERENT weight vector —
+            # comparing the two is an apples-to-oranges LOO distribution. Gate G1
+            # (validation/calibration_gate.py) must be re-run with both flags on
+            # together before TYPICALITY_SCORING ships to any tenant with adaptive
+            # weights enabled. Tracked, not fixed, in this task — see design spec §10.
+            typicality_p_far = p_far_fn(rms_z, loo)
+            typicality_p_central = p_central(rms_z, loo)
+            typicality_band = band_from_p(typicality_p_far, typicality_p_central)
+
     # ── Explicit null model (rank-and-null work) ──────────────────────────────
     # Gated by config.null_model == "impostor" AND the caller supplying
     # impostor_stats — both must be true, so this can never fire from an
@@ -742,6 +781,7 @@ def score(
         fidelity=_fidelity,
         conformal_p=_conformal_p,
         n_tokens=n_tokens,
+        typicality_band=typicality_band,
     )
 
     # Override to escalate on catastrophic drift regardless of scored action
@@ -785,6 +825,10 @@ def score(
         baseline_vector=baseline_dict,
         catastrophic_drift=catastrophic_drift,
         catastrophic_drift_rms_z=rms_z,
+        typicality_p_far=typicality_p_far,
+        typicality_p_central=typicality_p_central,
+        typicality_band=typicality_band,
+        typicality_n=typicality_n,
         # Phase 3+: attach the adaptive context manifest (if any) for audit.
         # Stored as a plain dict so this module needs no original.context import.
         context_manifest=manifest,
@@ -1003,6 +1047,7 @@ def _recommend(
     fidelity: float = 0.0,
     conformal_p: float | None = None,
     n_tokens: int | None = None,
+    typicality_band: str | None = None,  # NEW — two-axis verification
 ) -> RecommendedAction:
     """Derive recommended action from the full probability object.
 
@@ -1017,16 +1062,30 @@ def _recommend(
     so it cannot serve as the primary verdict signal.  It IS useful as a
     consistency check: large gaps between the Born signal and the deviation
     signal flag edge cases worth human review.
+
+    ``typicality_band``, when not None, comes from the two-axis conformal
+    typicality computation in ``score()`` (gated by
+    ``ScoringConfig.typicality_scoring_enabled``) and REPLACES the
+    ACTION_THRESHOLDS-on-deviation selection below as the source of
+    ``action`` for this call. Everything downstream — the entanglement
+    override and the fidelity-conformal nudge — reads/writes the same
+    ``action`` local variable regardless of which branch set it, so both
+    continue to apply exactly as before on top of whichever source produced
+    the initial action.
     """
 
-    # Primary signal: deviation score (higher = more suspicious / anomalous)
-    action = "no_action"
-    for act, (lo, hi) in ACTION_THRESHOLDS.items():
-        if lo <= deviation < hi:
-            action = act
-            break
-    if deviation >= 1.0:
-        action = "escalate"
+    # Primary signal: deviation score (higher = more suspicious / anomalous),
+    # UNLESS the typicality axis is active and produced a band for this call.
+    if typicality_band is not None:
+        action = typicality_band
+    else:
+        action = "no_action"
+        for act, (lo, hi) in ACTION_THRESHOLDS.items():
+            if lo <= deviation < hi:
+                action = act
+                break
+        if deviation >= 1.0:
+            action = "escalate"
 
     # ── Entanglement override ─────────────────────────────────────────────────
     # The T1–T11 vocabulary-spike + error-vanish pattern is a high-specificity
