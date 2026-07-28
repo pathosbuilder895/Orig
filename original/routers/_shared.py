@@ -383,6 +383,10 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
         baseline_vector=r.baseline_vector,
         catastrophic_drift=getattr(r, "catastrophic_drift", False),
         catastrophic_drift_rms_z=getattr(r, "catastrophic_drift_rms_z", 0.0),
+        typicality_p_far=getattr(r, "typicality_p_far", None),
+        typicality_p_central=getattr(r, "typicality_p_central", None),
+        typicality_band=getattr(r, "typicality_band", None),
+        typicality_n=getattr(r, "typicality_n", 0),
         # Phase 3: ContextManifestOut when CONTEXT_MANIFEST_ENABLED=1, else None.
         context_manifest=(
             ContextManifestOut(**getattr(r, "context_manifest", None))
