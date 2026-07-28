@@ -304,6 +304,18 @@ class TestBuildHypothesesTypicality:
         )
         assert not any("uniform" in h.lower() for h in hyps)
 
+    def test_no_legitimate_evolution_hypothesis_when_action_not_in_allowed_set(self):
+        """growth alone is not enough — action must also be monitor/schedule_conversation."""
+        hyps = _build_hypotheses(
+            deviation=0.3,
+            has_behavioral=False,
+            has_ai=False,
+            quantum_fidelity=0.9,
+            action="no_action",
+            trajectory_direction="growth",
+        )
+        assert not any("evolve" in h.lower() or "developed" in h.lower() for h in hyps)
+
 
 # ── _build_suggested_action ───────────────────────────────────────────────────
 

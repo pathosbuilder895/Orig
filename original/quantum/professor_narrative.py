@@ -586,7 +586,7 @@ def _build_hypotheses(
             "This submission is unusually uniform in style compared to this "
             "student's own baseline — more even and consistent than their typical "
             "writing. This can happen with heavy editing or outside assistance, "
-            "and is worth exploring in conversation rather than assuming drift."
+            "and is worth exploring in conversation."
         )
 
     # Legitimate style evolution — the currently-missing hypothesis the Plato
