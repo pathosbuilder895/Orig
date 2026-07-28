@@ -554,6 +554,9 @@ def _build_hypotheses(
     quantum_fidelity: float,
     action: str,
     ai_band: str | None = None,
+    typicality_band: str | None = None,
+    typicality_p_central: float | None = None,
+    trajectory_direction: str | None = None,
 ) -> list[str]:
     hyps: list[str] = []
 
@@ -575,6 +578,26 @@ def _build_hypotheses(
             "Content was composed elsewhere and pasted in — the student may have "
             "drafted outside the system, in a word processor or notes app, before "
             "transferring it."
+        )
+
+    # Too-uniform: never worded as drift, per design spec §5.
+    if typicality_p_central is not None and typicality_p_central <= 0.02:
+        hyps.append(
+            "This submission is unusually uniform in style compared to this "
+            "student's own baseline — more even and consistent than their typical "
+            "writing. This can happen with heavy editing or outside assistance, "
+            "and is worth exploring in conversation rather than assuming drift."
+        )
+
+    # Legitimate style evolution — the currently-missing hypothesis the Plato
+    # study flagged (professor_narrative had no "style has legitimately
+    # evolved" branch at all).
+    if trajectory_direction == "growth" and action in {"monitor", "schedule_conversation"}:
+        hyps.append(
+            "The student's writing style may have legitimately evolved — their "
+            "recent submissions already show a consistent trend in this direction, "
+            "which is a common and expected part of academic growth rather than "
+            "a sign of outside authorship."
         )
 
     # AI signal — the corpus-level detector's band takes precedence over the
@@ -755,6 +778,9 @@ def build_professor_explanation(
         quantum_fidelity=quantum_fidelity,
         action=action,
         ai_band=ai_band,
+        typicality_band=getattr(layer7, "typicality_band", None),
+        typicality_p_central=getattr(layer7, "typicality_p_central", None),
+        trajectory_direction=trajectory_direction,
     )
 
     suggested_action = _build_suggested_action(action, student_name)
