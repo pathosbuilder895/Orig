@@ -54,8 +54,8 @@ def p_far(r_sub: float, loo_distances: list[float]) -> float:
     n = len(loo_distances)
     if n == 0:
         raise ValueError("p_far: loo_distances must be non-empty")
-    count_gt = sum(1 for r in loo_distances if r > r_sub)
-    return (1 + count_gt) / (n + 1)
+    count_geq = sum(1 for r in loo_distances if r >= r_sub)
+    return (1 + count_geq) / (n + 1)
 
 
 def p_central(r_sub: float, loo_distances: list[float]) -> float:
@@ -72,8 +72,8 @@ def p_central(r_sub: float, loo_distances: list[float]) -> float:
     n = len(loo_distances)
     if n == 0:
         raise ValueError("p_central: loo_distances must be non-empty")
-    count_lt = sum(1 for r in loo_distances if r < r_sub)
-    return (1 + count_lt) / (n + 1)
+    count_leq = sum(1 for r in loo_distances if r <= r_sub)
+    return (1 + count_leq) / (n + 1)
 
 
 def band_from_p(p_far: float, p_central: float) -> str:

@@ -12,10 +12,10 @@ from original.quantum.typicality import band_from_p, p_central, p_far
 
 class TestPFar:
     def test_typical_sample_gives_p_far_near_half(self):
-        """r_sub at the exact median of 9 LOO distances → p_far = 5/10 = 0.5."""
+        """r_sub at the exact median of 9 LOO distances → p_far = 6/10 = 0.6."""
         loo = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
-        # r_sub = 5.0 is >= itself and >= the 4 below it plus itself = 5 values >= 5.0
-        assert p_far(5.0, loo) == 5 / 10
+        # r_sub = 5.0 has 5 values >= 5.0: {5.0, 6.0, 7.0, 8.0, 9.0}, so (1+5)/10 = 6/10
+        assert p_far(5.0, loo) == 6 / 10
 
     def test_extreme_far_sample_gives_minimum_p_far(self):
         """r_sub larger than every LOO distance → p_far = 1/(N+1), the floor."""
@@ -37,7 +37,8 @@ class TestPFar:
 class TestPCentral:
     def test_typical_sample_gives_p_central_near_half(self):
         loo = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
-        assert p_central(5.0, loo) == 5 / 10
+        # r_sub = 5.0 has 5 values <= 5.0: {1.0, 2.0, 3.0, 4.0, 5.0}, so (1+5)/10 = 6/10
+        assert p_central(5.0, loo) == 6 / 10
 
     def test_extreme_central_sample_gives_minimum_p_central(self):
         """r_sub smaller than every LOO distance → p_central = 1/(N+1), the floor."""
