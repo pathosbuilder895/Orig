@@ -792,93 +792,83 @@ EOF
 
 ## Task 4: Surface typicality fields on the API response
 
+**Revised after Task 3 landed.** Task 3's implementer discovered a pre-existing,
+deliberate repo invariant this plan's original design conflicted with:
+`tests/test_schemas.py::test_layer7_output_dataclass_fields_all_have_response_counterparts`
+(docstring: "Every Layer7Output dataclass field must exist on
+Layer7OutputResponse") asserts `hasattr(response, f.name)` for every
+dataclass field name on `Layer7Output` — it requires a FLAT, same-named
+attribute on the response model, not a field wrapped inside a nested
+object under a different name. `ai_likelihood`/`AiLikelihoodOut` satisfies
+this because `ai_likelihood` itself is a single nested `AiLikelihoodResult
+| None` field on `Layer7Output` — `typicality_p_far` etc. are four
+INDEPENDENT flat fields on `Layer7Output`, matching how
+`catastrophic_drift`/`catastrophic_drift_rms_z` are already exposed as
+flat scalars on `Layer7OutputResponse`, not the `ai_likelihood` pattern
+this task originally modeled itself on. Task 3 therefore already added the
+four flat fields to `Layer7OutputResponse` (to keep the completeness guard
+green) — **do not add a `TypicalityOut` wrapper class; that would create a
+redundant, duplicate representation of the same four values.** This task's
+only remaining job is wiring `_to_response()` to actually copy them from
+`r` instead of leaving them at their class-level defaults.
+
 **Files:**
-- Modify: `original/schemas.py`, `original/routers/_shared.py`
+- Modify: `original/routers/_shared.py`
 - Test: `tests/test_schemas.py`
 
 **Interfaces:**
-- Consumes: `Layer7Output.{typicality_p_far, typicality_p_central, typicality_band, typicality_n}` (Task 3).
-- Produces: `Layer7OutputResponse.typicality: TypicalityOut | None`.
+- Consumes: `Layer7Output.{typicality_p_far, typicality_p_central, typicality_band, typicality_n}` (Task 3), `Layer7OutputResponse.{typicality_p_far, typicality_p_central, typicality_band, typicality_n}` (already added to `original/schemas.py` by Task 3 — confirm their exact field names/types by reading `original/schemas.py`'s `Layer7OutputResponse` class before writing this task's code, rather than assuming).
+- Produces: `_to_response()` copies the four fields through.
 
 - [ ] **Step 1: Write the failing test**
 
-Add to `tests/test_schemas.py` (following the existing `fidelity_conformal_pvalue` round-trip test pattern at line ~230-237):
+Add to `tests/test_schemas.py` (following the existing round-trip test pattern in this file — read an existing test like the `fidelity_conformal_pvalue` one to match its exact fixture-construction style before writing this):
 
 ```python
-    def test_typicality_round_trips_when_present(self):
-        from original.quantum.scoring import Layer7Output
-        # ... construct a minimal Layer7Output with typicality fields set,
-        # following the existing fixture pattern in this test file for
-        # constructing a full Layer7Output (see the surrounding test class
-        # for the canonical minimal-construction helper already in this file).
-        result = _make_layer7_output(  # existing helper in this test file
+    def test_typicality_fields_round_trip_when_present(self):
+        result = _make_layer7_output(  # existing helper in this test file — confirm exact
+                                        # name/signature by reading the file; adapt kwargs
+                                        # below to match its real parameter names
             typicality_p_far=0.42,
             typicality_p_central=0.58,
             typicality_band="no_action",
             typicality_n=7,
         )
         response = _to_response(result)
-        assert response.typicality is not None
-        assert response.typicality.p_far == 0.42
-        assert response.typicality.p_central == 0.58
-        assert response.typicality.band == "no_action"
-        assert response.typicality.n == 7
+        assert response.typicality_p_far == 0.42
+        assert response.typicality_p_central == 0.58
+        assert response.typicality_band == "no_action"
+        assert response.typicality_n == 7
 
-    def test_typicality_is_none_when_not_computed(self):
+    def test_typicality_fields_are_none_when_not_computed(self):
         result = _make_layer7_output()  # typicality_band defaults to None
         response = _to_response(result)
-        assert response.typicality is None
+        assert response.typicality_p_far is None
+        assert response.typicality_p_central is None
+        assert response.typicality_band is None
+        assert response.typicality_n == 0
 ```
-
-(If `tests/test_schemas.py` has no existing `_make_layer7_output`/equivalent minimal-construction helper, add one at the top of the file constructing a `Layer7Output` with every required field set to a valid default, matching whatever pattern the file's other round-trip tests — e.g. the `fidelity_conformal_pvalue` one at line 133 — already use to build their fixture.)
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `.venv/bin/python -m pytest tests/test_schemas.py -k typicality -v`
-Expected: `AttributeError: 'Layer7OutputResponse' object has no attribute 'typicality'`
+Expected: FAIL — `response.typicality_p_far` reads back `None`/`0` (the schema's class-level default) even when `result.typicality_p_far` was set to `0.42`, because `_to_response()` doesn't copy these fields yet.
 
 - [ ] **Step 3: Write the implementation**
 
-**4a. `original/schemas.py`** — add `TypicalityOut` near `AiLikelihoodOut` (line ~686), and the field on `Layer7OutputResponse` (line ~705-727):
+In `original/routers/_shared.py`'s `_to_response()`, add four keyword arguments to the `Layer7OutputResponse(...)` construction, alongside the existing `catastrophic_drift=getattr(r, "catastrophic_drift", False)` line (same file, same function — read it first to find the exact surrounding lines, since Task 3 did not touch this file and its structure should be unchanged from before this plan started):
 
 ```python
-class TypicalityOut(BaseModel):
-    p_far: float
-    p_central: float
-    band: str
-    n: int
+        catastrophic_drift=getattr(r, "catastrophic_drift", False),
+        catastrophic_drift_rms_z=getattr(r, "catastrophic_drift_rms_z", 0.0),
+        typicality_p_far=getattr(r, "typicality_p_far", None),
+        typicality_p_central=getattr(r, "typicality_p_central", None),
+        typicality_band=getattr(r, "typicality_band", None),
+        typicality_n=getattr(r, "typicality_n", 0),
 ```
 
-```python
-class Layer7OutputResponse(BaseModel):
-    ...
-    ai_likelihood: AiLikelihoodOut | None = None
-    typicality: TypicalityOut | None = None
-    human_explanation: dict[str, Any] | None = None
-```
-
-**4b. `original/routers/_shared.py`**, in `_to_response()` (line ~304-411), add the attach block alongside the existing `ai_likelihood=` conditional (line ~397-408):
-
-```python
-        ai_likelihood=(
-            AiLikelihoodOut(...)
-            if getattr(r, "ai_likelihood", None) is not None
-            else None
-        ),
-        typicality=(
-            TypicalityOut(
-                p_far=r.typicality_p_far,
-                p_central=r.typicality_p_central,
-                band=r.typicality_band,
-                n=r.typicality_n,
-            )
-            if getattr(r, "typicality_band", None) is not None
-            else None
-        ),
-        human_explanation=explain(r),
-```
-
-Add `TypicalityOut` to `_shared.py`'s existing schema import block.
+No new schema class, no new import — the fields already exist on
+`Layer7OutputResponse` (Task 3).
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -893,12 +883,16 @@ Expected: `0 failed`.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add original/schemas.py original/routers/_shared.py tests/test_schemas.py
+git add original/routers/_shared.py tests/test_schemas.py
 git commit -m "$(cat <<'EOF'
-Surface typicality fields on the API response
+Wire typicality fields through _to_response()
 
-Adds TypicalityOut and Layer7OutputResponse.typicality, following the
-existing ai_likelihood conditional-attach pattern exactly.
+original/schemas.py already carries these four fields (added in Task 3 to
+satisfy test_layer7_output_dataclass_fields_all_have_response_counterparts);
+this task's only remaining job is copying them from Layer7Output into the
+response, matching the catastrophic_drift/catastrophic_drift_rms_z pattern.
+No TypicalityOut wrapper — these are four independent flat fields, not a
+single nested optional sub-object like ai_likelihood.
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 EOF
