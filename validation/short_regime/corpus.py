@@ -39,7 +39,7 @@ def build_pools(corpus_dir: Path, words: int = 500) -> dict[str, list[str]]:
     pools: dict[str, list[str]] = {}
     for author in SEMINARY + BIG_AUTHORS:
         cs = _chunks(_author_text(corpus_dir, author), words)
-        if len(cs) >= 4:  # need 3 baseline + >=1 honest
+        if len(cs) >= 3:  # baseline-only OK; serve as impostor/attack targets
             pools[author] = cs
     return pools
 

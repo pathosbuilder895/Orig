@@ -15,7 +15,7 @@ def test_pools_have_expected_authors_and_chunk_sizes():
         assert author in pools, author
         assert all(len(c.split()) == 500 for c in pools[author])
     assert len(pools["burke"]) > 50          # 173 docs -> plenty of chunks
-    assert len(pools["seminary_01"]) >= 4    # 5 essays -> at least 3 baseline + 1 honest
+    assert len(pools["seminary_01"]) >= 3    # 5 essays -> at least 3 baseline
 
 
 def test_trials_disjoint_and_deterministic():
@@ -25,9 +25,10 @@ def test_trials_disjoint_and_deterministic():
     assert [t.student_id for t in t1] == [t.student_id for t in t2]
     for tr in t1:
         assert len(tr.baseline) == 3
-        assert 1 <= len(tr.honest) <= 30
+        assert 0 <= len(tr.honest) <= 30
         assert set(tr.baseline).isdisjoint(set(tr.honest))
         assert t2[[x.student_id for x in t2].index(tr.student_id)].baseline == tr.baseline
+    assert sum(len(t.honest) for t in t1) >= 20
 
 
 def test_attack_probes_labeled():
