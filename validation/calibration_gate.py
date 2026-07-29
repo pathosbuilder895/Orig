@@ -152,7 +152,7 @@ def _score_corpus_for_g1(client, sid_prefix: str, texts_by_id: dict[str, list[st
             continue
         actions: list[str] = []
         for held_out_idx in range(len(texts)):
-            sid = f"gate:{sid_prefix}_{entity_id}_{held_out_idx}"
+            sid = f"demo:gate_{sid_prefix}_{entity_id}_{held_out_idx}"
             for i, text in enumerate(texts):
                 if i == held_out_idx:
                     continue
@@ -283,7 +283,7 @@ def _compute_g2_q_values(client) -> tuple[list[float], list[float]]:
     for dialogue, chunks in plato_dialogues.items():
         if "eryxias" in dialogue or len(chunks) < 5:
             continue
-        sid = f"gate:g2_{dialogue}"
+        sid = f"demo:gate_g2_{dialogue}"
         for chunk in chunks[:-1]:
             client.post(f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"})
         r = client.post(
@@ -304,7 +304,7 @@ def _compute_g2_q_values(client) -> tuple[list[float], list[float]]:
     reference_dialogues = [
         c for name, chunks in plato_dialogues.items() if "eryxias" not in name for c in chunks
     ][:20]
-    sid = "gate:g2_impostor_reference"
+    sid = "demo:gate_g2_impostor_reference"
     for chunk in reference_dialogues:
         client.post(f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"})
     for text in eryxias_chunks + ai_texts:
@@ -336,7 +336,7 @@ def _compute_g4_group_means() -> dict[str, float]:
     import run as _run_module  # repo-root run.py — see run_all()'s identical import
 
     client = TestClient(_run_module.load_legacy_demo_app())
-    sid = "gate:g4_early_baseline"
+    sid = "demo:gate_g4_early_baseline"
     for chunk in groups["early"]:
         client.post(f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"})
 
