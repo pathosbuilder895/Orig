@@ -14,16 +14,16 @@ change lands.
 |---|---|
 | **Operating point** | 3×500-word baseline samples per student, scored against 500-word probes |
 | **Corpus** | 9 pseudo-students: 5 synthetic seminary authors (`seminary_01`–`05`) + 4 public-domain authors (Burke, Douglass, Lincoln, Paine — chunked from `validation/corpus/`) |
-| **Scorings** | 122 honest (same-author) probes, 176 impostor (other-author) probes |
+| **Scorings** | 122 honest (same-author) probes, 176 impostor (other-author) probes. **Honest-probe composition is heavily skewed toward the four 19th-century public-domain authors: 120/122 (98.4%) are Burke/Douglass/Lincoln/Paine (30 each), and only 2/122 come from seminary students (`seminary_02` and `seminary_04`, one probe each) — three of the five seminary pseudo-students (`seminary_01`, `03`, `05`) contribute zero honest probes and are baseline-only (exactly 3 eligible chunks, all consumed by the 3×500-word baseline).** See §6 for what this means for the proposed boundaries. |
 | **Criterion** | catch rate at a ≤5% false-flag budget (`catch@5%`) — the fraction of impostor probes scored at or above the threshold that keeps honest false-flags at ~5%, per `validation/short_regime/stats.py` |
 | **Harness** | `validation/short_regime/` (runner.py, corpus.py, stats.py, reliability.py); raw grid at `validation/benchmarks/2026-07-29/short_regime/report.json` |
-| **Flags-off floor** | AUC 0.8617 (CI 0.815–0.901), catch@5% = 0.5455 (CI 0.250–0.699), threshold 0.834 (on `deviation_score`) |
+| **Flags-off floor** | AUC 0.8615 (CI 0.815–0.901), catch@5% = 0.5455 (CI 0.250–0.699), threshold 0.834 (on `deviation_score`) |
 | **Winning combo** | **PRIOR+LLR** — `BAYESIAN_PRIOR_ENABLED=1` (with `COHORT_PRIOR_FALLBACK=1`) + `NULL_MODEL=impostor`, decision made on `llr_deviation_score` — AUC 0.880 (CI 0.840–0.915), catch@5% = 0.693 (CI 0.614–0.761), threshold 0.492 |
 | **Net effect** | +0.148 catch@5% absolute (+27% relative) over the flags-off floor, at the same ~5% false-flag budget |
 
 The improvement is driven almost entirely by one lever (LLR — the explicit impostor-pool null
 model). This is a genre-matched three-way corpus (seminary synthetic + 19th-century public
-authors) at a single 500-word/3-sample operating point; see §5 for what the CI widths and
+authors) at a single 500-word/3-sample operating point; see §6 for what the CI widths and
 9-student sample size do and do not let us claim.
 
 ---
@@ -91,6 +91,16 @@ PRIOR_WEIGHT=3.0
 
 Decision statistic for the short bucket (submissions with fewer/shorter baseline samples,
 practically ≤3×500 words): `llr_deviation_score` instead of `deviation_score`.
+
+> ⚠️ **These four flags are a bundle with the §4 action rebind — do not ship them alone.**
+> Today `deviation_score` drives the `action` field; `llr_deviation_score` is attach-only
+> (§4). If `BAYESIAN_PRIOR_ENABLED=1` + `COHORT_PRIOR_FALLBACK=1` ship **without** also
+> rebinding the short-bucket action to `llr_deviation_score` (§4), the live decision statistic
+> is still `deviation_score`, which lands on the **PRIOR** row of the §2 grid, not PRIOR+LLR:
+> AUC 0.738, catch@5% = 0.102 — *below the 0.545 flags-off floor*, i.e. materially worse at
+> catching impostors than doing nothing. The prior flags are only beneficial in combination
+> with the llr decision-statistic rebind; enabling them alone measurably degrades catch at the
+> short operating point and must not be done.
 
 ### 3.2 Computing the proposed band boundaries
 
@@ -263,8 +273,70 @@ implementation is a separate, explicitly-approved follow-up.
 
 ---
 
-## 5. Limitations
+## 5. Attack probes (AI-generated and ghostwritten essays)
 
+Each combo's `report.json` entry also carries an `attacks` array — 45 labeled synthetic attack
+probes (25 `kind: "ai"`, 20 `kind: "ghost"`) scored against all five seminary pseudo-students'
+baselines (`seminary_01`–`05` only; the public-domain authors are not attack targets). No prior
+deliverable in this validation round reported these. Below is each combo's catch rate at its own
+selected `threshold` (the same field §3.2 and the grid in §2 use).
+
+Computed with `.venv/bin/python` from the worktree root:
+
+```python
+import json
+
+with open("validation/benchmarks/2026-07-29/short_regime/report.json") as f:
+    data = json.load(f)
+
+for name in ["OFF", "PRIOR+LLR"]:
+    combo = next(c for c in data if c["combo"] == name)
+    thr = combo["threshold"]
+    ai = [a for a in combo["attacks"] if a["kind"] == "ai"]
+    ghost = [a for a in combo["attacks"] if a["kind"] == "ghost"]
+    ai_catch = sum(1 for a in ai if a["score"] >= thr) / len(ai)
+    ghost_catch = sum(1 for a in ghost if a["score"] >= thr) / len(ghost)
+    print(f"{name}: threshold={thr}, ai catch={ai_catch:.2f} ({sum(1 for a in ai if a['score'] >= thr)}/{len(ai)}), "
+          f"ghost catch={ghost_catch:.2f} ({sum(1 for a in ghost if a['score'] >= thr)}/{len(ghost)})")
+```
+
+Output:
+
+```
+OFF: threshold=0.8338, ai catch=0.44 (11/25), ghost catch=0.05 (1/20)
+PRIOR+LLR: threshold=0.4918, ai catch=0.56 (14/25), ghost catch=0.55 (11/20)
+```
+
+| combo | threshold | AI-probe catch (n=25) | Ghostwriter-probe catch (n=20) |
+|---|---|---|---|
+| OFF (flags-off floor) | 0.8338 | 44.0% (11/25) | 5.0% (1/20) |
+| PRIOR+LLR (proposed) | 0.4918 | 56.0% (14/25) | 55.0% (11/20) |
+
+At the flags-off floor, ghostwriter-probe catch (5.0%) sits right at the ~5% false-flag budget
+the threshold was calibrated to — i.e. the current scheme catches purchased/ghostwritten essays
+at roughly chance for a system tuned to a 5% honest false-flag rate. PRIOR+LLR materially
+improves ghostwriter catch (5.0% → 55.0%) and AI-probe catch (44.0% → 56.0%) at its own
+5%-budget threshold. These numbers are small-n (25 and 20 probes), come from labeled synthetic
+attacks (not confirmed real-world cheating incidents), and are scored only against the five
+seminary pseudo-students — they should be read as directional evidence that the LLR lever also
+helps against adversarial submissions, not as a calibrated attack-catch rate for the pilot
+population.
+
+---
+
+## 6. Limitations
+
+- **The honest distribution is fitted almost entirely to 19th-century prose, not to seminary
+  students.** 120/122 (98.4%) of the honest (same-author) probes are drawn from four
+  public-domain authors — Burke, Douglass, Lincoln, Paine (30 chunks each) — not from the
+  seminary population the product actually scores. Seminary students contribute only 2 honest
+  probes total (`seminary_02` and `seminary_04`, one each); three of the five seminary
+  pseudo-students (`seminary_01`, `03`, `05`) have exactly 3 eligible 500-word chunks, all
+  consumed by the baseline, and so contribute zero honest probes. Every proposed band boundary
+  in §3.2/§3.3 — including the escalate floor — is therefore a quantile of 19th-century essayist
+  prose, not of student writing. These boundaries must be refit on real pilot-student data
+  before adoption; they are not yet evidence about how seminary students' honest submissions
+  are distributed.
 - **Confidence-interval widths.** Several CIs in §2 are wide enough to overlap adjacent combos —
   e.g. OFF's catch@5% CI is 0.250–0.699, nearly as wide as the entire 0.10–0.69 range spanned by
   all 16 combos. The PRIOR+LLR vs. OFF catch@5% point-estimate gap (0.693 vs 0.545) is real and
@@ -295,7 +367,7 @@ implementation is a separate, explicitly-approved follow-up.
 
 ---
 
-## 6. Bottom line
+## 7. Bottom line
 
 PRIOR+LLR is the best-measured combo at this operating point and the proposed boundaries in
 §3.2 reproduce the harness's own threshold selection almost exactly. The catch@5% gain is real
