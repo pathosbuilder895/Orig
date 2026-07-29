@@ -114,27 +114,21 @@ def test_reads_raise_on_unreadable_existing_db(tmp_path, monkeypatch):
 
 @pytest.fixture
 def memory_store(monkeypatch):
-    """Point the store at ORIGINAL_DB=':memory:' with a fresh shared-connection
-    singleton, isolated from any other test's in-memory database.
+    """Point the store at ORIGINAL_DB=':memory:' with a guaranteed-fresh
+    shared-cache in-memory database, isolated from any other test's data.
 
     ``_isolated_store`` (autouse, above) already points ``_DB_PATH`` at a
     temp *file* for every test in this module; this fixture overrides that
-    to the literal ``":memory:"`` sentinel for the tests below, and resets
-    the process-wide ``_MEMORY_CONN`` singleton so this test neither inherits
-    another test's connection nor leaks its own into a later one.
+    to the literal ``":memory:"`` sentinel for the tests below. Calls
+    ``store.reset_memory_conn()`` before AND after — the same reset hook a
+    real caller (e.g. a harness that runs more than one logical "run" in one
+    process) would use — so this test neither inherits another test's
+    in-memory data nor leaks its own into a later one.
     """
     monkeypatch.setattr(store, "_DB_PATH", Path(":memory:"))
-    # raising=False: pre-fix, ``_MEMORY_CONN`` doesn't exist yet, and the
-    # fixture must still work (with the fix's actual bug behaviour showing
-    # up as a meaningful assertion failure, not a setup AttributeError).
-    monkeypatch.setattr(store, "_MEMORY_CONN", None, raising=False)
+    store.reset_memory_conn()
     yield store
-    # monkeypatch restores the module attribute at teardown, but won't close
-    # whatever live connection this test created — do that explicitly so we
-    # don't leak an open sqlite3.Connection object.
-    conn = getattr(store, "_MEMORY_CONN", None)
-    if conn is not None:
-        conn.close()
+    store.reset_memory_conn()
 
 
 def test_memory_db_survives_a_write_then_read_round_trip(memory_store):
@@ -166,24 +160,60 @@ def test_memory_db_survives_a_write_then_read_round_trip(memory_store):
     assert len(reloaded.samples) == 1
 
 
-def test_memory_db_reuses_the_same_connection_object(memory_store):
-    """Every _get_conn() call under ORIGINAL_DB=':memory:' must return the
-    identical Connection object, not merely an equivalent one — that's what
-    keeps the anonymous in-memory database alive across calls."""
+def test_memory_db_connections_are_distinct_objects_that_share_data(memory_store):
+    """Every _get_conn() call under ORIGINAL_DB=':memory:' returns a fresh
+    Connection object -- the same shape as the file-backed path, via SQLite's
+    named shared-cache URI rather than a single reused connection -- but
+    every such connection attaches to the SAME underlying database, so a
+    write from one is immediately visible to a read from another."""
     conn1 = store._get_conn()
     conn2 = store._get_conn()
-    assert conn1 is conn2
+    assert conn1 is not conn2, (
+        "each call must return its own Connection object, matching the "
+        "file-backed path's fresh-connection-per-call shape"
+    )
+    with conn1:
+        conn1.execute(
+            "INSERT OR REPLACE INTO student_profiles (student_id, data) VALUES (?, ?)",
+            ("probe", "{}"),
+        )
+    rows = conn2.execute(
+        "SELECT student_id FROM student_profiles WHERE student_id = ?", ("probe",)
+    ).fetchall()
+    assert rows == [("probe",)]
+    conn1.close()
+    conn2.close()
+
+
+def test_reset_memory_conn_gives_a_genuinely_empty_database(memory_store):
+    """reset_memory_conn() must make the NEXT _get_conn() call see a fresh,
+    empty database, not the previous run's leftover data -- the guarantee
+    validation/benchmark/reproducibility.py's docstring promises ("no
+    cross-run store contamination") for any caller that constructs more than
+    one logical "run" (e.g. more than one TestClient / more than one
+    baseline-then-score pass) within a single process.
+    """
+    state = _make_state("student-before-reset")
+    memory_store.put(state)
+    assert memory_store.get("student-before-reset") is not None  # sanity check
+
+    store.reset_memory_conn()
+
+    assert memory_store.get("student-before-reset") is None
 
 
 def test_memory_db_does_not_affect_file_backed_path(tmp_path, monkeypatch):
-    """The fix must be scoped to ':memory:' only — the file-backed (production
-    default) path keeps its existing fresh-connection-per-call behaviour."""
+    """The fix must be scoped to ':memory:' only -- the file-backed
+    (production default) path keeps its existing fresh-connection-per-call
+    behaviour, and reset_memory_conn() must be harmless to call there (it
+    only touches ':memory:'-mode state that this path never uses)."""
     db_file = tmp_path / "profiles.db"
     monkeypatch.setattr(store, "_DB_PATH", db_file)
-    monkeypatch.setattr(store, "_MEMORY_CONN", None, raising=False)
 
     conn1 = store._get_conn()
     conn2 = store._get_conn()
     assert conn1 is not conn2
     conn1.close()
     conn2.close()
+
+    store.reset_memory_conn()  # must not raise, must not touch the file DB
