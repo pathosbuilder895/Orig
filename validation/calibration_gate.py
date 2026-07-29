@@ -173,6 +173,23 @@ def _score_corpus_for_g1(client, sid_prefix: str, texts_by_id: dict[str, list[st
 
 
 def run_all() -> list[GateResult]:
+    # Defensive reset, before anything else: ENV_LOCK (module import time,
+    # above) already put us on ORIGINAL_DB=":memory:", so this is a no-op
+    # today (the first _get_conn() call in a fresh process already gets an
+    # empty database). It's insurance against a second, currently-untaken
+    # call path: nothing prevents run_all() from being invoked twice in one
+    # process (e.g. a future test harness, or a REPL/notebook session), and
+    # without this, a second call would silently reuse the first call's
+    # leftover ":memory:" data — get_or_create() would double every gate
+    # student's baseline sample count instead of starting fresh, corrupting
+    # every gate's numbers without raising anything. This is exactly what
+    # original/store.py's reset_memory_conn() exists to prevent; it's a
+    # no-op on the file-backed path (see its docstring), so this line is
+    # always safe regardless of ORIGINAL_DB.
+    from original import store
+
+    store.reset_memory_conn()
+
     os.environ["TYPICALITY_SCORING"] = "1"
 
     import run as _run_module  # the project's run.py at repo root — same

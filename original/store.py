@@ -104,11 +104,35 @@ _GENRE_STATS_CACHE: dict[str, dict | None] = {}
 # call — including for ":memory:" now — returns a brand-new Connection object
 # used by exactly one caller, identical in shape to the file-backed path. There
 # is no shared mutable Connection object for two threads to contend over, so
-# none of the transaction-flattening or cross-thread ProgrammingError hazards
-# a single shared *query* connection would have (a `with conn:` block on one
-# caller's connection commits/rolls back only that connection's own
-# transaction — never another caller's — because each caller has its own
-# connection now, same as the file-backed path always did).
+# the earlier design's transaction-flattening hazard (a `with conn:` block on
+# one caller's connection committing/rolling back a DIFFERENT caller's
+# in-flight transaction, because both callers shared the same connection
+# object) is gone: each caller has its own connection now, same as the
+# file-backed path always did.
+#
+# That is NOT the same as saying ":memory:" now supports genuinely concurrent
+# store access, though — it does not, and this is a real, currently-latent
+# limitation, not a solved problem. Measured directly: two threads (a writer
+# holding a write transaction open, and a second connection trying to write
+# the same table while the first is mid-transaction) reproduce a "database
+# table is locked" OperationalError in ~70 microseconds even with
+# busy_timeout=5000 set on both connections — vs. the file-backed WAL path,
+# which genuinely waits (~1.8s, until the holder's transaction ends) under
+# the identical scenario. SQLite's shared-cache mode enforces its own
+# inter-connection *table*-level locking, and that locking bypasses the
+# regular busy handler entirely — busy_timeout is measurably inert here, not
+# just untested. original/lab/runner.py's background
+# ThreadPoolExecutor(max_workers=1) writer thread + a request thread polling
+# for status is exactly this shape; it doesn't reach ":memory:" today (no
+# validation script drives /lab/), so this is Important, not Critical, but it
+# would need solving before ":memory:" could be used anywhere with that kind
+# of concurrent access. Candidate directions if that's ever needed —
+# evaluate, don't assume: ``PRAGMA read_uncommitted=1`` (relaxes shared-cache
+# read isolation, does not by itself fix writer-vs-writer table locking), or
+# SQLite's ``vfs=memdb`` (present and connectable on this build, SQLite
+# 3.53.1, via ``file:<name>?vfs=memdb&cache=shared`` — whether its locking
+# behavior actually differs from plain ``cache=shared`` under concurrent
+# writes has not been checked and should not be assumed).
 _MEMORY_DB_BASENAME = "original_store_memdb"
 _MEMORY_GENERATION = 0
 _MEMORY_KEEPALIVE_CONN: sqlite3.Connection | None = None
