@@ -614,6 +614,233 @@ class TestGetGenreStatsTenantIsolation:
         assert repo.get_genre_stats("homiletics", "seminary-b", None) is None
 
 
+# ── get_cohort_stats ─────────────────────────────────────────────────────────
+#
+# get_genre_stats's genre-agnostic sibling (COHORT_PRIOR_FALLBACK): the SAME
+# pool scan and the SAME genre_stats_from_groups arithmetic with the genre
+# filter dropped. It therefore takes the same (tenant, exclude_student_id)
+# pair and inherits — rather than re-states — tenant isolation, the
+# leave-one-out exclusion, both cold-start floors, and n_students. The
+# classes below assert that inheritance holds on every backend: a
+# hand-rolled second aggregation that quietly skipped any of them is exactly
+# the regression this file exists to catch.
+#
+# Every _make_state id here is unscoped/legacy-flat (no ":"), so tenant_of()
+# is None for all of them — hence `get_cohort_stats(None, ...)`; see
+# TestGetCohortStatsTenantIsolation for the scoped-id case.
+
+
+class TestGetCohortStats:
+    def test_returns_none_with_no_students(self, repo):
+        assert repo.get_cohort_stats(None, None) is None
+
+    def test_returns_none_below_student_floor(self, repo):
+        # 2 contributing students, 6 vectors total — still None: student
+        # floor (3) not met even though the vector floor (5) is.
+        repo.put(_make_state("student-N0", n=3, genre="argumentative_essay"))
+        repo.put(_make_state("student-N1", n=3, genre="lab_report"))
+        assert repo.get_cohort_stats(None, None) is None
+
+    def test_returns_none_below_vector_floor(self, repo):
+        # 3 contributing students but only 3 vectors total — below the
+        # vector floor (5) even though the student floor (3) is met.
+        repo.put(_make_state("student-O0", n=1, genre="argumentative_essay"))
+        repo.put(_make_state("student-O1", n=1, genre="lab_report"))
+        repo.put(_make_state("student-O2", n=1, genre=None))
+        assert repo.get_cohort_stats(None, None) is None
+
+    def test_returns_stats_with_enough_students_and_vectors(self, repo):
+        repo.put(_make_state("student-P0", n=2, genre="argumentative_essay"))
+        repo.put(_make_state("student-P1", n=2, genre="lab_report"))
+        repo.put(_make_state("student-P2", n=2, genre=None))
+        result = repo.get_cohort_stats(None, None)
+        assert result is not None
+        assert result["n_samples"] == 6
+        assert result["mean"].shape == (FEATURE_DIM,)
+        assert result["std"].shape == (FEATURE_DIM,)
+
+    def test_reports_n_students_for_the_blend_damping(self, repo):
+        # scoring.score() damps the prior's blend weight by n_students. A
+        # cohort dict without it would silently take the UNDAMPED path — i.e.
+        # a genre-MISmatched fallback prior would be trusted more than the
+        # genre-matched prior it stands in for. Exactly backwards.
+        for i in range(4):
+            repo.put(_make_state(f"student-PN{i}", n=2, genre="a"))
+        result = repo.get_cohort_stats(None, None)
+        assert result is not None
+        assert result["n_students"] == 4
+
+    def test_genre_is_not_filtered(self, repo):
+        # Mixed genres (including None) all count toward the cohort — this
+        # is exactly what distinguishes get_cohort_stats from get_genre_stats.
+        repo.put(_make_state("student-Q0", n=2, genre="sermon"))
+        repo.put(_make_state("student-Q1", n=2, genre="exegesis"))
+        repo.put(_make_state("student-Q2", n=2, genre=None))
+        result = repo.get_cohort_stats(None, None)
+        assert result is not None
+        assert result["n_samples"] == 6
+
+    def test_cohort_pool_is_not_the_genre_pool(self, repo):
+        # Same students, all in DIFFERENT genres: no single genre clears the
+        # floors, but the cohort — which ignores genre — does. This is the
+        # whole point of the fallback, and it also proves the two share a
+        # cache without colliding (genre=None is its own key).
+        for i, genre in enumerate(["sermon", "exegesis", "homiletics"]):
+            repo.put(_make_state(f"student-QC{i}", n=2, genre=genre))
+        assert repo.get_genre_stats("sermon", None, None) is None
+        assert repo.get_genre_stats("exegesis", None, None) is None
+        cohort = repo.get_cohort_stats(None, None)
+        assert cohort is not None
+        assert cohort["n_samples"] == 6
+
+    def test_std_floored_at_005(self, repo):
+        repo.put(_make_state("student-R0", n=2, genre="a"))
+        repo.put(_make_state("student-R1", n=2, genre="b"))
+        repo.put(_make_state("student-R2", n=2, genre="c"))
+        result = repo.get_cohort_stats(None, None)
+        assert result is not None
+        assert float(np.min(result["std"])) >= 0.005
+
+    def test_cache_busted_after_put(self, repo):
+        repo.put(_make_state("student-T0", n=2, genre="a"))
+        repo.put(_make_state("student-T1", n=2, genre="b"))
+        repo.put(_make_state("student-T2", n=2, genre="c"))
+        r1 = repo.get_cohort_stats(None, None)
+        assert r1 is not None
+        repo.put(_make_state("student-T3", n=1, genre="d"))
+        r2 = repo.get_cohort_stats(None, None)
+        assert r2 is not None
+        assert r2["n_samples"] == 7
+
+    def test_unverified_samples_never_pooled(self, repo):
+        # student-U0 has only an unverified (auth_weight=0) sample — it must
+        # not count as a contributing student, nor its vector toward n_samples.
+        state = StudentState(student_id="student-U0")
+        state.add_sample(
+            BaselineSample(
+                text="unverified",
+                vector=np.random.default_rng(1).random(FEATURE_DIM).astype(np.float64),
+                provenance="unverified",
+                auth_weight=0.0,
+                genre="a",
+            )
+        )
+        repo.put(state)
+        repo.put(_make_state("student-U1", n=2, genre="b"))
+        repo.put(_make_state("student-U2", n=2, genre="c"))
+        repo.put(_make_state("student-U3", n=2, genre="d"))
+        result = repo.get_cohort_stats(None, None)
+        assert result is not None
+        assert result["n_samples"] == 6  # 2+2+2 authenticated only; U0's sample excluded
+
+
+class TestGetCohortStatsSelfExclusion:
+    """Leave-one-out matters MORE for the cohort prior than for the genre
+    prior, not less: a tenant-wide pool in a small tenant is precisely where
+    one student is a large fraction of "their own" population statistic."""
+
+    def test_scored_students_own_samples_are_excluded(self, repo):
+        for i in range(4):
+            repo.put(_make_state(f"student-CX{i}", n=2, genre="a"))
+        result = repo.get_cohort_stats(None, "student-CX0")
+        assert result is not None
+        assert result["n_samples"] == 6
+        assert result["n_students"] == 3
+
+    def test_a_prolific_student_cannot_drag_their_own_cohort_prior(self, repo):
+        repo.put(_make_state("student-CY0", n=20, genre="a"))
+        for i in range(1, 4):
+            repo.put(_make_state(f"student-CY{i}", n=2, genre="b"))
+        with_self = repo.get_cohort_stats(None, None)
+        without_self = repo.get_cohort_stats(None, "student-CY0")
+        assert with_self is not None and without_self is not None
+        assert with_self["n_samples"] == 26
+        assert without_self["n_samples"] == 6
+        assert not np.allclose(with_self["mean"], without_self["mean"])
+
+    def test_exclusion_can_drop_the_pool_below_a_floor(self, repo):
+        # 3 students x 2 = 6 vectors; removing one leaves 4 < the vector floor.
+        for i in range(3):
+            repo.put(_make_state(f"student-CZ{i}", n=2, genre="a"))
+        assert repo.get_cohort_stats(None, None) is not None
+        assert repo.get_cohort_stats(None, "student-CZ0") is None
+
+    def test_cache_is_keyed_per_excluded_student(self, repo):
+        # A pool cached without regard to the exclusion would hand the next
+        # student a prior that still contains their own writing.
+        for i in range(4):
+            repo.put(_make_state(f"student-CC{i}", n=2, genre="a"))
+        a = repo.get_cohort_stats(None, "student-CC0")
+        b = repo.get_cohort_stats(None, "student-CC1")
+        full = repo.get_cohort_stats(None, None)
+        assert a is not None and b is not None and full is not None
+        assert full["n_samples"] == 8
+        assert a["n_samples"] == b["n_samples"] == 6
+        assert not np.allclose(a["mean"], b["mean"])
+        # ... and again now that all three keys are warm.
+        assert repo.get_cohort_stats(None, "student-CC0")["n_samples"] == 6
+        assert repo.get_cohort_stats(None, None)["n_samples"] == 8
+
+
+class TestGetCohortStatsTenantIsolation:
+    """The core regression this contract must hold on every backend: a
+    student in tenant B must never contribute to tenant A's cohort prior.
+    Mirrors null_pool.py's test_pool_excludes_claimed_student_and_other_tenants
+    (tests/test_null_model.py) for the sibling tenant-scoping guarantee."""
+
+    def test_other_tenant_students_excluded(self, repo):
+        for i in range(3):
+            repo.put(_make_state(f"tenantA:student{i}", n=2, genre="a"))
+        for i in range(3):
+            repo.put(_make_state(f"tenantB:student{i}", n=2, genre="b"))
+
+        result_a = repo.get_cohort_stats("tenantA", None)
+        assert result_a is not None
+        assert result_a["n_samples"] == 6  # only tenant A's 3×2 vectors
+
+        result_b = repo.get_cohort_stats("tenantB", None)
+        assert result_b is not None
+        assert result_b["n_samples"] == 6  # only tenant B's 3×2 vectors
+
+    def test_below_floor_in_isolation_even_if_global_pool_is_not(self, repo):
+        # Enough students/vectors GLOBALLY to clear both floors, but only 1
+        # in tenant A — must still be None for tenant A specifically.
+        repo.put(_make_state("tenantA:solo", n=2, genre="a"))
+        for i in range(3):
+            repo.put(_make_state(f"tenantB:student{i}", n=2, genre="b"))
+
+        assert repo.get_cohort_stats("tenantA", None) is None
+        assert repo.get_cohort_stats("tenantB", None) is not None
+
+    def test_legacy_flat_and_real_tenant_are_distinct_pools(self, repo):
+        # An unscoped (legacy-flat) id's tenant_of() is None — a real
+        # tenant's cohort must not absorb it, and vice versa.
+        for i in range(3):
+            repo.put(_make_state(f"flat-student-{i}", n=2, genre="a"))
+        for i in range(3):
+            repo.put(_make_state(f"tenantC:student{i}", n=2, genre="b"))
+
+        flat_result = repo.get_cohort_stats(None, None)
+        assert flat_result is not None
+        assert flat_result["n_samples"] == 6
+
+        tenant_result = repo.get_cohort_stats("tenantC", None)
+        assert tenant_result is not None
+        assert tenant_result["n_samples"] == 6
+
+    def test_exclusion_is_scoped_to_the_tenant_too(self, repo):
+        # Exclusion matches the full scoped id, not a bare local name.
+        for i in range(4):
+            repo.put(_make_state(f"tenantD:student{i}", n=2, genre="a"))
+        for i in range(4):
+            repo.put(_make_state(f"tenantE:student{i}", n=2, genre="a"))
+        d = repo.get_cohort_stats("tenantD", "tenantD:student0")
+        e = repo.get_cohort_stats("tenantE", "tenantD:student0")
+        assert d is not None and e is not None
+        assert d["n_samples"] == 6  # one of its own removed
+        assert e["n_samples"] == 8  # untouched: different tenant
+
+
 # ── delete_student ────────────────────────────────────────────────────────────
 
 

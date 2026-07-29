@@ -115,6 +115,9 @@ class Repository(Protocol):
     def get_genre_stats(
         self, genre: str, tenant: str | None, exclude_student_id: str | None
     ) -> dict | None: ...
+    def get_cohort_stats(
+        self, tenant: str | None, exclude_student_id: str | None
+    ) -> dict | None: ...
 
     # ── Corrections ──────────────────────────────────────────────────────
     def put_correction(
@@ -420,6 +423,9 @@ class SqliteRepository:
         self, genre: str, tenant: str | None, exclude_student_id: str | None
     ) -> dict | None:
         return store.get_genre_stats(genre, tenant, exclude_student_id)
+
+    def get_cohort_stats(self, tenant: str | None, exclude_student_id: str | None) -> dict | None:
+        return store.get_cohort_stats(tenant, exclude_student_id)
 
     # ── Corrections ──────────────────────────────────────────────────────
     def put_correction(
