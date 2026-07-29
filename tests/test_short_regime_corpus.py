@@ -11,7 +11,11 @@ pytestmark = pytest.mark.skipif(not CORPUS.exists(), reason="validation corpus a
 
 def test_pools_have_expected_authors_and_chunk_sizes():
     pools = build_pools(CORPUS, words=500)
-    for author in ["seminary_01", "seminary_05", "burke", "douglass", "lincoln", "paine"]:
+    authors = [
+        "seminary_01", "seminary_02", "seminary_03", "seminary_04", "seminary_05",
+        "burke", "douglass", "lincoln", "paine",
+    ]
+    for author in authors:
         assert author in pools, author
         assert all(len(c.split()) == 500 for c in pools[author])
     assert len(pools["burke"]) > 50          # 173 docs -> plenty of chunks
@@ -29,6 +33,9 @@ def test_trials_disjoint_and_deterministic():
         assert set(tr.baseline).isdisjoint(set(tr.honest))
         assert t2[[x.student_id for x in t2].index(tr.student_id)].baseline == tr.baseline
     assert sum(len(t.honest) for t in t1) >= 20
+    by_id = {t.student_id: t for t in t1}
+    assert by_id["seminary_01"].honest == []      # 3-chunk author: baseline-only, still a trial
+    assert len(by_id["seminary_01"].baseline) == 3
 
 
 def test_attack_probes_labeled():
