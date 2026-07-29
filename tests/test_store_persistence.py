@@ -13,6 +13,7 @@ the first read rather than presenting as an empty store.
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -109,3 +110,80 @@ def test_reads_raise_on_unreadable_existing_db(tmp_path, monkeypatch):
         store.count()
     with pytest.raises(sqlite3.Error):
         store.get("anyone")
+
+
+@pytest.fixture
+def memory_store(monkeypatch):
+    """Point the store at ORIGINAL_DB=':memory:' with a fresh shared-connection
+    singleton, isolated from any other test's in-memory database.
+
+    ``_isolated_store`` (autouse, above) already points ``_DB_PATH`` at a
+    temp *file* for every test in this module; this fixture overrides that
+    to the literal ``":memory:"`` sentinel for the tests below, and resets
+    the process-wide ``_MEMORY_CONN`` singleton so this test neither inherits
+    another test's connection nor leaks its own into a later one.
+    """
+    monkeypatch.setattr(store, "_DB_PATH", Path(":memory:"))
+    # raising=False: pre-fix, ``_MEMORY_CONN`` doesn't exist yet, and the
+    # fixture must still work (with the fix's actual bug behaviour showing
+    # up as a meaningful assertion failure, not a setup AttributeError).
+    monkeypatch.setattr(store, "_MEMORY_CONN", None, raising=False)
+    yield store
+    # monkeypatch restores the module attribute at teardown, but won't close
+    # whatever live connection this test created — do that explicitly so we
+    # don't leak an open sqlite3.Connection object.
+    conn = getattr(store, "_MEMORY_CONN", None)
+    if conn is not None:
+        conn.close()
+
+
+def test_memory_db_survives_a_write_then_read_round_trip(memory_store):
+    """ORIGINAL_DB=':memory:' must behave like a shared database within one
+    process, not a fresh anonymous database per connection.
+
+    Regression for the bug where every ``_get_conn()`` call did
+    ``sqlite3.connect(":memory:")`` — which creates a brand-new, unshared,
+    anonymous in-memory database each time, not a shared one. Since
+    ``with _get_conn() as conn: ...`` only manages the transaction (commit /
+    rollback), never closes the connection, each connection became eligible
+    for GC right after use, taking its anonymous database with it. A
+    baseline written by one call was therefore invisible to a later read —
+    exactly what ``validation/benchmark/reproducibility.py``'s
+    ``lock_environment()`` (``ORIGINAL_DB=":memory:"``, used by every
+    validation script) hits on any baseline-then-score round trip in one
+    process.
+    """
+    state = _make_state("student-memtest")
+    memory_store.put(state)
+
+    reloaded = memory_store.get("student-memtest")
+
+    assert reloaded is not None, (
+        "a baseline written via put() must be visible to a later get() "
+        "within the same process when ORIGINAL_DB=':memory:'"
+    )
+    assert reloaded.student_id == "student-memtest"
+    assert len(reloaded.samples) == 1
+
+
+def test_memory_db_reuses_the_same_connection_object(memory_store):
+    """Every _get_conn() call under ORIGINAL_DB=':memory:' must return the
+    identical Connection object, not merely an equivalent one — that's what
+    keeps the anonymous in-memory database alive across calls."""
+    conn1 = store._get_conn()
+    conn2 = store._get_conn()
+    assert conn1 is conn2
+
+
+def test_memory_db_does_not_affect_file_backed_path(tmp_path, monkeypatch):
+    """The fix must be scoped to ':memory:' only — the file-backed (production
+    default) path keeps its existing fresh-connection-per-call behaviour."""
+    db_file = tmp_path / "profiles.db"
+    monkeypatch.setattr(store, "_DB_PATH", db_file)
+    monkeypatch.setattr(store, "_MEMORY_CONN", None, raising=False)
+
+    conn1 = store._get_conn()
+    conn2 = store._get_conn()
+    assert conn1 is not conn2
+    conn1.close()
+    conn2.close()

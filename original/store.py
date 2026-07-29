@@ -14,6 +14,7 @@ import json
 import logging
 import os
 import sqlite3
+import threading
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -52,11 +53,65 @@ _GENRE_STATS_CACHE: dict[str, dict | None] = {}
 
 # ── SQLite helpers ────────────────────────────────────────────────────────────
 
+# Process-wide singleton for the ``ORIGINAL_DB=":memory:"`` case ONLY (used by
+# validation/benchmark/reproducibility.py's lock_environment(), and every
+# validation script built on it, to guarantee no cross-run store
+# contamination). sqlite3.connect(":memory:") creates a brand-new, anonymous,
+# UNSHARED database on every call — it is not a handle onto one shared
+# database the way a file path is. Since every call site uses
+# ``with _get_conn() as conn: ...``, and the context-manager protocol on a
+# sqlite3.Connection only manages the transaction (commit/rollback) and does
+# NOT close the connection, a fresh-connection-per-call policy (correct, and
+# unchanged below, for the file-backed path) would make each anonymous
+# in-memory database eligible for GC — and gone — right after the call that
+# created it. A write from one call would then be invisible to a read from
+# the next. Caching one connection here, reused for the schema's lifetime,
+# is what makes ":memory:" behave like a real shared database within the
+# process. Mirrors the existing ``_REPO`` lazy-singleton pattern in
+# original/repository.py's get_repository().
+#
+# check_same_thread=False: FastAPI/Starlette dispatches sync (``def``, not
+# ``async def``) route handlers — which both ``add_baseline`` and
+# ``score_submission`` are — via run_in_threadpool, and empirically this can
+# and does put sequential calls from a single test/script thread onto
+# *different* worker threads (verified directly: two sequential
+# TestClient.post() calls from one Python thread landed on two distinct OS
+# thread idents inside this module). sqlite3 would otherwise raise
+# ProgrammingError the first time a second thread touched this connection.
+# This is safe here because (a) Python's sqlite3 reports threadsafety=3
+# ("serialized") on this build — the underlying SQLite library itself
+# serializes concurrent statement execution via internal mutexes, so two
+# threads cannot corrupt shared state by touching the same connection —
+# and (b) the actual call pattern (tests, validation scripts, in-process
+# TestClient) is sequential: at most one request is ever in flight at a
+# time, never two threads issuing overlapping statements concurrently. This
+# reasoning does NOT extend to genuinely concurrent multi-request production
+# traffic, but ":memory:" is a benchmark/test-only mode (see
+# reproducibility.py's docstring) that never runs in that configuration.
+#
+# _MEMORY_CONN_LOCK guards a *different* hazard than the paragraph above: the
+# lazy-init race on first use (two threads both seeing ``_MEMORY_CONN is
+# None`` and each creating — and one of them orphaning — their own
+# connection + schema). The actual call pattern never exercises this window
+# (sequential, one request in flight at a time — see above), but the guard
+# is cheap and removes any doubt, so it is included rather than relied on by
+# omission.
+_MEMORY_CONN_LOCK = threading.Lock()
+_MEMORY_CONN: sqlite3.Connection | None = None
 
-def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(_DB_PATH), timeout=10.0)
+
+def _init_schema(conn: sqlite3.Connection) -> None:
+    """Apply pragmas and the full CREATE-TABLE-IF-NOT-EXISTS ladder to a
+    freshly-opened connection. Split out of ``_get_conn()`` so the
+    ``:memory:`` singleton can run this exactly once (on first connect)
+    instead of on every call, while the file-backed path keeps running it
+    on every call exactly as before (cheap — all-IF-NOT-EXISTS — and how
+    the WS-1 A1 "corrupt DB fails loudly" guarantee is preserved)."""
     # Concurrency hardening for pilot use: WAL allows readers during a write;
     # busy_timeout avoids spurious "database is locked" under parallel requests.
+    # On ":memory:" WAL is not a supported mode; SQLite silently falls back to
+    # "memory" journal mode instead of erroring (verified directly), so this
+    # is harmless there too.
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=5000")
     conn.execute("PRAGMA synchronous=NORMAL")
@@ -410,6 +465,23 @@ def _get_conn() -> sqlite3.Connection:
         )
     """)
     conn.commit()
+
+
+def _get_conn() -> sqlite3.Connection:
+    if str(_DB_PATH) == ":memory:":
+        global _MEMORY_CONN
+        if _MEMORY_CONN is None:
+            with _MEMORY_CONN_LOCK:
+                if _MEMORY_CONN is None:  # double-checked: re-test inside the lock
+                    conn = sqlite3.connect(":memory:", timeout=10.0, check_same_thread=False)
+                    _init_schema(conn)
+                    _MEMORY_CONN = conn
+        return _MEMORY_CONN
+
+    # File-backed path (production default): unchanged fresh-connection-per-
+    # call behaviour, exactly as before this fix.
+    conn = sqlite3.connect(str(_DB_PATH), timeout=10.0)
+    _init_schema(conn)
     return conn
 
 
