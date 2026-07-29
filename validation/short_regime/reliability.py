@@ -4,6 +4,10 @@ ICC = between-author variance / total variance per feature. Answers: which
 of the 103 features still separates authors at 500 words? Output feeds the
 Task 6-8 decisions and any future refit of LENGTH_WEIGHT_SCHEDULE['short']
 (constants.py:298 — read the Σ(w²) normalisation comment before refitting).
+
+NOTE: COMPARISON_CODES (char_trigram_profile_divergence, function_word_profile_divergence)
+are hardcoded 0.5 placeholders during extraction and are not real features yet. Their
+ICC entries are marked as None with a note, not 0.0, to avoid false negatives in weighting.
 """
 from __future__ import annotations
 
@@ -16,7 +20,11 @@ import numpy as np
 _ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_ROOT))
 
-from original.constants import ALL_FEATURE_CODES, FEATURE_TIER  # noqa: E402
+from original.constants import (  # noqa: E402
+    ALL_FEATURE_CODES,
+    COMPARISON_CODES,
+    FEATURE_TIER,
+)
 from original.features.pipeline import feature_vector  # noqa: E402
 
 from .corpus import build_pools  # noqa: E402
@@ -49,10 +57,21 @@ def feature_reliability(pools, words: int = 500, max_chunks: int = 30) -> dict[s
 def main() -> int:
     pools = build_pools(_ROOT / "validation" / "corpus", words=500)
     rel = feature_reliability(pools)
-    report = {
-        code: {"icc": round(v, 4), "tier": FEATURE_TIER.get(code, 0)}
-        for code, v in sorted(rel.items(), key=lambda kv: -kv[1])
-    }
+    # Sort by ICC descending, with comparison codes (None) last
+    sorted_items = sorted(
+        rel.items(),
+        key=lambda kv: (kv[0] in COMPARISON_CODES, -kv[1]),
+    )
+    report = {}
+    for code, v in sorted_items:
+        if code in COMPARISON_CODES:
+            report[code] = {
+                "icc": None,
+                "tier": FEATURE_TIER.get(code, 0),
+                "note": "placeholder at extraction time; ICC unmeasurable",
+            }
+        else:
+            report[code] = {"icc": round(v, 4), "tier": FEATURE_TIER.get(code, 0)}
     out = Path(__file__).parent / "reliability_500w.json"
     out.write_text(json.dumps(report, indent=2))
     print(f"wrote {out}", file=sys.stderr)

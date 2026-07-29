@@ -308,7 +308,7 @@
     "tier": 3
   },
   "thematic_progression_score": {
-    "icc": 0.02,
+    "icc": 0.0172,
     "tier": 2
   },
   "adversative_ratio": {
@@ -404,11 +404,13 @@
     "tier": 17
   },
   "char_trigram_profile_divergence": {
-    "icc": 0.0,
-    "tier": 0
+    "icc": null,
+    "tier": 0,
+    "note": "placeholder at extraction time; ICC unmeasurable"
   },
   "function_word_profile_divergence": {
-    "icc": 0.0,
-    "tier": 0
+    "icc": null,
+    "tier": 0,
+    "note": "placeholder at extraction time; ICC unmeasurable"
   }
 }
