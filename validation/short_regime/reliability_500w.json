@@ -1,4 +1,7 @@
 {
+  "_meta": {
+    "note": "Measured ICC values vary at the 3rd-4th decimal place across runs of this script (pipeline hash-order nondeterminism upstream in feature extraction, tracked separately). icc: null entries below are features that emit a constant 0.5 placeholder at extraction time (comparison codes not yet computed, or codes in a currently-disabled feature group) \u2014 their reliability is unmeasured, not measured-and-zero."
+  },
   "pronoun_reference_density": {
     "icc": 0.5489,
     "tier": 2
@@ -102,6 +105,10 @@
   "block_quote_rate": {
     "icc": 0.1676,
     "tier": 16
+  },
+  "thematic_progression_score": {
+    "icc": 0.1648,
+    "tier": 2
   },
   "adverb_rate": {
     "icc": 0.1571,
@@ -307,10 +314,6 @@
     "icc": 0.0203,
     "tier": 3
   },
-  "thematic_progression_score": {
-    "icc": 0.0172,
-    "tier": 2
-  },
   "adversative_ratio": {
     "icc": 0.0171,
     "tier": 2
@@ -380,28 +383,34 @@
     "tier": 16
   },
   "typing_speed_cv": {
-    "icc": 0.0,
-    "tier": 17
+    "icc": null,
+    "tier": 17,
+    "note": "feature group disabled (DISABLED_FEATURE_GROUPS); emits constant 0.5 placeholder at extraction time, not a real value; ICC unmeasurable"
   },
   "burst_ratio": {
-    "icc": 0.0,
-    "tier": 17
+    "icc": null,
+    "tier": 17,
+    "note": "feature group disabled (DISABLED_FEATURE_GROUPS); emits constant 0.5 placeholder at extraction time, not a real value; ICC unmeasurable"
   },
   "deletion_rate": {
-    "icc": 0.0,
-    "tier": 17
+    "icc": null,
+    "tier": 17,
+    "note": "feature group disabled (DISABLED_FEATURE_GROUPS); emits constant 0.5 placeholder at extraction time, not a real value; ICC unmeasurable"
   },
   "pause_density": {
-    "icc": 0.0,
-    "tier": 17
+    "icc": null,
+    "tier": 17,
+    "note": "feature group disabled (DISABLED_FEATURE_GROUPS); emits constant 0.5 placeholder at extraction time, not a real value; ICC unmeasurable"
   },
   "paste_event_rate": {
-    "icc": 0.0,
-    "tier": 17
+    "icc": null,
+    "tier": 17,
+    "note": "feature group disabled (DISABLED_FEATURE_GROUPS); emits constant 0.5 placeholder at extraction time, not a real value; ICC unmeasurable"
   },
   "revision_depth": {
-    "icc": 0.0,
-    "tier": 17
+    "icc": null,
+    "tier": 17,
+    "note": "feature group disabled (DISABLED_FEATURE_GROUPS); emits constant 0.5 placeholder at extraction time, not a real value; ICC unmeasurable"
   },
   "char_trigram_profile_divergence": {
     "icc": null,
