@@ -55,9 +55,9 @@ and already-exercised behavior, not an error path.
 Task 1 measures exactly how much sparser against real data **before** any
 production code changes. It is a gate: run it, read the numbers, and only then
 proceed. If the measured prior-availability drop is unacceptable for pilot
-launch, the fallback is Task 6's documentation-only outcome (record the
+launch, the fallback is Task 3's documentation-only outcome (record the
 cross-tenant pooling as a deliberate, disclosed exception) rather than shipping
-Tasks 2-5.
+Tasks 2 and 4.
 
 ## Out of scope
 
@@ -85,9 +85,9 @@ follow-up issue.
 | `tests/test_store_fidelity.py` | Modify (`:100-111`) | SQLite-internal cache test — tuple cache key. |
 | `CLAUDE.md` | Modify (`:51`) | `BAYESIAN_PRIOR_ENABLED` row states the scoping explicitly. |
 
-Tasks 2-4 change a shared protocol signature and therefore must land as one
+Task 2 changes a shared protocol signature and therefore must land as one
 commit — a reviewer cannot accept the SQLite half while rejecting the Postgres
-half, because `Repository` forces both. Task 5 (the distinct-student floor) is
+half, because `Repository` forces both. Task 4 (the distinct-student floor) is
 deliberately separate: it is the one piece a reviewer can reject while keeping
 the isolation fix.
 
@@ -103,7 +103,7 @@ the isolation fix.
 - Produces: printed report only. Nothing later depends on its code — only on a human reading its output.
 
 This task changes no production behavior. Its output is the input to the
-go/no-go decision on Tasks 2-6.
+go/no-go decision on Tasks 2-4.
 
 - [ ] **Step 1: Write the measurement script**
 
@@ -130,14 +130,22 @@ Run against whichever database ORIGINAL_DB / DATABASE_URL points at:
 from __future__ import annotations
 
 import os
+import sys
 from collections import defaultdict
+from pathlib import Path
 
-from original.principal import tenant_of
-from original.repository import get_repository
+# `python scripts/foo.py` puts scripts/ on sys.path[0], not the repo root,
+# and `original` is not pip-installed into .venv. Same bootstrap every other
+# script in scripts/ uses (see scripts/pilot_preflight.py).
+_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_ROOT))
+
+from original.principal import tenant_of  # noqa: E402
+from original.repository import get_repository  # noqa: E402
 
 # Floors under evaluation. MIN_VECTORS is today's hardcoded 5.
-# MIN_STUDENTS models Task 5's proposed distinct-student floor; set it to 1
-# to see the effect of tenant-scoping alone (Tasks 2-4 without Task 5).
+# MIN_STUDENTS models Task 4's proposed distinct-student floor; set it to 1
+# to see the effect of tenant-scoping alone (Task 2 without Task 4).
 MIN_VECTORS = 5
 MIN_STUDENTS = 3
 
@@ -254,12 +262,12 @@ code.** The decision to proceed is theirs. Record in the report:
 - eligible cold-start events, and prior-availability under each of the three models
 - which tenants lose the most priors
 - whether any single `(tenant, genre)` pool is dominated by one student
-  (`vec` high, `stu` = 1) — that is the evidence for or against Task 5
+  (`vec` high, `stu` = 1) — that is the evidence for or against Task 4
 
 If no dataset in reach has genre-labelled authenticated samples, say so plainly
 rather than reporting a zero as if it were a measurement. In that case the
-honest recommendation is: proceed with Tasks 2-4 (the isolation fix stands on
-its own) and defer Task 5 until real data exists.
+honest recommendation is: proceed with Tasks 2-3 (the isolation fix stands on
+its own) and defer Task 4 until real data exists.
 
 - [ ] **Step 4: Commit the script**
 
@@ -416,7 +424,7 @@ In `original/store.py`, replace the whole function at lines 1022-1077 (from
 # Cold-start floor for the genre prior. Vector-count only: genre matching
 # already limits how concentrated the pool can be, so unlike get_cohort_stats
 # (and null_pool.py's MIN_IMPOSTOR_STUDENTS) no distinct-student floor is
-# applied here. See Task 5 of docs/superpowers/plans/2026-07-29-tenant-scope-genre-stats.md
+# applied here. See Task 4 of docs/superpowers/plans/2026-07-29-tenant-scope-genre-stats.md
 # for the argument that tenant-scoping weakens that reasoning.
 MIN_GENRE_VECTORS = 5
 
