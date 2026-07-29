@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "note": "Measured ICC values vary at the 3rd-4th decimal place across runs of this script (pipeline hash-order nondeterminism upstream in feature extraction, tracked separately). icc: null entries below are features that emit a constant 0.5 placeholder at extraction time (comparison codes not yet computed, or codes in a currently-disabled feature group) \u2014 their reliability is unmeasured, not measured-and-zero."
+    "note": "Measured ICC values are NOT stable across runs: most move at the 3rd-4th decimal, but low-ICC features can swing by an order of magnitude and re-rank (observed: thematic_progression_score 0.0172 -> 0.1648). Pipeline hash-order nondeterminism, tracked separately. icc: null entries below are features that emit a constant 0.5 placeholder at extraction time (comparison codes not yet computed, or codes in a currently-disabled feature group) \u2014 their reliability is unmeasured, not measured-and-zero."
   },
   "pronoun_reference_density": {
     "icc": 0.5489,
@@ -106,10 +106,6 @@
     "icc": 0.1676,
     "tier": 16
   },
-  "thematic_progression_score": {
-    "icc": 0.1648,
-    "tier": 2
-  },
   "adverb_rate": {
     "icc": 0.1571,
     "tier": 5
@@ -125,6 +121,10 @@
   "polysyndeton_ratio": {
     "icc": 0.1508,
     "tier": 15
+  },
+  "thematic_progression_score": {
+    "icc": 0.1455,
+    "tier": 2
   },
   "nominalization_density": {
     "icc": 0.1429,

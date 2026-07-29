@@ -350,11 +350,11 @@ population.
 - **Single run.** The grid in §2 is one execution of the harness, not a repeated/bootstrapped
   ensemble beyond the CIs the harness itself reports per combo.
 - **ICC caveats.** `validation/short_regime/reliability_500w.json` reports per-feature ICC at
-  500 words; the two comparison codes that feed `llr_deviation_score`'s weighting
-  (`char_trigram_profile_divergence`, `function_word_profile_divergence`) are placeholders at
-  extraction time and their ICC is unmeasurable (`"note": "placeholder at extraction time; ICC
-  unmeasurable"`) — reliability of those two specific inputs at this word count is unknown, not
-  merely low.
+  500 words; 8 codes carry `icc: null` — the two comparison codes
+  (`char_trigram_profile_divergence`, `function_word_profile_divergence`) plus the 6 tier-17
+  behavioral-biometrics codes in `DISABLED_FEATURE_GROUPS` — all constant 0.5 placeholders at
+  extraction time, so their reliability is unmeasured, not merely low. Measured values are
+  additionally unstable across runs for low-ICC features (see the JSON's `_meta` note).
 - **The 500-word information ceiling.** A prior length-control measurement (2026-07-29,
   Lewis/Chesterton length sweep, `docs/superpowers/plans/2026-07-29-short-baseline-scoring.md`)
   found that even with 4×1300-word baselines and ideal (public-domain, well-edited) prose,

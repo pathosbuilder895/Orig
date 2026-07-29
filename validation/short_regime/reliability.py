@@ -14,9 +14,13 @@ Bbook) — they also emit a constant 0.5 placeholder at extraction time, so a re
 would be indistinguishable from "genuinely unreliable feature" when it is actually
 "not measured yet." Both classes are reported as {"icc": null, "note": ...}, never {"icc": 0.0}.
 
-NOTE ON REPRODUCIBILITY: measured ICC values vary at the 3rd-4th decimal place across runs
-of this script (pipeline hash-order nondeterminism upstream in feature extraction); this is
-tracked separately and does not affect which features are unmeasurable placeholders.
+NOTE ON REPRODUCIBILITY: measured ICC values are NOT stable across runs of this script —
+most move at the 3rd-4th decimal place, but low-ICC features can swing by an order of
+magnitude and re-rank substantially (observed: thematic_progression_score 0.0172 -> 0.1648
+between two runs). Root cause is pipeline hash-order nondeterminism upstream in feature
+extraction, tracked separately. Do not use small ICC differences (or the ranking of
+low-ICC features) to drive weight decisions until that is fixed; which features are
+unmeasurable placeholders is unaffected.
 """
 from __future__ import annotations
 
@@ -90,10 +94,11 @@ def main() -> int:
     report = {
         "_meta": {
             "note": (
-                "Measured ICC values vary at the 3rd-4th decimal place across runs of "
-                "this script (pipeline hash-order nondeterminism upstream in feature "
-                "extraction, tracked separately). icc: null entries below are features "
-                "that emit a constant 0.5 placeholder at extraction time (comparison "
+                "Measured ICC values are NOT stable across runs: most move at the 3rd-4th "
+                "decimal, but low-ICC features can swing by an order of magnitude and "
+                "re-rank (observed: thematic_progression_score 0.0172 -> 0.1648). Pipeline "
+                "hash-order nondeterminism, tracked separately. icc: null entries below "
+                "are features that emit a constant 0.5 placeholder at extraction time (comparison "
                 "codes not yet computed, or codes in a currently-disabled feature "
                 "group) — their reliability is unmeasured, not measured-and-zero."
             ),
