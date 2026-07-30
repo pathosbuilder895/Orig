@@ -30,6 +30,7 @@ from ..constants import (
     MUSICAL_COMPARISON_CODES,
     NORM_BOUNDS,
     TIER17_CODES,
+    TIER18_CODES,
 )
 from .preprocess import preprocess  # backmatter strip + citation data
 from .prosodic import extract_prosodic  # Tiers 13–15
@@ -46,6 +47,7 @@ from .tier10 import compute_tier10_comparison, extract_tier10_profile, extract_t
 from .tier11 import compute_tier11_comparison, extract_tier11_profile
 from .tier16 import extract_tier16  # Tier 16 — Citation Fingerprint
 from .tier17 import extract_tier17  # Tier 17 — Behavioral Biometrics
+from .uniformity import extract_uniformity  # Tier 18 — Uniformity
 
 
 def _normalise(raw: float, code: str) -> float:
@@ -129,6 +131,17 @@ def extract_features(
     raw["catastrophe_index"] = _extract_catastrophe_index(doc)  # Tier 12
     raw.update(extract_prosodic(doc))  # Tiers 13–15 (15 features)
     raw.update(extract_tier16(citation_data))  # Tier 16 — Citation Fingerprint
+
+    # Tier 18 — Uniformity (second-moment generation-artifact signal)
+    # Disabled by default pending gates G2b/G6 (design spec §8). When
+    # disabled, features are set to the NORM_BOUNDS midpoint (0.5 after
+    # normalisation) so they do not influence the density matrix.
+    if "uniformity" not in DISABLED_FEATURE_GROUPS:
+        raw.update(extract_uniformity(doc))
+    else:
+        for code in TIER18_CODES:
+            lo, hi = NORM_BOUNDS[code]
+            raw[code] = (lo + hi) / 2  # midpoint → 0.5 after normalisation
 
     # Tier 17 — Behavioral Biometrics (keystroke data from Bbook)
     # Only computed when: (a) keystroke_data is provided AND
