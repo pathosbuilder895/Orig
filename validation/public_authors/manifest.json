@@ -1,8 +1,12 @@
 {
   "version": "1.0",
-  "created_at": "2026-07-01T03:42:15Z",
+  "created_at": "2026-07-30T23:22:30Z",
   "description": "Public-author validation corpus for Original. Each essay is uniquely attributed by the public record; the manifest fixes a 3-baseline / N-scored split per author.",
   "authors": {
+    "chesterton": {
+      "name": "G.K. Chesterton",
+      "native_english": true
+    },
     "james": {
       "name": "William James",
       "native_english": true
@@ -21,10 +25,6 @@
     },
     "mill": {
       "name": "John Stuart Mill",
-      "native_english": true
-    },
-    "chesterton": {
-      "name": "G.K. Chesterton",
       "native_english": true
     },
     "newman": {
@@ -174,7 +174,7 @@
       "author_id": "mill",
       "label": "authentic",
       "prompt": "On Liberty (part 1 of 5)",
-      "word_count": 6,
+      "word_count": 5604,
       "is_baseline": true,
       "ai_provider": "none",
       "theological_tradition": null,
@@ -186,7 +186,7 @@
       "author_id": "mill",
       "label": "authentic",
       "prompt": "On Liberty (part 2 of 5)",
-      "word_count": 11,
+      "word_count": 16688,
       "is_baseline": true,
       "ai_provider": "none",
       "theological_tradition": null,
@@ -198,7 +198,7 @@
       "author_id": "mill",
       "label": "authentic",
       "prompt": "On Liberty (part 3 of 5)",
-      "word_count": 13,
+      "word_count": 8133,
       "is_baseline": true,
       "ai_provider": "none",
       "theological_tradition": null,
@@ -210,7 +210,7 @@
       "author_id": "mill",
       "label": "authentic",
       "prompt": "On Liberty (part 4 of 5)",
-      "word_count": 15,
+      "word_count": 8012,
       "is_baseline": false,
       "ai_provider": "none",
       "theological_tradition": null,
@@ -222,7 +222,7 @@
       "author_id": "mill",
       "label": "authentic",
       "prompt": "On Liberty (part 5 of 5)",
-      "word_count": 41,
+      "word_count": 9342,
       "is_baseline": false,
       "ai_provider": "none",
       "theological_tradition": null,
@@ -450,7 +450,7 @@
       "author_id": "kempis",
       "label": "authentic",
       "prompt": "The Imitation of Christ (part 1 of 5)",
-      "word_count": 17,
+      "word_count": 433,
       "is_baseline": true,
       "ai_provider": "none",
       "theological_tradition": null,
@@ -462,7 +462,7 @@
       "author_id": "kempis",
       "label": "authentic",
       "prompt": "The Imitation of Christ (part 2 of 5)",
-      "word_count": 7,
+      "word_count": 463,
       "is_baseline": true,
       "ai_provider": "none",
       "theological_tradition": null,
@@ -474,7 +474,7 @@
       "author_id": "kempis",
       "label": "authentic",
       "prompt": "The Imitation of Christ (part 3 of 5)",
-      "word_count": 7,
+      "word_count": 393,
       "is_baseline": true,
       "ai_provider": "none",
       "theological_tradition": null,
@@ -486,7 +486,7 @@
       "author_id": "kempis",
       "label": "authentic",
       "prompt": "The Imitation of Christ (part 4 of 5)",
-      "word_count": 6,
+      "word_count": 772,
       "is_baseline": false,
       "ai_provider": "none",
       "theological_tradition": null,
@@ -498,7 +498,7 @@
       "author_id": "kempis",
       "label": "authentic",
       "prompt": "The Imitation of Christ (part 5 of 5)",
-      "word_count": 8,
+      "word_count": 545,
       "is_baseline": false,
       "ai_provider": "none",
       "theological_tradition": null,
