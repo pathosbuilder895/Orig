@@ -3,13 +3,13 @@ scripts/measure_genre_prior_scope.py — one-off coverage measurement.
 
 PRE-CHANGE BASELINE. Written to answer, before the fix: if get_genre_stats
 were tenant-scoped, how often would the BAYESIAN_PRIOR_ENABLED cold-start
-prior resolve to None that it didn't back then? get_genre_stats has been
-tenant-scoped in production since commit d3bf76a4 — the "today"/"cross-tenant"
-language throughout this script (docstring, comments, output labels) describes
-that pre-fix baseline, not current behavior. Re-run this against real pilot
-data to size the current sparser-pool coverage; it does not need editing to
-do so, since it measures both scoped and unscoped pools from the same pass
-over the data.
+prior resolve to None that it didn't back then? get_genre_stats became
+tenant-scoped in the tenant-scoping change on this branch — the
+"today"/"cross-tenant" language throughout this script (docstring, comments,
+output labels) describes that pre-fix baseline, not current behavior. Re-run
+this against real pilot data to size the current sparser-pool coverage; it
+does not need editing to do so, since it measures both scoped and unscoped
+pools from the same pass over the data.
 
 Simulates the real gate at original/routers/students_scoring.py:126-134 —
 a student is a "cold-start scoring event" when sample_count < 10 and their

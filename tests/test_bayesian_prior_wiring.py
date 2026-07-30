@@ -107,6 +107,54 @@ def test_get_genre_stats_called_with_scored_students_tenant(genre_tenant, monkey
     assert calls[-1] == (genre, tenant_of(sid)) == (genre, "genreprior")
 
 
+def test_get_genre_stats_uses_scored_students_tenant_not_principals_tenant(monkeypatch):
+    """Regression guard for a divergence the tenant-fixture test above can't see.
+
+    In test_get_genre_stats_called_with_scored_students_tenant, the requesting
+    principal's tenant ("genreprior") and tenant_of(scored student id)
+    ("genreprior") are the same string, so that test passes whether
+    students_scoring.py:139 reads tenant_of(student_id) or
+    principal.tenant_id — it can't discriminate the two implementations.
+
+    Here they genuinely diverge: an anonymous demo principal always has
+    tenant_id == "demo" (principal.py resolve_principal's fallback branch),
+    but assert_student_access permits a demo principal to score a colon-less
+    (legacy-flat) student id, for which tenant_of(student_id) is None. So a
+    regression that passes principal.tenant_id instead of tenant_of(sid)
+    would call get_genre_stats(genre, "demo") here, not (genre, None).
+    """
+    monkeypatch.setenv("BAYESIAN_PRIOR_ENABLED", "1")
+
+    sid = "gap1_flat_cold_start_student"
+    genre = "lab_report"
+    _seed_cold_start_student(sid, genre)
+    assert tenant_of(sid) is None  # colon-less id: no tenant prefix
+
+    repo = get_repository()
+    real_get_genre_stats = repo.get_genre_stats
+    calls = []
+
+    def _spy(genre_arg, tenant_arg):
+        calls.append((genre_arg, tenant_arg))
+        return real_get_genre_stats(genre_arg, tenant_arg)
+
+    monkeypatch.setattr(repo, "get_genre_stats", _spy)
+
+    # No Authorization header at all -> resolve_principal falls through to
+    # the anonymous demo principal (tenant_id="demo", is_demo=True).
+    r = client.post(
+        f"/students/{sid}/score",
+        json={"text": "A short new submission for the cold-start scoring check."},
+    )
+    assert r.status_code == 200, r.text
+
+    assert calls, "get_genre_stats was never called — the flag-on cold-start path did not run"
+    assert calls[-1] == (genre, None), (
+        "get_genre_stats must be called with tenant_of(student_id) (None for a "
+        "flat id), not the requesting principal's tenant_id ('demo')"
+    )
+
+
 def test_flag_off_never_calls_get_genre_stats(genre_tenant, monkeypatch):
     monkeypatch.delenv("BAYESIAN_PRIOR_ENABLED", raising=False)
 
