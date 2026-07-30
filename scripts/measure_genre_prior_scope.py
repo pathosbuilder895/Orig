@@ -1,13 +1,20 @@
 """
 scripts/measure_genre_prior_scope.py — one-off coverage measurement.
 
-Answers: if get_genre_stats were tenant-scoped, how often would the
-BAYESIAN_PRIOR_ENABLED cold-start prior resolve to None that it doesn't today?
+PRE-CHANGE BASELINE. Written to answer, before the fix: if get_genre_stats
+were tenant-scoped, how often would the BAYESIAN_PRIOR_ENABLED cold-start
+prior resolve to None that it didn't back then? get_genre_stats has been
+tenant-scoped in production since commit d3bf76a4 — the "today"/"cross-tenant"
+language throughout this script (docstring, comments, output labels) describes
+that pre-fix baseline, not current behavior. Re-run this against real pilot
+data to size the current sparser-pool coverage; it does not need editing to
+do so, since it measures both scoped and unscoped pools from the same pass
+over the data.
 
 Simulates the real gate at original/routers/students_scoring.py:126-134 —
 a student is a "cold-start scoring event" when sample_count < 10 and their
 most recent sample carries a genre label — then asks, for each such student,
-whether a prior would exist under (a) today's cross-tenant pooling and
+whether a prior would exist under (a) the old cross-tenant pooling and
 (b) tenant-scoped pooling.
 
 Run against whichever database ORIGINAL_DB / DATABASE_URL points at:
@@ -28,9 +35,11 @@ sys.path.insert(0, str(_ROOT))
 from original.principal import tenant_of  # noqa: E402
 from original.repository import get_repository  # noqa: E402
 
-# Floors under evaluation. MIN_VECTORS is today's hardcoded 5.
-# MIN_STUDENTS models Task 5's proposed distinct-student floor; set it to 1
-# to see the effect of tenant-scoping alone (Tasks 2-4 without Task 5).
+# Floors under evaluation. MIN_VECTORS is the hardcoded 5 store.py has always
+# used. MIN_STUDENTS models the distinct-student floor proposed as Task 4 of
+# the tenant-scoping plan; set it to 1 to see the effect of tenant-scoping
+# alone. Task 4 was cancelled (no dataset here to justify a floor) — the
+# floored numbers below are what that rejected proposal would have cost.
 MIN_VECTORS = 5
 MIN_STUDENTS = 3
 
@@ -87,7 +96,7 @@ def main() -> None:
     print()
     print(f"cold-start scoring events with a genre label: {eligible}")
     if eligible:
-        print(f"  prior available today (cross-tenant):   {have_global:5d}  ({have_global / eligible:.0%})")
+        print(f"  prior available pre-fix (cross-tenant): {have_global:5d}  ({have_global / eligible:.0%})")
         print(f"  prior available tenant-scoped:          {have_scoped:5d}  ({have_scoped / eligible:.0%})")
         print(f"  ... and with a >={MIN_STUDENTS}-student floor:      {have_scoped_floored:5d}  ({have_scoped_floored / eligible:.0%})")
     else:

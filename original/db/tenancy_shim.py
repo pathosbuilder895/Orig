@@ -27,6 +27,12 @@ from __future__ import annotations
 from original.principal import tenant_of
 
 _LEGACY_FLAT_TENANT = "__legacy_flat__"
+# Edge case (pre-existing, not fixed here): a student id literally prefixed
+# "__legacy_flat__:" parses to this same sentinel tenant, so on Postgres it
+# would collide with genuine legacy-flat rows in a tenant_id equality match
+# (SQLite's single-string key would not mix them). assert_student_access
+# keeps demo/staff principals from ever minting such an id; only an
+# operator/super_admin — already cross-tenant by design — could reach it.
 
 
 def split_scoped_id(student_id: str) -> tuple[str, str]:

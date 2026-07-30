@@ -1028,8 +1028,12 @@ def get_ai_likelihood_scores(
 # Cold-start floor for the genre prior. Vector-count only: genre matching
 # already limits how concentrated the pool can be, so unlike get_cohort_stats
 # (and null_pool.py's MIN_IMPOSTOR_STUDENTS) no distinct-student floor is
-# applied here. See Task 4 of docs/superpowers/plans/2026-07-29-tenant-scope-genre-stats.md
-# for the argument that tenant-scoping weakens that reasoning.
+# applied here — deliberately, not an oversight. A distinct-student floor was
+# proposed alongside tenant-scoping (tenant-scoping shrinks each pool, which
+# weakens the "genre matching already limits concentration" argument above)
+# but was dropped: the 2026-07-29 measurement (scripts/measure_genre_prior_scope.py)
+# found no reachable dataset with genre-labelled authenticated samples to
+# either confirm or size the risk. Revisit once real pilot data exists.
 MIN_GENRE_VECTORS = 5
 
 
