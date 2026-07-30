@@ -315,19 +315,23 @@ class TestUpdateFidelityAuthenticity:
 # ── get_genre_stats ───────────────────────────────────────────────────────────
 
 
+# Every _make_state id in this class is an unscoped/legacy-flat id (no ":"),
+# so tenant_of(...) is None for all of them — hence the `None` tenant
+# argument throughout. See TestGetGenreStatsTenantIsolation below for the
+# scoped-id case.
 class TestGetGenreStats:
     def test_returns_none_with_no_students(self, repo):
-        assert repo.get_genre_stats("argumentative_essay") is None
+        assert repo.get_genre_stats("argumentative_essay", None) is None
 
     def test_returns_none_with_fewer_than_5_samples(self, repo):
         for i in range(4):
             repo.put(_make_state(f"student-G{i}", n=1, genre="argumentative_essay"))
-        assert repo.get_genre_stats("argumentative_essay") is None
+        assert repo.get_genre_stats("argumentative_essay", None) is None
 
     def test_returns_stats_with_enough_samples(self, repo):
         for i in range(6):
             repo.put(_make_state(f"student-H{i}", n=1, genre="lab_report"))
-        result = repo.get_genre_stats("lab_report")
+        result = repo.get_genre_stats("lab_report", None)
         assert result is not None
         assert "mean" in result and "std" in result and "n_samples" in result
         assert result["n_samples"] == 6
@@ -337,36 +341,108 @@ class TestGetGenreStats:
     def test_std_floored_at_005(self, repo):
         for i in range(6):
             repo.put(_make_state(f"student-I{i}", n=1, genre="theology_paper"))
-        result = repo.get_genre_stats("theology_paper")
+        result = repo.get_genre_stats("theology_paper", None)
         assert result is not None
         assert float(np.min(result["std"])) >= 0.005
 
     def test_cache_hit_on_second_call(self, repo):
         for i in range(6):
             repo.put(_make_state(f"student-J{i}", n=1, genre="sermon"))
-        r1 = repo.get_genre_stats("sermon")
-        r2 = repo.get_genre_stats("sermon")
+        r1 = repo.get_genre_stats("sermon", None)
+        r2 = repo.get_genre_stats("sermon", None)
         assert r1 is r2  # cached — same object reference
 
     def test_cache_busted_after_put(self, repo):
         for i in range(6):
             repo.put(_make_state(f"student-K{i}", n=1, genre="exegesis"))
-        r1 = repo.get_genre_stats("exegesis")
+        r1 = repo.get_genre_stats("exegesis", None)
         assert r1 is not None
         repo.put(_make_state("student-K6", n=1, genre="exegesis"))
-        r2 = repo.get_genre_stats("exegesis")
+        r2 = repo.get_genre_stats("exegesis", None)
         assert r2 is not None
         assert r2["n_samples"] == 7
 
     def test_none_genre_samples_not_counted_for_named_genre(self, repo):
         for i in range(6):
             repo.put(_make_state(f"student-L{i}", n=1, genre=None))
-        assert repo.get_genre_stats("argumentative_essay") is None
+        assert repo.get_genre_stats("argumentative_essay", None) is None
 
     def test_wrong_genre_not_counted(self, repo):
         for i in range(6):
             repo.put(_make_state(f"student-M{i}", n=1, genre="rhetoric"))
-        assert repo.get_genre_stats("different_genre") is None
+        assert repo.get_genre_stats("different_genre", None) is None
+
+
+# ── get_genre_stats tenant isolation ─────────────────────────────────────────
+#
+# get_genre_stats takes a required `tenant` argument and scopes the
+# aggregation to it — mirroring null_pool.py's build_impostor_stats, which
+# resolves tenant_of(claimed_student_id) and pools only same-tenant peers,
+# never cross-tenant (FERPA isolation, the same rule as every other
+# tenant-scoped read in this codebase). tenant=None is the legacy-flat pool
+# (ids with no ":"), which is its own distinct cohort — never merged into a
+# real tenant's, and never fed by one.
+
+
+class TestGetGenreStatsTenantIsolation:
+    def test_other_tenants_samples_never_pooled(self, repo):
+        # 6 authenticated "sermon" samples at seminary-a, zero at seminary-b.
+        # seminary-b must see no prior at all — not a prior built from
+        # seminary-a's students.
+        for i in range(6):
+            repo.put(_make_state(f"seminary-a:student-{i}", n=1, genre="sermon"))
+        assert repo.get_genre_stats("sermon", "seminary-a") is not None
+        assert repo.get_genre_stats("sermon", "seminary-b") is None
+
+    def test_pools_are_disjoint_across_tenants(self, repo):
+        # Each tenant clears the vector floor on its own. Neither tenant's
+        # n_samples may include the other's.
+        for i in range(6):
+            repo.put(_make_state(f"seminary-a:student-{i}", n=1, genre="exegesis"))
+        for i in range(7):
+            repo.put(_make_state(f"seminary-b:student-{i}", n=1, genre="exegesis"))
+        a = repo.get_genre_stats("exegesis", "seminary-a")
+        b = repo.get_genre_stats("exegesis", "seminary-b")
+        assert a is not None and b is not None
+        assert a["n_samples"] == 6
+        assert b["n_samples"] == 7
+        assert not np.allclose(a["mean"], b["mean"])
+
+    def test_cross_tenant_samples_do_not_lift_a_tenant_over_the_floor(self, repo):
+        # THE regression this whole change exists to prevent: 4 samples at
+        # seminary-a (below the floor of 5) plus 4 at seminary-b must NOT
+        # combine into an 8-sample prior for either tenant.
+        for i in range(4):
+            repo.put(_make_state(f"seminary-a:student-{i}", n=1, genre="lab_report"))
+        for i in range(4):
+            repo.put(_make_state(f"seminary-b:student-{i}", n=1, genre="lab_report"))
+        assert repo.get_genre_stats("lab_report", "seminary-a") is None
+        assert repo.get_genre_stats("lab_report", "seminary-b") is None
+
+    def test_legacy_flat_pool_is_separate_from_scoped_tenants(self, repo):
+        # Colon-less (legacy-flat) ids are tenant_of(...) -> None. They form
+        # their own cohort and must not feed a real tenant's prior.
+        for i in range(6):
+            repo.put(_make_state(f"legacy-student-{i}", n=1, genre="theology_paper"))
+        assert repo.get_genre_stats("theology_paper", None) is not None
+        assert repo.get_genre_stats("theology_paper", "seminary-a") is None
+
+    def test_scoped_tenant_does_not_feed_the_legacy_flat_pool(self, repo):
+        # The converse of the above — the sentinel must not act as a wildcard.
+        for i in range(6):
+            repo.put(_make_state(f"seminary-a:student-{i}", n=1, genre="rhetoric"))
+        assert repo.get_genre_stats("rhetoric", None) is None
+
+    def test_cache_is_keyed_per_tenant(self, repo):
+        # A cache keyed on genre alone would serve seminary-a's stats to
+        # seminary-b on the second call — the leak surviving the filter.
+        for i in range(6):
+            repo.put(_make_state(f"seminary-a:student-{i}", n=1, genre="homiletics"))
+        assert repo.get_genre_stats("homiletics", "seminary-a") is not None
+        assert repo.get_genre_stats("homiletics", "seminary-b") is None
+        # ... and again, now that both keys are warm.
+        assert repo.get_genre_stats("homiletics", "seminary-a") is not None
+        assert repo.get_genre_stats("homiletics", "seminary-b") is None
 
 
 # ── delete_student ────────────────────────────────────────────────────────────

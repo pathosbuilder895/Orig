@@ -102,9 +102,9 @@ class TestGenreStatsCacheInternals:
         for i in range(6):
             state = _make_state(f"student-del-cache-{i}", n_samples=1, genre="ethics_paper")
             store.put(state)
-        # Prime cache
-        store.get_genre_stats("ethics_paper")
-        assert "ethics_paper" in store._GENRE_STATS_CACHE
+        # Prime cache — key is (tenant, genre); these ids are legacy-flat.
+        store.get_genre_stats("ethics_paper", None)
+        assert (None, "ethics_paper") in store._GENRE_STATS_CACHE
 
         # Delete a student → cache should be cleared
         store.delete_student("student-del-cache-0")

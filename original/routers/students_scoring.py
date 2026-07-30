@@ -14,6 +14,7 @@ import os
 from fastapi import APIRouter, HTTPException
 
 from ..features.pipeline import extract_features, feature_vector
+from ..principal import tenant_of
 from ..quantum.scoring import ScoringConfig
 from ..quantum.scoring import score as quantum_score
 from ..schemas import (
@@ -131,7 +132,11 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             else None
         )
         if _genre:
-            _genre_stats = _repo().get_genre_stats(_genre)
+            # Tenant-scoped: the cold-start prior pools only same-tenant
+            # baselines, mirroring build_impostor_stats above. Returns None
+            # more often than the old cross-tenant pool did — that's the
+            # documented fallback to the student-only baseline, not an error.
+            _genre_stats = _repo().get_genre_stats(_genre, tenant_of(student_id))
     _scoring_config = dataclasses.replace(
         _scoring_config_env,
         authentic_fidelities=_authentic_fidelities,

@@ -51,7 +51,7 @@ from .db.models.live import (
     TunedThresholds,
 )
 from .db.postgres_session import session_scope
-from .db.tenancy_shim import join_scoped_id, split_scoped_id
+from .db.tenancy_shim import _LEGACY_FLAT_TENANT, join_scoped_id, split_scoped_id
 from .quantum.state import BaselineSample, StudentState
 
 # The phone-park timestamp format and transition cap are defined once, in the
@@ -87,7 +87,7 @@ class PostgresRepository:
         # identically to a process-global cache there), while each test in
         # test_repository_contract.py gets its own fresh instance/cache —
         # avoiding cross-test leakage a module-level dict would risk.
-        self._genre_stats_cache: dict[str, dict | None] = {}
+        self._genre_stats_cache: dict[tuple[str | None, str], dict | None] = {}
 
     def _todo(self, op: str):
         raise NotImplementedError(self._NOT_READY.format(op=op))
@@ -886,15 +886,42 @@ class PostgresRepository:
             log.exception("get_ai_likelihood_scores failed")
             return []
 
-    def get_genre_stats(self, genre):
-        if genre in self._genre_stats_cache:
-            return self._genre_stats_cache[genre]
+    # Mirrors store.MIN_GENRE_VECTORS. Duplicated rather than imported
+    # because postgres_repository is a peer backend to store, not a
+    # consumer of it.
+    MIN_GENRE_VECTORS = 5
 
+    def get_genre_stats(self, genre, tenant):
+        """Tenant-scoped genre prior — see store.get_genre_stats's docstring
+        for the full contract.
+
+        Filters with an indexed equality match on StudentProfile.tenant_id —
+        the same "database constraint instead of a naming convention" the FK
+        column exists for — rather than pulling every tenant's profile JSON
+        and discarding non-matching rows in Python. A None `tenant` (the
+        legacy-flat pool) maps to db.tenancy_shim._LEGACY_FLAT_TENANT exactly
+        like split_scoped_id does, since that's the sentinel legacy-flat ids
+        actually carry on this column (comparing the column to Python `None`
+        would translate to SQL `IS NULL`, which no row would ever satisfy).
+        """
+        key = (tenant, genre)
+        if key in self._genre_stats_cache:
+            return self._genre_stats_cache[key]
+
+        tenant_id_column_value = tenant if tenant is not None else _LEGACY_FLAT_TENANT
         try:
             with session_scope() as session:
-                rows = session.execute(select(StudentProfile.data)).scalars().all()
+                rows = (
+                    session.execute(
+                        select(StudentProfile.data).where(
+                            StudentProfile.tenant_id == tenant_id_column_value
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
         except Exception:
-            log.exception("get_genre_stats DB query failed for genre %s", genre)
+            log.exception("get_genre_stats DB query failed for genre %s tenant %s", genre, tenant)
             return None
 
         vectors = []
@@ -903,15 +930,15 @@ class PostgresRepository:
                 if (sample.get("auth_weight") or 0) > 0 and sample.get("genre") == genre:
                     vectors.append(np.array(sample["vector"], dtype=np.float64))
 
-        if len(vectors) < 5:
-            self._genre_stats_cache[genre] = None
+        if len(vectors) < self.MIN_GENRE_VECTORS:
+            self._genre_stats_cache[key] = None
             return None
 
         mat = np.stack(vectors, axis=0)
         mean_vec = mat.mean(axis=0)
         std_vec = np.maximum(mat.std(axis=0), 0.005)
         result = {"mean": mean_vec, "std": std_vec, "n_samples": len(vectors)}
-        self._genre_stats_cache[genre] = result
+        self._genre_stats_cache[key] = result
         return result
 
     # ── Corrections ──────────────────────────────────────────────────────

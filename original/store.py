@@ -20,6 +20,7 @@ from pathlib import Path
 import numpy as np
 
 from .constants import FEATURE_DIM
+from .principal import tenant_of
 from .quantum.state import BaselineSample, StudentState
 
 log = logging.getLogger(__name__)
@@ -40,14 +41,18 @@ _DB_PATH = Path(os.environ.get("ORIGINAL_DB", Path(__file__).parent.parent / "pr
 
 # ── Bayesian genre-stats cache ────────────────────────────────────────────────
 # get_genre_stats() is O(N×S) — iterates every student and every sample.
-# Cache the result keyed on genre; bust on every put() so newly-added baseline
-# samples are reflected in the next call. The hot path reads from this dict in
-# O(1). Dict clear is thread-safe in CPython (GIL-protected). This is the ONE
-# process-local cache that survives WS-6 P6 (the _STORE profile cache is gone):
-# it's a derived aggregate, invalidated on every write in THIS worker, and a
-# cross-worker staleness window on a slow-moving population statistic is
-# acceptable where stale student profiles were not.
-_GENRE_STATS_CACHE: dict[str, dict | None] = {}
+# Cache the result keyed on (tenant, genre); bust on every put() so newly-added
+# baseline samples are reflected in the next call. The hot path reads from this
+# dict in O(1). Dict clear is thread-safe in CPython (GIL-protected). This is
+# the ONE process-local cache that survives WS-6 P6 (the _STORE profile cache
+# is gone): it's a derived aggregate, invalidated on every write in THIS
+# worker, and a cross-worker staleness window on a slow-moving population
+# statistic is acceptable where stale student profiles were not.
+#
+# The key MUST stay a (tenant, genre) pair, not a bare genre: a genre-only key
+# would hand one tenant's cached aggregate to the next tenant that asks for the
+# same genre, reintroducing exactly the cross-tenant leak the filter removes.
+_GENRE_STATS_CACHE: dict[tuple[str | None, str], dict | None] = {}
 
 
 # ── SQLite helpers ────────────────────────────────────────────────────────────
@@ -552,8 +557,9 @@ def get_or_create(student_id: str) -> StudentState:
 def put(state: StudentState) -> None:
     """Persist a full student state (whole-document upsert)."""
     _persist(state)
-    # Bust the Bayesian genre-stats cache — a new sample may shift the
-    # cross-student genre distribution that get_genre_stats() aggregates.
+    # Bust the Bayesian genre-stats cache (keyed on (tenant, genre)) — a new
+    # sample may shift the cross-student genre distribution that
+    # get_genre_stats() aggregates for whichever tenant this student belongs to.
     _GENRE_STATS_CACHE.clear()
 
 
@@ -1019,48 +1025,72 @@ def get_ai_likelihood_scores(
 # ── Hierarchical Bayesian prior: cross-student genre statistics ───────────────
 
 
-def get_genre_stats(genre: str) -> dict | None:
-    """
-    Compute cross-student mean, std, and sample count for a given writing genre.
+# Cold-start floor for the genre prior. Vector-count only: genre matching
+# already limits how concentrated the pool can be, so unlike get_cohort_stats
+# (and null_pool.py's MIN_IMPOSTOR_STUDENTS) no distinct-student floor is
+# applied here. See Task 4 of docs/superpowers/plans/2026-07-29-tenant-scope-genre-stats.md
+# for the argument that tenant-scoping weakens that reasoning.
+MIN_GENRE_VECTORS = 5
 
-    Aggregates feature vectors from all confirmed-authentic baseline samples
-    (auth_weight > 0) with matching ``sample.genre`` across every student in
-    the in-memory store.  Returns ``None`` when fewer than 5 samples are
-    found — the caller treats this as "no prior available" and falls back to
-    the student-only baseline.
+
+def get_genre_stats(genre: str, tenant: str | None) -> dict | None:
+    """
+    Compute cross-student mean, std, and sample count for a writing genre,
+    scoped to a single tenant.
+
+    Aggregates feature vectors from confirmed-authentic baseline samples
+    (auth_weight > 0) with matching ``sample.genre``, across students in
+    ``tenant`` only.  Returns ``None`` when fewer than MIN_GENRE_VECTORS
+    samples are found — the caller treats this as "no prior available" and
+    falls back to the student-only baseline.
 
     This is the population-level reference distribution used by the
-    Hierarchical Bayesian cold-start prior in ``scoring.score()``.  It is
-    intentionally in-memory only (no DB query) because:
-    - The store is always fully loaded before scoring calls arrive.
-    - Cross-student density-matrix queries on SQLite are expensive for large N.
-    - Genre labels are optional metadata; many legacy samples have genre=None.
+    Hierarchical Bayesian cold-start prior in ``scoring.score()``.
+
+    Tenant scoping mirrors ``original/quantum/null_pool.py``'s
+    ``build_impostor_stats``, which resolves ``tenant_of(claimed_student_id)``
+    and pools only same-tenant peers: cross-tenant vectors are never pooled,
+    the same isolation rule as every other cross-student read here.  Before
+    WS-7 this function pooled across every tenant in the store — a
+    FERPA-relevant leak of one institution's aggregate writing statistics
+    into another institution's scoring.
+
+    The DB read goes through ``all_states()``; the aggregate is memoised in
+    ``_GENRE_STATS_CACHE`` keyed on ``(tenant, genre)`` and busted on every
+    ``put()`` / ``delete_student()``.
 
     Parameters
     ----------
     genre : genre label (e.g. "argumentative_essay", "lab_report")
+    tenant : the tenant slug to scope to — ``principal.tenant_of`` of the
+        student being scored — or None for the legacy-flat (unscoped) pool,
+        which is its own distinct cohort, never mixed with a real tenant's.
 
     Returns
     -------
     dict with keys "mean" (np.ndarray), "std" (np.ndarray), "n_samples" (int)
-    or None if fewer than 5 matching authentic samples are found.
+    or None if fewer than MIN_GENRE_VECTORS matching authentic samples are
+    found in that tenant.
     """
     # O(1) fast path — return cached result if available.
     # Cache is busted by put() whenever a new baseline sample is stored.
-    if genre in _GENRE_STATS_CACHE:
-        return _GENRE_STATS_CACHE[genre]
+    key = (tenant, genre)
+    if key in _GENRE_STATS_CACHE:
+        return _GENRE_STATS_CACHE[key]
 
     vectors: list[np.ndarray] = []
     # Full read-through scan (WS-6 P6): all_states() snapshots the table, so
     # concurrent writers can't perturb the iteration the way the old shared
     # _STORE dict could.
     for student_state in all_states():
+        if tenant_of(student_state.student_id) != tenant:
+            continue
         for sample in student_state.samples:
             if sample.auth_weight > 0 and getattr(sample, "genre", None) == genre:
                 vectors.append(sample.vector)
 
-    if len(vectors) < 5:
-        _GENRE_STATS_CACHE[genre] = None
+    if len(vectors) < MIN_GENRE_VECTORS:
+        _GENRE_STATS_CACHE[key] = None
         return None
 
     mat = np.stack(vectors, axis=0)  # shape (N, FEATURE_DIM)
@@ -1073,7 +1103,7 @@ def get_genre_stats(genre: str) -> dict | None:
         "std": std_vec,
         "n_samples": len(vectors),
     }
-    _GENRE_STATS_CACHE[genre] = result
+    _GENRE_STATS_CACHE[key] = result
     return result
 
 
@@ -1160,7 +1190,7 @@ def delete_student(student_id: str) -> bool:
         log.exception("delete_student failed for %s — no data was removed", student_id)
         return False
 
-    _GENRE_STATS_CACHE.clear()  # genre stats may have included this student
+    _GENRE_STATS_CACHE.clear()  # this student's tenant's (tenant, genre) entries may include them
     return True
 
 
