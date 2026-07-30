@@ -486,6 +486,26 @@ class TestDeleteStudent:
         assert repo.get("student-del-A") is None
         assert repo.get("student-del-B") is not None
 
+    def test_genre_stats_cache_busted_after_delete(self, repo):
+        # Regression for a Postgres-only divergence: delete_student() must
+        # clear the genre-stats cache like store.py's does, or an erased
+        # student's vectors keep contributing to their tenant's warm
+        # Bayesian-prior pool until an unrelated put() or process restart.
+        # Public-interface only (no _genre_stats_cache / _GENRE_STATS_CACHE
+        # reach-in) so this runs against both backends — see
+        # tests/test_store_fidelity.py for the SQLite-internals version this
+        # supplements.
+        for i in range(5):  # exactly the floor, so one deletion drops it out
+            repo.put(_make_state(f"tenant-del:student-{i}", n=1, genre="lab_report"))
+        warm = repo.get_genre_stats("lab_report", "tenant-del")
+        assert warm is not None
+        assert warm["n_samples"] == 5
+
+        assert repo.delete_student("tenant-del:student-0") is True
+
+        after = repo.get_genre_stats("lab_report", "tenant-del")
+        assert after is None  # below the floor once the deleted student's vector is gone
+
 
 # ── Student state basics (get/get_or_create/put/list_ids/all_states/count) ───
 # WS-6 P3: these were previously only exercised indirectly by the classes

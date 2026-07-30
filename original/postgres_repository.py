@@ -54,10 +54,11 @@ from .db.postgres_session import session_scope
 from .db.tenancy_shim import _LEGACY_FLAT_TENANT, join_scoped_id, split_scoped_id
 from .quantum.state import BaselineSample, StudentState
 
-# The phone-park timestamp format and transition cap are defined once, in the
-# SQLite store, and imported here so the two backends cannot drift apart on
-# either. store.py carries no sqlalchemy import, so this costs nothing.
-from .store import PARK_MAX_TRANSITIONS, park_iso_utc, park_utc
+# The phone-park timestamp format, transition cap, and genre-prior cold-start
+# floor are defined once, in the SQLite store, and imported here so the two
+# backends cannot drift apart on any of them. store.py carries no sqlalchemy
+# import, so this costs nothing.
+from .store import MIN_GENRE_VECTORS, PARK_MAX_TRANSITIONS, park_iso_utc, park_utc
 
 log = get_logger(__name__)
 
@@ -343,7 +344,9 @@ class PostgresRepository:
                 name_row = session.get(StudentName, (tenant_id, local_id))
                 if name_row is not None:
                     session.delete(name_row)
-                return True
+            # this student's tenant's (tenant, genre) entries may include them
+            self._genre_stats_cache.clear()
+            return True
         except Exception:
             log.exception("delete_student failed for %s", student_id)
             return False
@@ -886,11 +889,6 @@ class PostgresRepository:
             log.exception("get_ai_likelihood_scores failed")
             return []
 
-    # Mirrors store.MIN_GENRE_VECTORS. Duplicated rather than imported
-    # because postgres_repository is a peer backend to store, not a
-    # consumer of it.
-    MIN_GENRE_VECTORS = 5
-
     def get_genre_stats(self, genre, tenant):
         """Tenant-scoped genre prior — see store.get_genre_stats's docstring
         for the full contract.
@@ -930,7 +928,7 @@ class PostgresRepository:
                 if (sample.get("auth_weight") or 0) > 0 and sample.get("genre") == genre:
                     vectors.append(np.array(sample["vector"], dtype=np.float64))
 
-        if len(vectors) < self.MIN_GENRE_VECTORS:
+        if len(vectors) < MIN_GENRE_VECTORS:
             self._genre_stats_cache[key] = None
             return None
 
