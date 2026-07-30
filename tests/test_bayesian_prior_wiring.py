@@ -23,6 +23,8 @@ through the real HTTP endpoint carries the genre and the *scored student's*
 tenant — not merely that some call happened.
 """
 
+import logging
+
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
@@ -174,3 +176,82 @@ def test_flag_off_never_calls_get_genre_stats(genre_tenant, monkeypatch):
     )
     assert r.status_code == 200, r.text
     assert calls == []
+
+
+# ── Coverage measurement hook ────────────────────────────────────────────────
+#
+# The coverage cost of tenant-scoping the prior was never measured against
+# real pilot data: scripts/measure_genre_prior_scope.py found no reachable
+# dataset with genre-labelled authenticated samples (2026-07-29), and real
+# pilot data lives in Postgres on Render. The INFO line these tests pin makes
+# the first tenant to enable BAYESIAN_PRIOR_ENABLED measure it in situ —
+# `outcome=miss` vs `outcome=hit` counts give the per-(tenant, genre) None
+# rate that could not be computed ahead of time.
+#
+# It must log no student identifiers: tenant slug and genre label are not
+# personal data, a student id is.
+
+
+def test_prior_miss_is_logged_with_genre_and_tenant(genre_tenant, monkeypatch, caplog):
+    """Below the 5-vector floor -> prior is None -> an INFO miss is recorded."""
+    monkeypatch.setenv("BAYESIAN_PRIOR_ENABLED", "1")
+
+    sid = "genreprior:miss_logging_student"
+    genre = "canon_law"  # genre unique to this test: pool is only this student
+    _seed_cold_start_student(sid, genre, n=3)  # 3 vectors < MIN_GENRE_VECTORS (5)
+
+    caplog.set_level(logging.INFO, logger="original.routers.students_scoring")
+    r = client.post(
+        f"/students/{sid}/score",
+        json={"text": "A short new submission below the genre-prior floor."},
+        headers=_auth(genre_tenant),
+    )
+    assert r.status_code == 200, r.text
+
+    hits = [m for m in caplog.messages if "bayesian_prior" in m]
+    assert hits, "no bayesian_prior line was logged on the cold-start path"
+    assert "outcome=miss" in hits[-1], hits[-1]
+    assert f"genre={genre}" in hits[-1], hits[-1]
+    assert "tenant=genreprior" in hits[-1], hits[-1]
+    assert sid not in hits[-1], "the measurement line must not log student identifiers"
+
+
+def test_prior_hit_is_logged_with_sample_count(genre_tenant, monkeypatch, caplog):
+    """At/above the floor -> prior resolves -> an INFO hit records its size."""
+    monkeypatch.setenv("BAYESIAN_PRIOR_ENABLED", "1")
+
+    genre = "homiletics"  # genre unique to this test
+    # 2 students x 3 authenticated vectors = 6 >= MIN_GENRE_VECTORS (5).
+    _seed_cold_start_student("genreprior:hit_logging_peer", genre, n=3)
+    sid = "genreprior:hit_logging_student"
+    _seed_cold_start_student(sid, genre, n=3)
+
+    caplog.set_level(logging.INFO, logger="original.routers.students_scoring")
+    r = client.post(
+        f"/students/{sid}/score",
+        json={"text": "A short new submission above the genre-prior floor."},
+        headers=_auth(genre_tenant),
+    )
+    assert r.status_code == 200, r.text
+
+    hits = [m for m in caplog.messages if "bayesian_prior" in m]
+    assert hits, "no bayesian_prior line was logged on the cold-start path"
+    assert "outcome=hit" in hits[-1], hits[-1]
+    assert "n_prior=6" in hits[-1], hits[-1]
+
+
+def test_flag_off_logs_nothing(genre_tenant, monkeypatch, caplog):
+    """The hook must not fire when the feature is off — no log noise by default."""
+    monkeypatch.delenv("BAYESIAN_PRIOR_ENABLED", raising=False)
+
+    sid = "genreprior:no_log_student"
+    _seed_cold_start_student(sid, "lab_report")
+
+    caplog.set_level(logging.INFO, logger="original.routers.students_scoring")
+    r = client.post(
+        f"/students/{sid}/score",
+        json={"text": "A short new submission with the flag off."},
+        headers=_auth(genre_tenant),
+    )
+    assert r.status_code == 200, r.text
+    assert [m for m in caplog.messages if "bayesian_prior" in m] == []

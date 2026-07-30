@@ -136,7 +136,22 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             # baselines, mirroring build_impostor_stats above. Returns None
             # more often than the old cross-tenant pool did — that's the
             # documented fallback to the student-only baseline, not an error.
-            _genre_stats = _repo().get_genre_stats(_genre, tenant_of(student_id))
+            _prior_tenant = tenant_of(student_id)
+            _genre_stats = _repo().get_genre_stats(_genre, _prior_tenant)
+            # How often that fallback actually fires was never measured:
+            # scripts/measure_genre_prior_scope.py found no reachable dataset
+            # with genre-labelled authenticated samples (2026-07-29), so the
+            # coverage cost of tenant-scoping is still unknown. This line lets
+            # the first tenant to enable the flag measure it in situ — count
+            # outcome=miss against outcome=hit for the per-(tenant, genre)
+            # None rate. Tenant slug and genre label only: never a student id.
+            logging.getLogger(__name__).info(
+                "bayesian_prior outcome=%s genre=%s tenant=%s n_prior=%d",
+                "hit" if _genre_stats is not None else "miss",
+                _genre,
+                _prior_tenant,
+                _genre_stats["n_samples"] if _genre_stats is not None else 0,
+            )
     _scoring_config = dataclasses.replace(
         _scoring_config_env,
         authentic_fidelities=_authentic_fidelities,
