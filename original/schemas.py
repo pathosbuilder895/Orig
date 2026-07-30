@@ -735,6 +735,9 @@ class Layer7OutputResponse(BaseModel):
     typicality_p_central: float | None = None
     typicality_band: str | None = None
     typicality_n: int = 0
+    # Phase 2: disambiguates an ambiguous typicality_band == "schedule_conversation"
+    # ("far" | "central" | None) — see Layer7Output.typicality_source.
+    typicality_source: str | None = None
 
 
 # ── Student state summary ─────────────────────────────────────────────────────

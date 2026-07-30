@@ -13,6 +13,12 @@ Trajectory adjustment
   lateral   (|cos| < 0.25) → D_adj = D_raw × 1.0
   regressive(cos < −0.20) → D_adj = D_raw × 1.15   (amplified)
 
+  Phase 2 (IDENTITY_AXIS=1): the growth × 0.75 dampening above is disabled
+  (factor becomes 1.0) — the identity axis's (too-far, distinctively-theirs)
+  -> monitor cell handles the same benign-growth-vs-fraud distinction with
+  actual evidence instead of an unconditional discount. The trajectory
+  direction/alignment/confidence are still computed and reported either way.
+
 Interference decomposition
 ──────────────────────────
   Contribution of feature i to Born probability:
@@ -222,6 +228,11 @@ class ScoringConfig:
     amplitude_scoring_enabled: bool = False  # was AMPLITUDE_SCORING_ENABLED, :597
     secret_key: str = ""  # was SECRET_KEY, :602
     typicality_scoring_enabled: bool = False  # was TYPICALITY_SCORING
+    # Phase 2: promotes llr_deviation_score to a co-equal "identity" axis,
+    # combined with the typicality axis via a 3x3 action matrix
+    # (_identity_axis_action). Only takes effect when null_model == "impostor"
+    # AND a typicality band is available — see _recommend()'s wiring.
+    identity_axis_enabled: bool = False  # was IDENTITY_AXIS
 
     # ── formerly call-time `from ..store import ...` ──────────────────────────
     # Confirmed-authentic fidelity scores for this student, for the conformal
@@ -244,6 +255,7 @@ class ScoringConfig:
             amplitude_scoring_enabled=os.environ.get("AMPLITUDE_SCORING_ENABLED", "0") == "1",
             secret_key=os.environ.get("SECRET_KEY", ""),
             typicality_scoring_enabled=os.environ.get("TYPICALITY_SCORING", "0") == "1",
+            identity_axis_enabled=os.environ.get("IDENTITY_AXIS", "0") == "1",
         )
 
 
@@ -280,6 +292,12 @@ class Layer7Output:
     typicality_p_central: float | None = field(default=None)
     typicality_band: str | None = field(default=None)
     typicality_n: int = field(default=0)
+    # Which tail produced typicality_band, when it's "schedule_conversation" —
+    # that value is emitted by BOTH the moderate-drift far-side band and the
+    # too-central band (see typicality.py's band_from_p), so this field
+    # disambiguates which row of the Phase 2 identity-axis matrix applies.
+    # "far" | "central" | None (insufficient N, same gate as the other four).
+    typicality_source: str | None = field(default=None)
 
     # Tension arc (orthogonal signal, set at API layer after quantum score)
     tension_arc: TensionArcResult | None = field(default=None)
@@ -627,9 +645,10 @@ def score(
     typicality_p_central: float | None = None
     typicality_band: str | None = None
     typicality_n: int = 0
+    typicality_source: str | None = None
 
     if config.typicality_scoring_enabled and adaptive_weights is None:
-        from .typicality import band_from_p, p_central
+        from .typicality import NO_ACTION_CENTRAL_THRESHOLD, band_from_p, p_central
         from .typicality import p_far as p_far_fn
 
         loo = state.loo_distances
@@ -645,6 +664,14 @@ def score(
             typicality_p_far = p_far_fn(rms_z, loo)
             typicality_p_central = p_central(rms_z, loo)
             typicality_band = band_from_p(typicality_p_far, typicality_p_central)
+            # Phase 2: which tail produced the band, for the identity-axis
+            # matrix's disambiguation of an ambiguous "schedule_conversation"
+            # value (see band_from_p's docstring: this replicates its own
+            # first branch condition exactly, so it stays in lockstep with
+            # whatever band_from_p actually decided).
+            typicality_source = (
+                "central" if typicality_p_central <= NO_ACTION_CENTRAL_THRESHOLD else "far"
+            )
 
     # ── Explicit null model (rank-and-null work) ──────────────────────────────
     # Gated by config.null_model == "impostor" AND the caller supplying
@@ -722,7 +749,13 @@ def score(
         alignment = float(np.dot(xi, traj.vector))  # cos sim (both unit-normalised)
         if alignment > TRAJECTORY_GROWTH_THRESHOLD:
             direction = "growth"
-            adj_factor = 0.75
+            # Phase 2: under IDENTITY_AXIS, the unconditional growth dampening
+            # is superseded by the identity-axis matrix's evidence-based
+            # (too-far, distinctively-theirs) -> monitor cell — see design
+            # spec §6. The trajectory result itself is still computed and
+            # reported (direction/alignment/confidence); only the multiplier
+            # applied to the deviation score is disabled.
+            adj_factor = 1.0 if config.identity_axis_enabled else 0.75
         elif alignment < TRAJECTORY_REGRESSIVE_THRESHOLD:
             direction = "regressive"
             adj_factor = 1.15
@@ -782,6 +815,10 @@ def score(
         conformal_p=_conformal_p,
         n_tokens=n_tokens,
         typicality_band=typicality_band,
+        typicality_source=typicality_source,
+        llr_deviation_score=llr_deviation_score,
+        identity_axis_enabled=config.identity_axis_enabled,
+        null_model=config.null_model,
     )
 
     # Override to escalate on catastrophic drift regardless of scored action
@@ -829,6 +866,7 @@ def score(
         typicality_p_central=typicality_p_central,
         typicality_band=typicality_band,
         typicality_n=typicality_n,
+        typicality_source=typicality_source,
         # Phase 3+: attach the adaptive context manifest (if any) for audit.
         # Stored as a plain dict so this module needs no original.context import.
         context_manifest=manifest,
@@ -1035,6 +1073,61 @@ def _find_entanglement_anomalies(
     return anomalies[:3]
 
 
+# ── Identity axis (Phase 2) ────────────────────────────────────────────────────
+
+
+def _identity_axis_action(
+    typicality_band: str | None,
+    typicality_source: str | None,
+    llr: float,
+) -> str | None:
+    """
+    Typicality x identity action matrix (design spec §6). ``typicality_band``
+    is collapsed to one of "typical" (no_action), "too-far" (monitor/
+    schedule_conversation/escalate from drift), "too-central"
+    (schedule_conversation from p_central), or None (insufficient N).
+
+    ``typicality_band == "schedule_conversation"`` is ambiguous by
+    construction — ``band_from_p`` (typicality.py) emits it for BOTH the
+    moderate-drift far-side band and the too-central band. ``typicality_source``
+    ("far" | "central", set alongside ``typicality_band`` in ``score()``)
+    disambiguates which row applies; it is ignored for every other band value.
+
+    Identity bands (provisional, per spec §6 — re-derived empirically by
+    the gate runner before this flag ships): < .45 distinctively theirs,
+    .45-.60 non-distinctive, > .60 fits others better.
+    """
+    if typicality_band is None:
+        return None
+
+    if typicality_band == "no_action":
+        row = "typical"
+    elif typicality_source == "central":
+        row = "too-central"
+    else:  # "far" (or unset, defensively) -> drift side
+        row = "too-far"
+
+    if llr < 0.45:
+        col = "distinctive"
+    elif llr <= 0.60:
+        col = "non_distinctive"
+    else:
+        col = "fits_others"
+
+    matrix = {
+        ("typical", "distinctive"): "no_action",
+        ("typical", "non_distinctive"): "monitor",
+        ("typical", "fits_others"): "schedule_conversation",
+        ("too-far", "distinctive"): "monitor",
+        ("too-far", "non_distinctive"): "schedule_conversation",
+        ("too-far", "fits_others"): "escalate",
+        ("too-central", "distinctive"): "monitor",
+        ("too-central", "non_distinctive"): "schedule_conversation",
+        ("too-central", "fits_others"): "escalate",
+    }
+    return matrix[(row, col)]
+
+
 # ── Recommended action ────────────────────────────────────────────────────────
 
 
@@ -1048,6 +1141,10 @@ def _recommend(
     conformal_p: float | None = None,
     n_tokens: int | None = None,
     typicality_band: str | None = None,  # NEW — two-axis verification
+    typicality_source: str | None = None,  # Phase 2 — "far" | "central" | None
+    llr_deviation_score: float | None = None,  # Phase 2 — identity axis input
+    identity_axis_enabled: bool = False,  # Phase 2 — IDENTITY_AXIS
+    null_model: str = "none",  # Phase 2 — gate: matrix only under "impostor"
 ) -> RecommendedAction:
     """Derive recommended action from the full probability object.
 
@@ -1072,6 +1169,14 @@ def _recommend(
     ``action`` local variable regardless of which branch set it, so both
     continue to apply exactly as before on top of whichever source produced
     the initial action.
+
+    Phase 2 (``identity_axis_enabled`` + ``null_model == "impostor"``):
+    when both are true AND a typicality band AND an ``llr_deviation_score``
+    are available, ``_identity_axis_action`` recombines them via the design
+    spec §6 action matrix and SUPERSEDES the typicality-only ``action`` set
+    above — still before the entanglement override and fidelity-conformal
+    nudge, which apply unmodified on top of whichever value ``action`` holds
+    at this point.
     """
 
     # Primary signal: deviation score (higher = more suspicious / anomalous),
@@ -1086,6 +1191,24 @@ def _recommend(
                 break
         if deviation >= 1.0:
             action = "escalate"
+
+    # ── Identity axis (Phase 2) ────────────────────────────────────────────────
+    # Only fires when the typicality axis is ALSO active (a band is present)
+    # and an explicit null-model llr_deviation_score was computed for this
+    # call. Supersedes the typicality-only action set above; everything
+    # below (entanglement override, conformal nudge) is unmodified and
+    # continues to read/write the same `action` local variable.
+    if (
+        identity_axis_enabled
+        and null_model == "impostor"
+        and typicality_band is not None
+        and llr_deviation_score is not None
+    ):
+        matrix_action = _identity_axis_action(
+            typicality_band, typicality_source, llr_deviation_score
+        )
+        if matrix_action is not None:
+            action = matrix_action
 
     # ── Entanglement override ─────────────────────────────────────────────────
     # The T1–T11 vocabulary-spike + error-vanish pattern is a high-specificity
