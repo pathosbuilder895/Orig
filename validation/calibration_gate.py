@@ -102,15 +102,26 @@ def evaluate_g2_bland_impostor(holdout_q: list[float], impostor_q: list[float]) 
     )
 
 
-def evaluate_g3_attribution(top1_accuracy: float) -> GateResult:
-    """G3 — Attribution non-regression. Existing bar: >= 0.7."""
+def evaluate_g3_attribution(
+    top1_accuracy: float, top1_accuracy_raw_argmin: float | None = None
+) -> GateResult:
+    """
+    G3 — Attribution non-regression. Existing bar: >= 0.7 (unchanged).
+    top1_accuracy is the impostor-calibrated accuracy from
+    validation/public_authors/run.py (summary.top1_accuracy); the raw
+    argmin accuracy (summary.top1_accuracy_raw_argmin) is carried in
+    detail for comparison when present, but never gated on.
+    """
     passed = top1_accuracy >= 0.7
+    detail = {"top1_accuracy": top1_accuracy}
+    if top1_accuracy_raw_argmin is not None:
+        detail["top1_accuracy_raw_argmin"] = top1_accuracy_raw_argmin
     return GateResult(
         name="G3",
         passed=passed,
-        criterion="public_authors top-1 accuracy >= 0.7",
+        criterion="public_authors top-1 accuracy >= 0.7 (impostor-calibrated attribution)",
         current_value=f"{top1_accuracy:.3f}",
-        detail={"top1_accuracy": top1_accuracy},
+        detail=detail,
     )
 
 
@@ -226,8 +237,14 @@ def run_all() -> list[GateResult]:
     from validation.public_authors.run import run as run_public_authors
 
     pa_report = run_public_authors()
-    top1_accuracy = pa_report.get("summary", {}).get("top1_accuracy", 0.0)
-    results.append(evaluate_g3_attribution(top1_accuracy))
+    pa_summary = pa_report.get("summary", {})
+    top1_accuracy = pa_summary.get("top1_accuracy", 0.0)
+    results.append(
+        evaluate_g3_attribution(
+            top1_accuracy,
+            top1_accuracy_raw_argmin=pa_summary.get("top1_accuracy_raw_argmin"),
+        )
+    )
 
     # G4: Plato early/middle/late monotonicity.
     group_means = _compute_g4_group_means()
