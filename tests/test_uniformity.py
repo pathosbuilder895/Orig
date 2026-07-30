@@ -57,3 +57,10 @@ class TestExtractUniformity:
         source = inspect.getsource(uniformity)
         assert "np.clip" not in source
         assert "_normalise" not in source
+        # Disguised clipping: a bare min(1.0, ...) / min(1, ...) ceiling on a
+        # returned value is the same normalization-in-the-extractor mistake
+        # as np.clip, just spelled differently. (Guards like max(1, ...) used
+        # to floor an intermediate denominator against division-by-zero are
+        # fine and are not flagged here.)
+        assert "min(1.0," not in source
+        assert "min(1," not in source

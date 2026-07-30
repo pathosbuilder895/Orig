@@ -111,8 +111,12 @@ def vocab_introduction_flatness(doc: TextDoc) -> float:
     if len(bucket_rates) < 2 or bucket_rates[0] < 1e-9:
         return 0.5
     # Flatness: how close the LAST bucket's rate is to the FIRST bucket's
-    # rate. Genuine decay -> low value (last << first). Flat -> high value.
-    return min(1.0, bucket_rates[-1] / bucket_rates[0])
+    # rate. Genuine decay -> low value (last << first). Flat -> ~1.0.
+    # Raw, unclamped ratio — a document whose introduction rate genuinely
+    # *increases* over its length yields > 1.0; normalisation/clipping to
+    # [0,1] is pipeline.py's job via NORM_BOUNDS, not this extractor's (see
+    # module docstring — matches the Tier 17/10 no-clip contract).
+    return bucket_rates[-1] / bucket_rates[0]
 
 
 def clause_depth_variance_ratio(doc: TextDoc) -> float:
