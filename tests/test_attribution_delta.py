@@ -127,6 +127,34 @@ class TestCosineDelta:
         assert set(dists) == set(centers)
 
 
+def _letter_suffix(i):
+    # Distinct filler tokens for the fixture below. A numeric suffix would
+    # NOT work here: the tokenizer regex is [a-z']+, so "fill123" would
+    # tokenize as just "fill" and collapse every filler token into one
+    # word -- which would then compete with "so" for the top_n=2 vocab
+    # slot. Letters-only suffixes stay distinct under the real tokenizer.
+    letters = "abcdefghijklmnopqrstuvwxyz"
+    out = []
+    n = i
+    while True:
+        n, r = divmod(n, 26)
+        out.append(letters[r])
+        if n == 0:
+            break
+        n -= 1
+    return "".join(reversed(out))
+
+
+def _mfw_fixture_text(the_count, so_count, filler_count, filler_prefix):
+    # Builds a document with an exact word count: `the_count` copies of
+    # "the", `so_count` copies of "so", and `filler_count` DISTINCT filler
+    # tokens (so none of them can outrank "so" in pooled frequency and
+    # sneak into a top_n=2 vocabulary).
+    parts = ["the "] * the_count + ["so "] * so_count
+    parts += [f"{filler_prefix}{_letter_suffix(i)} " for i in range(filler_count)]
+    return "".join(parts)
+
+
 def _texts():
     # Two authors with opposite function-word tilts; enough tokens for
     # stable relative frequencies.
@@ -145,6 +173,49 @@ class TestMfwDelta:
         assert pred_a == "upon_author"
         assert pred_b == "with_author"
         assert set(deltas_a) == {"upon_author", "with_author"}
+
+    def test_pool_z_scoring_is_load_bearing_not_just_argmin_direction(self):
+        """
+        Pins the z-scoring step itself, not just the min()-direction: the
+        fixture is built so that a variant with NO z-scoring at all (raw
+        relative-frequency L1 distance), and a variant that z-scores the
+        candidate profiles but forgets to z-score the test vector, both
+        misattribute -- while the real pool-z-scored implementation gets
+        it right.
+
+        Two words carry the signal, deliberately in TENSION:
+        - "so" is the rare word that genuinely distinguishes the authors:
+          true_author's baseline so-rate (0.020) is double the rival's
+          (0.010), and the test text's so-rate (0.021) matches
+          true_author almost exactly.
+        - "the" is the frequent word with a much larger absolute
+          cross-candidate gap (0.800 rival vs 0.300 true_author) that is
+          NOT the author signal here -- it is owned by the RIVAL, and the
+          test text's the-rate (0.700) is dragged toward the rival's
+          value, far from true_author's.
+
+        An un-normalized distance is swamped by "the"'s large raw gap and
+        picks the rival. Z-scoring both the candidate profiles AND the
+        test vector against the same pool mu/sigma puts every word on
+        equal footing, so the genuinely discriminating "so" dimension
+        decides -- correctly, in favor of true_author. (Verified against
+        both broken variants in isolation, outside this suite, before
+        writing this test; see task report.)
+
+        All three documents are exactly 1000 tokens, split between "the",
+        "so", and DISTINCT filler tokens (via _letter_suffix) so that a
+        top_n=2 call locks the vocabulary onto exactly {"the", "so"} --
+        no accidental filler word can outrank "so" and steal its slot.
+        """
+        true_author_doc = _mfw_fixture_text(300, 20, 680, "afill")
+        rival_doc = _mfw_fixture_text(800, 10, 190, "bfill")
+        test_text = _mfw_fixture_text(700, 21, 279, "tfill")
+
+        baseline = {"true_author": [true_author_doc], "rival": [rival_doc]}
+        predicted, deltas = mfw_delta_attribution(baseline, test_text, top_n=2)
+
+        assert predicted == "true_author"
+        assert set(deltas) == {"true_author", "rival"}
 
     def test_unseen_words_do_not_crash(self):
         pred, _ = mfw_delta_attribution(
