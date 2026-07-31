@@ -59,16 +59,110 @@ class GateResult:
     detail: dict = field(default_factory=dict)
 
 
+# ── Shared conformal-reachability guard ───────────────────────────────────────
+#
+# A conformal p-value over n leave-one-out distances is quantized: its support
+# is {1/(n+1), 2/(n+1), … , 1}, so it can NEVER fall below 1/(n+1) no matter
+# how extreme the submission is (original/quantum/typicality.py's module
+# docstring; design spec §5's reachability-vs-N table). Any gate that
+# thresholds a p-value therefore has to state whether its threshold was
+# reachable at the N it actually observed — otherwise "zero flags" is a
+# statement about the arithmetic, not about the students, and reads in the
+# report as demonstrated fairness/discrimination when it is neither.
+
+
+def _conformal_p_floor(n: int) -> float:
+    """The smallest value a conformal p-value over n LOO distances can take."""
+    return 1.0 / (max(int(n), 0) + 1)
+
+
+def _min_n_for_threshold(threshold: float) -> int:
+    """Smallest n whose p-value floor reaches `threshold` (0.02 -> 49)."""
+    import math
+
+    n = max(0, math.ceil(1.0 / threshold) - 1)
+    # Both directions, so float representation can't shift the boundary.
+    while n > 0 and _conformal_p_floor(n - 1) <= threshold:
+        n -= 1
+    while _conformal_p_floor(n) > threshold:
+        n += 1
+    return n
+
+
+def _threshold_reachable(n: int, threshold: float) -> bool:
+    """True iff a p-value over n LOO distances can reach `threshold` at all."""
+    return _conformal_p_floor(n) <= threshold
+
+
+def _reachability_block(typicality_ns: list[int], threshold: float) -> dict:
+    """
+    Reachability summary for a leg that thresholds a conformal p-value, keyed
+    off the BINDING (smallest) observed typicality_n — if the weakest fold
+    can't reach the threshold, that fold's "not flagged" is structural.
+
+    An empty/all-zero `typicality_ns` means no fold computed typicality at
+    all (scoring.py needs >= 2 LOO distances), so the action came from the
+    deviation path and the floor doesn't apply: the block records
+    observed=False and reachable=None rather than inventing a verdict.
+    """
+    ns = [int(n) for n in typicality_ns if n and int(n) >= 1]
+    required_n = _min_n_for_threshold(threshold)
+    if not ns:
+        return {
+            "observed": False,
+            "min_typicality_n": None,
+            "p_floor": None,
+            "threshold": threshold,
+            "required_n": required_n,
+            "reachable": None,
+            "n_folds_with_typicality": 0,
+            "note": (
+                "no fold reported a typicality_n — these actions came from the "
+                "deviation-score path, not the conformal band, so the "
+                "1/(n+1) p-value floor does not apply to them"
+            ),
+        }
+    min_n = min(ns)
+    return {
+        "observed": True,
+        "min_typicality_n": min_n,
+        "p_floor": _conformal_p_floor(min_n),
+        "threshold": threshold,
+        "required_n": required_n,
+        "reachable": _threshold_reachable(min_n, threshold),
+        "n_folds_with_typicality": len(ns),
+        "note": (
+            f"conformal p-values floor at 1/(n+1); at n={min_n} the floor is "
+            f"{_conformal_p_floor(min_n):.3f} and the {threshold:g} threshold "
+            f"needs n>={required_n} (design spec §5 reachability table)"
+        ),
+    }
+
+
 # ── Pure gate-evaluation logic (unit-tested in tests/test_calibration_gate.py) ─
 
 
-def evaluate_g1_fpr(pooled_actions: list[str], per_corpus: dict[str, list[str]]) -> GateResult:
+def evaluate_g1_fpr(
+    pooled_actions: list[str],
+    per_corpus: dict[str, list[str]],
+    typicality_ns: list[int] | None = None,
+) -> GateResult:
     """
     G1 — Same-author FPR. Pooled flagged rate (action != "no_action") must
     be <= 5%. Also reports per-corpus flagged rate so a pooled pass cannot
     hide an individual corpus running well above budget (Bates et al.'s
     marginal-not-conditional-validity finding — see design spec §10).
+
+    `typicality_ns` (one per scored fold) drives the reachability
+    ANNOTATION, never the verdict: the flagged rate is genuinely defined at
+    any N, so `passed` is unchanged, but when the observed N is too small for
+    any band boundary to be crossed (p-value floor above the loosest flag
+    threshold, NO_ACTION_FAR_THRESHOLD), a 0% rate is guaranteed by
+    construction and current_value says so in as many words. Omitting the
+    argument keeps the pre-existing current_value string exactly.
     """
+    from original.quantum.typicality import NO_ACTION_FAR_THRESHOLD
+
     n = len(pooled_actions)
     flagged = sum(1 for a in pooled_actions if a != "no_action")
     pooled_rate = flagged / n if n else 1.0
@@ -79,17 +173,33 @@ def evaluate_g1_fpr(pooled_actions: list[str], per_corpus: dict[str, list[str]])
         cflagged = sum(1 for a in actions if a != "no_action")
         per_corpus_rate[corpus] = cflagged / cn if cn else 1.0
 
+    # The loosest band boundary: below NO_ACTION_FAR_THRESHOLD nothing in
+    # band_from_p() can move a fold off "no_action" (the stricter central /
+    # monitor / escalate boundaries are unreachable a fortiori).
+    reachability = _reachability_block(typicality_ns or [], NO_ACTION_FAR_THRESHOLD)
+    current_value = f"{pooled_rate:.1%}"
+    if reachability["observed"] and not reachability["reachable"]:
+        current_value += (
+            f" (UNINFORMATIVE: typicality thresholds unreachable at "
+            f"n<={reachability['min_typicality_n']} — p-value floor "
+            f"{reachability['p_floor']:.3f} exceeds the loosest flag boundary "
+            f"{NO_ACTION_FAR_THRESHOLD:g}, which needs n>="
+            f"{reachability['required_n']}; band-driven flags are impossible "
+            f"by construction, so this rate is not evidence of calibration)"
+        )
+
     passed = pooled_rate <= 0.05
     return GateResult(
         name="G1",
         passed=passed,
         criterion="pooled flagged rate <= 5%",
-        current_value=f"{pooled_rate:.1%}",
+        current_value=current_value,
         detail={
             "n": n,
             "flagged": flagged,
             "pooled_flagged_rate": pooled_rate,
             "per_corpus_flagged_rate": per_corpus_rate,
+            "reachability": reachability,
         },
     )
 
@@ -123,13 +233,21 @@ _G2B_CRITERION = (
 _G2B_PROXY_NOTE = (
     "The impostor texts were transformed by a deterministic "
     + _G2B_PROXY_LABEL
-    + ": fixed-table word substitution plus adjacent-sentence reordering "
-    "(_paraphrase_proxy). A pass here is NOT evidence of robustness against "
-    "real detector-guided LLM paraphrase attacks (the published one-line "
-    "'elevate the language' attack the design spec's research review cites) "
-    "— no LLM is wired into this validation harness. It only checks that "
-    "the Tier-18 uniformity features are not defeated by trivial mechanical "
-    "edits. A real LLM-based paraphrase gate remains an open follow-up."
+    + ": fixed-table word substitution plus within-paragraph adjacent-sentence "
+    "reordering (_paraphrase_proxy). A pass here is NOT evidence of robustness "
+    "against real detector-guided LLM paraphrase attacks (the published "
+    "one-line 'elevate the language' attack the design spec's research review "
+    "cites) — no LLM is wired into this validation harness. MEASURED LIMITS of "
+    "the transform on validation/corpus/ai_*.txt: it substitutes ~1% of tokens "
+    "(1.1% measured; the table has 37 entries but they are rare in this "
+    "corpus), and three of the six Tier-18 uniformity features — "
+    "sentence_length_dispersion_ratio, punctuation_dispersion_ratio and "
+    "clause_depth_variance_ratio — are invariant under it BY CONSTRUCTION, "
+    "since reordering sentences within a paragraph permutes but does not "
+    "change the per-sentence length / punctuation / clause-depth "
+    "distributions, and a ~1% synonym swap does not either. So this gate "
+    "stresses at most half the uniformity family, weakly. A real LLM-based "
+    "paraphrase gate remains an open follow-up."
 )
 
 
@@ -151,7 +269,8 @@ def evaluate_g2b_paraphrase_resistant(
     weakened here).
 
     `informational` is attach-only context merged into detail — it never
-    affects the verdict (same convention as evaluate_g5_permutation_null).
+    affects the verdict, and it is merged FIRST so a stray key can never
+    overwrite a verdict-bearing one (the proxy label above all).
     """
     import statistics
 
@@ -160,13 +279,14 @@ def evaluate_g2b_paraphrase_resistant(
         statistics.median(paraphrased_impostor_q) if paraphrased_impostor_q else float("nan")
     )
     passed = med_impostor <= med_holdout
-    detail = {
-        "holdout_q": holdout_q,
-        "paraphrased_impostor_q": paraphrased_impostor_q,
-        "proxy_note": _G2B_PROXY_NOTE,
-    }
-    if informational:
-        detail.update(informational)
+    detail = dict(informational or {})
+    detail.update(
+        {
+            "holdout_q": holdout_q,
+            "paraphrased_impostor_q": paraphrased_impostor_q,
+            "proxy_note": _G2B_PROXY_NOTE,
+        }
+    )
     return GateResult(
         name="G2b",
         passed=passed,
@@ -315,9 +435,11 @@ def _g5_machinery_error_result(exc: Exception) -> GateResult:
 
 
 _G6_CRITERION = (
-    "per-group flagged rate for the p_central/too-uniform action "
-    "(uniformity features enabled) must not differ by more than 2x between "
-    "native_english=true and =false authentic samples"
+    "per-group flagged rate for the p_central/too-uniform action must not "
+    "differ by more than 2x between native_english=true and =false authentic "
+    "samples — verdict covers the p_central action ONLY; the spec's per-group "
+    "uniformity-feature comparison is recorded in detail as measurement, not "
+    "gated (pending Tier-18 NORM_BOUNDS calibration)"
 )
 
 
@@ -325,58 +447,235 @@ def evaluate_g6_fairness(
     native_fpr: float,
     non_native_fpr: float,
     informational: dict | None = None,
+    welch_effect_magnitude: str | None = None,
+    welch_cohens_d: float | None = None,
 ) -> GateResult:
     """
     G6 — Non-native-English fairness. Per-group flagged rate for the
     p_central/too-uniform action must not differ by more than 2x between
-    native_english=true and =false groups (design spec §4, G6 row). Reuses
-    the same 2x bar — including the ratio convention — that
-    validation/bias_analysis._analyze_dimension already applies elsewhere:
-    only non-zero rates are compared, and with fewer than two non-zero rates
-    the ratio is 1.0 (this is also what makes a zero-rate group safe from
-    division errors).
+    native_english=true and =false groups (design spec §4, G6 row).
+
+    Zero-rate conventions, which deliberately DIVERGE from
+    validation/bias_analysis._analyze_dimension's "<2 non-zero rates => ratio
+    1.0" rule. That rule is safe there only because it sits beside
+    effect-size and ANOVA checks that can independently fail the dimension;
+    imported alone into a single-criterion gate it turns the two most
+    fairness-relevant small-sample cases into silent passes. Here:
+
+      - both rates non-zero: ratio = max/min, pass iff <= 2x (unchanged);
+      - exactly one rate zero: an INFINITE disparity — one group is never
+        flagged and the other is. Fails; ratio is recorded as inf;
+      - both rates zero: the ratio is undefined and nothing about fairness
+        has been demonstrated. Fails as explicitly UNDEFINED (an absence of
+        evidence must not render green). When the cause is the conformal
+        floor rather than the data, _compute_g6_fairness_data catches it
+        earlier and returns the louder "threshold unreachable" skip.
+
+    `welch_effect_magnitude`/`welch_cohens_d` come from the bridged
+    validation/bias_analysis._welch_t_test. They never change the verdict
+    (the spec's criterion is the ratio), but a medium/large effect is
+    contradicting evidence — _analyze_dimension would call that NOT FAIR —
+    so it is appended to current_value rather than buried in detail.
 
     `informational` is attach-only context merged into detail — it never
-    affects the verdict (same convention as evaluate_g5_permutation_null).
+    affects the verdict, and it is merged FIRST so a stray key can never
+    overwrite a verdict-bearing one.
     """
-    rates = [r for r in (native_fpr, non_native_fpr) if r > 0]
-    ratio = max(rates) / min(rates) if len(rates) == 2 else 1.0
-    passed = ratio <= 2.0
-    detail = {"native_fpr": native_fpr, "non_native_fpr": non_native_fpr, "ratio": ratio}
-    if informational:
-        detail.update(informational)
+    native_zero = native_fpr <= 0.0
+    non_native_zero = non_native_fpr <= 0.0
+    rate_text = f"native={native_fpr:.1%}, non_native={non_native_fpr:.1%}"
+
+    if native_zero and non_native_zero:
+        ratio: float | None = None
+        ratio_status = "undefined_both_zero"
+        passed = False
+        current_value = (
+            f"UNDEFINED: both group flagged rates are 0% ({rate_text}) — the "
+            "ratio is undefined and no fairness has been demonstrated"
+        )
+    elif native_zero or non_native_zero:
+        ratio = float("inf")
+        ratio_status = "one_group_zero"
+        passed = False
+        current_value = (
+            f"ratio=inf ({rate_text}) — one group is never flagged and the "
+            "other is: an infinite disparity, which exceeds the 2x bar"
+        )
+    else:
+        ratio = max(native_fpr, non_native_fpr) / min(native_fpr, non_native_fpr)
+        ratio_status = "both_nonzero"
+        passed = ratio <= 2.0
+        current_value = f"ratio={ratio:.2f}x ({rate_text})"
+
+    if welch_effect_magnitude in ("medium", "large"):
+        d_text = f", d={welch_cohens_d:.3f}" if welch_cohens_d is not None else ""
+        current_value += (
+            f" — CAVEAT: Welch effect size on p_central is "
+            f"{welch_effect_magnitude}{d_text}, which "
+            "bias_analysis._analyze_dimension would read as NOT FAIR"
+        )
+
+    detail = dict(informational or {})
+    detail.update(
+        {
+            "native_fpr": native_fpr,
+            "non_native_fpr": non_native_fpr,
+            "ratio": ratio,
+            "ratio_status": ratio_status,
+            "welch_effect_magnitude": welch_effect_magnitude,
+            "welch_cohens_d": welch_cohens_d,
+        }
+    )
     return GateResult(
         name="G6",
         passed=passed,
         criterion=_G6_CRITERION,
-        current_value=(
-            f"ratio={ratio:.2f}x (native={native_fpr:.1%}, non_native={non_native_fpr:.1%})"
-        ),
+        current_value=current_value,
         detail=detail,
     )
 
 
 def _g6_insufficient_data_result(
-    missing: str, *, n_native_scored: int, n_non_native_scored: int
+    missing: str,
+    *,
+    n_native_scored: int,
+    n_non_native_scored: int,
+    reason: str = "insufficient data",
+    extra_detail: dict | None = None,
 ) -> GateResult:
     """
     Honest-instrument convention (same reasoning as _machinery_error_result):
-    when the corpora lack enough native_english-annotated authentic entries
-    to compute a per-group rate, G6 must record a LOUD skipped result —
-    passed=False with a current_value that is unmistakably "no data", and a
-    detail that says exactly what was missing — never a silent pass.
+    when G6's inputs cannot support a per-group rate — too few annotated
+    entries, or a threshold the observed N cannot reach — it must record a
+    LOUD skipped result: passed=False with a current_value that is
+    unmistakably "no verdict", and a detail that says exactly what was
+    missing. Never a silent pass. `reason` names the flavour of skip;
+    `extra_detail` carries the flavour-specific numbers.
     """
+    detail = dict(extra_detail or {})
+    detail.update(
+        {
+            "missing": missing,
+            "n_native_scored": n_native_scored,
+            "n_non_native_scored": n_non_native_scored,
+        }
+    )
     return GateResult(
         name="G6",
         passed=False,
         criterion=_G6_CRITERION,
-        current_value=f"SKIPPED (insufficient data): {missing}",
-        detail={
-            "missing": missing,
-            "n_native_scored": n_native_scored,
-            "n_non_native_scored": n_non_native_scored,
-        },
+        current_value=f"SKIPPED ({reason}): {missing}",
+        detail=detail,
     )
+
+
+def _g6_unreachable_threshold_result(
+    *,
+    observed_n: int,
+    threshold: float,
+    n_native_scored: int,
+    n_non_native_scored: int,
+    extra_detail: dict | None = None,
+) -> GateResult:
+    """
+    The vacuous-pass guard. With 5 essays per author scored leave-one-out,
+    every fold has typicality_n=4, so p_central's whole support is
+    {0.2, 0.4, 0.6, 0.8, 1.0} — the 0.02 flag threshold cannot be crossed by
+    any submission whatsoever. Both groups then score a 0% flagged rate, the
+    ratio comes out 1.0, and the gate would report a PASS indistinguishable
+    from a genuine fairness result. Instead: a loud skip naming the floor,
+    the observed n, and the n the spec's §5 reachability table requires.
+    """
+    floor = _conformal_p_floor(observed_n)
+    required_n = _min_n_for_threshold(threshold)
+    detail = dict(extra_detail or {})
+    detail.update(
+        {
+            "min_typicality_n": observed_n,
+            "p_floor": floor,
+            "threshold": threshold,
+            "required_n": required_n,
+        }
+    )
+    return _g6_insufficient_data_result(
+        f"p_central floor 1/(n+1)={floor:.3f} at n={observed_n}, flag threshold "
+        f"{threshold:g} needs n>={required_n}",
+        n_native_scored=n_native_scored,
+        n_non_native_scored=n_non_native_scored,
+        reason="threshold unreachable",
+        extra_detail=detail,
+    )
+
+
+def _g6_short_group_message(n_native: int, n_non_native: int, minimum: int) -> str:
+    """
+    Insufficient-data message that names EVERY short group (the first cut
+    named only one even when both were short, misattributing the shortfall).
+    """
+
+    def _phrase(label: str, n: int) -> str:
+        return f"native_english={label} group has {n} scored authentic " + (
+            "entry" if n == 1 else "entries"
+        )
+
+    short = [
+        _phrase(label, n)
+        for label, n in (("true", n_native), ("false", n_non_native))
+        if n < minimum
+    ]
+    return f"{' and '.join(short)} (need >= {minimum} each)"
+
+
+def _uniformity_slice_summary(per_group_features: dict[bool, list[dict[str, float]]]) -> dict:
+    """
+    The spec's G6 row also asks for a per-group comparison of the Phase-4
+    uniformity features, not only the p_central action. This records that
+    comparison as MEASUREMENT — per-group means of each Tier-18 feature —
+    without inventing a second verdict rule the spec doesn't define (no bar
+    exists for these until Tier-18 NORM_BOUNDS are calibrated), hence
+    gated=False.
+
+    `constant_across_slice` names features that never vary anywhere in the
+    slice. Such a feature cannot carry a fairness signal in either
+    direction, and it is exactly the fingerprint of the Tier-18 bounds
+    miscalibration (features normalising to a pinned 0.0/1.0 for every
+    text), so it is called out by name rather than left to be inferred from
+    two identical means.
+    """
+    import statistics
+
+    native = list(per_group_features.get(True) or [])
+    non_native = list(per_group_features.get(False) or [])
+    codes = sorted({code for row in native + non_native for code in row})
+
+    def _means(rows: list[dict[str, float]]) -> dict[str, float]:
+        return {
+            code: statistics.fmean([row[code] for row in rows if code in row])
+            for code in codes
+            if any(code in row for row in rows)
+        }
+
+    all_rows = native + non_native
+    constant = [
+        code
+        for code in codes
+        if len({round(row[code], 12) for row in all_rows if code in row}) <= 1
+    ]
+    return {
+        "native_english_true_means": _means(native),
+        "native_english_false_means": _means(non_native),
+        "constant_across_slice": constant,
+        "n_native": len(native),
+        "n_non_native": len(non_native),
+        "gated": False,
+        "note": (
+            "per-group Tier-18 uniformity-feature means, recorded as "
+            "measurement only — the spec defines no numeric bar for these "
+            "until the Tier-18 NORM_BOUNDS are calibrated, so they do not "
+            "affect G6's verdict. Features listed in constant_across_slice "
+            "never vary in this slice and can carry no fairness signal at all."
+        ),
+    }
 
 
 # ── Corpus-driving orchestration (exercised by `main()`, not unit-tested) ──────
@@ -734,14 +1033,23 @@ def _paraphrase_proxy(text: str) -> str:
     Deterministic paraphrase PROXY for G2b — a mechanical transformation,
     NOT an LLM paraphrase (see _G2B_PROXY_NOTE; the label is load-bearing).
 
-    Two passes, both seed-free and idempotent-per-input:
-      1. Adjacent-sentence reordering: split on sentence-final punctuation
-         and swap each adjacent pair (s1 s0 s3 s2 ...) — content preserved,
-         discourse order perturbed.
+    Two passes, both seed-free:
+      1. Adjacent-sentence reordering WITHIN each paragraph — swap each
+         adjacent pair (s1 s0 s3 s2 ...), never across a paragraph
+         boundary. Paragraph separators and inter-sentence whitespace are
+         carried through verbatim, so the transform perturbs discourse
+         order without changing paragraph structure. An earlier version
+         joined every sentence with a single space, collapsing each
+         document to one paragraph; that moved avg_paragraph_length by
+         ~0.77 normalized and forced two features to their "cannot
+         compute" placeholder, which swamped the uniformity signal this
+         gate exists to measure.
       2. Fixed-table word substitution (_G2B_WORD_SUBSTITUTIONS), case-
          insensitive match with initial-capital preservation — the
          "elevate the language" direction of the published attack, minus
-         the LLM.
+         the LLM. Word count is preserved (every entry is 1->1); wording
+         is not, so this is a perturbation, not a meaning-preserving
+         rewrite. See _G2B_PROXY_NOTE for the measured limits.
     """
     import re
 
@@ -752,10 +1060,21 @@ def _paraphrase_proxy(text: str) -> str:
         )
         _G2B_SUBSTITUTION_PATTERN = re.compile(rf"\b({alternation})\b", re.IGNORECASE)
 
-    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
-    for i in range(0, len(sentences) - 1, 2):
-        sentences[i], sentences[i + 1] = sentences[i + 1], sentences[i]
-    reordered = " ".join(sentences)
+    # Odd indices are the captured blank-line separators — reinserted
+    # untouched so paragraph count and newline count survive the transform.
+    blocks = re.split(r"(\n\s*\n)", text)
+    for b, block in enumerate(blocks):
+        if b % 2:  # a separator, not a paragraph
+            continue
+        # Odd indices here are the captured inter-sentence whitespace, which
+        # stays in its original slot while the sentence texts move around it.
+        parts = re.split(r"((?<=[.!?])\s+)", block)
+        sentences = parts[0::2]
+        for i in range(0, len(sentences) - 1, 2):
+            sentences[i], sentences[i + 1] = sentences[i + 1], sentences[i]
+        parts[0::2] = sentences
+        blocks[b] = "".join(parts)
+    reordered = "".join(blocks)
 
     def _substitute(match: "re.Match[str]") -> str:
         word = match.group(0)
