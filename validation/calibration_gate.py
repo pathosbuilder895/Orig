@@ -1274,7 +1274,7 @@ def _compute_g6_fairness_data(client) -> GateResult:
 
     import numpy as np
 
-    from original.constants import ALL_FEATURE_CODES, TIER18_CODES
+    from original.constants import TIER18_CODES
     from original.quantum.typicality import NO_ACTION_CENTRAL_THRESHOLD
     from validation.benchmark.bias_slicer import slice_by
     from validation.bias_analysis import _welch_t_test
@@ -1358,8 +1358,7 @@ def _compute_g6_fairness_data(client) -> GateResult:
                     }
                 )
                 tier18_values = {
-                    c: float(payload["feature_vector"][ALL_FEATURE_CODES.index(c)])
-                    for c in TIER18_CODES
+                    c: float(payload["feature_vector"][c]) for c in TIER18_CODES
                 }
                 per_group_features[bool(held_out["native_english"])].append(tier18_values)
                 scoring_rows.append(

@@ -663,14 +663,20 @@ class _FakeG6Client:
 
 
 def _g6_payload(*, p_central, typicality_n=4, deviation_score=0.5, action="no_action"):
-    from original.constants import FEATURE_DIM
+    from original.constants import ALL_FEATURE_CODES
 
     return {
         "typicality_p_central": p_central,
         "typicality_n": typicality_n,
         "authorship": {"deviation_score": deviation_score, "authorship_probability": 0.5},
         "recommendation": {"action": action},
-        "feature_vector": [0.5] * FEATURE_DIM,
+        # dict keyed by feature code, matching the real API response shape
+        # (original/schemas.py: feature_vector: dict[str, float]) — a
+        # previous version of this fixture used a positional list, which
+        # let a `feature_vector[ALL_FEATURE_CODES.index(c)]` bug in
+        # production code pass every test while crashing on every real
+        # scoring call (KeyError against the actual dict).
+        "feature_vector": {c: 0.5 for c in ALL_FEATURE_CODES},
     }
 
 
