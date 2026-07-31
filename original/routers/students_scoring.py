@@ -149,12 +149,17 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             # the first tenant to enable the flag measure it in situ — count
             # outcome=miss against outcome=hit for the per-(tenant, genre)
             # None rate. Tenant slug and genre label only: never a student id.
+            # n_students is logged alongside n_prior because it drives the
+            # blend weight (scoring.py damps the prior by cohort size): the
+            # pair is what a later analysis needs to check whether the damping
+            # curve was set sensibly against real pools.
             logging.getLogger(__name__).info(
-                "bayesian_prior outcome=%s genre=%s tenant=%s n_prior=%d",
+                "bayesian_prior outcome=%s genre=%s tenant=%s n_prior=%d n_students=%d",
                 "hit" if _genre_stats is not None else "miss",
                 _genre,
                 _prior_tenant,
                 _genre_stats["n_samples"] if _genre_stats is not None else 0,
+                _genre_stats["n_students"] if _genre_stats is not None else 0,
             )
     _scoring_config = dataclasses.replace(
         _scoring_config_env,

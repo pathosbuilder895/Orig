@@ -251,7 +251,9 @@ def test_prior_hit_is_logged_with_sample_count(genre_tenant, monkeypatch, caplog
     live = get_repository().get_genre_stats(genre, "genreprior", sid)
     assert live is not None
     assert live["n_samples"] >= 6  # the 3 peers x 2 this test seeded, at minimum
-    assert hits[-1].endswith(f"n_prior={live['n_samples']}"), hits[-1]
+    assert hits[-1].endswith(
+        f"n_prior={live['n_samples']} n_students={live['n_students']}"
+    ), hits[-1]
 
     # ... and the scored student's own 3 samples really were left out: the
     # un-excluded pool is strictly larger. This is the self-exclusion

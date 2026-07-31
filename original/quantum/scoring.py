@@ -554,14 +554,35 @@ def score(
             # module no longer imports store directly).
             _prior = config.genre_stats
             if _genre and _prior is not None:
-                _alpha = state.sample_count / (state.sample_count + config.prior_weight)
+                # The prior mean is itself an estimate, drawn from n_students
+                # peers. Treating it as worth a flat `prior_weight` virtual
+                # observations is only valid as n_students → ∞; for a small
+                # cohort it imports peer-group noise faster than it removes
+                # cold-start noise, and it does so at exactly the pool sizes
+                # where the estimate deserves least trust. Damp the virtual
+                # weight by pool size: self-normalising against prior_weight
+                # (no new tuning constant), monotone in n_students, and
+                # asymptotically the undamped blend.
+                #
+                #   n=3  → w = 0.50·prior_weight     n=30 → w = 0.91·prior_weight
+                #   n=10 → w = 0.77·prior_weight     n→∞  → w = prior_weight
+                #
+                # n_students is absent from hand-built or pre-WS-7 genre_stats
+                # dicts; fall back to the undamped weight there rather than
+                # guessing a cohort size.
+                _n_students = _prior.get("n_students")
+                _weight = config.prior_weight
+                if _n_students:
+                    _weight *= _n_students / (_n_students + config.prior_weight)
+                _alpha = state.sample_count / (state.sample_count + _weight)
                 mu = _alpha * mu + (1.0 - _alpha) * _prior["mean"]
                 sigma = _alpha * sigma + (1.0 - _alpha) * _prior["std"]
                 log.debug(
-                    "Bayesian prior blend: alpha=%.3f genre=%s n_prior=%d",
+                    "Bayesian prior blend: alpha=%.3f genre=%s n_prior=%d n_students=%s",
                     _alpha,
                     _genre,
                     _prior["n_samples"],
+                    _n_students,
                 )
         except Exception as _exc:
             log.debug("Bayesian prior blend skipped: %s", _exc)

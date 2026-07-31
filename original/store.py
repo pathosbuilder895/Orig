@@ -1160,6 +1160,11 @@ def genre_stats_from_groups(
         # prior std compatible with the per-student sigma floor.
         "std": np.maximum(mat.std(axis=0), 0.005),
         "n_samples": len(vectors),
+        # How many distinct people the pool represents, post-exclusion.
+        # scoring.score() damps the prior's blend weight by this: a mean
+        # estimated from 3 peers should not carry the authority of one
+        # estimated from 300.
+        "n_students": contributing_students,
     }
 
 
