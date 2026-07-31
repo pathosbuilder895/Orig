@@ -1,23 +1,66 @@
 """
-scripts/derive_measured_weights.py — Phase 3 measured tier weights.
+scripts/derive_measured_weights.py — Phase 3 measured tier weights (hardened).
 
 Author-level holdout split (never sample-level — see design spec §7):
 splits each corpus's authors into a derivation set (Fisher-ratio weight
 computation) and a gate-evaluation set (G1/G3/G4/G6 in
 validation/calibration_gate.py). validation.stability.stability's
 fisher_ratio/compute_feature_matrix take no split argument — this script
-owns the split and pre-filters the author_texts dict before calling them,
-per validation/stability/run.py's existing `--only` pattern.
-
-Within-author variance (the Fisher ratio's denominator) is shrunk toward
-the pooled cross-author estimate via the same weighted Ledoit-Wolf
-closed-form already used for RANK_REMEDIATION=shrinkage
-(original/quantum/state.py:_ledoit_wolf_shrink), since raw per-author
-variance from 4-15 samples is the ratio's noisiest, most-rewarded input.
+owns the split and pre-filters the author_texts dict before calling
+compute_feature_matrix, per validation/stability/run.py's existing `--only`
+pattern.
 
 DOES NOT edit original/constants.py. Prints a diff-shaped TIER_WEIGHTS
-block for a human to review and apply — TIER_WEIGHTS is on the CLAUDE.md
-explicit-permission list.
+block for a human to review — TIER_WEIGHTS is on the CLAUDE.md
+explicit-permission list. The block is INFORMATIONAL ONLY: the user has
+HELD these weights (see task-11/13 history) — nothing in this script
+applies anything to constants.py.
+
+Revision history / why this looks the way it does:
+
+  First cut (Task 11) computed a per-feature Fisher ratio over ALL 109
+  columns and reported tiers 0, 11, 12, 17, 18 as measured at exactly 0.00.
+  A reviewer traced this to real, structural degeneracy, not a genuine
+  measurement:
+    - Tier 0 (COMPARISON_CODES) and tier 11's error-ecology codes are
+      baseline-comparison features; original/features/pipeline.py computes
+      them only at scoring time and hardcodes 0.5 for every window fed
+      through feature_vector() in isolation (no baseline exists yet) — so
+      their in-corpus variance is identically zero by construction.
+    - Tier 12's catastrophe_index and any DISABLED_FEATURE_GROUPS member
+      (today: tier 17 "behavioral", tier 18 "uniformity") hit the same
+      constant-fallback path for a different reason (missing capability /
+      disabled group), but the practical effect is identical: zero
+      in-corpus variance, Fisher ratio undefined, not "measured as zero."
+  The first cut's `shrink_within_author_variance` also turned out to be
+  inert: shrinking every author's per-feature variance vector toward the
+  POOLED MEAN of those same vectors leaves the mean of the shrunk vectors
+  bit-identical to the pooled mean, by definition (the exact operation
+  `derive_weights` used it for — averaging the shrunk vectors back down to
+  a single `within` estimate — undoes the shrinkage). It was also
+  incorrectly described as "Ledoit-Wolf"; it did not implement that
+  closed-form.
+
+This revision fixes all of the above:
+  1. `structurally_excluded_codes()` + `zero_variance_feature_indices()`
+     remove unmeasurable features from the Fisher computation entirely
+     (rather than letting them silently score as `F≈0`), following the
+     precedent in validation/stability/stability.py's tier-17 exclusion
+     (`_FEATURE_INDICES_SKIPPED`, recorded in `StabilityReport.notes`).
+     A tier with zero surviving features KEEPS its current TIER_WEIGHTS
+     value in the printed block, annotated accordingly; Sigma w^2-
+     preserving normalization runs over the measured-tier subset only.
+  2. `floor_within_variance()` replaces the inert shrink: it floors each
+     feature's (already author-averaged) within-variance at a low
+     percentile of the other features' within-variance, so one
+     near-degenerate denominator cannot blow its Fisher ratio up and
+     dominate a tier's aggregate.
+  3. Tiers aggregate their surviving features' Fisher ratios by MEDIAN,
+     not mean, so a single outlier feature cannot set the whole tier.
+  4. `drop_short_authors()` requires >= 2 windows per author (ddof=1
+     within-author variance is undefined below that) and warns loudly on
+     every drop; the default `--length` is chosen so every derivation-side
+     author in the current three corpora clears that floor.
 
 Corpus loading — the three corpora scored by validation/calibration_gate.py's
 G1/G3/G4 gates do NOT share one directory convention, so
@@ -44,28 +87,50 @@ reimplementing the grouping) is deliberate: the double-dipping guard this
 script exists to provide only holds if the author-id space we split on is
 the SAME one the gates later evaluate against.
 
+CAUTION printed with every generated block: this run's derivation-side
+author pool is dominated by Plato dialogues (long-form philosophical
+prose), not student essays. Whatever the Fisher ratios say about which
+tiers carry between-author signal, treat it as directional lab-corpus
+evidence, not evidence calibrated to the pilot's actual 300-2000 word
+student-essay domain.
+
 Run:
     python -m scripts.derive_measured_weights --derivation-fraction 0.7 --seed 1729
 """
 
 from __future__ import annotations
 
-from validation.benchmark.reproducibility import lock_environment  # noqa: E402
-
-ENV_LOCK = lock_environment()
-
-import argparse
 import sys
 from pathlib import Path
-
-import numpy as np
 
 _HERE = Path(__file__).resolve().parent
 _ROOT = _HERE.parent
 sys.path.insert(0, str(_ROOT))
 
-from original.constants import FEATURE_TIER, TIER_WEIGHTS
-from validation.stability.stability import compute_feature_matrix, fisher_ratio
+from validation.benchmark.reproducibility import lock_environment  # noqa: E402
+
+ENV_LOCK = lock_environment()
+
+import argparse  # noqa: E402
+
+import numpy as np  # noqa: E402
+
+from original.constants import (  # noqa: E402
+    ALL_FEATURE_CODES,
+    COMPARISON_CODES,
+    DISABLED_FEATURE_GROUPS,
+    FEATURE_GROUPS,
+    FEATURE_TIER,
+    TIER_WEIGHTS,
+)
+from validation.stability.stability import compute_feature_matrix  # noqa: E402
+
+MIN_WINDOWS_PER_AUTHOR = 2  # ddof=1 within-author variance is undefined below this
+DEFAULT_LENGTH = 800  # words — every derivation-side author in the current 3 corpora
+                       # (shortest: a seminary pseudo-author at ~1.9k words) clears
+                       # MIN_WINDOWS_PER_AUTHOR at this length; drop_short_authors()
+                       # is still the enforced backstop if a future corpus doesn't.
+DEFAULT_FLOOR_PERCENTILE = 10.0
 
 
 def split_authors(
@@ -86,73 +151,243 @@ def split_authors(
     return derivation, gate
 
 
-def shrink_within_author_variance(per_author_var: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+def structurally_excluded_codes() -> set[str]:
     """
-    Ledoit-Wolf-style shrinkage of each author's within-author variance
-    vector toward the pooled (cross-author mean) variance vector. Mirrors
-    original/quantum/state.py's _ledoit_wolf_shrink shape but operates on
-    variance VECTORS (one per author) rather than a single density matrix.
+    Feature codes that can never carry a Fisher signal through this
+    pipeline, independent of which corpus/windowing is used:
+
+      - tier-0 comparison features (``COMPARISON_CODES``, and any other
+        code sharing the same baseline-comparison nature — e.g. tier 11's
+        error-ecology codes) — computed only at scoring time against a
+        baseline; ``compute_feature_matrix`` calls ``feature_vector()`` on
+        isolated windows with no baseline, so these hardcode to 0.5 for
+        every window (``original/features/pipeline.py``). Caught here via
+        ``COMPARISON_CODES`` explicitly; any OTHER comparison-shaped code
+        that isn't in that list (e.g. tier 11) is still caught by
+        ``zero_variance_feature_indices`` empirically.
+      - every code belonging to a currently-``DISABLED_FEATURE_GROUPS``
+        group (today: tier 17 "behavioral", tier 18 "uniformity") — these
+        hardcode to the ``NORM_BOUNDS`` midpoint for every window while
+        their group is disabled, via the same pipeline.py fallback.
+
+    Read live from ``original.constants`` so behavior tracks runtime state:
+    if "uniformity" is later removed from ``DISABLED_FEATURE_GROUPS``, tier
+    18 becomes eligible for measurement without this function changing.
     """
-    if len(per_author_var) < 2:
-        return dict(per_author_var)
+    excluded = set(COMPARISON_CODES)
+    for group in DISABLED_FEATURE_GROUPS:
+        excluded.update(FEATURE_GROUPS.get(group, []))
+    return excluded
 
-    pooled = np.mean(list(per_author_var.values()), axis=0)
-    n_authors = len(per_author_var)
 
-    shrunk = {}
-    for author, var in per_author_var.items():
-        gamma = float(np.sum((var - pooled) ** 2))
-        if gamma < 1e-18:
-            shrunk[author] = var
+def zero_variance_feature_indices(
+    matrices: dict[str, np.ndarray],
+    atol: float = 1e-12,
+) -> set[int]:
+    """
+    Indices of feature columns that are constant across every window of
+    every author, pooled. A column with zero variance contributes nothing
+    to a between/within ratio except a division-by-epsilon artifact (F -> 0
+    by construction, not because the feature has low discriminative power)
+    — must be structurally excluded, not silently reported as "measured
+    at zero." This is the empirical backstop for exactly the tier 11/12
+    placeholders `structurally_excluded_codes()` cannot name in advance
+    (tier 11's error-ecology codes aren't all in ``COMPARISON_CODES``;
+    tier 12's ``catastrophe_index`` is constant via a fallback path, not a
+    structural placeholder).
+    """
+    populated = [m for m in matrices.values() if m.shape[0] > 0]
+    if not populated:
+        return set()
+    pooled = np.vstack(populated)
+    variances = pooled.var(axis=0, ddof=0)
+    return {i for i, v in enumerate(variances) if v <= atol}
+
+
+def floor_within_variance(
+    within: np.ndarray,
+    floor_percentile: float = DEFAULT_FLOOR_PERCENTILE,
+) -> np.ndarray:
+    """
+    Floor each feature's (already author-averaged) within-author variance
+    at a low percentile of the OTHER positive within-variances, so a
+    single near-degenerate denominator (observed: a feature measured at
+    within-var 3.5e-05 while its peers sit at 1e-2 to 1e-1) cannot blow its
+    Fisher ratio up by orders of magnitude and dominate its tier's median.
+
+    This is a floor, not a shrinkage-toward-the-mean blend. A prior version
+    of this module called an analogous step "Ledoit-Wolf shrinkage" while
+    doing something that left the aggregate mean bit-identical to the
+    unshrunk mean (shrinking every author's variance vector toward the
+    POOLED MEAN of those same vectors, then averaging the shrunk vectors
+    back down, mathematically reproduces the original mean — max observed
+    diff 2.8e-17, i.e. floating-point noise, not regularization). This
+    function actually changes the denominator used downstream, and does
+    not claim to be Ledoit-Wolf since it isn't that closed form.
+    """
+    positive = within[within > 0]
+    if positive.size == 0:
+        return within
+    floor = np.percentile(positive, floor_percentile)
+    return np.maximum(within, floor)
+
+
+def drop_short_authors(
+    matrices: dict[str, np.ndarray],
+    min_windows: int = MIN_WINDOWS_PER_AUTHOR,
+) -> dict[str, np.ndarray]:
+    """
+    ddof=1 within-author variance is undefined for a single window (and
+    ddof=0 silently returns exactly 0.0 — the variance of one point about
+    its own mean) — either way, an author with < min_windows windows drags
+    the pooled `within` estimate down and inflates every feature's Fisher
+    ratio for that reason alone, not because the corpus supports it. Drop
+    any such author, loudly, rather than let it silently corrupt the
+    denominator.
+    """
+    kept: dict[str, np.ndarray] = {}
+    for author, m in matrices.items():
+        if m.shape[0] < min_windows:
+            print(
+                f"[derive-weights] WARNING: dropping author {author!r} — only "
+                f"{m.shape[0]} window(s) at this length (need >= {min_windows} "
+                f"for a defined within-author variance)",
+                file=sys.stderr,
+            )
             continue
-        # Simple shrinkage intensity: more authors contributing to the
-        # pooled estimate -> trust the per-author estimate more.
-        alpha = min(1.0, 1.0 / max(1, n_authors - 1))
-        shrunk[author] = (1.0 - alpha) * var + alpha * pooled
-    return shrunk
+        kept[author] = m
+    return kept
 
 
-def derive_weights(author_texts: dict[str, str], length: int = 2000) -> dict[int, float]:
+def median_per_tier(per_tier_values: dict[int, list[float]]) -> dict[int, float]:
     """
-    Compute measured per-tier weights from a (pre-filtered, derivation-side-
-    only) author_texts dict. Returns {tier_number: weight}, Sigma w^2-
-    preserving normalized against the CURRENT TIER_WEIGHTS (same invariant
-    the length schedule uses).
+    Aggregate each tier's surviving per-feature Fisher ratios by MEDIAN,
+    not mean — a tier's weight must not be set by a single outlier feature
+    (observed: tier 3's mean was 7.23 against a median of 0.83, driven by
+    one feature). Tiers with no surviving values are omitted (the caller
+    keeps their current TIER_WEIGHTS entry instead).
     """
-    matrices = compute_feature_matrix(author_texts, length, max_windows=12)
-    matrices = {a: m for a, m in matrices.items() if m.shape[0] > 0}
+    return {t: float(np.median(v)) for t, v in per_tier_values.items() if v}
 
-    per_author_var = {a: m.var(axis=0, ddof=0) for a, m in matrices.items()}
-    shrunk_var = shrink_within_author_variance(per_author_var)
 
-    # Rebuild fisher_ratio's between/within computation using the SHRUNK
-    # within-author variance instead of the raw one, by re-deriving within
-    # from shrunk_var directly (fisher_ratio itself always recomputes raw
-    # variance internally, so it cannot be called as-is with pre-shrunk
-    # values — this function reimplements the ratio using shrunk inputs).
-    within = np.mean(list(shrunk_var.values()), axis=0)
-    author_means = np.stack([m.mean(axis=0) for m in matrices.values()], axis=0)
-    between = author_means.var(axis=0, ddof=0)
+def compute_tier_weights_from_matrices(
+    matrices: dict[str, np.ndarray],
+    floor_percentile: float = DEFAULT_FLOOR_PERCENTILE,
+) -> tuple[dict[int, float], dict]:
+    """
+    Pure (no I/O) core: {author_id: (n_windows, FEATURE_DIM)} matrices in,
+    ({tier: weight}, diagnostics) out. Separated from `derive_weights` so
+    the exclusion/floor/median/kept-tier logic is unit-testable without a
+    real corpus, and so a future consumer (Task 13's G5 permutation-null
+    control is expected to reuse this pipeline) can feed it matrices built
+    from shuffled author labels directly.
+
+    weights: {tier: weight} for every tier in TIER_WEIGHTS. Tiers with no
+    measurable features (see structurally_excluded_codes /
+    zero_variance_feature_indices) KEEP their current TIER_WEIGHTS value
+    unchanged. Measured tiers are the per-tier MEDIAN Fisher ratio,
+    Sigma w^2-preserving normalized against the CURRENT TIER_WEIGHTS
+    restricted to the measured-tier subset only.
+
+    diagnostics: {
+        "window_counts_all": {author: n_windows} (before dropping short authors),
+        "window_counts_used": {author: n_windows} (after dropping),
+        "dropped_authors": [author, ...],
+        "excluded_features": {code: reason},
+        "kept_tiers": [tier, ...],
+    }
+    """
+    window_counts_all = {a: int(m.shape[0]) for a, m in matrices.items()}
+    usable = drop_short_authors(matrices, min_windows=MIN_WINDOWS_PER_AUTHOR)
+    dropped_authors = sorted(set(matrices) - set(usable))
+
+    if len(usable) < 2:
+        raise RuntimeError(
+            f"Only {len(usable)} author(s) with >= {MIN_WINDOWS_PER_AUTHOR} windows; "
+            f"need >= 2 for between-author variance."
+        )
+
+    excluded_codes = structurally_excluded_codes()
+    zero_var_idx = zero_variance_feature_indices(usable)
+
+    excluded_reasons: dict[str, str] = {}
+    for code in ALL_FEATURE_CODES:
+        if code in excluded_codes:
+            if code in COMPARISON_CODES:
+                excluded_reasons[code] = (
+                    "comparison feature — needs a baseline; constant through this "
+                    "window-only pipeline"
+                )
+            else:
+                excluded_reasons[code] = "member of a currently-disabled feature group"
+    for idx in sorted(zero_var_idx):
+        code = ALL_FEATURE_CODES[idx]
+        excluded_reasons.setdefault(code, "zero variance across the derivation matrix")
+
+    for code in sorted(excluded_reasons):
+        print(
+            f"[derive-weights] excluding feature {code!r} from Fisher computation: "
+            f"{excluded_reasons[code]}",
+            file=sys.stderr,
+        )
+
+    per_author_var = {a: m.var(axis=0, ddof=1) for a, m in usable.items()}
+    within_raw = np.mean(list(per_author_var.values()), axis=0)
+    within = floor_within_variance(within_raw, floor_percentile=floor_percentile)
+
+    author_means = np.stack([m.mean(axis=0) for m in usable.values()], axis=0)
+    between = author_means.var(axis=0, ddof=1)
     per_feature_fisher = between / (within + 1e-9)
 
-    # per_feature_fisher is indexed positionally by ALL_FEATURE_CODES order
-    # (compute_feature_matrix's columns follow feature_vector()'s order,
-    # which is ALL_FEATURE_CODES) — aggregate to per-tier by zipping against
-    # ALL_FEATURE_CODES + FEATURE_TIER directly:
-    from original.constants import ALL_FEATURE_CODES
-
     per_tier_values: dict[int, list[float]] = {}
-    for code, f in zip(ALL_FEATURE_CODES, per_feature_fisher):
+    for code, f in zip(ALL_FEATURE_CODES, per_feature_fisher, strict=False):
+        if code in excluded_reasons:
+            continue
         tier = FEATURE_TIER[code]
         per_tier_values.setdefault(tier, []).append(float(f))
 
-    per_tier_mean_fisher = {t: float(np.mean(v)) for t, v in per_tier_values.items()}
+    per_tier_median = median_per_tier(per_tier_values)
+    measured_tiers = set(per_tier_median)
+    kept_tiers = {t: w for t, w in TIER_WEIGHTS.items() if t not in measured_tiers}
 
-    # Sigma w^2-preserving normalization against the CURRENT weight table.
-    current_sq_sum = sum(w**2 for w in TIER_WEIGHTS.values())
-    raw_sq_sum = sum(v**2 for v in per_tier_mean_fisher.values())
+    # Sigma w^2-preserving normalization over the MEASURED subset only.
+    current_sq_sum = sum(TIER_WEIGHTS[t] ** 2 for t in measured_tiers if t in TIER_WEIGHTS)
+    raw_sq_sum = sum(v**2 for v in per_tier_median.values())
     scale = (current_sq_sum / raw_sq_sum) ** 0.5 if raw_sq_sum > 0 else 1.0
-    return {t: v * scale for t, v in per_tier_mean_fisher.items()}
+
+    weights: dict[int, float] = {t: v * scale for t, v in per_tier_median.items()}
+    weights.update(kept_tiers)
+
+    diagnostics = {
+        "window_counts_all": window_counts_all,
+        "window_counts_used": {a: int(m.shape[0]) for a, m in usable.items()},
+        "dropped_authors": dropped_authors,
+        "excluded_features": excluded_reasons,
+        "kept_tiers": sorted(kept_tiers),
+    }
+    print(
+        f"[derive-weights] excluded {len(excluded_reasons)}/{len(ALL_FEATURE_CODES)} feature "
+        f"columns from Fisher computation; kept tiers (unmeasurable, current TIER_WEIGHTS "
+        f"retained): {diagnostics['kept_tiers']}",
+        file=sys.stderr,
+    )
+    return weights, diagnostics
+
+
+def derive_weights(
+    author_texts: dict[str, str],
+    length: int = DEFAULT_LENGTH,
+    max_windows: int = 12,
+    floor_percentile: float = DEFAULT_FLOOR_PERCENTILE,
+) -> tuple[dict[int, float], dict]:
+    """
+    Compute measured per-tier weights from a (pre-filtered, derivation-side-
+    only) author_texts dict. Thin I/O wrapper around
+    `compute_tier_weights_from_matrices` — see that function's docstring
+    for the full contract.
+    """
+    matrices = compute_feature_matrix(author_texts, length, max_windows=max_windows)
+    return compute_tier_weights_from_matrices(matrices, floor_percentile=floor_percentile)
 
 
 # ── Corpus loading (see module docstring for why each corpus needs its own
@@ -188,14 +423,17 @@ _CORPUS_LOADERS = {
 }
 
 
-def load_all_corpora(corpora: list[str]) -> dict[str, str]:
+def load_all_corpora(corpora: list[str]) -> tuple[dict[str, str], dict[str, str]]:
     """
-    Union {author_id: full_text} across every named corpus. Author-id
-    namespaces don't collide across corpora (seminary_group_N,
-    <public-author-name>, plato_<dialogue>), but we check anyway so a
-    future corpus addition can't silently merge two authors together.
+    Union {author_id: full_text} across every named corpus. Returns the
+    union plus {author_id: corpus_name} so callers can print per-corpus
+    breakdowns after windowing. Author-id namespaces don't collide across
+    corpora (seminary_group_N, <public-author-name>, plato_<dialogue>), but
+    we check anyway so a future corpus addition can't silently merge two
+    authors together.
     """
     combined: dict[str, str] = {}
+    author_corpus: dict[str, str] = {}
     for name in corpora:
         loader = _CORPUS_LOADERS.get(name)
         if loader is None:
@@ -206,7 +444,9 @@ def load_all_corpora(corpora: list[str]) -> dict[str, str]:
             raise ValueError(f"Author-id collision between corpora: {sorted(overlap)}")
         print(f"[derive-weights] {name}: {len(texts)} authors", file=sys.stderr)
         combined.update(texts)
-    return combined
+        for author in texts:
+            author_corpus[author] = name
+    return combined, author_corpus
 
 
 _TIER_LABELS: dict[int, str] = {
@@ -232,18 +472,39 @@ _TIER_LABELS: dict[int, str] = {
 }
 
 
-def print_tier_weights_diff(measured: dict[int, float]) -> None:
+def print_tier_weights_diff(measured: dict[int, float], diagnostics: dict) -> None:
     """
     Print a paste-ready TIER_WEIGHTS block, mirroring
     scripts/calibrate_bounds.py's print_suggested_bounds() convention:
     a "paste this block" header comment, the dict literal with inline
     per-entry comments showing the CURRENT value so the direction of
-    change is visible at a glance, and a closing note.
+    change is visible at a glance, and a closing note. Tiers with no
+    measurable features are annotated as kept, not silently printed as if
+    measured.
     """
+    kept_tiers = set(diagnostics.get("kept_tiers", []))
+    n_excluded = len(diagnostics.get("excluded_features", {}))
+
     print()
     print("=" * 78)
-    print("  MEASURED TIER_WEIGHTS (derivation-split Fisher ratio, shrinkage-regularized)")
+    print("  MEASURED TIER_WEIGHTS (derivation-split Fisher ratio; median-aggregated,")
+    print("  variance-floored, unmeasurable features excluded)")
     print("=" * 78)
+    print()
+    print("# CAUTION: this run's derivation-side author pool is dominated by Plato")
+    print("# dialogues (long-form philosophical prose), with only a couple of seminary")
+    print("# pseudo-authors and a handful of public-domain authors alongside them.")
+    print("# Treat this as directional LAB-CORPUS evidence about which tiers carry")
+    print("# between-author signal in this pipeline, NOT as evidence calibrated to")
+    print("# short student essays — the pilot's actual target domain.")
+    print(
+        f"# {n_excluded}/{len(ALL_FEATURE_CODES)} feature columns were excluded from "
+        f"measurement (comparison / disabled feature group / zero-variance)."
+    )
+    print(
+        f"# Tiers kept at their CURRENT value (every member feature excluded): "
+        f"{sorted(kept_tiers)}"
+    )
     print()
     print("# ── Paste this block into original/constants.py → TIER_WEIGHTS ──────────────")
     print("TIER_WEIGHTS: dict[int, float] = {")
@@ -251,12 +512,16 @@ def print_tier_weights_diff(measured: dict[int, float]) -> None:
         current = TIER_WEIGHTS.get(tier)
         new = measured[tier]
         label = _TIER_LABELS.get(tier, f"Tier {tier}")
-        delta = "" if current is None else f", was {current:.2f} ({new - current:+.2f})"
-        print(f"    {tier:>2}: {new:5.2f},   # {label}{delta}")
+        if tier in kept_tiers:
+            print(f"    {tier:>2}: {new:5.2f},   # {label} (kept: not measurable in this pipeline)")
+        else:
+            delta = "" if current is None else f", was {current:.2f} ({new - current:+.2f})"
+            print(f"    {tier:>2}: {new:5.2f},   # {label}{delta}")
     print("}")
     print()
-    print("# NOTE: hand-verify direction before applying — spec expects T1/T5 up,")
-    print("# T4/T16 sharply down. Do not blind-paste; see task-11 STOP-AND-ASK step.")
+    print("# NOTE: INFORMATIONAL ONLY — the user has HELD these weights; nothing in")
+    print("# this script applies anything to constants.py. Hand-verify before ever")
+    print("# proposing an edit; see task-11/13 STOP-AND-ASK history.")
 
 
 def main(argv=None) -> int:
@@ -271,13 +536,22 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--length",
         type=int,
-        default=2000,
-        help="Window length (words) fed to compute_feature_matrix. Default 2000.",
+        default=DEFAULT_LENGTH,
+        help=f"Window length (words) fed to compute_feature_matrix. Default {DEFAULT_LENGTH} "
+        f"— chosen so every current derivation-side author clears "
+        f"MIN_WINDOWS_PER_AUTHOR={MIN_WINDOWS_PER_AUTHOR}.",
+    )
+    parser.add_argument(
+        "--floor-percentile",
+        type=float,
+        default=DEFAULT_FLOOR_PERCENTILE,
+        help="Percentile of positive within-author variances used as a floor for "
+        "near-degenerate denominators. Default 10.0.",
     )
     args = parser.parse_args(argv)
 
     corpora = [c.strip() for c in args.corpora.split(",") if c.strip()]
-    author_texts = load_all_corpora(corpora)
+    author_texts, author_corpus = load_all_corpora(corpora)
     print(
         f"[derive-weights] {len(author_texts)} authors total across {corpora}",
         file=sys.stderr,
@@ -295,9 +569,28 @@ def main(argv=None) -> int:
     )
 
     derivation_texts = {a: t for a, t in author_texts.items() if a in derivation_ids}
-    measured = derive_weights(derivation_texts, length=args.length)
+    weights, diagnostics = derive_weights(
+        derivation_texts, length=args.length, floor_percentile=args.floor_percentile
+    )
 
-    print_tier_weights_diff(measured)
+    # Per-corpus post-windowing report (requirement: visible before the diff).
+    print("[derive-weights] post-windowing window counts by corpus:", file=sys.stderr)
+    by_corpus: dict[str, list[tuple[str, int]]] = {}
+    for author, n in sorted(diagnostics["window_counts_all"].items()):
+        by_corpus.setdefault(author_corpus.get(author, "?"), []).append((author, n))
+    for corpus in sorted(by_corpus):
+        entries = by_corpus[corpus]
+        total_windows = sum(n for _, n in entries)
+        print(f"  {corpus}: {len(entries)} authors, {total_windows} windows", file=sys.stderr)
+        for author, n in entries:
+            flag = (
+                " (DROPPED — below min-windows floor)"
+                if author in diagnostics["dropped_authors"]
+                else ""
+            )
+            print(f"    {author}: {n} window(s){flag}", file=sys.stderr)
+
+    print_tier_weights_diff(weights, diagnostics)
     return 0
 
 
