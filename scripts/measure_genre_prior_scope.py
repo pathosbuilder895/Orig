@@ -1,21 +1,25 @@
 """
-scripts/measure_genre_prior_scope.py — one-off coverage measurement.
+scripts/measure_genre_prior_scope.py — genre-prior coverage measurement.
 
-PRE-CHANGE BASELINE. Written to answer, before the fix: if get_genre_stats
-were tenant-scoped, how often would the BAYESIAN_PRIOR_ENABLED cold-start
-prior resolve to None that it didn't back then? get_genre_stats became
-tenant-scoped in the tenant-scoping change on this branch — the
-"today"/"cross-tenant" language throughout this script (docstring, comments,
-output labels) describes that pre-fix baseline, not current behavior. Re-run
-this against real pilot data to size the current sparser-pool coverage; it
-does not need editing to do so, since it measures both scoped and unscoped
-pools from the same pass over the data.
+Answers: with BAYESIAN_PRIOR_ENABLED on, how often would the cold-start prior
+actually resolve, and how often would it fall back to the student-only
+baseline? CLAUDE.md names this script as the pre-flight step before enabling
+that flag, so it models CURRENT behaviour, not any earlier revision of it:
 
-Simulates the real gate at original/routers/students_scoring.py:126-134 —
-a student is a "cold-start scoring event" when sample_count < 10 and their
-most recent sample carries a genre label — then asks, for each such student,
-whether a prior would exist under (a) the old cross-tenant pooling and
-(b) tenant-scoped pooling.
+  * tenant-scoped     — the pool is same-tenant only (tenant_of of the scored
+                        student's id; None, the legacy-flat cohort, is its own)
+  * self-excluding    — the scored student is removed from their own pool
+  * two floors        — MIN_GENRE_VECTORS vectors AND MIN_GENRE_STUDENTS
+                        distinct contributing students, checked against what
+                        remains after the exclusion
+
+The "pre-fix (cross-tenant, no floors)" column is kept only as the historical
+baseline the tenant-scoping change moved away from — it is NOT what the code
+does now.
+
+Simulates the real gate at original/routers/students_scoring.py — a student is
+a "cold-start scoring event" when sample_count < 10 and their most recent
+sample carries a genre label.
 
 Run against whichever database ORIGINAL_DB / DATABASE_URL points at:
 
@@ -35,13 +39,9 @@ sys.path.insert(0, str(_ROOT))
 from original.principal import tenant_of  # noqa: E402
 from original.repository import get_repository  # noqa: E402
 
-# Floors under evaluation. MIN_VECTORS is the hardcoded 5 store.py has always
-# used. MIN_STUDENTS models the distinct-student floor proposed as Task 4 of
-# the tenant-scoping plan; set it to 1 to see the effect of tenant-scoping
-# alone. Task 4 was cancelled (no dataset here to justify a floor) — the
-# floored numbers below are what that rejected proposal would have cost.
-MIN_VECTORS = 5
-MIN_STUDENTS = 3
+# Imported, not re-declared, so this measurement cannot drift from the floors
+# the scorer actually applies.
+from original.store import MIN_GENRE_STUDENTS, MIN_GENRE_VECTORS  # noqa: E402
 
 
 def main() -> None:
@@ -49,9 +49,10 @@ def main() -> None:
     states = repo.all_states()
     print(f"database: {os.environ.get('ORIGINAL_DB', 'profiles.db')}")
     print(f"students: {len(states)}")
+    print(f"floors: {MIN_GENRE_VECTORS} vectors, {MIN_GENRE_STUDENTS} distinct students")
 
-    scoped_vectors: dict[tuple[str | None, str], int] = defaultdict(int)
-    scoped_students: dict[tuple[str | None, str], set[str]] = defaultdict(set)
+    # (tenant, genre) -> {student_id: authenticated same-genre vector count}
+    pools: dict[tuple[str | None, str], dict[str, int]] = defaultdict(dict)
     global_vectors: dict[str, int] = defaultdict(int)
 
     for state in states:
@@ -62,14 +63,13 @@ def main() -> None:
             genre = getattr(sample, "genre", None)
             if not genre:
                 continue
-            scoped_vectors[(tenant, genre)] += 1
-            scoped_students[(tenant, genre)].add(state.student_id)
+            per_student = pools[(tenant, genre)]
+            per_student[state.student_id] = per_student.get(state.student_id, 0) + 1
             global_vectors[genre] += 1
 
     eligible = 0
-    have_global = 0
-    have_scoped = 0
-    have_scoped_floored = 0
+    have_prefix = 0  # historical: cross-tenant, vector floor only, no exclusion
+    have_current = 0  # what the code does now
     lost_by_tenant: dict[str | None, int] = defaultdict(int)
 
     for state in states:
@@ -81,29 +81,38 @@ def main() -> None:
             continue
         eligible += 1
         tenant = tenant_of(state.student_id)
-        key = (tenant, genre)
+        per_student = pools[(tenant, genre)]
 
-        global_ok = global_vectors[genre] >= MIN_VECTORS
-        scoped_ok = scoped_vectors[key] >= MIN_VECTORS
-        floored_ok = scoped_ok and len(scoped_students[key]) >= MIN_STUDENTS
+        # Self-exclusion: the scored student's own contribution never counts
+        # toward either floor — this is the step that makes the numbers below
+        # match what the scorer will really do.
+        peers = {sid: n for sid, n in per_student.items() if sid != state.student_id}
+        peer_vectors = sum(peers.values())
 
-        have_global += global_ok
-        have_scoped += scoped_ok
-        have_scoped_floored += floored_ok
-        if global_ok and not scoped_ok:
+        prefix_ok = global_vectors[genre] >= MIN_GENRE_VECTORS
+        current_ok = peer_vectors >= MIN_GENRE_VECTORS and len(peers) >= MIN_GENRE_STUDENTS
+
+        have_prefix += prefix_ok
+        have_current += current_ok
+        if prefix_ok and not current_ok:
             lost_by_tenant[tenant] += 1
 
     print()
     print(f"cold-start scoring events with a genre label: {eligible}")
     if eligible:
-        print(f"  prior available pre-fix (cross-tenant): {have_global:5d}  ({have_global / eligible:.0%})")
-        print(f"  prior available tenant-scoped:          {have_scoped:5d}  ({have_scoped / eligible:.0%})")
-        print(f"  ... and with a >={MIN_STUDENTS}-student floor:      {have_scoped_floored:5d}  ({have_scoped_floored / eligible:.0%})")
+        print(
+            f"  prior available, CURRENT behaviour:     "
+            f"{have_current:5d}  ({have_current / eligible:.0%})"
+        )
+        print(
+            f"  (historical pre-fix cross-tenant pool:  "
+            f"{have_prefix:5d}  ({have_prefix / eligible:.0%}) — not what runs now)"
+        )
     else:
         print("  (no eligible events — this dataset cannot answer the question)")
 
     print()
-    print("priors lost to tenant-scoping, by tenant:")
+    print("priors lost vs the pre-fix pool, by tenant:")
     if lost_by_tenant:
         for tenant, count in sorted(lost_by_tenant.items(), key=lambda kv: -kv[1]):
             print(f"  {tenant!r}: {count}")
@@ -111,13 +120,13 @@ def main() -> None:
         print("  none")
 
     print()
-    print("(tenant, genre) pools — vectors / distinct students:")
-    if scoped_vectors:
-        for key in sorted(scoped_vectors, key=lambda k: -scoped_vectors[k]):
+    print("(tenant, genre) pools — vectors / distinct students (before exclusion):")
+    if pools:
+        for key in sorted(pools, key=lambda k: -sum(pools[k].values())):
             tenant, genre = key
             print(
                 f"  {str(tenant)!r:22} {genre:28} "
-                f"{scoped_vectors[key]:4d} vec  {len(scoped_students[key]):3d} stu"
+                f"{sum(pools[key].values()):4d} vec  {len(pools[key]):3d} stu"
             )
     else:
         print("  none — no authenticated samples carry a genre label")

@@ -102,9 +102,16 @@ class TestGenreStatsCacheInternals:
         for i in range(6):
             state = _make_state(f"student-del-cache-{i}", n_samples=1, genre="ethics_paper")
             store.put(state)
-        # Prime cache — key is (tenant, genre, excluded); these ids are legacy-flat.
+        # Prime the pool cache — key is (tenant, genre); these ids are
+        # legacy-flat, so tenant is None. This also pins the scan-amortising
+        # property the Repository contract can't observe: one entry per
+        # (tenant, genre), NOT one per scored student.
         store.get_genre_stats("ethics_paper", None, None)
-        assert (None, "ethics_paper", None) in store._GENRE_STATS_CACHE
+        assert (None, "ethics_paper") in store._GENRE_STATS_CACHE
+        # A second call for a different excluded student must reuse that
+        # same one entry rather than adding a per-student key.
+        store.get_genre_stats("ethics_paper", None, "student-del-cache-1")
+        assert list(store._GENRE_STATS_CACHE) == [(None, "ethics_paper")]
 
         # Delete a student → cache should be cleared
         store.delete_student("student-del-cache-0")

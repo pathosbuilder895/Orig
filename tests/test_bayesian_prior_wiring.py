@@ -2,7 +2,7 @@
 Bayesian genre-prior production wiring test (BAYESIAN_PRIOR_ENABLED).
 
 original/routers/students_scoring.py:139 is the single place the tenant
-argument to Repository.get_genre_stats(genre, tenant) is derived — from
+argument to Repository.get_genre_stats(genre, tenant, exclude_student_id) is derived — from
 tenant_of(student_id), i.e. the SCORED student's id, not (say) the
 requesting principal's tenant. Before the tenant-scoping fix this call was
 get_genre_stats(genre) (no tenant arg) and pooled every tenant's baseline
@@ -123,7 +123,7 @@ def test_get_genre_stats_uses_scored_students_tenant_not_principals_tenant(monke
     but assert_student_access permits a demo principal to score a colon-less
     (legacy-flat) student id, for which tenant_of(student_id) is None. So a
     regression that passes principal.tenant_id instead of tenant_of(sid)
-    would call get_genre_stats(genre, "demo") here, not (genre, None).
+    would call get_genre_stats(genre, "demo", sid) here, not (genre, None, sid).
     """
     monkeypatch.setenv("BAYESIAN_PRIOR_ENABLED", "1")
 
@@ -251,7 +251,7 @@ def test_prior_hit_is_logged_with_sample_count(genre_tenant, monkeypatch, caplog
     live = get_repository().get_genre_stats(genre, "genreprior", sid)
     assert live is not None
     assert live["n_samples"] >= 6  # the 3 peers x 2 this test seeded, at minimum
-    assert f"n_prior={live['n_samples']}" in hits[-1], hits[-1]
+    assert hits[-1].endswith(f"n_prior={live['n_samples']}"), hits[-1]
 
     # ... and the scored student's own 3 samples really were left out: the
     # un-excluded pool is strictly larger. This is the self-exclusion

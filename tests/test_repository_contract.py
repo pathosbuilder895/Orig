@@ -345,12 +345,22 @@ class TestGetGenreStats:
         assert result is not None
         assert float(np.min(result["std"])) >= 0.005
 
-    def test_cache_hit_on_second_call(self, repo):
+    def test_repeated_calls_are_stable(self, repo):
+        # Identity (`r1 is r2`) is deliberately NOT asserted: the cache holds
+        # the pool grouped by student, not the finished stats, so that one
+        # scan serves every student's leave-one-out view. Each call therefore
+        # builds a fresh dict. That the scan itself is cached is a store-level
+        # detail, asserted in test_store_fidelity.py against
+        # store._GENRE_STATS_CACHE; what the Repository contract promises is
+        # that repeated calls agree.
         for i in range(6):
             repo.put(_make_state(f"student-J{i}", n=1, genre="sermon"))
         r1 = repo.get_genre_stats("sermon", None, None)
         r2 = repo.get_genre_stats("sermon", None, None)
-        assert r1 is r2  # cached — same object reference
+        assert r1 is not None and r2 is not None
+        assert r1["n_samples"] == r2["n_samples"]
+        assert np.array_equal(r1["mean"], r2["mean"])
+        assert np.array_equal(r1["std"], r2["std"])
 
     def test_cache_busted_after_put(self, repo):
         for i in range(6):

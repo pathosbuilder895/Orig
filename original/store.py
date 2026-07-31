@@ -39,20 +39,27 @@ def _escape_like(s: str) -> str:
 
 _DB_PATH = Path(os.environ.get("ORIGINAL_DB", Path(__file__).parent.parent / "profiles.db"))
 
-# ── Bayesian genre-stats cache ────────────────────────────────────────────────
-# get_genre_stats() is O(N×S) — iterates every student and every sample.
-# Cache the result keyed on (tenant, genre); bust on every put() so newly-added
-# baseline samples are reflected in the next call. The hot path reads from this
-# dict in O(1). Dict clear is thread-safe in CPython (GIL-protected). This is
-# the ONE process-local cache that survives WS-6 P6 (the _STORE profile cache
-# is gone): it's a derived aggregate, invalidated on every write in THIS
-# worker, and a cross-worker staleness window on a slow-moving population
-# statistic is acceptable where stale student profiles were not.
+# ── Bayesian genre-pool cache ─────────────────────────────────────────────────
+# Building a genre pool is O(N×S) — it iterates every student and every sample.
+# Cache the pool keyed on (tenant, genre); bust on every put() so newly-added
+# baseline samples are reflected in the next call. Dict clear is thread-safe in
+# CPython (GIL-protected). This is the ONE process-local cache that survives
+# WS-6 P6 (the _STORE profile cache is gone): it's a derived aggregate,
+# invalidated on every write in THIS worker, and a cross-worker staleness
+# window on a slow-moving population statistic is acceptable where stale
+# student profiles were not.
 #
 # The key MUST stay a (tenant, genre) pair, not a bare genre: a genre-only key
 # would hand one tenant's cached aggregate to the next tenant that asks for the
 # same genre, reintroducing exactly the cross-tenant leak the filter removes.
-_GENRE_STATS_CACHE: dict[tuple[str | None, str], dict | None] = {}
+#
+# What's cached is the pool grouped BY STUDENT, not a finished mean/std, so
+# that get_genre_stats's leave-one-out exclusion is a filter over the cached
+# groups rather than a fresh scan per student. Caching finished stats under a
+# (tenant, genre, excluded) key would be correct but would make every distinct
+# student a guaranteed cache miss — turning the one cache that amortises the
+# full-store scan into a per-student scan.
+_GENRE_STATS_CACHE: dict[tuple[str | None, str], list[tuple[str, list[np.ndarray]]]] = {}
 
 
 # ── SQLite helpers ────────────────────────────────────────────────────────────
@@ -1068,12 +1075,17 @@ def get_genre_stats(genre: str, tenant: str | None, exclude_student_id: str | No
     since in a small same-tenant pool one student can be a large fraction of
     "their own" prior.
 
-    The DB read goes through ``all_states()``; the aggregate is memoised in
-    ``_GENRE_STATS_CACHE`` keyed on ``(tenant, genre, exclude_student_id)``
-    and busted on every ``put()`` / ``delete_student()``.  The excluded id is
-    part of the key on purpose: keying on ``(tenant, genre)`` alone would
-    serve one student's pool to the next student who asked, handing them a
-    prior that still contains their own samples.
+    The exclusion is per ``student_id``, not per person: two accounts for the
+    same human (a re-enrolment, or an LTI id that differs from the roster id)
+    would still contribute to each other's priors.  Nothing here can detect
+    that; don't read the guarantee as stronger than it is.
+
+    The DB read goes through ``all_states()``; the pool is memoised in
+    ``_GENRE_STATS_CACHE`` keyed on ``(tenant, genre)`` and busted on every
+    ``put()`` / ``delete_student()``.  What is cached is the pool grouped by
+    student, not a finished mean/std, so one scan serves every student in the
+    cohort and the leave-one-out step is a filter over the cached groups —
+    see ``genre_stats_from_groups``.
 
     Parameters
     ----------
@@ -1091,48 +1103,64 @@ def get_genre_stats(genre: str, tenant: str | None, exclude_student_id: str | No
     students or fewer than MIN_GENRE_VECTORS matching authentic samples remain
     in that tenant.
     """
-    # O(1) fast path — return cached result if available.
-    # Cache is busted by put() whenever a new baseline sample is stored.
-    key = (tenant, genre, exclude_student_id)
-    if key in _GENRE_STATS_CACHE:
-        return _GENRE_STATS_CACHE[key]
+    # O(1) fast path for the scan — the per-student groups are shared by every
+    # student in this (tenant, genre); only the leave-one-out arithmetic below
+    # is per-caller. Cache is busted by put() whenever a baseline is stored.
+    key = (tenant, genre)
+    groups = _GENRE_STATS_CACHE.get(key)
+    if groups is None:
+        groups = []
+        # Full read-through scan (WS-6 P6): all_states() snapshots the table,
+        # so concurrent writers can't perturb the iteration the way the old
+        # shared _STORE dict could.
+        for student_state in all_states():
+            if tenant_of(student_state.student_id) != tenant:
+                continue
+            student_vectors = [
+                sample.vector
+                for sample in student_state.samples
+                if sample.auth_weight > 0 and getattr(sample, "genre", None) == genre
+            ]
+            if student_vectors:
+                groups.append((student_state.student_id, student_vectors))
+        _GENRE_STATS_CACHE[key] = groups
 
+    return genre_stats_from_groups(groups, exclude_student_id)
+
+
+def genre_stats_from_groups(
+    groups: list[tuple[str, list[np.ndarray]]], exclude_student_id: str | None
+) -> dict | None:
+    """Leave-one-out mean/std over a genre pool grouped by student.
+
+    Split out and shared with ``postgres_repository`` so the two backends
+    cannot drift on floor semantics, on which student the exclusion removes,
+    or on the order the two are applied (exclusion first, then both floors
+    against what remains).
+
+    ``groups`` is ``[(student_id, [vector, ...]), ...]`` and contains only
+    students who contributed at least one authenticated same-genre sample —
+    so ``len(groups)`` is already the distinct-contributing-student count.
+    """
     vectors: list[np.ndarray] = []
     contributing_students = 0
-    # Full read-through scan (WS-6 P6): all_states() snapshots the table, so
-    # concurrent writers can't perturb the iteration the way the old shared
-    # _STORE dict could.
-    for student_state in all_states():
-        if student_state.student_id == exclude_student_id:
-            continue
-        if tenant_of(student_state.student_id) != tenant:
-            continue
-        student_vectors = [
-            sample.vector
-            for sample in student_state.samples
-            if sample.auth_weight > 0 and getattr(sample, "genre", None) == genre
-        ]
-        if not student_vectors:
+    for student_id, student_vectors in groups:
+        if student_id == exclude_student_id:
             continue
         contributing_students += 1
         vectors.extend(student_vectors)
 
     if contributing_students < MIN_GENRE_STUDENTS or len(vectors) < MIN_GENRE_VECTORS:
-        _GENRE_STATS_CACHE[key] = None
         return None
 
     mat = np.stack(vectors, axis=0)  # shape (N, FEATURE_DIM)
-    mean_vec = mat.mean(axis=0)  # shape (FEATURE_DIM,)
-    # Use the same 0.005 floor as StudentState.baseline_std to keep the
-    # prior std compatible with the per-student sigma floor.
-    std_vec = np.maximum(mat.std(axis=0), 0.005)
-    result = {
-        "mean": mean_vec,
-        "std": std_vec,
+    return {
+        "mean": mat.mean(axis=0),  # shape (FEATURE_DIM,)
+        # Use the same 0.005 floor as StudentState.baseline_std to keep the
+        # prior std compatible with the per-student sigma floor.
+        "std": np.maximum(mat.std(axis=0), 0.005),
         "n_samples": len(vectors),
     }
-    _GENRE_STATS_CACHE[key] = result
-    return result
 
 
 def update_fidelity_authenticity(submission_id: str, is_authentic: bool) -> None:

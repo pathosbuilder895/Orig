@@ -55,13 +55,14 @@ from .db.tenancy_shim import _LEGACY_FLAT_TENANT, join_scoped_id, split_scoped_i
 from .quantum.state import BaselineSample, StudentState
 
 # The phone-park timestamp format, transition cap, and genre-prior cold-start
-# floor are defined once, in the SQLite store, and imported here so the two
-# backends cannot drift apart on any of them. store.py carries no sqlalchemy
+# floors are defined once, in the SQLite store, and imported here so the two
+# backends cannot drift apart on any of them. genre_stats_from_groups carries
+# both genre-prior floors and the leave-one-out exclusion, so neither backend
+# can apply them differently. store.py carries no sqlalchemy
 # import, so this costs nothing.
 from .store import (
-    MIN_GENRE_STUDENTS,
-    MIN_GENRE_VECTORS,
     PARK_MAX_TRANSITIONS,
+    genre_stats_from_groups,
     park_iso_utc,
     park_utc,
 )
@@ -94,7 +95,7 @@ class PostgresRepository:
         # identically to a process-global cache there), while each test in
         # test_repository_contract.py gets its own fresh instance/cache —
         # avoiding cross-test leakage a module-level dict would risk.
-        self._genre_stats_cache: dict[tuple[str | None, str], dict | None] = {}
+        self._genre_stats_cache: dict[tuple[str | None, str], list[tuple[str, list]]] = {}
 
     def _todo(self, op: str):
         raise NotImplementedError(self._NOT_READY.format(op=op))
@@ -908,54 +909,45 @@ class PostgresRepository:
         actually carry on this column (comparing the column to Python `None`
         would translate to SQL `IS NULL`, which no row would ever satisfy).
         """
-        key = (tenant, genre, exclude_student_id)
-        if key in self._genre_stats_cache:
-            return self._genre_stats_cache[key]
-
-        tenant_id_column_value = tenant if tenant is not None else _LEGACY_FLAT_TENANT
-        try:
-            with session_scope() as session:
-                rows = (
-                    session.execute(
-                        select(StudentProfile.data).where(
-                            StudentProfile.tenant_id == tenant_id_column_value
+        key = (tenant, genre)
+        groups = self._genre_stats_cache.get(key)
+        if groups is None:
+            tenant_id_column_value = tenant if tenant is not None else _LEGACY_FLAT_TENANT
+            try:
+                with session_scope() as session:
+                    rows = (
+                        session.execute(
+                            select(StudentProfile.data).where(
+                                StudentProfile.tenant_id == tenant_id_column_value
+                            )
                         )
+                        .scalars()
+                        .all()
                     )
-                    .scalars()
-                    .all()
+            except Exception:
+                log.exception(
+                    "get_genre_stats DB query failed for genre %s tenant %s", genre, tenant
                 )
-        except Exception:
-            log.exception("get_genre_stats DB query failed for genre %s tenant %s", genre, tenant)
-            return None
+                return None
 
-        vectors = []
-        contributing_students = 0
-        for data in rows:
-            # The doc's own student_id is the full scoped id (_doc_to_state
-            # feeds it straight into StudentState.student_id), so this
-            # matches the same value the caller passes.
-            if data.get("student_id") == exclude_student_id:
-                continue
-            student_vectors = [
-                np.array(sample["vector"], dtype=np.float64)
-                for sample in data.get("samples", [])
-                if (sample.get("auth_weight") or 0) > 0 and sample.get("genre") == genre
-            ]
-            if not student_vectors:
-                continue
-            contributing_students += 1
-            vectors.extend(student_vectors)
+            groups = []
+            for data in rows:
+                # The doc's own student_id is the full scoped id (_state_to_doc
+                # writes state.student_id verbatim, and _doc_to_state feeds it
+                # straight back into StudentState.student_id), so it matches
+                # the value the caller passes as exclude_student_id.
+                student_vectors = [
+                    np.array(sample["vector"], dtype=np.float64)
+                    for sample in data.get("samples", [])
+                    if (sample.get("auth_weight") or 0) > 0 and sample.get("genre") == genre
+                ]
+                if student_vectors:
+                    groups.append((data.get("student_id"), student_vectors))
+            self._genre_stats_cache[key] = groups
 
-        if contributing_students < MIN_GENRE_STUDENTS or len(vectors) < MIN_GENRE_VECTORS:
-            self._genre_stats_cache[key] = None
-            return None
-
-        mat = np.stack(vectors, axis=0)
-        mean_vec = mat.mean(axis=0)
-        std_vec = np.maximum(mat.std(axis=0), 0.005)
-        result = {"mean": mean_vec, "std": std_vec, "n_samples": len(vectors)}
-        self._genre_stats_cache[key] = result
-        return result
+        # Shared with the SQLite backend so the two cannot drift on floor
+        # semantics or on the exclusion.
+        return genre_stats_from_groups(groups, exclude_student_id)
 
     # ── Corrections ──────────────────────────────────────────────────────
     def put_correction(
