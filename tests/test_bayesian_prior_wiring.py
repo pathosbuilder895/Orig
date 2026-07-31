@@ -220,9 +220,15 @@ def test_prior_hit_is_logged_with_sample_count(genre_tenant, monkeypatch, caplog
     """At/above the floor -> prior resolves -> an INFO hit records its size."""
     monkeypatch.setenv("BAYESIAN_PRIOR_ENABLED", "1")
 
-    genre = "homiletics"  # genre unique to this test
-    # 2 students x 3 authenticated vectors = 6 >= MIN_GENRE_VECTORS (5).
-    _seed_cold_start_student("genreprior:hit_logging_peer", genre, n=3)
+    # Genre string unique to this test AND to this revision of it: this file
+    # writes to the shared dev profiles.db without store_reset, so a genre
+    # reused from an earlier revision would still carry that revision's
+    # students and inflate the pool.
+    genre = "homiletics_floor"
+    # 3 peers x 2 vectors = 6, plus the scored student's own 3 = 9 across 4
+    # students — clears MIN_GENRE_VECTORS (5) and MIN_GENRE_STUDENTS (3).
+    for i in range(3):
+        _seed_cold_start_student(f"genreprior:hit_logging_peer{i}", genre, n=2)
     sid = "genreprior:hit_logging_student"
     _seed_cold_start_student(sid, genre, n=3)
 
@@ -237,7 +243,13 @@ def test_prior_hit_is_logged_with_sample_count(genre_tenant, monkeypatch, caplog
     hits = [m for m in caplog.messages if "bayesian_prior" in m]
     assert hits, "no bayesian_prior line was logged on the cold-start path"
     assert "outcome=hit" in hits[-1], hits[-1]
-    assert "n_prior=6" in hits[-1], hits[-1]
+    # The logged size must be the pool the scorer actually used, not a
+    # plausible-looking constant — derive it from the repository rather than
+    # hardcoding, so leftover rows in the shared dev DB can't make this lie.
+    live = get_repository().get_genre_stats(genre, "genreprior")
+    assert live is not None
+    assert live["n_samples"] >= 9  # the 9 this test seeded, at minimum
+    assert f"n_prior={live['n_samples']}" in hits[-1], hits[-1]
 
 
 def test_flag_off_logs_nothing(genre_tenant, monkeypatch, caplog):

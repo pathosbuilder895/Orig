@@ -1025,16 +1025,18 @@ def get_ai_likelihood_scores(
 # ── Hierarchical Bayesian prior: cross-student genre statistics ───────────────
 
 
-# Cold-start floor for the genre prior. Vector-count only: genre matching
-# already limits how concentrated the pool can be, so unlike get_cohort_stats
-# (and null_pool.py's MIN_IMPOSTOR_STUDENTS) no distinct-student floor is
-# applied here — deliberately, not an oversight. A distinct-student floor was
-# proposed alongside tenant-scoping (tenant-scoping shrinks each pool, which
-# weakens the "genre matching already limits concentration" argument above)
-# but was dropped: the 2026-07-29 measurement (scripts/measure_genre_prior_scope.py)
-# found no reachable dataset with genre-labelled authenticated samples to
-# either confirm or size the risk. Revisit once real pilot data exists.
+# Cold-start floors for the genre prior. Both are checked against the pool
+# that remains AFTER the scored student's own samples are removed.
+#
+# MIN_GENRE_VECTORS bounds how many vectors the prior rests on.
+# MIN_GENRE_STUDENTS bounds how many *people* — mirroring null_pool.py's
+# MIN_IMPOSTOR_STUDENTS. The vector floor alone was enough while the pool
+# spanned every tenant, because genre matching bounded concentration on its
+# own. Tenant-scoping shrank each pool enough that it no longer does: without
+# a distinct-student floor, one prolific student's samples could stand in for
+# a whole tenant's "population" prior.
 MIN_GENRE_VECTORS = 5
+MIN_GENRE_STUDENTS = 3
 
 
 def get_genre_stats(genre: str, tenant: str | None) -> dict | None:
@@ -1083,17 +1085,24 @@ def get_genre_stats(genre: str, tenant: str | None) -> dict | None:
         return _GENRE_STATS_CACHE[key]
 
     vectors: list[np.ndarray] = []
+    contributing_students = 0
     # Full read-through scan (WS-6 P6): all_states() snapshots the table, so
     # concurrent writers can't perturb the iteration the way the old shared
     # _STORE dict could.
     for student_state in all_states():
         if tenant_of(student_state.student_id) != tenant:
             continue
-        for sample in student_state.samples:
-            if sample.auth_weight > 0 and getattr(sample, "genre", None) == genre:
-                vectors.append(sample.vector)
+        student_vectors = [
+            sample.vector
+            for sample in student_state.samples
+            if sample.auth_weight > 0 and getattr(sample, "genre", None) == genre
+        ]
+        if not student_vectors:
+            continue
+        contributing_students += 1
+        vectors.extend(student_vectors)
 
-    if len(vectors) < MIN_GENRE_VECTORS:
+    if contributing_students < MIN_GENRE_STUDENTS or len(vectors) < MIN_GENRE_VECTORS:
         _GENRE_STATS_CACHE[key] = None
         return None
 

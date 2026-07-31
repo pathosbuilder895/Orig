@@ -58,7 +58,13 @@ from .quantum.state import BaselineSample, StudentState
 # floor are defined once, in the SQLite store, and imported here so the two
 # backends cannot drift apart on any of them. store.py carries no sqlalchemy
 # import, so this costs nothing.
-from .store import MIN_GENRE_VECTORS, PARK_MAX_TRANSITIONS, park_iso_utc, park_utc
+from .store import (
+    MIN_GENRE_STUDENTS,
+    MIN_GENRE_VECTORS,
+    PARK_MAX_TRANSITIONS,
+    park_iso_utc,
+    park_utc,
+)
 
 log = get_logger(__name__)
 
@@ -923,12 +929,19 @@ class PostgresRepository:
             return None
 
         vectors = []
+        contributing_students = 0
         for data in rows:
-            for sample in data.get("samples", []):
-                if (sample.get("auth_weight") or 0) > 0 and sample.get("genre") == genre:
-                    vectors.append(np.array(sample["vector"], dtype=np.float64))
+            student_vectors = [
+                np.array(sample["vector"], dtype=np.float64)
+                for sample in data.get("samples", [])
+                if (sample.get("auth_weight") or 0) > 0 and sample.get("genre") == genre
+            ]
+            if not student_vectors:
+                continue
+            contributing_students += 1
+            vectors.extend(student_vectors)
 
-        if len(vectors) < MIN_GENRE_VECTORS:
+        if contributing_students < MIN_GENRE_STUDENTS or len(vectors) < MIN_GENRE_VECTORS:
             self._genre_stats_cache[key] = None
             return None
 

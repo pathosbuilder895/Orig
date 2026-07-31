@@ -373,6 +373,66 @@ class TestGetGenreStats:
         assert repo.get_genre_stats("different_genre", None) is None
 
 
+# ── get_genre_stats distinct-student floor ───────────────────────────────────
+#
+# MIN_GENRE_VECTORS alone bounds how MANY vectors a prior rests on, not how
+# many PEOPLE. Tenant-scoping shrank each pool enough that genre matching no
+# longer bounds concentration on its own, so one prolific student's samples
+# could stand in for a whole tenant's "population" prior — and then that same
+# student's cold-start submissions would be scored against a distribution
+# built from their own writing. MIN_GENRE_STUDENTS mirrors null_pool.py's
+# MIN_IMPOSTOR_STUDENTS (3) for exactly the same reason.
+
+
+class TestGetGenreStatsStudentFloor:
+    def test_single_prolific_student_cannot_form_a_prior(self, repo):
+        # 6 vectors — clears MIN_GENRE_VECTORS — but from one person.
+        repo.put(_make_state("student-SF0", n=6, genre="sermon"))
+        assert repo.get_genre_stats("sermon", None) is None
+
+    def test_two_students_still_below_the_student_floor(self, repo):
+        # 6 vectors, 2 contributing students: vector floor met, student floor not.
+        repo.put(_make_state("student-SF1", n=3, genre="exegesis"))
+        repo.put(_make_state("student-SF2", n=3, genre="exegesis"))
+        assert repo.get_genre_stats("exegesis", None) is None
+
+    def test_three_students_clear_both_floors(self, repo):
+        repo.put(_make_state("student-SF3", n=2, genre="homiletics"))
+        repo.put(_make_state("student-SF4", n=2, genre="homiletics"))
+        repo.put(_make_state("student-SF5", n=2, genre="homiletics"))
+        result = repo.get_genre_stats("homiletics", None)
+        assert result is not None
+        assert result["n_samples"] == 6
+
+    def test_students_are_counted_per_genre_not_overall(self, repo):
+        # 3 students exist, but only one wrote in this genre. The other two
+        # must not lift it over the student floor.
+        repo.put(_make_state("student-SF6", n=6, genre="canon_law"))
+        repo.put(_make_state("student-SF7", n=2, genre="something_else"))
+        repo.put(_make_state("student-SF8", n=2, genre="another_thing"))
+        assert repo.get_genre_stats("canon_law", None) is None
+
+    def test_unverified_samples_count_toward_neither_floor(self, repo):
+        # An auth_weight=0 sample must not make its owner a contributing
+        # student, nor its vector count toward n_samples.
+        for i in range(3):
+            repo.put(_make_state(f"student-SF9{i}", n=2, genre="rhetoric"))
+        unverified = StudentState(student_id="student-SF-unverified")
+        unverified.add_sample(
+            BaselineSample(
+                text="unverified",
+                vector=np.random.default_rng(1).random(FEATURE_DIM).astype(np.float64),
+                provenance="unverified",
+                auth_weight=0.0,
+                genre="rhetoric",
+            )
+        )
+        repo.put(unverified)
+        result = repo.get_genre_stats("rhetoric", None)
+        assert result is not None
+        assert result["n_samples"] == 6  # not 7
+
+
 # ── get_genre_stats tenant isolation ─────────────────────────────────────────
 #
 # get_genre_stats takes a required `tenant` argument and scopes the
