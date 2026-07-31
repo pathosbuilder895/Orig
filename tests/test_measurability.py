@@ -181,3 +181,17 @@ class TestRegistryMatchesPipelineReality:
         # Not all measurable codes fire on a 500-word citation-free fixture
         # (e.g. chiasmus, block quotes) — 60% is the canary floor, not a claim.
         assert varying >= 0.6 * len(measurable)
+
+
+class TestConsumersDelegateToRegistry:
+    def test_derive_weights_exclusions_come_from_registry(self):
+        from scripts.derive_measured_weights import (
+            structurally_excluded_codes as script_excluded,
+        )
+
+        assert script_excluded() == structurally_excluded_codes()
+
+    def test_stability_skips_exactly_the_disabled_indices(self):
+        from validation.stability.stability import _FEATURE_INDICES_SKIPPED
+
+        assert sorted(_FEATURE_INDICES_SKIPPED) == disabled_feature_indices()

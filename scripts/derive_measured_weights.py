@@ -137,8 +137,6 @@ import numpy as np  # noqa: E402
 from original.constants import (  # noqa: E402
     ALL_FEATURE_CODES,
     COMPARISON_CODES,
-    DISABLED_FEATURE_GROUPS,
-    FEATURE_GROUPS,
     FEATURE_TIER,
     TIER_WEIGHTS,
 )
@@ -173,30 +171,14 @@ def split_authors(
 def structurally_excluded_codes() -> set[str]:
     """
     Feature codes that can never carry a Fisher signal through this
-    pipeline, independent of which corpus/windowing is used:
-
-      - tier-0 comparison features (``COMPARISON_CODES``, and any other
-        code sharing the same baseline-comparison nature — e.g. tier 11's
-        error-ecology codes) — computed only at scoring time against a
-        baseline; ``compute_feature_matrix`` calls ``feature_vector()`` on
-        isolated windows with no baseline, so these hardcode to 0.5 for
-        every window (``original/features/pipeline.py``). Caught here via
-        ``COMPARISON_CODES`` explicitly; any OTHER comparison-shaped code
-        that isn't in that list (e.g. tier 11) is still caught by
-        ``zero_variance_feature_indices`` empirically.
-      - every code belonging to a currently-``DISABLED_FEATURE_GROUPS``
-        group (today: tier 17 "behavioral", tier 18 "uniformity") — these
-        hardcode to the ``NORM_BOUNDS`` midpoint for every window while
-        their group is disabled, via the same pipeline.py fallback.
-
-    Read live from ``original.constants`` so behavior tracks runtime state:
-    if "uniformity" is later removed from ``DISABLED_FEATURE_GROUPS``, tier
-    18 becomes eligible for measurement without this function changing.
+    pipeline. Delegates to validation.measurability — the single source of
+    truth (this function previously listed COMPARISON_CODES + disabled
+    groups itself and relied on zero_variance_feature_indices to catch the
+    rest empirically; the registry names all of them a-priori).
     """
-    excluded = set(COMPARISON_CODES)
-    for group in DISABLED_FEATURE_GROUPS:
-        excluded.update(FEATURE_GROUPS.get(group, []))
-    return excluded
+    from validation.measurability import structurally_excluded_codes as _registry
+
+    return _registry()
 
 
 def zero_variance_feature_indices(
@@ -374,6 +356,14 @@ def compute_tier_weights_from_matrices(
     author_means = np.stack([m.mean(axis=0) for m in usable.values()], axis=0)
     between = author_means.var(axis=0, ddof=1)
     per_feature_fisher = between / (within + 1e-9)
+
+    surviving_codes = [code for code in ALL_FEATURE_CODES if code not in excluded_reasons]
+
+    from validation.measurability import assert_aggregatable
+
+    # Structural guard: aggregation over a non-measurable column is the
+    # Instrument Report's root failure mode — refuse loudly, never average.
+    assert_aggregatable(surviving_codes)
 
     per_tier_values: dict[int, list[float]] = {}
     per_tier_codes: dict[int, list[str]] = {}
