@@ -218,19 +218,29 @@ def evaluate_g1_fpr(
     (pessimistic MIN-over-folds vs. optimistic MAX-over-entities), so they
     CAN legitimately disagree.
 
-    Invariant (FIX 3(b)): a "pass" verdict can never coexist with an
-    "UNINFORMATIVE" annotation in current_value — rendering
-    `G1 [PASS] ... (UNINFORMATIVE: ...)` is exactly the self-contradiction
-    this fix exists to eliminate. When `typicality_ns` is supplied it is
-    the MORE accurate signal (observed per-fold N, not reconstructed from
-    document counts), so a would-be pass with `flagged == 0` that EITHER
-    mechanism finds unreachable is downgraded to "uninformative". A
-    nonzero flagged count is real evidence, never arithmetic (FIX 2), so it
-    is never downgraded regardless of reachability; a genuine FAILURE
-    (pooled_rate > 5%) is likewise never downgraded — only a would-be pass
-    can become uninformative. Omitting both `typicality_ns` and
-    `entity_baseline_counts` preserves the legacy two-valued (`pass`/`fail`)
-    behavior exactly.
+    Invariant (FIX 3(b), tightened by a later fix on the ANNOTATION side):
+    a "pass" verdict can never coexist with an "UNINFORMATIVE" annotation
+    in current_value — rendering `G1 [PASS] ... (UNINFORMATIVE: ...)` is
+    exactly the self-contradiction this fix exists to eliminate. When
+    `typicality_ns` is supplied it is the MORE accurate signal (observed
+    per-fold N, not reconstructed from document counts), so a would-be
+    pass with `flagged == 0` that EITHER mechanism finds unreachable is
+    downgraded to "uninformative". A nonzero flagged count is real
+    evidence, never arithmetic (FIX 2), so the DOWNGRADE is never applied
+    regardless of reachability when flagged > 0 — and for that identical
+    reason the current_value ANNOTATION is now *also* only ever appended
+    when `flagged == 0`: once real flags exist, the annotation's own claim
+    ("this rate is not evidence of calibration") is false, because those
+    flags came from the deviation-score path rather than the conformal
+    band, so the rate IS a real measurement, not arithmetic. (A prior
+    version of this function gated the downgrade on `flagged == 0` but
+    gated the annotation on reachability alone, so a nonzero flagged rate
+    under an unreachable band still rendered `G1 [PASS] ... (UNINFORMATIVE:
+    ...)` — the exact contradiction this invariant forbids. Both are now
+    gated identically.) A genuine FAILURE (pooled_rate > 5%) is likewise
+    never downgraded — only a would-be pass can become uninformative.
+    Omitting both `typicality_ns` and `entity_baseline_counts` preserves
+    the legacy two-valued (`pass`/`fail`) behavior exactly.
 
     A non-positive `entity_baseline_counts` value (a degenerate corpus
     entry with 0 or fewer LOO samples) is treated as unreachable directly
@@ -254,7 +264,14 @@ def evaluate_g1_fpr(
     # monitor / escalate boundaries are unreachable a fortiori).
     reachability = _reachability_block(typicality_ns or [], NO_ACTION_FAR_THRESHOLD)
     current_value = f"{pooled_rate:.1%}"
-    if reachability["observed"] and not reachability["reachable"]:
+    # Gated on flagged == 0, matching the downgrade below exactly: once real
+    # flags exist, the annotation's own claim ("this rate is not evidence of
+    # calibration") is false — those flags came from the deviation-score
+    # path, not the conformal band, so the rate IS a real measurement. Not
+    # gating on flagged here was the bug: a nonzero flagged rate under an
+    # unreachable band used to render `G1 [PASS] ... (UNINFORMATIVE: ...)`,
+    # violating this function's own invariant (see docstring).
+    if flagged == 0 and reachability["observed"] and not reachability["reachable"]:
         current_value += (
             f" (UNINFORMATIVE: typicality thresholds unreachable at "
             f"n<={reachability['min_typicality_n']} — p-value floor "
@@ -762,8 +779,26 @@ def _g6_unreachable_threshold_result(
     ratio comes out 1.0, and the gate would report a PASS indistinguishable
     from a genuine fairness result. Instead: a loud skip naming the floor,
     the observed n, and the n the spec's §5 reachability table requires.
+
+    FIX E: observed_n<=0 used to crash here — _conformal_p_floor delegates
+    to validation.power.conformal_p_floor (FIX 3(a)), which raises
+    ValueError below n=1, where the OLD pre-delegation copy returned 1.0
+    (see TestConformalReachability.test_p_floor_rejects_non_positive_n's
+    history). That caller-audit gap was never closed for this function when
+    the helpers were delegated. This has no production call site today
+    (only a test exercises this helper directly), so the crash was latent,
+    not observed — but a degenerate n=0 is exactly the kind of input FIX 5
+    already treats as "unreachable" rather than fatal elsewhere in this
+    module (evaluate_g1_fpr's non-positive entity_baseline_counts handling),
+    so the same convention applies here: report the floor as undefined
+    instead of raising.
     """
-    floor = _conformal_p_floor(observed_n)
+    if observed_n > 0:
+        floor: float | None = _conformal_p_floor(observed_n)
+        floor_text = f"{floor:.3f}"
+    else:
+        floor = None
+        floor_text = "undefined (n<=0)"
     required_n = _min_n_for_threshold(threshold)
     detail = dict(extra_detail or {})
     detail.update(
@@ -775,7 +810,7 @@ def _g6_unreachable_threshold_result(
         }
     )
     return _g6_insufficient_data_result(
-        f"p_central floor 1/(n+1)={floor:.3f} at n={observed_n}, flag threshold "
+        f"p_central floor 1/(n+1)={floor_text} at n={observed_n}, flag threshold "
         f"{threshold:g} needs n>={required_n}",
         n_native_scored=n_native_scored,
         n_non_native_scored=n_non_native_scored,
@@ -912,6 +947,39 @@ def _score_corpus_for_g1(
     return pooled, per_corpus, pooled_deviations, n_errors
 
 
+def _g1_entity_baseline_counts(
+    texts_by_id: dict[str, list[str]], per_corpus_actions: dict[str, list[str]]
+) -> dict[str, int]:
+    """
+    Per-entity PER-FOLD LOO baseline count, for evaluate_g1_fpr's
+    `entity_baseline_counts` argument — drives its conformal-band
+    reachability check (validation/power.py): a clean pooled rate at an N
+    too small for the band to ever be crossed is arithmetic, not evidence
+    (see evaluate_g1_fpr's docstring).
+
+    FIX 1: this is len(texts) - 1, NOT len(texts) — a fold in
+    _score_corpus_for_g1 posts every text EXCEPT the held-out one, so the
+    conformal N behind a fold's typicality p-value is one less than the
+    entity's total document count. Do not "correct" this back to
+    len(texts): a 33-document entity's LOO folds see n=32, not n=33, and 32
+    is one short of what the default 0.03 band needs.
+
+    FIX C: extracted out of run_all() into this standalone, importable
+    function so the `- 1` conversion itself is unit-testable without
+    running the corpus-driven gate — the previous round's
+    TestG1LooOffByOne tests passed already-decremented literals (e.g.
+    `{"s1": 32}`) straight into evaluate_g1_fpr, so both tests passed
+    unchanged against the buggy inline `len(texts)` (no `- 1`) version too.
+
+    FIX 5: keyed off `per_corpus_actions` (the entities _score_corpus_for_g1
+    actually produced a fold for, i.e. already passed its own
+    `len(texts) < 5` skip) rather than the full `texts_by_id`, so an entity
+    that never contributed a fold doesn't inflate entities_total in
+    evaluate_g1_fpr's power block.
+    """
+    return {entity_id: len(texts_by_id[entity_id]) - 1 for entity_id in per_corpus_actions}
+
+
 def run_all() -> list[GateResult]:
     # Defensive reset, before anything else: ENV_LOCK (module import time,
     # above) already put us on ORIGINAL_DB=":memory:", so this is a no-op
@@ -951,23 +1019,13 @@ def run_all() -> list[GateResult]:
     pooled_actions, per_corpus_actions, real_g1_deviations, real_g1_errors = _score_corpus_for_g1(
         client, "g1", texts_by_id
     )
-    # Per-entity PER-FOLD LOO count, keyed the same way as texts_by_id —
-    # drives evaluate_g1_fpr's conformal-band reachability check (validation/
-    # power.py): a clean pooled rate at an N too small for the band to ever
-    # be crossed is arithmetic, not evidence (see evaluate_g1_fpr's
-    # docstring). FIX 1: this is len(texts) - 1, NOT len(texts) — a fold in
-    # _score_corpus_for_g1 posts every text EXCEPT the held-out one, so the
-    # conformal N behind a fold's typicality p-value is one less than the
-    # entity's total document count. Do not "correct" this back to
-    # len(texts): a 33-document entity's LOO folds see n=32, not n=33, and
-    # 32 is one short of what the default 0.03 band needs. FIX 5: computed
-    # from per_corpus_actions (the entities _score_corpus_for_g1 actually
-    # produced a fold for, i.e. already passed its own `len(texts) < 5`
-    # skip) rather than the full texts_by_id, so an entity that never
-    # contributed a fold doesn't inflate entities_total in the power block.
-    entity_baseline_counts = {
-        entity_id: len(texts_by_id[entity_id]) - 1 for entity_id in per_corpus_actions
-    }
+    # Per-entity PER-FOLD LOO count, keyed the same way as texts_by_id — see
+    # _g1_entity_baseline_counts's docstring for the `- 1` rationale (FIX 1)
+    # and why it's keyed off per_corpus_actions rather than texts_by_id
+    # (FIX 5). FIX C: extracted to a standalone function so this conversion
+    # is unit-tested directly (TestG1EntityBaselineCounts) rather than only
+    # via already-decremented literals passed to evaluate_g1_fpr.
+    entity_baseline_counts = _g1_entity_baseline_counts(texts_by_id, per_corpus_actions)
     g1_result = evaluate_g1_fpr(
         pooled_actions,
         per_corpus_actions,
@@ -2059,11 +2117,17 @@ def main(argv=None) -> int:
         # default here — but a green exit code must never be quotable in
         # silence. Print this in BOTH strict and non-strict runs so the
         # trailing line always names what a bare exit code hides.
+        #
+        # FIX D: the tail sentence must be mode-conditional. Under --strict
+        # these gates WERE folded into `failing` (below), so "not counted as
+        # failure; re-run with --strict" is false and self-referential in
+        # that mode — say what actually happened in each mode instead.
         names = ", ".join(r.name for r in uninformative)
-        print(
-            f"{len(uninformative)} gate(s) UNINFORMATIVE ({names}) — not "
-            "counted as failure; re-run with --strict to fail on these."
-        )
+        if args.strict:
+            tail = "counted as a failure because --strict is set."
+        else:
+            tail = "not counted as failure; re-run with --strict to fail on these."
+        print(f"{len(uninformative)} gate(s) UNINFORMATIVE ({names}) — {tail}")
     if args.strict:
         failing = failing + uninformative
     return 1 if failing else 0

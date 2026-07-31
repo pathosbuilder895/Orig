@@ -14,6 +14,7 @@ from validation import calibration_gate
 from validation.calibration_gate import (
     GateResult,
     _conformal_p_floor,
+    _g1_entity_baseline_counts,
     _g5_machinery_error_result,
     _g6_insufficient_data_result,
     _g6_short_group_message,
@@ -359,6 +360,28 @@ class TestG6Fairness:
         assert result.detail["n_native_scored"] == 15
         assert result.detail["n_non_native_scored"] == 10
 
+    def test_zero_observed_n_does_not_crash(self):
+        """FIX E: _g6_unreachable_threshold_result calls _conformal_p_floor,
+        which now delegates to validation.power.conformal_p_floor (FIX 3(a))
+        and raises ValueError at n<=0 — the pre-delegation copy instead
+        returned 1.0, so this caller was never re-audited when the helpers
+        were delegated and would crash at observed_n=0. There is no
+        production call site for observed_n<=0 today (only this test
+        exercises the helper at all), so this closes a latent crash, not an
+        observed failure."""
+        result = _g6_unreachable_threshold_result(
+            observed_n=0,
+            threshold=0.02,
+            n_native_scored=0,
+            n_non_native_scored=0,
+        )
+        assert result.passed is False
+        assert result.verdict == "uninformative"
+        assert result.detail["p_floor"] is None
+        assert result.detail["min_typicality_n"] == 0
+        assert "n=0" in result.current_value
+        assert "undefined" in result.current_value
+
     def test_short_group_message_names_both_groups_when_both_are_short(self):
         both = _g6_short_group_message(2, 1, 5)
         assert "native_english=true" in both and "native_english=false" in both
@@ -665,6 +688,38 @@ class TestG1LooOffByOne:
         assert result.detail["power"]["entities_reachable"] == 1
 
 
+class TestG1EntityBaselineCounts:
+    """FIX C: the previous round's run_all() change to
+    `entity_baseline_counts = len(texts) - 1` (FIX 1) was never actually
+    exercised by a test — TestG1LooOffByOne above passes already-decremented
+    literals (`{"s1": 32}` / `{"s1": 33}`) straight into evaluate_g1_fpr, so
+    both of those tests pass identically against a buggy `len(texts)`
+    (no `- 1`) version too. This targets the extracted
+    `_g1_entity_baseline_counts` helper itself, which performs the `- 1`
+    conversion run_all() now delegates to."""
+
+    def test_subtracts_one_from_each_entitys_document_count(self):
+        texts_by_id = {"s1": ["doc"] * 33, "s2": ["doc"] * 12}
+        per_corpus_actions = {"s1": ["no_action"] * 33, "s2": ["no_action"] * 12}
+        counts = _g1_entity_baseline_counts(texts_by_id, per_corpus_actions)
+        assert counts == {"s1": 32, "s2": 11}
+
+    def test_omits_entities_that_never_produced_a_fold(self):
+        """An entity present in texts_by_id but absent from
+        per_corpus_actions (skipped by _score_corpus_for_g1's own
+        `len(texts) < 5` guard) must not appear in the result at all —
+        FIX 5's rationale, now covered directly on the extracted helper."""
+        texts_by_id = {"s1": ["doc"] * 33, "too_short": ["doc"] * 2}
+        per_corpus_actions = {"s1": ["no_action"] * 33}
+        counts = _g1_entity_baseline_counts(texts_by_id, per_corpus_actions)
+        assert counts == {"s1": 32}
+        assert "too_short" not in counts
+
+    def test_empty_per_corpus_actions_yields_empty_counts(self):
+        counts = _g1_entity_baseline_counts({"s1": ["doc"] * 33}, {})
+        assert counts == {}
+
+
 class TestG1FlaggedNeverDowngraded:
     """FIX 2: a real flagged rate (flagged > 0) is evidence, not arithmetic
     — an unreachable band must never suppress it, and current_value must
@@ -725,26 +780,45 @@ class TestG1DisagreeingMechanismsInvariant:
         assert "UNINFORMATIVE" in result.current_value
 
     def test_pass_verdict_never_carries_an_uninformative_annotation(self):
-        """Property check across a handful of scenarios: whenever the
-        verdict comes back "pass", current_value must be clean."""
-        scenarios = [
-            # (typicality_ns, entity_baseline_counts, band_threshold)
-            (None, None, None),
-            ([60] * 100, None, None),
-            (None, {"s1": 40}, 0.03),
-            ([60] * 100, {"s1": 40}, 0.03),
+        """Property check across nflag x typicality_ns x
+        entity_baseline_counts combinations: whenever the verdict comes back
+        "pass", current_value must be clean.
+
+        REPLACES a vacuous predecessor: the old version used
+        `["no_action"] * 100` (flagged == 0) in all four scenarios, so no
+        scenario could ever produce an annotation in the first place — the
+        `if result.verdict == "pass": assert ...` body was unreachable-or-
+        trivial and passed identically against the pre-fix code (the exact
+        defect class this module exists to catch). This version sweeps
+        nflag in {0, 1, 4} so the flagged > 0 path — where the FIX-A defect
+        actually lived (a nonzero flagged rate under an unreachable
+        typicality band still rendered `G1 [PASS] ... (UNINFORMATIVE:
+        ...)`) — is genuinely exercised. Confirmed (see task report) that
+        this test fails against the pre-fix code and passes against it."""
+        n = 100
+        typicality_ns_options = [None, [3] * n, [60] * n]  # unreachable / reachable
+        entity_baseline_counts_options: list[dict[str, int] | None] = [
+            None,
+            {"s": 5},  # unreachable at the 0.03 default band
+            {"s": 40},  # reachable at the 0.03 default band
         ]
-        actions = ["no_action"] * 100
-        for typicality_ns, entity_baseline_counts, band_threshold in scenarios:
-            result = evaluate_g1_fpr(
-                actions,
-                per_corpus={"synthetic": actions},
-                typicality_ns=typicality_ns,
-                entity_baseline_counts=entity_baseline_counts,
-                band_threshold=band_threshold,
-            )
-            if result.verdict == "pass":
-                assert "UNINFORMATIVE" not in result.current_value
+        for nflag in (0, 1, 4):
+            actions = ["monitor"] * nflag + ["no_action"] * (n - nflag)
+            for typicality_ns in typicality_ns_options:
+                for entity_baseline_counts in entity_baseline_counts_options:
+                    result = evaluate_g1_fpr(
+                        actions,
+                        per_corpus={"synthetic": actions},
+                        typicality_ns=typicality_ns,
+                        entity_baseline_counts=entity_baseline_counts,
+                        band_threshold=0.03,
+                    )
+                    if result.verdict == "pass":
+                        assert "UNINFORMATIVE" not in result.current_value, (
+                            f"nflag={nflag} typicality_ns={typicality_ns} "
+                            f"entity_baseline_counts={entity_baseline_counts} "
+                            f"current_value={result.current_value!r}"
+                        )
 
 
 class TestG1DegenerateEntityCounts:
@@ -878,13 +952,38 @@ class TestMainExitCodes:
     def test_uninformative_summary_line_prints_in_strict_mode_too(self, monkeypatch, capsys):
         """FIX 4: the summary must never be silent in EITHER mode — a
         --strict run that fails for other reasons must still name which
-        gates were uninformative."""
+        gates were uninformative.
+
+        FIX D: under --strict these gates WERE folded into `failing`, so
+        the non-strict tail ("not counted as failure; re-run with
+        --strict...") is false and self-referential when printed here too.
+        Assert the strict tail says what actually happened instead, and
+        that the non-strict wording is absent."""
         monkeypatch.setattr(
             calibration_gate, "run_all", lambda: [self._uninformative("G6")]
         )
         calibration_gate.main(["--strict"])
         out = capsys.readouterr().out
         assert "1 gate(s) UNINFORMATIVE (G6)" in out
+        assert "counted as a failure because --strict is set" in out
+        assert "not counted as failure" not in out
+        assert "re-run with --strict" not in out
+
+    def test_uninformative_summary_line_non_strict_wording_is_unchanged(
+        self, monkeypatch, capsys
+    ):
+        """Companion to the strict-mode test above: the non-strict tail
+        keeps its original wording exactly (FIX D only branches the tail on
+        args.strict, it doesn't touch the non-strict sentence)."""
+        monkeypatch.setattr(
+            calibration_gate, "run_all", lambda: [self._uninformative("G6")]
+        )
+        calibration_gate.main([])
+        out = capsys.readouterr().out
+        assert (
+            "not counted as failure; re-run with --strict to fail on these." in out
+        )
+        assert "counted as a failure because --strict is set" not in out
 
     def test_no_summary_line_when_nothing_is_uninformative(self, monkeypatch, capsys):
         monkeypatch.setattr(
