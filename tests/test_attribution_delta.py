@@ -12,7 +12,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from validation.attribution.delta import cosine_delta_attribution
+from validation.attribution.delta import cosine_delta_attribution, mfw_delta_attribution
 
 
 def _matrices():
@@ -125,3 +125,87 @@ class TestCosineDelta:
         )
         assert predicted == "beta"
         assert set(dists) == set(centers)
+
+
+def _texts():
+    # Two authors with opposite function-word tilts; enough tokens for
+    # stable relative frequencies.
+    a = ("the cat sat upon the mat and the dog lay upon the rug and "
+         "the bird sat upon the branch and the sun shone upon the field ") * 30
+    b = ("a child walks with a kite while a friend runs with a ball since "
+         "a day begins with a song while a night ends with a story ") * 30
+    return {"upon_author": [a, a], "with_author": [b, b]}
+
+
+class TestMfwDelta:
+    def test_recovers_true_author(self):
+        texts = _texts()
+        pred_a, deltas_a = mfw_delta_attribution(texts, texts["upon_author"][0])
+        pred_b, deltas_b = mfw_delta_attribution(texts, texts["with_author"][0])
+        assert pred_a == "upon_author"
+        assert pred_b == "with_author"
+        assert set(deltas_a) == {"upon_author", "with_author"}
+
+    def test_unseen_words_do_not_crash(self):
+        pred, _ = mfw_delta_attribution(
+            _texts(), "zyx qwv completely novel vocabulary upon upon the the"
+        )
+        assert pred == "upon_author"
+
+    def test_fewer_than_two_authors_raises(self):
+        with pytest.raises(ValueError):
+            mfw_delta_attribution({"solo": ["some text here"]}, "test")
+
+    def test_empty_pooled_vocabulary_raises(self):
+        # Every baseline text has zero [a-z'] characters (digits/punctuation
+        # only) -> pooled vocab is empty. min() over an all-identical (0.0)
+        # distance dict would silently return the alphabetically-first
+        # candidate; raise instead.
+        baseline = {"a": ["123 456", "789 000"], "b": ["!!! ???", "..."]}
+        with pytest.raises(ValueError):
+            mfw_delta_attribution(baseline, "111 222")
+
+    def test_too_few_candidates_with_baseline_docs_raises(self):
+        # "b" has an entirely empty list of baseline texts; only one
+        # candidate is left with usable docs, below the attribution floor.
+        # A single-word vocab is used deliberately: with the guard removed,
+        # b's NaN profile is the same shape as a's real one, so np.vstack
+        # does NOT crash on a shape mismatch -- the NaN quietly propagates
+        # through mu/sd/z-scores into an all-NaN deltas dict, and min()
+        # over NaNs silently returns the first candidate with no exception
+        # at all. A shorter vocab would coincidentally raise a numpy
+        # ValueError instead, masking whether this guard is doing anything.
+        baseline = {"a": ["word"], "b": []}
+        with pytest.raises(ValueError):
+            mfw_delta_attribution(baseline, "word")
+
+    def test_candidate_with_empty_baseline_list_is_skipped(self):
+        # A candidate contributing zero baseline docs must not corrupt the
+        # pool (np.mean of an empty list is NaN) or count toward the
+        # result -- it is excluded, mirroring cosine_delta_attribution's
+        # treatment of an empty baseline matrix.
+        texts = _texts()
+        texts["ghost_author"] = []
+        pred, deltas = mfw_delta_attribution(texts, texts["upon_author"][0])
+        assert pred == "upon_author"
+        assert "ghost_author" not in deltas
+        assert set(deltas) == {"upon_author", "with_author"}
+
+    def test_degenerate_baseline_doc_does_not_crash(self):
+        # One of two baseline docs for a candidate tokenizes to nothing;
+        # _rel_freqs falls back to a zero vector for it instead of dividing
+        # by zero, and the candidate still attributes using the signal
+        # from its other (real) doc.
+        texts = _texts()
+        texts["upon_author"] = [texts["upon_author"][0], "1234 !!! ???"]
+        pred, deltas = mfw_delta_attribution(texts, texts["upon_author"][0])
+        assert pred == "upon_author"
+        assert set(deltas) == {"upon_author", "with_author"}
+
+    def test_degenerate_test_text_does_not_crash(self):
+        # The disputed text itself has no recognizable words; it must
+        # still receive a real (if uncertain) attribution rather than
+        # raising or crashing on a divide-by-zero.
+        pred, deltas = mfw_delta_attribution(_texts(), "1234 5678 !!! ???")
+        assert pred in {"upon_author", "with_author"}
+        assert set(deltas) == {"upon_author", "with_author"}
