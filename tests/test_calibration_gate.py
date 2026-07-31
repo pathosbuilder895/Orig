@@ -13,10 +13,15 @@ import pytest
 from validation.calibration_gate import (
     GateResult,
     _g5_machinery_error_result,
+    _g6_insufficient_data_result,
+    _paraphrase_proxy,
     _require_healthy_leg,
+    _uniformity_features_enabled,
     evaluate_g1_fpr,
     evaluate_g2_bland_impostor,
+    evaluate_g2b_paraphrase_resistant,
     evaluate_g5_permutation_null,
+    evaluate_g6_fairness,
     run_g5,
 )
 
@@ -136,6 +141,108 @@ class TestRequireHealthyLeg:
     def test_zero_successful_folds_raises(self):
         with pytest.raises(RuntimeError, match="zero successful"):
             _require_healthy_leg("leg", n_success=0, n_errors=0)
+
+
+class TestG6Fairness:
+    def test_passes_when_fpr_ratio_at_most_two(self):
+        result = evaluate_g6_fairness(
+            native_fpr=0.04,
+            non_native_fpr=0.06,
+        )
+        assert result.passed is True
+
+    def test_fails_when_fpr_ratio_exceeds_two(self):
+        result = evaluate_g6_fairness(
+            native_fpr=0.02,
+            non_native_fpr=0.10,  # 5x — matches the documented NNE risk direction
+        )
+        assert result.passed is False
+
+    def test_handles_zero_native_fpr_without_division_error(self):
+        result = evaluate_g6_fairness(native_fpr=0.0, non_native_fpr=0.05)
+        assert isinstance(result.passed, bool)
+
+    def test_insufficient_data_records_loud_skip_not_a_pass(self):
+        """Honest-instrument convention: a corpus without enough
+        native_english-annotated authentic entries must surface as a loud
+        SKIPPED result — passed must NOT be silently true."""
+        result = _g6_insufficient_data_result(
+            "native_english=false group has 0 scored authentic entries (need >= 5)",
+            n_native_scored=15,
+            n_non_native_scored=0,
+        )
+        assert result.name == "G6"
+        assert result.passed is False
+        assert result.current_value.startswith("SKIPPED (insufficient data):")
+        assert result.detail["n_non_native_scored"] == 0
+        assert "0 scored authentic entries" in result.detail["missing"]
+
+
+class TestG2bParaphraseResistance:
+    def test_passes_when_paraphrased_impostor_q_still_lower_than_holdout(self):
+        result = evaluate_g2b_paraphrase_resistant(
+            holdout_q=[0.5, 0.48, 0.5],
+            paraphrased_impostor_q=[0.15, 0.1],
+        )
+        assert result.passed is True
+
+    def test_fails_when_paraphrase_defeats_the_signal(self):
+        """Documents the expected real-world outcome per the design spec's
+        research review — this SHOULD fail with a naive implementation,
+        which is itself the finding G2b exists to surface."""
+        result = evaluate_g2b_paraphrase_resistant(
+            holdout_q=[0.5, 0.48, 0.5],
+            paraphrased_impostor_q=[0.6, 0.55],  # paraphrase raised q above holdout
+        )
+        assert result.passed is False
+
+    def test_criterion_and_detail_label_the_mechanical_proxy(self):
+        """Standing decision: G2b must never be presentable as an
+        LLM-paraphrase robustness claim. Both the criterion string and the
+        detail must carry the proxy label."""
+        result = evaluate_g2b_paraphrase_resistant(
+            holdout_q=[0.5], paraphrased_impostor_q=[0.1]
+        )
+        proxy_label = "paraphrase proxy (mechanical transformation, not LLM paraphrase)"
+        assert proxy_label in result.criterion
+        assert proxy_label in result.detail["proxy_note"]
+
+    def test_paraphrase_proxy_is_deterministic_and_rewrites_the_text(self):
+        text = (
+            "This point is important. However, the essay shows that we use "
+            "many words. Therefore we think the argument is very good."
+        )
+        out1 = _paraphrase_proxy(text)
+        out2 = _paraphrase_proxy(text)
+        assert out1 == out2  # deterministic — no hidden randomness
+        assert out1 != text  # actually transforms the input
+
+
+class TestUniformityEnablementGuard:
+    def test_restores_exact_prior_state_even_on_exception(self):
+        """DISABLED_FEATURE_GROUPS is a process-global module-level set read
+        at feature-extraction call time — a leaked discard('uniformity')
+        would silently change every later leg's feature vectors. The guard
+        must restore the exact prior state on both the clean and the
+        exception path."""
+        from original.constants import DISABLED_FEATURE_GROUPS
+
+        before = set(DISABLED_FEATURE_GROUPS)
+        try:
+            # Clean path.
+            with _uniformity_features_enabled():
+                assert "uniformity" not in DISABLED_FEATURE_GROUPS
+            assert DISABLED_FEATURE_GROUPS == before
+            # Exception path.
+            with pytest.raises(RuntimeError, match="boom"):
+                with _uniformity_features_enabled():
+                    assert "uniformity" not in DISABLED_FEATURE_GROUPS
+                    raise RuntimeError("boom")
+            assert DISABLED_FEATURE_GROUPS == before
+        finally:
+            # Belt-and-braces: never let THIS test leak state either.
+            DISABLED_FEATURE_GROUPS.clear()
+            DISABLED_FEATURE_GROUPS.update(before)
 
 
 class TestG5MachineryErrors:

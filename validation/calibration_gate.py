@@ -15,9 +15,19 @@ scored via the in-process TestClient with TYPICALITY_SCORING=1 (the same
 "production-realistic in-process" pattern every other validation runner in
 this repo uses — see validation/public_authors/run.py's docstring).
 G5 (permutation-null control) shuffles author labels with a fixed seed and
-re-runs the G1/G3/G4 machinery — see run_g5(). G2b (paraphrase-resistant)
-and G6 (native_english fairness) are added once
-original/features/uniformity.py exists (Phase 4).
+re-runs the G1/G3/G4 machinery — see run_g5().
+G2b repeats G2 with the Tier-18 uniformity features enabled and the ai_*.txt
+impostors run through a paraphrase PROXY — a deterministic mechanical
+transformation (fixed-table word substitution + adjacent-sentence
+reordering), NOT an LLM paraphrase: a G2b pass is never evidence of
+robustness against the real detector-guided LLM attacks the design spec's
+research review cites (see evaluate_g2b_paraphrase_resistant).
+G6 (native_english fairness) checks the ≤2x per-group flagged-rate bar on
+the p_central/too-uniform action between native_english=true and =false
+authentic samples, bridging validation/benchmark/bias_slicer.slice_by and
+validation/bias_analysis._welch_t_test directly (run_bias_analysis's
+dict-based shape doesn't match bias_slicer's ScoringResult-based shape, so
+this gate does the bridging itself).
 """
 
 from __future__ import annotations
@@ -31,6 +41,7 @@ import argparse
 import json
 import os
 import sys
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -100,6 +111,68 @@ def evaluate_g2_bland_impostor(holdout_q: list[float], impostor_q: list[float]) 
         criterion="median(impostor q) <= median(holdout q)",
         current_value=f"impostor={med_impostor:.3f}, holdout={med_holdout:.3f}",
         detail={"holdout_q": holdout_q, "impostor_q": impostor_q},
+    )
+
+
+_G2B_PROXY_LABEL = "paraphrase proxy (mechanical transformation, not LLM paraphrase)"
+
+_G2B_CRITERION = (
+    "median(paraphrased impostor q) <= median(holdout q) — " + _G2B_PROXY_LABEL
+)
+
+_G2B_PROXY_NOTE = (
+    "The impostor texts were transformed by a deterministic "
+    + _G2B_PROXY_LABEL
+    + ": fixed-table word substitution plus adjacent-sentence reordering "
+    "(_paraphrase_proxy). A pass here is NOT evidence of robustness against "
+    "real detector-guided LLM paraphrase attacks (the published one-line "
+    "'elevate the language' attack the design spec's research review cites) "
+    "— no LLM is wired into this validation harness. It only checks that "
+    "the Tier-18 uniformity features are not defeated by trivial mechanical "
+    "edits. A real LLM-based paraphrase gate remains an open follow-up."
+)
+
+
+def evaluate_g2b_paraphrase_resistant(
+    holdout_q: list[float],
+    paraphrased_impostor_q: list[float],
+    informational: dict | None = None,
+) -> GateResult:
+    """
+    G2b — Bland impostor, paraphrase-resistance PROXY. Repeats G2's criterion
+    (q = min(p_far, p_central); an impostor must not look MORE typical than
+    genuine work) with the Tier-18 uniformity features enabled and the
+    ai_*.txt corpus run through _paraphrase_proxy — a mechanical
+    transformation, NOT an LLM paraphrase. The proxy label travels in both
+    the criterion string and detail["proxy_note"] so this gate can never be
+    presented as an LLM-paraphrase robustness claim (standing decision; the
+    design spec's own wording — "detector-guided paraphrase" — claims more
+    than this harness can test without an LLM, so the claim is deliberately
+    weakened here).
+
+    `informational` is attach-only context merged into detail — it never
+    affects the verdict (same convention as evaluate_g5_permutation_null).
+    """
+    import statistics
+
+    med_holdout = statistics.median(holdout_q) if holdout_q else float("nan")
+    med_impostor = (
+        statistics.median(paraphrased_impostor_q) if paraphrased_impostor_q else float("nan")
+    )
+    passed = med_impostor <= med_holdout
+    detail = {
+        "holdout_q": holdout_q,
+        "paraphrased_impostor_q": paraphrased_impostor_q,
+        "proxy_note": _G2B_PROXY_NOTE,
+    }
+    if informational:
+        detail.update(informational)
+    return GateResult(
+        name="G2b",
+        passed=passed,
+        criterion=_G2B_CRITERION,
+        current_value=f"paraphrased_impostor={med_impostor:.3f}, holdout={med_holdout:.3f}",
+        detail=detail,
     )
 
 
@@ -215,19 +288,94 @@ def evaluate_g5_permutation_null(
     )
 
 
-def _g5_machinery_error_result(exc: Exception) -> GateResult:
+def _machinery_error_result(name: str, criterion: str, exc: Exception) -> GateResult:
     """
-    run_all()'s G5 wrapper: a crash inside run_g5 is a scoring-MACHINERY
-    failure, not a null-hypothesis verdict. It must neither discard the four
-    completed real gates nor masquerade as a genuine G5 result — so it
-    renders as a FAILED G5 whose current_value is unmistakably an error.
+    run_all()'s crash wrapper for scoring-leg gates: a crash inside a gate's
+    orchestration is a scoring-MACHINERY failure, not a gate verdict. It must
+    neither discard the other completed gates nor masquerade as a genuine
+    result — so it renders as a FAILED gate whose current_value is
+    unmistakably an error.
     """
     return GateResult(
-        name="G5",
+        name=name,
         passed=False,
-        criterion="G1/G3/G4 collapse to chance under permuted author labels",
+        criterion=criterion,
         current_value=f"ERROR (machinery): {exc}",
         detail={"machinery_error": str(exc)},
+    )
+
+
+def _g5_machinery_error_result(exc: Exception) -> GateResult:
+    """G5-specific wrapper around _machinery_error_result (its docstring
+    applies; this predates the generic helper and keeps its call sites and
+    tests stable)."""
+    return _machinery_error_result(
+        "G5", "G1/G3/G4 collapse to chance under permuted author labels", exc
+    )
+
+
+_G6_CRITERION = (
+    "per-group flagged rate for the p_central/too-uniform action "
+    "(uniformity features enabled) must not differ by more than 2x between "
+    "native_english=true and =false authentic samples"
+)
+
+
+def evaluate_g6_fairness(
+    native_fpr: float,
+    non_native_fpr: float,
+    informational: dict | None = None,
+) -> GateResult:
+    """
+    G6 — Non-native-English fairness. Per-group flagged rate for the
+    p_central/too-uniform action must not differ by more than 2x between
+    native_english=true and =false groups (design spec §4, G6 row). Reuses
+    the same 2x bar — including the ratio convention — that
+    validation/bias_analysis._analyze_dimension already applies elsewhere:
+    only non-zero rates are compared, and with fewer than two non-zero rates
+    the ratio is 1.0 (this is also what makes a zero-rate group safe from
+    division errors).
+
+    `informational` is attach-only context merged into detail — it never
+    affects the verdict (same convention as evaluate_g5_permutation_null).
+    """
+    rates = [r for r in (native_fpr, non_native_fpr) if r > 0]
+    ratio = max(rates) / min(rates) if len(rates) == 2 else 1.0
+    passed = ratio <= 2.0
+    detail = {"native_fpr": native_fpr, "non_native_fpr": non_native_fpr, "ratio": ratio}
+    if informational:
+        detail.update(informational)
+    return GateResult(
+        name="G6",
+        passed=passed,
+        criterion=_G6_CRITERION,
+        current_value=(
+            f"ratio={ratio:.2f}x (native={native_fpr:.1%}, non_native={non_native_fpr:.1%})"
+        ),
+        detail=detail,
+    )
+
+
+def _g6_insufficient_data_result(
+    missing: str, *, n_native_scored: int, n_non_native_scored: int
+) -> GateResult:
+    """
+    Honest-instrument convention (same reasoning as _machinery_error_result):
+    when the corpora lack enough native_english-annotated authentic entries
+    to compute a per-group rate, G6 must record a LOUD skipped result —
+    passed=False with a current_value that is unmistakably "no data", and a
+    detail that says exactly what was missing — never a silent pass.
+    """
+    return GateResult(
+        name="G6",
+        passed=False,
+        criterion=_G6_CRITERION,
+        current_value=f"SKIPPED (insufficient data): {missing}",
+        detail={
+            "missing": missing,
+            "n_native_scored": n_native_scored,
+            "n_non_native_scored": n_non_native_scored,
+        },
     )
 
 
@@ -334,6 +482,21 @@ def run_all() -> list[GateResult]:
     holdout_q, impostor_q = _compute_g2_q_values(client)
     results.append(evaluate_g2_bland_impostor(holdout_q, impostor_q))
 
+    # G2b: G2's criterion with uniformity features enabled (guarded window —
+    # see _uniformity_features_enabled) and the ai_*.txt impostors run
+    # through the mechanical paraphrase PROXY (_paraphrase_proxy; not an LLM
+    # paraphrase — the proxy label travels in the criterion and detail).
+    # A crash here is a machinery failure, same convention as G5's wrapper.
+    try:
+        g2b_holdout_q, g2b_impostor_q, g2b_stats = _compute_g2b_paraphrase_data(client)
+        results.append(
+            evaluate_g2b_paraphrase_resistant(
+                g2b_holdout_q, g2b_impostor_q, informational=g2b_stats
+            )
+        )
+    except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
+        results.append(_machinery_error_result("G2b", _G2B_CRITERION, exc))
+
     # G3: reuse the existing public_authors attribution accuracy computation.
     # validation/public_authors/run.py's run() returns a report dict shaped
     # {"summary": {"top1_accuracy": ..., ...}, "per_author": {...}, ...} —
@@ -373,6 +536,16 @@ def run_all() -> list[GateResult]:
         )
     except Exception as exc:  # noqa: BLE001 — see _g5_machinery_error_result
         results.append(_g5_machinery_error_result(exc))
+
+    # G6: native_english fairness on the p_central/too-uniform action, with
+    # uniformity features enabled for its own leg. _compute_g6_fairness_data
+    # returns the finished GateResult (evaluate, or a loud SKIPPED
+    # insufficient-data result — never a silent pass); a crash is a
+    # machinery failure, same convention as G5's wrapper.
+    try:
+        results.append(_compute_g6_fairness_data(client))
+    except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
+        results.append(_machinery_error_result("G6", _G6_CRITERION, exc))
 
     return results
 
@@ -475,6 +648,413 @@ def _compute_g2_q_values(client) -> tuple[list[float], list[float]]:
                 impostor_q.append(min(p_far_val, p_central_val))
 
     return holdout_q, impostor_q
+
+
+# ── G2b / G6 — uniformity-enabled legs ─────────────────────────────────────────
+
+
+@contextmanager
+def _uniformity_features_enabled():
+    """
+    Context manager that enables the Tier-18 uniformity features for exactly
+    one gate leg's scoring, then restores DISABLED_FEATURE_GROUPS to its
+    EXACT prior state.
+
+    Why the ceremony: DISABLED_FEATURE_GROUPS is a process-global
+    module-level set that original/features/pipeline.py reads at feature-
+    extraction CALL time — a leaked discard("uniformity") would silently
+    change the feature vectors of every leg scored after it (and, in a test
+    process, of every later test). The try/finally guarantees restoration
+    even when a leg raises mid-run (e.g. _require_healthy_leg), and
+    clear()+update(saved) restores the exact prior membership rather than
+    guessing at add/discard inverses. Profiles CREATED while enabled carry
+    real Tier-18 values and live in the shared :memory: store, so G2b/G6
+    keep their own sid namespaces (demo:gate_g2b_*/demo:gate_g6_*) — no
+    other leg ever scores against a uniformity-enabled profile.
+    """
+    from original.constants import DISABLED_FEATURE_GROUPS
+
+    saved = set(DISABLED_FEATURE_GROUPS)
+    DISABLED_FEATURE_GROUPS.discard("uniformity")
+    try:
+        yield
+    finally:
+        DISABLED_FEATURE_GROUPS.clear()
+        DISABLED_FEATURE_GROUPS.update(saved)
+
+
+# Fixed word-substitution table for the G2b paraphrase PROXY. Deliberately
+# "elevate the language"-flavoured (the direction of the published attack),
+# but mechanical: same table for every text, no randomness, no LLM.
+_G2B_WORD_SUBSTITUTIONS: dict[str, str] = {
+    "however": "nevertheless",
+    "therefore": "consequently",
+    "thus": "hence",
+    "but": "yet",
+    "because": "since",
+    "also": "additionally",
+    "important": "significant",
+    "importance": "significance",
+    "shows": "demonstrates",
+    "show": "demonstrate",
+    "showed": "demonstrated",
+    "use": "utilize",
+    "uses": "utilizes",
+    "used": "utilized",
+    "using": "utilizing",
+    "make": "create",
+    "makes": "creates",
+    "made": "created",
+    "many": "numerous",
+    "big": "substantial",
+    "good": "beneficial",
+    "bad": "detrimental",
+    "help": "assist",
+    "helps": "assists",
+    "think": "believe",
+    "thinks": "believes",
+    "very": "quite",
+    "often": "frequently",
+    "begin": "commence",
+    "begins": "commences",
+    "end": "conclude",
+    "ends": "concludes",
+    "idea": "notion",
+    "ideas": "notions",
+    "way": "manner",
+    "ways": "manners",
+    "people": "individuals",
+}
+
+_G2B_SUBSTITUTION_PATTERN = None  # compiled lazily by _paraphrase_proxy
+
+
+def _paraphrase_proxy(text: str) -> str:
+    """
+    Deterministic paraphrase PROXY for G2b — a mechanical transformation,
+    NOT an LLM paraphrase (see _G2B_PROXY_NOTE; the label is load-bearing).
+
+    Two passes, both seed-free and idempotent-per-input:
+      1. Adjacent-sentence reordering: split on sentence-final punctuation
+         and swap each adjacent pair (s1 s0 s3 s2 ...) — content preserved,
+         discourse order perturbed.
+      2. Fixed-table word substitution (_G2B_WORD_SUBSTITUTIONS), case-
+         insensitive match with initial-capital preservation — the
+         "elevate the language" direction of the published attack, minus
+         the LLM.
+    """
+    import re
+
+    global _G2B_SUBSTITUTION_PATTERN
+    if _G2B_SUBSTITUTION_PATTERN is None:
+        alternation = "|".join(
+            sorted(_G2B_WORD_SUBSTITUTIONS, key=len, reverse=True)
+        )
+        _G2B_SUBSTITUTION_PATTERN = re.compile(rf"\b({alternation})\b", re.IGNORECASE)
+
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+    for i in range(0, len(sentences) - 1, 2):
+        sentences[i], sentences[i + 1] = sentences[i + 1], sentences[i]
+    reordered = " ".join(sentences)
+
+    def _substitute(match: "re.Match[str]") -> str:
+        word = match.group(0)
+        replacement = _G2B_WORD_SUBSTITUTIONS[word.lower()]
+        if word[0].isupper():
+            replacement = replacement[0].upper() + replacement[1:]
+        return replacement
+
+    return _G2B_SUBSTITUTION_PATTERN.sub(_substitute, reordered)
+
+
+def _compute_g2b_paraphrase_data(client) -> tuple[list[float], list[float], dict]:
+    """
+    G2b leg: _compute_g2_q_values's machinery with (a) the Tier-18
+    uniformity features enabled for the WHOLE leg — baselines and scoring
+    alike, holdout and impostor alike, so both sides of the comparison are
+    measured by the same instrument and no baseline is built with tier-18
+    pinned at 0.5 while its submissions carry real values — and (b) the
+    ai_*.txt impostors run through _paraphrase_proxy (the spec's G2b row
+    scopes the paraphrase to the ai_*.txt essays; Eryxias is G2's concern).
+
+    Fresh demo:gate_g2b_* sids keep the uniformity-enabled profiles this leg
+    creates in the shared :memory: store from ever being scored by another
+    leg. Returns (holdout_q, paraphrased_impostor_q, leg_stats); raises
+    RuntimeError via _require_healthy_leg on an unhealthy leg, which
+    run_all() renders as a failed ERROR-(machinery) G2b result.
+    """
+    holdout_q: list[float] = []
+    paraphrased_impostor_q: list[float] = []
+    n_holdout_errors = 0
+    n_impostor_errors = 0
+    n_null_typicality = 0
+
+    plato_dialogues = _load_plato_texts_by_dialogue()
+    ai_corpus_dir = _ROOT / "validation" / "corpus"
+    ai_files = sorted(ai_corpus_dir.glob("ai_*.txt"))
+
+    with _uniformity_features_enabled():
+        for dialogue, chunks in plato_dialogues.items():
+            if "eryxias" in dialogue or len(chunks) < 5:
+                continue
+            sid = f"demo:gate_g2b_{dialogue}"
+            for chunk in chunks[:-1]:
+                client.post(
+                    f"/students/{sid}/baseline",
+                    json={"text": chunk, "provenance": "verified"},
+                )
+            r = client.post(
+                f"/students/{sid}/score",
+                json={"text": chunks[-1], "submission_id": f"{dialogue}_holdout"},
+            )
+            if r.status_code == 200:
+                payload = r.json()
+                p_far_val = payload.get("typicality_p_far")
+                p_central_val = payload.get("typicality_p_central")
+                if p_far_val is not None and p_central_val is not None:
+                    holdout_q.append(min(p_far_val, p_central_val))
+                else:
+                    n_null_typicality += 1
+            else:
+                n_holdout_errors += 1
+
+        reference_dialogues = [
+            c
+            for name, chunks in plato_dialogues.items()
+            if "eryxias" not in name
+            for c in chunks
+        ][:20]
+        sid = "demo:gate_g2b_impostor_reference"
+        for chunk in reference_dialogues:
+            client.post(
+                f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"}
+            )
+        for path in ai_files:
+            paraphrased = _paraphrase_proxy(path.read_text(encoding="utf-8"))
+            r = client.post(
+                f"/students/{sid}/score",
+                json={"text": paraphrased, "submission_id": f"g2b_{path.stem}"},
+            )
+            if r.status_code == 200:
+                payload = r.json()
+                p_far_val = payload.get("typicality_p_far")
+                p_central_val = payload.get("typicality_p_central")
+                if p_far_val is not None and p_central_val is not None:
+                    paraphrased_impostor_q.append(min(p_far_val, p_central_val))
+                else:
+                    n_null_typicality += 1
+            else:
+                n_impostor_errors += 1
+
+    _require_healthy_leg(
+        "G2b holdout leg", n_success=len(holdout_q), n_errors=n_holdout_errors
+    )
+    _require_healthy_leg(
+        "G2b paraphrased-impostor leg",
+        n_success=len(paraphrased_impostor_q),
+        n_errors=n_impostor_errors,
+    )
+    leg_stats = {
+        "n_holdout": len(holdout_q),
+        "n_paraphrased_impostors": len(paraphrased_impostor_q),
+        "n_ai_files": len(ai_files),
+        "n_holdout_scoring_errors": n_holdout_errors,
+        "n_impostor_scoring_errors": n_impostor_errors,
+        "n_null_typicality_skipped": n_null_typicality,
+        "uniformity_enabled_during_leg": True,
+    }
+    return holdout_q, paraphrased_impostor_q, leg_stats
+
+
+# G6 sample-size policy: a per-group rate from fewer than one author's worth
+# of essays (5) is noise, so the gate SKIPs loudly below that; the plan's
+# thin-coverage note (~20 per group) becomes a low-sample warning in detail,
+# since today's manifest tops out at 15 native / 10 non-native.
+_G6_MIN_PER_GROUP = 5
+_G6_WARN_PER_GROUP = 20
+
+
+def _compute_g6_fairness_data(client) -> GateResult:
+    """
+    G6 leg: score every native_english-annotated AUTHENTIC entry in
+    validation/manifest.json leave-one-out within its author (baseline =
+    the author's other annotated essays), read typicality_p_central off each
+    response, threshold it against NO_ACTION_CENTRAL_THRESHOLD to get the
+    per-entry too-uniform flag, and compare per-group flagged rates via
+    evaluate_g6_fairness. Runs with the Tier-18 uniformity features enabled
+    (same guarded window as G2b) because G6 exists to gate that family's
+    fairness before it leaves DISABLED_FEATURE_GROUPS (spec §4/§8).
+
+    Bridging (per the plan's Interfaces note): validation/benchmark/
+    bias_slicer.slice_by and validation/bias_analysis._welch_t_test are
+    called DIRECTLY on this leg's results — run_bias_analysis's dict-based
+    input shape doesn't match bias_slicer's ScoringResult-based shape, so
+    the gate constructs real ScoringResult rows itself. Both bridges are
+    attach-only context in detail; the verdict is the 2x flagged-rate ratio.
+
+    Returns the finished GateResult (evaluate/skip dispatch lives here, next
+    to the data realities that decide it). Raises RuntimeError via
+    _require_healthy_leg on an unhealthy scoring leg — a 4xx-riddled leg is
+    a machinery failure, not "insufficient data".
+    """
+    import json as _json
+    import time
+    from dataclasses import asdict as _asdict
+
+    import numpy as np
+
+    from original.quantum.typicality import NO_ACTION_CENTRAL_THRESHOLD
+    from validation.benchmark.bias_slicer import slice_by
+    from validation.bias_analysis import _welch_t_test
+    from validation.calibration import ScoringResult
+    from validation.manifest_schema import AuthorshipLabel
+
+    manifest_path = _ROOT / "validation" / "manifest.json"
+    corpus_dir = _ROOT / "validation" / "corpus"
+    manifest = _json.loads(manifest_path.read_text())
+    entries = [
+        e
+        for e in manifest["entries"]
+        if e.get("native_english") is not None and e.get("label") == "authentic"
+    ]
+    if not entries:
+        return _g6_insufficient_data_result(
+            "validation/manifest.json has no authentic entries with a "
+            "native_english annotation",
+            n_native_scored=0,
+            n_non_native_scored=0,
+        )
+
+    by_author: dict[str, list[dict]] = {}
+    for entry in entries:
+        by_author.setdefault(entry["author_id"], []).append(entry)
+
+    results_by_group: dict[bool, list[dict]] = {True: [], False: []}
+    scoring_rows: list[ScoringResult] = []
+    n_errors = 0
+    n_null_typicality = 0
+
+    with _uniformity_features_enabled():
+        for author_id, author_entries in sorted(by_author.items()):
+            if len(author_entries) < 3:
+                # Typicality needs >= 2 LOO baseline distances, so an author
+                # needs >= 3 annotated essays for a LOO fold to carry signal.
+                continue
+            for held_out_idx, held_out in enumerate(author_entries):
+                sid = f"demo:gate_g6_{author_id}_{held_out_idx}"
+                for i, other in enumerate(author_entries):
+                    if i == held_out_idx:
+                        continue
+                    client.post(
+                        f"/students/{sid}/baseline",
+                        json={
+                            "text": (corpus_dir / other["filename"]).read_text(
+                                encoding="utf-8"
+                            ),
+                            "provenance": "verified",
+                        },
+                    )
+                t0 = time.perf_counter()
+                r = client.post(
+                    f"/students/{sid}/score",
+                    json={
+                        "text": (corpus_dir / held_out["filename"]).read_text(
+                            encoding="utf-8"
+                        ),
+                        "submission_id": f"g6_{held_out['filename']}",
+                    },
+                )
+                elapsed_ms = (time.perf_counter() - t0) * 1000.0
+                if r.status_code != 200:
+                    n_errors += 1
+                    continue
+                payload = r.json()
+                p_central = payload.get("typicality_p_central")
+                if p_central is None:
+                    # "No signal for this sample", not an error — see
+                    # _compute_g2_q_values's response-shape note.
+                    n_null_typicality += 1
+                    continue
+                results_by_group[bool(held_out["native_english"])].append(
+                    {
+                        "filename": held_out["filename"],
+                        "p_central": float(p_central),
+                        "flagged": p_central <= NO_ACTION_CENTRAL_THRESHOLD,
+                    }
+                )
+                scoring_rows.append(
+                    ScoringResult(
+                        filename=held_out["filename"],
+                        author_id=author_id,
+                        label=AuthorshipLabel.AUTHENTIC,
+                        deviation_score=float(
+                            payload["authorship"]["deviation_score"]
+                        ),
+                        authorship_probability=float(
+                            payload["authorship"]["authorship_probability"]
+                        ),
+                        recommended_action=payload["recommendation"]["action"],
+                        is_same_author=True,
+                        word_count=int(held_out.get("word_count", 0)),
+                        scoring_time_ms=elapsed_ms,
+                    )
+                )
+
+    n_scored = sum(len(v) for v in results_by_group.values())
+    _require_healthy_leg("G6 native_english leg", n_success=n_scored, n_errors=n_errors)
+
+    n_native = len(results_by_group[True])
+    n_non_native = len(results_by_group[False])
+    if n_native < _G6_MIN_PER_GROUP or n_non_native < _G6_MIN_PER_GROUP:
+        short = "true" if n_native < _G6_MIN_PER_GROUP else "false"
+        short_n = min(n_native, n_non_native)
+        return _g6_insufficient_data_result(
+            f"native_english={short} group has {short_n} scored authentic "
+            f"entries (need >= {_G6_MIN_PER_GROUP})",
+            n_native_scored=n_native,
+            n_non_native_scored=n_non_native,
+        )
+
+    native_fpr = sum(1 for x in results_by_group[True] if x["flagged"]) / n_native
+    non_native_fpr = (
+        sum(1 for x in results_by_group[False] if x["flagged"]) / n_non_native
+    )
+
+    # Bridged context (attach-only, never gated): the standard bias-audit
+    # slice on deviation scores, and Welch's t on the p_central samples the
+    # verdict actually thresholds.
+    manifest_lookup = {e["filename"]: e for e in entries}
+    bias_slices = [
+        _asdict(s)
+        for s in slice_by(scoring_rows, "native_english", manifest_lookup=manifest_lookup)
+    ]
+    welch = _asdict(
+        _welch_t_test(
+            np.array([x["p_central"] for x in results_by_group[True]]),
+            np.array([x["p_central"] for x in results_by_group[False]]),
+            "native_english=true",
+            "native_english=false",
+        )
+    )
+
+    informational = {
+        "n_native_scored": n_native,
+        "n_non_native_scored": n_non_native,
+        "n_scoring_errors": n_errors,
+        "n_null_typicality_skipped": n_null_typicality,
+        "flag_rule": f"typicality_p_central <= {NO_ACTION_CENTRAL_THRESHOLD}",
+        "uniformity_enabled_during_leg": True,
+        "bias_slices_deviation_score": bias_slices,
+        "welch_t_on_p_central": welch,
+    }
+    if n_native < _G6_WARN_PER_GROUP or n_non_native < _G6_WARN_PER_GROUP:
+        informational["low_sample_warning"] = (
+            f"fewer than {_G6_WARN_PER_GROUP} scored entries per group "
+            f"(native={n_native}, non_native={n_non_native}) — the manifest's "
+            "native_english coverage is thin (25/807 entries annotated); "
+            "treat the ratio as a screening number, not a precise estimate"
+        )
+    return evaluate_g6_fairness(native_fpr, non_native_fpr, informational=informational)
 
 
 def _compute_g4_group_means(
@@ -640,18 +1220,22 @@ def _shuffle_documents_across_keys(
 
 def _require_healthy_leg(leg: str, *, n_success: int, n_errors: int) -> None:
     """
-    Trivial-pass guard for the shuffled legs: an all-errors leg produces
-    numbers that READ as "collapsed to chance" (n=0 -> G1 rate 1.0; G3 error
-    dict -> accuracy 0.0; all-4xx G4 -> NaN means -> non-monotone), silently
-    converting a machinery failure into a G5 pass. Zero successful folds or a
-    >10% scoring-error rate raises RuntimeError, which run_all() renders as a
-    failed ERROR-(machinery) G5 result (_g5_machinery_error_result).
+    Trivial-pass guard for any scoring leg (G5's shuffled legs, where an
+    all-errors leg produces numbers that READ as "collapsed to chance" —
+    n=0 -> G1 rate 1.0; G3 error dict -> accuracy 0.0; all-4xx G4 -> NaN
+    means -> non-monotone — silently converting a machinery failure into a
+    G5 pass; likewise G2b's and G6's legs, where an all-errors leg would
+    gate on empty or skewed samples). Zero successful folds or a >10%
+    scoring-error rate raises RuntimeError, which run_all() renders as a
+    failed ERROR-(machinery) result (_machinery_error_result). `leg` should
+    carry the gate name (e.g. "G5 shuffled G1 leg") since it becomes the
+    error message's prefix.
     """
     if n_success == 0:
-        raise RuntimeError(f"G5 {leg}: zero successful scoring folds")
+        raise RuntimeError(f"{leg}: zero successful scoring folds")
     total = n_success + n_errors
     if n_errors / total > 0.10:
-        raise RuntimeError(f"G5 {leg}: {n_errors}/{total} scoring calls failed (>10%)")
+        raise RuntimeError(f"{leg}: {n_errors}/{total} scoring calls failed (>10%)")
 
 
 def _shuffled_public_authors_top1(rng) -> tuple[float, dict]:
@@ -728,7 +1312,7 @@ def _shuffled_public_authors_top1(rng) -> tuple[float, dict]:
     essays = report.get("results", [])
     n_essay_errors = sum(1 for e in essays if e.get("error"))
     _require_healthy_leg(
-        "shuffled G3 leg",
+        "G5 shuffled G3 leg",
         n_success=len(essays) - n_essay_errors,
         n_errors=n_essay_errors,
     )
@@ -791,7 +1375,7 @@ def run_g5(
             "compare the shuffled leg against"
         )
     _require_healthy_leg(
-        "real G1 anchor leg",
+        "G5 real G1 anchor leg",
         n_success=len(real_g1_deviations),
         n_errors=real_g1_n_errors,
     )
@@ -824,7 +1408,7 @@ def run_g5(
     s_actions, s_per_corpus, s_deviations, s_errors = _score_corpus_for_g1(
         client, "g5", shuffled_g1_corpus
     )
-    _require_healthy_leg("shuffled G1 leg", n_success=len(s_actions), n_errors=s_errors)
+    _require_healthy_leg("G5 shuffled G1 leg", n_success=len(s_actions), n_errors=s_errors)
     shuffled_g1_flagged_rate = evaluate_g1_fpr(s_actions, s_per_corpus).detail[
         "pooled_flagged_rate"
     ]
@@ -853,7 +1437,7 @@ def run_g5(
             score_early_loo=True,
         )
         _require_healthy_leg(
-            f"shuffled G4 draw {draw_idx}",
+            f"G5 shuffled G4 draw {draw_idx}",
             n_success=draw_stats["n_scored"],
             n_errors=draw_stats["n_errors"],
         )
@@ -892,7 +1476,7 @@ def run_g5(
 
 
 def render(results: list[GateResult]) -> str:
-    lines = ["╭─ Calibration gates (G1-G5) ─────────────────────────────────╮"]
+    lines = ["╭─ Calibration gates (G1-G6) ─────────────────────────────────╮"]
     for r in results:
         status = "PASS" if r.passed else "FAIL"
         lines.append(f"│ {r.name} [{status}] {r.criterion}")
