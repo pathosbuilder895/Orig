@@ -145,48 +145,95 @@ def evaluate_g4_career_drift_monotone(group_means: dict[str, float]) -> GateResu
 
 
 def evaluate_g5_permutation_null(
-    shuffled_g1_flagged_rate: float,
+    real_g1_mean_deviation: float,
+    shuffled_g1_mean_deviation: float,
     shuffled_g3_accuracy: float,
-    shuffled_g4_monotone: bool,
+    g4_nonmonotone_draws: int,
+    g4_total_draws: int,
+    informational: dict | None = None,
 ) -> GateResult:
     """
-    G5 — Selection-bias null control. Author labels shuffled, weights
-    re-derived through the identical pipeline (scripts.derive_measured_weights),
-    G1/G3/G4 re-run. All three must collapse to chance:
-      - G1's flagged rate must NOT still look like a real ~5% control (i.e.
-        it should be far from a plausible calibrated rate — a rate that's
-        STILL suspiciously low on pure noise indicates circularity).
-      - G3 accuracy must be near chance (roughly 1/n_authors; using a
-        generous < 0.30 threshold since n_authors varies by corpus).
-      - G4 must NOT be monotone (no real chronological signal exists in
-        shuffled data).
+    G5 — Selection-bias null control. Author labels are shuffled with a fixed
+    seed and the SAME three scoring legs the real G1/G3/G4 gates use are
+    re-run through the production pipeline. (The plan's original Task-13 text
+    described re-deriving weights via scripts.derive_measured_weights; the
+    gates as built score the production pipeline directly, so the faithful
+    null is a label-shuffled rerun of the same scoring legs — reviewed
+    deviation, 2026-07-30 fix round.) All three shuffled legs must collapse:
+
+      - G1 leg: the shuffled corpus gives every pseudo-student a cross-author
+        blended baseline, so its mean deviation_score must come out STRICTLY
+        ABOVE the real same-author leg's mean. Insensitivity to blending
+        (shuffled mean <= real mean) means the measurement is not measuring
+        authorship. The flagged RATE is deliberately NOT the criterion:
+        conformal typicality p-values floor at 1/(N+1) and every G1 corpus
+        entity has at most ~a dozen LOO folds, which pins the action band to
+        no_action for real AND shuffled labels alike — a low shuffled rate is
+        guaranteed by construction and carries no circularity information
+        (rates travel in detail as context only).
+      - G3 leg: attribution accuracy must be near chance (roughly
+        1/n_authors; generous < 0.30 threshold since n_authors varies by
+        corpus).
+      - G4 leg: a MAJORITY of the K seeded shuffle draws must be
+        non-monotone. A single draw's monotonicity over 3 group means is a
+        near-coin-flip on blended groups, so one monotone draw among K is
+        noise, not signal.
+
     Fails (correctly) if ANY of the three still looks like real signal.
+    `informational` is attach-only context merged into detail — it never
+    affects the verdict.
     """
-    g1_is_suspicious = shuffled_g1_flagged_rate <= 0.10  # too close to a real gate pass
+    g1_is_suspicious = shuffled_g1_mean_deviation <= real_g1_mean_deviation
     g3_is_suspicious = shuffled_g3_accuracy >= 0.30
-    g4_is_suspicious = shuffled_g4_monotone is True
+    g4_majority = g4_total_draws // 2 + 1
+    g4_is_suspicious = g4_nonmonotone_draws < g4_majority
 
     passed = not (g1_is_suspicious or g3_is_suspicious or g4_is_suspicious)
+    detail = {
+        "real_g1_mean_deviation": real_g1_mean_deviation,
+        "shuffled_g1_mean_deviation": shuffled_g1_mean_deviation,
+        "shuffled_g3_accuracy": shuffled_g3_accuracy,
+        "g4_nonmonotone_draws": g4_nonmonotone_draws,
+        "g4_total_draws": g4_total_draws,
+    }
+    if informational:
+        detail.update(informational)
     return GateResult(
         name="G5",
         passed=passed,
         criterion="G1/G3/G4 collapse to chance under permuted author labels",
         current_value=(
-            f"g1_rate={shuffled_g1_flagged_rate:.1%}, "
-            f"g3_acc={shuffled_g3_accuracy:.3f}, g4_monotone={shuffled_g4_monotone}"
+            f"g1_dev real={real_g1_mean_deviation:.3f} "
+            f"shuffled={shuffled_g1_mean_deviation:.3f}, "
+            f"g3_acc={shuffled_g3_accuracy:.3f}, "
+            f"g4_nonmonotone={g4_nonmonotone_draws}/{g4_total_draws}"
         ),
-        detail={
-            "shuffled_g1_flagged_rate": shuffled_g1_flagged_rate,
-            "shuffled_g3_accuracy": shuffled_g3_accuracy,
-            "shuffled_g4_monotone": shuffled_g4_monotone,
-        },
+        detail=detail,
+    )
+
+
+def _g5_machinery_error_result(exc: Exception) -> GateResult:
+    """
+    run_all()'s G5 wrapper: a crash inside run_g5 is a scoring-MACHINERY
+    failure, not a null-hypothesis verdict. It must neither discard the four
+    completed real gates nor masquerade as a genuine G5 result — so it
+    renders as a FAILED G5 whose current_value is unmistakably an error.
+    """
+    return GateResult(
+        name="G5",
+        passed=False,
+        criterion="G1/G3/G4 collapse to chance under permuted author labels",
+        current_value=f"ERROR (machinery): {exc}",
+        detail={"machinery_error": str(exc)},
     )
 
 
 # ── Corpus-driving orchestration (exercised by `main()`, not unit-tested) ──────
 
 
-def _score_corpus_for_g1(client, sid_prefix: str, texts_by_id: dict[str, list[str]]) -> tuple[list[str], dict[str, list[str]]]:
+def _score_corpus_for_g1(
+    client, sid_prefix: str, texts_by_id: dict[str, list[str]]
+) -> tuple[list[str], dict[str, list[str]], list[float], int]:
     """
     For each id in texts_by_id with >= 5 texts: build a baseline from all
     but one text (leave-one-out over WHOLE documents, not chunks), score
@@ -195,13 +242,23 @@ def _score_corpus_for_g1(client, sid_prefix: str, texts_by_id: dict[str, list[st
     before `client` was constructed (env is read at score() call time, so
     this also works if set right before this call — see
     validation/verify/run_null_model.py's docstring on this point).
+
+    Returns (pooled_actions, per_corpus_actions, pooled_deviations, n_errors):
+    pooled_deviations is each successful fold's deviation_score, index-aligned
+    with pooled_actions — the real G1 evaluator (evaluate_g1_fpr) ignores it;
+    G5's deviation-shift criterion consumes it. n_errors counts non-200 score
+    responses so callers can distinguish "clean run" from "the numbers came
+    from a broken leg" (see _require_healthy_leg).
     """
     pooled: list[str] = []
     per_corpus: dict[str, list[str]] = {}
+    pooled_deviations: list[float] = []
+    n_errors = 0
     for entity_id, texts in texts_by_id.items():
         if len(texts) < 5:
             continue
         actions: list[str] = []
+        deviations: list[float] = []
         for held_out_idx in range(len(texts)):
             sid = f"demo:gate_{sid_prefix}_{entity_id}_{held_out_idx}"
             for i, text in enumerate(texts):
@@ -216,11 +273,16 @@ def _score_corpus_for_g1(client, sid_prefix: str, texts_by_id: dict[str, list[st
                 json={"text": texts[held_out_idx], "submission_id": f"{entity_id}_{held_out_idx}"},
             )
             if r.status_code == 200:
-                actions.append(r.json()["recommendation"]["action"])
+                payload = r.json()
+                actions.append(payload["recommendation"]["action"])
+                deviations.append(float(payload["authorship"]["deviation_score"]))
+            else:
+                n_errors += 1
         if actions:
             per_corpus[entity_id] = actions
             pooled.extend(actions)
-    return pooled, per_corpus
+            pooled_deviations.extend(deviations)
+    return pooled, per_corpus, pooled_deviations, n_errors
 
 
 def run_all() -> list[GateResult]:
@@ -259,8 +321,11 @@ def run_all() -> list[GateResult]:
     plato_texts = _load_plato_texts_by_dialogue()
 
     texts_by_id: dict[str, list[str]] = {**seminary_texts, **public_authors_texts, **plato_texts}
-    pooled_actions, per_corpus_actions = _score_corpus_for_g1(client, "g1", texts_by_id)
-    results.append(evaluate_g1_fpr(pooled_actions, per_corpus_actions))
+    pooled_actions, per_corpus_actions, real_g1_deviations, _real_g1_errors = _score_corpus_for_g1(
+        client, "g1", texts_by_id
+    )
+    g1_result = evaluate_g1_fpr(pooled_actions, per_corpus_actions)
+    results.append(g1_result)
 
     # G2: bland impostor via q = min(p_far, p_central).
     holdout_q, impostor_q = _compute_g2_q_values(client)
@@ -287,12 +352,23 @@ def run_all() -> list[GateResult]:
     )
 
     # G4: Plato early/middle/late monotonicity.
-    group_means = _compute_g4_group_means()
+    group_means, _g4_stats = _compute_g4_group_means()
     results.append(evaluate_g4_career_drift_monotone(group_means))
 
     # G5: permutation-null selection-bias control — seeded label shuffles,
     # then shuffled-label reruns of the G1/G3/G4 machinery above (see run_g5).
-    results.append(run_g5())
+    # A crash inside the shuffled legs is a machinery failure: it must neither
+    # discard the four completed real gates above nor read as a genuine null
+    # verdict, so it renders as a failed ERROR-(machinery) result instead.
+    try:
+        results.append(
+            run_g5(
+                real_g1_deviations=real_g1_deviations,
+                real_g1_flagged_rate=g1_result.detail["pooled_flagged_rate"],
+            )
+        )
+    except Exception as exc:  # noqa: BLE001 — see _g5_machinery_error_result
+        results.append(_g5_machinery_error_result(exc))
 
     return results
 
@@ -400,13 +476,18 @@ def _compute_g2_q_values(client) -> tuple[list[float], list[float]]:
 def _compute_g4_group_means(
     plato_texts: dict[str, list[str]] | None = None,
     sid: str = "demo:gate_g4_early_baseline",
-) -> dict[str, float]:
+) -> tuple[dict[str, float], dict[str, int]]:
     """
     Defaults reproduce the real G4 leg exactly. run_g5() passes a
-    label-shuffled `plato_texts` dict plus a DIFFERENT `sid`: the store is a
-    process-wide :memory: database, so reusing the real G4 sid on a second
-    call would silently stack the shuffled early-group baselines on top of
-    the real ones instead of starting a fresh student.
+    label-shuffled `plato_texts` dict plus a DIFFERENT `sid` per draw: the
+    store is a process-wide :memory: database, so reusing the real G4 sid on
+    a later call would silently stack the shuffled early-group baselines on
+    top of the real ones instead of starting a fresh student.
+
+    Returns (group_means, {"n_scored": int, "n_errors": int}); the stats let
+    G5 distinguish "genuinely non-monotone" from "NaN means because every
+    score call 4xx'd" (see _require_healthy_leg). The real G4 evaluator
+    ignores them.
     """
     from validation.plato.chronology import GROUP_NAMES, ranked
 
@@ -429,14 +510,19 @@ def _compute_g4_group_means(
         client.post(f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"})
 
     means = {}
+    n_scored = 0
+    n_errors = 0
     for group_key in ("early", "middle", "late"):
         devs = []
         for chunk in groups[group_key]:
             r = client.post(f"/students/{sid}/score", json={"text": chunk, "submission_id": group_key})
             if r.status_code == 200:
                 devs.append(r.json()["authorship"]["deviation_score"])
+            else:
+                n_errors += 1
+        n_scored += len(devs)
         means[group_key] = sum(devs) / len(devs) if devs else float("nan")
-    return means
+    return means, {"n_scored": n_scored, "n_errors": n_errors}
 
 
 # ── G5 — permutation-null orchestration ────────────────────────────────────────
@@ -498,7 +584,23 @@ def _shuffle_documents_across_keys(
     return out
 
 
-def _shuffled_public_authors_top1(rng) -> float:
+def _require_healthy_leg(leg: str, *, n_success: int, n_errors: int) -> None:
+    """
+    Trivial-pass guard for the shuffled legs: an all-errors leg produces
+    numbers that READ as "collapsed to chance" (n=0 -> G1 rate 1.0; G3 error
+    dict -> accuracy 0.0; all-4xx G4 -> NaN means -> non-monotone), silently
+    converting a machinery failure into a G5 pass. Zero successful folds or a
+    >10% scoring-error rate raises RuntimeError, which run_all() renders as a
+    failed ERROR-(machinery) G5 result (_g5_machinery_error_result).
+    """
+    if n_success == 0:
+        raise RuntimeError(f"G5 {leg}: zero successful scoring folds")
+    total = n_success + n_errors
+    if n_errors / total > 0.10:
+        raise RuntimeError(f"G5 {leg}: {n_errors}/{total} scoring calls failed (>10%)")
+
+
+def _shuffled_public_authors_top1(rng) -> tuple[float, dict]:
     """
     G3 shuffled leg: rerun the FULL public_authors attribution machinery
     (validation/public_authors/run.py — baselines, impostor reference
@@ -511,14 +613,18 @@ def _shuffled_public_authors_top1(rng) -> float:
     re-assigned across authors, prefix every author_id with "g5perm_" so the
     rerun's student ids (demo:pa_g5perm_*) can never collide with the real
     G3 run's demo:pa_* students in the process-wide :memory: store, and call
-    run() with report artifacts routed to a temp dir. Eligibility rules
-    (>= 3 baseline docs etc.) are applied by run() itself to the SHUFFLED
-    assignment, same as the real run applies them to the real one; the
-    metric read back (summary.top1_accuracy, with the same .get chain as the
-    real G3 wiring in run_all) is chance-level ~1/n_eligible when the
-    pipeline carries genuine authorship signal.
+    run() with report artifacts routed to a temp dir (removed in a finally).
+    Eligibility rules (>= 3 baseline docs etc.) are applied by run() itself
+    to the SHUFFLED assignment, same as the real run applies them to the
+    real one.
+
+    Returns (top1_accuracy, informational dict). Unlike the real G3 wiring's
+    .get chain, an error report or a >10% per-essay scoring failure rate
+    raises RuntimeError here: on this leg a silent 0.0 would read as
+    "collapsed to chance" and fake a G5 pass (see _require_healthy_leg).
     """
     import json as _json
+    import shutil
     import tempfile
     from collections import defaultdict
 
@@ -547,30 +653,70 @@ def _shuffled_public_authors_top1(rng) -> float:
             shuffled_entries.append({**entry, "author_id": f"g5perm_{aid}"})
 
     tmp_dir = Path(tempfile.mkdtemp(prefix="gate_g5_public_authors_"))
-    shuffled_manifest_path = tmp_dir / "manifest.json"
-    shuffled_manifest_path.write_text(
-        _json.dumps({**manifest, "entries": shuffled_entries}, indent=2)
+    try:
+        shuffled_manifest_path = tmp_dir / "manifest.json"
+        shuffled_manifest_path.write_text(
+            _json.dumps({**manifest, "entries": shuffled_entries}, indent=2)
+        )
+        report = run_public_authors(
+            manifest_path=shuffled_manifest_path,
+            corpus_dir=corpus_dir,
+            report_dir=tmp_dir / "report",
+        )
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    if "summary" not in report:
+        raise RuntimeError(
+            f"G5 shuffled G3 leg: public_authors rerun errored: "
+            f"{report.get('error', 'no summary in report')}"
+        )
+    essays = report.get("results", [])
+    n_essay_errors = sum(1 for e in essays if e.get("error"))
+    _require_healthy_leg(
+        "shuffled G3 leg",
+        n_success=len(essays) - n_essay_errors,
+        n_errors=n_essay_errors,
     )
+    info = {
+        "shuffled_g3_n_essays": len(essays),
+        "shuffled_g3_n_scoring_errors": n_essay_errors,
+        "shuffled_g3_n_eligible_authors": report["summary"].get("n_eligible_authors"),
+        "shuffled_g3_attribution_method": report["summary"].get("attribution_method"),
+    }
+    return report["summary"]["top1_accuracy"], info
 
-    report = run_public_authors(
-        manifest_path=shuffled_manifest_path,
-        corpus_dir=corpus_dir,
-        report_dir=tmp_dir / "report",
-    )
-    return report.get("summary", {}).get("top1_accuracy", 0.0)
 
-
-def run_g5(seed: int = 1730) -> GateResult:
+def run_g5(
+    real_g1_deviations: list[float],
+    real_g1_flagged_rate: float | None = None,
+    seed: int = 1730,
+) -> GateResult:
     """
     G5 orchestration — seeded label shuffles, then shuffled-label reruns of
     the G1/G3/G4 machinery, then the pure evaluate_g5_permutation_null().
-    All the expensive shuffled scoring happens here, exactly once; the gate
-    decision itself stays a pure function of the three collapsed metrics.
+    All the expensive shuffled scoring happens here, exactly once per gate
+    run; the verdict stays a pure function of the collapsed metrics.
 
-    One np.random.default_rng(seed) instance drives all three legs, consumed
-    in a fixed order (G1 document shuffle → G3 author permutation → G4
-    dialogue-list permutation), so the whole gate is reproducible from the
-    single seed.
+    Args:
+        real_g1_deviations: pooled per-fold deviation_scores from the REAL G1
+            leg (run_all() forwards _score_corpus_for_g1's third return) —
+            the comparison point for the G1-leg deviation-shift criterion.
+        real_g1_flagged_rate: the real leg's flagged rate, attached to detail
+            as context only (see the evaluator's docstring on why flagged
+            rates are never gated here).
+        seed: one np.random.default_rng(seed) instance drives every shuffle,
+            consumed in a fixed order — G1 document shuffle, then the G3
+            author permutation, then the three G4 dialogue-list permutations
+            (draws 0, 1, 2) — so the whole gate reproduces from this single
+            seed. 1730 = BENCHMARK_SEED + 1, decorrelated from the
+            scoring-stack seed lock_environment() sets.
+
+    Raises:
+        RuntimeError: when any shuffled leg fails the machinery-health guard
+            (_require_healthy_leg), or real_g1_deviations is empty. run_all()
+            converts this into a failed "ERROR (machinery)" G5 result rather
+            than letting it read as a genuine null verdict.
 
     NOTE vs. the original Task-13 plan text: weights are NOT re-derived via
     scripts.derive_measured_weights here — the gates as they exist today
@@ -578,6 +724,14 @@ def run_g5(seed: int = 1730) -> GateResult:
     a label-shuffled rerun of the same three scoring legs (the plan's Step-3
     wiring note), not a weight re-derivation.
     """
+    import statistics
+
+    if not real_g1_deviations:
+        raise RuntimeError(
+            "G5: the real G1 leg produced zero deviation samples — nothing to "
+            "compare the shuffled leg against"
+        )
+
     import numpy as np
 
     rng = np.random.default_rng(seed)
@@ -592,40 +746,79 @@ def run_g5(seed: int = 1730) -> GateResult:
     # Shuffled G1: same merged corpus, same LOO scorer, document-level label
     # shuffle (see _shuffle_documents_across_keys docstring for why not the
     # list-level shuffle here). The "g5" sid prefix keeps these pseudo-students
-    # distinct from the real G1 leg's in the process-wide :memory: store. The
-    # flagged rate is computed by the SAME rule as the real gate
-    # (evaluate_g1_fpr's pooled_flagged_rate).
+    # distinct from the real G1 leg's in the process-wide :memory: store.
+    # The criterion input is the MEAN DEVIATION, not the flagged rate — see
+    # evaluate_g5_permutation_null's docstring for why the conformal floor
+    # makes the rate uninformative at this corpus size; both rates still
+    # travel in detail as context.
     texts_by_id: dict[str, list[str]] = {
         **_load_seminary_texts(),
         **_load_public_authors_baseline_texts(),
         **_load_plato_texts_by_dialogue(),
     }
     shuffled_g1_corpus = _shuffle_documents_across_keys(texts_by_id, rng)
-    pooled_actions, per_corpus_actions = _score_corpus_for_g1(
+    s_actions, s_per_corpus, s_deviations, s_errors = _score_corpus_for_g1(
         client, "g5", shuffled_g1_corpus
     )
-    shuffled_g1_flagged_rate = evaluate_g1_fpr(pooled_actions, per_corpus_actions).detail[
+    _require_healthy_leg("shuffled G1 leg", n_success=len(s_actions), n_errors=s_errors)
+    shuffled_g1_flagged_rate = evaluate_g1_fpr(s_actions, s_per_corpus).detail[
         "pooled_flagged_rate"
     ]
 
     # Shuffled G3: full public_authors rerun with baseline lists permuted
     # across author labels.
-    shuffled_g3_accuracy = _shuffled_public_authors_top1(rng)
+    shuffled_g3_accuracy, g3_info = _shuffled_public_authors_top1(rng)
 
-    # Shuffled G4: dialogue keys keep their chronology-group membership, but
-    # each key receives another dialogue's ENTIRE chunk list, so the
-    # early/middle/late groups become random blends. Monotonicity is judged
-    # by the SAME rule as the real gate (evaluate_g4_career_drift_monotone).
-    shuffled_plato = _shuffle_value_lists_across_keys(_load_plato_texts_by_dialogue(), rng)
-    shuffled_means = _compute_g4_group_means(
-        plato_texts=shuffled_plato, sid="demo:gate_g5_g4_early_baseline"
-    )
-    shuffled_g4_monotone = evaluate_g4_career_drift_monotone(shuffled_means).passed
+    # Shuffled G4: K=3 seeded draws. Dialogue keys keep their chronology-group
+    # membership, but each key receives another dialogue's ENTIRE chunk list,
+    # so the early/middle/late groups become random blends. A single draw's
+    # monotonicity over 3 group means is a near-coin-flip, so the evaluator
+    # requires a MAJORITY of draws non-monotone; each draw gets a fresh
+    # student sid and its own permutation from the shared rng stream.
+    plato_texts = _load_plato_texts_by_dialogue()
+    g4_draws: list[dict] = []
+    for draw_idx in range(3):
+        shuffled_plato = _shuffle_value_lists_across_keys(plato_texts, rng)
+        draw_means, draw_stats = _compute_g4_group_means(
+            plato_texts=shuffled_plato,
+            sid=f"demo:gate_g5_g4_early_baseline_{draw_idx}",
+        )
+        _require_healthy_leg(
+            f"shuffled G4 draw {draw_idx}",
+            n_success=draw_stats["n_scored"],
+            n_errors=draw_stats["n_errors"],
+        )
+        g4_draws.append(
+            {
+                "group_means": draw_means,
+                # Monotonicity judged by the SAME rule as the real gate.
+                "monotone": evaluate_g4_career_drift_monotone(draw_means).passed,
+                **draw_stats,
+            }
+        )
+    g4_nonmonotone_draws = sum(1 for d in g4_draws if not d["monotone"])
 
     return evaluate_g5_permutation_null(
-        shuffled_g1_flagged_rate=shuffled_g1_flagged_rate,
+        real_g1_mean_deviation=statistics.fmean(real_g1_deviations),
+        shuffled_g1_mean_deviation=statistics.fmean(s_deviations),
         shuffled_g3_accuracy=shuffled_g3_accuracy,
-        shuffled_g4_monotone=shuffled_g4_monotone,
+        g4_nonmonotone_draws=g4_nonmonotone_draws,
+        g4_total_draws=len(g4_draws),
+        informational={
+            "seed": seed,
+            "real_g1_flagged_rate": real_g1_flagged_rate,
+            "shuffled_g1_flagged_rate": shuffled_g1_flagged_rate,
+            "flagged_rate_note": (
+                "context only, never gated: conformal typicality p-values "
+                "floor at 1/(N+1) and every G1 entity has at most ~a dozen "
+                "LOO folds, pinning the action band to no_action for real "
+                "and shuffled labels alike"
+            ),
+            "shuffled_g1_n_folds": len(s_actions),
+            "shuffled_g1_n_scoring_errors": s_errors,
+            **g3_info,
+            "g4_draws": g4_draws,
+        },
     )
 
 
