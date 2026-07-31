@@ -112,7 +112,9 @@ class Repository(Protocol):
         student_id: str | None = None,
         limit: int = 500,
     ) -> list[dict]: ...
-    def get_genre_stats(self, genre: str, tenant: str | None) -> dict | None: ...
+    def get_genre_stats(
+        self, genre: str, tenant: str | None, exclude_student_id: str | None
+    ) -> dict | None: ...
 
     # ── Corrections ──────────────────────────────────────────────────────
     def put_correction(
@@ -414,8 +416,10 @@ class SqliteRepository:
     ) -> list[dict]:
         return store.get_ai_likelihood_scores(student_id=student_id, limit=limit)
 
-    def get_genre_stats(self, genre: str, tenant: str | None) -> dict | None:
-        return store.get_genre_stats(genre, tenant)
+    def get_genre_stats(
+        self, genre: str, tenant: str | None, exclude_student_id: str | None
+    ) -> dict | None:
+        return store.get_genre_stats(genre, tenant, exclude_student_id)
 
     # ── Corrections ──────────────────────────────────────────────────────
     def put_correction(

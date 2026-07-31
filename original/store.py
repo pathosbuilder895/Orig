@@ -1039,16 +1039,16 @@ MIN_GENRE_VECTORS = 5
 MIN_GENRE_STUDENTS = 3
 
 
-def get_genre_stats(genre: str, tenant: str | None) -> dict | None:
+def get_genre_stats(genre: str, tenant: str | None, exclude_student_id: str | None) -> dict | None:
     """
     Compute cross-student mean, std, and sample count for a writing genre,
-    scoped to a single tenant.
+    scoped to a single tenant and excluding one student.
 
     Aggregates feature vectors from confirmed-authentic baseline samples
     (auth_weight > 0) with matching ``sample.genre``, across students in
-    ``tenant`` only.  Returns ``None`` when fewer than MIN_GENRE_VECTORS
-    samples are found — the caller treats this as "no prior available" and
-    falls back to the student-only baseline.
+    ``tenant`` only, skipping ``exclude_student_id`` entirely.  Returns
+    ``None`` when what remains clears neither floor — the caller treats this
+    as "no prior available" and falls back to the student-only baseline.
 
     This is the population-level reference distribution used by the
     Hierarchical Bayesian cold-start prior in ``scoring.score()``.
@@ -1061,9 +1061,19 @@ def get_genre_stats(genre: str, tenant: str | None) -> dict | None:
     FERPA-relevant leak of one institution's aggregate writing statistics
     into another institution's scoring.
 
+    Self-exclusion mirrors ``build_impostor_stats`` too, which always drops
+    ``claimed_student_id`` from its pool.  A prior containing the scored
+    student is partly a blend toward that student's own writing, which damps
+    the correction the prior exists to make; tenant-scoping sharpened this,
+    since in a small same-tenant pool one student can be a large fraction of
+    "their own" prior.
+
     The DB read goes through ``all_states()``; the aggregate is memoised in
-    ``_GENRE_STATS_CACHE`` keyed on ``(tenant, genre)`` and busted on every
-    ``put()`` / ``delete_student()``.
+    ``_GENRE_STATS_CACHE`` keyed on ``(tenant, genre, exclude_student_id)``
+    and busted on every ``put()`` / ``delete_student()``.  The excluded id is
+    part of the key on purpose: keying on ``(tenant, genre)`` alone would
+    serve one student's pool to the next student who asked, handing them a
+    prior that still contains their own samples.
 
     Parameters
     ----------
@@ -1071,16 +1081,19 @@ def get_genre_stats(genre: str, tenant: str | None) -> dict | None:
     tenant : the tenant slug to scope to — ``principal.tenant_of`` of the
         student being scored — or None for the legacy-flat (unscoped) pool,
         which is its own distinct cohort, never mixed with a real tenant's.
+    exclude_student_id : the full scoped id of the student being scored,
+        dropped from the pool; None pools every student in ``tenant``.
 
     Returns
     -------
     dict with keys "mean" (np.ndarray), "std" (np.ndarray), "n_samples" (int)
-    or None if fewer than MIN_GENRE_VECTORS matching authentic samples are
-    found in that tenant.
+    or None if, after the exclusion, fewer than MIN_GENRE_STUDENTS contributing
+    students or fewer than MIN_GENRE_VECTORS matching authentic samples remain
+    in that tenant.
     """
     # O(1) fast path — return cached result if available.
     # Cache is busted by put() whenever a new baseline sample is stored.
-    key = (tenant, genre)
+    key = (tenant, genre, exclude_student_id)
     if key in _GENRE_STATS_CACHE:
         return _GENRE_STATS_CACHE[key]
 
@@ -1090,6 +1103,8 @@ def get_genre_stats(genre: str, tenant: str | None) -> dict | None:
     # concurrent writers can't perturb the iteration the way the old shared
     # _STORE dict could.
     for student_state in all_states():
+        if student_state.student_id == exclude_student_id:
+            continue
         if tenant_of(student_state.student_id) != tenant:
             continue
         student_vectors = [

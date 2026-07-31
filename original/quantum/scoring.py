@@ -228,7 +228,7 @@ class ScoringConfig:
     authentic_fidelities: list[float] | None = None
     # Cross-student genre prior {"mean": ndarray, "std": ndarray, "n_samples": int}
     # already resolved for the CURRENT submission's genre (was
-    # ``store.get_genre_stats(genre, tenant)``) — the caller must do the genre
+    # ``store.get_genre_stats(genre, tenant, exclude_student_id)``) — the caller must do the genre
     # and tenant lookups since only it knows which genre applies and which
     # student is being scored before calling score().
     genre_stats: dict | None = None

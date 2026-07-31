@@ -136,8 +136,12 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             # baselines, mirroring build_impostor_stats above. Returns None
             # more often than the old cross-tenant pool did — that's the
             # documented fallback to the student-only baseline, not an error.
+            # student_id is excluded from its own prior: a population the
+            # student is part of is partly a blend toward themselves, which
+            # damps the correction the prior exists to make (same reason
+            # build_impostor_stats drops claimed_student_id).
             _prior_tenant = tenant_of(student_id)
-            _genre_stats = _repo().get_genre_stats(_genre, _prior_tenant)
+            _genre_stats = _repo().get_genre_stats(_genre, _prior_tenant, student_id)
             # How often that fallback actually fires was never measured:
             # scripts/measure_genre_prior_scope.py found no reachable dataset
             # with genre-labelled authenticated samples (2026-07-29), so the

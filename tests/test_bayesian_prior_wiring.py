@@ -88,9 +88,9 @@ def test_get_genre_stats_called_with_scored_students_tenant(genre_tenant, monkey
     real_get_genre_stats = repo.get_genre_stats
     calls = []
 
-    def _spy(genre_arg, tenant_arg):
-        calls.append((genre_arg, tenant_arg))
-        return real_get_genre_stats(genre_arg, tenant_arg)
+    def _spy(genre_arg, tenant_arg, exclude_arg):
+        calls.append((genre_arg, tenant_arg, exclude_arg))
+        return real_get_genre_stats(genre_arg, tenant_arg, exclude_arg)
 
     monkeypatch.setattr(repo, "get_genre_stats", _spy)
 
@@ -106,7 +106,7 @@ def test_get_genre_stats_called_with_scored_students_tenant(genre_tenant, monkey
     # the requesting principal's tenant (or None, or the wrong student's
     # tenant) instead of tenant_of(sid) must fail this even if some call
     # happens to reach get_genre_stats.
-    assert calls[-1] == (genre, tenant_of(sid)) == (genre, "genreprior")
+    assert calls[-1] == (genre, tenant_of(sid), sid) == (genre, "genreprior", sid)
 
 
 def test_get_genre_stats_uses_scored_students_tenant_not_principals_tenant(monkeypatch):
@@ -136,9 +136,9 @@ def test_get_genre_stats_uses_scored_students_tenant_not_principals_tenant(monke
     real_get_genre_stats = repo.get_genre_stats
     calls = []
 
-    def _spy(genre_arg, tenant_arg):
-        calls.append((genre_arg, tenant_arg))
-        return real_get_genre_stats(genre_arg, tenant_arg)
+    def _spy(genre_arg, tenant_arg, exclude_arg):
+        calls.append((genre_arg, tenant_arg, exclude_arg))
+        return real_get_genre_stats(genre_arg, tenant_arg, exclude_arg)
 
     monkeypatch.setattr(repo, "get_genre_stats", _spy)
 
@@ -151,7 +151,7 @@ def test_get_genre_stats_uses_scored_students_tenant_not_principals_tenant(monke
     assert r.status_code == 200, r.text
 
     assert calls, "get_genre_stats was never called — the flag-on cold-start path did not run"
-    assert calls[-1] == (genre, None), (
+    assert calls[-1] == (genre, None, sid), (
         "get_genre_stats must be called with tenant_of(student_id) (None for a "
         "flat id), not the requesting principal's tenant_id ('demo')"
     )
@@ -166,7 +166,9 @@ def test_flag_off_never_calls_get_genre_stats(genre_tenant, monkeypatch):
     repo = get_repository()
     calls = []
     monkeypatch.setattr(
-        repo, "get_genre_stats", lambda genre_arg, tenant_arg: calls.append((genre_arg, tenant_arg))
+        repo,
+        "get_genre_stats",
+        lambda genre_arg, tenant_arg, exclude_arg: calls.append(genre_arg),
     )
 
     r = client.post(
@@ -246,10 +248,16 @@ def test_prior_hit_is_logged_with_sample_count(genre_tenant, monkeypatch, caplog
     # The logged size must be the pool the scorer actually used, not a
     # plausible-looking constant — derive it from the repository rather than
     # hardcoding, so leftover rows in the shared dev DB can't make this lie.
-    live = get_repository().get_genre_stats(genre, "genreprior")
+    live = get_repository().get_genre_stats(genre, "genreprior", sid)
     assert live is not None
-    assert live["n_samples"] >= 9  # the 9 this test seeded, at minimum
+    assert live["n_samples"] >= 6  # the 3 peers x 2 this test seeded, at minimum
     assert f"n_prior={live['n_samples']}" in hits[-1], hits[-1]
+
+    # ... and the scored student's own 3 samples really were left out: the
+    # un-excluded pool is strictly larger. This is the self-exclusion
+    # guarantee observed through the real endpoint, not just the repository.
+    unexcluded = get_repository().get_genre_stats(genre, "genreprior", None)
+    assert unexcluded["n_samples"] == live["n_samples"] + 3
 
 
 def test_flag_off_logs_nothing(genre_tenant, monkeypatch, caplog):

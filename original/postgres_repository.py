@@ -895,9 +895,9 @@ class PostgresRepository:
             log.exception("get_ai_likelihood_scores failed")
             return []
 
-    def get_genre_stats(self, genre, tenant):
-        """Tenant-scoped genre prior — see store.get_genre_stats's docstring
-        for the full contract.
+    def get_genre_stats(self, genre, tenant, exclude_student_id):
+        """Tenant-scoped, self-excluding genre prior — see
+        store.get_genre_stats's docstring for the full contract.
 
         Filters with an indexed equality match on StudentProfile.tenant_id —
         the same "database constraint instead of a naming convention" the FK
@@ -908,7 +908,7 @@ class PostgresRepository:
         actually carry on this column (comparing the column to Python `None`
         would translate to SQL `IS NULL`, which no row would ever satisfy).
         """
-        key = (tenant, genre)
+        key = (tenant, genre, exclude_student_id)
         if key in self._genre_stats_cache:
             return self._genre_stats_cache[key]
 
@@ -931,6 +931,11 @@ class PostgresRepository:
         vectors = []
         contributing_students = 0
         for data in rows:
+            # The doc's own student_id is the full scoped id (_doc_to_state
+            # feeds it straight into StudentState.student_id), so this
+            # matches the same value the caller passes.
+            if data.get("student_id") == exclude_student_id:
+                continue
             student_vectors = [
                 np.array(sample["vector"], dtype=np.float64)
                 for sample in data.get("samples", [])

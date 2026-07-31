@@ -321,17 +321,17 @@ class TestUpdateFidelityAuthenticity:
 # scoped-id case.
 class TestGetGenreStats:
     def test_returns_none_with_no_students(self, repo):
-        assert repo.get_genre_stats("argumentative_essay", None) is None
+        assert repo.get_genre_stats("argumentative_essay", None, None) is None
 
     def test_returns_none_with_fewer_than_5_samples(self, repo):
         for i in range(4):
             repo.put(_make_state(f"student-G{i}", n=1, genre="argumentative_essay"))
-        assert repo.get_genre_stats("argumentative_essay", None) is None
+        assert repo.get_genre_stats("argumentative_essay", None, None) is None
 
     def test_returns_stats_with_enough_samples(self, repo):
         for i in range(6):
             repo.put(_make_state(f"student-H{i}", n=1, genre="lab_report"))
-        result = repo.get_genre_stats("lab_report", None)
+        result = repo.get_genre_stats("lab_report", None, None)
         assert result is not None
         assert "mean" in result and "std" in result and "n_samples" in result
         assert result["n_samples"] == 6
@@ -341,36 +341,36 @@ class TestGetGenreStats:
     def test_std_floored_at_005(self, repo):
         for i in range(6):
             repo.put(_make_state(f"student-I{i}", n=1, genre="theology_paper"))
-        result = repo.get_genre_stats("theology_paper", None)
+        result = repo.get_genre_stats("theology_paper", None, None)
         assert result is not None
         assert float(np.min(result["std"])) >= 0.005
 
     def test_cache_hit_on_second_call(self, repo):
         for i in range(6):
             repo.put(_make_state(f"student-J{i}", n=1, genre="sermon"))
-        r1 = repo.get_genre_stats("sermon", None)
-        r2 = repo.get_genre_stats("sermon", None)
+        r1 = repo.get_genre_stats("sermon", None, None)
+        r2 = repo.get_genre_stats("sermon", None, None)
         assert r1 is r2  # cached — same object reference
 
     def test_cache_busted_after_put(self, repo):
         for i in range(6):
             repo.put(_make_state(f"student-K{i}", n=1, genre="exegesis"))
-        r1 = repo.get_genre_stats("exegesis", None)
+        r1 = repo.get_genre_stats("exegesis", None, None)
         assert r1 is not None
         repo.put(_make_state("student-K6", n=1, genre="exegesis"))
-        r2 = repo.get_genre_stats("exegesis", None)
+        r2 = repo.get_genre_stats("exegesis", None, None)
         assert r2 is not None
         assert r2["n_samples"] == 7
 
     def test_none_genre_samples_not_counted_for_named_genre(self, repo):
         for i in range(6):
             repo.put(_make_state(f"student-L{i}", n=1, genre=None))
-        assert repo.get_genre_stats("argumentative_essay", None) is None
+        assert repo.get_genre_stats("argumentative_essay", None, None) is None
 
     def test_wrong_genre_not_counted(self, repo):
         for i in range(6):
             repo.put(_make_state(f"student-M{i}", n=1, genre="rhetoric"))
-        assert repo.get_genre_stats("different_genre", None) is None
+        assert repo.get_genre_stats("different_genre", None, None) is None
 
 
 # ── get_genre_stats distinct-student floor ───────────────────────────────────
@@ -388,19 +388,19 @@ class TestGetGenreStatsStudentFloor:
     def test_single_prolific_student_cannot_form_a_prior(self, repo):
         # 6 vectors — clears MIN_GENRE_VECTORS — but from one person.
         repo.put(_make_state("student-SF0", n=6, genre="sermon"))
-        assert repo.get_genre_stats("sermon", None) is None
+        assert repo.get_genre_stats("sermon", None, None) is None
 
     def test_two_students_still_below_the_student_floor(self, repo):
         # 6 vectors, 2 contributing students: vector floor met, student floor not.
         repo.put(_make_state("student-SF1", n=3, genre="exegesis"))
         repo.put(_make_state("student-SF2", n=3, genre="exegesis"))
-        assert repo.get_genre_stats("exegesis", None) is None
+        assert repo.get_genre_stats("exegesis", None, None) is None
 
     def test_three_students_clear_both_floors(self, repo):
         repo.put(_make_state("student-SF3", n=2, genre="homiletics"))
         repo.put(_make_state("student-SF4", n=2, genre="homiletics"))
         repo.put(_make_state("student-SF5", n=2, genre="homiletics"))
-        result = repo.get_genre_stats("homiletics", None)
+        result = repo.get_genre_stats("homiletics", None, None)
         assert result is not None
         assert result["n_samples"] == 6
 
@@ -410,7 +410,7 @@ class TestGetGenreStatsStudentFloor:
         repo.put(_make_state("student-SF6", n=6, genre="canon_law"))
         repo.put(_make_state("student-SF7", n=2, genre="something_else"))
         repo.put(_make_state("student-SF8", n=2, genre="another_thing"))
-        assert repo.get_genre_stats("canon_law", None) is None
+        assert repo.get_genre_stats("canon_law", None, None) is None
 
     def test_unverified_samples_count_toward_neither_floor(self, repo):
         # An auth_weight=0 sample must not make its owner a contributing
@@ -428,9 +428,108 @@ class TestGetGenreStatsStudentFloor:
             )
         )
         repo.put(unverified)
-        result = repo.get_genre_stats("rhetoric", None)
+        result = repo.get_genre_stats("rhetoric", None, None)
         assert result is not None
         assert result["n_samples"] == 6  # not 7
+
+
+# ── get_genre_stats self-exclusion ───────────────────────────────────────────
+#
+# The prior is meant to be the POPULATION distribution a student is compared
+# against. Including the student's own baselines in it double-counts them:
+# scoring.score() blends the student's own mean toward the prior, so a prior
+# containing that student is partly a blend toward themselves, which damps the
+# very correction the prior exists to make. null_pool.build_impostor_stats
+# already excludes claimed_student_id for the same reason. Tenant-scoping made
+# this sharper — in a small same-tenant pool the student can be a large
+# fraction of "their own" prior.
+#
+# Both floors are re-checked against what REMAINS after the exclusion.
+
+
+class TestGetGenreStatsSelfExclusion:
+    def test_scored_students_own_samples_are_excluded(self, repo):
+        # 4 students x 2 = 8 vectors. Excluding one leaves 6 across 3 students.
+        for i in range(4):
+            repo.put(_make_state(f"student-SX{i}", n=2, genre="sermon"))
+        result = repo.get_genre_stats("sermon", None, "student-SX0")
+        assert result is not None
+        assert result["n_samples"] == 6
+
+    def test_exclude_none_pools_everyone(self, repo):
+        for i in range(4):
+            repo.put(_make_state(f"student-SY{i}", n=2, genre="sermon"))
+        result = repo.get_genre_stats("sermon", None, None)
+        assert result is not None
+        assert result["n_samples"] == 8
+
+    def test_exclusion_can_drop_the_pool_below_the_vector_floor(self, repo):
+        # 3 students x 2 = 6 vectors; removing one leaves 4 < MIN_GENRE_VECTORS.
+        for i in range(3):
+            repo.put(_make_state(f"student-SZ{i}", n=2, genre="exegesis"))
+        assert repo.get_genre_stats("exegesis", None, None) is not None
+        assert repo.get_genre_stats("exegesis", None, "student-SZ0") is None
+
+    def test_exclusion_can_drop_the_pool_below_the_student_floor(self, repo):
+        # 2 peers x 3 = 6 vectors, plus the scored student's 1 = 7 across 3
+        # students. Excluding the scored student leaves 6 vectors (clears the
+        # vector floor) but only 2 students — so the STUDENT floor is what
+        # rejects it. Isolates that floor from the vector floor.
+        repo.put(_make_state("student-TA0", n=3, genre="homiletics"))
+        repo.put(_make_state("student-TA1", n=3, genre="homiletics"))
+        repo.put(_make_state("student-TA2", n=1, genre="homiletics"))
+        assert repo.get_genre_stats("homiletics", None, None) is not None
+        assert repo.get_genre_stats("homiletics", None, "student-TA2") is None
+
+    def test_a_prolific_student_cannot_drag_their_own_prior(self, repo):
+        # The statistical point of the change: student-TB0's 20 samples must
+        # not shape the distribution TB0 is then scored against.
+        repo.put(_make_state("student-TB0", n=20, genre="canon_law"))
+        for i in range(1, 4):
+            repo.put(_make_state(f"student-TB{i}", n=2, genre="canon_law"))
+        with_self = repo.get_genre_stats("canon_law", None, None)
+        without_self = repo.get_genre_stats("canon_law", None, "student-TB0")
+        assert with_self is not None and without_self is not None
+        assert with_self["n_samples"] == 26
+        assert without_self["n_samples"] == 6
+        # The excluded pool is a genuinely different distribution, not the
+        # same numbers with a smaller count.
+        assert not np.allclose(with_self["mean"], without_self["mean"])
+
+    def test_cache_is_keyed_per_excluded_student(self, repo):
+        # A cache keyed only on (tenant, genre) would serve the first
+        # caller's pool to the next student asking — handing a student a
+        # prior that still contains their own writing.
+        for i in range(4):
+            repo.put(_make_state(f"student-TC{i}", n=2, genre="rhetoric"))
+        a = repo.get_genre_stats("rhetoric", None, "student-TC0")
+        b = repo.get_genre_stats("rhetoric", None, "student-TC1")
+        full = repo.get_genre_stats("rhetoric", None, None)
+        assert a is not None and b is not None and full is not None
+        assert full["n_samples"] == 8
+        assert a["n_samples"] == b["n_samples"] == 6
+        assert not np.allclose(a["mean"], b["mean"])
+        # ... and again now that all three keys are warm.
+        assert repo.get_genre_stats("rhetoric", None, "student-TC0")["n_samples"] == 6
+        assert repo.get_genre_stats("rhetoric", None, None)["n_samples"] == 8
+
+    def test_excluding_an_unknown_student_is_a_no_op(self, repo):
+        for i in range(3):
+            repo.put(_make_state(f"student-TD{i}", n=2, genre="sermon"))
+        assert repo.get_genre_stats("sermon", None, "nobody")["n_samples"] == 6
+
+    def test_exclusion_is_scoped_to_the_tenant_too(self, repo):
+        # A same-local-name student in another tenant must be unaffected —
+        # exclusion matches the full scoped id, not a bare local name.
+        for i in range(4):
+            repo.put(_make_state(f"seminary-a:student-{i}", n=2, genre="sermon"))
+        for i in range(4):
+            repo.put(_make_state(f"seminary-b:student-{i}", n=2, genre="sermon"))
+        a = repo.get_genre_stats("sermon", "seminary-a", "seminary-a:student-0")
+        b = repo.get_genre_stats("sermon", "seminary-b", "seminary-a:student-0")
+        assert a is not None and b is not None
+        assert a["n_samples"] == 6  # one of its own removed
+        assert b["n_samples"] == 8  # untouched: different tenant
 
 
 # ── get_genre_stats tenant isolation ─────────────────────────────────────────
@@ -451,8 +550,8 @@ class TestGetGenreStatsTenantIsolation:
         # seminary-a's students.
         for i in range(6):
             repo.put(_make_state(f"seminary-a:student-{i}", n=1, genre="sermon"))
-        assert repo.get_genre_stats("sermon", "seminary-a") is not None
-        assert repo.get_genre_stats("sermon", "seminary-b") is None
+        assert repo.get_genre_stats("sermon", "seminary-a", None) is not None
+        assert repo.get_genre_stats("sermon", "seminary-b", None) is None
 
     def test_pools_are_disjoint_across_tenants(self, repo):
         # Each tenant clears the vector floor on its own. Neither tenant's
@@ -461,8 +560,8 @@ class TestGetGenreStatsTenantIsolation:
             repo.put(_make_state(f"seminary-a:student-{i}", n=1, genre="exegesis"))
         for i in range(7):
             repo.put(_make_state(f"seminary-b:student-{i}", n=1, genre="exegesis"))
-        a = repo.get_genre_stats("exegesis", "seminary-a")
-        b = repo.get_genre_stats("exegesis", "seminary-b")
+        a = repo.get_genre_stats("exegesis", "seminary-a", None)
+        b = repo.get_genre_stats("exegesis", "seminary-b", None)
         assert a is not None and b is not None
         assert a["n_samples"] == 6
         assert b["n_samples"] == 7
@@ -476,33 +575,33 @@ class TestGetGenreStatsTenantIsolation:
             repo.put(_make_state(f"seminary-a:student-{i}", n=1, genre="lab_report"))
         for i in range(4):
             repo.put(_make_state(f"seminary-b:student-{i}", n=1, genre="lab_report"))
-        assert repo.get_genre_stats("lab_report", "seminary-a") is None
-        assert repo.get_genre_stats("lab_report", "seminary-b") is None
+        assert repo.get_genre_stats("lab_report", "seminary-a", None) is None
+        assert repo.get_genre_stats("lab_report", "seminary-b", None) is None
 
     def test_legacy_flat_pool_is_separate_from_scoped_tenants(self, repo):
         # Colon-less (legacy-flat) ids are tenant_of(...) -> None. They form
         # their own cohort and must not feed a real tenant's prior.
         for i in range(6):
             repo.put(_make_state(f"legacy-student-{i}", n=1, genre="theology_paper"))
-        assert repo.get_genre_stats("theology_paper", None) is not None
-        assert repo.get_genre_stats("theology_paper", "seminary-a") is None
+        assert repo.get_genre_stats("theology_paper", None, None) is not None
+        assert repo.get_genre_stats("theology_paper", "seminary-a", None) is None
 
     def test_scoped_tenant_does_not_feed_the_legacy_flat_pool(self, repo):
         # The converse of the above — the sentinel must not act as a wildcard.
         for i in range(6):
             repo.put(_make_state(f"seminary-a:student-{i}", n=1, genre="rhetoric"))
-        assert repo.get_genre_stats("rhetoric", None) is None
+        assert repo.get_genre_stats("rhetoric", None, None) is None
 
     def test_cache_is_keyed_per_tenant(self, repo):
         # A cache keyed on genre alone would serve seminary-a's stats to
         # seminary-b on the second call — the leak surviving the filter.
         for i in range(6):
             repo.put(_make_state(f"seminary-a:student-{i}", n=1, genre="homiletics"))
-        assert repo.get_genre_stats("homiletics", "seminary-a") is not None
-        assert repo.get_genre_stats("homiletics", "seminary-b") is None
+        assert repo.get_genre_stats("homiletics", "seminary-a", None) is not None
+        assert repo.get_genre_stats("homiletics", "seminary-b", None) is None
         # ... and again, now that both keys are warm.
-        assert repo.get_genre_stats("homiletics", "seminary-a") is not None
-        assert repo.get_genre_stats("homiletics", "seminary-b") is None
+        assert repo.get_genre_stats("homiletics", "seminary-a", None) is not None
+        assert repo.get_genre_stats("homiletics", "seminary-b", None) is None
 
 
 # ── delete_student ────────────────────────────────────────────────────────────
@@ -557,13 +656,13 @@ class TestDeleteStudent:
         # supplements.
         for i in range(5):  # exactly the floor, so one deletion drops it out
             repo.put(_make_state(f"tenant-del:student-{i}", n=1, genre="lab_report"))
-        warm = repo.get_genre_stats("lab_report", "tenant-del")
+        warm = repo.get_genre_stats("lab_report", "tenant-del", None)
         assert warm is not None
         assert warm["n_samples"] == 5
 
         assert repo.delete_student("tenant-del:student-0") is True
 
-        after = repo.get_genre_stats("lab_report", "tenant-del")
+        after = repo.get_genre_stats("lab_report", "tenant-del", None)
         assert after is None  # below the floor once the deleted student's vector is gone
 
 
