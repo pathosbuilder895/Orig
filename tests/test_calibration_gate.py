@@ -873,3 +873,112 @@ class TestG6ReachabilityPrecheck:
             results_by_group, 0.02, n_native_scored=1, n_non_native_scored=1
         )
         assert result is None
+
+
+class TestCorpusDeterminism:
+    """Coverage for the 2026-07-28 vs 2026-07-30 calibration report drift:
+    G2's individual q values changed denominators (n=5 -> n=11 for some
+    dialogues) and G4's group means drifted ~0.005 on corpora the G3 repairs
+    never touched. See docs/superpowers/plans/2026-07-31-pilot-scale-
+    reachability.md Task 3.
+
+    Diagnosis (validation/calibration_gate.py's _load_plato_texts_by_dialogue,
+    read directly): the loader already sorts both the dialogue directory
+    listing (`sorted(corpus_dir.iterdir())`) and each dialogue's chunk glob
+    (`sorted(dialogue_dir.glob("*.txt"))`) -- filesystem enumeration order was
+    never the hazard here. The untracked Plato caches
+    (_features_cache*.npz, corpus/_raw_cache/pg*.txt) are read only by
+    validation/plato/features.py and validation/plato/build_corpus.py; this
+    loader imports neither module and never touches those paths, so a
+    regenerated cache cannot explain the drift either. `git diff` between the
+    commits that produced the two reports (50bb0a76 -> a78ac6dd) shows ZERO
+    changes under validation/plato/corpus/jowett/**, so the checked-in corpus
+    content was also byte-identical across the two runs. This test exists to
+    pin the loader's own determinism so it can be ruled out with evidence
+    rather than assumption -- see the corpus_fingerprint tests below for the
+    safety net that catches the actual failure mode.
+    """
+
+    def test_plato_loader_is_order_stable(self):
+        """Chunk counts and ordering must not depend on filesystem
+        enumeration order — two loads must agree exactly."""
+        from validation.calibration_gate import _load_plato_texts_by_dialogue
+
+        a = _load_plato_texts_by_dialogue()
+        b = _load_plato_texts_by_dialogue()
+        assert list(a.keys()) == sorted(a.keys())
+        assert {k: len(v) for k, v in a.items()} == {k: len(v) for k, v in b.items()}
+        assert a == b
+
+
+class TestCorpusFingerprint:
+    """_corpus_fingerprint is the safety net for the case
+    TestCorpusDeterminism's passing loader test implies: the drift is not in
+    load order, so it must be caught by content-level comparison instead."""
+
+    def test_identical_corpora_fingerprint_identically(self):
+        from validation.calibration_gate import _corpus_fingerprint
+
+        corpus = {"a": ["hello", "world"], "b": ["one chunk"]}
+        assert _corpus_fingerprint(corpus) == _corpus_fingerprint(dict(corpus))
+
+    def test_is_independent_of_dict_insertion_order(self):
+        from validation.calibration_gate import _corpus_fingerprint
+
+        forward = {"a": ["x"], "b": ["y", "z"]}
+        backward = {"b": ["y", "z"], "a": ["x"]}
+        assert _corpus_fingerprint(forward) == _corpus_fingerprint(backward)
+
+    def test_changed_chunk_count_changes_the_fingerprint(self):
+        """This is the exact failure mode from the 07-28/07-30 drift: same
+        entity_id, different len(texts) — e.g. a dialogue whose effective
+        n went from 5 to 11 between two runs on paper-identical inputs."""
+        from validation.calibration_gate import _corpus_fingerprint
+
+        five_chunks = {"plato_cratylus": ["chunk"] * 5}
+        eleven_chunks = {"plato_cratylus": ["chunk"] * 11}
+        assert _corpus_fingerprint(five_chunks) != _corpus_fingerprint(eleven_chunks)
+
+    def test_changed_content_same_count_changes_the_fingerprint(self):
+        from validation.calibration_gate import _corpus_fingerprint
+
+        original = {"plato_meno": ["short text"]}
+        regenerated = {"plato_meno": ["a completely different, longer text body"]}
+        assert _corpus_fingerprint(original) != _corpus_fingerprint(regenerated)
+
+    def test_plato_loader_output_is_fingerprintable_and_stable(self):
+        """Ties the fingerprint helper to the real loader: two loads of the
+        actual Plato corpus must fingerprint identically, matching
+        TestCorpusDeterminism's own guarantee."""
+        from validation.calibration_gate import (
+            _corpus_fingerprint,
+            _load_plato_texts_by_dialogue,
+        )
+
+        a = _corpus_fingerprint(_load_plato_texts_by_dialogue())
+        b = _corpus_fingerprint(_load_plato_texts_by_dialogue())
+        assert a == b
+        assert isinstance(a, str) and len(a) > 0
+
+
+class TestG6NativeEnglishLoader:
+    """_load_g6_native_english_texts mirrors the entry/author bucketing
+    _compute_g6_fairness_data does internally, so run_all() can fingerprint
+    G6's corpus (validation/manifest.json + validation/corpus/*) the same
+    way it fingerprints seminary/public_authors/Plato."""
+
+    def test_returns_only_native_english_annotated_authentic_entries(self):
+        from validation.calibration_gate import _load_g6_native_english_texts
+
+        by_author = _load_g6_native_english_texts()
+        assert isinstance(by_author, dict)
+        for author_id, texts in by_author.items():
+            assert isinstance(author_id, str)
+            assert all(isinstance(t, str) and t for t in texts)
+
+    def test_is_stable_across_repeated_loads(self):
+        from validation.calibration_gate import _load_g6_native_english_texts
+
+        a = _load_g6_native_english_texts()
+        b = _load_g6_native_english_texts()
+        assert a == b

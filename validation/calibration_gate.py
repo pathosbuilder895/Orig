@@ -38,6 +38,7 @@ from validation.benchmark.reproducibility import lock_environment  # noqa: E402
 ENV_LOCK = lock_environment()
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -898,6 +899,37 @@ def run_all() -> list[GateResult]:
     except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
         results.append(_machinery_error_result("G6", _G6_CRITERION, exc))
 
+    # Attach a corpus_fingerprint to every result so a future report can be
+    # checked for comparability against this one without re-deriving n's by
+    # hand — see _corpus_fingerprint's docstring for why this exists. Built
+    # from the corpora already loaded above (G6's is loaded fresh here since
+    # it's a distinct manifest-driven corpus none of the other legs touch).
+    corpus_fingerprints = {
+        "seminary": _corpus_fingerprint(seminary_texts),
+        "public_authors": _corpus_fingerprint(public_authors_texts),
+        "plato": _corpus_fingerprint(plato_texts),
+        "g6_native_english": _corpus_fingerprint(_load_g6_native_english_texts()),
+    }
+    result_corpus_keys = {
+        "G1": ("seminary", "public_authors", "plato"),
+        "G2": ("plato",),
+        "G2b": ("plato",),
+        "G3": ("public_authors",),
+        "G4": ("plato",),
+        "G5": ("seminary", "public_authors", "plato"),
+        "G6": ("g6_native_english",),
+    }
+    for result in results:
+        keys = result_corpus_keys.get(result.name)
+        if not keys:
+            continue
+        if len(keys) == 1:
+            result.detail["corpus_fingerprint"] = corpus_fingerprints[keys[0]]
+        else:
+            result.detail["corpus_fingerprint"] = {
+                k: corpus_fingerprints[k] for k in keys
+            }
+
     return results
 
 
@@ -943,6 +975,61 @@ def _load_plato_texts_by_dialogue() -> dict[str, list[str]]:
             c.read_text(encoding="utf-8") for c in chunks
         ]
     return by_dialogue
+
+
+def _load_g6_native_english_texts() -> dict[str, list[str]]:
+    """
+    The native_english-annotated authentic corpus G6 actually scores (mirrors
+    the entry/author bucketing _compute_g6_fairness_data does internally).
+    Kept as its own loader purely so run_all() can fingerprint G6's corpus
+    the same way it fingerprints seminary/public_authors/Plato, without
+    reaching into that function's scoring internals.
+    """
+    manifest_path = _ROOT / "validation" / "manifest.json"
+    corpus_dir = _ROOT / "validation" / "corpus"
+    manifest = json.loads(manifest_path.read_text())
+    by_author: dict[str, list[str]] = {}
+    for entry in manifest["entries"]:
+        if entry.get("native_english") is None or entry.get("label") != "authentic":
+            continue
+        text = (corpus_dir / entry["filename"]).read_text(encoding="utf-8")
+        by_author.setdefault(entry["author_id"], []).append(text)
+    return by_author
+
+
+def _corpus_fingerprint(texts_by_id: dict[str, list[str]]) -> str:
+    """
+    A short, order-independent fingerprint of a loaded corpus: hash the
+    SORTED (entity_id, len(texts), total_chars) triple for every entity.
+
+    This exists so a future corpus content change — a re-generated cache, an
+    edited/added Plato chunk, a manifest.json edit — is flagged in the report
+    itself instead of silently producing numbers that look comparable to a
+    prior run but aren't. It hashes what the loader actually produced, so it
+    WOULD catch that class of drift.
+
+    It would NOT, on its own, have caught the specific 2026-07-28 vs
+    2026-07-30 drift: `git diff` between the commits that produced those two
+    reports shows zero changes to validation/plato/corpus/jowett/**, and
+    TestCorpusDeterminism confirms the loader is already fully order-stable
+    (sorted iterdir + sorted glob), so that drift's fingerprint would read
+    identical on both runs. The actual divergence (G2's per-dialogue q-value
+    denominators implying an effective n smaller than len(chunks)-1 on some
+    runs) most likely traces to _compute_g2_q_values's baseline-upload loop,
+    which POSTs each baseline chunk without checking the response status —
+    a dropped upload silently shrinks that student's LOO sample count without
+    touching anything on disk. That's a scoring-time defect, out of scope for
+    this fingerprint and for this task; see the Task 3 report for the full
+    diagnosis. Two GateResults whose corpus_fingerprint differs are still not
+    directly comparable, however close their numbers look — this catches the
+    corpus-content half of the reproducibility problem, not the other half.
+    """
+    triples = sorted(
+        (entity_id, len(texts), sum(len(t) for t in texts))
+        for entity_id, texts in texts_by_id.items()
+    )
+    payload = repr(triples).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()[:16]
 
 
 def _compute_g2_q_values(client) -> tuple[list[float], list[float]]:
