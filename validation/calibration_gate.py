@@ -64,8 +64,17 @@ class GateResult:
             object.__setattr__(self, "verdict", "pass" if self.passed else "fail")
         if self.verdict not in ("pass", "fail", "uninformative"):
             raise ValueError(f"invalid verdict: {self.verdict!r}")
-        if self.verdict == "uninformative" and self.passed:
-            raise ValueError("an uninformative gate cannot claim passed=True")
+        # FIX 6: `passed` and `verdict` must always agree. This subsumes the
+        # narrower "uninformative gate cannot claim passed=True" check it
+        # replaces — that check let `passed=False, verdict="pass"` and
+        # `passed=True, verdict="fail"` both through, which is the same
+        # drift class from the other two directions.
+        if self.passed != (self.verdict == "pass"):
+            raise ValueError(
+                f"passed={self.passed!r} is inconsistent with "
+                f"verdict={self.verdict!r} (passed must be True iff "
+                "verdict == 'pass')"
+            )
 
 
 # ── Shared conformal-reachability guard ───────────────────────────────────────
@@ -81,26 +90,56 @@ class GateResult:
 
 
 def _conformal_p_floor(n: int) -> float:
-    """The smallest value a conformal p-value over n LOO distances can take."""
-    return 1.0 / (max(int(n), 0) + 1)
+    """
+    The smallest value a conformal p-value over n LOO distances can take.
+
+    FIX 3(a): delegates to validation.power.conformal_p_floor rather than
+    re-implementing the same arithmetic a second time. The two copies used
+    to disagree at the degenerate n<=0 input: this one returned 1.0,
+    power's raises ValueError. Checked every caller in this module before
+    delegating — `_reachability_block` only ever calls this with n>=1 (it
+    filters `typicality_ns` to `n >= 1` first), and `_min_n_for_threshold`
+    below only reaches n-1==0 for a threshold >= ~0.5, far looser than any
+    threshold actually used in this codebase (NO_ACTION_FAR_THRESHOLD=0.03,
+    NO_ACTION_CENTRAL_THRESHOLD=0.02) — so no caller depends on the old
+    degenerate return value, and it is safe to let power's ValueError
+    surface instead of preserving a second definition of "degenerate".
+    """
+    from validation.power import conformal_p_floor
+
+    return conformal_p_floor(n)
 
 
 def _min_n_for_threshold(threshold: float) -> int:
-    """Smallest n whose p-value floor reaches `threshold` (0.02 -> 49)."""
-    import math
+    """
+    Smallest n whose p-value floor reaches `threshold` (0.02 -> 49).
 
-    n = max(0, math.ceil(1.0 / threshold) - 1)
-    # Both directions, so float representation can't shift the boundary.
-    while n > 0 and _conformal_p_floor(n - 1) <= threshold:
-        n -= 1
-    while _conformal_p_floor(n) > threshold:
-        n += 1
-    return n
+    FIX 3(a): delegates to validation.power.min_docs_for_band. The
+    original carried a self-correcting double while-loop as insurance
+    against float representation shifting the boundary; power's direct
+    `max(1, ceil(1/threshold) - 1)` formula was checked against it (a
+    200k-sample random-float scan plus every threshold this module's own
+    tests use) with zero disagreements short of the unreachable edge
+    threshold==1.0 (where the two clamp to 0 vs. 1 respectively — moot,
+    since a conformal p-value is undefined below n=1 either way, and no
+    gate in this codebase ever thresholds at 1.0).
+    """
+    from validation.power import min_docs_for_band
+
+    return min_docs_for_band(threshold)
 
 
 def _threshold_reachable(n: int, threshold: float) -> bool:
-    """True iff a p-value over n LOO distances can reach `threshold` at all."""
-    return _conformal_p_floor(n) <= threshold
+    """
+    True iff a p-value over n LOO distances can reach `threshold` at all.
+
+    FIX 3(a): delegates to validation.power.band_reachable. Its only caller
+    in this module (`_reachability_block`) always passes n>=1, so
+    band_reachable's ValueError on n<=0 is never triggered here.
+    """
+    from validation.power import band_reachable
+
+    return band_reachable(n, threshold)
 
 
 def _reachability_block(typicality_ns: list[int], threshold: float) -> dict:
@@ -165,22 +204,38 @@ def evaluate_g1_fpr(
     marginal-not-conditional-validity finding — see design spec §10).
 
     `typicality_ns` (one per scored fold) drives the reachability
-    ANNOTATION, never the verdict: the flagged rate is genuinely defined at
-    any N, so `passed` is unchanged, but when the observed N is too small for
-    any band boundary to be crossed (p-value floor above the loosest flag
-    threshold, NO_ACTION_FAR_THRESHOLD), a 0% rate is guaranteed by
-    construction and current_value says so in as many words. Omitting the
-    argument keeps the pre-existing current_value string exactly.
+    ANNOTATION on current_value, via `_reachability_block`'s BINDING
+    (smallest, i.e. worst-case) observed typicality_n — if even one fold's
+    p-value floor is above NO_ACTION_FAR_THRESHOLD, a 0% rate at that N is
+    guaranteed by construction. `entity_baseline_counts` (the per-fold LOO
+    baseline count — see run_all()'s call site: this is len(texts) - 1, NOT
+    len(texts), since a fold posts every text except the one held out) and
+    `band_threshold` estimate the SAME reachability question from a
+    different angle: any-reachable, i.e. MAX over entities (one
+    well-sampled entity is enough to call the band reachable). The two
+    mechanisms read different data (observed per-fold N vs. reconstructed
+    per-entity document counts) and aggregate in OPPOSITE directions
+    (pessimistic MIN-over-folds vs. optimistic MAX-over-entities), so they
+    CAN legitimately disagree.
 
-    `entity_baseline_counts` (per-entity baseline document count) and
-    `band_threshold` drive the VERDICT itself (validation/power.py's
-    arithmetic): when every entity's max baseline count leaves the
-    conformal p-value floor above the band, a clean 0% pooled rate is
-    arithmetically guaranteed rather than demonstrated, and the verdict is
-    downgraded from "pass" to "uninformative" (never "fail" — the rate
-    itself is still correctly computed and a genuine failure is never
-    masked). Omitting `entity_baseline_counts` preserves the legacy
-    two-valued (`pass`/`fail`) behavior exactly.
+    Invariant (FIX 3(b)): a "pass" verdict can never coexist with an
+    "UNINFORMATIVE" annotation in current_value — rendering
+    `G1 [PASS] ... (UNINFORMATIVE: ...)` is exactly the self-contradiction
+    this fix exists to eliminate. When `typicality_ns` is supplied it is
+    the MORE accurate signal (observed per-fold N, not reconstructed from
+    document counts), so a would-be pass with `flagged == 0` that EITHER
+    mechanism finds unreachable is downgraded to "uninformative". A
+    nonzero flagged count is real evidence, never arithmetic (FIX 2), so it
+    is never downgraded regardless of reachability; a genuine FAILURE
+    (pooled_rate > 5%) is likewise never downgraded — only a would-be pass
+    can become uninformative. Omitting both `typicality_ns` and
+    `entity_baseline_counts` preserves the legacy two-valued (`pass`/`fail`)
+    behavior exactly.
+
+    A non-positive `entity_baseline_counts` value (a degenerate corpus
+    entry with 0 or fewer LOO samples) is treated as unreachable directly
+    rather than raised through validation.power's ValueError, so this gate
+    can never crash on a degenerate corpus (FIX 5).
     """
     from original.quantum.typicality import NO_ACTION_FAR_THRESHOLD
 
@@ -210,6 +265,11 @@ def evaluate_g1_fpr(
         )
 
     verdict = "pass" if pooled_rate <= 0.05 else "fail"
+    # The typicality_ns mechanism's unreachability signal, computed above
+    # into current_value's annotation — reused below for the FIX 3(b)
+    # invariant so the two mechanisms can't disagree in the rendered
+    # verdict even when they disagree about the underlying reachability.
+    typicality_unreachable = reachability["observed"] and not reachability["reachable"]
     detail = {
         "n": n,
         "flagged": flagged,
@@ -218,6 +278,7 @@ def evaluate_g1_fpr(
         "reachability": reachability,
     }
 
+    entity_unreachable = False
     if entity_baseline_counts:
         from validation.power import (
             band_reachable,
@@ -228,24 +289,37 @@ def evaluate_g1_fpr(
 
         if band_threshold is None:
             band_threshold = NO_ACTION_FAR_THRESHOLD
+        # FIX 5: a non-positive count can never reach any band —
+        # band_reachable/conformal_p_floor are undefined below n=1 and
+        # raise ValueError — so treat it as unreachable directly instead of
+        # crashing this gate on a degenerate corpus entry.
         reachable = {
-            e: band_reachable(cnt, band_threshold)
+            e: (band_reachable(cnt, band_threshold) if cnt > 0 else False)
             for e, cnt in entity_baseline_counts.items()
         }
-        max_n = max(entity_baseline_counts.values())
+        positive_counts = [cnt for cnt in entity_baseline_counts.values() if cnt > 0]
+        max_n = max(positive_counts) if positive_counts else 0
         detail["power"] = {
             "band_threshold": band_threshold,
             "max_entity_n": max_n,
-            "min_conformal_p_at_max_n": conformal_p_floor(max_n),
+            "min_conformal_p_at_max_n": conformal_p_floor(max_n) if max_n > 0 else None,
             "entities_reachable": sum(reachable.values()),
             "entities_total": len(reachable),
             "min_docs_for_band": min_docs_for_band(band_threshold),
             "rule_of_three_fpr_upper": rule_of_three_upper(n) if flagged == 0 and n else None,
         }
-        if verdict == "pass" and not any(reachable.values()):
-            # The band is arithmetically unreachable for every entity: the
-            # clean rate is arithmetic, not evidence (Instrument Report, G1).
-            verdict = "uninformative"
+        entity_unreachable = not any(reachable.values())
+
+    # FIX 2 + FIX 3(b): only a would-be pass with ZERO real flags can be
+    # downgraded — flagged > 0 is genuine evidence, never arithmetic, so it
+    # must stay "pass" (and current_value must never grow a zero-rate
+    # sentence it didn't earn). Once flagged == 0 is required, EITHER
+    # mechanism finding the band unreachable downgrades the verdict, so a
+    # "pass" can never render alongside an "UNINFORMATIVE" annotation.
+    if verdict == "pass" and flagged == 0 and (entity_unreachable or typicality_unreachable):
+        # The band is arithmetically unreachable: the clean rate is
+        # arithmetic, not evidence (Instrument Report, G1).
+        verdict = "uninformative"
 
     return GateResult(
         name="G1",
@@ -874,14 +948,26 @@ def run_all() -> list[GateResult]:
     plato_texts = _load_plato_texts_by_dialogue()
 
     texts_by_id: dict[str, list[str]] = {**seminary_texts, **public_authors_texts, **plato_texts}
-    # Per-entity baseline document count, keyed the same way as texts_by_id —
-    # drives evaluate_g1_fpr's conformal-band reachability check (validation/
-    # power.py): a clean pooled rate at an N too small for the band to ever
-    # be crossed is arithmetic, not evidence (see evaluate_g1_fpr's docstring).
-    entity_baseline_counts = {sid: len(texts) for sid, texts in texts_by_id.items()}
     pooled_actions, per_corpus_actions, real_g1_deviations, real_g1_errors = _score_corpus_for_g1(
         client, "g1", texts_by_id
     )
+    # Per-entity PER-FOLD LOO count, keyed the same way as texts_by_id —
+    # drives evaluate_g1_fpr's conformal-band reachability check (validation/
+    # power.py): a clean pooled rate at an N too small for the band to ever
+    # be crossed is arithmetic, not evidence (see evaluate_g1_fpr's
+    # docstring). FIX 1: this is len(texts) - 1, NOT len(texts) — a fold in
+    # _score_corpus_for_g1 posts every text EXCEPT the held-out one, so the
+    # conformal N behind a fold's typicality p-value is one less than the
+    # entity's total document count. Do not "correct" this back to
+    # len(texts): a 33-document entity's LOO folds see n=32, not n=33, and
+    # 32 is one short of what the default 0.03 band needs. FIX 5: computed
+    # from per_corpus_actions (the entities _score_corpus_for_g1 actually
+    # produced a fold for, i.e. already passed its own `len(texts) < 5`
+    # skip) rather than the full texts_by_id, so an entity that never
+    # contributed a fold doesn't inflate entities_total in the power block.
+    entity_baseline_counts = {
+        entity_id: len(texts_by_id[entity_id]) - 1 for entity_id in per_corpus_actions
+    }
     g1_result = evaluate_g1_fpr(
         pooled_actions,
         per_corpus_actions,
@@ -1926,13 +2012,25 @@ def render(results: list[GateResult]) -> str:
                     f"demonstrate a pass."
                 )
             elif "max_entity_n" in power:
-                upper = power.get("rule_of_three_fpr_upper")
-                upper_text = f"{upper:.1%}" if upper is not None else "n/a"
+                # FIX 2: rule_of_three_fpr_upper is now guaranteed non-None
+                # on this path — reaching "uninformative" via the
+                # entity_baseline_counts mechanism requires flagged == 0
+                # (see evaluate_g1_fpr), and rule_of_three_upper(n) is only
+                # ever None when flagged != 0. The old None -> "n/a" guard
+                # is therefore dead for an unreachable state; removed
+                # rather than kept around it.
+                upper = power["rule_of_three_fpr_upper"]
+                # min_conformal_p_at_max_n CAN still be None here (FIX 5: a
+                # degenerate entity_baseline_counts with every count <= 0),
+                # so that one guard stays — it is not provably unreachable
+                # the way rule_of_three_fpr_upper is.
+                min_p = power["min_conformal_p_at_max_n"]
+                min_p_text = f"{min_p:.3f}" if min_p is not None else "n/a"
                 lines.append(
                     f"│      max entity N={power['max_entity_n']} → min conformal "
-                    f"p={power['min_conformal_p_at_max_n']:.3f} > band "
+                    f"p={min_p_text} > band "
                     f"{power['band_threshold']}; needs N >= {power['min_docs_for_band']}. "
-                    f"Observed 0-rate bounds FPR only above {upper_text} "
+                    f"Observed 0-rate bounds FPR only above {upper:.1%} "
                     "(rule of three)."
                 )
     lines.append("╰────────────────────────────────────────────────────────────╯")
@@ -1955,6 +2053,17 @@ def main(argv=None) -> int:
         Path(args.out).write_text(json.dumps([asdict(r) for r in results], indent=2))
     failing = [r for r in results if r.verdict == "fail"]
     uninformative = [r for r in results if r.verdict == "uninformative"]
+    if uninformative:
+        # FIX 4: the lenient default (an uninformative gate does not fail
+        # unless --strict) is a deliberate plan-level policy — it stays the
+        # default here — but a green exit code must never be quotable in
+        # silence. Print this in BOTH strict and non-strict runs so the
+        # trailing line always names what a bare exit code hides.
+        names = ", ".join(r.name for r in uninformative)
+        print(
+            f"{len(uninformative)} gate(s) UNINFORMATIVE ({names}) — not "
+            "counted as failure; re-run with --strict to fail on these."
+        )
     if args.strict:
         failing = failing + uninformative
     return 1 if failing else 0

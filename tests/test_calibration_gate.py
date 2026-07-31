@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pytest
 
+from validation import calibration_gate
 from validation.calibration_gate import (
     GateResult,
     _conformal_p_floor,
@@ -30,8 +31,10 @@ from validation.calibration_gate import (
     evaluate_g3_attribution,
     evaluate_g5_permutation_null,
     evaluate_g6_fairness,
+    render,
     run_g5,
 )
+from validation.power import conformal_p_floor
 
 
 class TestG1Fpr:
@@ -64,7 +67,20 @@ class TestConformalReachability:
     def test_p_floor_is_one_over_n_plus_one(self):
         assert _conformal_p_floor(4) == pytest.approx(0.2)
         assert _conformal_p_floor(49) == pytest.approx(0.02)
-        assert _conformal_p_floor(0) == pytest.approx(1.0)
+
+    def test_p_floor_rejects_non_positive_n(self):
+        """FIX 3(a): _conformal_p_floor now delegates to
+        validation.power.conformal_p_floor instead of re-implementing the
+        same arithmetic. This REPLACES the old assertion that
+        `_conformal_p_floor(0) == 1.0` — that degenerate return value was
+        exactly the drift between the two copies the review flagged
+        (power.conformal_p_floor(0) has always raised ValueError). No
+        caller in this module relied on the old degenerate value (checked:
+        _reachability_block only ever calls this with n>=1), so the
+        wrapper now lets power's ValueError surface instead of preserving a
+        second, disagreeing definition of "degenerate"."""
+        with pytest.raises(ValueError):
+            _conformal_p_floor(0)
 
     def test_threshold_unreachable_below_required_n(self):
         assert _threshold_reachable(4, 0.02) is False
@@ -101,16 +117,27 @@ class TestConformalReachability:
 
 
 class TestG1ReachabilityAnnotation:
-    """G1's flagged rate is genuinely defined, so its verdict is unchanged —
-    but a 0.0% rate produced at an N where no flag is structurally possible
-    must never read as demonstrated discrimination."""
+    """G1's flagged rate is genuinely defined, so a real flagged rate is
+    never suppressed — but a 0.0% rate produced at an N where no flag is
+    structurally possible must never read as demonstrated discrimination."""
 
-    def test_unreachable_threshold_annotates_current_value_without_changing_verdict(self):
+    def test_unreachable_threshold_downgrades_a_would_be_pass_to_uninformative(self):
+        """UPDATED for FIX 3(b): this test used to assert `result.passed is
+        True` here — i.e. an unreachable typicality_ns annotated
+        current_value with "UNINFORMATIVE" while the verdict stayed "pass".
+        That is precisely the self-contradictory `G1 [PASS] ... current:
+        0.0% (UNINFORMATIVE: ...)` render the review flagged: two
+        mechanisms estimating the same reachability question must not be
+        allowed to disagree in the rendered verdict. typicality_ns is the
+        MORE accurate signal (observed per-fold N), so a would-be pass with
+        flagged == 0 that it finds unreachable is now downgraded exactly
+        like the entity_baseline_counts mechanism downgrades one."""
         actions = ["no_action"] * 100
         result = evaluate_g1_fpr(
             actions, per_corpus={"synthetic": actions}, typicality_ns=[12] * 100
         )
-        assert result.passed is True  # verdict unchanged
+        assert result.verdict == "uninformative"
+        assert result.passed is False
         assert "UNINFORMATIVE" in result.current_value
         assert "n<=12" in result.current_value
         assert result.detail["reachability"]["min_typicality_n"] == 12
@@ -523,9 +550,6 @@ class TestG5MachineryErrors:
             run_g5(real_g1_deviations=[0.4] * 89, real_g1_n_errors=11)
 
 
-from validation.power import conformal_p_floor
-
-
 class TestGateVerdicts:
     def test_verdict_defaults_from_passed(self):
         r = GateResult(name="X", passed=True, criterion="c", current_value="v")
@@ -610,3 +634,262 @@ class TestG3Informativeness:
     def test_omitting_n_preserves_legacy_behavior(self):
         assert evaluate_g3_attribution(0.9).verdict == "pass"
         assert evaluate_g3_attribution(0.455).verdict == "fail"
+
+
+class TestG1LooOffByOne:
+    """FIX 1: the conformal N for a G1 fold is len(texts) - 1 (the per-fold
+    LOO baseline size), NOT len(texts) — _score_corpus_for_g1 posts every
+    text EXCEPT the held-out one. A 33-document entity's folds therefore see
+    n=32, one short of what the default 0.03 band needs (n>=33)."""
+
+    def test_33_documents_loo_n_32_is_not_reachable_at_the_003_band(self):
+        actions = ["no_action"] * 216
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"seminary": actions},
+            entity_baseline_counts={"s1": 32},  # 33 docs - 1
+            band_threshold=0.03,
+        )
+        assert result.verdict == "uninformative"
+        assert result.detail["power"]["entities_reachable"] == 0
+
+    def test_34_documents_loo_n_33_is_reachable_at_the_003_band(self):
+        actions = ["no_action"] * 216
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"seminary": actions},
+            entity_baseline_counts={"s1": 33},  # 34 docs - 1
+            band_threshold=0.03,
+        )
+        assert result.verdict == "pass"
+        assert result.detail["power"]["entities_reachable"] == 1
+
+
+class TestG1FlaggedNeverDowngraded:
+    """FIX 2: a real flagged rate (flagged > 0) is evidence, not arithmetic
+    — an unreachable band must never suppress it, and current_value must
+    never grow a zero-rate sentence when the rate isn't zero."""
+
+    def test_flagged_greater_than_zero_stays_pass_and_prints_no_zero_rate_sentence(self):
+        # 4 monitor + 212 no_action = 1.9%, a would-be pass, but every
+        # entity's baseline count leaves the 0.03 band unreachable.
+        actions = ["monitor"] * 4 + ["no_action"] * 212
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"seminary": actions},
+            entity_baseline_counts={"s1": 12},
+            band_threshold=0.03,
+        )
+        assert result.verdict == "pass"
+        assert result.passed is True
+        assert "UNINFORMATIVE" not in result.current_value
+        rendered = render([result])
+        assert "Observed 0-rate" not in rendered
+        assert "n/a" not in rendered
+
+    def test_render_prints_the_rule_of_three_bound_when_flagged_is_zero(self):
+        """Sanity companion: when flagged really is zero, the sentence DOES
+        print, and the FIX 2 None-guard removal doesn't crash — this is
+        never "n/a" because flagged == 0 guarantees rule_of_three_upper(n)
+        is computed."""
+        actions = ["no_action"] * 216
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"seminary": actions},
+            entity_baseline_counts={"s1": 12},
+            band_threshold=0.03,
+        )
+        rendered = render([result])
+        assert "Observed 0-rate bounds FPR only above" in rendered
+        assert "n/a" not in rendered
+
+
+class TestG1DisagreeingMechanismsInvariant:
+    """FIX 3(b): entity_baseline_counts (any-reachable, i.e. MAX over
+    entities) and typicality_ns (binding, i.e. MIN over folds) estimate the
+    same reachability question from different data and CAN disagree. A
+    "pass" verdict must never coexist with an "UNINFORMATIVE" annotation in
+    current_value regardless of which mechanism is the one objecting."""
+
+    def test_entity_counts_reachable_but_typicality_ns_unreachable_stays_uninformative(self):
+        actions = ["no_action"] * 100
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"synthetic": actions},
+            typicality_ns=[12] * 100,  # worst fold unreachable
+            entity_baseline_counts={"s1": 40},  # would be reachable alone
+            band_threshold=0.03,
+        )
+        assert result.verdict == "uninformative"
+        assert result.passed is False
+        assert "UNINFORMATIVE" in result.current_value
+
+    def test_pass_verdict_never_carries_an_uninformative_annotation(self):
+        """Property check across a handful of scenarios: whenever the
+        verdict comes back "pass", current_value must be clean."""
+        scenarios = [
+            # (typicality_ns, entity_baseline_counts, band_threshold)
+            (None, None, None),
+            ([60] * 100, None, None),
+            (None, {"s1": 40}, 0.03),
+            ([60] * 100, {"s1": 40}, 0.03),
+        ]
+        actions = ["no_action"] * 100
+        for typicality_ns, entity_baseline_counts, band_threshold in scenarios:
+            result = evaluate_g1_fpr(
+                actions,
+                per_corpus={"synthetic": actions},
+                typicality_ns=typicality_ns,
+                entity_baseline_counts=entity_baseline_counts,
+                band_threshold=band_threshold,
+            )
+            if result.verdict == "pass":
+                assert "UNINFORMATIVE" not in result.current_value
+
+
+class TestG1DegenerateEntityCounts:
+    """FIX 5: a non-positive per-entity baseline count must never crash the
+    gate — band_reachable/conformal_p_floor are undefined below n=1 and
+    raise ValueError, so a degenerate count is treated as unreachable
+    directly instead."""
+
+    def test_zero_count_entity_does_not_crash_and_is_unreachable(self):
+        actions = ["no_action"] * 100
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"synthetic": actions},
+            entity_baseline_counts={"s1": 0, "s2": 40},
+            band_threshold=0.03,
+        )
+        # s2 (40) is reachable, so the pass survives — but the zero-count
+        # entity must not have crashed the evaluation to get here.
+        assert result.verdict == "pass"
+        assert result.detail["power"]["entities_total"] == 2
+        assert result.detail["power"]["entities_reachable"] == 1
+
+    def test_all_non_positive_counts_do_not_crash_render(self):
+        actions = ["no_action"] * 100
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"synthetic": actions},
+            entity_baseline_counts={"s1": 0, "s2": -1},
+            band_threshold=0.03,
+        )
+        assert result.verdict == "uninformative"
+        assert result.detail["power"]["max_entity_n"] == 0
+        assert result.detail["power"]["min_conformal_p_at_max_n"] is None
+        rendered = render([result])  # must not raise
+        assert "n/a" in rendered
+
+
+class TestGateResultConsistencyValidation:
+    """FIX 6: passed and verdict must always agree — closes the drift class
+    that let `passed=False, verdict="pass"` and `passed=True,
+    verdict="fail"` both through (only the uninformative/passed=True
+    combination was rejected before)."""
+
+    def test_passed_false_with_pass_verdict_is_rejected(self):
+        with pytest.raises(ValueError):
+            GateResult(
+                name="X", passed=False, criterion="c", current_value="v", verdict="pass"
+            )
+
+    def test_passed_true_with_fail_verdict_is_rejected(self):
+        with pytest.raises(ValueError):
+            GateResult(
+                name="X", passed=True, criterion="c", current_value="v", verdict="fail"
+            )
+
+    def test_passed_true_with_uninformative_verdict_is_still_rejected(self):
+        """Regression: the narrower pre-existing check this replaces must
+        still catch its original case."""
+        with pytest.raises(ValueError):
+            GateResult(
+                name="X",
+                passed=True,
+                criterion="c",
+                current_value="v",
+                verdict="uninformative",
+            )
+
+
+class TestMainExitCodes:
+    """main()'s exit-code contract (FIX 4): a fail gate always exits 1; an
+    uninformative gate exits 0 by default and 1 with --strict (a deliberate
+    lenient default); all-pass exits 0 either way. render()/main() were
+    previously untested, which is how FIX 2 and FIX 4's bugs shipped."""
+
+    @staticmethod
+    def _pass(name="G_ok"):
+        return GateResult(name=name, passed=True, criterion="c", current_value="v")
+
+    @staticmethod
+    def _fail(name="G_fail"):
+        return GateResult(name=name, passed=False, criterion="c", current_value="v")
+
+    @staticmethod
+    def _uninformative(name="G_uninf"):
+        return GateResult(
+            name=name,
+            passed=False,
+            criterion="c",
+            current_value="v",
+            verdict="uninformative",
+        )
+
+    def test_fail_gate_exits_1_in_both_modes(self, monkeypatch):
+        monkeypatch.setattr(
+            calibration_gate, "run_all", lambda: [self._pass(), self._fail()]
+        )
+        assert calibration_gate.main([]) == 1
+        assert calibration_gate.main(["--strict"]) == 1
+
+    def test_uninformative_gate_exits_0_by_default_and_1_with_strict(self, monkeypatch):
+        monkeypatch.setattr(
+            calibration_gate, "run_all", lambda: [self._pass(), self._uninformative()]
+        )
+        assert calibration_gate.main([]) == 0
+        assert calibration_gate.main(["--strict"]) == 1
+
+    def test_all_pass_exits_0_in_both_modes(self, monkeypatch):
+        monkeypatch.setattr(
+            calibration_gate,
+            "run_all",
+            lambda: [self._pass("G1"), self._pass("G2")],
+        )
+        assert calibration_gate.main([]) == 0
+        assert calibration_gate.main(["--strict"]) == 0
+
+    def test_uninformative_summary_line_names_the_right_gates(self, monkeypatch, capsys):
+        monkeypatch.setattr(
+            calibration_gate,
+            "run_all",
+            lambda: [
+                self._pass("G3"),
+                self._uninformative("G1"),
+                self._uninformative("G6"),
+            ],
+        )
+        calibration_gate.main([])
+        out = capsys.readouterr().out
+        assert "2 gate(s) UNINFORMATIVE (G1, G6)" in out
+        assert "re-run with --strict" in out
+
+    def test_uninformative_summary_line_prints_in_strict_mode_too(self, monkeypatch, capsys):
+        """FIX 4: the summary must never be silent in EITHER mode — a
+        --strict run that fails for other reasons must still name which
+        gates were uninformative."""
+        monkeypatch.setattr(
+            calibration_gate, "run_all", lambda: [self._uninformative("G6")]
+        )
+        calibration_gate.main(["--strict"])
+        out = capsys.readouterr().out
+        assert "1 gate(s) UNINFORMATIVE (G6)" in out
+
+    def test_no_summary_line_when_nothing_is_uninformative(self, monkeypatch, capsys):
+        monkeypatch.setattr(
+            calibration_gate, "run_all", lambda: [self._pass(), self._fail()]
+        )
+        calibration_gate.main([])
+        out = capsys.readouterr().out
+        assert "gate(s) UNINFORMATIVE" not in out
