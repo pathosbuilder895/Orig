@@ -1541,11 +1541,18 @@ class TestVerificationPool:
 
 
 class TestAttributionPool:
-    def test_stricter_floor_than_verification(self):
-        # 400 words passes verification but NOT attribution
-        assert check_verification_pool({"d": 400}) == []
-        kinds = [v.kind for v in check_attribution_pool({"d": 400}, {"a": 3})]
+    def test_floor_matches_the_corpus_chunker(self):
+        # Floors are equal today by measured decision (2026-07-31): a stricter
+        # attribution floor drops kempis, whose baseline chunks are 393-499
+        # words. The constants stay separate so this can diverge later.
+        assert check_attribution_pool({"d": 300}, {"a": 3}) == []
+        kinds = [v.kind for v in check_attribution_pool({"d": 299}, {"a": 3})]
         assert kinds == ["short_document"]
+
+    def test_floor_is_caller_controlled(self):
+        # A caller can still demand a stricter floor than the default.
+        violations = check_attribution_pool({"d": 400}, {"a": 3}, min_words=500)
+        assert [v.kind for v in violations] == ["short_document"]
 
     def test_thin_baseline_flagged(self):
         violations = check_attribution_pool({"d": 900}, {"kempis": 2, "mill": 5})
@@ -1636,7 +1643,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 VERIFICATION_MIN_WORDS = 300  # matches the public_authors chunker floor
-ATTRIBUTION_MIN_WORDS = 500   # stricter; open decision #2 in the design spec
+# Equal to the verification floor today, by measured decision (2026-07-31,
+# design-spec open decision #2). The draft proposed 500, but against the real
+# manifest that drops kempis entirely — all three of its baseline chunks are
+# 393-499 words, i.e. exactly the author the TOC-bug fix repaired. The two
+# constants stay separate so attribution can be raised independently once the
+# corpus carries longer chunks.
+ATTRIBUTION_MIN_WORDS = 300
 ATTRIBUTION_MIN_BASELINE_DOCS = 3
 
 
@@ -1773,9 +1786,13 @@ Add to `CorpusEntry`:
 - [ ] **Step 5: Enforce in `validation/public_authors/run.py`**
 
 In `run()`, after the manifest is loaded and `by_author` is built (anchor:
-the loop over `manifest["entries"]`), compute the pools and refuse thin
-baselines; short scored essays are dropped to verification-only with a loud
-line, not scored for attribution:
+the loop over `manifest["entries"]`), compute the pools and **exclude**
+policy-failing authors from the candidate pool. Do **not** abort the run:
+`run()` already has an eligibility mechanism that records `skipped_authors`
+with a reason, and thin-baseline exclusion belongs there. Aborting would
+refuse the whole benchmark over authors that are simply unusable as
+candidates — measured against the real manifest, douglass and thoreau have
+only 1 baseline document each.
 
 ```python
     from validation.corpus_policy import check_attribution_pool
@@ -1785,18 +1802,22 @@ line, not scored for attribution:
     violations = check_attribution_pool(word_counts, baseline_counts)
     for v in violations:
         print(f"  ⚠ corpus policy: {v.kind} — {v.subject}: {v.detail}", file=sys.stderr)
+
+    # Thin-baseline authors leave the CANDIDATE pool — never attribute against
+    # a stub profile — but the run continues on whoever remains.
     thin = {v.subject for v in violations if v.kind == "thin_baseline"}
-    if thin:
-        raise SystemExit(
-            f"attribution refused: authors with thin baselines {sorted(thin)} "
-            "(fix the corpus; do not attribute against stub profiles)"
-        )
+    for author in sorted(thin):
+        skipped_authors.append((author, "thin baseline: < 3 baseline documents"))
+    # Short documents are verification-only: drop them from the SCORED pool.
     short_docs = {v.subject for v in violations if v.kind == "short_document"}
-    # drop short docs from the scored pool (verification-only policy)
 ```
 
-(Adapt dict-key names — `by_author[a]["baseline"]` / `["scored"]` — to the
-actual structure in `run()`; record dropped docs in the summary dict.)
+(Adapt names — `by_author[a]["baseline"]` / `["scored"]`, `skipped_authors`,
+and the `eligible` set — to the actual structure in `run()`.) Record in the
+summary: the excluded authors with reasons, the dropped short documents, and
+the final candidate-pool size. Attribution accuracy over a pool narrowed by
+policy is a different measurement from accuracy over the full manifest, so
+the narrowing must be visible in the report, not just on stderr.
 
 - [ ] **Step 5b: Wire the balance check into `scripts/derive_measured_weights.py`**
 
