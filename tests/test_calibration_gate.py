@@ -12,6 +12,7 @@ from validation.calibration_gate import (
     GateResult,
     evaluate_g1_fpr,
     evaluate_g2_bland_impostor,
+    evaluate_g5_permutation_null,
 )
 
 
@@ -52,4 +53,24 @@ class TestG2BlandImpostor:
         holdout_q = [0.5, 0.45, 0.5, 0.48]
         impostor_q = [0.9, 0.85, 0.88]
         result = evaluate_g2_bland_impostor(holdout_q, impostor_q)
+        assert result.passed is False
+
+
+class TestG5PermutationNull:
+    def test_passes_when_shuffled_labels_collapse_to_chance(self):
+        result = evaluate_g5_permutation_null(
+            shuffled_g1_flagged_rate=0.48,  # nowhere near <=5% -> good, it's noise
+            shuffled_g3_accuracy=0.12,      # near 1/n_authors, not 0.7+ -> good
+            shuffled_g4_monotone=False,     # no real signal -> good
+        )
+        assert result.passed is True
+
+    def test_fails_when_shuffled_labels_still_pass_the_real_gates(self):
+        """If G1/G3/G4 still look good on shuffled labels, the pipeline is
+        measuring the selection procedure, not authorship signal."""
+        result = evaluate_g5_permutation_null(
+            shuffled_g1_flagged_rate=0.03,  # suspiciously still <=5% on noise
+            shuffled_g3_accuracy=0.75,      # suspiciously still high on noise
+            shuffled_g4_monotone=True,
+        )
         assert result.passed is False
