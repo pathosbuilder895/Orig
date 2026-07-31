@@ -62,6 +62,25 @@ This revision fixes all of the above:
      every drop; the default `--length` is chosen so every derivation-side
      author in the current three corpora clears that floor.
 
+A closing review of this revision flagged two more issues, fixed here:
+  - Tiers 9 and 10 each have only 2 member codes today, and one of each
+    pair is a comparison-shaped feature that's constant through this
+    pipeline (see (1) above) — so both tiers routinely end up with exactly
+    ONE surviving measured feature. A "median" of one value is a single-
+    feature bet, not tier-level agreement; `compute_tier_weights_from_matrices`
+    now exposes `tier_feature_counts` / `single_survivor_tiers` in its
+    diagnostics, and `print_tier_weights_diff` annotates any such tier
+    inline (e.g. "single surviving feature: semantic_field_dispersion —
+    weak evidence") so it can't be mistaken for the same strength of
+    evidence as a tier where several features agree.
+  - `compute_tier_weights_from_matrices` printed ~26 exclusion lines to
+    stderr on every call — fine for a one-shot CLI run, noisy for a
+    library caller invoking it many times (Task 13's G5 permutation-null
+    control is expected to re-derive weights once per label shuffle). A
+    `verbose: bool = True` parameter (threaded through `drop_short_authors`
+    and `derive_weights` too) suppresses all of it when set `False`; the
+    CLI keeps the default `True`.
+
 Corpus loading — the three corpora scored by validation/calibration_gate.py's
 G1/G3/G4 gates do NOT share one directory convention, so
 validation.stability.run.load_corpus (which walks
@@ -235,6 +254,7 @@ def floor_within_variance(
 def drop_short_authors(
     matrices: dict[str, np.ndarray],
     min_windows: int = MIN_WINDOWS_PER_AUTHOR,
+    verbose: bool = True,
 ) -> dict[str, np.ndarray]:
     """
     ddof=1 within-author variance is undefined for a single window (and
@@ -242,18 +262,21 @@ def drop_short_authors(
     its own mean) — either way, an author with < min_windows windows drags
     the pooled `within` estimate down and inflates every feature's Fisher
     ratio for that reason alone, not because the corpus supports it. Drop
-    any such author, loudly, rather than let it silently corrupt the
-    denominator.
+    any such author, loudly (unless `verbose=False` — a library caller,
+    e.g. Task 13's G5 permutation-null control running this pipeline many
+    times over shuffled labels, doesn't want a warning per shuffle), rather
+    than let it silently corrupt the denominator.
     """
     kept: dict[str, np.ndarray] = {}
     for author, m in matrices.items():
         if m.shape[0] < min_windows:
-            print(
-                f"[derive-weights] WARNING: dropping author {author!r} — only "
-                f"{m.shape[0]} window(s) at this length (need >= {min_windows} "
-                f"for a defined within-author variance)",
-                file=sys.stderr,
-            )
+            if verbose:
+                print(
+                    f"[derive-weights] WARNING: dropping author {author!r} — only "
+                    f"{m.shape[0]} window(s) at this length (need >= {min_windows} "
+                    f"for a defined within-author variance)",
+                    file=sys.stderr,
+                )
             continue
         kept[author] = m
     return kept
@@ -273,6 +296,7 @@ def median_per_tier(per_tier_values: dict[int, list[float]]) -> dict[int, float]
 def compute_tier_weights_from_matrices(
     matrices: dict[str, np.ndarray],
     floor_percentile: float = DEFAULT_FLOOR_PERCENTILE,
+    verbose: bool = True,
 ) -> tuple[dict[int, float], dict]:
     """
     Pure (no I/O) core: {author_id: (n_windows, FEATURE_DIM)} matrices in,
@@ -295,10 +319,21 @@ def compute_tier_weights_from_matrices(
         "dropped_authors": [author, ...],
         "excluded_features": {code: reason},
         "kept_tiers": [tier, ...],
+        "tier_feature_counts": {tier: n_surviving_features} (measured tiers only),
+        "single_survivor_tiers": {tier: the_one_surviving_feature_code}
+            (measured tiers with exactly 1 surviving feature — a median of
+            one value is a single-feature bet, not tier-level agreement;
+            print_tier_weights_diff annotates these as weak evidence).
     }
+
+    `verbose=False` suppresses every print this function (and the
+    `drop_short_authors` call inside it) would otherwise emit to stderr —
+    for a library caller that runs this many times (e.g. G5's permutation-
+    null control re-deriving weights per shuffle), the CLI keeps the
+    default `True`.
     """
     window_counts_all = {a: int(m.shape[0]) for a, m in matrices.items()}
-    usable = drop_short_authors(matrices, min_windows=MIN_WINDOWS_PER_AUTHOR)
+    usable = drop_short_authors(matrices, min_windows=MIN_WINDOWS_PER_AUTHOR, verbose=verbose)
     dropped_authors = sorted(set(matrices) - set(usable))
 
     if len(usable) < 2:
@@ -324,12 +359,13 @@ def compute_tier_weights_from_matrices(
         code = ALL_FEATURE_CODES[idx]
         excluded_reasons.setdefault(code, "zero variance across the derivation matrix")
 
-    for code in sorted(excluded_reasons):
-        print(
-            f"[derive-weights] excluding feature {code!r} from Fisher computation: "
-            f"{excluded_reasons[code]}",
-            file=sys.stderr,
-        )
+    if verbose:
+        for code in sorted(excluded_reasons):
+            print(
+                f"[derive-weights] excluding feature {code!r} from Fisher computation: "
+                f"{excluded_reasons[code]}",
+                file=sys.stderr,
+            )
 
     per_author_var = {a: m.var(axis=0, ddof=1) for a, m in usable.items()}
     within_raw = np.mean(list(per_author_var.values()), axis=0)
@@ -340,15 +376,24 @@ def compute_tier_weights_from_matrices(
     per_feature_fisher = between / (within + 1e-9)
 
     per_tier_values: dict[int, list[float]] = {}
+    per_tier_codes: dict[int, list[str]] = {}
     for code, f in zip(ALL_FEATURE_CODES, per_feature_fisher, strict=False):
         if code in excluded_reasons:
             continue
         tier = FEATURE_TIER[code]
         per_tier_values.setdefault(tier, []).append(float(f))
+        per_tier_codes.setdefault(tier, []).append(code)
 
     per_tier_median = median_per_tier(per_tier_values)
     measured_tiers = set(per_tier_median)
     kept_tiers = {t: w for t, w in TIER_WEIGHTS.items() if t not in measured_tiers}
+
+    tier_feature_counts = {t: len(v) for t, v in per_tier_values.items() if t in measured_tiers}
+    single_survivor_tiers = {
+        t: codes[0]
+        for t, codes in per_tier_codes.items()
+        if t in measured_tiers and len(codes) == 1
+    }
 
     # Sigma w^2-preserving normalization over the MEASURED subset only.
     current_sq_sum = sum(TIER_WEIGHTS[t] ** 2 for t in measured_tiers if t in TIER_WEIGHTS)
@@ -364,13 +409,22 @@ def compute_tier_weights_from_matrices(
         "dropped_authors": dropped_authors,
         "excluded_features": excluded_reasons,
         "kept_tiers": sorted(kept_tiers),
+        "tier_feature_counts": tier_feature_counts,
+        "single_survivor_tiers": single_survivor_tiers,
     }
-    print(
-        f"[derive-weights] excluded {len(excluded_reasons)}/{len(ALL_FEATURE_CODES)} feature "
-        f"columns from Fisher computation; kept tiers (unmeasurable, current TIER_WEIGHTS "
-        f"retained): {diagnostics['kept_tiers']}",
-        file=sys.stderr,
-    )
+    if verbose:
+        print(
+            f"[derive-weights] excluded {len(excluded_reasons)}/{len(ALL_FEATURE_CODES)} feature "
+            f"columns from Fisher computation; kept tiers (unmeasurable, current TIER_WEIGHTS "
+            f"retained): {diagnostics['kept_tiers']}",
+            file=sys.stderr,
+        )
+        if single_survivor_tiers:
+            print(
+                f"[derive-weights] single-survivor tiers (weak evidence — median of one "
+                f"feature): {single_survivor_tiers}",
+                file=sys.stderr,
+            )
     return weights, diagnostics
 
 
@@ -379,15 +433,18 @@ def derive_weights(
     length: int = DEFAULT_LENGTH,
     max_windows: int = 12,
     floor_percentile: float = DEFAULT_FLOOR_PERCENTILE,
+    verbose: bool = True,
 ) -> tuple[dict[int, float], dict]:
     """
     Compute measured per-tier weights from a (pre-filtered, derivation-side-
     only) author_texts dict. Thin I/O wrapper around
     `compute_tier_weights_from_matrices` — see that function's docstring
-    for the full contract.
+    for the full contract, including `verbose`.
     """
     matrices = compute_feature_matrix(author_texts, length, max_windows=max_windows)
-    return compute_tier_weights_from_matrices(matrices, floor_percentile=floor_percentile)
+    return compute_tier_weights_from_matrices(
+        matrices, floor_percentile=floor_percentile, verbose=verbose
+    )
 
 
 # ── Corpus loading (see module docstring for why each corpus needs its own
@@ -484,6 +541,7 @@ def print_tier_weights_diff(measured: dict[int, float], diagnostics: dict) -> No
     """
     kept_tiers = set(diagnostics.get("kept_tiers", []))
     n_excluded = len(diagnostics.get("excluded_features", {}))
+    single_survivor_tiers = diagnostics.get("single_survivor_tiers", {})
 
     print()
     print("=" * 78)
@@ -516,7 +574,9 @@ def print_tier_weights_diff(measured: dict[int, float], diagnostics: dict) -> No
             print(f"    {tier:>2}: {new:5.2f},   # {label} (kept: not measurable in this pipeline)")
         else:
             delta = "" if current is None else f", was {current:.2f} ({new - current:+.2f})"
-            print(f"    {tier:>2}: {new:5.2f},   # {label}{delta}")
+            survivor = single_survivor_tiers.get(tier)
+            weak = f" (single surviving feature: {survivor} — weak evidence)" if survivor else ""
+            print(f"    {tier:>2}: {new:5.2f},   # {label}{delta}{weak}")
     print("}")
     print()
     print("# NOTE: INFORMATIONAL ONLY — the user has HELD these weights; nothing in")
@@ -570,7 +630,7 @@ def main(argv=None) -> int:
 
     derivation_texts = {a: t for a, t in author_texts.items() if a in derivation_ids}
     weights, diagnostics = derive_weights(
-        derivation_texts, length=args.length, floor_percentile=args.floor_percentile
+        derivation_texts, length=args.length, floor_percentile=args.floor_percentile, verbose=True
     )
 
     # Per-corpus post-windowing report (requirement: visible before the diff).

@@ -35,6 +35,7 @@ from scripts.derive_measured_weights import (
     drop_short_authors,
     floor_within_variance,
     median_per_tier,
+    print_tier_weights_diff,
     split_authors,
     structurally_excluded_codes,
     zero_variance_feature_indices,
@@ -212,3 +213,85 @@ class TestComputeTierWeightsFromMatrices:
         current_sq_sum = sum(TIER_WEIGHTS[t] ** 2 for t in measured_tiers)
         new_sq_sum = sum(weights[t] ** 2 for t in measured_tiers)
         assert new_sq_sum == pytest.approx(current_sq_sum, rel=1e-6)
+
+
+class TestSingleSurvivorAnnotation:
+    """
+    Tiers 9 and 10 each have exactly 2 member codes today, and one of each
+    pair (argument_sequence_likelihood, semantic_centroid_proximity) is a
+    comparison-shaped feature that's constant through this pipeline — so
+    both tiers routinely end up with exactly ONE surviving measured
+    feature. A "median" of one value is a single-feature bet, not tier-
+    level evidence, and must be flagged as such rather than presented
+    identically to a tier with many surviving features agreeing.
+    """
+
+    @staticmethod
+    def _matrices_with_single_survivor_tiers(n_authors=4, n_windows=6, seed=0):
+        rng = np.random.default_rng(seed)
+        matrices = {}
+        for i in range(n_authors):
+            mean = rng.uniform(0.3, 0.7, size=FEATURE_DIM)
+            matrices[f"author_{i}"] = mean + rng.normal(0, 0.05, size=(n_windows, FEATURE_DIM))
+        # Force the "comparison-shaped" half of tiers 9 and 10 constant, as
+        # they are for real (see stderr of a real run) — leaving exactly
+        # one surviving feature in each tier.
+        for code in ("argument_sequence_likelihood", "semantic_centroid_proximity"):
+            idx = ALL_FEATURE_CODES.index(code)
+            for m in matrices.values():
+                m[:, idx] = 0.5
+        return matrices
+
+    def test_diagnostics_expose_surviving_feature_counts_per_tier(self):
+        matrices = self._matrices_with_single_survivor_tiers()
+        _, diagnostics = compute_tier_weights_from_matrices(matrices)
+        assert diagnostics["tier_feature_counts"][9] == 1
+        assert diagnostics["tier_feature_counts"][10] == 1
+        # A tier with several surviving features is not flagged as a single-survivor.
+        assert diagnostics["tier_feature_counts"].get(1, 0) > 1
+
+    def test_single_survivor_tiers_are_named_in_diagnostics(self):
+        matrices = self._matrices_with_single_survivor_tiers()
+        _, diagnostics = compute_tier_weights_from_matrices(matrices)
+        assert diagnostics["single_survivor_tiers"][9] == "structural_centrist_penalty"
+        assert diagnostics["single_survivor_tiers"][10] == "semantic_field_dispersion"
+        assert 1 not in diagnostics["single_survivor_tiers"]
+
+    def test_printed_block_annotates_single_survivor_tiers_as_weak_evidence(self, capsys):
+        matrices = self._matrices_with_single_survivor_tiers()
+        weights, diagnostics = compute_tier_weights_from_matrices(matrices)
+        print_tier_weights_diff(weights, diagnostics)
+        captured = capsys.readouterr()
+        assert "single surviving feature: structural_centrist_penalty" in captured.out
+        assert "single surviving feature: semantic_field_dispersion" in captured.out
+        assert "weak evidence" in captured.out
+
+
+class TestVerboseFlag:
+    @staticmethod
+    def _base_matrices(n_authors=4, n_windows=6, seed=0):
+        rng = np.random.default_rng(seed)
+        matrices = {}
+        for i in range(n_authors):
+            mean = rng.uniform(0.3, 0.7, size=FEATURE_DIM)
+            matrices[f"author_{i}"] = mean + rng.normal(0, 0.05, size=(n_windows, FEATURE_DIM))
+        return matrices
+
+    def test_verbose_false_emits_nothing_on_stdout_or_stderr(self, capsys):
+        matrices = self._base_matrices()
+        compute_tier_weights_from_matrices(matrices, verbose=False)
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert captured.err == ""
+
+    def test_verbose_true_default_still_emits_progress(self, capsys):
+        matrices = self._base_matrices()
+        compute_tier_weights_from_matrices(matrices)
+        captured = capsys.readouterr()
+        assert captured.err != ""
+
+    def test_drop_short_authors_verbose_false_is_silent(self, capsys):
+        matrices = {"zero": np.zeros((0, 3)), "enough": np.ones((3, 3))}
+        drop_short_authors(matrices, min_windows=2, verbose=False)
+        captured = capsys.readouterr()
+        assert captured.err == ""
