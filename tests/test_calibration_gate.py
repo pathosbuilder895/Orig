@@ -12,6 +12,7 @@ import pytest
 
 from validation.calibration_gate import (
     GateResult,
+    _compute_g6_fairness_data,
     _conformal_p_floor,
     _g5_machinery_error_result,
     _g6_insufficient_data_result,
@@ -21,6 +22,7 @@ from validation.calibration_gate import (
     _paraphrase_proxy,
     _reachability_block,
     _require_healthy_leg,
+    _score_corpus_for_g1,
     _threshold_reachable,
     _uniformity_features_enabled,
     _uniformity_slice_summary,
@@ -510,3 +512,358 @@ class TestG5MachineryErrors:
         machinery error, not a silently weakened comparison baseline."""
         with pytest.raises(RuntimeError):
             run_g5(real_g1_deviations=[0.4] * 89, real_g1_n_errors=11)
+
+
+# ── Wiring-gap regression tests (review of commit 34d8ceb6) ────────────────────
+#
+# The pure evaluators (evaluate_g1_fpr's reachability annotation,
+# evaluate_g6_fairness's Welch caveat, _g6_unreachable_threshold_result,
+# _g6_short_group_message, _uniformity_slice_summary) were already unit-tested
+# above and confirmed correct. What was NOT tested — and turned out to be
+# unwired — is the orchestration code in validation/calibration_gate.py that
+# is supposed to CALL them with real data. These tests exercise that
+# orchestration with fake HTTP clients so a regression back to "machinery
+# built but never invoked" fails loudly.
+
+
+class _FakeG1Response:
+    """Minimal stand-in for fastapi.testclient.TestClient's response object,
+    scoped to what _score_corpus_for_g1 reads: .status_code and .json()."""
+
+    def __init__(self, status_code=200, payload=None):
+        self.status_code = status_code
+        self._payload = payload or {}
+
+    def json(self):
+        return self._payload
+
+
+class _FakeG1Client:
+    """Minimal stand-in for the scoring client, scoped to what
+    _score_corpus_for_g1 calls: .post(url, json=...) for both the
+    /baseline (fire-and-forget) and /score (response read) endpoints. Every
+    /score call returns the next canned payload in sequence."""
+
+    def __init__(self, score_payloads):
+        self._score_payloads = list(score_payloads)
+        self._score_calls = 0
+
+    def post(self, url, json=None):
+        if url.endswith("/score"):
+            payload = self._score_payloads[self._score_calls]
+            self._score_calls += 1
+            return _FakeG1Response(200, payload)
+        return _FakeG1Response(200, {})
+
+
+class TestScoreCorpusForG1TypicalityWiring:
+    """Gap 1: _score_corpus_for_g1 posts to /score and reads
+    payload["authorship"]["deviation_score"] but, before this fix, never read
+    the top-level payload["typicality_n"] — so evaluate_g1_fpr's reachability
+    annotation (already correct) never received real data from run_all()."""
+
+    def _five_fold_payloads(self, typicality_n=4):
+        return [
+            {
+                "recommendation": {"action": "no_action"},
+                "authorship": {"deviation_score": 0.1 * (i + 1)},
+                "typicality_n": typicality_n,
+            }
+            for i in range(5)
+        ]
+
+    def test_returns_five_tuple_with_pooled_typicality_ns(self):
+        client = _FakeG1Client(self._five_fold_payloads(typicality_n=4))
+        texts_by_id = {"author_a": ["t0", "t1", "t2", "t3", "t4"]}
+
+        result = _score_corpus_for_g1(client, "g1test", texts_by_id)
+
+        assert len(result) == 5
+        pooled, per_corpus, deviations, n_errors, typicality_ns = result
+        assert pooled == ["no_action"] * 5
+        assert per_corpus == {"author_a": ["no_action"] * 5}
+        assert n_errors == 0
+        assert typicality_ns == [4, 4, 4, 4, 4]
+        # Index-aligned with pooled_actions/pooled_deviations, per the
+        # docstring's contract.
+        assert len(typicality_ns) == len(pooled) == len(deviations)
+
+    def test_typicality_ns_omitted_for_entities_below_the_five_text_minimum(self):
+        client = _FakeG1Client(self._five_fold_payloads(typicality_n=4))
+        # Only 4 texts -- below the >= 5 LOO minimum, so no folds are scored
+        # and nothing is appended for this entity.
+        texts_by_id = {"author_b": ["t0", "t1", "t2", "t3"]}
+
+        pooled, per_corpus, deviations, n_errors, typicality_ns = _score_corpus_for_g1(
+            client, "g1test", texts_by_id
+        )
+
+        assert pooled == []
+        assert typicality_ns == []
+
+
+class TestRunAllG1Wiring:
+    """run_all() must unpack _score_corpus_for_g1's new 5-tuple and forward
+    the collected typicality_ns into evaluate_g1_fpr — the whole point of
+    Gap 1. run_all() itself is too heavy for a fast unit test (it stands up
+    the real FastAPI app and scores the full seminary+public_authors+Plato
+    corpus), so this pins the wiring at the one seam that matters: calling
+    evaluate_g1_fpr with a keyword argument evaluate_g1_fpr already knows how
+    to use is what makes the reachability annotation fire in production."""
+
+    def test_evaluate_g1_fpr_reachability_fires_with_real_typicality_ns(self):
+        """Regression pin at the evaluator boundary: when run_all() forwards
+        genuine typicality_ns (as opposed to the omitted-argument default),
+        an unreachable-threshold corpus must annotate current_value -- this
+        is the exact mechanism Gap 1's fix makes reachable from run_all()."""
+        from original.quantum.typicality import NO_ACTION_FAR_THRESHOLD
+
+        pooled_actions = ["no_action"] * 10
+        per_corpus = {"synthetic": pooled_actions}
+        # n=1 is far below what NO_ACTION_FAR_THRESHOLD needs -- unreachable.
+        typicality_ns = [1] * 10
+
+        without_ns = evaluate_g1_fpr(pooled_actions, per_corpus)
+        with_ns = evaluate_g1_fpr(pooled_actions, per_corpus, typicality_ns=typicality_ns)
+
+        assert "UNINFORMATIVE" not in without_ns.current_value
+        assert "UNINFORMATIVE" in with_ns.current_value
+        assert with_ns.detail["reachability"]["observed"] is True
+        assert with_ns.detail["reachability"]["reachable"] is False
+        assert NO_ACTION_FAR_THRESHOLD  # sanity: the threshold this hinges on exists
+
+
+class _FakeG6Response:
+    """Minimal stand-in for the scoring client's response object, scoped to
+    what _compute_g6_fairness_data reads."""
+
+    def __init__(self, status_code=200, payload=None):
+        self.status_code = status_code
+        self._payload = payload or {}
+
+    def json(self):
+        return self._payload
+
+
+class _FakeG6Client:
+    """Minimal stand-in for the scoring client, scoped to what
+    _compute_g6_fairness_data calls. /score calls are routed by the
+    submission_id's filename suffix (submission_id is always
+    f"g6_{held_out['filename']}") to a canned payload; /baseline calls are
+    fire-and-forget."""
+
+    def __init__(self, payload_by_filename):
+        self._payload_by_filename = payload_by_filename
+
+    def post(self, url, json=None):
+        if url.endswith("/score"):
+            filename = json["submission_id"][len("g6_") :]
+            return _FakeG6Response(200, self._payload_by_filename[filename])
+        return _FakeG6Response(200, {})
+
+
+def _g6_payload(*, p_central, typicality_n=4, deviation_score=0.5, action="no_action"):
+    from original.constants import FEATURE_DIM
+
+    return {
+        "typicality_p_central": p_central,
+        "typicality_n": typicality_n,
+        "authorship": {"deviation_score": deviation_score, "authorship_probability": 0.5},
+        "recommendation": {"action": action},
+        "feature_vector": [0.5] * FEATURE_DIM,
+    }
+
+
+def _write_g6_fixture(tmp_path, entries_by_group):
+    """Writes a tmp validation/manifest.json + validation/corpus/*.txt tree
+    shaped like the real one, for one author per group. `entries_by_group`
+    is {native_english_bool: [filename, ...]}; every filename gets a trivial
+    corpus file and a manifest entry under a single per-group author_id."""
+    import json as _json
+
+    corpus_dir = tmp_path / "validation" / "corpus"
+    corpus_dir.mkdir(parents=True)
+    entries = []
+    for native_english, filenames in entries_by_group.items():
+        author_id = f"author_{'native' if native_english else 'nonnative'}"
+        for filename in filenames:
+            (corpus_dir / filename).write_text(f"Sample text for {filename}.\n" * 20)
+            entries.append(
+                {
+                    "author_id": author_id,
+                    "filename": filename,
+                    "label": "authentic",
+                    "native_english": native_english,
+                    "word_count": 100,
+                }
+            )
+    manifest_path = tmp_path / "validation" / "manifest.json"
+    manifest_path.write_text(_json.dumps({"entries": entries}))
+    return tmp_path
+
+
+class TestComputeG6FairnessDataWiring:
+    """Gap 2/3/4: _compute_g6_fairness_data computes p_central per fold but,
+    before this fix, never read typicality_n (so the already-correct
+    _threshold_reachable/_g6_unreachable_threshold_result were dead code),
+    hand-rolled a short-group message that misattributes counts when BOTH
+    groups are short (_g6_short_group_message already existed and was
+    correct), and never wired the Welch caveat or _uniformity_slice_summary
+    into the result. These integration tests drive the real function with a
+    fake HTTP client and a temp manifest/corpus tree."""
+
+    def test_returns_unreachable_skip_instead_of_a_vacuous_zero_ratio(self, tmp_path, monkeypatch):
+        """CRITICAL: this is the literal vacuous-pass bug's production path.
+        5 folds per group, every fold typicality_n=4 (the LOO-of-5 case the
+        design spec warns about) -- the 0.02 flag threshold cannot be
+        crossed by construction, so both group flagged rates come out 0%.
+        Before Gap 2's fix this reached evaluate_g6_fairness's "both zero ->
+        UNDEFINED" fail, which is at least not a silent pass but is the
+        wrong diagnosis: the real problem is a structurally unreachable
+        threshold, not "no fairness demonstrated by this data". After the
+        fix it must short-circuit to the louder, more specific skip."""
+        import validation.calibration_gate as cg
+
+        native_files = [f"native_{i}.txt" for i in range(5)]
+        non_native_files = [f"nonnative_{i}.txt" for i in range(5)]
+        _write_g6_fixture(tmp_path, {True: native_files, False: non_native_files})
+        monkeypatch.setattr(cg, "_ROOT", tmp_path)
+
+        payload_by_filename = {
+            f: _g6_payload(p_central=0.5, typicality_n=4)
+            for f in native_files + non_native_files
+        }
+        client = _FakeG6Client(payload_by_filename)
+
+        result = cg._compute_g6_fairness_data(client)
+
+        assert result.passed is False
+        assert result.current_value.startswith("SKIPPED (threshold unreachable):")
+        assert result.detail["min_typicality_n"] == 4
+        assert result.detail["n_native_scored"] == 5
+        assert result.detail["n_non_native_scored"] == 5
+
+    def test_short_group_message_names_both_groups_when_both_are_short(
+        self, tmp_path, monkeypatch
+    ):
+        """Gap 3: native gets 3 folds (1 skipped -> n_native=2), non_native
+        gets 3 folds (2 skipped -> n_non_native=1). Both counts are below
+        _G6_MIN_PER_GROUP=5 and DIFFERENT -- the old hand-rolled message
+        named only one group and mislabeled its count as min(2, 1)=1 under
+        native_english=true. The fix must name both groups with their own
+        correct counts (matching the already-correct
+        _g6_short_group_message)."""
+        import validation.calibration_gate as cg
+
+        native_files = ["native_0.txt", "native_1.txt", "native_2.txt"]
+        non_native_files = ["nonnative_0.txt", "nonnative_1.txt", "nonnative_2.txt"]
+        _write_g6_fixture(tmp_path, {True: native_files, False: non_native_files})
+        monkeypatch.setattr(cg, "_ROOT", tmp_path)
+
+        payload_by_filename = {
+            "native_0.txt": _g6_payload(p_central=0.5),
+            "native_1.txt": _g6_payload(p_central=0.5),
+            "native_2.txt": _g6_payload(p_central=None),  # skipped
+            "nonnative_0.txt": _g6_payload(p_central=0.5),
+            "nonnative_1.txt": _g6_payload(p_central=None),  # skipped
+            "nonnative_2.txt": _g6_payload(p_central=None),  # skipped
+        }
+        client = _FakeG6Client(payload_by_filename)
+
+        result = cg._compute_g6_fairness_data(client)
+
+        assert result.passed is False
+        assert result.current_value.startswith("SKIPPED (insufficient data):")
+        assert result.detail["n_native_scored"] == 2
+        assert result.detail["n_non_native_scored"] == 1
+        missing = result.detail["missing"]
+        assert "native_english=true group has 2 scored authentic entries" in missing
+        assert "native_english=false group has 1 scored authentic entry" in missing
+
+    def test_wires_welch_caveat_and_uniformity_slice_into_a_reachable_result(
+        self, tmp_path, monkeypatch
+    ):
+        """Gap 4a/4b: on a leg that clears both the short-group and
+        reachability guards, the final evaluate_g6_fairness call must
+        receive the already-computed Welch effect magnitude/d (so a
+        medium/large effect surfaces as a caveat) and the informational
+        dict must carry _uniformity_slice_summary's output under
+        "uniformity_slice" (so the spec's per-group Tier-18 comparison is
+        actually recorded, not just computed and discarded)."""
+        import validation.calibration_gate as cg
+
+        native_files = [f"native_{i}.txt" for i in range(5)]
+        non_native_files = [f"nonnative_{i}.txt" for i in range(5)]
+        _write_g6_fixture(tmp_path, {True: native_files, False: non_native_files})
+        monkeypatch.setattr(cg, "_ROOT", tmp_path)
+
+        # typicality_n=60 clears the n>=49 reachability floor for the 0.02
+        # threshold (see TestG6Fairness.test_unreachable_threshold_...).
+        payload_by_filename = {}
+        for i, f in enumerate(native_files):
+            flagged = i == 0  # 1/5 flagged
+            payload_by_filename[f] = _g6_payload(
+                p_central=0.01 if flagged else 0.5, typicality_n=60
+            )
+        for i, f in enumerate(non_native_files):
+            flagged = i < 2  # 2/5 flagged -- within the 2x band of 1/5
+            payload_by_filename[f] = _g6_payload(
+                p_central=0.01 if flagged else 0.5, typicality_n=60
+            )
+        client = _FakeG6Client(payload_by_filename)
+
+        result = cg._compute_g6_fairness_data(client)
+
+        assert not result.current_value.startswith("SKIPPED")
+        assert result.detail["welch_effect_magnitude"] is not None
+        assert "uniformity_slice" in result.detail
+        uniformity = result.detail["uniformity_slice"]
+        assert uniformity["gated"] is False
+        assert uniformity["n_native"] == 5
+        assert uniformity["n_non_native"] == 5
+
+
+class TestG6ReachabilityPrecheck:
+    """Direct unit coverage of the pure helper extracted from
+    _compute_g6_fairness_data (Gap 2) specifically so the reachability
+    short-circuit can be pinned without a live scoring client, independent
+    of the fuller integration tests above."""
+
+    def test_returns_skip_when_binding_n_cannot_reach_the_threshold(self):
+        from validation.calibration_gate import _g6_reachability_precheck
+
+        results_by_group = {
+            True: [{"typicality_n": 4}, {"typicality_n": 4}],
+            False: [{"typicality_n": 4}, {"typicality_n": 60}],
+        }
+        result = _g6_reachability_precheck(
+            results_by_group, 0.02, n_native_scored=2, n_non_native_scored=2
+        )
+        assert result is not None
+        assert result.current_value.startswith("SKIPPED (threshold unreachable):")
+        # Binding n is the SMALLEST across both groups.
+        assert result.detail["min_typicality_n"] == 4
+
+    def test_returns_none_when_the_binding_n_reaches_the_threshold(self):
+        from validation.calibration_gate import _g6_reachability_precheck
+
+        results_by_group = {
+            True: [{"typicality_n": 60}, {"typicality_n": 60}],
+            False: [{"typicality_n": 60}, {"typicality_n": 60}],
+        }
+        result = _g6_reachability_precheck(
+            results_by_group, 0.02, n_native_scored=2, n_non_native_scored=2
+        )
+        assert result is None
+
+    def test_returns_none_when_no_fold_reports_a_typicality_n(self):
+        """Zero typicality_n means the action came from the deviation path,
+        not the conformal band -- the floor doesn't apply (mirrors
+        _reachability_block's "observed=False" convention)."""
+        from validation.calibration_gate import _g6_reachability_precheck
+
+        results_by_group = {True: [{"typicality_n": 0}], False: [{"typicality_n": 0}]}
+        result = _g6_reachability_precheck(
+            results_by_group, 0.02, n_native_scored=1, n_non_native_scored=1
+        )
+        assert result is None

@@ -607,6 +607,47 @@ def _g6_unreachable_threshold_result(
     )
 
 
+def _g6_reachability_precheck(
+    results_by_group: dict[bool, list[dict]],
+    threshold: float,
+    *,
+    n_native_scored: int,
+    n_non_native_scored: int,
+) -> "GateResult | None":
+    """
+    Pure reachability pre-check, extracted from _compute_g6_fairness_data so
+    it can be unit-tested without a live scoring client (see
+    tests/test_calibration_gate.py::TestG6ReachabilityPrecheck).
+
+    Given the already-scored entries for both groups (each dict must carry a
+    "typicality_n" key), returns the loud "threshold unreachable" skip
+    (_g6_unreachable_threshold_result) when the smallest observed
+    typicality_n across BOTH groups cannot reach `threshold` at all — this is
+    the vacuous-pass guard _g6_unreachable_threshold_result's own docstring
+    describes (5 essays/author LOO gives typicality_n=4 everywhere, whose
+    p_central support cannot cross the 0.02 flag threshold, so both groups'
+    0% flagged rate is structural, not evidence of fairness).
+
+    Returns None when the threshold is reachable, or when no fold reports a
+    typicality_n at all (the action came from the deviation path, not the
+    conformal band, so the floor doesn't apply — mirrors
+    _reachability_block's "observed=False" convention) — either way, the
+    caller should proceed to compute the real per-group flagged rates.
+    """
+    all_scored = results_by_group[True] + results_by_group[False]
+    min_typicality_n = min(
+        (x["typicality_n"] for x in all_scored if x["typicality_n"]), default=0
+    )
+    if min_typicality_n and not _threshold_reachable(min_typicality_n, threshold):
+        return _g6_unreachable_threshold_result(
+            observed_n=min_typicality_n,
+            threshold=threshold,
+            n_native_scored=n_native_scored,
+            n_non_native_scored=n_non_native_scored,
+        )
+    return None
+
+
 def _g6_short_group_message(n_native: int, n_non_native: int, minimum: int) -> str:
     """
     Insufficient-data message that names EVERY short group (the first cut
@@ -683,7 +724,7 @@ def _uniformity_slice_summary(per_group_features: dict[bool, list[dict[str, floa
 
 def _score_corpus_for_g1(
     client, sid_prefix: str, texts_by_id: dict[str, list[str]]
-) -> tuple[list[str], dict[str, list[str]], list[float], int]:
+) -> tuple[list[str], dict[str, list[str]], list[float], int, list[int]]:
     """
     For each id in texts_by_id with >= 5 texts: build a baseline from all
     but one text (leave-one-out over WHOLE documents, not chunks), score
@@ -693,22 +734,27 @@ def _score_corpus_for_g1(
     this also works if set right before this call — see
     validation/verify/run_null_model.py's docstring on this point).
 
-    Returns (pooled_actions, per_corpus_actions, pooled_deviations, n_errors):
-    pooled_deviations is each successful fold's deviation_score, index-aligned
-    with pooled_actions — the real G1 evaluator (evaluate_g1_fpr) ignores it;
-    G5's deviation-shift criterion consumes it. n_errors counts non-200 score
-    responses so callers can distinguish "clean run" from "the numbers came
-    from a broken leg" (see _require_healthy_leg).
+    Returns (pooled_actions, per_corpus_actions, pooled_deviations, n_errors,
+    pooled_typicality_ns): pooled_deviations is each successful fold's
+    deviation_score, index-aligned with pooled_actions — the real G1
+    evaluator (evaluate_g1_fpr) ignores it; G5's deviation-shift criterion
+    consumes it. n_errors counts non-200 score responses so callers can
+    distinguish "clean run" from "the numbers came from a broken leg" (see
+    _require_healthy_leg). pooled_typicality_ns is each successful fold's
+    top-level payload["typicality_n"] (also index-aligned with
+    pooled_actions) — evaluate_g1_fpr's reachability annotation consumes it.
     """
     pooled: list[str] = []
     per_corpus: dict[str, list[str]] = {}
     pooled_deviations: list[float] = []
+    pooled_typicality_ns: list[int] = []
     n_errors = 0
     for entity_id, texts in texts_by_id.items():
         if len(texts) < 5:
             continue
         actions: list[str] = []
         deviations: list[float] = []
+        typicality_ns: list[int] = []
         for held_out_idx in range(len(texts)):
             sid = f"demo:gate_{sid_prefix}_{entity_id}_{held_out_idx}"
             for i, text in enumerate(texts):
@@ -726,13 +772,15 @@ def _score_corpus_for_g1(
                 payload = r.json()
                 actions.append(payload["recommendation"]["action"])
                 deviations.append(float(payload["authorship"]["deviation_score"]))
+                typicality_ns.append(int(payload.get("typicality_n", 0)))
             else:
                 n_errors += 1
         if actions:
             per_corpus[entity_id] = actions
             pooled.extend(actions)
             pooled_deviations.extend(deviations)
-    return pooled, per_corpus, pooled_deviations, n_errors
+            pooled_typicality_ns.extend(typicality_ns)
+    return pooled, per_corpus, pooled_deviations, n_errors, pooled_typicality_ns
 
 
 def run_all() -> list[GateResult]:
@@ -771,10 +819,14 @@ def run_all() -> list[GateResult]:
     plato_texts = _load_plato_texts_by_dialogue()
 
     texts_by_id: dict[str, list[str]] = {**seminary_texts, **public_authors_texts, **plato_texts}
-    pooled_actions, per_corpus_actions, real_g1_deviations, real_g1_errors = _score_corpus_for_g1(
-        client, "g1", texts_by_id
-    )
-    g1_result = evaluate_g1_fpr(pooled_actions, per_corpus_actions)
+    (
+        pooled_actions,
+        per_corpus_actions,
+        real_g1_deviations,
+        real_g1_errors,
+        real_g1_typicality_ns,
+    ) = _score_corpus_for_g1(client, "g1", texts_by_id)
+    g1_result = evaluate_g1_fpr(pooled_actions, per_corpus_actions, typicality_ns=real_g1_typicality_ns)
     results.append(g1_result)
 
     # G2: bland impostor via q = min(p_far, p_central).
@@ -1222,6 +1274,7 @@ def _compute_g6_fairness_data(client) -> GateResult:
 
     import numpy as np
 
+    from original.constants import ALL_FEATURE_CODES, TIER18_CODES
     from original.quantum.typicality import NO_ACTION_CENTRAL_THRESHOLD
     from validation.benchmark.bias_slicer import slice_by
     from validation.bias_analysis import _welch_t_test
@@ -1249,6 +1302,7 @@ def _compute_g6_fairness_data(client) -> GateResult:
         by_author.setdefault(entry["author_id"], []).append(entry)
 
     results_by_group: dict[bool, list[dict]] = {True: [], False: []}
+    per_group_features: dict[bool, list[dict[str, float]]] = {True: [], False: []}
     scoring_rows: list[ScoringResult] = []
     n_errors = 0
     n_null_typicality = 0
@@ -1289,6 +1343,7 @@ def _compute_g6_fairness_data(client) -> GateResult:
                     continue
                 payload = r.json()
                 p_central = payload.get("typicality_p_central")
+                typicality_n = int(payload.get("typicality_n", 0))
                 if p_central is None:
                     # "No signal for this sample", not an error — see
                     # _compute_g2_q_values's response-shape note.
@@ -1298,9 +1353,15 @@ def _compute_g6_fairness_data(client) -> GateResult:
                     {
                         "filename": held_out["filename"],
                         "p_central": float(p_central),
+                        "typicality_n": typicality_n,
                         "flagged": p_central <= NO_ACTION_CENTRAL_THRESHOLD,
                     }
                 )
+                tier18_values = {
+                    c: float(payload["feature_vector"][ALL_FEATURE_CODES.index(c)])
+                    for c in TIER18_CODES
+                }
+                per_group_features[bool(held_out["native_english"])].append(tier18_values)
                 scoring_rows.append(
                     ScoringResult(
                         filename=held_out["filename"],
@@ -1325,14 +1386,27 @@ def _compute_g6_fairness_data(client) -> GateResult:
     n_native = len(results_by_group[True])
     n_non_native = len(results_by_group[False])
     if n_native < _G6_MIN_PER_GROUP or n_non_native < _G6_MIN_PER_GROUP:
-        short = "true" if n_native < _G6_MIN_PER_GROUP else "false"
-        short_n = min(n_native, n_non_native)
         return _g6_insufficient_data_result(
-            f"native_english={short} group has {short_n} scored authentic "
-            f"entries (need >= {_G6_MIN_PER_GROUP})",
+            _g6_short_group_message(n_native, n_non_native, _G6_MIN_PER_GROUP),
             n_native_scored=n_native,
             n_non_native_scored=n_non_native,
         )
+
+    # The vacuous-pass guard: on an unreachable-threshold sample (e.g. 5
+    # essays/author LOO -> typicality_n=4 everywhere), a 0% flagged rate in
+    # both groups is structural, not evidence of fairness — check this
+    # AFTER the short-group check (an unreachable threshold on a
+    # healthy-sized sample is a more specific diagnosis than "insufficient
+    # data") but BEFORE computing the flagged rates the rest of this
+    # function would otherwise treat as a real measurement.
+    reachability_skip = _g6_reachability_precheck(
+        results_by_group,
+        NO_ACTION_CENTRAL_THRESHOLD,
+        n_native_scored=n_native,
+        n_non_native_scored=n_non_native,
+    )
+    if reachability_skip is not None:
+        return reachability_skip
 
     native_fpr = sum(1 for x in results_by_group[True] if x["flagged"]) / n_native
     non_native_fpr = (
@@ -1356,6 +1430,8 @@ def _compute_g6_fairness_data(client) -> GateResult:
         )
     )
 
+    uniformity_summary = _uniformity_slice_summary(per_group_features)
+
     informational = {
         "n_native_scored": n_native,
         "n_non_native_scored": n_non_native,
@@ -1365,6 +1441,7 @@ def _compute_g6_fairness_data(client) -> GateResult:
         "uniformity_enabled_during_leg": True,
         "bias_slices_deviation_score": bias_slices,
         "welch_t_on_p_central": welch,
+        "uniformity_slice": uniformity_summary,
     }
     if n_native < _G6_WARN_PER_GROUP or n_non_native < _G6_WARN_PER_GROUP:
         informational["low_sample_warning"] = (
@@ -1373,7 +1450,13 @@ def _compute_g6_fairness_data(client) -> GateResult:
             "native_english coverage is thin (25/807 entries annotated); "
             "treat the ratio as a screening number, not a precise estimate"
         )
-    return evaluate_g6_fairness(native_fpr, non_native_fpr, informational=informational)
+    return evaluate_g6_fairness(
+        native_fpr,
+        non_native_fpr,
+        informational=informational,
+        welch_effect_magnitude=welch["effect_magnitude"],
+        welch_cohens_d=welch["cohens_d"],
+    )
 
 
 def _compute_g4_group_means(
@@ -1724,7 +1807,7 @@ def run_g5(
         **_load_plato_texts_by_dialogue(),
     }
     shuffled_g1_corpus = _shuffle_documents_across_keys(texts_by_id, rng)
-    s_actions, s_per_corpus, s_deviations, s_errors = _score_corpus_for_g1(
+    s_actions, s_per_corpus, s_deviations, s_errors, _ = _score_corpus_for_g1(
         client, "g5", shuffled_g1_corpus
     )
     _require_healthy_leg("G5 shuffled G1 leg", n_success=len(s_actions), n_errors=s_errors)
