@@ -58,6 +58,23 @@ class TestMinDocsForBand:
             n = min_docs_for_band(t)
             assert band_reachable(n, t) and not band_reachable(n - 1, t)
 
+    def test_degenerate_threshold_clamps_to_one(self):
+        # threshold >= 1.0 is degenerate but valid: ceil(1/t) - 1 would be
+        # 0 or negative, which is not a usable n (band_reachable(0, t)
+        # raises). The smallest valid n is 1, since conformal_p_floor(1)
+        # == 0.5 <= 1.0.
+        assert min_docs_for_band(1.0) == 1
+        assert min_docs_for_band(2.0) == 1
+
+    def test_returned_n_is_minimal_including_degenerate_thresholds(self):
+        for t in (0.005, 0.02, 0.03, 0.05, 1.0, 2.0):
+            n = min_docs_for_band(t)
+            assert band_reachable(n, t)
+            # Minimality can only be checked one below n when n > 1 —
+            # band_reachable(0, t) raises (n <= 0 is invalid input).
+            if n > 1:
+                assert not band_reachable(n - 1, t)
+
 
 class TestRuleOfThree:
     def test_216_samples_bounds_fpr_at_1_4_percent(self):

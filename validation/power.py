@@ -33,7 +33,10 @@ def min_docs_for_band(threshold: float) -> int:
     """Smallest n for which band_reachable(n, threshold) holds."""
     if threshold <= 0:
         raise ValueError(f"threshold must be positive, got {threshold}")
-    return math.ceil(1.0 / threshold) - 1
+    # n must be at least 1 — conformal_p_floor (and hence band_reachable) is
+    # undefined for n <= 0, so a degenerate threshold (>= 1.0) must still
+    # clamp to the smallest valid n rather than return 0.
+    return max(1, math.ceil(1.0 / threshold) - 1)
 
 
 def rule_of_three_upper(n: int) -> float:
