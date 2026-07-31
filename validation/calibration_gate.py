@@ -57,6 +57,15 @@ class GateResult:
     criterion: str
     current_value: str
     detail: dict = field(default_factory=dict)
+    verdict: str = ""  # "pass" | "fail" | "uninformative"
+
+    def __post_init__(self):
+        if not self.verdict:
+            object.__setattr__(self, "verdict", "pass" if self.passed else "fail")
+        if self.verdict not in ("pass", "fail", "uninformative"):
+            raise ValueError(f"invalid verdict: {self.verdict!r}")
+        if self.verdict == "uninformative" and self.passed:
+            raise ValueError("an uninformative gate cannot claim passed=True")
 
 
 # ── Shared conformal-reachability guard ───────────────────────────────────────
@@ -146,6 +155,8 @@ def evaluate_g1_fpr(
     pooled_actions: list[str],
     per_corpus: dict[str, list[str]],
     typicality_ns: list[int] | None = None,
+    entity_baseline_counts: dict[str, int] | None = None,
+    band_threshold: float | None = None,
 ) -> GateResult:
     """
     G1 — Same-author FPR. Pooled flagged rate (action != "no_action") must
@@ -160,6 +171,16 @@ def evaluate_g1_fpr(
     threshold, NO_ACTION_FAR_THRESHOLD), a 0% rate is guaranteed by
     construction and current_value says so in as many words. Omitting the
     argument keeps the pre-existing current_value string exactly.
+
+    `entity_baseline_counts` (per-entity baseline document count) and
+    `band_threshold` drive the VERDICT itself (validation/power.py's
+    arithmetic): when every entity's max baseline count leaves the
+    conformal p-value floor above the band, a clean 0% pooled rate is
+    arithmetically guaranteed rather than demonstrated, and the verdict is
+    downgraded from "pass" to "uninformative" (never "fail" — the rate
+    itself is still correctly computed and a genuine failure is never
+    masked). Omitting `entity_baseline_counts` preserves the legacy
+    two-valued (`pass`/`fail`) behavior exactly.
     """
     from original.quantum.typicality import NO_ACTION_FAR_THRESHOLD
 
@@ -188,19 +209,51 @@ def evaluate_g1_fpr(
             f"by construction, so this rate is not evidence of calibration)"
         )
 
-    passed = pooled_rate <= 0.05
+    verdict = "pass" if pooled_rate <= 0.05 else "fail"
+    detail = {
+        "n": n,
+        "flagged": flagged,
+        "pooled_flagged_rate": pooled_rate,
+        "per_corpus_flagged_rate": per_corpus_rate,
+        "reachability": reachability,
+    }
+
+    if entity_baseline_counts:
+        from validation.power import (
+            band_reachable,
+            conformal_p_floor,
+            min_docs_for_band,
+            rule_of_three_upper,
+        )
+
+        if band_threshold is None:
+            band_threshold = NO_ACTION_FAR_THRESHOLD
+        reachable = {
+            e: band_reachable(cnt, band_threshold)
+            for e, cnt in entity_baseline_counts.items()
+        }
+        max_n = max(entity_baseline_counts.values())
+        detail["power"] = {
+            "band_threshold": band_threshold,
+            "max_entity_n": max_n,
+            "min_conformal_p_at_max_n": conformal_p_floor(max_n),
+            "entities_reachable": sum(reachable.values()),
+            "entities_total": len(reachable),
+            "min_docs_for_band": min_docs_for_band(band_threshold),
+            "rule_of_three_fpr_upper": rule_of_three_upper(n) if flagged == 0 and n else None,
+        }
+        if verdict == "pass" and not any(reachable.values()):
+            # The band is arithmetically unreachable for every entity: the
+            # clean rate is arithmetic, not evidence (Instrument Report, G1).
+            verdict = "uninformative"
+
     return GateResult(
         name="G1",
-        passed=passed,
+        passed=verdict == "pass",
+        verdict=verdict,
         criterion="pooled flagged rate <= 5%",
         current_value=current_value,
-        detail={
-            "n": n,
-            "flagged": flagged,
-            "pooled_flagged_rate": pooled_rate,
-            "per_corpus_flagged_rate": per_corpus_rate,
-            "reachability": reachability,
-        },
+        detail=detail,
     )
 
 
@@ -297,7 +350,9 @@ def evaluate_g2b_paraphrase_resistant(
 
 
 def evaluate_g3_attribution(
-    top1_accuracy: float, top1_accuracy_raw_argmin: float | None = None
+    top1_accuracy: float,
+    top1_accuracy_raw_argmin: float | None = None,
+    n_essays: int | None = None,
 ) -> GateResult:
     """
     G3 — Attribution non-regression. Existing bar: >= 0.7 (unchanged).
@@ -305,14 +360,42 @@ def evaluate_g3_attribution(
     validation/public_authors/run.py (summary.top1_accuracy); the raw
     argmin accuracy (summary.top1_accuracy_raw_argmin) is carried in
     detail for comparison when present, but never gated on.
+
+    `n_essays` (held-out essay count behind top1_accuracy) drives the
+    VERDICT via validation/power.py's Wilson interval: a point estimate
+    above the 0.7 bar whose 95% CI straddles the bar is not evidence of a
+    pass at this sample size (the sampling-uncertainty analogue of G1's
+    conformal-floor argument), so the verdict is downgraded to
+    "uninformative". A measured FAILURE is never downgraded — the interval
+    only ever softens a pass. Omitting `n_essays` preserves the legacy
+    two-valued (`pass`/`fail`) behavior exactly.
     """
-    passed = top1_accuracy >= 0.7
+    verdict = "pass" if top1_accuracy >= 0.7 else "fail"
     detail = {"top1_accuracy": top1_accuracy}
     if top1_accuracy_raw_argmin is not None:
         detail["top1_accuracy_raw_argmin"] = top1_accuracy_raw_argmin
+
+    if n_essays:
+        from validation.power import bar_decidable, wilson_interval
+
+        successes = round(top1_accuracy * n_essays)
+        lo, hi = wilson_interval(successes, n_essays)
+        decision = bar_decidable(successes, n_essays, bar=0.7)
+        detail["power"] = {
+            "n_essays": n_essays,
+            "wilson_ci": [lo, hi],
+            "bar": 0.7,
+            "bar_decidable": decision,
+        }
+        if verdict == "pass" and decision != "above":
+            # Point estimate clears the bar but the interval straddles it:
+            # this corpus cannot demonstrate the claim (see Task 5 notes).
+            verdict = "uninformative"
+
     return GateResult(
         name="G3",
-        passed=passed,
+        passed=verdict == "pass",
+        verdict=verdict,
         criterion="public_authors top-1 accuracy >= 0.7 (impostor-calibrated attribution)",
         current_value=f"{top1_accuracy:.3f}",
         detail=detail,
@@ -464,12 +547,17 @@ def evaluate_g6_fairness(
 
       - both rates non-zero: ratio = max/min, pass iff <= 2x (unchanged);
       - exactly one rate zero: an INFINITE disparity — one group is never
-        flagged and the other is. Fails; ratio is recorded as inf;
+        flagged and the other is. A real signal, so verdict="fail"; ratio
+        is recorded as inf;
       - both rates zero: the ratio is undefined and nothing about fairness
-        has been demonstrated. Fails as explicitly UNDEFINED (an absence of
-        evidence must not render green). When the cause is the conformal
-        floor rather than the data, _compute_g6_fairness_data catches it
-        earlier and returns the louder "threshold unreachable" skip.
+        has been demonstrated — a genuinely can't-know outcome, so
+        verdict="uninformative" (never "fail": that would claim disparity
+        evidence that isn't there, and never "pass": passed stays False).
+        current_value still reads UNDEFINED (an absence of evidence must
+        not render green). When the cause is the conformal floor rather
+        than the data, _compute_g6_fairness_data catches it earlier and
+        returns the louder "threshold unreachable" skip
+        (_g6_insufficient_data_result, also verdict="uninformative").
 
     `welch_effect_magnitude`/`welch_cohens_d` come from the bridged
     validation/bias_analysis._welch_t_test. They never change the verdict
@@ -489,6 +577,10 @@ def evaluate_g6_fairness(
         ratio: float | None = None
         ratio_status = "undefined_both_zero"
         passed = False
+        # Genuinely can't-know: no fairness has been demonstrated either way
+        # (never "fail" — that would claim disparity evidence that isn't
+        # there).
+        verdict = "uninformative"
         current_value = (
             f"UNDEFINED: both group flagged rates are 0% ({rate_text}) — the "
             "ratio is undefined and no fairness has been demonstrated"
@@ -497,6 +589,9 @@ def evaluate_g6_fairness(
         ratio = float("inf")
         ratio_status = "one_group_zero"
         passed = False
+        # A real signal (one group never flagged, the other is) — a
+        # genuine failure, not an absence of evidence.
+        verdict = "fail"
         current_value = (
             f"ratio=inf ({rate_text}) — one group is never flagged and the "
             "other is: an infinite disparity, which exceeds the 2x bar"
@@ -505,6 +600,7 @@ def evaluate_g6_fairness(
         ratio = max(native_fpr, non_native_fpr) / min(native_fpr, non_native_fpr)
         ratio_status = "both_nonzero"
         passed = ratio <= 2.0
+        verdict = "pass" if passed else "fail"
         current_value = f"ratio={ratio:.2f}x ({rate_text})"
 
     if welch_effect_magnitude in ("medium", "large"):
@@ -529,6 +625,7 @@ def evaluate_g6_fairness(
     return GateResult(
         name="G6",
         passed=passed,
+        verdict=verdict,
         criterion=_G6_CRITERION,
         current_value=current_value,
         detail=detail,
@@ -551,6 +648,11 @@ def _g6_insufficient_data_result(
     unmistakably "no verdict", and a detail that says exactly what was
     missing. Never a silent pass. `reason` names the flavour of skip;
     `extra_detail` carries the flavour-specific numbers.
+
+    This is a genuinely can't-know outcome (unlike _machinery_error_result's
+    crash, which is a bug) — the underlying data simply cannot support a
+    verdict either way, so it reports verdict="uninformative" rather than
+    "fail".
     """
     detail = dict(extra_detail or {})
     detail.update(
@@ -563,6 +665,7 @@ def _g6_insufficient_data_result(
     return GateResult(
         name="G6",
         passed=False,
+        verdict="uninformative",
         criterion=_G6_CRITERION,
         current_value=f"SKIPPED ({reason}): {missing}",
         detail=detail,
@@ -771,10 +874,19 @@ def run_all() -> list[GateResult]:
     plato_texts = _load_plato_texts_by_dialogue()
 
     texts_by_id: dict[str, list[str]] = {**seminary_texts, **public_authors_texts, **plato_texts}
+    # Per-entity baseline document count, keyed the same way as texts_by_id —
+    # drives evaluate_g1_fpr's conformal-band reachability check (validation/
+    # power.py): a clean pooled rate at an N too small for the band to ever
+    # be crossed is arithmetic, not evidence (see evaluate_g1_fpr's docstring).
+    entity_baseline_counts = {sid: len(texts) for sid, texts in texts_by_id.items()}
     pooled_actions, per_corpus_actions, real_g1_deviations, real_g1_errors = _score_corpus_for_g1(
         client, "g1", texts_by_id
     )
-    g1_result = evaluate_g1_fpr(pooled_actions, per_corpus_actions)
+    g1_result = evaluate_g1_fpr(
+        pooled_actions,
+        per_corpus_actions,
+        entity_baseline_counts=entity_baseline_counts,
+    )
     results.append(g1_result)
 
     # G2: bland impostor via q = min(p_far, p_central).
@@ -813,6 +925,10 @@ def run_all() -> list[GateResult]:
         evaluate_g3_attribution(
             top1_accuracy,
             top1_accuracy_raw_argmin=pa_summary.get("top1_accuracy_raw_argmin"),
+            # "n_scored_essays" does not exist in the summary yet (added by a
+            # later task) — .get() returns None today, so G3 keeps its
+            # legacy two-valued behavior at runtime until that key lands.
+            n_essays=pa_summary.get("n_scored_essays"),
         )
     )
 
@@ -1797,9 +1913,28 @@ def run_g5(
 def render(results: list[GateResult]) -> str:
     lines = ["╭─ Calibration gates (G1-G6) ─────────────────────────────────╮"]
     for r in results:
-        status = "PASS" if r.passed else "FAIL"
+        status = r.verdict.upper()
         lines.append(f"│ {r.name} [{status}] {r.criterion}")
         lines.append(f"│      current: {r.current_value}")
+        power = r.detail.get("power")
+        if r.verdict == "uninformative" and power:
+            if "wilson_ci" in power:
+                lo, hi = power["wilson_ci"]
+                lines.append(
+                    f"│      n={power['n_essays']} → 95% CI [{lo:.3f}, {hi:.3f}] "
+                    f"straddles the {power['bar']} bar; this corpus cannot "
+                    f"demonstrate a pass."
+                )
+            elif "max_entity_n" in power:
+                upper = power.get("rule_of_three_fpr_upper")
+                upper_text = f"{upper:.1%}" if upper is not None else "n/a"
+                lines.append(
+                    f"│      max entity N={power['max_entity_n']} → min conformal "
+                    f"p={power['min_conformal_p_at_max_n']:.3f} > band "
+                    f"{power['band_threshold']}; needs N >= {power['min_docs_for_band']}. "
+                    f"Observed 0-rate bounds FPR only above {upper_text} "
+                    "(rule of three)."
+                )
     lines.append("╰────────────────────────────────────────────────────────────╯")
     return "\n".join(lines)
 
@@ -1807,13 +1942,22 @@ def render(results: list[GateResult]) -> str:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", help="write JSON report to this path")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="treat uninformative gates as failures (use before quoting results)",
+    )
     args = parser.parse_args(argv)
 
     results = run_all()
     print(render(results))
     if args.out:
         Path(args.out).write_text(json.dumps([asdict(r) for r in results], indent=2))
-    return 0 if all(r.passed for r in results) else 1
+    failing = [r for r in results if r.verdict == "fail"]
+    uninformative = [r for r in results if r.verdict == "uninformative"]
+    if args.strict:
+        failing = failing + uninformative
+    return 1 if failing else 0
 
 
 if __name__ == "__main__":

@@ -27,6 +27,7 @@ from validation.calibration_gate import (
     evaluate_g1_fpr,
     evaluate_g2_bland_impostor,
     evaluate_g2b_paraphrase_resistant,
+    evaluate_g3_attribution,
     evaluate_g5_permutation_null,
     evaluate_g6_fairness,
     run_g5,
@@ -249,21 +250,29 @@ class TestG6Fairness:
     def test_exactly_one_zero_rate_is_an_infinite_disparity_not_a_pass(self):
         """One group never flagged and the other flagged 5% of the time is
         the most fairness-relevant small-sample case there is. It must fail,
-        never collapse to ratio 1.0."""
+        never collapse to ratio 1.0. This IS real signal (Task 6): verdict
+        stays "fail", not "uninformative" — unlike the both-zero case, this
+        is genuine evidence of disparity, not an absence of evidence."""
         result = evaluate_g6_fairness(native_fpr=0.0, non_native_fpr=0.05)
         assert result.passed is False
+        assert result.verdict == "fail"
         assert result.detail["ratio_status"] == "one_group_zero"
         assert result.detail["ratio"] == float("inf")
         assert "infinite" in result.current_value.lower()
         # Direction-symmetric.
         mirrored = evaluate_g6_fairness(native_fpr=0.05, non_native_fpr=0.0)
         assert mirrored.passed is False
+        assert mirrored.verdict == "fail"
 
     def test_both_rates_zero_is_undefined_not_a_pass(self):
         """Zero flags in both groups demonstrates no fairness — it is an
-        absence of evidence, and must not render as a green gate."""
+        absence of evidence, and must not render as a green gate. This is a
+        genuinely can't-know outcome (Task 6): verdict is "uninformative",
+        not "fail" — a "fail" would claim disparity evidence that isn't
+        there."""
         result = evaluate_g6_fairness(native_fpr=0.0, non_native_fpr=0.0)
         assert result.passed is False
+        assert result.verdict == "uninformative"
         assert result.detail["ratio_status"] == "undefined_both_zero"
         assert result.detail["ratio"] is None
         assert result.current_value.startswith("UNDEFINED")
@@ -311,6 +320,7 @@ class TestG6Fairness:
             n_non_native_scored=10,
         )
         assert result.passed is False
+        assert result.verdict == "uninformative"
         assert result.current_value == (
             "SKIPPED (threshold unreachable): p_central floor 1/(n+1)=0.200 at "
             "n=4, flag threshold 0.02 needs n>=49"
@@ -340,6 +350,7 @@ class TestG6Fairness:
         )
         assert result.name == "G6"
         assert result.passed is False
+        assert result.verdict == "uninformative"
         assert result.current_value.startswith("SKIPPED (insufficient data):")
         assert result.detail["n_non_native_scored"] == 0
         assert "0 scored authentic entries" in result.detail["missing"]
@@ -510,3 +521,92 @@ class TestG5MachineryErrors:
         machinery error, not a silently weakened comparison baseline."""
         with pytest.raises(RuntimeError):
             run_g5(real_g1_deviations=[0.4] * 89, real_g1_n_errors=11)
+
+
+from validation.power import conformal_p_floor
+
+
+class TestGateVerdicts:
+    def test_verdict_defaults_from_passed(self):
+        r = GateResult(name="X", passed=True, criterion="c", current_value="v")
+        assert r.verdict == "pass"
+        r = GateResult(name="X", passed=False, criterion="c", current_value="v")
+        assert r.verdict == "fail"
+
+    def test_explicit_uninformative_verdict_sticks(self):
+        r = GateResult(
+            name="X", passed=False, criterion="c", current_value="v",
+            verdict="uninformative",
+        )
+        assert r.verdict == "uninformative"
+        assert r.passed is False
+
+
+class TestG1Informativeness:
+    def test_unreachable_band_turns_clean_pass_into_uninformative(self):
+        actions = ["no_action"] * 216
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"seminary": actions},
+            entity_baseline_counts={"s1": 12, "s2": 8},
+            band_threshold=0.03,
+        )
+        assert result.verdict == "uninformative"
+        assert result.passed is False
+        power = result.detail["power"]
+        assert power["min_conformal_p_at_max_n"] == conformal_p_floor(12)
+        assert power["entities_reachable"] == 0
+        assert power["rule_of_three_fpr_upper"] == 3 / 216
+
+    def test_reachable_entities_keep_a_clean_pass_informative(self):
+        actions = ["no_action"] * 216
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"seminary": actions},
+            entity_baseline_counts={"s1": 40},
+            band_threshold=0.03,
+        )
+        assert result.verdict == "pass"
+
+    def test_a_real_failure_is_never_downgraded_to_uninformative(self):
+        actions = ["monitor"] * 30 + ["no_action"] * 70
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"seminary": actions},
+            entity_baseline_counts={"s1": 12},
+        )
+        assert result.verdict == "fail"
+
+    def test_omitting_counts_preserves_legacy_behavior(self):
+        actions = ["no_action"] * 95 + ["monitor"] * 5
+        result = evaluate_g1_fpr(actions, per_corpus={"synthetic": actions})
+        assert result.verdict == "pass"
+        assert result.passed is True
+
+
+class TestG3Informativeness:
+    """
+    G1's arithmetic floor has a sampling-uncertainty twin. At n=22 held-out
+    essays a G3 FAIL is real (CI upper 0.653 < 0.7) but a G3 PASS is not
+    evidence (0.818 → CI [0.615, 0.927], straddling the bar).
+    """
+
+    def test_measured_failure_stays_a_real_failure(self):
+        result = evaluate_g3_attribution(0.455, n_essays=22)
+        assert result.verdict == "fail"
+        assert result.detail["power"]["bar_decidable"] == "below"
+
+    def test_pass_above_the_bar_is_uninformative_at_n22(self):
+        result = evaluate_g3_attribution(18 / 22, n_essays=22)
+        assert result.verdict == "uninformative"
+        assert result.passed is False
+        ci = result.detail["power"]["wilson_ci"]
+        assert ci[0] < 0.7 < ci[1]
+
+    def test_pass_is_informative_when_n_supports_it(self):
+        result = evaluate_g3_attribution(230 / 306, n_essays=306)
+        assert result.verdict == "pass"
+
+    def test_omitting_n_preserves_legacy_behavior(self):
+        assert evaluate_g3_attribution(0.9).verdict == "pass"
+        assert evaluate_g3_attribution(0.455).verdict == "fail"
