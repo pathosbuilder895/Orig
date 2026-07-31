@@ -13,6 +13,7 @@ import pytest
 from validation.calibration_gate import (
     GateResult,
     _g5_machinery_error_result,
+    _require_healthy_leg,
     evaluate_g1_fpr,
     evaluate_g2_bland_impostor,
     evaluate_g5_permutation_null,
@@ -96,6 +97,46 @@ class TestG5PermutationNull:
         )
         assert result.passed is False
 
+    def test_two_of_three_nonmonotone_draws_counts_as_collapsed(self):
+        """Majority boundary: 2 of 3 non-monotone draws IS a majority — the
+        G4 leg reads as collapsed and (with the other legs collapsed) the
+        gate passes."""
+        result = evaluate_g5_permutation_null(
+            real_g1_mean_deviation=0.42,
+            shuffled_g1_mean_deviation=0.71,
+            shuffled_g3_accuracy=0.12,
+            g4_nonmonotone_draws=2,
+            g4_total_draws=3,
+        )
+        assert result.passed is True
+
+    def test_one_of_three_nonmonotone_draws_is_still_suspicious(self):
+        """Majority boundary: only 1 of 3 draws non-monotone means shuffled
+        labels still produce 'chronological' orderings most of the time —
+        suspicious, gate fails."""
+        result = evaluate_g5_permutation_null(
+            real_g1_mean_deviation=0.42,
+            shuffled_g1_mean_deviation=0.71,
+            shuffled_g3_accuracy=0.12,
+            g4_nonmonotone_draws=1,
+            g4_total_draws=3,
+        )
+        assert result.passed is False
+
+
+class TestRequireHealthyLeg:
+    def test_exactly_ten_percent_errors_is_tolerated(self):
+        """10/100 == 0.10 is NOT > 0.10 — the guard is strictly greater-than."""
+        _require_healthy_leg("leg", n_success=90, n_errors=10)  # must not raise
+
+    def test_above_ten_percent_errors_raises(self):
+        with pytest.raises(RuntimeError, match="11/100"):
+            _require_healthy_leg("leg", n_success=89, n_errors=11)
+
+    def test_zero_successful_folds_raises(self):
+        with pytest.raises(RuntimeError, match="zero successful"):
+            _require_healthy_leg("leg", n_success=0, n_errors=0)
+
 
 class TestG5MachineryErrors:
     def test_machinery_error_result_fails_without_masquerading_as_a_verdict(self):
@@ -116,3 +157,9 @@ class TestG5MachineryErrors:
         one is a machinery failure, not a comparison point."""
         with pytest.raises(RuntimeError):
             run_g5(real_g1_deviations=[])
+
+    def test_run_g5_health_checks_the_real_anchor_leg(self):
+        """A 4xx-riddled real G1 anchor (>10% scoring errors) must become a
+        machinery error, not a silently weakened comparison baseline."""
+        with pytest.raises(RuntimeError):
+            run_g5(real_g1_deviations=[0.4] * 89, real_g1_n_errors=11)

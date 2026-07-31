@@ -175,9 +175,12 @@ def evaluate_g5_permutation_null(
         1/n_authors; generous < 0.30 threshold since n_authors varies by
         corpus).
       - G4 leg: a MAJORITY of the K seeded shuffle draws must be
-        non-monotone. A single draw's monotonicity over 3 group means is a
-        near-coin-flip on blended groups, so one monotone draw among K is
-        noise, not signal.
+        non-monotone. The shuffled draws score the early group held-out
+        (score_early_loo cross-fit — no chunk is scored against a baseline
+        containing it) so all three group means are exchangeable under the
+        null: P(a single draw comes out monotone by chance) ~= 1/6, so one
+        monotone draw among K is noise, while majority-of-3 non-monotone
+        detects a genuine null with ~0.93 probability.
 
     Fails (correctly) if ANY of the three still looks like real signal.
     `informational` is attach-only context merged into detail — it never
@@ -321,7 +324,7 @@ def run_all() -> list[GateResult]:
     plato_texts = _load_plato_texts_by_dialogue()
 
     texts_by_id: dict[str, list[str]] = {**seminary_texts, **public_authors_texts, **plato_texts}
-    pooled_actions, per_corpus_actions, real_g1_deviations, _real_g1_errors = _score_corpus_for_g1(
+    pooled_actions, per_corpus_actions, real_g1_deviations, real_g1_errors = _score_corpus_for_g1(
         client, "g1", texts_by_id
     )
     g1_result = evaluate_g1_fpr(pooled_actions, per_corpus_actions)
@@ -365,6 +368,7 @@ def run_all() -> list[GateResult]:
             run_g5(
                 real_g1_deviations=real_g1_deviations,
                 real_g1_flagged_rate=g1_result.detail["pooled_flagged_rate"],
+                real_g1_n_errors=real_g1_errors,
             )
         )
     except Exception as exc:  # noqa: BLE001 — see _g5_machinery_error_result
@@ -476,6 +480,7 @@ def _compute_g2_q_values(client) -> tuple[list[float], list[float]]:
 def _compute_g4_group_means(
     plato_texts: dict[str, list[str]] | None = None,
     sid: str = "demo:gate_g4_early_baseline",
+    score_early_loo: bool = False,
 ) -> tuple[dict[str, float], dict[str, int]]:
     """
     Defaults reproduce the real G4 leg exactly. run_g5() passes a
@@ -483,6 +488,30 @@ def _compute_g4_group_means(
     store is a process-wide :memory: database, so reusing the real G4 sid on
     a later call would silently stack the shuffled early-group baselines on
     top of the real ones instead of starting a fresh student.
+
+    score_early_loo (G5's shuffled draws pass True): with the default False,
+    every early chunk is scored against a baseline that CONTAINS it, so the
+    early group is near-guaranteed the lowest mean by construction — even
+    under shuffled labels — and "monotone" degenerates to the single
+    comparison P(middle <= late) ~= 1/2 per draw, which no majority-of-K
+    vote can improve (at p=0.5, majority-of-3 is still 0.5). With True, the
+    early chunks are scored held-out via 2-fold cross-fit: the group is
+    split into alternating halves, and each half is scored against a fresh
+    student (sid "{sid}_loo_a"/"{sid}_loo_b") whose baseline is the OTHER
+    half — so no chunk is ever scored against a baseline containing it, and
+    under the null all three groups' scores are draws from (approximately —
+    the cross-fit baseline is half-sized, but deviation_score is
+    self-normalized against the profile's own spread, so baseline size
+    barely shifts its distribution) the same distribution. The three group
+    means become exchangeable, P(a draw comes out monotone by chance) drops
+    to ~1/6, and majority-of-3 non-monotone detects a genuine null with
+    ~0.93 probability. Cross-fit rather than per-chunk LOO is a cost
+    decision, not a statistical one: the shuffled early group runs ~100
+    chunks, so per-chunk LOO would need E*(E-1) ~= 9,900 baseline uploads
+    per draw (hours of feature extraction), while cross-fit re-uploads each
+    early chunk exactly once (~100 posts) and leaves the score-call count
+    unchanged. The REAL G4 leg keeps False: there, early-in-baseline is the
+    intended anchor semantics ("distance from the early-period profile").
 
     Returns (group_means, {"n_scored": int, "n_errors": int}); the stats let
     G5 distinguish "genuinely non-monotone" from "NaN means because every
@@ -514,12 +543,37 @@ def _compute_g4_group_means(
     n_errors = 0
     for group_key in ("early", "middle", "late"):
         devs = []
-        for chunk in groups[group_key]:
-            r = client.post(f"/students/{sid}/score", json={"text": chunk, "submission_id": group_key})
-            if r.status_code == 200:
-                devs.append(r.json()["authorship"]["deviation_score"])
-            else:
-                n_errors += 1
+        if group_key == "early" and score_early_loo:
+            early_chunks = groups["early"]
+            half_a, half_b = early_chunks[0::2], early_chunks[1::2]
+            for half_tag, held_out, baseline_pool in (
+                ("a", half_a, half_b),
+                ("b", half_b, half_a),
+            ):
+                loo_sid = f"{sid}_loo_{half_tag}"
+                for other in baseline_pool:
+                    client.post(
+                        f"/students/{loo_sid}/baseline",
+                        json={"text": other, "provenance": "verified"},
+                    )
+                for chunk in held_out:
+                    r = client.post(
+                        f"/students/{loo_sid}/score",
+                        json={"text": chunk, "submission_id": "early_loo"},
+                    )
+                    if r.status_code == 200:
+                        devs.append(r.json()["authorship"]["deviation_score"])
+                    else:
+                        n_errors += 1
+        else:
+            for chunk in groups[group_key]:
+                r = client.post(
+                    f"/students/{sid}/score", json={"text": chunk, "submission_id": group_key}
+                )
+                if r.status_code == 200:
+                    devs.append(r.json()["authorship"]["deviation_score"])
+                else:
+                    n_errors += 1
         n_scored += len(devs)
         means[group_key] = sum(devs) / len(devs) if devs else float("nan")
     return means, {"n_scored": n_scored, "n_errors": n_errors}
@@ -690,6 +744,7 @@ def _shuffled_public_authors_top1(rng) -> tuple[float, dict]:
 def run_g5(
     real_g1_deviations: list[float],
     real_g1_flagged_rate: float | None = None,
+    real_g1_n_errors: int = 0,
     seed: int = 1730,
 ) -> GateResult:
     """
@@ -705,6 +760,10 @@ def run_g5(
         real_g1_flagged_rate: the real leg's flagged rate, attached to detail
             as context only (see the evaluator's docstring on why flagged
             rates are never gated here).
+        real_g1_n_errors: the real leg's non-200 score-call count — the
+            anchor is health-checked exactly like the shuffled legs, because
+            a 4xx-riddled anchor is a machinery failure, not a weakened
+            comparison baseline.
         seed: one np.random.default_rng(seed) instance drives every shuffle,
             consumed in a fixed order — G1 document shuffle, then the G3
             author permutation, then the three G4 dialogue-list permutations
@@ -731,6 +790,11 @@ def run_g5(
             "G5: the real G1 leg produced zero deviation samples — nothing to "
             "compare the shuffled leg against"
         )
+    _require_healthy_leg(
+        "real G1 anchor leg",
+        n_success=len(real_g1_deviations),
+        n_errors=real_g1_n_errors,
+    )
 
     import numpy as np
 
@@ -771,10 +835,14 @@ def run_g5(
 
     # Shuffled G4: K=3 seeded draws. Dialogue keys keep their chronology-group
     # membership, but each key receives another dialogue's ENTIRE chunk list,
-    # so the early/middle/late groups become random blends. A single draw's
-    # monotonicity over 3 group means is a near-coin-flip, so the evaluator
-    # requires a MAJORITY of draws non-monotone; each draw gets a fresh
-    # student sid and its own permutation from the shared rng stream.
+    # so the early/middle/late groups become random blends. score_early_loo
+    # makes the three group means exchangeable under the null (without it,
+    # in-baseline early scoring degenerates each draw to a P~0.5 coin flip
+    # that majority voting cannot improve — see _compute_g4_group_means);
+    # with it, P(one draw monotone by chance) ~= 1/6 and majority-of-3
+    # non-monotone detects a genuine null with ~0.93 probability. Each draw
+    # gets a fresh student sid and its own permutation from the shared rng
+    # stream.
     plato_texts = _load_plato_texts_by_dialogue()
     g4_draws: list[dict] = []
     for draw_idx in range(3):
@@ -782,6 +850,7 @@ def run_g5(
         draw_means, draw_stats = _compute_g4_group_means(
             plato_texts=shuffled_plato,
             sid=f"demo:gate_g5_g4_early_baseline_{draw_idx}",
+            score_early_loo=True,
         )
         _require_healthy_leg(
             f"shuffled G4 draw {draw_idx}",
