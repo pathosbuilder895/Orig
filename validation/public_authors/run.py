@@ -140,6 +140,28 @@ def run(
         key = "baseline" if e["is_baseline"] else "scored"
         by_author[e["author_id"]][key].append(e)
 
+    # Task 7: summarize the manifest's baseline/scored doc lists for the
+    # experiment spec, before the eligibility filter below — the spec must
+    # be attachable even on the under-populated-corpus error path, where no
+    # author is "eligible" at all. sorted(): by_author is a defaultdict
+    # populated in manifest-entry order, which is corpus-file order, not an
+    # author-name order — sort so two runs over the same manifest serialize
+    # docs_per_author identically regardless of entry order.
+    from validation.experiment import build_spec, spec_to_dict, summarize_author_docs
+
+    all_author_docs: Dict[str, List[str]] = {
+        aid: [
+            (corpus_dir / e["filename"]).read_text(encoding="utf-8")
+            for e in items["baseline"] + items["scored"]
+        ]
+        for aid, items in sorted(by_author.items())
+    }
+    experiment_corpora = {
+        "public_authors": summarize_author_docs(all_author_docs, "real_historical")
+    }
+    experiment_windowing = {"source": "public_authors corpus documents as-is"}
+    experiment_thresholds = {"g3_top1": 0.7}
+
     # Filter to authors with the required minimum AND any --only filter.
     eligible: List[str] = []
     skipped_authors: List[Tuple[str, str]] = []
@@ -165,7 +187,18 @@ def run(
         )
         print(f"\n⚠ {msg}\n", file=sys.stderr)
         if not eligible:
-            return {"error": msg, "skipped_authors": skipped_authors}
+            spec = build_spec(
+                task="attribution",
+                corpora=experiment_corpora,
+                windowing=experiment_windowing,
+                aggregation={"attribution_rule": "not_computed (error path)"},
+                thresholds=experiment_thresholds,
+            )
+            return {
+                "error": msg,
+                "skipped_authors": skipped_authors,
+                "experiment": spec_to_dict(spec),
+            }
 
     client = TestClient(_run_module.load_legacy_demo_app())
 
@@ -347,10 +380,19 @@ def run(
         )
     report_dir.mkdir(parents=True, exist_ok=True)
 
+    spec = build_spec(
+        task="attribution",
+        corpora=experiment_corpora,
+        windowing=experiment_windowing,
+        aggregation={"attribution_rule": attribution_method},
+        thresholds=experiment_thresholds,
+    )
+
     report = {
         "dataset_label": "public_authors",
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "environment": env.__dict__,
+        "experiment": spec_to_dict(spec),
         "summary": {
             "eligible_authors": eligible,
             "n_eligible_authors": len(eligible),

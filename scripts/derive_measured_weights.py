@@ -119,6 +119,7 @@ Run:
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -148,6 +149,9 @@ DEFAULT_LENGTH = 800  # words — every derivation-side author in the current 3 
                        # MIN_WINDOWS_PER_AUTHOR at this length; drop_short_authors()
                        # is still the enforced backstop if a future corpus doesn't.
 DEFAULT_FLOOR_PERCENTILE = 10.0
+DEFAULT_MAX_WINDOWS = 12  # named so the experiment spec's windowing block (Task 7)
+                          # can record the same value derive_weights() defaults to,
+                          # rather than a second hand-copied literal drifting from it.
 
 
 def split_authors(
@@ -421,7 +425,7 @@ def compute_tier_weights_from_matrices(
 def derive_weights(
     author_texts: dict[str, str],
     length: int = DEFAULT_LENGTH,
-    max_windows: int = 12,
+    max_windows: int = DEFAULT_MAX_WINDOWS,
     floor_percentile: float = DEFAULT_FLOOR_PERCENTILE,
     verbose: bool = True,
 ) -> tuple[dict[int, float], dict]:
@@ -641,6 +645,36 @@ def main(argv=None) -> int:
             print(f"    {author}: {n} window(s){flag}", file=sys.stderr)
 
     print_tier_weights_diff(weights, diagnostics)
+
+    # Task 7: embed a machine-readable record of what this run measured,
+    # alongside the human-readable diff block above.
+    from validation.experiment import build_spec, spec_to_dict, summarize_author_docs
+
+    corpora_summary = {}
+    for corpus_name in corpora:
+        # {author: text} -> {author: [text]} — summarize_author_docs wants a
+        # list of documents per author; each corpus loader here hands back
+        # one concatenated full-work string per (pseudo-)author.
+        subset = {
+            a: [t] for a, t in author_texts.items() if author_corpus.get(a) == corpus_name
+        }
+        provenance = "student_pilot" if corpus_name == "seminary" else "real_historical"
+        corpora_summary[corpus_name] = summarize_author_docs(subset, provenance)
+
+    spec = build_spec(
+        task="weight_derivation",
+        corpora=corpora_summary,
+        windowing={"length": args.length, "max_windows": DEFAULT_MAX_WINDOWS},
+        aggregation={
+            "tier_rule": "median",
+            "variance_floor_percentile": args.floor_percentile,
+            "derivation_fraction": args.derivation_fraction,
+        },
+        thresholds={},
+    )
+    print()
+    print("# ── experiment spec (machine-readable record of what this run measured) ──")
+    print(json.dumps({"experiment": spec_to_dict(spec)}, indent=2))
     return 0
 
 

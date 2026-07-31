@@ -2108,7 +2108,49 @@ def main(argv=None) -> int:
     results = run_all()
     print(render(results))
     if args.out:
-        Path(args.out).write_text(json.dumps([asdict(r) for r in results], indent=2))
+        from original.quantum.typicality import (
+            MONITOR_FAR_THRESHOLD,
+            NO_ACTION_CENTRAL_THRESHOLD,
+            NO_ACTION_FAR_THRESHOLD,
+            SCHEDULE_FAR_THRESHOLD,
+        )
+        from validation.experiment import build_spec, spec_to_dict, summarize_author_docs
+
+        # Reload the same three corpora run_all() scored — cheap (text-file
+        # reads only) and keeps run_all()'s own return type (list[GateResult])
+        # untouched, so the monkeypatched-run_all tests in
+        # tests/test_calibration_gate.py (which replace run_all with a bare
+        # lambda returning a plain list) don't have to change shape.
+        spec = build_spec(
+            task="calibration_suite",
+            corpora={
+                "seminary": summarize_author_docs(_load_seminary_texts(), "student_pilot"),
+                "public_authors": summarize_author_docs(
+                    _load_public_authors_baseline_texts(), "real_historical"
+                ),
+                "plato": summarize_author_docs(_load_plato_texts_by_dialogue(), "real_historical"),
+            },
+            windowing={"source": "corpus documents as-is"},
+            aggregation={"tier_rule": "median"},
+            thresholds={
+                "g1_flagged_rate": 0.05,
+                "g3_top1": 0.7,
+                "g6_ratio": 2.0,
+                "no_action_far_threshold": NO_ACTION_FAR_THRESHOLD,
+                "no_action_central_threshold": NO_ACTION_CENTRAL_THRESHOLD,
+                "monitor_far_threshold": MONITOR_FAR_THRESHOLD,
+                "schedule_far_threshold": SCHEDULE_FAR_THRESHOLD,
+            },
+        )
+        Path(args.out).write_text(
+            json.dumps(
+                {
+                    "experiment": spec_to_dict(spec),
+                    "gates": [asdict(r) for r in results],
+                },
+                indent=2,
+            )
+        )
     failing = [r for r in results if r.verdict == "fail"]
     uninformative = [r for r in results if r.verdict == "uninformative"]
     if uninformative:
