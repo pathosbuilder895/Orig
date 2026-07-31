@@ -64,11 +64,108 @@ _GENRE_STATS_CACHE: dict[tuple[str | None, str], list[tuple[str, list[np.ndarray
 
 # ── SQLite helpers ────────────────────────────────────────────────────────────
 
+# ``ORIGINAL_DB=":memory:"`` (used by validation/benchmark/reproducibility.py's
+# lock_environment(), and every validation script built on it, to guarantee no
+# cross-*process* store contamination between separate runs) needs a
+# different connect string than a real file. Plain ``sqlite3.connect(":memory:")``
+# creates a brand-new, anonymous, UNSHARED database on every call — not a
+# handle onto one shared database the way a file path is. Since every call
+# site uses ``with _get_conn() as conn: ...``, and the context-manager
+# protocol on a sqlite3.Connection only manages the transaction
+# (commit/rollback) and does NOT close the connection, a fresh-connection-
+# per-call policy (correct, and unchanged below, for the file-backed path)
+# would make each anonymous in-memory database eligible for GC — and gone —
+# right after the call that created it. A write from one call would then be
+# invisible to a read from the next.
+#
+# The fix is SQLite's own named shared-cache URI (``file:<name>?mode=memory&
+# cache=shared``, requires ``uri=True``): every ``sqlite3.connect()`` call
+# using the same name attaches to the SAME in-memory database, while still
+# returning a distinct ``Connection`` object each time — exactly like the
+# file-backed path's fresh-connection-per-call shape, just with a different
+# connect string. Verified directly (not just documented behavior taken on
+# faith): two such connections are `is`-distinct objects, and a completely
+# fresh connection opened on another thread — with sqlite3's DEFAULT
+# check_same_thread=True, no override needed — immediately sees rows written
+# by a different connection. ``mode=memory`` is required on the named form:
+# without it, ``file:<name>?cache=shared`` is a relative *file* path, which
+# would silently write to disk instead of memory (verified directly).
+#
+# One wrinkle: a shared-cache in-memory database is destroyed the instant its
+# LAST connection closes (same rule that makes plain ":memory:" unshared in
+# the first place — SQLite doesn't special-case "shared" out of that). Since
+# every caller's connection is short-lived (opened, used, GC'd), the shared
+# database would still be destroyed between calls without something holding
+# it open. ``_MEMORY_KEEPALIVE_CONN`` is that something: opened once, lazily,
+# on first use, held for the life of the process, and never used for queries
+# — its only job is to keep at least one handle on the shared-cache database
+# open at all times so the real per-call connections below always find it
+# already populated with the schema instead of starting fresh empty each time.
+#
+# ``_MEMORY_GENERATION`` is what makes reset_memory_conn() (below) a *reliable*
+# reset rather than a "close the keepalive and hope every other connection
+# has already been garbage-collected by the time the next connect() runs"
+# best-effort: the shared-cache database's identity is keyed by this name, so
+# bumping it hands out a brand-new, guaranteed-empty database on the next
+# _get_conn() call regardless of whether some earlier connection is still
+# technically alive somewhere. Verified directly: two named shared-cache
+# databases with different names are fully independent even while both have
+# open connections.
+#
+# This design needs no lock and no check_same_thread=False: every _get_conn()
+# call — including for ":memory:" now — returns a brand-new Connection object
+# used by exactly one caller, identical in shape to the file-backed path. There
+# is no shared mutable Connection object for two threads to contend over, so
+# the earlier design's transaction-flattening hazard (a `with conn:` block on
+# one caller's connection committing/rolling back a DIFFERENT caller's
+# in-flight transaction, because both callers shared the same connection
+# object) is gone: each caller has its own connection now, same as the
+# file-backed path always did.
+#
+# That is NOT the same as saying ":memory:" now supports genuinely concurrent
+# store access, though — it does not, and this is a real, currently-latent
+# limitation, not a solved problem. Measured directly: two threads (a writer
+# holding a write transaction open, and a second connection trying to write
+# the same table while the first is mid-transaction) reproduce a "database
+# table is locked" OperationalError in ~70 microseconds even with
+# busy_timeout=5000 set on both connections — vs. the file-backed WAL path,
+# which genuinely waits (~1.8s, until the holder's transaction ends) under
+# the identical scenario. SQLite's shared-cache mode enforces its own
+# inter-connection *table*-level locking, and that locking bypasses the
+# regular busy handler entirely — busy_timeout is measurably inert here, not
+# just untested. original/lab/runner.py's background
+# ThreadPoolExecutor(max_workers=1) writer thread + a request thread polling
+# for status is exactly this shape; it doesn't reach ":memory:" today (no
+# validation script drives /lab/), so this is Important, not Critical, but it
+# would need solving before ":memory:" could be used anywhere with that kind
+# of concurrent access. Candidate directions if that's ever needed —
+# evaluate, don't assume: ``PRAGMA read_uncommitted=1`` (relaxes shared-cache
+# read isolation, does not by itself fix writer-vs-writer table locking), or
+# SQLite's ``vfs=memdb`` (present and connectable on this build, SQLite
+# 3.53.1, via ``file:<name>?vfs=memdb&cache=shared`` — whether its locking
+# behavior actually differs from plain ``cache=shared`` under concurrent
+# writes has not been checked and should not be assumed).
+_MEMORY_DB_BASENAME = "original_store_memdb"
+_MEMORY_GENERATION = 0
+_MEMORY_KEEPALIVE_CONN: sqlite3.Connection | None = None
 
-def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(_DB_PATH), timeout=10.0)
+
+def _memory_uri() -> str:
+    return f"file:{_MEMORY_DB_BASENAME}_{_MEMORY_GENERATION}?mode=memory&cache=shared"
+
+
+def _init_schema(conn: sqlite3.Connection) -> None:
+    """Apply pragmas and the full CREATE-TABLE-IF-NOT-EXISTS ladder to a
+    freshly-opened connection. Split out of ``_get_conn()`` so both branches
+    (file-backed and ":memory:") share one implementation — both now run this
+    on every call, exactly as the original file-backed path always did (cheap
+    — all-IF-NOT-EXISTS — and how the WS-1 A1 "corrupt DB fails loudly"
+    guarantee is preserved)."""
     # Concurrency hardening for pilot use: WAL allows readers during a write;
     # busy_timeout avoids spurious "database is locked" under parallel requests.
+    # On ":memory:" WAL is not a supported mode; SQLite silently falls back to
+    # "memory" journal mode instead of erroring (verified directly), so this
+    # is harmless there too.
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=5000")
     conn.execute("PRAGMA synchronous=NORMAL")
@@ -422,7 +519,68 @@ def _get_conn() -> sqlite3.Connection:
         )
     """)
     conn.commit()
+
+
+def _get_conn() -> sqlite3.Connection:
+    if str(_DB_PATH) == ":memory:":
+        global _MEMORY_KEEPALIVE_CONN
+        if _MEMORY_KEEPALIVE_CONN is None:
+            # First touch in this process (or first touch since the last
+            # reset_memory_conn()): open the keepalive so the shared-cache
+            # database isn't destroyed the moment the very first real
+            # (per-call) connection below closes. A harmless, unlocked
+            # lazy-init — see the module-level comment above for why a
+            # benign duplicate-open race here can't cause data loss (mirrors
+            # original/repository.py's unlocked ``_REPO`` singleton).
+            _MEMORY_KEEPALIVE_CONN = sqlite3.connect(_memory_uri(), uri=True, timeout=10.0)
+        conn = sqlite3.connect(_memory_uri(), uri=True, timeout=10.0)
+        _init_schema(conn)
+        return conn
+
+    # File-backed path (production default): unchanged fresh-connection-per-
+    # call behaviour, exactly as before this fix.
+    conn = sqlite3.connect(str(_DB_PATH), timeout=10.0)
+    _init_schema(conn)
     return conn
+
+
+def reset_memory_conn() -> None:
+    """Test/script hook: force the next ``:memory:`` ``_get_conn()`` call to
+    attach to a genuinely fresh, empty database.
+
+    Mirrors ``original/repository.py``'s ``reset_repository()`` shape ("drop
+    the cached singleton, let it rebuild lazily on next use") but lives here
+    because the connection state it resets lives here, not in repository.py
+    — ``SqliteRepository`` is a stateless pass-through to this module's
+    functions and owns no connection of its own to reset.
+
+    Closes the current keepalive connection AND bumps ``_MEMORY_GENERATION``
+    so the next database name is one this process has never used before.
+    The generation bump (not just closing the keepalive) is what makes this
+    a *reliable* reset rather than a "close it and hope every other
+    connection from the previous run has already been garbage-collected by
+    the time the next connect() runs" best-effort — the old generation's
+    database, if anything is still attached to it, is simply abandoned
+    rather than raced with.
+
+    Safe to call regardless of the current ``_DB_PATH``: on the file-backed
+    path this state is simply unused (that branch of ``_get_conn()`` never
+    touches ``_MEMORY_KEEPALIVE_CONN``/``_MEMORY_GENERATION``), so resetting
+    it has no observable effect there — it only matters the next time
+    ``_DB_PATH`` is ``":memory:"``.
+
+    Deliberately NOT called from ``clear()``: ``clear()``'s contract
+    (documented on that function) is an intentional, permanent no-op that
+    matches ``PostgresRepository.clear()`` — wiring a real reset in here for
+    only the ``:memory:`` case would silently break that parity for anyone
+    relying on ``clear()`` doing nothing. This is a separate, explicit,
+    opt-in hook.
+    """
+    global _MEMORY_KEEPALIVE_CONN, _MEMORY_GENERATION
+    if _MEMORY_KEEPALIVE_CONN is not None:
+        _MEMORY_KEEPALIVE_CONN.close()
+        _MEMORY_KEEPALIVE_CONN = None
+    _MEMORY_GENERATION += 1
 
 
 def _serialize(state: StudentState) -> str:

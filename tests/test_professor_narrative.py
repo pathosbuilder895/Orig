@@ -268,6 +268,55 @@ class TestBuildHypotheses:
                 assert word not in hyp.lower(), f"Accusatory word '{word}' found in: {hyp}"
 
 
+class TestBuildHypothesesTypicality:
+    def test_too_uniform_hypothesis_added_when_band_indicates_it(self):
+        hyps = _build_hypotheses(
+            deviation=0.62,
+            has_behavioral=False,
+            has_ai=False,
+            quantum_fidelity=0.8,
+            action="schedule_conversation",
+            typicality_band="schedule_conversation",
+            typicality_p_central=0.01,
+        )
+        assert any("uniform" in h.lower() or "ghost" in h.lower() for h in hyps)
+
+    def test_legitimate_evolution_hypothesis_added_on_growth_with_drift(self):
+        hyps = _build_hypotheses(
+            deviation=0.65,
+            has_behavioral=False,
+            has_ai=False,
+            quantum_fidelity=0.7,
+            action="monitor",
+            trajectory_direction="growth",
+        )
+        assert any("evolve" in h.lower() or "developed" in h.lower() for h in hyps)
+
+    def test_no_typicality_hypothesis_when_band_is_none(self):
+        """Flag-off / insufficient-N path: no new hypothesis text appears."""
+        hyps = _build_hypotheses(
+            deviation=0.3,
+            has_behavioral=False,
+            has_ai=False,
+            quantum_fidelity=0.9,
+            action="no_action",
+            typicality_band=None,
+        )
+        assert not any("uniform" in h.lower() for h in hyps)
+
+    def test_no_legitimate_evolution_hypothesis_when_action_not_in_allowed_set(self):
+        """growth alone is not enough — action must also be monitor/schedule_conversation."""
+        hyps = _build_hypotheses(
+            deviation=0.3,
+            has_behavioral=False,
+            has_ai=False,
+            quantum_fidelity=0.9,
+            action="no_action",
+            trajectory_direction="growth",
+        )
+        assert not any("evolve" in h.lower() or "developed" in h.lower() for h in hyps)
+
+
 # ── _build_suggested_action ───────────────────────────────────────────────────
 
 

@@ -40,6 +40,7 @@ from original.quantum.scoring import (
     RecommendedAction,
     TrajectoryConformance,
 )
+from original.routers._shared import _to_response
 from original.schemas import Layer7OutputResponse
 from original.tension_arc import ParagraphArc, SentenceTension, TensionArcResult
 
@@ -203,6 +204,50 @@ def _minimal_layer7_output() -> Layer7Output:
     )
 
 
+def _make_layer7_output(
+    typicality_p_far: float | None = None,
+    typicality_p_central: float | None = None,
+    typicality_band: str | None = None,
+    typicality_n: int = 0,
+) -> Layer7Output:
+    """
+    Factory for Layer7Output with customizable typicality fields.
+    All other fields use minimal (default) values.
+    """
+    return Layer7Output(
+        student_id="student-test",
+        submission_id="sub-test",
+        authorship=AuthorshipSignal(authorship_probability=0.5, deviation_score=0.1),
+        trajectory=TrajectoryConformance(
+            direction="stable", alignment=0.5, confidence=0.5, adjustment_factor=1.0
+        ),
+        interference=InterferenceDecomposition(
+            total_probability=1.0,
+            constructive_features=[],
+            destructive_features=[],
+            broken_entanglements=[],
+            tier_breakdown={},
+        ),
+        baseline_confidence=BaselineConfidence(
+            purity=1.0,
+            sample_count=1,
+            authenticated_count=1,
+            effective_sample_count=1.0,
+            trajectory_confidence=0.5,
+        ),
+        domain=DomainSignal(
+            theological_register_score=0.0, register_anomaly=False, confessional_balance="balanced"
+        ),
+        recommendation=RecommendedAction(action="no_action", confidence=0.5, rationale=""),
+        feature_vector={},
+        baseline_vector={},
+        typicality_p_far=typicality_p_far,
+        typicality_p_central=typicality_p_central,
+        typicality_band=typicality_band,
+        typicality_n=typicality_n,
+    )
+
+
 def test_layer7_output_dataclass_fields_all_have_response_counterparts():
     """Every Layer7Output dataclass field must exist on Layer7OutputResponse."""
     result = _full_layer7_output()
@@ -290,3 +335,28 @@ def test_layer7_output_round_trip_minimal_defaults_path():
     # separately by _to_response) — should default to None, not error.
     assert response.report is None
     assert response.human_explanation is None
+
+
+def test_typicality_fields_round_trip_when_present():
+    """Typicality fields copy through _to_response() when populated."""
+    result = _make_layer7_output(
+        typicality_p_far=0.42,
+        typicality_p_central=0.58,
+        typicality_band="no_action",
+        typicality_n=7,
+    )
+    response = _to_response(result)
+    assert response.typicality_p_far == 0.42
+    assert response.typicality_p_central == 0.58
+    assert response.typicality_band == "no_action"
+    assert response.typicality_n == 7
+
+
+def test_typicality_fields_are_none_when_not_computed():
+    """Typicality fields default to None/0 when not computed."""
+    result = _make_layer7_output()  # typicality_band defaults to None
+    response = _to_response(result)
+    assert response.typicality_p_far is None
+    assert response.typicality_p_central is None
+    assert response.typicality_band is None
+    assert response.typicality_n == 0

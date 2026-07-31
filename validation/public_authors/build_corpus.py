@@ -41,6 +41,7 @@ _MANIFEST = _HERE / "manifest.json"
 
 UA = "OriginalAccuracyBenchmark/1.0 (mailto:arclark555@gmail.com)"
 FETCH_SLEEP_SEC = 1.0  # be polite
+MIN_CHUNK_WORDS = 300  # anything shorter is a TOC stub, not an essay
 
 # ── Curated essay list (8 authors × 5 essays) ────────────────────────────────
 #
@@ -468,6 +469,9 @@ def _chunk_text(text: str, n_chunks: int) -> List[str]:
             head = parts[i].strip()
             body = parts[i + 1].strip() if i + 1 < len(parts) else ""
             chunks.append(f"{head}\n\n{body}")
+        # Drop TOC stubs — editions that list every chapter heading up front
+        # (e.g. pg1653, pg34901) match the regex on the contents page first.
+        chunks = [c for c in chunks if len(c.split()) >= MIN_CHUNK_WORDS]
         if len(chunks) >= n_chunks:
             return chunks[:n_chunks]
 
@@ -704,6 +708,21 @@ def build(only: Optional[str] = None, force: bool = False) -> dict:
         "authors": authors,
         "entries": entries,
     }
+    # Hard guard: a stub entry means the chunker broke upstream. Fail loudly
+    # rather than commit a degenerate corpus.
+    stubs = [e for e in entries if e["word_count"] < MIN_CHUNK_WORDS]
+    if stubs:
+        for e in stubs:
+            print(
+                f"  STUB ENTRY: {e['author_id']} {e['filename']} — {e['word_count']} words",
+                flush=True,
+            )
+        print(
+            f"Refusing to write manifest: {len(stubs)} entries under "
+            f"{MIN_CHUNK_WORDS} words.",
+            flush=True,
+        )
+        sys.exit(1)
     _MANIFEST.write_text(json.dumps(manifest, indent=2))
     print(f"\nWrote manifest with {len(entries)} entries to {_MANIFEST}")
     if skipped:
