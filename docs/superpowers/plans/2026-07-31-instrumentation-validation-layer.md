@@ -1853,9 +1853,11 @@ it. **Keep the docstring CAUTION** — it explains *why*; the check enforces.
 git add validation/corpus_policy.py validation/manifest_schema.py validation/public_authors/run.py scripts/derive_measured_weights.py tests/test_corpus_policy.py
 git commit -m "Add corpus policy floors, genre-balance check, manifest v2 fields
 
-Verification floor 300 words; attribution floor 500 words + >=3 baseline
-docs, enforced in public_authors/run.py (thin baselines refuse the run;
-short docs become verification-only). check_genre_balance turns the
+Verification and attribution floors both 300 words (measured decision:
+a stricter attribution floor drops kempis entirely) + >=3 baseline docs,
+enforced in public_authors/run.py -- thin-baseline authors leave the
+candidate pool via the existing skipped_authors mechanism, never abort
+the run; short docs become verification-only. check_genre_balance turns the
 Plato-dominance caveat into a computed warning in the weight derivation.
 Manifest entries gain genre/register/provenance with label-derived defaults.
 
