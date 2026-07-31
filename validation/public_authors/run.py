@@ -22,7 +22,10 @@ Run:
     python -m validation.public_authors.run --only chesterton,emerson
 
 Authors with fewer than 3 baseline samples are skipped with a clear
-warning. The corpus can be expanded by adding URLs to build_corpus.py.
+warning (validation/corpus_policy.py; Task 8), and any document below the
+300-word attribution floor is dropped from both the baseline and scored
+pools before eligibility is decided. The corpus can be expanded by adding
+URLs to build_corpus.py.
 
 The math is unchanged: every score comes from
 ``original.quantum.scoring.score()`` via the in-memory FastAPI client.
@@ -140,6 +143,43 @@ def run(
         key = "baseline" if e["is_baseline"] else "scored"
         by_author[e["author_id"]][key].append(e)
 
+    # Task 8: corpus policy — short documents are verification-only (never
+    # attribution material, whether used to BUILD a candidate's baseline or
+    # SCORED as a held-out probe — a 6-17 word TOC stub is exactly what
+    # corrupted 2 of 9 profiles before the chunker fix), and a candidate
+    # with too few baseline documents is a stub profile that must never be
+    # attributed against. Both floors go through the same shared policy
+    # module every runner will use, not a bespoke check here.
+    from validation.corpus_policy import (
+        ATTRIBUTION_MIN_BASELINE_DOCS,
+        ATTRIBUTION_MIN_WORDS,
+        check_attribution_pool,
+    )
+
+    word_counts = {e["filename"]: e["word_count"] for e in manifest["entries"]}
+    baseline_counts = {a: len(items["baseline"]) for a, items in by_author.items()}
+    policy_violations = check_attribution_pool(word_counts, baseline_counts)
+    short_docs = {v.subject for v in policy_violations if v.kind == "short_document"}
+    if short_docs:
+        # Drop sub-floor documents from BOTH pools before anything downstream
+        # (baseline construction, the experiment-spec corpus summary, and the
+        # eligibility filter below) ever sees them.
+        for items in by_author.values():
+            items["baseline"] = [e for e in items["baseline"] if e["filename"] not in short_docs]
+            items["scored"] = [e for e in items["scored"] if e["filename"] not in short_docs]
+        # Dropping short docs can itself thin a baseline further — recheck
+        # both floors against what remains (mirrors the Bayesian-prior
+        # self-exclusion re-check in validation store.py's genre pool).
+        baseline_counts = {a: len(items["baseline"]) for a, items in by_author.items()}
+        policy_violations = check_attribution_pool(word_counts, baseline_counts)
+    for v in policy_violations:
+        print(f"  ⚠ corpus policy: {v.kind} — {v.subject}: {v.detail}", file=sys.stderr)
+    # Thin-baseline authors leave the CANDIDATE pool — never attribute
+    # against a stub profile — but the run continues on whoever remains;
+    # this feeds the SAME skipped_authors mechanism as every other
+    # exclusion reason below, not a parallel abort path.
+    thin_baseline_authors = {v.subject for v in policy_violations if v.kind == "thin_baseline"}
+
     # Task 7: summarize the manifest's baseline/scored doc lists for the
     # experiment spec, before the eligibility filter below — the spec must
     # be attachable even on the under-populated-corpus error path, where no
@@ -160,7 +200,13 @@ def run(
         "public_authors": summarize_author_docs(all_author_docs, "real_historical")
     }
     experiment_windowing = {"source": "public_authors corpus documents as-is"}
-    experiment_thresholds = {"g3_top1": 0.7}
+    experiment_thresholds = {
+        "g3_top1": 0.7,
+        # Task 8: the corpus-policy floors this run enforced — visible in
+        # every report diff per validation/corpus_policy.py's own docstring.
+        "attribution_min_words": ATTRIBUTION_MIN_WORDS,
+        "attribution_min_baseline_docs": ATTRIBUTION_MIN_BASELINE_DOCS,
+    }
 
     # Filter to authors with the required minimum AND any --only filter.
     eligible: List[str] = []
@@ -169,9 +215,13 @@ def run(
         if only is not None and aid not in only:
             skipped_authors.append((aid, "filtered by --only"))
             continue
-        if len(items["baseline"]) < 3:
+        if aid in thin_baseline_authors:
             skipped_authors.append(
-                (aid, f"only {len(items['baseline'])} baseline samples (need ≥3)")
+                (
+                    aid,
+                    f"thin baseline: {len(items['baseline'])} baseline documents "
+                    f"< required {ATTRIBUTION_MIN_BASELINE_DOCS} (corpus policy)",
+                )
             )
             continue
         if not items["scored"]:
@@ -418,6 +468,11 @@ def run(
             ),
             "reference_warnings": ref_warnings,
             "skipped_authors": skipped_authors,
+            # Task 8: corpus-policy narrowing is a different measurement from
+            # accuracy over the full manifest — make it visible in the report,
+            # not just on stderr.
+            "dropped_short_documents": sorted(short_docs),
+            "corpus_policy_violations": [asdict(v) for v in policy_violations],
         },
         "reference_stats": ref_detail,
         "per_author": {
@@ -530,6 +585,11 @@ def _render_markdown(report: dict) -> str:
     if s.get("skipped_authors"):
         lines.append(
             f"- **Skipped authors**: {len(s['skipped_authors'])} — see report.json for reasons"
+        )
+    if s.get("dropped_short_documents"):
+        lines.append(
+            f"- **Dropped short documents (corpus policy)**: "
+            f"{len(s['dropped_short_documents'])} — {', '.join(s['dropped_short_documents'])}"
         )
     lines.append("")
     lines.append("## Per-author accuracy")

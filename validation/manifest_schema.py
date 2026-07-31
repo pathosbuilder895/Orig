@@ -32,6 +32,14 @@ class AIProvider(str, Enum):
     NONE = "none"
 
 
+class Provenance(str, Enum):
+    """Where a corpus document actually came from — never inferred silently."""
+
+    REAL_HISTORICAL = "real_historical"  # published human prose (Gutenberg etc.)
+    SYNTHETIC_AI = "synthetic_ai"        # AI-generated or AI-transformed
+    STUDENT_PILOT = "student_pilot"      # consented student writing
+
+
 class CorpusEntry(BaseModel):
     """A single essay in the validation corpus."""
 
@@ -54,6 +62,26 @@ class CorpusEntry(BaseModel):
         description="Whether the author is a native English speaker.",
     )
     notes: Optional[str] = None
+    genre: Optional[str] = Field(
+        None, description="Genre/register tag (e.g. 'philosophy', 'sermon', 'student_essay')."
+    )
+    register: Optional[str] = None
+    provenance: Optional[Provenance] = Field(
+        None,
+        description="Document provenance; if unset, effective_provenance derives it from label.",
+    )
+
+    @property
+    def effective_provenance(self) -> Provenance:
+        if self.provenance is not None:
+            return self.provenance
+        if self.label in (
+            AuthorshipLabel.AI_GENERATED,
+            AuthorshipLabel.MIXED,
+            AuthorshipLabel.PARAPHRASED,
+        ):
+            return Provenance.SYNTHETIC_AI
+        return Provenance.REAL_HISTORICAL
 
 
 class ValidationManifest(BaseModel):

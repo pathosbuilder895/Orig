@@ -627,6 +627,36 @@ def main(argv=None) -> int:
         derivation_texts, length=args.length, floor_percentile=args.floor_percentile, verbose=True
     )
 
+    # Task 8: turn this module's hand-written Plato-dominance CAUTION (see
+    # module docstring) into a computed check. Genre is per-corpus here
+    # (seminary=student_essay, plato=philosophy, public_authors=literary_essay);
+    # manifest-level genre tags refine this once corpora carry them
+    # (validation/manifest_schema.py v2). Measured over the SURVIVING
+    # derivation-side authors only — i.e. after drop_short_authors (inside
+    # derive_weights above) has removed anyone below MIN_WINDOWS_PER_AUTHOR
+    # — since that's the population the weights above were actually derived
+    # from, not the full pre-drop derivation split.
+    from dataclasses import asdict
+
+    from validation.corpus_policy import MAX_GENRE_SHARE, check_genre_balance
+
+    _GENRE_BY_CORPUS = {
+        "seminary": "student_essay",
+        "plato": "philosophy",
+        "public_authors": "literary_essay",
+    }
+    surviving_derivation_texts = {
+        a: t for a, t in derivation_texts.items() if a not in diagnostics["dropped_authors"]
+    }
+    genre_words: dict[str, int] = {}
+    for author, text in surviving_derivation_texts.items():
+        corpus_name = author_corpus.get(author, "?")
+        genre = _GENRE_BY_CORPUS.get(corpus_name, corpus_name)
+        genre_words[genre] = genre_words.get(genre, 0) + len(text.split())
+    genre_balance_violations = check_genre_balance(genre_words)
+    for v in genre_balance_violations:
+        print(f"  ⚠ CORPUS BALANCE: {v.subject} — {v.detail}", file=sys.stderr)
+
     # Per-corpus post-windowing report (requirement: visible before the diff).
     print("[derive-weights] post-windowing window counts by corpus:", file=sys.stderr)
     by_corpus: dict[str, list[tuple[str, int]]] = {}
@@ -660,6 +690,14 @@ def main(argv=None) -> int:
         }
         provenance = "student_pilot" if corpus_name == "seminary" else "real_historical"
         corpora_summary[corpus_name] = summarize_author_docs(subset, provenance)
+
+    # Task 8: the genre-balance skew travels with every number derived from
+    # this run, not just the stderr warning above.
+    corpora_summary["genre_balance"] = {
+        "genre_words": genre_words,
+        "max_share": MAX_GENRE_SHARE,
+        "violations": [asdict(v) for v in genre_balance_violations],
+    }
 
     spec = build_spec(
         task="weight_derivation",
