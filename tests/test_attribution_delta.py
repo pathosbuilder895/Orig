@@ -75,3 +75,53 @@ class TestCosineDelta:
             cosine_delta_attribution(
                 {"alpha": matrices["alpha"]}, centers["alpha"], list(range(6))
             )
+
+    def test_empty_feature_indices_raises(self):
+        # No feature columns selected must fail loudly instead of returning
+        # the alphabetically-first author on an all-1.0 distance dict.
+        matrices, centers = _matrices()
+        with pytest.raises(ValueError):
+            cosine_delta_attribution(matrices, centers["alpha"], feature_indices=[])
+
+    def test_non_finite_test_vector_raises(self):
+        matrices, centers = _matrices()
+        test_vec = centers["alpha"].copy()
+        test_vec[2] = np.nan
+        with pytest.raises(ValueError):
+            cosine_delta_attribution(
+                matrices, test_vec, feature_indices=list(range(6))
+            )
+
+    def test_non_finite_baseline_row_raises_and_names_author(self):
+        matrices, centers = _matrices()
+        matrices["gamma"] = matrices["gamma"].copy()
+        matrices["gamma"][1, 3] = np.inf
+        with pytest.raises(ValueError, match="gamma"):
+            cosine_delta_attribution(
+                matrices, centers["alpha"], feature_indices=list(range(6))
+            )
+
+    def test_non_finite_in_unselected_column_does_not_raise(self):
+        # A NaN in a column nobody selected must not block a valid
+        # attribution — validation is restricted to the selected columns.
+        matrices, centers = _matrices()
+        matrices["gamma"] = matrices["gamma"].copy()
+        matrices["gamma"][1, 5] = np.nan  # column 5 excluded below
+        test_vec = np.concatenate([centers["beta"][:5], np.array([9.0])])
+        predicted, dists = cosine_delta_attribution(
+            matrices, test_vec, feature_indices=[0, 1, 2, 3, 4]
+        )
+        assert predicted == "beta"
+        assert set(dists) == set(centers)
+
+    def test_single_row_baseline_matrix_attributes_correctly(self):
+        matrices, centers = _matrices()
+        matrices["alpha"] = centers["alpha"].reshape(1, -1)
+        matrices["beta"] = centers["beta"].reshape(1, -1)
+        matrices["gamma"] = centers["gamma"].reshape(1, -1)
+        test_vec = centers["beta"] + 0.01
+        predicted, dists = cosine_delta_attribution(
+            matrices, test_vec, feature_indices=list(range(6))
+        )
+        assert predicted == "beta"
+        assert set(dists) == set(centers)

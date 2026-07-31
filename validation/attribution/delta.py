@@ -35,6 +35,30 @@ def cosine_delta_attribution(
     Returns (predicted_author, {author: cosine_distance}); lower = closer.
     """
     idx = np.asarray(list(feature_indices), dtype=int)
+    if idx.size == 0:
+        raise ValueError(
+            "attribution cannot proceed with no feature columns selected "
+            "(feature_indices is empty)"
+        )
+
+    test_vector = np.asarray(test_vector, dtype=float)
+    test_selected = test_vector[idx]
+    if not np.all(np.isfinite(test_selected)):
+        raise ValueError(
+            "attribution cannot proceed: test_vector has non-finite values "
+            "(NaN/Inf) in the selected feature columns"
+        )
+
+    for a, m in baseline_matrices.items():
+        if m.shape[0] == 0:
+            continue
+        if not np.all(np.isfinite(m[:, idx])):
+            raise ValueError(
+                f"attribution cannot proceed: baseline matrix for author "
+                f"{a!r} has non-finite values (NaN/Inf) in the selected "
+                f"feature columns"
+            )
+
     centroids = {
         a: m[:, idx].mean(axis=0)
         for a, m in baseline_matrices.items()
@@ -49,7 +73,7 @@ def cosine_delta_attribution(
     mu = pool.mean(axis=0)
     sd = np.maximum(pool.std(axis=0, ddof=0), _SD_FLOOR)
     pool_z = (pool - mu) / sd
-    test_z = (np.asarray(test_vector, dtype=float)[idx] - mu) / sd
+    test_z = (test_selected - mu) / sd
 
     distances = {
         a: _cosine_distance(pool_z[i], test_z) for i, a in enumerate(names)
