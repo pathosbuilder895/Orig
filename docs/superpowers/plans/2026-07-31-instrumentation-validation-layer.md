@@ -514,16 +514,23 @@ read the function and use its actual variable.)
 
 - [ ] **Step 4: Delegate in `stability.py`**
 
-Replace the `_FEATURE_INDICES_SKIPPED` / `_FEATURE_INDICES` definitions:
+Replace the `_FEATURE_INDICES_MEASURED` / `_FEATURE_INDICES_SKIPPED` definitions
+(exact names as of `stability.py:51,54`; `_FEATURE_INDICES_MEASURED` is consumed
+at `stability.py:189`, `_FEATURE_INDICES_SKIPPED` at `:194,196,207` — keep both
+names or those call sites break):
 
 ```python
 from validation.measurability import disabled_feature_indices
 
 _FEATURE_INDICES_SKIPPED: List[int] = disabled_feature_indices()
-_FEATURE_INDICES: List[int] = [
+_FEATURE_INDICES_MEASURED: List[int] = [
     i for i in range(len(ALL_FEATURE_CODES)) if i not in set(_FEATURE_INDICES_SKIPPED)
 ]
 ```
+
+The module-level `KEYSTROKE_TIER = 17` constant becomes unused by these two
+definitions — leave it if anything else references it, delete it if not
+(`grep -n KEYSTROKE_TIER validation/stability/stability.py`).
 
 **Behavior change, deliberate:** stability previously skipped only tier 17
 (`KEYSTROKE_TIER`); the registry also skips tier 18 (uniformity), which is
@@ -570,11 +577,24 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - Test: `tests/test_power.py`
 
 **Interfaces:**
-- Produces (used by Tasks 6, 8, 13):
+- Produces (used by Tasks 6, 8, 11, 13):
   - `conformal_p_floor(n: int) -> float`
   - `band_reachable(n: int, threshold: float) -> bool`
   - `min_docs_for_band(threshold: float) -> int`
   - `rule_of_three_upper(n: int) -> float`
+  - `wilson_interval(successes: int, n: int, z: float = 1.96) -> tuple[float, float]`
+  - `bar_decidable(successes: int, n: int, bar: float) -> str` — `"above"` /
+    `"below"` / `"undecided"`
+
+**Why `wilson_interval` is here:** G1's defect (a criterion unreachable at
+current N) has a sampling-uncertainty twin that the first draft of this plan
+missed. G3 compares top-1 accuracy against a 0.7 bar on **22** held-out
+essays. Measured with this module: the observed 0.455 has a 95% Wilson CI of
+[0.269, 0.653] — genuinely below the bar, so **that failure is real**. But
+the 0.818 diagnostic's CI is [0.615, 0.927], straddling 0.7; even a
+hypothetical 0.727 gives [0.518, 0.868]. **A G3 pass cannot be evidence at
+N=22** — it would take ~306 held-out essays for a 0.75 point estimate to sit
+entirely above the bar. Same failure class as G1, different mechanism.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -592,9 +612,11 @@ import pytest
 
 from validation.power import (
     band_reachable,
+    bar_decidable,
     conformal_p_floor,
     min_docs_for_band,
     rule_of_three_upper,
+    wilson_interval,
 )
 
 
@@ -647,6 +669,50 @@ class TestRuleOfThree:
     def test_nonpositive_n_raises(self):
         with pytest.raises(ValueError):
             rule_of_three_upper(0)
+
+
+class TestWilsonInterval:
+    def test_matches_known_values_for_g3(self):
+        lo, hi = wilson_interval(10, 22)  # the measured 0.455
+        assert lo == pytest.approx(0.269, abs=0.002)
+        assert hi == pytest.approx(0.653, abs=0.002)
+
+    def test_interval_contains_the_point_estimate(self):
+        for k, n in [(0, 10), (5, 10), (10, 10), (18, 22)]:
+            lo, hi = wilson_interval(k, n)
+            assert lo <= k / n <= hi
+
+    def test_interval_narrows_as_n_grows(self):
+        narrow = wilson_interval(150, 200)
+        wide = wilson_interval(15, 20)
+        assert (narrow[1] - narrow[0]) < (wide[1] - wide[0])
+
+    def test_bounds_stay_within_zero_one(self):
+        for k, n in [(0, 5), (5, 5)]:
+            lo, hi = wilson_interval(k, n)
+            assert 0.0 <= lo <= hi <= 1.0
+
+    def test_rejects_impossible_counts(self):
+        with pytest.raises(ValueError):
+            wilson_interval(11, 10)
+        with pytest.raises(ValueError):
+            wilson_interval(-1, 10)
+
+
+class TestBarDecidable:
+    def test_g3_observed_failure_is_genuinely_below(self):
+        # 10/22 = 0.455, CI upper 0.653 < 0.7 — a real finding
+        assert bar_decidable(10, 22, bar=0.7) == "below"
+
+    def test_g3_diagnostic_is_undecided_at_n22(self):
+        # 18/22 = 0.818, CI [0.615, 0.927] straddles 0.7 — cannot prove a pass
+        assert bar_decidable(18, 22, bar=0.7) == "undecided"
+
+    def test_barely_over_the_bar_is_undecided(self):
+        assert bar_decidable(16, 22, bar=0.7) == "undecided"
+
+    def test_large_n_can_decide_above(self):
+        assert bar_decidable(230, 306, bar=0.7) == "above"
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -705,6 +771,52 @@ def rule_of_three_upper(n: int) -> float:
     if n <= 0:
         raise ValueError(f"n must be positive, got {n}")
     return 3.0 / n
+
+
+def wilson_interval(successes: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """
+    Wilson score interval for a binomial proportion (default 95%).
+
+    Preferred over the normal approximation because it stays inside [0, 1]
+    and behaves at the extremes — both of which matter at the corpus sizes
+    this project actually has (n = 22 held-out essays for G3).
+
+    The closed form is analytically within [0, 1] but not numerically: at
+    successes=0 the lower bound evaluates to ≈ -3.1e-17 (verified), so the
+    result is clamped. Without the clamp a caller checking `lo >= 0` — or
+    formatting the bound for a report — sees a negative probability.
+    """
+    if n <= 0:
+        raise ValueError(f"n must be positive, got {n}")
+    if not 0 <= successes <= n:
+        raise ValueError(f"successes must be in [0, {n}], got {successes}")
+    p = successes / n
+    denom = 1 + z * z / n
+    center = p + z * z / (2 * n)
+    margin = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
+    lo = max(0.0, (center - margin) / denom)
+    hi = min(1.0, (center + margin) / denom)
+    return (lo, hi)
+
+
+def bar_decidable(successes: int, n: int, bar: float, z: float = 1.96) -> str:
+    """
+    Can this many trials decide whether the true rate clears `bar`?
+
+    Returns "above" (whole CI above the bar), "below" (whole CI below), or
+    "undecided" (CI straddles it — the observation is compatible with both
+    sides, so neither a pass nor a fail is evidence).
+
+    This is the sampling-uncertainty analogue of band_reachable(): G1 cannot
+    flag because of an arithmetic floor; G3 cannot demonstrate a pass at
+    n=22 because the interval is wider than the distance to the bar.
+    """
+    lo, hi = wilson_interval(successes, n, z)
+    if lo > bar:
+        return "above"
+    if hi < bar:
+        return "below"
+    return "undecided"
 ```
 
 - [ ] **Step 4: Run tests, then full suite**
@@ -723,10 +835,10 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 6: Three-valued gate verdicts + uninformative G1
+### Task 6: Three-valued gate verdicts + uninformative G1 and G3
 
 **Files:**
-- Modify: `validation/calibration_gate.py` (`GateResult`, `evaluate_g1_fpr`, `render`, `main`, the G1 leg of `run_all`; audit insufficient-data constructors)
+- Modify: `validation/calibration_gate.py` (`GateResult`, `evaluate_g1_fpr`, `evaluate_g3_attribution`, `render`, `main`, the G1/G3 legs of `run_all`; audit insufficient-data constructors)
 - Test: extend `tests/test_calibration_gate.py`
 
 **Interfaces:**
@@ -734,6 +846,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - Produces (used by Tasks 12, 13):
   - `GateResult.verdict: str` — `"pass" | "fail" | "uninformative"`; defaults from `passed` when not given, so every existing constructor keeps working.
   - `evaluate_g1_fpr(pooled_actions, per_corpus, entity_baseline_counts: dict[str, int] | None = None, band_threshold: float | None = None) -> GateResult`
+  - `evaluate_g3_attribution(top1_accuracy, top1_accuracy_raw_argmin=None, n_essays: int | None = None) -> GateResult`
   - `main` gains `--strict` (uninformative counts as failure for the exit code).
 
 **⚠ Re-verify first:** this file is under active development on the plato
@@ -804,6 +917,34 @@ class TestG1Informativeness:
         result = evaluate_g1_fpr(actions, per_corpus={"synthetic": actions})
         assert result.verdict == "pass"
         assert result.passed is True
+
+
+class TestG3Informativeness:
+    """
+    G1's arithmetic floor has a sampling-uncertainty twin. At n=22 held-out
+    essays a G3 FAIL is real (CI upper 0.653 < 0.7) but a G3 PASS is not
+    evidence (0.818 → CI [0.615, 0.927], straddling the bar).
+    """
+
+    def test_measured_failure_stays_a_real_failure(self):
+        result = evaluate_g3_attribution(0.455, n_essays=22)
+        assert result.verdict == "fail"
+        assert result.detail["power"]["bar_decidable"] == "below"
+
+    def test_pass_above_the_bar_is_uninformative_at_n22(self):
+        result = evaluate_g3_attribution(18 / 22, n_essays=22)
+        assert result.verdict == "uninformative"
+        assert result.passed is False
+        ci = result.detail["power"]["wilson_ci"]
+        assert ci[0] < 0.7 < ci[1]
+
+    def test_pass_is_informative_when_n_supports_it(self):
+        result = evaluate_g3_attribution(230 / 306, n_essays=306)
+        assert result.verdict == "pass"
+
+    def test_omitting_n_preserves_legacy_behavior(self):
+        assert evaluate_g3_attribution(0.9).verdict == "pass"
+        assert evaluate_g3_attribution(0.455).verdict == "fail"
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -893,6 +1034,75 @@ def evaluate_g1_fpr(
         current_value=f"{pooled_rate:.1%}",
         detail=detail,
     )
+```
+
+- [ ] **Step 4b: Implement informativeness in `evaluate_g3_attribution`**
+
+```python
+def evaluate_g3_attribution(
+    top1_accuracy: float,
+    top1_accuracy_raw_argmin: float | None = None,
+    n_essays: int | None = None,
+) -> GateResult:
+    # ... existing passed / detail construction ...
+    verdict = "pass" if top1_accuracy >= 0.7 else "fail"
+
+    if n_essays:
+        from validation.power import bar_decidable, wilson_interval
+
+        successes = round(top1_accuracy * n_essays)
+        lo, hi = wilson_interval(successes, n_essays)
+        decision = bar_decidable(successes, n_essays, bar=0.7)
+        detail["power"] = {
+            "n_essays": n_essays,
+            "wilson_ci": [lo, hi],
+            "bar": 0.7,
+            "bar_decidable": decision,
+        }
+        if verdict == "pass" and decision != "above":
+            # Point estimate clears the bar but the interval straddles it:
+            # this corpus cannot demonstrate the claim (see Task 5 notes).
+            verdict = "uninformative"
+
+    return GateResult(
+        name="G3",
+        passed=verdict == "pass",
+        verdict=verdict,
+        criterion="public_authors top-1 accuracy >= 0.7 (impostor-calibrated attribution)",
+        current_value=f"{top1_accuracy:.3f}",
+        detail=detail,
+    )
+```
+
+Thread `n_essays` at the existing `run_all` call site (anchor: the
+`pa_summary = pa_report.get("summary", {})` block, ~line 810 at tip
+`34d8ceb6`). `run()`'s summary must expose the held-out essay count — use
+its existing count key if present, else add one:
+
+```python
+    results.append(
+        evaluate_g3_attribution(
+            top1_accuracy,
+            top1_accuracy_raw_argmin=pa_summary.get("top1_accuracy_raw_argmin"),
+            n_essays=pa_summary.get("n_scored_essays"),
+        )
+    )
+```
+
+Extend `render`'s uninformative branch to handle the G3 shape (it has
+`wilson_ci`, not `max_entity_n`) — branch on which key is present:
+
+```python
+        if r.verdict == "uninformative" and power:
+            if "wilson_ci" in power:
+                lo, hi = power["wilson_ci"]
+                lines.append(
+                    f"        n={power['n_essays']} → 95% CI [{lo:.3f}, {hi:.3f}] "
+                    f"straddles the {power['bar']} bar; this corpus cannot "
+                    f"demonstrate a pass."
+                )
+            else:
+                # ... the G1 conformal-floor line from Step 6 ...
 ```
 
 - [ ] **Step 5: Thread entity counts through the G1 leg of `run_all`**
@@ -1281,7 +1491,16 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
   - `check_verification_pool(word_counts: dict[str, int], min_words: int = 300) -> list[PolicyViolation]`
   - `check_attribution_pool(word_counts: dict[str, int], baseline_counts: dict[str, int], min_words: int = 500, min_baseline_docs: int = 3) -> list[PolicyViolation]`
   - `conformal_informative_authors(baseline_counts: dict[str, int], band_threshold: float) -> dict[str, bool]`
+  - `check_genre_balance(genre_word_counts: dict[str, int], max_share: float = 0.6) -> list[PolicyViolation]`
   - `manifest_schema.Provenance` enum + `CorpusEntry.genre/register/provenance` + `CorpusEntry.effective_provenance`
+
+**Why `check_genre_balance` is here:** the advisory's lead complaint is that
+weights are derived on a corpus "21 parts Plato to 2 parts student-like
+prose". The ExperimentSpec (Task 7) *records* composition, but recording is
+not checking — `derive_measured_weights.py` currently carries that caveat as
+a hand-written CAUTION string in its module docstring, which cannot go stale
+loudly. This turns it into a computed, printed violation whose threshold
+lives in the spec.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1299,6 +1518,7 @@ from __future__ import annotations
 from validation.corpus_policy import (
     PolicyViolation,
     check_attribution_pool,
+    check_genre_balance,
     check_verification_pool,
     conformal_informative_authors,
 )
@@ -1336,6 +1556,29 @@ class TestConformalInformative:
     def test_pilot_scale_counts_are_uninformative(self):
         result = conformal_informative_authors({"s1": 12, "s2": 40}, band_threshold=0.03)
         assert result == {"s1": False, "s2": True}
+
+
+class TestGenreBalance:
+    def test_the_actual_derivation_corpus_skew_is_flagged(self):
+        # "21 parts Plato to 2 parts student-like prose" (Instrument Report)
+        violations = check_genre_balance({"philosophy": 21000, "student_essay": 2000})
+        assert len(violations) == 1
+        v = violations[0]
+        assert v.kind == "genre_dominance" and v.subject == "philosophy"
+        assert "91" in v.detail  # 21000/23000 = 91.3%
+
+    def test_balanced_corpus_passes(self):
+        assert check_genre_balance(
+            {"philosophy": 4000, "sermon": 3500, "student_essay": 3000}
+        ) == []
+
+    def test_threshold_is_caller_controlled(self):
+        counts = {"philosophy": 7000, "student_essay": 3000}  # 70%
+        assert check_genre_balance(counts, max_share=0.75) == []
+        assert len(check_genre_balance(counts, max_share=0.6)) == 1
+
+    def test_empty_corpus_is_not_a_violation(self):
+        assert check_genre_balance({}) == []
 
 
 class TestManifestV2:
@@ -1456,6 +1699,37 @@ def conformal_informative_authors(
     from validation.power import band_reachable
 
     return {a: band_reachable(n, band_threshold) for a, n in baseline_counts.items()}
+
+
+MAX_GENRE_SHARE = 0.6
+
+
+def check_genre_balance(
+    genre_word_counts: dict[str, int],
+    max_share: float = MAX_GENRE_SHARE,
+) -> list[PolicyViolation]:
+    """
+    Flag a derivation corpus dominated by one genre.
+
+    Weights derived on a corpus that is overwhelmingly one register say
+    more about that register than about the target task — the Instrument
+    Report's standing caveat ("21 parts Plato to 2 parts student-like
+    prose") made computable, so it cannot rot into a stale docstring.
+    """
+    total = sum(genre_word_counts.values())
+    if total == 0:
+        return []
+    return [
+        PolicyViolation(
+            kind="genre_dominance",
+            subject=genre,
+            detail=f"{count / total:.1%} of corpus words ({count}/{total}) "
+            f"exceeds the {max_share:.0%} single-genre ceiling — derived "
+            "quantities describe this genre more than the target task",
+        )
+        for genre, count in sorted(genre_word_counts.items())
+        if count / total > max_share
+    ]
 ```
 
 - [ ] **Step 4: Extend `manifest_schema.py`**
@@ -1524,17 +1798,45 @@ line, not scored for attribution:
 (Adapt dict-key names — `by_author[a]["baseline"]` / `["scored"]` — to the
 actual structure in `run()`; record dropped docs in the summary dict.)
 
+- [ ] **Step 5b: Wire the balance check into `scripts/derive_measured_weights.py`**
+
+The script's module docstring carries a hand-written CAUTION about Plato
+dominance. Replace the *enforcement* half with a computed check at the point
+where the derivation-side corpora are assembled (anchor: after the
+`drop_short_authors` call, where the surviving per-author texts are known):
+
+```python
+    from validation.corpus_policy import check_genre_balance
+
+    # Genre is per-corpus here (seminary=student_essay, plato=philosophy,
+    # public_authors=literary_essay); manifest-level genre tags refine this
+    # once corpora carry them (validation/manifest_schema.py v2).
+    genre_words = {
+        "student_essay": _words_in(seminary_texts),
+        "philosophy": _words_in(plato_texts),
+        "literary_essay": _words_in(public_texts),
+    }
+    for v in check_genre_balance(genre_words):
+        print(f"  ⚠ CORPUS BALANCE: {v.subject} — {v.detail}", file=sys.stderr)
+```
+
+with `_words_in(d) = sum(len(t.split()) for ts in d.values() for t in ts)`.
+Record `genre_words` and the violation list in the run's ExperimentSpec
+`corpora` block (Task 7) so the skew travels with every number derived from
+it. **Keep the docstring CAUTION** — it explains *why*; the check enforces.
+
 - [ ] **Step 6: Run tests + full suite, commit**
 
 ```bash
 /Users/andrew/Desktop/Original/.venv/bin/python -m pytest tests/test_corpus_policy.py tests/ -q
-git add validation/corpus_policy.py validation/manifest_schema.py validation/public_authors/run.py tests/test_corpus_policy.py
-git commit -m "Add corpus policy floors and manifest v2 provenance/genre fields
+git add validation/corpus_policy.py validation/manifest_schema.py validation/public_authors/run.py scripts/derive_measured_weights.py tests/test_corpus_policy.py
+git commit -m "Add corpus policy floors, genre-balance check, manifest v2 fields
 
 Verification floor 300 words; attribution floor 500 words + >=3 baseline
 docs, enforced in public_authors/run.py (thin baselines refuse the run;
-short docs become verification-only). Manifest entries gain genre/register/
-provenance with label-derived defaults.
+short docs become verification-only). check_genre_balance turns the
+Plato-dominance caveat into a computed warning in the weight derivation.
+Manifest entries gain genre/register/provenance with label-derived defaults.
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
@@ -1999,13 +2301,24 @@ Anchoring on the existing held-out scoring loop (the one that fills
 3. In the summary assembly, add:
 
 ```python
+        from validation.power import wilson_interval
+
         rows = [r.engine_predictions for r in results]
-        summary["per_engine_top1"] = {
-            engine: sum(
-                1 for r in results if r.engine_predictions[engine] == r.true_author
-            ) / len(results)
-            for engine in rows[0]
-        }
+        n = len(results)
+        summary["n_scored_essays"] = n  # G3's informativeness input (Task 6)
+        summary["per_engine_top1"] = {}
+        for engine in rows[0]:
+            hits = sum(1 for r in results if r.engine_predictions[engine] == r.true_author)
+            lo, hi = wilson_interval(hits, n)
+            # Every accuracy travels with its interval: at n=22 the CI is
+            # ~±0.2, wide enough that two engines can differ by 0.15 and be
+            # statistically indistinguishable. Print it so the side-by-side
+            # table is never read as a ranking it cannot support.
+            summary["per_engine_top1"][engine] = {
+                "accuracy": hits / n,
+                "wilson_ci_95": [lo, hi],
+                "n": n,
+            }
         covered = [r for r in results if r.ensemble_author is not None]
         summary["ensemble_coverage"] = len(covered) / len(results)
         summary["ensemble_accuracy_on_covered"] = (
@@ -2031,10 +2344,13 @@ first side-by-side table (slow, scores 9 baselines × 22 essays):
 /Users/andrew/Desktop/Original/.venv/bin/python -m validation.public_authors.run
 ```
 
-Expected: summary JSON now contains `per_engine_top1` for all three
-engines, `ensemble_coverage`, `ensemble_accuracy_on_covered`,
-`engine_agreement`, and the `experiment` spec with `task="attribution"`.
-Record whatever the numbers are — do NOT tune until they look good.
+Expected: summary JSON now contains `per_engine_top1` (accuracy + 95% Wilson
+CI + n for all three engines), `n_scored_essays`, `ensemble_coverage`,
+`ensemble_accuracy_on_covered`, `engine_agreement`, and the `experiment`
+spec with `task="attribution"`. Record whatever the numbers are — do NOT
+tune until they look good. **Read the intervals before drawing any
+conclusion**: at n=22 they are roughly ±0.2 wide, so an engine leading by
+0.1 has not been shown to be better.
 
 - [ ] **Step 7: Commit**
 
@@ -2473,6 +2789,82 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ---
 
+### Task 15: Reconcile CLAUDE.md with the merged reality
+
+**Files:**
+- Modify: `CLAUDE.md` (Feature dimensionality, Key Architecture, Feature Dimensions sections)
+
+**Interfaces:** none (documentation only).
+
+**Why this task exists:** Task 1's merge brings Tier 18 (uniformity, 6
+features) from the plato branch, which never updated `CLAUDE.md`. The moment
+that merge lands, the project's own instruction file is wrong in three
+places — and it is the file every future session reads first. Verified
+2026-07-31: `constants.py` on the plato branch has `FEATURE_DIM = 109` and
+`BASE_FEATURE_DIM = 102`, while `CLAUDE.md` still says 103 and 96.
+
+- [ ] **Step 1: Confirm the post-merge numbers from the code, not from this plan**
+
+```bash
+/Users/andrew/Desktop/Original/.venv/bin/python -c "
+from original.constants import ALL_FEATURE_CODES, BASE_FEATURE_CODES, FEATURE_TIER, DISABLED_FEATURE_GROUPS, FEATURE_GROUPS
+disabled = {c for g in DISABLED_FEATURE_GROUPS for c in FEATURE_GROUPS.get(g, [])}
+print('FEATURE_DIM      =', len(ALL_FEATURE_CODES))
+print('BASE_FEATURE_DIM =', len(BASE_FEATURE_CODES))
+print('tiers            =', len(set(FEATURE_TIER.values())))
+print('disabled groups  =', sorted(DISABLED_FEATURE_GROUPS), '->', len(disabled), 'features')
+print('active           =', len(ALL_FEATURE_CODES) - len(disabled))
+"
+```
+
+Use the printed values in Step 2 — do not copy numbers from this plan.
+
+- [ ] **Step 2: Update the three stale sections**
+
+1. **Feature dimensionality** (~line 86): `103 dimensional / **97 active**`
+   → the measured values; add Tier 18 (uniformity, 6 features) to the
+   `DISABLED_FEATURE_GROUPS` sentence alongside Tier 17; update
+   `BASE_FEATURE_DIM = 96` (~line 96) to the measured value and drop the
+   stale `constants.py:222` line reference.
+2. **Key Architecture** (~lines 104, 110): `103-feature pipeline` and
+   `103 features across 17 tiers` → measured values / 18 tiers.
+3. **Feature Dimensions** (~line 132): `FEATURE_DIM = 103 (current)` →
+   measured value.
+
+- [ ] **Step 3: Document the validation layer's standing rules**
+
+Add a section after **Testing**:
+
+```markdown
+## Validation Layer
+`validation/` enforces instrument hygiene — see `validation/README.md`.
+The rules that bite during development:
+- Aggregating over a feature column requires it to be MEASURABLE in
+  `validation/measurability.py`; blank/scoring-only columns raise.
+- Gate verdicts are three-valued: `pass` / `fail` / `uninformative`. A gate
+  whose criterion is unreachable at the current N reports uninformative —
+  never quote it as a pass. Run
+  `python -m validation.calibration_gate --strict` before citing results.
+- Every new gate needs a failure witness in `validation/gate_contracts.py`
+  or `tests/test_gate_falsifiability.py` fails.
+- Corpus floors: verification >= 300 words; attribution >= 500 words and
+  >= 3 baseline docs per candidate.
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add CLAUDE.md
+git commit -m "Fix stale feature counts in CLAUDE.md; document the validation layer
+
+Tier 18 landed with the instrument-branch merge: FEATURE_DIM 103 -> 109,
+BASE_FEATURE_DIM 96 -> 102, 17 -> 18 tiers.
+
+Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+```
+
+---
+
 ## Deferred (separate plan when prioritized)
 
 - **Synthetic-author E2E harness** (design spec C7): parametric authors +
@@ -2482,13 +2874,52 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - **Separate API endpoints** for verification/attribution/drift: product
   change, out of scope (design spec non-goals).
 
+## Open decision for the user: CI coverage
+
+`.github/workflows/test.yml` has two jobs — `lint` (ruff, **scoped to
+`original/`**) and `pytest` (`tests/` + `validation/test_tier10_optional.py`,
+`--cov=original --cov-fail-under=78`). Consequences worth a decision:
+
+1. **The corpus gate battery never runs in CI.** Tasks 12–13's falsifiability
+   and property tests DO run (they are pure-logic tests in `tests/`), so
+   "a gate that cannot fail" is caught automatically. But G1–G6 *results* are
+   regenerated only when someone runs the runner by hand, and nothing ever
+   invokes `--strict`. Options: (a) leave manual and rely on the fast
+   falsifiability layer — recommended, since the battery scores three corpora
+   in-process and would dominate a 20-minute CI budget; (b) add a nightly
+   `validation` job running `python -m validation.calibration_gate --strict`.
+   Do not add it to the per-push `pytest` job either way.
+2. **New `validation/` and `tests/` code is not lint-gated.** ruff is scoped
+   to `original/` in both CI and `.pre-commit-config.yaml` (deliberate — those
+   trees were never swept, per the config's comment). This plan adds ~1,000
+   lines outside that scope. Recommendation: leave the scope alone and run
+   `ruff check validation/ tests/ --no-fix` manually before the final commit
+   rather than widening the gate and inheriting legacy debt.
+3. **Coverage floor is safe.** `--cov=original` measures only the product
+   package, which this plan does not modify; the new tests import and execute
+   `original.*` modules, so coverage can only rise.
+
 ## Self-Review Notes
 
 - Spec coverage: C1→Tasks 2–4, C2→Tasks 5–6, C3→Task 7, C4→Task 8,
-  C5→Tasks 9–11, C6→Tasks 12–13; Phase 0→Task 1; docs→Task 14; C7
+  C5→Tasks 9–11, C6→Tasks 12–13; Phase 0→Task 1; docs→Tasks 14–15; C7
   explicitly deferred.
 - All commands use the absolute venv path; the worktree has no `.venv`.
 - Tasks 6, 8 (run.py wiring), 11, and 12 touch files owned by the moving
   plato branch — each carries a re-verify step and symbol anchors instead
   of line numbers.
+- **Second-pass corrections (2026-07-31), after verifying against the plato
+  branch tip `34d8ceb6`:**
+  - Task 4 named a variable `_FEATURE_INDICES`; the real symbol is
+    `_FEATURE_INDICES_MEASURED` (`stability.py:51`, consumed at `:189`).
+    Following the draft literally would have raised `NameError` on import.
+  - Tasks 5/6/11 gained Wilson intervals and `bar_decidable`: the first draft
+    applied the "every number carries its floor given N" rule only to G1's
+    conformal floor and missed G3, whose *pass* is undemonstrable at n=22
+    ([0.615, 0.927] for the 0.818 diagnostic straddles the 0.7 bar).
+  - Task 8 gained `check_genre_balance`: the draft recorded corpus
+    composition in the ExperimentSpec but never checked it, leaving the
+    advisory's lead complaint as a prose caveat.
+  - Task 15 added: Task 1's merge silently makes `CLAUDE.md` wrong
+    (103→109 features, 96→102 base dim, 17→18 tiers).
 ```

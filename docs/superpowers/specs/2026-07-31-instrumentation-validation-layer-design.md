@@ -158,7 +158,20 @@ conformal_p_floor(n: int) -> float                 # 1/(n+1)
 band_reachable(n: int, threshold: float) -> bool   # floor <= threshold
 min_docs_for_band(threshold: float) -> int         # ceil(1/t) - 1  (→ ~199 for 0.005)
 rule_of_three_upper(n: int) -> float               # 3/n upper 95% CI for 0 observed
+wilson_interval(successes: int, n: int) -> tuple   # 95% CI on a proportion
+bar_decidable(successes, n, bar) -> str            # "above" | "below" | "undecided"
 ```
+
+**Two mechanisms, one failure class.** G1 cannot flag because of an
+arithmetic floor. G3 cannot demonstrate a *pass* because its interval is
+wider than the distance to its bar: on 22 held-out essays the measured 0.455
+has a 95% Wilson CI of [0.269, 0.653] — so that **failure is real** — but
+the 0.818 diagnostic gives [0.615, 0.927], straddling the 0.7 bar, and even
+0.727 gives [0.518, 0.868]. Roughly 306 essays would be needed for a 0.75
+result to sit entirely above the bar. Both mechanisms resolve to the same
+`uninformative` verdict, and every accuracy the attribution benchmark prints
+carries its interval so the three-engine table is never read as a ranking it
+cannot support.
 
 `GateResult` gains `verdict: "pass" | "fail" | "uninformative"` (the existing
 `passed: bool` field stays, `passed = (verdict == "pass")`, so downstream
@@ -223,6 +236,13 @@ Schema additions (v2, backward-readable from v1):
 - corpus-level: `min_window_words` actually used, plus computed
   `conformal_informative: bool` per author (from C2's `band_reachable`
   against that author's doc count).
+
+Balance is checked, not merely recorded: `check_genre_balance()` flags any
+single genre exceeding 60% of a derivation corpus's words. The advisory's
+lead complaint (21:2 Plato-to-student-prose) currently lives as a
+hand-written CAUTION string in `derive_measured_weights.py`'s docstring,
+which cannot go stale loudly; the check makes the skew a computed warning
+carried in the ExperimentSpec alongside every number derived from it.
 
 Enforcement at load time (extending the existing refuse-to-write stub
 guard):
@@ -355,3 +375,10 @@ alone.
    designed, or strict from day one for `calibration_gate`?
 4. **sklearn engine:** include behind a flag now (designed above) or defer
    entirely to keep C5 numpy-only.
+5. **CI coverage for the gate battery:** `.github/workflows/test.yml` runs
+   only lint (scoped to `original/`) and the fast pytest suite, so the
+   corpus-driven G1–G6 run is manual-only and nothing invokes `--strict`.
+   The falsifiability and property tests (C6) *do* run per-push, which is
+   what stops a can't-fail gate from merging. Recommendation: leave the
+   battery manual rather than spend a 20-minute CI budget on it; add a
+   nightly job only if gate drift becomes a real problem.
