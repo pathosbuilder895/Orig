@@ -110,10 +110,13 @@ GATE_CONTRACTS: dict[str, GateContract] = {
             "populations_legitimately_pass, which runs exactly this). A "
             "label-destruction witness that must 'never pass' would have to "
             "cherry-pick an unrepresentative imbalance instead — exactly "
-            "the hollow-witness trap this task warns against. G2's real "
-            "authorship-structure control is upstream, in the LOO scoring "
-            "pipeline that produces holdout_q/impostor_q in the first place, "
-            "not in this pure comparison function."
+            "the hollow-witness trap this task warns against. No "
+            "label-destruction leg is possible for this gate at all: for "
+            "an absence-of-pathology criterion like G2's, a pass under "
+            "destroyed labels (identical holdout/impostor populations) is "
+            "CORRECT behavior, not a blind spot — which is exactly what "
+            "test_g2_identical_populations_legitimately_pass, registered "
+            "above, asserts."
         ),
     ),
     "evaluate_g2b_paraphrase_resistant": GateContract(
@@ -190,10 +193,10 @@ GATE_CONTRACTS: dict[str, GateContract] = {
     "evaluate_g5_permutation_null": GateContract(
         gate="G5",
         claims="under permuted author labels, all three scoring legs "
-        "collapse toward chance (G1 mean deviation does not drop below the "
-        "real leg's; G3 attribution accuracy stays >= 0.30; a majority of "
-        "G4 draws come out non-monotone) — this IS the suite's own "
-        "label-destruction control",
+        "collapse toward chance (G1 shuffled mean deviation rises strictly "
+        "above the real leg's; G3 shuffled attribution accuracy stays below "
+        "0.30; a majority of G4 draws come out non-monotone) — this IS the "
+        "suite's own label-destruction control",
         failure_witness=lambda: evaluate_g5_permutation_null(
             real_g1_mean_deviation=1.0,
             shuffled_g1_mean_deviation=0.9,  # insensitive to blending -> fail

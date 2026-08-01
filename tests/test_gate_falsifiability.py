@@ -29,6 +29,11 @@ from validation.gate_contracts import GATE_CONTRACTS
 
 
 def _all_gate_evaluators() -> list[str]:
+    # LIMITATION: inspect.isfunction only matches plain `def`/lambda objects.
+    # A future gate exposed as a functools.partial, a callable class instance,
+    # or wrapped by a decorator that returns a non-function callable would
+    # silently evade this scan (and therefore test_no_unregistered_gates)
+    # without raising anything here — it would just never be found.
     return sorted(
         name
         for name, obj in inspect.getmembers(calibration_gate, inspect.isfunction)
@@ -67,6 +72,18 @@ class TestContracts:
         # unconditionally, but pin it here too: a failure witness is only
         # honest if `passed` agrees with `verdict`.
         assert result.passed is False
+        # A witness that fails is only proof of ANYTHING if it actually
+        # exercised the gate it's registered under. Without this, a
+        # mis-wired contract whose failure_witness calls a DIFFERENT gate
+        # that happens to fail would report green here while the gate it's
+        # supposedly registered for could be unconditionally passed
+        # (passed=True hardcoded) and nothing above would catch it — the
+        # exact hole this registry exists to close.
+        assert result.name == GATE_CONTRACTS[name].gate, (
+            f"{name}'s failure witness returned a result for gate "
+            f"{result.name!r}, not {GATE_CONTRACTS[name].gate!r} — the "
+            "witness is calling the wrong gate function"
+        )
 
     def test_label_destruction_never_passes(self, name):
         contract = GATE_CONTRACTS[name]
