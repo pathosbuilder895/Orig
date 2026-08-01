@@ -38,21 +38,26 @@ Report ("The instruments were broken, not the math") and
    runs disagree and raises if asked to compare runs with different `task`
    values — those answer different questions and are not comparable.
 4. **Corpus floors are policy** (`corpus_policy.py`, `manifest_schema.py`).
-   Verification floor: >= 300 words (`VERIFICATION_MIN_WORDS`). Attribution
-   floor: **>= 300 words** (`ATTRIBUTION_MIN_WORDS`) **and** >= 3 baseline
-   documents per candidate (`ATTRIBUTION_MIN_BASELINE_DOCS`); short texts are
-   verification-only, never attribution candidates. The attribution word
-   floor is 300, matching the verification floor — not 500. That's a
-   measured decision (2026-07-31): at 500 words, the real manifest loses
-   *all three* of author `kempis`'s baseline documents (393–499 words each) —
-   the same author an earlier corpus (chunker) fix had just repaired. The two
-   constants are kept as separate names so attribution can be raised
-   independently once the corpus carries longer chunks. A policy violation
-   never aborts a run: `check_attribution_pool()` returns a list of
-   `PolicyViolation`s (`short_document` / `thin_baseline`) and the caller
-   **excludes** the offending document or author from the candidate pool,
-   then re-checks the remaining floors — the run continues on whoever is
-   left (see the real example below). `genre_dominance` is a *separate*
+   Only the **attribution** floor is actually enforced today, by
+   `validation/public_authors/run.py` calling `check_attribution_pool()` at
+   load time: **>= 300 words** (`ATTRIBUTION_MIN_WORDS`) **and** >= 3
+   baseline documents per candidate (`ATTRIBUTION_MIN_BASELINE_DOCS`); short
+   texts are verification-only, never attribution candidates. The
+   attribution word floor is 300, matching the declared verification floor
+   — not 500. That's a measured decision (2026-07-31): at 500 words, the
+   real manifest loses *all three* of author `kempis`'s baseline documents
+   (393–499 words each) — the same author an earlier corpus (chunker) fix
+   had just repaired. The two constants are kept as separate names so
+   attribution can be raised independently once the corpus carries longer
+   chunks. A policy violation never aborts a run: `check_attribution_pool()`
+   returns a list of `PolicyViolation`s (`short_document` / `thin_baseline`)
+   and the caller **excludes** the offending document or author from the
+   candidate pool, then re-checks the remaining floors — the run continues
+   on whoever is left (see the real example below). The **verification**
+   floor (`VERIFICATION_MIN_WORDS=300`, `check_verification_pool()`) is a
+   declared constant with no production caller yet — exercised only by
+   `tests/test_corpus_policy.py`, not wired into any runner.
+   `genre_dominance` is a *separate*
    check on a *different* task: `check_genre_balance()` flags a
    weight-derivation corpus where one genre exceeds 60% of the words, and
    its only caller (`scripts/derive_measured_weights.py`) prints it as an

@@ -65,7 +65,19 @@ class CorpusEntry(BaseModel):
     genre: Optional[str] = Field(
         None, description="Genre/register tag (e.g. 'philosophy', 'sermon', 'student_essay')."
     )
-    register: Optional[str] = None
+    # Renamed from `register` (FIX 4): that name shadows
+    # ABCMeta.register/BaseModel.register, which pydantic v2 warns about at
+    # every import of this module (`UserWarning: Field name "register" in
+    # "CorpusEntry" shadows an attribute in parent "BaseModel"`). Confirmed
+    # via repo-wide grep (including every manifest.json) that nothing reads
+    # a "register" key or `.register` attribute on a CorpusEntry — the field
+    # was added recently and has no consumers — so a plain rename is safe;
+    # no wire-format alias is needed.
+    register_label: Optional[str] = Field(
+        None,
+        description="Linguistic register tag (e.g. 'formal', 'academic', 'colloquial'), "
+        "distinct from `genre` (document type/topic).",
+    )
     provenance: Optional[Provenance] = Field(
         None,
         description="Document provenance; if unset, effective_provenance derives it from label.",

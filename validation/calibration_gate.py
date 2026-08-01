@@ -980,6 +980,55 @@ def _g1_entity_baseline_counts(
     return {entity_id: len(texts_by_id[entity_id]) - 1 for entity_id in per_corpus_actions}
 
 
+def _g3_inputs_from_pa_report(pa_report: dict) -> tuple[float, float | None, int | None]:
+    """
+    Extract G3's three evaluate_g3_attribution() inputs from
+    validation/public_authors/run.py's run() report dict, and warn loudly
+    (stderr; never crash the battery) if the summary is PRESENT but missing
+    "n_scored_essays".
+
+    FIX 1: n_essays=None is indistinguishable, from
+    evaluate_g3_attribution's point of view, from "the corpus legitimately
+    produced no summary at all" — both silently revert G3 to its legacy
+    two-valued pass/fail rule (see that function's `if n_essays:` guard).
+    That silent revert is exactly the fail-open path this validation layer
+    exists to prevent: a renamed/dropped "n_scored_essays" key in run.py
+    (it is set in exactly one place, run.py's `n_scored_essays = len(results)`)
+    would make G3 report `verdict="pass"` on a sample size too small to
+    support one, with nothing printed anywhere to say why.
+
+    So the two "no n_essays" cases are handled differently here:
+      - "summary" absent entirely: the LEGITIMATE error path (run() found
+        fewer than 2 eligible authors and returns {"error": ..., ...} with
+        no "summary" key — see run()'s docstring). Nothing is wrong here;
+        stay silent, exactly as before this fix.
+      - "summary" present but "n_scored_essays" absent: a machinery bug —
+        the producer/consumer contract between run.py and this file broke.
+        Loud stderr warning naming the missing key; still doesn't crash the
+        battery (mirrors every other `_machinery_error_result`-style
+        convention in this file of degrading loudly rather than aborting).
+
+    Extracted to a standalone, importable function (same FIX C convention
+    as `_g1_entity_baseline_counts` above) so this branch is unit-testable
+    with synthetic report dicts, without running run_public_authors()'s own
+    live-TestClient scoring.
+    """
+    pa_summary = pa_report.get("summary", {})
+    if "summary" in pa_report and "n_scored_essays" not in pa_summary:
+        print(
+            "⚠ calibration_gate: public_authors summary is present but "
+            "missing 'n_scored_essays' — G3's informativeness check will "
+            "silently revert to legacy pass/fail behavior "
+            "(see evaluate_g3_attribution's `if n_essays:` guard)",
+            file=sys.stderr,
+        )
+    return (
+        pa_summary.get("top1_accuracy", 0.0),
+        pa_summary.get("top1_accuracy_raw_argmin"),
+        pa_summary.get("n_scored_essays"),
+    )
+
+
 def run_all() -> list[GateResult]:
     # Defensive reset, before anything else: ENV_LOCK (module import time,
     # above) already put us on ORIGINAL_DB=":memory:", so this is a no-op
@@ -1063,18 +1112,16 @@ def run_all() -> list[GateResult]:
     from validation.public_authors.run import run as run_public_authors
 
     pa_report = run_public_authors()
-    pa_summary = pa_report.get("summary", {})
-    top1_accuracy = pa_summary.get("top1_accuracy", 0.0)
+    top1_accuracy, top1_accuracy_raw_argmin, n_essays = _g3_inputs_from_pa_report(pa_report)
     results.append(
         evaluate_g3_attribution(
             top1_accuracy,
-            top1_accuracy_raw_argmin=pa_summary.get("top1_accuracy_raw_argmin"),
+            top1_accuracy_raw_argmin=top1_accuracy_raw_argmin,
             # "n_scored_essays" is the held-out essay count run.py actually
             # scored. It drives G3's informativeness check: at n=22 the Wilson
             # interval around a 0.727 accuracy straddles the 0.7 bar, so the
             # gate reports UNINFORMATIVE rather than banking the pass.
-            # .get() still guards the error path, where run() returns no summary.
-            n_essays=pa_summary.get("n_scored_essays"),
+            n_essays=n_essays,
         )
     )
 
@@ -2123,14 +2170,44 @@ def main(argv=None) -> int:
         # untouched, so the monkeypatched-run_all tests in
         # tests/test_calibration_gate.py (which replace run_all with a bare
         # lambda returning a plain list) don't have to change shape.
+        seminary_texts = _load_seminary_texts()
+        public_authors_texts = _load_public_authors_baseline_texts()
+        plato_texts = _load_plato_texts_by_dialogue()
+
+        # FIX 2: "seminary" / "public_authors" / "plato" below are the three
+        # LOADED corpora (43 authors / 271 documents) — the correct
+        # denominator for G4 (early/middle/late grouping over the full Plato
+        # set) and G6 (native_english fairness slice), which both consume
+        # these texts as-is with no per-entity filter. G1 alone additionally
+        # applies its own >= 5-texts-per-entity LOO eligibility filter
+        # (_score_corpus_for_g1 skips anything shorter) and therefore scores
+        # a narrower pool — 24 entities / 216 folds. Reporting only the
+        # loaded totals would let a reader attribute G1's flagged rate to
+        # all 271 documents across 43 authors, when it was actually measured
+        # over the 216 held-out folds behind "g1_scored" below — exactly
+        # the raw-vs-measured conflation this validation layer exists to
+        # prevent (see validation/public_authors/run.py's identical
+        # eligible-narrowing precedent, ~line 229: "a run narrowed by --only
+        # or by corpus policy must report what it measured, not what the raw
+        # manifest contains"). Kept ALONGSIDE the loaded totals, rather than
+        # narrowing them in place, because those totals are also the
+        # genuinely correct denominator for G4/G6 above — narrowing this
+        # dict to G1's subset would make it wrong for the other two gates.
+        g1_scored_texts_by_id = {
+            entity_id: texts
+            for entity_id, texts in {**seminary_texts, **public_authors_texts, **plato_texts}.items()
+            if len(texts) >= 5
+        }
+
         spec = build_spec(
             task="calibration_suite",
             corpora={
-                "seminary": summarize_author_docs(_load_seminary_texts(), "student_pilot"),
-                "public_authors": summarize_author_docs(
-                    _load_public_authors_baseline_texts(), "real_historical"
+                "seminary": summarize_author_docs(seminary_texts, "student_pilot"),
+                "public_authors": summarize_author_docs(public_authors_texts, "real_historical"),
+                "plato": summarize_author_docs(plato_texts, "real_historical"),
+                "g1_scored": summarize_author_docs(
+                    g1_scored_texts_by_id, "g1_loo_eligible_subset"
                 ),
-                "plato": summarize_author_docs(_load_plato_texts_by_dialogue(), "real_historical"),
             },
             windowing={"source": "corpus documents as-is"},
             aggregation={"tier_rule": "median"},

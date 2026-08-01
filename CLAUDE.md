@@ -47,12 +47,15 @@ The rules that bite during development:
 - Every new gate needs a failure witness registered in
   `validation/gate_contracts.py` (`GATE_CONTRACTS`) or
   `tests/test_gate_falsifiability.py` fails the suite.
-- Corpus floors are enforced at load time (`validation/corpus_policy.py`):
-  verification >= 300 words; attribution >= 300 words (not 500 — raising it
-  to 500 drops author `kempis`'s baseline docs entirely, all 393-499 words)
-  and >= 3 baseline docs per candidate. A thin baseline does **not** abort
-  the run — the author is excluded from the candidate pool and scoring
-  continues on whoever remains.
+- Corpus floors (`validation/corpus_policy.py`): only the **attribution**
+  floor is actually enforced today, by `validation/public_authors/run.py`
+  calling `check_attribution_pool()` at load time — >= 300 words (not
+  500 — raising it to 500 drops author `kempis`'s baseline docs entirely,
+  all 393-499 words) and >= 3 baseline docs per candidate. A thin baseline
+  does **not** abort the run — the author is excluded from the candidate
+  pool and scoring continues on whoever remains. The **verification**
+  floor (`VERIFICATION_MIN_WORDS=300`, `check_verification_pool()`) is a
+  declared constant with no production caller yet — tests only.
 
 ---
 

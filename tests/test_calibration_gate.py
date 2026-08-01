@@ -8,6 +8,8 @@ only tests the gate LOGIC on small synthetic inputs.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from validation import calibration_gate
@@ -15,6 +17,7 @@ from validation.calibration_gate import (
     GateResult,
     _conformal_p_floor,
     _g1_entity_baseline_counts,
+    _g3_inputs_from_pa_report,
     _g5_machinery_error_result,
     _g6_insufficient_data_result,
     _g6_short_group_message,
@@ -658,6 +661,73 @@ class TestG3Informativeness:
         assert evaluate_g3_attribution(0.9).verdict == "pass"
         assert evaluate_g3_attribution(0.455).verdict == "fail"
 
+    def test_the_real_measured_number_is_uninformative_but_n_essays_none_would_pass(self):
+        """FIX 1's exact motivating scenario, pinned on the real measured
+        number: 0.7273 (validation/benchmarks/2026-07-31/public_authors/
+        report.json, n=22) is UNINFORMATIVE with the real n_essays wired
+        through, but would silently report a bare "pass" if n_essays were
+        None — precisely what happens if run_all() ever fed None through
+        (see TestG3InputsFromPaReport below for the producer/consumer
+        contract that stops that from happening silently)."""
+        with_n = evaluate_g3_attribution(0.7273, n_essays=22)
+        without_n = evaluate_g3_attribution(0.7273, n_essays=None)
+        assert with_n.verdict == "uninformative"
+        assert without_n.verdict == "pass"
+        assert without_n.passed is True
+
+
+class TestG3InputsFromPaReport:
+    """
+    FIX 1: run_all() used to read `pa_summary.get("n_scored_essays")`
+    inline — a bare `.get()` with a `None` default that can't tell "the
+    corpus legitimately produced no summary" (run()'s documented < 2
+    -eligible-authors error path) apart from "the summary exists but this
+    one key is missing" (a machinery bug: run.py's producer contract
+    broke). Both used to silently feed n_essays=None into
+    evaluate_g3_attribution, reverting G3 to legacy two-valued pass/fail —
+    see test_the_real_measured_number_is_uninformative_but_n_essays_none_
+    would_pass above for why that's dangerous on the real number.
+
+    _g3_inputs_from_pa_report() is the extracted, unit-testable version of
+    that branch (same convention as _g1_entity_baseline_counts): these
+    tests exercise it directly against synthetic pa_report dicts, without
+    running validation.public_authors.run.run()'s live-TestClient scoring.
+    grep -rn n_scored_essays tests/ returned zero hits before this file —
+    this is the first coverage of that key anywhere in the suite.
+    """
+
+    def test_normal_summary_extracts_all_three_fields_silently(self, capsys):
+        pa_report = {
+            "summary": {
+                "top1_accuracy": 0.7273,
+                "top1_accuracy_raw_argmin": 0.6818,
+                "n_scored_essays": 22,
+            }
+        }
+        top1, top1_raw, n_essays = _g3_inputs_from_pa_report(pa_report)
+        assert (top1, top1_raw, n_essays) == (0.7273, 0.6818, 22)
+        assert capsys.readouterr().err == ""
+
+    def test_no_summary_at_all_is_the_silent_legitimate_error_path(self, capsys):
+        """run() returns {"error": ..., "skipped_authors": [...]} with no
+        "summary" key when fewer than 2 authors are eligible — nothing is
+        broken here, so no warning should print."""
+        pa_report = {"error": "Need at least 2 eligible authors", "skipped_authors": []}
+        top1, top1_raw, n_essays = _g3_inputs_from_pa_report(pa_report)
+        assert (top1, top1_raw, n_essays) == (0.0, None, None)
+        assert capsys.readouterr().err == ""
+
+    def test_summary_present_but_missing_the_key_warns_loudly(self, capsys):
+        """The machinery-bug case FIX 1 exists to catch: a renamed or
+        dropped "n_scored_essays" key in run.py's summary. Must warn on
+        stderr, name the missing key, and NOT crash."""
+        pa_report = {"summary": {"top1_accuracy": 0.7273}}
+        top1, top1_raw, n_essays = _g3_inputs_from_pa_report(pa_report)
+        assert (top1, top1_raw, n_essays) == (0.7273, None, None)
+        err = capsys.readouterr().err
+        assert "n_scored_essays" in err
+        assert "public_authors summary" in err
+
 
 class TestG1LooOffByOne:
     """FIX 1: the conformal N for a G1 fold is len(texts) - 1 (the per-fold
@@ -992,3 +1062,64 @@ class TestMainExitCodes:
         calibration_gate.main([])
         out = capsys.readouterr().out
         assert "gate(s) UNINFORMATIVE" not in out
+
+
+class TestMainOutSpecG1ScoredSubset:
+    """
+    FIX 2: the calibration_suite experiment spec's "corpora" block used to
+    report only the three LOADED corpora (43 authors / 271 documents in the
+    real corpus) — but G1 actually scores a narrower pool, since
+    _score_corpus_for_g1 skips any entity with < 5 texts (24 entities / 216
+    folds on the real corpus). A reader of the report's "experiment" block
+    could not tell G1's flagged rate came from 216 folds, not 271
+    documents — exactly the raw-vs-measured conflation this validation
+    layer exists to prevent. main()'s --out path now adds a "g1_scored"
+    sub-block, narrowed to entities with >= 5 texts, alongside (not instead
+    of) the loaded totals — those remain the correct denominator for G4
+    (full Plato early/middle/late grouping) and G6 (fairness slice), which
+    apply no such filter.
+    """
+
+    def test_out_spec_g1_scored_subset_matches_the_ge5_filter(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(
+            calibration_gate,
+            "run_all",
+            lambda: [
+                GateResult(name="G1", passed=True, criterion="c", current_value="v")
+            ],
+        )
+        # "sem_short" and "plato_short" have < 5 texts each and must be
+        # excluded from g1_scored, but still counted in the loaded totals.
+        monkeypatch.setattr(
+            calibration_gate,
+            "_load_seminary_texts",
+            lambda: {"sem_a": ["t"] * 5, "sem_short": ["t"] * 2},
+        )
+        monkeypatch.setattr(
+            calibration_gate,
+            "_load_public_authors_baseline_texts",
+            lambda: {"pa_a": ["t"] * 6},
+        )
+        monkeypatch.setattr(
+            calibration_gate,
+            "_load_plato_texts_by_dialogue",
+            lambda: {"plato_short": ["t"] * 3},
+        )
+
+        out_path = tmp_path / "report.json"
+        calibration_gate.main(["--out", str(out_path)])
+        report = json.loads(out_path.read_text())
+        corpora = report["experiment"]["corpora"]
+
+        assert set(corpora) == {"seminary", "public_authors", "plato", "g1_scored"}
+        # Loaded totals are untouched — still the correct denominator for
+        # G4/G6, which is why they're kept rather than narrowed in place.
+        assert corpora["seminary"]["n_authors"] == 2
+        assert corpora["seminary"]["n_documents"] == 7
+        assert corpora["plato"]["n_authors"] == 1
+        # g1_scored narrows to entities with >= 5 texts, pooled across all
+        # three corpora, matching _score_corpus_for_g1's own `< 5` skip.
+        assert corpora["g1_scored"]["n_authors"] == 2  # sem_a + pa_a only
+        assert corpora["g1_scored"]["docs_per_author"] == {"pa_a": 6, "sem_a": 5}
+        assert corpora["g1_scored"]["n_documents"] == 11
+        assert corpora["g1_scored"]["provenance"] == "g1_loo_eligible_subset"
