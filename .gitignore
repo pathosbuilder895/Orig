@@ -110,3 +110,6 @@ validation/stability/2*/
 # e2e per-run tenant-cleanup ledger (deleted on clean teardown; an
 # interrupted run leaves it behind)
 demo/bluebook/e2e/fixtures/.tenants-created.log
+
+# Hypothesis example database (property-test cache, machine-local)
+.hypothesis/
