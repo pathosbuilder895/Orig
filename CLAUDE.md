@@ -32,6 +32,30 @@ run is **0 failed**; treat any failure as real. (Historical note: counts before
 
 ---
 
+## Validation Layer
+`validation/` enforces instrument hygiene — see `validation/README.md`.
+The rules that bite during development:
+- Aggregating over a feature column requires it to be MEASURABLE in
+  `validation/measurability.py`; blank/scoring-only/disabled columns raise
+  `MeasurabilityError` instead of silently averaging in.
+- Gate verdicts are three-valued: `pass` / `fail` / `uninformative`. A gate
+  whose criterion is unreachable at the current corpus size downgrades a
+  would-be pass to uninformative — never quote it as a pass. Run
+  `python -m validation.calibration_gate --strict` before citing results
+  (folds `uninformative` into `fail`; the non-strict default still runs but
+  prints which gates were uninformative).
+- Every new gate needs a failure witness registered in
+  `validation/gate_contracts.py` (`GATE_CONTRACTS`) or
+  `tests/test_gate_falsifiability.py` fails the suite.
+- Corpus floors are enforced at load time (`validation/corpus_policy.py`):
+  verification >= 300 words; attribution >= 300 words (not 500 — raising it
+  to 500 drops author `kempis`'s baseline docs entirely, all 393-499 words)
+  and >= 3 baseline docs per candidate. A thin baseline does **not** abort
+  the run — the author is excluded from the candidate pool and scoring
+  continues on whoever remains.
+
+---
+
 ## Design Philosophy
 - **Prefer simple over elaborate.** Start with the minimal working solution. Do not propose multi-state scroll systems, 3D models, or complex animations unless explicitly asked.
 - **Non-destructive first.** When something breaks, look for a workaround (env var, flag, config) before rebuilding or restarting.
@@ -83,31 +107,36 @@ All production features are opt-in via env flags. Default OFF preserves Phase 1 
 Demo mode turns on CONTEXT_MANIFEST_ENABLED, ADAPTIVE_WEIGHTS_ENABLED, and NULL_MODEL=impostor automatically (set in run.py).
 
 ### Feature dimensionality
-103 dimensional / **97 active** in the default pilot config — Tier 17 behavioral
+109 dimensional / **97 active** in the default pilot config — Tier 17 behavioral
 biometrics (6 features: `typing_speed_cv, burst_ratio, deletion_rate,
-pause_density, paste_event_rate, revision_depth`) is in `DISABLED_FEATURE_GROUPS`
-by default pending live keystroke data from Bbook; Tier 10 semantic (2 features:
+pause_density, paste_event_rate, revision_depth`) and Tier 18 uniformity
+(6 features: `sentence_length_dispersion_ratio, window_feature_variance_ratio,
+function_word_burstiness_ratio, punctuation_dispersion_ratio,
+vocab_introduction_flatness, clause_depth_variance_ratio`) are both in
+`DISABLED_FEATURE_GROUPS` by default — Tier 17 pending live keystroke data
+from Bbook, Tier 18 pending gates G2b (paraphrase-resistance) and G6
+(fairness parity); Tier 10 semantic (2 features:
 `semantic_field_dispersion, semantic_centroid_proximity`) has a genuine TF-IDF
 fallback backend (`original/features/tier10.py`) that produces real, non-neutral
 values when sentence-transformers is unavailable — it is not a placeholder-only
 degrade. The 0.5 neutral value only fires when there are too few usable
 sentences to encode at all (< 3 for `semantic_field_dispersion`, < 2 for the
 embeddings behind `semantic_centroid_proximity`), regardless of which backend
-would otherwise run. `BASE_FEATURE_DIM = 96` (`constants.py:222`)
-is the stored-baseline width (tier-17 included as 0.5 placeholders) — a distinct
-number from the 97 "active" count; don't conflate the two.
+would otherwise run. `BASE_FEATURE_DIM = 102` (was 96 before Tier 18 landed)
+is the stored-baseline width (tier-17 and tier-18 included as 0.5 placeholders)
+— a distinct number from the 97 "active" count; don't conflate the two.
 
 ---
 
 ## Key Architecture
 ```
-Text → 103-feature pipeline (original/features/)
+Text → 109-feature pipeline (original/features/)
      → StudentState (density matrix ρ, baseline_mean, baseline_std)
      → quantum/scoring.py:score() → Layer7Output
      → API response (deviation_score, action, quantum_fidelity, professor_explanation)
 ```
 
-**Feature pipeline:** `original/features/` — 103 features across 17 tiers
+**Feature pipeline:** `original/features/` — 109 features across 18 tiers
 **Quantum state:** `original/quantum/state.py` — density matrix builder
 **Scoring:** `original/quantum/scoring.py` — Born-rule + amplitude (Phase 6)
 **Professor narrative:** `original/quantum/professor_narrative.py` — plain-English explanation
@@ -129,7 +158,7 @@ the committed `bluebook.bundle.js` is what production serves).
 ---
 
 ## Feature Dimensions
-- `FEATURE_DIM = 103` (current)
+- `FEATURE_DIM = 109` (current)
 - Legacy profiles serialized with 74 or 89 features will be padded with 0.5 on load (you'll see warnings). Fix with `python scripts/reextract_baselines.py` (the old `python -m original.cli rebuild-baselines` was deleted with the v1 stack in WS-6 P6 — it only ever operated on the v1 database).
 - `ALL_FEATURE_CODES` in `original/constants.py` is the canonical ordered list — don't reorder it.
 
