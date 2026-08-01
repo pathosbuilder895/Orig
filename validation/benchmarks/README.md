@@ -164,3 +164,11 @@ The corpus is curated by hand in
 
 Re-run `python -m validation.public_authors.build_corpus` to fetch + regenerate
 the manifest. Then run Test 2.
+
+Every fetched file is verified before it is written (author attribution via
+the Wikisource `Author:` link or the Gutenberg header, English-prose stopword
+ratio, no site chrome, no index/footnote back-matter, minimum word counts) —
+a file that fails any check is rejected loudly and never enters the manifest.
+The 2026-08-01 corpus rebuild exists because the first build had none of
+these guards; see the header of `build_corpus.py` for the five contamination
+modes it shipped with.

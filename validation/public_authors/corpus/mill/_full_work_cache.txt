@@ -1,13 +1,3 @@
-Distributed Proofreading Team at http://www.pgdp.net
-
-
-
-
-
-
-
-
-
 On Liberty.
 
 By John Stuart Mill.
@@ -178,7 +168,7 @@ conversation that he detained Carlyle with desperate attempts at
 loquacity for two hours. But Dr. Garnett tells us, in his _Life of
 Carlyle_, that Mill made a substantial reparation for the calamity for
 which he was responsible by inducing the aggrieved author to accept half
-of the L200 which he offered. Mrs. Mill, as I have said, died in 1858,
+of the £200 which he offered. Mrs. Mill, as I have said, died in 1858,
 after seven years of happy companionship with her husband, and was
 buried at Avignon. The inscription which Mill wrote for her grave is too
 characteristic to be omitted:--"Her great and loving heart, her noble
@@ -829,7 +819,7 @@ permanent interests of man as a progressive being. Those interests, I
 contend, authorise the subjection of individual spontaneity to external
 control, only in respect to those actions of each, which concern the
 interest of other people. If any one does an act hurtful to others,
-there is a _prima facie_ case for punishing him, by law, or, where legal
+there is a _primâ facie_ case for punishing him, by law, or, where legal
 penalties are not safely applicable, by general disapprobation. There
 are also many positive acts for the benefit of others, which he may
 rightfully be compelled to perform; such as, to give evidence in a court
@@ -929,7 +919,7 @@ the spirit of Puritanism. And some of those modern reformers who have
 placed themselves in strongest opposition to the religions of the past,
 have been noway behind either churches or sects in their assertion of
 the right of spiritual domination: M. Comte, in particular, whose social
-system, as unfolded in his _Traite de Politique Positive_, aims at
+system, as unfolded in his _Traité de Politique Positive_, aims at
 establishing (though by moral more than by legal appliances) a despotism
 of society over the individual, surpassing anything contemplated in the
 political ideal of the most rigid disciplinarian among the ancient
@@ -1285,7 +1275,7 @@ to us by those who best knew both him and the age, as the most virtuous
 man in it; while _we_ know him as the head and prototype of all
 subsequent teachers of virtue, the source equally of the lofty
 inspiration of Plato and the judicious utilitarianism of Aristotle, "_i
-maestri di color che sanno_," the two headsprings of ethical as of all
+maëstri di color che sanno_," the two headsprings of ethical as of all
 other philosophy. This acknowledged master of all the eminent thinkers
 who have since lived--whose fame, still growing after more than two
 thousand years, all but outweighs the whole remainder of the names which
@@ -1770,7 +1760,7 @@ arguments of opponents, in order to answer them, and may, therefore,
 read heretical books; the laity, not unless by special permission, hard
 to be obtained. This discipline recognises a knowledge of the enemy's
 case as beneficial to the teachers, but finds means, consistent with
-this, of denying it to the rest of the world: thus giving to the _elite_
+this, of denying it to the rest of the world: thus giving to the _élite_
 more mental culture, though not more mental freedom, than it allows to
 the mass. By this device it succeeds in obtaining the kind of mental
 superiority which its purposes require; for though culture without
@@ -3049,7 +3039,7 @@ ever to be farther improved, it must be by foreigners. They have
 succeeded beyond all hope in what English philanthropists are so
 industriously working at--in making a people all alike, all governing
 their thoughts and conduct by the same maxims and rules; and these are
-the fruits. The modern _regime_ of public opinion is, in an unorganised
+the fruits. The modern _régime_ of public opinion is, in an unorganised
 form, what the Chinese educational and political systems are in an
 organised; and unless individuality shall be able successfully to assert
 itself against this yoke, Europe, notwithstanding its noble antecedents
@@ -3772,7 +3762,7 @@ holiday on some other day of the week for those particular classes of
 persons. The only ground, therefore, on which restrictions on Sunday
 amusements can be defended, must be that they are religiously wrong; a
 motive of legislation which never can be too earnestly protested
-against. "Deorum injuriae Diis curae." It remains to be proved that
+against. "Deorum injuriæ Diis curæ." It remains to be proved that
 society or any of its officers holds a commission from on high to
 avenge any supposed offence to Omnipotence, which is not also a wrong to
 our fellow-creatures. The notion that it is one man's duty that another
@@ -3939,7 +3929,7 @@ themselves elsewhere. This is the so-called doctrine of Free Trade,
 which rests on grounds different from, though equally solid with, the
 principle of individual liberty asserted in this Essay. Restrictions on
 trade, or on production for purposes of trade, are indeed restraints;
-and all restraint, _qua_ restraint, is an evil: but the restraints in
+and all restraint, _quâ_ restraint, is an evil: but the restraints in
 question affect only that part of conduct which society is competent to
 restrain, and are wrong solely because they do not really produce the
 results which it is desired to produce by them. As the principle of
@@ -3950,7 +3940,7 @@ admissible for the prevention of fraud by adulteration; how far sanitary
 precautions, or arrangements to protect work-people employed in
 dangerous occupations, should be enforced on employers. Such questions
 involve considerations of liberty, only in so far as leaving people to
-themselves is always better, _caeteris paribus_, than controlling them:
+themselves is always better, _cæteris paribus_, than controlling them:
 but that they may be legitimately controlled for these ends, is in
 principle undeniable. On the other hand, there are questions relating to
 interference with trade, which are essentially questions of liberty;
@@ -4160,7 +4150,7 @@ considerable part of that taxation should be indirect; that the State,
 therefore, cannot help imposing penalties, which to some persons may be
 prohibitory, on the use of some articles of consumption. It is hence the
 duty of the State to consider, in the imposition of taxes, what
-commodities the consumers can best spare; and _a fortiori_, to select in
+commodities the consumers can best spare; and _à fortiori_, to select in
 preference those of which it deems the use, beyond a very moderate
 quantity, to be positively injurious. Taxation, therefore, of
 stimulants, up to the point which produces the largest amount of revenue
@@ -4528,7 +4518,7 @@ insurance offices, the great joint-stock companies, the universities,
 and the public charities, were all of them branches of the government;
 if, in addition, the municipal corporations and local boards, with all
 that now devolves on them, became departments of the central
-administration; if the employes of all these different enterprises were
+administration; if the employés of all these different enterprises were
 appointed and paid by the government, and looked to the government for
 every rise in life; not all the freedom of the press and popular
 constitution of the legislature would make this or any other country
@@ -4561,7 +4551,7 @@ of the community would look for all things: the multitude for direction
 and dictation in all they had to do; the able and aspiring for personal
 advancement. To be admitted into the ranks of this bureaucracy, and when
 admitted, to rise therein, would be the sole objects of ambition. Under
-this regime, not only is the outside public ill-qualified, for want of
+this régime, not only is the outside public ill-qualified, for want of
 practical experience, to criticise or check the mode of operation of the
 bureaucracy, but even if the accidents of despotic or the natural
 working of popular institutions occasionally raise to the summit a ruler

@@ -4,6 +4,9 @@ repos:
     hooks:
       - id: check-added-large-files
         args: [--maxkb=700]          # bundle ~230KB + linked sourcemap ~600KB pass; stray models/DBs don't
+        # Benchmark-corpus full-work caches are committed by design and can
+        # exceed 700KB (james 1.1MB, newman 941KB predate this hook).
+        exclude: '_full_work_cache\.txt$'
       - id: check-merge-conflict
       - id: detect-private-key       # LTI RSA keys are handled in this repo
       - id: end-of-file-fixer
