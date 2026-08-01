@@ -61,6 +61,10 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # feature_vector, preserving Phase 1 byte-identical behaviour.
     enable_manifest = os.environ.get("CONTEXT_MANIFEST_ENABLED") == "1"
     enable_adaptive = os.environ.get("ADAPTIVE_WEIGHTS_ENABLED") == "1"
+    # 2026-08 cross-genre study (validation/genre_crossgenre_2026-08/) — off
+    # by default and NOT yet validated against real student submissions; see
+    # weighting.GENRE_MISMATCH_ATTENUATE_TIERS for what this does and why.
+    enable_genre_invariant = os.environ.get("GENRE_INVARIANT_WEIGHTS_ENABLED") == "1"
 
     try:
         from ..context.pipeline import run_adaptive_pipeline
@@ -72,6 +76,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             keystroke_data=req.keystroke_data,
             enable_manifest=enable_manifest,
             enable_adaptive_weights=enable_adaptive,
+            enable_genre_invariant_weights=enable_genre_invariant,
         )
         feat_dict = adaptive.feat_dict
         vec = adaptive.vector

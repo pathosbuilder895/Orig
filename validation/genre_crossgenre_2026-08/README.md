@@ -238,6 +238,59 @@ pollutes several authors. `multi_author_extract.py` documents the exclusions
 it applies; the corpus itself (and the Test 2 benchmark results derived from
 it) needs a proper rebuild — flagged as a separate task.
 
+## Finding 7: the genre-conditional design is blocked on `resolve_genre`
+
+Finding 6 concluded the right shape was *conditional* weighting — invariance
+weights only when the submission's genre is outside the baseline's coverage.
+`GENRE_INVARIANT_WEIGHTS_ENABLED` implements exactly that. The attempt to
+validate its tier choice on independent data (`genre_invariant_validate.py`)
+**could not run**, and the reason invalidates the premise:
+
+`original/context/resolvers.py:resolve_genre` does not discriminate genre on
+real prose. Run over the 10-author `validation/public_authors/` corpus it
+assigns **265 of 316 chunks (84%) to `correspondence`** — which is not a
+positive classification but rule 8's terminal `else` branch ("no rule
+matched and no citation cues"). Augustine's *Confessions*, Mill's *On
+Liberty*, and Newman's university lectures all land there. No author in that
+corpus has two genres with ≥8 chunks each, so a leave-one-genre-out test is
+impossible.
+
+On the Lewis corpus — where the six genres are maximally distinct by
+construction — it is no better:
+
+| hand-labelled bucket | production `resolve_genre` (12 sampled) |
+|---|---|
+| narnia | correspondence ×11, personal_essay ×1 |
+| theology | correspondence ×9, personal_essay ×3 |
+| satire (Screwtape) | correspondence ×12 |
+| space_trilogy | correspondence ×9, personal_essay ×2, scholarly_essay ×1 |
+| memoir | correspondence ×10, personal_essay ×2 |
+| essays | correspondence ×10, personal_essay ×2 |
+
+Simulating the gate across leave-one-genre-out folds, the attenuation fires
+in **1 of 6** — and that one is a single chunk tripping `scholarly_essay`,
+i.e. classifier noise, not a genre difference. Children's fantasy and
+demonic-voice satire are the same label.
+
+**Consequences beyond this flag.** `resolve_genre` feeds several already-
+enabled paths, so this is not confined to the new feature:
+- Phase 4 cluster matching weights `_genre_similarity` at 0.4 of the
+  composite (`baseline_match.py`). If nearly every sample shares one label,
+  that term is a near-constant and contributes no discrimination —
+  `ADAPTIVE_WEIGHTS_ENABLED` is on in demo mode today.
+- The manifest's genre-conditioned directives (`creative_fiction` → mute
+  T16; academic/sermon → anchor T8/T13, `manifest.py:_derive_directives`)
+  essentially never fire on real prose.
+- `BAYESIAN_PRIOR_ENABLED`'s `get_genre_stats(genre, …)` pools by this
+  label — a "genre prior" over a ~85%-single-valued field is closer to an
+  all-samples prior than a genre-matched one.
+
+**Status:** the mechanism is committed, tested, and OFF, with its tier set
+explicitly marked unvalidated. It should not be enabled until
+`resolve_genre` is recalibrated; then re-run `genre_invariant_validate.py`,
+which is written to produce the missing evidence as soon as the classifier
+can supply multi-genre authors.
+
 ## What this does and doesn't prove
 
 This validates one dimension: does authorial signal survive a genre shift,
@@ -261,5 +314,6 @@ a pilot cohort depends on it in production.
 .venv/bin/python validation/genre_crossgenre_2026-08/tier_probe.py        # ~15 min
 .venv/bin/python validation/genre_crossgenre_2026-08/multi_author_extract.py   # ~5 min
 .venv/bin/python validation/genre_crossgenre_2026-08/multi_author_validate.py
+.venv/bin/python validation/genre_crossgenre_2026-08/genre_invariant_validate.py
 .venv/bin/python -m pytest tests/quantum/test_llr_action_modes.py -v
 ```

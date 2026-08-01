@@ -13,6 +13,7 @@ from original.context.baseline_match import (
     _topic_similarity,
     _recency_weight,
     ensure_sample_context_metadata,
+    genre_covered_by_baseline,
     match_baseline_cluster,
 )
 from original.context.manifest import ContextManifest
@@ -238,6 +239,63 @@ class TestMatchBaselineCluster:
             n_top=3,
         )
         assert len(idx) <= 3
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Genre coverage (2026-08 cross-genre study — feeds weighting.py's
+# genre_covered param, a DIFFERENT question than anchor_only above: has this
+# exact genre been SEEN, vs are any samples contextually similar enough to
+# trust for comparison features)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class TestGenreCoveredByBaseline:
+    def test_covered_when_exact_genre_present(self):
+        state = StudentState(
+            student_id="s",
+            samples=[_sample("A", genre="academic_exegesis"), _sample("B", genre="blog_post")],
+        )
+        assert genre_covered_by_baseline(_manifest("academic_exegesis"), state) is True
+
+    def test_not_covered_when_genre_absent(self):
+        state = StudentState(
+            student_id="s",
+            samples=[_sample("A", genre="academic_exegesis"), _sample("B", genre="blog_post")],
+        )
+        assert genre_covered_by_baseline(_manifest("creative_fiction"), state) is False
+
+    def test_family_match_is_not_enough(self):
+        # _genre_similarity gives a family match 0.5 credit for cluster
+        # SELECTION, but genre_covered is stricter -- same LABEL only, not
+        # same family. A student who's only ever written sermons should
+        # still count devotional_reflection as unseen even though both are
+        # in the "homiletic" family.
+        state = StudentState(student_id="s", samples=[_sample("A", genre="sermon")])
+        assert genre_covered_by_baseline(_manifest("devotional_reflection"), state) is False
+
+    def test_unknown_submission_genre_defaults_covered(self):
+        # An unclassified genre is never treated as "definitely novel".
+        state = StudentState(student_id="s", samples=[_sample("A", genre="blog_post")])
+        assert genre_covered_by_baseline(_manifest(genre=None), state) is True
+
+    def test_no_baseline_genres_known_defaults_covered(self):
+        # Every sample pre-dates genre backfill (all None) -- can't call
+        # anything "uncovered" against an entirely unknown baseline.
+        state = StudentState(
+            student_id="s", samples=[_sample("A", genre=None), _sample("B", genre=None)]
+        )
+        assert genre_covered_by_baseline(_manifest("academic_exegesis"), state) is True
+
+    def test_empty_state_defaults_covered(self):
+        state = StudentState(student_id="s", samples=[])
+        assert genre_covered_by_baseline(_manifest("academic_exegesis"), state) is True
+
+    def test_accepts_dict_manifest(self):
+        state = StudentState(student_id="s", samples=[_sample("A", genre="blog_post")])
+        d = _manifest("blog_post").__dict__.copy()
+        assert genre_covered_by_baseline(d, state) is True
+        d["genre"] = {"primary": "creative_fiction"}
+        assert genre_covered_by_baseline(d, state) is False
 
 
 # ══════════════════════════════════════════════════════════════════════════════

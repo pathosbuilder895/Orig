@@ -37,7 +37,11 @@ import numpy as np
 
 from ..constants import ALL_FEATURE_CODES
 from ..features.pipeline import compute_full_features, extract_features, feature_vector
-from .baseline_match import ensure_sample_context_metadata, match_baseline_cluster
+from .baseline_match import (
+    ensure_sample_context_metadata,
+    genre_covered_by_baseline,
+    match_baseline_cluster,
+)
 from .manifest import ContextManifest, build_manifest
 from .resolvers import run_resolvers
 from .weighting import build_adaptive_weight_vector
@@ -75,6 +79,7 @@ def run_adaptive_pipeline(
     keystroke_data: dict | None = None,
     enable_manifest: bool = False,
     enable_adaptive_weights: bool = False,
+    enable_genre_invariant_weights: bool = False,
 ) -> AdaptivePipelineResult:
     """
     Run feature extraction with optional adaptive context layer.
@@ -98,6 +103,18 @@ def run_adaptive_pipeline(
         Mirrors `ADAPTIVE_WEIGHTS_ENABLED`. When True, ALSO runs the
         baseline-match + weight-vector stages and feeds the matched cluster
         indices into `compute_full_features`. Implies `enable_manifest`.
+    enable_genre_invariant_weights : bool
+        Mirrors `GENRE_INVARIANT_WEIGHTS_ENABLED` (2026-08 cross-genre
+        study). When True, additionally attenuates
+        `weighting.GENRE_MISMATCH_ATTENUATE_TIERS` whenever the submission's
+        genre isn't one this student's baseline has ever covered. Implies
+        `enable_adaptive_weights` (meaningless without the weight-vector
+        stage). `manifest.baseline_match["genre_covered"]` is always
+        recorded once adaptive weights run, regardless of this flag — cheap
+        observability into how often the condition would fire before
+        deciding to enable the attenuation. NOT yet validated against real
+        student submissions — see weighting.py's
+        GENRE_MISMATCH_ATTENUATE_TIERS comment.
 
     Returns
     -------
@@ -108,8 +125,9 @@ def run_adaptive_pipeline(
         - `fallback_reason`: set to a short string when an enabled stage
           degraded back to a more conservative behaviour.
     """
-    # `adaptive` implies `manifest` — collapse here so call sites only flip
-    # the one flag they care about.
+    # `genre_invariant` implies `adaptive` implies `manifest` — collapse here
+    # so call sites only flip the one flag they care about.
+    enable_adaptive_weights = enable_adaptive_weights or enable_genre_invariant_weights
     want_manifest = enable_manifest or enable_adaptive_weights
 
     # ── Phase-1 short-circuit ─────────────────────────────────────────────────
@@ -176,20 +194,26 @@ def run_adaptive_pipeline(
             state,
             submission_text=text,
         )
+        # Always computed once we're here (cheap — no re-extraction), for
+        # audit visibility into how often this would fire, independent of
+        # whether GENRE_INVARIANT_WEIGHTS_ENABLED actually acts on it.
+        genre_covered = genre_covered_by_baseline(manifest, state)
         # Mutate manifest to record what we picked — this is the key audit
         # field for "why was this score the way it was".
         manifest.baseline_match = {
             "cluster_indices": list(cluster_indices),
             "n_samples": len(cluster_indices),
             "anchor_only": anchor_only,
+            "genre_covered": genre_covered,
         }
     except Exception as e:
         log.warning("baseline matching failed for %s: %s — anchor-only fallback", submission_id, e)
-        cluster_indices, anchor_only = [], True
+        cluster_indices, anchor_only, genre_covered = [], True, True
         manifest.baseline_match = {
             "cluster_indices": [],
             "n_samples": 0,
             "anchor_only": True,
+            "genre_covered": True,
             "error": str(e),
         }
 
@@ -203,8 +227,13 @@ def run_adaptive_pipeline(
     # so comparison features stay at the 0.5 placeholder (their natural
     # "no signal" state); the weight vector mutes them via the manifest
     # length_regime/anchor logic.
+    # Only let the genre-mismatch attenuation actually change the vector when
+    # the caller opted into it; otherwise genre_covered=True is a no-op,
+    # matching every existing call site's expectations exactly.
+    _effective_genre_covered = genre_covered if enable_genre_invariant_weights else True
+
     def _build_weights(_manifest):
-        return build_adaptive_weight_vector(_manifest)
+        return build_adaptive_weight_vector(_manifest, genre_covered=_effective_genre_covered)
 
     def _extract_features(_text, _baseline_texts, _keystroke_data, _indices, _anchor):
         return compute_full_features(
