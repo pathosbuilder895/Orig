@@ -65,8 +65,28 @@ _GENRE_STATS_CACHE: dict[tuple[str | None, str], list[tuple[str, list[np.ndarray
 # ── SQLite helpers ────────────────────────────────────────────────────────────
 
 
+# One shared connection when ORIGINAL_DB=:memory:. Every sqlite3.connect(":memory:")
+# call opens a brand-new EMPTY database, so per-call connections silently drop
+# every write — a baseline POST would 200 and the very next read would 404.
+# The pre-WS-6-P6 in-memory profile cache used to mask this; with the cache
+# gone, the benchmark harnesses (validation/benchmark/reproducibility.py sets
+# ORIGINAL_DB=:memory: for cross-run isolation) need the connection itself to
+# be the shared state. check_same_thread=False because FastAPI runs sync
+# endpoints on a threadpool; sqlite3 serializes access to the connection.
+_memory_conn: sqlite3.Connection | None = None
+
+
 def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(_DB_PATH), timeout=10.0)
+    global _memory_conn
+    if str(_DB_PATH) == ":memory:":
+        if _memory_conn is None:
+            _memory_conn = _open_conn(check_same_thread=False)
+        return _memory_conn
+    return _open_conn()
+
+
+def _open_conn(check_same_thread: bool = True) -> sqlite3.Connection:
+    conn = sqlite3.connect(str(_DB_PATH), timeout=10.0, check_same_thread=check_same_thread)
     # Concurrency hardening for pilot use: WAL allows readers during a write;
     # busy_timeout avoids spurious "database is locked" under parallel requests.
     conn.execute("PRAGMA journal_mode=WAL")
