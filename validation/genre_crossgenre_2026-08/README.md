@@ -69,8 +69,11 @@ already claims from the seminary benchmark (AUC 0.8125 → 1.0).
 — it never touched the recommended action**. The metric that actually
 recognizes the author across genres wasn't wired to the thing a professor
 sees. `original/quantum/scoring.py` now has `ScoringConfig.llr_action_mode`
-(default `"shadow"`, i.e. still a no-op) plus three real modes, gated behind
-that flag so nothing changes unless explicitly opted in. See
+plus three real modes. As of 2026-08 the default is `"gate"` (see Finding 3
+below) — a deliberate decision to accept the risk of shipping ahead of real
+student data, made explicitly rather than defaulting to it silently.
+`"shadow"` remains available as an explicit opt-in for the previous
+byte-identical attach-only behavior. See
 `tests/quantum/test_llr_action_modes.py` for the unit/integration tests.
 
 ## Finding 3: only one of the three candidate modes is safe

@@ -222,24 +222,36 @@ class ScoringConfig:
     amplitude_scoring_enabled: bool = False  # was AMPLITUDE_SCORING_ENABLED, :597
     secret_key: str = ""  # was SECRET_KEY, :602
     # How llr_deviation_score (NULL_MODEL=impostor) is allowed to influence
-    # the recommended action. "shadow" (default) preserves the attach-only
-    # contract byte-for-byte — it only logs what "gate"/"trigger"/"blend"
-    # would have decided, never changes `recommendation`. A 2026-08 leave-
-    # one-genre-out study (C.S. Lewis corpus vs a Chesterton impostor pool,
-    # see validation/genre_crossgenre_2026-08/) found the raw deviation_score
+    # the recommended action. A 2026-08 leave-one-genre-out study (C.S. Lewis
+    # corpus vs a Chesterton impostor pool, see
+    # validation/genre_crossgenre_2026-08/) found the raw deviation_score
     # alone WORSE than chance (mean AUC 0.39) at telling a genuine cross-
     # genre submission from a different author's writing, while
     # llr_deviation_score alone scored 0.86 — this flag is how that signal
-    # graduates from observation to actually changing a verdict, one mode
-    # at a time, each independently measurable against real data first.
-    #   "shadow"  — log-only, action unchanged (default, current behaviour)
-    #   "gate"    — llr may only DOWNGRADE an action one severity step
-    #               (targets the genre-driven false-positive failure mode)
+    # graduates from observation to actually changing a verdict.
+    #   "gate"    — DEFAULT as of 2026-08. llr may only DOWNGRADE an action
+    #               one severity step (targets the genre-driven false-
+    #               positive failure mode). Validated on the Lewis/Chesterton
+    #               corpus (cuts the false-positive rate at
+    #               schedule_conversation+ 50%→42%, escalate 11%→7%, with
+    #               only a 1–2pt cost to the impostor catch rate at the same
+    #               bars) and confirmed safe-generalizing on the 10-author
+    #               validation/public_authors/ corpus. NOT yet validated
+    #               against real student submissions — a deliberate accepted
+    #               risk, not an oversight; re-check against real pilot data
+    #               as it becomes available.
+    #   "shadow"  — log-only, action unchanged byte-for-byte (the previous
+    #               default; still the safest choice for a caller that wants
+    #               zero behavior change while observing what "gate" would
+    #               have decided).
     #   "trigger" — llr may only UPGRADE no_action→monitor (adds sensitivity;
-    #               not yet validated against a real impostor population)
+    #               measured as a no-op on the cross-genre corpus — not yet
+    #               validated for the scenario it would actually help).
     #   "blend"   — action tier is re-derived from a 50/50 blend of
-    #               deviation_score and llr_deviation_score
-    llr_action_mode: str = "shadow"  # was LLR_ACTION_MODE
+    #               deviation_score and llr_deviation_score. DO NOT ENABLE:
+    #               looked best on false-positive rate alone, but collapsed
+    #               genuine-impostor severity when checked at a matched bar.
+    llr_action_mode: str = "gate"  # was LLR_ACTION_MODE
 
     # ── formerly call-time `from ..store import ...` ──────────────────────────
     # Confirmed-authentic fidelity scores for this student, for the conformal
@@ -262,7 +274,7 @@ class ScoringConfig:
             null_model=os.environ.get("NULL_MODEL", "none"),
             amplitude_scoring_enabled=os.environ.get("AMPLITUDE_SCORING_ENABLED", "0") == "1",
             secret_key=os.environ.get("SECRET_KEY", ""),
-            llr_action_mode=os.environ.get("LLR_ACTION_MODE", "shadow"),
+            llr_action_mode=os.environ.get("LLR_ACTION_MODE", "gate"),
         )
 
 
@@ -789,8 +801,9 @@ def score(
     # ── LLR-informed action mode (2026-08 cross-genre study) ──────────────────
     # Gated the same way llr_deviation_score itself is: null_model=="impostor"
     # AND a real llr_deviation_score. config.llr_action_mode defaults to
-    # "shadow" (log-only, recommendation unchanged) so this is a no-op unless
-    # a caller explicitly opts into "gate"/"trigger"/"blend".
+    # "gate" (may downgrade an action one step on a confidently-genuine llr
+    # reading) — a caller that wants the previous byte-identical attach-only
+    # behavior must explicitly pass llr_action_mode="shadow".
     if config.null_model == "impostor" and llr_deviation_score is not None:
         recommendation = _apply_llr_action_mode(
             recommendation,
@@ -1272,10 +1285,12 @@ def _apply_llr_action_mode(
 ) -> RecommendedAction:
     """Let llr_deviation_score influence the recommended action, per `mode`.
 
-    "shadow" (default) NEVER changes `recommendation` — it only logs what
-    "gate"/"trigger"/"blend" would have decided, so the NULL_MODEL=impostor
-    attach-only contract holds unless a caller explicitly opts into a mode
-    that changes verdicts. See module comment above for what motivated this.
+    "gate" is the default (as of 2026-08) — may only downgrade an action one
+    severity step on a confidently-genuine llr reading. "shadow" NEVER
+    changes `recommendation` — it only logs what "gate"/"trigger"/"blend"
+    would have decided, preserving the previous byte-identical attach-only
+    contract for a caller that explicitly opts into it. See module comment
+    above (ScoringConfig.llr_action_mode) for what motivated this.
     """
     candidates = _llr_action_candidates(recommendation.action, deviation, llr_deviation_score)
 

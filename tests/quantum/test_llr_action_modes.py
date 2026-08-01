@@ -12,8 +12,11 @@ Two layers, matching tests/test_null_model.py's own split:
   1. Unit — _llr_action_candidates / _apply_llr_action_mode as pure functions
      of (action, deviation, llr_deviation_score, mode).
   2. Integration — score() with a real ScoringConfig.llr_action_mode actually
-     changes Layer7Output.recommendation.action; "shadow" (the default)
-     never does, preserving the existing attach-only contract.
+     changes Layer7Output.recommendation.action. "gate" is the DEFAULT as of
+     2026-08 (validated safe on both the Lewis/Chesterton corpus and the
+     10-author validation/public_authors/ corpus, but not yet against real
+     student submissions -- a deliberate accepted risk). "shadow" is the
+     explicit opt-in for the previous byte-identical attach-only contract.
 """
 
 from __future__ import annotations
@@ -158,17 +161,19 @@ def _baseline_state(mean: float, n: int = 1) -> StudentState:
     return state
 
 
-def test_default_config_is_shadow_and_leaves_action_untouched():
+def test_default_config_is_gate_and_downgrades_genre_driven_false_positive():
     # Own baseline tight at 0.30 (n=1 -> flat sigma=0.15); submission at FAR
     # (0.55) drives rms_z far enough for raw deviation alone to escalate.
     # Impostor pool centred close to the submission (0.90 +/- 0.05) so
     # rms_z_null << rms_z -> llr says "genuine" (confidently low). Default
-    # llr_action_mode="shadow" must NOT change the resulting action.
+    # llr_action_mode="gate" (as of 2026-08) SHOULD downgrade this one step,
+    # to "schedule_conversation" -- the exact genre-shift false positive the
+    # 2026-08 study found and this flag exists to soften.
     state = _baseline_state(0.30)
     submission = np.full(FEATURE_DIM, FAR)
     impostor_stats = (np.full(FEATURE_DIM, IMPOSTOR_MEAN), np.full(FEATURE_DIM, IMPOSTOR_SIGMA))
 
-    config = ScoringConfig(null_model="impostor")  # llr_action_mode defaults to "shadow"
+    config = ScoringConfig(null_model="impostor")  # llr_action_mode defaults to "gate"
     result = score(
         state=state,
         submission_vector=submission,
@@ -180,17 +185,42 @@ def test_default_config_is_shadow_and_leaves_action_untouched():
     assert result.authorship.llr_deviation_score < LLR_ACTION_GENUINE_THRESHOLD, (
         "test setup should produce a confidently-genuine llr_deviation_score"
     )
-    baseline_action = result.recommendation.action
+    assert result.recommendation.action == "schedule_conversation"
+    assert "LLR gate" in result.recommendation.rationale
 
-    # Same scenario but without null_model=impostor at all -- must match,
-    # proving shadow mode really is a no-op end to end.
+    # Without null_model=impostor at all, the raw score alone still escalates
+    # -- proving the downgrade above came from the default gate, not from
+    # some other change to the underlying deviation math.
     off = score(
         state=_baseline_state(0.30),
         submission_vector=submission,
         feature_dict={},
         scoring_config=ScoringConfig(),
     )
-    assert off.recommendation.action == baseline_action
+    assert off.recommendation.action == "escalate"
+
+
+def test_explicit_shadow_mode_still_leaves_action_untouched():
+    # The previous default's byte-identical guarantee remains available as
+    # an explicit opt-in for callers that want zero behavior change.
+    state = _baseline_state(0.30)
+    submission = np.full(FEATURE_DIM, FAR)
+    impostor_stats = (np.full(FEATURE_DIM, IMPOSTOR_MEAN), np.full(FEATURE_DIM, IMPOSTOR_SIGMA))
+
+    shadow = score(
+        state=state,
+        submission_vector=submission,
+        feature_dict={},
+        impostor_stats=impostor_stats,
+        scoring_config=ScoringConfig(null_model="impostor", llr_action_mode="shadow"),
+    )
+    off = score(
+        state=_baseline_state(0.30),
+        submission_vector=submission,
+        feature_dict={},
+        scoring_config=ScoringConfig(),
+    )
+    assert shadow.recommendation.action == off.recommendation.action == "escalate"
 
 
 def test_gate_mode_softens_a_genre_driven_false_positive_end_to_end():

@@ -103,7 +103,10 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # cohort (original/quantum/null_pool.py); quantum_score() then attaches
     # llr_deviation_score — "fits this student vs fits a typical classmate".
     # None below the cold-start floors (3 peers / 5 vectors) and on any
-    # failure; never changes deviation_score or the recommended action.
+    # failure. As of 2026-08, ScoringConfig.llr_action_mode defaults to
+    # "gate" — a real llr_deviation_score CAN now downgrade the recommended
+    # action one severity step (never deviation_score itself, never upgrade);
+    # see ScoringConfig.llr_action_mode's docstring in quantum/scoring.py.
     _scoring_config_env = ScoringConfig.from_env()
 
     _impostor_stats = None
