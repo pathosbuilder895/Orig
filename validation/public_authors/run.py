@@ -45,6 +45,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
+import numpy as np
+
 # Resolve project root so original.* imports work.
 _HERE = Path(__file__).resolve().parent
 _ROOT = _HERE.parent.parent
@@ -76,6 +78,14 @@ class AttributionResult:
     word_count: int = 0
     scoring_time_ms: float = 0.0
     error: Optional[str] = None
+    # Task 11: three independent engines scored on the SAME essay, plus the
+    # 2-of-3 agreement verdict. engine_predictions is {} when an engine
+    # raised on this essay (see run()'s exception-handling note) — that
+    # essay is excluded from the ensemble/per-engine summary stats so every
+    # engine's denominator stays comparable, but it still appears here.
+    engine_predictions: Dict[str, str] = field(default_factory=dict)
+    ensemble_author: Optional[str] = None
+    ensemble_basis: str = ""
 
 
 # ── Attribution rule (pure — unit-tested in tests/test_public_authors_attribution.py) ─
@@ -180,35 +190,11 @@ def run(
     # exclusion reason below, not a parallel abort path.
     thin_baseline_authors = {v.subject for v in policy_violations if v.kind == "thin_baseline"}
 
-    # Task 7: summarize the manifest's baseline/scored doc lists for the
-    # experiment spec, before the eligibility filter below — the spec must
-    # be attachable even on the under-populated-corpus error path, where no
-    # author is "eligible" at all. sorted(): by_author is a defaultdict
-    # populated in manifest-entry order, which is corpus-file order, not an
-    # author-name order — sort so two runs over the same manifest serialize
-    # docs_per_author identically regardless of entry order.
-    from validation.experiment import build_spec, spec_to_dict, summarize_author_docs
-
-    all_author_docs: Dict[str, List[str]] = {
-        aid: [
-            (corpus_dir / e["filename"]).read_text(encoding="utf-8")
-            for e in items["baseline"] + items["scored"]
-        ]
-        for aid, items in sorted(by_author.items())
-    }
-    experiment_corpora = {
-        "public_authors": summarize_author_docs(all_author_docs, "real_historical")
-    }
-    experiment_windowing = {"source": "public_authors corpus documents as-is"}
-    experiment_thresholds = {
-        "g3_top1": 0.7,
-        # Task 8: the corpus-policy floors this run enforced — visible in
-        # every report diff per validation/corpus_policy.py's own docstring.
-        "attribution_min_words": ATTRIBUTION_MIN_WORDS,
-        "attribution_min_baseline_docs": ATTRIBUTION_MIN_BASELINE_DOCS,
-    }
-
     # Filter to authors with the required minimum AND any --only filter.
+    # Computed BEFORE the experiment-spec corpus summary below (Task 11) so
+    # that summary narrows to the pool actually scored, not the whole
+    # manifest — a run narrowed by --only or thinned by corpus policy must
+    # report what it measured, not what the raw manifest contains.
     eligible: List[str] = []
     skipped_authors: List[Tuple[str, str]] = []
     for aid, items in sorted(by_author.items()):
@@ -228,6 +214,40 @@ def run(
             skipped_authors.append((aid, "no held-out scored essays"))
             continue
         eligible.append(aid)
+
+    # Task 7: summarize the ELIGIBLE authors' baseline/scored doc lists for
+    # the experiment spec. Narrowed to `eligible` (Task 11) rather than the
+    # full manifest — otherwise a run narrowed by --only or by corpus policy
+    # would report a bigger corpus than it actually measured. Still built
+    # before the "len(eligible) < 2" error path below returns, so the spec
+    # is attachable even then (an empty eligible set just summarizes to zero
+    # authors/documents, which is the honest answer on that path).
+    # sorted(): by_author is a defaultdict populated in manifest-entry
+    # order, which is corpus-file order, not an author-name order — sort so
+    # two runs over the same manifest serialize docs_per_author identically
+    # regardless of entry order.
+    from validation.experiment import build_spec, spec_to_dict, summarize_author_docs
+
+    eligible_set = set(eligible)
+    scored_author_docs: Dict[str, List[str]] = {
+        aid: [
+            (corpus_dir / e["filename"]).read_text(encoding="utf-8")
+            for e in items["baseline"] + items["scored"]
+        ]
+        for aid, items in sorted(by_author.items())
+        if aid in eligible_set
+    }
+    experiment_corpora = {
+        "public_authors": summarize_author_docs(scored_author_docs, "real_historical")
+    }
+    experiment_windowing = {"source": "public_authors corpus documents as-is"}
+    experiment_thresholds = {
+        "g3_top1": 0.7,
+        # Task 8: the corpus-policy floors this run enforced — visible in
+        # every report diff per validation/corpus_policy.py's own docstring.
+        "attribution_min_words": ATTRIBUTION_MIN_WORDS,
+        "attribution_min_baseline_docs": ATTRIBUTION_MIN_BASELINE_DOCS,
+    }
 
     if len(eligible) < 2:
         msg = (
@@ -337,14 +357,59 @@ def run(
             file=sys.stderr,
         )
 
+    # ── 2b. Task 11: build the two independent engines' baseline inputs
+    #      ONCE, from the SAME baseline docs the deviation engine used
+    #      above — not per essay, since feature_vector() costs ~650ms/call
+    #      (~27 baseline docs here ≈ 18s total; inside the per-essay loop
+    #      that would be repeated for every held-out essay).
+    print(f"\nBuilding cosine-delta / MFW-delta baseline inputs…", file=sys.stderr)
+    from original.features.pipeline import feature_vector
+    from validation.attribution.delta import cosine_delta_attribution, mfw_delta_attribution
+    from validation.attribution.ensemble import ensemble_vote, pairwise_agreement
+    from validation.measurability import measurable_indices
+
+    feature_idx = measurable_indices("public_authors")
+    baseline_texts: Dict[str, List[str]] = {
+        a: [
+            (corpus_dir / entry["filename"]).read_text(encoding="utf-8")
+            for entry in by_author[a]["baseline"]
+        ]
+        for a in eligible
+    }
+    baseline_matrices: Dict[str, np.ndarray] = {
+        a: np.vstack([feature_vector(doc) for doc in docs])
+        for a, docs in baseline_texts.items()
+    }
+
     # ── 3. For each held-out essay, score it against EVERY author baseline
     #      and attribute by argmin CALIBRATED score (raw argmin on fallback).
+    #      Also run the two independent engines (cosine-delta, MFW-delta) on
+    #      the identical essay and vote a 2-of-3 ensemble verdict.
+    #
+    #      Exception policy (Task 11): cosine_delta_attribution and
+    #      mfw_delta_attribution both raise ValueError on degenerate input
+    #      (e.g. non-finite feature values, an empty pooled vocabulary).
+    #      Silently dropping an essay from just the ONE engine that raised —
+    #      while keeping it in the other two engines' accuracy denominators
+    #      — would make the side-by-side comparison dishonest (each
+    #      engine's "n" would mean a different set of essays). We also
+    #      don't want one bad essay to kill the whole benchmark. So: if
+    #      EITHER delta engine raises on an essay, the WHOLE essay is
+    #      excluded from the per-engine/ensemble comparison (engine_agreement,
+    #      per_engine_top1, ensemble_coverage/accuracy) — never from just one
+    #      engine's count — and the exclusion is recorded in
+    #      summary["engine_exceptions"] so it's visible in the report, not
+    #      silently absorbed into a smaller denominator. The deviation-
+    #      calibrated engine's own top1_accuracy (the pre-existing summary
+    #      field) is unaffected: it is computed the same way as before this
+    #      task for every held-out essay regardless of the delta engines.
     print(
         f"\nScoring {sum(len(by_author[a]['scored']) for a in eligible)} held-out essays "
         f"against {len(eligible)} authors…",
         file=sys.stderr,
     )
     results: List[AttributionResult] = []
+    engine_exceptions: List[dict] = []
     for true_author in eligible:
         for entry in by_author[true_author]["scored"]:
             text = (corpus_dir / entry["filename"]).read_text(encoding="utf-8")
@@ -377,6 +442,28 @@ def run(
             else:
                 predicted, calibrated = predicted_raw, {}
                 rank_cal = rank_raw
+
+            # Task 11: run the two independent engines on the SAME essay
+            # text and vote. See the exception-policy note above section 3.
+            try:
+                essay_vec = feature_vector(text)
+                cos_pred, _cos_dists = cosine_delta_attribution(
+                    baseline_matrices, essay_vec, feature_idx
+                )
+                mfw_pred, _mfw_deltas = mfw_delta_attribution(baseline_texts, text)
+                engine_predictions = {
+                    "deviation_calibrated": predicted,
+                    "cosine_delta": cos_pred,
+                    "mfw_delta": mfw_pred,
+                }
+                ensemble_author, ensemble_basis = ensemble_vote(engine_predictions)
+            except ValueError as exc:
+                engine_predictions = {}
+                ensemble_author = None
+                ensemble_basis = f"excluded from ensemble: {exc}"
+                engine_exceptions.append({"filename": entry["filename"], "error": str(exc)})
+                print(f"  ⚠ engine exception on {entry['filename']}: {exc}", file=sys.stderr)
+
             results.append(
                 AttributionResult(
                     filename=entry["filename"],
@@ -391,12 +478,16 @@ def run(
                     word_count=wc,
                     scoring_time_ms=round(elapsed_ms, 2),
                     error=err,
+                    engine_predictions=engine_predictions,
+                    ensemble_author=ensemble_author,
+                    ensemble_basis=ensemble_basis,
                 )
             )
             print(
                 f"  {entry['filename']}: true={true_author}, "
                 f"predicted={predicted} {'✓' if predicted==true_author else '✗'} "
-                f"(rank {rank_cal}, raw={predicted_raw})",
+                f"(rank {rank_cal}, raw={predicted_raw}) | ensemble={ensemble_author} "
+                f"({ensemble_basis})",
                 file=sys.stderr,
             )
 
@@ -416,6 +507,55 @@ def run(
     confusion: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
     for r in results:
         confusion[r.true_author][r.predicted_author] += 1
+
+    # ── 4b. Task 11: per-engine / ensemble aggregation.
+    #
+    #      n_scored_essays is the held-out essay count BEHIND
+    #      top1_accuracy — i.e. len(results), the same denominator
+    #      top1_accuracy already uses above. This is deliberately NOT
+    #      narrowed to the engine-comparison subset below: G3
+    #      (validation/calibration_gate.py's evaluate_g3_attribution) reads
+    #      summary["n_scored_essays"] together with summary["top1_accuracy"]
+    #      to reconstruct `successes = round(top1_accuracy * n_essays)` for
+    #      its Wilson-interval informativeness check, which only holds if
+    #      n_essays is top1_accuracy's own denominator.
+    n_scored_essays = len(results)
+
+    #      The per-engine/ensemble comparison below is restricted to
+    #      `scorable` — essays where ALL THREE engines produced a
+    #      prediction (see the exception-policy note above the per-essay
+    #      loop) — so every engine's accuracy denominator, the pairwise
+    #      agreement, and the ensemble coverage/accuracy all share the SAME
+    #      n rather than three different, incomparable ones. That n is
+    #      recorded per-stat (per_engine_top1[engine]["n"]) and may be
+    #      SMALLER than n_scored_essays above if any essay was excluded.
+    from validation.power import wilson_interval
+
+    scorable = [r for r in results if r.engine_predictions]
+    n_comparable = len(scorable)
+    per_engine_top1: Dict[str, dict] = {}
+    if scorable:
+        for engine in scorable[0].engine_predictions:
+            hits = sum(1 for r in scorable if r.engine_predictions[engine] == r.true_author)
+            lo, hi = wilson_interval(hits, n_comparable)
+            # Every accuracy travels with its interval: at n as small as
+            # these corpora give us, the CI is wide enough that two engines
+            # differing by 0.1-0.15 can be statistically indistinguishable.
+            # Carrying the interval keeps the side-by-side table from being
+            # read as a ranking it cannot support.
+            per_engine_top1[engine] = {
+                "accuracy": round(hits / n_comparable, 4),
+                "wilson_ci_95": [round(lo, 4), round(hi, 4)],
+                "n": n_comparable,
+            }
+    covered = [r for r in scorable if r.ensemble_author is not None]
+    ensemble_coverage = (len(covered) / n_comparable) if n_comparable else None
+    ensemble_accuracy_on_covered = (
+        sum(1 for r in covered if r.ensemble_author == r.true_author) / len(covered)
+        if covered
+        else None
+    )
+    engine_agreement = pairwise_agreement([r.engine_predictions for r in scorable])
 
     # ── 5. Build report dict + write to disk.
     if report_dir is None:
@@ -473,6 +613,32 @@ def run(
             # not just on stderr.
             "dropped_short_documents": sorted(short_docs),
             "corpus_policy_violations": [asdict(v) for v in policy_violations],
+            # Task 11: three-engine side-by-side + 2-of-3 ensemble routing.
+            # n_scored_essays is G3's informativeness input (Task 6) — the
+            # held-out essay count BEHIND top1_accuracy (len(results); see
+            # the comment above where n_scored_essays is computed for why
+            # it is NOT narrowed to the engine-comparison subset). The
+            # per_engine_top1 / ensemble_coverage / engine_agreement stats
+            # below use their OWN shared "n" (n_comparable), which may be
+            # smaller if engine_exceptions excluded any essay.
+            "n_scored_essays": n_scored_essays,
+            "per_engine_top1": per_engine_top1,
+            "ensemble_coverage": (
+                round(ensemble_coverage, 4) if ensemble_coverage is not None else None
+            ),
+            "ensemble_accuracy_on_covered": (
+                round(ensemble_accuracy_on_covered, 4)
+                if ensemble_accuracy_on_covered is not None
+                else None
+            ),
+            "engine_agreement": {k: round(v, 4) for k, v in engine_agreement.items()},
+            # Essays excluded from the three-engine comparison above because
+            # a delta engine raised ValueError on degenerate input (empty
+            # feature-index list, empty pooled vocabulary, non-finite
+            # values, < 2 usable candidates) — excluded from ALL THREE
+            # engines' denominators, never from just the one that raised
+            # (see the exception-policy note above the per-essay loop).
+            "engine_exceptions": engine_exceptions,
         },
         "reference_stats": ref_detail,
         "per_author": {
@@ -496,6 +662,18 @@ def run(
     print(f"│  Mean rank of true author:   {mean_rank:.2f}                │", file=sys.stderr)
     print(f"│  Method: {attribution_method}", file=sys.stderr)
     print(f"│  (raw argmin: {top1_accuracy_raw:.2%}, mean rank {mean_rank_raw:.2f})", file=sys.stderr)
+    for engine, stats in per_engine_top1.items():
+        lo, hi = stats["wilson_ci_95"]
+        print(
+            f"│  {engine}: {stats['accuracy']:.2%} (95% CI [{lo:.2f}, {hi:.2f}], n={stats['n']})",
+            file=sys.stderr,
+        )
+    if ensemble_coverage is not None:
+        print(
+            f"│  Ensemble: coverage {ensemble_coverage:.2%}, "
+            f"accuracy on covered {ensemble_accuracy_on_covered:.2%}",
+            file=sys.stderr,
+        )
     print(f"│  Reports: {report_dir}", file=sys.stderr)
     print(f"└─────────────────────────────────────────────────┘", file=sys.stderr)
     return report
@@ -610,6 +788,43 @@ def _render_markdown(report: dict) -> str:
             row.append(str(report["confusion"].get(ta, {}).get(pa, 0)))
         lines.append("| " + " | ".join(row) + " |")
     lines.append("")
+    if s.get("per_engine_top1"):
+        lines.append("## Three-engine side-by-side (Task 11)")
+        lines.append("")
+        _comparable_n = next(iter(s["per_engine_top1"].values()))["n"]
+        lines.append(
+            f"n_scored_essays (held out, all authors) = {s['n_scored_essays']}; "
+            f"n comparable across all three engines below = {_comparable_n} "
+            "(narrower only if engine_exceptions excluded any essay). Read the "
+            "CIs before comparing rows — at this n they are wide."
+        )
+        lines.append("")
+        lines.append("| engine | accuracy | 95% Wilson CI | n |")
+        lines.append("|---|---|---|---|")
+        for engine, stats in s["per_engine_top1"].items():
+            lo, hi = stats["wilson_ci_95"]
+            lines.append(
+                f"| {engine} | {stats['accuracy']:.2%} | [{lo:.2f}, {hi:.2f}] | {stats['n']} |"
+            )
+        lines.append("")
+        if s.get("ensemble_coverage") is not None:
+            acc = s.get("ensemble_accuracy_on_covered")
+            acc_str = f"{acc:.2%}" if acc is not None else "n/a"
+            lines.append(
+                f"- **Ensemble (2-of-3 agreement) coverage**: {s['ensemble_coverage']:.2%}"
+            )
+            lines.append(f"- **Ensemble accuracy on covered essays**: {acc_str}")
+        if s.get("engine_agreement"):
+            lines.append("- **Pairwise agreement**:")
+            for pair, rate in s["engine_agreement"].items():
+                lines.append(f"  - {pair}: {rate:.2%}")
+        if s.get("engine_exceptions"):
+            lines.append(
+                f"- **Essays excluded from the three-engine comparison** "
+                f"(a delta engine raised on degenerate input): "
+                f"{len(s['engine_exceptions'])} — see report.json for detail"
+            )
+        lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
 
