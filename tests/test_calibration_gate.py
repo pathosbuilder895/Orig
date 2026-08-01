@@ -12,12 +12,15 @@ import pytest
 
 from validation.calibration_gate import (
     GateResult,
+    _compute_g2_q_values,
+    _compute_g4_group_means,
     _compute_g6_fairness_data,
     _conformal_p_floor,
     _g5_machinery_error_result,
     _g6_insufficient_data_result,
     _g6_short_group_message,
     _g6_unreachable_threshold_result,
+    _machinery_error_result,
     _min_n_for_threshold,
     _paraphrase_proxy,
     _reachability_block,
@@ -29,6 +32,7 @@ from validation.calibration_gate import (
     evaluate_g1_fpr,
     evaluate_g2_bland_impostor,
     evaluate_g2b_paraphrase_resistant,
+    evaluate_g4_career_drift_monotone,
     evaluate_g5_permutation_null,
     evaluate_g6_fairness,
     run_g5,
@@ -225,6 +229,281 @@ class TestRequireHealthyLeg:
     def test_zero_successful_folds_raises(self):
         with pytest.raises(RuntimeError, match="zero successful"):
             _require_healthy_leg("leg", n_success=0, n_errors=0)
+
+
+class _FakeStatusResponse:
+    """Minimal stand-in for the scoring client's response object, scoped to
+    what _compute_g2_q_values / _compute_g4_group_means read: .status_code
+    and .json()."""
+
+    def __init__(self, status_code=200, payload=None):
+        self.status_code = status_code
+        self._payload = payload or {}
+
+    def json(self):
+        return self._payload
+
+
+class _FakeG2Client:
+    """Fake client for _compute_g2_q_values: every /baseline POST returns
+    `baseline_status_code` (controllable per test, to simulate a dropped
+    upload) UNLESS its "text" is listed in `fail_baseline_texts`, in which
+    case that specific upload fails regardless of `baseline_status_code` —
+    used to isolate a failure to one leg's baseline pool without touching
+    the other's. Every /score POST succeeds with a canned typicality
+    payload."""
+
+    def __init__(self, baseline_status_code=200, fail_baseline_texts=frozenset()):
+        self.baseline_status_code = baseline_status_code
+        self.fail_baseline_texts = frozenset(fail_baseline_texts)
+
+    def post(self, url, json=None):
+        if url.endswith("/baseline"):
+            if json is not None and json.get("text") in self.fail_baseline_texts:
+                return _FakeStatusResponse(500)
+            return _FakeStatusResponse(self.baseline_status_code)
+        if url.endswith("/score"):
+            return _FakeStatusResponse(
+                200, {"typicality_p_far": 0.5, "typicality_p_central": 0.5}
+            )
+        return _FakeStatusResponse(200, {})
+
+
+class TestComputeG2QValuesBaselineHealthCheck:
+    """Regression test for the reproducibility bug diagnosed in the Task 3
+    report: _compute_g2_q_values used to POST each holdout baseline chunk
+    without checking the response status, so a dropped upload silently
+    shrank that dialogue's LOO sample count (and hence its q-value
+    denominator) without raising anything — producing a different,
+    non-comparable result on a later run even with byte-identical corpus
+    input. The fix reuses _require_healthy_leg (same convention as every
+    other scoring leg in this file) to fail loudly instead."""
+
+    def _one_dialogue(self, n_chunks=6):
+        return {"plato_testdialogue": [f"chunk{i}" for i in range(n_chunks)]}
+
+    def test_raises_when_holdout_baseline_uploads_mostly_fail(self, monkeypatch):
+        import validation.calibration_gate as cg
+
+        monkeypatch.setattr(cg, "_load_plato_texts_by_dialogue", self._one_dialogue)
+        client = _FakeG2Client(baseline_status_code=500)
+
+        with pytest.raises(RuntimeError):
+            cg._compute_g2_q_values(client)
+
+    def test_healthy_baseline_uploads_still_produce_holdout_q(self, monkeypatch):
+        import validation.calibration_gate as cg
+
+        monkeypatch.setattr(cg, "_load_plato_texts_by_dialogue", self._one_dialogue)
+        client = _FakeG2Client(baseline_status_code=200)
+
+        holdout_q, _impostor_q, _n_holdout_errors = cg._compute_g2_q_values(client)
+
+        assert holdout_q == [0.5]
+
+
+class TestComputeG2QValuesImpostorSharedPoolRaise:
+    """Site #3, the most severe of the seven unchecked-baseline-POST call
+    sites: the impostor leg builds ONE shared reference pool
+    (`reference_dialogues`) reused to score every impostor text (Eryxias
+    chunks + ai_*.txt). A single failed baseline upload into that shared
+    pool silently degrades EVERY subsequent impostor score, not just one
+    fold — the per-fold "skip and count" convention used elsewhere in this
+    file (see TestComputeG2QValuesBaselineHealthCheck) would routinely stay
+    under _require_healthy_leg's 10% pooled-error threshold while still
+    poisoning 100% of the impostor q-values, so this leg must raise
+    immediately on any reference-pool baseline failure instead."""
+
+    def _dialogues(self):
+        return {
+            "plato_apology": [f"chunk{i}" for i in range(6)],
+            # Below the >= 5 LOO minimum -- excluded from the holdout loop
+            # entirely (see the "len(chunks) < 5" skip), but its chunks
+            # still feed the impostor leg's shared reference pool (which has
+            # no length filter). This isolates a reference-pool-only
+            # baseline failure from the holdout leg, so a failure here can
+            # only be explained by the impostor leg's guard.
+            "plato_short": ["short_0", "short_1"],
+            "plato_eryxias": ["ery_0", "ery_1"],
+        }
+
+    def test_raises_immediately_when_any_reference_pool_upload_fails(self, monkeypatch):
+        import validation.calibration_gate as cg
+
+        monkeypatch.setattr(cg, "_load_plato_texts_by_dialogue", self._dialogues)
+        client = _FakeG2Client(fail_baseline_texts={"short_0"})
+
+        with pytest.raises(RuntimeError, match="impostor leg"):
+            cg._compute_g2_q_values(client)
+
+    def test_healthy_reference_pool_does_not_raise(self, monkeypatch):
+        import validation.calibration_gate as cg
+
+        monkeypatch.setattr(cg, "_load_plato_texts_by_dialogue", self._dialogues)
+        client = _FakeG2Client()
+
+        # Must not raise -- a healthy shared pool is the normal case.
+        _holdout_q, impostor_q, _n_holdout_errors = cg._compute_g2_q_values(client)
+        # eryxias chunks (2) score against the healthy shared pool.
+        assert len(impostor_q) >= 2
+
+
+class _FakeG2bClient:
+    """Fake client for _compute_g2b_paraphrase_data — same shape as
+    _FakeG2Client (the two functions share the same baseline/score call
+    pattern; G2b additionally wraps them in _uniformity_features_enabled,
+    which this fake doesn't need to know about)."""
+
+    def __init__(self, fail_baseline_texts=frozenset()):
+        self.fail_baseline_texts = frozenset(fail_baseline_texts)
+
+    def post(self, url, json=None):
+        if url.endswith("/baseline"):
+            if json is not None and json.get("text") in self.fail_baseline_texts:
+                return _FakeStatusResponse(500)
+            return _FakeStatusResponse(200)
+        if url.endswith("/score"):
+            return _FakeStatusResponse(
+                200, {"typicality_p_far": 0.5, "typicality_p_central": 0.5}
+            )
+        return _FakeStatusResponse(200, {})
+
+
+class TestComputeG2bParaphraseDataBaselineFailures:
+    """Sites #4 and #5 of the RP-3c audit: _compute_g2b_paraphrase_data
+    repeats _compute_g2_q_values's machinery (same two shapes: per-fold
+    holdout leg, shared-pool impostor leg — see
+    TestComputeG2QValuesBaselineHealthCheck /
+    TestComputeG2QValuesImpostorSharedPoolRaise for the fully-worked-out
+    versions of these two tests). Lighter treatment here since the
+    underlying logic being exercised is identical to G2's."""
+
+    def _dialogues(self):
+        return {
+            "plato_apology": [f"chunk{i}" for i in range(6)],
+            # Below the >= 5 LOO minimum -- feeds only the shared reference
+            # pool, isolating a pool-only failure from the holdout leg.
+            "plato_short": ["short_0", "short_1"],
+            "plato_eryxias": ["ery_0", "ery_1"],
+        }
+
+    def _patch(self, monkeypatch, tmp_path):
+        import validation.calibration_gate as cg
+
+        monkeypatch.setattr(cg, "_load_plato_texts_by_dialogue", self._dialogues)
+        monkeypatch.setattr(cg, "_ROOT", tmp_path)
+        (tmp_path / "validation" / "corpus").mkdir(parents=True)
+        return cg
+
+    def test_holdout_fold_skipped_and_counted_on_baseline_failure(self, monkeypatch, tmp_path):
+        cg = self._patch(monkeypatch, tmp_path)
+        # "plato_apology" is the only dialogue eligible for the holdout
+        # loop; failing one of its baseline chunks must skip its ONLY fold
+        # instead of scoring against an undersized baseline. NOTE: this
+        # function's reference pool for the impostor leg (below) also draws
+        # from apology's full chunk list (not just chunks[:-1]), and both
+        # legs' _require_healthy_leg checks are deferred to AFTER both legs
+        # run — so with only one non-eryxias dialogue in this fixture, a
+        # failed apology chunk trips the impostor leg's stricter
+        # shared-pool guard (raises immediately, mid-leg) before the
+        # holdout leg's deferred check is ever reached. Either raise
+        # correctly proves the fix: before it, this fixture's baseline
+        # failure was silently ignored and every leg "succeeded" anyway.
+        client = _FakeG2bClient(fail_baseline_texts={"chunk0"})
+
+        with pytest.raises(RuntimeError):
+            cg._compute_g2b_paraphrase_data(client)
+
+    def test_impostor_shared_pool_raises_immediately_on_baseline_failure(
+        self, monkeypatch, tmp_path
+    ):
+        cg = self._patch(monkeypatch, tmp_path)
+        # "short_0" feeds only the shared reference pool (see _dialogues),
+        # so the holdout leg is unaffected -- a failure here can only be
+        # explained by the impostor leg's own guard.
+        client = _FakeG2bClient(fail_baseline_texts={"short_0"})
+
+        with pytest.raises(RuntimeError, match="impostor leg"):
+            cg._compute_g2b_paraphrase_data(client)
+
+
+class _FakeG4Client:
+    """Fake client for _compute_g4_group_means: every /baseline POST returns
+    `baseline_status_code` (controllable per test) UNLESS its exact URL is
+    listed in `fail_baseline_urls`, which fails regardless -- used to fail
+    one cross-fit half's baseline pool without touching the main
+    early-group baseline loop's uploads (same chunk text can appear in
+    both, so a text-based matcher can't isolate them; the URL differs:
+    "{sid}/baseline" for the main loop vs. "{sid}_loo_{tag}/baseline" for
+    each cross-fit half). Every /score POST succeeds with a canned
+    deviation_score payload."""
+
+    def __init__(self, baseline_status_code=200, fail_baseline_urls=frozenset()):
+        self.baseline_status_code = baseline_status_code
+        self.fail_baseline_urls = frozenset(fail_baseline_urls)
+
+    def post(self, url, json=None):
+        if url.endswith("/baseline"):
+            if url in self.fail_baseline_urls:
+                return _FakeStatusResponse(500)
+            return _FakeStatusResponse(self.baseline_status_code)
+        if url.endswith("/score"):
+            return _FakeStatusResponse(200, {"authorship": {"deviation_score": 0.3}})
+        return _FakeStatusResponse(200, {})
+
+
+class TestComputeG4GroupMeansBaselineHealthCheck:
+    """Same reproducibility gap as G2 (see
+    TestComputeG2QValuesBaselineHealthCheck), for G4's early-group baseline
+    upload loop — a dropped upload there silently shrinks the early-group
+    baseline that middle/late are scored against, without changing the
+    on-disk corpus. "apology" is a real early-group dialogue slug (see
+    validation/plato/chronology.ranked()), so plato_texts only needs one
+    entry to populate groups["early"]."""
+
+    def _early_only(self, n_chunks=6):
+        return {"plato_apology": [f"chunk{i}" for i in range(n_chunks)]}
+
+    def test_raises_when_early_baseline_uploads_mostly_fail(self):
+        client = _FakeG4Client(baseline_status_code=500)
+
+        with pytest.raises(RuntimeError):
+            _compute_g4_group_means(plato_texts=self._early_only(), client=client)
+
+    def test_healthy_early_baseline_uploads_still_compute_group_means(self):
+        client = _FakeG4Client(baseline_status_code=200)
+
+        group_means, _stats = _compute_g4_group_means(
+            plato_texts=self._early_only(), client=client
+        )
+
+        assert group_means["early"] == pytest.approx(0.3)
+
+
+class TestComputeG4GroupMeansCrossFitBaselineFailure:
+    """Site #7's second half: the cross-fit LOO branch (score_early_loo=True,
+    used by G5's shuffled G4 draws — see _compute_g4_group_means's
+    docstring) uploads each half of the early group as a SHARED baseline
+    pool used to score every held-out chunk in the OTHER half — the same
+    shared-sub-pool shape as the main early-group loop above, at half
+    scale. A dropped upload into one half's pool must not be silently
+    absorbed; it must raise, same as the main loop's health check."""
+
+    def test_raises_when_one_halfs_baseline_uploads_fail(self):
+        sid = "demo:gate_g4_crossfit_test"
+        plato_texts = {"plato_apology": ["e0", "e1"]}
+        # half_a = [e0] (stride-2 index 0), half_b = [e1] (index 1). Tag "a"
+        # uploads half_b (e1) as loo_sid_a's baseline pool -- fail THAT
+        # upload only; the main early-group loop uploads e0 and e1 to
+        # `sid` (not loo_sid_a), so it is unaffected and passes its own
+        # health check first.
+        loo_sid_a = f"{sid}_loo_a"
+        client = _FakeG4Client(fail_baseline_urls={f"/students/{loo_sid_a}/baseline"})
+
+        with pytest.raises(RuntimeError, match="cross-fit"):
+            _compute_g4_group_means(
+                plato_texts=plato_texts, sid=sid, score_early_loo=True, client=client
+            )
 
 
 class TestG6Fairness:
@@ -541,18 +820,23 @@ class _FakeG1Response:
 class _FakeG1Client:
     """Minimal stand-in for the scoring client, scoped to what
     _score_corpus_for_g1 calls: .post(url, json=...) for both the
-    /baseline (fire-and-forget) and /score (response read) endpoints. Every
-    /score call returns the next canned payload in sequence."""
+    /baseline and /score endpoints. Every /score call returns the next
+    canned payload in sequence. `fail_baseline_urls` (exact-URL match) lets
+    a test simulate one fold's baseline upload silently failing, without
+    affecting any other fold's baseline calls."""
 
-    def __init__(self, score_payloads):
+    def __init__(self, score_payloads, fail_baseline_urls=frozenset()):
         self._score_payloads = list(score_payloads)
         self._score_calls = 0
+        self._fail_baseline_urls = frozenset(fail_baseline_urls)
 
     def post(self, url, json=None):
         if url.endswith("/score"):
             payload = self._score_payloads[self._score_calls]
             self._score_calls += 1
             return _FakeG1Response(200, payload)
+        if url in self._fail_baseline_urls:
+            return _FakeG1Response(500, {})
         return _FakeG1Response(200, {})
 
 
@@ -633,6 +917,50 @@ class TestRunAllG1Wiring:
         assert NO_ACTION_FAR_THRESHOLD  # sanity: the threshold this hinges on exists
 
 
+class TestScoreCorpusForG1BaselineFailureSkipsFold:
+    """Site #1 of the RP-3c unchecked-baseline-POST audit: before this fix,
+    a failed /baseline upload for one held-out fold was never checked, so
+    that fold's score call proceeded against a silently undersized
+    baseline. This is the representative test for the "per-fold
+    skip-and-count" shape shared by _score_corpus_for_g1, G2b's holdout
+    leg, and G6 (see TestComputeG2QValuesImpostorSharedPoolRaise's
+    docstring for the contrasting "shared pool, raise immediately" shape)."""
+
+    def _five_fold_payloads(self):
+        return [
+            {
+                "recommendation": {"action": "no_action"},
+                "authorship": {"deviation_score": 0.1 * (i + 1)},
+                "typicality_n": 4,
+            }
+            for i in range(5)
+        ]
+
+    def test_fold_is_skipped_and_counted_when_its_baseline_upload_fails(self):
+        texts_by_id = {"author_a": ["t0", "t1", "t2", "t3", "t4"]}
+        # held_out_idx=2's fold uploads t0,t1,t3,t4 as baseline to this sid;
+        # failing every /baseline POST to it means that ONE fold's baseline
+        # is incomplete -- the other four folds' baselines are untouched.
+        failing_sid = "demo:gate_g1test_author_a_2"
+        client = _FakeG1Client(
+            self._five_fold_payloads(),
+            fail_baseline_urls={f"/students/{failing_sid}/baseline"},
+        )
+
+        pooled, per_corpus, deviations, n_errors, typicality_ns = _score_corpus_for_g1(
+            client, "g1test", texts_by_id
+        )
+
+        # Before the fix: n_errors == 0 and all 5 folds are scored (the
+        # broken fold's /score call still fires and consumes a payload) --
+        # this assertion is the RED signal.
+        assert n_errors == 1
+        assert len(pooled) == 4
+        assert len(per_corpus["author_a"]) == 4
+        assert len(deviations) == 4
+        assert len(typicality_ns) == 4
+
+
 class _FakeG6Response:
     """Minimal stand-in for the scoring client's response object, scoped to
     what _compute_g6_fairness_data reads."""
@@ -649,16 +977,20 @@ class _FakeG6Client:
     """Minimal stand-in for the scoring client, scoped to what
     _compute_g6_fairness_data calls. /score calls are routed by the
     submission_id's filename suffix (submission_id is always
-    f"g6_{held_out['filename']}") to a canned payload; /baseline calls are
-    fire-and-forget."""
+    f"g6_{held_out['filename']}") to a canned payload. `fail_baseline_urls`
+    (exact-URL match) lets a test fail one held-out fold's baseline uploads
+    without touching any other fold's."""
 
-    def __init__(self, payload_by_filename):
+    def __init__(self, payload_by_filename, fail_baseline_urls=frozenset()):
         self._payload_by_filename = payload_by_filename
+        self._fail_baseline_urls = frozenset(fail_baseline_urls)
 
     def post(self, url, json=None):
         if url.endswith("/score"):
             filename = json["submission_id"][len("g6_") :]
             return _FakeG6Response(200, self._payload_by_filename[filename])
+        if url in self._fail_baseline_urls:
+            return _FakeG6Response(500, {})
         return _FakeG6Response(200, {})
 
 
@@ -827,6 +1159,44 @@ class TestComputeG6FairnessDataWiring:
         assert uniformity["gated"] is False
         assert uniformity["n_native"] == 5
         assert uniformity["n_non_native"] == 5
+
+
+class TestComputeG6FairnessDataBaselineFailureSkipsFold:
+    """Site #6 of the RP-3c audit: same per-fold shape as G1 (see
+    TestScoreCorpusForG1BaselineFailureSkipsFold) — a failed /baseline
+    upload for one held-out fold must skip that fold and count it in
+    n_errors, not silently score against an undersized baseline. Uses 6
+    native essays (one author) so that losing one fold to the failure still
+    leaves 5 -- exactly _G6_MIN_PER_GROUP -- so the short-group skip doesn't
+    mask the assertion."""
+
+    def test_fold_skipped_and_counted_when_baseline_upload_fails(self, tmp_path, monkeypatch):
+        import validation.calibration_gate as cg
+
+        native_files = [f"native_{i}.txt" for i in range(6)]
+        non_native_files = [f"nonnative_{i}.txt" for i in range(5)]
+        _write_g6_fixture(tmp_path, {True: native_files, False: non_native_files})
+        monkeypatch.setattr(cg, "_ROOT", tmp_path)
+
+        payload_by_filename = {
+            f: _g6_payload(p_central=0.5, typicality_n=60)
+            for f in native_files + non_native_files
+        }
+        # held_out_idx=0 within the single native author is native_0.txt;
+        # its baseline sid is demo:gate_g6_author_native_0.
+        failing_sid = "demo:gate_g6_author_native_0"
+        client = _FakeG6Client(
+            payload_by_filename, fail_baseline_urls={f"/students/{failing_sid}/baseline"}
+        )
+
+        result = cg._compute_g6_fairness_data(client)
+
+        # Before the fix: n_scoring_errors == 0 and n_native_scored == 6
+        # (the broken fold's /score call still fires) -- this is the RED
+        # signal.
+        assert result.detail["n_scoring_errors"] == 1
+        assert result.detail["n_native_scored"] == 5
+        assert result.detail["n_non_native_scored"] == 5
 
 
 class TestG6ReachabilityPrecheck:

@@ -205,6 +205,9 @@ def evaluate_g1_fpr(
     )
 
 
+_G2_CRITERION = "median(impostor q) <= median(holdout q)"
+
+
 def evaluate_g2_bland_impostor(holdout_q: list[float], impostor_q: list[float]) -> GateResult:
     """
     G2 — Bland impostor. q = min(p_far, p_central) (the two-sided
@@ -219,7 +222,7 @@ def evaluate_g2_bland_impostor(holdout_q: list[float], impostor_q: list[float]) 
     return GateResult(
         name="G2",
         passed=passed,
-        criterion="median(impostor q) <= median(holdout q)",
+        criterion=_G2_CRITERION,
         current_value=f"impostor={med_impostor:.3f}, holdout={med_holdout:.3f}",
         detail={"holdout_q": holdout_q, "impostor_q": impostor_q},
     )
@@ -320,6 +323,9 @@ def evaluate_g3_attribution(
     )
 
 
+_G4_CRITERION = "early <= middle <= late (typicality distance from early baseline)"
+
+
 def evaluate_g4_career_drift_monotone(group_means: dict[str, float]) -> GateResult:
     """
     G4 — Career-drift sanity. group_means keyed by "early"/"middle"/"late",
@@ -332,7 +338,7 @@ def evaluate_g4_career_drift_monotone(group_means: dict[str, float]) -> GateResu
     return GateResult(
         name="G4",
         passed=passed,
-        criterion="early <= middle <= late (typicality distance from early baseline)",
+        criterion=_G4_CRITERION,
         current_value=str(group_means),
         detail={"group_means": group_means},
     )
@@ -739,8 +745,11 @@ def _score_corpus_for_g1(
     pooled_typicality_ns): pooled_deviations is each successful fold's
     deviation_score, index-aligned with pooled_actions — the real G1
     evaluator (evaluate_g1_fpr) ignores it; G5's deviation-shift criterion
-    consumes it. n_errors counts non-200 score responses so callers can
-    distinguish "clean run" from "the numbers came from a broken leg" (see
+    consumes it. n_errors counts non-200 score responses AND folds skipped
+    because one of their baseline uploads returned non-200 (a fold whose
+    baseline is known incomplete must never be scored — see the module-level
+    note on the 2026-07-28 vs 2026-07-30 drift) — so callers can distinguish
+    "clean run" from "the numbers came from a broken leg" (see
     _require_healthy_leg). pooled_typicality_ns is each successful fold's
     top-level payload["typicality_n"] (also index-aligned with
     pooled_actions) — evaluate_g1_fpr's reachability annotation consumes it.
@@ -758,13 +767,22 @@ def _score_corpus_for_g1(
         typicality_ns: list[int] = []
         for held_out_idx in range(len(texts)):
             sid = f"demo:gate_{sid_prefix}_{entity_id}_{held_out_idx}"
+            baseline_failed = False
             for i, text in enumerate(texts):
                 if i == held_out_idx:
                     continue
-                client.post(
+                r = client.post(
                     f"/students/{sid}/baseline",
                     json={"text": text, "provenance": "verified", "submitted_at": "2026-01-01"},
                 )
+                if r.status_code != 200:
+                    baseline_failed = True
+            if baseline_failed:
+                # A fold whose baseline is known incomplete must not be
+                # scored — proceeding would silently shrink this fold's
+                # effective LOO sample count instead of surfacing the drop.
+                n_errors += 1
+                continue
             r = client.post(
                 f"/students/{sid}/score",
                 json={"text": texts[held_out_idx], "submission_id": f"{entity_id}_{held_out_idx}"},
@@ -830,9 +848,15 @@ def run_all() -> list[GateResult]:
     g1_result = evaluate_g1_fpr(pooled_actions, per_corpus_actions, typicality_ns=real_g1_typicality_ns)
     results.append(g1_result)
 
-    # G2: bland impostor via q = min(p_far, p_central).
-    holdout_q, impostor_q = _compute_g2_q_values(client)
-    results.append(evaluate_g2_bland_impostor(holdout_q, impostor_q))
+    # G2: bland impostor via q = min(p_far, p_central). A crash here (e.g.
+    # _compute_g2_q_values's _require_healthy_leg call catching a dialogue
+    # whose baseline uploads mostly failed) is a machinery failure, same
+    # convention as G2b/G5/G6's wrappers.
+    try:
+        holdout_q, impostor_q, _g2_n_holdout_errors = _compute_g2_q_values(client)
+        results.append(evaluate_g2_bland_impostor(holdout_q, impostor_q))
+    except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
+        results.append(_machinery_error_result("G2", _G2_CRITERION, exc))
 
     # G2b: G2's criterion with uniformity features enabled (guarded window —
     # see _uniformity_features_enabled) and the ai_*.txt impostors run
@@ -869,9 +893,15 @@ def run_all() -> list[GateResult]:
         )
     )
 
-    # G4: Plato early/middle/late monotonicity.
-    group_means, _g4_stats = _compute_g4_group_means()
-    results.append(evaluate_g4_career_drift_monotone(group_means))
+    # G4: Plato early/middle/late monotonicity. A crash here (e.g.
+    # _compute_g4_group_means's _require_healthy_leg call catching a
+    # mostly-failed early baseline upload) is a machinery failure, same
+    # convention as G2b/G5/G6's wrappers.
+    try:
+        group_means, _g4_stats = _compute_g4_group_means()
+        results.append(evaluate_g4_career_drift_monotone(group_means))
+    except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
+        results.append(_machinery_error_result("G4", _G4_CRITERION, exc))
 
     # G5: permutation-null selection-bias control — seeded label shuffles,
     # then shuffled-label reruns of the G1/G3/G4 machinery above (see run_g5).
@@ -1015,14 +1045,18 @@ def _corpus_fingerprint(texts_by_id: dict[str, list[str]]) -> str:
     (sorted iterdir + sorted glob), so that drift's fingerprint would read
     identical on both runs. The actual divergence (G2's per-dialogue q-value
     denominators implying an effective n smaller than len(chunks)-1 on some
-    runs) most likely traces to _compute_g2_q_values's baseline-upload loop,
-    which POSTs each baseline chunk without checking the response status —
-    a dropped upload silently shrinks that student's LOO sample count without
-    touching anything on disk. That's a scoring-time defect, out of scope for
-    this fingerprint and for this task; see the Task 3 report for the full
-    diagnosis. Two GateResults whose corpus_fingerprint differs are still not
-    directly comparable, however close their numbers look — this catches the
-    corpus-content half of the reproducibility problem, not the other half.
+    runs) traced to _compute_g2_q_values's and _compute_g4_group_means's
+    baseline-upload loops, which used to POST each baseline chunk without
+    checking the response status — a dropped upload silently shrank that
+    student's LOO sample count without touching anything on disk. Both loops
+    now call _require_healthy_leg on their upload counts and fail loudly
+    instead (see the Task 3 report for the original diagnosis). This
+    fingerprint still would not catch a *future* instance of that class of
+    scoring-time defect on its own — it only ever hashed corpus content, not
+    what the scoring leg did with it — so a GateResult with a matching
+    fingerprint is not, by itself, proof of a healthy scoring leg; it rules
+    out corpus-content drift, and the health check above is what now rules
+    out the sample-count drift.
     """
     triples = sorted(
         (entity_id, len(texts), sum(len(t) for t in texts))
@@ -1032,7 +1066,7 @@ def _corpus_fingerprint(texts_by_id: dict[str, list[str]]) -> str:
     return hashlib.sha256(payload).hexdigest()[:16]
 
 
-def _compute_g2_q_values(client) -> tuple[list[float], list[float]]:
+def _compute_g2_q_values(client) -> tuple[list[float], list[float], int]:
     """
     q = min(p_far, p_central) for genuine Plato holdouts vs. the Eryxias +
     synthetic-AI impostor pool.
@@ -1046,15 +1080,43 @@ def _compute_g2_q_values(client) -> tuple[list[float], list[float]]:
     >= 2 leave-one-out baseline distances (original/quantum/scoring.py's
     typicality block) — treat that as "no signal for this sample", not an
     error, and skip it.
+
+    Returns (holdout_q, impostor_q, n_holdout_errors): n_holdout_errors
+    counts per-dialogue holdout folds skipped because a baseline upload (or
+    the score call itself) returned non-200 — same skip-and-count convention
+    as _score_corpus_for_g1's n_errors. _require_healthy_leg is called once
+    on the pooled holdout-leg counts (raises RuntimeError on an unhealthy
+    leg) and, separately and more strictly, on the impostor leg's SHARED
+    reference pool: that pool is built once and reused for every impostor
+    score, so even a single failed baseline upload there poisons every
+    subsequent impostor score in the leg, not just one fold — a "count and
+    continue" policy would routinely stay under _require_healthy_leg's 10%
+    pooled-error threshold while still contaminating 100% of the impostor
+    q-values, so this raises immediately instead of accumulating an error
+    count. Both raises are converted to a G2 "ERROR (machinery)" result by
+    run_all()'s try/except (see _machinery_error_result), matching the
+    convention G2b/G5/G6 already use.
     """
     holdout_q: list[float] = []
+    n_holdout_errors = 0
     plato_dialogues = _load_plato_texts_by_dialogue()
     for dialogue, chunks in plato_dialogues.items():
         if "eryxias" in dialogue or len(chunks) < 5:
             continue
         sid = f"demo:gate_g2_{dialogue}"
+        baseline_failed = False
         for chunk in chunks[:-1]:
-            client.post(f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"})
+            r = client.post(
+                f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"}
+            )
+            if r.status_code != 200:
+                baseline_failed = True
+        if baseline_failed:
+            # A fold whose baseline is known incomplete must not be scored
+            # — see the module-level note on the 2026-07-28 vs 2026-07-30
+            # drift and _score_corpus_for_g1's identical convention.
+            n_holdout_errors += 1
+            continue
         r = client.post(
             f"/students/{sid}/score",
             json={"text": chunks[-1], "submission_id": f"{dialogue}_holdout"},
@@ -1065,6 +1127,9 @@ def _compute_g2_q_values(client) -> tuple[list[float], list[float]]:
             p_central_val = payload.get("typicality_p_central")
             if p_far_val is not None and p_central_val is not None:
                 holdout_q.append(min(p_far_val, p_central_val))
+        else:
+            n_holdout_errors += 1
+    _require_healthy_leg("G2 holdout leg", n_success=len(holdout_q), n_errors=n_holdout_errors)
 
     impostor_q: list[float] = []
     eryxias_chunks = plato_dialogues.get("plato_eryxias", [])
@@ -1074,8 +1139,19 @@ def _compute_g2_q_values(client) -> tuple[list[float], list[float]]:
         c for name, chunks in plato_dialogues.items() if "eryxias" not in name for c in chunks
     ][:20]
     sid = "demo:gate_g2_impostor_reference"
+    n_reference_baseline_errors = 0
     for chunk in reference_dialogues:
-        client.post(f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"})
+        r = client.post(
+            f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"}
+        )
+        if r.status_code != 200:
+            n_reference_baseline_errors += 1
+    if n_reference_baseline_errors:
+        raise RuntimeError(
+            f"G2 impostor leg: {n_reference_baseline_errors}/{len(reference_dialogues)} "
+            "shared reference-pool baseline uploads failed — every impostor score in "
+            "this leg would be computed against a poisoned shared reference"
+        )
     for text in eryxias_chunks + ai_texts:
         r = client.post(f"/students/{sid}/score", json={"text": text, "submission_id": "impostor"})
         if r.status_code == 200:
@@ -1085,7 +1161,7 @@ def _compute_g2_q_values(client) -> tuple[list[float], list[float]]:
             if p_far_val is not None and p_central_val is not None:
                 impostor_q.append(min(p_far_val, p_central_val))
 
-    return holdout_q, impostor_q
+    return holdout_q, impostor_q, n_holdout_errors
 
 
 # ── G2b / G6 — uniformity-enabled legs ─────────────────────────────────────────
@@ -1256,11 +1332,19 @@ def _compute_g2b_paraphrase_data(client) -> tuple[list[float], list[float], dict
             if "eryxias" in dialogue or len(chunks) < 5:
                 continue
             sid = f"demo:gate_g2b_{dialogue}"
+            baseline_failed = False
             for chunk in chunks[:-1]:
-                client.post(
+                r = client.post(
                     f"/students/{sid}/baseline",
                     json={"text": chunk, "provenance": "verified"},
                 )
+                if r.status_code != 200:
+                    baseline_failed = True
+            if baseline_failed:
+                # A fold whose baseline is known incomplete must not be
+                # scored — see _score_corpus_for_g1's identical convention.
+                n_holdout_errors += 1
+                continue
             r = client.post(
                 f"/students/{sid}/score",
                 json={"text": chunks[-1], "submission_id": f"{dialogue}_holdout"},
@@ -1283,9 +1367,27 @@ def _compute_g2b_paraphrase_data(client) -> tuple[list[float], list[float], dict
             for c in chunks
         ][:20]
         sid = "demo:gate_g2b_impostor_reference"
+        n_reference_baseline_errors = 0
         for chunk in reference_dialogues:
-            client.post(
+            r = client.post(
                 f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"}
+            )
+            if r.status_code != 200:
+                n_reference_baseline_errors += 1
+        if n_reference_baseline_errors:
+            # Same reasoning as G2's impostor leg (_compute_g2_q_values):
+            # ONE shared reference pool is reused for every paraphrased
+            # impostor score in this leg, so a single failed baseline
+            # upload poisons all of them, not just one fold — "skip and
+            # count" would routinely stay under _require_healthy_leg's 10%
+            # threshold while still contaminating every paraphrased_impostor_q
+            # value. Raise immediately instead; run_all()'s existing
+            # try/except around _compute_g2b_paraphrase_data already
+            # converts this to a G2b "ERROR (machinery)" result.
+            raise RuntimeError(
+                f"G2b impostor leg: {n_reference_baseline_errors}/{len(reference_dialogues)} "
+                "shared reference-pool baseline uploads failed — every paraphrased-impostor "
+                "score in this leg would be computed against a poisoned shared reference"
             )
         for path in ai_files:
             paraphrased = _paraphrase_proxy(path.read_text(encoding="utf-8"))
@@ -1402,10 +1504,11 @@ def _compute_g6_fairness_data(client) -> GateResult:
                 continue
             for held_out_idx, held_out in enumerate(author_entries):
                 sid = f"demo:gate_g6_{author_id}_{held_out_idx}"
+                baseline_failed = False
                 for i, other in enumerate(author_entries):
                     if i == held_out_idx:
                         continue
-                    client.post(
+                    r = client.post(
                         f"/students/{sid}/baseline",
                         json={
                             "text": (corpus_dir / other["filename"]).read_text(
@@ -1414,6 +1517,14 @@ def _compute_g6_fairness_data(client) -> GateResult:
                             "provenance": "verified",
                         },
                     )
+                    if r.status_code != 200:
+                        baseline_failed = True
+                if baseline_failed:
+                    # A fold whose baseline is known incomplete must not be
+                    # scored — see _score_corpus_for_g1's identical
+                    # convention.
+                    n_errors += 1
+                    continue
                 t0 = time.perf_counter()
                 r = client.post(
                     f"/students/{sid}/score",
@@ -1549,8 +1660,15 @@ def _compute_g4_group_means(
     plato_texts: dict[str, list[str]] | None = None,
     sid: str = "demo:gate_g4_early_baseline",
     score_early_loo: bool = False,
+    client=None,
 ) -> tuple[dict[str, float], dict[str, int]]:
     """
+    `client` defaults to a fresh real TestClient (production behaviour,
+    unchanged); tests may inject a fake one scoped to what this function
+    calls (.post(url, json=...) -> an object with .status_code/.json()) to
+    unit-test the early-baseline health check below without standing up the
+    real app.
+
     Defaults reproduce the real G4 leg exactly. run_g5() passes a
     label-shuffled `plato_texts` dict plus a DIFFERENT `sid` per draw: the
     store is a process-wide :memory: database, so reusing the real G4 sid on
@@ -1598,13 +1716,30 @@ def _compute_g4_group_means(
         group_key = GROUP_NAMES[d.group]
         groups[group_key].extend(plato_texts.get(f"plato_{d.slug}", []))
     # Baseline built from the "early" group; score middle and late against it.
-    from fastapi.testclient import TestClient
+    if client is None:
+        from fastapi.testclient import TestClient
 
-    import run as _run_module  # repo-root run.py — see run_all()'s identical import
+        import run as _run_module  # repo-root run.py — see run_all()'s identical import
 
-    client = TestClient(_run_module.load_legacy_demo_app())
+        client = TestClient(_run_module.load_legacy_demo_app())
+    n_baseline_errors = 0
     for chunk in groups["early"]:
-        client.post(f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"})
+        r = client.post(
+            f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"}
+        )
+        if r.status_code != 200:
+            n_baseline_errors += 1
+    # A dropped upload here silently shrinks the early-group baseline that
+    # middle/late (and, with score_early_loo, early's own cross-fit halves)
+    # are scored against, without touching anything on disk — see
+    # _corpus_fingerprint's docstring for the reproducibility bug this class
+    # of defect was traced to for G2. _require_healthy_leg fails loudly
+    # instead of letting that pass unnoticed.
+    _require_healthy_leg(
+        "G4 early baseline upload",
+        n_success=len(groups["early"]) - n_baseline_errors,
+        n_errors=n_baseline_errors,
+    )
 
     means = {}
     n_scored = 0
@@ -1619,11 +1754,24 @@ def _compute_g4_group_means(
                 ("b", half_b, half_a),
             ):
                 loo_sid = f"{sid}_loo_{half_tag}"
+                n_half_baseline_errors = 0
                 for other in baseline_pool:
-                    client.post(
+                    r = client.post(
                         f"/students/{loo_sid}/baseline",
                         json={"text": other, "provenance": "verified"},
                     )
+                    if r.status_code != 200:
+                        n_half_baseline_errors += 1
+                # Same shared-sub-pool reasoning as the early-baseline check
+                # above, at half-scale: baseline_pool is reused for every
+                # held_out chunk scored in THIS half, so a dropped upload
+                # here undersizes every one of that half's scores, not just
+                # one fold.
+                _require_healthy_leg(
+                    f"G4 cross-fit baseline upload ({half_tag})",
+                    n_success=len(baseline_pool) - n_half_baseline_errors,
+                    n_errors=n_half_baseline_errors,
+                )
                 for chunk in held_out:
                     r = client.post(
                         f"/students/{loo_sid}/score",
