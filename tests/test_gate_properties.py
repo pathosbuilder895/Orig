@@ -27,7 +27,7 @@ Two corrections relative to the Task 13 plan draft (see
 """
 from __future__ import annotations
 
-from hypothesis import given, settings, strategies as st
+from hypothesis import example, given, settings, strategies as st
 
 from original.quantum.typicality import p_far
 from validation.calibration_gate import (
@@ -57,13 +57,81 @@ _unreachable_counts = st.dictionaries(
 )
 
 
+@st.composite
+def _flagged_within_budget_actions(draw):
+    """Action lists with 1-2 genuine flags, sized so flagged/n <= 0.05.
+
+    A generic `_actions`-style strategy essentially never lands in the
+    "flagged > 0 AND rate <= 0.05" region on its own — with a 4-way
+    sampled_from over ["no_action", "monitor", "review",
+    "schedule_meeting"], a random draw needs ~20+ actions to ALL land on
+    "no_action" except exactly 1-2, which is exponentially unlikely.
+    property 2's `if flagged == 0:` guard and property 3's `if rate >
+    0.05:` guard are both false in this region, so no existing property
+    exercises it (see task report). This strategy constructs the region
+    directly: draw k in {1, 2} flags, draw n >= 20*k total actions so
+    k/n <= 0.05 by construction, then shuffle so the flag(s) can land
+    anywhere in the list (order must not matter to the gate, which only
+    counts).
+    """
+    k = draw(st.integers(min_value=1, max_value=2))
+    n = draw(st.integers(min_value=20 * k, max_value=300))
+    flags = draw(
+        st.lists(
+            st.sampled_from(["monitor", "review", "schedule_meeting"]),
+            min_size=k, max_size=k,
+        )
+    )
+    actions = ["no_action"] * (n - k) + flags
+    return draw(st.permutations(actions))
+
+
 class TestG1Properties:
     @_SETTINGS
     @given(_actions)
+    @example(["monitor"] + ["no_action"] * 19)  # FIX 2: exactly 1/20 = 0.05,
+    # the exact boundary. The generic `_actions` strategy (a 4-way
+    # sampled_from) essentially never lands on a k/20 ratio on its own, so
+    # without this pinned example a `pooled_rate <= 0.05` -> `< 0.05`
+    # mutation in evaluate_g1_fpr survives: at rate == 0.05 exactly, `<=`
+    # says "pass" (correct) while `<` says "fail" (mutant) — only an
+    # example that actually lands ON the boundary distinguishes them.
     def test_verdict_agrees_with_the_rate_arithmetic(self, actions):
         rate = sum(1 for a in actions if a != "no_action") / len(actions)
         result = evaluate_g1_fpr(actions, per_corpus={"c": actions})
         assert result.verdict == ("pass" if rate <= 0.05 else "fail")
+
+    @_SETTINGS
+    @given(_flagged_within_budget_actions(), _unreachable_counts)
+    def test_pass_survives_unreachable_band_when_flagged_but_within_budget(
+        self, actions, counts
+    ):
+        # FIX 1: the converse half of the downgrade invariant. When
+        # flagged > 0 AND the pooled rate is within budget (<= 5%), the
+        # verdict must stay "pass" regardless of entity_baseline_counts /
+        # band_threshold — genuine flags are real evidence from the
+        # deviation-score path, not the conformal band, so an unreachable
+        # band must never downgrade them. `_flagged_within_budget_actions`
+        # guarantees flagged in {1, 2} and rate <= 0.05 by construction;
+        # `_unreachable_counts` guarantees entity_unreachable (band
+        # unreachable for every entity, per the module-level comment on
+        # that strategy). This is exactly the region none of the other
+        # five properties can stress (property 2's `if flagged == 0:` is
+        # false here; property 3's `if rate > 0.05:` is also false) — a
+        # gate that dropped the `flagged == 0` clause from its downgrade
+        # guard (leaving only `verdict == "pass" and (entity_unreachable or
+        # typicality_unreachable)`) passes all five other properties
+        # undetected but fails this one on essentially every draw, e.g.
+        #   actions = ["monitor"] + ["no_action"] * 99  # flagged=1, rate=1%
+        #   counts  = {"e": 10}                         # band unreachable
+        flagged = sum(1 for a in actions if a != "no_action")
+        rate = flagged / len(actions)
+        assert flagged > 0 and rate <= 0.05  # sanity check on the strategy
+        result = evaluate_g1_fpr(
+            actions, per_corpus={"c": actions},
+            entity_baseline_counts=counts, band_threshold=0.03,
+        )
+        assert result.verdict == "pass"
 
     @_SETTINGS
     @given(_actions, _unreachable_counts)
