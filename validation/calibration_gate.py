@@ -1069,9 +1069,11 @@ def run_all() -> list[GateResult]:
         evaluate_g3_attribution(
             top1_accuracy,
             top1_accuracy_raw_argmin=pa_summary.get("top1_accuracy_raw_argmin"),
-            # "n_scored_essays" does not exist in the summary yet (added by a
-            # later task) — .get() returns None today, so G3 keeps its
-            # legacy two-valued behavior at runtime until that key lands.
+            # "n_scored_essays" is the held-out essay count run.py actually
+            # scored. It drives G3's informativeness check: at n=22 the Wilson
+            # interval around a 0.727 accuracy straddles the 0.7 bar, so the
+            # gate reports UNINFORMATIVE rather than banking the pass.
+            # .get() still guards the error path, where run() returns no summary.
             n_essays=pa_summary.get("n_scored_essays"),
         )
     )

@@ -1,0 +1,1182 @@
+{
+  "dataset_label": "public_authors",
+  "generated_at": "2026-08-01T02:00:40Z",
+  "environment": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "environment": "testing",
+    "original_db": ":memory:",
+    "numpy_seeded": true,
+    "python_seeded": true,
+    "scoring_flags": {
+      "ADAPTIVE_WEIGHTS_ENABLED": "0",
+      "AMPLITUDE_SCORING_ENABLED": "0",
+      "BAYESIAN_PRIOR_ENABLED": "0",
+      "LENGTH_ADAPTIVE_WEIGHTS": "0",
+      "IDENTITY_AXIS": "0",
+      "NULL_MODEL": "none"
+    }
+  },
+  "experiment": {
+    "task": "attribution",
+    "git_sha": "8c27d2d04488636f074a569c295bf28bfe7b2c0c",
+    "seed": 1729,
+    "env_lock": {
+      "ADAPTIVE_WEIGHTS_ENABLED": "0",
+      "AMPLITUDE_SCORING_ENABLED": "0",
+      "BAYESIAN_PRIOR_ENABLED": "0",
+      "LENGTH_ADAPTIVE_WEIGHTS": "0",
+      "IDENTITY_AXIS": "0",
+      "NULL_MODEL": "none"
+    },
+    "corpora": {
+      "public_authors": {
+        "n_authors": 9,
+        "n_documents": 50,
+        "total_words": 648354,
+        "docs_per_author": {
+          "augustine": 6,
+          "boethius": 5,
+          "chesterton": 5,
+          "edwards": 6,
+          "emerson": 5,
+          "james": 8,
+          "kempis": 5,
+          "mill": 5,
+          "newman": 5
+        },
+        "provenance": "real_historical"
+      }
+    },
+    "windowing": {
+      "source": "public_authors corpus documents as-is"
+    },
+    "features": {
+      "total": 109,
+      "status_counts": {
+        "measurable": 89,
+        "scoring_only": 7,
+        "structurally_blank": 1,
+        "disabled": 12
+      }
+    },
+    "aggregation": {
+      "attribution_rule": "impostor_calibrated_z"
+    },
+    "thresholds": {
+      "g3_top1": 0.7,
+      "attribution_min_words": 300,
+      "attribution_min_baseline_docs": 3
+    },
+    "created_at": "2026-08-01T02:00:40+00:00"
+  },
+  "summary": {
+    "eligible_authors": [
+      "augustine",
+      "boethius",
+      "chesterton",
+      "edwards",
+      "emerson",
+      "james",
+      "kempis",
+      "mill",
+      "newman"
+    ],
+    "n_eligible_authors": 9,
+    "n_held_out_essays": 22,
+    "top1_accuracy": 0.7273,
+    "top1_accuracy_raw_argmin": 0.3636,
+    "mean_rank_of_true_author": 1.591,
+    "mean_rank_raw_argmin": 2.727,
+    "attribution_method": "impostor_calibrated_z",
+    "method_note": "Attribution = argmin over candidates of the impostor-calibrated z-score (deviation - ref_mean[cand]) / ref_std[cand]; each candidate's reference distribution is the deviations of every OTHER eligible author's baseline documents scored against that candidate. Reference sets are baseline-docs-only \u2014 held-out essays never inform the calibration. Raw deviation_score is z-normalized against each candidate's own baseline_std, so raw values are not cross-author comparable.",
+    "reference_warnings": [],
+    "skipped_authors": [
+      [
+        "douglass",
+        "thin baseline: 1 baseline documents < required 3 (corpus policy)"
+      ],
+      [
+        "thoreau",
+        "thin baseline: 1 baseline documents < required 3 (corpus policy)"
+      ]
+    ],
+    "dropped_short_documents": [],
+    "corpus_policy_violations": [
+      {
+        "kind": "thin_baseline",
+        "subject": "douglass",
+        "detail": "1 baseline docs < required 3"
+      },
+      {
+        "kind": "thin_baseline",
+        "subject": "thoreau",
+        "detail": "1 baseline docs < required 3"
+      }
+    ],
+    "n_scored_essays": 22,
+    "per_engine_top1": {
+      "deviation_calibrated": {
+        "accuracy": 0.7273,
+        "wilson_ci_95": [
+          0.5185,
+          0.8685
+        ],
+        "n": 22
+      },
+      "cosine_delta": {
+        "accuracy": 0.7727,
+        "wilson_ci_95": [
+          0.5656,
+          0.8988
+        ],
+        "n": 22
+      },
+      "mfw_delta": {
+        "accuracy": 0.9091,
+        "wilson_ci_95": [
+          0.7218,
+          0.9747
+        ],
+        "n": 22
+      }
+    },
+    "ensemble_coverage": 0.9545,
+    "ensemble_accuracy_on_covered": 0.8095,
+    "engine_agreement": {
+      "cosine_delta|deviation_calibrated": 0.8636,
+      "cosine_delta|mfw_delta": 0.7273,
+      "deviation_calibrated|mfw_delta": 0.7273
+    },
+    "engine_exceptions": []
+  },
+  "reference_stats": {
+    "augustine": {
+      "ref_mean": 0.8529,
+      "ref_std": 0.0706,
+      "n_reference_points": 25
+    },
+    "boethius": {
+      "ref_mean": 0.776,
+      "ref_std": 0.0943,
+      "n_reference_points": 25
+    },
+    "chesterton": {
+      "ref_mean": 0.83,
+      "ref_std": 0.0604,
+      "n_reference_points": 25
+    },
+    "edwards": {
+      "ref_mean": 0.9565,
+      "ref_std": 0.0128,
+      "n_reference_points": 25
+    },
+    "emerson": {
+      "ref_mean": 0.611,
+      "ref_std": 0.1206,
+      "n_reference_points": 25
+    },
+    "james": {
+      "ref_mean": 0.8817,
+      "ref_std": 0.0618,
+      "n_reference_points": 24
+    },
+    "kempis": {
+      "ref_mean": 0.805,
+      "ref_std": 0.0629,
+      "n_reference_points": 25
+    },
+    "mill": {
+      "ref_mean": 0.7208,
+      "ref_std": 0.1172,
+      "n_reference_points": 25
+    },
+    "newman": {
+      "ref_mean": 0.862,
+      "ref_std": 0.0803,
+      "n_reference_points": 25
+    }
+  },
+  "per_author": {
+    "augustine": {
+      "n_scored": 3,
+      "n_correct": 3,
+      "accuracy": 1.0
+    },
+    "boethius": {
+      "n_scored": 2,
+      "n_correct": 1,
+      "accuracy": 0.5
+    },
+    "chesterton": {
+      "n_scored": 2,
+      "n_correct": 2,
+      "accuracy": 1.0
+    },
+    "edwards": {
+      "n_scored": 3,
+      "n_correct": 3,
+      "accuracy": 1.0
+    },
+    "emerson": {
+      "n_scored": 2,
+      "n_correct": 2,
+      "accuracy": 1.0
+    },
+    "james": {
+      "n_scored": 4,
+      "n_correct": 1,
+      "accuracy": 0.25
+    },
+    "kempis": {
+      "n_scored": 2,
+      "n_correct": 2,
+      "accuracy": 1.0
+    },
+    "mill": {
+      "n_scored": 2,
+      "n_correct": 0,
+      "accuracy": 0.0
+    },
+    "newman": {
+      "n_scored": 2,
+      "n_correct": 2,
+      "accuracy": 1.0
+    }
+  },
+  "results": [
+    {
+      "filename": "augustine/confessions_part_04.txt",
+      "true_author": "augustine",
+      "predicted_author": "augustine",
+      "predicted_author_raw": "augustine",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.4284,
+        "boethius": 0.6938,
+        "chesterton": 0.8144,
+        "edwards": 0.9417,
+        "emerson": 0.5499,
+        "james": 0.8336,
+        "kempis": 0.838,
+        "mill": 0.74,
+        "newman": 0.7601
+      },
+      "calibrated_scores": {
+        "augustine": -6.0096,
+        "boethius": -0.8717,
+        "chesterton": -0.2572,
+        "edwards": -1.1558,
+        "emerson": -0.5063,
+        "james": -0.7789,
+        "kempis": 0.5246,
+        "mill": 0.1632,
+        "newman": -1.2697
+      },
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 18244,
+      "scoring_time_ms": 115677.69,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "augustine",
+        "cosine_delta": "augustine",
+        "mfw_delta": "augustine"
+      },
+      "ensemble_author": "augustine",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "augustine/confessions_part_05.txt",
+      "true_author": "augustine",
+      "predicted_author": "augustine",
+      "predicted_author_raw": "emerson",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.696,
+        "boethius": 0.8096,
+        "chesterton": 0.8859,
+        "edwards": 0.9638,
+        "emerson": 0.6348,
+        "james": 0.9246,
+        "kempis": 0.8898,
+        "mill": 0.8668,
+        "newman": 0.8804
+      },
+      "calibrated_scores": {
+        "augustine": -2.221,
+        "boethius": 0.3559,
+        "chesterton": 0.9264,
+        "edwards": 0.5713,
+        "emerson": 0.197,
+        "james": 0.6942,
+        "kempis": 1.3478,
+        "mill": 1.2452,
+        "newman": 0.2295
+      },
+      "rank_of_true": 1,
+      "rank_of_true_raw": 2,
+      "word_count": 17363,
+      "scoring_time_ms": 56039.92,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "augustine",
+        "cosine_delta": "augustine",
+        "mfw_delta": "augustine"
+      },
+      "ensemble_author": "augustine",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "augustine/confessions_part_06.txt",
+      "true_author": "augustine",
+      "predicted_author": "augustine",
+      "predicted_author_raw": "emerson",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.6556,
+        "boethius": 0.7675,
+        "chesterton": 0.8714,
+        "edwards": 0.9544,
+        "emerson": 0.6029,
+        "james": 0.9089,
+        "kempis": 0.8625,
+        "mill": 0.8197,
+        "newman": 0.7976
+      },
+      "calibrated_scores": {
+        "augustine": -2.7928,
+        "boethius": -0.0909,
+        "chesterton": 0.687,
+        "edwards": -0.1602,
+        "emerson": -0.0676,
+        "james": 0.44,
+        "kempis": 0.9135,
+        "mill": 0.8436,
+        "newman": -0.8021
+      },
+      "rank_of_true": 1,
+      "rank_of_true_raw": 2,
+      "word_count": 19713,
+      "scoring_time_ms": 98368.12,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "augustine",
+        "cosine_delta": "augustine",
+        "mfw_delta": "augustine"
+      },
+      "ensemble_author": "augustine",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "boethius/the_consolation_of_philosophy_part_04.txt",
+      "true_author": "boethius",
+      "predicted_author": "boethius",
+      "predicted_author_raw": "boethius",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.7776,
+        "boethius": 0.5661,
+        "chesterton": 0.7872,
+        "edwards": 0.9602,
+        "emerson": 0.58,
+        "james": 0.8812,
+        "kempis": 0.8254,
+        "mill": 0.7239,
+        "newman": 0.863
+      },
+      "calibrated_scores": {
+        "augustine": -1.0665,
+        "boethius": -2.2264,
+        "chesterton": -0.7079,
+        "edwards": 0.2898,
+        "emerson": -0.2575,
+        "james": -0.008,
+        "kempis": 0.3241,
+        "mill": 0.0263,
+        "newman": 0.0133
+      },
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 8536,
+      "scoring_time_ms": 95699.5,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "boethius",
+        "cosine_delta": "boethius",
+        "mfw_delta": "boethius"
+      },
+      "ensemble_author": "boethius",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "boethius/the_consolation_of_philosophy_part_05.txt",
+      "true_author": "boethius",
+      "predicted_author": "augustine",
+      "predicted_author_raw": "emerson",
+      "correct": false,
+      "deviations": {
+        "augustine": 0.8722,
+        "boethius": 0.84,
+        "chesterton": 0.8809,
+        "edwards": 0.975,
+        "emerson": 0.7958,
+        "james": 0.9371,
+        "kempis": 0.8253,
+        "mill": 0.805,
+        "newman": 0.9125
+      },
+      "calibrated_scores": {
+        "augustine": 0.2735,
+        "boethius": 0.6789,
+        "chesterton": 0.8437,
+        "edwards": 1.4456,
+        "emerson": 1.5317,
+        "james": 0.8964,
+        "kempis": 0.3222,
+        "mill": 0.7184,
+        "newman": 0.6291
+      },
+      "rank_of_true": 4,
+      "rank_of_true_raw": 4,
+      "word_count": 8838,
+      "scoring_time_ms": 59363.26,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "augustine",
+        "cosine_delta": "boethius",
+        "mfw_delta": "boethius"
+      },
+      "ensemble_author": "boethius",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "chesterton/orthodoxy_part_04.txt",
+      "true_author": "chesterton",
+      "predicted_author": "chesterton",
+      "predicted_author_raw": "emerson",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.8482,
+        "boethius": 0.7669,
+        "chesterton": 0.6679,
+        "edwards": 0.9635,
+        "emerson": 0.5598,
+        "james": 0.8599,
+        "kempis": 0.7893,
+        "mill": 0.7358,
+        "newman": 0.8941
+      },
+      "calibrated_scores": {
+        "augustine": -0.067,
+        "boethius": -0.097,
+        "chesterton": -2.685,
+        "edwards": 0.5461,
+        "emerson": -0.4248,
+        "james": -0.3526,
+        "kempis": -0.2511,
+        "mill": 0.1273,
+        "newman": 0.4006
+      },
+      "rank_of_true": 1,
+      "rank_of_true_raw": 2,
+      "word_count": 12578,
+      "scoring_time_ms": 76614.5,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "chesterton",
+        "cosine_delta": "chesterton",
+        "mfw_delta": "chesterton"
+      },
+      "ensemble_author": "chesterton",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "chesterton/orthodoxy_part_05.txt",
+      "true_author": "chesterton",
+      "predicted_author": "chesterton",
+      "predicted_author_raw": "emerson",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.7902,
+        "boethius": 0.7238,
+        "chesterton": 0.5789,
+        "edwards": 0.9638,
+        "emerson": 0.5292,
+        "james": 0.7967,
+        "kempis": 0.7812,
+        "mill": 0.6555,
+        "newman": 0.8367
+      },
+      "calibrated_scores": {
+        "augustine": -0.8877,
+        "boethius": -0.5544,
+        "chesterton": -4.1582,
+        "edwards": 0.5703,
+        "emerson": -0.6785,
+        "james": -1.3757,
+        "kempis": -0.3799,
+        "mill": -0.5571,
+        "newman": -0.3144
+      },
+      "rank_of_true": 1,
+      "rank_of_true_raw": 2,
+      "word_count": 14944,
+      "scoring_time_ms": 88503.98,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "chesterton",
+        "cosine_delta": "chesterton",
+        "mfw_delta": "chesterton"
+      },
+      "ensemble_author": "chesterton",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "edwards/a_treatise_concerning_religious_affections_part_04.txt",
+      "true_author": "edwards",
+      "predicted_author": "edwards",
+      "predicted_author_raw": "edwards",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.9516,
+        "boethius": 0.9107,
+        "chesterton": 0.9305,
+        "edwards": 0.5929,
+        "emerson": 0.7834,
+        "james": 0.9658,
+        "kempis": 0.9041,
+        "mill": 0.9024,
+        "newman": 0.9535
+      },
+      "calibrated_scores": {
+        "augustine": 1.3978,
+        "boethius": 1.4278,
+        "chesterton": 1.6653,
+        "edwards": -28.4212,
+        "emerson": 1.4294,
+        "james": 1.3609,
+        "kempis": 1.5759,
+        "mill": 1.5494,
+        "newman": 1.1398
+      },
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 19809,
+      "scoring_time_ms": 508293.64,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "edwards",
+        "cosine_delta": "edwards",
+        "mfw_delta": "edwards"
+      },
+      "ensemble_author": "edwards",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "edwards/a_treatise_concerning_religious_affections_part_05.txt",
+      "true_author": "edwards",
+      "predicted_author": "edwards",
+      "predicted_author_raw": "edwards",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.9512,
+        "boethius": 0.9084,
+        "chesterton": 0.9278,
+        "edwards": 0.5159,
+        "emerson": 0.7698,
+        "james": 0.9657,
+        "kempis": 0.9027,
+        "mill": 0.9045,
+        "newman": 0.9521
+      },
+      "calibrated_scores": {
+        "augustine": 1.3918,
+        "boethius": 1.4035,
+        "chesterton": 1.6215,
+        "edwards": -34.4365,
+        "emerson": 1.3164,
+        "james": 1.3583,
+        "kempis": 1.5528,
+        "mill": 1.5668,
+        "newman": 1.123
+      },
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 21662,
+      "scoring_time_ms": 533692.36,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "edwards",
+        "cosine_delta": "edwards",
+        "mfw_delta": "edwards"
+      },
+      "ensemble_author": "edwards",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "edwards/a_treatise_concerning_religious_affections_part_06.txt",
+      "true_author": "edwards",
+      "predicted_author": "edwards",
+      "predicted_author_raw": "emerson",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.9563,
+        "boethius": 0.9162,
+        "chesterton": 0.9248,
+        "edwards": 0.8321,
+        "emerson": 0.7719,
+        "james": 0.9672,
+        "kempis": 0.8972,
+        "mill": 0.9028,
+        "newman": 0.9572
+      },
+      "calibrated_scores": {
+        "augustine": 1.4639,
+        "boethius": 1.4867,
+        "chesterton": 1.5706,
+        "edwards": -9.7189,
+        "emerson": 1.3337,
+        "james": 1.3841,
+        "kempis": 1.4652,
+        "mill": 1.5529,
+        "newman": 1.1858
+      },
+      "rank_of_true": 1,
+      "rank_of_true_raw": 2,
+      "word_count": 17192,
+      "scoring_time_ms": 602899.09,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "edwards",
+        "cosine_delta": "edwards",
+        "mfw_delta": "edwards"
+      },
+      "ensemble_author": "edwards",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "emerson/the_over_soul.txt",
+      "true_author": "emerson",
+      "predicted_author": "emerson",
+      "predicted_author_raw": "emerson",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.8492,
+        "boethius": 0.762,
+        "chesterton": 0.8057,
+        "edwards": 0.9618,
+        "emerson": 0.4333,
+        "james": 0.8854,
+        "kempis": 0.7804,
+        "mill": 0.7165,
+        "newman": 0.8851
+      },
+      "calibrated_scores": {
+        "augustine": -0.0528,
+        "boethius": -0.1492,
+        "chesterton": -0.402,
+        "edwards": 0.4164,
+        "emerson": -1.4734,
+        "james": 0.0602,
+        "kempis": -0.3916,
+        "mill": -0.0367,
+        "newman": 0.2885
+      },
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 7105,
+      "scoring_time_ms": 47589.1,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "emerson",
+        "cosine_delta": "emerson",
+        "mfw_delta": "emerson"
+      },
+      "ensemble_author": "emerson",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "emerson/spiritual_laws.txt",
+      "true_author": "emerson",
+      "predicted_author": "emerson",
+      "predicted_author_raw": "emerson",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.8996,
+        "boethius": 0.8288,
+        "chesterton": 0.8102,
+        "edwards": 0.9513,
+        "emerson": 0.4754,
+        "james": 0.9144,
+        "kempis": 0.7874,
+        "mill": 0.7769,
+        "newman": 0.9227
+      },
+      "calibrated_scores": {
+        "augustine": 0.6613,
+        "boethius": 0.5594,
+        "chesterton": -0.3275,
+        "edwards": -0.4028,
+        "emerson": -1.1245,
+        "james": 0.5289,
+        "kempis": -0.2804,
+        "mill": 0.478,
+        "newman": 0.757
+      },
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 8225,
+      "scoring_time_ms": 43171.1,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "emerson",
+        "cosine_delta": "emerson",
+        "mfw_delta": "emerson"
+      },
+      "ensemble_author": "emerson",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_05.txt",
+      "true_author": "james",
+      "predicted_author": "james",
+      "predicted_author_raw": "emerson",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.8348,
+        "boethius": 0.6815,
+        "chesterton": 0.7966,
+        "edwards": 0.9687,
+        "emerson": 0.4721,
+        "james": 0.7248,
+        "kempis": 0.7626,
+        "mill": 0.6136,
+        "newman": 0.8079
+      },
+      "calibrated_scores": {
+        "augustine": -0.2564,
+        "boethius": -1.0023,
+        "chesterton": -0.5518,
+        "edwards": 0.9539,
+        "emerson": -1.1518,
+        "james": -2.5392,
+        "kempis": -0.6746,
+        "mill": -0.9148,
+        "newman": -0.6733
+      },
+      "rank_of_true": 1,
+      "rank_of_true_raw": 4,
+      "word_count": 20322,
+      "scoring_time_ms": 518391.46,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "james",
+        "cosine_delta": "james",
+        "mfw_delta": "james"
+      },
+      "ensemble_author": "james",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_06.txt",
+      "true_author": "james",
+      "predicted_author": "edwards",
+      "predicted_author_raw": "emerson",
+      "correct": false,
+      "deviations": {
+        "augustine": 0.9594,
+        "boethius": 0.9422,
+        "chesterton": 0.9485,
+        "edwards": 0.9594,
+        "emerson": 0.8586,
+        "james": 0.9717,
+        "kempis": 0.9353,
+        "mill": 0.9294,
+        "newman": 0.967
+      },
+      "calibrated_scores": {
+        "augustine": 1.5083,
+        "boethius": 1.7626,
+        "chesterton": 1.9642,
+        "edwards": 0.2323,
+        "emerson": 2.0523,
+        "james": 1.4567,
+        "kempis": 2.0713,
+        "mill": 1.7795,
+        "newman": 1.309
+      },
+      "rank_of_true": 3,
+      "rank_of_true_raw": 9,
+      "word_count": 1427,
+      "scoring_time_ms": 53623.02,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "edwards",
+        "cosine_delta": "emerson",
+        "mfw_delta": "edwards"
+      },
+      "ensemble_author": "edwards",
+      "ensemble_basis": "2-of-3 agree (deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_07.txt",
+      "true_author": "james",
+      "predicted_author": "newman",
+      "predicted_author_raw": "emerson",
+      "correct": false,
+      "deviations": {
+        "augustine": 0.9417,
+        "boethius": 0.9265,
+        "chesterton": 0.9341,
+        "edwards": 0.9741,
+        "emerson": 0.8189,
+        "james": 0.9664,
+        "kempis": 0.8959,
+        "mill": 0.901,
+        "newman": 0.9619
+      },
+      "calibrated_scores": {
+        "augustine": 1.2567,
+        "boethius": 1.5955,
+        "chesterton": 1.7259,
+        "edwards": 1.3781,
+        "emerson": 1.7237,
+        "james": 1.3711,
+        "kempis": 1.4449,
+        "mill": 1.537,
+        "newman": 1.2446
+      },
+      "rank_of_true": 3,
+      "rank_of_true_raw": 8,
+      "word_count": 11256,
+      "scoring_time_ms": 94402.23,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "newman",
+        "cosine_delta": "edwards",
+        "mfw_delta": "james"
+      },
+      "ensemble_author": null,
+      "ensemble_basis": "engines disagree \u2014 manual review"
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_08.txt",
+      "true_author": "james",
+      "predicted_author": "edwards",
+      "predicted_author_raw": "emerson",
+      "correct": false,
+      "deviations": {
+        "augustine": 0.9194,
+        "boethius": 0.8963,
+        "chesterton": 0.9064,
+        "edwards": 0.9453,
+        "emerson": 0.7709,
+        "james": 0.9503,
+        "kempis": 0.89,
+        "mill": 0.8609,
+        "newman": 0.9306
+      },
+      "calibrated_scores": {
+        "augustine": 0.9413,
+        "boethius": 1.2757,
+        "chesterton": 1.2659,
+        "edwards": -0.8748,
+        "emerson": 1.3254,
+        "james": 1.1103,
+        "kempis": 1.3513,
+        "mill": 1.1954,
+        "newman": 0.8549
+      },
+      "rank_of_true": 4,
+      "rank_of_true_raw": 9,
+      "word_count": 18623,
+      "scoring_time_ms": 134515.63,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "edwards",
+        "cosine_delta": "edwards",
+        "mfw_delta": "james"
+      },
+      "ensemble_author": "edwards",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, deviation_calibrated)"
+    },
+    {
+      "filename": "kempis/the_imitation_of_christ_part_04.txt",
+      "true_author": "kempis",
+      "predicted_author": "kempis",
+      "predicted_author_raw": "emerson",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.8788,
+        "boethius": 0.7915,
+        "chesterton": 0.7449,
+        "edwards": 0.9604,
+        "emerson": 0.5317,
+        "james": 0.9086,
+        "kempis": 0.6247,
+        "mill": 0.746,
+        "newman": 0.9144
+      },
+      "calibrated_scores": {
+        "augustine": 0.3673,
+        "boethius": 0.1643,
+        "chesterton": -1.4092,
+        "edwards": 0.3059,
+        "emerson": -0.6573,
+        "james": 0.4352,
+        "kempis": -2.8672,
+        "mill": 0.2148,
+        "newman": 0.6531
+      },
+      "rank_of_true": 1,
+      "rank_of_true_raw": 2,
+      "word_count": 772,
+      "scoring_time_ms": 16034.82,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "kempis",
+        "cosine_delta": "kempis",
+        "mfw_delta": "kempis"
+      },
+      "ensemble_author": "kempis",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "kempis/the_imitation_of_christ_part_05.txt",
+      "true_author": "kempis",
+      "predicted_author": "kempis",
+      "predicted_author_raw": "kempis",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.8921,
+        "boethius": 0.8453,
+        "chesterton": 0.8583,
+        "edwards": 0.9696,
+        "emerson": 0.7996,
+        "james": 0.9125,
+        "kempis": 0.6719,
+        "mill": 0.7775,
+        "newman": 0.9297
+      },
+      "calibrated_scores": {
+        "augustine": 0.5549,
+        "boethius": 0.7343,
+        "chesterton": 0.4696,
+        "edwards": 1.029,
+        "emerson": 1.5635,
+        "james": 0.4985,
+        "kempis": -2.1166,
+        "mill": 0.4831,
+        "newman": 0.8432
+      },
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 545,
+      "scoring_time_ms": 12100.66,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "kempis",
+        "cosine_delta": "kempis",
+        "mfw_delta": "emerson"
+      },
+      "ensemble_author": "kempis",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, deviation_calibrated)"
+    },
+    {
+      "filename": "mill/on_liberty_part_04.txt",
+      "true_author": "mill",
+      "predicted_author": "newman",
+      "predicted_author_raw": "emerson",
+      "correct": false,
+      "deviations": {
+        "augustine": 0.7963,
+        "boethius": 0.7181,
+        "chesterton": 0.7857,
+        "edwards": 0.9545,
+        "emerson": 0.5335,
+        "james": 0.7865,
+        "kempis": 0.8132,
+        "mill": 0.5339,
+        "newman": 0.6863
+      },
+      "calibrated_scores": {
+        "augustine": -0.8018,
+        "boethius": -0.6146,
+        "chesterton": -0.733,
+        "edwards": -0.1531,
+        "emerson": -0.6426,
+        "james": -1.5406,
+        "kempis": 0.1298,
+        "mill": -1.595,
+        "newman": -2.1884
+      },
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 8012,
+      "scoring_time_ms": 105435.26,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "newman",
+        "cosine_delta": "newman",
+        "mfw_delta": "mill"
+      },
+      "ensemble_author": "newman",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, deviation_calibrated)"
+    },
+    {
+      "filename": "mill/on_liberty_part_05.txt",
+      "true_author": "mill",
+      "predicted_author": "newman",
+      "predicted_author_raw": "emerson",
+      "correct": false,
+      "deviations": {
+        "augustine": 0.812,
+        "boethius": 0.7475,
+        "chesterton": 0.836,
+        "edwards": 0.9387,
+        "emerson": 0.5689,
+        "james": 0.8378,
+        "kempis": 0.8221,
+        "mill": 0.5705,
+        "newman": 0.7023
+      },
+      "calibrated_scores": {
+        "augustine": -0.5783,
+        "boethius": -0.303,
+        "chesterton": 0.1002,
+        "edwards": -1.3878,
+        "emerson": -0.3491,
+        "james": -0.7102,
+        "kempis": 0.2719,
+        "mill": -1.283,
+        "newman": -1.9895
+      },
+      "rank_of_true": 3,
+      "rank_of_true_raw": 2,
+      "word_count": 9342,
+      "scoring_time_ms": 150752.17,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "newman",
+        "cosine_delta": "newman",
+        "mfw_delta": "mill"
+      },
+      "ensemble_author": "newman",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, deviation_calibrated)"
+    },
+    {
+      "filename": "newman/the_idea_of_a_university_part_04.txt",
+      "true_author": "newman",
+      "predicted_author": "newman",
+      "predicted_author_raw": "emerson",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.756,
+        "boethius": 0.6999,
+        "chesterton": 0.8336,
+        "edwards": 0.9412,
+        "emerson": 0.5721,
+        "james": 0.8696,
+        "kempis": 0.829,
+        "mill": 0.7077,
+        "newman": 0.6238
+      },
+      "calibrated_scores": {
+        "augustine": -1.3711,
+        "boethius": -0.8076,
+        "chesterton": 0.0596,
+        "edwards": -1.1965,
+        "emerson": -0.3227,
+        "james": -0.1961,
+        "kempis": 0.3809,
+        "mill": -0.1119,
+        "newman": -2.9674
+      },
+      "rank_of_true": 1,
+      "rank_of_true_raw": 2,
+      "word_count": 8550,
+      "scoring_time_ms": 143886.56,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "newman",
+        "cosine_delta": "newman",
+        "mfw_delta": "newman"
+      },
+      "ensemble_author": "newman",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "newman/the_idea_of_a_university_part_05.txt",
+      "true_author": "newman",
+      "predicted_author": "newman",
+      "predicted_author_raw": "newman",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.721,
+        "boethius": 0.7233,
+        "chesterton": 0.8348,
+        "edwards": 0.9139,
+        "emerson": 0.5685,
+        "james": 0.8734,
+        "kempis": 0.8222,
+        "mill": 0.6278,
+        "newman": 0.5653
+      },
+      "calibrated_scores": {
+        "augustine": -1.8678,
+        "boethius": -0.5587,
+        "chesterton": 0.0797,
+        "edwards": -3.3317,
+        "emerson": -0.3525,
+        "james": -0.1344,
+        "kempis": 0.2731,
+        "mill": -0.7935,
+        "newman": -3.6962
+      },
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 7608,
+      "scoring_time_ms": 134074.37,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "newman",
+        "cosine_delta": "newman",
+        "mfw_delta": "newman"
+      },
+      "ensemble_author": "newman",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    }
+  ],
+  "confusion": {
+    "augustine": {
+      "augustine": 3
+    },
+    "boethius": {
+      "boethius": 1,
+      "augustine": 1
+    },
+    "chesterton": {
+      "chesterton": 2
+    },
+    "edwards": {
+      "edwards": 3
+    },
+    "emerson": {
+      "emerson": 2
+    },
+    "james": {
+      "james": 1,
+      "edwards": 2,
+      "newman": 1
+    },
+    "kempis": {
+      "kempis": 2
+    },
+    "mill": {
+      "newman": 2
+    },
+    "newman": {
+      "newman": 2
+    }
+  }
+}
