@@ -592,7 +592,10 @@ def _build_from_gutenberg(
             print(f"  FAILED (gutenberg pg{work.pg_id}): {e}", flush=True)
             skipped.append(f"gutenberg/pg{work.pg_id}")
             return
-        body_path.write_text(body, encoding="utf-8")
+        # The cache is read directly by validation/stability — it must hold
+        # the verified corpus, not the raw fetch with its INDEX/FOOTNOTES tail.
+        body = _truncate_back_matter(body)
+        body_path.write_text(body + "\n", encoding="utf-8")
         print(f"  fetched gutenberg pg{work.pg_id} ({len(body.split())} words)", flush=True)
         time.sleep(FETCH_SLEEP_SEC)
 
