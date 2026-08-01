@@ -49,10 +49,15 @@ Report ("The instruments were broken, not the math") and
    constants are kept as separate names so attribution can be raised
    independently once the corpus carries longer chunks. A policy violation
    never aborts a run: `check_attribution_pool()` returns a list of
-   `PolicyViolation`s (`short_document` / `thin_baseline` / `genre_dominance`)
-   and the caller **excludes** the offending document or author from the
-   candidate pool, then re-checks the remaining floors — the run continues
-   on whoever is left (see the real example below). `manifest_schema.py`'s
+   `PolicyViolation`s (`short_document` / `thin_baseline`) and the caller
+   **excludes** the offending document or author from the candidate pool,
+   then re-checks the remaining floors — the run continues on whoever is
+   left (see the real example below). `genre_dominance` is a *separate*
+   check on a *different* task: `check_genre_balance()` flags a
+   weight-derivation corpus where one genre exceeds 60% of the words, and
+   its only caller (`scripts/derive_measured_weights.py`) prints it as an
+   advisory to stderr. It excludes nothing and never touches the
+   attribution candidate pool. `manifest_schema.py`'s
    `CorpusEntry` carries `genre` and a `Provenance` enum
    (`real_historical` / `synthetic_ai` / `student_pilot`).
 5. **Attribution is an ensemble** (`attribution/delta.py`,
