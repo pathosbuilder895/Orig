@@ -71,9 +71,21 @@ convention = "numpy"
 # Deliberate column-aligned one-liner method stubs (PostgresRepository._todo table).
 "original/repository.py" = ["E501"]
 
-[tool.mypy]
-python_version = "3.11"
-files = ["original/quantum", "original/features", "original/repository.py"]
-warn_unused_ignores = true
-check_untyped_defs = true
-ignore_missing_imports = true
+# No [tool.mypy] section, deliberately. The audit's staged-mypy block
+# (AUDIT_2026-07-06.md §"mypy — staged, not global") lived here for months
+# with the other half of its recommendation — "gate in CI only for the listed
+# paths" — never built, so nothing ran it. Measured 2026-08-02 on mypy 1.11.2:
+# 62 errors across 11 files (25 source files checked). Two things that
+# measurement showed, which the block's presence had been hiding:
+#   - It was not actually scoped. `files` names the entry points; mypy follows
+#     imports from there, so 27 of the 62 errors landed in postgres_repository.py
+#     (22), store.py (4) and core/logging.py (1) — none of them listed.
+#   - The errors are not annotation debt. Most are `object` values flowing out
+#     of untyped spaCy/numpy helpers into arithmetic and iteration
+#     (31 attr-defined, 13 arg-type), which needs real signatures on those
+#     seams, not `# type: ignore` comments. That is a typing project, not a
+#     cleanup pass.
+# `original/quantum/` — the path the audit named first — is already clean at 0.
+# Scoped typing is deferred on purpose, not forgotten; mypy stays pinned in
+# requirements-dev.txt so the project can be started on demand. Re-add a
+# config only together with the CI job that runs it.

@@ -82,6 +82,7 @@ from .routers._shared import (
     _send_notification_email,  # noqa: F401
     _throttle_login,  # noqa: F401
     _to_response,  # noqa: F401
+    log_email_sender_status,  # noqa: F401
 )
 
 # Re-exported: scripts/seed_pilot.py binds original.api.add_baseline /
@@ -125,6 +126,9 @@ async def lifespan(app: FastAPI):
         _GUARD_DESTRUCTIVE,
         "GUARDED (X-Guard-Token required)" if _GUARD_DESTRUCTIVE else "open (demo mode)",
     )
+    # Tells an operator who exported SENDGRID_API_KEY that no email is sent.
+    # No-ops when the key is unset. See routers/_shared.py.
+    log_email_sender_status()
     _ai_mode = (
         "enabled"
         if os.environ.get("AI_LIKELIHOOD_ENABLED") == "1"
