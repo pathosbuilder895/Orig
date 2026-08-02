@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from .. import backup as backup_mod
 from ..constants import FEATURE_DIM
 from ..schemas import HealthResponse
-from ._shared import _api, _repo
+from ._shared import _api, _repo, _require_staff
 
 router = APIRouter()
 
@@ -32,13 +32,21 @@ def health():
 
 
 @router.get("/admin/health")
-def admin_health():
+def admin_health(request: Request):
     """
     System health summary for the admin dashboard.
 
     Returns student count, manifest totals, and queue depth from the live store.
     Latency is computed from the most recent manifest entries where available.
+
+    Staff-only, on the same grounds as the rest of the ``/admin/`` prefix (see
+    routers/admin.py): these are institution-wide counts, not liveness. The
+    unauthenticated probe is ``GET /health`` above, which is untouched — infra
+    health checks point there (API_REFERENCE lists it as the UptimeRobot/Render
+    call). OPS_RUNBOOK already described this endpoint as requiring a staff
+    login; the gate makes that true.
     """
+    _require_staff(request)
     student_count = _repo().count()
 
     # Pull manifest stats for submission / flag counts
