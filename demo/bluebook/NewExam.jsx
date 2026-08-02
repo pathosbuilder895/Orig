@@ -26,9 +26,15 @@ function FormField({ label, hint, children, id }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <MetaLabel htmlFor={id}>{label}</MetaLabel>
+        {/* BB.fade at its own resting strength, not a faded BB.fade. The extra
+            `opacity: 0.7` this used to carry composited to #617188 and read
+            3.85:1 at 13px, under WCAG AA's 4.5:1 — the same defect, and the
+            same fix, as the shared sidebar's `Original Analysis` control
+            (Dashboard.jsx, #105). Full BB.fade reads 6.80:1 and is still
+            plainly secondary to the field's own BB.cream value text. */}
         {hint && <span style={{
           fontFamily: fontBody, fontStyle: 'italic',
-          fontSize: 13, color: BB.fade, opacity: 0.7,
+          fontSize: 13, color: BB.fade,
         }}>{hint}</span>}
       </div>
       {children}
@@ -486,11 +492,20 @@ export function NewExamScreen({ onNavigate }) {
             {saving ? 'Creating…' : 'Publish Examination'}
           </BtnPrimary>
         </div>
+        {/* The one thing on this screen that says why both buttons are dead,
+            and it was the least legible thing on it: `rgba(139,155,180,0.4)`
+            is BB.fade at 40%, which composites to #38485b and reads 2.05:1 at
+            10px — under half of WCAG AA's 4.5:1. Full BB.fade reads 6.80:1
+            (the sidebar's resting tier, #105), and the size goes to 12.5px,
+            which is the product-wide readability floor MetaLabel already
+            documents and sets (components.jsx). Nothing else moves: same
+            copy, same right-aligned position, same mono/uppercase treatment
+            that keeps it subordinate to the buttons above it. */}
         {!canSubmit && (
           <p style={{
             textAlign: 'right', marginTop: 10,
-            fontFamily: fontMono, fontSize: 10, letterSpacing: '0.14em',
-            color: 'rgba(139,155,180,0.4)', textTransform: 'uppercase',
+            fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
+            color: BB.fade, textTransform: 'uppercase',
           }}>Title and at least one prompt are required</p>
         )}
       </div>
