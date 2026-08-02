@@ -61,6 +61,10 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # feature_vector, preserving Phase 1 byte-identical behaviour.
     enable_manifest = os.environ.get("CONTEXT_MANIFEST_ENABLED") == "1"
     enable_adaptive = os.environ.get("ADAPTIVE_WEIGHTS_ENABLED") == "1"
+    # 2026-08 cross-genre study (validation/genre_crossgenre_2026-08/) — off
+    # by default and NOT yet validated against real student submissions; see
+    # weighting.GENRE_MISMATCH_ATTENUATE_TIERS for what this does and why.
+    enable_genre_invariant = os.environ.get("GENRE_INVARIANT_WEIGHTS_ENABLED") == "1"
 
     try:
         from ..context.pipeline import run_adaptive_pipeline
@@ -72,6 +76,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             keystroke_data=req.keystroke_data,
             enable_manifest=enable_manifest,
             enable_adaptive_weights=enable_adaptive,
+            enable_genre_invariant_weights=enable_genre_invariant,
         )
         feat_dict = adaptive.feat_dict
         vec = adaptive.vector
@@ -103,7 +108,10 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # cohort (original/quantum/null_pool.py); quantum_score() then attaches
     # llr_deviation_score — "fits this student vs fits a typical classmate".
     # None below the cold-start floors (3 peers / 5 vectors) and on any
-    # failure; never changes deviation_score or the recommended action.
+    # failure. As of 2026-08, ScoringConfig.llr_action_mode defaults to
+    # "gate" — a real llr_deviation_score CAN now downgrade the recommended
+    # action one severity step (never deviation_score itself, never upgrade);
+    # see ScoringConfig.llr_action_mode's docstring in quantum/scoring.py.
     _scoring_config_env = ScoringConfig.from_env()
 
     _impostor_stats = None
