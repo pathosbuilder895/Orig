@@ -21,6 +21,7 @@ Uses the shared live_app/live_client fixtures from conftest.py (WS-5 §5.1)
 instead of re-deriving `run.load_legacy_demo_app()` at module scope.
 """
 
+import re
 import sqlite3
 
 import pytest
@@ -221,6 +222,9 @@ def test_admin_corrections_allows_staff_principal_in_pilot(real_deploy, live_cli
 # calibration run or writing a threshold set. A staff caller therefore lands on
 # the handler's own 422/404, which is itself the proof the gate let them past.
 ADMIN_STAFF_ONLY_ENDPOINTS = [
+    # Lives in routers/health.py, not routers/admin.py — the reason a by-hand
+    # sweep of the admin router missed it. See the route walk below.
+    ("GET", "/admin/health", None, 200),
     ("GET", "/admin/manifests", None, 200),
     ("GET", "/admin/manifests/stats", None, 200),
     ("GET", "/admin/lab/datasets", None, 200),
@@ -317,6 +321,39 @@ def test_admin_endpoint_allows_staff_principal_in_pilot(
     prof = pr.mint_principal_token("prof_admin", "professor", "adminacme")
     r = _call(live_client, method, path, body, headers=_auth(prof))
     assert r.status_code == staff_status, f"{method} {path} -> {r.status_code}: {r.text}"
+
+
+def test_no_admin_route_answers_a_student_principal(live_app, live_client):
+    """Every /admin/* route refuses a student — enumerated from the app itself.
+
+    ADMIN_STAFF_ONLY_ENDPOINTS above is hand-maintained, so it only covers the
+    routes someone remembered to add. This walks the app's own route table
+    instead, which means a new /admin/* endpoint is covered the day it is
+    added, wherever its router lives. (It is how /admin/health was found: that
+    one sits in routers/health.py rather than routers/admin.py, so it was
+    missed by both the table above and a by-hand sweep of the admin router.)
+
+    Asserts only "not a success": FastAPI validates a request body *before*
+    calling the handler, so a POST carrying a placeholder body can legitimately
+    be refused as 422 rather than 403. The table-driven tests above pin the
+    exact status per endpoint; this pins the invariant that no /admin/* route
+    ever answers a student with 2xx.
+    """
+    checked = []
+    for route in live_app.routes:
+        path = getattr(route, "path", "")
+        if not path.startswith("/admin/"):
+            continue
+        # Path params get an id that resolves to nothing; the gate must fire
+        # regardless of whether the row exists.
+        concrete = re.sub(r"\{[^}]+\}", "999999", path)
+        for method in sorted(set(getattr(route, "methods", set())) - {"HEAD", "OPTIONS"}):
+            r = live_client.request(method, concrete, json={}, headers={"x-demo-role": "student"})
+            assert r.status_code >= 400, f"{method} {concrete} -> {r.status_code}: {r.text}"
+            checked.append(f"{method} {concrete}")
+    # Sanity: the walk actually reached the admin router rather than matching
+    # nothing and passing vacuously.
+    assert len(checked) >= 12, checked
 
 
 # ── 3. Demo surfaces disabled on real deploys ─────────────────────────────────

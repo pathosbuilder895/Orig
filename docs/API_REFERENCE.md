@@ -61,7 +61,7 @@ their sensitivity (noted inline).
 | Method | Path | Purpose | Auth |
 |---|---|---|---|
 | GET | `/health` | Liveness/readiness probe; used by UptimeRobot/Render. | None |
-| GET | `/admin/health` | System health summary for the admin dashboard (backup age, DB status). | None (dashboard-facing; not guard-tokened) |
+| GET | `/admin/health` | System health summary for the admin dashboard (backup age, DB status). | Principal (staff); not guard-tokened. Infra probes should use `/health`. |
 
 ## Auth (staff + demo)
 
