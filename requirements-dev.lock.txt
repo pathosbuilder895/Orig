@@ -54,7 +54,7 @@ pluggy==1.6.0
     # via
     #   pytest
     #   pytest-cov
-pre-commit==3.8.0
+pre-commit==4.6.0
     # via -r requirements-dev.txt
 pygments==2.20.0
     # via pytest
