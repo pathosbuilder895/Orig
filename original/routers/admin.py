@@ -85,6 +85,7 @@ def list_audit_log(
 
 @router.get("/admin/manifests", response_model=ManifestListResponse)
 def admin_list_manifests(
+    request: Request,
     student_id: str | None = None,
     action: str | None = None,
     flag: str | None = None,
@@ -96,7 +97,14 @@ def admin_list_manifests(
     """
     Paginated list of context manifests from the audit log.
     All filters are optional.
+
+    Staff-only on the same grounds as /admin/audit: the tenant-isolation
+    middleware already 401s anonymous callers on real deploys
+    (tests/test_pilot_lockdown), and the explicit guard here additionally
+    rejects STUDENT tokens in the demo — manifest rows carry other students'
+    identifiers, and `student_id` above is a filter over exactly that.
     """
+    _require_staff(request)
     if limit < 1 or limit > 1000:
         raise HTTPException(status_code=422, detail="limit must be in [1, 1000]")
     if offset < 0:
@@ -120,10 +128,17 @@ def admin_list_manifests(
 
 @router.get("/admin/manifests/stats", response_model=ManifestStatsResponse)
 def admin_manifest_stats(
+    request: Request,
     since: str | None = None,
     until: str | None = None,
 ):
-    """Roll-up counts for the admin dashboard summary cards."""
+    """Roll-up counts for the admin dashboard summary cards.
+
+    Staff-only for the same reason as /admin/manifests, which these cards
+    summarise: the middleware covers real deploys, and the explicit guard
+    additionally rejects STUDENT tokens in the demo.
+    """
+    _require_staff(request)
     return ManifestStatsResponse(**_repo().manifest_stats(since=since, until=until))
 
 
@@ -412,8 +427,15 @@ def test_score(req: TestScoreRequest):
 
 
 @router.get("/admin/lab/datasets", response_model=list[DatasetInfo])
-def admin_lab_datasets():
-    """List the datasets the lab knows how to run (Federalist, multi-author, …)."""
+def admin_lab_datasets(request: Request):
+    """List the datasets the lab knows how to run (Federalist, multi-author, …).
+
+    Staff-only on the same grounds as /admin/audit: the middleware already 401s
+    anonymous callers on real deploys, and the explicit guard here additionally
+    rejects STUDENT tokens in the demo — the calibration lab is instructor
+    tooling that steers scoring for everyone.
+    """
+    _require_staff(request)
     from ..lab.datasets import list_datasets
 
     return [DatasetInfo(**d) for d in list_datasets()]
@@ -422,14 +444,20 @@ def admin_lab_datasets():
 @router.post(
     "/admin/calibration/run", response_model=CalibrationRunCreatedResponse, status_code=202
 )
-def admin_run_calibration(req: CalibrationRunRequest):
+def admin_run_calibration(request: Request, req: CalibrationRunRequest):
     """
     Kick off a calibration run in the background and return its row id.
 
     The run executes on a single-worker thread pool, so multiple requests
     queue rather than overlap. Poll ``GET /admin/calibration/runs/{id}``
     to see when status flips to ``completed`` or ``failed``.
+
+    Staff-only on the same grounds as /admin/audit: the middleware already 401s
+    anonymous callers on real deploys, and the explicit guard here additionally
+    rejects STUDENT tokens in the demo — this burns shared compute on the run
+    queue and produces the report that threshold changes are argued from.
     """
+    _require_staff(request)
     from ..lab.runner import trigger_run
 
     run_id, error = trigger_run(
@@ -449,12 +477,19 @@ def admin_run_calibration(req: CalibrationRunRequest):
 
 @router.get("/admin/calibration/runs", response_model=CalibrationRunListResponse)
 def admin_list_calibration_runs(
+    request: Request,
     status: str | None = None,
     dataset_label: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ):
-    """List calibration runs (newest first), with optional filters."""
+    """List calibration runs (newest first), with optional filters.
+
+    Staff-only for the same reason as the rest of the lab: the middleware
+    covers real deploys, and the explicit guard additionally rejects STUDENT
+    tokens in the demo.
+    """
+    _require_staff(request)
     if limit < 1 or limit > 500:
         raise HTTPException(status_code=422, detail="limit must be in [1, 500]")
     if offset < 0:
@@ -474,8 +509,14 @@ def admin_list_calibration_runs(
 
 
 @router.get("/admin/calibration/runs/{run_id}", response_model=CalibrationRunDetail)
-def admin_get_calibration_run(run_id: int, include_report: bool = True):
-    """Fetch one run with optional report inclusion."""
+def admin_get_calibration_run(request: Request, run_id: int, include_report: bool = True):
+    """Fetch one run with optional report inclusion.
+
+    Staff-only for the same reason as the runs list: the middleware covers real
+    deploys, and the explicit guard additionally rejects STUDENT tokens in the
+    demo — the attached report details how the scoring bar was drawn.
+    """
+    _require_staff(request)
     res = _repo().get_calibration_run(run_id, include_report=include_report)
     if res is None:
         raise HTTPException(status_code=404, detail=f"calibration run {run_id} not found")
@@ -483,12 +524,17 @@ def admin_get_calibration_run(run_id: int, include_report: bool = True):
 
 
 @router.get("/admin/calibration/runs/{run_id}/suggestions", response_model=SuggestionsResponse)
-def admin_run_suggestions(run_id: int):
+def admin_run_suggestions(request: Request, run_id: int):
     """
     Run the suggestion engine over a finished calibration + the corrections
     feedback log. Returns recommended threshold + tier-weight changes with
     explanatory rationale + per-suggestion confidence.
+
+    Staff-only on the same grounds as /admin/corrections, which it reads: the
+    middleware covers real deploys, and the explicit guard additionally rejects
+    STUDENT tokens in the demo.
     """
+    _require_staff(request)
     res = _repo().get_calibration_run(run_id, include_report=True)
     if res is None:
         raise HTTPException(status_code=404, detail=f"calibration run {run_id} not found")
@@ -536,7 +582,14 @@ def admin_apply_thresholds(run_id: int, req: ApplyThresholdsRequest, request: Re
     When GUARD_DESTRUCTIVE=1, requires X-Guard-Token header — applying new
     thresholds changes system behaviour globally and should only be allowed
     for admins in pilot/production mode.
+
+    The guard token is a *deploy* secret, not an identity, so it is checked
+    after the staff gate rather than instead of it: the middleware only 401s
+    anonymous callers on real deploys, and this endpoint is the one that
+    rewrites the live scoring thresholds. A STUDENT token is refused here in
+    every environment, exactly as on /admin/audit.
     """
+    _require_staff(request)
     _require_guard(request)
     res = _repo().get_calibration_run(run_id, include_report=False)
     if res is None:
@@ -565,15 +618,28 @@ def admin_apply_thresholds(run_id: int, req: ApplyThresholdsRequest, request: Re
 
 
 @router.get("/admin/tuned-thresholds", response_model=Optional[TunedThresholdsRecord])
-def admin_get_tuned_thresholds():
-    """Return the currently-active tuned thresholds (or null if none set)."""
+def admin_get_tuned_thresholds(request: Request):
+    """Return the currently-active tuned thresholds (or null if none set).
+
+    Staff-only on the same grounds as /admin/audit: the middleware covers real
+    deploys, and the explicit guard additionally rejects STUDENT tokens in the
+    demo — these are the live bars a submission is judged against, which a
+    student should not be able to read off and write toward.
+    """
+    _require_staff(request)
     active = _repo().get_active_tuned_thresholds()
     return TunedThresholdsRecord(**active) if active else None
 
 
 @router.get("/admin/tuned-thresholds/history", response_model=TunedThresholdsListResponse)
-def admin_list_tuned_thresholds(limit: int = 50, offset: int = 0):
-    """Audit list of all tuned-threshold versions ever applied."""
+def admin_list_tuned_thresholds(request: Request, limit: int = 50, offset: int = 0):
+    """Audit list of all tuned-threshold versions ever applied.
+
+    Staff-only for the same reason as the active-set getter above: the
+    middleware covers real deploys, and the explicit guard additionally rejects
+    STUDENT tokens in the demo.
+    """
+    _require_staff(request)
     if limit < 1 or limit > 500:
         raise HTTPException(status_code=422, detail="limit must be in [1, 500]")
     res = _repo().list_tuned_thresholds(limit=limit, offset=offset)
