@@ -2,11 +2,17 @@
  * a11y.spec.mjs — WS-9 Stage 2 breadth
  * (docs/implementation/WS-9-e2e-release-hygiene.md, Stage 2).
  *
- * Axe scan per Bluebook page + a keyboard-walk smoke. Tagged @a11y and
- * NON-BLOCKING for now — per the doc, a page's @a11y case is promoted to
- * blocking only once WS-8 lands that page's React rebuild and it actually
- * passes axe (flipping early red-walls CI on legacy markup WS-4 only
- * hot-fixed). Until then, failures here are signal to read, not a gate.
+ * Axe scan per Bluebook page + a keyboard-walk smoke. Tagged @a11y. Every
+ * screen this file scans is now BLOCKING: a wcag2a/wcag2aa violation on any of
+ * them fails the run. `MIGRATED_SCREENS` below carries the entry criterion and
+ * the evidence; a screen that stops passing comes back out of that list rather
+ * than having the check relaxed around it.
+ *
+ * The scans measure SETTLED UI — see `settle()`. That is not a cosmetic
+ * detail: while a screen is still fading in, axe reads every text colour as
+ * composited against what shows through, and reports contrast failures that do
+ * not exist. That artefact is what kept this whole file non-blocking, and
+ * removing it (#105) is most of what made these promotions possible.
  *
  * Scope: the Bluebook screens the professor journey touches (Landing, Login,
  * Dashboard, Examinations, Courses, Students, Results, NewExam in both its
@@ -16,6 +22,13 @@
  * professor.html/operator.html (legacy, non-Bluebook) are out of scope — WS-8's
  * React migration doesn't cover them, so there's no promotion path to hang a
  * blocking gate on.
+ *
+ * Known scope edge, stated rather than left to be discovered: the Results scan
+ * measures the collapsed submissions list. Results.jsx's ExpandedRow — and the
+ * CorrectionPanel #79 put inside it — only render once a row is expanded, which
+ * needs a scored submission this file does not provision (professor-journey.spec.mjs
+ * does, at ~90s). So "Results: 0 violations" is a claim about the list, not
+ * about the correction UI.
  */
 
 import { test as base, expect } from '@playwright/test'
@@ -67,7 +80,8 @@ async function runAxe(page) {
 
 function logViolations(results, label) {
   if (!results.violations.length) return
-  console.log(`[@a11y non-blocking] ${label}: ${results.violations.length} violation(s) — ` +
+  const gate = MIGRATED_SCREENS.includes(label) ? 'BLOCKING' : 'non-blocking'
+  console.log(`[@a11y ${gate}] ${label}: ${results.violations.length} violation(s) — ` +
     results.violations.map(v => `${v.id} (${v.nodes.length})`).join(', '))
   // A count alone is not the "signal to read" this file promises — "2 nodes"
   // says nothing about whether they are the known shared chrome or a fresh
@@ -80,14 +94,85 @@ function logViolations(results, label) {
   }
 }
 
-// Screens whose React rebuild (WS-8) has landed and verified passing axe
-// with zero violations. A screen's @a11y case is blocking (hard-fails on
-// any violation) only once its label is added here -- until then, scans
-// only log. Empty until WS-8 R1 lands; add labels one at a time as each
-// screen is migrated and confirmed clean, never as a batch.
-const MIGRATED_SCREENS = []
+/**
+ * Every screen label this file scans. Both `MIGRATED_SCREENS` and `checkA11y`
+ * are validated against it, so a renamed screen fails loudly instead of
+ * silently dropping its blocking gate — `MIGRATED_SCREENS` would name a screen
+ * that no longer exists, and this file would refuse to load.
+ */
+const ALL_SCREENS = [
+  'Landing', 'Login', 'Briefing', 'Parked phone page',
+  'Dashboard', 'Examinations', 'Courses', 'Students', 'Results',
+  'Proctor', 'Proctor (code projected)',
+  'New Examination', 'New Examination (no courses yet)',
+]
+
+/**
+ * Screens held to a BLOCKING axe standard: any wcag2a/wcag2aa violation fails
+ * the run. Anything not listed here only logs.
+ *
+ * Every label here was measured at zero violations, settled (see `settle()`),
+ * against the committed `bluebook.bundle.js` at this commit. That measurement
+ * is the entire entry criterion: a screen is listed because it passes, not
+ * because it is expected to. All 13 currently do, so the list is complete —
+ * which means the next screen added to this file starts outside the gate and
+ * has to earn its way in, exactly as these did.
+ *
+ * Three notes for whoever reads this next.
+ *
+ * 1. This list was empty until two things landed. The first was the `settle()`
+ *    fix (#105): the scans had been running mid-fade, so every screen "failed"
+ *    with 10–40 nodes of contrast findings that were artefacts of the
+ *    measurement, not of the markup. Nothing was suppressed to fill this list.
+ *    The second was two real markup fixes: the shared sidebar's `Original
+ *    Analysis` and `Sign Out` controls (Dashboard.jsx, #105, which blocked all
+ *    six professor screens at once), and New Examination's own de-emphasis
+ *    (NewExam.jsx — three 3.85:1 FormField hints and one 2.05:1 validation
+ *    note, fixed in the commit before this one).
+ *
+ * 2. WS-9's plan (docs/implementation/WS-9-e2e-release-hygiene.md §Stage 2,
+ *    line 96) words this gate as a WS-8 handshake — "flip a page only when that
+ *    page's React rebuild has actually landed and passes axe" — and WS-8 R0/R1
+ *    have not landed. The concern it names is explicit: "flipping early
+ *    red-walls CI on the legacy markup WS-4 only hot-fixed." These screens are
+ *    not that markup. They are already React (`demo/bluebook/*.jsx`); WS-8 R1
+ *    re-homes them into a Vite workspace without rewriting them. So the
+ *    substance of the rule — React markup, measured green — holds today, and
+ *    what is outstanding is a toolchain move. Recorded here rather than left
+ *    implicit, because it is a deliberate reading and a reviewer may want to
+ *    argue with it.
+ *
+ * 3. What a green run does and does not certify. It certifies the states this
+ *    file actually puts each screen into. Results is scanned as a collapsed
+ *    list, so its ExpandedRow and the CorrectionPanel inside it (#79) are not
+ *    under this gate — see the file header. A screen with a state worth
+ *    gating should get its own labelled case, the way New Examination has two.
+ */
+const MIGRATED_SCREENS = [
+  'Landing',
+  'Login',
+  'Briefing',
+  'Parked phone page',
+  'Dashboard',
+  'Examinations',
+  'Courses',
+  'Students',
+  'Results',
+  'Proctor',
+  'Proctor (code projected)',
+  'New Examination',
+  'New Examination (no courses yet)',
+]
+
+for (const label of MIGRATED_SCREENS) {
+  if (!ALL_SCREENS.includes(label)) {
+    throw new Error(`MIGRATED_SCREENS names a screen this file does not scan: "${label}"`)
+  }
+}
 
 function checkA11y(results, label) {
+  expect(ALL_SCREENS, `checkA11y called with a label ALL_SCREENS does not know: "${label}"`)
+    .toContain(label)
   logViolations(results, label)
   if (MIGRATED_SCREENS.includes(label)) {
     expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([])
