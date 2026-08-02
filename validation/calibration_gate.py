@@ -731,7 +731,7 @@ def _uniformity_slice_summary(per_group_features: dict[bool, list[dict[str, floa
 
 def _score_corpus_for_g1(
     client, sid_prefix: str, texts_by_id: dict[str, list[str]]
-) -> tuple[list[str], dict[str, list[str]], list[float], int, list[int]]:
+) -> tuple[list[str], dict[str, list[str]], list[float], int, list[int], int]:
     """
     For each id in texts_by_id with >= 5 texts: build a baseline from all
     but one text (leave-one-out over WHOLE documents, not chunks), score
@@ -742,23 +742,45 @@ def _score_corpus_for_g1(
     validation/verify/run_null_model.py's docstring on this point).
 
     Returns (pooled_actions, per_corpus_actions, pooled_deviations, n_errors,
-    pooled_typicality_ns): pooled_deviations is each successful fold's
-    deviation_score, index-aligned with pooled_actions — the real G1
-    evaluator (evaluate_g1_fpr) ignores it; G5's deviation-shift criterion
-    consumes it. n_errors counts non-200 score responses AND folds skipped
-    because one of their baseline uploads returned non-200 (a fold whose
-    baseline is known incomplete must never be scored — see the module-level
-    note on the 2026-07-28 vs 2026-07-30 drift) — so callers can distinguish
-    "clean run" from "the numbers came from a broken leg" (see
-    _require_healthy_leg). pooled_typicality_ns is each successful fold's
-    top-level payload["typicality_n"] (also index-aligned with
-    pooled_actions) — evaluate_g1_fpr's reachability annotation consumes it.
+    pooled_typicality_ns, n_drift_rejected): pooled_deviations is each
+    successful fold's deviation_score, index-aligned with pooled_actions —
+    the real G1 evaluator (evaluate_g1_fpr) ignores it; G5's deviation-shift
+    criterion consumes it. n_errors counts non-200 score responses AND folds
+    skipped because one of their baseline uploads returned non-200 (a fold
+    whose baseline is known incomplete must never be scored — see the
+    module-level note on the 2026-07-28 vs 2026-07-30 drift) — so callers
+    can distinguish "clean run" from "the numbers came from a broken leg"
+    (see _require_healthy_leg). This is UNCHANGED from before
+    n_drift_rejected existed: n_errors still counts every drift-rejected
+    fold too, because the real (non-shuffled) G1 leg's own health accounting
+    (run_g5's "G5 real G1 anchor leg" check on real_g1_n_errors) must keep
+    treating a drift-rejection on a real student's baseline as a genuine
+    signal about that leg, exactly as it does today.
+
+    n_drift_rejected is a NEW, purely additive count, always <= n_errors: of
+    the folds counted in n_errors because a baseline upload failed, this
+    counts only those where EVERY failing baseline response had
+    status_code in (202, 409) — i.e. the Phase-8 drift gate
+    (original/routers/students_baseline.py's add_baseline) rejected the
+    sample as `pending_review`/`rebaseline_required`, not a genuine 4xx/5xx
+    or connection failure. A fold with a mix of drift and non-drift baseline
+    failures is NOT counted here — any genuine failure in the mix means the
+    fold is still evidence of real machinery trouble. Callers that want to
+    treat drift-rejection as an expected, non-machinery outcome (G5's
+    shuffled-G1 leg — see run_g5) can compute their own
+    "genuine-failures-only" error count as n_errors - n_drift_rejected
+    before calling _require_healthy_leg; callers that don't care (run_all()'s
+    real G1 leg) simply discard this return value. pooled_typicality_ns is
+    each successful fold's top-level payload["typicality_n"] (also
+    index-aligned with pooled_actions) — evaluate_g1_fpr's reachability
+    annotation consumes it.
     """
     pooled: list[str] = []
     per_corpus: dict[str, list[str]] = {}
     pooled_deviations: list[float] = []
     pooled_typicality_ns: list[int] = []
     n_errors = 0
+    n_drift_rejected = 0
     for entity_id, texts in texts_by_id.items():
         if len(texts) < 5:
             continue
@@ -768,6 +790,14 @@ def _score_corpus_for_g1(
         for held_out_idx in range(len(texts)):
             sid = f"demo:gate_{sid_prefix}_{entity_id}_{held_out_idx}"
             baseline_failed = False
+            # True iff every failing baseline response so far was a Phase-8
+            # drift-gate rejection (202 pending_review / 409
+            # rebaseline_required) rather than a genuine failure — see the
+            # docstring above and original/routers/students_baseline.py's
+            # add_baseline, whose only non-200 outcomes are 422 (invalid
+            # provenance), 503 (persistence failure), or the drift gate's
+            # 202/409.
+            baseline_drift_only = True
             for i, text in enumerate(texts):
                 if i == held_out_idx:
                     continue
@@ -777,11 +807,15 @@ def _score_corpus_for_g1(
                 )
                 if r.status_code != 200:
                     baseline_failed = True
+                    if r.status_code not in (202, 409):
+                        baseline_drift_only = False
             if baseline_failed:
                 # A fold whose baseline is known incomplete must not be
                 # scored — proceeding would silently shrink this fold's
                 # effective LOO sample count instead of surfacing the drop.
                 n_errors += 1
+                if baseline_drift_only:
+                    n_drift_rejected += 1
                 continue
             r = client.post(
                 f"/students/{sid}/score",
@@ -799,7 +833,7 @@ def _score_corpus_for_g1(
             pooled.extend(actions)
             pooled_deviations.extend(deviations)
             pooled_typicality_ns.extend(typicality_ns)
-    return pooled, per_corpus, pooled_deviations, n_errors, pooled_typicality_ns
+    return pooled, per_corpus, pooled_deviations, n_errors, pooled_typicality_ns, n_drift_rejected
 
 
 def run_all() -> list[GateResult]:
@@ -844,6 +878,10 @@ def run_all() -> list[GateResult]:
         real_g1_deviations,
         real_g1_errors,
         real_g1_typicality_ns,
+        _real_g1_drift_rejected,  # unused here — the real G1 leg keeps
+        # treating a drift-rejection the same as any other error (see
+        # _score_corpus_for_g1's docstring); only G5's shuffled-G1 leg
+        # (run_g5) distinguishes it.
     ) = _score_corpus_for_g1(client, "g1", texts_by_id)
     g1_result = evaluate_g1_fpr(pooled_actions, per_corpus_actions, typicality_ns=real_g1_typicality_ns)
     results.append(g1_result)
@@ -2041,13 +2079,30 @@ def run_g5(
         **_load_plato_texts_by_dialogue(),
     }
     shuffled_g1_corpus = _shuffle_documents_across_keys(texts_by_id, rng)
-    s_actions, s_per_corpus, s_deviations, s_errors, _ = _score_corpus_for_g1(
+    s_actions, s_per_corpus, s_deviations, s_errors, _, s_drift_rejected = _score_corpus_for_g1(
         client, "g5", shuffled_g1_corpus
     )
-    _require_healthy_leg("G5 shuffled G1 leg", n_success=len(s_actions), n_errors=s_errors)
+    # Drift-rejected folds (Phase-8 drift gate 202/409 on a baseline upload —
+    # see _score_corpus_for_g1's docstring) are EXPECTED on this leg: the
+    # shuffled corpus deliberately builds cross-author grab-bag baselines,
+    # and the drift detector correctly recognizing many of them as anomalous
+    # mid-construction is a working safety feature, not evidence the
+    # machinery is broken. Exclude them from the >10% health-check count —
+    # s_errors still includes them (that count is unchanged and also
+    # reported below), so subtracting s_drift_rejected here yields exactly
+    # the genuine-machinery-failure count. A leg with genuine failures alone
+    # exceeding 10% still raises, exactly as _require_healthy_leg always has.
+    s_genuine_errors = s_errors - s_drift_rejected
+    _require_healthy_leg(
+        "G5 shuffled G1 leg", n_success=len(s_actions), n_errors=s_genuine_errors
+    )
     shuffled_g1_flagged_rate = evaluate_g1_fpr(s_actions, s_per_corpus).detail[
         "pooled_flagged_rate"
     ]
+    shuffled_g1_total_folds = len(s_actions) + s_errors
+    shuffled_g1_drift_rejected_rate = (
+        s_drift_rejected / shuffled_g1_total_folds if shuffled_g1_total_folds else None
+    )
 
     # Shuffled G3: full public_authors rerun with baseline lists permuted
     # across author labels.
@@ -2105,6 +2160,21 @@ def run_g5(
             ),
             "shuffled_g1_n_folds": len(s_actions),
             "shuffled_g1_n_scoring_errors": s_errors,
+            "shuffled_g1_n_genuine_scoring_errors": s_genuine_errors,
+            "shuffled_g1_drift_rejected_count": s_drift_rejected,
+            "shuffled_g1_drift_rejected_rate": shuffled_g1_drift_rejected_rate,
+            "drift_rejected_note": (
+                "folds where the Phase-8 drift gate (original/routers/"
+                "students_baseline.py) rejected a baseline upload as "
+                "pending_review/rebaseline_required (202/409) — this is "
+                "expected on a shuffled-label corpus (cross-author "
+                "grab-bag baselines) and is independent, complementary "
+                "evidence of real authorship coherence, not a machinery "
+                "failure. Excluded from shuffled_g1_n_genuine_scoring_errors "
+                "and from this leg's >10% health-check threshold; still "
+                "excluded from the deviation-shift comparison (its baseline "
+                "genuinely wasn't built)."
+            ),
             **g3_info,
             "g4_draws": g4_draws,
         },

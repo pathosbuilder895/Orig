@@ -822,19 +822,54 @@ class _FakeG1Client:
     _score_corpus_for_g1 calls: .post(url, json=...) for both the
     /baseline and /score endpoints. Every /score call returns the next
     canned payload in sequence. `fail_baseline_urls` (exact-URL match) lets
-    a test simulate one fold's baseline upload silently failing, without
-    affecting any other fold's baseline calls."""
+    a test simulate one fold's baseline upload silently failing (a generic
+    500, i.e. a genuine machinery failure), without affecting any other
+    fold's baseline calls.
 
-    def __init__(self, score_payloads, fail_baseline_urls=frozenset()):
+    `drift_baseline_urls` (exact-URL match -> status code, 202 or 409) is
+    the drift-shaped equivalent: simulates the Phase-8 drift gate
+    (original/routers/students_baseline.py's add_baseline) rejecting EVERY
+    baseline upload for one fold as pending_review/rebaseline_required.
+
+    `baseline_overrides` (exact (url, text) match -> status code) is the
+    finest-grained control, for simulating a single fold whose baseline
+    uploads are a MIX of drift-rejected and genuine failures (or a mix of
+    failure and success) — something URL-only matching can't express, since
+    every upload within one fold shares the same destination URL."""
+
+    def __init__(
+        self,
+        score_payloads,
+        fail_baseline_urls=frozenset(),
+        drift_baseline_urls=None,
+        baseline_overrides=None,
+    ):
         self._score_payloads = list(score_payloads)
         self._score_calls = 0
         self._fail_baseline_urls = frozenset(fail_baseline_urls)
+        self._drift_baseline_urls = dict(drift_baseline_urls or {})
+        self._baseline_overrides = dict(baseline_overrides or {})
+
+    @staticmethod
+    def _body_for_status(status_code):
+        if status_code == 202:
+            return {"detail": "pending_review"}
+        if status_code == 409:
+            return {"detail": "rebaseline_required"}
+        return {}
 
     def post(self, url, json=None):
         if url.endswith("/score"):
             payload = self._score_payloads[self._score_calls]
             self._score_calls += 1
             return _FakeG1Response(200, payload)
+        text = (json or {}).get("text")
+        if (url, text) in self._baseline_overrides:
+            status = self._baseline_overrides[(url, text)]
+            return _FakeG1Response(status, self._body_for_status(status))
+        if url in self._drift_baseline_urls:
+            status = self._drift_baseline_urls[url]
+            return _FakeG1Response(status, self._body_for_status(status))
         if url in self._fail_baseline_urls:
             return _FakeG1Response(500, {})
         return _FakeG1Response(200, {})
@@ -856,17 +891,18 @@ class TestScoreCorpusForG1TypicalityWiring:
             for i in range(5)
         ]
 
-    def test_returns_five_tuple_with_pooled_typicality_ns(self):
+    def test_returns_six_tuple_with_pooled_typicality_ns(self):
         client = _FakeG1Client(self._five_fold_payloads(typicality_n=4))
         texts_by_id = {"author_a": ["t0", "t1", "t2", "t3", "t4"]}
 
         result = _score_corpus_for_g1(client, "g1test", texts_by_id)
 
-        assert len(result) == 5
-        pooled, per_corpus, deviations, n_errors, typicality_ns = result
+        assert len(result) == 6
+        pooled, per_corpus, deviations, n_errors, typicality_ns, n_drift_rejected = result
         assert pooled == ["no_action"] * 5
         assert per_corpus == {"author_a": ["no_action"] * 5}
         assert n_errors == 0
+        assert n_drift_rejected == 0
         assert typicality_ns == [4, 4, 4, 4, 4]
         # Index-aligned with pooled_actions/pooled_deviations, per the
         # docstring's contract.
@@ -878,12 +914,13 @@ class TestScoreCorpusForG1TypicalityWiring:
         # and nothing is appended for this entity.
         texts_by_id = {"author_b": ["t0", "t1", "t2", "t3"]}
 
-        pooled, per_corpus, deviations, n_errors, typicality_ns = _score_corpus_for_g1(
-            client, "g1test", texts_by_id
+        pooled, per_corpus, deviations, n_errors, typicality_ns, n_drift_rejected = (
+            _score_corpus_for_g1(client, "g1test", texts_by_id)
         )
 
         assert pooled == []
         assert typicality_ns == []
+        assert n_drift_rejected == 0
 
 
 class TestRunAllG1Wiring:
@@ -947,8 +984,8 @@ class TestScoreCorpusForG1BaselineFailureSkipsFold:
             fail_baseline_urls={f"/students/{failing_sid}/baseline"},
         )
 
-        pooled, per_corpus, deviations, n_errors, typicality_ns = _score_corpus_for_g1(
-            client, "g1test", texts_by_id
+        pooled, per_corpus, deviations, n_errors, typicality_ns, n_drift_rejected = (
+            _score_corpus_for_g1(client, "g1test", texts_by_id)
         )
 
         # Before the fix: n_errors == 0 and all 5 folds are scored (the
@@ -959,6 +996,247 @@ class TestScoreCorpusForG1BaselineFailureSkipsFold:
         assert len(per_corpus["author_a"]) == 4
         assert len(deviations) == 4
         assert len(typicality_ns) == 4
+        # A plain 500 is a genuine failure, not a drift-gate rejection.
+        assert n_drift_rejected == 0
+
+
+class TestScoreCorpusForG1DriftRejection:
+    """Diagnosis (validation/calibration_report_2026-07-31.json, commit
+    5160b396): G5's shuffled-G1 leg builds cross-author grab-bag baselines
+    by design, and the Phase-8 drift gate
+    (original/routers/students_baseline.py's add_baseline) correctly
+    rejects many of them as 202 pending_review / 409 rebaseline_required --
+    not a crash, not a malformed request. _score_corpus_for_g1 must keep
+    treating a drift-rejected baseline as "this fold's baseline is known
+    incomplete, skip it and count an error" (RP-3c's existing fix, which
+    must NOT change) while ALSO reporting the rejection distinctly via the
+    new n_drift_rejected return, so a caller (run_g5) can tell a
+    drift-rejection apart from a genuine machinery failure."""
+
+    def _five_fold_payloads(self):
+        return [
+            {
+                "recommendation": {"action": "no_action"},
+                "authorship": {"deviation_score": 0.1 * (i + 1)},
+                "typicality_n": 4,
+            }
+            for i in range(5)
+        ]
+
+    @pytest.mark.parametrize("drift_status", [202, 409])
+    def test_drift_rejected_fold_is_excluded_and_counted_separately(self, drift_status):
+        texts_by_id = {"author_a": ["t0", "t1", "t2", "t3", "t4"]}
+        failing_sid = "demo:gate_g1test_author_a_2"
+        client = _FakeG1Client(
+            self._five_fold_payloads(),
+            drift_baseline_urls={f"/students/{failing_sid}/baseline": drift_status},
+        )
+
+        pooled, per_corpus, deviations, n_errors, typicality_ns, n_drift_rejected = (
+            _score_corpus_for_g1(client, "g1test", texts_by_id)
+        )
+
+        # (a) the drift-rejected fold is excluded from the deviation
+        # computation exactly like a genuine failure would be -- its
+        # baseline genuinely wasn't built.
+        assert len(pooled) == 4
+        assert len(per_corpus["author_a"]) == 4
+        assert len(deviations) == 4
+        assert len(typicality_ns) == 4
+        # n_errors is UNCHANGED from before n_drift_rejected existed: the
+        # real (non-shuffled) G1 leg's own health accounting must keep
+        # counting a drift-rejection as an error, same as today.
+        assert n_errors == 1
+        # ...but it is now ALSO visible as specifically a drift-rejection.
+        assert n_drift_rejected == 1
+
+    def test_genuine_failure_is_not_counted_as_drift_rejected(self):
+        """A plain 500 (or any non-202/409 non-200) must count toward
+        n_errors but NOT n_drift_rejected -- only the drift gate's specific
+        status codes qualify, per add_baseline's contract (422/503/200 are
+        its only other outcomes on this endpoint)."""
+        texts_by_id = {"author_a": ["t0", "t1", "t2", "t3", "t4"]}
+        failing_sid = "demo:gate_g1test_author_a_2"
+        client = _FakeG1Client(
+            self._five_fold_payloads(),
+            fail_baseline_urls={f"/students/{failing_sid}/baseline"},
+        )
+
+        _pooled, _per_corpus, _deviations, n_errors, _typicality_ns, n_drift_rejected = (
+            _score_corpus_for_g1(client, "g1test", texts_by_id)
+        )
+
+        assert n_errors == 1
+        assert n_drift_rejected == 0
+
+    def test_fold_with_both_drift_and_genuine_failure_is_not_drift_only(self):
+        """A fold where one baseline upload is drift-rejected and another is
+        a genuine 500 is not "purely" a drift-rejection -- the genuine
+        failure means real machinery trouble happened too, so this fold
+        must count toward n_errors (as always) but NOT toward
+        n_drift_rejected, so a caller excluding drift-rejections from its
+        health check still sees this fold's genuine trouble."""
+        texts_by_id = {"author_a": ["t0", "t1", "t2", "t3", "t4"]}
+        failing_sid = "demo:gate_g1test_author_a_2"
+        baseline_url = f"/students/{failing_sid}/baseline"
+        # held_out_idx=2's fold uploads t0, t1, t3, t4 as baseline: make
+        # t0's upload drift-rejected and t1's a genuine 500, leaving t3/t4
+        # (and every OTHER fold's uploads) untouched.
+        client = _FakeG1Client(
+            self._five_fold_payloads(),
+            baseline_overrides={
+                (baseline_url, "t0"): 202,
+                (baseline_url, "t1"): 500,
+            },
+        )
+
+        _pooled, _per_corpus, _deviations, n_errors, _typicality_ns, n_drift_rejected = (
+            _score_corpus_for_g1(client, "g1test", texts_by_id)
+        )
+
+        assert n_errors == 1
+        assert n_drift_rejected == 0
+
+
+class TestRunG5ShuffledG1LegDriftRejection:
+    """Full wiring test for the diagnosed defect: run_g5's shuffled-G1 leg
+    must NOT let drift-rejections (see TestScoreCorpusForG1DriftRejection)
+    trip _require_healthy_leg's >10% threshold, while a leg with genuine
+    machinery failures over 10% must still raise exactly as before.
+
+    These monkeypatch every heavy dependency run_g5() has besides the
+    seam under test:
+      - the three corpus loaders (content is irrelevant -- _score_corpus_for_g1
+        itself is faked below, so nothing ever reads the shuffled corpus)
+      - run.load_legacy_demo_app (swapped for a bare FastAPI() -- the real
+        app from original/api.py is expensive and, again, nothing issues a
+        real HTTP call once _score_corpus_for_g1 is faked)
+      - _shuffled_public_authors_top1 and _compute_g4_group_means (G3/G4's
+        shuffled legs -- canned healthy+instant, since these tests are only
+        about the shuffled-G1 leg)
+    This keeps the test fast while exercising the REAL run_g5 code path
+    that wires _score_corpus_for_g1's n_drift_rejected return into the
+    "G5 shuffled G1 leg" _require_healthy_leg call -- not just the
+    arithmetic in isolation.
+    """
+
+    def _patch_common(self, monkeypatch):
+        import run as _run_module
+        from fastapi import FastAPI
+
+        import validation.calibration_gate as cg
+
+        monkeypatch.setattr(cg, "_load_seminary_texts", lambda: {})
+        monkeypatch.setattr(cg, "_load_public_authors_baseline_texts", lambda: {})
+        monkeypatch.setattr(
+            cg, "_load_plato_texts_by_dialogue", lambda: {"d": [f"c{i}" for i in range(6)]}
+        )
+        monkeypatch.setattr(_run_module, "load_legacy_demo_app", lambda: FastAPI())
+        monkeypatch.setattr(
+            cg,
+            "_shuffled_public_authors_top1",
+            lambda rng: (0.1, {"shuffled_g3_n_essays": 1}),
+        )
+        monkeypatch.setattr(
+            cg,
+            "_compute_g4_group_means",
+            lambda **kwargs: (
+                {"early": 0.1, "middle": 0.2, "late": 0.3},
+                {"n_scored": 10, "n_errors": 0},
+            ),
+        )
+        return cg
+
+    def test_high_drift_rejection_rate_does_not_raise(self, monkeypatch):
+        """0 genuine machinery failures, 15 drift-rejected out of 35
+        attempted folds (42.9% raw rejection rate -- well over the 10%
+        threshold if miscounted as machinery failures). Must NOT raise, and
+        the drift-rejection count must be visible in detail."""
+        cg = self._patch_common(monkeypatch)
+
+        def fake_score_corpus(client, sid_prefix, texts_by_id):
+            return (
+                ["no_action"] * 20,
+                {"synthetic": ["no_action"] * 20},
+                [0.5] * 20,
+                15,  # n_errors (all drift)
+                [4] * 20,
+                15,  # n_drift_rejected
+            )
+
+        monkeypatch.setattr(cg, "_score_corpus_for_g1", fake_score_corpus)
+
+        result = cg.run_g5(real_g1_deviations=[0.1] * 20, real_g1_n_errors=0)
+
+        assert result.detail["shuffled_g1_n_scoring_errors"] == 15
+        assert result.detail["shuffled_g1_n_genuine_scoring_errors"] == 0
+        assert result.detail["shuffled_g1_drift_rejected_count"] == 15
+        assert result.detail["shuffled_g1_drift_rejected_rate"] == pytest.approx(15 / 35)
+
+    def test_genuine_failures_over_threshold_still_raises(self, monkeypatch):
+        """Genuine (non-drift) failures alone over 10% of attempted folds
+        must still raise -- the fix must not make this leg's health check
+        toothless against real machinery breakage."""
+        cg = self._patch_common(monkeypatch)
+
+        def fake_score_corpus(client, sid_prefix, texts_by_id):
+            return (
+                ["no_action"] * 20,
+                {"synthetic": ["no_action"] * 20},
+                [0.5] * 20,
+                15,  # n_errors (all genuine)
+                [4] * 20,
+                0,  # n_drift_rejected
+            )
+
+        monkeypatch.setattr(cg, "_score_corpus_for_g1", fake_score_corpus)
+
+        with pytest.raises(RuntimeError, match="G5 shuffled G1 leg"):
+            cg.run_g5(real_g1_deviations=[0.1] * 20, real_g1_n_errors=0)
+
+    def test_mixed_drift_and_genuine_failures_only_genuine_counts_toward_threshold(
+        self, monkeypatch
+    ):
+        """A mix of drift-rejections and a small number of genuine failures
+        (here 9/(90+9) = 9.09%, under 10%) must not raise, even though the
+        RAW failure rate (39/129 ~= 30.2%) would trip the old, undifferentiated
+        threshold."""
+        cg = self._patch_common(monkeypatch)
+
+        def fake_score_corpus(client, sid_prefix, texts_by_id):
+            return (
+                ["no_action"] * 90,
+                {"synthetic": ["no_action"] * 90},
+                [0.5] * 90,
+                39,  # n_errors: 9 genuine + 30 drift
+                [4] * 90,
+                30,  # n_drift_rejected
+            )
+
+        monkeypatch.setattr(cg, "_score_corpus_for_g1", fake_score_corpus)
+
+        result = cg.run_g5(real_g1_deviations=[0.1] * 90, real_g1_n_errors=0)
+
+        assert result.detail["shuffled_g1_n_genuine_scoring_errors"] == 9
+        assert result.detail["shuffled_g1_drift_rejected_count"] == 30
+
+    def test_real_g1_anchor_leg_health_check_is_unaffected_by_this_change(self, monkeypatch):
+        """The REAL G1 leg's own health accounting (real_g1_n_errors, fed by
+        run_all() from _score_corpus_for_g1's UNCHANGED n_errors return —
+        see TestScoreCorpusForG1DriftRejection) must still raise exactly as
+        before when it alone exceeds 10%, regardless of anything about the
+        shuffled leg's drift handling: this is "G5 real G1 anchor leg", a
+        separate _require_healthy_leg call this change does not touch."""
+        cg = self._patch_common(monkeypatch)
+        # Never reached -- the anchor-leg check raises first.
+        monkeypatch.setattr(
+            cg,
+            "_score_corpus_for_g1",
+            lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not be called")),
+        )
+
+        with pytest.raises(RuntimeError, match="G5 real G1 anchor leg"):
+            cg.run_g5(real_g1_deviations=[0.4] * 89, real_g1_n_errors=11)
 
 
 class _FakeG6Response:
