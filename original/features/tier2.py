@@ -19,13 +19,24 @@ from .tier1 import TextDoc, _tokenize
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 
-def _content_words(sentence: str) -> set[str]:
-    """Lower-cased non-stop alphabetic tokens in a sentence."""
-    return {
-        w.lower()
-        for w in re.findall(r"\b[a-zA-Z]{3,}\b", sentence)
-        if w.lower() not in STOP_WORDS and w.lower() not in FUNCTION_WORDS
-    }
+def _content_words(sentence: str) -> list[str]:
+    """Lower-cased non-stop alphabetic tokens in a sentence, deduplicated,
+    in order of first appearance.  Order matters to callers that split a
+    sentence's content words into a leading and trailing portion (e.g.
+    theme/rheme position) — a set would discard that order and, since
+    Python's string-hash iteration order varies per process, make such
+    splits nondeterministic.
+    """
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for w in re.findall(r"\b[a-zA-Z]{3,}\b", sentence):
+        lw = w.lower()
+        if lw in STOP_WORDS or lw in FUNCTION_WORDS:
+            continue
+        if lw not in seen:
+            seen.add(lw)
+            ordered.append(lw)
+    return ordered
 
 
 def _find_discourse_markers(text: str):
@@ -106,8 +117,8 @@ def thematic_progression_score(doc: TextDoc) -> float:
     pairs = 0
 
     for i in range(1, len(sents)):
-        cw_prev = list(_content_words(sents[i - 1]))
-        cw_curr = list(_content_words(sents[i]))
+        cw_prev = _content_words(sents[i - 1])
+        cw_curr = _content_words(sents[i])
         if not cw_prev or not cw_curr:
             continue
 
@@ -171,8 +182,8 @@ def lexical_chain_density(doc: TextDoc) -> float:
 
     scores = []
     for i in range(1, len(sents)):
-        a = _content_words(sents[i - 1])
-        b = _content_words(sents[i])
+        a = set(_content_words(sents[i - 1]))
+        b = set(_content_words(sents[i]))
         if not a or not b:
             continue
         intersection = len(a & b)
