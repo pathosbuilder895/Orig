@@ -738,6 +738,9 @@ class Layer7OutputResponse(BaseModel):
     # Phase 2: disambiguates an ambiguous typicality_band == "schedule_conversation"
     # ("far" | "central" | None) — see Layer7Output.typicality_source.
     typicality_source: str | None = None
+    # Which reference produced the p-values above: "self" (per-student LOO)
+    # or "pooled" (tenant-wide reference) — see Layer7Output.typicality_calibration.
+    typicality_calibration: str | None = None
 
 
 # ── Student state summary ─────────────────────────────────────────────────────

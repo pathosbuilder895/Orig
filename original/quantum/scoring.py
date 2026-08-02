@@ -228,6 +228,7 @@ class ScoringConfig:
     amplitude_scoring_enabled: bool = False  # was AMPLITUDE_SCORING_ENABLED, :597
     secret_key: str = ""  # was SECRET_KEY, :602
     typicality_scoring_enabled: bool = False  # was TYPICALITY_SCORING
+    typicality_pooled_calibration: bool = False  # was TYPICALITY_POOLED_CALIBRATION
     # Phase 2: promotes llr_deviation_score to a co-equal "identity" axis,
     # combined with the typicality axis via a 3x3 action matrix
     # (_identity_axis_action). Only takes effect when null_model == "impostor"
@@ -255,6 +256,8 @@ class ScoringConfig:
             amplitude_scoring_enabled=os.environ.get("AMPLITUDE_SCORING_ENABLED", "0") == "1",
             secret_key=os.environ.get("SECRET_KEY", ""),
             typicality_scoring_enabled=os.environ.get("TYPICALITY_SCORING", "0") == "1",
+            typicality_pooled_calibration=os.environ.get("TYPICALITY_POOLED_CALIBRATION", "0")
+            == "1",
             identity_axis_enabled=os.environ.get("IDENTITY_AXIS", "0") == "1",
         )
 
@@ -298,6 +301,12 @@ class Layer7Output:
     # disambiguates which row of the Phase 2 identity-axis matrix applies.
     # "far" | "central" | None (insufficient N, same gate as the other four).
     typicality_source: str | None = field(default=None)
+    # Which reference produced typicality_p_far/typicality_p_central:
+    # "self" (per-student LOO distances, today's behaviour) or "pooled"
+    # (tenant-wide reference, see pooled_calibration.py). None when
+    # typicality scoring itself didn't run. See ScoringConfig.
+    # typicality_pooled_calibration and score()'s typicality block.
+    typicality_calibration: str | None = field(default=None)
 
     # Tension arc (orthogonal signal, set at API layer after quantum score)
     tension_arc: TensionArcResult | None = field(default=None)
@@ -480,6 +489,8 @@ def score(
     n_tokens: int = 300,
     impostor_stats: tuple[np.ndarray, np.ndarray] | None = None,
     scoring_config: ScoringConfig | None = None,
+    pooled_states: dict | None = None,
+    student_id: str = "",
 ) -> Layer7Output:
     """
     Score a submission against a student's current quantum state.
@@ -527,6 +538,22 @@ def score(
                          reads ``os.environ`` or imports ``store`` itself; omitting
                          it is exactly the flags-OFF, no-calibration-data Phase 1
                          path (``ScoringConfig()`` defaults).
+    pooled_states      : optional ``{student_id: StudentState}`` for every student
+                         in the caller's tenant pool (see
+                         ``pooled_source.collect_tenant_distances``). Only
+                         consulted when both this is supplied AND
+                         ``config.typicality_pooled_calibration`` is set — used to
+                         build a tenant-wide typicality reference so the
+                         conformal p-value can reach its band thresholds at
+                         pilot scale, where a single student's own LOO
+                         distances are quantised too coarsely. None preserves
+                         Phase 1 byte-identical, per-student self-calibration.
+    student_id         : identifier for the student being scored, used only to
+                         exclude their own distances from the pooled reference
+                         (a student must never be measured against a reference
+                         that includes their own submissions) and to resolve
+                         their tenant. Defaults to "" — harmless when pooled
+                         calibration is off.
     """
     config = scoring_config or ScoringConfig()
 
@@ -646,12 +673,36 @@ def score(
     typicality_band: str | None = None
     typicality_n: int = 0
     typicality_source: str | None = None
+    typicality_calibration: str | None = None
 
     if config.typicality_scoring_enabled and adaptive_weights is None:
         from .typicality import NO_ACTION_CENTRAL_THRESHOLD, band_from_p, p_central
         from .typicality import p_far as p_far_fn
 
         loo = state.loo_distances
+        typicality_calibration = "self"
+
+        # Per-student references are quantised at 1/(N+1), so at pilot N no
+        # band is reachable (see the reachability table in the Phase 1 plan).
+        # A pooled tenant reference raises the floor; we fall back to self
+        # whenever the tenant cannot support one, so a thin population
+        # degrades to today's behaviour rather than to a confident number.
+        if config.typicality_pooled_calibration and pooled_states is not None:
+            from ..principal import DEMO_TENANT, tenant_of
+            from .pooled_calibration import build_pooled_reference
+            from .pooled_source import collect_tenant_distances
+
+            pooled_ref = build_pooled_reference(
+                collect_tenant_distances(
+                    pooled_states,
+                    tenant=tenant_of(student_id) or DEMO_TENANT,
+                    exclude_sid=student_id,
+                )
+            )
+            if pooled_ref is not None:
+                loo = pooled_ref
+                typicality_calibration = "pooled"
+
         typicality_n = len(loo)
         if typicality_n >= 2:
             # NOTE: state.loo_distances (state.py) is computed under the UNweighted
@@ -867,6 +918,7 @@ def score(
         typicality_band=typicality_band,
         typicality_n=typicality_n,
         typicality_source=typicality_source,
+        typicality_calibration=typicality_calibration,
         # Phase 3+: attach the adaptive context manifest (if any) for audit.
         # Stored as a plain dict so this module needs no original.context import.
         context_manifest=manifest,
