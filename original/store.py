@@ -100,9 +100,13 @@ _GENRE_STATS_CACHE: dict[str, dict | None] = {}
 # databases with different names are fully independent even while both have
 # open connections.
 #
-# This design needs no lock and no check_same_thread=False: every _get_conn()
-# call — including for ":memory:" now — returns a brand-new Connection object
-# used by exactly one caller, identical in shape to the file-backed path. There
+# This design needs no lock and no check_same_thread=False on the connection
+# it RETURNS to callers: every _get_conn() call — including for ":memory:" now
+# — returns a brand-new Connection object used by exactly one caller, identical
+# in shape to the file-backed path. (The module-internal keepalive connection
+# below IS opened with check_same_thread=False, for the different reason
+# explained at its creation site — it is never queried, only held open and
+# later closed, possibly from another thread.) There
 # is no shared mutable Connection object for two threads to contend over, so
 # the earlier design's transaction-flattening hazard (a `with conn:` block on
 # one caller's connection committing/rolling back a DIFFERENT caller's
