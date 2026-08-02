@@ -135,7 +135,7 @@ numeric gates, each emitting pass/fail + a report row:
 | G1 | Same-author FPR | LOO across seminary + public_authors + Plato: pooled flagged rate (≠ no_action) ≤ 5%, **and** the per-corpus / per-N-stratum flagged-rate reported alongside the pooled figure — a pooled 5% can hide individual students or corpora running well above it | 98–100% pooled |
 | G2 | Bland impostor | Let `q = min(p_far, p_central)` (the two-sided typicality; q ≈ 0.5 for a squarely-typical sample, q → 0 as either tail becomes extreme). Median `q` for {Eryxias chunks, `validation/corpus/ai_*.txt`} must be **≤** median `q` for same-author holdouts — an impostor must not look *more* typical (higher q) than genuine work | Eryxias ranks #1 most-authentic under the current one-sided metric — i.e. the inequality currently fails in the wrong direction |
 | G2b | Bland impostor, paraphrase-resistant | Phase-4 dependency (§8): repeat G2 against `ai_*.txt` essays run through one round of detector-guided paraphrase/self-edit ("elevate the language," per the published attack). Uniformity/too-central features must not be trivially defeated by a single prompt before they leave `DISABLED_FEATURE_GROUPS` | not yet run (new) |
-| G3 | Attribution non-regression | `validation/public_authors` top-1 accuracy ≥ 0.7 (existing bar) on impostor-calibrated attribution (`validation/public_authors/run.py`), with raw argmin reported alongside, measured on the author-holdout split defined in §7 (never the split used to derive Fisher weights) | **0.727 — PASSES** (calibrated; raw argmin 0.364, mean rank 1.64; see footnote for how this number was reached) |
+| G3 | Attribution non-regression | `validation/public_authors` top-1 accuracy ≥ 0.7 (existing bar) on impostor-calibrated attribution (`validation/public_authors/run.py`), with raw argmin reported alongside, measured on the author-holdout split defined in §7 (never the split used to derive Fisher weights) | **0.727 — UNINFORMATIVE at n=22** (95% Wilson CI [0.518, 0.868] straddles the 0.7 bar; calibrated, raw argmin 0.364, mean rank 1.64; see footnote) |
 | G4 | Career-drift sanity | Plato early→middle→late remains monotone on the typicality (p_far) axis | monotone (passes on raw features) |
 | G5 | Selection-bias null control | Shuffle author labels across the pooled corpora, re-derive Fisher-ratio weights (§7) and Phase-4 feature thresholds through the identical pipeline, then re-run G1/G3/G4 on the shuffled assignment. All three must collapse to chance (G1's flagged rate becomes uninformative noise, not ≤5%; G3 → ~1/n_authors; G4 → non-monotone). If the gates still pass on shuffled labels, they are measuring the selection procedure, not authorship signal | not yet run (new) |
 | G6 | Non-native-English fairness | Using the existing `native_english` manifest field and `validation/benchmark/bias_slicer.py` / `validation/bias_analysis.py` (same ≤2× FPR-ratio bar those modules already apply elsewhere): per-group flagged rate for the p_central/too-uniform action and the Phase-4 uniformity features must not differ by more than 2× between `native_english=true` and `=false` authentic samples | not yet run (new); `docs/calibration/norm_bounds_calibration_2026-03-17.md` already found a same-direction Tier-1 risk (NNE lexical-diversity 0.45–0.61 vs native 0.64–0.76) |
@@ -151,11 +151,35 @@ kempis/mill (fixed in 9a4a27b5) and per-author-normalized deviations being
 compared across authors, which raw argmin cannot do validly (fixed in
 697444ba — G3 now uses impostor-calibrated attribution and reports raw argmin
 alongside). With both fixes applied, the 2026-07-30 re-run scored 0.727
-calibrated, clearing the bar. The raw-argmin number recorded alongside it —
+calibrated. The raw-argmin number recorded alongside it —
 0.364, *lower* than the original 0.455 — is the more informative of the two:
 repairing kempis/mill turned two table-of-contents stubs into genuine
 competitors, which made the scale-blind rule worse while the calibrated rule
 improved, confirming the diagnosis rather than merely fixing the corpus.
+
+**Why this row says UNINFORMATIVE and not PASSES (2026-08-02).** 0.727 clears
+the 0.7 bar on the point estimate, and this row read **PASSES** until the
+instrumentation layer landed. It no longer does. The run scored 16 of 22
+held-out essays; the 95% Wilson interval on 16/22 is **[0.518, 0.868]**,
+which straddles the bar. An observation compatible with a true accuracy of
+0.55 and with 0.85 alike cannot demonstrate ≥ 0.7 — so the gate now returns
+`verdict="uninformative"` (`validation/power.py::bar_decidable`, wired at
+`validation/calibration_gate.py::evaluate_g3_attribution`). Roughly **306**
+held-out essays would be needed for a 0.75 point estimate to sit entirely
+above the bar.
+
+This is a change in what the evidence supports, not in the measurement: the
+number is the same. Note the asymmetry, which is the point rather than a
+weakness — a G3 *failure* is still a failure. The earlier 0.455 result has
+CI [0.269, 0.653], entirely below the bar, and still reports `fail`. The
+uninformative verdict withholds only the claim the data cannot carry.
+
+The recorded runs in `validation/calibration_report_2026-07-30.json` and
+`…_2026-07-31.json` still carry `"passed": true` with no `verdict` key. They
+are left exactly as produced: they are honest records of what the two-valued
+instrument reported at the time, and rewriting a stored run to match a later
+conclusion is the specific failure this whole layer exists to prevent. Read
+them as superseded by this row, not as a competing claim.
 
 **Why G1 and G2 changed.** Conformal p-values are uniform on their support
 under the exchangeable-null hypothesis, so for a same-author holdout
