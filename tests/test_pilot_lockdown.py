@@ -158,6 +158,55 @@ def test_demo_keeps_anonymous_roster(live_client):
     assert r.status_code == 200
 
 
+# ── 2b. Endpoint-level staff gate on /admin/corrections ───────────────────────
+# The §2 middleware only runs when ORIGINAL_ENV is real. Correction rows carry
+# student_id, so — exactly like /admin/audit — the handler keeps its own staff
+# check: it additionally rejects STUDENT principals in the demo, and it still
+# holds if a deploy is ever misconfigured with ORIGINAL_ENV unset.
+
+
+def test_admin_corrections_rejects_student_principal_in_demo(live_client):
+    """A student must never enumerate corrections, even in the demo sandbox.
+
+    `x-demo-role` drives the anonymous principal's role, so this exercises the
+    handler's `_require_staff` check without needing a real student login
+    (same technique as tests/test_tenants_api_coverage.py).
+    """
+    r = live_client.get("/admin/corrections", headers={"x-demo-role": "student"})
+    assert r.status_code == 403, r.text
+    assert r.json()["detail"] == "Staff role required."
+
+
+def test_admin_corrections_rejects_signed_in_student_in_demo(live_client):
+    """An authenticated student principal is refused on the same grounds.
+
+    Covers the non-demo principal branch of `_require_staff` (is_demo=False,
+    role="student"), which the x-demo-role header cannot reach.
+    """
+    stu = pr.mint_principal_token("corracme:bob", "student", "corracme")
+    r = live_client.get("/admin/corrections", headers=_auth(stu))
+    assert r.status_code == 403, r.text
+
+
+def test_admin_corrections_keeps_anonymous_demo_readable(live_client):
+    """The zero-login demo sandbox is unchanged — its principal is staff-role."""
+    r = live_client.get("/admin/corrections")
+    assert r.status_code == 200, r.text
+
+
+def test_admin_corrections_rejects_anonymous_in_pilot(real_deploy, live_client):
+    """On a real deploy an unauthenticated caller gets 401, never correction rows."""
+    r = live_client.get("/admin/corrections")
+    assert r.status_code == 401, r.text
+
+
+def test_admin_corrections_allows_staff_principal_in_pilot(real_deploy, live_client):
+    """A signed-in professor still reads the list the CorrectionPanel UI needs."""
+    prof = pr.mint_principal_token("prof_corr", "professor", "corracme")
+    r = live_client.get("/admin/corrections", headers=_auth(prof))
+    assert r.status_code == 200, r.text
+
+
 # ── 3. Demo surfaces disabled on real deploys ─────────────────────────────────
 
 
