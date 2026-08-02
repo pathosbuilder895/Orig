@@ -10,7 +10,7 @@ cycler==0.12.1
     # via matplotlib
 distlib==0.4.3
     # via virtualenv
-filelock==3.29.6
+filelock==3.32.2
     # via
     #   python-discovery
     #   virtualenv
