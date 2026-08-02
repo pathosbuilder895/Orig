@@ -384,8 +384,22 @@ population.
   variance in writing consistency is not sampled broadly.
 - **Synthetic seminary corpus.** The 5 seminary pseudo-students are synthetic (not real student
   submissions); genre-matching to the pilot's actual population is assumed, not verified.
-- **Single run.** The grid in §2 is one execution of the harness, not a repeated/bootstrapped
-  ensemble beyond the CIs the harness itself reports per combo.
+- **Single run — and the run is not reproducible without `PYTHONHASHSEED`.** The grid in §2 is one
+  execution of the harness, not a repeated/bootstrapped ensemble beyond the CIs the harness itself
+  reports per combo. Worse, a second execution of the *same code on the same corpus* does not
+  reproduce it: measured 2026-08-01, two back-to-back `--combo off` runs in one worktree gave
+  AUC 0.862 vs 0.866, with 120/122 honest scores differing (max |Δ| 0.119 on `deviation_score`).
+  This is the pipeline hash-order nondeterminism already noted in
+  `validation/short_regime/reliability_500w.json`'s `_meta` — Python's per-process string-hash
+  randomisation reaching `deviation_score` through set/dict iteration order in the tier modules.
+  Pinning `PYTHONHASHSEED=0` removes it completely (three runs, all AUC 0.867 / catch@5% 0.557),
+  which both confirms the cause and gives the workaround. The committed
+  `validation/benchmarks/2026-07-29/short_regime/report.json` was produced *without* a pinned seed,
+  so it is one arbitrary draw and cannot be reproduced exactly by anyone. **Read every point
+  estimate in §1–§3 as carrying roughly ±0.005 AUC and ±0.02 catch@5% of run-to-run instability on
+  top of the bootstrap CIs**, and re-run with `PYTHONHASHSEED=0` before treating any of them as a
+  number to calibrate against. Fixing the pipeline determinism itself is out of scope for this
+  document and tracked separately.
 - **The harness scores in-process, not through the API.** `runner.py` builds `StudentState`
   objects directly and calls `quantum_score()` with a hand-built `ScoringConfig`. Nothing in
   §2 exercises the router, the repository, the persistence layer, or any env flag other than
