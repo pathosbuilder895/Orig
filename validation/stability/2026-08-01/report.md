@@ -1,6 +1,6 @@
 # Length-stability study
 
-_Generated 2026-08-01T16:34:26.719308Z_
+_Generated 2026-08-02T03:39:04.685883Z_
 
 ## Corpus
 
@@ -39,21 +39,21 @@ Features that keep most of their discriminating power on short inputs. Phase-2 w
 | 13 | `stress_entropy_bigram` | 8 | 2.046 | 1.942 | 1.054 |
 | 14 | `stress_entropy_unigram` | 8 | 1.962 | 2.022 | 0.970 |
 | 15 | `breath_group_regularity` | 13 | 0.457 | 0.488 | 0.937 |
-| 16 | `thematic_progression_score` | 2 | 0.099 | 0.109 | 0.908 |
-| 17 | `cohesion_device_ratio` | 2 | 0.969 | 1.077 | 0.900 |
-| 18 | `chiasmus_rate` | 15 | 0.040 | 0.045 | 0.898 |
-| 19 | `semantic_field_dispersion` | 10 | 0.093 | 0.110 | 0.844 |
-| 20 | `first_person_ratio` | 3 | 0.931 | 1.224 | 0.761 |
-| 21 | `noun_verb_ratio` | 5 | 0.269 | 0.372 | 0.724 |
-| 22 | `article_omission_rate` | 14 | 0.309 | 0.428 | 0.723 |
-| 23 | `burstiness` | 7 | 0.396 | 0.567 | 0.699 |
-| 24 | `semicolon_colon_rate` | 4 | 0.631 | 0.921 | 0.686 |
-| 25 | `assertion_density` | 3 | 0.254 | 0.376 | 0.675 |
-| 26 | `lexical_chain_density` | 2 | 0.419 | 0.652 | 0.642 |
-| 27 | `arc_resolution_score` | 13 | 0.082 | 0.129 | 0.638 |
-| 28 | `conclusion_strategy_score` | 3 | 0.135 | 0.228 | 0.590 |
-| 29 | `subordination_ratio` | 5 | 0.239 | 0.406 | 0.588 |
-| 30 | `filler_hedge_cluster_rate` | 7 | 0.110 | 0.188 | 0.586 |
+| 16 | `cohesion_device_ratio` | 2 | 0.969 | 1.077 | 0.900 |
+| 17 | `chiasmus_rate` | 15 | 0.040 | 0.045 | 0.898 |
+| 18 | `semantic_field_dispersion` | 10 | 0.093 | 0.110 | 0.844 |
+| 19 | `first_person_ratio` | 3 | 0.931 | 1.224 | 0.761 |
+| 20 | `noun_verb_ratio` | 5 | 0.269 | 0.372 | 0.724 |
+| 21 | `article_omission_rate` | 14 | 0.309 | 0.428 | 0.723 |
+| 22 | `burstiness` | 7 | 0.396 | 0.567 | 0.699 |
+| 23 | `semicolon_colon_rate` | 4 | 0.631 | 0.921 | 0.686 |
+| 24 | `assertion_density` | 3 | 0.254 | 0.376 | 0.675 |
+| 25 | `lexical_chain_density` | 2 | 0.419 | 0.652 | 0.642 |
+| 26 | `arc_resolution_score` | 13 | 0.082 | 0.129 | 0.638 |
+| 27 | `conclusion_strategy_score` | 3 | 0.135 | 0.228 | 0.590 |
+| 28 | `subordination_ratio` | 5 | 0.239 | 0.406 | 0.588 |
+| 29 | `filler_hedge_cluster_rate` | 7 | 0.110 | 0.188 | 0.586 |
+| 30 | `claim_density` | 3 | 0.214 | 0.365 | 0.585 |
 
 ## Bottom 20 length-fragile features (F(500) / F(5000) ascending)
 
@@ -89,7 +89,7 @@ Mean Fisher ratio per tier across the 5 length buckets. **HOLDS** = stability ra
 | tier | n features | mean F(250) | mean F(500) | mean F(1000) | mean F(2000) | mean F(5000) | mean ratio | flag |
 |---|---|---|---|---|---|---|---|---|
 | 1 | 9 | 0.504 | 0.600 | 0.443 | 0.619 | 0.949 | 1.311 | HOLDS |
-| 2 | 13 | 0.310 | 0.261 | 0.230 | 0.385 | 0.524 | 1.824 | HOLDS |
+| 2 | 13 | 0.318 | 0.260 | 0.224 | 0.394 | 0.535 | 1.783 | HOLDS |
 | 3 | 12 | 0.232 | 0.290 | 0.409 | 0.501 | 0.551 | 0.611 | DEGRADES |
 | 4 | 7 | 0.416 | 0.558 | 0.613 | 1.125 | 1.588 | 0.334 | DEGRADES |
 | 5 | 7 | 0.239 | 0.288 | 0.398 | 0.688 | 1.386 | 0.362 | DEGRADES |
