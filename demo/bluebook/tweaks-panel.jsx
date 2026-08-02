@@ -3,10 +3,18 @@ import React from 'react';
 // tweaks-panel.jsx
 // Reusable Tweaks shell + form-control helpers.
 //
-// Owns the host protocol (listens for __activate_edit_mode / __deactivate_edit_mode,
-// posts __edit_mode_available / __edit_mode_set_keys / __edit_mode_dismissed) so
-// individual prototypes don't re-roll it. Ships a consistent set of controls so you
-// don't hand-draw <input type="range">, segmented radios, steppers, etc.
+// Owns the host protocol's inbound half (listens for __activate_edit_mode /
+// __deactivate_edit_mode) so individual prototypes don't re-roll it. The
+// outbound half — __edit_mode_available / __edit_mode_set_keys /
+// __edit_mode_dismissed posted to window.parent — is deliberately gone:
+// nothing in this repo listens for those messages (they fed a prototype-host
+// toolbar that is not part of the product), and Bluebook runs inside an LMS
+// iframe (Canvas via LTI), where a '*'-targeted parent post hands every
+// screen change to whatever origin embeds the page. Do not reintroduce a
+// window.parent.postMessage here — e2e/parent-postmessage.spec.mjs asserts
+// the embedding page hears nothing.
+// Ships a consistent set of controls so you don't hand-draw
+// <input type="range">, segmented radios, steppers, etc.
 //
 // Usage (in an HTML file that loads React + Babel):
 //
@@ -158,32 +166,30 @@ const __TWEAKS_STYLE = `
 `;
 
 // ── useTweaks ───────────────────────────────────────────────────────────────
-// Single source of truth for tweak values. setTweak persists via the host
-// (__edit_mode_set_keys → host rewrites the EDITMODE block on disk).
+// Single source of truth for tweak values. In-memory only — edits are not
+// persisted anywhere. App.navigate() is a setTweak('currentScreen', …) call,
+// so this hook runs on every screen change for every visitor, dev gate or
+// not: it must stay free of parent postMessage (see header).
 export function useTweaks(defaults) {
   const [values, setValues] = React.useState(defaults);
   // Accepts either setTweak('key', value) or setTweak({ key: value, ... }) so a
-  // useState-style call doesn't write a "[object Object]" key into the persisted
-  // JSON block.
+  // useState-style call doesn't write a "[object Object]" key into the values.
   const setTweak = React.useCallback((keyOrEdits, val) => {
     const edits = typeof keyOrEdits === 'object' && keyOrEdits !== null
       ? keyOrEdits : { [keyOrEdits]: val };
     setValues((prev) => ({ ...prev, ...edits }));
-    window.parent.postMessage({ type: '__edit_mode_set_keys', edits }, '*');
     // Same-window signal so in-page listeners (deck-stage rail thumbnails)
-    // can react — the parent message only reaches the host, not peers.
+    // can react.
     window.dispatchEvent(new CustomEvent('tweakchange', { detail: edits }));
   }, []);
   return [values, setTweak];
 }
 
 // ── TweaksPanel ─────────────────────────────────────────────────────────────
-// Floating shell. Registers the protocol listener BEFORE announcing
-// availability — if the announce ran first, the host's activate could land
-// before our handler exists and the toolbar toggle would silently no-op.
-// The close button posts __edit_mode_dismissed so the host's toolbar toggle
-// flips off in lockstep; the host echoes __deactivate_edit_mode back which
-// is what actually hides the panel.
+// Floating shell. Opens on an __activate_edit_mode message from this window,
+// closes on __deactivate_edit_mode or its own close button. It neither
+// announces availability to window.parent nor reports dismissal there —
+// the outbound protocol is gone (see header), so dismissal is local.
 export function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
   const [open, setOpen] = React.useState(false);
   const dragRef = React.useRef(null);
@@ -256,14 +262,10 @@ export function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children
       else if (t === '__deactivate_edit_mode') setOpen(false);
     };
     window.addEventListener('message', onMsg);
-    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
     return () => window.removeEventListener('message', onMsg);
   }, []);
 
-  const dismiss = () => {
-    setOpen(false);
-    window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*');
-  };
+  const dismiss = () => setOpen(false);
 
   const onDragStart = (e) => {
     const panel = dragRef.current;
