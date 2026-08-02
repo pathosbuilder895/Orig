@@ -9,17 +9,19 @@
  * hot-fixed). Until then, failures here are signal to read, not a gate.
  *
  * Scope: the Bluebook screens the professor journey touches (Landing, Login,
- * Dashboard, Examinations, Courses, Students, Results, NewExam), the student
- * Briefing screen, and — added with T10 — the Proctor screen in both its idle
- * and code-projected states plus the standalone parked.html a student's phone
- * holds. professor.html/operator.html (legacy, non-Bluebook) are out of scope
- * — WS-8's React migration doesn't cover them, so there's no promotion path
- * to hang a blocking gate on.
+ * Dashboard, Examinations, Courses, Students, Results, NewExam in both its
+ * has-courses and no-courses-yet shapes), the student Briefing screen, and —
+ * added with T10 — the Proctor screen in both its idle and code-projected
+ * states plus the standalone parked.html a student's phone holds.
+ * professor.html/operator.html (legacy, non-Bluebook) are out of scope — WS-8's
+ * React migration doesn't cover them, so there's no promotion path to hang a
+ * blocking gate on.
  */
 
 import { test as base, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { test as tenancyTest } from './fixtures/tenancy.mjs'
+import { createCourse, provisionTenantWithStaff, staffStorageState } from './fixtures/api-setup.mjs'
 
 /**
  * Wait until the screen has stopped moving, so axe measures the UI a person
@@ -201,15 +203,45 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
     checkA11y(results, 'Proctor (code projected)')
   })
 
-  tenancyTest('New Examination screen', async ({ staffPage }) => {
+  // New Examination has two shapes, because its Course field is now fed by
+  // GET /bluebook/courses (NewExam.jsx) rather than a hardcoded list: a
+  // <select> once the professor has courses, and a typed code plus a pointer
+  // to the Courses screen when they don't. Both are screens a real professor
+  // reaches — the second is what every first-run professor sees — so both are
+  // scanned, and each is put in a state it cannot drift out of rather than
+  // taking whatever this worker's tenant happens to hold.
+  tenancyTest('New Examination screen', async ({ staffPage, workerTenant, request }) => {
+    await createCourse(request, workerTenant.staff.token, { code: 'A11Y 100', name: 'A11y Scan Course' })
     await staffPage.goto('/bluebook/')
     await staffPage.waitForLoadState('networkidle')
     await staffPage.getByRole('button', { name: 'Examinations' }).click()
     await expect(staffPage.getByRole('heading', { name: 'Examinations' })).toBeVisible()
     await staffPage.getByRole('button', { name: '+ New Examination' }).click()
     await expect(staffPage.getByRole('heading', { name: 'New Examination' })).toBeVisible()
+    // The picker itself, not the empty-state fallback — settle() would
+    // otherwise be timing the difference rather than the animation.
+    await expect(staffPage.locator('#neCourse')).toHaveJSProperty('tagName', 'SELECT')
     const results = await runAxe(staffPage)
     checkA11y(results, 'New Examination')
+  })
+
+  // A tenant of its own, not this worker's: the worker tenant accumulates
+  // courses from the tests above and from professor-journey.spec.mjs, so a
+  // genuinely empty roster has to be provisioned rather than assumed.
+  tenancyTest('New Examination screen (no courses yet)', async ({ browser, baseURL, request }) => {
+    const { staff } = await provisionTenantWithStaff(request)
+    const context = await browser.newContext({ storageState: staffStorageState(baseURL, staff) })
+    const page = await context.newPage()
+    await page.goto('/bluebook/')
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: 'Examinations' }).click()
+    await expect(page.getByRole('heading', { name: 'Examinations' })).toBeVisible()
+    await page.getByRole('button', { name: '+ New Examination' }).click()
+    await expect(page.getByRole('heading', { name: 'New Examination' })).toBeVisible()
+    await expect(page.getByText('No courses yet')).toBeVisible({ timeout: 10_000 })
+    const results = await runAxe(page)
+    checkA11y(results, 'New Examination (no courses yet)')
+    await context.close()
   })
 })
 
