@@ -453,6 +453,16 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     // there was no baseline yet to compare against, so ai_score is null.
     // This is the actual reachable cold-start shape -- not a submission with
     // no uuid at all, which the real Exam.jsx flow never produces.
+    //
+    // The uuid MUST be unique per run, not a fixed literal: submission_uuid
+    // carries a global UNIQUE index (it is the seal idempotency key and is
+    // deliberately NOT tenant-scoped), so a hardcoded value would be replayed
+    // rather than inserted on any second run against the same database --
+    // the POST would still return 200, but it would hand back the *previous*
+    // run's row in a different tenant, and this tenant's Results screen would
+    // never show the candidate. Deriving it from the per-worker tenant id
+    // (itself pid+timestamp-unique, see fixtures/api-setup.mjs:unique) keeps
+    // the row genuinely new every run.
     const headers = staffAuth(workerTenant)
     const res = await request.post('/bluebook/submissions', {
       headers,
@@ -464,7 +474,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
         word_count: 10,
         time_min: 1,
         status: 'SUBMITTED',
-        submission_uuid: 'cold-start-seal-uuid',
+        submission_uuid: `cold-start-seal-${workerTenant.tenant.tenant_id}`,
         ai_score: null,
       },
     })
