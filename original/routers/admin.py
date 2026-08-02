@@ -247,13 +247,22 @@ def submit_correction(submission_id: str, req: CorrectionRequest, request: Reque
 
 @router.get("/admin/corrections", response_model=CorrectionListResponse)
 def admin_list_corrections(
+    request: Request,
     submission_id: str | None = None,
     student_id: str | None = None,
     is_correct: bool | None = None,
     limit: int = 100,
     offset: int = 0,
 ):
-    """List corrections with optional filters."""
+    """List corrections with optional filters.
+
+    Staff-only on the same grounds as /admin/audit: the tenant-isolation
+    middleware already 401s anonymous callers on real deploys
+    (tests/test_pilot_lockdown), and the explicit guard here additionally
+    rejects STUDENT tokens in the demo — correction rows carry other
+    students' identifiers.
+    """
+    _require_staff(request)
     if limit < 1 or limit > 1000:
         raise HTTPException(status_code=422, detail="limit must be in [1, 1000]")
     if offset < 0:
