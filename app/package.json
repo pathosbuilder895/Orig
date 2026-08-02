@@ -13,7 +13,7 @@
     "gen:client": "openapi-typescript http://localhost:8001/openapi.json -o src/api/schema.d.ts"
   },
   "dependencies": {
-    "react": "^19.2.7",
+    "react": "^19.2.8",
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
