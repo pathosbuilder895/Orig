@@ -14,7 +14,7 @@ import json
 import logging
 import os
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -301,12 +301,41 @@ def _get_conn() -> sqlite3.Connection:
             stylometric   INTEGER,
             ai_score      INTEGER,
             status        TEXT NOT NULL DEFAULT 'SUBMITTED',
-            created_at    TEXT NOT NULL
+            created_at    TEXT NOT NULL,
+            submission_uuid TEXT,
+            late          INTEGER DEFAULT 0
         )
     """)
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_bluebook_subs_tenant
             ON bluebook_submissions(tenant_id, created_at)
+    """)
+    # In-place upgrade for pre-existing DBs (no migration ladder yet —
+    # PRAGMA-guarded ALTERs, kept in sync with the fresh CREATE above).
+    _sub_cols = {r[1] for r in conn.execute("PRAGMA table_info(bluebook_submissions)")}
+    if "submission_uuid" not in _sub_cols:
+        conn.execute("ALTER TABLE bluebook_submissions ADD COLUMN submission_uuid TEXT")
+    if "late" not in _sub_cols:
+        conn.execute("ALTER TABLE bluebook_submissions ADD COLUMN late INTEGER DEFAULT 0")
+    # Partial unique index (ADD COLUMN can't carry UNIQUE): seal replays with
+    # the same client submission_uuid must not create a second row.
+    conn.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_bluebook_subs_uuid
+            ON bluebook_submissions(submission_uuid)
+            WHERE submission_uuid IS NOT NULL
+    """)
+    # Bluebook sessions — one row per (exam, student) sitting, pinning the
+    # immutable server deadline (exam-day robustness spec §1). The first
+    # insert wins; reopening the exam can never restart or pause the clock.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bluebook_sessions (
+            exam_id     TEXT NOT NULL,
+            student_key TEXT NOT NULL,
+            tenant_id   TEXT NOT NULL,
+            started_at  TEXT NOT NULL,
+            deadline_at TEXT NOT NULL,
+            PRIMARY KEY (exam_id, student_key)
+        )
     """)
     # Bluebook courses — instructor-created, tenant-scoped course records.
     conn.execute("""
@@ -1971,6 +2000,8 @@ def _bluebook_sub_to_dict(row) -> dict:
         "aiScore": row[10],
         "status": row[11],
         "created_at": row[12],
+        "submission_uuid": row[13],
+        "late": row[14] or 0,
     }
 
 
@@ -1982,8 +2013,8 @@ def put_bluebook_submission(rec: dict) -> None:
                 """INSERT INTO bluebook_submissions
                      (submission_id, exam_id, tenant_id, student_id, candidate,
                       exam_title, course, word_count, time_min, stylometric,
-                      ai_score, status, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                      ai_score, status, created_at, submission_uuid, late)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     rec["id"],
                     rec.get("exam_id"),
@@ -1998,6 +2029,8 @@ def put_bluebook_submission(rec: dict) -> None:
                     rec.get("ai_score"),
                     rec.get("status", "SUBMITTED"),
                     created_at,
+                    rec.get("submission_uuid"),
+                    rec.get("late", 0),
                 ),
             )
             conn.commit()
@@ -2009,7 +2042,8 @@ def put_bluebook_submission(rec: dict) -> None:
 def list_bluebook_submissions(tenant_id: str | None) -> list[dict]:
     cols = (
         "submission_id, exam_id, tenant_id, student_id, candidate, exam_title, "
-        "course, word_count, time_min, stylometric, ai_score, status, created_at"
+        "course, word_count, time_min, stylometric, ai_score, status, created_at, "
+        "submission_uuid, late"
     )
     try:
         with _get_conn() as conn:
@@ -2027,6 +2061,88 @@ def list_bluebook_submissions(tenant_id: str | None) -> list[dict]:
     except Exception:
         log.exception("list_bluebook_submissions failed for %s", tenant_id)
         return []
+
+
+def get_bluebook_submission_by_uuid(submission_uuid: str) -> dict | None:
+    """Replay lookup for idempotent sealing: a retried seal with the same
+    client submission_uuid gets the prior row back instead of a second write."""
+    cols = (
+        "submission_id, exam_id, tenant_id, student_id, candidate, exam_title, "
+        "course, word_count, time_min, stylometric, ai_score, status, created_at, "
+        "submission_uuid, late"
+    )
+    try:
+        with _get_conn() as conn:
+            row = conn.execute(
+                f"SELECT {cols} FROM bluebook_submissions WHERE submission_uuid = ?",
+                (submission_uuid,),
+            ).fetchone()
+        return _bluebook_sub_to_dict(row) if row else None
+    except Exception:
+        log.exception("get_bluebook_submission_by_uuid failed for %s", submission_uuid)
+        return None
+
+
+def get_or_create_bluebook_session(
+    exam_id: str, student_key: str, tenant_id: str, duration_seconds: int
+) -> dict:
+    """Idempotent per-(exam, student) session: the first call pins started_at/
+    deadline_at; every later call returns the same row unchanged, so reopening
+    the exam can never restart or pause the clock (robustness spec §1)."""
+    now = datetime.now(UTC)
+    started_at = now.isoformat()
+    deadline_at = (now + timedelta(seconds=int(duration_seconds))).isoformat()
+    try:
+        with _get_conn() as conn:
+            cur = conn.execute(
+                """INSERT INTO bluebook_sessions
+                     (exam_id, student_key, tenant_id, started_at, deadline_at)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT(exam_id, student_key) DO NOTHING""",
+                (exam_id, student_key, tenant_id, started_at, deadline_at),
+            )
+            created = cur.rowcount == 1
+            conn.commit()
+            row = conn.execute(
+                "SELECT exam_id, student_key, tenant_id, started_at, deadline_at "
+                "FROM bluebook_sessions WHERE exam_id = ? AND student_key = ?",
+                (exam_id, student_key),
+            ).fetchone()
+        return {
+            "exam_id": row[0],
+            "student_key": row[1],
+            "tenant_id": row[2],
+            "started_at": row[3],
+            "deadline_at": row[4],
+            "created": created,
+        }
+    except sqlite3.Error as e:
+        log.error("get_or_create_bluebook_session failed for %s/%s: %s", exam_id, student_key, e)
+        raise
+
+
+def get_bluebook_session(exam_id: str, student_key: str) -> dict | None:
+    """Read-only session lookup (late-tagging at seal time). None when the
+    sitting was never registered (degrade-open client start)."""
+    try:
+        with _get_conn() as conn:
+            row = conn.execute(
+                "SELECT exam_id, student_key, tenant_id, started_at, deadline_at "
+                "FROM bluebook_sessions WHERE exam_id = ? AND student_key = ?",
+                (exam_id, student_key),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "exam_id": row[0],
+            "student_key": row[1],
+            "tenant_id": row[2],
+            "started_at": row[3],
+            "deadline_at": row[4],
+        }
+    except Exception:
+        log.exception("get_bluebook_session failed for %s/%s", exam_id, student_key)
+        return None
 
 
 def _bluebook_course_to_dict(row) -> dict:

@@ -115,18 +115,20 @@ class TestRepositorySeamWidened:
 
     def test_postgres_repo_db_path_has_no_equivalent(self):
         """
-        WS-6 P3 (repository parity) is in progress: most ``PostgresRepository``
-        methods are implemented and contract-tested against a real Postgres
-        instance (see tests/test_repository_contract.py). ``db_path()`` is a
+        WS-6 P3-P6 (repository parity through decommission) landed 2026-07-17
+        through 2026-07-22: ``PostgresRepository`` implements the full
+        Protocol and is contract-tested against a real Postgres instance (see
+        tests/test_repository_contract.py). ``db_path()`` is the one
         deliberate, permanent exception -- it exists only so SQLite's
         file-based backup tooling (``backup_mod.resolve_backup_dir``) has a
-        path to copy, and Postgres backups need a completely different
-        mechanism (pg_dump / WAL archiving), which is P4 scope, not P3.
+        path to copy, and Postgres backups use a completely different
+        mechanism (pg_dump / WAL archiving / ``scripts/migrate_sqlite_to_pg.py``).
 
-        ``get_repository()`` also still defaults to SQLite when neither
-        REPO_BACKEND nor REPO_SHADOW is set -- the production cutover is P5,
-        deliberately independent of how much of PostgresRepository is
-        implemented.
+        ``get_repository()`` still defaults every environment to SQLite by
+        design -- Postgres activates only via the ``REPO_BACKEND``/
+        ``REPO_SHADOW`` env vars (the P5 cutover mechanism, shipped inert).
+        The production cutover itself is now an operator action per
+        OPS_RUNBOOK, not a pending code phase.
         """
         import original.repository as repository
 

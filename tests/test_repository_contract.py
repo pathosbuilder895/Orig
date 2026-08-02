@@ -1099,6 +1099,25 @@ class TestBluebook:
         assert subs[0]["candidate"] == "Alice"
         assert subs[0]["words"] == 500
 
+    def test_session_deadline_is_pinned(self, repo):
+        first = repo.get_or_create_bluebook_session("ex-c1", "sem:al", "sem", 1800)
+        again = repo.get_or_create_bluebook_session("ex-c1", "sem:al", "sem", 1800)
+        assert first["created"] and not again["created"]
+        assert again["deadline_at"] == first["deadline_at"]
+        assert repo.get_bluebook_session("ex-c1", "sem:al")["deadline_at"] == first["deadline_at"]
+        assert repo.get_bluebook_session("ex-c1", "sem:nobody") is None
+
+    def test_submission_uuid_lookup(self, repo):
+        repo.put_bluebook_submission(
+            {
+                "id": "bbsub-uu", "tenant_id": "sem", "exam_id": "ex-c1",
+                "student_id": "sem:al", "submission_uuid": "uu-contract-1", "late": 1,
+            }
+        )
+        got = repo.get_bluebook_submission_by_uuid("uu-contract-1")
+        assert got["id"] == "bbsub-uu" and got["late"] == 1
+        assert repo.get_bluebook_submission_by_uuid("uu-none") is None
+
     def test_course_put_get_list(self, repo):
         repo.put_bluebook_course(
             {"id": "course-A", "tenant_id": "sem", "name": "Theology 101", "code": "THEO101"}

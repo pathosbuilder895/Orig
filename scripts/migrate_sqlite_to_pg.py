@@ -65,6 +65,7 @@ from original.db.models.live import (
     BaselineRequest,
     BluebookCourse,
     BluebookExam,
+    BluebookSession,
     BluebookSubmission,
     CalibrationRun,
     Correction,
@@ -720,7 +721,8 @@ class _BluebookSubmissionMigrator(_Migrator):
     def read_sqlite(self, conn):
         rows = conn.execute(
             "SELECT submission_id, exam_id, tenant_id, student_id, candidate, exam_title, "
-            "course, word_count, time_min, stylometric, ai_score, status, created_at "
+            "course, word_count, time_min, stylometric, ai_score, status, created_at, "
+            "submission_uuid, late "
             "FROM bluebook_submissions"
         ).fetchall()
         return [
@@ -738,6 +740,8 @@ class _BluebookSubmissionMigrator(_Migrator):
                 "ai_score": r[10],
                 "status": r[11],
                 "created_at": _canon_ts(r[12]),
+                "submission_uuid": r[13],
+                "late": r[14],
             }
             for r in rows
         ]
@@ -762,6 +766,8 @@ class _BluebookSubmissionMigrator(_Migrator):
             ai_score=row["ai_score"],
             status=row["status"],
             created_at=_parse_ts(row["created_at"]),
+            submission_uuid=row["submission_uuid"],
+            late=row["late"],
         )
 
     def read_pg(self, session):
@@ -783,6 +789,8 @@ class _BluebookSubmissionMigrator(_Migrator):
                     "ai_score": s.ai_score,
                     "status": s.status,
                     "created_at": _canon_ts(s.created_at),
+                    "submission_uuid": s.submission_uuid,
+                    "late": s.late,
                 }
             )
         return out
@@ -834,6 +842,63 @@ class _BluebookCourseMigrator(_Migrator):
                 "created_at": _canon_ts(c.created_at),
             }
             for c in session.query(BluebookCourse).all()
+        ]
+
+
+class _BluebookSessionMigrator(_Migrator):
+    name = "bluebook_sessions"
+    model = BluebookSession
+    # bluebook_sessions has no single-column primary key -- a sitting is
+    # identified by (exam_id, student_key) together (see BluebookSession in
+    # db/models/live.py). Two students in the same exam, or one student across
+    # two exams, tie on one of the two columns, so sorting the checksum on
+    # either column alone would leave tied rows in backend read order and make
+    # the digest order-dependent. "session_key" is a canonical-form-only sort
+    # key (never a real column on either backend), built identically from both
+    # sides -- the same convention _ParkBeatMigrator uses for its
+    # (park_token, student_hint) key.
+    pk = "session_key"
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(
+            "SELECT exam_id, student_key, tenant_id, started_at, deadline_at "
+            "FROM bluebook_sessions"
+        ).fetchall()
+        return [
+            {
+                "session_key": f"{r[0]}:{r[1]}",
+                "exam_id": r[0],
+                # student_key is stored as an opaque flat string in BOTH
+                # schemas (unlike student_id elsewhere) -- the live model has
+                # no tenant/local split for it, so no _split_local here.
+                "student_key": r[1],
+                "tenant_id": r[2],
+                "started_at": _canon_ts(r[3]),
+                "deadline_at": _canon_ts(r[4]),
+            }
+            for r in rows
+        ]
+
+    def to_model(self, row):
+        return BluebookSession(
+            exam_id=row["exam_id"],
+            student_key=row["student_key"],
+            tenant_id=row["tenant_id"],
+            started_at=_parse_ts(row["started_at"]),
+            deadline_at=_parse_ts(row["deadline_at"]),
+        )
+
+    def read_pg(self, session):
+        return [
+            {
+                "session_key": f"{s.exam_id}:{s.student_key}",
+                "exam_id": s.exam_id,
+                "student_key": s.student_key,
+                "tenant_id": s.tenant_id,
+                "started_at": _canon_ts(s.started_at),
+                "deadline_at": _canon_ts(s.deadline_at),
+            }
+            for s in session.query(BluebookSession).all()
         ]
 
 
@@ -1131,6 +1196,7 @@ MIGRATORS: list[_Migrator] = [
     _BluebookExamMigrator(),
     _BluebookSubmissionMigrator(),
     _BluebookCourseMigrator(),
+    _BluebookSessionMigrator(),
     _AuditMigrator(),
     _FormationMigrator(),
     _BaselineRequestMigrator(),

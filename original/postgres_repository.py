@@ -36,6 +36,7 @@ from .db.models.live import (
     BaselineRequest,
     BluebookCourse,
     BluebookExam,
+    BluebookSession,
     BluebookSubmission,
     CalibrationRun,
     Correction,
@@ -1538,6 +1539,8 @@ class PostgresRepository:
             "aiScore": row.ai_score,
             "status": row.status,
             "created_at": row.created_at.isoformat(),
+            "submission_uuid": row.submission_uuid,
+            "late": row.late,
         }
 
     def put_bluebook_submission(self, rec):
@@ -1561,6 +1564,8 @@ class PostgresRepository:
                         ai_score=rec.get("ai_score"),
                         status=rec.get("status", "SUBMITTED"),
                         created_at=datetime.now(UTC),
+                        submission_uuid=rec.get("submission_uuid"),
+                        late=rec.get("late", 0),
                     )
                 )
         except Exception as e:
@@ -1582,6 +1587,75 @@ class PostgresRepository:
         except Exception:
             log.exception("list_bluebook_submissions failed for %s", tenant_id)
             return []
+
+    def get_bluebook_submission_by_uuid(self, submission_uuid):
+        try:
+            with session_scope() as session:
+                stmt = select(BluebookSubmission).where(
+                    BluebookSubmission.submission_uuid == submission_uuid
+                )
+                row = session.execute(stmt).scalar_one_or_none()
+                return self._bluebook_sub_to_dict(row) if row else None
+        except Exception:
+            log.exception("get_bluebook_submission_by_uuid failed for %s", submission_uuid)
+            return None
+
+    @staticmethod
+    def _bluebook_session_to_dict(row: BluebookSession, created: bool) -> dict:
+        return {
+            "exam_id": row.exam_id,
+            "student_key": row.student_key,
+            "tenant_id": row.tenant_id,
+            "started_at": row.started_at.isoformat(),
+            "deadline_at": row.deadline_at.isoformat(),
+            "created": created,
+        }
+
+    def get_or_create_bluebook_session(self, exam_id, student_key, tenant_id, duration_seconds):
+        from datetime import timedelta
+
+        try:
+            with session_scope() as session:
+                self._ensure_tenant_exists(session, tenant_id)
+                now = datetime.now(UTC)
+                deadline = now + timedelta(seconds=int(duration_seconds))
+                stmt = (
+                    pg_insert(BluebookSession)
+                    .values(
+                        exam_id=exam_id,
+                        student_key=student_key,
+                        tenant_id=tenant_id,
+                        started_at=now,
+                        deadline_at=deadline,
+                    )
+                    .on_conflict_do_nothing(index_elements=["exam_id", "student_key"])
+                )
+                result = session.execute(stmt)
+                created = result.rowcount == 1
+                row = session.get(BluebookSession, (exam_id, student_key))
+                return self._bluebook_session_to_dict(row, created)
+        except Exception as e:
+            log.error(
+                "get_or_create_bluebook_session failed for %s/%s: %s", exam_id, student_key, e
+            )
+            raise
+
+    def get_bluebook_session(self, exam_id, student_key):
+        try:
+            with session_scope() as session:
+                row = session.get(BluebookSession, (exam_id, student_key))
+                if row is None:
+                    return None
+                return {
+                    "exam_id": row.exam_id,
+                    "student_key": row.student_key,
+                    "tenant_id": row.tenant_id,
+                    "started_at": row.started_at.isoformat(),
+                    "deadline_at": row.deadline_at.isoformat(),
+                }
+        except Exception:
+            log.exception("get_bluebook_session failed for %s/%s", exam_id, student_key)
+            return None
 
     @staticmethod
     def _bluebook_course_to_dict(row: BluebookCourse) -> dict:

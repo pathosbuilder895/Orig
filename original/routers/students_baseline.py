@@ -26,6 +26,25 @@ router = APIRouter()
 # ── Add baseline sample ───────────────────────────────────────────────────────
 
 
+def _existing_text_hashes(student_id: str) -> set[str]:
+    """SHA-256 hashes of every baseline sample's text for dedup, covering both
+    batch-uploaded samples (which carry .text_hash) and paste-added ones
+    (hashed from .text here). Missing student → empty set, never created."""
+    import hashlib as _hashlib
+
+    state = _repo().get(student_id)
+    if state is None:
+        return set()
+    hashes: set[str] = set()
+    for s in state.samples:
+        h = getattr(s, "text_hash", None)
+        if not h and getattr(s, "text", None):
+            h = _hashlib.sha256(s.text.encode()).hexdigest()
+        if h:
+            hashes.add(h)
+    return hashes
+
+
 @router.post("/students/{student_id}/baseline")
 def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None):
     if req.provenance not in AUTH_WEIGHTS:
@@ -38,6 +57,25 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
     auth_weight = AUTH_WEIGHTS[provenance]
 
     state = _repo().get_or_create(student_id)
+
+    # Seal-replay guard (robustness spec §2, seal step 2): a retried baseline
+    # upload carrying the same submission_uuid must not double-count an
+    # identical text as a second sample.
+    if req.submission_uuid:
+        import hashlib
+
+        text_hash = hashlib.sha256(req.text.encode()).hexdigest()
+        if text_hash in _existing_text_hashes(student_id):
+            return {
+                "skipped": True,
+                "reason": "duplicate_text",
+                "student_id": student_id,
+                "sample_index": state.sample_count - 1,
+                "provenance": req.provenance,
+                "authenticated_count": state.authenticated_count,
+                "purity": state.purity,
+            }
+
     vec = feature_vector(req.text, keystroke_data=req.keystroke_data)
 
     # Genre label — classify the text at ingestion time so the Hierarchical

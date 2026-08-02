@@ -214,6 +214,11 @@ class Repository(Protocol):
     def list_bluebook_exams(self, tenant_id: str | None) -> list[dict]: ...
     def put_bluebook_submission(self, rec: dict) -> None: ...
     def list_bluebook_submissions(self, tenant_id: str | None) -> list[dict]: ...
+    def get_bluebook_submission_by_uuid(self, submission_uuid: str) -> dict | None: ...
+    def get_or_create_bluebook_session(
+        self, exam_id: str, student_key: str, tenant_id: str, duration_seconds: int
+    ) -> dict: ...
+    def get_bluebook_session(self, exam_id: str, student_key: str) -> dict | None: ...
     def put_bluebook_course(self, rec: dict) -> None: ...
     def list_bluebook_courses(self, tenant_id: str | None) -> list[dict]: ...
 
@@ -595,6 +600,19 @@ class SqliteRepository:
     def list_bluebook_submissions(self, tenant_id: str | None) -> list[dict]:
         return store.list_bluebook_submissions(tenant_id)
 
+    def get_bluebook_submission_by_uuid(self, submission_uuid: str) -> dict | None:
+        return store.get_bluebook_submission_by_uuid(submission_uuid)
+
+    def get_or_create_bluebook_session(
+        self, exam_id: str, student_key: str, tenant_id: str, duration_seconds: int
+    ) -> dict:
+        return store.get_or_create_bluebook_session(
+            exam_id, student_key, tenant_id, duration_seconds
+        )
+
+    def get_bluebook_session(self, exam_id: str, student_key: str) -> dict | None:
+        return store.get_bluebook_session(exam_id, student_key)
+
     def put_bluebook_course(self, rec: dict) -> None:
         store.put_bluebook_course(rec)
 
@@ -724,6 +742,7 @@ _WRITE_METHODS = frozenset(
         "put_user",
         "put_bluebook_exam",
         "put_bluebook_submission",
+        "get_or_create_bluebook_session",
         "put_bluebook_course",
         "log_audit",
         "open_formation_pathway",
