@@ -1630,3 +1630,321 @@ class TestG6NativeEnglishLoader:
         a = _load_g6_native_english_texts()
         b = _load_g6_native_english_texts()
         assert a == b
+
+
+# ── Task 9: corpus-group-scoped pooled calibration (G1/G6 payoff) ──────────────
+#
+# Pure helpers only. _score_corpus_for_g1's real G1 leg scores THREE
+# different corpora (seminary + public_authors + Plato) under one flat
+# "demo:" sid prefix, so collect_tenant_distances's tenant-string matching
+# cannot separate them -- a naive pooled call would mix 5 modern seminary
+# students, 19 ancient-Greek-in-translation dialogues, and a handful of
+# 19th-century public authors into one reference set, silently violating the
+# only exchangeability evidence that exists (Task 7 validated within-seminary
+# and within-Plato separately, never their union, and never public_authors at
+# all). These helpers make the group boundary an explicit, testable value
+# instead of an implicit property of sid strings.
+
+
+class TestGroupEntitiesForPooling:
+    def test_entities_from_different_loaders_land_in_different_groups(self):
+        from validation.calibration_gate import _group_entities_for_pooling
+
+        seminary = {"seminary_group_0": ["a"], "seminary_group_1": ["b"]}
+        plato = {"plato_republic": ["c"]}
+        public_authors = {"augustine": ["d"]}
+
+        group_of = _group_entities_for_pooling(seminary, plato, public_authors)
+
+        assert group_of["seminary_group_0"] == "seminary"
+        assert group_of["seminary_group_1"] == "seminary"
+        assert group_of["plato_republic"] == "plato"
+        assert group_of["augustine"] == "public_authors"
+
+    def test_entity_ids_with_no_distinguishing_prefix_are_grouped_by_loader_membership(self):
+        """Public-author entity ids ("augustine", "mill", ...) carry no
+        prefix that a sid-parsing approach could use to infer their group --
+        this must come purely from which loader dict produced them."""
+        from validation.calibration_gate import _group_entities_for_pooling
+
+        group_of = _group_entities_for_pooling({}, {}, {"augustine": ["x"], "mill": ["y"]})
+
+        assert group_of == {"augustine": "public_authors", "mill": "public_authors"}
+
+    def test_every_loaded_entity_is_present_exactly_once(self):
+        from validation.calibration_gate import _group_entities_for_pooling
+
+        seminary = {"s0": ["a"]}
+        plato = {"p0": ["b"], "p1": ["c"]}
+        public_authors = {"pa0": ["d"]}
+
+        group_of = _group_entities_for_pooling(seminary, plato, public_authors)
+
+        assert set(group_of) == {"s0", "p0", "p1", "pa0"}
+
+
+class TestPoolPeersForEntity:
+    def test_same_group_pool_excludes_other_groups(self):
+        from validation.calibration_gate import _pool_peers_for_entity
+
+        group_of = {
+            "seminary_group_0": "seminary",
+            "seminary_group_1": "seminary",
+            "plato_republic": "plato",
+        }
+        entity_states = {
+            "seminary_group_0": "state0",
+            "seminary_group_1": "state1",
+            "plato_republic": "state_plato",
+        }
+
+        pool = _pool_peers_for_entity("seminary_group_0", group_of, entity_states)
+
+        assert pool == {"seminary_group_1": "state1"}
+        assert "plato_republic" not in pool
+
+    def test_pool_excludes_the_entity_itself(self):
+        from validation.calibration_gate import _pool_peers_for_entity
+
+        group_of = {"a": "g", "b": "g", "c": "g"}
+        entity_states = {"a": 1, "b": 2, "c": 3}
+
+        pool = _pool_peers_for_entity("a", group_of, entity_states)
+
+        assert "a" not in pool
+        assert pool == {"b": 2, "c": 3}
+
+    def test_pool_is_empty_when_entity_is_alone_in_its_group(self):
+        from validation.calibration_gate import _pool_peers_for_entity
+
+        group_of = {"solo": "public_authors", "other": "plato"}
+        entity_states = {"solo": 1, "other": 2}
+
+        pool = _pool_peers_for_entity("solo", group_of, entity_states)
+
+        assert pool == {}
+
+    def test_entity_missing_from_entity_states_still_excludes_self_by_id(self):
+        """entity_states need not contain every group member (e.g. an entity
+        that failed to build a reference state) -- the exclusion is keyed on
+        entity_id, not on membership in entity_states."""
+        from validation.calibration_gate import _pool_peers_for_entity
+
+        group_of = {"a": "g", "b": "g"}
+        entity_states = {"b": "state_b"}  # "a" never built a reference state
+
+        pool = _pool_peers_for_entity("a", group_of, entity_states)
+
+        assert pool == {"b": "state_b"}
+
+
+class TestPooledReferenceArithmetic:
+    """Step 1's reachability arithmetic, worked out purely from text counts
+    -- no HTTP, no scoring -- so reachability can be asserted before any
+    real corpus run. Mirrors original/quantum/state.py's loo_distances:
+    each qualifying peer entity contributes exactly len(texts) leave-one-out
+    distances once pooled (one per its own contributing baseline sample)."""
+
+    def test_seminary_shaped_group_is_unreachable_at_g1_threshold(self):
+        from original.quantum.typicality import NO_ACTION_FAR_THRESHOLD
+        from validation.calibration_gate import (
+            _group_entities_for_pooling,
+            _pooled_reference_arithmetic,
+            _threshold_reachable,
+        )
+
+        seminary = {f"seminary_group_{i}": ["t"] * 5 for i in range(5)}
+        group_of = _group_entities_for_pooling(seminary, {}, {})
+        sizes = {k: len(v) for k, v in seminary.items()}
+
+        arithmetic = _pooled_reference_arithmetic(group_of, sizes)
+
+        assert len(arithmetic) == 5
+        for entity_id, info in arithmetic.items():
+            assert info["pool_n"] == 20  # 4 peers x 5 texts each
+            assert info["n_peers"] == 4
+            assert _threshold_reachable(info["pool_n"], NO_ACTION_FAR_THRESHOLD) is False
+
+    def test_larger_group_can_be_reachable(self):
+        from original.quantum.typicality import NO_ACTION_FAR_THRESHOLD
+        from validation.calibration_gate import (
+            _pooled_reference_arithmetic,
+            _threshold_reachable,
+        )
+
+        group_of = {f"e{i}": "plato" for i in range(19)}
+        sizes = {f"e{i}": 10 for i in range(19)}
+
+        arithmetic = _pooled_reference_arithmetic(group_of, sizes)
+
+        for info in arithmetic.values():
+            assert info["pool_n"] == 180  # 18 peers x 10 texts each
+            assert _threshold_reachable(info["pool_n"], NO_ACTION_FAR_THRESHOLD) is True
+
+    def test_entities_below_min_size_do_not_participate_as_scored_or_peer(self):
+        from validation.calibration_gate import _pooled_reference_arithmetic
+
+        group_of = {"a": "g", "b": "g"}
+        sizes = {"a": 5, "b": 3}  # "b" below the default min_size=5 LOO bar
+
+        arithmetic = _pooled_reference_arithmetic(group_of, sizes)
+
+        assert "b" not in arithmetic  # never scored
+        assert arithmetic["a"]["pool_n"] == 0  # and never usable as a peer
+        assert arithmetic["a"]["n_peers"] == 0
+
+    def test_disjoint_groups_never_pool_together(self):
+        from validation.calibration_gate import _pooled_reference_arithmetic
+
+        group_of = {"s0": "seminary", "p0": "plato", "p1": "plato"}
+        sizes = {"s0": 5, "p0": 6, "p1": 7}
+
+        arithmetic = _pooled_reference_arithmetic(group_of, sizes)
+
+        assert arithmetic["s0"]["pool_n"] == 0  # sole seminary entity: no peers
+        assert arithmetic["p0"]["pool_n"] == 7  # only the other Plato entity
+        assert arithmetic["p1"]["pool_n"] == 6
+
+
+class _FakePooledResponse:
+    def __init__(self, status_code):
+        self.status_code = status_code
+
+    def json(self):
+        return {}
+
+
+class _FakePooledClient:
+    """Stand-in scoring client for the pooled G1/G6 orchestration tests.
+    Only .post() for /baseline is exercised -- the pooled-mode functions
+    score by calling original.quantum.scoring.score() directly (see their
+    docstrings for why: original/routers/students_scoring.py never threads
+    pooled_states into quantum_score()), so no /score URL is ever hit here.
+    """
+
+    def post(self, url, json=None):
+        assert not url.endswith("/score"), "pooled-mode scoring must bypass the HTTP /score endpoint"
+        return _FakePooledResponse(200)
+
+
+class TestScoreCorpusForG1PooledGroupSegregation:
+    """The trap this task exists to catch, exercised at the orchestration
+    level (not just the pure helper in isolation): a fold's pooled
+    reference, as actually passed to score(), must never include another
+    corpus group's entities -- even though every sid in this leg shares the
+    flat "demo:" tenant prefix that collect_tenant_distances alone cannot
+    use to tell the corpora apart."""
+
+    def test_pooled_states_passed_to_score_never_cross_a_group_boundary(self, monkeypatch):
+        import types
+
+        from validation import calibration_gate as gate
+
+        calls = []
+
+        def fake_get(sid):
+            return sid  # non-None sentinel; identity is all this test needs
+
+        def fake_extract_features(text, keystroke_data=None):
+            return {}
+
+        def fake_feature_vector(text, keystroke_data=None):
+            return [0.5]
+
+        def fake_score(
+            *,
+            state,
+            submission_vector,
+            feature_dict,
+            submission_id,
+            scoring_config,
+            pooled_states,
+            student_id,
+        ):
+            calls.append({"student_id": student_id, "pooled_states": dict(pooled_states)})
+            result = types.SimpleNamespace()
+            result.recommendation = types.SimpleNamespace(action="no_action")
+            result.authorship = types.SimpleNamespace(deviation_score=0.0)
+            result.typicality_n = len(pooled_states)
+            result.typicality_calibration = "pooled" if pooled_states else "self"
+            return result
+
+        monkeypatch.setattr("original.store.get", fake_get)
+        monkeypatch.setattr("original.features.pipeline.extract_features", fake_extract_features)
+        monkeypatch.setattr("original.features.pipeline.feature_vector", fake_feature_vector)
+        monkeypatch.setattr("original.quantum.scoring.score", fake_score)
+
+        texts_by_id = {
+            "seminary_group_0": ["s"] * 5,
+            "seminary_group_1": ["s"] * 5,
+            "plato_republic": ["p"] * 6,
+            "plato_timaeus": ["p"] * 6,
+        }
+        group_of = {
+            "seminary_group_0": "seminary",
+            "seminary_group_1": "seminary",
+            "plato_republic": "plato",
+            "plato_timaeus": "plato",
+        }
+        client = _FakePooledClient()
+
+        out = gate._score_corpus_for_g1_pooled(client, "g1pooledtest", texts_by_id, group_of)
+
+        assert calls, "expected at least one fold to be scored"
+        for call in calls:
+            if "seminary" in call["student_id"]:
+                assert call["pooled_states"], "seminary fold should have same-group peers"
+                assert all("seminary" in k for k in call["pooled_states"])
+            elif "plato" in call["student_id"]:
+                assert call["pooled_states"], "plato fold should have same-group peers"
+                assert all("plato" in k for k in call["pooled_states"])
+            else:
+                pytest.fail(f"unexpected student_id shape: {call['student_id']}")
+
+        # Sanity on the returned aggregate shape.
+        assert set(out["per_corpus_actions"]) == set(texts_by_id)
+        assert len(out["pooled_actions"]) == 5 + 5 + 6 + 6
+
+    def test_entity_below_five_texts_is_skipped_and_not_offered_as_a_peer(self, monkeypatch):
+        import types
+
+        from validation import calibration_gate as gate
+
+        calls = []
+
+        def fake_get(sid):
+            return sid
+
+        def fake_score(**kwargs):
+            calls.append(kwargs)
+            result = types.SimpleNamespace()
+            result.recommendation = types.SimpleNamespace(action="no_action")
+            result.authorship = types.SimpleNamespace(deviation_score=0.0)
+            result.typicality_n = len(kwargs["pooled_states"])
+            result.typicality_calibration = "pooled" if kwargs["pooled_states"] else "self"
+            return result
+
+        monkeypatch.setattr("original.store.get", fake_get)
+        monkeypatch.setattr(
+            "original.features.pipeline.extract_features", lambda text, keystroke_data=None: {}
+        )
+        monkeypatch.setattr(
+            "original.features.pipeline.feature_vector", lambda text, keystroke_data=None: [0.5]
+        )
+        monkeypatch.setattr("original.quantum.scoring.score", fake_score)
+
+        texts_by_id = {
+            "seminary_group_0": ["s"] * 5,
+            "seminary_group_1": ["s"] * 4,  # below the 5-text LOO minimum
+        }
+        group_of = {"seminary_group_0": "seminary", "seminary_group_1": "seminary"}
+        client = _FakePooledClient()
+
+        out = gate._score_corpus_for_g1_pooled(client, "g1pooledtest2", texts_by_id, group_of)
+
+        # seminary_group_1 never scored (below minimum)...
+        assert "seminary_group_1" not in out["per_corpus_actions"]
+        # ...and never offered as a peer to seminary_group_0 either, so
+        # seminary_group_0 (alone in its group once the short entity is
+        # excluded) falls back to self-calibration.
+        assert all(call["pooled_states"] == {} for call in calls)
