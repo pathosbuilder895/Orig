@@ -53,13 +53,17 @@ _DB_PATH = Path(os.environ.get("ORIGINAL_DB", Path(__file__).parent.parent / "pr
 # would hand one tenant's cached aggregate to the next tenant that asks for the
 # same genre, reintroducing exactly the cross-tenant leak the filter removes.
 #
+# A genre of None is the genre-AGNOSTIC pool backing get_cohort_stats — its own
+# distinct key, never conflated with a real genre label (no genre is named
+# None), so the two share one cache, one scan idiom, and one busting site.
+#
 # What's cached is the pool grouped BY STUDENT, not a finished mean/std, so
 # that get_genre_stats's leave-one-out exclusion is a filter over the cached
 # groups rather than a fresh scan per student. Caching finished stats under a
 # (tenant, genre, excluded) key would be correct but would make every distinct
 # student a guaranteed cache miss — turning the one cache that amortises the
 # full-store scan into a per-student scan.
-_GENRE_STATS_CACHE: dict[tuple[str | None, str], list[tuple[str, list[np.ndarray]]]] = {}
+_GENRE_STATS_CACHE: dict[tuple[str | None, str | None], list[tuple[str, list[np.ndarray]]]] = {}
 
 
 # ── SQLite helpers ────────────────────────────────────────────────────────────
@@ -1132,9 +1136,22 @@ def get_genre_stats(genre: str, tenant: str | None, exclude_student_id: str | No
     students or fewer than MIN_GENRE_VECTORS matching authentic samples remain
     in that tenant.
     """
+    return genre_stats_from_groups(_pool_groups(tenant, genre), exclude_student_id)
+
+
+def _pool_groups(tenant: str | None, genre: str | None) -> list[tuple[str, list[np.ndarray]]]:
+    """The authenticated-sample pool for one ``(tenant, genre)``, grouped by
+    student and memoised in ``_GENRE_STATS_CACHE``.
+
+    ``genre=None`` means *no genre filter* — the genre-agnostic cohort pool
+    behind ``get_cohort_stats``. One scan, one cache, one busting site for
+    both priors, so they cannot drift on tenant scoping the way two
+    hand-written scans would.
+    """
     # O(1) fast path for the scan — the per-student groups are shared by every
-    # student in this (tenant, genre); only the leave-one-out arithmetic below
-    # is per-caller. Cache is busted by put() whenever a baseline is stored.
+    # student in this (tenant, genre); only the leave-one-out arithmetic in
+    # genre_stats_from_groups is per-caller. Cache is busted by put() whenever
+    # a baseline is stored.
     key = (tenant, genre)
     groups = _GENRE_STATS_CACHE.get(key)
     if groups is None:
@@ -1148,13 +1165,13 @@ def get_genre_stats(genre: str, tenant: str | None, exclude_student_id: str | No
             student_vectors = [
                 sample.vector
                 for sample in student_state.samples
-                if sample.auth_weight > 0 and getattr(sample, "genre", None) == genre
+                if sample.auth_weight > 0
+                and (genre is None or getattr(sample, "genre", None) == genre)
             ]
             if student_vectors:
                 groups.append((student_state.student_id, student_vectors))
         _GENRE_STATS_CACHE[key] = groups
-
-    return genre_stats_from_groups(groups, exclude_student_id)
+    return groups
 
 
 def genre_stats_from_groups(
@@ -1195,6 +1212,52 @@ def genre_stats_from_groups(
         # estimated from 300.
         "n_students": contributing_students,
     }
+
+
+def get_cohort_stats(tenant: str | None, exclude_student_id: str | None) -> dict | None:
+    """
+    ``get_genre_stats``'s genre-agnostic sibling: cross-student mean, std and
+    counts over EVERY confirmed-authentic baseline sample (auth_weight > 0)
+    in ``tenant``, regardless of genre, excluding ``exclude_student_id``.
+
+    Used as the cold-start fallback behind ``COHORT_PRIOR_FALLBACK`` when no
+    same-genre prior exists yet for the student being scored.  Deliberately
+    the *same* code path as the genre prior with the genre filter dropped
+    (``_pool_groups(tenant, None)`` + ``genre_stats_from_groups``), so it
+    inherits, rather than re-states, every invariant the genre prior already
+    carries:
+
+    * **tenant scoping** — never pools across institutions
+      (``build_impostor_stats``'s rule; FERPA-relevant);
+    * **leave-one-out** — the scored student is dropped from their own
+      prior.  This matters *more* here than for the genre prior, not less:
+      a tenant-wide pool in a small tenant is where a student most easily
+      dominates "their own" population statistic;
+    * **both cold-start floors** — ``MIN_GENRE_STUDENTS`` (3 distinct
+      contributing people) and ``MIN_GENRE_VECTORS`` (5 vectors), checked
+      after the exclusion.  Dropping the genre filter removes genre
+      matching's natural cap on pool concentration, which is exactly why
+      the distinct-student floor added for the genre prior is load-bearing
+      here;
+    * **``n_students``** in the returned dict, which ``scoring.score()``
+      uses to damp the prior's blend weight by cohort size.  Without it a
+      genre-*mismatched* fallback prior would silently be trusted more than
+      a genre-matched one of the same size.
+
+    Parameters
+    ----------
+    tenant : the tenant slug to scope to — ``principal.tenant_of`` of the
+        student being scored — or None for the legacy-flat (unscoped) pool,
+        which is its own distinct cohort, never mixed with a real tenant's.
+    exclude_student_id : the full scoped id of the student being scored,
+        dropped from the pool; None pools every student in ``tenant``.
+
+    Returns
+    -------
+    Same dict shape as ``get_genre_stats`` — "mean", "std", "n_samples",
+    "n_students" — or None when neither floor is cleared post-exclusion.
+    """
+    return genre_stats_from_groups(_pool_groups(tenant, None), exclude_student_id)
 
 
 def update_fidelity_authenticity(submission_id: str, is_authentic: bool) -> None:
