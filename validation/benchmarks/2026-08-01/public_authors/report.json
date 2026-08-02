@@ -1,0 +1,758 @@
+{
+  "dataset_label": "public_authors",
+  "generated_at": "2026-08-01T18:06:38Z",
+  "environment": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "environment": "testing",
+    "original_db": ":memory:",
+    "numpy_seeded": true,
+    "python_seeded": true,
+    "scoring_flags": {
+      "ADAPTIVE_WEIGHTS_ENABLED": "0",
+      "AMPLITUDE_SCORING_ENABLED": "0",
+      "BAYESIAN_PRIOR_ENABLED": "0",
+      "LENGTH_ADAPTIVE_WEIGHTS": "0"
+    }
+  },
+  "summary": {
+    "eligible_authors": [
+      "augustine",
+      "boethius",
+      "chesterton",
+      "douglass",
+      "edwards",
+      "emerson",
+      "james",
+      "kempis",
+      "mill",
+      "newman",
+      "thoreau"
+    ],
+    "n_eligible_authors": 11,
+    "n_held_out_essays": 27,
+    "top1_accuracy": 0.7037,
+    "mean_rank_of_true_author": 1.63,
+    "skipped_authors": []
+  },
+  "per_author": {
+    "augustine": {
+      "n_scored": 3,
+      "n_correct": 3,
+      "accuracy": 1.0
+    },
+    "boethius": {
+      "n_scored": 2,
+      "n_correct": 1,
+      "accuracy": 0.5
+    },
+    "chesterton": {
+      "n_scored": 2,
+      "n_correct": 1,
+      "accuracy": 0.5
+    },
+    "douglass": {
+      "n_scored": 3,
+      "n_correct": 3,
+      "accuracy": 1.0
+    },
+    "edwards": {
+      "n_scored": 3,
+      "n_correct": 1,
+      "accuracy": 0.3333
+    },
+    "emerson": {
+      "n_scored": 2,
+      "n_correct": 1,
+      "accuracy": 0.5
+    },
+    "james": {
+      "n_scored": 4,
+      "n_correct": 2,
+      "accuracy": 0.5
+    },
+    "kempis": {
+      "n_scored": 2,
+      "n_correct": 2,
+      "accuracy": 1.0
+    },
+    "mill": {
+      "n_scored": 2,
+      "n_correct": 2,
+      "accuracy": 1.0
+    },
+    "newman": {
+      "n_scored": 2,
+      "n_correct": 2,
+      "accuracy": 1.0
+    },
+    "thoreau": {
+      "n_scored": 2,
+      "n_correct": 1,
+      "accuracy": 0.5
+    }
+  },
+  "results": [
+    {
+      "filename": "augustine/confessions_part_04.txt",
+      "true_author": "augustine",
+      "predicted_author": "augustine",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.5523,
+        "boethius": 0.7239,
+        "chesterton": 0.9427,
+        "douglass": 0.7189,
+        "edwards": 0.7181,
+        "emerson": 0.8088,
+        "james": 0.8809,
+        "kempis": 0.8088,
+        "mill": 0.7418,
+        "newman": 0.7576,
+        "thoreau": 0.7143
+      },
+      "rank_of_true": 1,
+      "word_count": 18556,
+      "scoring_time_ms": 156483.91,
+      "error": null
+    },
+    {
+      "filename": "augustine/confessions_part_05.txt",
+      "true_author": "augustine",
+      "predicted_author": "augustine",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.6559,
+        "boethius": 0.8168,
+        "chesterton": 1.0,
+        "douglass": 0.8357,
+        "edwards": 0.7666,
+        "emerson": 0.8933,
+        "james": 0.9222,
+        "kempis": 0.8895,
+        "mill": 0.8251,
+        "newman": 0.8428,
+        "thoreau": 0.8006
+      },
+      "rank_of_true": 1,
+      "word_count": 18808,
+      "scoring_time_ms": 105267.04,
+      "error": null
+    },
+    {
+      "filename": "augustine/confessions_part_06.txt",
+      "true_author": "augustine",
+      "predicted_author": "augustine",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.7727,
+        "boethius": 0.8591,
+        "chesterton": 1.0,
+        "douglass": 0.8501,
+        "edwards": 0.7771,
+        "emerson": 0.8919,
+        "james": 0.9382,
+        "kempis": 0.9101,
+        "mill": 0.8298,
+        "newman": 0.8061,
+        "thoreau": 0.8513
+      },
+      "rank_of_true": 1,
+      "word_count": 18268,
+      "scoring_time_ms": 115445.31,
+      "error": null
+    },
+    {
+      "filename": "boethius/the_consolation_of_philosophy_part_04.txt",
+      "true_author": "boethius",
+      "predicted_author": "boethius",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.7749,
+        "boethius": 0.6412,
+        "chesterton": 0.8582,
+        "douglass": 0.8087,
+        "edwards": 0.8309,
+        "emerson": 0.8716,
+        "james": 0.9158,
+        "kempis": 0.8684,
+        "mill": 0.7294,
+        "newman": 0.8833,
+        "thoreau": 0.7585
+      },
+      "rank_of_true": 1,
+      "word_count": 8126,
+      "scoring_time_ms": 92404.66,
+      "error": null
+    },
+    {
+      "filename": "boethius/the_consolation_of_philosophy_part_05.txt",
+      "true_author": "boethius",
+      "predicted_author": "mill",
+      "correct": false,
+      "deviations": {
+        "augustine": 0.8919,
+        "boethius": 0.9113,
+        "chesterton": 0.8952,
+        "douglass": 0.9126,
+        "edwards": 0.8896,
+        "emerson": 0.9157,
+        "james": 0.9666,
+        "kempis": 0.9523,
+        "mill": 0.8356,
+        "newman": 0.9455,
+        "thoreau": 0.8781
+      },
+      "rank_of_true": 6,
+      "word_count": 8121,
+      "scoring_time_ms": 55037.22,
+      "error": null
+    },
+    {
+      "filename": "chesterton/orthodoxy_part_04.txt",
+      "true_author": "chesterton",
+      "predicted_author": "chesterton",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.815,
+        "boethius": 0.7488,
+        "chesterton": 0.652,
+        "douglass": 0.7538,
+        "edwards": 0.8106,
+        "emerson": 0.8144,
+        "james": 0.8409,
+        "kempis": 0.815,
+        "mill": 0.7195,
+        "newman": 0.8655,
+        "thoreau": 0.7555
+      },
+      "rank_of_true": 1,
+      "word_count": 12591,
+      "scoring_time_ms": 88134.86,
+      "error": null
+    },
+    {
+      "filename": "chesterton/orthodoxy_part_05.txt",
+      "true_author": "chesterton",
+      "predicted_author": "mill",
+      "correct": false,
+      "deviations": {
+        "augustine": 0.8022,
+        "boethius": 0.7917,
+        "chesterton": 0.7007,
+        "douglass": 0.8015,
+        "edwards": 0.791,
+        "emerson": 0.8368,
+        "james": 0.8633,
+        "kempis": 0.8528,
+        "mill": 0.6729,
+        "newman": 0.852,
+        "thoreau": 0.7518
+      },
+      "rank_of_true": 2,
+      "word_count": 12550,
+      "scoring_time_ms": 76609.96,
+      "error": null
+    },
+    {
+      "filename": "douglass/my_bondage_and_my_freedom_part_03.txt",
+      "true_author": "douglass",
+      "predicted_author": "douglass",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.7722,
+        "boethius": 0.7087,
+        "chesterton": 0.786,
+        "douglass": 0.5697,
+        "edwards": 0.8317,
+        "emerson": 0.7194,
+        "james": 0.8806,
+        "kempis": 0.8247,
+        "mill": 0.6269,
+        "newman": 0.8393,
+        "thoreau": 0.5735
+      },
+      "rank_of_true": 1,
+      "word_count": 2833,
+      "scoring_time_ms": 70495.18,
+      "error": null
+    },
+    {
+      "filename": "douglass/my_bondage_and_my_freedom_part_04.txt",
+      "true_author": "douglass",
+      "predicted_author": "douglass",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.829,
+        "boethius": 0.8011,
+        "chesterton": 0.762,
+        "douglass": 0.4968,
+        "edwards": 0.8441,
+        "emerson": 0.7554,
+        "james": 0.8821,
+        "kempis": 0.8215,
+        "mill": 0.6931,
+        "newman": 0.8656,
+        "thoreau": 0.6882
+      },
+      "rank_of_true": 1,
+      "word_count": 4901,
+      "scoring_time_ms": 127957.28,
+      "error": null
+    },
+    {
+      "filename": "douglass/my_bondage_and_my_freedom_part_05.txt",
+      "true_author": "douglass",
+      "predicted_author": "douglass",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.8355,
+        "boethius": 0.7853,
+        "chesterton": 0.7421,
+        "douglass": 0.5718,
+        "edwards": 0.8689,
+        "emerson": 0.7081,
+        "james": 0.8669,
+        "kempis": 0.8168,
+        "mill": 0.6524,
+        "newman": 0.8617,
+        "thoreau": 0.6473
+      },
+      "rank_of_true": 1,
+      "word_count": 2655,
+      "scoring_time_ms": 70573.81,
+      "error": null
+    },
+    {
+      "filename": "edwards/selected_sermons_of_jonathan_edwards_part_04.txt",
+      "true_author": "edwards",
+      "predicted_author": "edwards",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.8497,
+        "boethius": 0.8632,
+        "chesterton": 0.8505,
+        "douglass": 0.8843,
+        "edwards": 0.7022,
+        "emerson": 0.9143,
+        "james": 0.9453,
+        "kempis": 0.9228,
+        "mill": 0.7928,
+        "newman": 0.9207,
+        "thoreau": 0.8568
+      },
+      "rank_of_true": 1,
+      "word_count": 9142,
+      "scoring_time_ms": 95088.77,
+      "error": null
+    },
+    {
+      "filename": "edwards/selected_sermons_of_jonathan_edwards_part_05.txt",
+      "true_author": "edwards",
+      "predicted_author": "mill",
+      "correct": false,
+      "deviations": {
+        "augustine": 0.8716,
+        "boethius": 0.8877,
+        "chesterton": 0.8531,
+        "douglass": 0.8854,
+        "edwards": 0.7654,
+        "emerson": 0.8968,
+        "james": 0.9454,
+        "kempis": 0.9364,
+        "mill": 0.755,
+        "newman": 0.9048,
+        "thoreau": 0.8674
+      },
+      "rank_of_true": 2,
+      "word_count": 8999,
+      "scoring_time_ms": 70416.26,
+      "error": null
+    },
+    {
+      "filename": "edwards/selected_sermons_of_jonathan_edwards_part_06.txt",
+      "true_author": "edwards",
+      "predicted_author": "mill",
+      "correct": false,
+      "deviations": {
+        "augustine": 0.7624,
+        "boethius": 0.7711,
+        "chesterton": 0.787,
+        "douglass": 0.7963,
+        "edwards": 0.6613,
+        "emerson": 0.8495,
+        "james": 0.9089,
+        "kempis": 0.8882,
+        "mill": 0.6167,
+        "newman": 0.8357,
+        "thoreau": 0.7859
+      },
+      "rank_of_true": 2,
+      "word_count": 8669,
+      "scoring_time_ms": 106950.34,
+      "error": null
+    },
+    {
+      "filename": "emerson/the_over_soul.txt",
+      "true_author": "emerson",
+      "predicted_author": "emerson",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.7833,
+        "boethius": 0.8328,
+        "chesterton": 0.7994,
+        "douglass": 0.7676,
+        "edwards": 0.8017,
+        "emerson": 0.6693,
+        "james": 0.9113,
+        "kempis": 0.8738,
+        "mill": 0.7293,
+        "newman": 0.8766,
+        "thoreau": 0.7213
+      },
+      "rank_of_true": 1,
+      "word_count": 6926,
+      "scoring_time_ms": 67510.26,
+      "error": null
+    },
+    {
+      "filename": "emerson/spiritual_laws.txt",
+      "true_author": "emerson",
+      "predicted_author": "thoreau",
+      "correct": false,
+      "deviations": {
+        "augustine": 0.864,
+        "boethius": 0.8783,
+        "chesterton": 0.7748,
+        "douglass": 0.738,
+        "edwards": 0.8624,
+        "emerson": 0.7624,
+        "james": 0.9249,
+        "kempis": 0.8924,
+        "mill": 0.7276,
+        "newman": 0.9183,
+        "thoreau": 0.6937
+      },
+      "rank_of_true": 4,
+      "word_count": 8057,
+      "scoring_time_ms": 64644.74,
+      "error": null
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_05.txt",
+      "true_author": "james",
+      "predicted_author": "mill",
+      "correct": false,
+      "deviations": {
+        "augustine": 0.8414,
+        "boethius": 0.7059,
+        "chesterton": 0.7645,
+        "douglass": 0.6317,
+        "edwards": 0.8267,
+        "emerson": 0.7175,
+        "james": 0.5684,
+        "kempis": 0.7311,
+        "mill": 0.5407,
+        "newman": 0.7573,
+        "thoreau": 0.6133
+      },
+      "rank_of_true": 2,
+      "word_count": 19298,
+      "scoring_time_ms": 457210.28,
+      "error": null
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_06.txt",
+      "true_author": "james",
+      "predicted_author": "mill",
+      "correct": false,
+      "deviations": {
+        "augustine": 0.8231,
+        "boethius": 0.6891,
+        "chesterton": 0.7383,
+        "douglass": 0.6884,
+        "edwards": 0.8194,
+        "emerson": 0.6952,
+        "james": 0.6006,
+        "kempis": 0.6873,
+        "mill": 0.5783,
+        "newman": 0.7777,
+        "thoreau": 0.7071
+      },
+      "rank_of_true": 2,
+      "word_count": 19372,
+      "scoring_time_ms": 462420.44,
+      "error": null
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_07.txt",
+      "true_author": "james",
+      "predicted_author": "james",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.832,
+        "boethius": 0.7149,
+        "chesterton": 0.7417,
+        "douglass": 0.6687,
+        "edwards": 0.8325,
+        "emerson": 0.6504,
+        "james": 0.5486,
+        "kempis": 0.6873,
+        "mill": 0.5698,
+        "newman": 0.7903,
+        "thoreau": 0.6717
+      },
+      "rank_of_true": 1,
+      "word_count": 19323,
+      "scoring_time_ms": 309538.0,
+      "error": null
+    },
+    {
+      "filename": "james/the_varieties_of_religious_experience_part_08.txt",
+      "true_author": "james",
+      "predicted_author": "james",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.8015,
+        "boethius": 0.7211,
+        "chesterton": 0.7987,
+        "douglass": 0.6764,
+        "edwards": 0.8204,
+        "emerson": 0.7177,
+        "james": 0.4928,
+        "kempis": 0.7385,
+        "mill": 0.5496,
+        "newman": 0.7888,
+        "thoreau": 0.6432
+      },
+      "rank_of_true": 1,
+      "word_count": 18958,
+      "scoring_time_ms": 478307.92,
+      "error": null
+    },
+    {
+      "filename": "kempis/the_imitation_of_christ_part_04.txt",
+      "true_author": "kempis",
+      "predicted_author": "kempis",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.7557,
+        "boethius": 0.7098,
+        "chesterton": 0.8481,
+        "douglass": 0.7956,
+        "edwards": 0.813,
+        "emerson": 0.8659,
+        "james": 0.8952,
+        "kempis": 0.6555,
+        "mill": 0.7418,
+        "newman": 0.8612,
+        "thoreau": 0.764
+      },
+      "rank_of_true": 1,
+      "word_count": 12325,
+      "scoring_time_ms": 418107.38,
+      "error": null
+    },
+    {
+      "filename": "kempis/the_imitation_of_christ_part_05.txt",
+      "true_author": "kempis",
+      "predicted_author": "kempis",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.7425,
+        "boethius": 0.6634,
+        "chesterton": 0.8344,
+        "douglass": 0.7339,
+        "edwards": 0.7983,
+        "emerson": 0.8123,
+        "james": 0.8543,
+        "kempis": 0.5837,
+        "mill": 0.6712,
+        "newman": 0.8158,
+        "thoreau": 0.7579
+      },
+      "rank_of_true": 1,
+      "word_count": 12190,
+      "scoring_time_ms": 390007.98,
+      "error": null
+    },
+    {
+      "filename": "mill/on_liberty_part_04.txt",
+      "true_author": "mill",
+      "predicted_author": "mill",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.8197,
+        "boethius": 0.7502,
+        "chesterton": 0.9398,
+        "douglass": 0.774,
+        "edwards": 0.7586,
+        "emerson": 0.8176,
+        "james": 0.8176,
+        "kempis": 0.8402,
+        "mill": 0.5374,
+        "newman": 0.6856,
+        "thoreau": 0.7513
+      },
+      "rank_of_true": 1,
+      "word_count": 8012,
+      "scoring_time_ms": 156484.03,
+      "error": null
+    },
+    {
+      "filename": "mill/on_liberty_part_05.txt",
+      "true_author": "mill",
+      "predicted_author": "mill",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.8435,
+        "boethius": 0.7794,
+        "chesterton": 0.8543,
+        "douglass": 0.79,
+        "edwards": 0.8149,
+        "emerson": 0.8495,
+        "james": 0.8701,
+        "kempis": 0.8609,
+        "mill": 0.5712,
+        "newman": 0.7016,
+        "thoreau": 0.7812
+      },
+      "rank_of_true": 1,
+      "word_count": 9342,
+      "scoring_time_ms": 211486.5,
+      "error": null
+    },
+    {
+      "filename": "newman/the_idea_of_a_university_part_04.txt",
+      "true_author": "newman",
+      "predicted_author": "newman",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.803,
+        "boethius": 0.7729,
+        "chesterton": 0.8437,
+        "douglass": 0.7935,
+        "edwards": 0.7549,
+        "emerson": 0.8467,
+        "james": 0.8924,
+        "kempis": 0.8825,
+        "mill": 0.7068,
+        "newman": 0.6224,
+        "thoreau": 0.7926
+      },
+      "rank_of_true": 1,
+      "word_count": 8550,
+      "scoring_time_ms": 194270.9,
+      "error": null
+    },
+    {
+      "filename": "newman/the_idea_of_a_university_part_05.txt",
+      "true_author": "newman",
+      "predicted_author": "newman",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.7808,
+        "boethius": 0.7702,
+        "chesterton": 0.8597,
+        "douglass": 0.7798,
+        "edwards": 0.7507,
+        "emerson": 0.8507,
+        "james": 0.8895,
+        "kempis": 0.8777,
+        "mill": 0.6273,
+        "newman": 0.5661,
+        "thoreau": 0.7232
+      },
+      "rank_of_true": 1,
+      "word_count": 7608,
+      "scoring_time_ms": 187787.4,
+      "error": null
+    },
+    {
+      "filename": "thoreau/slavery_in_massachusetts.txt",
+      "true_author": "thoreau",
+      "predicted_author": "mill",
+      "correct": false,
+      "deviations": {
+        "augustine": 0.8402,
+        "boethius": 0.8682,
+        "chesterton": 0.6957,
+        "douglass": 0.7429,
+        "edwards": 0.7611,
+        "emerson": 0.7482,
+        "james": 0.9119,
+        "kempis": 0.8858,
+        "mill": 0.6784,
+        "newman": 0.9008,
+        "thoreau": 0.7549
+      },
+      "rank_of_true": 5,
+      "word_count": 6082,
+      "scoring_time_ms": 42529.68,
+      "error": null
+    },
+    {
+      "filename": "thoreau/a_plea_for_captain_john_brown.txt",
+      "true_author": "thoreau",
+      "predicted_author": "thoreau",
+      "correct": true,
+      "deviations": {
+        "augustine": 0.8148,
+        "boethius": 0.8142,
+        "chesterton": 0.6803,
+        "douglass": 0.7067,
+        "edwards": 0.7849,
+        "emerson": 0.8121,
+        "james": 0.8922,
+        "kempis": 0.8554,
+        "mill": 0.701,
+        "newman": 0.8652,
+        "thoreau": 0.5732
+      },
+      "rank_of_true": 1,
+      "word_count": 8466,
+      "scoring_time_ms": 69806.48,
+      "error": null
+    }
+  ],
+  "confusion": {
+    "augustine": {
+      "augustine": 3
+    },
+    "boethius": {
+      "boethius": 1,
+      "mill": 1
+    },
+    "chesterton": {
+      "chesterton": 1,
+      "mill": 1
+    },
+    "douglass": {
+      "douglass": 3
+    },
+    "edwards": {
+      "edwards": 1,
+      "mill": 2
+    },
+    "emerson": {
+      "emerson": 1,
+      "thoreau": 1
+    },
+    "james": {
+      "mill": 2,
+      "james": 2
+    },
+    "kempis": {
+      "kempis": 2
+    },
+    "mill": {
+      "mill": 2
+    },
+    "newman": {
+      "newman": 2
+    },
+    "thoreau": {
+      "mill": 1,
+      "thoreau": 1
+    }
+  }
+}
