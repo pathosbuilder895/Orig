@@ -162,3 +162,46 @@ class TestFeatureConsistency:
         # Both should have valid features
         assert all(0.0 <= v <= 1.0 for v in short_result.values())
         assert all(0.0 <= v <= 1.0 for v in long_result.values())
+
+
+class TestThematicProgressionTokenOrder:
+    """theme/rheme splits in tier2 must follow actual sentence token order.
+
+    Regression tests for the _content_words() set→ordered-list fix: the
+    pre-fix code built a set and sliced its (hash-order-dependent) listing
+    into positional halves, so these positional assertions could not hold
+    reliably across interpreter runs.
+    """
+
+    def test_content_words_preserve_sentence_order(self):
+        """_content_words returns tokens in first-appearance sentence order."""
+        from original.features.tier2 import _content_words
+
+        result = _content_words("Zebras chased mangoes while zebras trampled orchards.")
+        assert result == ["zebras", "chased", "mangoes", "trampled", "orchards"]
+
+    def test_linear_progression_detected_positionally(self):
+        """B's opening (theme) picking up A's ending (rheme) scores linear."""
+        from original.features.tier1 import TextDoc
+        from original.features.tier2 import thematic_progression_score
+
+        # A's rheme (last half): containing, golden, apples.
+        # B's theme (first half): apples, ripened, swiftly — overlap on "apples".
+        doc = TextDoc(
+            "Farmers planted orchards containing golden apples. "
+            "Apples ripened swiftly under autumn sunlight."
+        )
+        assert thematic_progression_score(doc) == 1.0
+
+    def test_constant_progression_not_counted_as_linear(self):
+        """B reusing A's theme (both sentence-initial) must not score linear."""
+        from original.features.tier1 import TextDoc
+        from original.features.tier2 import thematic_progression_score
+
+        # Both sentences open with "farmers"; B's theme shares nothing with
+        # A's rheme (containing, golden, apples), so linear_count stays 0.
+        doc = TextDoc(
+            "Farmers planted orchards containing golden apples. "
+            "Farmers harvested wheat during summer months."
+        )
+        assert thematic_progression_score(doc) == 0.0
