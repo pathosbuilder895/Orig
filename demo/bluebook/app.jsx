@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BB_API } from './components.jsx';
+import { BB_API, devToolsEnabled } from './components.jsx';
 import { LandingScreen, LoginScreen } from './Landing.jsx';
 import { DashboardLayout, DashboardScreen, ExamsScreen } from './Dashboard.jsx';
 import { BriefingScreen, ExamScreen, SubmittedScreen } from './Exam.jsx';
@@ -14,7 +14,7 @@ import {
 } from './tweaks-panel.jsx';
 
 // ════════════════════════════════════════════════════════════════
-//  BLUEBOOK — App root (router + Tweaks panel)
+//  BLUEBOOK — App root (router + dev-gated Tweaks panel)
 // ════════════════════════════════════════════════════════════════
 const { useState } = React;
 
@@ -32,6 +32,11 @@ function App() {
   const [autoScreen] = useState(() =>
     BB_API.isStudentLaunch() ? 'briefing' : BB_API.isAuthed() ? 'dashboard' : 'landing');
   const screen = t.currentScreen || autoScreen;
+  // Read once at mount, alongside autoScreen and for the same reason: the
+  // answer belongs to the launch, and a panel that could appear part-way
+  // through a sitting would defeat the point of gating it. See
+  // devToolsEnabled() in components.jsx for what arms it and what refuses it.
+  const [devTools] = useState(devToolsEnabled);
 
   let content;
   switch (screen) {
@@ -108,6 +113,7 @@ function App() {
         {content}
       </div>
 
+      {devTools && (
       <TweaksPanel>
         <TweakSection label="Navigation" />
         <TweakSelect
@@ -144,6 +150,7 @@ function App() {
           onChange={(v) => setTweak('parchmentColor', v)}
         />
       </TweaksPanel>
+      )}
     </>
   );
 }
