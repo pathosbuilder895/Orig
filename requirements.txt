@@ -18,7 +18,7 @@ psycopg2-binary==2.9.12
 python-jose[cryptography]>=3.4.0
 passlib[bcrypt]==1.7.4
 # Pin for passlib 1.7.4 — bcrypt 4.1+ removed passlib's expected API and breaks hashing.
-bcrypt==3.2.2
+bcrypt==5.0.0
 slowapi==0.1.10
 # prometheus-fastapi-instrumentator 7.1.0 pinned starlette<1.0.0, incompatible with
 # the starlette>=1.3.1 security pin in requirements-demo.txt. 8.0.2 requires
