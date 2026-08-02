@@ -130,17 +130,16 @@ const ALL_SCREENS = [
  *    (NewExam.jsx — three 3.85:1 FormField hints and one 2.05:1 validation
  *    note, fixed in the commit before this one).
  *
- * 2. WS-9's plan (docs/implementation/WS-9-e2e-release-hygiene.md §Stage 2,
- *    line 96) words this gate as a WS-8 handshake — "flip a page only when that
- *    page's React rebuild has actually landed and passes axe" — and WS-8 R0/R1
- *    have not landed. The concern it names is explicit: "flipping early
- *    red-walls CI on the legacy markup WS-4 only hot-fixed." These screens are
- *    not that markup. They are already React (`demo/bluebook/*.jsx`); WS-8 R1
- *    re-homes them into a Vite workspace without rewriting them. So the
- *    substance of the rule — React markup, measured green — holds today, and
- *    what is outstanding is a toolchain move. Recorded here rather than left
- *    implicit, because it is a deliberate reading and a reviewer may want to
- *    argue with it.
+ * 2. This gate's entry criterion is measurement, not the WS-8 handshake WS-9's
+ *    plan originally worded it as. That reading was recorded here as a
+ *    deliberate deviation when these screens were promoted; it has since been
+ *    RATIFIED: ADR-008 (Accepted 2026-08-02) makes Bluebook's esbuild pipeline
+ *    the permanent exam-app frontend — there is no future "React rebuild in a
+ *    Vite workspace" for these screens to wait on, so measured-green on the
+ *    shipped markup is the criterion, full stop. The original concern ("don't
+ *    red-wall CI on legacy markup WS-4 only hot-fixed") still governs the
+ *    NON-Bluebook statics, which stay out of scope here until WS-8 R3 rebuilds
+ *    them in app/.
  *
  * 3. What a green run does and does not certify. It certifies the states this
  *    file actually puts each screen into. Results is scanned as a collapsed

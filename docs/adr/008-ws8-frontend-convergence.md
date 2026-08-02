@@ -1,7 +1,7 @@
 # ADR-008: WS-8 frontend convergence — what to do about `app/` and the R2 library
 
-**Status:** Proposed
-**Date:** 2026-08-02
+**Status:** Accepted
+**Date:** 2026-08-02 (proposed and accepted same day)
 **Deciders:** repo owner
 **Relates to:** `docs/implementation/WS-8-react-migration.md` (the plan this
 reconciles against — deliberately not edited by this ADR), `docs/AUDIT_2026-07-06.md`
@@ -9,11 +9,18 @@ reconciles against — deliberately not edited by this ADR), `docs/AUDIT_2026-07
 constraint), `docs/implementation/WS-9-e2e-release-hygiene.md` (owner of the
 `@a11y` gate), `app/`, `demo/bluebook/`
 
-> **This ADR proposes; it does not decide.** It exists because WS-8's plan and
-> the tree have diverged far enough that continuing to execute the plan
-> literally would be a decision made by inertia. The three options below are
-> laid out so the owner can make it deliberately instead. Nothing here is
-> implemented.
+> **Decision (2026-08-02, repo owner): Option B accepted, as recommended —
+> including the promotion-path amendment.** Bluebook's esbuild pipeline is the
+> permanent home of the exam app; `app/` + the R2 library are re-scoped to the
+> legacy static pages, which R2's tokens were derived from. The amendment's
+> `@a11y` work is already satisfied: the promotion condition was rewritten to
+> measurement-based and all 13 Bluebook screens went blocking in PR #122,
+> before this acceptance. `WS-8-react-migration.md` carries the matching
+> amendment banner (landed with this acceptance); its R1 is closed as
+> superseded-not-done per Consequences below.
+>
+> The original proposal framing is preserved below unchanged, as the record of
+> the analysis the decision was made on.
 
 ## Context
 
