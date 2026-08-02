@@ -28,7 +28,7 @@ kiwisolver==1.5.0
     # via matplotlib
 matplotlib==3.11.0
     # via -r requirements-dev.txt
-mypy==1.11.2
+mypy==2.3.0
     # via -r requirements-dev.txt
 mypy-extensions==1.1.0
     # via mypy
