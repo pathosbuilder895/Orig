@@ -520,7 +520,25 @@ def _get_conn() -> sqlite3.Connection:
             # lazy-init — see the module-level comment above for why a
             # benign duplicate-open race here can't cause data loss (mirrors
             # original/repository.py's unlocked ``_REPO`` singleton).
-            _MEMORY_KEEPALIVE_CONN = sqlite3.connect(_memory_uri(), uri=True, timeout=10.0)
+            #
+            # check_same_thread=False here ONLY: this connection never runs a
+            # query (its entire lifecycle is "open" then, later, "close" in
+            # reset_memory_conn()), so there is no concurrent-query hazard for
+            # the default guard to protect against — unlike the per-call
+            # connection on the next line, which genuinely is single-owner,
+            # single-thread, and keeps the default. Without this, a harness
+            # that runs more than one logical "run" in one process (e.g.
+            # validation/audits/pooled_calibration_payoff.py, comparing pooled
+            # vs. self calibration across two separate TestClient/app
+            # instances) hits sqlite3.ProgrammingError the moment
+            # reset_memory_conn() is called from a different thread than
+            # whichever thread happened to lazily create this connection —
+            # FastAPI's TestClient can serve a request on a worker thread
+            # distinct from the caller's own. Reproduced and fixed directly;
+            # see test_reset_memory_conn_is_safe_from_a_different_thread.
+            _MEMORY_KEEPALIVE_CONN = sqlite3.connect(
+                _memory_uri(), uri=True, timeout=10.0, check_same_thread=False
+            )
         conn = sqlite3.connect(_memory_uri(), uri=True, timeout=10.0)
         _init_schema(conn)
         return conn

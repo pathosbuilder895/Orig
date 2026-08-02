@@ -202,6 +202,31 @@ def test_reset_memory_conn_gives_a_genuinely_empty_database(memory_store):
     assert memory_store.get("student-before-reset") is None
 
 
+def test_reset_memory_conn_is_safe_from_a_different_thread(memory_store):
+    """A harness that runs more than one logical "run" in one process (e.g.
+    validation/audits/pooled_calibration_payoff.py, comparing pooled vs. self
+    calibration by constructing two separate TestClient/app instances and
+    calling reset_memory_conn() between them) does not control which thread
+    lazily creates the keepalive connection -- FastAPI's TestClient can serve
+    a request on a worker thread distinct from the caller's own. Reproduces
+    the real failure directly: touch _get_conn() (lazily creating
+    _MEMORY_KEEPALIVE_CONN) on a background thread, then call
+    reset_memory_conn() from THIS thread. Before the fix this raised
+    sqlite3.ProgrammingError: SQLite objects created in a thread can only be
+    used in that same thread.
+    """
+    import threading
+
+    def _touch_from_worker_thread():
+        store._get_conn().close()
+
+    worker = threading.Thread(target=_touch_from_worker_thread)
+    worker.start()
+    worker.join()
+
+    store.reset_memory_conn()  # must not raise
+
+
 def test_memory_db_does_not_affect_file_backed_path(tmp_path, monkeypatch):
     """The fix must be scoped to ':memory:' only -- the file-backed
     (production default) path keeps its existing fresh-connection-per-call
