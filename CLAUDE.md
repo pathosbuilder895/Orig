@@ -18,17 +18,29 @@ Stylometric authorship verification system for academic integrity. Per-student q
 
 ## Testing
 ```bash
-.venv/bin/python -m pytest tests/ -q                  # full suite (~1050 tests as of 2026-08-01, ~145s; ~1053 with validation/test_tier10_optional.py)
+.venv/bin/python -m pytest tests/ -q                  # full suite
 .venv/bin/python -m pytest tests/quantum/ -v          # quantum module only
-.venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -q   # exact CI command
+DATABASE_URL=postgresql://user:pass@host/db \
+  .venv/bin/python -m pytest tests/ validation/test_tier10_optional.py \
+  --cov=original --cov-fail-under=78                  # exact CI command (see .github/workflows/test.yml)
 ```
-Test count grows regularly — treat the numbers above as approximate (get the
-current count with `.venv/bin/python -m pytest --collect-only -q tests/ 2>&1 | tail -1`),
-not a pinned figure to keep in sync by hand.
-The 5 `TestAuthEndpoints` tests that 429 under full-suite rate-limit exhaustion are
-marked `xfail(strict=False)` — they show as XFAIL/XPASS, never as failures. A clean
-run is **0 failed**; treat any failure as real. (Historical note: counts before
-2026-06 were inflated ~2× by macOS Finder-duplicate test files, since removed.)
+Test count grows regularly — treat any number below as a point-in-time
+measurement, not a pinned figure to keep in sync by hand (get the current
+count with `.venv/bin/python -m pytest --collect-only -q tests/ 2>&1 | tail -1`).
+There are no `xfail`-marked tests and no `TestAuthEndpoints` class in the
+current suite (`grep -rn xfail tests/` and `grep -rn "class TestAuthEndpoints"
+tests/` both return nothing) — the older 429-under-rate-limit-exhaustion
+xfail pattern this section used to describe is gone. A clean run is **0
+failed**; treat any failure as real.
+
+CI sets `DATABASE_URL` so `tests/test_repository_contract.py`'s Postgres
+parametrization runs for real instead of self-skipping. Measured 2026-08-02
+against `origin/main` HEAD `718ef29`, `tests/ validation/test_tier10_optional.py`:
+with a local Postgres and `DATABASE_URL` set, **1,112 passed, 0 failed**;
+without it, **954 passed, 158 skipped, 0 failed** (all 158 are the
+Postgres-only contract tests self-skipping with "no reachable Postgres — set
+DATABASE_URL to a postgresql:// instance …", not failures). Both counts
+drift as work lands — re-run rather than trust them.
 
 ---
 

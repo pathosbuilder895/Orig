@@ -80,12 +80,9 @@ jobs:
         run: python -m spacy download en_core_web_sm
 
       - name: Run pytest with coverage
-        # Ratcheted from 70 (WS-2) to 72 (WS-5) -- the measured floor after
-        # the WS-5 test-depth work (live-fixture migration, bluebook API +
-        # store tests, scoring flag-matrix tests, tier10 ST-backend test,
-        # dead-module deletion). The doc's aspirational targets (overall 78,
-        # api.py 75, store.py 85) are NOT yet met -- api.py sits at 71% and
-        # store.py at 80% (measured 2026-07-16), both still short. Do not raise this past what
+        # Ratcheted 70 (WS-2) -> 72 (WS-5) -> 78 (#104, additional API
+        # coverage tests). 78 was the doc's original aspirational overall
+        # target and is now the enforced floor. Do not raise this past what
         # `--cov-report=term-missing` actually shows passing locally.
         env:
           DATABASE_URL: postgresql://original:original@localhost:5432/original_test
