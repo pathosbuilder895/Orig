@@ -81,7 +81,7 @@ All production features are opt-in via env flags. Default OFF preserves Phase 1 
 | `LTI_TOOL_URL` | — | No-op without config. Public tool URL registered with the LMS. |
 | `ADMIN_EMAIL` | — | No-op without config. Seed admin account email. |
 | `ADMIN_PASSWORD` | — | No-op without config. Seed admin account password. |
-| `SENDGRID_API_KEY` | — | No-op without config. Email delivery integration. |
+| `SENDGRID_API_KEY` | — | **Currently a documented no-op even when set** — nothing reads it and no email is ever sent (`routers/_shared.py:_send_notification_email`). Setting it logs one warning at startup saying so. |
 
 Demo mode turns on CONTEXT_MANIFEST_ENABLED, ADAPTIVE_WEIGHTS_ENABLED, and NULL_MODEL=impostor automatically (set in run.py).
 

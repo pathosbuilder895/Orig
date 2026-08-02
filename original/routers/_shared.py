@@ -138,27 +138,74 @@ def _persist_or_503(state: StudentState) -> None:  # noqa: F821 -- StudentState 
         ) from exc
 
 
-# ── Email notification stub ───────────────────────────────────────────────────
+# ── Email notification: a documented no-op ────────────────────────────────────
 
 
 def _send_notification_email(student_name: str, action: str, score: float) -> None:
-    """Stub for SendGrid email notification. Replace with real implementation."""
-    import logging
+    """Record that a notification *would* be sent. Sends nothing. By design.
 
+    This is a **documented no-op**, not an unfinished function. It writes one
+    INFO line and returns; it opens no socket, reads no credential, and has no
+    failure mode. ``SENDGRID_API_KEY`` is accepted by the environment (see the
+    flag table in CLAUDE.md) but nothing in this process reads it.
+
+    Why it stays a no-op. Emailing a professor "this submission scored 0.71"
+    is a FERPA-relevant disclosure of an academic-integrity signal, and the
+    product's whole posture is that a score is a prompt for a pastoral
+    conversation rather than an accusation delivered by robot. Which
+    recipients, at which thresholds, with what wording and what opt-out, is a
+    policy decision for the pilot institutions — not something to settle by
+    wiring an SDK because the stub looked unfinished. Until that decision is
+    made, sending nothing is the correct behaviour, and this docstring is the
+    record of that being a choice.
+
+    The one thing a no-op must not be is *silent to an operator who thinks it
+    is live*: see ``log_email_sender_status()``, which says so at startup when
+    ``SENDGRID_API_KEY`` is set.
+
+    When the decision lands, the call site is
+    ``routers/students_scoring.py`` (post-scoring, after the action is
+    determined) and the shape is roughly::
+
+        from sendgrid import SendGridAPIClient
+        from sendgrid.helpers.mail import Mail
+        SendGridAPIClient(os.environ["SENDGRID_API_KEY"]).send(
+            Mail(from_email=..., to_emails=professor_email, ...)
+        )
+
+    Anything doing that also needs a real recipient lookup (there is no
+    professor-email field on a student today), a per-tenant enable flag, and a
+    delivery-failure path that cannot 500 the scoring request.
+    """
     log = logging.getLogger(__name__)
     log.info(
-        "EMAIL NOTIFICATION [stub] → action=%s student=%s score=%.3f — "
-        "integrate SendGrid here: https://docs.sendgrid.com/api-reference/mail-send/mail-send",
+        "EMAIL NOTIFICATION [no-op, nothing sent] → action=%s student=%s score=%.3f",
         action,
         student_name,
         score,
     )
-    # TODO: Replace with actual SendGrid call:
-    # from sendgrid import SendGridAPIClient
-    # from sendgrid.helpers.mail import Mail
-    # sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
-    # message = Mail(from_email='noreply@original.ai', to_emails=professor_email, ...)
-    # sg.send(message)
+
+
+def log_email_sender_status() -> None:
+    """Say once, at startup, that ``SENDGRID_API_KEY`` is being ignored.
+
+    Called from ``api.py``'s lifespan alongside the other boot-time flag
+    lines. Setting a credential and getting silence is the failure mode worth
+    closing here: an operator who exports the key has, reasonably, concluded
+    that emails now go out, and nothing in the logs would have corrected them.
+    One line at boot does — and at boot rather than per scored submission, so
+    it stays a fact about the deployment instead of noise in the hot path.
+
+    Says nothing when the key is unset: that operator has made no claim to
+    contradict.
+    """
+    if not os.environ.get("SENDGRID_API_KEY", "").strip():
+        return
+    logging.getLogger(__name__).warning(
+        "SENDGRID_API_KEY is set but no email is ever sent — the notification "
+        "sender is a documented no-op (routers/_shared.py:_send_notification_email). "
+        "Scoring notifications are logged, not delivered. Unset the key to silence this."
+    )
 
 
 # Login throttle: sliding-window per-IP limit so /auth/login is not freely
