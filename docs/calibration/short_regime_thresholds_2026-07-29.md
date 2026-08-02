@@ -8,6 +8,43 @@ change lands.
 
 ---
 
+## 0. Erratum (2026-08-01, added on rebase onto the genre-prior series)
+
+Three corrections that a reader must have before §1. None of them change a measured number
+in §2; all of them change what those numbers are evidence *for*.
+
+**(a) The grid never exercised `COHORT_PRIOR_FALLBACK`.** The `PRIOR` lever in §2 is
+`validation/short_regime/runner.py`'s own in-process `cohort_stats(trials, exclude=…)`, passed
+straight into `ScoringConfig.genre_stats`. The runner never calls the router, the repository,
+or `store.get_cohort_stats`, and never reads the env flag. So §2 measures *"does blending
+toward a genre-agnostic cross-student mean help at this operating point"* — a fair question,
+fairly answered — but it is **not** a measurement of the shipped code path, its cold-start
+floors, its tenant scoping, or its cache. Read §3.1's `COHORT_PRIOR_FALLBACK=1` as the
+author's mapping from the harness's construct to the production flag, not as a validated
+configuration.
+
+**(b) The harness's prior and the shipped prior are not the same estimator.** The harness's
+`cohort_stats()` is leave-one-out (good — the shipped `get_cohort_stats` now matches it) but
+carries no `n_students`, so it takes `scoring.py`'s **undamped** blend-weight path. The
+shipped prior reports `n_students`, so its virtual weight is
+`PRIOR_WEIGHT × n_students/(n_students+PRIOR_WEIGHT)` — on a 9-student pool, ~0.73× the
+harness's weight. The shipped fallback also applies both cold-start floors (3 distinct
+students / 5 vectors, post-exclusion) and pools only within one tenant; the harness applies
+neither. Expect the production effect to be **smaller** than §2's `PRIOR` marginal, and to be
+absent entirely in any tenant that does not clear the floors. §2's numbers are reproducible as
+written — the harness is insulated from all of this — but they are an upper bound on what the
+flag can do in production, not a forecast of it.
+
+**(c) `LLR_ACTION_MODE` has since landed on main, and it is *not* the §4 rebind.** §3.1's
+⚠️ bundle warning is still live. `LLR_ACTION_MODE=gate` (main's default as of 2026-08) lets
+`llr_deviation_score` **downgrade** an action by one severity step; it does not make
+`llr_deviation_score` the decision statistic. The `PRIOR` row of §2 — AUC 0.738, catch@5%
+0.102, *below* the 0.545 flags-off floor — remains the row that describes enabling
+`BAYESIAN_PRIOR_ENABLED` + `COHORT_PRIOR_FALLBACK` today. Do not read the presence of
+`LLR_ACTION_MODE` on main as the §4 sign-off having happened.
+
+---
+
 ## 1. Summary
 
 | | |
@@ -349,6 +386,10 @@ population.
   submissions); genre-matching to the pilot's actual population is assumed, not verified.
 - **Single run.** The grid in §2 is one execution of the harness, not a repeated/bootstrapped
   ensemble beyond the CIs the harness itself reports per combo.
+- **The harness scores in-process, not through the API.** `runner.py` builds `StudentState`
+  objects directly and calls `quantum_score()` with a hand-built `ScoringConfig`. Nothing in
+  §2 exercises the router, the repository, the persistence layer, or any env flag other than
+  `RANK_REMEDIATION` — see §0(a)/(b) for what that means for the `PRIOR` lever specifically.
 - **ICC caveats.** `validation/short_regime/reliability_500w.json` reports per-feature ICC at
   500 words; 8 codes carry `icc: null` — the two comparison codes
   (`char_trigram_profile_divergence`, `function_word_profile_divergence`) plus the 6 tier-17
