@@ -403,7 +403,7 @@ python3 -m pytest tests/test_features.py tests/test_quantum.py \
   tests/test_tension_arc_integration.py --noconftest -v
 ```
 
-A narrow slice covering feature extraction, quantum invariants (Born probability bounds, density matrix trace normalisation, purity bounds, trajectory), and tension arc integration. No database or Docker required. The full suite (`.venv/bin/pytest tests/ -q`, see `CLAUDE.md`) is ~882 tests as of 2026-07-16 (test count grows regularly — treat this as approximate, not a pinned number).
+A narrow slice covering feature extraction, quantum invariants (Born probability bounds, density matrix trace normalisation, purity bounds, trajectory), and tension arc integration. No database or Docker required. The full suite (`.venv/bin/pytest tests/ -q`, see `CLAUDE.md`) is ~1050 tests as of 2026-08-01 (test count grows regularly — treat this as approximate, not a pinned number).
 
 ---
 

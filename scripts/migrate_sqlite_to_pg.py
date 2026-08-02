@@ -2,10 +2,15 @@
 """
 migrate_sqlite_to_pg.py — WS-6 P4 data migration (SQLite -> Postgres).
 
-Copies every row of the live 16-table SQLite store (``original/store.py``,
+Copies every row of the live SQLite store (``original/store.py``,
 ``ORIGINAL_DB``) into the live Postgres schema (``original/db/models/live.py``,
 ``DATABASE_URL``), then emits a per-table row-count + content-checksum parity
-report so the migration can be *proven* faithful, not just assumed.
+report so the migration can be *proven* faithful, not just assumed. The set of
+tables migrated is exactly ``MIGRATORS`` below, one per table in
+``original.db.models.live.LiveBase.metadata`` -- see ``tests/test_migration.py``,
+which derives its completeness check from that same metadata so a table added
+to the live schema without a migrator here fails loudly instead of silently
+losing data on cutover.
 
 Why table-level, not Repository-to-Repository
 ---------------------------------------------
@@ -60,11 +65,14 @@ from original.db.models.live import (
     BaselineRequest,
     BluebookCourse,
     BluebookExam,
+    BluebookSession,
     BluebookSubmission,
     CalibrationRun,
     Correction,
     FidelityScore,
     FormationPathway,
+    ParkBeat,
+    ParkSession,
     StaffUser,
     StudentName,
     StudentProfile,
@@ -713,7 +721,8 @@ class _BluebookSubmissionMigrator(_Migrator):
     def read_sqlite(self, conn):
         rows = conn.execute(
             "SELECT submission_id, exam_id, tenant_id, student_id, candidate, exam_title, "
-            "course, word_count, time_min, stylometric, ai_score, status, created_at "
+            "course, word_count, time_min, stylometric, ai_score, status, created_at, "
+            "submission_uuid, late "
             "FROM bluebook_submissions"
         ).fetchall()
         return [
@@ -731,6 +740,8 @@ class _BluebookSubmissionMigrator(_Migrator):
                 "ai_score": r[10],
                 "status": r[11],
                 "created_at": _canon_ts(r[12]),
+                "submission_uuid": r[13],
+                "late": r[14],
             }
             for r in rows
         ]
@@ -755,6 +766,8 @@ class _BluebookSubmissionMigrator(_Migrator):
             ai_score=row["ai_score"],
             status=row["status"],
             created_at=_parse_ts(row["created_at"]),
+            submission_uuid=row["submission_uuid"],
+            late=row["late"],
         )
 
     def read_pg(self, session):
@@ -776,6 +789,8 @@ class _BluebookSubmissionMigrator(_Migrator):
                     "ai_score": s.ai_score,
                     "status": s.status,
                     "created_at": _canon_ts(s.created_at),
+                    "submission_uuid": s.submission_uuid,
+                    "late": s.late,
                 }
             )
         return out
@@ -827,6 +842,63 @@ class _BluebookCourseMigrator(_Migrator):
                 "created_at": _canon_ts(c.created_at),
             }
             for c in session.query(BluebookCourse).all()
+        ]
+
+
+class _BluebookSessionMigrator(_Migrator):
+    name = "bluebook_sessions"
+    model = BluebookSession
+    # bluebook_sessions has no single-column primary key -- a sitting is
+    # identified by (exam_id, student_key) together (see BluebookSession in
+    # db/models/live.py). Two students in the same exam, or one student across
+    # two exams, tie on one of the two columns, so sorting the checksum on
+    # either column alone would leave tied rows in backend read order and make
+    # the digest order-dependent. "session_key" is a canonical-form-only sort
+    # key (never a real column on either backend), built identically from both
+    # sides -- the same convention _ParkBeatMigrator uses for its
+    # (park_token, student_hint) key.
+    pk = "session_key"
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(
+            "SELECT exam_id, student_key, tenant_id, started_at, deadline_at "
+            "FROM bluebook_sessions"
+        ).fetchall()
+        return [
+            {
+                "session_key": f"{r[0]}:{r[1]}",
+                "exam_id": r[0],
+                # student_key is stored as an opaque flat string in BOTH
+                # schemas (unlike student_id elsewhere) -- the live model has
+                # no tenant/local split for it, so no _split_local here.
+                "student_key": r[1],
+                "tenant_id": r[2],
+                "started_at": _canon_ts(r[3]),
+                "deadline_at": _canon_ts(r[4]),
+            }
+            for r in rows
+        ]
+
+    def to_model(self, row):
+        return BluebookSession(
+            exam_id=row["exam_id"],
+            student_key=row["student_key"],
+            tenant_id=row["tenant_id"],
+            started_at=_parse_ts(row["started_at"]),
+            deadline_at=_parse_ts(row["deadline_at"]),
+        )
+
+    def read_pg(self, session):
+        return [
+            {
+                "session_key": f"{s.exam_id}:{s.student_key}",
+                "exam_id": s.exam_id,
+                "student_key": s.student_key,
+                "tenant_id": s.tenant_id,
+                "started_at": _canon_ts(s.started_at),
+                "deadline_at": _canon_ts(s.deadline_at),
+            }
+            for s in session.query(BluebookSession).all()
         ]
 
 
@@ -1012,8 +1084,104 @@ class _BaselineRequestMigrator(_Migrator):
         ]
 
 
+class _ParkSessionMigrator(_Migrator):
+    name = "park_sessions"
+    model = ParkSession
+    pk = "exam_session_id"
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(
+            "SELECT exam_session_id, tenant_id, park_token, created_at FROM park_sessions"
+        ).fetchall()
+        return [
+            {
+                "exam_session_id": r[0],
+                "tenant_id": r[1],
+                "park_token": r[2],
+                "created_at": _canon_ts(r[3]),
+            }
+            for r in rows
+        ]
+
+    def to_model(self, row):
+        return ParkSession(
+            exam_session_id=row["exam_session_id"],
+            tenant_id=row["tenant_id"],
+            park_token=row["park_token"],
+            created_at=_parse_ts(row["created_at"]),
+        )
+
+    def read_pg(self, session):
+        return [
+            {
+                "exam_session_id": s.exam_session_id,
+                "tenant_id": s.tenant_id,
+                "park_token": s.park_token,
+                "created_at": _canon_ts(s.created_at),
+            }
+            for s in session.query(ParkSession).all()
+        ]
+
+
+class _ParkBeatMigrator(_Migrator):
+    name = "park_beats"
+    model = ParkBeat
+    # park_beats has no single-column primary key -- it's keyed
+    # (park_token, student_hint) (see ParkBeat's docstring in db/models/live.py).
+    # "beat_key" is a canonical-form-only sort key (never a real column on
+    # either backend), built identically from both sides so the checksum's
+    # sort order is deterministic.
+    pk = "beat_key"
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(
+            "SELECT park_token, student_hint, state, first_seen_at, last_seen_at, "
+            "transitions_json FROM park_beats"
+        ).fetchall()
+        return [
+            {
+                "beat_key": f"{r[0]}:{r[1]}",
+                "park_token": r[0],
+                "student_hint": r[1],
+                "state": r[2],
+                "first_seen_at": _canon_ts(r[3]),
+                "last_seen_at": _canon_ts(r[4]),
+                "transitions": _parse_json(r[5]) or [],
+            }
+            for r in rows
+        ]
+
+    def to_model(self, row):
+        return ParkBeat(
+            park_token=row["park_token"],
+            student_hint=row["student_hint"],
+            state=row["state"],
+            first_seen_at=_parse_ts(row["first_seen_at"]),
+            last_seen_at=_parse_ts(row["last_seen_at"]),
+            transitions_json=row["transitions"],
+        )
+
+    def read_pg(self, session):
+        return [
+            {
+                "beat_key": f"{b.park_token}:{b.student_hint}",
+                "park_token": b.park_token,
+                "student_hint": b.student_hint,
+                "state": b.state,
+                "first_seen_at": _canon_ts(b.first_seen_at),
+                "last_seen_at": _canon_ts(b.last_seen_at),
+                "transitions": b.transitions_json or [],
+            }
+            for b in session.query(ParkBeat).all()
+        ]
+
+
 # Insertion order respects the tenants FK: tenants first, then everything that
-# references it. (audit_log has no tenant FK, but ordering it late is harmless.)
+# references it. (audit_log has no tenant FK, but ordering it late is
+# harmless; park_beats has no tenant FK either -- it isn't scoped to a
+# student or tenant at all, see ParkBeat's docstring -- but it must still
+# flush after park_sessions since a phone-park session logically precedes its
+# beats even without a DB-level FK enforcing it.)
 MIGRATORS: list[_Migrator] = [
     _TenantMigrator(),
     _UserMigrator(),
@@ -1028,9 +1196,12 @@ MIGRATORS: list[_Migrator] = [
     _BluebookExamMigrator(),
     _BluebookSubmissionMigrator(),
     _BluebookCourseMigrator(),
+    _BluebookSessionMigrator(),
     _AuditMigrator(),
     _FormationMigrator(),
     _BaselineRequestMigrator(),
+    _ParkSessionMigrator(),
+    _ParkBeatMigrator(),
 ]
 
 

@@ -30,7 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from original.features.pipeline import compute_full_features, extract_features, feature_vector
 from original.quantum.state import StudentState, BaselineSample
-from original.quantum.scoring import score
+from original.quantum.scoring import score, ScoringConfig
 from original.constants import ALL_FEATURE_CODES, FEATURE_DIM
 from validation.manifest_schema import (
     AuthorshipLabel,
@@ -142,6 +142,13 @@ def run_calibration(
     """
     import random as _random
 
+    # WS-7 step 1 moved every env-var read out of score() and into
+    # ScoringConfig — a bare score(...) call reproduces byte-identical
+    # flags-off Phase 1 behaviour no matter what's in os.environ. Build it
+    # once so every score() call below actually honors the env flags
+    # (LENGTH_ADAPTIVE_WEIGHTS, BAYESIAN_PRIOR_ENABLED, etc.) the caller set.
+    scoring_config = ScoringConfig.from_env()
+
     if thresholds is None:
         thresholds = {
             "no_action": 0.40,
@@ -234,7 +241,14 @@ def run_calibration(
             t0 = time.perf_counter()
             features = compute_full_features(text, baseline_texts)
             sub_vector = np.array([features[c] for c in ALL_FEATURE_CODES], dtype=np.float64)
-            result = score(state, sub_vector, features, entry.filename)
+            result = score(
+                state,
+                sub_vector,
+                features,
+                entry.filename,
+                n_tokens=len(text.split()),
+                scoring_config=scoring_config,
+            )
             elapsed_ms = (time.perf_counter() - t0) * 1000
 
             # Determine if same author
@@ -281,7 +295,14 @@ def run_calibration(
             t0 = time.perf_counter()
             features = compute_full_features(text, baseline_texts)
             sub_vector = np.array([features[c] for c in ALL_FEATURE_CODES], dtype=np.float64)
-            result = score(state, sub_vector, features, f"{entry.filename}@{target_author}")
+            result = score(
+                state,
+                sub_vector,
+                features,
+                f"{entry.filename}@{target_author}",
+                n_tokens=len(text.split()),
+                scoring_config=scoring_config,
+            )
             elapsed_ms = (time.perf_counter() - t0) * 1000
 
             tier_contribs: Dict[str, float] = {}

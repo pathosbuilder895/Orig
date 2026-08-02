@@ -61,6 +61,13 @@ _MIN_CLUSTER_SIZE: int = 2
 # ══════════════════════════════════════════════════════════════════════════════
 
 
+def _extract_sub_genre(manifest: object) -> str | None:
+    """Submission genre — manifest is either a ContextManifest or a dict."""
+    if isinstance(manifest, dict):
+        return (manifest.get("genre") or {}).get("primary")
+    return (getattr(manifest, "genre", {}) or {}).get("primary")
+
+
 def _genre_similarity(submission_genre: str | None, sample_genre: str | None) -> float:
     """Three-step ladder: 1.0 same label, 0.5 same family, 0.0 otherwise."""
     if submission_genre is None or sample_genre is None:
@@ -256,11 +263,7 @@ def match_baseline_cluster(
         if vec is not None:
             sub_centroid = _transform_centroid(vec, submission_text)
 
-    # Submission genre — manifest is either ContextManifest or a dict.
-    if isinstance(manifest, dict):
-        sub_genre = (manifest.get("genre") or {}).get("primary")
-    else:
-        sub_genre = (getattr(manifest, "genre", {}) or {}).get("primary")
+    sub_genre = _extract_sub_genre(manifest)
 
     total = len(samples)
     scored: list[tuple[int, float]] = []
@@ -285,9 +288,41 @@ def match_baseline_cluster(
     return selected, False
 
 
+def genre_covered_by_baseline(manifest: object, state: object) -> bool:
+    """
+    Whether the submission's classified genre already appears among this
+    student's baseline samples.
+
+    Feeds `build_adaptive_weight_vector`'s `genre_covered` parameter (Phase 5,
+    gated separately by GENRE_INVARIANT_WEIGHTS_ENABLED) — a 2026-08
+    leave-one-genre-out study (validation/genre_crossgenre_2026-08/) found
+    the static per-tier weight vector fails at recognizing a student's own
+    writing when their submission's genre isn't one their baseline has ever
+    covered (topic/genre-sensitive tiers inflate the deviation score enough
+    to look like a different author). This is a DIFFERENT axis than
+    `anchor_only` above: anchor_only asks "are any baseline samples
+    contextually SIMILAR ENOUGH to trust for comparison features"; this asks
+    "has this exact genre been SEEN AT ALL" — a family-level partial match
+    (anchor_only=False) can still have genre_covered=False.
+
+    Returns True (the conservative, no-op default) when either the
+    submission's genre or every baseline sample's genre is unclassified —
+    an unknown genre is never treated as "definitely novel."
+    """
+    sub_genre = _extract_sub_genre(manifest)
+    if sub_genre is None:
+        return True
+    samples = getattr(state, "samples", None) or []
+    known_genres = {s.genre for s in samples if getattr(s, "genre", None) is not None}
+    if not known_genres:
+        return True
+    return sub_genre in known_genres
+
+
 __all__ = [
     "match_baseline_cluster",
     "ensure_sample_context_metadata",
+    "genre_covered_by_baseline",
     "_genre_similarity",
     "_topic_similarity",
     "_recency_weight",

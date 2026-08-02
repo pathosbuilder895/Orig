@@ -29,6 +29,11 @@ class AddSampleRequest(BaseModel):
         "When provided, Tier 17 behavioral biometric features are extracted. "
         "Absent for uploaded papers — Tier 17 defaults to 0.5 (neutral).",
     )
+    submission_uuid: str | None = Field(
+        None,
+        description="Bluebook seal id: when present, an identical text already in the "
+        "profile is skipped instead of re-ingested (retried-seal replay guard).",
+    )
 
 
 class ScoreSubmissionRequest(BaseModel):
@@ -101,6 +106,24 @@ class BluebookRecordSubmissionRequest(BaseModel):
     stylometric: int | None = Field(None, description="Stylometric integrity score, 0-100")
     ai_score: int | None = Field(None, description="AI-likelihood score, 0-100")
     status: str = Field("SUBMITTED", description="Submission status label")
+    submission_uuid: str | None = Field(
+        None, description="Client seal id; replays return the prior result instead of re-writing"
+    )
+
+
+class BluebookStartSessionRequest(BaseModel):
+    """POST /bluebook/exams/{exam_id}/session — begin (or resume) a sitting."""
+
+    student_id: str = Field("", description="Resolved Original student id, when known")
+    candidate: str = Field("", description="Candidate email/label fallback for demo sittings")
+
+
+class BluebookSessionResponse(BaseModel):
+    exam_id: str
+    started_at: str
+    deadline_at: str
+    server_now: str
+    duration_seconds: int
 
 
 class BluebookCreateCourseRequest(BaseModel):

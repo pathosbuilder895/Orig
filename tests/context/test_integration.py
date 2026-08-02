@@ -361,6 +361,127 @@ class TestScenarios:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Genre-invariant weighting (2026-08 cross-genre study,
+# validation/genre_crossgenre_2026-08/) — end to end
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class TestGenreInvariantWeighting:
+    """
+    GENRE_INVARIANT_WEIGHTS_ENABLED attenuates topic-sensitive tiers when the
+    submission's genre isn't one the student's baseline has ever covered.
+    Off by default and implies ADAPTIVE_WEIGHTS_ENABLED.
+    """
+
+    def _state_with_genre(self, texts: List[str], genre: str) -> StudentState:
+        samples = []
+        for i, t in enumerate(texts):
+            seed = abs(hash(("genre_invariant", i, t))) % (2**32 - 1)
+            v = np.random.RandomState(seed).uniform(0.3, 0.7, size=FEATURE_DIM)
+            samples.append(
+                BaselineSample(
+                    text=t,
+                    vector=v,
+                    provenance="verified",
+                    auth_weight=1.0,
+                    assignment=f"a{i}",
+                    submitted_at=f"2025-01-{i+1:02d}",
+                    genre=genre,  # pre-set -- skips lazy resolver backfill
+                )
+            )
+        return StudentState(student_id="genre_invariant_student", samples=samples)
+
+    def _mismatched_baseline_genre(self, submission_text: str) -> str:
+        # Whatever the submission actually resolves to, pick a DIFFERENT
+        # valid label for the baseline -- robust to the resolver's exact
+        # rules (same caution TestScenarios takes with the rule-based
+        # classifier elsewhere in this file).
+        from original.constants import GENRE_LABELS
+        from original.context.resolvers import resolve_genre
+
+        sub_genre = resolve_genre(submission_text).get("primary")
+        return next(g for g in GENRE_LABELS if g != sub_genre)
+
+    def test_default_off_leaves_weights_unchanged(self):
+        text = (
+            "The committee reviewed the proposal and issued its findings. "
+            "Members debated the merits at length before reaching consensus. "
+        ) * 15
+        baseline_genre = self._mismatched_baseline_genre(text)
+        state = self._state_with_genre(["Baseline one.", "Baseline two."], baseline_genre)
+
+        without_flag = run_adaptive_pipeline(
+            text, state, "s1", enable_manifest=True, enable_adaptive_weights=True,
+        )
+        with_flag_off_explicitly = run_adaptive_pipeline(
+            text, state, "s2", enable_manifest=True, enable_adaptive_weights=True,
+            enable_genre_invariant_weights=False,
+        )
+        assert np.allclose(without_flag.adaptive_weights, with_flag_off_explicitly.adaptive_weights)
+        # Coverage is still recorded for audit even though it wasn't acted on.
+        assert without_flag.manifest.baseline_match["genre_covered"] is False
+
+    def test_enabled_attenuates_on_genre_mismatch(self):
+        text = (
+            "The committee reviewed the proposal and issued its findings. "
+            "Members debated the merits at length before reaching consensus. "
+        ) * 15
+        baseline_genre = self._mismatched_baseline_genre(text)
+        state = self._state_with_genre(["Baseline one.", "Baseline two."], baseline_genre)
+
+        off = run_adaptive_pipeline(
+            text, state, "s3", enable_manifest=True, enable_adaptive_weights=True,
+        )
+        on = run_adaptive_pipeline(
+            text, state, "s4", enable_manifest=True, enable_adaptive_weights=True,
+            enable_genre_invariant_weights=True,
+        )
+        assert off.manifest.baseline_match["genre_covered"] is False
+        assert on.manifest.baseline_match["genre_covered"] is False
+        assert not np.allclose(off.adaptive_weights, on.adaptive_weights)
+        # Only GENRE_MISMATCH_ATTENUATE_TIERS codes should differ (modulo any
+        # that were already muted -- mute always wins, on either side).
+        from original.context.weighting import GENRE_MISMATCH_ATTENUATE_TIERS
+        from original.constants import FEATURE_TIER
+
+        for i, code in enumerate(ALL_FEATURE_CODES):
+            tier = FEATURE_TIER.get(code)
+            if off.adaptive_weights[i] == 0.0:
+                continue  # muted -- untouched on both sides, nothing to compare
+            if tier in GENRE_MISMATCH_ATTENUATE_TIERS:
+                assert on.adaptive_weights[i] < off.adaptive_weights[i], (
+                    f"{code} (tier {tier}) should be attenuated when genre_covered=False"
+                )
+            else:
+                assert on.adaptive_weights[i] == pytest.approx(off.adaptive_weights[i])
+
+    def test_no_attenuation_when_genre_is_covered(self):
+        # The student's baseline already covers this genre -- the whole
+        # point of gating on genre_covered is that the common case (genre
+        # matches) is completely untouched even with the flag on.
+        text = (
+            "The committee reviewed the proposal and issued its findings. "
+            "Members debated the merits at length before reaching consensus. "
+        ) * 15
+        from original.constants import GENRE_LABELS
+        from original.context.resolvers import resolve_genre
+
+        sub_genre = resolve_genre(text).get("primary")
+        covering_genre = sub_genre if sub_genre in GENRE_LABELS else GENRE_LABELS[0]
+        state = self._state_with_genre(["Baseline one.", "Baseline two."], covering_genre)
+
+        off = run_adaptive_pipeline(
+            text, state, "s5", enable_manifest=True, enable_adaptive_weights=True,
+        )
+        on = run_adaptive_pipeline(
+            text, state, "s6", enable_manifest=True, enable_adaptive_weights=True,
+            enable_genre_invariant_weights=True,
+        )
+        assert on.manifest.baseline_match["genre_covered"] is True
+        assert np.allclose(off.adaptive_weights, on.adaptive_weights)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Score → Layer7Output integration
 # ══════════════════════════════════════════════════════════════════════════════
 

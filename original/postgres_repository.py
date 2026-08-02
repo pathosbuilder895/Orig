@@ -36,6 +36,7 @@ from .db.models.live import (
     BaselineRequest,
     BluebookCourse,
     BluebookExam,
+    BluebookSession,
     BluebookSubmission,
     CalibrationRun,
     Correction,
@@ -95,7 +96,9 @@ class PostgresRepository:
         # identically to a process-global cache there), while each test in
         # test_repository_contract.py gets its own fresh instance/cache —
         # avoiding cross-test leakage a module-level dict would risk.
-        self._genre_stats_cache: dict[tuple[str | None, str], list[tuple[str, list]]] = {}
+        # A genre of None is the genre-agnostic cohort pool (get_cohort_stats)
+        # — its own key in the same cache, mirroring store._GENRE_STATS_CACHE.
+        self._genre_stats_cache: dict[tuple[str | None, str | None], list[tuple[str, list]]] = {}
 
     def _todo(self, op: str):
         raise NotImplementedError(self._NOT_READY.format(op=op))
@@ -899,6 +902,24 @@ class PostgresRepository:
     def get_genre_stats(self, genre, tenant, exclude_student_id):
         """Tenant-scoped, self-excluding genre prior — see
         store.get_genre_stats's docstring for the full contract.
+        """
+        return genre_stats_from_groups(self._pool_groups(tenant, genre), exclude_student_id)
+
+    def get_cohort_stats(self, tenant, exclude_student_id):
+        """Tenant-scoped, self-excluding genre-AGNOSTIC cohort prior — see
+        store.get_cohort_stats's docstring for the full contract.
+
+        Same pool scan as get_genre_stats with the genre filter dropped, and
+        the same shared genre_stats_from_groups for the floors, the
+        leave-one-out exclusion and n_students, so neither the two priors nor
+        the two backends can drift apart on any of them.
+        """
+        return genre_stats_from_groups(self._pool_groups(tenant, None), exclude_student_id)
+
+    def _pool_groups(self, tenant, genre):
+        """The authenticated-sample pool for one ``(tenant, genre)``, grouped
+        by student and memoised in ``self._genre_stats_cache``.  ``genre=None``
+        drops the genre filter (the cohort pool).
 
         Filters with an indexed equality match on StudentProfile.tenant_id —
         the same "database constraint instead of a naming convention" the FK
@@ -911,43 +932,44 @@ class PostgresRepository:
         """
         key = (tenant, genre)
         groups = self._genre_stats_cache.get(key)
-        if groups is None:
-            tenant_id_column_value = tenant if tenant is not None else _LEGACY_FLAT_TENANT
-            try:
-                with session_scope() as session:
-                    rows = (
-                        session.execute(
-                            select(StudentProfile.data).where(
-                                StudentProfile.tenant_id == tenant_id_column_value
-                            )
+        if groups is not None:
+            return groups
+
+        tenant_id_column_value = tenant if tenant is not None else _LEGACY_FLAT_TENANT
+        try:
+            with session_scope() as session:
+                rows = (
+                    session.execute(
+                        select(StudentProfile.data).where(
+                            StudentProfile.tenant_id == tenant_id_column_value
                         )
-                        .scalars()
-                        .all()
                     )
-            except Exception:
-                log.exception(
-                    "get_genre_stats DB query failed for genre %s tenant %s", genre, tenant
+                    .scalars()
+                    .all()
                 )
-                return None
+        except Exception:
+            log.exception("genre/cohort pool query failed for genre %s tenant %s", genre, tenant)
+            # Deliberately NOT cached: a transient DB error must not pin an
+            # empty pool until the next write. Returning [] here makes the
+            # caller's floors fail closed (no prior), same as a cold pool.
+            return []
 
-            groups = []
-            for data in rows:
-                # The doc's own student_id is the full scoped id (_state_to_doc
-                # writes state.student_id verbatim, and _doc_to_state feeds it
-                # straight back into StudentState.student_id), so it matches
-                # the value the caller passes as exclude_student_id.
-                student_vectors = [
-                    np.array(sample["vector"], dtype=np.float64)
-                    for sample in data.get("samples", [])
-                    if (sample.get("auth_weight") or 0) > 0 and sample.get("genre") == genre
-                ]
-                if student_vectors:
-                    groups.append((data.get("student_id"), student_vectors))
-            self._genre_stats_cache[key] = groups
-
-        # Shared with the SQLite backend so the two cannot drift on floor
-        # semantics or on the exclusion.
-        return genre_stats_from_groups(groups, exclude_student_id)
+        groups = []
+        for data in rows:
+            # The doc's own student_id is the full scoped id (_state_to_doc
+            # writes state.student_id verbatim, and _doc_to_state feeds it
+            # straight back into StudentState.student_id), so it matches
+            # the value the caller passes as exclude_student_id.
+            student_vectors = [
+                np.array(sample["vector"], dtype=np.float64)
+                for sample in data.get("samples", [])
+                if (sample.get("auth_weight") or 0) > 0
+                and (genre is None or sample.get("genre") == genre)
+            ]
+            if student_vectors:
+                groups.append((data.get("student_id"), student_vectors))
+        self._genre_stats_cache[key] = groups
+        return groups
 
     # ── Corrections ──────────────────────────────────────────────────────
     def put_correction(
@@ -1538,6 +1560,8 @@ class PostgresRepository:
             "aiScore": row.ai_score,
             "status": row.status,
             "created_at": row.created_at.isoformat(),
+            "submission_uuid": row.submission_uuid,
+            "late": row.late,
         }
 
     def put_bluebook_submission(self, rec):
@@ -1561,6 +1585,8 @@ class PostgresRepository:
                         ai_score=rec.get("ai_score"),
                         status=rec.get("status", "SUBMITTED"),
                         created_at=datetime.now(UTC),
+                        submission_uuid=rec.get("submission_uuid"),
+                        late=rec.get("late", 0),
                     )
                 )
         except Exception as e:
@@ -1582,6 +1608,75 @@ class PostgresRepository:
         except Exception:
             log.exception("list_bluebook_submissions failed for %s", tenant_id)
             return []
+
+    def get_bluebook_submission_by_uuid(self, submission_uuid):
+        try:
+            with session_scope() as session:
+                stmt = select(BluebookSubmission).where(
+                    BluebookSubmission.submission_uuid == submission_uuid
+                )
+                row = session.execute(stmt).scalar_one_or_none()
+                return self._bluebook_sub_to_dict(row) if row else None
+        except Exception:
+            log.exception("get_bluebook_submission_by_uuid failed for %s", submission_uuid)
+            return None
+
+    @staticmethod
+    def _bluebook_session_to_dict(row: BluebookSession, created: bool) -> dict:
+        return {
+            "exam_id": row.exam_id,
+            "student_key": row.student_key,
+            "tenant_id": row.tenant_id,
+            "started_at": row.started_at.isoformat(),
+            "deadline_at": row.deadline_at.isoformat(),
+            "created": created,
+        }
+
+    def get_or_create_bluebook_session(self, exam_id, student_key, tenant_id, duration_seconds):
+        from datetime import timedelta
+
+        try:
+            with session_scope() as session:
+                self._ensure_tenant_exists(session, tenant_id)
+                now = datetime.now(UTC)
+                deadline = now + timedelta(seconds=int(duration_seconds))
+                stmt = (
+                    pg_insert(BluebookSession)
+                    .values(
+                        exam_id=exam_id,
+                        student_key=student_key,
+                        tenant_id=tenant_id,
+                        started_at=now,
+                        deadline_at=deadline,
+                    )
+                    .on_conflict_do_nothing(index_elements=["exam_id", "student_key"])
+                )
+                result = session.execute(stmt)
+                created = result.rowcount == 1
+                row = session.get(BluebookSession, (exam_id, student_key))
+                return self._bluebook_session_to_dict(row, created)
+        except Exception as e:
+            log.error(
+                "get_or_create_bluebook_session failed for %s/%s: %s", exam_id, student_key, e
+            )
+            raise
+
+    def get_bluebook_session(self, exam_id, student_key):
+        try:
+            with session_scope() as session:
+                row = session.get(BluebookSession, (exam_id, student_key))
+                if row is None:
+                    return None
+                return {
+                    "exam_id": row.exam_id,
+                    "student_key": row.student_key,
+                    "tenant_id": row.tenant_id,
+                    "started_at": row.started_at.isoformat(),
+                    "deadline_at": row.deadline_at.isoformat(),
+                }
+        except Exception:
+            log.exception("get_bluebook_session failed for %s/%s", exam_id, student_key)
+            return None
 
     @staticmethod
     def _bluebook_course_to_dict(row: BluebookCourse) -> dict:
