@@ -135,10 +135,27 @@ numeric gates, each emitting pass/fail + a report row:
 | G1 | Same-author FPR | LOO across seminary + public_authors + Plato: pooled flagged rate (≠ no_action) ≤ 5%, **and** the per-corpus / per-N-stratum flagged-rate reported alongside the pooled figure — a pooled 5% can hide individual students or corpora running well above it | 98–100% pooled |
 | G2 | Bland impostor | Let `q = min(p_far, p_central)` (the two-sided typicality; q ≈ 0.5 for a squarely-typical sample, q → 0 as either tail becomes extreme). Median `q` for {Eryxias chunks, `validation/corpus/ai_*.txt`} must be **≤** median `q` for same-author holdouts — an impostor must not look *more* typical (higher q) than genuine work | Eryxias ranks #1 most-authentic under the current one-sided metric — i.e. the inequality currently fails in the wrong direction |
 | G2b | Bland impostor, paraphrase-resistant | Phase-4 dependency (§8): repeat G2 against `ai_*.txt` essays run through one round of detector-guided paraphrase/self-edit ("elevate the language," per the published attack). Uniformity/too-central features must not be trivially defeated by a single prompt before they leave `DISABLED_FEATURE_GROUPS` | not yet run (new) |
-| G3 | Attribution non-regression | `validation/public_authors` top-1 accuracy ≥ 0.7 (existing bar), measured on the author-holdout split defined in §7 (never the split used to derive Fisher weights) | 1.0 (passes, pre-split) |
+| G3 | Attribution non-regression | `validation/public_authors` top-1 accuracy ≥ 0.7 (existing bar) on impostor-calibrated attribution (`validation/public_authors/run.py`), with raw argmin reported alongside, measured on the author-holdout split defined in §7 (never the split used to derive Fisher weights) | **0.727 — PASSES** (calibrated; raw argmin 0.364, mean rank 1.64; see footnote for how this number was reached) |
 | G4 | Career-drift sanity | Plato early→middle→late remains monotone on the typicality (p_far) axis | monotone (passes on raw features) |
 | G5 | Selection-bias null control | Shuffle author labels across the pooled corpora, re-derive Fisher-ratio weights (§7) and Phase-4 feature thresholds through the identical pipeline, then re-run G1/G3/G4 on the shuffled assignment. All three must collapse to chance (G1's flagged rate becomes uninformative noise, not ≤5%; G3 → ~1/n_authors; G4 → non-monotone). If the gates still pass on shuffled labels, they are measuring the selection procedure, not authorship signal | not yet run (new) |
 | G6 | Non-native-English fairness | Using the existing `native_english` manifest field and `validation/benchmark/bias_slicer.py` / `validation/bias_analysis.py` (same ≤2× FPR-ratio bar those modules already apply elsewhere): per-group flagged rate for the p_central/too-uniform action and the Phase-4 uniformity features must not differ by more than 2× between `native_english=true` and `=false` authentic samples | not yet run (new); `docs/calibration/norm_bounds_calibration_2026-03-17.md` already found a same-direction Tier-1 risk (NNE lexical-diversity 0.45–0.61 vs native 0.64–0.76) |
+
+**G3 baseline footnote.** The original "1.0" in this row was
+`median_per_author_auc` from the 2026-07-01 `verify_public_authors_N3`
+benchmark (`validation/benchmarks/2026-07-01/verify_public_authors_N3/report.json`)
+— a same-author-vs-different-author *verification* metric (pooled AUC 0.855),
+not attribution accuracy, and attribution had never actually been measured
+before 2026-07-29. That first real attribution run scored 0.455 raw argmin,
+which was traced to two instrument defects: TOC-stub corpus entries for
+kempis/mill (fixed in 9a4a27b5) and per-author-normalized deviations being
+compared across authors, which raw argmin cannot do validly (fixed in
+697444ba — G3 now uses impostor-calibrated attribution and reports raw argmin
+alongside). With both fixes applied, the 2026-07-30 re-run scored 0.727
+calibrated, clearing the bar. The raw-argmin number recorded alongside it —
+0.364, *lower* than the original 0.455 — is the more informative of the two:
+repairing kempis/mill turned two table-of-contents stubs into genuine
+competitors, which made the scale-blind rule worse while the calibrated rule
+improved, confirming the diagnosis rather than merely fixing the corpus.
 
 **Why G1 and G2 changed.** Conformal p-values are uniform on their support
 under the exchangeable-null hypothesis, so for a same-author holdout

@@ -38,6 +38,7 @@ from validation.benchmark.reproducibility import lock_environment  # noqa: E402
 ENV_LOCK = lock_environment()
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -348,6 +349,9 @@ def evaluate_g1_fpr(
     )
 
 
+_G2_CRITERION = "median(impostor q) <= median(holdout q)"
+
+
 def evaluate_g2_bland_impostor(holdout_q: list[float], impostor_q: list[float]) -> GateResult:
     """
     G2 — Bland impostor. q = min(p_far, p_central) (the two-sided
@@ -362,7 +366,7 @@ def evaluate_g2_bland_impostor(holdout_q: list[float], impostor_q: list[float]) 
     return GateResult(
         name="G2",
         passed=passed,
-        criterion="median(impostor q) <= median(holdout q)",
+        criterion=_G2_CRITERION,
         current_value=f"impostor={med_impostor:.3f}, holdout={med_holdout:.3f}",
         detail={"holdout_q": holdout_q, "impostor_q": impostor_q},
     )
@@ -493,6 +497,9 @@ def evaluate_g3_attribution(
     )
 
 
+_G4_CRITERION = "early <= middle <= late (typicality distance from early baseline)"
+
+
 def evaluate_g4_career_drift_monotone(group_means: dict[str, float]) -> GateResult:
     """
     G4 — Career-drift sanity. group_means keyed by "early"/"middle"/"late",
@@ -505,7 +512,7 @@ def evaluate_g4_career_drift_monotone(group_means: dict[str, float]) -> GateResu
     return GateResult(
         name="G4",
         passed=passed,
-        criterion="early <= middle <= late (typicality distance from early baseline)",
+        criterion=_G4_CRITERION,
         current_value=str(group_means),
         detail={"group_means": group_means},
     )
@@ -819,6 +826,47 @@ def _g6_unreachable_threshold_result(
     )
 
 
+def _g6_reachability_precheck(
+    results_by_group: dict[bool, list[dict]],
+    threshold: float,
+    *,
+    n_native_scored: int,
+    n_non_native_scored: int,
+) -> "GateResult | None":
+    """
+    Pure reachability pre-check, extracted from _compute_g6_fairness_data so
+    it can be unit-tested without a live scoring client (see
+    tests/test_calibration_gate.py::TestG6ReachabilityPrecheck).
+
+    Given the already-scored entries for both groups (each dict must carry a
+    "typicality_n" key), returns the loud "threshold unreachable" skip
+    (_g6_unreachable_threshold_result) when the smallest observed
+    typicality_n across BOTH groups cannot reach `threshold` at all — this is
+    the vacuous-pass guard _g6_unreachable_threshold_result's own docstring
+    describes (5 essays/author LOO gives typicality_n=4 everywhere, whose
+    p_central support cannot cross the 0.02 flag threshold, so both groups'
+    0% flagged rate is structural, not evidence of fairness).
+
+    Returns None when the threshold is reachable, or when no fold reports a
+    typicality_n at all (the action came from the deviation path, not the
+    conformal band, so the floor doesn't apply — mirrors
+    _reachability_block's "observed=False" convention) — either way, the
+    caller should proceed to compute the real per-group flagged rates.
+    """
+    all_scored = results_by_group[True] + results_by_group[False]
+    min_typicality_n = min(
+        (x["typicality_n"] for x in all_scored if x["typicality_n"]), default=0
+    )
+    if min_typicality_n and not _threshold_reachable(min_typicality_n, threshold):
+        return _g6_unreachable_threshold_result(
+            observed_n=min_typicality_n,
+            threshold=threshold,
+            n_native_scored=n_native_scored,
+            n_non_native_scored=n_non_native_scored,
+        )
+    return None
+
+
 def _g6_short_group_message(n_native: int, n_non_native: int, minimum: int) -> str:
     """
     Insufficient-data message that names EVERY short group (the first cut
@@ -890,12 +938,118 @@ def _uniformity_slice_summary(per_group_features: dict[bool, list[dict[str, floa
     }
 
 
+# ── Task 9: corpus-group-scoped pooled calibration (pure helpers) ─────────────
+#
+# The real G1 leg (_score_corpus_for_g1, below) scores THREE different
+# corpora -- seminary, public_authors, and Plato -- under one flat "demo:"
+# sid prefix: every fold's sid is demo:gate_g1_{entity_id}_{held_out_idx}, so
+# every entity from every corpus shares the literal tenant "demo". Task 7's
+# pooling_exchangeability audit only validated within-seminary and
+# within-Plato exchangeability SEPARATELY -- never their union, and never
+# public_authors at all. collect_tenant_distances (original/quantum/
+# pooled_source.py) resolves tenant via tenant_of(sid) or DEMO_TENANT, and
+# tenant_of only looks at the substring before the first ":" -- so calling it
+# with tenant="demo" across the merged texts_by_id would silently pool all
+# three corpora together, producing a p-value that rests on zero empirical
+# exchangeability evidence. These two pure functions make the corpus-group
+# boundary an explicit value instead of an implicit (and, for public authors
+# like "augustine", nonexistent) property of sid strings, so the pooled-mode
+# scorers below can filter BEFORE anything reaches collect_tenant_distances
+# rather than rely on tenant-string matching to do it for them.
+
+
+def _group_entities_for_pooling(
+    seminary_texts: dict[str, list[str]],
+    plato_texts: dict[str, list[str]],
+    public_authors_texts: dict[str, list[str]],
+) -> dict[str, str]:
+    """entity_id -> corpus group ("seminary" | "plato" | "public_authors"),
+    built directly from the three loader dicts' own keys -- NOT by parsing
+    sid strings. Public-author entity ids (e.g. "augustine", "mill") carry
+    no prefix a sid-parsing approach could use to recover their group, and
+    every G1 sid is tenant-scoped to the same flat "demo:" regardless of
+    which corpus it came from, so loader membership is the only source of
+    truth for group boundaries.
+    """
+    group_of: dict[str, str] = {}
+    for entity_id in seminary_texts:
+        group_of[entity_id] = "seminary"
+    for entity_id in plato_texts:
+        group_of[entity_id] = "plato"
+    for entity_id in public_authors_texts:
+        group_of[entity_id] = "public_authors"
+    return group_of
+
+
+def _pool_peers_for_entity(
+    entity_id: str,
+    group_of: dict[str, str],
+    entity_states,
+) -> dict:
+    """Subset of `entity_states` (an {entity_id: state} mapping) belonging to
+    OTHER entities in `entity_id`'s corpus group -- the exact, group-scoped
+    set that may be pooled when scoring `entity_id`. Never spans a group
+    boundary (see the section docstring above for why that is
+    non-negotiable); always excludes `entity_id` itself, even if
+    `entity_states` happens to contain it. Exclusion is keyed on entity_id,
+    not on dict identity, so a caller that never built a reference state for
+    `entity_id` (e.g. it fell below the LOO minimum) still gets a
+    correctly-scoped pool for everyone else.
+    """
+    my_group = group_of.get(entity_id)
+    return {
+        eid: state
+        for eid, state in entity_states.items()
+        if eid != entity_id and group_of.get(eid) == my_group
+    }
+
+
+def _pooled_reference_arithmetic(
+    group_of: dict[str, str],
+    sizes: dict[str, int],
+    min_size: int = 5,
+) -> dict[str, dict]:
+    """Pure, HTTP-free projection of the pooled reference size each
+    qualifying entity would actually get -- Task 9 Step 1's "assert
+    reachability before believing any result", worked out by arithmetic
+    before any real corpus run.
+
+    Only entities with >= min_size texts participate, matching
+    _score_corpus_for_g1's own `len(texts) < 5` LOO-fold participation bar
+    (an entity that never gets scored is also never a usable peer). Each
+    qualifying peer entity contributes exactly len(texts) leave-one-out
+    distances once pooled -- one per its own contributing baseline sample,
+    when that entity's pool-reference state is built from ALL of its own
+    texts (see original/quantum/state.py's loo_distances: length == N for
+    N >= 2 contributing samples).
+
+    Returns {entity_id: {"group", "own_n", "pool_n", "n_peers"}} for every
+    qualifying entity, where pool_n is the sum of every OTHER qualifying
+    same-group entity's own text count.
+    """
+    qualifying = {e: n for e, n in sizes.items() if n >= min_size}
+    out: dict[str, dict] = {}
+    for entity_id, n in qualifying.items():
+        peer_sizes = [
+            other_n
+            for other_id, other_n in qualifying.items()
+            if other_id != entity_id and group_of.get(other_id) == group_of.get(entity_id)
+        ]
+        out[entity_id] = {
+            "group": group_of.get(entity_id),
+            "own_n": n,
+            "pool_n": sum(peer_sizes),
+            "n_peers": len(peer_sizes),
+        }
+    return out
+
+
 # ── Corpus-driving orchestration (exercised by `main()`, not unit-tested) ──────
 
 
 def _score_corpus_for_g1(
     client, sid_prefix: str, texts_by_id: dict[str, list[str]]
-) -> tuple[list[str], dict[str, list[str]], list[float], int]:
+) -> tuple[list[str], dict[str, list[str]], list[float], int, list[int], int]:
     """
     For each id in texts_by_id with >= 5 texts: build a baseline from all
     but one text (leave-one-out over WHOLE documents, not chunks), score
@@ -905,31 +1059,82 @@ def _score_corpus_for_g1(
     this also works if set right before this call — see
     validation/verify/run_null_model.py's docstring on this point).
 
-    Returns (pooled_actions, per_corpus_actions, pooled_deviations, n_errors):
-    pooled_deviations is each successful fold's deviation_score, index-aligned
-    with pooled_actions — the real G1 evaluator (evaluate_g1_fpr) ignores it;
-    G5's deviation-shift criterion consumes it. n_errors counts non-200 score
-    responses so callers can distinguish "clean run" from "the numbers came
-    from a broken leg" (see _require_healthy_leg).
+    Returns (pooled_actions, per_corpus_actions, pooled_deviations, n_errors,
+    pooled_typicality_ns, n_drift_rejected): pooled_deviations is each
+    successful fold's deviation_score, index-aligned with pooled_actions —
+    the real G1 evaluator (evaluate_g1_fpr) ignores it; G5's deviation-shift
+    criterion consumes it. n_errors counts non-200 score responses AND folds
+    skipped because one of their baseline uploads returned non-200 (a fold
+    whose baseline is known incomplete must never be scored — see the
+    module-level note on the 2026-07-28 vs 2026-07-30 drift) — so callers
+    can distinguish "clean run" from "the numbers came from a broken leg"
+    (see _require_healthy_leg). This is UNCHANGED from before
+    n_drift_rejected existed: n_errors still counts every drift-rejected
+    fold too, because the real (non-shuffled) G1 leg's own health accounting
+    (run_g5's "G5 real G1 anchor leg" check on real_g1_n_errors) must keep
+    treating a drift-rejection on a real student's baseline as a genuine
+    signal about that leg, exactly as it does today.
+
+    n_drift_rejected is a NEW, purely additive count, always <= n_errors: of
+    the folds counted in n_errors because a baseline upload failed, this
+    counts only those where EVERY failing baseline response had
+    status_code in (202, 409) — i.e. the Phase-8 drift gate
+    (original/routers/students_baseline.py's add_baseline) rejected the
+    sample as `pending_review`/`rebaseline_required`, not a genuine 4xx/5xx
+    or connection failure. A fold with a mix of drift and non-drift baseline
+    failures is NOT counted here — any genuine failure in the mix means the
+    fold is still evidence of real machinery trouble. Callers that want to
+    treat drift-rejection as an expected, non-machinery outcome (G5's
+    shuffled-G1 leg — see run_g5) can compute their own
+    "genuine-failures-only" error count as n_errors - n_drift_rejected
+    before calling _require_healthy_leg; callers that don't care (run_all()'s
+    real G1 leg) simply discard this return value. pooled_typicality_ns is
+    each successful fold's top-level payload["typicality_n"] (also
+    index-aligned with pooled_actions) — evaluate_g1_fpr's reachability
+    annotation consumes it.
     """
     pooled: list[str] = []
     per_corpus: dict[str, list[str]] = {}
     pooled_deviations: list[float] = []
+    pooled_typicality_ns: list[int] = []
     n_errors = 0
+    n_drift_rejected = 0
     for entity_id, texts in texts_by_id.items():
         if len(texts) < 5:
             continue
         actions: list[str] = []
         deviations: list[float] = []
+        typicality_ns: list[int] = []
         for held_out_idx in range(len(texts)):
             sid = f"demo:gate_{sid_prefix}_{entity_id}_{held_out_idx}"
+            baseline_failed = False
+            # True iff every failing baseline response so far was a Phase-8
+            # drift-gate rejection (202 pending_review / 409
+            # rebaseline_required) rather than a genuine failure — see the
+            # docstring above and original/routers/students_baseline.py's
+            # add_baseline, whose only non-200 outcomes are 422 (invalid
+            # provenance), 503 (persistence failure), or the drift gate's
+            # 202/409.
+            baseline_drift_only = True
             for i, text in enumerate(texts):
                 if i == held_out_idx:
                     continue
-                client.post(
+                r = client.post(
                     f"/students/{sid}/baseline",
                     json={"text": text, "provenance": "verified", "submitted_at": "2026-01-01"},
                 )
+                if r.status_code != 200:
+                    baseline_failed = True
+                    if r.status_code not in (202, 409):
+                        baseline_drift_only = False
+            if baseline_failed:
+                # A fold whose baseline is known incomplete must not be
+                # scored — proceeding would silently shrink this fold's
+                # effective LOO sample count instead of surfacing the drop.
+                n_errors += 1
+                if baseline_drift_only:
+                    n_drift_rejected += 1
+                continue
             r = client.post(
                 f"/students/{sid}/score",
                 json={"text": texts[held_out_idx], "submission_id": f"{entity_id}_{held_out_idx}"},
@@ -938,13 +1143,201 @@ def _score_corpus_for_g1(
                 payload = r.json()
                 actions.append(payload["recommendation"]["action"])
                 deviations.append(float(payload["authorship"]["deviation_score"]))
+                typicality_ns.append(int(payload.get("typicality_n", 0)))
             else:
                 n_errors += 1
         if actions:
             per_corpus[entity_id] = actions
             pooled.extend(actions)
             pooled_deviations.extend(deviations)
-    return pooled, per_corpus, pooled_deviations, n_errors
+            pooled_typicality_ns.extend(typicality_ns)
+    return pooled, per_corpus, pooled_deviations, n_errors, pooled_typicality_ns, n_drift_rejected
+
+
+def _build_pool_reference_states(
+    client, sid_prefix: str, texts_by_id: dict[str, list[str]], min_size: int = 5
+) -> dict:
+    """Upload every qualifying entity's FULL text set (never leave-one-out
+    reduced -- a peer is only ever a reference for OTHER folds, never itself
+    being scored via this state) as its own baseline, under a sid distinct
+    from any fold sid, then read back the resulting StudentState via
+    ``original.store`` (== ``_repo().get`` whenever REPO_BACKEND is not
+    postgres -- see original/repository.py's SqliteRepository, which is a
+    thin passthrough to original.store; this is the same convention
+    validation/audits/g2_floor_asymmetry.py's main() uses for
+    store.reset_memory_conn()).
+
+    Only entities with >= min_size texts participate -- the same bar the
+    per-fold LOO loop below applies -- so a group's theoretical pool size
+    (_pooled_reference_arithmetic's pool_n) matches what this function
+    actually builds. Raises RuntimeError (via _require_healthy_leg) if the
+    combined baseline-upload leg is unhealthy: a broken peer reference must
+    not silently shrink the pool instead of failing loudly.
+    """
+    from original import store
+
+    states: dict[str, object] = {}
+    n_attempts = 0
+    n_errors = 0
+    for entity_id, texts in texts_by_id.items():
+        if len(texts) < min_size:
+            continue
+        sid = f"demo:gate_{sid_prefix}_{entity_id}_poolref"
+        for text in texts:
+            n_attempts += 1
+            r = client.post(
+                f"/students/{sid}/baseline",
+                json={"text": text, "provenance": "verified", "submitted_at": "2026-01-01"},
+            )
+            if r.status_code != 200:
+                n_errors += 1
+        state = store.get(sid)
+        if state is not None:
+            states[entity_id] = state
+    _require_healthy_leg(
+        f"{sid_prefix} pool-reference build", n_success=n_attempts - n_errors, n_errors=n_errors
+    )
+    return states
+
+
+def _score_corpus_for_g1_pooled(
+    client, sid_prefix: str, texts_by_id: dict[str, list[str]], group_of: dict[str, str]
+) -> dict:
+    """Pooled-calibration variant of _score_corpus_for_g1: identical LOO
+    fold structure and identical baseline-upload health accounting, but each
+    held-out fold is scored by calling original.quantum.scoring.score()
+    DIRECTLY -- with typicality_pooled_calibration=True and a pooled_states
+    dict restricted to entities in the SAME corpus group as the one being
+    scored (via _pool_peers_for_entity) -- instead of through the live HTTP
+    /score endpoint.
+
+    This bypass is necessary, not stylistic: original/routers/
+    students_scoring.py's score_submission() never threads pooled_states or
+    student_id into quantum_score() at all (confirmed by reading that file
+    and by `grep -rn pooled_states= original/` turning up nothing outside
+    scoring.py/pooled_source.py's own parameter definitions and this
+    project's tests/quantum/test_pooled_typicality_integration.py).
+    TYPICALITY_POOLED_CALIBRATION is consulted only inside
+    original/quantum/scoring.py's score() function itself -- the live API
+    surface has no wiring for it yet. Calling score() directly is therefore
+    the only way to exercise pooled calibration at all today; this function
+    is deliberately NOT "the same production path with one flag flipped",
+    and any report built from it must say so plainly.
+
+    Every sid stays under the "demo:" tenant prefix (both the per-fold sids
+    below and _build_pool_reference_states's "_poolref" sids) so baseline
+    uploads never hit an unregistered-tenant rejection; the corpus-group
+    boundary is enforced entirely by _pool_peers_for_entity, upstream of
+    anything that would otherwise resolve tenancy from the sid string.
+
+    Returns a dict (not the 6-tuple _score_corpus_for_g1 returns -- this is
+    a new function with no pre-existing callers to stay compatible with):
+    pooled_actions, per_corpus_actions, pooled_deviations, n_errors,
+    pooled_typicality_ns, n_drift_rejected, per_corpus_typicality_ns
+    (entity_id -> per-fold typicality_n list, for computing PER-GROUP
+    reachability -- the whole point of keeping corpora separate),
+    calibration_mode_counts ({"pooled"|"self"|"none": count} across every
+    scored fold -- lets the report distinguish "pooling was attempted and
+    reached bands" from "every fold silently fell back to self because the
+    group's pool never cleared build_pooled_reference's min_students=3/
+    min_total=30"), and pool_reference_sizes (entity_id -> that entity's own
+    pool-reference state's loo_distances length, for auditing the arithmetic
+    against _pooled_reference_arithmetic's prediction).
+    """
+    import dataclasses as _dc
+
+    from original import store
+    from original.features.pipeline import extract_features, feature_vector
+    from original.quantum.scoring import ScoringConfig
+    from original.quantum.scoring import score as quantum_score
+
+    pool_reference_states = _build_pool_reference_states(client, sid_prefix, texts_by_id)
+
+    base_config = _dc.replace(ScoringConfig.from_env(), typicality_pooled_calibration=True)
+
+    pooled: list[str] = []
+    per_corpus: dict[str, list[str]] = {}
+    pooled_deviations: list[float] = []
+    pooled_typicality_ns: list[int] = []
+    per_corpus_typicality_ns: dict[str, list[int]] = {}
+    calibration_mode_counts: dict[str, int] = {"pooled": 0, "self": 0, "none": 0}
+    n_errors = 0
+    n_drift_rejected = 0
+
+    for entity_id, texts in texts_by_id.items():
+        if len(texts) < 5:
+            continue
+        peer_states = _pool_peers_for_entity(entity_id, group_of, pool_reference_states)
+        actions: list[str] = []
+        deviations: list[float] = []
+        typicality_ns: list[int] = []
+        for held_out_idx in range(len(texts)):
+            sid = f"demo:gate_{sid_prefix}_{entity_id}_{held_out_idx}"
+            baseline_failed = False
+            # Same drift-vs-genuine-failure distinction as
+            # _score_corpus_for_g1 -- see its docstring.
+            baseline_drift_only = True
+            for i, text in enumerate(texts):
+                if i == held_out_idx:
+                    continue
+                r = client.post(
+                    f"/students/{sid}/baseline",
+                    json={"text": text, "provenance": "verified", "submitted_at": "2026-01-01"},
+                )
+                if r.status_code != 200:
+                    baseline_failed = True
+                    if r.status_code not in (202, 409):
+                        baseline_drift_only = False
+            if baseline_failed:
+                n_errors += 1
+                if baseline_drift_only:
+                    n_drift_rejected += 1
+                continue
+
+            own_state = store.get(sid)
+            if own_state is None:
+                n_errors += 1
+                continue
+
+            held_out_text = texts[held_out_idx]
+            feat_dict = extract_features(held_out_text)
+            vec = feature_vector(held_out_text)
+
+            result = quantum_score(
+                state=own_state,
+                submission_vector=vec,
+                feature_dict=feat_dict,
+                submission_id=f"{entity_id}_{held_out_idx}",
+                scoring_config=base_config,
+                pooled_states=peer_states,
+                student_id=sid,
+            )
+            actions.append(result.recommendation.action)
+            deviations.append(float(result.authorship.deviation_score))
+            typicality_ns.append(int(result.typicality_n))
+            mode = result.typicality_calibration or "none"
+            calibration_mode_counts[mode] = calibration_mode_counts.get(mode, 0) + 1
+        if actions:
+            per_corpus[entity_id] = actions
+            per_corpus_typicality_ns[entity_id] = typicality_ns
+            pooled.extend(actions)
+            pooled_deviations.extend(deviations)
+            pooled_typicality_ns.extend(typicality_ns)
+
+    return {
+        "pooled_actions": pooled,
+        "per_corpus_actions": per_corpus,
+        "pooled_deviations": pooled_deviations,
+        "n_errors": n_errors,
+        "pooled_typicality_ns": pooled_typicality_ns,
+        "n_drift_rejected": n_drift_rejected,
+        "per_corpus_typicality_ns": per_corpus_typicality_ns,
+        "calibration_mode_counts": calibration_mode_counts,
+        "pool_reference_sizes": {
+            eid: len(getattr(s, "loo_distances", []) or [])
+            for eid, s in pool_reference_states.items()
+        },
+    }
 
 
 def _g1_entity_baseline_counts(
@@ -1065,9 +1458,18 @@ def run_all() -> list[GateResult]:
     plato_texts = _load_plato_texts_by_dialogue()
 
     texts_by_id: dict[str, list[str]] = {**seminary_texts, **public_authors_texts, **plato_texts}
-    pooled_actions, per_corpus_actions, real_g1_deviations, real_g1_errors = _score_corpus_for_g1(
-        client, "g1", texts_by_id
-    )
+    (
+        pooled_actions,
+        per_corpus_actions,
+        real_g1_deviations,
+        real_g1_errors,
+        real_g1_typicality_ns,
+        _real_g1_drift_rejected,  # unused here — the real G1 leg keeps
+        # treating a drift-rejection the same as any other error (see
+        # _score_corpus_for_g1's docstring); only G5's shuffled-G1 leg
+        # (run_g5) distinguishes it.
+    ) = _score_corpus_for_g1(client, "g1", texts_by_id)
+
     # Per-entity PER-FOLD LOO count, keyed the same way as texts_by_id — see
     # _g1_entity_baseline_counts's docstring for the `- 1` rationale (FIX 1)
     # and why it's keyed off per_corpus_actions rather than texts_by_id
@@ -1075,16 +1477,42 @@ def run_all() -> list[GateResult]:
     # is unit-tested directly (TestG1EntityBaselineCounts) rather than only
     # via already-decremented literals passed to evaluate_g1_fpr.
     entity_baseline_counts = _g1_entity_baseline_counts(texts_by_id, per_corpus_actions)
+
+    # BOTH reachability sources are supplied, deliberately. They answer the
+    # same question — can the conformal band fire at this N? — from different
+    # evidence, and evaluate_g1_fpr's downgrade ORs them, so the more
+    # pessimistic one wins:
+    #   typicality_ns          observed per-fold typicality_n straight out of
+    #                          each scoring payload, aggregated MIN (binding
+    #                          weakest fold). The accurate source. Until this
+    #                          merge nothing passed it in production, so it
+    #                          annotated current_value and never reached the
+    #                          verdict.
+    #   entity_baseline_counts len(texts)-1 reconstructed per entity,
+    #                          aggregated any-reachable. Less accurate, but it
+    #                          is the ONLY signal when no fold reports a
+    #                          typicality_n at all — the actions came from the
+    #                          deviation path, so _reachability_block reports
+    #                          observed=False and typicality_unreachable is
+    #                          False by convention. Dropping it would leave
+    #                          that case with no reachability check.
     g1_result = evaluate_g1_fpr(
         pooled_actions,
         per_corpus_actions,
+        typicality_ns=real_g1_typicality_ns,
         entity_baseline_counts=entity_baseline_counts,
     )
     results.append(g1_result)
 
-    # G2: bland impostor via q = min(p_far, p_central).
-    holdout_q, impostor_q = _compute_g2_q_values(client)
-    results.append(evaluate_g2_bland_impostor(holdout_q, impostor_q))
+    # G2: bland impostor via q = min(p_far, p_central). A crash here (e.g.
+    # _compute_g2_q_values's _require_healthy_leg call catching a dialogue
+    # whose baseline uploads mostly failed) is a machinery failure, same
+    # convention as G2b/G5/G6's wrappers.
+    try:
+        holdout_q, impostor_q, _g2_n_holdout_errors = _compute_g2_q_values(client)
+        results.append(evaluate_g2_bland_impostor(holdout_q, impostor_q))
+    except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
+        results.append(_machinery_error_result("G2", _G2_CRITERION, exc))
 
     # G2b: G2's criterion with uniformity features enabled (guarded window —
     # see _uniformity_features_enabled) and the ai_*.txt impostors run
@@ -1125,9 +1553,15 @@ def run_all() -> list[GateResult]:
         )
     )
 
-    # G4: Plato early/middle/late monotonicity.
-    group_means, _g4_stats = _compute_g4_group_means()
-    results.append(evaluate_g4_career_drift_monotone(group_means))
+    # G4: Plato early/middle/late monotonicity. A crash here (e.g.
+    # _compute_g4_group_means's _require_healthy_leg call catching a
+    # mostly-failed early baseline upload) is a machinery failure, same
+    # convention as G2b/G5/G6's wrappers.
+    try:
+        group_means, _g4_stats = _compute_g4_group_means()
+        results.append(evaluate_g4_career_drift_monotone(group_means))
+    except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
+        results.append(_machinery_error_result("G4", _G4_CRITERION, exc))
 
     # G5: permutation-null selection-bias control — seeded label shuffles,
     # then shuffled-label reruns of the G1/G3/G4 machinery above (see run_g5).
@@ -1154,6 +1588,37 @@ def run_all() -> list[GateResult]:
         results.append(_compute_g6_fairness_data(client))
     except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
         results.append(_machinery_error_result("G6", _G6_CRITERION, exc))
+
+    # Attach a corpus_fingerprint to every result so a future report can be
+    # checked for comparability against this one without re-deriving n's by
+    # hand — see _corpus_fingerprint's docstring for why this exists. Built
+    # from the corpora already loaded above (G6's is loaded fresh here since
+    # it's a distinct manifest-driven corpus none of the other legs touch).
+    corpus_fingerprints = {
+        "seminary": _corpus_fingerprint(seminary_texts),
+        "public_authors": _corpus_fingerprint(public_authors_texts),
+        "plato": _corpus_fingerprint(plato_texts),
+        "g6_native_english": _corpus_fingerprint(_load_g6_native_english_texts()),
+    }
+    result_corpus_keys = {
+        "G1": ("seminary", "public_authors", "plato"),
+        "G2": ("plato",),
+        "G2b": ("plato",),
+        "G3": ("public_authors",),
+        "G4": ("plato",),
+        "G5": ("seminary", "public_authors", "plato"),
+        "G6": ("g6_native_english",),
+    }
+    for result in results:
+        keys = result_corpus_keys.get(result.name)
+        if not keys:
+            continue
+        if len(keys) == 1:
+            result.detail["corpus_fingerprint"] = corpus_fingerprints[keys[0]]
+        else:
+            result.detail["corpus_fingerprint"] = {
+                k: corpus_fingerprints[k] for k in keys
+            }
 
     return results
 
@@ -1202,7 +1667,66 @@ def _load_plato_texts_by_dialogue() -> dict[str, list[str]]:
     return by_dialogue
 
 
-def _compute_g2_q_values(client) -> tuple[list[float], list[float]]:
+def _load_g6_native_english_texts() -> dict[str, list[str]]:
+    """
+    The native_english-annotated authentic corpus G6 actually scores (mirrors
+    the entry/author bucketing _compute_g6_fairness_data does internally).
+    Kept as its own loader purely so run_all() can fingerprint G6's corpus
+    the same way it fingerprints seminary/public_authors/Plato, without
+    reaching into that function's scoring internals.
+    """
+    manifest_path = _ROOT / "validation" / "manifest.json"
+    corpus_dir = _ROOT / "validation" / "corpus"
+    manifest = json.loads(manifest_path.read_text())
+    by_author: dict[str, list[str]] = {}
+    for entry in manifest["entries"]:
+        if entry.get("native_english") is None or entry.get("label") != "authentic":
+            continue
+        text = (corpus_dir / entry["filename"]).read_text(encoding="utf-8")
+        by_author.setdefault(entry["author_id"], []).append(text)
+    return by_author
+
+
+def _corpus_fingerprint(texts_by_id: dict[str, list[str]]) -> str:
+    """
+    A short, order-independent fingerprint of a loaded corpus: hash the
+    SORTED (entity_id, len(texts), total_chars) triple for every entity.
+
+    This exists so a future corpus content change — a re-generated cache, an
+    edited/added Plato chunk, a manifest.json edit — is flagged in the report
+    itself instead of silently producing numbers that look comparable to a
+    prior run but aren't. It hashes what the loader actually produced, so it
+    WOULD catch that class of drift.
+
+    It would NOT, on its own, have caught the specific 2026-07-28 vs
+    2026-07-30 drift: `git diff` between the commits that produced those two
+    reports shows zero changes to validation/plato/corpus/jowett/**, and
+    TestCorpusDeterminism confirms the loader is already fully order-stable
+    (sorted iterdir + sorted glob), so that drift's fingerprint would read
+    identical on both runs. The actual divergence (G2's per-dialogue q-value
+    denominators implying an effective n smaller than len(chunks)-1 on some
+    runs) traced to _compute_g2_q_values's and _compute_g4_group_means's
+    baseline-upload loops, which used to POST each baseline chunk without
+    checking the response status — a dropped upload silently shrank that
+    student's LOO sample count without touching anything on disk. Both loops
+    now call _require_healthy_leg on their upload counts and fail loudly
+    instead (see the Task 3 report for the original diagnosis). This
+    fingerprint still would not catch a *future* instance of that class of
+    scoring-time defect on its own — it only ever hashed corpus content, not
+    what the scoring leg did with it — so a GateResult with a matching
+    fingerprint is not, by itself, proof of a healthy scoring leg; it rules
+    out corpus-content drift, and the health check above is what now rules
+    out the sample-count drift.
+    """
+    triples = sorted(
+        (entity_id, len(texts), sum(len(t) for t in texts))
+        for entity_id, texts in texts_by_id.items()
+    )
+    payload = repr(triples).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()[:16]
+
+
+def _compute_g2_q_values(client) -> tuple[list[float], list[float], int]:
     """
     q = min(p_far, p_central) for genuine Plato holdouts vs. the Eryxias +
     synthetic-AI impostor pool.
@@ -1216,15 +1740,43 @@ def _compute_g2_q_values(client) -> tuple[list[float], list[float]]:
     >= 2 leave-one-out baseline distances (original/quantum/scoring.py's
     typicality block) — treat that as "no signal for this sample", not an
     error, and skip it.
+
+    Returns (holdout_q, impostor_q, n_holdout_errors): n_holdout_errors
+    counts per-dialogue holdout folds skipped because a baseline upload (or
+    the score call itself) returned non-200 — same skip-and-count convention
+    as _score_corpus_for_g1's n_errors. _require_healthy_leg is called once
+    on the pooled holdout-leg counts (raises RuntimeError on an unhealthy
+    leg) and, separately and more strictly, on the impostor leg's SHARED
+    reference pool: that pool is built once and reused for every impostor
+    score, so even a single failed baseline upload there poisons every
+    subsequent impostor score in the leg, not just one fold — a "count and
+    continue" policy would routinely stay under _require_healthy_leg's 10%
+    pooled-error threshold while still contaminating 100% of the impostor
+    q-values, so this raises immediately instead of accumulating an error
+    count. Both raises are converted to a G2 "ERROR (machinery)" result by
+    run_all()'s try/except (see _machinery_error_result), matching the
+    convention G2b/G5/G6 already use.
     """
     holdout_q: list[float] = []
+    n_holdout_errors = 0
     plato_dialogues = _load_plato_texts_by_dialogue()
     for dialogue, chunks in plato_dialogues.items():
         if "eryxias" in dialogue or len(chunks) < 5:
             continue
         sid = f"demo:gate_g2_{dialogue}"
+        baseline_failed = False
         for chunk in chunks[:-1]:
-            client.post(f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"})
+            r = client.post(
+                f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"}
+            )
+            if r.status_code != 200:
+                baseline_failed = True
+        if baseline_failed:
+            # A fold whose baseline is known incomplete must not be scored
+            # — see the module-level note on the 2026-07-28 vs 2026-07-30
+            # drift and _score_corpus_for_g1's identical convention.
+            n_holdout_errors += 1
+            continue
         r = client.post(
             f"/students/{sid}/score",
             json={"text": chunks[-1], "submission_id": f"{dialogue}_holdout"},
@@ -1235,6 +1787,9 @@ def _compute_g2_q_values(client) -> tuple[list[float], list[float]]:
             p_central_val = payload.get("typicality_p_central")
             if p_far_val is not None and p_central_val is not None:
                 holdout_q.append(min(p_far_val, p_central_val))
+        else:
+            n_holdout_errors += 1
+    _require_healthy_leg("G2 holdout leg", n_success=len(holdout_q), n_errors=n_holdout_errors)
 
     impostor_q: list[float] = []
     eryxias_chunks = plato_dialogues.get("plato_eryxias", [])
@@ -1244,8 +1799,19 @@ def _compute_g2_q_values(client) -> tuple[list[float], list[float]]:
         c for name, chunks in plato_dialogues.items() if "eryxias" not in name for c in chunks
     ][:20]
     sid = "demo:gate_g2_impostor_reference"
+    n_reference_baseline_errors = 0
     for chunk in reference_dialogues:
-        client.post(f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"})
+        r = client.post(
+            f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"}
+        )
+        if r.status_code != 200:
+            n_reference_baseline_errors += 1
+    if n_reference_baseline_errors:
+        raise RuntimeError(
+            f"G2 impostor leg: {n_reference_baseline_errors}/{len(reference_dialogues)} "
+            "shared reference-pool baseline uploads failed — every impostor score in "
+            "this leg would be computed against a poisoned shared reference"
+        )
     for text in eryxias_chunks + ai_texts:
         r = client.post(f"/students/{sid}/score", json={"text": text, "submission_id": "impostor"})
         if r.status_code == 200:
@@ -1255,7 +1821,7 @@ def _compute_g2_q_values(client) -> tuple[list[float], list[float]]:
             if p_far_val is not None and p_central_val is not None:
                 impostor_q.append(min(p_far_val, p_central_val))
 
-    return holdout_q, impostor_q
+    return holdout_q, impostor_q, n_holdout_errors
 
 
 # ── G2b / G6 — uniformity-enabled legs ─────────────────────────────────────────
@@ -1426,11 +1992,19 @@ def _compute_g2b_paraphrase_data(client) -> tuple[list[float], list[float], dict
             if "eryxias" in dialogue or len(chunks) < 5:
                 continue
             sid = f"demo:gate_g2b_{dialogue}"
+            baseline_failed = False
             for chunk in chunks[:-1]:
-                client.post(
+                r = client.post(
                     f"/students/{sid}/baseline",
                     json={"text": chunk, "provenance": "verified"},
                 )
+                if r.status_code != 200:
+                    baseline_failed = True
+            if baseline_failed:
+                # A fold whose baseline is known incomplete must not be
+                # scored — see _score_corpus_for_g1's identical convention.
+                n_holdout_errors += 1
+                continue
             r = client.post(
                 f"/students/{sid}/score",
                 json={"text": chunks[-1], "submission_id": f"{dialogue}_holdout"},
@@ -1453,9 +2027,27 @@ def _compute_g2b_paraphrase_data(client) -> tuple[list[float], list[float], dict
             for c in chunks
         ][:20]
         sid = "demo:gate_g2b_impostor_reference"
+        n_reference_baseline_errors = 0
         for chunk in reference_dialogues:
-            client.post(
+            r = client.post(
                 f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"}
+            )
+            if r.status_code != 200:
+                n_reference_baseline_errors += 1
+        if n_reference_baseline_errors:
+            # Same reasoning as G2's impostor leg (_compute_g2_q_values):
+            # ONE shared reference pool is reused for every paraphrased
+            # impostor score in this leg, so a single failed baseline
+            # upload poisons all of them, not just one fold — "skip and
+            # count" would routinely stay under _require_healthy_leg's 10%
+            # threshold while still contaminating every paraphrased_impostor_q
+            # value. Raise immediately instead; run_all()'s existing
+            # try/except around _compute_g2b_paraphrase_data already
+            # converts this to a G2b "ERROR (machinery)" result.
+            raise RuntimeError(
+                f"G2b impostor leg: {n_reference_baseline_errors}/{len(reference_dialogues)} "
+                "shared reference-pool baseline uploads failed — every paraphrased-impostor "
+                "score in this leg would be computed against a poisoned shared reference"
             )
         for path in ai_files:
             paraphrased = _paraphrase_proxy(path.read_text(encoding="utf-8"))
@@ -1531,6 +2123,7 @@ def _compute_g6_fairness_data(client) -> GateResult:
 
     import numpy as np
 
+    from original.constants import TIER18_CODES
     from original.quantum.typicality import NO_ACTION_CENTRAL_THRESHOLD
     from validation.benchmark.bias_slicer import slice_by
     from validation.bias_analysis import _welch_t_test
@@ -1558,6 +2151,7 @@ def _compute_g6_fairness_data(client) -> GateResult:
         by_author.setdefault(entry["author_id"], []).append(entry)
 
     results_by_group: dict[bool, list[dict]] = {True: [], False: []}
+    per_group_features: dict[bool, list[dict[str, float]]] = {True: [], False: []}
     scoring_rows: list[ScoringResult] = []
     n_errors = 0
     n_null_typicality = 0
@@ -1570,10 +2164,11 @@ def _compute_g6_fairness_data(client) -> GateResult:
                 continue
             for held_out_idx, held_out in enumerate(author_entries):
                 sid = f"demo:gate_g6_{author_id}_{held_out_idx}"
+                baseline_failed = False
                 for i, other in enumerate(author_entries):
                     if i == held_out_idx:
                         continue
-                    client.post(
+                    r = client.post(
                         f"/students/{sid}/baseline",
                         json={
                             "text": (corpus_dir / other["filename"]).read_text(
@@ -1582,6 +2177,14 @@ def _compute_g6_fairness_data(client) -> GateResult:
                             "provenance": "verified",
                         },
                     )
+                    if r.status_code != 200:
+                        baseline_failed = True
+                if baseline_failed:
+                    # A fold whose baseline is known incomplete must not be
+                    # scored — see _score_corpus_for_g1's identical
+                    # convention.
+                    n_errors += 1
+                    continue
                 t0 = time.perf_counter()
                 r = client.post(
                     f"/students/{sid}/score",
@@ -1598,6 +2201,7 @@ def _compute_g6_fairness_data(client) -> GateResult:
                     continue
                 payload = r.json()
                 p_central = payload.get("typicality_p_central")
+                typicality_n = int(payload.get("typicality_n", 0))
                 if p_central is None:
                     # "No signal for this sample", not an error — see
                     # _compute_g2_q_values's response-shape note.
@@ -1607,9 +2211,14 @@ def _compute_g6_fairness_data(client) -> GateResult:
                     {
                         "filename": held_out["filename"],
                         "p_central": float(p_central),
+                        "typicality_n": typicality_n,
                         "flagged": p_central <= NO_ACTION_CENTRAL_THRESHOLD,
                     }
                 )
+                tier18_values = {
+                    c: float(payload["feature_vector"][c]) for c in TIER18_CODES
+                }
+                per_group_features[bool(held_out["native_english"])].append(tier18_values)
                 scoring_rows.append(
                     ScoringResult(
                         filename=held_out["filename"],
@@ -1634,14 +2243,27 @@ def _compute_g6_fairness_data(client) -> GateResult:
     n_native = len(results_by_group[True])
     n_non_native = len(results_by_group[False])
     if n_native < _G6_MIN_PER_GROUP or n_non_native < _G6_MIN_PER_GROUP:
-        short = "true" if n_native < _G6_MIN_PER_GROUP else "false"
-        short_n = min(n_native, n_non_native)
         return _g6_insufficient_data_result(
-            f"native_english={short} group has {short_n} scored authentic "
-            f"entries (need >= {_G6_MIN_PER_GROUP})",
+            _g6_short_group_message(n_native, n_non_native, _G6_MIN_PER_GROUP),
             n_native_scored=n_native,
             n_non_native_scored=n_non_native,
         )
+
+    # The vacuous-pass guard: on an unreachable-threshold sample (e.g. 5
+    # essays/author LOO -> typicality_n=4 everywhere), a 0% flagged rate in
+    # both groups is structural, not evidence of fairness — check this
+    # AFTER the short-group check (an unreachable threshold on a
+    # healthy-sized sample is a more specific diagnosis than "insufficient
+    # data") but BEFORE computing the flagged rates the rest of this
+    # function would otherwise treat as a real measurement.
+    reachability_skip = _g6_reachability_precheck(
+        results_by_group,
+        NO_ACTION_CENTRAL_THRESHOLD,
+        n_native_scored=n_native,
+        n_non_native_scored=n_non_native,
+    )
+    if reachability_skip is not None:
+        return reachability_skip
 
     native_fpr = sum(1 for x in results_by_group[True] if x["flagged"]) / n_native
     non_native_fpr = (
@@ -1665,6 +2287,8 @@ def _compute_g6_fairness_data(client) -> GateResult:
         )
     )
 
+    uniformity_summary = _uniformity_slice_summary(per_group_features)
+
     informational = {
         "n_native_scored": n_native,
         "n_non_native_scored": n_non_native,
@@ -1674,6 +2298,7 @@ def _compute_g6_fairness_data(client) -> GateResult:
         "uniformity_enabled_during_leg": True,
         "bias_slices_deviation_score": bias_slices,
         "welch_t_on_p_central": welch,
+        "uniformity_slice": uniformity_summary,
     }
     if n_native < _G6_WARN_PER_GROUP or n_non_native < _G6_WARN_PER_GROUP:
         informational["low_sample_warning"] = (
@@ -1682,15 +2307,285 @@ def _compute_g6_fairness_data(client) -> GateResult:
             "native_english coverage is thin (25/807 entries annotated); "
             "treat the ratio as a screening number, not a precise estimate"
         )
-    return evaluate_g6_fairness(native_fpr, non_native_fpr, informational=informational)
+    return evaluate_g6_fairness(
+        native_fpr,
+        non_native_fpr,
+        informational=informational,
+        welch_effect_magnitude=welch["effect_magnitude"],
+        welch_cohens_d=welch["cohens_d"],
+    )
+
+
+def _compute_g6_fairness_data_pooled(client) -> GateResult:
+    """Pooled-calibration variant of _compute_g6_fairness_data: same corpus,
+    same per-author LOO fold structure, same Tier-18 uniformity window, same
+    bias-audit bridging -- the only change is that each held-out fold's
+    typicality band comes from original.quantum.scoring.score() called
+    DIRECTLY (typicality_pooled_calibration=True, pooled_states = every
+    OTHER author's own pool-reference state) instead of the live /score
+    endpoint, for the same reason _score_corpus_for_g1_pooled bypasses it
+    (original/routers/students_scoring.py never threads pooled_states into
+    quantum_score() -- see that function's docstring for the full
+    verification).
+
+    No cross-corpus segregation is needed here, unlike G1: every entry in
+    this corpus comes from _load_g6_native_english_texts's single
+    homogeneous seminary population (5 authors, 5 essays each -- see the
+    module docstring / Task 9 brief), so pooling across every OTHER author
+    is the correct scope by construction, not an approximation.
+    _pool_peers_for_entity is still reused (with every author mapped to one
+    constant group label) purely to inherit its already-tested
+    "always exclude the entity itself" guarantee from a single code path
+    shared with G1's real segregation logic, rather than reimplementing
+    self-exclusion here.
+    """
+    import json as _json
+    import time
+    from dataclasses import asdict as _asdict
+    from dataclasses import replace as _replace
+
+    import numpy as np
+
+    from original import store
+    from original.constants import TIER18_CODES
+    from original.features.pipeline import extract_features, feature_vector
+    from original.quantum.scoring import ScoringConfig
+    from original.quantum.scoring import score as quantum_score
+    from original.quantum.typicality import NO_ACTION_CENTRAL_THRESHOLD
+    from validation.benchmark.bias_slicer import slice_by
+    from validation.bias_analysis import _welch_t_test
+    from validation.calibration import ScoringResult
+    from validation.manifest_schema import AuthorshipLabel
+
+    manifest_path = _ROOT / "validation" / "manifest.json"
+    corpus_dir = _ROOT / "validation" / "corpus"
+    manifest = _json.loads(manifest_path.read_text())
+    entries = [
+        e
+        for e in manifest["entries"]
+        if e.get("native_english") is not None and e.get("label") == "authentic"
+    ]
+    if not entries:
+        return _g6_insufficient_data_result(
+            "validation/manifest.json has no authentic entries with a "
+            "native_english annotation",
+            n_native_scored=0,
+            n_non_native_scored=0,
+        )
+
+    by_author: dict[str, list[dict]] = {}
+    for entry in entries:
+        by_author.setdefault(entry["author_id"], []).append(entry)
+
+    # Single homogeneous group -- see the docstring above.
+    group_of = {author_id: "g6" for author_id in by_author}
+    base_config = _replace(ScoringConfig.from_env(), typicality_pooled_calibration=True)
+
+    results_by_group: dict[bool, list[dict]] = {True: [], False: []}
+    per_group_features: dict[bool, list[dict[str, float]]] = {True: [], False: []}
+    scoring_rows: list[ScoringResult] = []
+    n_errors = 0
+    n_null_typicality = 0
+    calibration_mode_counts: dict[str, int] = {"pooled": 0, "self": 0, "none": 0}
+
+    with _uniformity_features_enabled():
+        # One full-baseline pool-reference state per author (same >= 3
+        # participation bar the LOO loop below applies), built BEFORE any
+        # fold is scored, so every fold's pool is the fixed "every other
+        # author" set -- see _build_pool_reference_states's docstring for
+        # why a peer's reference is never leave-one-out reduced.
+        pool_reference_states: dict[str, object] = {}
+        n_poolref_attempts = 0
+        n_poolref_errors = 0
+        for author_id, author_entries in sorted(by_author.items()):
+            if len(author_entries) < 3:
+                continue
+            poolref_sid = f"demo:gate_g6pooled_{author_id}_poolref"
+            for entry in author_entries:
+                n_poolref_attempts += 1
+                r = client.post(
+                    f"/students/{poolref_sid}/baseline",
+                    json={
+                        "text": (corpus_dir / entry["filename"]).read_text(encoding="utf-8"),
+                        "provenance": "verified",
+                    },
+                )
+                if r.status_code != 200:
+                    n_poolref_errors += 1
+            state = store.get(poolref_sid)
+            if state is not None:
+                pool_reference_states[author_id] = state
+        _require_healthy_leg(
+            "G6 pooled pool-reference build",
+            n_success=n_poolref_attempts - n_poolref_errors,
+            n_errors=n_poolref_errors,
+        )
+
+        for author_id, author_entries in sorted(by_author.items()):
+            if len(author_entries) < 3:
+                continue
+            peer_states = _pool_peers_for_entity(author_id, group_of, pool_reference_states)
+            for held_out_idx, held_out in enumerate(author_entries):
+                sid = f"demo:gate_g6pooled_{author_id}_{held_out_idx}"
+                baseline_failed = False
+                for i, other in enumerate(author_entries):
+                    if i == held_out_idx:
+                        continue
+                    r = client.post(
+                        f"/students/{sid}/baseline",
+                        json={
+                            "text": (corpus_dir / other["filename"]).read_text(
+                                encoding="utf-8"
+                            ),
+                            "provenance": "verified",
+                        },
+                    )
+                    if r.status_code != 200:
+                        baseline_failed = True
+                if baseline_failed:
+                    n_errors += 1
+                    continue
+
+                own_state = store.get(sid)
+                if own_state is None:
+                    n_errors += 1
+                    continue
+
+                held_out_text = (corpus_dir / held_out["filename"]).read_text(
+                    encoding="utf-8"
+                )
+                feat_dict = extract_features(held_out_text)
+                vec = feature_vector(held_out_text)
+
+                t0 = time.perf_counter()
+                result = quantum_score(
+                    state=own_state,
+                    submission_vector=vec,
+                    feature_dict=feat_dict,
+                    submission_id=f"g6pooled_{held_out['filename']}",
+                    scoring_config=base_config,
+                    pooled_states=peer_states,
+                    student_id=sid,
+                )
+                elapsed_ms = (time.perf_counter() - t0) * 1000.0
+
+                mode = result.typicality_calibration or "none"
+                calibration_mode_counts[mode] = calibration_mode_counts.get(mode, 0) + 1
+                p_central = result.typicality_p_central
+                typicality_n = int(result.typicality_n)
+                if p_central is None:
+                    n_null_typicality += 1
+                    continue
+                results_by_group[bool(held_out["native_english"])].append(
+                    {
+                        "filename": held_out["filename"],
+                        "p_central": float(p_central),
+                        "typicality_n": typicality_n,
+                        "flagged": p_central <= NO_ACTION_CENTRAL_THRESHOLD,
+                    }
+                )
+                tier18_values = {c: float(feat_dict[c]) for c in TIER18_CODES if c in feat_dict}
+                per_group_features[bool(held_out["native_english"])].append(tier18_values)
+                scoring_rows.append(
+                    ScoringResult(
+                        filename=held_out["filename"],
+                        author_id=author_id,
+                        label=AuthorshipLabel.AUTHENTIC,
+                        deviation_score=float(result.authorship.deviation_score),
+                        authorship_probability=float(result.authorship.authorship_probability),
+                        recommended_action=result.recommendation.action,
+                        is_same_author=True,
+                        word_count=int(held_out.get("word_count", 0)),
+                        scoring_time_ms=elapsed_ms,
+                    )
+                )
+
+    n_scored = sum(len(v) for v in results_by_group.values())
+    _require_healthy_leg("G6 pooled native_english leg", n_success=n_scored, n_errors=n_errors)
+
+    n_native = len(results_by_group[True])
+    n_non_native = len(results_by_group[False])
+    if n_native < _G6_MIN_PER_GROUP or n_non_native < _G6_MIN_PER_GROUP:
+        return _g6_insufficient_data_result(
+            _g6_short_group_message(n_native, n_non_native, _G6_MIN_PER_GROUP),
+            n_native_scored=n_native,
+            n_non_native_scored=n_non_native,
+            extra_detail={"calibration_mode_counts": calibration_mode_counts},
+        )
+
+    reachability_skip = _g6_reachability_precheck(
+        results_by_group,
+        NO_ACTION_CENTRAL_THRESHOLD,
+        n_native_scored=n_native,
+        n_non_native_scored=n_non_native,
+    )
+    if reachability_skip is not None:
+        reachability_skip.detail["calibration_mode_counts"] = calibration_mode_counts
+        return reachability_skip
+
+    native_fpr = sum(1 for x in results_by_group[True] if x["flagged"]) / n_native
+    non_native_fpr = (
+        sum(1 for x in results_by_group[False] if x["flagged"]) / n_non_native
+    )
+
+    manifest_lookup = {e["filename"]: e for e in entries}
+    bias_slices = [
+        _asdict(s)
+        for s in slice_by(scoring_rows, "native_english", manifest_lookup=manifest_lookup)
+    ]
+    welch = _asdict(
+        _welch_t_test(
+            np.array([x["p_central"] for x in results_by_group[True]]),
+            np.array([x["p_central"] for x in results_by_group[False]]),
+            "native_english=true",
+            "native_english=false",
+        )
+    )
+
+    uniformity_summary = _uniformity_slice_summary(per_group_features)
+
+    informational = {
+        "n_native_scored": n_native,
+        "n_non_native_scored": n_non_native,
+        "n_scoring_errors": n_errors,
+        "n_null_typicality_skipped": n_null_typicality,
+        "flag_rule": f"typicality_p_central <= {NO_ACTION_CENTRAL_THRESHOLD}",
+        "uniformity_enabled_during_leg": True,
+        "calibration_mode": "pooled (direct score() call -- see docstring)",
+        "calibration_mode_counts": calibration_mode_counts,
+        "bias_slices_deviation_score": bias_slices,
+        "welch_t_on_p_central": welch,
+        "uniformity_slice": uniformity_summary,
+    }
+    if n_native < _G6_WARN_PER_GROUP or n_non_native < _G6_WARN_PER_GROUP:
+        informational["low_sample_warning"] = (
+            f"fewer than {_G6_WARN_PER_GROUP} scored entries per group "
+            f"(native={n_native}, non_native={n_non_native}) — the manifest's "
+            "native_english coverage is thin (25/807 entries annotated); "
+            "treat the ratio as a screening number, not a precise estimate"
+        )
+    return evaluate_g6_fairness(
+        native_fpr,
+        non_native_fpr,
+        informational=informational,
+        welch_effect_magnitude=welch["effect_magnitude"],
+        welch_cohens_d=welch["cohens_d"],
+    )
 
 
 def _compute_g4_group_means(
     plato_texts: dict[str, list[str]] | None = None,
     sid: str = "demo:gate_g4_early_baseline",
     score_early_loo: bool = False,
+    client=None,
 ) -> tuple[dict[str, float], dict[str, int]]:
     """
+    `client` defaults to a fresh real TestClient (production behaviour,
+    unchanged); tests may inject a fake one scoped to what this function
+    calls (.post(url, json=...) -> an object with .status_code/.json()) to
+    unit-test the early-baseline health check below without standing up the
+    real app.
+
     Defaults reproduce the real G4 leg exactly. run_g5() passes a
     label-shuffled `plato_texts` dict plus a DIFFERENT `sid` per draw: the
     store is a process-wide :memory: database, so reusing the real G4 sid on
@@ -1738,13 +2633,30 @@ def _compute_g4_group_means(
         group_key = GROUP_NAMES[d.group]
         groups[group_key].extend(plato_texts.get(f"plato_{d.slug}", []))
     # Baseline built from the "early" group; score middle and late against it.
-    from fastapi.testclient import TestClient
+    if client is None:
+        from fastapi.testclient import TestClient
 
-    import run as _run_module  # repo-root run.py — see run_all()'s identical import
+        import run as _run_module  # repo-root run.py — see run_all()'s identical import
 
-    client = TestClient(_run_module.load_legacy_demo_app())
+        client = TestClient(_run_module.load_legacy_demo_app())
+    n_baseline_errors = 0
     for chunk in groups["early"]:
-        client.post(f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"})
+        r = client.post(
+            f"/students/{sid}/baseline", json={"text": chunk, "provenance": "verified"}
+        )
+        if r.status_code != 200:
+            n_baseline_errors += 1
+    # A dropped upload here silently shrinks the early-group baseline that
+    # middle/late (and, with score_early_loo, early's own cross-fit halves)
+    # are scored against, without touching anything on disk — see
+    # _corpus_fingerprint's docstring for the reproducibility bug this class
+    # of defect was traced to for G2. _require_healthy_leg fails loudly
+    # instead of letting that pass unnoticed.
+    _require_healthy_leg(
+        "G4 early baseline upload",
+        n_success=len(groups["early"]) - n_baseline_errors,
+        n_errors=n_baseline_errors,
+    )
 
     means = {}
     n_scored = 0
@@ -1759,11 +2671,24 @@ def _compute_g4_group_means(
                 ("b", half_b, half_a),
             ):
                 loo_sid = f"{sid}_loo_{half_tag}"
+                n_half_baseline_errors = 0
                 for other in baseline_pool:
-                    client.post(
+                    r = client.post(
                         f"/students/{loo_sid}/baseline",
                         json={"text": other, "provenance": "verified"},
                     )
+                    if r.status_code != 200:
+                        n_half_baseline_errors += 1
+                # Same shared-sub-pool reasoning as the early-baseline check
+                # above, at half-scale: baseline_pool is reused for every
+                # held_out chunk scored in THIS half, so a dropped upload
+                # here undersizes every one of that half's scores, not just
+                # one fold.
+                _require_healthy_leg(
+                    f"G4 cross-fit baseline upload ({half_tag})",
+                    n_success=len(baseline_pool) - n_half_baseline_errors,
+                    n_errors=n_half_baseline_errors,
+                )
                 for chunk in held_out:
                     r = client.post(
                         f"/students/{loo_sid}/score",
@@ -2033,13 +2958,30 @@ def run_g5(
         **_load_plato_texts_by_dialogue(),
     }
     shuffled_g1_corpus = _shuffle_documents_across_keys(texts_by_id, rng)
-    s_actions, s_per_corpus, s_deviations, s_errors = _score_corpus_for_g1(
+    s_actions, s_per_corpus, s_deviations, s_errors, _, s_drift_rejected = _score_corpus_for_g1(
         client, "g5", shuffled_g1_corpus
     )
-    _require_healthy_leg("G5 shuffled G1 leg", n_success=len(s_actions), n_errors=s_errors)
+    # Drift-rejected folds (Phase-8 drift gate 202/409 on a baseline upload —
+    # see _score_corpus_for_g1's docstring) are EXPECTED on this leg: the
+    # shuffled corpus deliberately builds cross-author grab-bag baselines,
+    # and the drift detector correctly recognizing many of them as anomalous
+    # mid-construction is a working safety feature, not evidence the
+    # machinery is broken. Exclude them from the >10% health-check count —
+    # s_errors still includes them (that count is unchanged and also
+    # reported below), so subtracting s_drift_rejected here yields exactly
+    # the genuine-machinery-failure count. A leg with genuine failures alone
+    # exceeding 10% still raises, exactly as _require_healthy_leg always has.
+    s_genuine_errors = s_errors - s_drift_rejected
+    _require_healthy_leg(
+        "G5 shuffled G1 leg", n_success=len(s_actions), n_errors=s_genuine_errors
+    )
     shuffled_g1_flagged_rate = evaluate_g1_fpr(s_actions, s_per_corpus).detail[
         "pooled_flagged_rate"
     ]
+    shuffled_g1_total_folds = len(s_actions) + s_errors
+    shuffled_g1_drift_rejected_rate = (
+        s_drift_rejected / shuffled_g1_total_folds if shuffled_g1_total_folds else None
+    )
 
     # Shuffled G3: full public_authors rerun with baseline lists permuted
     # across author labels.
@@ -2097,6 +3039,21 @@ def run_g5(
             ),
             "shuffled_g1_n_folds": len(s_actions),
             "shuffled_g1_n_scoring_errors": s_errors,
+            "shuffled_g1_n_genuine_scoring_errors": s_genuine_errors,
+            "shuffled_g1_drift_rejected_count": s_drift_rejected,
+            "shuffled_g1_drift_rejected_rate": shuffled_g1_drift_rejected_rate,
+            "drift_rejected_note": (
+                "folds where the Phase-8 drift gate (original/routers/"
+                "students_baseline.py) rejected a baseline upload as "
+                "pending_review/rebaseline_required (202/409) — this is "
+                "expected on a shuffled-label corpus (cross-author "
+                "grab-bag baselines) and is independent, complementary "
+                "evidence of real authorship coherence, not a machinery "
+                "failure. Excluded from shuffled_g1_n_genuine_scoring_errors "
+                "and from this leg's >10% health-check threshold; still "
+                "excluded from the deviation-shift comparison (its baseline "
+                "genuinely wasn't built)."
+            ),
             **g3_info,
             "g4_draws": g4_draws,
         },

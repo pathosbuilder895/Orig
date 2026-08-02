@@ -388,6 +388,7 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
         typicality_band=getattr(r, "typicality_band", None),
         typicality_n=getattr(r, "typicality_n", 0),
         typicality_source=getattr(r, "typicality_source", None),
+        typicality_calibration=getattr(r, "typicality_calibration", None),
         # Phase 3: ContextManifestOut when CONTEXT_MANIFEST_ENABLED=1, else None.
         context_manifest=(
             ContextManifestOut(**getattr(r, "context_manifest", None))
