@@ -9,7 +9,7 @@ validation/wide/run.py — wide-dataset benchmark orchestrator.
 Each invocation:
 
   1. Locks the environment (SECRET_KEY, ADAPTIVE_WEIGHTS_ENABLED=0,
-     ORIGINAL_DB=":memory:", random/numpy seeded). Must happen BEFORE
+     ORIGINAL_DB=fresh temp file, random/numpy seeded). Must happen BEFORE
      anything in ``original.*`` is imported — see reproducibility.py.
 
   2. Calls the dataset adapter (``raid.py`` / ``pan_av.py`` / ``m4.py``)
