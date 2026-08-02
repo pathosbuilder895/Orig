@@ -6,7 +6,16 @@ shapes are exactly what production writes -- including the edge cases a
 Repository-level migration would drop: is_authentic=False fidelity rows,
 NULL-student corrections, colon-less legacy ids, system-action audit rows),
 runs scripts/migrate_sqlite_to_pg.migrate() against a live Postgres instance,
-and asserts row-count + checksum parity for all 16 tables.
+and asserts row-count + checksum parity for every table in the live schema.
+
+The completeness check (``TestMigrationParity.
+test_full_migration_reports_parity_for_every_live_table``) DERIVES the
+expected table set from ``original.db.models.live.LiveBase.metadata.tables``
+rather than a hardcoded count, specifically so a table added to the live
+schema without a corresponding migrator in scripts/migrate_sqlite_to_pg.py
+fails this test loudly instead of silently dropping that table's data on a
+real cutover. See ``_EXCLUDED_FROM_MIGRATION`` for the (currently empty) list
+of tables legitimately exempted from that check.
 
 Postgres-gated exactly like tests/test_repository_contract.py: self-skips when
 DATABASE_URL isn't a reachable postgresql:// instance. Marked @pytest.mark.postgres.
@@ -15,6 +24,7 @@ DATABASE_URL isn't a reachable postgresql:// instance. Marked @pytest.mark.postg
 from __future__ import annotations
 
 import os
+from datetime import UTC, datetime
 
 import numpy as np
 import pytest
@@ -23,6 +33,14 @@ from original.constants import FEATURE_DIM
 from original.quantum.state import BaselineSample, StudentState
 
 pytestmark = pytest.mark.postgres
+
+# Tables present in original.db.models.live.LiveBase.metadata that the
+# migration script legitimately does NOT migrate. Empty today -- every live
+# table has a migrator in scripts/migrate_sqlite_to_pg.MIGRATORS. Add an entry
+# here (with a comment justifying it) only for a table that's genuinely out of
+# scope for the SQLite->Postgres cutover; do NOT add one just to make a
+# missing migrator's test failure go away.
+_EXCLUDED_FROM_MIGRATION: frozenset[str] = frozenset()
 
 
 def _postgres_available() -> bool:
@@ -56,8 +74,8 @@ def _make_state(student_id: str, n: int = 2, genre: str | None = None) -> Studen
 
 
 def _seed_sqlite(store) -> None:
-    """Populate every one of the 16 tables via the real store write paths,
-    deliberately hitting the shapes a naive migration would lose."""
+    """Populate every one of the live-schema tables via the real store write
+    paths, deliberately hitting the shapes a naive migration would lose."""
     # tenants (real + demo environments)
     store.put_tenant("sem", "Seminary of Dallas", environment="pilot", meta={"contact": "a@b.edu"})
     store.put_tenant("acme", "Acme College", environment="demo")
@@ -172,10 +190,22 @@ def _seed_sqlite(store) -> None:
         "req-1", "sem:bob", "pending", 1_700_000_000.0, '{"exam": "Week 3", "status": "pending"}'
     )
 
+    # park_sessions / park_beats (QR phone-park proctoring, T8). park_sessions
+    # carries a tenant_id FK like the other tenant-scoped tables above; the two
+    # beats on the one session exercise both the composite (park_token,
+    # student_hint) key and a real state transition (active -> left_page),
+    # which is the shape that grows transitions_json beyond its initial entry.
+    park_created = datetime(2026, 1, 3, 9, 0, 0, tzinfo=UTC)
+    store.park_open("exam-sess-1", "sem", "ptok-abc123", park_created)
+    store.park_beat("ptok-abc123", "AB", "active", datetime(2026, 1, 3, 9, 0, 5, tzinfo=UTC))
+    store.park_beat("ptok-abc123", "AB", "left_page", datetime(2026, 1, 3, 9, 0, 20, tzinfo=UTC))
+    store.park_beat("ptok-abc123", "CD", "active", datetime(2026, 1, 3, 9, 0, 8, tzinfo=UTC))
+
 
 @pytest.fixture
 def seeded_sqlite(tmp_path, monkeypatch):
-    """A temp SQLite store seeded across all 16 tables; yields its path."""
+    """A temp SQLite store seeded across every live-schema table; yields its
+    path."""
     from original import store
 
     db_file = tmp_path / "migrate_src.db"
@@ -204,12 +234,40 @@ def fresh_pg():
 
 
 class TestMigrationParity:
-    def test_full_migration_reports_parity_for_all_16_tables(self, seeded_sqlite, fresh_pg):
+    def test_migrators_cover_exactly_the_live_schema(self):
+        """The completeness guarantee: MIGRATORS must cover exactly the table
+        set SQLAlchemy knows about for the live schema (minus any explicitly
+        justified exclusion), DERIVED from LiveBase.metadata rather than a
+        hardcoded number. A table added to db/models/live.py without a
+        corresponding _Migrator fails this immediately -- that's the point:
+        it turns "we forgot a table" from a silent SQLite->Postgres data loss
+        into a loud, specific test failure instead of a stale count nobody
+        double-checks. (This is exactly how park_sessions/park_beats were
+        missed the first time: the old check compared the migration script's
+        own table set against itself -- self-referential, so a migrator that
+        was never written could never be caught missing.)"""
+        from original.db.models.live import LiveBase
+        from scripts.migrate_sqlite_to_pg import MIGRATORS
+
+        expected = set(LiveBase.metadata.tables.keys()) - _EXCLUDED_FROM_MIGRATION
+        migrated = {m.name for m in MIGRATORS}
+        assert migrated == expected, (
+            f"MIGRATORS doesn't match the live schema -- "
+            f"missing migrators: {expected - migrated or None}, "
+            f"unexpected/stale migrators: {migrated - expected or None}"
+        )
+
+    def test_full_migration_reports_parity_for_every_live_table(self, seeded_sqlite, fresh_pg):
+        from original.db.models.live import LiveBase
         from scripts.migrate_sqlite_to_pg import MIGRATORS, migrate
 
         report = migrate(seeded_sqlite, dry_run=False)
 
-        assert len(report["tables"]) == 16, "every live table must be reported"
+        expected_tables = set(LiveBase.metadata.tables.keys()) - _EXCLUDED_FROM_MIGRATION
+        assert {t["table"] for t in report["tables"]} == expected_tables, (
+            "the migration report must cover every live table -- derived from "
+            "LiveBase.metadata, not a hardcoded count"
+        )
         assert {t["table"] for t in report["tables"]} == {m.name for m in MIGRATORS}
 
         # Every table: checksum + parity flag. Row-count is exact everywhere
@@ -247,6 +305,17 @@ class TestMigrationParity:
         assert by_table["audit_log"]["sqlite_rows"] >= 3
         # the legacy-flat student forced a placeholder tenant backfill
         assert "__legacy_flat__" in report["backfilled_tenants"]
+        # phone-park: one session, two composite-key beat rows (park_token,
+        # student_hint) -- this is the gap this change closes, so assert it
+        # explicitly rather than only via the blanket parity loop above.
+        assert by_table["park_sessions"]["sqlite_rows"] == 1
+        assert by_table["park_beats"]["sqlite_rows"] == 2
+        assert by_table["park_sessions"]["parity"]
+        assert by_table["park_beats"]["parity"]
+        assert (
+            by_table["park_sessions"]["sqlite_checksum"] == by_table["park_sessions"]["pg_checksum"]
+        )
+        assert by_table["park_beats"]["sqlite_checksum"] == by_table["park_beats"]["pg_checksum"]
 
     def test_dry_run_does_not_write(self, seeded_sqlite, fresh_pg):
         """--dry-run reads + checksums both sides but writes nothing, so the
