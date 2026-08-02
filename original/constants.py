@@ -271,18 +271,32 @@ TIER_WEIGHTS: dict[int, float] = {
 # ── Length-adaptive tier weighting (Phase 2 of length-stability work) ─────────
 #
 # Derived from the per-tier Fisher-ratio stability study in
-# validation/stability/2026-06-30/per_tier_summary.csv. On short inputs
-# (≤ ~750 words) most tiers' features stop discriminating between authors —
-# their between-author variance only opens up once enough text is available.
-# A few tiers (2, 7, 14) keep most of their discriminating power even at
-# 500 words; a few collapse entirely (5, 11, 12, 15).
+# validation/stability/2026-08-01/per_tier_summary.csv — the re-run on the
+# DECONTAMINATED public-author corpus (the 2026-06-30 study this schedule
+# was first derived from had a French novel standing in for edwards and
+# ~32k words of index/footnote back-matter in james; see
+# validation/stability/2026-08-01/COMPARISON_vs_2026-06-30.md). On short
+# inputs (≤ ~750 words) most tiers' features stop discriminating between
+# authors — their between-author variance only opens up once enough text
+# is available. On the clean corpus the strongest short-window tiers are
+# 8 (prosodic rhythm), 1 (surface), 4 (char/punct), and 15 (lexical
+# architecture); tiers 6 and 9 collapse, and the old marquee tiers 5/7
+# (amplified 1.56 in the contaminated derivation) turn out to be below-
+# median at 500 words — burstiness/POS/function-word stats were mostly
+# doing language ID against the French text.
+#
+# Re-derive with:
+#   .venv/bin/python -m validation.stability.derive_schedule \
+#       validation/stability/2026-08-01/per_tier_summary.csv
 #
 # When LENGTH_ADAPTIVE_WEIGHTS=1, scoring.py multiplies _TIER_WEIGHT_VECTOR
 # by the per-tier factor from the bucket matching the submission's word
-# count. The factors below are picked from the stability flag for each
-# tier ("HOLDS" → amplify, "DEGRADES" → identity, "COLLAPSES" → attenuate,
-# "n/a" → mute heavily). Identity at "long" preserves existing behaviour
-# on full essays.
+# count. "short" factors are F(500,tier)/median over the measurable tiers
+# (clipped, then rescaled — see below); "medium" is the midpoint of the
+# clipped short factor and 1.0; tiers with no measurable text-only
+# features (11, 12) take the 0.5 floor and tiers absent from the study
+# (0 comparison, 17 behavioral) are neutral. Identity at "long" preserves
+# existing behaviour on full essays.
 #
 # Bucket cutoffs match the stability-study lengths so a reviewer can map
 # a feature's behaviour at L back to the factor here:
@@ -308,36 +322,39 @@ LENGTH_WEIGHT_SCHEDULE: dict[str, dict[int, float]] = {
     # (variance adds to the sum-of-squares). At N=717 on the seminary
     # corpus that first fix left mean deviation elevated 0.796 → 0.893
     # and collapsed threshold-based classification. See
-    # validation/stability/lift_seminary_normalized_2026-06-30.json.
+    # validation/stability/lift_seminary_normalized_2026-06-30.json — the
+    # Σ(w²) rescale absorbs any such uniform normalisation, so the raw
+    # clipped factors are rescaled directly.
     #
-    # Rescale factor for short: 1 / 1.1150 → each short factor is the
-    # earlier mean-normalised value divided by 1.1150.
+    # Rescale factor for short: 1 / 1.2251 (Σ(w²)-preserving).
+    # F(500) values below are the clean 2026-08-01 per-tier means.
     "short": {
-        0:  0.78,   # comparison — no clear stability signal
-        1:  1.56,   # surface stylometrics: F(500)=1.69, capped 2.0
-        2:  0.86,   # discourse: F(500)=0.68
-        3:  0.42,   # rhetorical: F(500)=0.33
-        4:  1.56,   # char/punct: F(500)=1.70, capped
-        5:  1.56,   # POS/syntax: F(500)=2.81, capped
-        6:  0.57,   # idiosyncratic: F(500)=0.45
-        7:  1.56,   # AI/burstiness: F(500)=6.22 (highest), capped
-        8:  1.26,   # prosodic rhythm: F(500)=0.98
-        9:  0.39,   # argument: F(500)=0.15, floored 0.5
-        10: 0.39,   # semantic gravity: F(500)=0.19
-        11: 0.39,   # error ecology — F=0 on text-only inputs
-        12: 0.39,   # tension arc — F=0 on text-only inputs
-        13: 0.50,   # prosodic depth: F(500)=0.39
-        14: 0.74,   # error topology: F(500)=0.58
-        15: 0.82,   # lexical architecture: F(500)=0.64
-        16: 0.39,   # citation: F(500)=0.08 (lowest), floored
-        17: 0.78,   # behavioral — text-length-independent
+        0:  0.82,   # comparison — not in the study, neutral 1.0 raw
+        1:  1.63,   # surface stylometrics: F(500)=0.600, capped 2.0
+        2:  0.75,   # discourse: F(500)=0.261
+        3:  0.83,   # rhetorical: F(500)=0.290
+        4:  1.61,   # char/punct: F(500)=0.558
+        5:  0.83,   # POS/syntax: F(500)=0.288 (was 2.81 contaminated → capped)
+        6:  0.85,   # idiosyncratic: F(500)=0.297
+        7:  0.66,   # AI/burstiness: F(500)=0.228 (was 6.22 contaminated → capped)
+        8:  1.63,   # prosodic rhythm: F(500)=1.067 (highest), capped
+        9:  0.41,   # argument: F(500)=0.104, floored 0.5
+        10: 0.41,   # semantic gravity: F(500)=0.046 (lowest), floored
+        11: 0.41,   # error ecology — F=0 on text-only inputs
+        12: 0.41,   # tension arc — F=0 on text-only inputs
+        13: 0.80,   # prosodic depth: F(500)=0.279
+        14: 0.63,   # error topology: F(500)=0.219
+        15: 1.47,   # lexical architecture: F(500)=0.511
+        16: 0.41,   # citation: F(500)=0.097, floored
+        17: 0.82,   # behavioral — text-length-independent, neutral 1.0 raw
     },
     "medium": {
-        # Rescaled by 1 / 1.0297 (Σ(w²)-preserving).
-        0:  0.90, 1:  1.35, 2:  0.95, 3:  0.69, 4:  1.35,
-        5:  1.35, 6:  0.79, 7:  1.35, 8:  1.19, 9:  0.68,
-        10: 0.68, 11: 0.68, 12: 0.68, 13: 0.74, 14: 0.88,
-        15: 0.93, 16: 0.68, 17: 0.90,
+        # Midpoint of clipped short raw factor and 1.0, then rescaled
+        # by 1 / 1.0870 (Σ(w²)-preserving).
+        0:  0.92, 1:  1.38, 2:  0.88, 3:  0.93, 4:  1.37,
+        5:  0.93, 6:  0.94, 7:  0.83, 8:  1.38, 9:  0.69,
+        10: 0.69, 11: 0.69, 12: 0.69, 13: 0.91, 14: 0.82,
+        15: 1.29, 16: 0.69, 17: 0.92,
     },
     "long":  {t: 1.0 for t in range(18)},   # identity — preserve existing behaviour
 }
