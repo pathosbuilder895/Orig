@@ -23,6 +23,7 @@ EXPECTED_ROUTES = [
     ("/bluebook/exams", "POST"),
     ("/bluebook/exams", "GET"),
     ("/bluebook/exams/{exam_id}", "GET"),
+    ("/bluebook/exams/{exam_id}/session", "POST"),
     ("/bluebook/submissions", "POST"),
     ("/bluebook/submissions", "GET"),
     ("/bluebook/courses", "POST"),

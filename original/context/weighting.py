@@ -43,6 +43,55 @@ AMPLIFY_FACTOR: float = 1.15
 # noise is ~halved without throwing the signal away entirely.
 ATTENUATE_FACTOR: float = 0.6
 
+# ── Genre-mismatch attenuation (2026-08 cross-genre study) ───────────────────
+#
+# validation/genre_crossgenre_2026-08/ found the static per-tier weight
+# vector fails at recognizing a student's own writing when their submission's
+# genre isn't one their baseline has ever covered: topic/genre-sensitive
+# tiers inflate the deviation score enough to look like a different author
+# (mean raw-score AUC 0.39, worse than chance, on a held-out-genre test).
+#
+# Tiers 2 and 3 are ALREADY down-weighted in the static TIER_WEIGHTS for
+# exactly this reason ("topic-sensitive features shift with topic even
+# within same-author writing" / "more topic-sensitive" — see constants.py).
+# The study's tier-ablation (validation/genre_crossgenre_2026-08/tier_probe.py)
+# found removing tiers 3, 9, and 10 from a genre-invariance weighting
+# NEUTRAL-TO-POSITIVE for cross-genre recognition — i.e. on that corpus they
+# were noise, not signal, specifically under a genre mismatch. This extends
+# the SAME existing "topic-sensitive → attenuate" reasoning to tiers 9
+# (argument topology — already commented "partially topic-sensitive" in
+# TIER_WEIGHTS) and 10 (semantic gravity wells), and reuses the existing
+# ATTENUATE_FACTOR rather than inventing a new magnitude.
+#
+# Deliberately NOT a full per-feature reweighting: a companion multi-author
+# test (validation/public_authors/, 10 authors) found the study's full
+# per-feature "DNA" vector does NOT generalize as a blanket replacement —
+# it actively hurts same-genre discrimination, because the same
+# topic-sensitive features carry genuine between-author signal when genre
+# IS covered. Gating this attenuation behind `genre_covered=False` (only
+# applied when the submission's genre is genuinely new to this student) is
+# what keeps it safe: it never fires for the common case.
+#
+# ⚠️ CURRENTLY INERT — the gate this hangs off cannot fire in practice.
+# `resolvers.resolve_genre` does not discriminate genre on real prose: on the
+# 10-author validation/public_authors/ corpus it put 265/316 chunks (84%) in
+# "correspondence", which is not a positive classification at all but rule 8's
+# terminal `else` ("no rule matched, no citation cues"). On the very corpus
+# this was designed for it collapses all six of Lewis's hand-labelled genres —
+# Narnia, theology, Screwtape — into the same bucket, so
+# `genre_covered_by_baseline` returns True nearly always and this attenuation
+# would fire in 1 of 6 leave-one-genre-out folds, driven by classifier noise
+# rather than a real genre difference. Reproduce with
+# validation/genre_crossgenre_2026-08/genre_invariant_validate.py.
+#
+# Consequence: enabling GENRE_INVARIANT_WEIGHTS_ENABLED today buys almost
+# nothing and what little it does is arbitrary. The tier set below is
+# therefore UNVALIDATED on independent data — the test that would have
+# validated it could not be run, because no author in an independent corpus
+# has two genres the classifier can tell apart. Fix resolve_genre first, then
+# re-run that script; only then is this worth enabling.
+GENRE_MISMATCH_ATTENUATE_TIERS: frozenset[int] = frozenset({2, 3, 9, 10})
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Public API
@@ -53,6 +102,7 @@ def build_adaptive_weight_vector(
     manifest: object,  # ContextManifest, duck-typed to avoid import cycle
     base_tier_weights: dict[int, float] = TIER_WEIGHTS,
     feature_codes: Sequence[str] = ALL_FEATURE_CODES,
+    genre_covered: bool = True,
 ) -> np.ndarray:
     """
     Build a per-feature-code weight vector from a ContextManifest.
@@ -69,6 +119,13 @@ def build_adaptive_weight_vector(
     feature_codes : Sequence[str]
         Ordered list of feature codes (matches `submission_vector` order).
         Defaults to `ALL_FEATURE_CODES`.
+    genre_covered : bool
+        From `baseline_match.genre_covered_by_baseline()`, gated by the
+        caller behind GENRE_INVARIANT_WEIGHTS_ENABLED. Default True is a
+        no-op (matches every call site that doesn't pass it). False applies
+        an extra ATTENUATE_FACTOR multiply to GENRE_MISMATCH_ATTENUATE_TIERS
+        — see that constant's comment for what motivated this and its
+        validation status.
 
     Returns
     -------
@@ -77,13 +134,17 @@ def build_adaptive_weight_vector(
 
     Behavioural guarantees
     ----------------------
-    - Empty manifest (no anchors set, no muting, no attenuation) returns a
-      vector that's element-wise equal to the static base-weights vector
-      built the same way `scoring.py` builds `_TIER_WEIGHT_VECTOR`.
-    - Mute is a hard zero; nothing else can override it.
+    - Empty manifest (no anchors set, no muting, no attenuation) and
+      genre_covered=True (the default) returns a vector that's element-wise
+      equal to the static base-weights vector built the same way
+      `scoring.py` builds `_TIER_WEIGHT_VECTOR`.
+    - Mute is a hard zero; nothing else can override it, including the
+      genre-mismatch attenuation.
     - A code that is BOTH attenuated AND in an anchor tier ends up
       attenuated — manifest derivation enforces mute > attenuate > amplify
-      precedence; weighting just reads the resulting code lists.
+      precedence; weighting just reads the resulting code lists. The
+      genre-mismatch attenuation stacks multiplicatively on top of whatever
+      that precedence already produced (except mute, which it can't touch).
     - Codes whose tier is missing from `base_tier_weights` default to 1.0
       (matches scoring.py's `.get(tier, 1.0)` fallback).
     """
@@ -129,7 +190,20 @@ def build_adaptive_weight_vector(
 
         out[i] = base
 
+    if not genre_covered:
+        for i, code in enumerate(feature_codes):
+            if code in mute_codes:
+                continue  # mute is a hard zero, the genre attenuation can't override it
+            tier = FEATURE_TIER.get(code)
+            if tier in GENRE_MISMATCH_ATTENUATE_TIERS:
+                out[i] *= ATTENUATE_FACTOR
+
     return out
 
 
-__all__ = ["build_adaptive_weight_vector", "AMPLIFY_FACTOR", "ATTENUATE_FACTOR"]
+__all__ = [
+    "build_adaptive_weight_vector",
+    "AMPLIFY_FACTOR",
+    "ATTENUATE_FACTOR",
+    "GENRE_MISMATCH_ATTENUATE_TIERS",
+]

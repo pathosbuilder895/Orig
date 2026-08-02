@@ -11,7 +11,7 @@ non-determinism in Original's scoring stack:
     - BAYESIAN_PRIOR_ENABLED      : 0    → no cold-start blend
     - LENGTH_ADAPTIVE_WEIGHTS     : 0    → no length-schedule scaling
     - ENVIRONMENT                 : testing → strict-mode flags off
-    - ORIGINAL_DB                 : :memory: → no cross-run store contamination
+    - ORIGINAL_DB                 : fresh temp file → no cross-run store contamination
     - random.seed / numpy seed    : BENCHMARK_SEED
 
 Every env-var-gated branch in ``original/quantum/scoring.py`` and
@@ -30,9 +30,24 @@ from __future__ import annotations
 
 import os
 import random
+import tempfile
 from dataclasses import dataclass
 
 BENCHMARK_SEED = 1729  # Ramanujan's taxicab number — same one calibration.py uses
+
+# One throwaway store per process, created lazily on the first
+# lock_environment() call and reused by later calls (flipping the path
+# mid-run would drop every profile built so far).
+_BENCH_DB_PATH: str | None = None
+
+
+def _bench_db_path() -> str:
+    global _BENCH_DB_PATH
+    if _BENCH_DB_PATH is None:
+        fd, path = tempfile.mkstemp(prefix="original_bench_", suffix=".db")
+        os.close(fd)
+        _BENCH_DB_PATH = path
+    return _BENCH_DB_PATH
 
 
 # ── Every env-var-gated scoring flag, mapped to its pinned default. ─────────
@@ -89,9 +104,13 @@ def lock_environment(seed: int = BENCHMARK_SEED) -> _EnvLockReport:
     #    fail loudly on the test-only SECRET_KEY above.
     os.environ.setdefault("ENVIRONMENT", "testing")
 
-    # 4. Point the student-state store at an in-memory SQLite so the
-    #    benchmark never reads from or writes to the real profile DB.
-    os.environ["ORIGINAL_DB"] = ":memory:"
+    # 4. Point the student-state store at a throwaway per-process SQLite
+    #    file so the benchmark never reads from or writes to the real
+    #    profile DB. NOT ":memory:": since WS-6 P6 removed the _STORE
+    #    profile cache, store._get_conn() opens a fresh connection per
+    #    call, and ":memory:" gives every connection its own empty
+    #    database — TestClient-based harnesses would 404 on every score.
+    os.environ["ORIGINAL_DB"] = _bench_db_path()
 
     # 5. Seed Python random + NumPy. Some feature extractors use random
     #    for sampling (e.g. character trigram sampling at the limit); some
@@ -108,7 +127,7 @@ def lock_environment(seed: int = BENCHMARK_SEED) -> _EnvLockReport:
     return _EnvLockReport(
         secret_key=_redacted(secret),
         environment=os.environ["ENVIRONMENT"],
-        original_db=":memory:",
+        original_db=os.environ["ORIGINAL_DB"],
         numpy_seeded=numpy_seeded,
         python_seeded=True,
         scoring_flags=dict(_SCORING_FLAG_DEFAULTS),

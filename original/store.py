@@ -14,7 +14,7 @@ import json
 import logging
 import os
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -53,13 +53,17 @@ _DB_PATH = Path(os.environ.get("ORIGINAL_DB", Path(__file__).parent.parent / "pr
 # would hand one tenant's cached aggregate to the next tenant that asks for the
 # same genre, reintroducing exactly the cross-tenant leak the filter removes.
 #
+# A genre of None is the genre-AGNOSTIC pool backing get_cohort_stats — its own
+# distinct key, never conflated with a real genre label (no genre is named
+# None), so the two share one cache, one scan idiom, and one busting site.
+#
 # What's cached is the pool grouped BY STUDENT, not a finished mean/std, so
 # that get_genre_stats's leave-one-out exclusion is a filter over the cached
 # groups rather than a fresh scan per student. Caching finished stats under a
 # (tenant, genre, excluded) key would be correct but would make every distinct
 # student a guaranteed cache miss — turning the one cache that amortises the
 # full-store scan into a per-student scan.
-_GENRE_STATS_CACHE: dict[tuple[str | None, str], list[tuple[str, list[np.ndarray]]]] = {}
+_GENRE_STATS_CACHE: dict[tuple[str | None, str | None], list[tuple[str, list[np.ndarray]]]] = {}
 
 
 # ── SQLite helpers ────────────────────────────────────────────────────────────
@@ -321,12 +325,41 @@ def _open_conn(check_same_thread: bool = True) -> sqlite3.Connection:
             stylometric   INTEGER,
             ai_score      INTEGER,
             status        TEXT NOT NULL DEFAULT 'SUBMITTED',
-            created_at    TEXT NOT NULL
+            created_at    TEXT NOT NULL,
+            submission_uuid TEXT,
+            late          INTEGER DEFAULT 0
         )
     """)
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_bluebook_subs_tenant
             ON bluebook_submissions(tenant_id, created_at)
+    """)
+    # In-place upgrade for pre-existing DBs (no migration ladder yet —
+    # PRAGMA-guarded ALTERs, kept in sync with the fresh CREATE above).
+    _sub_cols = {r[1] for r in conn.execute("PRAGMA table_info(bluebook_submissions)")}
+    if "submission_uuid" not in _sub_cols:
+        conn.execute("ALTER TABLE bluebook_submissions ADD COLUMN submission_uuid TEXT")
+    if "late" not in _sub_cols:
+        conn.execute("ALTER TABLE bluebook_submissions ADD COLUMN late INTEGER DEFAULT 0")
+    # Partial unique index (ADD COLUMN can't carry UNIQUE): seal replays with
+    # the same client submission_uuid must not create a second row.
+    conn.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_bluebook_subs_uuid
+            ON bluebook_submissions(submission_uuid)
+            WHERE submission_uuid IS NOT NULL
+    """)
+    # Bluebook sessions — one row per (exam, student) sitting, pinning the
+    # immutable server deadline (exam-day robustness spec §1). The first
+    # insert wins; reopening the exam can never restart or pause the clock.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bluebook_sessions (
+            exam_id     TEXT NOT NULL,
+            student_key TEXT NOT NULL,
+            tenant_id   TEXT NOT NULL,
+            started_at  TEXT NOT NULL,
+            deadline_at TEXT NOT NULL,
+            PRIMARY KEY (exam_id, student_key)
+        )
     """)
     # Bluebook courses — instructor-created, tenant-scoped course records.
     conn.execute("""
@@ -1123,9 +1156,22 @@ def get_genre_stats(genre: str, tenant: str | None, exclude_student_id: str | No
     students or fewer than MIN_GENRE_VECTORS matching authentic samples remain
     in that tenant.
     """
+    return genre_stats_from_groups(_pool_groups(tenant, genre), exclude_student_id)
+
+
+def _pool_groups(tenant: str | None, genre: str | None) -> list[tuple[str, list[np.ndarray]]]:
+    """The authenticated-sample pool for one ``(tenant, genre)``, grouped by
+    student and memoised in ``_GENRE_STATS_CACHE``.
+
+    ``genre=None`` means *no genre filter* — the genre-agnostic cohort pool
+    behind ``get_cohort_stats``. One scan, one cache, one busting site for
+    both priors, so they cannot drift on tenant scoping the way two
+    hand-written scans would.
+    """
     # O(1) fast path for the scan — the per-student groups are shared by every
-    # student in this (tenant, genre); only the leave-one-out arithmetic below
-    # is per-caller. Cache is busted by put() whenever a baseline is stored.
+    # student in this (tenant, genre); only the leave-one-out arithmetic in
+    # genre_stats_from_groups is per-caller. Cache is busted by put() whenever
+    # a baseline is stored.
     key = (tenant, genre)
     groups = _GENRE_STATS_CACHE.get(key)
     if groups is None:
@@ -1139,13 +1185,13 @@ def get_genre_stats(genre: str, tenant: str | None, exclude_student_id: str | No
             student_vectors = [
                 sample.vector
                 for sample in student_state.samples
-                if sample.auth_weight > 0 and getattr(sample, "genre", None) == genre
+                if sample.auth_weight > 0
+                and (genre is None or getattr(sample, "genre", None) == genre)
             ]
             if student_vectors:
                 groups.append((student_state.student_id, student_vectors))
         _GENRE_STATS_CACHE[key] = groups
-
-    return genre_stats_from_groups(groups, exclude_student_id)
+    return groups
 
 
 def genre_stats_from_groups(
@@ -1186,6 +1232,52 @@ def genre_stats_from_groups(
         # estimated from 300.
         "n_students": contributing_students,
     }
+
+
+def get_cohort_stats(tenant: str | None, exclude_student_id: str | None) -> dict | None:
+    """
+    ``get_genre_stats``'s genre-agnostic sibling: cross-student mean, std and
+    counts over EVERY confirmed-authentic baseline sample (auth_weight > 0)
+    in ``tenant``, regardless of genre, excluding ``exclude_student_id``.
+
+    Used as the cold-start fallback behind ``COHORT_PRIOR_FALLBACK`` when no
+    same-genre prior exists yet for the student being scored.  Deliberately
+    the *same* code path as the genre prior with the genre filter dropped
+    (``_pool_groups(tenant, None)`` + ``genre_stats_from_groups``), so it
+    inherits, rather than re-states, every invariant the genre prior already
+    carries:
+
+    * **tenant scoping** — never pools across institutions
+      (``build_impostor_stats``'s rule; FERPA-relevant);
+    * **leave-one-out** — the scored student is dropped from their own
+      prior.  This matters *more* here than for the genre prior, not less:
+      a tenant-wide pool in a small tenant is where a student most easily
+      dominates "their own" population statistic;
+    * **both cold-start floors** — ``MIN_GENRE_STUDENTS`` (3 distinct
+      contributing people) and ``MIN_GENRE_VECTORS`` (5 vectors), checked
+      after the exclusion.  Dropping the genre filter removes genre
+      matching's natural cap on pool concentration, which is exactly why
+      the distinct-student floor added for the genre prior is load-bearing
+      here;
+    * **``n_students``** in the returned dict, which ``scoring.score()``
+      uses to damp the prior's blend weight by cohort size.  Without it a
+      genre-*mismatched* fallback prior would silently be trusted more than
+      a genre-matched one of the same size.
+
+    Parameters
+    ----------
+    tenant : the tenant slug to scope to — ``principal.tenant_of`` of the
+        student being scored — or None for the legacy-flat (unscoped) pool,
+        which is its own distinct cohort, never mixed with a real tenant's.
+    exclude_student_id : the full scoped id of the student being scored,
+        dropped from the pool; None pools every student in ``tenant``.
+
+    Returns
+    -------
+    Same dict shape as ``get_genre_stats`` — "mean", "std", "n_samples",
+    "n_students" — or None when neither floor is cleared post-exclusion.
+    """
+    return genre_stats_from_groups(_pool_groups(tenant, None), exclude_student_id)
 
 
 def update_fidelity_authenticity(submission_id: str, is_authentic: bool) -> None:
@@ -1991,6 +2083,8 @@ def _bluebook_sub_to_dict(row) -> dict:
         "aiScore": row[10],
         "status": row[11],
         "created_at": row[12],
+        "submission_uuid": row[13],
+        "late": row[14] or 0,
     }
 
 
@@ -2002,8 +2096,8 @@ def put_bluebook_submission(rec: dict) -> None:
                 """INSERT INTO bluebook_submissions
                      (submission_id, exam_id, tenant_id, student_id, candidate,
                       exam_title, course, word_count, time_min, stylometric,
-                      ai_score, status, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                      ai_score, status, created_at, submission_uuid, late)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     rec["id"],
                     rec.get("exam_id"),
@@ -2018,6 +2112,8 @@ def put_bluebook_submission(rec: dict) -> None:
                     rec.get("ai_score"),
                     rec.get("status", "SUBMITTED"),
                     created_at,
+                    rec.get("submission_uuid"),
+                    rec.get("late", 0),
                 ),
             )
             conn.commit()
@@ -2029,7 +2125,8 @@ def put_bluebook_submission(rec: dict) -> None:
 def list_bluebook_submissions(tenant_id: str | None) -> list[dict]:
     cols = (
         "submission_id, exam_id, tenant_id, student_id, candidate, exam_title, "
-        "course, word_count, time_min, stylometric, ai_score, status, created_at"
+        "course, word_count, time_min, stylometric, ai_score, status, created_at, "
+        "submission_uuid, late"
     )
     try:
         with _get_conn() as conn:
@@ -2047,6 +2144,88 @@ def list_bluebook_submissions(tenant_id: str | None) -> list[dict]:
     except Exception:
         log.exception("list_bluebook_submissions failed for %s", tenant_id)
         return []
+
+
+def get_bluebook_submission_by_uuid(submission_uuid: str) -> dict | None:
+    """Replay lookup for idempotent sealing: a retried seal with the same
+    client submission_uuid gets the prior row back instead of a second write."""
+    cols = (
+        "submission_id, exam_id, tenant_id, student_id, candidate, exam_title, "
+        "course, word_count, time_min, stylometric, ai_score, status, created_at, "
+        "submission_uuid, late"
+    )
+    try:
+        with _get_conn() as conn:
+            row = conn.execute(
+                f"SELECT {cols} FROM bluebook_submissions WHERE submission_uuid = ?",
+                (submission_uuid,),
+            ).fetchone()
+        return _bluebook_sub_to_dict(row) if row else None
+    except Exception:
+        log.exception("get_bluebook_submission_by_uuid failed for %s", submission_uuid)
+        return None
+
+
+def get_or_create_bluebook_session(
+    exam_id: str, student_key: str, tenant_id: str, duration_seconds: int
+) -> dict:
+    """Idempotent per-(exam, student) session: the first call pins started_at/
+    deadline_at; every later call returns the same row unchanged, so reopening
+    the exam can never restart or pause the clock (robustness spec §1)."""
+    now = datetime.now(UTC)
+    started_at = now.isoformat()
+    deadline_at = (now + timedelta(seconds=int(duration_seconds))).isoformat()
+    try:
+        with _get_conn() as conn:
+            cur = conn.execute(
+                """INSERT INTO bluebook_sessions
+                     (exam_id, student_key, tenant_id, started_at, deadline_at)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT(exam_id, student_key) DO NOTHING""",
+                (exam_id, student_key, tenant_id, started_at, deadline_at),
+            )
+            created = cur.rowcount == 1
+            conn.commit()
+            row = conn.execute(
+                "SELECT exam_id, student_key, tenant_id, started_at, deadline_at "
+                "FROM bluebook_sessions WHERE exam_id = ? AND student_key = ?",
+                (exam_id, student_key),
+            ).fetchone()
+        return {
+            "exam_id": row[0],
+            "student_key": row[1],
+            "tenant_id": row[2],
+            "started_at": row[3],
+            "deadline_at": row[4],
+            "created": created,
+        }
+    except sqlite3.Error as e:
+        log.error("get_or_create_bluebook_session failed for %s/%s: %s", exam_id, student_key, e)
+        raise
+
+
+def get_bluebook_session(exam_id: str, student_key: str) -> dict | None:
+    """Read-only session lookup (late-tagging at seal time). None when the
+    sitting was never registered (degrade-open client start)."""
+    try:
+        with _get_conn() as conn:
+            row = conn.execute(
+                "SELECT exam_id, student_key, tenant_id, started_at, deadline_at "
+                "FROM bluebook_sessions WHERE exam_id = ? AND student_key = ?",
+                (exam_id, student_key),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "exam_id": row[0],
+            "student_key": row[1],
+            "tenant_id": row[2],
+            "started_at": row[3],
+            "deadline_at": row[4],
+        }
+    except Exception:
+        log.exception("get_bluebook_session failed for %s/%s", exam_id, student_key)
+        return None
 
 
 def _bluebook_course_to_dict(row) -> dict:

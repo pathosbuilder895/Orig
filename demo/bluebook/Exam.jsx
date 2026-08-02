@@ -132,13 +132,36 @@ function bbAuthHeaders() {
   return h;
 }
 
+// Pin the sitting's deadline server-side (robustness spec §1). Returns
+// { deadlineMs, offsetMs } (offset = serverNow - clientNow, so deadline math
+// runs on server time), or null when the backend is unreachable — the caller
+// then degrades open to the local countdown rather than stranding a student.
+async function bbStartSession(cfg, studentId) {
+  if (!cfg.id) return null;
+  try {
+    const r = await fetch(`${BB_API_BASE}/bluebook/exams/${encodeURIComponent(cfg.id)}/session`, {
+      method: 'POST', headers: bbAuthHeaders(),
+      body: JSON.stringify({
+        student_id: studentId || '',
+        candidate: cfg.candidateEmail || cfg.candidate || '',
+      }),
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    const deadlineMs = Date.parse(d.deadline_at);
+    if (!deadlineMs) return null;
+    return { deadlineMs, offsetMs: Date.parse(d.server_now) - Date.now() };
+  } catch (e) { return null; }
+}
+
 // Score the submission against the student's EXISTING baseline → returns an
 // AI/authorship score (0–100, higher = more authentically theirs), or null when
 // there is no baseline yet to compare against (a first proctored sitting).
-async function bbScoreWithOriginal(studentId, text, assignment) {
+async function bbScoreWithOriginal(studentId, text, assignment, submissionId) {
   try {
     const r = await fetch(`${BB_API_BASE}/students/${encodeURIComponent(studentId)}/score`, {
-      method: 'POST', headers: bbAuthHeaders(), body: JSON.stringify({ text, assignment }),
+      method: 'POST', headers: bbAuthHeaders(),
+      body: JSON.stringify({ text, assignment, submission_id: submissionId || undefined }),
     });
     if (!r.ok) return null;
     const data = await r.json();
@@ -154,7 +177,7 @@ async function bbScoreWithOriginal(studentId, text, assignment) {
 }
 
 // POST the proctored baseline to Original. Returns { ok, studentId, status, data }.
-async function bbSubmitToOriginal({ text, assignment, keystrokeData, cfg, studentId: preStudentId }) {
+async function bbSubmitToOriginal({ text, assignment, keystrokeData, cfg, studentId: preStudentId, submissionUuid }) {
   try {
     const studentId = preStudentId || await bbResolveStudentId(cfg);
     const headers = bbAuthHeaders();
@@ -166,6 +189,7 @@ async function bbSubmitToOriginal({ text, assignment, keystrokeData, cfg, studen
         assignment,
         provenance: 'proctored',
         keystroke_data: keystrokeData,
+        submission_uuid: submissionUuid || undefined,
       }),
     });
     let data = null;
@@ -302,10 +326,11 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   })();
   const [content,     setContent]     = useExState((restored && restored.content) || '');
   const [words,       setWords]       = useExState(restored && restored.content ? wordCount(restored.content) : 0);
-  const [timeLeft,    setTimeLeft]    = useExState(
-    restored && typeof restored.timeLeft === 'number'
-      ? Math.max(0, Math.min(restored.timeLeft, cfg.duration))
-      : cfg.duration);
+  // timeLeft is display state DERIVED from the server deadline each tick
+  // (see the countdown effect); it is deliberately NOT restored from the
+  // draft — persisting a countdown remainder let closing the tab pause the
+  // clock. Degrade-open fallback (no session) restarts the local countdown.
+  const [timeLeft,    setTimeLeft]    = useExState(cfg.duration);
   const [saving,      setSaving]      = useExState(false);
   const [warnings,    setWarnings]    = useExState(0);
   const [warnLog,     setWarnLog]     = useExState([]); // [{ id, msg }] — persists for the session, never auto-dismissed
@@ -315,17 +340,20 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   const [liveMsg,     setLiveMsg]     = useExState(''); // polite announcements: autosave + timer milestones
   const textareaRef = useExRef(null);
   const saveTimer   = useExRef(null);
+  const deadlineRef = useExRef(null);   // { deadlineMs, offsetMs } once the session lands
+  // Seal progress survives refreshes so a retried seal is idempotent
+  // end-to-end: same uuid, completed steps never re-run.
+  const sealRef     = useExRef((restored && restored.seal) || { uuid: null, aiScore: undefined, baselineData: null });
+  const [offline, setOffline] = useExState(typeof navigator !== 'undefined' && navigator.onLine === false);
   // Live refs so interval/debounce callbacks always persist current values.
   const contentRef  = useExRef(content);
-  const timeLeftRef = useExRef(timeLeft);
   contentRef.current  = content;
-  timeLeftRef.current = timeLeft;
 
   function writeDraftNow() {
     try {
       localStorage.setItem(draftKey, JSON.stringify({
         content: contentRef.current,
-        timeLeft: timeLeftRef.current,
+        seal: sealRef.current,
         savedAt: Date.now(),
       }));
       return true;
@@ -400,45 +428,91 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
       return;
     }
     setSubmitting(true);
-    writeDraftNow();   // belt-and-braces: the draft survives a failed seal
-    const studentId = await bbResolveStudentId(cfg);
-    // 1) Score against the EXISTING baseline first (before this sitting is added)
-    //    → AI / authorship reading. null when there's no baseline yet.
-    const aiScore = await bbScoreWithOriginal(studentId, content, cfg.title);
-    // 2) Add this proctored sitting to the student's voice profile.
-    const result = await bbSubmitToOriginal({
-      text: content, assignment: cfg.title, keystrokeData: buildKeystrokeData(), cfg, studentId,
+    // Idempotent, retryable sealing (robustness spec §2): one uuid per seal,
+    // persisted in the draft with per-step results, so a refresh-and-reseal
+    // or network retry never repeats a completed step.
+    const seal = sealRef.current;
+    if (!seal.uuid) {
+      seal.uuid = (window.crypto && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : 'uu-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+    }
+    writeDraftNow();   // draft (content + seal state) survives a failed seal
+
+    const waitOnline = () => new Promise((res) => {
+      if (navigator.onLine !== false) return res();
+      const h = () => { window.removeEventListener('online', h); res(); };
+      window.addEventListener('online', h);
     });
-    // Stylometric authenticity from keystroke/style drift vs. the profile.
-    const drift = (result.data && result.data.drift && result.data.drift.drift_magnitude) || 0;
-    const stylometric = Math.max(0, Math.min(100, Math.round((1 - drift) * 100)));
-    const status = (drift > 0.5 || (aiScore != null && aiScore < 70)) ? 'FLAGGED' : 'SUBMITTED';
-    const timeMin = Math.max(0, Math.round(((cfg.duration || 0) - timeLeft) / 60));
-    if (result.ok) {
-      await BB_API.recordSubmission({
-        exam_id:     cfg.id || null,
-        student_id:  result.studentId || studentId,
-        candidate:   cfg.candidate,
-        exam_title:  cfg.title,
-        course:      cfg.course,
-        word_count:  wordCount(content),
-        time_min:    timeMin,
-        stylometric,
-        ai_score:    aiScore,
-        status,
-      });
+
+    const studentId = await bbResolveStudentId(cfg);
+    let result = null;
+    let lastError = null;
+    const BACKOFF = [2000, 5000, 10000];
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await waitOnline();
+        // 1) Score against the EXISTING baseline (skipped on retry once known).
+        if (seal.aiScore === undefined) {
+          seal.aiScore = await bbScoreWithOriginal(studentId, content, cfg.title, seal.uuid);
+          writeDraftNow();
+        }
+        // 2) Add this proctored sitting (server skips identical text on replay).
+        if (!seal.baselineData) {
+          const r = await bbSubmitToOriginal({
+            text: content, assignment: cfg.title,
+            keystrokeData: buildKeystrokeData(), cfg, studentId,
+            submissionUuid: seal.uuid,
+          });
+          if (!r.ok) throw new Error(r.error || 'baseline write failed');
+          seal.baselineData = r;
+          writeDraftNow();
+        }
+        // 3) Record the sealed submission (server dedupes by submission_uuid).
+        const drift = (seal.baselineData.data && seal.baselineData.data.drift
+          && seal.baselineData.data.drift.drift_magnitude) || 0;
+        const stylometric = Math.max(0, Math.min(100, Math.round((1 - drift) * 100)));
+        const status = (drift > 0.5 || (seal.aiScore != null && seal.aiScore < 70))
+          ? 'FLAGGED' : 'SUBMITTED';
+        const timeMin = Math.max(0, Math.round(((cfg.duration || 0) - timeLeft) / 60));
+        await BB_API.recordSubmission({
+          exam_id:     cfg.id || null,
+          student_id:  seal.baselineData.studentId || studentId,
+          candidate:   cfg.candidateEmail || cfg.candidate,
+          exam_title:  cfg.title,
+          course:      cfg.course,
+          word_count:  wordCount(content),
+          time_min:    timeMin,
+          stylometric,
+          ai_score:    seal.aiScore,
+          status,
+          submission_uuid: seal.uuid,
+        });
+        result = { ok: true, studentId: seal.baselineData.studentId || studentId };
+        break;
+      } catch (e) {
+        lastError = e;
+        setLiveMsg(`Sealing attempt ${attempt + 1} failed — retrying.`);
+        if (attempt < 2) await new Promise(res => setTimeout(res, BACKOFF[attempt]));
+      }
+    }
+
+    if (result && result.ok) {
       // Sealed and delivered — the on-device draft has served its purpose.
       try { localStorage.removeItem(draftKey); } catch (e) {}
+    } else {
+      // Final failure: the draft stays on this device. Never strand the UI.
+      setLiveMsg('Sealing failed. Your work is saved on this device — please tell your proctor.');
     }
     window.BB_LAST_SUBMISSION = {
       words: wordCount(content),
       title: cfg.title,
       courseTitle: cfg.courseTitle,
       candidate: cfg.candidate,
-      studentId: result.studentId || studentId,
-      ok: result.ok,
-      error: result.error || null,
-      aiScore,
+      studentId: (result && result.studentId) || studentId,
+      ok: !!(result && result.ok),
+      error: (result && result.ok) ? null : String((lastError && lastError.message) || lastError || 'seal failed'),
+      aiScore: seal.aiScore,
       expired: !!opts.expired,
       draftKey,
     };
@@ -446,10 +520,40 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
     onNavigate('submitted');
   }
 
-  // Countdown
+  // Server-pinned deadline (robustness spec §1): first call pins it, later
+  // calls (any refresh) get the same one back.
   useExEffect(() => {
-    const id = setInterval(() => setTimeLeft(t => t > 0 ? t - 1 : 0), 1000);
+    let cancelled = false;
+    (async () => {
+      const sid = await bbResolveStudentId(cfg);
+      const sess = await bbStartSession(cfg, sid);
+      if (!cancelled && sess) deadlineRef.current = sess;
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Countdown — derived from the server deadline when we have one, so a
+  // reload can't pause the clock; plain local countdown otherwise.
+  useExEffect(() => {
+    const id = setInterval(() => {
+      const sess = deadlineRef.current;
+      if (sess) {
+        setTimeLeft(Math.max(0, Math.round((sess.deadlineMs - (Date.now() + sess.offsetMs)) / 1000)));
+      } else {
+        setTimeLeft(t => t > 0 ? t - 1 : 0);
+      }
+    }, 1000);
     return () => clearInterval(id);
+  }, []);
+
+  // Offline awareness (robustness spec §3): a persistent, polite banner; the
+  // seal retry loop parks on the matching 'online' event.
+  useExEffect(() => {
+    const goOff = () => { setOffline(true);  setLiveMsg('Connection lost — your writing is safe on this device.'); };
+    const goOn  = () => { setOffline(false); setLiveMsg('Connection restored.'); };
+    window.addEventListener('offline', goOff);
+    window.addEventListener('online', goOn);
+    return () => { window.removeEventListener('offline', goOff); window.removeEventListener('online', goOn); };
   }, []);
 
   // Time expiry: seal whatever is written. Without this the countdown died
@@ -461,8 +565,8 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   }, [timeLeft]);
 
   // Autosave: the dot appears only after a REAL write. A 2s typing debounce
-  // captures active work; the 30s interval keeps the draft's remaining-time
-  // fresh even while idle.
+  // captures active work; the 30s interval keeps the draft fresh even
+  // while idle.
   useExEffect(() => {
     if (!content.trim()) return;
     const deb = setTimeout(() => {
@@ -572,6 +676,20 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
         position: 'absolute', width: 1, height: 1, padding: 0, margin: -1,
         overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0,
       }}>{liveMsg}</div>
+
+      {/* Offline banner (robustness spec §3) — persistent while disconnected;
+          the seal retry loop parks until the matching 'online' event. */}
+      {offline && (
+        <div role="status" style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
+          background: BB.parchment, borderTop: '1px solid rgba(201,169,97,0.7)',
+          padding: '8px 48px', fontFamily: fontMono, fontSize: 12,
+          letterSpacing: '0.08em', color: BB.indigo,
+        }}>
+          Connection lost — your writing is safe on this device.
+          {submitting ? ' Your seal will submit when reconnected.' : ''}
+        </div>
+      )}
 
       {/* Examiner's warning notices — recorded proctoring events. Assertive
           and persistent: a candidate must hear every one, and it must not
@@ -821,7 +939,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
 
             {/* Right — timer + seal + submit */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 16 }}>
-              <span style={{
+              <span role="timer" aria-label={'Time remaining ' + fmt(timeLeft)} style={{
                 fontFamily: fontMono, fontSize: 14,
                 letterSpacing: '0.1em',
                 color: isVeryLow ? '#C47A6B' : isLow ? BB.gold : BB.fade,
