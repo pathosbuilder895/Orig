@@ -11,13 +11,16 @@ accumulated to justify the separate, human-approved enable decision.
 Data shape note: it reads the raw `student_profiles` JSON looking for a
 `keystroke_data` blob on each proctored sample — the shape Bbook's
 `buildKeystrokeData()` (demo/bluebook/Exam.jsx) sends to
-POST /students/{id}/baseline. As of this writing that endpoint
-(original/api.py:add_baseline) only uses the blob transiently to build the
-feature vector and does NOT persist it on the sample — so this script
-correctly reports 0 samples / NOT READY against any current production
-database. It is written forward-compatible: once a future task persists
-keystroke_data per sample, this script starts reporting real distributions
-with no changes needed here.
+POST /students/{id}/baseline. That endpoint
+(original/routers/students_baseline.py:add_baseline) now persists the blob
+on the `BaselineSample` it builds (see `original/quantum/state.py`'s
+`keystroke_data` field and `original/store.py` / `original/postgres_repository.py`'s
+serializers), so this script starts reporting real distributions once
+proctored sittings accumulate after that change shipped. Any row written
+before then predates the field and is silently treated the same as a sample
+with no keystroke data (no crash, no backfill) — this script was written
+forward-compatible for exactly that transition, so no further changes were
+needed here.
 
 READY rule: >= 20 proctored samples with keystroke data, across >= 5
 distinct students, with non-degenerate distributions (p10 != p90) on at

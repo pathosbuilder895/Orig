@@ -149,6 +149,9 @@ class PostgresRepository:
                         s.topic_centroid.tolist() if s.topic_centroid is not None else None
                     ),
                     "context_manifest": s.context_manifest,
+                    # Tier 17 readiness (additive) — mirrors store.py's
+                    # _serialize; None for legacy/non-keystroke samples.
+                    "keystroke_data": s.keystroke_data,
                 }
                 for s in state.samples
             ],
@@ -198,6 +201,9 @@ class PostgresRepository:
                     genre=s.get("genre"),
                     topic_centroid=topic_centroid,
                     context_manifest=s.get("context_manifest"),
+                    # Tier 17 readiness (additive) — mirrors store.py's
+                    # _deserialize; None for legacy/non-keystroke samples.
+                    keystroke_data=s.get("keystroke_data"),
                 )
             )
         return state

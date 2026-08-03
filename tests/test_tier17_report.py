@@ -2,11 +2,17 @@
 tests/test_tier17_report.py — the Tier 17 shadow-readiness report script.
 
 Seeds a scratch SQLite DB with raw `student_profiles` rows carrying a
-`keystroke_data` blob per sample (the shape a future persistence task would
-write — see scripts/tier17_report.py's module docstring for why the current
-baseline endpoint does NOT yet persist this field). Rows are inserted
-directly via sqlite3 rather than through `original.store`, since
-`store._serialize()` does not (yet) round-trip `keystroke_data`.
+`keystroke_data` blob per sample — the shape Bbook's proctored submissions
+produce once persisted. Rows are inserted directly via sqlite3 rather than
+through `original.store`, to isolate this script's own parsing/aggregation
+logic from the store's serialization round trip (that round trip has its own
+dedicated coverage in tests/test_keystroke_data_persistence.py, including an
+end-to-end test that seeds through `original.store.put()` and points this
+script at the resulting file).
+
+`store._serialize()` now does round-trip `keystroke_data` (see
+original/store.py) — this file's use of raw inserts is a deliberate test
+isolation choice, not a workaround for a missing capability.
 """
 
 from __future__ import annotations

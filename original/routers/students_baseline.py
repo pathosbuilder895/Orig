@@ -100,6 +100,7 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
         assignment=req.assignment,
         submitted_at=req.submitted_at,
         genre=_sample_genre,
+        keystroke_data=req.keystroke_data,
     )
 
     # ── Phase 8: drift gate before adding to baseline ─────────────────────────
