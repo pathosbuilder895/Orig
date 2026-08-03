@@ -1,0 +1,425 @@
+{
+  "_meta": {
+    "note": "Measured ICC values are NOT stable across runs: most move at the 3rd-4th decimal, but low-ICC features can swing by an order of magnitude and re-rank (observed: thematic_progression_score 0.0172 -> 0.1648). Pipeline hash-order nondeterminism, tracked separately. icc: null entries below are features that emit a constant 0.5 placeholder at extraction time (comparison codes not yet computed, or codes in a currently-disabled feature group) \u2014 their reliability is unmeasured, not measured-and-zero."
+  },
+  "pronoun_reference_density": {
+    "icc": 0.5489,
+    "tier": 2
+  },
+  "sentence_initial_conjunction_rate": {
+    "icc": 0.4209,
+    "tier": 6
+  },
+  "modal_verb_ratio": {
+    "icc": 0.4184,
+    "tier": 1
+  },
+  "adjective_rate": {
+    "icc": 0.3291,
+    "tier": 5
+  },
+  "breath_group_regularity": {
+    "icc": 0.324,
+    "tier": 13
+  },
+  "mean_sentence_length": {
+    "icc": 0.3068,
+    "tier": 1
+  },
+  "transition_density": {
+    "icc": 0.3026,
+    "tier": 2
+  },
+  "avg_paragraph_length": {
+    "icc": 0.2801,
+    "tier": 2
+  },
+  "parenthetical_rate": {
+    "icc": 0.2776,
+    "tier": 4
+  },
+  "clause_depth_mean": {
+    "icc": 0.2707,
+    "tier": 5
+  },
+  "semicolon_colon_rate": {
+    "icc": 0.2683,
+    "tier": 4
+  },
+  "comma_rate": {
+    "icc": 0.2539,
+    "tier": 4
+  },
+  "pos_bigram_entropy": {
+    "icc": 0.2445,
+    "tier": 5
+  },
+  "theological_register_score": {
+    "icc": 0.2417,
+    "tier": 3
+  },
+  "contraction_rate": {
+    "icc": 0.2391,
+    "tier": 6
+  },
+  "first_person_ratio": {
+    "icc": 0.2349,
+    "tier": 3
+  },
+  "structural_centrist_penalty": {
+    "icc": 0.2273,
+    "tier": 9
+  },
+  "avg_word_length": {
+    "icc": 0.2032,
+    "tier": 1
+  },
+  "comma_splice_rate": {
+    "icc": 0.2009,
+    "tier": 14
+  },
+  "counter_argument_ratio": {
+    "icc": 0.1947,
+    "tier": 3
+  },
+  "pos_trigram_entropy": {
+    "icc": 0.1886,
+    "tier": 5
+  },
+  "abbreviation_tendency": {
+    "icc": 0.1874,
+    "tier": 6
+  },
+  "stress_entropy_unigram": {
+    "icc": 0.1836,
+    "tier": 8
+  },
+  "quote_rate": {
+    "icc": 0.1703,
+    "tier": 4
+  },
+  "dash_rate": {
+    "icc": 0.1695,
+    "tier": 4
+  },
+  "block_quote_rate": {
+    "icc": 0.1676,
+    "tier": 16
+  },
+  "adverb_rate": {
+    "icc": 0.1571,
+    "tier": 5
+  },
+  "appeal_to_authority_density": {
+    "icc": 0.1548,
+    "tier": 3
+  },
+  "latinate_ratio": {
+    "icc": 0.1533,
+    "tier": 15
+  },
+  "polysyndeton_ratio": {
+    "icc": 0.1508,
+    "tier": 15
+  },
+  "thematic_progression_score": {
+    "icc": 0.1455,
+    "tier": 2
+  },
+  "nominalization_density": {
+    "icc": 0.1429,
+    "tier": 15
+  },
+  "stress_entropy_bigram": {
+    "icc": 0.1423,
+    "tier": 8
+  },
+  "hapax_legomena_rate": {
+    "icc": 0.14,
+    "tier": 1
+  },
+  "discourse_marker_density": {
+    "icc": 0.1353,
+    "tier": 2
+  },
+  "repetition_gap_entropy": {
+    "icc": 0.1347,
+    "tier": 7
+  },
+  "perplexity_proxy": {
+    "icc": 0.1283,
+    "tier": 7
+  },
+  "lexical_chain_density": {
+    "icc": 0.1263,
+    "tier": 2
+  },
+  "punctuation_diversity": {
+    "icc": 0.1254,
+    "tier": 4
+  },
+  "cohesion_device_ratio": {
+    "icc": 0.1247,
+    "tier": 2
+  },
+  "subordination_ratio": {
+    "icc": 0.1108,
+    "tier": 5
+  },
+  "type_token_ratio": {
+    "icc": 0.1024,
+    "tier": 1
+  },
+  "chiasmus_rate": {
+    "icc": 0.0957,
+    "tier": 15
+  },
+  "vowel_sonority_ratio": {
+    "icc": 0.0954,
+    "tier": 13
+  },
+  "semantic_field_concentration": {
+    "icc": 0.094,
+    "tier": 15
+  },
+  "question_ratio": {
+    "icc": 0.0901,
+    "tier": 3
+  },
+  "char_trigram_entropy": {
+    "icc": 0.0863,
+    "tier": 4
+  },
+  "hedging_density": {
+    "icc": 0.0829,
+    "tier": 3
+  },
+  "paragraph_topic_position": {
+    "icc": 0.08,
+    "tier": 2
+  },
+  "burstiness": {
+    "icc": 0.0747,
+    "tier": 7
+  },
+  "list_marker_preference": {
+    "icc": 0.0726,
+    "tier": 6
+  },
+  "passive_voice_ratio": {
+    "icc": 0.0671,
+    "tier": 1
+  },
+  "paraphrase_density": {
+    "icc": 0.0642,
+    "tier": 16
+  },
+  "clausulae_consistency": {
+    "icc": 0.0629,
+    "tier": 8
+  },
+  "pronoun_ambiguity_rate": {
+    "icc": 0.0616,
+    "tier": 14
+  },
+  "filler_hedge_cluster_rate": {
+    "icc": 0.0599,
+    "tier": 7
+  },
+  "article_omission_rate": {
+    "icc": 0.0588,
+    "tier": 14
+  },
+  "clausula_type_consistency": {
+    "icc": 0.0587,
+    "tier": 13
+  },
+  "sentence_length_variance": {
+    "icc": 0.0556,
+    "tier": 1
+  },
+  "epistemic_certainty_ratio": {
+    "icc": 0.0524,
+    "tier": 3
+  },
+  "assertion_density": {
+    "icc": 0.0509,
+    "tier": 3
+  },
+  "sentence_opener_variety": {
+    "icc": 0.0478,
+    "tier": 2
+  },
+  "error_topology_consistency": {
+    "icc": 0.0475,
+    "tier": 14
+  },
+  "noun_verb_ratio": {
+    "icc": 0.0471,
+    "tier": 5
+  },
+  "function_word_ratio": {
+    "icc": 0.0464,
+    "tier": 1
+  },
+  "arc_resolution_score": {
+    "icc": 0.0458,
+    "tier": 13
+  },
+  "source_integration_style": {
+    "icc": 0.0454,
+    "tier": 3
+  },
+  "citation_position_pref": {
+    "icc": 0.0426,
+    "tier": 16
+  },
+  "causal_ratio": {
+    "icc": 0.0377,
+    "tier": 2
+  },
+  "temporal_ratio": {
+    "icc": 0.0374,
+    "tier": 2
+  },
+  "vocabulary_introduction_rate": {
+    "icc": 0.0365,
+    "tier": 7
+  },
+  "claim_density": {
+    "icc": 0.0364,
+    "tier": 3
+  },
+  "that_which_ratio": {
+    "icc": 0.0341,
+    "tier": 6
+  },
+  "signal_verb_assertiveness": {
+    "icc": 0.0321,
+    "tier": 16
+  },
+  "stop_word_ratio": {
+    "icc": 0.026,
+    "tier": 1
+  },
+  "breath_group_variance": {
+    "icc": 0.0243,
+    "tier": 8
+  },
+  "clausula_shape_preference": {
+    "icc": 0.0209,
+    "tier": 13
+  },
+  "conclusion_strategy_score": {
+    "icc": 0.0203,
+    "tier": 3
+  },
+  "adversative_ratio": {
+    "icc": 0.0171,
+    "tier": 2
+  },
+  "semantic_field_dispersion": {
+    "icc": 0.0158,
+    "tier": 10
+  },
+  "imperative_density": {
+    "icc": 0.0056,
+    "tier": 3
+  },
+  "additive_ratio": {
+    "icc": 0.0027,
+    "tier": 2
+  },
+  "citation_style_consistency": {
+    "icc": 0.0,
+    "tier": 6
+  },
+  "transition_predictability": {
+    "icc": 0.0,
+    "tier": 7
+  },
+  "argument_sequence_likelihood": {
+    "icc": 0.0,
+    "tier": 9
+  },
+  "semantic_centroid_proximity": {
+    "icc": 0.0,
+    "tier": 10
+  },
+  "error_kl_divergence": {
+    "icc": 0.0,
+    "tier": 11
+  },
+  "stumble_rate_consistency": {
+    "icc": 0.0,
+    "tier": 11
+  },
+  "punctuation_error_ratio": {
+    "icc": 0.0,
+    "tier": 11
+  },
+  "catastrophe_index": {
+    "icc": 0.0,
+    "tier": 12
+  },
+  "metric_flatness_score": {
+    "icc": 0.0,
+    "tier": 13
+  },
+  "signal_verb_entropy": {
+    "icc": 0.0,
+    "tier": 16
+  },
+  "source_loyalty_index": {
+    "icc": 0.0,
+    "tier": 16
+  },
+  "citation_density_cv": {
+    "icc": 0.0,
+    "tier": 16
+  },
+  "ibid_usage_rate": {
+    "icc": 0.0,
+    "tier": 16
+  },
+  "typing_speed_cv": {
+    "icc": null,
+    "tier": 17,
+    "note": "feature group disabled (DISABLED_FEATURE_GROUPS); emits constant 0.5 placeholder at extraction time, not a real value; ICC unmeasurable"
+  },
+  "burst_ratio": {
+    "icc": null,
+    "tier": 17,
+    "note": "feature group disabled (DISABLED_FEATURE_GROUPS); emits constant 0.5 placeholder at extraction time, not a real value; ICC unmeasurable"
+  },
+  "deletion_rate": {
+    "icc": null,
+    "tier": 17,
+    "note": "feature group disabled (DISABLED_FEATURE_GROUPS); emits constant 0.5 placeholder at extraction time, not a real value; ICC unmeasurable"
+  },
+  "pause_density": {
+    "icc": null,
+    "tier": 17,
+    "note": "feature group disabled (DISABLED_FEATURE_GROUPS); emits constant 0.5 placeholder at extraction time, not a real value; ICC unmeasurable"
+  },
+  "paste_event_rate": {
+    "icc": null,
+    "tier": 17,
+    "note": "feature group disabled (DISABLED_FEATURE_GROUPS); emits constant 0.5 placeholder at extraction time, not a real value; ICC unmeasurable"
+  },
+  "revision_depth": {
+    "icc": null,
+    "tier": 17,
+    "note": "feature group disabled (DISABLED_FEATURE_GROUPS); emits constant 0.5 placeholder at extraction time, not a real value; ICC unmeasurable"
+  },
+  "char_trigram_profile_divergence": {
+    "icc": null,
+    "tier": 0,
+    "note": "placeholder at extraction time; ICC unmeasurable"
+  },
+  "function_word_profile_divergence": {
+    "icc": null,
+    "tier": 0,
+    "note": "placeholder at extraction time; ICC unmeasurable"
+  }
+}

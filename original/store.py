@@ -14,12 +14,13 @@ import json
 import logging
 import os
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import numpy as np
 
 from .constants import FEATURE_DIM
+from .principal import tenant_of
 from .quantum.state import BaselineSample, StudentState
 
 log = logging.getLogger(__name__)
@@ -38,16 +39,31 @@ def _escape_like(s: str) -> str:
 
 _DB_PATH = Path(os.environ.get("ORIGINAL_DB", Path(__file__).parent.parent / "profiles.db"))
 
-# ── Bayesian genre-stats cache ────────────────────────────────────────────────
-# get_genre_stats() is O(N×S) — iterates every student and every sample.
-# Cache the result keyed on genre; bust on every put() so newly-added baseline
-# samples are reflected in the next call. The hot path reads from this dict in
-# O(1). Dict clear is thread-safe in CPython (GIL-protected). This is the ONE
-# process-local cache that survives WS-6 P6 (the _STORE profile cache is gone):
-# it's a derived aggregate, invalidated on every write in THIS worker, and a
-# cross-worker staleness window on a slow-moving population statistic is
-# acceptable where stale student profiles were not.
-_GENRE_STATS_CACHE: dict[str, dict | None] = {}
+# ── Bayesian genre-pool cache ─────────────────────────────────────────────────
+# Building a genre pool is O(N×S) — it iterates every student and every sample.
+# Cache the pool keyed on (tenant, genre); bust on every put() so newly-added
+# baseline samples are reflected in the next call. Dict clear is thread-safe in
+# CPython (GIL-protected). This is the ONE process-local cache that survives
+# WS-6 P6 (the _STORE profile cache is gone): it's a derived aggregate,
+# invalidated on every write in THIS worker, and a cross-worker staleness
+# window on a slow-moving population statistic is acceptable where stale
+# student profiles were not.
+#
+# The key MUST stay a (tenant, genre) pair, not a bare genre: a genre-only key
+# would hand one tenant's cached aggregate to the next tenant that asks for the
+# same genre, reintroducing exactly the cross-tenant leak the filter removes.
+#
+# A genre of None is the genre-AGNOSTIC pool backing get_cohort_stats — its own
+# distinct key, never conflated with a real genre label (no genre is named
+# None), so the two share one cache, one scan idiom, and one busting site.
+#
+# What's cached is the pool grouped BY STUDENT, not a finished mean/std, so
+# that get_genre_stats's leave-one-out exclusion is a filter over the cached
+# groups rather than a fresh scan per student. Caching finished stats under a
+# (tenant, genre, excluded) key would be correct but would make every distinct
+# student a guaranteed cache miss — turning the one cache that amortises the
+# full-store scan into a per-student scan.
+_GENRE_STATS_CACHE: dict[tuple[str | None, str | None], list[tuple[str, list[np.ndarray]]]] = {}
 
 
 # ── SQLite helpers ────────────────────────────────────────────────────────────
@@ -390,12 +406,41 @@ def _init_schema(conn: sqlite3.Connection) -> None:
             stylometric   INTEGER,
             ai_score      INTEGER,
             status        TEXT NOT NULL DEFAULT 'SUBMITTED',
-            created_at    TEXT NOT NULL
+            created_at    TEXT NOT NULL,
+            submission_uuid TEXT,
+            late          INTEGER DEFAULT 0
         )
     """)
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_bluebook_subs_tenant
             ON bluebook_submissions(tenant_id, created_at)
+    """)
+    # In-place upgrade for pre-existing DBs (no migration ladder yet —
+    # PRAGMA-guarded ALTERs, kept in sync with the fresh CREATE above).
+    _sub_cols = {r[1] for r in conn.execute("PRAGMA table_info(bluebook_submissions)")}
+    if "submission_uuid" not in _sub_cols:
+        conn.execute("ALTER TABLE bluebook_submissions ADD COLUMN submission_uuid TEXT")
+    if "late" not in _sub_cols:
+        conn.execute("ALTER TABLE bluebook_submissions ADD COLUMN late INTEGER DEFAULT 0")
+    # Partial unique index (ADD COLUMN can't carry UNIQUE): seal replays with
+    # the same client submission_uuid must not create a second row.
+    conn.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_bluebook_subs_uuid
+            ON bluebook_submissions(submission_uuid)
+            WHERE submission_uuid IS NOT NULL
+    """)
+    # Bluebook sessions — one row per (exam, student) sitting, pinning the
+    # immutable server deadline (exam-day robustness spec §1). The first
+    # insert wins; reopening the exam can never restart or pause the clock.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bluebook_sessions (
+            exam_id     TEXT NOT NULL,
+            student_key TEXT NOT NULL,
+            tenant_id   TEXT NOT NULL,
+            started_at  TEXT NOT NULL,
+            deadline_at TEXT NOT NULL,
+            PRIMARY KEY (exam_id, student_key)
+        )
     """)
     # Bluebook courses — instructor-created, tenant-scoped course records.
     conn.execute("""
@@ -732,8 +777,9 @@ def get_or_create(student_id: str) -> StudentState:
 def put(state: StudentState) -> None:
     """Persist a full student state (whole-document upsert)."""
     _persist(state)
-    # Bust the Bayesian genre-stats cache — a new sample may shift the
-    # cross-student genre distribution that get_genre_stats() aggregates.
+    # Bust the Bayesian genre-stats cache (keyed on (tenant, genre)) — a new
+    # sample may shift the cross-student genre distribution that
+    # get_genre_stats() aggregates for whichever tenant this student belongs to.
     _GENRE_STATS_CACHE.clear()
 
 
@@ -1199,62 +1245,199 @@ def get_ai_likelihood_scores(
 # ── Hierarchical Bayesian prior: cross-student genre statistics ───────────────
 
 
-def get_genre_stats(genre: str) -> dict | None:
-    """
-    Compute cross-student mean, std, and sample count for a given writing genre.
+# Cold-start floors for the genre prior. Both are checked against the pool
+# that remains AFTER the scored student's own samples are removed.
+#
+# MIN_GENRE_VECTORS bounds how many vectors the prior rests on.
+# MIN_GENRE_STUDENTS bounds how many *people* — mirroring null_pool.py's
+# MIN_IMPOSTOR_STUDENTS. The vector floor alone was enough while the pool
+# spanned every tenant, because genre matching bounded concentration on its
+# own. Tenant-scoping shrank each pool enough that it no longer does: without
+# a distinct-student floor, one prolific student's samples could stand in for
+# a whole tenant's "population" prior.
+MIN_GENRE_VECTORS = 5
+MIN_GENRE_STUDENTS = 3
 
-    Aggregates feature vectors from all confirmed-authentic baseline samples
-    (auth_weight > 0) with matching ``sample.genre`` across every student in
-    the in-memory store.  Returns ``None`` when fewer than 5 samples are
-    found — the caller treats this as "no prior available" and falls back to
-    the student-only baseline.
+
+def get_genre_stats(genre: str, tenant: str | None, exclude_student_id: str | None) -> dict | None:
+    """
+    Compute cross-student mean, std, and sample count for a writing genre,
+    scoped to a single tenant and excluding one student.
+
+    Aggregates feature vectors from confirmed-authentic baseline samples
+    (auth_weight > 0) with matching ``sample.genre``, across students in
+    ``tenant`` only, skipping ``exclude_student_id`` entirely.  Returns
+    ``None`` when what remains clears neither floor — the caller treats this
+    as "no prior available" and falls back to the student-only baseline.
 
     This is the population-level reference distribution used by the
-    Hierarchical Bayesian cold-start prior in ``scoring.score()``.  It is
-    intentionally in-memory only (no DB query) because:
-    - The store is always fully loaded before scoring calls arrive.
-    - Cross-student density-matrix queries on SQLite are expensive for large N.
-    - Genre labels are optional metadata; many legacy samples have genre=None.
+    Hierarchical Bayesian cold-start prior in ``scoring.score()``.
+
+    Tenant scoping mirrors ``original/quantum/null_pool.py``'s
+    ``build_impostor_stats``, which resolves ``tenant_of(claimed_student_id)``
+    and pools only same-tenant peers: cross-tenant vectors are never pooled,
+    the same isolation rule as every other cross-student read here.  Before
+    WS-7 this function pooled across every tenant in the store — a
+    FERPA-relevant leak of one institution's aggregate writing statistics
+    into another institution's scoring.
+
+    Self-exclusion mirrors ``build_impostor_stats`` too, which always drops
+    ``claimed_student_id`` from its pool.  A prior containing the scored
+    student is partly a blend toward that student's own writing, which damps
+    the correction the prior exists to make; tenant-scoping sharpened this,
+    since in a small same-tenant pool one student can be a large fraction of
+    "their own" prior.
+
+    The exclusion is per ``student_id``, not per person: two accounts for the
+    same human (a re-enrolment, or an LTI id that differs from the roster id)
+    would still contribute to each other's priors.  Nothing here can detect
+    that; don't read the guarantee as stronger than it is.
+
+    The DB read goes through ``all_states()``; the pool is memoised in
+    ``_GENRE_STATS_CACHE`` keyed on ``(tenant, genre)`` and busted on every
+    ``put()`` / ``delete_student()``.  What is cached is the pool grouped by
+    student, not a finished mean/std, so one scan serves every student in the
+    cohort and the leave-one-out step is a filter over the cached groups —
+    see ``genre_stats_from_groups``.
 
     Parameters
     ----------
     genre : genre label (e.g. "argumentative_essay", "lab_report")
+    tenant : the tenant slug to scope to — ``principal.tenant_of`` of the
+        student being scored — or None for the legacy-flat (unscoped) pool,
+        which is its own distinct cohort, never mixed with a real tenant's.
+    exclude_student_id : the full scoped id of the student being scored,
+        dropped from the pool; None pools every student in ``tenant``.
 
     Returns
     -------
     dict with keys "mean" (np.ndarray), "std" (np.ndarray), "n_samples" (int)
-    or None if fewer than 5 matching authentic samples are found.
+    or None if, after the exclusion, fewer than MIN_GENRE_STUDENTS contributing
+    students or fewer than MIN_GENRE_VECTORS matching authentic samples remain
+    in that tenant.
     """
-    # O(1) fast path — return cached result if available.
-    # Cache is busted by put() whenever a new baseline sample is stored.
-    if genre in _GENRE_STATS_CACHE:
-        return _GENRE_STATS_CACHE[genre]
+    return genre_stats_from_groups(_pool_groups(tenant, genre), exclude_student_id)
 
+
+def _pool_groups(tenant: str | None, genre: str | None) -> list[tuple[str, list[np.ndarray]]]:
+    """The authenticated-sample pool for one ``(tenant, genre)``, grouped by
+    student and memoised in ``_GENRE_STATS_CACHE``.
+
+    ``genre=None`` means *no genre filter* — the genre-agnostic cohort pool
+    behind ``get_cohort_stats``. One scan, one cache, one busting site for
+    both priors, so they cannot drift on tenant scoping the way two
+    hand-written scans would.
+    """
+    # O(1) fast path for the scan — the per-student groups are shared by every
+    # student in this (tenant, genre); only the leave-one-out arithmetic in
+    # genre_stats_from_groups is per-caller. Cache is busted by put() whenever
+    # a baseline is stored.
+    key = (tenant, genre)
+    groups = _GENRE_STATS_CACHE.get(key)
+    if groups is None:
+        groups = []
+        # Full read-through scan (WS-6 P6): all_states() snapshots the table,
+        # so concurrent writers can't perturb the iteration the way the old
+        # shared _STORE dict could.
+        for student_state in all_states():
+            if tenant_of(student_state.student_id) != tenant:
+                continue
+            student_vectors = [
+                sample.vector
+                for sample in student_state.samples
+                if sample.auth_weight > 0
+                and (genre is None or getattr(sample, "genre", None) == genre)
+            ]
+            if student_vectors:
+                groups.append((student_state.student_id, student_vectors))
+        _GENRE_STATS_CACHE[key] = groups
+    return groups
+
+
+def genre_stats_from_groups(
+    groups: list[tuple[str, list[np.ndarray]]], exclude_student_id: str | None
+) -> dict | None:
+    """Leave-one-out mean/std over a genre pool grouped by student.
+
+    Split out and shared with ``postgres_repository`` so the two backends
+    cannot drift on floor semantics, on which student the exclusion removes,
+    or on the order the two are applied (exclusion first, then both floors
+    against what remains).
+
+    ``groups`` is ``[(student_id, [vector, ...]), ...]`` and contains only
+    students who contributed at least one authenticated same-genre sample —
+    so ``len(groups)`` is already the distinct-contributing-student count.
+    """
     vectors: list[np.ndarray] = []
-    # Full read-through scan (WS-6 P6): all_states() snapshots the table, so
-    # concurrent writers can't perturb the iteration the way the old shared
-    # _STORE dict could.
-    for student_state in all_states():
-        for sample in student_state.samples:
-            if sample.auth_weight > 0 and getattr(sample, "genre", None) == genre:
-                vectors.append(sample.vector)
+    contributing_students = 0
+    for student_id, student_vectors in groups:
+        if student_id == exclude_student_id:
+            continue
+        contributing_students += 1
+        vectors.extend(student_vectors)
 
-    if len(vectors) < 5:
-        _GENRE_STATS_CACHE[genre] = None
+    if contributing_students < MIN_GENRE_STUDENTS or len(vectors) < MIN_GENRE_VECTORS:
         return None
 
     mat = np.stack(vectors, axis=0)  # shape (N, FEATURE_DIM)
-    mean_vec = mat.mean(axis=0)  # shape (FEATURE_DIM,)
-    # Use the same 0.005 floor as StudentState.baseline_std to keep the
-    # prior std compatible with the per-student sigma floor.
-    std_vec = np.maximum(mat.std(axis=0), 0.005)
-    result = {
-        "mean": mean_vec,
-        "std": std_vec,
+    return {
+        "mean": mat.mean(axis=0),  # shape (FEATURE_DIM,)
+        # Use the same 0.005 floor as StudentState.baseline_std to keep the
+        # prior std compatible with the per-student sigma floor.
+        "std": np.maximum(mat.std(axis=0), 0.005),
         "n_samples": len(vectors),
+        # How many distinct people the pool represents, post-exclusion.
+        # scoring.score() damps the prior's blend weight by this: a mean
+        # estimated from 3 peers should not carry the authority of one
+        # estimated from 300.
+        "n_students": contributing_students,
     }
-    _GENRE_STATS_CACHE[genre] = result
-    return result
+
+
+def get_cohort_stats(tenant: str | None, exclude_student_id: str | None) -> dict | None:
+    """
+    ``get_genre_stats``'s genre-agnostic sibling: cross-student mean, std and
+    counts over EVERY confirmed-authentic baseline sample (auth_weight > 0)
+    in ``tenant``, regardless of genre, excluding ``exclude_student_id``.
+
+    Used as the cold-start fallback behind ``COHORT_PRIOR_FALLBACK`` when no
+    same-genre prior exists yet for the student being scored.  Deliberately
+    the *same* code path as the genre prior with the genre filter dropped
+    (``_pool_groups(tenant, None)`` + ``genre_stats_from_groups``), so it
+    inherits, rather than re-states, every invariant the genre prior already
+    carries:
+
+    * **tenant scoping** — never pools across institutions
+      (``build_impostor_stats``'s rule; FERPA-relevant);
+    * **leave-one-out** — the scored student is dropped from their own
+      prior.  This matters *more* here than for the genre prior, not less:
+      a tenant-wide pool in a small tenant is where a student most easily
+      dominates "their own" population statistic;
+    * **both cold-start floors** — ``MIN_GENRE_STUDENTS`` (3 distinct
+      contributing people) and ``MIN_GENRE_VECTORS`` (5 vectors), checked
+      after the exclusion.  Dropping the genre filter removes genre
+      matching's natural cap on pool concentration, which is exactly why
+      the distinct-student floor added for the genre prior is load-bearing
+      here;
+    * **``n_students``** in the returned dict, which ``scoring.score()``
+      uses to damp the prior's blend weight by cohort size.  Without it a
+      genre-*mismatched* fallback prior would silently be trusted more than
+      a genre-matched one of the same size.
+
+    Parameters
+    ----------
+    tenant : the tenant slug to scope to — ``principal.tenant_of`` of the
+        student being scored — or None for the legacy-flat (unscoped) pool,
+        which is its own distinct cohort, never mixed with a real tenant's.
+    exclude_student_id : the full scoped id of the student being scored,
+        dropped from the pool; None pools every student in ``tenant``.
+
+    Returns
+    -------
+    Same dict shape as ``get_genre_stats`` — "mean", "std", "n_samples",
+    "n_students" — or None when neither floor is cleared post-exclusion.
+    """
+    return genre_stats_from_groups(_pool_groups(tenant, None), exclude_student_id)
 
 
 def update_fidelity_authenticity(submission_id: str, is_authentic: bool) -> None:
@@ -1340,7 +1523,7 @@ def delete_student(student_id: str) -> bool:
         log.exception("delete_student failed for %s — no data was removed", student_id)
         return False
 
-    _GENRE_STATS_CACHE.clear()  # genre stats may have included this student
+    _GENRE_STATS_CACHE.clear()  # this student's tenant's (tenant, genre) entries may include them
     return True
 
 
@@ -2060,6 +2243,8 @@ def _bluebook_sub_to_dict(row) -> dict:
         "aiScore": row[10],
         "status": row[11],
         "created_at": row[12],
+        "submission_uuid": row[13],
+        "late": row[14] or 0,
     }
 
 
@@ -2071,8 +2256,8 @@ def put_bluebook_submission(rec: dict) -> None:
                 """INSERT INTO bluebook_submissions
                      (submission_id, exam_id, tenant_id, student_id, candidate,
                       exam_title, course, word_count, time_min, stylometric,
-                      ai_score, status, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                      ai_score, status, created_at, submission_uuid, late)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     rec["id"],
                     rec.get("exam_id"),
@@ -2087,6 +2272,8 @@ def put_bluebook_submission(rec: dict) -> None:
                     rec.get("ai_score"),
                     rec.get("status", "SUBMITTED"),
                     created_at,
+                    rec.get("submission_uuid"),
+                    rec.get("late", 0),
                 ),
             )
             conn.commit()
@@ -2098,7 +2285,8 @@ def put_bluebook_submission(rec: dict) -> None:
 def list_bluebook_submissions(tenant_id: str | None) -> list[dict]:
     cols = (
         "submission_id, exam_id, tenant_id, student_id, candidate, exam_title, "
-        "course, word_count, time_min, stylometric, ai_score, status, created_at"
+        "course, word_count, time_min, stylometric, ai_score, status, created_at, "
+        "submission_uuid, late"
     )
     try:
         with _get_conn() as conn:
@@ -2116,6 +2304,88 @@ def list_bluebook_submissions(tenant_id: str | None) -> list[dict]:
     except Exception:
         log.exception("list_bluebook_submissions failed for %s", tenant_id)
         return []
+
+
+def get_bluebook_submission_by_uuid(submission_uuid: str) -> dict | None:
+    """Replay lookup for idempotent sealing: a retried seal with the same
+    client submission_uuid gets the prior row back instead of a second write."""
+    cols = (
+        "submission_id, exam_id, tenant_id, student_id, candidate, exam_title, "
+        "course, word_count, time_min, stylometric, ai_score, status, created_at, "
+        "submission_uuid, late"
+    )
+    try:
+        with _get_conn() as conn:
+            row = conn.execute(
+                f"SELECT {cols} FROM bluebook_submissions WHERE submission_uuid = ?",
+                (submission_uuid,),
+            ).fetchone()
+        return _bluebook_sub_to_dict(row) if row else None
+    except Exception:
+        log.exception("get_bluebook_submission_by_uuid failed for %s", submission_uuid)
+        return None
+
+
+def get_or_create_bluebook_session(
+    exam_id: str, student_key: str, tenant_id: str, duration_seconds: int
+) -> dict:
+    """Idempotent per-(exam, student) session: the first call pins started_at/
+    deadline_at; every later call returns the same row unchanged, so reopening
+    the exam can never restart or pause the clock (robustness spec §1)."""
+    now = datetime.now(UTC)
+    started_at = now.isoformat()
+    deadline_at = (now + timedelta(seconds=int(duration_seconds))).isoformat()
+    try:
+        with _get_conn() as conn:
+            cur = conn.execute(
+                """INSERT INTO bluebook_sessions
+                     (exam_id, student_key, tenant_id, started_at, deadline_at)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT(exam_id, student_key) DO NOTHING""",
+                (exam_id, student_key, tenant_id, started_at, deadline_at),
+            )
+            created = cur.rowcount == 1
+            conn.commit()
+            row = conn.execute(
+                "SELECT exam_id, student_key, tenant_id, started_at, deadline_at "
+                "FROM bluebook_sessions WHERE exam_id = ? AND student_key = ?",
+                (exam_id, student_key),
+            ).fetchone()
+        return {
+            "exam_id": row[0],
+            "student_key": row[1],
+            "tenant_id": row[2],
+            "started_at": row[3],
+            "deadline_at": row[4],
+            "created": created,
+        }
+    except sqlite3.Error as e:
+        log.error("get_or_create_bluebook_session failed for %s/%s: %s", exam_id, student_key, e)
+        raise
+
+
+def get_bluebook_session(exam_id: str, student_key: str) -> dict | None:
+    """Read-only session lookup (late-tagging at seal time). None when the
+    sitting was never registered (degrade-open client start)."""
+    try:
+        with _get_conn() as conn:
+            row = conn.execute(
+                "SELECT exam_id, student_key, tenant_id, started_at, deadline_at "
+                "FROM bluebook_sessions WHERE exam_id = ? AND student_key = ?",
+                (exam_id, student_key),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "exam_id": row[0],
+            "student_key": row[1],
+            "tenant_id": row[2],
+            "started_at": row[3],
+            "deadline_at": row[4],
+        }
+    except Exception:
+        log.exception("get_bluebook_session failed for %s/%s", exam_id, student_key)
+        return None
 
 
 def _bluebook_course_to_dict(row) -> dict:

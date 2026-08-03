@@ -18,17 +18,29 @@ Stylometric authorship verification system for academic integrity. Per-student q
 
 ## Testing
 ```bash
-.venv/bin/python -m pytest tests/ -q                  # full suite (~882 tests as of 2026-07-16, ~70s; ~885 with validation/test_tier10_optional.py)
+.venv/bin/python -m pytest tests/ -q                  # full suite
 .venv/bin/python -m pytest tests/quantum/ -v          # quantum module only
-.venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -q   # exact CI command
+DATABASE_URL=postgresql://user:pass@host/db \
+  .venv/bin/python -m pytest tests/ validation/test_tier10_optional.py \
+  --cov=original --cov-fail-under=78                  # exact CI command (see .github/workflows/test.yml)
 ```
-Test count grows regularly — treat the numbers above as approximate (get the
-current count with `.venv/bin/python -m pytest --collect-only -q tests/ 2>&1 | tail -1`),
-not a pinned figure to keep in sync by hand.
-The 5 `TestAuthEndpoints` tests that 429 under full-suite rate-limit exhaustion are
-marked `xfail(strict=False)` — they show as XFAIL/XPASS, never as failures. A clean
-run is **0 failed**; treat any failure as real. (Historical note: counts before
-2026-06 were inflated ~2× by macOS Finder-duplicate test files, since removed.)
+Test count grows regularly — treat any number below as a point-in-time
+measurement, not a pinned figure to keep in sync by hand (get the current
+count with `.venv/bin/python -m pytest --collect-only -q tests/ 2>&1 | tail -1`).
+There are no `xfail`-marked tests and no `TestAuthEndpoints` class in the
+current suite (`grep -rn xfail tests/` and `grep -rn "class TestAuthEndpoints"
+tests/` both return nothing) — the older 429-under-rate-limit-exhaustion
+xfail pattern this section used to describe is gone. A clean run is **0
+failed**; treat any failure as real.
+
+CI sets `DATABASE_URL` so `tests/test_repository_contract.py`'s Postgres
+parametrization runs for real instead of self-skipping. Measured 2026-08-02
+against `origin/main` HEAD `718ef29`, `tests/ validation/test_tier10_optional.py`:
+with a local Postgres and `DATABASE_URL` set, **1,112 passed, 0 failed**;
+without it, **954 passed, 158 skipped, 0 failed** (all 158 are the
+Postgres-only contract tests self-skipping with "no reachable Postgres — set
+DATABASE_URL to a postgresql:// instance …", not failures). Both counts
+drift as work lands — re-run rather than trust them.
 
 ---
 
@@ -46,11 +58,14 @@ All production features are opt-in via env flags. Default OFF preserves Phase 1 
 |------|---------|-----------------|
 | `CONTEXT_MANIFEST_ENABLED` | `0` | Phase 3 resolver + context manifest |
 | `ADAPTIVE_WEIGHTS_ENABLED` | `0` | Phase 5 cluster-matched adaptive weights |
+| `GENRE_INVARIANT_WEIGHTS_ENABLED` | `0` | ⚠️ **Currently INERT — do not enable; blocked on `resolve_genre` (see below).** Implies `ADAPTIVE_WEIGHTS_ENABLED`. Phase 5 addition (2026-08 cross-genre study, `validation/genre_crossgenre_2026-08/`): when the submission's classified genre isn't one this student's baseline has ever covered (`context/baseline_match.py:genre_covered_by_baseline`), additionally attenuates `weighting.GENRE_MISMATCH_ATTENUATE_TIERS` (tiers 2/3/9/10) by the existing `ATTENUATE_FACTOR`. The mechanism is built and tested, but the gate cannot fire in practice: `resolvers.resolve_genre` does not discriminate genre on real prose (84% of an independent 10-author corpus lands in `correspondence`, which is rule 8's terminal `else`, not a positive class; all six of Lewis's hand-labelled genres collapse into it). Measured firing rate: 1 of 6 leave-one-genre-out folds, and that one is classifier noise. The tier set is therefore **unvalidated on independent data** — the validating test could not be run at all. Fix `resolve_genre` first, then re-run `validation/genre_crossgenre_2026-08/genre_invariant_validate.py`. `manifest.baseline_match["genre_covered"]` is recorded once `ADAPTIVE_WEIGHTS_ENABLED` is on regardless of this flag — watch it in production: a ~100% covered rate is the symptom of this same classifier problem. |
 | `AMPLITUDE_SCORING_ENABLED` | `0` | Phase 6 complex amplitude encoding + quantum fidelity |
 | `SECRET_KEY` | `""` | Keyed random unitary projection (adversarial robustness) |
-| `BAYESIAN_PRIOR_ENABLED` | `0` | Hierarchical Bayesian cold-start prior |
+| `BAYESIAN_PRIOR_ENABLED` | `0` | Hierarchical Bayesian cold-start prior. **Tenant-scoped**: `get_genre_stats(genre, tenant, exclude_student_id)` pools same-tenant baselines only (`store.py`, `postgres_repository.py`), mirroring `null_pool.build_impostor_stats`. `tenant=None` (legacy-flat ids) is its own cohort. Floors: `MIN_GENRE_VECTORS=5` **and** `MIN_GENRE_STUDENTS=3` distinct contributing students (`store.py`), mirroring `null_pool.MIN_IMPOSTOR_STUDENTS` — one prolific student cannot stand in for a tenant population. **Self-excluding**: the scored student is dropped from their own prior (mirroring `build_impostor_stats`), so the blend is toward peers rather than partly toward themselves; both floors are re-checked against what remains. Genre pools are sparser per-tenant than the old cross-tenant pool, so the prior returns `None` more often and falls back to the student-only baseline. Run `scripts/measure_genre_prior_scope.py` against real pilot data before enabling this flag — the 2026-07-29 measurement found no reachable dataset with genre-labelled samples to size that coverage drop. The prior's blend weight is **damped by cohort size** (`scoring.py`): the virtual sample count is `PRIOR_WEIGHT × n_students/(n_students+PRIOR_WEIGHT)`, so a 3-peer prior carries half the authority of a large one and converges on `PRIOR_WEIGHT` as the cohort grows — a prior mean estimated from few peers is itself uncertain. Once enabled, `students_scoring.py` logs one INFO `bayesian_prior outcome=hit\|miss genre=… tenant=… n_prior=… n_students=…` line per cold-start scoring call — count miss vs hit for the live per-(tenant, genre) `None` rate. No student ids are logged. |
 | `PRIOR_WEIGHT` | `3.0` | Virtual sample count for the prior |
-| `NULL_MODEL` | `none` | `impostor` = per-tenant peer-pool null model; attaches `llr_deviation_score` (attach-only, never changes the action) |
+| `NULL_MODEL` | `none` | `impostor` = per-tenant peer-pool null model; attaches `llr_deviation_score`. Whether that's allowed to change the recommended action is a separate flag, `LLR_ACTION_MODE`. |
+| `LLR_ACTION_MODE` | `gate` | Only read when `NULL_MODEL=impostor` **and** a real `llr_deviation_score` was computed. A 2026-08 leave-one-genre-out study (C.S. Lewis corpus vs. a Chesterton impostor pool, `validation/genre_crossgenre_2026-08/`) found the raw `deviation_score` alone WORSE than chance (mean AUC 0.39) at telling a genuine cross-genre submission from a different author's writing, vs. 0.86 for `llr_deviation_score` alone. ⚠️ **`gate` (default as of 2026-08) changes actions** — one asymmetric step, in `quantum/scoring.py` (`_apply_llr_action_mode`): may only **downgrade** an action one severity step when llr confidently reads "more like the claimed author" (targets the genre-shift false positive directly — validated: cuts the Lewis-corpus false-positive rate at schedule_conversation+ from 50%→42% and at escalate from 11%→7%, with only a 1–2pt drop in Chesterton catch rate at the same bars; a second independent 10-author test against `validation/public_authors/` confirmed the underlying `llr` route generalizes, mean AUC 0.867→0.952). **Deliberately not yet validated against real student submissions** — accepted as a known risk, not an oversight; re-check against real pilot data as it becomes available. `shadow` is the explicit opt-in for the previous byte-identical attach-only behavior (log-only, never changes `recommendation`). `trigger` may only **upgrade** `no_action`→`monitor` when llr confidently reads "impostor-like" — measured as a no-op on the cross-genre corpus (there were essentially no `no_action` cases to upgrade from once genre has shifted; may behave differently on same-genre cold-start traffic, untested). `blend` re-derives the action tier from a 50/50 mix of `deviation_score` and `llr_deviation_score` — **do not enable**: it looked best on false-positive rate alone, but at a matched severity bar it also collapsed the Chesterton catch rate at schedule_conversation+ from 33%→3% and escalate from 3%→0% — it suppresses genuine impostor severity, not just genre-driven noise. |
+| `COHORT_PRIOR_FALLBACK` | `0` | ⚠️ **Changes scores.** Only read when `BAYESIAN_PRIOR_ENABLED=1`. When the same-genre prior above comes back `None` (cold start), fall back to the **genre-agnostic** prior over the same pool (`get_cohort_stats(tenant, exclude_student_id)`, `original/routers/students_scoring.py`). Same code path as the genre prior with the genre filter dropped, so it inherits every invariant listed under `BAYESIAN_PRIOR_ENABLED` unchanged: tenant scoping, self-exclusion, both floors, and cohort-size damping via `n_students`. Logged separately (`bayesian_prior_cohort_fallback outcome=hit\|miss …`) so it does not contaminate the genre prior's coverage measurement. Trades a genre-*matched* reference distribution for a larger one — see `docs/calibration/short_regime_thresholds_2026-07-29.md` §3.1/§4 and its erratum: the 2026-07-29 grid measured an in-process cohort prior, not this code path, and found `PRIOR` net-negative on `deviation_score` alone (catch@5% 0.102 vs. the 0.545 flags-off floor) and net-positive only when the decision is made on `llr_deviation_score`. `LLR_ACTION_MODE=gate` (today's default) is **not** that rebind — it only downgrades one severity step. Do not enable on the strength of that grid alone. |
 | `LENGTH_ADAPTIVE_WEIGHTS` | `0` | ⚠️ **Changes scores.** Rescales the per-feature deviation weight vector by submission length (`quantum/scoring.py:515`). |
 | `RANK_REMEDIATION` | unset | ⚠️ **Changes scores.** `=shrinkage` blends the density matrix ρ toward isotropic I/D via Ledoit-Wolf shrinkage, altering the density-matrix estimator (`quantum/state.py:190`). |
 | `AI_LIKELIHOOD_ENABLED` | `0` | Turns on the optional AI-likelihood second scorer (report-only, corpus-level detector). |
@@ -78,7 +93,7 @@ All production features are opt-in via env flags. Default OFF preserves Phase 1 
 | `LTI_TOOL_URL` | — | No-op without config. Public tool URL registered with the LMS. |
 | `ADMIN_EMAIL` | — | No-op without config. Seed admin account email. |
 | `ADMIN_PASSWORD` | — | No-op without config. Seed admin account password. |
-| `SENDGRID_API_KEY` | — | No-op without config. Email delivery integration. |
+| `SENDGRID_API_KEY` | — | **Currently a documented no-op even when set** — nothing reads it and no email is ever sent (`routers/_shared.py:_send_notification_email`). Setting it logs one warning at startup saying so. |
 
 Demo mode turns on CONTEXT_MANIFEST_ENABLED, ADAPTIVE_WEIGHTS_ENABLED, and NULL_MODEL=impostor automatically (set in run.py).
 

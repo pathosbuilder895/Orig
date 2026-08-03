@@ -35,6 +35,7 @@ TunedThresholds         tuned_thresholds_v2
 BluebookCourse          bluebook_courses
 BluebookExam            bluebook_exams
 BluebookSubmission      bluebook_submissions
+BluebookSession         bluebook_sessions
 FormationPathway        formation_pathways
 BaselineRequest         baseline_requests
 AuditLogEntry           audit_log
@@ -42,10 +43,11 @@ ParkSession             park_sessions
 ParkBeat                park_beats
 ======================  =========================
 
-``ParkSession``/``ParkBeat`` are the only two models here that were NOT ported
-from the SQLite store's original 16-table DDL — they arrived with the QR
-phone-park proctoring surface (T8) and were authored against both backends at
-once, so there is no legacy shape to stay faithful to.
+``ParkSession``/``ParkBeat``/``BluebookSession`` are the only models here that
+were NOT ported from the SQLite store's original 16-table DDL — the first two
+arrived with the QR phone-park proctoring surface (T8), the third with the
+Bluebook exam-day robustness work. All three were authored against both
+backends at once, so there is no legacy shape to stay faithful to.
 
 Design decisions (audit §10 P2, applied uniformly)
 --------------------------------------------------
@@ -465,6 +467,27 @@ class BluebookSubmission(LiveBase):
     ai_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="SUBMITTED")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Idempotent sealing (Bluebook exam-day robustness): client seal id --
+    # replays with the same uuid return the prior row instead of writing a
+    # second one.
+    submission_uuid: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True)
+    late: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+
+
+class BluebookSession(LiveBase):
+    """One (exam, student) sitting (``bluebook_sessions``): pins the immutable
+    server deadline (exam-day robustness). The first insert wins; reopening
+    the exam returns the same row, so the clock can never be restarted or
+    paused by closing the tab.
+    """
+
+    __tablename__ = "bluebook_sessions"
+
+    exam_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    student_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, ForeignKey("tenants.tenant_id"), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    deadline_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 # ── Formation, requests, audit ────────────────────────────────────────────────
@@ -612,7 +635,7 @@ class ParkBeat(LiveBase):
     )
 
 
-#: All 18 live models in store-DDL order, for tests and the P3 repository.
+#: All 19 live models in store-DDL order, for tests and the P3 repository.
 LIVE_MODELS = [
     StudentProfile,
     StudentName,
@@ -626,6 +649,7 @@ LIVE_MODELS = [
     StaffUser,
     BluebookExam,
     BluebookSubmission,
+    BluebookSession,
     BluebookCourse,
     AuditLogEntry,
     FormationPathway,

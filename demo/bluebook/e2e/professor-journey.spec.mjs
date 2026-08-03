@@ -18,19 +18,20 @@
  *    reruns against a FRESH tenant with fresh module state — no residue
  *    from the failed attempt can collide with the retry.
  *
- * Two honest gaps in the current Bluebook React frontend, worked around
- * rather than glossed over:
- *  - NewExamScreen's course picker is a hardcoded local list (COURSES in
- *    NewExam.jsx), not wired to the courses just created via the UI. We
- *    create our course under one of those hardcoded codes so the journey
- *    stays coherent; this is a known frontend gap, not a test bug.
- *  - Results.jsx has NO correction-filing UI at all — "Mark Reviewed" in
- *    ExpandedRow is local component state, never sent to the server. The
- *    real correction endpoint (POST /submissions/{id}/correct) and audit
- *    trail (GET /admin/audit, GET /admin/corrections) exist server-side but
- *    aren't wired to any page. We exercise them directly via the API so
- *    the pipeline itself is proven, and flag the missing UI rather than
- *    silently only testing the API.
+ * The course link between steps 1 and 2 is now real. NewExamScreen's picker
+ * used to be a hardcoded local list (COURSES in NewExam.jsx) and this file
+ * worked around it by creating its course under one of those hardcoded codes;
+ * the picker now reads GET /bluebook/courses, so step 2 selects the course
+ * step 1 created in this tenant and asserts it round-trips onto the exam.
+ * That is the assertion the workaround could not make.
+ *
+ * Results.jsx's ExpandedRow now has a real CorrectionPanel (Correct/
+ * Incorrect, verdict/action selects, notes, "File Correction") that calls
+ * POST /submissions/{id}/correct and lists history via GET
+ * /admin/corrections — the correction test below drives that UI directly
+ * rather than hitting the API standalone. The old "Mark Reviewed" button
+ * (local component state only, never persisted) is gone; step 8 now
+ * asserts on the CorrectionPanel heading instead.
  *
  * The two non-serial describes at the bottom are Stage-2 breadth on the
  * same surface: NewExam form gating, and the fresh-tenant empty states
@@ -43,7 +44,10 @@ import {
   addBaselineFor, provisionTenantWithStaff, staffStorageState,
 } from './fixtures/api-setup.mjs'
 
-const HARDCODED_COURSE_CODE = 'PHIL 301A' // must match a NewExam.jsx COURSES entry
+// The code step 1 creates and step 2 then picks out of the live course list.
+// Any code would do now that the picker is server-backed — it stays 'PHIL 301A'
+// only so the journey still reads like a philosophy seminar.
+const JOURNEY_COURSE_CODE = 'PHIL 301A'
 
 function staffAuth(workerTenant) {
   return { Authorization: `Bearer ${workerTenant.staff.token}` }
@@ -81,7 +85,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     const { courseName } = names(workerTenant)
     await openScreen(staffPage, 'Courses')
     await staffPage.getByRole('button', { name: '+ New Course' }).click()
-    await staffPage.getByPlaceholder('PHIL 401').fill(HARDCODED_COURSE_CODE)
+    await staffPage.getByPlaceholder('PHIL 401').fill(JOURNEY_COURSE_CODE)
     await staffPage.getByPlaceholder('e.g. Philosophy of Language').fill(courseName)
     await staffPage.getByRole('button', { name: 'Create Course' }).click()
     await expect(staffPage.getByText(courseName)).toBeVisible({ timeout: 10_000 })
@@ -92,7 +96,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     const { courses } = await coursesRes.json()
     const mine = courses.find(c => c.name === courseName)
     expect(mine).toBeTruthy()
-    expect(mine.code).toBe(HARDCODED_COURSE_CODE)
+    expect(mine.code).toBe(JOURNEY_COURSE_CODE)
   })
 
   // ── 2 ────────────────────────────────────────────────────────────────
@@ -124,7 +128,13 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     await expect(staffPage.getByRole('switch', { name: 'Phone blocker' })).toHaveAttribute('aria-checked', 'false')
 
     await staffPage.locator('#neTitle').fill(examTitle)
-    // #neCourse defaults to HARDCODED_COURSE_CODE already — leave as-is.
+    // #neCourse is populated from GET /bluebook/courses, so the course step 1
+    // created in this tenant is selectable here by its own code. Selected
+    // explicitly rather than left on the default: this worker's tenant may
+    // hold more than one course by now (a11y.spec.mjs provisions its own on
+    // the same worker-scoped tenant), and "whatever happens to be first" is
+    // not what this step is asserting.
+    await staffPage.locator('#neCourse').selectOption(JOURNEY_COURSE_CODE)
     await staffPage.locator('#neMinWords').fill('12')
     await staffPage.locator('#neMaxWords').fill('5000')
     await staffPage.locator('#nePrompt0').fill('Describe the categorical imperative in your own words.')
@@ -136,6 +146,9 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     const createdExam = await createExamResponse.json()
     expect(createdExam.id).toBeTruthy()
     expect(createdExam.status).toBe('ACTIVE')
+    // The picker's whole point: the code that reached the API is the one this
+    // tenant's own course carries, not a value baked into the frontend.
+    expect(createdExam.course).toBe(JOURNEY_COURSE_CODE)
     // The exact toggle states set above must round-trip through the API.
     expect(createdExam.conditions).toEqual({
       blockAI: true, blockWeb: true, blockCopy: true,
@@ -311,15 +324,11 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     await expect(staffPage.getByText('Authenticity').first()).toBeVisible()
     // The plain-English explanation line under the Authenticity score.
     await expect(staffPage.getByText(/scored via Original/)).toBeVisible()
-    await expect(staffPage.getByText("Examiner's Notes")).toBeVisible()
-
-    // "Mark Reviewed" is LOCAL component state only — never persisted (see
-    // file header). Exercise the affordance the professor actually has: the
-    // button gives way to the reviewed indicator (which joins the existing
-    // "Reviewed" filter tab as the second exact match on the page).
-    await staffPage.getByRole('button', { name: 'Mark Reviewed' }).click()
-    await expect(staffPage.getByRole('button', { name: 'Mark Reviewed' })).toHaveCount(0)
-    await expect(staffPage.getByText('Reviewed', { exact: true })).toHaveCount(2)
+    // The right-hand panel is the real CorrectionPanel (see step 10 below for
+    // the full filing flow) — "Mark Reviewed"/"Examiner's Notes" were the
+    // pre-CorrectionPanel local-state placeholder this test used to assert
+    // on; both were removed when the real panel replaced them.
+    await expect(staffPage.getByText("Examiner's Correction")).toBeVisible()
   })
 
   // ── 9 ────────────────────────────────────────────────────────────────
@@ -391,39 +400,43 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
 
   // ── 10 ───────────────────────────────────────────────────────────────
   test('a correction filed against the scored submission lands in corrections and the audit trail', async ({
-    workerTenant, request,
+    workerTenant, request, staffPage,
   }) => {
-    // No frontend affordance exists for this (see file header) — exercised
-    // directly against the API that a UI would eventually call. The score
-    // call the seal triggered always writes an audit_log(action="score")
-    // row carrying its submission_id (original/api.py) — that's the id
-    // /submissions/{id}/correct is keyed on, independent of the Phase-3
-    // context-manifest feature (CONTEXT_MANIFEST_ENABLED, off by default).
+    await openScreen(staffPage, 'Results')
+    // The row rendered for this journey's candidate — same locator the
+    // "drilling into the row" test above (step 8) already uses/proves:
+    // `div:has-text(candidateName)` picks the innermost matching div (the
+    // name/course cell), and the click bubbles up to the row's onClick.
+    const { candidateName } = names(workerTenant)
+    const row = staffPage.locator('div', { hasText: candidateName }).last()
+    await expect(row).toBeVisible({ timeout: 10_000 })
+    await row.click()
+
+    // exact:true matters here — Playwright's role-name matching is a
+    // substring match by default, and "Correct" is a substring of both
+    // "Incorrect" and "File Correction".
+    await expect(staffPage.getByRole('button', { name: 'Correct', exact: true })).toBeVisible({ timeout: 10_000 })
+    await staffPage.getByRole('button', { name: 'Incorrect' }).click()
+    await staffPage.locator('select').first().selectOption('authentic')
+    await staffPage.locator('select').nth(1).selectOption('no_action')
+    await staffPage.getByPlaceholder('Record observations, decision rationale, or marginal notes…')
+      .fill('E2E professor-journey correction')
+
+    const [correctionResponse] = await Promise.all([
+      staffPage.waitForResponse(r => r.url().includes('/submissions/') && r.url().includes('/correct') && r.request().method() === 'POST'),
+      staffPage.getByRole('button', { name: 'File Correction' }).click(),
+    ])
+    expect(correctionResponse.ok()).toBe(true)
+    const correction = await correctionResponse.json()
+    const submissionId = correction.submission_id
+
+    // The filed correction appears in the panel's history immediately.
+    await expect(staffPage.getByText('✗ Verdict overridden')).toBeVisible({ timeout: 5_000 })
+    await expect(staffPage.getByText('E2E professor-journey correction')).toBeVisible()
+
+    // API-level verification alongside the UI-level one: the pipeline is
+    // proven end to end (click → write → audit), not just the click.
     const headers = staffAuth(workerTenant)
-    const scoreAuditRes = await request.get(
-      `/admin/audit?student_id=${encodeURIComponent(workerTenant.student.student_id)}&action=score`,
-      { headers },
-    )
-    expect(scoreAuditRes.ok()).toBe(true)
-    const scoreAudit = await scoreAuditRes.json()
-    expect(scoreAudit.items.length).toBeGreaterThan(0)
-    const submissionId = scoreAudit.items[0].details.submission_id
-    expect(submissionId).toBeTruthy()
-
-    const correctionRes = await request.post(`/submissions/${encodeURIComponent(submissionId)}/correct`, {
-      headers,
-      data: {
-        is_correct: false,
-        corrected_verdict: 'authentic',
-        corrected_action: 'no_action',
-        reviewer: workerTenant.staff.email,
-        notes: 'E2E professor-journey correction',
-      },
-    })
-    expect(correctionRes.ok()).toBe(true)
-    const correction = await correctionRes.json()
-    expect(correction.submission_id).toBe(submissionId)
-
     const correctionsListRes = await request.get(
       `/admin/corrections?submission_id=${encodeURIComponent(submissionId)}`,
       { headers },
@@ -441,11 +454,108 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     expect(audit.total).toBeGreaterThan(0)
     expect(audit.items.some(i => i.action === 'correction')).toBe(true)
   })
+
+  // ── 11 ───────────────────────────────────────────────────────────────
+  test('a cold-start sitting with no AI score shows the disabled correction state', async ({
+    staffPage, request, workerTenant,
+  }) => {
+    // Record a Bluebook submission the way a real cold-start sitting looks:
+    // the seal always generates a submission_uuid (it's threaded into both
+    // the submission record and the score call), but scoring 422'd because
+    // there was no baseline yet to compare against, so ai_score is null.
+    // This is the actual reachable cold-start shape -- not a submission with
+    // no uuid at all, which the real Exam.jsx flow never produces.
+    //
+    // The uuid MUST be unique per run, not a fixed literal: submission_uuid
+    // carries a global UNIQUE index (it is the seal idempotency key and is
+    // deliberately NOT tenant-scoped), so a hardcoded value would be replayed
+    // rather than inserted on any second run against the same database --
+    // the POST would still return 200, but it would hand back the *previous*
+    // run's row in a different tenant, and this tenant's Results screen would
+    // never show the candidate. Deriving it from the per-worker tenant id
+    // (itself pid+timestamp-unique, see fixtures/api-setup.mjs:unique) keeps
+    // the row genuinely new every run.
+    const headers = staffAuth(workerTenant)
+    const res = await request.post('/bluebook/submissions', {
+      headers,
+      data: {
+        student_id: `${workerTenant.tenant.tenant_id}:cold-start-candidate`,
+        candidate: 'Cold Start Candidate',
+        exam_title: 'Unscored Exam',
+        course: 'TEST 000',
+        word_count: 10,
+        time_min: 1,
+        status: 'SUBMITTED',
+        submission_uuid: `cold-start-seal-${workerTenant.tenant.tenant_id}`,
+        ai_score: null,
+      },
+    })
+    expect(res.ok()).toBe(true)
+
+    await openScreen(staffPage, 'Results')
+    const row = staffPage.locator('div', { hasText: 'Cold Start Candidate' }).last()
+    await expect(row).toBeVisible({ timeout: 10_000 })
+    await row.click()
+    await expect(staffPage.getByText("This submission wasn't scored — no verdict to correct.")).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.getByRole('button', { name: 'Correct', exact: true })).toHaveCount(0)
+  })
 })
 
 // ═══════════════════════════════════════════════════════════════════════
 // Stage-2 breadth on the same surface (non-serial — no shared state).
 // ═══════════════════════════════════════════════════════════════════════
+
+// The picker's two unhappy answers. The happy one — a real course selected and
+// round-tripped onto the exam — is journey step 2; these are the two that used
+// to be impossible, because a hardcoded list is never empty and never fails.
+test.describe('New Examination course picker', () => {
+  test('a tenant with no courses gets a typed code and a pointer to Courses, not the demo list', async ({
+    browser, baseURL, request,
+  }) => {
+    const { staff } = await provisionTenantWithStaff(request)
+    const context = await browser.newContext({ storageState: staffStorageState(baseURL, staff) })
+    const page = await context.newPage()
+    await openScreen(page, 'Examinations')
+    await page.getByRole('button', { name: '+ New Examination' }).click()
+    await expect(page.getByRole('heading', { name: 'New Examination' })).toBeVisible()
+
+    await expect(page.getByText('No courses yet')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('button', { name: /add one on the Courses screen/ })).toBeVisible()
+    // MOCK_COURSES leak guard — the same rule the describe below enforces on
+    // Dashboard/Results/Students: an authenticated tenant sees its own data.
+    await expect(page.getByText('Ethics in the Modern World')).toHaveCount(0)
+    // Still usable: the code is typed, and the form gates on title+prompt only.
+    await page.locator('#neCourse').fill('PHIL 401')
+    await page.locator('#neTitle').fill('Typed-course examination')
+    await page.locator('#nePrompt0').fill('A prompt.')
+    const [created] = await Promise.all([
+      page.waitForResponse(r => r.url().includes('/bluebook/exams') && r.request().method() === 'POST'),
+      page.getByRole('button', { name: 'Save as Draft' }).click(),
+    ])
+    expect((await created.json()).course).toBe('PHIL 401')
+    await context.close()
+  })
+
+  test('a failed course fetch says so and leaves the form usable', async ({ staffPage }) => {
+    // The one state a hardcoded list could not reach. Aborting the request is
+    // what BB_API.listCourses() turns into `null` — distinct from an empty
+    // roster, and the screen must not present it as one.
+    await staffPage.route('**/bluebook/courses', route => route.abort())
+    await openScreen(staffPage, 'Examinations')
+    await staffPage.getByRole('button', { name: '+ New Examination' }).click()
+
+    await expect(staffPage.getByText(/Your courses could not be loaded/)).toBeVisible({ timeout: 10_000 })
+    // A failure is not an empty roster: it must not offer to send the
+    // professor off to create a course they may well already have.
+    await expect(staffPage.getByText('No courses yet')).toHaveCount(0)
+    await expect(staffPage.getByRole('button', { name: /add one on the Courses screen/ })).toHaveCount(0)
+    // Publish stays reachable — the failure is non-blocking by construction.
+    await staffPage.locator('#neCourse').fill('PHIL 402')
+    await staffPage.locator('#neTitle').fill('Degraded-fetch examination')
+    await staffPage.locator('#nePrompt0').fill('A prompt.')
+    await expect(staffPage.getByRole('button', { name: 'Publish Examination' })).toBeEnabled()
+  })
+})
 
 test.describe('New Examination form gating', () => {
   test('Publish and Save as Draft stay gated until a title and a prompt exist', async ({ staffPage }) => {

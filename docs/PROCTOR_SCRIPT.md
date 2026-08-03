@@ -15,19 +15,17 @@ Say to the class:
 
 Then, walking the room:
 
+- [ ] Display the QR code on the projector (the proctor view generates one
+  per exam sitting). Ask students to scan it with the face-down phone, type
+  their name or initials when prompted, then set the phone back down
+  face-down. This is what turns "phone is present" into a tile you can watch
+  on your own screen instead of walking the room the whole period.
 - [ ] Confirm every visible phone is face-down. A phone in a bag or pocket is
   fine — face-down on the desk is the visible signal you're checking for.
 - [ ] Confirm every laptop is on the exam page and nothing else (no second
   monitor, no second tab visible).
 - [ ] Glance at your seat map note if you have one — it's for you, not the
   students; use it to remember who's who when a tile needs a name later.
-
-**(Available from Bluebook vX — QR phone-park ritual):** once this ships, add
-here: display the QR code on the projector, ask students to scan it with the
-face-down phone, type their name or initials when prompted, then set the
-phone back down face-down. This turns "phone is present" into a signal you can
-watch on your own screen instead of walking the room the whole period. Until
-this ships, the face-down instruction above is the whole ritual.
 
 ## During the exam
 
