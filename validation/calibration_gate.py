@@ -58,6 +58,24 @@ class GateResult:
     criterion: str
     current_value: str
     detail: dict = field(default_factory=dict)
+    verdict: str = ""  # "pass" | "fail" | "uninformative"
+
+    def __post_init__(self):
+        if not self.verdict:
+            object.__setattr__(self, "verdict", "pass" if self.passed else "fail")
+        if self.verdict not in ("pass", "fail", "uninformative"):
+            raise ValueError(f"invalid verdict: {self.verdict!r}")
+        # FIX 6: `passed` and `verdict` must always agree. This subsumes the
+        # narrower "uninformative gate cannot claim passed=True" check it
+        # replaces — that check let `passed=False, verdict="pass"` and
+        # `passed=True, verdict="fail"` both through, which is the same
+        # drift class from the other two directions.
+        if self.passed != (self.verdict == "pass"):
+            raise ValueError(
+                f"passed={self.passed!r} is inconsistent with "
+                f"verdict={self.verdict!r} (passed must be True iff "
+                "verdict == 'pass')"
+            )
 
 
 # ── Shared conformal-reachability guard ───────────────────────────────────────
@@ -73,26 +91,56 @@ class GateResult:
 
 
 def _conformal_p_floor(n: int) -> float:
-    """The smallest value a conformal p-value over n LOO distances can take."""
-    return 1.0 / (max(int(n), 0) + 1)
+    """
+    The smallest value a conformal p-value over n LOO distances can take.
+
+    FIX 3(a): delegates to validation.power.conformal_p_floor rather than
+    re-implementing the same arithmetic a second time. The two copies used
+    to disagree at the degenerate n<=0 input: this one returned 1.0,
+    power's raises ValueError. Checked every caller in this module before
+    delegating — `_reachability_block` only ever calls this with n>=1 (it
+    filters `typicality_ns` to `n >= 1` first), and `_min_n_for_threshold`
+    below only reaches n-1==0 for a threshold >= ~0.5, far looser than any
+    threshold actually used in this codebase (NO_ACTION_FAR_THRESHOLD=0.03,
+    NO_ACTION_CENTRAL_THRESHOLD=0.02) — so no caller depends on the old
+    degenerate return value, and it is safe to let power's ValueError
+    surface instead of preserving a second definition of "degenerate".
+    """
+    from validation.power import conformal_p_floor
+
+    return conformal_p_floor(n)
 
 
 def _min_n_for_threshold(threshold: float) -> int:
-    """Smallest n whose p-value floor reaches `threshold` (0.02 -> 49)."""
-    import math
+    """
+    Smallest n whose p-value floor reaches `threshold` (0.02 -> 49).
 
-    n = max(0, math.ceil(1.0 / threshold) - 1)
-    # Both directions, so float representation can't shift the boundary.
-    while n > 0 and _conformal_p_floor(n - 1) <= threshold:
-        n -= 1
-    while _conformal_p_floor(n) > threshold:
-        n += 1
-    return n
+    FIX 3(a): delegates to validation.power.min_docs_for_band. The
+    original carried a self-correcting double while-loop as insurance
+    against float representation shifting the boundary; power's direct
+    `max(1, ceil(1/threshold) - 1)` formula was checked against it (a
+    200k-sample random-float scan plus every threshold this module's own
+    tests use) with zero disagreements short of the unreachable edge
+    threshold==1.0 (where the two clamp to 0 vs. 1 respectively — moot,
+    since a conformal p-value is undefined below n=1 either way, and no
+    gate in this codebase ever thresholds at 1.0).
+    """
+    from validation.power import min_docs_for_band
+
+    return min_docs_for_band(threshold)
 
 
 def _threshold_reachable(n: int, threshold: float) -> bool:
-    """True iff a p-value over n LOO distances can reach `threshold` at all."""
-    return _conformal_p_floor(n) <= threshold
+    """
+    True iff a p-value over n LOO distances can reach `threshold` at all.
+
+    FIX 3(a): delegates to validation.power.band_reachable. Its only caller
+    in this module (`_reachability_block`) always passes n>=1, so
+    band_reachable's ValueError on n<=0 is never triggered here.
+    """
+    from validation.power import band_reachable
+
+    return band_reachable(n, threshold)
 
 
 def _reachability_block(typicality_ns: list[int], threshold: float) -> dict:
@@ -147,6 +195,8 @@ def evaluate_g1_fpr(
     pooled_actions: list[str],
     per_corpus: dict[str, list[str]],
     typicality_ns: list[int] | None = None,
+    entity_baseline_counts: dict[str, int] | None = None,
+    band_threshold: float | None = None,
 ) -> GateResult:
     """
     G1 — Same-author FPR. Pooled flagged rate (action != "no_action") must
@@ -155,12 +205,48 @@ def evaluate_g1_fpr(
     marginal-not-conditional-validity finding — see design spec §10).
 
     `typicality_ns` (one per scored fold) drives the reachability
-    ANNOTATION, never the verdict: the flagged rate is genuinely defined at
-    any N, so `passed` is unchanged, but when the observed N is too small for
-    any band boundary to be crossed (p-value floor above the loosest flag
-    threshold, NO_ACTION_FAR_THRESHOLD), a 0% rate is guaranteed by
-    construction and current_value says so in as many words. Omitting the
-    argument keeps the pre-existing current_value string exactly.
+    ANNOTATION on current_value, via `_reachability_block`'s BINDING
+    (smallest, i.e. worst-case) observed typicality_n — if even one fold's
+    p-value floor is above NO_ACTION_FAR_THRESHOLD, a 0% rate at that N is
+    guaranteed by construction. `entity_baseline_counts` (the per-fold LOO
+    baseline count — see run_all()'s call site: this is len(texts) - 1, NOT
+    len(texts), since a fold posts every text except the one held out) and
+    `band_threshold` estimate the SAME reachability question from a
+    different angle: any-reachable, i.e. MAX over entities (one
+    well-sampled entity is enough to call the band reachable). The two
+    mechanisms read different data (observed per-fold N vs. reconstructed
+    per-entity document counts) and aggregate in OPPOSITE directions
+    (pessimistic MIN-over-folds vs. optimistic MAX-over-entities), so they
+    CAN legitimately disagree.
+
+    Invariant (FIX 3(b), tightened by a later fix on the ANNOTATION side):
+    a "pass" verdict can never coexist with an "UNINFORMATIVE" annotation
+    in current_value — rendering `G1 [PASS] ... (UNINFORMATIVE: ...)` is
+    exactly the self-contradiction this fix exists to eliminate. When
+    `typicality_ns` is supplied it is the MORE accurate signal (observed
+    per-fold N, not reconstructed from document counts), so a would-be
+    pass with `flagged == 0` that EITHER mechanism finds unreachable is
+    downgraded to "uninformative". A nonzero flagged count is real
+    evidence, never arithmetic (FIX 2), so the DOWNGRADE is never applied
+    regardless of reachability when flagged > 0 — and for that identical
+    reason the current_value ANNOTATION is now *also* only ever appended
+    when `flagged == 0`: once real flags exist, the annotation's own claim
+    ("this rate is not evidence of calibration") is false, because those
+    flags came from the deviation-score path rather than the conformal
+    band, so the rate IS a real measurement, not arithmetic. (A prior
+    version of this function gated the downgrade on `flagged == 0` but
+    gated the annotation on reachability alone, so a nonzero flagged rate
+    under an unreachable band still rendered `G1 [PASS] ... (UNINFORMATIVE:
+    ...)` — the exact contradiction this invariant forbids. Both are now
+    gated identically.) A genuine FAILURE (pooled_rate > 5%) is likewise
+    never downgraded — only a would-be pass can become uninformative.
+    Omitting both `typicality_ns` and `entity_baseline_counts` preserves
+    the legacy two-valued (`pass`/`fail`) behavior exactly.
+
+    A non-positive `entity_baseline_counts` value (a degenerate corpus
+    entry with 0 or fewer LOO samples) is treated as unreachable directly
+    rather than raised through validation.power's ValueError, so this gate
+    can never crash on a degenerate corpus (FIX 5).
     """
     from original.quantum.typicality import NO_ACTION_FAR_THRESHOLD
 
@@ -179,7 +265,14 @@ def evaluate_g1_fpr(
     # monitor / escalate boundaries are unreachable a fortiori).
     reachability = _reachability_block(typicality_ns or [], NO_ACTION_FAR_THRESHOLD)
     current_value = f"{pooled_rate:.1%}"
-    if reachability["observed"] and not reachability["reachable"]:
+    # Gated on flagged == 0, matching the downgrade below exactly: once real
+    # flags exist, the annotation's own claim ("this rate is not evidence of
+    # calibration") is false — those flags came from the deviation-score
+    # path, not the conformal band, so the rate IS a real measurement. Not
+    # gating on flagged here was the bug: a nonzero flagged rate under an
+    # unreachable band used to render `G1 [PASS] ... (UNINFORMATIVE: ...)`,
+    # violating this function's own invariant (see docstring).
+    if flagged == 0 and reachability["observed"] and not reachability["reachable"]:
         current_value += (
             f" (UNINFORMATIVE: typicality thresholds unreachable at "
             f"n<={reachability['min_typicality_n']} — p-value floor "
@@ -189,19 +282,70 @@ def evaluate_g1_fpr(
             f"by construction, so this rate is not evidence of calibration)"
         )
 
-    passed = pooled_rate <= 0.05
+    verdict = "pass" if pooled_rate <= 0.05 else "fail"
+    # The typicality_ns mechanism's unreachability signal, computed above
+    # into current_value's annotation — reused below for the FIX 3(b)
+    # invariant so the two mechanisms can't disagree in the rendered
+    # verdict even when they disagree about the underlying reachability.
+    typicality_unreachable = reachability["observed"] and not reachability["reachable"]
+    detail = {
+        "n": n,
+        "flagged": flagged,
+        "pooled_flagged_rate": pooled_rate,
+        "per_corpus_flagged_rate": per_corpus_rate,
+        "reachability": reachability,
+    }
+
+    entity_unreachable = False
+    if entity_baseline_counts:
+        from validation.power import (
+            band_reachable,
+            conformal_p_floor,
+            min_docs_for_band,
+            rule_of_three_upper,
+        )
+
+        if band_threshold is None:
+            band_threshold = NO_ACTION_FAR_THRESHOLD
+        # FIX 5: a non-positive count can never reach any band —
+        # band_reachable/conformal_p_floor are undefined below n=1 and
+        # raise ValueError — so treat it as unreachable directly instead of
+        # crashing this gate on a degenerate corpus entry.
+        reachable = {
+            e: (band_reachable(cnt, band_threshold) if cnt > 0 else False)
+            for e, cnt in entity_baseline_counts.items()
+        }
+        positive_counts = [cnt for cnt in entity_baseline_counts.values() if cnt > 0]
+        max_n = max(positive_counts) if positive_counts else 0
+        detail["power"] = {
+            "band_threshold": band_threshold,
+            "max_entity_n": max_n,
+            "min_conformal_p_at_max_n": conformal_p_floor(max_n) if max_n > 0 else None,
+            "entities_reachable": sum(reachable.values()),
+            "entities_total": len(reachable),
+            "min_docs_for_band": min_docs_for_band(band_threshold),
+            "rule_of_three_fpr_upper": rule_of_three_upper(n) if flagged == 0 and n else None,
+        }
+        entity_unreachable = not any(reachable.values())
+
+    # FIX 2 + FIX 3(b): only a would-be pass with ZERO real flags can be
+    # downgraded — flagged > 0 is genuine evidence, never arithmetic, so it
+    # must stay "pass" (and current_value must never grow a zero-rate
+    # sentence it didn't earn). Once flagged == 0 is required, EITHER
+    # mechanism finding the band unreachable downgrades the verdict, so a
+    # "pass" can never render alongside an "UNINFORMATIVE" annotation.
+    if verdict == "pass" and flagged == 0 and (entity_unreachable or typicality_unreachable):
+        # The band is arithmetically unreachable: the clean rate is
+        # arithmetic, not evidence (Instrument Report, G1).
+        verdict = "uninformative"
+
     return GateResult(
         name="G1",
-        passed=passed,
+        passed=verdict == "pass",
+        verdict=verdict,
         criterion="pooled flagged rate <= 5%",
         current_value=current_value,
-        detail={
-            "n": n,
-            "flagged": flagged,
-            "pooled_flagged_rate": pooled_rate,
-            "per_corpus_flagged_rate": per_corpus_rate,
-            "reachability": reachability,
-        },
+        detail=detail,
     )
 
 
@@ -301,7 +445,9 @@ def evaluate_g2b_paraphrase_resistant(
 
 
 def evaluate_g3_attribution(
-    top1_accuracy: float, top1_accuracy_raw_argmin: float | None = None
+    top1_accuracy: float,
+    top1_accuracy_raw_argmin: float | None = None,
+    n_essays: int | None = None,
 ) -> GateResult:
     """
     G3 — Attribution non-regression. Existing bar: >= 0.7 (unchanged).
@@ -309,14 +455,42 @@ def evaluate_g3_attribution(
     validation/public_authors/run.py (summary.top1_accuracy); the raw
     argmin accuracy (summary.top1_accuracy_raw_argmin) is carried in
     detail for comparison when present, but never gated on.
+
+    `n_essays` (held-out essay count behind top1_accuracy) drives the
+    VERDICT via validation/power.py's Wilson interval: a point estimate
+    above the 0.7 bar whose 95% CI straddles the bar is not evidence of a
+    pass at this sample size (the sampling-uncertainty analogue of G1's
+    conformal-floor argument), so the verdict is downgraded to
+    "uninformative". A measured FAILURE is never downgraded — the interval
+    only ever softens a pass. Omitting `n_essays` preserves the legacy
+    two-valued (`pass`/`fail`) behavior exactly.
     """
-    passed = top1_accuracy >= 0.7
+    verdict = "pass" if top1_accuracy >= 0.7 else "fail"
     detail = {"top1_accuracy": top1_accuracy}
     if top1_accuracy_raw_argmin is not None:
         detail["top1_accuracy_raw_argmin"] = top1_accuracy_raw_argmin
+
+    if n_essays:
+        from validation.power import bar_decidable, wilson_interval
+
+        successes = round(top1_accuracy * n_essays)
+        lo, hi = wilson_interval(successes, n_essays)
+        decision = bar_decidable(successes, n_essays, bar=0.7)
+        detail["power"] = {
+            "n_essays": n_essays,
+            "wilson_ci": [lo, hi],
+            "bar": 0.7,
+            "bar_decidable": decision,
+        }
+        if verdict == "pass" and decision != "above":
+            # Point estimate clears the bar but the interval straddles it:
+            # this corpus cannot demonstrate the claim (see Task 5 notes).
+            verdict = "uninformative"
+
     return GateResult(
         name="G3",
-        passed=passed,
+        passed=verdict == "pass",
+        verdict=verdict,
         criterion="public_authors top-1 accuracy >= 0.7 (impostor-calibrated attribution)",
         current_value=f"{top1_accuracy:.3f}",
         detail=detail,
@@ -471,12 +645,17 @@ def evaluate_g6_fairness(
 
       - both rates non-zero: ratio = max/min, pass iff <= 2x (unchanged);
       - exactly one rate zero: an INFINITE disparity — one group is never
-        flagged and the other is. Fails; ratio is recorded as inf;
+        flagged and the other is. A real signal, so verdict="fail"; ratio
+        is recorded as inf;
       - both rates zero: the ratio is undefined and nothing about fairness
-        has been demonstrated. Fails as explicitly UNDEFINED (an absence of
-        evidence must not render green). When the cause is the conformal
-        floor rather than the data, _compute_g6_fairness_data catches it
-        earlier and returns the louder "threshold unreachable" skip.
+        has been demonstrated — a genuinely can't-know outcome, so
+        verdict="uninformative" (never "fail": that would claim disparity
+        evidence that isn't there, and never "pass": passed stays False).
+        current_value still reads UNDEFINED (an absence of evidence must
+        not render green). When the cause is the conformal floor rather
+        than the data, _compute_g6_fairness_data catches it earlier and
+        returns the louder "threshold unreachable" skip
+        (_g6_insufficient_data_result, also verdict="uninformative").
 
     `welch_effect_magnitude`/`welch_cohens_d` come from the bridged
     validation/bias_analysis._welch_t_test. They never change the verdict
@@ -496,6 +675,10 @@ def evaluate_g6_fairness(
         ratio: float | None = None
         ratio_status = "undefined_both_zero"
         passed = False
+        # Genuinely can't-know: no fairness has been demonstrated either way
+        # (never "fail" — that would claim disparity evidence that isn't
+        # there).
+        verdict = "uninformative"
         current_value = (
             f"UNDEFINED: both group flagged rates are 0% ({rate_text}) — the "
             "ratio is undefined and no fairness has been demonstrated"
@@ -504,6 +687,9 @@ def evaluate_g6_fairness(
         ratio = float("inf")
         ratio_status = "one_group_zero"
         passed = False
+        # A real signal (one group never flagged, the other is) — a
+        # genuine failure, not an absence of evidence.
+        verdict = "fail"
         current_value = (
             f"ratio=inf ({rate_text}) — one group is never flagged and the "
             "other is: an infinite disparity, which exceeds the 2x bar"
@@ -512,6 +698,7 @@ def evaluate_g6_fairness(
         ratio = max(native_fpr, non_native_fpr) / min(native_fpr, non_native_fpr)
         ratio_status = "both_nonzero"
         passed = ratio <= 2.0
+        verdict = "pass" if passed else "fail"
         current_value = f"ratio={ratio:.2f}x ({rate_text})"
 
     if welch_effect_magnitude in ("medium", "large"):
@@ -536,6 +723,7 @@ def evaluate_g6_fairness(
     return GateResult(
         name="G6",
         passed=passed,
+        verdict=verdict,
         criterion=_G6_CRITERION,
         current_value=current_value,
         detail=detail,
@@ -558,6 +746,11 @@ def _g6_insufficient_data_result(
     unmistakably "no verdict", and a detail that says exactly what was
     missing. Never a silent pass. `reason` names the flavour of skip;
     `extra_detail` carries the flavour-specific numbers.
+
+    This is a genuinely can't-know outcome (unlike _machinery_error_result's
+    crash, which is a bug) — the underlying data simply cannot support a
+    verdict either way, so it reports verdict="uninformative" rather than
+    "fail".
     """
     detail = dict(extra_detail or {})
     detail.update(
@@ -570,6 +763,7 @@ def _g6_insufficient_data_result(
     return GateResult(
         name="G6",
         passed=False,
+        verdict="uninformative",
         criterion=_G6_CRITERION,
         current_value=f"SKIPPED ({reason}): {missing}",
         detail=detail,
@@ -592,8 +786,26 @@ def _g6_unreachable_threshold_result(
     ratio comes out 1.0, and the gate would report a PASS indistinguishable
     from a genuine fairness result. Instead: a loud skip naming the floor,
     the observed n, and the n the spec's §5 reachability table requires.
+
+    FIX E: observed_n<=0 used to crash here — _conformal_p_floor delegates
+    to validation.power.conformal_p_floor (FIX 3(a)), which raises
+    ValueError below n=1, where the OLD pre-delegation copy returned 1.0
+    (see TestConformalReachability.test_p_floor_rejects_non_positive_n's
+    history). That caller-audit gap was never closed for this function when
+    the helpers were delegated. This has no production call site today
+    (only a test exercises this helper directly), so the crash was latent,
+    not observed — but a degenerate n=0 is exactly the kind of input FIX 5
+    already treats as "unreachable" rather than fatal elsewhere in this
+    module (evaluate_g1_fpr's non-positive entity_baseline_counts handling),
+    so the same convention applies here: report the floor as undefined
+    instead of raising.
     """
-    floor = _conformal_p_floor(observed_n)
+    if observed_n > 0:
+        floor: float | None = _conformal_p_floor(observed_n)
+        floor_text = f"{floor:.3f}"
+    else:
+        floor = None
+        floor_text = "undefined (n<=0)"
     required_n = _min_n_for_threshold(threshold)
     detail = dict(extra_detail or {})
     detail.update(
@@ -605,7 +817,7 @@ def _g6_unreachable_threshold_result(
         }
     )
     return _g6_insufficient_data_result(
-        f"p_central floor 1/(n+1)={floor:.3f} at n={observed_n}, flag threshold "
+        f"p_central floor 1/(n+1)={floor_text} at n={observed_n}, flag threshold "
         f"{threshold:g} needs n>={required_n}",
         n_native_scored=n_native_scored,
         n_non_native_scored=n_non_native_scored,
@@ -1128,6 +1340,88 @@ def _score_corpus_for_g1_pooled(
     }
 
 
+def _g1_entity_baseline_counts(
+    texts_by_id: dict[str, list[str]], per_corpus_actions: dict[str, list[str]]
+) -> dict[str, int]:
+    """
+    Per-entity PER-FOLD LOO baseline count, for evaluate_g1_fpr's
+    `entity_baseline_counts` argument — drives its conformal-band
+    reachability check (validation/power.py): a clean pooled rate at an N
+    too small for the band to ever be crossed is arithmetic, not evidence
+    (see evaluate_g1_fpr's docstring).
+
+    FIX 1: this is len(texts) - 1, NOT len(texts) — a fold in
+    _score_corpus_for_g1 posts every text EXCEPT the held-out one, so the
+    conformal N behind a fold's typicality p-value is one less than the
+    entity's total document count. Do not "correct" this back to
+    len(texts): a 33-document entity's LOO folds see n=32, not n=33, and 32
+    is one short of what the default 0.03 band needs.
+
+    FIX C: extracted out of run_all() into this standalone, importable
+    function so the `- 1` conversion itself is unit-testable without
+    running the corpus-driven gate — the previous round's
+    TestG1LooOffByOne tests passed already-decremented literals (e.g.
+    `{"s1": 32}`) straight into evaluate_g1_fpr, so both tests passed
+    unchanged against the buggy inline `len(texts)` (no `- 1`) version too.
+
+    FIX 5: keyed off `per_corpus_actions` (the entities _score_corpus_for_g1
+    actually produced a fold for, i.e. already passed its own
+    `len(texts) < 5` skip) rather than the full `texts_by_id`, so an entity
+    that never contributed a fold doesn't inflate entities_total in
+    evaluate_g1_fpr's power block.
+    """
+    return {entity_id: len(texts_by_id[entity_id]) - 1 for entity_id in per_corpus_actions}
+
+
+def _g3_inputs_from_pa_report(pa_report: dict) -> tuple[float, float | None, int | None]:
+    """
+    Extract G3's three evaluate_g3_attribution() inputs from
+    validation/public_authors/run.py's run() report dict, and warn loudly
+    (stderr; never crash the battery) if the summary is PRESENT but missing
+    "n_scored_essays".
+
+    FIX 1: n_essays=None is indistinguishable, from
+    evaluate_g3_attribution's point of view, from "the corpus legitimately
+    produced no summary at all" — both silently revert G3 to its legacy
+    two-valued pass/fail rule (see that function's `if n_essays:` guard).
+    That silent revert is exactly the fail-open path this validation layer
+    exists to prevent: a renamed/dropped "n_scored_essays" key in run.py
+    (it is set in exactly one place, run.py's `n_scored_essays = len(results)`)
+    would make G3 report `verdict="pass"` on a sample size too small to
+    support one, with nothing printed anywhere to say why.
+
+    So the two "no n_essays" cases are handled differently here:
+      - "summary" absent entirely: the LEGITIMATE error path (run() found
+        fewer than 2 eligible authors and returns {"error": ..., ...} with
+        no "summary" key — see run()'s docstring). Nothing is wrong here;
+        stay silent, exactly as before this fix.
+      - "summary" present but "n_scored_essays" absent: a machinery bug —
+        the producer/consumer contract between run.py and this file broke.
+        Loud stderr warning naming the missing key; still doesn't crash the
+        battery (mirrors every other `_machinery_error_result`-style
+        convention in this file of degrading loudly rather than aborting).
+
+    Extracted to a standalone, importable function (same FIX C convention
+    as `_g1_entity_baseline_counts` above) so this branch is unit-testable
+    with synthetic report dicts, without running run_public_authors()'s own
+    live-TestClient scoring.
+    """
+    pa_summary = pa_report.get("summary", {})
+    if "summary" in pa_report and "n_scored_essays" not in pa_summary:
+        print(
+            "⚠ calibration_gate: public_authors summary is present but "
+            "missing 'n_scored_essays' — G3's informativeness check will "
+            "silently revert to legacy pass/fail behavior "
+            "(see evaluate_g3_attribution's `if n_essays:` guard)",
+            file=sys.stderr,
+        )
+    return (
+        pa_summary.get("top1_accuracy", 0.0),
+        pa_summary.get("top1_accuracy_raw_argmin"),
+        pa_summary.get("n_scored_essays"),
+    )
+
+
 def run_all() -> list[GateResult]:
     # Defensive reset, before anything else: ENV_LOCK (module import time,
     # above) already put us on ORIGINAL_DB=":memory:", so this is a no-op
@@ -1175,7 +1469,39 @@ def run_all() -> list[GateResult]:
         # _score_corpus_for_g1's docstring); only G5's shuffled-G1 leg
         # (run_g5) distinguishes it.
     ) = _score_corpus_for_g1(client, "g1", texts_by_id)
-    g1_result = evaluate_g1_fpr(pooled_actions, per_corpus_actions, typicality_ns=real_g1_typicality_ns)
+
+    # Per-entity PER-FOLD LOO count, keyed the same way as texts_by_id — see
+    # _g1_entity_baseline_counts's docstring for the `- 1` rationale (FIX 1)
+    # and why it's keyed off per_corpus_actions rather than texts_by_id
+    # (FIX 5). FIX C: extracted to a standalone function so this conversion
+    # is unit-tested directly (TestG1EntityBaselineCounts) rather than only
+    # via already-decremented literals passed to evaluate_g1_fpr.
+    entity_baseline_counts = _g1_entity_baseline_counts(texts_by_id, per_corpus_actions)
+
+    # BOTH reachability sources are supplied, deliberately. They answer the
+    # same question — can the conformal band fire at this N? — from different
+    # evidence, and evaluate_g1_fpr's downgrade ORs them, so the more
+    # pessimistic one wins:
+    #   typicality_ns          observed per-fold typicality_n straight out of
+    #                          each scoring payload, aggregated MIN (binding
+    #                          weakest fold). The accurate source. Until this
+    #                          merge nothing passed it in production, so it
+    #                          annotated current_value and never reached the
+    #                          verdict.
+    #   entity_baseline_counts len(texts)-1 reconstructed per entity,
+    #                          aggregated any-reachable. Less accurate, but it
+    #                          is the ONLY signal when no fold reports a
+    #                          typicality_n at all — the actions came from the
+    #                          deviation path, so _reachability_block reports
+    #                          observed=False and typicality_unreachable is
+    #                          False by convention. Dropping it would leave
+    #                          that case with no reachability check.
+    g1_result = evaluate_g1_fpr(
+        pooled_actions,
+        per_corpus_actions,
+        typicality_ns=real_g1_typicality_ns,
+        entity_baseline_counts=entity_baseline_counts,
+    )
     results.append(g1_result)
 
     # G2: bland impostor via q = min(p_far, p_central). A crash here (e.g.
@@ -1214,12 +1540,16 @@ def run_all() -> list[GateResult]:
     from validation.public_authors.run import run as run_public_authors
 
     pa_report = run_public_authors()
-    pa_summary = pa_report.get("summary", {})
-    top1_accuracy = pa_summary.get("top1_accuracy", 0.0)
+    top1_accuracy, top1_accuracy_raw_argmin, n_essays = _g3_inputs_from_pa_report(pa_report)
     results.append(
         evaluate_g3_attribution(
             top1_accuracy,
-            top1_accuracy_raw_argmin=pa_summary.get("top1_accuracy_raw_argmin"),
+            top1_accuracy_raw_argmin=top1_accuracy_raw_argmin,
+            # "n_scored_essays" is the held-out essay count run.py actually
+            # scored. It drives G3's informativeness check: at n=22 the Wilson
+            # interval around a 0.727 accuracy straddles the 0.7 bar, so the
+            # gate reports UNINFORMATIVE rather than banking the pass.
+            n_essays=n_essays,
         )
     )
 
@@ -2733,9 +3063,40 @@ def run_g5(
 def render(results: list[GateResult]) -> str:
     lines = ["╭─ Calibration gates (G1-G6) ─────────────────────────────────╮"]
     for r in results:
-        status = "PASS" if r.passed else "FAIL"
+        status = r.verdict.upper()
         lines.append(f"│ {r.name} [{status}] {r.criterion}")
         lines.append(f"│      current: {r.current_value}")
+        power = r.detail.get("power")
+        if r.verdict == "uninformative" and power:
+            if "wilson_ci" in power:
+                lo, hi = power["wilson_ci"]
+                lines.append(
+                    f"│      n={power['n_essays']} → 95% CI [{lo:.3f}, {hi:.3f}] "
+                    f"straddles the {power['bar']} bar; this corpus cannot "
+                    f"demonstrate a pass."
+                )
+            elif "max_entity_n" in power:
+                # FIX 2: rule_of_three_fpr_upper is now guaranteed non-None
+                # on this path — reaching "uninformative" via the
+                # entity_baseline_counts mechanism requires flagged == 0
+                # (see evaluate_g1_fpr), and rule_of_three_upper(n) is only
+                # ever None when flagged != 0. The old None -> "n/a" guard
+                # is therefore dead for an unreachable state; removed
+                # rather than kept around it.
+                upper = power["rule_of_three_fpr_upper"]
+                # min_conformal_p_at_max_n CAN still be None here (FIX 5: a
+                # degenerate entity_baseline_counts with every count <= 0),
+                # so that one guard stays — it is not provably unreachable
+                # the way rule_of_three_fpr_upper is.
+                min_p = power["min_conformal_p_at_max_n"]
+                min_p_text = f"{min_p:.3f}" if min_p is not None else "n/a"
+                lines.append(
+                    f"│      max entity N={power['max_entity_n']} → min conformal "
+                    f"p={min_p_text} > band "
+                    f"{power['band_threshold']}; needs N >= {power['min_docs_for_band']}. "
+                    f"Observed 0-rate bounds FPR only above {upper:.1%} "
+                    "(rule of three)."
+                )
     lines.append("╰────────────────────────────────────────────────────────────╯")
     return "\n".join(lines)
 
@@ -2743,13 +3104,111 @@ def render(results: list[GateResult]) -> str:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", help="write JSON report to this path")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="treat uninformative gates as failures (use before quoting results)",
+    )
     args = parser.parse_args(argv)
 
     results = run_all()
     print(render(results))
     if args.out:
-        Path(args.out).write_text(json.dumps([asdict(r) for r in results], indent=2))
-    return 0 if all(r.passed for r in results) else 1
+        from original.quantum.typicality import (
+            MONITOR_FAR_THRESHOLD,
+            NO_ACTION_CENTRAL_THRESHOLD,
+            NO_ACTION_FAR_THRESHOLD,
+            SCHEDULE_FAR_THRESHOLD,
+        )
+        from validation.experiment import build_spec, spec_to_dict, summarize_author_docs
+
+        # Reload the same three corpora run_all() scored — cheap (text-file
+        # reads only) and keeps run_all()'s own return type (list[GateResult])
+        # untouched, so the monkeypatched-run_all tests in
+        # tests/test_calibration_gate.py (which replace run_all with a bare
+        # lambda returning a plain list) don't have to change shape.
+        seminary_texts = _load_seminary_texts()
+        public_authors_texts = _load_public_authors_baseline_texts()
+        plato_texts = _load_plato_texts_by_dialogue()
+
+        # FIX 2: "seminary" / "public_authors" / "plato" below are the three
+        # LOADED corpora (43 authors / 271 documents) — the correct
+        # denominator for G4 (early/middle/late grouping over the full Plato
+        # set) and G6 (native_english fairness slice), which both consume
+        # these texts as-is with no per-entity filter. G1 alone additionally
+        # applies its own >= 5-texts-per-entity LOO eligibility filter
+        # (_score_corpus_for_g1 skips anything shorter) and therefore scores
+        # a narrower pool — 24 entities / 216 folds. Reporting only the
+        # loaded totals would let a reader attribute G1's flagged rate to
+        # all 271 documents across 43 authors, when it was actually measured
+        # over the 216 held-out folds behind "g1_scored" below — exactly
+        # the raw-vs-measured conflation this validation layer exists to
+        # prevent (see validation/public_authors/run.py's identical
+        # eligible-narrowing precedent, ~line 229: "a run narrowed by --only
+        # or by corpus policy must report what it measured, not what the raw
+        # manifest contains"). Kept ALONGSIDE the loaded totals, rather than
+        # narrowing them in place, because those totals are also the
+        # genuinely correct denominator for G4/G6 above — narrowing this
+        # dict to G1's subset would make it wrong for the other two gates.
+        g1_scored_texts_by_id = {
+            entity_id: texts
+            for entity_id, texts in {**seminary_texts, **public_authors_texts, **plato_texts}.items()
+            if len(texts) >= 5
+        }
+
+        spec = build_spec(
+            task="calibration_suite",
+            corpora={
+                "seminary": summarize_author_docs(seminary_texts, "student_pilot"),
+                "public_authors": summarize_author_docs(public_authors_texts, "real_historical"),
+                "plato": summarize_author_docs(plato_texts, "real_historical"),
+                "g1_scored": summarize_author_docs(
+                    g1_scored_texts_by_id, "g1_loo_eligible_subset"
+                ),
+            },
+            windowing={"source": "corpus documents as-is"},
+            aggregation={"tier_rule": "median"},
+            thresholds={
+                "g1_flagged_rate": 0.05,
+                "g3_top1": 0.7,
+                "g6_ratio": 2.0,
+                "no_action_far_threshold": NO_ACTION_FAR_THRESHOLD,
+                "no_action_central_threshold": NO_ACTION_CENTRAL_THRESHOLD,
+                "monitor_far_threshold": MONITOR_FAR_THRESHOLD,
+                "schedule_far_threshold": SCHEDULE_FAR_THRESHOLD,
+            },
+        )
+        Path(args.out).write_text(
+            json.dumps(
+                {
+                    "experiment": spec_to_dict(spec),
+                    "gates": [asdict(r) for r in results],
+                },
+                indent=2,
+            )
+        )
+    failing = [r for r in results if r.verdict == "fail"]
+    uninformative = [r for r in results if r.verdict == "uninformative"]
+    if uninformative:
+        # FIX 4: the lenient default (an uninformative gate does not fail
+        # unless --strict) is a deliberate plan-level policy — it stays the
+        # default here — but a green exit code must never be quotable in
+        # silence. Print this in BOTH strict and non-strict runs so the
+        # trailing line always names what a bare exit code hides.
+        #
+        # FIX D: the tail sentence must be mode-conditional. Under --strict
+        # these gates WERE folded into `failing` (below), so "not counted as
+        # failure; re-run with --strict" is false and self-referential in
+        # that mode — say what actually happened in each mode instead.
+        names = ", ".join(r.name for r in uninformative)
+        if args.strict:
+            tail = "counted as a failure because --strict is set."
+        else:
+            tail = "not counted as failure; re-run with --strict to fail on these."
+        print(f"{len(uninformative)} gate(s) UNINFORMATIVE ({names}) — {tail}")
+    if args.strict:
+        failing = failing + uninformative
+    return 1 if failing else 0
 
 
 if __name__ == "__main__":

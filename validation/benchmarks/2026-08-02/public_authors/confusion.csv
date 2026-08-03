@@ -1,0 +1,12 @@
+true \ predicted,augustine,boethius,chesterton,douglass,edwards,emerson,james,kempis,mill,newman,thoreau
+augustine,2,0,0,0,1,0,0,0,0,0,0
+boethius,0,1,1,0,0,0,0,0,0,0,0
+chesterton,0,0,2,0,0,0,0,0,0,0,0
+douglass,0,0,0,2,0,0,0,0,0,0,1
+edwards,0,0,0,0,3,0,0,0,0,0,0
+emerson,0,0,1,0,0,1,0,0,0,0,0
+james,0,0,0,0,0,0,4,0,0,0,0
+kempis,0,0,0,0,0,0,0,2,0,0,0
+mill,0,0,0,0,0,0,0,0,0,2,0
+newman,0,0,0,0,0,0,0,0,0,2,0
+thoreau,0,0,1,0,0,0,0,0,0,0,1

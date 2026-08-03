@@ -8,14 +8,19 @@ only tests the gate LOGIC on small synthetic inputs.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
+from validation import calibration_gate
 from validation.calibration_gate import (
     GateResult,
     _compute_g2_q_values,
     _compute_g4_group_means,
     _compute_g6_fairness_data,
     _conformal_p_floor,
+    _g1_entity_baseline_counts,
+    _g3_inputs_from_pa_report,
     _g5_machinery_error_result,
     _g6_insufficient_data_result,
     _g6_short_group_message,
@@ -32,11 +37,14 @@ from validation.calibration_gate import (
     evaluate_g1_fpr,
     evaluate_g2_bland_impostor,
     evaluate_g2b_paraphrase_resistant,
+    evaluate_g3_attribution,
     evaluate_g4_career_drift_monotone,
     evaluate_g5_permutation_null,
     evaluate_g6_fairness,
+    render,
     run_g5,
 )
+from validation.power import conformal_p_floor
 
 
 class TestG1Fpr:
@@ -69,7 +77,20 @@ class TestConformalReachability:
     def test_p_floor_is_one_over_n_plus_one(self):
         assert _conformal_p_floor(4) == pytest.approx(0.2)
         assert _conformal_p_floor(49) == pytest.approx(0.02)
-        assert _conformal_p_floor(0) == pytest.approx(1.0)
+
+    def test_p_floor_rejects_non_positive_n(self):
+        """FIX 3(a): _conformal_p_floor now delegates to
+        validation.power.conformal_p_floor instead of re-implementing the
+        same arithmetic. This REPLACES the old assertion that
+        `_conformal_p_floor(0) == 1.0` — that degenerate return value was
+        exactly the drift between the two copies the review flagged
+        (power.conformal_p_floor(0) has always raised ValueError). No
+        caller in this module relied on the old degenerate value (checked:
+        _reachability_block only ever calls this with n>=1), so the
+        wrapper now lets power's ValueError surface instead of preserving a
+        second, disagreeing definition of "degenerate"."""
+        with pytest.raises(ValueError):
+            _conformal_p_floor(0)
 
     def test_threshold_unreachable_below_required_n(self):
         assert _threshold_reachable(4, 0.02) is False
@@ -106,16 +127,27 @@ class TestConformalReachability:
 
 
 class TestG1ReachabilityAnnotation:
-    """G1's flagged rate is genuinely defined, so its verdict is unchanged —
-    but a 0.0% rate produced at an N where no flag is structurally possible
-    must never read as demonstrated discrimination."""
+    """G1's flagged rate is genuinely defined, so a real flagged rate is
+    never suppressed — but a 0.0% rate produced at an N where no flag is
+    structurally possible must never read as demonstrated discrimination."""
 
-    def test_unreachable_threshold_annotates_current_value_without_changing_verdict(self):
+    def test_unreachable_threshold_downgrades_a_would_be_pass_to_uninformative(self):
+        """UPDATED for FIX 3(b): this test used to assert `result.passed is
+        True` here — i.e. an unreachable typicality_ns annotated
+        current_value with "UNINFORMATIVE" while the verdict stayed "pass".
+        That is precisely the self-contradictory `G1 [PASS] ... current:
+        0.0% (UNINFORMATIVE: ...)` render the review flagged: two
+        mechanisms estimating the same reachability question must not be
+        allowed to disagree in the rendered verdict. typicality_ns is the
+        MORE accurate signal (observed per-fold N), so a would-be pass with
+        flagged == 0 that it finds unreachable is now downgraded exactly
+        like the entity_baseline_counts mechanism downgrades one."""
         actions = ["no_action"] * 100
         result = evaluate_g1_fpr(
             actions, per_corpus={"synthetic": actions}, typicality_ns=[12] * 100
         )
-        assert result.passed is True  # verdict unchanged
+        assert result.verdict == "uninformative"
+        assert result.passed is False
         assert "UNINFORMATIVE" in result.current_value
         assert "n<=12" in result.current_value
         assert result.detail["reachability"]["min_typicality_n"] == 12
@@ -530,21 +562,29 @@ class TestG6Fairness:
     def test_exactly_one_zero_rate_is_an_infinite_disparity_not_a_pass(self):
         """One group never flagged and the other flagged 5% of the time is
         the most fairness-relevant small-sample case there is. It must fail,
-        never collapse to ratio 1.0."""
+        never collapse to ratio 1.0. This IS real signal (Task 6): verdict
+        stays "fail", not "uninformative" — unlike the both-zero case, this
+        is genuine evidence of disparity, not an absence of evidence."""
         result = evaluate_g6_fairness(native_fpr=0.0, non_native_fpr=0.05)
         assert result.passed is False
+        assert result.verdict == "fail"
         assert result.detail["ratio_status"] == "one_group_zero"
         assert result.detail["ratio"] == float("inf")
         assert "infinite" in result.current_value.lower()
         # Direction-symmetric.
         mirrored = evaluate_g6_fairness(native_fpr=0.05, non_native_fpr=0.0)
         assert mirrored.passed is False
+        assert mirrored.verdict == "fail"
 
     def test_both_rates_zero_is_undefined_not_a_pass(self):
         """Zero flags in both groups demonstrates no fairness — it is an
-        absence of evidence, and must not render as a green gate."""
+        absence of evidence, and must not render as a green gate. This is a
+        genuinely can't-know outcome (Task 6): verdict is "uninformative",
+        not "fail" — a "fail" would claim disparity evidence that isn't
+        there."""
         result = evaluate_g6_fairness(native_fpr=0.0, non_native_fpr=0.0)
         assert result.passed is False
+        assert result.verdict == "uninformative"
         assert result.detail["ratio_status"] == "undefined_both_zero"
         assert result.detail["ratio"] is None
         assert result.current_value.startswith("UNDEFINED")
@@ -592,6 +632,7 @@ class TestG6Fairness:
             n_non_native_scored=10,
         )
         assert result.passed is False
+        assert result.verdict == "uninformative"
         assert result.current_value == (
             "SKIPPED (threshold unreachable): p_central floor 1/(n+1)=0.200 at "
             "n=4, flag threshold 0.02 needs n>=49"
@@ -602,6 +643,28 @@ class TestG6Fairness:
         assert result.detail["required_n"] == 49
         assert result.detail["n_native_scored"] == 15
         assert result.detail["n_non_native_scored"] == 10
+
+    def test_zero_observed_n_does_not_crash(self):
+        """FIX E: _g6_unreachable_threshold_result calls _conformal_p_floor,
+        which now delegates to validation.power.conformal_p_floor (FIX 3(a))
+        and raises ValueError at n<=0 — the pre-delegation copy instead
+        returned 1.0, so this caller was never re-audited when the helpers
+        were delegated and would crash at observed_n=0. There is no
+        production call site for observed_n<=0 today (only this test
+        exercises the helper at all), so this closes a latent crash, not an
+        observed failure."""
+        result = _g6_unreachable_threshold_result(
+            observed_n=0,
+            threshold=0.02,
+            n_native_scored=0,
+            n_non_native_scored=0,
+        )
+        assert result.passed is False
+        assert result.verdict == "uninformative"
+        assert result.detail["p_floor"] is None
+        assert result.detail["min_typicality_n"] == 0
+        assert "n=0" in result.current_value
+        assert "undefined" in result.current_value
 
     def test_short_group_message_names_both_groups_when_both_are_short(self):
         both = _g6_short_group_message(2, 1, 5)
@@ -621,6 +684,7 @@ class TestG6Fairness:
         )
         assert result.name == "G6"
         assert result.passed is False
+        assert result.verdict == "uninformative"
         assert result.current_value.startswith("SKIPPED (insufficient data):")
         assert result.detail["n_non_native_scored"] == 0
         assert "0 scored authentic entries" in result.detail["missing"]
@@ -793,6 +857,553 @@ class TestG5MachineryErrors:
             run_g5(real_g1_deviations=[0.4] * 89, real_g1_n_errors=11)
 
 
+class TestGateVerdicts:
+    def test_verdict_defaults_from_passed(self):
+        r = GateResult(name="X", passed=True, criterion="c", current_value="v")
+        assert r.verdict == "pass"
+        r = GateResult(name="X", passed=False, criterion="c", current_value="v")
+        assert r.verdict == "fail"
+
+    def test_explicit_uninformative_verdict_sticks(self):
+        r = GateResult(
+            name="X", passed=False, criterion="c", current_value="v",
+            verdict="uninformative",
+        )
+        assert r.verdict == "uninformative"
+        assert r.passed is False
+
+
+class TestG1Informativeness:
+    def test_unreachable_band_turns_clean_pass_into_uninformative(self):
+        actions = ["no_action"] * 216
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"seminary": actions},
+            entity_baseline_counts={"s1": 12, "s2": 8},
+            band_threshold=0.03,
+        )
+        assert result.verdict == "uninformative"
+        assert result.passed is False
+        power = result.detail["power"]
+        assert power["min_conformal_p_at_max_n"] == conformal_p_floor(12)
+        assert power["entities_reachable"] == 0
+        assert power["rule_of_three_fpr_upper"] == 3 / 216
+
+    def test_reachable_entities_keep_a_clean_pass_informative(self):
+        actions = ["no_action"] * 216
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"seminary": actions},
+            entity_baseline_counts={"s1": 40},
+            band_threshold=0.03,
+        )
+        assert result.verdict == "pass"
+
+    def test_a_real_failure_is_never_downgraded_to_uninformative(self):
+        actions = ["monitor"] * 30 + ["no_action"] * 70
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"seminary": actions},
+            entity_baseline_counts={"s1": 12},
+        )
+        assert result.verdict == "fail"
+
+    def test_omitting_counts_preserves_legacy_behavior(self):
+        actions = ["no_action"] * 95 + ["monitor"] * 5
+        result = evaluate_g1_fpr(actions, per_corpus={"synthetic": actions})
+        assert result.verdict == "pass"
+        assert result.passed is True
+
+
+class TestG3Informativeness:
+    """
+    G1's arithmetic floor has a sampling-uncertainty twin. At n=22 held-out
+    essays a G3 FAIL is real (CI upper 0.653 < 0.7) but a G3 PASS is not
+    evidence (0.818 → CI [0.615, 0.927], straddling the bar).
+    """
+
+    def test_measured_failure_stays_a_real_failure(self):
+        result = evaluate_g3_attribution(0.455, n_essays=22)
+        assert result.verdict == "fail"
+        assert result.detail["power"]["bar_decidable"] == "below"
+
+    def test_pass_above_the_bar_is_uninformative_at_n22(self):
+        result = evaluate_g3_attribution(18 / 22, n_essays=22)
+        assert result.verdict == "uninformative"
+        assert result.passed is False
+        ci = result.detail["power"]["wilson_ci"]
+        assert ci[0] < 0.7 < ci[1]
+
+    def test_pass_is_informative_when_n_supports_it(self):
+        result = evaluate_g3_attribution(230 / 306, n_essays=306)
+        assert result.verdict == "pass"
+
+    def test_omitting_n_preserves_legacy_behavior(self):
+        assert evaluate_g3_attribution(0.9).verdict == "pass"
+        assert evaluate_g3_attribution(0.455).verdict == "fail"
+
+    def test_the_real_measured_number_is_uninformative_but_n_essays_none_would_pass(self):
+        """FIX 1's exact motivating scenario, pinned on the real measured
+        number: 0.7273 (validation/benchmarks/2026-07-31/public_authors/
+        report.json, n=22) is UNINFORMATIVE with the real n_essays wired
+        through, but would silently report a bare "pass" if n_essays were
+        None — precisely what happens if run_all() ever fed None through
+        (see TestG3InputsFromPaReport below for the producer/consumer
+        contract that stops that from happening silently)."""
+        with_n = evaluate_g3_attribution(0.7273, n_essays=22)
+        without_n = evaluate_g3_attribution(0.7273, n_essays=None)
+        assert with_n.verdict == "uninformative"
+        assert without_n.verdict == "pass"
+        assert without_n.passed is True
+
+
+class TestG3InputsFromPaReport:
+    """
+    FIX 1: run_all() used to read `pa_summary.get("n_scored_essays")`
+    inline — a bare `.get()` with a `None` default that can't tell "the
+    corpus legitimately produced no summary" (run()'s documented < 2
+    -eligible-authors error path) apart from "the summary exists but this
+    one key is missing" (a machinery bug: run.py's producer contract
+    broke). Both used to silently feed n_essays=None into
+    evaluate_g3_attribution, reverting G3 to legacy two-valued pass/fail —
+    see test_the_real_measured_number_is_uninformative_but_n_essays_none_
+    would_pass above for why that's dangerous on the real number.
+
+    _g3_inputs_from_pa_report() is the extracted, unit-testable version of
+    that branch (same convention as _g1_entity_baseline_counts): these
+    tests exercise it directly against synthetic pa_report dicts, without
+    running validation.public_authors.run.run()'s live-TestClient scoring.
+    grep -rn n_scored_essays tests/ returned zero hits before this file —
+    this is the first coverage of that key anywhere in the suite.
+    """
+
+    def test_normal_summary_extracts_all_three_fields_silently(self, capsys):
+        pa_report = {
+            "summary": {
+                "top1_accuracy": 0.7273,
+                "top1_accuracy_raw_argmin": 0.6818,
+                "n_scored_essays": 22,
+            }
+        }
+        top1, top1_raw, n_essays = _g3_inputs_from_pa_report(pa_report)
+        assert (top1, top1_raw, n_essays) == (0.7273, 0.6818, 22)
+        assert capsys.readouterr().err == ""
+
+    def test_no_summary_at_all_is_the_silent_legitimate_error_path(self, capsys):
+        """run() returns {"error": ..., "skipped_authors": [...]} with no
+        "summary" key when fewer than 2 authors are eligible — nothing is
+        broken here, so no warning should print."""
+        pa_report = {"error": "Need at least 2 eligible authors", "skipped_authors": []}
+        top1, top1_raw, n_essays = _g3_inputs_from_pa_report(pa_report)
+        assert (top1, top1_raw, n_essays) == (0.0, None, None)
+        assert capsys.readouterr().err == ""
+
+    def test_summary_present_but_missing_the_key_warns_loudly(self, capsys):
+        """The machinery-bug case FIX 1 exists to catch: a renamed or
+        dropped "n_scored_essays" key in run.py's summary. Must warn on
+        stderr, name the missing key, and NOT crash."""
+        pa_report = {"summary": {"top1_accuracy": 0.7273}}
+        top1, top1_raw, n_essays = _g3_inputs_from_pa_report(pa_report)
+        assert (top1, top1_raw, n_essays) == (0.7273, None, None)
+        err = capsys.readouterr().err
+        assert "n_scored_essays" in err
+        assert "public_authors summary" in err
+
+
+class TestG1LooOffByOne:
+    """FIX 1: the conformal N for a G1 fold is len(texts) - 1 (the per-fold
+    LOO baseline size), NOT len(texts) — _score_corpus_for_g1 posts every
+    text EXCEPT the held-out one. A 33-document entity's folds therefore see
+    n=32, one short of what the default 0.03 band needs (n>=33)."""
+
+    def test_33_documents_loo_n_32_is_not_reachable_at_the_003_band(self):
+        actions = ["no_action"] * 216
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"seminary": actions},
+            entity_baseline_counts={"s1": 32},  # 33 docs - 1
+            band_threshold=0.03,
+        )
+        assert result.verdict == "uninformative"
+        assert result.detail["power"]["entities_reachable"] == 0
+
+    def test_34_documents_loo_n_33_is_reachable_at_the_003_band(self):
+        actions = ["no_action"] * 216
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"seminary": actions},
+            entity_baseline_counts={"s1": 33},  # 34 docs - 1
+            band_threshold=0.03,
+        )
+        assert result.verdict == "pass"
+        assert result.detail["power"]["entities_reachable"] == 1
+
+
+class TestG1EntityBaselineCounts:
+    """FIX C: the previous round's run_all() change to
+    `entity_baseline_counts = len(texts) - 1` (FIX 1) was never actually
+    exercised by a test — TestG1LooOffByOne above passes already-decremented
+    literals (`{"s1": 32}` / `{"s1": 33}`) straight into evaluate_g1_fpr, so
+    both of those tests pass identically against a buggy `len(texts)`
+    (no `- 1`) version too. This targets the extracted
+    `_g1_entity_baseline_counts` helper itself, which performs the `- 1`
+    conversion run_all() now delegates to."""
+
+    def test_subtracts_one_from_each_entitys_document_count(self):
+        texts_by_id = {"s1": ["doc"] * 33, "s2": ["doc"] * 12}
+        per_corpus_actions = {"s1": ["no_action"] * 33, "s2": ["no_action"] * 12}
+        counts = _g1_entity_baseline_counts(texts_by_id, per_corpus_actions)
+        assert counts == {"s1": 32, "s2": 11}
+
+    def test_omits_entities_that_never_produced_a_fold(self):
+        """An entity present in texts_by_id but absent from
+        per_corpus_actions (skipped by _score_corpus_for_g1's own
+        `len(texts) < 5` guard) must not appear in the result at all —
+        FIX 5's rationale, now covered directly on the extracted helper."""
+        texts_by_id = {"s1": ["doc"] * 33, "too_short": ["doc"] * 2}
+        per_corpus_actions = {"s1": ["no_action"] * 33}
+        counts = _g1_entity_baseline_counts(texts_by_id, per_corpus_actions)
+        assert counts == {"s1": 32}
+        assert "too_short" not in counts
+
+    def test_empty_per_corpus_actions_yields_empty_counts(self):
+        counts = _g1_entity_baseline_counts({"s1": ["doc"] * 33}, {})
+        assert counts == {}
+
+
+class TestG1FlaggedNeverDowngraded:
+    """FIX 2: a real flagged rate (flagged > 0) is evidence, not arithmetic
+    — an unreachable band must never suppress it, and current_value must
+    never grow a zero-rate sentence when the rate isn't zero."""
+
+    def test_flagged_greater_than_zero_stays_pass_and_prints_no_zero_rate_sentence(self):
+        # 4 monitor + 212 no_action = 1.9%, a would-be pass, but every
+        # entity's baseline count leaves the 0.03 band unreachable.
+        actions = ["monitor"] * 4 + ["no_action"] * 212
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"seminary": actions},
+            entity_baseline_counts={"s1": 12},
+            band_threshold=0.03,
+        )
+        assert result.verdict == "pass"
+        assert result.passed is True
+        assert "UNINFORMATIVE" not in result.current_value
+        rendered = render([result])
+        assert "Observed 0-rate" not in rendered
+        assert "n/a" not in rendered
+
+    def test_render_prints_the_rule_of_three_bound_when_flagged_is_zero(self):
+        """Sanity companion: when flagged really is zero, the sentence DOES
+        print, and the FIX 2 None-guard removal doesn't crash — this is
+        never "n/a" because flagged == 0 guarantees rule_of_three_upper(n)
+        is computed."""
+        actions = ["no_action"] * 216
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"seminary": actions},
+            entity_baseline_counts={"s1": 12},
+            band_threshold=0.03,
+        )
+        rendered = render([result])
+        assert "Observed 0-rate bounds FPR only above" in rendered
+        assert "n/a" not in rendered
+
+
+class TestG1DisagreeingMechanismsInvariant:
+    """FIX 3(b): entity_baseline_counts (any-reachable, i.e. MAX over
+    entities) and typicality_ns (binding, i.e. MIN over folds) estimate the
+    same reachability question from different data and CAN disagree. A
+    "pass" verdict must never coexist with an "UNINFORMATIVE" annotation in
+    current_value regardless of which mechanism is the one objecting."""
+
+    def test_entity_counts_reachable_but_typicality_ns_unreachable_stays_uninformative(self):
+        actions = ["no_action"] * 100
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"synthetic": actions},
+            typicality_ns=[12] * 100,  # worst fold unreachable
+            entity_baseline_counts={"s1": 40},  # would be reachable alone
+            band_threshold=0.03,
+        )
+        assert result.verdict == "uninformative"
+        assert result.passed is False
+        assert "UNINFORMATIVE" in result.current_value
+
+    def test_pass_verdict_never_carries_an_uninformative_annotation(self):
+        """Property check across nflag x typicality_ns x
+        entity_baseline_counts combinations: whenever the verdict comes back
+        "pass", current_value must be clean.
+
+        REPLACES a vacuous predecessor: the old version used
+        `["no_action"] * 100` (flagged == 0) in all four scenarios, so no
+        scenario could ever produce an annotation in the first place — the
+        `if result.verdict == "pass": assert ...` body was unreachable-or-
+        trivial and passed identically against the pre-fix code (the exact
+        defect class this module exists to catch). This version sweeps
+        nflag in {0, 1, 4} so the flagged > 0 path — where the FIX-A defect
+        actually lived (a nonzero flagged rate under an unreachable
+        typicality band still rendered `G1 [PASS] ... (UNINFORMATIVE:
+        ...)`) — is genuinely exercised. Confirmed (see task report) that
+        this test fails against the pre-fix code and passes against it."""
+        n = 100
+        typicality_ns_options = [None, [3] * n, [60] * n]  # unreachable / reachable
+        entity_baseline_counts_options: list[dict[str, int] | None] = [
+            None,
+            {"s": 5},  # unreachable at the 0.03 default band
+            {"s": 40},  # reachable at the 0.03 default band
+        ]
+        for nflag in (0, 1, 4):
+            actions = ["monitor"] * nflag + ["no_action"] * (n - nflag)
+            for typicality_ns in typicality_ns_options:
+                for entity_baseline_counts in entity_baseline_counts_options:
+                    result = evaluate_g1_fpr(
+                        actions,
+                        per_corpus={"synthetic": actions},
+                        typicality_ns=typicality_ns,
+                        entity_baseline_counts=entity_baseline_counts,
+                        band_threshold=0.03,
+                    )
+                    if result.verdict == "pass":
+                        assert "UNINFORMATIVE" not in result.current_value, (
+                            f"nflag={nflag} typicality_ns={typicality_ns} "
+                            f"entity_baseline_counts={entity_baseline_counts} "
+                            f"current_value={result.current_value!r}"
+                        )
+
+
+class TestG1DegenerateEntityCounts:
+    """FIX 5: a non-positive per-entity baseline count must never crash the
+    gate — band_reachable/conformal_p_floor are undefined below n=1 and
+    raise ValueError, so a degenerate count is treated as unreachable
+    directly instead."""
+
+    def test_zero_count_entity_does_not_crash_and_is_unreachable(self):
+        actions = ["no_action"] * 100
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"synthetic": actions},
+            entity_baseline_counts={"s1": 0, "s2": 40},
+            band_threshold=0.03,
+        )
+        # s2 (40) is reachable, so the pass survives — but the zero-count
+        # entity must not have crashed the evaluation to get here.
+        assert result.verdict == "pass"
+        assert result.detail["power"]["entities_total"] == 2
+        assert result.detail["power"]["entities_reachable"] == 1
+
+    def test_all_non_positive_counts_do_not_crash_render(self):
+        actions = ["no_action"] * 100
+        result = evaluate_g1_fpr(
+            actions,
+            per_corpus={"synthetic": actions},
+            entity_baseline_counts={"s1": 0, "s2": -1},
+            band_threshold=0.03,
+        )
+        assert result.verdict == "uninformative"
+        assert result.detail["power"]["max_entity_n"] == 0
+        assert result.detail["power"]["min_conformal_p_at_max_n"] is None
+        rendered = render([result])  # must not raise
+        assert "n/a" in rendered
+
+
+class TestGateResultConsistencyValidation:
+    """FIX 6: passed and verdict must always agree — closes the drift class
+    that let `passed=False, verdict="pass"` and `passed=True,
+    verdict="fail"` both through (only the uninformative/passed=True
+    combination was rejected before)."""
+
+    def test_passed_false_with_pass_verdict_is_rejected(self):
+        with pytest.raises(ValueError):
+            GateResult(
+                name="X", passed=False, criterion="c", current_value="v", verdict="pass"
+            )
+
+    def test_passed_true_with_fail_verdict_is_rejected(self):
+        with pytest.raises(ValueError):
+            GateResult(
+                name="X", passed=True, criterion="c", current_value="v", verdict="fail"
+            )
+
+    def test_passed_true_with_uninformative_verdict_is_still_rejected(self):
+        """Regression: the narrower pre-existing check this replaces must
+        still catch its original case."""
+        with pytest.raises(ValueError):
+            GateResult(
+                name="X",
+                passed=True,
+                criterion="c",
+                current_value="v",
+                verdict="uninformative",
+            )
+
+
+class TestMainExitCodes:
+    """main()'s exit-code contract (FIX 4): a fail gate always exits 1; an
+    uninformative gate exits 0 by default and 1 with --strict (a deliberate
+    lenient default); all-pass exits 0 either way. render()/main() were
+    previously untested, which is how FIX 2 and FIX 4's bugs shipped."""
+
+    @staticmethod
+    def _pass(name="G_ok"):
+        return GateResult(name=name, passed=True, criterion="c", current_value="v")
+
+    @staticmethod
+    def _fail(name="G_fail"):
+        return GateResult(name=name, passed=False, criterion="c", current_value="v")
+
+    @staticmethod
+    def _uninformative(name="G_uninf"):
+        return GateResult(
+            name=name,
+            passed=False,
+            criterion="c",
+            current_value="v",
+            verdict="uninformative",
+        )
+
+    def test_fail_gate_exits_1_in_both_modes(self, monkeypatch):
+        monkeypatch.setattr(
+            calibration_gate, "run_all", lambda: [self._pass(), self._fail()]
+        )
+        assert calibration_gate.main([]) == 1
+        assert calibration_gate.main(["--strict"]) == 1
+
+    def test_uninformative_gate_exits_0_by_default_and_1_with_strict(self, monkeypatch):
+        monkeypatch.setattr(
+            calibration_gate, "run_all", lambda: [self._pass(), self._uninformative()]
+        )
+        assert calibration_gate.main([]) == 0
+        assert calibration_gate.main(["--strict"]) == 1
+
+    def test_all_pass_exits_0_in_both_modes(self, monkeypatch):
+        monkeypatch.setattr(
+            calibration_gate,
+            "run_all",
+            lambda: [self._pass("G1"), self._pass("G2")],
+        )
+        assert calibration_gate.main([]) == 0
+        assert calibration_gate.main(["--strict"]) == 0
+
+    def test_uninformative_summary_line_names_the_right_gates(self, monkeypatch, capsys):
+        monkeypatch.setattr(
+            calibration_gate,
+            "run_all",
+            lambda: [
+                self._pass("G3"),
+                self._uninformative("G1"),
+                self._uninformative("G6"),
+            ],
+        )
+        calibration_gate.main([])
+        out = capsys.readouterr().out
+        assert "2 gate(s) UNINFORMATIVE (G1, G6)" in out
+        assert "re-run with --strict" in out
+
+    def test_uninformative_summary_line_prints_in_strict_mode_too(self, monkeypatch, capsys):
+        """FIX 4: the summary must never be silent in EITHER mode — a
+        --strict run that fails for other reasons must still name which
+        gates were uninformative.
+
+        FIX D: under --strict these gates WERE folded into `failing`, so
+        the non-strict tail ("not counted as failure; re-run with
+        --strict...") is false and self-referential when printed here too.
+        Assert the strict tail says what actually happened instead, and
+        that the non-strict wording is absent."""
+        monkeypatch.setattr(
+            calibration_gate, "run_all", lambda: [self._uninformative("G6")]
+        )
+        calibration_gate.main(["--strict"])
+        out = capsys.readouterr().out
+        assert "1 gate(s) UNINFORMATIVE (G6)" in out
+        assert "counted as a failure because --strict is set" in out
+        assert "not counted as failure" not in out
+        assert "re-run with --strict" not in out
+
+    def test_uninformative_summary_line_non_strict_wording_is_unchanged(
+        self, monkeypatch, capsys
+    ):
+        """Companion to the strict-mode test above: the non-strict tail
+        keeps its original wording exactly (FIX D only branches the tail on
+        args.strict, it doesn't touch the non-strict sentence)."""
+        monkeypatch.setattr(
+            calibration_gate, "run_all", lambda: [self._uninformative("G6")]
+        )
+        calibration_gate.main([])
+        out = capsys.readouterr().out
+        assert (
+            "not counted as failure; re-run with --strict to fail on these." in out
+        )
+        assert "counted as a failure because --strict is set" not in out
+
+    def test_no_summary_line_when_nothing_is_uninformative(self, monkeypatch, capsys):
+        monkeypatch.setattr(
+            calibration_gate, "run_all", lambda: [self._pass(), self._fail()]
+        )
+        calibration_gate.main([])
+        out = capsys.readouterr().out
+        assert "gate(s) UNINFORMATIVE" not in out
+
+
+class TestMainOutSpecG1ScoredSubset:
+    """
+    FIX 2: the calibration_suite experiment spec's "corpora" block used to
+    report only the three LOADED corpora (43 authors / 271 documents in the
+    real corpus) — but G1 actually scores a narrower pool, since
+    _score_corpus_for_g1 skips any entity with < 5 texts (24 entities / 216
+    folds on the real corpus). A reader of the report's "experiment" block
+    could not tell G1's flagged rate came from 216 folds, not 271
+    documents — exactly the raw-vs-measured conflation this validation
+    layer exists to prevent. main()'s --out path now adds a "g1_scored"
+    sub-block, narrowed to entities with >= 5 texts, alongside (not instead
+    of) the loaded totals — those remain the correct denominator for G4
+    (full Plato early/middle/late grouping) and G6 (fairness slice), which
+    apply no such filter.
+    """
+
+    def test_out_spec_g1_scored_subset_matches_the_ge5_filter(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(
+            calibration_gate,
+            "run_all",
+            lambda: [
+                GateResult(name="G1", passed=True, criterion="c", current_value="v")
+            ],
+        )
+        # "sem_short" and "plato_short" have < 5 texts each and must be
+        # excluded from g1_scored, but still counted in the loaded totals.
+        monkeypatch.setattr(
+            calibration_gate,
+            "_load_seminary_texts",
+            lambda: {"sem_a": ["t"] * 5, "sem_short": ["t"] * 2},
+        )
+        monkeypatch.setattr(
+            calibration_gate,
+            "_load_public_authors_baseline_texts",
+            lambda: {"pa_a": ["t"] * 6},
+        )
+        monkeypatch.setattr(
+            calibration_gate,
+            "_load_plato_texts_by_dialogue",
+            lambda: {"plato_short": ["t"] * 3},
+        )
+
+        out_path = tmp_path / "report.json"
+        calibration_gate.main(["--out", str(out_path)])
+        report = json.loads(out_path.read_text())
+        corpora = report["experiment"]["corpora"]
+
+        assert set(corpora) == {"seminary", "public_authors", "plato", "g1_scored"}
+        # Loaded totals are untouched — still the correct denominator for
+        # G4/G6, which is why they're kept rather than narrowed in place.
+        assert corpora["seminary"]["n_authors"] == 2
+        assert corpora["seminary"]["n_documents"] == 7
+        assert corpora["plato"]["n_authors"] == 1
+        # g1_scored narrows to entities with >= 5 texts, pooled across all
+        # three corpora, matching _score_corpus_for_g1's own `< 5` skip.
+        assert corpora["g1_scored"]["n_authors"] == 2  # sem_a + pa_a only
+        assert corpora["g1_scored"]["docs_per_author"] == {"pa_a": 6, "sem_a": 5}
+        assert corpora["g1_scored"]["n_documents"] == 11
+        assert corpora["g1_scored"]["provenance"] == "g1_loo_eligible_subset"
 # ── Wiring-gap regression tests (review of commit 34d8ceb6) ────────────────────
 #
 # The pure evaluators (evaluate_g1_fpr's reachability annotation,

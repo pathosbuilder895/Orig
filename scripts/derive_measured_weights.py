@@ -119,6 +119,7 @@ Run:
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -137,8 +138,6 @@ import numpy as np  # noqa: E402
 from original.constants import (  # noqa: E402
     ALL_FEATURE_CODES,
     COMPARISON_CODES,
-    DISABLED_FEATURE_GROUPS,
-    FEATURE_GROUPS,
     FEATURE_TIER,
     TIER_WEIGHTS,
 )
@@ -150,6 +149,9 @@ DEFAULT_LENGTH = 800  # words — every derivation-side author in the current 3 
                        # MIN_WINDOWS_PER_AUTHOR at this length; drop_short_authors()
                        # is still the enforced backstop if a future corpus doesn't.
 DEFAULT_FLOOR_PERCENTILE = 10.0
+DEFAULT_MAX_WINDOWS = 12  # named so the experiment spec's windowing block (Task 7)
+                          # can record the same value derive_weights() defaults to,
+                          # rather than a second hand-copied literal drifting from it.
 
 
 def split_authors(
@@ -173,30 +175,14 @@ def split_authors(
 def structurally_excluded_codes() -> set[str]:
     """
     Feature codes that can never carry a Fisher signal through this
-    pipeline, independent of which corpus/windowing is used:
-
-      - tier-0 comparison features (``COMPARISON_CODES``, and any other
-        code sharing the same baseline-comparison nature — e.g. tier 11's
-        error-ecology codes) — computed only at scoring time against a
-        baseline; ``compute_feature_matrix`` calls ``feature_vector()`` on
-        isolated windows with no baseline, so these hardcode to 0.5 for
-        every window (``original/features/pipeline.py``). Caught here via
-        ``COMPARISON_CODES`` explicitly; any OTHER comparison-shaped code
-        that isn't in that list (e.g. tier 11) is still caught by
-        ``zero_variance_feature_indices`` empirically.
-      - every code belonging to a currently-``DISABLED_FEATURE_GROUPS``
-        group (today: tier 17 "behavioral", tier 18 "uniformity") — these
-        hardcode to the ``NORM_BOUNDS`` midpoint for every window while
-        their group is disabled, via the same pipeline.py fallback.
-
-    Read live from ``original.constants`` so behavior tracks runtime state:
-    if "uniformity" is later removed from ``DISABLED_FEATURE_GROUPS``, tier
-    18 becomes eligible for measurement without this function changing.
+    pipeline. Delegates to validation.measurability — the single source of
+    truth (this function previously listed COMPARISON_CODES + disabled
+    groups itself and relied on zero_variance_feature_indices to catch the
+    rest empirically; the registry names all of them a-priori).
     """
-    excluded = set(COMPARISON_CODES)
-    for group in DISABLED_FEATURE_GROUPS:
-        excluded.update(FEATURE_GROUPS.get(group, []))
-    return excluded
+    from validation.measurability import structurally_excluded_codes as _registry
+
+    return _registry()
 
 
 def zero_variance_feature_indices(
@@ -375,6 +361,14 @@ def compute_tier_weights_from_matrices(
     between = author_means.var(axis=0, ddof=1)
     per_feature_fisher = between / (within + 1e-9)
 
+    surviving_codes = [code for code in ALL_FEATURE_CODES if code not in excluded_reasons]
+
+    from validation.measurability import assert_aggregatable
+
+    # Structural guard: aggregation over a non-measurable column is the
+    # Instrument Report's root failure mode — refuse loudly, never average.
+    assert_aggregatable(surviving_codes)
+
     per_tier_values: dict[int, list[float]] = {}
     per_tier_codes: dict[int, list[str]] = {}
     for code, f in zip(ALL_FEATURE_CODES, per_feature_fisher, strict=False):
@@ -431,7 +425,7 @@ def compute_tier_weights_from_matrices(
 def derive_weights(
     author_texts: dict[str, str],
     length: int = DEFAULT_LENGTH,
-    max_windows: int = 12,
+    max_windows: int = DEFAULT_MAX_WINDOWS,
     floor_percentile: float = DEFAULT_FLOOR_PERCENTILE,
     verbose: bool = True,
 ) -> tuple[dict[int, float], dict]:
@@ -633,6 +627,36 @@ def main(argv=None) -> int:
         derivation_texts, length=args.length, floor_percentile=args.floor_percentile, verbose=True
     )
 
+    # Task 8: turn this module's hand-written Plato-dominance CAUTION (see
+    # module docstring) into a computed check. Genre is per-corpus here
+    # (seminary=student_essay, plato=philosophy, public_authors=literary_essay);
+    # manifest-level genre tags refine this once corpora carry them
+    # (validation/manifest_schema.py v2). Measured over the SURVIVING
+    # derivation-side authors only — i.e. after drop_short_authors (inside
+    # derive_weights above) has removed anyone below MIN_WINDOWS_PER_AUTHOR
+    # — since that's the population the weights above were actually derived
+    # from, not the full pre-drop derivation split.
+    from dataclasses import asdict
+
+    from validation.corpus_policy import MAX_GENRE_SHARE, check_genre_balance
+
+    _GENRE_BY_CORPUS = {
+        "seminary": "student_essay",
+        "plato": "philosophy",
+        "public_authors": "literary_essay",
+    }
+    surviving_derivation_texts = {
+        a: t for a, t in derivation_texts.items() if a not in diagnostics["dropped_authors"]
+    }
+    genre_words: dict[str, int] = {}
+    for author, text in surviving_derivation_texts.items():
+        corpus_name = author_corpus.get(author, "?")
+        genre = _GENRE_BY_CORPUS.get(corpus_name, corpus_name)
+        genre_words[genre] = genre_words.get(genre, 0) + len(text.split())
+    genre_balance_violations = check_genre_balance(genre_words)
+    for v in genre_balance_violations:
+        print(f"  ⚠ CORPUS BALANCE: {v.subject} — {v.detail}", file=sys.stderr)
+
     # Per-corpus post-windowing report (requirement: visible before the diff).
     print("[derive-weights] post-windowing window counts by corpus:", file=sys.stderr)
     by_corpus: dict[str, list[tuple[str, int]]] = {}
@@ -651,6 +675,44 @@ def main(argv=None) -> int:
             print(f"    {author}: {n} window(s){flag}", file=sys.stderr)
 
     print_tier_weights_diff(weights, diagnostics)
+
+    # Task 7: embed a machine-readable record of what this run measured,
+    # alongside the human-readable diff block above.
+    from validation.experiment import build_spec, spec_to_dict, summarize_author_docs
+
+    corpora_summary = {}
+    for corpus_name in corpora:
+        # {author: text} -> {author: [text]} — summarize_author_docs wants a
+        # list of documents per author; each corpus loader here hands back
+        # one concatenated full-work string per (pseudo-)author.
+        subset = {
+            a: [t] for a, t in author_texts.items() if author_corpus.get(a) == corpus_name
+        }
+        provenance = "student_pilot" if corpus_name == "seminary" else "real_historical"
+        corpora_summary[corpus_name] = summarize_author_docs(subset, provenance)
+
+    # Task 8: the genre-balance skew travels with every number derived from
+    # this run, not just the stderr warning above.
+    corpora_summary["genre_balance"] = {
+        "genre_words": genre_words,
+        "max_share": MAX_GENRE_SHARE,
+        "violations": [asdict(v) for v in genre_balance_violations],
+    }
+
+    spec = build_spec(
+        task="weight_derivation",
+        corpora=corpora_summary,
+        windowing={"length": args.length, "max_windows": DEFAULT_MAX_WINDOWS},
+        aggregation={
+            "tier_rule": "median",
+            "variance_floor_percentile": args.floor_percentile,
+            "derivation_fraction": args.derivation_fraction,
+        },
+        thresholds={},
+    )
+    print()
+    print("# ── experiment spec (machine-readable record of what this run measured) ──")
+    print(json.dumps({"experiment": spec_to_dict(spec)}, indent=2))
     return 0
 
 

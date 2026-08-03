@@ -18,29 +18,44 @@ Stylometric authorship verification system for academic integrity. Per-student q
 
 ## Testing
 ```bash
-.venv/bin/python -m pytest tests/ -q                  # full suite
+.venv/bin/python -m pytest tests/ -q                  # full suite (~1050 tests as of 2026-08-01, ~145s; ~1053 with validation/test_tier10_optional.py)
 .venv/bin/python -m pytest tests/quantum/ -v          # quantum module only
-DATABASE_URL=postgresql://user:pass@host/db \
-  .venv/bin/python -m pytest tests/ validation/test_tier10_optional.py \
-  --cov=original --cov-fail-under=78                  # exact CI command (see .github/workflows/test.yml)
+.venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -q   # exact CI command
 ```
-Test count grows regularly — treat any number below as a point-in-time
-measurement, not a pinned figure to keep in sync by hand (get the current
-count with `.venv/bin/python -m pytest --collect-only -q tests/ 2>&1 | tail -1`).
-There are no `xfail`-marked tests and no `TestAuthEndpoints` class in the
-current suite (`grep -rn xfail tests/` and `grep -rn "class TestAuthEndpoints"
-tests/` both return nothing) — the older 429-under-rate-limit-exhaustion
-xfail pattern this section used to describe is gone. A clean run is **0
-failed**; treat any failure as real.
+Test count grows regularly — treat the numbers above as approximate (get the
+current count with `.venv/bin/python -m pytest --collect-only -q tests/ 2>&1 | tail -1`),
+not a pinned figure to keep in sync by hand.
+The 5 `TestAuthEndpoints` tests that 429 under full-suite rate-limit exhaustion are
+marked `xfail(strict=False)` — they show as XFAIL/XPASS, never as failures. A clean
+run is **0 failed**; treat any failure as real. (Historical note: counts before
+2026-06 were inflated ~2× by macOS Finder-duplicate test files, since removed.)
 
-CI sets `DATABASE_URL` so `tests/test_repository_contract.py`'s Postgres
-parametrization runs for real instead of self-skipping. Measured 2026-08-02
-against `origin/main` HEAD `718ef29`, `tests/ validation/test_tier10_optional.py`:
-with a local Postgres and `DATABASE_URL` set, **1,112 passed, 0 failed**;
-without it, **954 passed, 158 skipped, 0 failed** (all 158 are the
-Postgres-only contract tests self-skipping with "no reachable Postgres — set
-DATABASE_URL to a postgresql:// instance …", not failures). Both counts
-drift as work lands — re-run rather than trust them.
+---
+
+## Validation Layer
+`validation/` enforces instrument hygiene — see `validation/README.md`.
+The rules that bite during development:
+- Aggregating over a feature column requires it to be MEASURABLE in
+  `validation/measurability.py`; blank/scoring-only/disabled columns raise
+  `MeasurabilityError` instead of silently averaging in.
+- Gate verdicts are three-valued: `pass` / `fail` / `uninformative`. A gate
+  whose criterion is unreachable at the current corpus size downgrades a
+  would-be pass to uninformative — never quote it as a pass. Run
+  `python -m validation.calibration_gate --strict` before citing results
+  (folds `uninformative` into `fail`; the non-strict default still runs but
+  prints which gates were uninformative).
+- Every new gate needs a failure witness registered in
+  `validation/gate_contracts.py` (`GATE_CONTRACTS`) or
+  `tests/test_gate_falsifiability.py` fails the suite.
+- Corpus floors (`validation/corpus_policy.py`): only the **attribution**
+  floor is actually enforced today, by `validation/public_authors/run.py`
+  calling `check_attribution_pool()` at load time — >= 300 words (not
+  500 — raising it to 500 drops author `kempis`'s baseline docs entirely,
+  all 393-499 words) and >= 3 baseline docs per candidate. A thin baseline
+  does **not** abort the run — the author is excluded from the candidate
+  pool and scoring continues on whoever remains. The **verification**
+  floor (`VERIFICATION_MIN_WORDS=300`, `check_verification_pool()`) is a
+  declared constant with no production caller yet — tests only.
 
 ---
 
@@ -93,36 +108,41 @@ All production features are opt-in via env flags. Default OFF preserves Phase 1 
 | `LTI_TOOL_URL` | — | No-op without config. Public tool URL registered with the LMS. |
 | `ADMIN_EMAIL` | — | No-op without config. Seed admin account email. |
 | `ADMIN_PASSWORD` | — | No-op without config. Seed admin account password. |
-| `SENDGRID_API_KEY` | — | **Currently a documented no-op even when set** — nothing reads it and no email is ever sent (`routers/_shared.py:_send_notification_email`). Setting it logs one warning at startup saying so. |
+| `SENDGRID_API_KEY` | — | No-op without config. Email delivery integration. |
 
 Demo mode turns on CONTEXT_MANIFEST_ENABLED, ADAPTIVE_WEIGHTS_ENABLED, and NULL_MODEL=impostor automatically (set in run.py).
 
 ### Feature dimensionality
-103 dimensional / **97 active** in the default pilot config — Tier 17 behavioral
+109 dimensional / **97 active** in the default pilot config — Tier 17 behavioral
 biometrics (6 features: `typing_speed_cv, burst_ratio, deletion_rate,
-pause_density, paste_event_rate, revision_depth`) is in `DISABLED_FEATURE_GROUPS`
-by default pending live keystroke data from Bbook; Tier 10 semantic (2 features:
+pause_density, paste_event_rate, revision_depth`) and Tier 18 uniformity
+(6 features: `sentence_length_dispersion_ratio, window_feature_variance_ratio,
+function_word_burstiness_ratio, punctuation_dispersion_ratio,
+vocab_introduction_flatness, clause_depth_variance_ratio`) are both in
+`DISABLED_FEATURE_GROUPS` by default — Tier 17 pending live keystroke data
+from Bbook, Tier 18 pending gates G2b (paraphrase-resistance) and G6
+(fairness parity); Tier 10 semantic (2 features:
 `semantic_field_dispersion, semantic_centroid_proximity`) has a genuine TF-IDF
 fallback backend (`original/features/tier10.py`) that produces real, non-neutral
 values when sentence-transformers is unavailable — it is not a placeholder-only
 degrade. The 0.5 neutral value only fires when there are too few usable
 sentences to encode at all (< 3 for `semantic_field_dispersion`, < 2 for the
 embeddings behind `semantic_centroid_proximity`), regardless of which backend
-would otherwise run. `BASE_FEATURE_DIM = 96` (`constants.py:222`)
-is the stored-baseline width (tier-17 included as 0.5 placeholders) — a distinct
-number from the 97 "active" count; don't conflate the two.
+would otherwise run. `BASE_FEATURE_DIM = 102` (was 96 before Tier 18 landed)
+is the stored-baseline width (tier-17 and tier-18 included as 0.5 placeholders)
+— a distinct number from the 97 "active" count; don't conflate the two.
 
 ---
 
 ## Key Architecture
 ```
-Text → 103-feature pipeline (original/features/)
+Text → 109-feature pipeline (original/features/)
      → StudentState (density matrix ρ, baseline_mean, baseline_std)
      → quantum/scoring.py:score() → Layer7Output
      → API response (deviation_score, action, quantum_fidelity, professor_explanation)
 ```
 
-**Feature pipeline:** `original/features/` — 103 features across 17 tiers
+**Feature pipeline:** `original/features/` — 109 features across 18 tiers
 **Quantum state:** `original/quantum/state.py` — density matrix builder
 **Scoring:** `original/quantum/scoring.py` — Born-rule + amplitude (Phase 6)
 **Professor narrative:** `original/quantum/professor_narrative.py` — plain-English explanation
@@ -144,7 +164,7 @@ the committed `bluebook.bundle.js` is what production serves).
 ---
 
 ## Feature Dimensions
-- `FEATURE_DIM = 103` (current)
+- `FEATURE_DIM = 109` (current)
 - Legacy profiles serialized with 74 or 89 features will be padded with 0.5 on load (you'll see warnings). Fix with `python scripts/reextract_baselines.py` (the old `python -m original.cli rebuild-baselines` was deleted with the v1 stack in WS-6 P6 — it only ever operated on the v1 database).
 - `ALL_FEATURE_CODES` in `original/constants.py` is the canonical ordered list — don't reorder it.
 
