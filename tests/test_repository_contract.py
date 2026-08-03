@@ -964,6 +964,59 @@ class TestGetOrCreateAndBasics:
         assert repo.get("sem:replace").sample_count == 1
 
 
+class TestKeystrokeDataRoundtrip:
+    """Tier 17 readiness: the raw Bbook keystroke telemetry blob persisted on
+    a BaselineSample must survive a full put()/get() round trip on both
+    backends, identically. This is what turns scripts/tier17_report.py from
+    structurally-pinned-at-zero into something that can actually measure —
+    see tests/test_keystroke_data_persistence.py for the serializer-level and
+    endpoint-level coverage this complements."""
+
+    _BLOB = {
+        "keystrokes": [{"key": "a", "elapsed": 100.0 * i} for i in range(20)],
+        "pauses": [{"duration": 3000}],
+        "revisions": [],
+        "deletionRate": 0.02,
+        "wordCount": 300,
+    }
+
+    def test_keystroke_data_survives_put_get(self, repo):
+        state = StudentState(student_id="sem:keystroke-roundtrip", samples=[])
+        state.add_sample(
+            BaselineSample(
+                text="proctored sitting with telemetry",
+                vector=np.full(FEATURE_DIM, 0.5, dtype=np.float64),
+                provenance="proctored",
+                auth_weight=1.0,
+                keystroke_data=self._BLOB,
+            )
+        )
+        state.add_sample(
+            BaselineSample(
+                text="uploaded paper, no telemetry",
+                vector=np.full(FEATURE_DIM, 0.5, dtype=np.float64),
+                provenance="verified",
+                auth_weight=1.0,
+            )
+        )
+        repo.put(state)
+
+        reloaded = repo.get("sem:keystroke-roundtrip")
+        assert reloaded is not None
+        assert reloaded.samples[0].keystroke_data == self._BLOB
+        assert reloaded.samples[1].keystroke_data is None
+
+    def test_sample_without_keystroke_data_field_loads_as_none(self, repo):
+        """Backward compatibility on a real backend round trip: a sample put()
+        before this field existed (simulated by never setting it) must come
+        back with keystroke_data=None, not raise and not require a migration."""
+        state = _make_state("sem:keystroke-legacy", n=2)
+        repo.put(state)
+        reloaded = repo.get("sem:keystroke-legacy")
+        assert reloaded is not None
+        assert all(s.keystroke_data is None for s in reloaded.samples)
+
+
 class TestDensityMatrixRoundtrip:
     """WS-6 P3's own named acceptance bar: "Property-test the round-trip:
     fidelity(rho_in, rho_out) ~= 1.0 for random density matrices through the
@@ -1337,8 +1390,12 @@ class TestBluebook:
     def test_submission_uuid_lookup(self, repo):
         repo.put_bluebook_submission(
             {
-                "id": "bbsub-uu", "tenant_id": "sem", "exam_id": "ex-c1",
-                "student_id": "sem:al", "submission_uuid": "uu-contract-1", "late": 1,
+                "id": "bbsub-uu",
+                "tenant_id": "sem",
+                "exam_id": "ex-c1",
+                "student_id": "sem:al",
+                "submission_uuid": "uu-contract-1",
+                "late": 1,
             }
         )
         got = repo.get_bluebook_submission_by_uuid("uu-contract-1")

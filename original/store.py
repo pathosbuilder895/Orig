@@ -654,6 +654,10 @@ def _serialize(state: StudentState) -> str:
             "genre": s.genre,
             "topic_centroid": (s.topic_centroid.tolist() if s.topic_centroid is not None else None),
             "context_manifest": s.context_manifest,
+            # Tier 17 readiness (additive) — raw Bbook stylemetry blob, or
+            # None for legacy/non-keystroke samples. Never used for scoring;
+            # only scripts/tier17_report.py reads it back out.
+            "keystroke_data": s.keystroke_data,
         }
         for s in state.samples
     ]
@@ -720,6 +724,9 @@ def _deserialize(data: str) -> StudentState:
                 genre=s.get("genre"),
                 topic_centroid=topic_centroid,
                 context_manifest=s.get("context_manifest"),
+                # Tier 17 readiness (additive) — .get() defaults to None for
+                # every sample serialized before this field existed.
+                keystroke_data=s.get("keystroke_data"),
             )
         )
     return state

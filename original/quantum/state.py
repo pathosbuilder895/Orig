@@ -56,6 +56,14 @@ class BaselineSample:
     topic_centroid: np.ndarray | None = None  # TF-IDF centroid, shape (K,)
     context_manifest: dict | None = None  # captured at the time of ingestion
 
+    # ── Tier 17 readiness (additive — None for every sample ingested before
+    # this field existed, and for any non-proctored / keystroke-less sample).
+    # Raw Bbook stylemetry JSON (keystrokes, pauses, revisions, deletionRate,
+    # wordCount), stored as-is so scripts/tier17_report.py can measure
+    # readiness. This does NOT enable Tier 17 scoring — the six features stay
+    # in DISABLED_FEATURE_GROUPS regardless of whether this blob is present.
+    keystroke_data: dict | None = None
+
 
 @dataclass
 class TrajectoryResult:
