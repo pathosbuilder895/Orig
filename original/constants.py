@@ -177,6 +177,21 @@ TIER16_CODES = [
     "paraphrase_density",        # Paraphrase-attribution phrases per 100 prose words
 ]
 
+# ── Tier 18: Uniformity (second-moment) ──────────────────────────────────────
+# Generation-artifact detector: current features are per-document MEANS;
+# LLM/ghostwritten text is often unusually uniform in its WITHIN-document
+# spread. Four comparison features (need a baseline), two standalone.
+# Disabled by default pending gates G2b (paraphrase-resistance) and G6
+# (native_english fairness parity) — see design spec §8.
+TIER18_CODES = [
+    "sentence_length_dispersion_ratio",
+    "window_feature_variance_ratio",
+    "function_word_burstiness_ratio",
+    "punctuation_dispersion_ratio",
+    "vocab_introduction_flatness",
+    "clause_depth_variance_ratio",
+]
+
 # Musical comparison features — require baseline profiles (like COMPARISON_CODES)
 MUSICAL_COMPARISON_CODES = [
     "argument_sequence_likelihood",
@@ -200,9 +215,10 @@ ALL_FEATURE_CODES = (
     + TIER13_CODES + TIER14_CODES + TIER15_CODES
     + TIER16_CODES
     + TIER17_CODES
+    + TIER18_CODES
     + COMPARISON_CODES
 )
-FEATURE_DIM = len(ALL_FEATURE_CODES)  # 103
+FEATURE_DIM = len(ALL_FEATURE_CODES)  # 109
 
 # Base features (extracted from text alone or keystroke data; stored in baseline samples).
 # Tier 17 features default to 0.5 when keystroke data is absent — they are included
@@ -217,8 +233,9 @@ BASE_FEATURE_CODES = (
     + TIER13_CODES + TIER14_CODES + TIER15_CODES  # all Tier 13–15 are standalone
     + TIER16_CODES                                # Tier 16 — all standalone
     + TIER17_CODES                                # Tier 17 — keystroke (0.5 when absent)
+    + TIER18_CODES                                # Tier 18 — uniformity (0.5 when disabled)
 )
-BASE_FEATURE_DIM = len(BASE_FEATURE_CODES)  # 96
+BASE_FEATURE_DIM = len(BASE_FEATURE_CODES)  # 102 (was 96 before Tier 18)
 
 FEATURE_TIER: dict[str, int] = (
     {c: 1  for c in TIER1_CODES}
@@ -238,6 +255,7 @@ FEATURE_TIER: dict[str, int] = (
     | {c: 15 for c in TIER15_CODES}
     | {c: 16 for c in TIER16_CODES}
     | {c: 17 for c in TIER17_CODES}
+    | {c: 18 for c in TIER18_CODES}
     | {c: 0  for c in COMPARISON_CODES}  # tier 0 = comparison (meta)
 )
 
@@ -265,6 +283,7 @@ TIER_WEIGHTS: dict[int, float] = {
     15: 1.2,   # lexical architecture (Latinate/nominalization fingerprint)
     16: 1.4,   # citation fingerprint (highly unconscious — matches Tier 6/11)
     17: 1.5,   # behavioral biometrics (live keystroke — highest tamper-resistance)
+    18: 1.3,   # uniformity (second-moment generation-artifact signal)
 }
 
 
@@ -372,6 +391,7 @@ LENGTH_WEIGHT_SCHEDULE: dict[str, dict[int, float]] = {
 #
 FEATURE_GROUPS: dict[str, list] = {
     "behavioral": TIER17_CODES,
+    "uniformity": TIER18_CODES,
     "semantic":   ["semantic_field_dispersion", "semantic_centroid_proximity"],
     "pos_syntax": TIER5_CODES,
 }
@@ -379,6 +399,7 @@ FEATURE_GROUPS: dict[str, list] = {
 # Disabled by default — remove entries as capabilities come online.
 DISABLED_FEATURE_GROUPS: set = {
     "behavioral",   # requires live keystroke data from Bbook exam environment
+    "uniformity",   # pending gates G2b (paraphrase-resistance) and G6 (fairness parity)
 }
 
 FEATURE_NAMES: dict[str, str] = {
@@ -497,6 +518,13 @@ FEATURE_NAMES: dict[str, str] = {
     "pause_density":     "Pause Density",
     "paste_event_rate":  "Paste Event Rate",
     "revision_depth":    "Revision Depth",
+    # Tier 18 — Uniformity (second-moment)
+    "sentence_length_dispersion_ratio": "Sentence-Length Dispersion",
+    "window_feature_variance_ratio":    "Window Feature Variance",
+    "function_word_burstiness_ratio":   "Function-Word Burstiness",
+    "punctuation_dispersion_ratio":     "Punctuation Dispersion",
+    "vocab_introduction_flatness":      "Vocab Introduction Flatness",
+    "clause_depth_variance_ratio":      "Clause-Depth Variance",
     # Comparison features
     "char_trigram_profile_divergence":    "Char Trigram Divergence",
     "function_word_profile_divergence":   "Func Word Divergence",
@@ -643,6 +671,15 @@ NORM_BOUNDS: dict[str, tuple[float, float]] = {
     "pause_density":     (0.0,  20.0),  # long pauses per 100 words; >15 is unusual
     "paste_event_rate":  (0.0,  5.0),   # paste events per 100 words; should be ~0
     "revision_depth":    (0.0,  50.0),  # mean chars per deletion; >30 = bulk rewriting
+    # Tier 18 — Uniformity (second-moment generation-artifact signal)
+    # Example bounds, to be refreshed by scripts/calibrate_bounds.py once real
+    # corpus data exists — see design spec §8. Disabled by default.
+    "sentence_length_dispersion_ratio": (0.3, 2.0),
+    "window_feature_variance_ratio":    (0.3, 2.0),
+    "function_word_burstiness_ratio":   (0.3, 2.0),
+    "punctuation_dispersion_ratio":     (0.3, 2.0),
+    "vocab_introduction_flatness":      (0.0, 1.0),
+    "clause_depth_variance_ratio":      (0.3, 2.0),
     # Comparison features (divergence scores computed at scoring time)
     "char_trigram_profile_divergence":  (0.0,  2.0),   # KL-divergence (bits); 0=identical
     "function_word_profile_divergence": (0.0,  1.5),   # KL-divergence (bits); 0=identical

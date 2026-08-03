@@ -129,6 +129,7 @@ class StudentState:
     _rho: np.ndarray | None = field(default=None, repr=False)
     _purity: float | None = field(default=None, repr=False)
     _trajectory: TrajectoryResult | None = field(default=None, repr=False)
+    _loo_distances: list[float] | None = field(default=None, repr=False)
 
     # Phase 8: drift detection — running count of consecutive baseline
     # ingestion attempts whose anchor-tier deviation exceeded the threshold.
@@ -146,6 +147,7 @@ class StudentState:
         self._rho = None
         self._purity = None
         self._trajectory = None
+        self._loo_distances = None
 
     # ── Density matrix ───────────────────────────────────────────────────────
 
@@ -523,6 +525,48 @@ class StudentState:
             vector=_unit(delta) if np.linalg.norm(delta) > 1e-12 else None,
             adjustment_factor=1.0,
         )
+
+    # ── Leave-one-out distances ──────────────────────────────────────────────
+
+    @property
+    def loo_distances(self) -> list[float]:
+        """Leave-one-out rms_z distances, one per contributing baseline sample."""
+        if self._loo_distances is None:
+            self._loo_distances = self._compute_loo_distances()
+        return self._loo_distances
+
+    def _compute_loo_distances(self) -> list[float]:
+        contributing = [s for s in self.samples if s.auth_weight > 0]
+        N = len(contributing)
+        if N < 2:
+            return []
+
+        vectors = np.stack([s.vector for s in contributing])  # (N, D)
+        distances: list[float] = []
+        for i in range(N):
+            held_out = vectors[i]
+            rest = np.delete(vectors, i, axis=0)  # (N-1, D)
+            rest_n = rest.shape[0]
+
+            weights = np.array(
+                [
+                    contributing[j].auth_weight * (RECENCY_DECAY ** (rest_n - 1 - k))
+                    for k, j in enumerate(idx for idx in range(N) if idx != i)
+                ]
+            )
+            mean = (weights[:, None] * rest).sum(axis=0) / weights.sum()
+
+            if rest_n < 2:
+                std = np.full(FEATURE_DIM, 0.15)
+            else:
+                adaptive_floor = max(0.005, 0.15 / math.sqrt(rest_n))
+                std = np.maximum(rest.std(axis=0), adaptive_floor)
+
+            z = (held_out - mean) / std
+            z_capped = np.clip(z, -4.0, 4.0)
+            rms_z = float(np.sqrt(np.mean(z_capped**2)))
+            distances.append(rms_z)
+        return distances
 
     # ── State summary ─────────────────────────────────────────────────────────
 

@@ -270,6 +270,75 @@ class TestQuantumInvariants:
         assert near_prob > far_prob
 
 
+class TestLooDistances:
+    """Tests for StudentState.loo_distances (Phase 1, two-axis verification)."""
+
+    def test_empty_state_returns_empty_list(self):
+        state = StudentState(student_id="test")
+        assert state.loo_distances == []
+
+    def test_single_sample_returns_empty_list(self):
+        """Need >= 2 samples to hold one out and compute stats on the rest."""
+        sample = BaselineSample(
+            text="", vector=create_random_vector(), provenance="proctored", auth_weight=1.0
+        )
+        state = StudentState(student_id="test", samples=[sample])
+        assert state.loo_distances == []
+
+    def test_returns_one_distance_per_contributing_sample(self):
+        samples = [
+            BaselineSample(
+                text="", vector=create_random_vector(), provenance="proctored", auth_weight=1.0
+            )
+            for _ in range(5)
+        ]
+        state = StudentState(student_id="test", samples=samples)
+        assert len(state.loo_distances) == 5
+
+    def test_unverified_samples_excluded(self):
+        """auth_weight == 0 samples are excluded, same as baseline_mean/baseline_std."""
+        verified = [
+            BaselineSample(
+                text="", vector=create_random_vector(), provenance="proctored", auth_weight=1.0
+            )
+            for _ in range(4)
+        ]
+        unverified = BaselineSample(
+            text="", vector=create_random_vector(), provenance="unverified", auth_weight=0.0
+        )
+        state = StudentState(student_id="test", samples=[*verified, unverified])
+        assert len(state.loo_distances) == 4
+
+    def test_identical_samples_give_near_zero_distance(self):
+        """If every baseline sample is identical, each held-out sample sits
+        exactly at the mean of the rest — rms_z should be ~0."""
+        vector = create_random_vector()
+        samples = [
+            BaselineSample(text="", vector=vector.copy(), provenance="proctored", auth_weight=1.0)
+            for _ in range(4)
+        ]
+        state = StudentState(student_id="test", samples=samples)
+        assert all(d < 1e-6 for d in state.loo_distances)
+
+    def test_cache_invalidated_on_add_sample(self):
+        samples = [
+            BaselineSample(
+                text="", vector=create_random_vector(), provenance="proctored", auth_weight=1.0
+            )
+            for _ in range(3)
+        ]
+        state = StudentState(student_id="test", samples=samples)
+        first = state.loo_distances
+        assert len(first) == 3
+        state.add_sample(
+            BaselineSample(
+                text="", vector=create_random_vector(), provenance="proctored", auth_weight=1.0
+            )
+        )
+        second = state.loo_distances
+        assert len(second) == 4
+
+
 class TestQuantumEdgeCases:
     """Tests for edge cases in quantum scoring."""
 

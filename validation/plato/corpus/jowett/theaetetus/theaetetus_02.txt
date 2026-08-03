@@ -1,0 +1,256 @@
+SOCRATES: In both cases you define the subject matter of each of the two
+arts?
+
+THEAETETUS: True.
+
+SOCRATES: But that, Theaetetus, was not the point of my question: we
+wanted to know not the subjects, nor yet the number of the arts or
+sciences, for we were not going to count them, but we wanted to know the
+nature of knowledge in the abstract. Am I not right?
+
+THEAETETUS: Perfectly right.
+
+SOCRATES: Let me offer an illustration: Suppose that a person were to
+ask about some very trivial and obvious thing--for example, What is
+clay? and we were to reply, that there is a clay of potters, there is
+a clay of oven-makers, there is a clay of brick-makers; would not the
+answer be ridiculous?
+
+THEAETETUS: Truly.
+
+SOCRATES: In the first place, there would be an absurdity in assuming
+that he who asked the question would understand from our answer the
+nature of 'clay,' merely because we added 'of the image-makers,' or of
+any other workers. How can a man understand the name of anything, when
+he does not know the nature of it?
+
+THEAETETUS: He cannot.
+
+SOCRATES: Then he who does not know what science or knowledge is, has no
+knowledge of the art or science of making shoes?
+
+THEAETETUS: None.
+
+SOCRATES: Nor of any other science?
+
+THEAETETUS: No.
+
+SOCRATES: And when a man is asked what science or knowledge is, to
+give in answer the name of some art or science is ridiculous; for the
+question is, 'What is knowledge?' and he replies, 'A knowledge of this
+or that.'
+
+THEAETETUS: True.
+
+SOCRATES: Moreover, he might answer shortly and simply, but he makes an
+enormous circuit. For example, when asked about the clay, he might have
+said simply, that clay is moistened earth--what sort of clay is not to
+the point.
+
+THEAETETUS: Yes, Socrates, there is no difficulty as you put the
+question. You mean, if I am not mistaken, something like what occurred
+to me and to my friend here, your namesake Socrates, in a recent
+discussion.
+
+SOCRATES: What was that, Theaetetus?
+
+THEAETETUS: Theodorus was writing out for us something about roots, such
+as the roots of three or five, showing that they are incommensurable by
+the unit: he selected other examples up to seventeen--there he stopped.
+Now as there are innumerable roots, the notion occurred to us of
+attempting to include them all under one name or class.
+
+SOCRATES: And did you find such a class?
+
+THEAETETUS: I think that we did; but I should like to have your opinion.
+
+SOCRATES: Let me hear.
+
+THEAETETUS: We divided all numbers into two classes: those which are
+made up of equal factors multiplying into one another, which we compared
+to square figures and called square or equilateral numbers;--that was
+one class.
+
+SOCRATES: Very good.
+
+THEAETETUS: The intermediate numbers, such as three and five, and every
+other number which is made up of unequal factors, either of a greater
+multiplied by a less, or of a less multiplied by a greater, and when
+regarded as a figure, is contained in unequal sides;--all these we
+compared to oblong figures, and called them oblong numbers.
+
+SOCRATES: Capital; and what followed?
+
+THEAETETUS: The lines, or sides, which have for their squares the
+equilateral plane numbers, were called by us lengths or magnitudes; and
+the lines which are the roots of (or whose squares are equal to) the
+oblong numbers, were called powers or roots; the reason of this latter
+name being, that they are commensurable with the former [i.e., with the
+so-called lengths or magnitudes] not in linear measurement, but in the
+value of the superficial content of their squares; and the same about
+solids.
+
+SOCRATES: Excellent, my boys; I think that you fully justify the praises
+of Theodorus, and that he will not be found guilty of false witness.
+
+THEAETETUS: But I am unable, Socrates, to give you a similar answer
+about knowledge, which is what you appear to want; and therefore
+Theodorus is a deceiver after all.
+
+SOCRATES: Well, but if some one were to praise you for running, and to
+say that he never met your equal among boys, and afterwards you were
+beaten in a race by a grown-up man, who was a great runner--would the
+praise be any the less true?
+
+THEAETETUS: Certainly not.
+
+SOCRATES: And is the discovery of the nature of knowledge so small a
+matter, as just now said? Is it not one which would task the powers of
+men perfect in every way?
+
+THEAETETUS: By heaven, they should be the top of all perfection!
+
+SOCRATES: Well, then, be of good cheer; do not say that Theodorus was
+mistaken about you, but do your best to ascertain the true nature of
+knowledge, as well as of other things.
+
+THEAETETUS: I am eager enough, Socrates, if that would bring to light
+the truth.
+
+SOCRATES: Come, you made a good beginning just now; let your own answer
+about roots be your model, and as you comprehended them all in one
+class, try and bring the many sorts of knowledge under one definition.
+
+THEAETETUS: I can assure you, Socrates, that I have tried very often,
+when the report of questions asked by you was brought to me; but I can
+neither persuade myself that I have a satisfactory answer to give, nor
+hear of any one who answers as you would have him; and I cannot shake
+off a feeling of anxiety.
+
+SOCRATES: These are the pangs of labour, my dear Theaetetus; you have
+something within you which you are bringing to the birth.
+
+THEAETETUS: I do not know, Socrates; I only say what I feel.
+
+SOCRATES: And have you never heard, simpleton, that I am the son of a
+midwife, brave and burly, whose name was Phaenarete?
+
+THEAETETUS: Yes, I have.
+
+SOCRATES: And that I myself practise midwifery?
+
+THEAETETUS: No, never.
+
+SOCRATES: Let me tell you that I do though, my friend: but you must not
+reveal the secret, as the world in general have not found me out; and
+therefore they only say of me, that I am the strangest of mortals and
+drive men to their wits' end. Did you ever hear that too?
+
+THEAETETUS: Yes.
+
+SOCRATES: Shall I tell you the reason?
+
+THEAETETUS: By all means.
+
+SOCRATES: Bear in mind the whole business of the midwives, and then you
+will see my meaning better:--No woman, as you are probably aware, who is
+still able to conceive and bear, attends other women, but only those who
+are past bearing.
+
+THEAETETUS: Yes, I know.
+
+SOCRATES: The reason of this is said to be that Artemis--the goddess of
+childbirth--is not a mother, and she honours those who are like herself;
+but she could not allow the barren to be midwives, because human nature
+cannot know the mystery of an art without experience; and therefore she
+assigned this office to those who are too old to bear.
+
+THEAETETUS: I dare say.
+
+SOCRATES: And I dare say too, or rather I am absolutely certain, that
+the midwives know better than others who is pregnant and who is not?
+
+THEAETETUS: Very true.
+
+SOCRATES: And by the use of potions and incantations they are able to
+arouse the pangs and to soothe them at will; they can make those bear
+who have a difficulty in bearing, and if they think fit they can smother
+the embryo in the womb.
+
+THEAETETUS: They can.
+
+SOCRATES: Did you ever remark that they are also most cunning
+matchmakers, and have a thorough knowledge of what unions are likely to
+produce a brave brood?
+
+THEAETETUS: No, never.
+
+SOCRATES: Then let me tell you that this is their greatest pride, more
+than cutting the umbilical cord. And if you reflect, you will see that
+the same art which cultivates and gathers in the fruits of the earth,
+will be most likely to know in what soils the several plants or seeds
+should be deposited.
+
+THEAETETUS: Yes, the same art.
+
+SOCRATES: And do you suppose that with women the case is otherwise?
+
+THEAETETUS: I should think not.
+
+SOCRATES: Certainly not; but midwives are respectable women who have a
+character to lose, and they avoid this department of their profession,
+because they are afraid of being called procuresses, which is a name
+given to those who join together man and woman in an unlawful and
+unscientific way; and yet the true midwife is also the true and only
+matchmaker.
+
+THEAETETUS: Clearly.
+
+SOCRATES: Such are the midwives, whose task is a very important one, but
+not so important as mine; for women do not bring into the world at one
+time real children, and at another time counterfeits which are with
+difficulty distinguished from them; if they did, then the discernment of
+the true and false birth would be the crowning achievement of the art of
+midwifery--you would think so?
+
+THEAETETUS: Indeed I should.
+
+SOCRATES: Well, my art of midwifery is in most respects like theirs; but
+differs, in that I attend men and not women; and look after their souls
+when they are in labour, and not after their bodies: and the triumph of
+my art is in thoroughly examining whether the thought which the mind of
+the young man brings forth is a false idol or a noble and true birth.
+And like the midwives, I am barren, and the reproach which is often
+made against me, that I ask questions of others and have not the wit to
+answer them myself, is very just--the reason is, that the god compels me
+to be a midwife, but does not allow me to bring forth. And therefore
+I am not myself at all wise, nor have I anything to show which is
+the invention or birth of my own soul, but those who converse with me
+profit. Some of them appear dull enough at first, but afterwards, as
+our acquaintance ripens, if the god is gracious to them, they all make
+astonishing progress; and this in the opinion of others as well as in
+their own. It is quite clear that they never learned anything from me;
+the many fine discoveries to which they cling are of their own making.
+But to me and the god they owe their delivery. And the proof of my words
+is, that many of them in their ignorance, either in their self-conceit
+despising me, or falling under the influence of others, have gone away
+too soon; and have not only lost the children of whom I had previously
+delivered them by an ill bringing up, but have stifled whatever else
+they had in them by evil communications, being fonder of lies and shams
+than of the truth; and they have at last ended by seeing themselves, as
+others see them, to be great fools. Aristeides, the son of Lysimachus,
+is one of them, and there are many others. The truants often return to
+me, and beg that I would consort with them again--they are ready to
+go to me on their knees--and then, if my familiar allows, which is not
+always the case, I receive them, and they begin to grow again. Dire
+are the pangs which my art is able to arouse and to allay in those who
+consort with me, just like the pangs of women in childbirth; night and
+day they are full of perplexity and travail which is even worse than
+that of the women. So much for them. And there are others, Theaetetus,
+who come to me apparently having nothing in them; and as I know that
+they have no need of my art, I coax them into marrying some one, and
+by the grace of God I can generally tell who is likely to do them good.
+Many of them I have given away to Prodicus, and many to other inspired
+sages. I tell you this long story, friend Theaetetus, because I suspect,
+as indeed you seem to think yourself, that you are in labour--great with
+some conception. Come then to me, who am a midwife's son

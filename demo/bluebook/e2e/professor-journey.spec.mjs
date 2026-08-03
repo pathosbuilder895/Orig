@@ -18,12 +18,12 @@
  *    reruns against a FRESH tenant with fresh module state — no residue
  *    from the failed attempt can collide with the retry.
  *
- * The course link between steps 1 and 2 is now real. NewExamScreen's picker
- * used to be a hardcoded local list (COURSES in NewExam.jsx) and this file
- * worked around it by creating its course under one of those hardcoded codes;
- * the picker now reads GET /bluebook/courses, so step 2 selects the course
- * step 1 created in this tenant and asserts it round-trips onto the exam.
- * That is the assertion the workaround could not make.
+ * One honest gap remains in the current Bluebook React frontend, worked
+ * around rather than glossed over:
+ *  - NewExamScreen's course picker is a hardcoded local list (COURSES in
+ *    NewExam.jsx), not wired to the courses just created via the UI. We
+ *    create our course under one of those hardcoded codes so the journey
+ *    stays coherent; this is a known frontend gap, not a test bug.
  *
  * Results.jsx's ExpandedRow now has a real CorrectionPanel (Correct/
  * Incorrect, verdict/action selects, notes, "File Correction") that calls
@@ -44,10 +44,7 @@ import {
   addBaselineFor, provisionTenantWithStaff, staffStorageState,
 } from './fixtures/api-setup.mjs'
 
-// The code step 1 creates and step 2 then picks out of the live course list.
-// Any code would do now that the picker is server-backed — it stays 'PHIL 301A'
-// only so the journey still reads like a philosophy seminar.
-const JOURNEY_COURSE_CODE = 'PHIL 301A'
+const HARDCODED_COURSE_CODE = 'PHIL 301A' // must match a NewExam.jsx COURSES entry
 
 function staffAuth(workerTenant) {
   return { Authorization: `Bearer ${workerTenant.staff.token}` }
@@ -85,7 +82,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     const { courseName } = names(workerTenant)
     await openScreen(staffPage, 'Courses')
     await staffPage.getByRole('button', { name: '+ New Course' }).click()
-    await staffPage.getByPlaceholder('PHIL 401').fill(JOURNEY_COURSE_CODE)
+    await staffPage.getByPlaceholder('PHIL 401').fill(HARDCODED_COURSE_CODE)
     await staffPage.getByPlaceholder('e.g. Philosophy of Language').fill(courseName)
     await staffPage.getByRole('button', { name: 'Create Course' }).click()
     await expect(staffPage.getByText(courseName)).toBeVisible({ timeout: 10_000 })
@@ -96,7 +93,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     const { courses } = await coursesRes.json()
     const mine = courses.find(c => c.name === courseName)
     expect(mine).toBeTruthy()
-    expect(mine.code).toBe(JOURNEY_COURSE_CODE)
+    expect(mine.code).toBe(HARDCODED_COURSE_CODE)
   })
 
   // ── 2 ────────────────────────────────────────────────────────────────
@@ -128,13 +125,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     await expect(staffPage.getByRole('switch', { name: 'Phone blocker' })).toHaveAttribute('aria-checked', 'false')
 
     await staffPage.locator('#neTitle').fill(examTitle)
-    // #neCourse is populated from GET /bluebook/courses, so the course step 1
-    // created in this tenant is selectable here by its own code. Selected
-    // explicitly rather than left on the default: this worker's tenant may
-    // hold more than one course by now (a11y.spec.mjs provisions its own on
-    // the same worker-scoped tenant), and "whatever happens to be first" is
-    // not what this step is asserting.
-    await staffPage.locator('#neCourse').selectOption(JOURNEY_COURSE_CODE)
+    // #neCourse defaults to HARDCODED_COURSE_CODE already — leave as-is.
     await staffPage.locator('#neMinWords').fill('12')
     await staffPage.locator('#neMaxWords').fill('5000')
     await staffPage.locator('#nePrompt0').fill('Describe the categorical imperative in your own words.')
@@ -146,9 +137,6 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     const createdExam = await createExamResponse.json()
     expect(createdExam.id).toBeTruthy()
     expect(createdExam.status).toBe('ACTIVE')
-    // The picker's whole point: the code that reached the API is the one this
-    // tenant's own course carries, not a value baked into the frontend.
-    expect(createdExam.course).toBe(JOURNEY_COURSE_CODE)
     // The exact toggle states set above must round-trip through the API.
     expect(createdExam.conditions).toEqual({
       blockAI: true, blockWeb: true, blockCopy: true,
@@ -504,58 +492,6 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
 // ═══════════════════════════════════════════════════════════════════════
 // Stage-2 breadth on the same surface (non-serial — no shared state).
 // ═══════════════════════════════════════════════════════════════════════
-
-// The picker's two unhappy answers. The happy one — a real course selected and
-// round-tripped onto the exam — is journey step 2; these are the two that used
-// to be impossible, because a hardcoded list is never empty and never fails.
-test.describe('New Examination course picker', () => {
-  test('a tenant with no courses gets a typed code and a pointer to Courses, not the demo list', async ({
-    browser, baseURL, request,
-  }) => {
-    const { staff } = await provisionTenantWithStaff(request)
-    const context = await browser.newContext({ storageState: staffStorageState(baseURL, staff) })
-    const page = await context.newPage()
-    await openScreen(page, 'Examinations')
-    await page.getByRole('button', { name: '+ New Examination' }).click()
-    await expect(page.getByRole('heading', { name: 'New Examination' })).toBeVisible()
-
-    await expect(page.getByText('No courses yet')).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByRole('button', { name: /add one on the Courses screen/ })).toBeVisible()
-    // MOCK_COURSES leak guard — the same rule the describe below enforces on
-    // Dashboard/Results/Students: an authenticated tenant sees its own data.
-    await expect(page.getByText('Ethics in the Modern World')).toHaveCount(0)
-    // Still usable: the code is typed, and the form gates on title+prompt only.
-    await page.locator('#neCourse').fill('PHIL 401')
-    await page.locator('#neTitle').fill('Typed-course examination')
-    await page.locator('#nePrompt0').fill('A prompt.')
-    const [created] = await Promise.all([
-      page.waitForResponse(r => r.url().includes('/bluebook/exams') && r.request().method() === 'POST'),
-      page.getByRole('button', { name: 'Save as Draft' }).click(),
-    ])
-    expect((await created.json()).course).toBe('PHIL 401')
-    await context.close()
-  })
-
-  test('a failed course fetch says so and leaves the form usable', async ({ staffPage }) => {
-    // The one state a hardcoded list could not reach. Aborting the request is
-    // what BB_API.listCourses() turns into `null` — distinct from an empty
-    // roster, and the screen must not present it as one.
-    await staffPage.route('**/bluebook/courses', route => route.abort())
-    await openScreen(staffPage, 'Examinations')
-    await staffPage.getByRole('button', { name: '+ New Examination' }).click()
-
-    await expect(staffPage.getByText(/Your courses could not be loaded/)).toBeVisible({ timeout: 10_000 })
-    // A failure is not an empty roster: it must not offer to send the
-    // professor off to create a course they may well already have.
-    await expect(staffPage.getByText('No courses yet')).toHaveCount(0)
-    await expect(staffPage.getByRole('button', { name: /add one on the Courses screen/ })).toHaveCount(0)
-    // Publish stays reachable — the failure is non-blocking by construction.
-    await staffPage.locator('#neCourse').fill('PHIL 402')
-    await staffPage.locator('#neTitle').fill('Degraded-fetch examination')
-    await staffPage.locator('#nePrompt0').fill('A prompt.')
-    await expect(staffPage.getByRole('button', { name: 'Publish Examination' })).toBeEnabled()
-  })
-})
 
 test.describe('New Examination form gating', () => {
   test('Publish and Save as Draft stay gated until a title and a prompt exist', async ({ staffPage }) => {

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-02T03:39:04.673567Z",
+  "generated_at": "2026-08-01T16:34:26.717282Z",
   "environment": {
     "secret_key": "bench-key-do\u2026(44 chars)",
     "environment": "testing",
@@ -283,13 +283,13 @@
       "feature": "thematic_progression_score",
       "tier": 2,
       "F": [
-        0.3708,
+        0.2712,
+        0.0987,
+        0.1375,
         0.095,
-        0.0563,
-        0.202,
-        0.2483
+        0.1086
       ],
-      "stability_ratio_500_over_5000": 0.3827
+      "stability_ratio_500_over_5000": 0.9081
     },
     {
       "feature": "pronoun_reference_density",

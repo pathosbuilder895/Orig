@@ -16,10 +16,12 @@ For each length L:
   4. Record the F value, the per-author window count, and (for sanity)
      the per-author per-feature means.
 
-Tier-17 (keystroke) features are explicitly excluded — ``feature_vector``
-returns a constant 0.5 for them whenever no keystroke data is supplied,
-so their variance is identically zero and F is undefined. The exclusion
-is recorded in the report so a reader knows they were not measured.
+Features in currently-disabled feature groups (today: tier 17 "behavioral"
+and tier 18 "uniformity", via ``validation.measurability.disabled_feature_indices``)
+are explicitly excluded — ``feature_vector`` returns a constant placeholder
+for them while their group is disabled, so their variance is identically
+zero and F is undefined. The exclusion is recorded in the report so a
+reader knows they were not measured.
 
 Nothing in this module modifies state. Calling ``per_feature_stability``
 twice with the same author texts must produce the same result, modulo
@@ -35,8 +37,9 @@ from typing import Dict, List, Optional, Sequence
 
 import numpy as np
 
-from original.constants import ALL_FEATURE_CODES, FEATURE_DIM, FEATURE_TIER
+from original.constants import ALL_FEATURE_CODES, DISABLED_FEATURE_GROUPS, FEATURE_DIM, FEATURE_TIER
 from original.features.pipeline import feature_vector
+from validation.measurability import disabled_feature_indices
 
 from .slicer import slide
 
@@ -44,15 +47,16 @@ from .slicer import slide
 log = logging.getLogger("stability")
 
 EPS = 1e-9  # for the Fisher denominator
-KEYSTROKE_TIER = 17  # text-only inputs zero this tier
 
-
-# Pre-compute the indices we actually measure (everything except tier 17).
+# Indices skipped/measured now delegate to validation.measurability — the
+# single source of truth for which feature columns can carry corpus-sweep
+# signal. Previously this module hardcoded tier 17 (keystroke) only; the
+# registry also covers tier 18 (uniformity), which is in
+# DISABLED_FEATURE_GROUPS and therefore constant in extraction for the same
+# reason (see notes.append below).
+_FEATURE_INDICES_SKIPPED: List[int] = disabled_feature_indices()
 _FEATURE_INDICES_MEASURED: List[int] = [
-    idx for idx, code in enumerate(ALL_FEATURE_CODES) if FEATURE_TIER.get(code, 0) != KEYSTROKE_TIER
-]
-_FEATURE_INDICES_SKIPPED: List[int] = [
-    idx for idx, code in enumerate(ALL_FEATURE_CODES) if FEATURE_TIER.get(code, 0) == KEYSTROKE_TIER
+    i for i in range(len(ALL_FEATURE_CODES)) if i not in set(_FEATURE_INDICES_SKIPPED)
 ]
 
 
@@ -63,10 +67,10 @@ class StabilityReport:
     feature_codes: List[str]  # length 103, ordered by ALL_FEATURE_CODES
     feature_tiers: List[int]  # parallel to feature_codes
     lengths: List[int]  # the window sizes evaluated, ascending
-    fisher_matrix: List[List[float]]  # shape (n_features, n_lengths); NaN for tier-17 rows
+    fisher_matrix: List[List[float]]  # shape (n_features, n_lengths); NaN for disabled-group rows
     window_counts: List[Dict[str, int]]  # per length: {author_id: n_windows}
     author_word_counts: Dict[str, int]
-    excluded_indices: List[int]  # tier-17 feature indices
+    excluded_indices: List[int]  # disabled-group feature indices
     notes: List[str] = field(default_factory=list)
 
 
@@ -158,8 +162,8 @@ def per_feature_stability(
     Run the full study. Returns a ``StabilityReport`` ready to hand to
     ``validation.stability.report.write_report``.
 
-    Tier-17 features are recorded in ``excluded_indices`` and their rows
-    in ``fisher_matrix`` are filled with NaN — the writer omits them
+    Disabled-group features are recorded in ``excluded_indices`` and their
+    rows in ``fisher_matrix`` are filled with NaN — the writer omits them
     from the ranked top/bottom lists.
 
     Args:
@@ -188,13 +192,14 @@ def per_feature_stability(
         F = fisher_ratio(matrices)
         for row in _FEATURE_INDICES_MEASURED:
             fisher_matrix[row][col] = float(F[row])
-        # tier-17 rows stay NaN
+        # disabled-group rows stay NaN
 
     notes: List[str] = []
     if _FEATURE_INDICES_SKIPPED:
         notes.append(
-            f"{len(_FEATURE_INDICES_SKIPPED)} tier-17 (keystroke) features were "
-            f"excluded — text-only input gives them constant 0.5, so F is undefined."
+            f"{len(_FEATURE_INDICES_SKIPPED)} features in disabled groups "
+            f"({sorted(DISABLED_FEATURE_GROUPS)}) were excluded — text-only "
+            f"input gives them constant placeholders, so F is undefined."
         )
 
     return StabilityReport(

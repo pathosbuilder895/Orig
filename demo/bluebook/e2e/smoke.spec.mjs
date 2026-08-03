@@ -91,6 +91,10 @@ test.describe('Bluebook — backend reachability', () => {
     expect(r.status()).toBe(200)
     const j = await r.json()
     expect(j.status).toBe('ok')
-    expect(j.feature_dim).toBe(103)
+    // Source of truth is FEATURE_DIM in original/constants.py (len of
+    // ALL_FEATURE_CODES). 103 -> 109 when Tier 18 (uniformity, 6 features)
+    // landed. A JS test can't import the Python constant, so this is a
+    // hand-mirrored copy: if you change ALL_FEATURE_CODES, change this too.
+    expect(j.feature_dim).toBe(109)
   })
 })

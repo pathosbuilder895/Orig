@@ -13,6 +13,7 @@ the first read rather than presenting as an empty store.
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -109,3 +110,135 @@ def test_reads_raise_on_unreadable_existing_db(tmp_path, monkeypatch):
         store.count()
     with pytest.raises(sqlite3.Error):
         store.get("anyone")
+
+
+@pytest.fixture
+def memory_store(monkeypatch):
+    """Point the store at ORIGINAL_DB=':memory:' with a guaranteed-fresh
+    shared-cache in-memory database, isolated from any other test's data.
+
+    ``_isolated_store`` (autouse, above) already points ``_DB_PATH`` at a
+    temp *file* for every test in this module; this fixture overrides that
+    to the literal ``":memory:"`` sentinel for the tests below. Calls
+    ``store.reset_memory_conn()`` before AND after — the same reset hook a
+    real caller (e.g. a harness that runs more than one logical "run" in one
+    process) would use — so this test neither inherits another test's
+    in-memory data nor leaks its own into a later one.
+    """
+    monkeypatch.setattr(store, "_DB_PATH", Path(":memory:"))
+    store.reset_memory_conn()
+    yield store
+    store.reset_memory_conn()
+
+
+def test_memory_db_survives_a_write_then_read_round_trip(memory_store):
+    """ORIGINAL_DB=':memory:' must behave like a shared database within one
+    process, not a fresh anonymous database per connection.
+
+    Regression for the bug where every ``_get_conn()`` call did
+    ``sqlite3.connect(":memory:")`` — which creates a brand-new, unshared,
+    anonymous in-memory database each time, not a shared one. Since
+    ``with _get_conn() as conn: ...`` only manages the transaction (commit /
+    rollback), never closes the connection, each connection became eligible
+    for GC right after use, taking its anonymous database with it. A
+    baseline written by one call was therefore invisible to a later read —
+    exactly what ``validation/benchmark/reproducibility.py``'s
+    ``lock_environment()`` (``ORIGINAL_DB=":memory:"``, used by every
+    validation script) hits on any baseline-then-score round trip in one
+    process.
+    """
+    state = _make_state("student-memtest")
+    memory_store.put(state)
+
+    reloaded = memory_store.get("student-memtest")
+
+    assert reloaded is not None, (
+        "a baseline written via put() must be visible to a later get() "
+        "within the same process when ORIGINAL_DB=':memory:'"
+    )
+    assert reloaded.student_id == "student-memtest"
+    assert len(reloaded.samples) == 1
+
+
+def test_memory_db_connections_are_distinct_objects_that_share_data(memory_store):
+    """Every _get_conn() call under ORIGINAL_DB=':memory:' returns a fresh
+    Connection object -- the same shape as the file-backed path, via SQLite's
+    named shared-cache URI rather than a single reused connection -- but
+    every such connection attaches to the SAME underlying database, so a
+    write from one is immediately visible to a read from another."""
+    conn1 = store._get_conn()
+    conn2 = store._get_conn()
+    assert conn1 is not conn2, (
+        "each call must return its own Connection object, matching the "
+        "file-backed path's fresh-connection-per-call shape"
+    )
+    with conn1:
+        conn1.execute(
+            "INSERT OR REPLACE INTO student_profiles (student_id, data) VALUES (?, ?)",
+            ("probe", "{}"),
+        )
+    rows = conn2.execute(
+        "SELECT student_id FROM student_profiles WHERE student_id = ?", ("probe",)
+    ).fetchall()
+    assert rows == [("probe",)]
+    conn1.close()
+    conn2.close()
+
+
+def test_reset_memory_conn_gives_a_genuinely_empty_database(memory_store):
+    """reset_memory_conn() must make the NEXT _get_conn() call see a fresh,
+    empty database, not the previous run's leftover data -- the guarantee
+    validation/benchmark/reproducibility.py's docstring promises ("no
+    cross-run store contamination") for any caller that constructs more than
+    one logical "run" (e.g. more than one TestClient / more than one
+    baseline-then-score pass) within a single process.
+    """
+    state = _make_state("student-before-reset")
+    memory_store.put(state)
+    assert memory_store.get("student-before-reset") is not None  # sanity check
+
+    store.reset_memory_conn()
+
+    assert memory_store.get("student-before-reset") is None
+
+
+def test_reset_memory_conn_is_safe_from_a_different_thread(memory_store):
+    """A harness that runs more than one logical "run" in one process (e.g.
+    validation/audits/pooled_calibration_payoff.py, comparing pooled vs. self
+    calibration by constructing two separate TestClient/app instances and
+    calling reset_memory_conn() between them) does not control which thread
+    lazily creates the keepalive connection -- FastAPI's TestClient can serve
+    a request on a worker thread distinct from the caller's own. Reproduces
+    the real failure directly: touch _get_conn() (lazily creating
+    _MEMORY_KEEPALIVE_CONN) on a background thread, then call
+    reset_memory_conn() from THIS thread. Before the fix this raised
+    sqlite3.ProgrammingError: SQLite objects created in a thread can only be
+    used in that same thread.
+    """
+    import threading
+
+    def _touch_from_worker_thread():
+        store._get_conn().close()
+
+    worker = threading.Thread(target=_touch_from_worker_thread)
+    worker.start()
+    worker.join()
+
+    store.reset_memory_conn()  # must not raise
+
+
+def test_memory_db_does_not_affect_file_backed_path(tmp_path, monkeypatch):
+    """The fix must be scoped to ':memory:' only -- the file-backed
+    (production default) path keeps its existing fresh-connection-per-call
+    behaviour, and reset_memory_conn() must be harmless to call there (it
+    only touches ':memory:'-mode state that this path never uses)."""
+    db_file = tmp_path / "profiles.db"
+    monkeypatch.setattr(store, "_DB_PATH", db_file)
+
+    conn1 = store._get_conn()
+    conn2 = store._get_conn()
+    assert conn1 is not conn2
+    conn1.close()
+    conn2.close()
+
+    store.reset_memory_conn()  # must not raise, must not touch the file DB

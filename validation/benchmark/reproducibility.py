@@ -10,6 +10,8 @@ non-determinism in Original's scoring stack:
     - AMPLITUDE_SCORING_ENABLED   : 0    → no Phase-6 amplitude branch
     - BAYESIAN_PRIOR_ENABLED      : 0    → no cold-start blend
     - LENGTH_ADAPTIVE_WEIGHTS     : 0    → no length-schedule scaling
+    - IDENTITY_AXIS               : 0    → no Phase-2 action-matrix branch
+    - NULL_MODEL                  : none → no impostor null pool
     - ENVIRONMENT                 : testing → strict-mode flags off
     - ORIGINAL_DB                 : fresh temp file → no cross-run store contamination
     - random.seed / numpy seed    : BENCHMARK_SEED
@@ -58,6 +60,15 @@ _SCORING_FLAG_DEFAULTS = {
     "AMPLITUDE_SCORING_ENABLED": "0",  # Phase 6 amplitude branch
     "BAYESIAN_PRIOR_ENABLED": "0",  # cold-start prior blend
     "LENGTH_ADAPTIVE_WEIGHTS": "0",  # length-schedule scaling
+    # Phase 2 identity-axis pair: with IDENTITY_AXIS=1 AND NULL_MODEL=impostor
+    # leaked from a shell (run.py --demo sets NULL_MODEL=impostor), the
+    # typicality x llr_deviation_score action matrix can CHANGE actions, which
+    # would silently move every gate/benchmark number. Runners that study the
+    # impostor null on purpose (validation/verify/run_null_model.py) set
+    # NULL_MODEL=impostor themselves AFTER locking, so this pin never blocks
+    # an intentional enable.
+    "IDENTITY_AXIS": "0",
+    "NULL_MODEL": "none",
 }
 
 

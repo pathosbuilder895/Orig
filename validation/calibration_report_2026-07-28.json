@@ -1,0 +1,115 @@
+[
+  {
+    "name": "G1",
+    "passed": true,
+    "criterion": "pooled flagged rate <= 5%",
+    "current_value": "0.0%",
+    "detail": {
+      "n": 216,
+      "flagged": 0,
+      "pooled_flagged_rate": 0.0,
+      "per_corpus_flagged_rate": {
+        "seminary_group_0": 0.0,
+        "seminary_group_1": 0.0,
+        "seminary_group_2": 0.0,
+        "seminary_group_3": 0.0,
+        "seminary_group_4": 0.0,
+        "plato_apology": 0.0,
+        "plato_charmides": 0.0,
+        "plato_cratylus": 0.0,
+        "plato_euthydemus": 0.0,
+        "plato_gorgias": 0.0,
+        "plato_laches": 0.0,
+        "plato_laws": 0.0,
+        "plato_meno": 0.0,
+        "plato_parmenides": 0.0,
+        "plato_phaedo": 0.0,
+        "plato_phaedrus": 0.0,
+        "plato_philebus": 0.0,
+        "plato_protagoras": 0.0,
+        "plato_republic": 0.0,
+        "plato_sophist": 0.0,
+        "plato_statesman": 0.0,
+        "plato_symposium": 0.0,
+        "plato_theaetetus": 0.0,
+        "plato_timaeus": 0.0
+      }
+    }
+  },
+  {
+    "name": "G2",
+    "passed": true,
+    "criterion": "median(impostor q) <= median(holdout q)",
+    "current_value": "impostor=0.048, holdout=0.222",
+    "detail": {
+      "holdout_q": [
+        0.16666666666666666,
+        0.4,
+        0.16666666666666666,
+        0.125,
+        0.08333333333333333,
+        0.2,
+        0.25,
+        0.5,
+        0.2222222222222222,
+        0.08333333333333333,
+        0.36363636363636365,
+        0.16666666666666666,
+        0.2727272727272727,
+        0.08333333333333333,
+        0.36363636363636365,
+        0.25,
+        0.5454545454545454,
+        0.16666666666666666,
+        0.25
+      ],
+      "impostor_q": [
+        0.19047619047619047,
+        0.3333333333333333,
+        0.19047619047619047,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616
+      ]
+    }
+  },
+  {
+    "name": "G3",
+    "passed": false,
+    "criterion": "public_authors top-1 accuracy >= 0.7",
+    "current_value": "0.455",
+    "detail": {
+      "top1_accuracy": 0.4545
+    }
+  },
+  {
+    "name": "G4",
+    "passed": true,
+    "criterion": "early <= middle <= late (typicality distance from early baseline)",
+    "current_value": "{'early': 0.6355267688976185, 'middle': 0.6677726583845469, 'late': 0.7306948925252426}",
+    "detail": {
+      "group_means": {
+        "early": 0.6355267688976185,
+        "middle": 0.6677726583845469,
+        "late": 0.7306948925252426
+      }
+    }
+  }
+]

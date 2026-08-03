@@ -1,0 +1,1537 @@
+{
+  "dataset_label": "public_authors",
+  "generated_at": "2026-08-02T22:11:01Z",
+  "environment": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "environment": "testing",
+    "original_db": "/var/folders/tp/l48kv_q561jfkygwcvcr9lsc0000gn/T/original_bench_zic3m9bm.db",
+    "numpy_seeded": true,
+    "python_seeded": true,
+    "scoring_flags": {
+      "ADAPTIVE_WEIGHTS_ENABLED": "0",
+      "AMPLITUDE_SCORING_ENABLED": "0",
+      "BAYESIAN_PRIOR_ENABLED": "0",
+      "LENGTH_ADAPTIVE_WEIGHTS": "0",
+      "IDENTITY_AXIS": "0",
+      "NULL_MODEL": "none"
+    }
+  },
+  "experiment": {
+    "task": "attribution",
+    "git_sha": "61ada4e6ec5db420b7775a080c0fb48ecd55b838",
+    "seed": 1729,
+    "env_lock": {
+      "ADAPTIVE_WEIGHTS_ENABLED": "0",
+      "AMPLITUDE_SCORING_ENABLED": "0",
+      "BAYESIAN_PRIOR_ENABLED": "0",
+      "LENGTH_ADAPTIVE_WEIGHTS": "0",
+      "IDENTITY_AXIS": "0",
+      "NULL_MODEL": "none"
+    },
+    "corpora": {
+      "public_authors": {
+        "n_authors": 2,
+        "n_documents": 64,
+        "total_words": 149368,
+        "docs_per_author": {
+          "hamilton": 50,
+          "madison": 14
+        },
+        "provenance": "real_historical"
+      }
+    },
+    "windowing": {
+      "source": "public_authors corpus documents as-is"
+    },
+    "features": {
+      "total": 109,
+      "status_counts": {
+        "measurable": 89,
+        "scoring_only": 7,
+        "structurally_blank": 1,
+        "disabled": 12
+      }
+    },
+    "aggregation": {
+      "attribution_rule": "raw_argmin_fallback"
+    },
+    "thresholds": {
+      "g3_top1": 0.7,
+      "attribution_min_words": 300,
+      "attribution_min_baseline_docs": 3
+    },
+    "created_at": "2026-08-02T22:11:01+00:00"
+  },
+  "summary": {
+    "eligible_authors": [
+      "hamilton",
+      "madison"
+    ],
+    "n_eligible_authors": 2,
+    "n_held_out_essays": 58,
+    "top1_accuracy": 0.6034,
+    "top1_accuracy_raw_argmin": 0.6034,
+    "mean_rank_of_true_author": 1.397,
+    "mean_rank_raw_argmin": 1.397,
+    "attribution_method": "raw_argmin_fallback",
+    "method_note": "Fell back to raw argmin for the whole run: at least one candidate had fewer than 5 impostor reference points (see reference_warnings).",
+    "reference_warnings": [
+      "hamilton: only 3 reference points (need \u22655)",
+      "madison: only 3 reference points (need \u22655)"
+    ],
+    "skipped_authors": [],
+    "dropped_short_documents": [],
+    "corpus_policy_violations": [],
+    "n_scored_essays": 58,
+    "per_engine_top1": {
+      "deviation_calibrated": {
+        "accuracy": 0.6034,
+        "wilson_ci_95": [
+          0.4749,
+          0.7191
+        ],
+        "n": 58
+      },
+      "cosine_delta": {
+        "accuracy": 0.5345,
+        "wilson_ci_95": [
+          0.408,
+          0.6567
+        ],
+        "n": 58
+      },
+      "mfw_delta": {
+        "accuracy": 0.7931,
+        "wilson_ci_95": [
+          0.6723,
+          0.8775
+        ],
+        "n": 58
+      }
+    },
+    "ensemble_coverage": 1.0,
+    "ensemble_accuracy_on_covered": 0.7241,
+    "engine_agreement": {
+      "cosine_delta|deviation_calibrated": 0.4138,
+      "cosine_delta|mfw_delta": 0.6379,
+      "deviation_calibrated|mfw_delta": 0.5
+    },
+    "engine_exceptions": []
+  },
+  "reference_stats": {},
+  "per_author": {
+    "hamilton": {
+      "n_scored": 47,
+      "n_correct": 24,
+      "accuracy": 0.5106
+    },
+    "madison": {
+      "n_scored": 11,
+      "n_correct": 11,
+      "accuracy": 1.0
+    }
+  },
+  "results": [
+    {
+      "filename": "hamilton/fed_hamilton_08.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.5398,
+        "madison": 0.5833
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 2059,
+      "scoring_time_ms": 8919.04,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_09.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.5797,
+        "madison": 0.5812
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 1994,
+      "scoring_time_ms": 8985.55,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "madison",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_11.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.5104,
+        "madison": 0.696
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 2504,
+      "scoring_time_ms": 10227.77,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_12.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.5503,
+        "madison": 0.541
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 2163,
+      "scoring_time_ms": 9588.41,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "madison",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "madison",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, deviation_calibrated)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_13.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.5757,
+        "madison": 0.7054
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 967,
+      "scoring_time_ms": 4625.31,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_15.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.6614,
+        "madison": 0.6752
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 3089,
+      "scoring_time_ms": 13397.44,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_16.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.695,
+        "madison": 0.5578
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 2042,
+      "scoring_time_ms": 10216.14,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "madison",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "madison",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, deviation_calibrated)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_17.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.657,
+        "madison": 0.6195
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 1572,
+      "scoring_time_ms": 8777.57,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "madison",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "madison",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, deviation_calibrated)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_21.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.48,
+        "madison": 0.5674
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 2001,
+      "scoring_time_ms": 11272.72,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_22.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.5371,
+        "madison": 0.6571
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 3556,
+      "scoring_time_ms": 24431.49,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_23.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.7189,
+        "madison": 0.657
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 1805,
+      "scoring_time_ms": 11835.46,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_24.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.6011,
+        "madison": 0.5787
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 2008,
+      "scoring_time_ms": 18189.83,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_25.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.5774,
+        "madison": 0.5597
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 1991,
+      "scoring_time_ms": 15410.55,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "madison",
+        "mfw_delta": "madison"
+      },
+      "ensemble_author": "madison",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_26.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.6255,
+        "madison": 0.5732
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 2388,
+      "scoring_time_ms": 15642.46,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_27.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.7635,
+        "madison": 0.7728
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 1457,
+      "scoring_time_ms": 10492.98,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "madison"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, deviation_calibrated)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_28.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.5863,
+        "madison": 0.6524
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 1606,
+      "scoring_time_ms": 9400.94,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "madison",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_29.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.6158,
+        "madison": 0.6286
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 2239,
+      "scoring_time_ms": 13729.24,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "madison",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_30.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.6093,
+        "madison": 0.5866
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 1972,
+      "scoring_time_ms": 13031.99,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "madison",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "madison",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, deviation_calibrated)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_31.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.677,
+        "madison": 0.6357
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 1738,
+      "scoring_time_ms": 9638.84,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "madison",
+        "mfw_delta": "madison"
+      },
+      "ensemble_author": "madison",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_32.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.7623,
+        "madison": 0.7738
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 1492,
+      "scoring_time_ms": 9357.15,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "madison",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_33.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.7038,
+        "madison": 0.7093
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 1694,
+      "scoring_time_ms": 9480.85,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_34.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.6389,
+        "madison": 0.6266
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 2219,
+      "scoring_time_ms": 18100.38,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_35.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.6895,
+        "madison": 0.6828
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 2258,
+      "scoring_time_ms": 19723.61,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "madison",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "madison",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, deviation_calibrated)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_36.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.6172,
+        "madison": 0.6075
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 2742,
+      "scoring_time_ms": 17725.92,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_59.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.7013,
+        "madison": 0.7054
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 1918,
+      "scoring_time_ms": 14490.05,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_60.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.73,
+        "madison": 0.7445
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 2253,
+      "scoring_time_ms": 17424.04,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "madison"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, deviation_calibrated)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_61.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.7353,
+        "madison": 0.7708
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 1525,
+      "scoring_time_ms": 8009.32,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_65.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.6273,
+        "madison": 0.6965
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 2024,
+      "scoring_time_ms": 13341.49,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "madison",
+        "mfw_delta": "madison"
+      },
+      "ensemble_author": "madison",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_66.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.6746,
+        "madison": 0.6294
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 2269,
+      "scoring_time_ms": 13176.58,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_67.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.662,
+        "madison": 0.739
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 1658,
+      "scoring_time_ms": 9512.24,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "madison",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_68.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.682,
+        "madison": 0.6535
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 1510,
+      "scoring_time_ms": 7696.72,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_69.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.635,
+        "madison": 0.6814
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 2987,
+      "scoring_time_ms": 20068.58,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "madison",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_70.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.5962,
+        "madison": 0.5525
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 3115,
+      "scoring_time_ms": 22445.14,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_71.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.6922,
+        "madison": 0.6575
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 1749,
+      "scoring_time_ms": 12750.43,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_72.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.5805,
+        "madison": 0.6337
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 2044,
+      "scoring_time_ms": 11668.17,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_73.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.6705,
+        "madison": 0.5368
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 2370,
+      "scoring_time_ms": 14946.22,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_74.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.6407,
+        "madison": 0.6986
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 1005,
+      "scoring_time_ms": 6339.29,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "madison",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_75.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.6617,
+        "madison": 0.5854
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 1948,
+      "scoring_time_ms": 11655.43,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_76.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.6852,
+        "madison": 0.6589
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 2306,
+      "scoring_time_ms": 15599.22,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_77.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.5695,
+        "madison": 0.594
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 1979,
+      "scoring_time_ms": 12862.89,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_78.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.7284,
+        "madison": 0.6204
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 3066,
+      "scoring_time_ms": 22550.77,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "madison"
+      },
+      "ensemble_author": "madison",
+      "ensemble_basis": "2-of-3 agree (deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_79.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.5575,
+        "madison": 0.6257
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 1040,
+      "scoring_time_ms": 8804.16,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_80.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.7096,
+        "madison": 0.6942
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 2460,
+      "scoring_time_ms": 19800.62,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "madison",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "madison",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, deviation_calibrated)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_81.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.6354,
+        "madison": 0.5529
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 3920,
+      "scoring_time_ms": 29575.19,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_82.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.6621,
+        "madison": 0.6738
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 1550,
+      "scoring_time_ms": 10661.6,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_83.txt",
+      "true_author": "hamilton",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": false,
+      "deviations": {
+        "hamilton": 0.685,
+        "madison": 0.551
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 2,
+      "rank_of_true_raw": 2,
+      "word_count": 5842,
+      "scoring_time_ms": 34936.23,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "hamilton/fed_hamilton_84.txt",
+      "true_author": "hamilton",
+      "predicted_author": "hamilton",
+      "predicted_author_raw": "hamilton",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.6618,
+        "madison": 0.6709
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 4223,
+      "scoring_time_ms": 23308.27,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "hamilton",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "3-of-3 agree (cosine_delta, deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "madison/fed_madison_38.txt",
+      "true_author": "madison",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.6124,
+        "madison": 0.6
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 3325,
+      "scoring_time_ms": 21009.72,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "madison/fed_madison_39.txt",
+      "true_author": "madison",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.6294,
+        "madison": 0.6174
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 2614,
+      "scoring_time_ms": 16921.11,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "madison"
+      },
+      "ensemble_author": "madison",
+      "ensemble_basis": "2-of-3 agree (deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "madison/fed_madison_40.txt",
+      "true_author": "madison",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.8017,
+        "madison": 0.7845
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 3032,
+      "scoring_time_ms": 15153.38,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "madison/fed_madison_41.txt",
+      "true_author": "madison",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.6488,
+        "madison": 0.6262
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 3559,
+      "scoring_time_ms": 16325.78,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "madison"
+      },
+      "ensemble_author": "madison",
+      "ensemble_basis": "2-of-3 agree (deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "madison/fed_madison_42.txt",
+      "true_author": "madison",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.6783,
+        "madison": 0.5657
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 2786,
+      "scoring_time_ms": 10507.68,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "madison"
+      },
+      "ensemble_author": "madison",
+      "ensemble_basis": "2-of-3 agree (deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "madison/fed_madison_43.txt",
+      "true_author": "madison",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.6963,
+        "madison": 0.6463
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 3444,
+      "scoring_time_ms": 13297.27,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "madison"
+      },
+      "ensemble_author": "madison",
+      "ensemble_basis": "2-of-3 agree (deviation_calibrated, mfw_delta)"
+    },
+    {
+      "filename": "madison/fed_madison_44.txt",
+      "true_author": "madison",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.7464,
+        "madison": 0.6882
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 2905,
+      "scoring_time_ms": 12321.8,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "madison/fed_madison_45.txt",
+      "true_author": "madison",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.6999,
+        "madison": 0.5848
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 2126,
+      "scoring_time_ms": 7705.51,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "madison/fed_madison_46.txt",
+      "true_author": "madison",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.6936,
+        "madison": 0.6761
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 2620,
+      "scoring_time_ms": 9437.9,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "madison/fed_madison_47.txt",
+      "true_author": "madison",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.6319,
+        "madison": 0.63
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 2750,
+      "scoring_time_ms": 9870.01,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "hamilton"
+      },
+      "ensemble_author": "hamilton",
+      "ensemble_basis": "2-of-3 agree (cosine_delta, mfw_delta)"
+    },
+    {
+      "filename": "madison/fed_madison_48.txt",
+      "true_author": "madison",
+      "predicted_author": "madison",
+      "predicted_author_raw": "madison",
+      "correct": true,
+      "deviations": {
+        "hamilton": 0.5944,
+        "madison": 0.5614
+      },
+      "calibrated_scores": {},
+      "rank_of_true": 1,
+      "rank_of_true_raw": 1,
+      "word_count": 1868,
+      "scoring_time_ms": 8039.88,
+      "error": null,
+      "engine_predictions": {
+        "deviation_calibrated": "madison",
+        "cosine_delta": "hamilton",
+        "mfw_delta": "madison"
+      },
+      "ensemble_author": "madison",
+      "ensemble_basis": "2-of-3 agree (deviation_calibrated, mfw_delta)"
+    }
+  ],
+  "confusion": {
+    "hamilton": {
+      "hamilton": 24,
+      "madison": 23
+    },
+    "madison": {
+      "madison": 11
+    }
+  }
+}
