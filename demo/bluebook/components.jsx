@@ -314,6 +314,40 @@ export const BB_API = {
       return (await r.json()).courses || [];
     } catch (e) { return null; }
   },
+  // File instructor feedback on a scoring verdict — persists to the
+  // corrections ledger (drives future retraining; see original/schemas.py
+  // CorrectionRequest). submissionId is the Original scoring-record id
+  // for the submission (Exam.jsx now threads the seal's own uuid into the
+  // score call, so it's the same as the row's submission_uuid) — not the
+  // Bluebook exam id.
+  async fileCorrection(submissionId, { isCorrect, correctedVerdict, correctedAction, reviewer, notes }) {
+    const r = await fetch(this.base + `/submissions/${encodeURIComponent(submissionId)}/correct`, {
+      method: 'POST', headers: this._headers(),
+      body: JSON.stringify({
+        is_correct: isCorrect,
+        corrected_verdict: correctedVerdict || null,
+        corrected_action: correctedAction || null,
+        reviewer: reviewer || null,
+        notes: notes || null,
+      }),
+    });
+    if (!r.ok) {
+      let detail = r.statusText;
+      try { detail = (await r.json()).detail || detail; } catch (e) {}
+      throw new Error(detail);
+    }
+    return r.json();
+  },
+  async listCorrections(submissionId) {
+    try {
+      const r = await fetch(
+        this.base + `/admin/corrections?submission_id=${encodeURIComponent(submissionId)}`,
+        { headers: this._headers() },
+      );
+      if (!r.ok) return null;
+      return (await r.json()).items || [];
+    } catch (e) { return null; }
+  },
   async createCourse(payload) {
     const r = await fetch(this.base + '/bluebook/courses', {
       method: 'POST', headers: this._headers(), body: JSON.stringify(payload),

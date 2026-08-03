@@ -99,9 +99,11 @@ validation/benchmarks/*
 # Stability-study output (same pattern — gitignored by default, evidence
 # runs committed explicitly with `git add -f`). The first study run
 # (2026-06-30/) is force-tracked as the headline evidence for the
-# length-stability PR.
+# length-stability PR. 2026-08-01/ is the decontaminated re-run that
+# superseded it — see 2026-08-01/COMPARISON_vs_2026-06-30.md.
 validation/stability/2*/
 !validation/stability/2026-06-30/
+!validation/stability/2026-08-01/
 
 # FUSE-mount deletion artifacts (accumulate on synced/FUSE filesystems)
 .fuse_hidden*
@@ -110,3 +112,6 @@ validation/stability/2*/
 # e2e per-run tenant-cleanup ledger (deleted on clean teardown; an
 # interrupted run leaves it behind)
 demo/bluebook/e2e/fixtures/.tenants-created.log
+
+# Hypothesis example database (property-test cache, machine-local)
+.hypothesis/

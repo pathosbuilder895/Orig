@@ -6,8 +6,13 @@ Two layers:
      claimed student, and abstains (None) below the cold-start floors.
   2. API — /students/{id}/score attaches authorship.llr_deviation_score
      when the flag is on and a peer pool exists; stays null when the flag
-     is off or the tenant is a cold start. deviation_score and the
-     recommended action are identical either way (attach-only contract).
+     is off or the tenant is a cold start. deviation_score is NEVER touched
+     by the null model. The recommended action is byte-identical to
+     flag-off ONLY under llr_action_mode="shadow" (explicit opt-in); the
+     default as of 2026-08 is "gate", which CAN downgrade the action one
+     severity step on a confidently-genuine llr reading — see
+     tests/quantum/test_llr_action_modes.py for that behavior and
+     ScoringConfig.llr_action_mode's docstring (quantum/scoring.py) for why.
 """
 
 import numpy as np
@@ -128,7 +133,7 @@ def test_unverified_samples_never_pooled():
     assert build_impostor_stats("acme:target", states) is None
 
 
-# ── API: flag-gated attach-only behaviour ─────────────────────────────────────
+# ── API: flag-gated attach behaviour ──────────────────────────────────────────
 
 
 @pytest.fixture(scope="module")
@@ -185,7 +190,7 @@ def test_flag_off_llr_is_null(cohort, monkeypatch):
     assert body["authorship"]["llr_deviation_score"] is None
 
 
-def test_flag_on_llr_attached_and_action_untouched(cohort, monkeypatch):
+def test_flag_on_llr_attached_deviation_score_never_touched(cohort, monkeypatch):
     monkeypatch.delenv("NULL_MODEL", raising=False)
     off = _score(cohort, "nullpool:student_0")
 
@@ -194,7 +199,26 @@ def test_flag_on_llr_attached_and_action_untouched(cohort, monkeypatch):
 
     llr = on["authorship"]["llr_deviation_score"]
     assert llr is not None and 0.0 <= llr <= 1.0
-    # Attach-only contract: the primary score and action are byte-identical.
+    # deviation_score itself is never touched by the null model, regardless
+    # of llr_action_mode — only the recommended action can move, and only
+    # under "gate"/"trigger"/"blend". See test_llr_action_modes.py for that.
+    assert on["authorship"]["deviation_score"] == off["authorship"]["deviation_score"]
+
+
+def test_flag_on_with_shadow_mode_action_untouched(cohort, monkeypatch):
+    # llr_action_mode="shadow" is the explicit opt-in for the OLD attach-only
+    # contract: the recommended action stays byte-identical to flag-off.
+    # The default as of 2026-08 is "gate", which does not give this guarantee
+    # (see tests/quantum/test_llr_action_modes.py).
+    monkeypatch.delenv("NULL_MODEL", raising=False)
+    monkeypatch.delenv("LLR_ACTION_MODE", raising=False)
+    off = _score(cohort, "nullpool:student_0")
+
+    monkeypatch.setenv("NULL_MODEL", "impostor")
+    monkeypatch.setenv("LLR_ACTION_MODE", "shadow")
+    on = _score(cohort, "nullpool:student_0")
+
+    assert on["authorship"]["llr_deviation_score"] is not None
     assert on["authorship"]["deviation_score"] == off["authorship"]["deviation_score"]
     assert on["recommendation"]["action"] == off["recommendation"]["action"]
 

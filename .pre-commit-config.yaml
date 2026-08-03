@@ -4,6 +4,12 @@ repos:
     hooks:
       - id: check-added-large-files
         args: [--maxkb=700]          # bundle ~230KB + linked sourcemap ~600KB pass; stray models/DBs don't
+        # Raw Gutenberg source caches (build_corpus.py's re-fetch cache, not
+        # itself part of the scored corpus — that's the chunked _part_NN.txt
+        # files) run well past 700KB for longer works; james/newman's caches
+        # (941KB/1.15MB) already exceed it and only pass because the hook
+        # only checks newly-added files, not modifications.
+        exclude: ^validation/public_authors/corpus/.*/_full_work_cache\.txt$
       - id: check-merge-conflict
       - id: detect-private-key       # LTI RSA keys are handled in this repo
       - id: end-of-file-fixer

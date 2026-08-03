@@ -1,0 +1,118 @@
+{
+  "n_tokens_truncated_to": 500,
+  "off": {
+    "auc": 0.6059,
+    "brier": 0.1304,
+    "n_scored": 717,
+    "per_label": {
+      "authentic": {
+        "count": 617,
+        "mean_deviation": 0.7957,
+        "std_deviation": 0.0688,
+        "min_deviation": 0.5952,
+        "max_deviation": 1.0
+      },
+      "ghostwritten": {
+        "count": 100,
+        "mean_deviation": 0.8172,
+        "std_deviation": 0.0561,
+        "min_deviation": 0.6107,
+        "max_deviation": 0.9151
+      }
+    },
+    "threshold_metrics": {
+      "no_action": {
+        "threshold": 0.4,
+        "tp": 0,
+        "fp": 617,
+        "tn": 100,
+        "fn": 0,
+        "accuracy": 0.1395,
+        "precision": 0.1395
+      },
+      "monitor": {
+        "threshold": 0.55,
+        "tp": 0,
+        "fp": 617,
+        "tn": 100,
+        "fn": 0,
+        "accuracy": 0.1395,
+        "precision": 0.1395
+      },
+      "escalate": {
+        "threshold": 0.75,
+        "tp": 164,
+        "fp": 453,
+        "tn": 90,
+        "fn": 10,
+        "accuracy": 0.3543,
+        "precision": 0.1657
+      }
+    }
+  },
+  "on": {
+    "auc": 0.6219,
+    "brier": 0.1304,
+    "n_scored": 717,
+    "per_label": {
+      "authentic": {
+        "count": 617,
+        "mean_deviation": 0.8176,
+        "std_deviation": 0.0832,
+        "min_deviation": 0.5571,
+        "max_deviation": 1.0
+      },
+      "ghostwritten": {
+        "count": 100,
+        "mean_deviation": 0.8476,
+        "std_deviation": 0.0558,
+        "min_deviation": 0.6372,
+        "max_deviation": 0.9224
+      }
+    },
+    "threshold_metrics": {
+      "no_action": {
+        "threshold": 0.4,
+        "tp": 0,
+        "fp": 617,
+        "tn": 100,
+        "fn": 0,
+        "accuracy": 0.1395,
+        "precision": 0.1395
+      },
+      "monitor": {
+        "threshold": 0.55,
+        "tp": 0,
+        "fp": 617,
+        "tn": 100,
+        "fn": 0,
+        "accuracy": 0.1395,
+        "precision": 0.1395
+      },
+      "escalate": {
+        "threshold": 0.75,
+        "tp": 134,
+        "fp": 483,
+        "tn": 94,
+        "fn": 6,
+        "accuracy": 0.318,
+        "precision": 0.1629
+      }
+    }
+  },
+  "delta_auc": 0.016,
+  "delta_brier": 0.0,
+  "env": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "environment": "testing",
+    "original_db": "/var/folders/tp/l48kv_q561jfkygwcvcr9lsc0000gn/T/original_bench_lltroz5g.db",
+    "numpy_seeded": true,
+    "python_seeded": true,
+    "scoring_flags": {
+      "ADAPTIVE_WEIGHTS_ENABLED": "0",
+      "AMPLITUDE_SCORING_ENABLED": "0",
+      "BAYESIAN_PRIOR_ENABLED": "0",
+      "LENGTH_ADAPTIVE_WEIGHTS": "0"
+    }
+  }
+}

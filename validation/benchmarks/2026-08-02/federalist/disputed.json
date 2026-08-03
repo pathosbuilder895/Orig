@@ -1,0 +1,86 @@
+{
+  "consensus_author": "madison",
+  "n_disputed": 12,
+  "per_engine": {
+    "cosine_delta": {
+      "agrees_with_consensus": 4,
+      "n": 12,
+      "binomial_p": 0.927001953125
+    },
+    "mfw_delta": {
+      "agrees_with_consensus": 12,
+      "n": 12,
+      "binomial_p": 0.000244140625
+    }
+  },
+  "per_paper": {
+    "fed_disputed_49": {
+      "cosine_delta": "hamilton",
+      "mfw_delta": "madison"
+    },
+    "fed_disputed_50": {
+      "cosine_delta": "hamilton",
+      "mfw_delta": "madison"
+    },
+    "fed_disputed_51": {
+      "cosine_delta": "madison",
+      "mfw_delta": "madison"
+    },
+    "fed_disputed_52": {
+      "cosine_delta": "madison",
+      "mfw_delta": "madison"
+    },
+    "fed_disputed_53": {
+      "cosine_delta": "hamilton",
+      "mfw_delta": "madison"
+    },
+    "fed_disputed_54": {
+      "cosine_delta": "hamilton",
+      "mfw_delta": "madison"
+    },
+    "fed_disputed_55": {
+      "cosine_delta": "hamilton",
+      "mfw_delta": "madison"
+    },
+    "fed_disputed_56": {
+      "cosine_delta": "hamilton",
+      "mfw_delta": "madison"
+    },
+    "fed_disputed_57": {
+      "cosine_delta": "hamilton",
+      "mfw_delta": "madison"
+    },
+    "fed_disputed_58": {
+      "cosine_delta": "hamilton",
+      "mfw_delta": "madison"
+    },
+    "fed_disputed_62": {
+      "cosine_delta": "madison",
+      "mfw_delta": "madison"
+    },
+    "fed_disputed_63": {
+      "cosine_delta": "madison",
+      "mfw_delta": "madison"
+    }
+  },
+  "balanced_pool_control": {
+    "why": "The unbalanced pool is 50 Hamilton papers to 14 Madison. A nearest-centroid engine can be dragged toward the majority class by that alone, so the unbalanced result cannot distinguish 'bad at authorship' from 'sensitive to class imbalance'. Re-run with 14 papers per author.",
+    "pool": {
+      "hamilton": 14,
+      "madison": 14
+    },
+    "per_engine": {
+      "cosine_delta": {
+        "agrees_with_consensus": 9,
+        "n": 12,
+        "binomial_p": 0.073
+      },
+      "mfw_delta": {
+        "agrees_with_consensus": 11,
+        "n": 12,
+        "binomial_p": 0.0032
+      }
+    },
+    "reading": "cosine_delta moves 4/12 -> 9/12 once the pool is balanced, so its worse-than-chance unbalanced score was largely an imbalance artifact, not evidence that the feature pipeline is anti-correlated with authorship. mfw_delta is essentially unaffected (12/12 -> 11/12), i.e. robust to the imbalance."
+  }
+}

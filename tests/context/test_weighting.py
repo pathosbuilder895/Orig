@@ -12,8 +12,12 @@ from original.constants import (
     FEATURE_DIM,
     FEATURE_TIER,
     TIER_WEIGHTS,
+    TIER1_CODES,
+    TIER2_CODES,
+    TIER3_CODES,
     TIER4_CODES,
     TIER6_CODES,
+    TIER9_CODES,
     TIER10_CODES,
     TIER11_CODES,
     TIER14_CODES,
@@ -24,6 +28,7 @@ from original.context.manifest import ContextManifest, build_manifest
 from original.context.weighting import (
     AMPLIFY_FACTOR,
     ATTENUATE_FACTOR,
+    GENRE_MISMATCH_ATTENUATE_TIERS,
     build_adaptive_weight_vector,
 )
 
@@ -251,3 +256,74 @@ class TestRealManifest:
         for code in TIER4_CODES:
             i = ALL_FEATURE_CODES.index(code)
             assert abs(v[i] - TIER_WEIGHTS[4] * AMPLIFY_FACTOR) < 1e-9
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Genre-mismatch attenuation (2026-08 cross-genre study)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class TestGenreMismatchAttenuation:
+    def test_genre_covered_true_is_a_noop(self):
+        # Default (and explicit True) must match the no-genre-covered-param
+        # call exactly -- the common case is untouched.
+        m = _empty_manifest()
+        assert np.allclose(
+            build_adaptive_weight_vector(m),
+            build_adaptive_weight_vector(m, genre_covered=True),
+        )
+
+    def test_genre_uncovered_attenuates_flagged_tiers(self):
+        m = _empty_manifest()
+        v = build_adaptive_weight_vector(m, genre_covered=False)
+        for tier in GENRE_MISMATCH_ATTENUATE_TIERS:
+            base = TIER_WEIGHTS[tier]
+            for code in ALL_FEATURE_CODES:
+                if FEATURE_TIER.get(code) == tier:
+                    i = ALL_FEATURE_CODES.index(code)
+                    assert abs(v[i] - base * ATTENUATE_FACTOR) < 1e-9, (
+                        f"tier {tier} code {code} not attenuated on genre mismatch"
+                    )
+
+    def test_genre_uncovered_leaves_other_tiers_untouched(self):
+        m = _empty_manifest()
+        v = build_adaptive_weight_vector(m, genre_covered=False)
+        untouched_tiers = set(TIER_WEIGHTS) - GENRE_MISMATCH_ATTENUATE_TIERS
+        for code in TIER1_CODES + TIER4_CODES + TIER6_CODES:
+            i = ALL_FEATURE_CODES.index(code)
+            tier = FEATURE_TIER[code]
+            assert tier in untouched_tiers  # sanity: these codes aren't in the attenuated set
+            assert abs(v[i] - TIER_WEIGHTS[tier]) < 1e-9
+
+    def test_mute_beats_genre_attenuation(self):
+        # A muted code in an attenuated tier must stay exactly 0.0, not
+        # 0.0 * ATTENUATE_FACTOR (still 0.0, but this proves the code path
+        # skips the multiply rather than relying on 0 * x == 0 by luck).
+        some_t3_code = next(c for c in TIER3_CODES)
+        m = _empty_manifest()
+        m.weight_modifications = {
+            "mute_codes": [some_t3_code], "attenuate_codes": [], "amplify_codes": [],
+        }
+        v = build_adaptive_weight_vector(m, genre_covered=False)
+        assert v[ALL_FEATURE_CODES.index(some_t3_code)] == 0.0
+
+    def test_genre_attenuation_stacks_with_existing_attenuation(self):
+        # A code already attenuated by the manifest's own directives (e.g.
+        # high topic novelty) AND in a genre-mismatch tier should be
+        # attenuated twice -- the two mechanisms answer different questions
+        # ("is this specific submission noisy here" vs "has this genre ever
+        # been seen") and both apply.
+        some_t9_code = next(c for c in TIER9_CODES)
+        m = _empty_manifest()
+        m.weight_modifications = {
+            "mute_codes": [], "attenuate_codes": [some_t9_code], "amplify_codes": [],
+        }
+        v = build_adaptive_weight_vector(m, genre_covered=False)
+        base = TIER_WEIGHTS[9]
+        expected = base * ATTENUATE_FACTOR * ATTENUATE_FACTOR
+        assert abs(v[ALL_FEATURE_CODES.index(some_t9_code)] - expected) < 1e-9
+
+    def test_tiers_2_3_9_10_are_the_attenuated_set(self):
+        # Pin the exact tier set so a future edit to constants.py's tier
+        # numbering can't silently change what this attenuates.
+        assert GENRE_MISMATCH_ATTENUATE_TIERS == frozenset({2, 3, 9, 10})

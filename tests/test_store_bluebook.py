@@ -218,3 +218,65 @@ def test_put_bluebook_course_surfaces_sqlite_error(monkeypatch):
     monkeypatch.setattr(store, "_get_conn", lambda: _BoomConn())
     with pytest.raises(sqlite3.Error):
         store.put_bluebook_course(_course())
+
+
+# ── Sessions (exam-day robustness spec §1) ─────────────────────────────────────
+
+class TestBluebookSessions:
+    def test_first_call_creates_session(self):
+        from datetime import datetime
+
+        s = store.get_or_create_bluebook_session("ex1", "sem:alice", "sem", 3600)
+        assert s["created"] is True
+        assert s["exam_id"] == "ex1" and s["tenant_id"] == "sem"
+        started = datetime.fromisoformat(s["started_at"])
+        deadline = datetime.fromisoformat(s["deadline_at"])
+        assert (deadline - started).total_seconds() == 3600
+
+    def test_second_call_returns_same_deadline(self):
+        first = store.get_or_create_bluebook_session("ex1", "sem:alice", "sem", 3600)
+        again = store.get_or_create_bluebook_session("ex1", "sem:alice", "sem", 3600)
+        assert again["created"] is False
+        assert again["deadline_at"] == first["deadline_at"]
+        assert again["started_at"] == first["started_at"]
+
+    def test_sessions_are_per_student_and_exam(self):
+        a = store.get_or_create_bluebook_session("ex1", "sem:alice", "sem", 3600)
+        b = store.get_or_create_bluebook_session("ex1", "sem:bob", "sem", 3600)
+        c = store.get_or_create_bluebook_session("ex2", "sem:alice", "sem", 3600)
+        assert a["created"] and b["created"] and c["created"]
+
+    def test_read_only_lookup(self):
+        assert store.get_bluebook_session("ex1", "sem:alice") is None
+        created = store.get_or_create_bluebook_session("ex1", "sem:alice", "sem", 60)
+        got = store.get_bluebook_session("ex1", "sem:alice")
+        assert got is not None and got["deadline_at"] == created["deadline_at"]
+
+
+# ── submission_uuid / late (exam-day robustness spec §2) ───────────────────────
+
+class TestSubmissionUuid:
+    def _rec(self, uuid_val):
+        return {
+            "id": "sub-" + uuid_val, "exam_id": "ex1", "tenant_id": "sem",
+            "student_id": "sem:alice", "candidate": "Alice", "exam_title": "T",
+            "course": "C", "word_count": 10, "time_min": 5, "stylometric": 90,
+            "ai_score": None, "status": "SUBMITTED",
+            "submission_uuid": uuid_val, "late": 0,
+        }
+
+    def test_uuid_roundtrip(self):
+        store.put_bluebook_submission(self._rec("u-1"))
+        got = store.get_bluebook_submission_by_uuid("u-1")
+        assert got is not None and got["id"] == "sub-u-1"
+        assert got["late"] == 0
+
+    def test_unknown_uuid_returns_none(self):
+        assert store.get_bluebook_submission_by_uuid("nope") is None
+
+    def test_duplicate_uuid_insert_raises(self):
+        store.put_bluebook_submission(self._rec("u-2"))
+        dup = self._rec("u-2")
+        dup["id"] = "other"
+        with pytest.raises(sqlite3.Error):
+            store.put_bluebook_submission(dup)

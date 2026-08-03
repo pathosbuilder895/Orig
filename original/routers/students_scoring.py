@@ -14,6 +14,7 @@ import os
 from fastapi import APIRouter, HTTPException
 
 from ..features.pipeline import extract_features, feature_vector
+from ..principal import tenant_of
 from ..quantum.scoring import ScoringConfig
 from ..quantum.scoring import score as quantum_score
 from ..schemas import (
@@ -60,6 +61,10 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # feature_vector, preserving Phase 1 byte-identical behaviour.
     enable_manifest = os.environ.get("CONTEXT_MANIFEST_ENABLED") == "1"
     enable_adaptive = os.environ.get("ADAPTIVE_WEIGHTS_ENABLED") == "1"
+    # 2026-08 cross-genre study (validation/genre_crossgenre_2026-08/) — off
+    # by default and NOT yet validated against real student submissions; see
+    # weighting.GENRE_MISMATCH_ATTENUATE_TIERS for what this does and why.
+    enable_genre_invariant = os.environ.get("GENRE_INVARIANT_WEIGHTS_ENABLED") == "1"
 
     try:
         from ..context.pipeline import run_adaptive_pipeline
@@ -71,6 +76,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             keystroke_data=req.keystroke_data,
             enable_manifest=enable_manifest,
             enable_adaptive_weights=enable_adaptive,
+            enable_genre_invariant_weights=enable_genre_invariant,
         )
         feat_dict = adaptive.feat_dict
         vec = adaptive.vector
@@ -102,7 +108,10 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # cohort (original/quantum/null_pool.py); quantum_score() then attaches
     # llr_deviation_score — "fits this student vs fits a typical classmate".
     # None below the cold-start floors (3 peers / 5 vectors) and on any
-    # failure; never changes deviation_score or the recommended action.
+    # failure. As of 2026-08, ScoringConfig.llr_action_mode defaults to
+    # "gate" — a real llr_deviation_score CAN now downgrade the recommended
+    # action one severity step (never deviation_score itself, never upgrade);
+    # see ScoringConfig.llr_action_mode's docstring in quantum/scoring.py.
     _scoring_config_env = ScoringConfig.from_env()
 
     _impostor_stats = None
@@ -131,7 +140,58 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             else None
         )
         if _genre:
-            _genre_stats = _repo().get_genre_stats(_genre)
+            # Tenant-scoped: the cold-start prior pools only same-tenant
+            # baselines, mirroring build_impostor_stats above. Returns None
+            # more often than the old cross-tenant pool did — that's the
+            # documented fallback to the student-only baseline, not an error.
+            # student_id is excluded from its own prior: a population the
+            # student is part of is partly a blend toward themselves, which
+            # damps the correction the prior exists to make (same reason
+            # build_impostor_stats drops claimed_student_id).
+            _prior_tenant = tenant_of(student_id)
+            _genre_stats = _repo().get_genre_stats(_genre, _prior_tenant, student_id)
+            # How often that fallback actually fires was never measured:
+            # scripts/measure_genre_prior_scope.py found no reachable dataset
+            # with genre-labelled authenticated samples (2026-07-29), so the
+            # coverage cost of tenant-scoping is still unknown. This line lets
+            # the first tenant to enable the flag measure it in situ — count
+            # outcome=miss against outcome=hit for the per-(tenant, genre)
+            # None rate. Tenant slug and genre label only: never a student id.
+            # n_students is logged alongside n_prior because it drives the
+            # blend weight (scoring.py damps the prior by cohort size): the
+            # pair is what a later analysis needs to check whether the damping
+            # curve was set sensibly against real pools.
+            logging.getLogger(__name__).info(
+                "bayesian_prior outcome=%s genre=%s tenant=%s n_prior=%d n_students=%d",
+                "hit" if _genre_stats is not None else "miss",
+                _genre,
+                _prior_tenant,
+                _genre_stats["n_samples"] if _genre_stats is not None else 0,
+                _genre_stats["n_students"] if _genre_stats is not None else 0,
+            )
+            # Cohort fallback: when no same-genre prior exists yet, fall back
+            # to the genre-AGNOSTIC prior over the same tenant, with the same
+            # exclusion of the student being scored. Gated separately
+            # (COHORT_PRIOR_FALLBACK, default off) so the genre-keyed
+            # behaviour above is byte-identical unless explicitly enabled,
+            # and logged on its own line so the outcome=hit/miss coverage
+            # measurement for the genre prior stays uncontaminated.
+            #
+            # Inside the `if _genre:` block on purpose: scoring.score() only
+            # applies the prior when the submission carries a genre at all
+            # (`if _genre and _prior is not None`), so resolving a cohort
+            # prior for a genre-less submission would pay a full-store scan
+            # for a value that is then discarded.
+            if _genre_stats is None and os.environ.get("COHORT_PRIOR_FALLBACK") == "1":
+                _genre_stats = _repo().get_cohort_stats(_prior_tenant, student_id)
+                logging.getLogger(__name__).info(
+                    "bayesian_prior_cohort_fallback outcome=%s tenant=%s "
+                    "n_prior=%d n_students=%d",
+                    "hit" if _genre_stats is not None else "miss",
+                    _prior_tenant,
+                    _genre_stats["n_samples"] if _genre_stats is not None else 0,
+                    _genre_stats["n_students"] if _genre_stats is not None else 0,
+                )
     _scoring_config = dataclasses.replace(
         _scoring_config_env,
         authentic_fidelities=_authentic_fidelities,
