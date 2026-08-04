@@ -182,7 +182,7 @@ watchfiles==1.2.0
     # via uvicorn
 weasel==1.0.0
     # via spacy
-websockets==16.0
+websockets==16.1.1
     # via uvicorn
 wrapt==2.2.2
     # via smart-open
