@@ -39,7 +39,7 @@ cymem==2.0.13
     #   preshed
     #   spacy
     #   thinc
-fastapi==0.139.0
+fastapi==0.141.1
     # via -r requirements-demo.txt
 h11==0.16.0
     # via
