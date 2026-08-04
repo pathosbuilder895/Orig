@@ -13,7 +13,7 @@
 # pytest-asyncio (all versions through 1.2.0) caps at pytest<9. Pin to
 # >=8.2,<9 to stay compatible.
 pytest>=8.2,<9
-pytest-asyncio==0.24.0
+pytest-asyncio==1.4.0
 pytest-cov==7.1.0
 hypothesis==6.156.6
 
