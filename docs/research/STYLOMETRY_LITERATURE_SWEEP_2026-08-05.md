@@ -149,6 +149,15 @@ it's correct, tested, and free to help on a corpus where the default C
 happens to be further from optimal; this result just says Gutenberg wasn't
 that corpus.
 
+**Second confirmation, larger PAN lock (100 authors, 30,000 locked trials,
+after the feature cache made this tractable — see DELTA_FUSION_FINDINGS'
+third-lock section):** recall@1%-FPR 45.0% both ways (identical), AUC
+0.8917 vs 0.8915 (with Delta), recall@5%-FPR 64.3% vs 63.3% — again within
+noise. Two corpora, two scales, same null result both times. This is now a
+settled negative finding for this codebase's specific fusion setup, not a
+single inconclusive test: `C=0.5` isn't costing recall anywhere it's been
+checked.
+
 ## Search coverage note
 
 Two specific angles the search was asked to check — PAC-Bayes bounds
