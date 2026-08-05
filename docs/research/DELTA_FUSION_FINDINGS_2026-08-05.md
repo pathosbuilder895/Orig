@@ -50,6 +50,42 @@ already documented in this repo (the LUAR + shrinkage-LDA line,
 corpus) sits in the same general band. Delta moves the needle in the right
 direction; it does not close the gap.
 
+## Second, independent lock: 400-writer Gutenberg corpus (100 authors, 300/300 matched trials)
+
+The PAN lock above is thin (12 authors). This repeats the same question —
+does Delta help — on a genuinely different, already-cached corpus
+(`validation/verify/gutenberg_corpus.py`'s 400-writer manifest, LUAR
+embeddings pre-computed) with an 8x larger locked cohort, via
+`validation/verify/gutenberg_verify_delta.py`. Design differs deliberately
+from the PAN ablation: a balanced 1:1 matched-pair binary construction (each
+probe gets exactly one genuine trial and one deterministic impostor trial,
+this repo's existing "binary source-matched authentication protocol"
+convention) rather than the full pairwise cross-product, and the base
+signal set is LUAR cosine + character + content-reduced (no peer-relative
+Original score — this corpus has no impostor-pool null model wired to it).
+
+| | without Delta | with Delta |
+|---|---:|---:|
+| AUC | 0.9465 | 0.9560 |
+| Recall @ 1% FPR | 67.3% | **77.3%** |
+| Recall @ 5% FPR | 83.0% | **86.3%** |
+
+This is the strongest number produced anywhere in this session, and the
+closest anything in this repo has come to the >=85%-recall side of the
+original target — 86.3% recall at 5% FPR, with Delta responsible for a real
++10-point recall gain at the strict 1% bar. It is **not** the same claim as
+clearing the target: this corpus is historical public-domain fiction with
+2,500-word cross-work windows, not real student essays, and 5% FPR is not
+"<5%" — the two-sided bar this study was set against. Every prior Gutenberg
+number in this repo carries the identical caveat (see
+CROSS_WORK_AUTHORSHIP_FINDINGS_2026-08-04.md): strong cross-work
+authentication evidence, not institutional or student evidence.
+
+The direction is now corroborated on two structurally different corpora and
+two different base signal sets (PAN: peer-relative Original + LUAR family;
+Gutenberg: LUAR family alone) — Delta's contribution looks real, not an
+artifact of one corpus's quirks.
+
 ## What this does and doesn't license
 
 - Adding Delta as a fusion signal is evidence-backed, not a hunch — this is
@@ -69,7 +105,9 @@ direction; it does not close the gap.
 
 ```bash
 .venv/bin/python -m validation.verify.pan_stack_delta
+.venv/bin/python -m validation.verify.gutenberg_verify_delta
 ```
 
-Writes `validation/benchmarks/<date>/pan_stack_delta_ablation.json`
-(gitignored, regenerable — this note is the tracked record).
+Writes `validation/benchmarks/<date>/pan_stack_delta_ablation.json` and
+`gutenberg_verify_delta_ablation.json` (gitignored, regenerable — this note
+is the tracked record).
