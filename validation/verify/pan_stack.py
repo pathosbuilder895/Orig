@@ -17,11 +17,11 @@ from typing import Sequence
 import numpy as np
 
 from original.constants import ALL_FEATURE_CODES
-from original.features.pipeline import extract_features
 from original.quantum.scoring import ScoringConfig, score
 from original.quantum.state import BaselineSample, StudentState
 from validation.stacked.fusion import Trial, assert_no_group_overlap, cllr, fit_grouped_fusion
 from validation.verify.binary_auc import auc, brier, tpr_at_fpr
+from validation.verify.feature_cache import extract_many
 from validation.verify.null_models import fit_impostor_gaussian
 from validation.verify.pan_corpus import DEFAULT_CACHE
 from validation.verify.pan_style_expert import (
@@ -43,19 +43,10 @@ def trial_id(target_author: str, source_author: str, probe_index: int) -> str:
     return f"{target_author}|{source_author}|probe-{probe_index}"
 
 
-def _build_states(authors: Sequence[StyleAuthor]) -> tuple[dict, dict, object]:
-    feature_cache = {}
-
-    def features(text: str):
-        cached = feature_cache.get(text)
-        if cached is None:
-            feature_dict = extract_features(text)
-            vector = np.asarray([feature_dict[name] for name in ALL_FEATURE_CODES], dtype=np.float64)
-            cached = (feature_dict, vector)
-            feature_cache[text] = cached
-            if len(feature_cache) % 25 == 0:
-                print(f"[pan-stack] extracted {len(feature_cache)} unique documents", file=sys.stderr)
-        return cached
+def _build_states(authors: Sequence[StyleAuthor]) -> tuple[dict, dict, dict]:
+    all_texts = [text for author in authors for text in author.baselines]
+    all_texts += [text for author in authors for text in author.probes]
+    vectors_by_text = extract_many(all_texts, progress_label="pan-stack")
 
     states = {}
     baseline_vectors = {}
@@ -63,7 +54,7 @@ def _build_states(authors: Sequence[StyleAuthor]) -> tuple[dict, dict, object]:
         samples = []
         vectors = []
         for text in author.baselines:
-            _, vector = features(text)
+            vector = vectors_by_text[text]
             vectors.append(vector)
             samples.append(
                 BaselineSample(
@@ -78,12 +69,7 @@ def _build_states(authors: Sequence[StyleAuthor]) -> tuple[dict, dict, object]:
         states[author.author_id] = StudentState(student_id=author.author_id, samples=samples)
         baseline_vectors[author.author_id] = vectors
 
-    # Extract probes before scoring so progress/runtime is explicit and every
-    # text is computed exactly once.
-    for author in authors:
-        for text in author.probes:
-            features(text)
-    return (states, baseline_vectors, features)
+    return (states, baseline_vectors, vectors_by_text)
 
 
 def original_trial_signals(
@@ -92,7 +78,7 @@ def original_trial_signals(
     peer_reference: Sequence[StyleAuthor],
 ) -> dict[str, dict[str, dict[str, float]]]:
     """Compute raw and peer-relative signals, scoring only within each split."""
-    states, baseline_vectors, features = _build_states(peer_reference)
+    states, baseline_vectors, vectors_by_text = _build_states(peer_reference)
     peer_stats = {}
     for target in peer_reference:
         pool = [
@@ -112,7 +98,8 @@ def original_trial_signals(
             state = states[target.author_id]
             for source in authors:
                 for probe_index, text in enumerate(source.probes):
-                    feature_dict, vector = features(text)
+                    vector = vectors_by_text[text]
+                    feature_dict = dict(zip(ALL_FEATURE_CODES, vector))
                     identifier = trial_id(target.author_id, source.author_id, probe_index)
                     result = score(
                         state,
