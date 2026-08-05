@@ -1,0 +1,103 @@
+{
+  "schema": "original.longitudinal.smoke.v1",
+  "purpose": "Wiring smoke test for validation.longitudinal.run \u2014 NOT a locked benchmark and NOT evidence for a promotion decision. Single author, eight real dated works, real publication years.",
+  "author": "Mark Twain (1835-1910)",
+  "entries": [
+    {
+      "author_id": "twain",
+      "filename": "twain/3176_the_innocents_abroad.txt",
+      "label": "authentic",
+      "prompt": "The Innocents Abroad",
+      "submitted_at": "1869-01-01",
+      "word_count": 2500,
+      "genre": "fiction",
+      "source_pg_id": 3176,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "twain",
+      "filename": "twain/74_the_adventures_of_tom_sawyer.txt",
+      "label": "authentic",
+      "prompt": "The Adventures of Tom Sawyer, Complete",
+      "submitted_at": "1876-01-01",
+      "word_count": 2383,
+      "genre": "fiction",
+      "source_pg_id": 74,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "twain",
+      "filename": "twain/119_a_tramp_abroad.txt",
+      "label": "authentic",
+      "prompt": "A Tramp Abroad",
+      "submitted_at": "1880-01-01",
+      "word_count": 2500,
+      "genre": "fiction",
+      "source_pg_id": 119,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "twain",
+      "filename": "twain/1837_the_prince_and_the_pauper.txt",
+      "label": "authentic",
+      "prompt": "The Prince and the Pauper",
+      "submitted_at": "1881-01-01",
+      "word_count": 1619,
+      "genre": "fiction",
+      "source_pg_id": 1837,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "twain",
+      "filename": "twain/245_life_on_the_mississippi.txt",
+      "label": "authentic",
+      "prompt": "Life on the Mississippi",
+      "submitted_at": "1883-01-01",
+      "word_count": 2190,
+      "genre": "fiction",
+      "source_pg_id": 245,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "twain",
+      "filename": "twain/86_a_connecticut_yankee_in_king_arthur's_court.txt",
+      "label": "authentic",
+      "prompt": "A Connecticut Yankee in King Arthur's Court",
+      "submitted_at": "1889-01-01",
+      "word_count": 2027,
+      "genre": "fiction",
+      "source_pg_id": 86,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "twain",
+      "filename": "twain/102_the_tragedy_of_pudd'nhead_wilson.txt",
+      "label": "authentic",
+      "prompt": "The Tragedy of Pudd'nhead Wilson",
+      "submitted_at": "1894-01-01",
+      "word_count": 2500,
+      "genre": "fiction",
+      "source_pg_id": 102,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "twain",
+      "filename": "twain/2874_personal_recollections_of_joan_of_arc.txt",
+      "label": "authentic",
+      "prompt": "Personal Recollections of Joan of Arc, Volume 1",
+      "submitted_at": "1896-01-01",
+      "word_count": 2360,
+      "genre": "fiction",
+      "source_pg_id": 2874,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    }
+  ]
+}

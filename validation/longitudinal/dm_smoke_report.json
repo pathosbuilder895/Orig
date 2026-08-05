@@ -1,0 +1,21 @@
+{
+  "model": "validation.longitudinal.dirichlet_multinomial (Ross 2020 style)",
+  "corpus": "8 Mark Twain novels, real publication years 1869-1896 (see build_smoke_corpus.py)",
+  "vocabulary_size": 106,
+  "n_documents": 8,
+  "comparison": {
+    "selected_model": "constant",
+    "constant_log_likelihood": -44786.485540044334,
+    "drift_log_likelihood": -44746.96171539329,
+    "constant_bic": 89793.39188350673,
+    "drift_bic": 89934.76503762271,
+    "bic_improvement": -141.37315411597956,
+    "converged_constant": true,
+    "converged_drift": true,
+    "n_documents": 8,
+    "n_categories": 106,
+    "permutation_false_selection_rate": null
+  },
+  "chronology_permutation_false_selection_rate": 0.0,
+  "note": "false_selection_rate is Ross's own diagnostic: how often shuffling the document order still selects gradual_drift. A low rate here means the model isn't just selecting drift because it always does at this vocabulary width -- it needs real chronological structure."
+}

@@ -79,3 +79,47 @@ def test_drift_is_selectable_at_the_real_vocabulary_width():
     assert steady.converged_drift
     assert steady.bic_improvement < 0
     assert steady.selected_model == "constant"
+
+
+def test_real_dated_corpus_converges_and_stays_conservative():
+    """Regression for the maxfun bug, pinned against real prose instead of a
+    synthetic matrix: 8 Mark Twain novels, real 1869-1896 publication years
+    (validation/longitudinal/smoke_corpus/, built by build_smoke_corpus.py).
+
+    Before the maxfun fix, the drift model reported `success=False` on any
+    fit at real vocabulary width (106 categories, 212 drift parameters) and
+    `compare_constant_and_drift` silently fell back to "constant" regardless
+    of the actual evidence. This asserts the fit now converges — and that on
+    this particular corpus it still, correctly, does not manufacture drift:
+    Twain's function-word usage across 27 years doesn't clear the BIC bar at
+    n=8 documents, and the model should say so rather than guess.
+    """
+    import json
+    from pathlib import Path
+
+    from validation.longitudinal.dirichlet_multinomial import (
+        permutation_false_selection_rate,
+    )
+
+    root = Path(__file__).resolve().parents[2] / "validation" / "longitudinal"
+    manifest = json.loads((root / "smoke_manifest.json").read_text())
+    entries = sorted(manifest["entries"], key=lambda e: e["submitted_at"])
+    corpus = root / "smoke_corpus"
+
+    counts = np.stack(
+        [count_function_words((corpus / e["filename"]).read_text()) for e in entries]
+    ).astype(float)
+    years = np.array([int(e["submitted_at"][:4]) for e in entries], dtype=float)
+
+    result = compare_constant_and_drift(counts, times=years)
+
+    assert result.converged_constant
+    assert result.converged_drift, "the drift fit must converge on real prose, not just toy matrices"
+    assert result.n_categories == 106
+
+    # Twain's real corpus genuinely doesn't clear the bar at this sample size —
+    # both the BIC comparison and the permutation control should agree.
+    assert result.selected_model == "constant"
+    # Each repeat is a full 212-parameter fit; keep this small enough that the
+    # test stays fast (20 repeats ~ a few seconds, not the ~1 minute 50 costs).
+    assert permutation_false_selection_rate(counts, repeats=20) < 0.2
