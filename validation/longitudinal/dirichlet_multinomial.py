@@ -95,7 +95,22 @@ def _fit(counts: np.ndarray, times: np.ndarray, drift: bool) -> tuple[float, boo
 
         parameter_count = categories
 
-    result = minimize(objective, x0, method="L-BFGS-B", options={"maxiter": 500})
+    # `maxfun`, not `maxiter`, is the limit that binds here. No analytic
+    # gradient is supplied, so L-BFGS-B costs one function evaluation per
+    # parameter per iteration: at the real 105-word vocabulary the drift model
+    # carries 212 parameters and burns ~213 evaluations an iteration, so
+    # scipy's default maxfun=15000 is spent around iteration 63 — well before
+    # the fit settles. The optimizer then reports success=False, and
+    # compare_constant_and_drift's `ok1` guard turns that into "constant"
+    # regardless of the evidence: a planted drift worth +4227 BIC still came
+    # back constant. Budget the evaluations against the parameter count so the
+    # ceiling scales with the vocabulary instead of silently capping it.
+    result = minimize(
+        objective,
+        x0,
+        method="L-BFGS-B",
+        options={"maxiter": 2000, "maxfun": max(15000, 1000 * (parameter_count + 1))},
+    )
     return -float(result.fun), bool(result.success), parameter_count
 
 
