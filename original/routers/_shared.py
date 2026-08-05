@@ -42,6 +42,7 @@ from ..schemas import (
     StyleAuthorshipOut,
     TensionArcOut,
     TrajectoryConformanceOut,
+    TrendAwareTypicalityOut,
 )
 
 
@@ -469,6 +470,11 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
         drift_analysis=(
             DriftAnalysisOut(**r.drift_analysis.to_dict())
             if getattr(r, "drift_analysis", None) is not None
+            else None
+        ),
+        trend_aware_typicality=(
+            TrendAwareTypicalityOut(**r.trend_aware_typicality.to_dict())
+            if getattr(r, "trend_aware_typicality", None) is not None
             else None
         ),
         # Human-friendly explanation for professors/instructors

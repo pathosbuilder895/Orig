@@ -580,6 +580,24 @@ class DriftAnalysisOut(BaseModel):
     model_version: str
 
 
+class TrendAwareTypicalityOut(BaseModel):
+    """Report-only candidate null model for the typicality axis; never
+    changes the recommendation. See original.quantum.longitudinal
+    .trend_aware_typicality's docstring."""
+
+    model_config = {"protected_namespaces": ()}
+
+    eligible: bool
+    reason: str | None
+    p_far: float | None
+    p_central: float | None
+    band: str | None
+    loo_n: int
+    submission_deviation: float | None
+    selected_model: str
+    model_version: str
+
+
 class FeatureContributionOut(BaseModel):
     code: str
     name: str
@@ -793,6 +811,10 @@ class Layer7OutputResponse(BaseModel):
     style_authorship: StyleAuthorshipOut | None = None
     # Longitudinal drift — default-off, report-only, and action-blind.
     drift_analysis: DriftAnalysisOut | None = None
+    # Trend-aware typicality — same gating and same report-only contract as
+    # drift_analysis; a candidate null model for the separate TYPICALITY_
+    # SCORING axis, not yet promoted to influence it.
+    trend_aware_typicality: TrendAwareTypicalityOut | None = None
     # Plain-English explanation for professors/instructors
     human_explanation: dict[str, Any] | None = None
     # Two-axis verification: typicality axis. Present on quantum.scoring.

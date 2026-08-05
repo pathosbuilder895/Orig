@@ -209,6 +209,7 @@ def _make_layer7_output(
     typicality_p_central: float | None = None,
     typicality_band: str | None = None,
     typicality_n: int = 0,
+    trend_aware_typicality=None,
 ) -> Layer7Output:
     """
     Factory for Layer7Output with customizable typicality fields.
@@ -245,6 +246,7 @@ def _make_layer7_output(
         typicality_p_central=typicality_p_central,
         typicality_band=typicality_band,
         typicality_n=typicality_n,
+        trend_aware_typicality=trend_aware_typicality,
     )
 
 
@@ -350,6 +352,34 @@ def test_typicality_fields_round_trip_when_present():
     assert response.typicality_p_central == 0.58
     assert response.typicality_band == "no_action"
     assert response.typicality_n == 7
+
+
+def test_trend_aware_typicality_round_trips_through_to_response():
+    """trend_aware_typicality copies through _to_response() when populated,
+    and stays None when absent -- mirrors drift_analysis's existing coverage
+    (both share the same report-only contract, see original/quantum/
+    longitudinal.py's TrendAwareTypicality)."""
+    from original.quantum.longitudinal import TrendAwareTypicality
+
+    reading = TrendAwareTypicality(
+        eligible=True,
+        reason=None,
+        p_far=0.4,
+        p_central=0.6,
+        band="no_action",
+        loo_n=7,
+        submission_deviation=0.25,
+        selected_model="constant",
+    )
+    result = _make_layer7_output(trend_aware_typicality=reading)
+    response = _to_response(result)
+    assert response.trend_aware_typicality is not None
+    assert response.trend_aware_typicality.band == "no_action"
+    assert response.trend_aware_typicality.selected_model == "constant"
+    assert response.trend_aware_typicality.loo_n == 7
+
+    absent = _to_response(_make_layer7_output())
+    assert absent.trend_aware_typicality is None
 
 
 def test_typicality_fields_are_none_when_not_computed():

@@ -36,3 +36,22 @@ def test_drift_analysis_response_shape_accepts_internal_payload():
     response = DriftAnalysisOut(**internal.to_dict())
     assert response.model_version == "longitudinal-ridge-v1"
     assert response.interpretation == "stable_consistent"
+
+
+def test_trend_aware_typicality_response_shape_accepts_internal_payload():
+    from original.quantum.longitudinal import TrendAwareTypicality
+    from original.schemas import TrendAwareTypicalityOut
+
+    internal = TrendAwareTypicality(
+        eligible=True,
+        reason=None,
+        p_far=0.5,
+        p_central=0.5,
+        band="no_action",
+        loo_n=8,
+        submission_deviation=0.3,
+        selected_model="gradual_drift",
+    )
+    response = TrendAwareTypicalityOut(**internal.to_dict())
+    assert response.model_version == "longitudinal-typicality-v1"
+    assert response.band == "no_action"

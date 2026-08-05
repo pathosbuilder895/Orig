@@ -212,7 +212,11 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
 
     # Default-off, report-only longitudinal signal. The probe is never added
     # to the fitted history and this cannot change the primary score/action.
-    from ..quantum.longitudinal import LongitudinalConfig, analyze_longitudinal_drift
+    from ..quantum.longitudinal import (
+        LongitudinalConfig,
+        analyze_longitudinal_drift,
+        trend_aware_typicality,
+    )
 
     _longitudinal_config = LongitudinalConfig.from_env()
     _longitudinal_genre = None
@@ -228,6 +232,13 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
                 exc_info=True,
             )
     result.drift_analysis = analyze_longitudinal_drift(
+        state,
+        vec,
+        submitted_at=req.submitted_at,
+        submission_genre=_longitudinal_genre,
+        config=_longitudinal_config,
+    )
+    result.trend_aware_typicality = trend_aware_typicality(
         state,
         vec,
         submitted_at=req.submitted_at,

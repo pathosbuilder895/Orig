@@ -89,6 +89,29 @@ class DriftAnalysis:
         return asdict(self)
 
 
+@dataclass
+class TrendAwareTypicality:
+    """Two-sided conformal typicality against a trend-aware reference.
+
+    Report-only, same as DriftAnalysis — see trend_aware_typicality()'s
+    docstring for why and how this differs from the production typicality
+    axis's flat-baseline reference.
+    """
+
+    eligible: bool
+    reason: str | None
+    p_far: float | None
+    p_central: float | None
+    band: str | None
+    loo_n: int
+    submission_deviation: float | None
+    selected_model: str
+    model_version: str = "longitudinal-typicality-v1"
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
 @dataclass(frozen=True)
 class _TimedSample:
     sample: BaselineSample
@@ -332,4 +355,123 @@ def analyze_longitudinal_drift(
         change_point_index=cp_index,
         change_point_evidence=cp_evidence,
         interpretation=interpretation,
+    )
+
+
+def trend_aware_typicality(
+    state: StudentState,
+    submission_vector: np.ndarray,
+    *,
+    submitted_at: str = "",
+    submission_genre: str | None = None,
+    config: LongitudinalConfig | None = None,
+) -> TrendAwareTypicality | None:
+    """Two-sided conformal typicality (original.quantum.typicality) computed
+    against a trend-aware reference instead of the flat, recency-weighted
+    one ``StudentState.loo_distances`` uses.
+
+    Why: ``loo_distances`` compares each held-out baseline sample to a
+    recency-weighted MEAN of the others — a fixed point. For a student
+    whose genuine style is gradually evolving (Ross 2020's central claim,
+    and the exact failure mode the Plato study diagnosed: same-author
+    LOO rms_z runs ~1.0-1.2 in practice, not the ~0.6 a flat-baseline model
+    assumed), that fixed point systematically lags the student's current
+    position. Every held-out sample — and the real submission — reads as
+    farther from "self" than it should, which is exactly what forces the
+    flat model's typicality thresholds to stay conservative and caps
+    same-author recall.
+
+    This fits constant-vs-trend ONCE per call (the same forward-chaining,
+    BIC-style selection ``analyze_longitudinal_drift`` uses — Ross's model-
+    selection principle, not a new one), then computes each leave-one-out
+    reference and the submission's own reference under that single choice.
+    A single fixed procedure matters: the conformal p-value guarantee needs
+    the held-out samples to be exchangeable UNDER that procedure, which
+    breaks if each fold could silently pick a different model.
+
+    This is not a new typicality mechanism — it feeds
+    ``original.quantum.typicality.p_far/p_central`` (unchanged) a sharper
+    null model. Report-only: per ADR-008, no drift mechanism may change
+    ``score()``'s deviation_score or recommendation without an independent
+    institutional holdout. This returns an additive reading for validation
+    to measure against the existing flat-baseline typicality axis, not a
+    replacement for it.
+    """
+    cfg = config or LongitudinalConfig()
+    if not cfg.enabled:
+        return None
+
+    timed = _eligible_samples(state, cfg, submission_genre)
+    n = len(timed)
+    if n < max(cfg.min_samples_for_trend, 3):
+        return TrendAwareTypicality(
+            eligible=False,
+            reason="insufficient_dated_authenticated_samples",
+            p_far=None,
+            p_central=None,
+            band=None,
+            loo_n=0,
+            submission_deviation=None,
+            selected_model="insufficient_history",
+        )
+
+    first = timed[0].when
+    values = np.stack([item.sample.vector[_DRIFT_INDICES] for item in timed])
+    t = np.array([(item.when - first).days / 365.25 for item in timed], dtype=np.float64)
+
+    constant_error, trend_error = _forward_errors(t, values, cfg)
+    if not math.isfinite(constant_error) or constant_error <= 1e-12:
+        improvement = 0.0
+    else:
+        improvement = (constant_error - trend_error) / constant_error
+    use_trend = improvement >= cfg.min_predictive_improvement
+
+    def _reference_and_scale(
+        fold_t: np.ndarray, fold_values: np.ndarray, at_t: float
+    ) -> tuple[np.ndarray, np.ndarray]:
+        if use_trend and len(fold_t) >= 3:
+            intercept, slope = _fit_trend(fold_t, fold_values, cfg.ridge_strength)
+            reference = intercept + slope * at_t
+            residuals = fold_values - (intercept[None, :] + fold_t[:, None] * slope[None, :])
+        else:
+            reference = fold_values.mean(axis=0)
+            residuals = fold_values - reference
+        if len(fold_t) >= 2:
+            scale = np.maximum(residuals.std(axis=0, ddof=1), 0.02)
+        else:
+            scale = np.full(reference.shape, 0.15)
+        return reference, scale
+
+    loo: list[float] = []
+    for i in range(n):
+        rest_t = np.delete(t, i)
+        rest_v = np.delete(values, i, axis=0)
+        reference, scale = _reference_and_scale(rest_t, rest_v, t[i])
+        loo.append(_rms_deviation(values[i], reference, scale))
+
+    target_time = _parse_datetime(submitted_at) or timed[-1].when
+    if target_time < first:
+        target_time = first
+    target_t = (target_time - first).days / 365.25
+    reference, scale = _reference_and_scale(t, values, target_t)
+    x = np.asarray(submission_vector, dtype=np.float64)[_DRIFT_INDICES]
+    submission_deviation = _rms_deviation(x, reference, scale)
+
+    from .typicality import band_from_p
+    from .typicality import p_central as p_central_fn
+    from .typicality import p_far as p_far_fn
+
+    p_far_value = p_far_fn(submission_deviation, loo)
+    p_central_value = p_central_fn(submission_deviation, loo)
+    band = band_from_p(p_far_value, p_central_value)
+
+    return TrendAwareTypicality(
+        eligible=True,
+        reason=None,
+        p_far=p_far_value,
+        p_central=p_central_value,
+        band=band,
+        loo_n=n,
+        submission_deviation=submission_deviation,
+        selected_model="gradual_drift" if use_trend else "constant",
     )

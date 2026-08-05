@@ -11,6 +11,7 @@ from original.quantum.longitudinal import (
     DRIFT_FEATURE_CODES,
     LongitudinalConfig,
     analyze_longitudinal_drift,
+    trend_aware_typicality,
 )
 from original.quantum.state import BaselineSample, StudentState
 
@@ -190,3 +191,89 @@ def test_long_history_can_report_an_unexplained_change_point():
     assert result is not None and result.eligible
     assert result.change_point_index == 7
     assert result.change_point_evidence is not None and result.change_point_evidence > 0
+
+
+# ── trend_aware_typicality ────────────────────────────────────────────────
+
+
+def test_trend_aware_typicality_disabled_is_exactly_absent():
+    state = StudentState("s")
+    assert trend_aware_typicality(
+        state, np.full(FEATURE_DIM, 0.5), config=LongitudinalConfig()
+    ) is None
+
+
+def test_trend_aware_typicality_insufficient_history_abstains():
+    state = StudentState("s")
+    for i in range(5):
+        state.add_sample(_sample(np.full(FEATURE_DIM, 0.5), i * 30))
+    result = trend_aware_typicality(state, np.full(FEATURE_DIM, 0.5), config=_config())
+    assert result is not None
+    assert not result.eligible
+    assert result.selected_model == "insufficient_history"
+    assert result.p_far is None and result.p_central is None
+
+
+def test_trend_aware_typicality_flags_a_genuine_outlier():
+    """A submission that looks nothing like the student's baseline -- flat
+    OR drifting -- must still read as atypical (low p_far)."""
+    state = StudentState("s")
+    for i in range(8):
+        vector = np.full(FEATURE_DIM, 0.5)
+        vector += (i % 2) * 0.002  # tiny, non-directional noise -> constant model
+        state.add_sample(_sample(vector, i * 30))
+
+    outlier = np.full(FEATURE_DIM, 0.5)
+    from original.quantum.longitudinal import _DRIFT_INDICES
+
+    outlier[_DRIFT_INDICES] = 0.5 + 3.0  # far outside anything seen
+    result = trend_aware_typicality(
+        state, outlier, submitted_at="2025-09-01", config=_config()
+    )
+    assert result is not None and result.eligible
+    assert result.selected_model == "constant"
+    # 1/(N+1) is the conformal quantization floor at N=8 loo samples (see
+    # typicality.py's module docstring) -- the most extreme value reachable.
+    assert result.p_far == 1 / (result.loo_n + 1)
+
+
+def test_trend_aware_typicality_does_not_flag_a_genuine_drift_continuation():
+    """The central claim: a submission that is simply the NEXT point on a
+    real, validated trend must read as typical under the trend-aware
+    reference, even though it would read as far-from-baseline under a flat
+    mean. This is the exact gap between loo_distances (flat, recency-
+    weighted mean) and this function (fitted trajectory)."""
+    from original.quantum.longitudinal import _DRIFT_INDICES
+
+    state = StudentState("s")
+    for i in range(10):
+        vector = np.full(FEATURE_DIM, 0.30)
+        vector[_DRIFT_INDICES] = 0.30 + i * 0.025
+        state.add_sample(_sample(vector, i * 30))
+
+    # The next point on the SAME line -- a genuine continuation, not a jump.
+    probe = np.full(FEATURE_DIM, 0.30)
+    probe[_DRIFT_INDICES] = 0.30 + 10 * 0.025
+    result = trend_aware_typicality(
+        state,
+        probe,
+        submitted_at=(date(2025, 1, 1) + timedelta(days=300)).isoformat(),
+        config=_config(),
+    )
+    assert result is not None and result.eligible
+    assert result.selected_model == "gradual_drift"
+    # Typical under the trend-aware reference: neither tail should fire.
+    assert result.band == "no_action"
+    assert result.p_far > 0.2
+    assert result.p_central > 0.2
+
+
+def test_trend_aware_typicality_never_mutates_state():
+    state = StudentState("s")
+    for i in range(7):
+        state.add_sample(_sample(np.full(FEATURE_DIM, 0.4 + i * 0.01), i * 30))
+    before = len(state.samples)
+    trend_aware_typicality(
+        state, np.full(FEATURE_DIM, 0.9), submitted_at="2025-06-01", config=_config()
+    )
+    assert len(state.samples) == before
