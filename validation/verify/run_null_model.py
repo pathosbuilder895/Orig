@@ -42,27 +42,16 @@ _HERE = Path(__file__).resolve().parent
 _ROOT = _HERE.parent.parent
 sys.path.insert(0, str(_ROOT))
 
-from original.features.pipeline import feature_vector
+from original.constants import ALL_FEATURE_CODES
+from original.features.pipeline import extract_features, feature_vector
 from original.quantum.state import StudentState, BaselineSample
 from original.quantum.scoring import ScoringConfig, score
 from validation.verify.binary_auc import _ScoringPair, summarize
 from validation.verify.null_models import fit_impostor_gaussian
 from validation.verify.report import paths_for, write_report
 
-# Match the exact methodology validation/verify/run.py's HTTP path uses:
-# run.py::load_legacy_demo_app() sets CONTEXT_MANIFEST_ENABLED=1 as a
-# setdefault before any scoring happens (demo mode), which
-# lock_environment() does NOT pin — so the HTTP-based evaluator scores
-# through the adaptive-context pipeline (original/context/pipeline.py),
-# not bare feature_vector(). Baselines are unaffected (api.py's
-# add_baseline endpoint always uses plain feature_vector(), regardless
-# of CONTEXT_MANIFEST_ENABLED — see original/api.py:1157) — only the
-# SUBMISSION side goes through run_adaptive_pipeline. We replicate that
-# exactly here so this script's "baseline" comparison row is measuring
-# the SAME thing PR 1's headline numbers already measured, and the A/B
-# delta is attributable to the null model alone.
-os.environ.setdefault("CONTEXT_MANIFEST_ENABLED", "1")
-from original.context.pipeline import run_adaptive_pipeline
+# The reproducibility lock pins context/adaptive scoring off, matching run.py's
+# frozen Phase-1 HTTP path. The null score is therefore the only A/B change.
 
 
 def _load_manifest(manifest_path: Path) -> Dict[str, dict]:
@@ -147,17 +136,25 @@ def run(
         pool = [v for src in eligible if src != target for v in raw_baseline_vectors[src]]
         impostor_stats[target] = fit_impostor_gaussian(pool)
 
+    # Submission feature extraction is independent of the claimed author on
+    # the pinned Phase-1 path. Compute each document once, then retain all
+    # target-specific state comparison and quantum scoring below.
+    submission_features: Dict[str, tuple[str, dict, np.ndarray]] = {}
+    for source in eligible:
+        for entry in by_author[source]["scoring"]:
+            if entry.get("label") != "authentic":
+                continue
+            text = (corpus_dir / entry["filename"]).read_text(encoding="utf-8")
+            feature_dict = extract_features(text)
+            vector = np.array([feature_dict[c] for c in ALL_FEATURE_CODES], dtype=np.float64)
+            submission_features[entry["filename"]] = (text, feature_dict, vector)
+
     # ── 3. Score every (target, source-authentic-scoring-essay) pair once,
     #      collecting BOTH deviation_score/authorship_probability (baseline,
     #      flag-off semantics for deviation_score itself — untouched) AND
     #      llr_deviation_score (impostor-adjusted) from the same call. ──
     baseline_pairs: List[_ScoringPair] = []
     llr_pairs: List[_ScoringPair] = []
-    _enable_manifest = os.environ.get("CONTEXT_MANIFEST_ENABLED") == "1"
-    _enable_adaptive = (
-        os.environ.get("ADAPTIVE_WEIGHTS_ENABLED") == "1"
-    )  # pinned "0" by lock_environment()
-
     t0 = time.perf_counter()
     for target in eligible:
         state = states[target]
@@ -167,29 +164,15 @@ def run(
                 e for e in by_author[source]["scoring"] if e.get("label") == "authentic"
             ]
             for entry in source_authentic:
-                text = (corpus_dir / entry["filename"]).read_text(encoding="utf-8")
+                text, feature_dict, fv = submission_features[entry["filename"]]
                 submission_id = f"{entry['filename']}@{target}"
-                # Mirror original/api.py:score_submission exactly — the
-                # adaptive pipeline short-circuits to plain feature_vector
-                # internally when both flags are False, so this is a
-                # superset of the bare-feature_vector path, not a
-                # divergence from it.
-                adaptive = run_adaptive_pipeline(
-                    text=text,
-                    state=state,
-                    submission_id=submission_id,
-                    enable_manifest=_enable_manifest,
-                    enable_adaptive_weights=_enable_adaptive,
-                )
-                fv = adaptive.vector
-                feature_dict = adaptive.feat_dict
                 result = score(
                     state,
                     fv,
                     feature_dict,
                     submission_id=submission_id,
-                    adaptive_weights=adaptive.adaptive_weights,
-                    manifest=adaptive.manifest.to_dict() if adaptive.manifest is not None else None,
+                    adaptive_weights=None,
+                    manifest=None,
                     impostor_stats=impostor_stats[target],
                     # WS-7 step 1 made score() a pure function of its arguments —
                     # it no longer reads NULL_MODEL from os.environ, so the

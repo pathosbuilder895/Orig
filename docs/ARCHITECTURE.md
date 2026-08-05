@@ -61,6 +61,18 @@ models/session for the Postgres path) and `original/core/` (`config.py`,
   zero importers (`db/models/canvas.py`, `core/config_patch.py`,
   `core/exceptions.py`, `core/limiter.py`).
 
+⚠️ **A second, narrower trap: the live `/canvas/baseline/*` routes share a URL
+prefix with the dormant `original/canvas/` package.** `original/api.py` (live)
+registers `POST /canvas/baseline/{student_id}/list-canvas-submissions` and
+`POST /canvas/baseline/{student_id}/import-baseline` — demo-grade Canvas
+submission-import stubs on the live pilot backend. These have nothing to do
+with `original/canvas/lti.py`'s dormant `/canvas/lti/*` routes above, but the
+shared `/canvas` prefix invites exactly the same mistake as the
+`original/api.py` vs `original/api/` module-shadowing trap this doc exists to
+warn about: seeing a `/canvas/...` path is not enough to tell which stack
+you're in. Check which *file* defines the route (`original/api.py` vs
+`original/canvas/`), not just the URL prefix.
+
 ## 🪦 ABANDONED
 
 - `frontend/`, `web/` — dead frontend trees (v1's HTML UI; a React/TSX rewrite attempt superseded by `demo/`). Removed 2026-07-07 (ADR-006); see git history.

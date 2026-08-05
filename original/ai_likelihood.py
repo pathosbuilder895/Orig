@@ -279,3 +279,34 @@ def predict_ai_likelihood(vec: np.ndarray) -> AiLikelihoodResult | None:
             "AI-likelihood prediction failed (%s: %s) — returning None", type(exc).__name__, exc
         )
         return None
+
+
+def predict_ai_likelihood_batch(vectors: np.ndarray) -> np.ndarray | None:
+    """Batch probability path for windowed/reporting analysis.
+
+    It applies the same dimensionality check, training-time masking, lazy
+    artifact validation, and fail-closed behavior as `predict_ai_likelihood`.
+    Returning probabilities only avoids constructing explanations for hundreds
+    of overlapping windows.
+    """
+
+    try:
+        if not _ensure_loaded():
+            return None
+        art = _artifact
+        assert art is not None
+        matrix = np.asarray(vectors, dtype=np.float64)
+        if matrix.ndim == 1:
+            matrix = matrix.reshape(1, -1)
+        if matrix.ndim != 2 or matrix.shape[1] != FEATURE_DIM:
+            return None
+        matrix = matrix.copy()
+        matrix[:, _MASKED_IDX] = 0.5
+        return np.asarray(art["model"].predict_proba(matrix)[:, 1], dtype=np.float64)
+    except Exception as exc:  # noqa: BLE001 — fail closed like scalar prediction
+        log.warning(
+            "AI-likelihood batch prediction failed (%s: %s) — returning None",
+            type(exc).__name__,
+            exc,
+        )
+        return None

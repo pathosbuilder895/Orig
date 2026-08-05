@@ -14,6 +14,8 @@ non-determinism in Original's scoring stack:
     - NULL_MODEL                  : none → no impostor null pool
     - ENVIRONMENT                 : testing → strict-mode flags off
     - ORIGINAL_DB                 : fresh temp file → no cross-run store contamination
+    - HF_HUB_OFFLINE              : 1    → semantic backend cannot vary with network/cache discovery
+    - TRANSFORMERS_OFFLINE        : 1    → fail fast to the deterministic TF-IDF fallback
     - random.seed / numpy seed    : BENCHMARK_SEED
 
 Every env-var-gated branch in ``original/quantum/scoring.py`` and
@@ -56,10 +58,13 @@ def _bench_db_path() -> str:
 # The value is what lock_environment() writes into os.environ. Keep this
 # dict in sync with every `os.environ.get(...)` read in original/quantum/.
 _SCORING_FLAG_DEFAULTS = {
+    "CONTEXT_MANIFEST_ENABLED": "0",  # report metadata only; keep frozen Phase-1 path
     "ADAPTIVE_WEIGHTS_ENABLED": "0",  # Phase 5 context-adaptive weights
     "AMPLITUDE_SCORING_ENABLED": "0",  # Phase 6 amplitude branch
     "BAYESIAN_PRIOR_ENABLED": "0",  # cold-start prior blend
     "LENGTH_ADAPTIVE_WEIGHTS": "0",  # length-schedule scaling
+    "RANK_REMEDIATION": "none",  # density-matrix shrinkage ablation
+    "STYLE_AUTHORSHIP_ENABLED": "0",  # report-only learned expert
     # Phase 2 identity-axis pair: with IDENTITY_AXIS=1 AND NULL_MODEL=impostor
     # leaked from a shell (run.py --demo sets NULL_MODEL=impostor), the
     # typicality x llr_deviation_score action matrix can CHANGE actions, which
@@ -81,6 +86,7 @@ class _EnvLockReport:
     original_db: str
     numpy_seeded: bool
     python_seeded: bool
+    model_hub_offline: bool
     scoring_flags: dict  # {flag_name: pinned_value}
 
 
@@ -123,7 +129,13 @@ def lock_environment(seed: int = BENCHMARK_SEED) -> _EnvLockReport:
     #    database — TestClient-based harnesses would 404 on every score.
     os.environ["ORIGINAL_DB"] = _bench_db_path()
 
-    # 5. Seed Python random + NumPy. Some feature extractors use random
+    # 5. Benchmarks must not silently switch feature backends depending on
+    # network availability. If the transformer model is already cached it may
+    # load locally; otherwise Tier 10 immediately uses its real TF-IDF backend.
+    os.environ["HF_HUB_OFFLINE"] = "1"
+    os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
+    # 6. Seed Python random + NumPy. Some feature extractors use random
     #    for sampling (e.g. character trigram sampling at the limit); some
     #    quantum-state computations use NumPy random. Seed both.
     random.seed(seed)
@@ -141,6 +153,7 @@ def lock_environment(seed: int = BENCHMARK_SEED) -> _EnvLockReport:
         original_db=os.environ["ORIGINAL_DB"],
         numpy_seeded=numpy_seeded,
         python_seeded=True,
+        model_hub_offline=True,
         scoring_flags=dict(_SCORING_FLAG_DEFAULTS),
     )
 

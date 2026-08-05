@@ -171,16 +171,15 @@ def test_utf8_bom_export_is_decoded_without_corrupting_the_first_header():
     assert body["created_students"] == 1
 
 
-# ── Canvas: honest 501s ──────────────────────────────────────────────────────
+# ── Canvas: live integration fails closed without configuration ─────────────
 
 
 @pytest.mark.parametrize(
     "path",
     ["list-canvas-submissions", "import-baseline"],
 )
-def test_canvas_baseline_routes_return_501_not_a_fake_200(path):
-    """These must stay 501. They once returned placeholder JSON with 200, which
-    professor.html's `r.ok` check read as a successful import."""
+def test_canvas_baseline_routes_require_configuration(path):
+    """Live Canvas routes must not report placeholder success when unconfigured."""
     r = client.post(f"/canvas/baseline/some_student/{path}", json={})
-    assert r.status_code == 501, r.text
-    assert "not available" in r.json()["detail"]
+    assert r.status_code == 400, r.text
+    assert "Canvas base URL and API token" in r.json()["detail"]

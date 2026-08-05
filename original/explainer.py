@@ -128,6 +128,13 @@ FEATURE_PLAIN_NAMES: dict[str, str] = {
     "pause_density": "pause and thinking patterns",
     "paste_event_rate": "paste/paste-over events",
     "revision_depth": "depth of revisions",
+    # Tier 18 — Uniformity (second moments, read against the student's own spread)
+    "sentence_length_dispersion_ratio": "variety in sentence length",
+    "window_feature_variance_ratio": "variety across the paper's sections",
+    "function_word_burstiness_ratio": "unevenness of everyday word usage",
+    "punctuation_dispersion_ratio": "variety in punctuation habits",
+    "vocab_introduction_flatness": "evenness of new-vocabulary introduction",
+    "clause_depth_variance_ratio": "variety in sentence complexity",
     # Comparison features
     "char_trigram_profile_divergence": "character-level divergence",
     "function_word_profile_divergence": "function word divergence",

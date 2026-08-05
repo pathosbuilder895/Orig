@@ -107,16 +107,16 @@ One `###` per §9 WS-3 item; §9 numbering preserved. All `path:line` refs below
 - **Verify:** `.venv/bin/python -m pytest` unaffected (docstrings only); a docstring-coverage check on `scoring.py` rises from 10% toward parity with the rest of `quantum/`.
 
 ## Acceptance criteria
-- [ ] `ACTION_THRESHOLDS` (`constants.py:652`), README, and MODEL_CARD publish the **same** boundaries (`monitor 0.40–0.60`, `schedule_conversation 0.60–0.75`); `constants.py` carries the publish-sync comment. (D2)
-- [ ] MODEL_CARD title version matches its history table (`v1.3.0`). (D7)
-- [ ] `grep -rniE "AES|GCM" docs/encryption_policy.md docs/data_inventory.md` yields no present-tense at-rest claim; both docs describe Render disk encryption + TLS and state raw text IS stored; automatic-deletion claims are struck or marked "planned"; manual `delete_student` path retained. (D5)
-- [ ] `docs/SECURITY_AUDIT.md`, `docs/BETA_PHASE1_TECH.md`, `docs/phase3-httpOnly-cookie-auth.md` each open with the dormant-stack banner; a live-stack re-audit is scheduled. (D4, D10)
-- [ ] `grep -n "/api/v1/" README.md SETUP.md` returns nothing outside an explicit "dormant" heading; README has a live endpoint table, the `render.yaml` deploy story, a corrected FERPA paragraph, and an `ARCHITECTURE.md` link; both LTI sections point to CANVAS_RUNBOOK. (D1, D3, D6)
-- [ ] Test-count and port claims updated in README + CLAUDE.md (`613`; port note aligned). (D8)
-- [ ] Status headers on both root planning docs; OWNERS_MANUAL:4 is a complete sentence. (D11, D16)
-- [ ] CLAUDE.md flag table lists every behavior-affecting env var (31-var grep ⊆ table for the behavioral ones), with the two scoring-math flags flagged as score-changing; 97-active/103-dimensional documented with the `BASE_FEATURE_DIM=96` distinction noted. (F3 slice, F8)
-- [ ] Incident-response runbook, live API reference, ADR-006, ADR-007, CHANGELOG created; VPAT scheduled after WS-4/WS-8. (D12, D13, D15)
-- [ ] scoring.py docstring requirement recorded against WS-7 (not executed standalone). (D14)
+- [x] `ACTION_THRESHOLDS` (`constants.py:652`), README, and MODEL_CARD publish the **same** boundaries (`monitor 0.40–0.60`, `schedule_conversation 0.60–0.75`); `constants.py` carries the publish-sync comment. (D2)
+- [x] MODEL_CARD title version matches its history table (`v1.3.0`). (D7)
+- [x] `grep -rniE "AES|GCM" docs/encryption_policy.md docs/data_inventory.md` yields no present-tense at-rest claim; both docs describe Render disk encryption + TLS and state raw text IS stored; automatic-deletion claims are struck or marked "planned"; manual `delete_student` path retained. (D5)
+- [x] `docs/SECURITY_AUDIT.md`, `docs/BETA_PHASE1_TECH.md`, `docs/phase3-httpOnly-cookie-auth.md` each open with the dormant-stack banner; a live-stack re-audit is scheduled. (D4, D10)
+- [x] `grep -n "/api/v1/" README.md SETUP.md` returns nothing outside an explicit "dormant" heading; README has a live endpoint table, the `render.yaml` deploy story, a corrected FERPA paragraph, and an `ARCHITECTURE.md` link; both LTI sections point to CANVAS_RUNBOOK. (D1, D3, D6)
+- [x] Test-count and port claims updated in README + CLAUDE.md (`613`; port note aligned). (D8) (Both docs now phrased as "~720 tests as of 2026-07-09 (approximate, grows regularly)" plus a `--collect-only` one-liner to get the live count, rather than a pinned number — more robust than the literal `613`/`605` the plan asked for, since this count drifts every time a test file is added. Port note in CLAUDE.md ("port 8001 by default") is simply true since WS-1 changed `run.py`'s default.)
+- [x] Status headers on both root planning docs; OWNERS_MANUAL:4 is a complete sentence. (D11, D16)
+- [x] CLAUDE.md flag table lists every behavior-affecting env var (31-var grep ⊆ table for the behavioral ones), with the two scoring-math flags flagged as score-changing; 97-active/103-dimensional documented with the `BASE_FEATURE_DIM=96` distinction noted. (F3 slice, F8)
+- [x] Incident-response runbook, live API reference, ADR-006, ADR-007, CHANGELOG created; VPAT scheduled after WS-4/WS-8. (D12, D13, D15) (All five committed in c0cbb7b; cross-linked from `dpa_template.md`'s 48-hour clause; VPAT correctly not yet written.)
+- [x] scoring.py docstring requirement recorded against WS-7 (not executed standalone). (D14) (`docs/implementation/WS-7-api-refactor.md` explicitly folds D14 into its step 1/5.)
 
 ## Risks & watch-outs
 - **This workstream touches `original/constants.py` and `original/quantum/scoring.py`.** The only permitted constants edit is the **comment** on `ACTION_THRESHOLDS` — do **not** reorder `ALL_FEATURE_CODES` or alter `NORM_BOUNDS` (CLAUDE.md "requires explicit permission"). The scoring.py change (task 8) is docstrings only and is deferred to WS-7; adding docstrings must not alter any executable line (flags-OFF scoring stays byte-identical to Phase 1).

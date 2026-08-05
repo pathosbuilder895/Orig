@@ -104,7 +104,11 @@
     showStop();
   }
 
+  let preTourFocusEl = null;
+
   function buildOverlay() {
+    preTourFocusEl = document.activeElement;
+
     backdropEl = document.createElement('div');
     backdropEl.className = 'tour-backdrop';
     backdropEl.addEventListener('click', endTour);
@@ -115,11 +119,37 @@
     cardEl = document.createElement('div');
     cardEl.className = 'tour-card';
     cardEl.setAttribute('role', 'dialog');
+    cardEl.setAttribute('aria-modal', 'true');
     cardEl.setAttribute('aria-labelledby', 'tour-title');
+    cardEl.addEventListener('keydown', onCardKeydown);
 
     document.body.appendChild(backdropEl);
     document.body.appendChild(spotEl);
     document.body.appendChild(cardEl);
+  }
+
+  // Trap Tab within the card, and close on Escape — a modal dialog must not
+  // leak focus to the dimmed page behind it.
+  function onCardKeydown(e) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      endTour();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const focusable = cardEl.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
   }
 
   function showStop() {
@@ -201,6 +231,8 @@
     backdropEl = spotEl = cardEl = null;
     stops = null;
     stopIndex = 0;
+    if (preTourFocusEl && document.contains(preTourFocusEl)) preTourFocusEl.focus();
+    preTourFocusEl = null;
   }
 
   function escapeHtml(s) {

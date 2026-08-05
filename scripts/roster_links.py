@@ -10,11 +10,20 @@ launch (each student auto-bound on launch). When a professor wants to run a
 baseline *today* but their Canvas developer key isn't registered yet, this
 script is the fallback: paste a roster, get one bound launch link per student.
 
-Each link carries ONLY the opaque student id (``sid``) — never name or email —
-so it upholds the disclosure promise that "your name and email do not appear in
-stored records or URLs." The id is derived with the SAME formula the server
-uses (``original.student_auth.derive_student_id``), so a link generated here and
-a Canvas launch for the same student resolve to the identical profile.
+Each link carries a signed **launch token** (``/bluebook/launch?t=…``) binding
+the opaque student id (``sid``) — never a name or email by default — which the
+server redeems into a short session + proctor attestation. That is what lets a
+magic-link sitting land a *proctored* baseline on a pilot tenant (an anonymous
+``/bluebook/?sid=…`` link cannot — writes to pilot data require authentication).
+The id is derived with the SAME formula the server uses
+(``original.student_auth.derive_student_id``), so a link generated here and a
+Canvas launch for the same student resolve to the identical profile.
+
+Signed links require ``SECRET_KEY`` (the pilot's) in the environment so the
+token verifies server-side; ``--unsigned`` emits the legacy demo-only format.
+Note: like any magic link, a signed launch link is a bearer credential and is
+reusable until it expires (``--link-ttl-days``, default 14) — distribute one
+per student privately.
 
 Two outputs, both spines of the day-one flow:
   • the per-student links the professor distributes privately, and
@@ -67,7 +76,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 try:
-    from original.student_auth import derive_student_id, slugify
+    from original.student_auth import derive_student_id, mint_launch_token, slugify
 except Exception as exc:  # pragma: no cover - environment guard
     sys.stderr.write(
         f"error: cannot import original.student_auth ({exc}).\n"
@@ -151,6 +160,12 @@ def parse_roster(text: str) -> List[tuple[str, str]]:
 def build_link(
     base_url: str, tenant: str, sid: str, exam: str, name: str, include_name: bool
 ) -> str:
+    """Unsigned launch URL (demo/legacy): binds the student via query params.
+
+    An anonymous POST from this link cannot write a pilot tenant's data — use
+    ``build_launch_link`` (signed) for a pilot so proctored sittings actually
+    land. Kept for demo mode and for the sid-derivation invariant test.
+    """
     base = base_url.rstrip("/")
     params = [("sid", sid), ("tenant", tenant)]
     if exam:
@@ -158,6 +173,26 @@ def build_link(
     if include_name and name:
         params.append(("candidate", name))
     return f"{base}/bluebook/?{urlencode(params, quote_via=quote)}"
+
+
+def build_launch_link(
+    base_url: str, tenant: str, sid: str, exam: str, name: str, include_name: bool, ttl_days: int
+) -> str:
+    """Signed launch URL for a pilot: ``/bluebook/launch?t=<launch_token>``.
+
+    The token (signed with SECRET_KEY) is redeemed server-side into a short
+    session + proctor attestation, so the proctored baseline lands on the pilot
+    tenant. The student's name rides inside the token only when ``include_name``
+    is set (otherwise the link stays name-free, FERPA URL-minimisation)."""
+    token = mint_launch_token(
+        sid,
+        tenant,
+        exam=exam,
+        name=(name if include_name else ""),
+        ttl_seconds=ttl_days * 24 * 3600,
+    )
+    base = base_url.rstrip("/")
+    return f"{base}/bluebook/launch?{urlencode([('t', token)], quote_via=quote)}"
 
 
 def syllabus_paragraph() -> Optional[str]:
@@ -241,9 +276,22 @@ def main() -> int:
     ap.add_argument(
         "--include-name",
         action="store_true",
-        help="put the student's name in the URL as candidate= so the briefing greets "
-        "them by name. OPTS OUT of FERPA URL-minimisation — the name then appears "
-        "in the link. Default off: links carry only the opaque sid.",
+        help="put the student's name in the launch so the briefing greets them by "
+        "name. OPTS OUT of FERPA URL-minimisation — the name then rides in the link. "
+        "Default off: links carry no name.",
+    )
+    ap.add_argument(
+        "--unsigned",
+        action="store_true",
+        help="emit legacy unsigned /bluebook/?sid=... links instead of signed "
+        "/bluebook/launch?t=... links. Unsigned links CANNOT land proctored samples "
+        "on a pilot (anonymous writes to pilot data are blocked) — use only for demo.",
+    )
+    ap.add_argument(
+        "--link-ttl-days",
+        type=int,
+        default=14,
+        help="validity window for a signed launch link (default: 14 days).",
     )
     ap.add_argument(
         "--no-disclosure",
@@ -277,8 +325,27 @@ def main() -> int:
 
     if not args.base_url:
         sys.stderr.write(
-            "warning: --base-url is empty; links will be relative (/bluebook/?...) and not "
-            "directly clickable. Pass the pilot host to make them usable.\n"
+            "warning: --base-url is empty; links will be relative and not directly "
+            "clickable. Pass the pilot host to make them usable.\n"
+        )
+
+    # Signed launch links are the default (they actually land proctored samples on
+    # a pilot). Warn loudly if SECRET_KEY is unset — the links would then be signed
+    # with the insecure dev fallback and rejected by any server with a real key.
+    if not args.unsigned and not os.environ.get("SECRET_KEY"):
+        sys.stderr.write(
+            "warning: SECRET_KEY is not set — signed launch links are being signed with the\n"
+            "  insecure dev fallback secret. They will ONLY work against a server using the\n"
+            "  same fallback (i.e. local/demo), and will be REJECTED by a pilot that has\n"
+            "  SECRET_KEY set. Export the pilot's SECRET_KEY before generating pilot links,\n"
+            "  or pass --unsigned for a demo.\n"
+        )
+
+    def _link(name: str, sid: str) -> str:
+        if args.unsigned:
+            return build_link(args.base_url, tenant, sid, args.exam, name, args.include_name)
+        return build_launch_link(
+            args.base_url, tenant, sid, args.exam, name, args.include_name, args.link_ttl_days
         )
 
     students = [
@@ -286,14 +353,7 @@ def main() -> int:
             name=name,
             email=email,
             sid=derive_student_id(tenant, email),
-            link=build_link(
-                args.base_url,
-                tenant,
-                derive_student_id(tenant, email),
-                args.exam,
-                name,
-                args.include_name,
-            ),
+            link=_link(name, derive_student_id(tenant, email)),
         )
         for (name, email) in pairs
     ]

@@ -210,6 +210,31 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
         scoring_config=_scoring_config,
     )
 
+    # Default-off, report-only longitudinal signal. The probe is never added
+    # to the fitted history and this cannot change the primary score/action.
+    from ..quantum.longitudinal import LongitudinalConfig, analyze_longitudinal_drift
+
+    _longitudinal_config = LongitudinalConfig.from_env()
+    _longitudinal_genre = None
+    if _longitudinal_config.enabled:
+        try:
+            from ..context.resolvers import resolve_genre
+
+            _longitudinal_genre = (resolve_genre(req.text) or {}).get("primary")
+        except Exception:
+            logging.getLogger(__name__).debug(
+                "longitudinal genre resolution failed for %s",
+                submission_id,
+                exc_info=True,
+            )
+    result.drift_analysis = analyze_longitudinal_drift(
+        state,
+        vec,
+        submitted_at=req.submitted_at,
+        submission_genre=_longitudinal_genre,
+        config=_longitudinal_config,
+    )
+
     # ── AI-likelihood (corpus-level second scoring mode, report-only) ─────────
     # Two modes, one persistence call site:
     #   AI_LIKELIHOOD_SHADOW=1  → compute + persist ONLY. result.ai_likelihood
@@ -243,6 +268,22 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
                 logging.getLogger(__name__).exception(
                     "ai_likelihood persistence failed for %s", submission_id
                 )
+
+    # Default-off peer-aligned expert; report-only and action-blind.
+    if os.environ.get("STYLE_AUTHORSHIP_ENABLED") == "1":
+        try:
+            from ..style_authorship import predict_style_authorship
+
+            result.style_authorship = predict_style_authorship(
+                req.text,
+                state,
+                _repo().all_states(),
+            )
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "style-authorship inference failed for %s — signal skipped",
+                submission_id,
+            )
 
     # ── Persist quantum fidelity for conformal calibration ───────────────────
     # Stores every scored fidelity so get_authentic_fidelities() can build

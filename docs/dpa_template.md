@@ -215,6 +215,11 @@ A "Breach" is the unauthorized access, use, or disclosure of student data where 
 ### 8.2 Notification Timeline
 Original shall notify the School of any suspected Breach within 48 hours of discovery.
 
+> The operational process backing this commitment — detection, the
+> "reasonable belief" decision that starts the clock, containment, and
+> notification drafting — is documented in
+> [`docs/INCIDENT_RESPONSE.md`](INCIDENT_RESPONSE.md).
+
 ### 8.3 Breach Notification Content
 Original shall provide:
 - Description of the Breach and data affected

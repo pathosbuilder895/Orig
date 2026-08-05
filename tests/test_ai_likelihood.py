@@ -146,6 +146,19 @@ def test_response_schema_has_optional_ai_likelihood():
     assert {"code", "label", "z", "direction"}.issubset(set(AiIndicatorOut.model_fields.keys()))
 
 
+def test_batch_matches_scalar_probabilities(tmp_path, monkeypatch, detector_reset):
+    from original.ai_likelihood import predict_ai_likelihood, predict_ai_likelihood_batch
+
+    monkeypatch.setenv("AI_LIKELIHOOD_MODEL_PATH", str(_make_fixture_artifact(tmp_path)))
+    X = np.full((3, FEATURE_DIM), 0.5)
+    X[:, _PPX_IDX] = [0.35, 0.60, 0.85]
+    batch = predict_ai_likelihood_batch(X)
+    scalar = np.array([predict_ai_likelihood(row).probability for row in X])
+    assert batch is not None
+    assert np.allclose(batch, scalar, atol=5e-5)
+    assert predict_ai_likelihood_batch(np.zeros((2, FEATURE_DIM - 1))) is None
+
+
 # ── 2. Flag-off null + attach-only identity ───────────────────────────────────
 
 

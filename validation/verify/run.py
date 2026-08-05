@@ -44,6 +44,7 @@ from validation.benchmark.reproducibility import lock_environment  # noqa: E402
 ENV_LOCK = lock_environment()
 
 import argparse
+import functools
 import json
 import re
 import sys
@@ -59,6 +60,33 @@ sys.path.insert(0, str(_ROOT))
 
 from validation.verify.binary_auc import _ScoringPair, summarize
 from validation.verify.report import paths_for, write_report
+
+
+def _install_text_feature_cache() -> None:
+    """Cache deterministic text-only extraction across target-author scores.
+
+    The same held-out document is scored against every claimed author. Feature
+    extraction is author-independent, so recomputing it for every target wastes
+    most of the benchmark runtime without exercising any additional production
+    math. The wrapper returns a fresh dict to prevent caller mutation.
+    """
+    import sys
+    from original.context import pipeline as context_pipeline
+
+    legacy_api = sys.modules["original._legacy_demo_api"]
+    extractor = context_pipeline.extract_features
+
+    @functools.lru_cache(maxsize=None)
+    def cached(text: str) -> dict:
+        return extractor(text, keystroke_data=None)
+
+    def wrapper(text: str, keystroke_data=None) -> dict:
+        if keystroke_data is not None:
+            return extractor(text, keystroke_data=keystroke_data)
+        return dict(cached(text))
+
+    context_pipeline.extract_features = wrapper
+    legacy_api.extract_features = wrapper
 
 
 def _load_manifest(manifest_path: Path) -> Dict[str, dict]:
@@ -160,6 +188,7 @@ def run(
         )
 
     client = TestClient(_run_module.load_legacy_demo_app())
+    _install_text_feature_cache()
 
     # ── 1. Upload the first N baselines for each eligible author. ──
     for aid in eligible:
