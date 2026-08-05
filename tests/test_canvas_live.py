@@ -15,8 +15,6 @@ Canvas failures surfacing as 502.
 
 from __future__ import annotations
 
-import sys
-
 import httpx
 import pytest
 
@@ -234,7 +232,9 @@ def test_canvas_failure_becomes_502(live_client, store_reset, monkeypatch):
 @pytest.fixture
 def real_deploy(monkeypatch):
     """Flip the loaded app into pilot behaviour without reloading it."""
-    monkeypatch.setattr(sys.modules["original._legacy_demo_api"], "_IS_REAL_DEPLOY", True)
+    import original.api
+
+    monkeypatch.setattr(original.api, "_IS_REAL_DEPLOY", True)
     yield
 
 
