@@ -61,6 +61,7 @@ def run(
     n_fusion_development: int = 20,
     n_threshold_calibration: int = 20,
     n_locked: int = 12,
+    fusion_fn=fit_grouped_fusion,
 ) -> dict:
     partitions = load_author_partitions(
         cache_dir=cache_dir,
@@ -102,7 +103,7 @@ def run(
     delta_signal_names = base_signals + ("delta_neg_distance", "delta_peer_z")
 
     def _run_fusion(combined, signal_names, target_fpr=(0.01, 0.05, 0.10)):
-        fusion = fit_grouped_fusion(
+        fusion = fusion_fn(
             combined["fusion_development"], signal_names=signal_names, n_splits=5, seed=SEED
         )
         calibration_probability = fusion.predict(combined["threshold_calibration"])

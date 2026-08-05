@@ -98,6 +98,7 @@ def run(
     n_development: int = 200,
     n_calibration: int = 100,
     n_locked: int = 100,
+    fusion_fn=fit_grouped_fusion,
 ) -> dict:
     all_authors = load_authors(manifest_path)
     if len(all_authors) < n_development + n_calibration + n_locked:
@@ -134,7 +135,7 @@ def run(
     delta_signal_names = base_signals + ("delta_neg_distance", "delta_peer_z")
 
     def _run_fusion(signal_names, target_fpr=(0.01, 0.05, 0.10)):
-        fusion = fit_grouped_fusion(
+        fusion = fusion_fn(
             trials["development"], signal_names=signal_names, n_splits=5, seed=SEED
         )
         calibration_probability = fusion.predict(trials["calibration"])
