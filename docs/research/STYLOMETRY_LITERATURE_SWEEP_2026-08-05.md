@@ -116,6 +116,39 @@ Positive result = recall improves at matched FPR without Cllr regressing;
 report a null result plainly if it doesn't, same standard the Delta
 ablation held itself to.
 
+## #1 recommendation, tried: a null result
+
+Implemented as `fit_grouped_fusion_cllr` (`validation/stacked/fusion.py`) —
+grid over candidate regularization strengths, select whichever minimizes
+out-of-fold Cllr instead of the fixed `C=0.5` the fusion already used.
+Wired into both Delta ablations (`fusion_fn` parameter) and run on the
+Gutenberg lock (same 100-author cohort as the Delta ablation, both with and
+without Delta):
+
+| | fixed C=0.5 | Cllr-selected C |
+|---|---:|---:|
+| AUC (without Delta) | 0.9465 | 0.9463 |
+| Recall @ 1% FPR (without Delta) | 67.3% | 68.0% |
+| AUC (with Delta) | 0.9560 | 0.9556 |
+| Recall @ 1% FPR (with Delta) | 77.3% | 77.0% |
+| Recall @ 5% FPR (with Delta) | 86.3% | 86.3% |
+
+Essentially identical — every difference is within noise, and the
+fusion coefficients came out nearly the same shape both ways
+(`character_similarity` dominant, `delta_peer_z` the strongest Delta
+signal in both). Honest reading: `C=0.5` was already close to the
+Cllr-optimal point in this corpus/signal-set combination, so there was no
+headroom here for the literature's #1-ranked lever to recover. This
+doesn't invalidate the recommendation in general — Ishihara's own gains
+came from *which signals get fused*, not primarily from *C selection* — but
+on this specific test it's a real null result, reported the same way the
+Delta finding was: whichever way the number came out.
+
+The mechanism itself (`fit_grouped_fusion_cllr`) stays in the codebase —
+it's correct, tested, and free to help on a corpus where the default C
+happens to be further from optimal; this result just says Gutenberg wasn't
+that corpus.
+
 ## Search coverage note
 
 Two specific angles the search was asked to check — PAC-Bayes bounds
