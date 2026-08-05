@@ -468,8 +468,13 @@ def _chunk_text(text: str, n_chunks: int) -> List[str]:
             head = parts[i].strip()
             body = parts[i + 1].strip() if i + 1 < len(parts) else ""
             chunks.append(f"{head}\n\n{body}")
-        if len(chunks) >= n_chunks:
-            return chunks[:n_chunks]
+        # Contents pages often contain a run of chapter headings with empty or
+        # one-line bodies. The old code accepted those as essays, producing the
+        # committed 6–41 word Mill and Kempis chunks. Only use chapter splits
+        # when every selected chunk is long enough to be stylometrically useful.
+        selected = chunks[:n_chunks]
+        if len(selected) >= n_chunks and min(len(c.split()) for c in selected) >= 300:
+            return selected
 
     # Fall back to paragraph-bucket split.
     paragraphs = [p for p in re.split(r"\n\s*\n", text) if p.strip()]

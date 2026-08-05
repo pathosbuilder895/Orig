@@ -464,6 +464,7 @@ def _serialize(state: StudentState) -> str:
             "auth_weight": s.auth_weight,
             "assignment": s.assignment,
             "submitted_at": s.submitted_at,
+            "word_count": s.word_count,
             # Phase 4 context metadata — null-safe for legacy samples that
             # haven't been backfilled yet (caller persists after lazy
             # ensure_sample_context_metadata()).
@@ -533,6 +534,7 @@ def _deserialize(data: str) -> StudentState:
                 auth_weight=s["auth_weight"],
                 assignment=s.get("assignment", ""),
                 submitted_at=s.get("submitted_at", ""),
+                word_count=s.get("word_count"),
                 genre=s.get("genre"),
                 topic_centroid=topic_centroid,
                 context_manifest=s.get("context_manifest"),

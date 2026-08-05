@@ -47,6 +47,9 @@ class BaselineSample:
     auth_weight: float  # AUTH_WEIGHTS[provenance]
     assignment: str = ""
     submitted_at: str = ""  # ISO date string
+    # Additive longitudinal metadata.  None preserves legacy rows; callers may
+    # derive it from ``text`` when absent.
+    word_count: int | None = None
 
     # ── Phase 4 context metadata (additive — None for legacy samples) ─────────
     # Lazily backfilled by ensure_sample_context_metadata() on first adaptive

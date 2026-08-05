@@ -367,6 +367,8 @@ def main(argv=None) -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     ap.add_argument("--only", help="Comma-separated list of author_ids to include.")
+    ap.add_argument("--manifest", type=Path, default=_MANIFEST, help="Corpus manifest JSON.")
+    ap.add_argument("--corpus-dir", type=Path, default=_CORPUS_DIR, help="Corpus text root.")
     ap.add_argument(
         "--report-dir",
         type=Path,
@@ -375,7 +377,12 @@ def main(argv=None) -> int:
     )
     args = ap.parse_args(argv)
     only = set(a.strip() for a in args.only.split(",")) if args.only else None
-    report = run(only=only, report_dir=args.report_dir)
+    report = run(
+        manifest_path=args.manifest,
+        corpus_dir=args.corpus_dir,
+        only=only,
+        report_dir=args.report_dir,
+    )
     return 0 if "error" not in report else 1
 
 

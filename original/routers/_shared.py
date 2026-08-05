@@ -32,12 +32,14 @@ from ..schemas import (
     BaselineConfidenceOut,
     ContextManifestOut,
     DomainSignalOut,
+    DriftAnalysisOut,
     EntanglementAnomalyOut,
     FeatureContributionOut,
     InterferenceDecompositionOut,
     Layer7OutputResponse,
     RecommendedActionOut,
     ScoringReportOut,
+    StyleAuthorshipOut,
     TensionArcOut,
     TrajectoryConformanceOut,
 )
@@ -404,6 +406,16 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
                 ],
             )
             if getattr(r, "ai_likelihood", None) is not None
+            else None
+        ),
+        style_authorship=(
+            StyleAuthorshipOut(**r.style_authorship.__dict__)
+            if getattr(r, "style_authorship", None) is not None
+            else None
+        ),
+        drift_analysis=(
+            DriftAnalysisOut(**r.drift_analysis.to_dict())
+            if getattr(r, "drift_analysis", None) is not None
             else None
         ),
         # Human-friendly explanation for professors/instructors

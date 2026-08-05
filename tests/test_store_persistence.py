@@ -46,6 +46,8 @@ def _make_state(student_id: str = "student-a1") -> StudentState:
             auth_weight=1.0,
             assignment="A1",
             genre=None,
+            submitted_at="2025-01-15",
+            word_count=321,
         )
     )
     return state
@@ -109,3 +111,20 @@ def test_reads_raise_on_unreadable_existing_db(tmp_path, monkeypatch):
         store.count()
     with pytest.raises(sqlite3.Error):
         store.get("anyone")
+
+
+def test_longitudinal_metadata_round_trips_and_legacy_defaults():
+    state = _make_state("longitudinal-persist")
+    store.put(state)
+
+    restored = store.get("longitudinal-persist")
+    assert restored is not None
+    assert restored.samples[0].submitted_at == "2025-01-15"
+    assert restored.samples[0].word_count == 321
+
+    import json
+
+    payload = json.loads(store._serialize(state))
+    payload["samples"][0].pop("word_count")
+    legacy = store._deserialize(json.dumps(payload))
+    assert legacy.samples[0].word_count is None

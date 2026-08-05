@@ -264,6 +264,69 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 .signout{font-family:var(--font-u);font-size:0.68rem;color:rgba(247,242,231,0.7);cursor:pointer;margin-left:auto;padding:2px 6px}
 .signout:hover{color:var(--parchment)}
 
+/* ── Student voice portrait ── */
+.portrait-hero{min-height:430px;position:relative;overflow:hidden;margin:-32px -36px 28px;background-color:#07172b;background-image:linear-gradient(90deg,rgba(0,20,43,.32) 0%,rgba(0,24,51,.16) 42%,rgba(0,22,48,.03) 72%),linear-gradient(0deg,rgba(0,18,39,.58) 0%,transparent 43%),var(--portrait-image,url('assets/oxford-all-souls-hero-v2.png'));background-position:center center;background-size:cover;border-bottom:1px solid rgba(176,141,60,.45);display:grid;grid-template-columns:minmax(0,1fr) 330px;align-items:end;gap:46px;padding:58px 54px 42px}
+.portrait-hero::after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(110deg,rgba(176,141,60,.035),transparent 40%);box-shadow:inset 0 -55px 75px rgba(0,16,35,.25)}
+.portrait-copy,.portrait-seal{position:relative;z-index:1}
+.portrait-kicker{display:flex;align-items:center;gap:11px;color:#d4b86b;font-size:.63rem;font-weight:600;letter-spacing:.21em;text-transform:uppercase;margin-bottom:18px}
+.portrait-kicker::before{content:'';width:34px;height:1px;background:#b08d3c}
+.portrait-title{max-width:670px;font-family:var(--font-d);font-size:clamp(2.8rem,5vw,4.85rem);font-weight:400;letter-spacing:-.025em;line-height:.94;color:#fffaf0;margin-bottom:18px}
+.portrait-title em{font-weight:400;color:#dcc985}
+.portrait-deck{max-width:590px;font-family:var(--font-b);font-size:1.1rem;line-height:1.62;color:rgba(247,242,231,.82)}
+.portrait-meta{display:flex;gap:18px;align-items:center;margin-top:25px;color:rgba(247,242,231,.68);font-size:.7rem}
+.portrait-meta strong{display:block;color:#f7f2e7;font-family:var(--font-d);font-size:1.25rem;font-weight:500}
+.portrait-meta span+span{border-left:1px solid rgba(247,242,231,.2);padding-left:18px}
+.portrait-seal{background:rgba(5,21,41,.82);border:1px solid rgba(176,141,60,.5);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:17px 17px 12px}
+.portrait-seal .card-lbl{color:#d4b86b}.portrait-seal .card-ttl{color:#f7f2e7}.portrait-seal .fp-viz{height:220px!important;padding:0}.portrait-seal .fp-viz svg{width:225px;height:225px}.portrait-seal .fp-legend{padding:0 4px 3px}
+.profile-intro{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:24px;margin-bottom:18px}.profile-intro .pg-hdr{margin:0}.profile-intro .pg-title{font-size:2.35rem}
+.profile-intro-note{max-width:280px;font-family:var(--font-b);font-style:italic;font-size:.88rem;line-height:1.55;color:rgba(26,26,26,.58)}
+.marker-panel{background:var(--vellum);border:1px solid var(--hairline);margin-bottom:22px}.marker-head{display:flex;align-items:end;justify-content:space-between;gap:20px;padding:20px 22px 15px;border-bottom:1px solid rgba(60,90,130,.13)}.marker-head p{max-width:440px;font-family:var(--font-b);font-size:.88rem;color:rgba(26,26,26,.62)}
+.marker-list{display:grid;grid-template-columns:repeat(4,1fr)}.voice-marker{min-height:132px;padding:18px 18px 16px;border-right:1px solid rgba(60,90,130,.13)}.voice-marker:last-child{border-right:0}.marker-num{font-family:var(--font-b);font-style:italic;color:var(--gold-text);font-size:.72rem;margin-bottom:16px}.marker-name{font-family:var(--font-d);font-size:1.22rem;line-height:1.05;color:var(--oxford);margin-bottom:7px}.marker-plain{font-family:var(--font-b);font-size:.82rem;line-height:1.45;color:rgba(26,26,26,.62)}.marker-more{display:flex;align-items:center;justify-content:center;color:var(--marginal);font-family:var(--font-b);font-style:italic;background:rgba(0,33,71,.025)}
+
+/* ── The Library: view-specific, independently swappable background ── */
+#view-library{
+  --library-image:url('assets/trinity-long-room-library-v2.png');
+}
+#view-library .page-body{
+  background-color:#07182d;
+  background-image:
+    linear-gradient(180deg,rgba(0,20,43,.14) 0,rgba(0,20,43,.32) 280px,rgba(0,20,43,.78) 100%),
+    var(--library-image);
+  background-position:center top;background-size:cover;background-attachment:local;
+}
+#view-library .pg-hdr{
+  min-height:255px;margin:-32px -36px 26px;padding:55px 42px 38px;
+  display:flex;flex-direction:column;justify-content:flex-end;
+  border-bottom:1px solid rgba(176,141,60,.5);
+  background:linear-gradient(90deg,rgba(0,20,43,.74),rgba(0,20,43,.24) 64%,transparent);
+}
+#view-library .pg-eye{color:#d5bd77;opacity:1}
+#view-library .pg-title{color:var(--parchment);text-shadow:0 2px 24px rgba(0,0,0,.45)}
+#view-library .pg-sub{max-width:700px;color:rgba(247,242,231,.84)!important;text-shadow:0 1px 16px rgba(0,0,0,.45)}
+#view-library > .page-body > .card{
+  position:relative;overflow:hidden;
+  background:
+    linear-gradient(135deg,rgba(255,252,244,.78),rgba(239,235,224,.66)),
+    rgba(247,242,231,.7);
+  border-color:rgba(218,195,137,.68);
+  box-shadow:0 22px 60px rgba(0,12,27,.38),inset 0 1px rgba(255,255,255,.72);
+  backdrop-filter:blur(5px) saturate(.8) brightness(1.08);
+  -webkit-backdrop-filter:blur(5px) saturate(.8) brightness(1.08);
+}
+#view-library > .page-body > .card::before{
+  content:'';position:absolute;inset:0;pointer-events:none;z-index:0;
+  background:linear-gradient(115deg,rgba(255,255,255,.26),transparent 32%,rgba(176,141,60,.045) 78%,transparent);
+}
+#view-library > .page-body > .card > *{position:relative;z-index:1}
+#view-library .exemplar{border-top-color:rgba(0,33,71,.24)}
+#view-library .exemplar-title,#view-library .exemplar-prose{color:#071d39}
+#view-library .exemplar-attr{color:rgba(7,29,57,.68)}
+#view-library .exemplar-commentary{color:rgba(7,29,57,.78);border-left-color:rgba(145,106,25,.78)}
+#view-library .exemplar-commentary-lbl{color:#7b5d20}
+
+@media(max-width:1050px){.portrait-hero{grid-template-columns:1fr 280px;gap:26px;padding-left:38px;padding-right:38px}.portrait-title{font-size:3.25rem}.marker-list{grid-template-columns:repeat(2,1fr)}.voice-marker:nth-child(2){border-right:0}.voice-marker:nth-child(-n+2){border-bottom:1px solid rgba(60,90,130,.13)}}
+@media(max-width:760px){body{overflow:auto}.layout{height:auto;min-height:100vh}.sidebar{display:none}.main{overflow:visible}.view{overflow:visible}.page-body{padding:24px 20px 40px}.portrait-hero{margin:-24px -20px 24px;min-height:0;grid-template-columns:1fr;padding:42px 24px 28px}.portrait-title{font-size:2.75rem}.portrait-meta{flex-wrap:wrap}.portrait-seal{max-width:330px;width:100%}.profile-intro{grid-template-columns:1fr}.profile-intro-note{max-width:none}.marker-head{align-items:start;flex-direction:column}.marker-list{grid-template-columns:1fr}.voice-marker{border-right:0;border-bottom:1px solid rgba(60,90,130,.13)}#view-library .pg-hdr{margin:-24px -20px 22px;padding:42px 24px 28px;min-height:220px}}
+
 /* ── Animations ── */
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 .fu{animation:fadeUp .44s cubic-bezier(0.16,1,0.3,1) both}
@@ -388,22 +451,49 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
     <!-- ════ View: Voice Profile ════ -->
     <div id="view-profile" class="view active">
       <div class="page-body">
-        <!-- ── HeroAnswer: "Is my voice growing or holding steady this term?" ── -->
+        <section class="portrait-hero fu" aria-labelledby="portraitTitle">
+          <div class="portrait-copy">
+            <div class="portrait-kicker">Your private voice portrait</div>
+            <h1 class="portrait-title" id="portraitTitle">This is how <em>you sound</em> on the page.</h1>
+            <p class="portrait-deck">A living portrait of your cadence, diction, and habits of thought — drawn only from your own writing, and made clearer with every submission.</p>
+            <div class="portrait-meta" aria-label="Portrait summary">
+              <span><strong id="portraitPieces">—</strong> pieces listened to</span>
+              <span><strong id="portraitStage">Forming</strong> portrait stage</span>
+              <span><strong id="portraitTerm">Autumn</strong> current term</span>
+            </div>
+          </div>
+          <div class="portrait-seal">
+            <div class="card-head" style="padding:0 4px">
+              <div class="card-lbl">Your voice, at a glance</div>
+              <div class="card-ttl">The shape beneath the sentences</div>
+            </div>
+            <div class="fp-viz"><svg id="fpSvg" viewBox="0 0 300 300" width="240" height="240" aria-label="A visual portrait of your writing markers"></svg></div>
+            <div class="fp-legend">
+              <div class="fp-leg"><div style="width:20px;height:1.5px;background:#B08D3C"></div><span>Your voice now</span></div>
+              <div class="fp-leg"><div style="width:20px;height:0;border-top:1.5px dashed rgba(247,242,231,0.38)"></div><span>Start of term</span></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── HeroAnswer retained as an accessible live-status region ── -->
         <div id="studentHero"
              class="hero-answer hero-answer--loading"
              data-hero-answer="student"
              data-tour-id="hero"
              aria-live="polite"
-             style="max-width:780px">
+             style="display:none">
           <div class="hero-answer-eye">Your voice this term</div>
           <div class="hero-answer-headline">Loading…</div>
           <div class="hero-answer-detail"></div>
         </div>
 
-        <div class="pg-hdr fu">
-          <div class="pg-eye" id="proEye">Your writing voice, over time</div>
-          <div class="pg-title" id="proTitle">Your voice is finding its shape.</div>
-          <div class="pg-sub" id="proSub">Submit your first piece of work to reveal your voice profile.</div>
+        <div class="profile-intro fu">
+          <div class="pg-hdr">
+            <div class="pg-eye" id="proEye">Your writing voice, over time</div>
+            <div class="pg-title" id="proTitle">Your voice is finding its shape.</div>
+            <div class="pg-sub" id="proSub">Submit your first piece of work to reveal your voice profile.</div>
+          </div>
+          <div class="profile-intro-note">These are observations, not grades. Your portrait describes the patterns that make your writing recognisably yours.</div>
         </div>
 
         <!-- First-steps guide — shown only before any work has been analysed -->
@@ -417,24 +507,19 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
           <button class="btn-primary" onclick="showView('submit')">Submit your first piece →</button>
         </div>
 
-        <div class="hero-row fu fu1">
-          <!-- Fingerprint -->
-          <div class="card fp-card">
-            <div class="card-head">
-              <div class="card-lbl">Voice Fingerprint</div>
-              <div class="card-ttl">Seven dimensions of your voice<span class="help-hint" data-topic="fingerprint" data-hint="What the seven dimensions mean"></span></div>
-            </div>
-            <div class="fp-viz" style="height:270px">
-              <svg id="fpSvg" viewBox="0 0 300 300" width="280" height="280"></svg>
-            </div>
-            <div class="fp-legend">
-              <div class="fp-leg"><div style="width:20px;height:1.5px;background:#B08D3C"></div><span>Your voice now</span></div>
-              <div class="fp-leg"><div style="width:20px;height:0;border-top:1.5px dashed rgba(60,90,130,0.5)"></div><span>Start of term</span></div>
-            </div>
+        <section class="marker-panel fu fu1" aria-labelledby="markerTitle">
+          <div class="marker-head">
+            <div><div class="card-lbl">What sounds like you</div><div class="card-ttl" id="markerTitle">Your clearest markers, in plain English</div></div>
+            <p>More markers become dependable as your body of work grows.</p>
           </div>
+          <div class="marker-list" id="markerList">
+            <div class="voice-marker"><div class="marker-num">01</div><div class="marker-name">Listening for your rhythm</div><div class="marker-plain">Your first submission will begin the portrait.</div></div>
+          </div>
+        </section>
 
+        <div class="hero-row fu fu1">
           <!-- Arc -->
-          <div class="card arc-card">
+          <div class="card arc-card" style="grid-column:1/-1">
             <div class="card-head">
               <div class="card-lbl">The Arc</div>
               <div class="card-ttl" id="arcTitle">Voice fidelity this term<span class="help-hint" data-topic="arc" data-hint="How to read this timeline"></span></div>
@@ -1250,6 +1335,39 @@ function drawFingerprint(svgEl, current, early) {
   svgEl.innerHTML = html;
 }
 
+const MARKER_COPY = {
+  'Rhythm':['Measured cadence','You vary sentence length, giving larger thoughts room to unfold.'],
+  'Vocabulary':['Wide-ranging diction','You reach beyond the obvious word while keeping the argument readable.'],
+  'Hedging':['Careful qualification','You make room for complexity before settling on a claim.'],
+  'Passive':['Quiet emphasis','You sometimes place the idea before the person acting on it.'],
+  'Transitions':['Visible through-line','Your connective phrases guide readers through the argument.'],
+  'Assertion':['Confident claims','When you arrive at your point, you tend to state it plainly.'],
+  'First person':['Present but restrained','You enter the argument when your own position genuinely matters.'],
+  'Contractions':['Formal register','Your prose keeps a composed, seminar-room tone.'],
+  'Word length':['Textured word choice','You mix plain language with more specialised terms.'],
+  'Burstiness':['Dynamic pacing','Dense passages are relieved by shorter, clarifying sentences.'],
+  'Predictability':['Surprising turns','Your phrasing resists becoming mechanical or overly expected.'],
+  'Register':['Scholarly warmth','You handle serious ideas without losing the human voice beneath them.'],
+};
+function renderVoiceMarkers(data, submissionCount) {
+  const el = document.getElementById('markerList');
+  if (!el) return;
+  const axes = _fpAxes(data);
+  if (!axes.length || submissionCount < 1) return;
+  const shown = Math.min(axes.length, submissionCount >= 7 ? 6 : submissionCount >= 4 ? 5 : 4);
+  const cards = axes.slice().sort((a,b)=>b.value-a.value).slice(0,shown).map((d,i)=>{
+    const copy = MARKER_COPY[d.label] || [
+      d.label,
+      d.value >= .66 ? 'This pattern appears clearly and consistently across your writing.' :
+      d.value >= .4 ? 'This is a recurring tendency in the way you shape a page.' :
+      'This quieter habit is beginning to emerge in your work.'
+    ];
+    return `<div class="voice-marker"><div class="marker-num">${String(i+1).padStart(2,'0')}</div><div class="marker-name">${esc(copy[0])}</div><div class="marker-plain">${esc(copy[1])}</div></div>`;
+  });
+  if (shown < axes.length) cards.push(`<div class="voice-marker marker-more">${axes.length-shown} quieter marker${axes.length-shown===1?'':'s'} will sharpen as you write.</div>`);
+  el.innerHTML = cards.join('');
+}
+
 /* ═══════════════════════════════════════════════════════════════
    SVG: Arc chart
    ═══════════════════════════════════════════════════════════════ */
@@ -1436,10 +1554,16 @@ async function loadProfile() {
   // legacy feature-keyed demo vectors.
   if (v && Array.isArray(v.fingerprint)) {
     drawFingerprint(document.getElementById('fpSvg'), v.fingerprint, null);
+    renderVoiceMarkers(v.fingerprint, analysed.length);
   } else {
     drawFingerprint(document.getElementById('fpSvg'), DEMO_BASELINE, DEMO_EARLY);
+    renderVoiceMarkers(DEMO_BASELINE, analysed.length);
   }
   drawArc(document.getElementById('arcSvg'), analysed);
+  document.getElementById('portraitPieces').textContent = analysed.length;
+  document.getElementById('portraitTerm').textContent = semester().replace(/\s*Term.*/i,'') || semester();
+  document.getElementById('portraitStage').textContent =
+    MATURITY_BANDS[Math.max(0,computeMaturityIndex(analysed))] || 'Forming';
 
   // Review opportunity — server-decided for a real student; derived from the
   // synthetic latest action for the guest.

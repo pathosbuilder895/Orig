@@ -58,6 +58,11 @@ All production features are opt-in via env flags. Default OFF preserves Phase 1 
 | `AI_LIKELIHOOD_ENABLED` | `0` | Turns on the optional AI-likelihood second scorer (report-only, corpus-level detector). |
 | `AI_LIKELIHOOD_SHADOW` | `0` | Runs the AI-likelihood detector in shadow mode (computed but not surfaced) ahead of full enablement. |
 | `AI_LIKELIHOOD_MODEL_PATH` | unset | Path to the committed calibrated classifier artifact for the AI-likelihood detector. |
+| `LONGITUDINAL_DRIFT_ENABLED` | `0` | Attaches report-only constant-vs-gradual longitudinal analysis for sufficiently long dated authenticated histories. Never changes `deviation_score` or the action. |
+| `LONGITUDINAL_MIN_SAMPLES` | `6` | Minimum dated authenticated samples (also subject to length/span checks) before gradual-drift analysis is eligible. |
+| `LONGITUDINAL_CHANGEPOINT_MIN_SAMPLES` | `12` | Minimum dated authenticated samples before the report-only one-change-point diagnostic runs. |
+| `STYLE_AUTHORSHIP_ENABLED` | `0` | Attaches the report-only peer-aligned authorship-consistency expert. Requires retained raw text, 3 authenticated claimed-author baselines, and 10 eligible same-tenant peer profiles; otherwise returns null. Never changes the score or action. |
+| `STYLE_AUTHORSHIP_MODEL_PATH` | unset | Optional path override for the versioned style-authorship artifact. Loader validation fails closed on schema, signal-order, vocabulary, or reference-prediction drift. |
 | `GUARD_DESTRUCTIVE` | — | Security/ops flag — see `docs/OPS_RUNBOOK.md` (owned by WS-1) for semantics. |
 | `MAINTENANCE_TOKEN` | — | Role-granting `X-Guard-Token` secret (`api.py:2642`) — see `docs/OPS_RUNBOOK.md` (owned by WS-1). |
 | `LOGIN_THROTTLE_MAX_ATTEMPTS` | `10` | Failed-login attempts allowed within the throttle window before lockout (`api.py`, near the login-throttle helpers). CI sets this higher for the e2e job's login volume only. |

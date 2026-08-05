@@ -1,4 +1,4 @@
-# Model Card — Original Stylometric Scorer v1.3.1
+# Model Card — Original Stylometric Scorer v1.4.25
 
 This document describes the current feature pipeline, scoring model, output actions, reliability limits, and intended institutional use of Original.
 
@@ -216,6 +216,82 @@ of in-domain false-positive data.
 
 ---
 
+## Modern Authorship Consistency Expert (report-only, optional)
+
+`STYLE_AUTHORSHIP_ENABLED=1` attaches a separate peer-aligned style comparison
+to the live response. It is default OFF and cannot modify `deviation_score`,
+the recommendation, or the action. The output is either positive consistency
+evidence or `inconclusive`; the latter must not be described as proof of an
+impostor or misconduct.
+
+The v1 artifact combines character 3–5-gram similarity with a content-reduced
+signature (fixed function words, punctuation, word length, capitalization, and
+sentence rhythm), then normalizes both against same-tenant peer profiles. It
+abstains unless the probe has at least 300 words, the claimed student has three
+retained authenticated baseline texts, and at least ten same-tenant peers each
+have three eligible baselines. Institutions that do not retain raw baseline
+text will therefore receive `null`, by design.
+
+Training used 120 PAN 2020 authors; threshold calibration used 40 different
+authors. Two subsequent, author-disjoint 40-author cross-fandom locks produced:
+
+| Lock | AUC | TPR at frozen threshold | FPR at frozen threshold |
+|---|---:|---:|---:|
+| Fresh A (120 genuine / 4,680 impostor) | 0.878 | 40.8% | 1.154% |
+| Fresh B (120 genuine / 4,680 impostor) | 0.933 | 51.7% | 0.748% |
+| Combined frozen-threshold counts | — | 46.25% (111/240) | 0.951% (89/9,360) |
+
+The variation between locks is operationally important: this is triage
+evidence, not a universal authentication test. The loader fails closed if its
+schema, signal order, vocabulary checksum, reference predictions, or strict
+threshold do not match the artifact contract. It does not determine whether an
+inconsistent document came from a human ghostwriter, direct AI, humanized AI,
+editing, accommodation, or a legitimate context shift. Cause attribution and
+action coupling remain unpromoted.
+
+Reproduction entry point: `.venv/bin/python scripts/train_style_authorship.py`.
+Locked reports are `pan_style_peer_aligned_fresh40a.json` and
+`pan_style_peer_aligned_fresh40b.json` under
+`validation/benchmarks/2026-08-04/`.
+
+---
+
+## Longitudinal Drift Analysis (report-only, optional)
+
+`LONGITUDINAL_DRIFT_ENABLED=1` attaches a separate chronological analysis to
+the live score response. It does **not** replace the density matrix, modify
+`deviation_score`, or change `recommended_action`.
+
+The v1 model compares a constant history with a ridge-shrunk per-feature linear
+trend using forward-chaining prediction. Only authenticated, ISO-dated samples
+of at least 300 words are eligible. The default eligibility floor is six such
+samples spanning at least 60 days; the optional one-change-point diagnostic
+requires 12. Undated, short, and unverified samples are excluded, and the
+submission being evaluated is never fitted into its own trajectory.
+
+The response distinguishes:
+
+- `stable_consistent` — compatible with the historical profile;
+- `drift_compatible` — historical distance is reduced by a supported trend;
+- `unexplained_change` — neither the constant nor predicted-current profile
+  explains the submission;
+- `unexplained_discontinuity` — a longer history supports a possible abrupt
+  break, whose cause remains unknown;
+- `insufficient_history` — the chronological evidence floor is not met.
+
+An abrupt change is not evidence of an impostor: genre, editing, dictation,
+accommodation, illness, or a changed writing process can produce the same
+pattern. Comparative authorship evidence remains the responsibility of the
+peer-pool/null model and human verification. Promotion beyond report-only is
+gated on chronological real-student validation showing reduced genuine false
+alarms without an unacceptable loss in matched-impostor rejection.
+
+Validation entry point: `python -m validation.longitudinal.run`. It reports
+static versus drift-adjusted genuine flag rates and a chronology-permutation
+false-selection diagnostic; it never tunes production thresholds.
+
+---
+
 ## Peer-Pool Null Model (relative scoring signal, optional)
 
 The primary `deviation_score` answers "how far is this submission from the
@@ -370,6 +446,223 @@ investigation of the ghostwritten-pulls-prior-toward-it hypothesis above.
 
 ---
 
+## Cross-Work Authorship Verification (2026-08-04)
+
+A source-work-disjoint corpus now uses three 2,500-word baseline windows from
+one book and three probe windows from another for G.K. Chesterton, Agatha
+Christie, Charles Dickens, Ralph Waldo Emerson, John Stuart Mill, and Henry
+David Thoreau (36 documents; 108 target/probe verification pairs). No work
+appears on both sides of an author's split.
+
+The existing score achieved 17/18 top-1 attribution and median per-author AUC
+0.989 (IQR 0.878–1.000), but pooled uncalibrated AUC was only 0.769 (95%
+bootstrap CI 0.607–0.897) with Brier 0.622. This confirms that author-relative
+ranking and a portable absolute probability are different problems. The
+existing population-relative impostor signal increased median per-author AUC
+to 1.000 (IQR 0.967–1.000), pooled AUC to 0.952, and improved pooled Brier to
+0.127. At 1% pooled FPR its recall was 61.1%.
+
+**Verdict: retain as attach-only evidence; do not promote thresholds.** This is
+strong support for using the null score as one calibrated fusion channel, but
+not enough evidence for a universal claim: there are only six historical
+authors, 18 genuine probes, and substantial era/register mismatch with student
+writing. Full details are in
+`docs/research/CROSS_WORK_AUTHORSHIP_FINDINGS_2026-08-04.md`.
+
+A harder modern cross-topic test uses 12 real PAN authors, three baseline
+documents from one fandom and three probes from another (72 unique texts; 432
+verification trials). The frozen raw score achieved only median per-author AUC
+0.687 and 11.1% TPR at 1% FPR. Peer-relative impostor evidence improved median
+AUC to 0.778 and TPR at 1% FPR to 30.6%, but this remains inadequate for
+authentication. Therefore Original must not claim reliable cross-topic
+authorship measurement, and the null score remains report-only.
+
+The initial validation-only content-reduced expert trained on 120 disjoint PAN authors
+and thresholded on 40 additional authors improved the locked result to pooled
+AUC 0.890 and 47.2% TPR at the 1% ROC point. It combines character-pattern
+similarity with function-word, punctuation, word-length, and sentence-rhythm
+distance. A four-channel stack that also included Original's raw and
+peer-relative probabilities regressed AUC to 0.845 and strict TPR to 38.9%, so
+that merge was rejected. That initial two-style-signal version was not shipped:
+its locked set had only 12 authors/36 genuine trials, and its observed 1.01%
+impostor-accept rate had a 2.57% upper 95% confidence bound. The later
+peer-aligned, report-only adapter and its larger fresh locks are documented in
+the Modern Authorship Consistency Expert section above; no action threshold was
+promoted.
+
+### Cause and mixed-authorship stress tests
+
+PADBen source-held-out testing produced 92.1% precision / 58.1% recall for a
+positive humanized-AI signal, but the direct-AI subtype failed its precision
+gate. DAMASHA train/calibration/locked testing raised short-window AUC from
+0.437 for the frozen corpus detector to 0.907 for a locally learned window
+expert; its q95 operating point reached 80.0% mixed recall at 8.3% control FPR,
+with 32-word median boundary error. On a locked 100-document RAID clean versus
+paraphrase test, the PADBen subtype ranking reversed (AUC 0.063), while a
+source-disjoint RAID-local leave-one-generator-out expert reached AUC 0.985.
+This proves generator transfer within one attack family, not humanizer-family
+transfer. A source-disjoint PADBen first-versus-third paraphrase-depth control
+retained AUC 0.944, but failed coverage and direct-AI precision/recall gates;
+high ranking performance still did not produce a deployable bidirectional
+decision. These are validation-only results and do not justify a production
+cause artifact. See
+`docs/research/CAUSE_ATTRIBUTION_FINDINGS_2026-08-04.md`.
+
+A larger exact-source RAID follow-up keeps human rewrites labeled human and
+holds out both an AI generator and a rewrite family. Unseen synonym rewrites
+reach 69.6–92.0% TPR at 0% observed human FPR, but unseen paraphrases reach only
+12–13% TPR. A RAID-trained model then fails on external PADBen (AUC 0.544,
+2.7% human FPR, 0% direct-AI TPR, 0.45% humanized-AI TPR). This confirms that
+AI-origin invariance is the appropriate target, while current features do not
+generalize across paraphrasers and domains. Direct-versus-humanized provenance
+remains unavailable in production.
+
+A two-axis joint cause hierarchy was subsequently tested on three disjoint
+fresh 40-author PAN partitions. It combines only peer-aligned claimed-author
+probability and frozen AI likelihood. On a generator- and rewrite-held RAID
+lock, merged AI-origin evidence reached 99.55% precision / 92.08% recall and
+positive claimed-author evidence reached 100% precision / 38.3% recall.
+However, the identical frozen hierarchy failed on external PADBen: AI-origin
+precision fell to 60.21% because 189/222 human texts were false positives.
+Human-impostor precision was only 77.78% on the first lock and 32.65%
+externally. No cause output is exposed by the production API. Low style
+consistency is not positive evidence of a ghostwriter, and a locally accurate
+AI-origin threshold is not a portable detector.
+
+Positive peer alternatives and 64 deterministic General Impostors trials raise
+known-peer human-impostor precision to 91.84%, but recall remains 37.5%. With
+ghostwriters drawn from an entirely unseen 40-author cohort, precision/recall
+fall to 80.95%/14.17%. A separate small-model probability-curvature diagnostic
+reaches RAID AUC 0.9143, but misses the paraphrased-AI recall gate and reverses
+to AUC 0.3121 on external PADBen. Both additions remain validation-only; no
+cause label or production threshold was added.
+
+The probability-curvature experiment was repeated over the complete locks with
+the official Fast-DetectGPT implementation's GPT-Neo-2.7B same-model pair and a
+documented local 256-token truncation. It reached RAID AUC 0.9013 and 90.0%
+direct-AI recall, but only 32.08% paraphrased-AI recall. External PADBen AUC
+reversed to 0.3879 with no selections at the frozen threshold. Model scale
+therefore did not repair transfer, and the signal was not integrated into the
+production stack.
+
+A third independent lock adds 960 checksum-pinned FAIDSet test documents:
+human, direct AI, and human--LLM collaborative writing across GPT, Gemini,
+Llama, and DeepSeek. The frozen detector has 57.5% human FPR; probability
+curvature has 0% collaborative recall. Local-human calibration also fails,
+including a two-sided curvature anomaly with 62.19% direct recall, 0%
+collaborative recall, and 1.25% locked-human FPR. The collaborative label is
+not equated with humanizer-paraphrased AI, and no production output is added.
+
+The authorship promotion gate now requires actual frozen-threshold precision
+and recall, not only AUC/FPR. On a newly untouched 100-author PAN lock with
+three baselines each, peer alignment selects nobody; a best-alternative-margin
+variant reaches 82.35% precision / 9.33% recall and fails the required
+90%/50%. Conversely, the separately scoped enrolled-peer ghostwriter branch
+passes its revised initial gate at 90.20% precision / 38.33% recall on 120 held
+authors. That evidence supports only a closed-pool report with
+`unknown_writer` outside the enrolled comparison set.
+
+Exact enrolled-peer identity was subsequently audited rather than inferred
+from the broad human-impostor label. Top-one source accuracy is 47.5%; adding a
+best-versus-runner-up peer margin yields 83.33% selective identity precision,
+12.5% recall, and a 1.67% outside-writer naming rate. These fail the required
+90% precision, 30% recall, and ≤1% outside naming guard. No peer identity is
+therefore exposed; the supported output remains `unknown_writer`.
+
+Binary authorship authentication is now separated from 100-way identity using
+300 genuine and 300 deterministic source-matched impostor trials across the
+same 100 untouched authors. Best-peer style margins reach 98.90% precision,
+30.0% recall, and 0.333% FPR. Topic-masked function/punctuation/word-shape
+sequences and a 100k character vocabulary were also tested; the best stable
+variant reaches 97.20% precision / 34.67% recall / 1.0% FPR. All remain below
+the required 50% recall, so no authentication action is promoted.
+
+A validation-only LUAR-MUD expert was subsequently pinned and evaluated with
+the same three-baseline, cross-topic protocol. LUAR cosine alone reaches 94.90%
+precision / 31.0% recall / 1.667% FPR. Calibration-only selection chooses a
+fusion of LUAR cosine and the two existing best-peer style margins; the frozen
+100-author lock reaches AUC 0.922 and 100% precision / 39.33% recall / 0%
+observed FPR. This is the strongest low-FPR authentication result so far, but
+it still fails the 50% recall gate and remains outside the live API.
+
+Individual-baseline LUAR cohesion and dispersion signals improve the original
+lock to 98.56% precision / 45.67% recall / 0.667% FPR. The frozen fusion and
+threshold were then evaluated on a fresh 100-author open-set lock built from 99
+PAN 2021 authors and one never-allocated PAN 2020 tail author. Every author has
+three cross-topic baselines. The fresh lock reaches AUC 0.9414, 97.83%
+precision, 45.0% recall, and 1.0% FPR. The independent result remains below the
+50% recall requirement, so the production boundary is unchanged.
+
+A non-commercial, validation-only RADAR adversarial detector was also tested to
+measure whether paraphraser-aware training repairs AI-origin transfer. It
+recalls 50.31% of merged FAID AI involvement, including 53.13% collaboration,
+but flags 28.75% of humans. Local-human calibration collapses recall. On a
+second PADBen deep-paraphrase lock it flags every human and AI bundle. RADAR is
+therefore neither accurate enough nor legally usable as a production model;
+no score or weight was added.
+
+A regularized PLDA/Bayes-factor backend was tested over LUAR embeddings to
+model three-baseline versus one-probe uncertainty. PLDA reaches calibration AUC
+0.913 but only 35.67% recall at the joint gate; all PLDA fusions underperform
+the existing consistency/style fusion. Calibration therefore rejects it before
+locked model selection, and the production boundary remains unchanged.
+
+Pairwise cross-channel interactions and baseline-cohesion-stratified thresholds
+were also evaluated. They reach only 38.67% and 47.33% calibration recall,
+respectively, versus 49.33% for the selected linear fusion. The stratified rule
+would reach 44.0% on the open-set lock. Both are rejected before promotion.
+
+A development-only shrinkage-LDA metric over individual LUAR documents changes
+that conclusion for recall, but not for false positives. A regularized
+cross-channel interaction fusion reaches 98.05% precision / 50.33% recall /
+1.0% FPR on calibration. At the frozen threshold it reaches 96.43% / 54.0% /
+2.0% on the earlier 100-author lock and 96.72% / 59.0% / 2.0% on the fresh
+open-set lock. Tightening the calibration false-positive budget from 3/300 down
+to 0/300 does not produce a transported point satisfying both 50% recall and
+1% FPR, demonstrating threshold covariate shift rather than a missing global
+cutoff.
+
+An author-disjoint 43-author PAN 2020 tail cohort was then used only for local
+threshold estimation. Its selected point is 98.67% precision / 57.36% recall /
+0.775% FPR locally, but transports to 91.78% / 67.0% / 6.0% on the PAN 2021
+lock. Author disjointness alone is therefore insufficient: any institutional
+threshold cohort must also represent the target writing context and must be
+followed by a separate untouched deployment lock. The LDA metric, interaction
+fusion, and local calibration remain validation-only; no live score or action
+changed.
+
+An independent cross-work experiment uses a checksum-recorded Project
+Gutenberg catalogue and 400 single-author English writers with six distinct
+works each. The first 50 authors fit a local LUAR/style calibrator, the next 50
+select its variant and a pre-registered zero-false-accept threshold, two
+previously inspected 100-author blocks are excluded, and the final 100 authors
+form the untouched lock. The selected LUAR-cosine/style-margin model reaches
+100% precision, 79.33% recall, and 0/300 observed impostor accepts on that lock.
+It passes the stated numerical public-corpus authorship gate with three
+baseline works per author.
+
+This does not establish performance on contemporary student assignments: the
+historical literary domain differs materially in era, genre, editing, and text
+length, and the 0/300 FPR Wilson upper bound is 1.264%. The result is therefore
+eligible only for report-only review. Institutional calibration and a separate
+untouched student lock are still required before any live authentication action
+can be promoted.
+
+Exact enrolled-peer identity was separately re-tested on the Gutenberg domain
+with 100 enrolled candidates, three baseline works, three probes, and 100
+outside-pool writers. A development-fitted ranker combining LUAR, character
+n-grams, and content-reduced rhythm raises top-one identity accuracy from 30%
+for LUAR alone to 73%. Calibration-controlled abstention reaches 95.10% exact
+identity precision and 32.33% recall, satisfying the known-peer targets, but
+names 4/300 outside-pool probes (1.333%) and therefore fails the ≤1% guard by
+one case. Requiring zero outside names during calibration improves precision to
+96.81% while retaining 30.33% recall, but the same 4/300 outside rate remains.
+A two-axis runner-up-margin rule regresses recall to 28.67% without reducing
+outside names and is rejected. Exact peer names remain unavailable;
+`unknown_writer` is mandatory outside the enrolled pool.
+
+---
+
 ## Data Protection and FERPA Posture
 
 Original is designed around data minimization:
@@ -401,6 +694,32 @@ The zero-login demo remains intentionally available for sales and evaluation. Re
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.4.25 | 2026-08-04 | Reproduced RepreGuard-style layerwise PCA activation directions with pinned Phi-2, 512 M4 training pairs, 512 disjoint calibration pairs, and external RAID/FAID diagnostics. RAID AUC was 0.9442, but recall at the ≤1% FPR operating point was 10% overall and 0% for synonym/paraphrase; FAID selected no direct or collaborative AI. The branch was rejected and production remains unchanged. |
+| 1.4.24 | 2026-08-04 | Added a validation-only closed-pool Gutenberg identity ranker combining LUAR, character, and content-reduced evidence. Known-peer precision/recall reached 95.10%/32.33%, but outside naming was 1.333%; stricter and runner-up-margin rules did not repair the guard. Exact names remain disabled. |
+| 1.4.23 | 2026-08-04 | Added a reproducible 400-author Project Gutenberg cross-work corpus and domain-local LUAR/style calibration. A pre-registered zero-calibration-FP rule passed the final untouched 100-author lock at 100% precision, 79.33% recall, and 0/300 observed FPR; it remains report-only pending a representative institutional student lock. |
+| 1.4.22 | 2026-08-04 | Added a validation-only development-fitted shrinkage-LDA LUAR metric, cross-channel fusion, false-positive sensitivity audit, and author-disjoint local-threshold experiment. Recall passed, but both global transport locks reached 2% FPR and the locally fitted threshold reached 6% FPR on PAN 2021. Promotion remains blocked. |
+| 1.4.21 | 2026-08-04 | Tested regularized pairwise feature interactions and uncertainty-stratified thresholds over baseline cohesion. Both underperformed the selected linear fusion on calibration (38.67%/47.33% versus 49.33% recall) and were rejected before promotion. |
+| 1.4.20 | 2026-08-04 | Added a validation-only regularized PLDA/Bayes-factor scorer over LUAR embeddings. PLDA calibration AUC was 0.913, but its best gated recall and all fusions underperformed the existing consistency/style model. It was rejected before locked selection. |
+| 1.4.19 | 2026-08-04 | Added a pinned, validation-only RADAR adversarial detector transfer test. FAID merged recall reached 50.31%, but precision was 77.78% with 28.75% human FPR; PADBen Task-5 produced 50% precision and 100% human FPR. The checkpoint is also non-commercial. No production signal was added. |
+| 1.4.18 | 2026-08-04 | Added individual-baseline LUAR consistency/cohesion signals and a checksum-verified PAN 2021 open-set lock. The existing lock improved to 98.56% precision / 45.67% recall / 0.667% FPR; a fresh 100-author lock reached AUC 0.9414 and 97.83% / 45.0% / 1.0%. Recall still fails the 50% gate, so production remains unchanged. |
+| 1.4.17 | 2026-08-04 | Added a pinned, cached, validation-only LUAR-MUD author-episode expert. Calibration selected LUAR cosine plus existing style margins; the 100-author lock reached AUC 0.922, 100% precision, 39.33% recall, and 0% observed FPR. Recall remains below the 50% authentication gate, so no production artifact or action changed. |
+| 1.4.16 | 2026-08-04 | Separated binary source-matched authentication from exhaustive identity attribution on 100 untouched authors. Best style margins reached 98.90% precision / 30.0% recall / 0.333% FPR. Added topic-masked function/punctuation/word-shape n-grams and a 100k character ablation; best recall was 34.67%, below the 50% gate. |
+| 1.4.15 | 2026-08-04 | Distinguished broad human-impostor detection from exact enrolled-peer identification. Although the broad class passed 90.20%/38.33%, exact top-one identity was only 47.5%; calibrated runner-up margins reached 83.33% precision / 12.5% recall and named 1.67% of outside writers. No peer-name artifact was packaged. |
+| 1.4.14 | 2026-08-04 | Corrected authorship promotion to require ≥90% precision and ≥50% recall at the frozen threshold on 100 untouched authors with three baselines each. Peer and best-alternative variants failed (best: 82.35% precision / 9.33% recall). The separately scoped enrolled-peer ghostwriter branch passed its revised ≥90%/≥30% gate at 90.20%/38.33%, with mandatory `unknown_writer` outside the pool. |
+| 1.4.13 | 2026-08-04 | Added a checksum-pinned 960-document FAIDSet test lock covering genuine human, direct AI, and human--LLM collaboration across four model families. Transported and locally human-calibrated frozen/curvature signals all failed; collaborative recall remained at most 7.19% and no production label was added. |
+| 1.4.12 | 2026-08-04 | Repeated the probability-curvature lock with the official implementation's GPT-Neo-2.7B same-model pair over 1,080 RAID documents and 555 PADBen bundles. RAID AUC was 0.9013, but paraphrased-AI recall was 32.08%; PADBen reversed to AUC 0.3879 with no frozen-threshold selections. Added incremental content-addressed checkpoints; no production weight was added. |
+| 1.4.11 | 2026-08-04 | Added known-peer and open-set General Impostors evaluation plus an independent GPT-2 probability-curvature diagnostic. Known-peer human-impostor precision reached 91.84% but recall was 37.5%; unseen-cohort precision/recall fell to 80.95%/14.17%. RAID probability-curvature AUC was 0.9143 but external PADBen reversed to 0.3121. Both failed promotion; production remains unchanged. |
+| 1.4.10 | 2026-08-04 | Added training-only direction-stable/non-negative AI-origin fusion and a joint claimed-author/human-impostor/direct-AI/humanized-AI hierarchy. RAID-local merged AI-origin reached 99.55% precision/92.08% recall, but external PADBen precision fell to 60.21% with 189/222 human false selections. Human-impostor evidence also failed; no cause label was promoted. |
+| 1.4.9 | 2026-08-04 | Added exact-source RAID clean/synonym/paraphrase triplets with attacked human controls, generator- and attack-held AI-origin evaluation, and a locked RAID-to-PADBen external transfer test. Synonym transfer passed locally, but unseen paraphrase recall was 12–13% and external AUC was 0.544; no cause model was promoted. |
+| 1.4.8 | 2026-08-04 | Added the default-off, report-only peer-aligned style-authorship API field and fail-closed artifact. Two fresh 40-author locks yielded AUC 0.878/0.933 and frozen-threshold FPR 1.154%/0.748% (combined 0.951%); cross-lock variation keeps the result action-blind and below-threshold cases explicitly inconclusive. |
+| 1.4.7 | 2026-08-04 | Added author-disjoint PAN character and content-reduced style experts plus grouped fusion. Two-style-signal locked AUC reached 0.890 and 47.2% TPR at the 1% ROC point; adding raw/peer Original signals regressed to 0.845/38.9%. Both remain validation-only because locked support and strict-FPR confidence fail promotion gates. |
+| 1.4.6 | 2026-08-04 | Added a checksum-pinned, real-author PAN 2020 cross-fandom test (12 authors, 72 unique documents). Raw median AUC fell to 0.687; peer-relative AUC reached 0.778 with only 30.6% TPR at 1% FPR. Cross-topic authorship promotion failed; production behavior remains unchanged. |
+| 1.4.5 | 2026-08-04 | Added source-disjoint, leave-one-attack-family-out subtype evaluation with generator-held calibration and explicit AUC/precision/recall/coverage/support gates. PADBen depth-held AUC was 0.944, but selective coverage and the direct-AI branch failed; no artifact was promoted. |
+| 1.4.4 | 2026-08-04 | Added a pinned, source-disjoint RAID external subtype test. PADBen-to-RAID transfer failed (AUC 0.063 and no correct selective labels), while RAID-local leave-one-generator-out ranking reached AUC 0.985. Production promotion remains blocked on unseen attack-family evidence. |
+| 1.4.3 | 2026-08-04 | Expanded the work-disjoint corpus to six authors and 36 hashed documents by adding Emerson, Mill, and Thoreau. Locked attribution reached 17/18; peer-relative impostor evidence improved pooled AUC from 0.769 to 0.952 and Brier from 0.622 to 0.127, while remaining attach-only. |
+| 1.4.2 | 2026-08-04 | Added source-held-out PADBen cause attribution and train/calibration/locked DAMASHA mixed-boundary stress tests. The evidence supports selective positive humanization evidence and validation-only mixed-text localization, but fails the direct-AI and production false-positive gates; no live cause model was promoted. |
+| 1.4.1 | 2026-08-04 | Added source-work-disjoint Dickens/Christie/Chesterton validation and a validation-only grouped fusion/abstention harness. Results support the attach-only impostor signal but do not promote any production threshold. |
+| 1.4.0 | 2026-08-04 | Added default-off, report-only longitudinal drift analysis with chronological eligibility, constant-vs-regularized-trend selection, predictive drift relief, a conservative one-change-point diagnostic, and a separate Dirichlet-multinomial validation implementation. Primary scoring and actions remain unchanged. |
 | 1.3.1 | 2026-07-09 | Documentation-only: recorded verdicts for three previously-unbenchmarked scoring flags — `AMPLITUDE_SCORING_ENABLED` (structural no-op on deviation_score/authorship_probability; `quantum_fidelity` alone AUC 0.7633 on a small N=55 sample), `BAYESIAN_PRIOR_ENABLED` (ΔAUC −0.2508 on the cold-start segment — regression), and the previously-unrecorded 2026-06-30 `LENGTH_ADAPTIVE_WEIGHTS` measurement (+0.0035 to +0.0058 ΔAUC — negligible). All three remain default OFF; no scoring behavior changed. |
 | 1.3.0 | 2026-07-04 | Peer-pool null model in production: `NULL_MODEL=impostor` builds a per-tenant impostor cohort on the live scoring path and attaches `llr_deviation_score` (attach-only; cold-start abstention; on by default in demo mode only). |
 | 1.2.0 | 2026-07-01 | Added the optional AI-likelihood detector (corpus-level second scoring mode): committed calibrated classifier artifact, `AI_LIKELIHOOD_ENABLED` flag, report-only contract, enablement gate, and version-skew runbook. |
