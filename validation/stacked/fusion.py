@@ -7,6 +7,7 @@ it does not alter Original's production score or action.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 
@@ -52,7 +53,7 @@ class CauseDecision:
     abstained: bool
 
 
-def _pipeline(seed: int) -> Pipeline:
+def _pipeline(seed: int, C: float = 0.5) -> Pipeline:
     # Indicators are appended for every raw channel.  Median imputation then
     # cannot accidentally encode "detector unavailable" as a negative result.
     return Pipeline(
@@ -62,7 +63,7 @@ def _pipeline(seed: int) -> Pipeline:
             (
                 "logistic",
                 LogisticRegression(
-                    C=0.5,
+                    C=C,
                     class_weight="balanced",
                     max_iter=2000,
                     random_state=seed,
@@ -113,8 +114,67 @@ def fit_grouped_fusion(
     Base-expert values supplied here must themselves be out-of-fold whenever
     those experts were learned. The function refuses folds lacking either
     class, since probabilities from such a fold are not calibrated evidence.
-    """
 
+    Fixed C=0.5. See ``fit_grouped_fusion_cllr`` for the same fit with C
+    selected by out-of-fold Cllr instead.
+    """
+    return _fit_grouped_fusion_with_C(
+        trials, 0.5, signal_names=signal_names, n_splits=n_splits, seed=seed
+    )
+
+
+def fit_grouped_fusion_cllr(
+    trials: Sequence[Trial],
+    *,
+    signal_names: Sequence[str] | None = None,
+    n_splits: int = 5,
+    seed: int = 1729,
+    candidate_C: Sequence[float] = (0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 4.0),
+) -> FusionFit:
+    """Same fit as ``fit_grouped_fusion``, but select the regularization
+    strength C by minimizing out-of-fold Cllr instead of using a fixed
+    C=0.5.
+
+    Brummer & du Preez (2021, arXiv:2104.08846) and Ishihara (2017,
+    Forensic Sci. Int. 278) fit fusion to directly minimize Cllr -- the
+    proper scoring rule for the recall/FPR tradeoff this project actually
+    reports on -- rather than a proxy like accuracy. ``fit_grouped_fusion``
+    already fits logistic regression (a log-loss-consistent, Cllr-adjacent
+    objective) but never tuned C against the metric that matters; this is
+    that tuning step, nothing else. Model selection is entirely OOF (never
+    touches calibration/locked data), matching the same development-only
+    discipline every other selection step in this codebase already follows.
+    """
+    if not candidate_C:
+        raise ValueError("need at least one candidate C")
+
+    best_C: float | None = None
+    best_oof_cllr = math.inf
+    best_names: tuple[str, ...] | None = None
+    for C in candidate_C:
+        fit = _fit_grouped_fusion_with_C(
+            trials, C, signal_names=signal_names, n_splits=n_splits, seed=seed
+        )
+        labels = np.asarray([t.label for t in trials], dtype=np.int8)
+        oof_cllr = cllr(labels, fit.oof_probability)
+        if oof_cllr < best_oof_cllr:
+            best_oof_cllr = oof_cllr
+            best_C = C
+            best_names = fit.signal_names
+            best_fit = fit
+
+    assert best_C is not None and best_names is not None
+    return best_fit
+
+
+def _fit_grouped_fusion_with_C(
+    trials: Sequence[Trial],
+    C: float,
+    *,
+    signal_names: Sequence[str] | None,
+    n_splits: int,
+    seed: int,
+) -> FusionFit:
     if not trials:
         raise ValueError("need at least one trial")
     labels = np.asarray([t.label for t in trials], dtype=np.int8)
@@ -140,7 +200,7 @@ def fit_grouped_fusion(
     ):
         if len(np.unique(labels[train_idx])) != 2:
             raise ValueError(f"fold {fold} training partition lacks a class")
-        model = _pipeline(seed + fold)
+        model = _pipeline(seed + fold, C=C)
         model.fit(X[train_idx], labels[train_idx])
         oof[test_idx] = model.predict_proba(X[test_idx])[:, 1]
         fold_by_trial[test_idx] = fold
@@ -148,7 +208,7 @@ def fit_grouped_fusion(
     if np.isnan(oof).any() or (fold_by_trial < 0).any():
         raise RuntimeError("not every trial received an out-of-fold prediction")
 
-    final = _pipeline(seed)
+    final = _pipeline(seed, C=C)
     final.fit(X, labels)
     return FusionFit(names, oof, final, fold_by_trial)
 

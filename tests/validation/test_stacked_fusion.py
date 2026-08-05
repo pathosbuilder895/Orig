@@ -8,6 +8,7 @@ from validation.stacked import (
     assert_no_group_overlap,
     cllr,
     fit_grouped_fusion,
+    fit_grouped_fusion_cllr,
     select_cause,
 )
 
@@ -46,6 +47,32 @@ def test_grouped_fusion_is_out_of_fold_and_predicts() -> None:
     labels = [t.label for t in trials]
     assert cllr(labels, result.oof_probability) < 1.0
     assert result.predict(trials[:2]).shape == (2,)
+
+
+def test_cllr_selected_fusion_never_worse_than_default_C_on_oof() -> None:
+    """fit_grouped_fusion_cllr explicitly minimizes OOF Cllr over a range of
+    C values that includes the default 0.5 -- by construction its selected
+    OOF Cllr must be <= plain fit_grouped_fusion's (which is just C=0.5)."""
+    trials = _trials()
+    labels = [t.label for t in trials]
+
+    default = fit_grouped_fusion(trials, n_splits=4)
+    selected = fit_grouped_fusion_cllr(trials, n_splits=4, candidate_C=(0.1, 0.5, 2.0))
+
+    assert cllr(labels, selected.oof_probability) <= cllr(labels, default.oof_probability) + 1e-9
+    assert selected.signal_names == default.signal_names
+    assert len(selected.oof_probability) == len(trials)
+    assert np.all((selected.oof_probability >= 0) & (selected.oof_probability <= 1))
+    # Same author-disjoint fold guarantee as the fixed-C path.
+    for author in {t.author_id for t in trials}:
+        folds = {selected.fold_by_trial[i] for i, t in enumerate(trials) if t.author_id == author}
+        assert len(folds) == 1
+    assert selected.predict(trials[:2]).shape == (2,)
+
+
+def test_cllr_selected_fusion_requires_at_least_one_candidate() -> None:
+    with pytest.raises(ValueError, match="candidate"):
+        fit_grouped_fusion_cllr(_trials(), candidate_C=())
 
 
 def test_overlap_guard_checks_author_and_work() -> None:

@@ -7,6 +7,7 @@ from .fusion import (
     assert_no_group_overlap,
     cllr,
     fit_grouped_fusion,
+    fit_grouped_fusion_cllr,
     select_cause,
 )
 
@@ -17,5 +18,6 @@ __all__ = [
     "assert_no_group_overlap",
     "cllr",
     "fit_grouped_fusion",
+    "fit_grouped_fusion_cllr",
     "select_cause",
 ]
