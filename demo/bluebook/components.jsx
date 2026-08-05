@@ -307,22 +307,6 @@ export const BB_API = {
       return (await r.json()).submissions || [];
     } catch (e) { return null; }
   },
-  // File instructor feedback on a scoring verdict — persists to the
-  // corrections ledger (drives future retraining; see original/schemas.py
-  // CorrectionRequest). submissionId here is the Original scoring-record id
-  // for the submission, not the Bluebook exam id.
-  async fileCorrection(submissionId, { isCorrect, correctedVerdict }) {
-    const r = await fetch(this.base + `/submissions/${encodeURIComponent(submissionId)}/correct`, {
-      method: 'POST', headers: this._headers(),
-      body: JSON.stringify({ is_correct: isCorrect, corrected_verdict: correctedVerdict || null }),
-    });
-    if (!r.ok) {
-      let detail = r.statusText;
-      try { detail = (await r.json()).detail || detail; } catch (e) {}
-      throw new Error(detail);
-    }
-    return r.json();
-  },
   async listCourses() {
     try {
       const r = await fetch(this.base + '/bluebook/courses', { headers: this._headers() });
