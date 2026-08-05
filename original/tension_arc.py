@@ -43,11 +43,12 @@ log = logging.getLogger(__name__)
 _nlp = None  # spacy.language.Language — loaded lazily
 _embedder = None  # SentenceTransformer — typed loosely to avoid import-time crash
 _spacy_available = None  # None = untested, True/False = cached result
+_embedder_available = None  # None = untested, True/False = cached result
 
 
 def load_models() -> None:
     """Call once in FastAPI startup event (or lazily on first use)."""
-    global _nlp, _embedder, _spacy_available
+    global _nlp, _embedder, _spacy_available, _embedder_available
     if _nlp is None:
         try:
             import spacy as _spacy
@@ -66,8 +67,21 @@ def load_models() -> None:
             from sentence_transformers import SentenceTransformer
 
             _embedder = SentenceTransformer("all-MiniLM-L6-v2")
-        except ImportError:
-            log.warning("sentence-transformers unavailable — cohesion tension will be 0.")
+            _embedder_available = True
+        except Exception as exc:  # noqa: BLE001 — degrade, never fail a submission
+            # The package being absent (ImportError) and the weights being
+            # unreachable are the same thing from the caller's side: there is
+            # no embedder, so _analyze_paragraph scores cohesion as 0.0. The
+            # download path raises OSError when huggingface.co is unreachable
+            # and the model is not already cached, which is the normal state of
+            # a CI runner or an air-gapped deploy — before this caught it, that
+            # turned every baseline upload into a 500.
+            _embedder_available = False
+            log.warning(
+                "sentence-transformers unavailable — cohesion tension will be 0. (%s: %s)",
+                type(exc).__name__,
+                exc,
+            )
 
 
 def _get_nlp() -> Any:
@@ -78,8 +92,10 @@ def _get_nlp() -> Any:
 
 
 def _get_embedder() -> Any:
-    global _embedder
-    if _embedder is None:
+    # The `is not False` guard matters as much as the load: without it a failed
+    # load retries the same failing download once per paragraph, per request.
+    global _embedder, _embedder_available
+    if _embedder is None and _embedder_available is not False:
         load_models()
     return _embedder
 
