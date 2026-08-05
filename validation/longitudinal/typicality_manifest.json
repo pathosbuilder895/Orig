@@ -1,0 +1,202 @@
+{
+  "schema": "original.longitudinal.typicality_smoke.v1",
+  "purpose": "Measures whether trend_aware_typicality changes same-author recognition / impostor-rejection versus the flat, recency-weighted reference state.loo_distances uses today. NOT a locked benchmark -- two authors, eight works each, real publication years. See validation/longitudinal/README.md.",
+  "authors": {
+    "twain": "Mark Twain (1835-1910)",
+    "dickens": "Charles Dickens (1812-1870)"
+  },
+  "entries": [
+    {
+      "author_id": "twain",
+      "filename": "twain/3176_the_innocents_abroad.txt",
+      "label": "authentic",
+      "prompt": "The Innocents Abroad",
+      "submitted_at": "1869-01-01",
+      "word_count": 2500,
+      "genre": "fiction",
+      "source_pg_id": 3176,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "twain",
+      "filename": "twain/74_the_adventures_of_tom_sawyer.txt",
+      "label": "authentic",
+      "prompt": "The Adventures of Tom Sawyer, Complete",
+      "submitted_at": "1876-01-01",
+      "word_count": 2383,
+      "genre": "fiction",
+      "source_pg_id": 74,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "twain",
+      "filename": "twain/119_a_tramp_abroad.txt",
+      "label": "authentic",
+      "prompt": "A Tramp Abroad",
+      "submitted_at": "1880-01-01",
+      "word_count": 2500,
+      "genre": "fiction",
+      "source_pg_id": 119,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "twain",
+      "filename": "twain/1837_the_prince_and_the_pauper.txt",
+      "label": "authentic",
+      "prompt": "The Prince and the Pauper",
+      "submitted_at": "1881-01-01",
+      "word_count": 1619,
+      "genre": "fiction",
+      "source_pg_id": 1837,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "twain",
+      "filename": "twain/245_life_on_the_mississippi.txt",
+      "label": "authentic",
+      "prompt": "Life on the Mississippi",
+      "submitted_at": "1883-01-01",
+      "word_count": 2190,
+      "genre": "fiction",
+      "source_pg_id": 245,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "twain",
+      "filename": "twain/86_a_connecticut_yankee_in_king_arthurs_court.txt",
+      "label": "authentic",
+      "prompt": "A Connecticut Yankee in King Arthur's Court",
+      "submitted_at": "1889-01-01",
+      "word_count": 2027,
+      "genre": "fiction",
+      "source_pg_id": 86,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "twain",
+      "filename": "twain/102_the_tragedy_of_puddnhead_wilson.txt",
+      "label": "authentic",
+      "prompt": "The Tragedy of Pudd'nhead Wilson",
+      "submitted_at": "1894-01-01",
+      "word_count": 2500,
+      "genre": "fiction",
+      "source_pg_id": 102,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "twain",
+      "filename": "twain/2874_personal_recollections_of_joan_of_arc.txt",
+      "label": "authentic",
+      "prompt": "Personal Recollections of Joan of Arc, Volume 1",
+      "submitted_at": "1896-01-01",
+      "word_count": 2360,
+      "genre": "fiction",
+      "source_pg_id": 2874,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "dickens",
+      "filename": "dickens/580_the_pickwick_papers.txt",
+      "label": "authentic",
+      "prompt": "The Pickwick Papers",
+      "submitted_at": "1837-01-01",
+      "word_count": 1754,
+      "genre": "fiction",
+      "source_pg_id": 580,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "dickens",
+      "filename": "dickens/730_oliver_twist.txt",
+      "label": "authentic",
+      "prompt": "Oliver Twist",
+      "submitted_at": "1838-01-01",
+      "word_count": 1111,
+      "genre": "fiction",
+      "source_pg_id": 730,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "dickens",
+      "filename": "dickens/700_the_old_curiosity_shop.txt",
+      "label": "authentic",
+      "prompt": "The Old Curiosity Shop",
+      "submitted_at": "1841-01-01",
+      "word_count": 2500,
+      "genre": "fiction",
+      "source_pg_id": 700,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "dickens",
+      "filename": "dickens/968_martin_chuzzlewit.txt",
+      "label": "authentic",
+      "prompt": "Martin Chuzzlewit",
+      "submitted_at": "1844-01-01",
+      "word_count": 2500,
+      "genre": "fiction",
+      "source_pg_id": 968,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "dickens",
+      "filename": "dickens/821_dombey_and_son.txt",
+      "label": "authentic",
+      "prompt": "Dombey and Son",
+      "submitted_at": "1848-01-01",
+      "word_count": 2500,
+      "genre": "fiction",
+      "source_pg_id": 821,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "dickens",
+      "filename": "dickens/766_david_copperfield.txt",
+      "label": "authentic",
+      "prompt": "David Copperfield",
+      "submitted_at": "1850-01-01",
+      "word_count": 2500,
+      "genre": "fiction",
+      "source_pg_id": 766,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "dickens",
+      "filename": "dickens/1023_bleak_house.txt",
+      "label": "authentic",
+      "prompt": "Bleak House",
+      "submitted_at": "1853-01-01",
+      "word_count": 2500,
+      "genre": "fiction",
+      "source_pg_id": 1023,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    },
+    {
+      "author_id": "dickens",
+      "filename": "dickens/883_our_mutual_friend.txt",
+      "label": "authentic",
+      "prompt": "Our Mutual Friend",
+      "submitted_at": "1865-01-01",
+      "word_count": 2500,
+      "genre": "fiction",
+      "source_pg_id": 883,
+      "license_note": "Project Gutenberg title page: public domain in the USA",
+      "date_precision": "year-only; day/month is a placeholder, not a real submission date"
+    }
+  ]
+}

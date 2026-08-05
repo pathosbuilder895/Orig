@@ -1,0 +1,217 @@
+{
+  "summary": {
+    "n_genuine_trials": 4,
+    "n_impostor_trials": 4,
+    "flat_genuine_bands": {
+      "no_action": 4
+    },
+    "trend_aware_genuine_bands": {
+      "no_action": 4
+    },
+    "flat_impostor_bands": {
+      "no_action": 4
+    },
+    "trend_aware_impostor_bands": {
+      "no_action": 4
+    },
+    "caveat": "n is far too small to support an accuracy/FPR claim -- this is a direction check, not a locked benchmark. See module docstring."
+  },
+  "trials": {
+    "genuine": [
+      {
+        "target_author": "twain",
+        "probe_author": "twain",
+        "probe_title": "The Tragedy of Pudd'nhead Wilson",
+        "probe_date": "1894-01-01",
+        "flat": {
+          "eligible": true,
+          "p_far": 0.7142857142857143,
+          "p_central": 0.42857142857142855,
+          "band": "no_action",
+          "loo_n": 6
+        },
+        "trend_aware": {
+          "eligible": true,
+          "reason": null,
+          "p_far": 1.0,
+          "p_central": 0.14285714285714285,
+          "band": "no_action",
+          "loo_n": 6,
+          "submission_deviation": 0.407783044431741,
+          "selected_model": "constant",
+          "model_version": "longitudinal-typicality-v1"
+        }
+      },
+      {
+        "target_author": "twain",
+        "probe_author": "twain",
+        "probe_title": "Personal Recollections of Joan of Arc, Volume 1",
+        "probe_date": "1896-01-01",
+        "flat": {
+          "eligible": true,
+          "p_far": 0.7142857142857143,
+          "p_central": 0.42857142857142855,
+          "band": "no_action",
+          "loo_n": 6
+        },
+        "trend_aware": {
+          "eligible": true,
+          "reason": null,
+          "p_far": 0.5714285714285714,
+          "p_central": 0.5714285714285714,
+          "band": "no_action",
+          "loo_n": 6,
+          "submission_deviation": 0.5806168970474728,
+          "selected_model": "constant",
+          "model_version": "longitudinal-typicality-v1"
+        }
+      },
+      {
+        "target_author": "dickens",
+        "probe_author": "dickens",
+        "probe_title": "Bleak House",
+        "probe_date": "1853-01-01",
+        "flat": {
+          "eligible": true,
+          "p_far": 0.5714285714285714,
+          "p_central": 0.5714285714285714,
+          "band": "no_action",
+          "loo_n": 6
+        },
+        "trend_aware": {
+          "eligible": true,
+          "reason": null,
+          "p_far": 0.7142857142857143,
+          "p_central": 0.42857142857142855,
+          "band": "no_action",
+          "loo_n": 6,
+          "submission_deviation": 0.6381512439053862,
+          "selected_model": "constant",
+          "model_version": "longitudinal-typicality-v1"
+        }
+      },
+      {
+        "target_author": "dickens",
+        "probe_author": "dickens",
+        "probe_title": "Our Mutual Friend",
+        "probe_date": "1865-01-01",
+        "flat": {
+          "eligible": true,
+          "p_far": 1.0,
+          "p_central": 0.14285714285714285,
+          "band": "no_action",
+          "loo_n": 6
+        },
+        "trend_aware": {
+          "eligible": true,
+          "reason": null,
+          "p_far": 0.7142857142857143,
+          "p_central": 0.42857142857142855,
+          "band": "no_action",
+          "loo_n": 6,
+          "submission_deviation": 0.5974524484865537,
+          "selected_model": "constant",
+          "model_version": "longitudinal-typicality-v1"
+        }
+      }
+    ],
+    "impostor": [
+      {
+        "target_author": "twain",
+        "probe_author": "dickens",
+        "probe_title": "Bleak House",
+        "probe_date": "1853-01-01",
+        "flat": {
+          "eligible": true,
+          "p_far": 0.5714285714285714,
+          "p_central": 0.5714285714285714,
+          "band": "no_action",
+          "loo_n": 6
+        },
+        "trend_aware": {
+          "eligible": true,
+          "reason": null,
+          "p_far": 0.5714285714285714,
+          "p_central": 0.5714285714285714,
+          "band": "no_action",
+          "loo_n": 6,
+          "submission_deviation": 0.587920508397934,
+          "selected_model": "constant",
+          "model_version": "longitudinal-typicality-v1"
+        }
+      },
+      {
+        "target_author": "twain",
+        "probe_author": "dickens",
+        "probe_title": "Our Mutual Friend",
+        "probe_date": "1865-01-01",
+        "flat": {
+          "eligible": true,
+          "p_far": 0.7142857142857143,
+          "p_central": 0.42857142857142855,
+          "band": "no_action",
+          "loo_n": 6
+        },
+        "trend_aware": {
+          "eligible": true,
+          "reason": null,
+          "p_far": 0.7142857142857143,
+          "p_central": 0.42857142857142855,
+          "band": "no_action",
+          "loo_n": 6,
+          "submission_deviation": 0.5115936762418452,
+          "selected_model": "constant",
+          "model_version": "longitudinal-typicality-v1"
+        }
+      },
+      {
+        "target_author": "dickens",
+        "probe_author": "twain",
+        "probe_title": "The Tragedy of Pudd'nhead Wilson",
+        "probe_date": "1894-01-01",
+        "flat": {
+          "eligible": true,
+          "p_far": 0.2857142857142857,
+          "p_central": 0.8571428571428571,
+          "band": "no_action",
+          "loo_n": 6
+        },
+        "trend_aware": {
+          "eligible": true,
+          "reason": null,
+          "p_far": 0.2857142857142857,
+          "p_central": 0.8571428571428571,
+          "band": "no_action",
+          "loo_n": 6,
+          "submission_deviation": 0.7214812040808195,
+          "selected_model": "constant",
+          "model_version": "longitudinal-typicality-v1"
+        }
+      },
+      {
+        "target_author": "dickens",
+        "probe_author": "twain",
+        "probe_title": "Personal Recollections of Joan of Arc, Volume 1",
+        "probe_date": "1896-01-01",
+        "flat": {
+          "eligible": true,
+          "p_far": 0.2857142857142857,
+          "p_central": 0.8571428571428571,
+          "band": "no_action",
+          "loo_n": 6
+        },
+        "trend_aware": {
+          "eligible": true,
+          "reason": null,
+          "p_far": 0.2857142857142857,
+          "p_central": 0.8571428571428571,
+          "band": "no_action",
+          "loo_n": 6,
+          "submission_deviation": 0.7614124264211862,
+          "selected_model": "constant",
+          "model_version": "longitudinal-typicality-v1"
+        }
+      }
+    ]
+  }
+}
