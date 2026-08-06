@@ -158,6 +158,27 @@ def _topic_inflation_vector(manifest: dict | None) -> np.ndarray | None:
     return 1.0 + TOPIC_INFLATE_GAIN * d_eff * _TOPIC_SENSITIVITY_VECTOR
 
 
+def _rms_z_from_z(
+    z: np.ndarray,
+    weight_vec: np.ndarray,
+    active: np.ndarray,
+    n_active: int,
+) -> float:
+    """
+    Winsorise, weight, mask, and reduce a z-vector to a single rms_z.
+
+    Extracted so the shadow-mode second pass under an inflated sigma uses
+    the identical sequence rather than a copy that can drift. The +-4 cap is
+    applied BEFORE weighting — see the block comment at the call site for why
+    that ordering matters.
+    """
+    z_capped = np.clip(z, -4.0, 4.0)
+    z_weighted = z_capped * weight_vec * active.astype(np.float64)
+    if n_active > 0:
+        return float(np.sqrt(np.sum(z_weighted**2) / n_active))
+    return 0.0
+
+
 # ── Output dataclasses ────────────────────────────────────────────────────────
 
 
@@ -775,14 +796,8 @@ def score(
     # text typically pushes many features simultaneously above the cap, so
     # rms_z stays high.  It DOES prevent a single unlucky sentence-ending
     # coincidence from escalating a student's own writing.
-    z_capped = np.clip(z, -4.0, 4.0)
-    z_weighted = z_capped * weight_vec * active.astype(np.float64)
-
     n_active = int(active.sum())
-    if n_active > 0:
-        rms_z = float(np.sqrt(np.sum(z_weighted**2) / n_active))
-    else:
-        rms_z = 0.0
+    rms_z = _rms_z_from_z(z, weight_vec, active, n_active)
 
     # ── Two-axis verification: typicality axis (conformal, LOO-based) ────────
     # Gated by config.typicality_scoring_enabled (default OFF, preserves
