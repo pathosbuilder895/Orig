@@ -55,6 +55,36 @@ def test_lambdag_trial_signals_covers_every_combine_trials_identifier():
         assert isinstance(row["lambdag_score"], float)
 
 
+def test_lambdag_trial_signals_respects_a_reference_pool_cap():
+    """reference_pool_cap bounds the per-task pickled payload at large
+    partition sizes (see lambdag_signals.py's module docstring) -- forcing
+    a cap well below the natural pool here exercises the rng.sample path
+    and confirms it doesn't break coverage or crash on a tiny cap."""
+    from validation.verify.pan_stack import trial_id
+
+    authors = [
+        _author("alpha", "The committee reviewed the plan carefully"),
+        _author("beta", "Cats are popular household pets everywhere"),
+        _author("gamma", "The engine requires regular seasonal maintenance"),
+    ]
+    # Each author contributes 9 candidate sentences (3 docs x 3 sentences),
+    # so the natural 2-other-author reference pool is 18 sentences -- a cap
+    # of 12 sits strictly between the two, forcing rng.sample to fire while
+    # staying above build_candidate_grammar_from_sentences's own
+    # reference->=candidate size floor.
+    signals = lambdag_trial_signals(
+        {"locked": authors}, order=3, repetitions=3, reference_pool_cap=12
+    )["locked"]
+
+    expected_ids = {
+        trial_id(target.author_id, source.author_id, probe_index)
+        for target in authors
+        for source in authors
+        for probe_index in range(len(source.probes))
+    }
+    assert set(signals) == expected_ids
+
+
 def test_lambdag_favors_genuine_over_impostor_on_average():
     """The claim this signal exists to test: a probe scored against its OWN
     author's grammar should tend to read higher (more candidate-favoring)

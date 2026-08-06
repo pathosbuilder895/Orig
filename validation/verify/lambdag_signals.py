@@ -18,6 +18,23 @@ pan_stack.py itself uses, not the leaner 1:1 matched-pair design
 delta_signals.py/gutenberg_verify_delta.py use, because LambdaG's dominant
 cost is per CANDIDATE, not per trial, so the fuller cross-product costs
 barely more than the matched design once the grammars exist.
+
+Each candidate's reference pool is capped (``reference_pool_cap``) before
+it's handed to a worker. Measured live at n=100 (2026-08-06): with the
+uncapped pool, a partition's reference set is the union of the other ~99
+authors' baselines (tens of thousands of sentences), rebuilt near-identically
+for all 100 tasks and pickled across the process-pool boundary every time --
+O(n) payload x n tasks = O(n^2) data movement for the partition, serialized
+through the pool's single submission channel. That dominated wall-clock
+completely: per-candidate compute stayed in the same few-seconds-to-tens-of-
+seconds range measured at n=8, but only ~10 of 100 candidates landed in the
+first 10 minutes, on pace for multiple hours. `build_candidate_grammar_from_
+sentences` only ever draws `len(candidate_sentences)`-sized random samples
+from this pool, `repetitions` times -- it never needs the full union, so
+capping it before pickling loses no signal the algorithm was using anyway.
+The default (20,000 sentences) is a no-op at every scale validated so far
+(observed natural pool sizes at n=8 were ~4,000-5,600), so this is a pure
+scalability fix, not a behavior change at previously-measured scales.
 """
 
 from __future__ import annotations
@@ -53,6 +70,7 @@ def lambdag_trial_signals(
     repetitions: int = 30,
     seed: int = 20260805,
     max_workers: int | None = None,
+    reference_pool_cap: int = 20_000,
 ) -> dict[str, dict[str, dict[str, float]]]:
     """Per-partition LambdaG signals, keyed like
     ``pan_stack.original_trial_signals`` / ``delta_signals.delta_trial_signals``
@@ -62,6 +80,11 @@ def lambdag_trial_signals(
     Raw, uncalibrated lambda_G (see lambdag.py's module docstring) -- the
     fusion layer this feeds does the calibration, matching how the other
     raw signals (LUAR cosine, Delta distance) are handled.
+
+    ``reference_pool_cap`` bounds each candidate's reference-sentence pool
+    before it's pickled to a worker -- see the module docstring for why this
+    is load-bearing at partition sizes beyond the ~10-author scale this was
+    first validated at.
     """
     from validation.verify.pan_stack import trial_id
 
@@ -91,6 +114,8 @@ def lambdag_trial_signals(
                 for doc in tagged_baselines[other.author_id]
                 for s in doc
             ]
+            if len(reference_sentences) > reference_pool_cap:
+                reference_sentences = rng.sample(reference_sentences, reference_pool_cap)
             tasks.append(
                 (target.author_id, candidate_sentences, reference_sentences, order, repetitions, rng.random())
             )
