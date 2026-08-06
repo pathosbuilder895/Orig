@@ -453,6 +453,14 @@ class Layer7Output:
     # identical Phase 1 responses by default.
     context_manifest: dict[str, object] | None = field(default=None)
 
+    # ── Topic-adaptive variance inflation (audit trail) ───────────────────────
+    # All three stay at their defaults unless
+    # config.topic_variance_inflation is "on"/"shadow" AND the manifest
+    # carried a topic distance above the novelty floor.
+    topic_inflation_applied: bool = field(default=False)
+    topic_distance: float | None = field(default=None)
+    topic_mean_inflation: float | None = field(default=None)
+
     # Corpus-level AI-likelihood (orthogonal signal, set at the API layer
     # after quantum score when AI_LIKELIHOOD_ENABLED=1). Report-only: never
     # feeds the deviation score or the recommended action. None when the
@@ -795,6 +803,17 @@ def score(
         except Exception as _exc:
             log.debug("Bayesian prior blend skipped: %s", _exc)
 
+    # ── Topic-adaptive variance inflation ────────────────────────────────────
+    # Placed AFTER the Bayesian-prior blend so it widens the EFFECTIVE sigma
+    # rather than racing it. `sigma` also feeds the amplitude path via
+    # baseline_std_override, so the correction stays coherent across both
+    # scoring routes instead of applying to rms_z alone.
+    topic_inflation: np.ndarray | None = None
+    if config.topic_variance_inflation in ("on", "shadow"):
+        topic_inflation = _topic_inflation_vector(manifest)
+    if topic_inflation is not None and config.topic_variance_inflation == "on":
+        sigma = sigma * topic_inflation
+
     sub_raw = submission_vector  # raw normalised [0,1] vector
     z = (sub_raw - mu) / sigma  # standardised deviation, shape (D,)
 
@@ -842,7 +861,19 @@ def score(
     typicality_source: str | None = None
     typicality_calibration: str | None = None
 
-    if config.typicality_scoring_enabled and adaptive_weights is None:
+    # The new clause joins the existing `adaptive_weights is None` guard for
+    # the same reason: state.loo_distances is computed under the UNWEIGHTED,
+    # UN-INFLATED reference, so comparing a modified rms_z against that
+    # distribution is apples-to-oranges. Withhold the band rather than report
+    # a wrong one. See the NOTE a few lines below.
+    #
+    # Gated on mode == "on", NOT on `topic_inflation is not None`. In shadow
+    # mode sigma is never multiplied, so rms_z is un-inflated and the
+    # comparison against loo_distances stays valid — and typicality_band
+    # feeds _recommend() when IDENTITY_AXIS is on, so withholding it in
+    # shadow would let shadow change an action. Shadow must be inert.
+    _sigma_was_inflated = topic_inflation is not None and config.topic_variance_inflation == "on"
+    if config.typicality_scoring_enabled and adaptive_weights is None and not _sigma_was_inflated:
         from .typicality import NO_ACTION_CENTRAL_THRESHOLD, band_from_p, p_central
         from .typicality import p_far as p_far_fn
 
@@ -1103,6 +1134,17 @@ def score(
         # Phase 3+: attach the adaptive context manifest (if any) for audit.
         # Stored as a plain dict so this module needs no original.context import.
         context_manifest=manifest,
+        topic_inflation_applied=(
+            topic_inflation is not None and config.topic_variance_inflation == "on"
+        ),
+        topic_distance=(
+            float(((manifest or {}).get("topic") or {})["baseline_distance"])
+            if topic_inflation is not None
+            else None
+        ),
+        topic_mean_inflation=(
+            float(np.mean(topic_inflation)) if topic_inflation is not None else None
+        ),
     )
 
 

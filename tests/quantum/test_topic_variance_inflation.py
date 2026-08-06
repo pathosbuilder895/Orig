@@ -8,7 +8,9 @@ from original.quantum.scoring import (
     ScoringConfig,
     _rms_z_from_z,
     _topic_inflation_vector,
+    score,
 )
+from original.quantum.state import BaselineSample, StudentState
 
 
 def _manifest(distance):
@@ -126,3 +128,132 @@ def test_from_env_parses_mode(monkeypatch, env_value, expected):
 def test_from_env_defaults_off_when_unset(monkeypatch):
     monkeypatch.delenv("TOPIC_VARIANCE_INFLATION", raising=False)
     assert ScoringConfig.from_env().topic_variance_inflation == "off"
+
+
+def _state_with_baseline(seed=11):
+    """A StudentState with enough authenticated samples to score against."""
+    rng = np.random.default_rng(seed)
+    state = StudentState(student_id="topic-test")
+    for i in range(5):
+        state.add_sample(
+            BaselineSample(
+                text=f"baseline {i}",
+                vector=np.clip(rng.normal(0.5, 0.05, size=FEATURE_DIM), 0.0, 1.0),
+                provenance="proctored",
+                auth_weight=1.0,
+                assignment=f"a{i}",
+            )
+        )
+    return state
+
+
+def _score_with(state, vector, manifest, mode):
+    return score(
+        state,
+        vector,
+        {code: float(v) for code, v in zip(ALL_FEATURE_CODES, vector)},
+        submission_id="s1",
+        manifest=manifest,
+        scoring_config=ScoringConfig(topic_variance_inflation=mode),
+    )
+
+
+def test_flag_off_is_unchanged_by_topic_distance():
+    state = _state_with_baseline()
+    rng = np.random.default_rng(99)
+    vec = np.clip(rng.normal(0.62, 0.05, size=FEATURE_DIM), 0.0, 1.0)
+
+    off = _score_with(state, vec, _manifest(0.95), "off")
+    assert off.topic_inflation_applied is False
+    assert off.topic_mean_inflation is None
+
+
+def test_below_floor_is_byte_identical_with_flag_on():
+    state = _state_with_baseline()
+    rng = np.random.default_rng(99)
+    vec = np.clip(rng.normal(0.62, 0.05, size=FEATURE_DIM), 0.0, 1.0)
+
+    off = _score_with(state, vec, _manifest(0.10), "off")
+    on = _score_with(state, vec, _manifest(0.10), "on")
+
+    assert on.authorship.deviation_score == off.authorship.deviation_score
+    assert on.recommendation.action == off.recommendation.action
+    assert on.topic_inflation_applied is False
+
+
+def test_high_topic_distance_lowers_the_deviation_score():
+    state = _state_with_baseline()
+    rng = np.random.default_rng(99)
+    vec = np.clip(rng.normal(0.62, 0.05, size=FEATURE_DIM), 0.0, 1.0)
+
+    off = _score_with(state, vec, _manifest(0.95), "off")
+    on = _score_with(state, vec, _manifest(0.95), "on")
+
+    assert on.authorship.deviation_score < off.authorship.deviation_score
+    assert on.topic_inflation_applied is True
+    assert on.topic_distance == pytest.approx(0.95)
+    assert on.topic_mean_inflation > 1.0
+
+
+def test_typicality_refuses_to_run_under_inflation():
+    state = _state_with_baseline()
+    rng = np.random.default_rng(99)
+    vec = np.clip(rng.normal(0.62, 0.05, size=FEATURE_DIM), 0.0, 1.0)
+
+    result = score(
+        state,
+        vec,
+        {code: float(v) for code, v in zip(ALL_FEATURE_CODES, vec)},
+        submission_id="s1",
+        manifest=_manifest(0.95),
+        scoring_config=ScoringConfig(
+            topic_variance_inflation="on", typicality_scoring_enabled=True
+        ),
+    )
+    # loo_distances are computed under an UN-inflated sigma; comparing an
+    # inflated rms_z against them is apples-to-oranges, so the band must be
+    # withheld rather than reported wrong.
+    assert result.typicality_band is None
+
+
+def test_impostor_pool_sigma_is_not_inflated():
+    """
+    The spec's highest-risk decision: only the CLAIMED-AUTHOR sigma is
+    inflated. The impostor pool's sigma is already fit across many authors
+    spanning many topics -- which is why llr_deviation_score survives a genre
+    shift (AUC 0.863) while the raw score inverts (0.387) -- so inflating it
+    too would re-open the asymmetry this correction exists to close.
+
+    Guard, not a measurement: it pins the intent so a later refactor that
+    threads `sigma` into _llr_deviation fails loudly here.
+    """
+    state = _state_with_baseline()
+    rng = np.random.default_rng(99)
+    vec = np.clip(rng.normal(0.62, 0.05, size=FEATURE_DIM), 0.0, 1.0)
+    impostor_stats = (np.full(FEATURE_DIM, 0.50), np.full(FEATURE_DIM, 0.08))
+    feature_dict = {code: float(v) for code, v in zip(ALL_FEATURE_CODES, vec)}
+
+    def _run(mode):
+        return score(
+            state,
+            vec,
+            feature_dict,
+            submission_id="s1",
+            manifest=_manifest(0.95),
+            impostor_stats=impostor_stats,
+            scoring_config=ScoringConfig(
+                topic_variance_inflation=mode, null_model="impostor"
+            ),
+        )
+
+    off = _run("off")
+    on = _run("on")
+
+    # rms_z_null is unchanged, so inflating the claimed-author side alone
+    # must move llr DOWN (further toward "genuinely this author").
+    # NOTE: llr_deviation_score lives on Layer7Output.authorship (see
+    # AuthorshipSignal), not on Layer7Output directly -- the brief's draft
+    # accessed it as `on.llr_deviation_score`, which raises AttributeError;
+    # corrected here to match the actual dataclass shape.
+    assert on.authorship.llr_deviation_score is not None
+    assert on.authorship.llr_deviation_score < off.authorship.llr_deviation_score
