@@ -1,7 +1,7 @@
 """
 scripts/train_ai_detector.py — train + evaluate the AI-likelihood detector.
 
-The second scoring mode. PR #21's diagnostic proved Original's 103 features
+The second scoring mode. PR #21's diagnostic proved Original's then-103 features
 carry real human-vs-AI signal (AUC 0.7402 with a plain classifier at only
 n_train=1000, vs 0.6091 for the production per-student Born-rule path); the
 bottleneck was the scoring method, which had never seen a labeled example.
@@ -11,7 +11,7 @@ that `original/ai_likelihood.py` loads at runtime.
 
 Subcommands (run in this order):
 
-    extract        Extract 103-dim feature matrices from the cached
+    extract        Extract FEATURE_DIM-wide feature matrices from the cached
                    AuTexTification TSVs into .npz caches (parallel; the
                    expensive step — ~8 min per split at 8 workers).
     train          Train the calibrated classifier on the full official

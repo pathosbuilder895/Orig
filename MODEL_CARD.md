@@ -151,7 +151,7 @@ This posture is especially important for multilingual writers, students with dis
 A supervised human-vs-AI classifier that runs **alongside** the per-student
 identity verification, answering a different question: not "does this match
 student X's baseline?" but "does this look like AI-generated text at all?"
-Motivated by the PR #21 diagnostic: Original's own 103 features + a plain
+Motivated by the PR #21 diagnostic: Original's own then-103 features + a plain
 classifier reached AUC 0.7402 on AuTexTification where the per-student
 Born-rule path (never trained on a labeled example) scored 0.6091.
 

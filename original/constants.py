@@ -5,7 +5,7 @@ All feature codes mirror the frontend FEATURES array exactly.
 Normalization bounds are calibrated to seminary-level academic prose
 (1000–5000 word essays, formal theological register).
 
-Tiers 1–17 plus comparison/profile dimensions form the current 103-dimensional
+Tiers 1–18 plus comparison/profile dimensions form the current FEATURE_DIM-dimensional
 feature space. Legacy profiles with older dimensions are padded on load.
 """
 
@@ -151,7 +151,7 @@ TIER15_CODES = [
 # ── Tier 17: Behavioral Biometrics ───────────────────────────────────────────
 # Derived from live keystroke capture during Bbook proctored exams.
 # Only meaningful when keystroke_data is supplied; defaults to 0.5 (neutral)
-# when absent (uploaded papers, Canvas imports).  Stored in the same 103-dim
+# when absent (uploaded papers, Canvas imports).  Stored in the same FEATURE_DIM-wide
 # feature vector so existing density matrix math requires no changes.
 TIER17_CODES = [
     "typing_speed_cv",    # CV of inter-keystroke intervals (rhythm consistency)
@@ -331,7 +331,7 @@ LENGTH_BUCKETS_BY_TOKENS: dict[str, tuple] = {
 LENGTH_WEIGHT_SCHEDULE: dict[str, dict[int, float]] = {
     # "short" factors are F(500, tier) / median(F(500, ·)), clipped to
     # [0.5, 2.0], THEN rescaled so that sum((TIER_WEIGHTS × factor)²)
-    # across the 103 features equals sum(TIER_WEIGHTS²) — the
+    # across the FEATURE_DIM features equals sum(TIER_WEIGHTS²) — the
     # baseline. Preserving Σ(w²) means the length-adaptive flag can't
     # inflate or deflate the tanh-calibrated rms_z on average; it just
     # RE-DISTRIBUTES weight across tiers.
