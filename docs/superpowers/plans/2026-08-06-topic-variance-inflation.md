@@ -100,6 +100,11 @@ def test_multiplier_is_at_least_one_and_monotone():
 def test_uniform_sensitivity_gives_exact_expected_value():
     # With the shipped (empty) TOPIC_SENSITIVITY table every feature reads
     # 1.0, so the multiplier is 1 + GAIN * d_eff everywhere.
+    # NOTE d = 1.0 is NOT reachable in production — resolve_topic computes
+    # (1 - cosine_sim) / 2 over non-negative TF-IDF vectors, so
+    # baseline_distance tops out at 0.5 (multiplier 1.333 at GAIN = 1.0).
+    # This test pins the arithmetic at the clamp boundary; behavioural tests
+    # must use d <= 0.5 or they exercise a regime that cannot occur.
     # d = 1.0 -> d_eff = (1.0 - 0.25) / 0.75 = 1.0
     vec = _topic_inflation_vector(_manifest(1.0))
     assert np.allclose(vec, 1.0 + TOPIC_INFLATE_GAIN)
@@ -158,9 +163,13 @@ In `original/constants.py`, immediately after the `TOPIC_NOVELTY_BOUNDS` dict (~
 # 109-dimensional constant.
 TOPIC_SENSITIVITY: dict[str, float] = {}
 
-# Multiplier strength at maximum topic distance. 1.0 doubles sigma for a
-# median-sensitivity feature at d = 1.0. Swept on the derivation corpus and
-# fixed before the hold-out is touched — see the spec's hold-out discipline.
+# Multiplier strength. NOTE the reachable range: resolve_topic computes
+# (1 - cosine_sim) / 2 over non-negative TF-IDF vectors, so baseline_distance
+# can never exceed 0.5. At GAIN = 1.0 the real production ceiling is
+#   d_eff = (0.5 - 0.25) / 0.75 = 0.333  ->  multiplier = 1.333x
+# not the 2x that "d = 1.0" would give. Swept on the derivation corpus and
+# fixed before the hold-out is touched — see the spec's hold-out discipline,
+# and size the grid against d <= 0.5.
 TOPIC_INFLATE_GAIN: float = 1.0
 
 # Ceiling on normalised per-feature sensitivity, so no single feature can be
