@@ -729,19 +729,26 @@ Find:
 Replace with:
 
 ```python
-    # `topic_inflation is None` joins the existing `adaptive_weights is None`
-    # guard for the same reason: state.loo_distances is computed under the
-    # UNWEIGHTED, UN-INFLATED reference, so comparing a modified rms_z
-    # against that distribution is apples-to-oranges. Withhold the band
-    # rather than report a wrong one. See the NOTE a few lines below.
+    # The new clause joins the existing `adaptive_weights is None` guard for
+    # the same reason: state.loo_distances is computed under the UNWEIGHTED,
+    # UN-INFLATED reference, so comparing a modified rms_z against that
+    # distribution is apples-to-oranges. Withhold the band rather than report
+    # a wrong one. See the NOTE a few lines below.
+    #
+    # Gated on mode == "on", NOT on `topic_inflation is not None`. In shadow
+    # mode sigma is never multiplied, so rms_z is un-inflated and the
+    # comparison against loo_distances stays valid — and typicality_band
+    # feeds _recommend() when IDENTITY_AXIS is on, so withholding it in
+    # shadow would let shadow change an action. Shadow must be inert.
+    _sigma_was_inflated = (
+        topic_inflation is not None and config.topic_variance_inflation == "on"
+    )
     if (
         config.typicality_scoring_enabled
         and adaptive_weights is None
-        and topic_inflation is None
+        and not _sigma_was_inflated
     ):
 ```
-
-Note this guard uses `topic_inflation is None`, so it also withholds the band in **shadow** mode. That is deliberate and conservative: shadow does not change `rms_z`, but a run with a non-None inflation vector is one where the topic has genuinely shifted, and the same hazard is being tracked in Task 5's follow-up. Keeping one condition rather than two avoids a subtle mode-dependent divergence.
 
 - [ ] **Step 6: Populate the audit fields**
 
@@ -858,6 +865,33 @@ def test_no_shadow_score_below_the_floor():
     vec = np.clip(rng.normal(0.62, 0.05, size=FEATURE_DIM), 0.0, 1.0)
     shadow = _score_with(state, vec, _manifest(0.10), "shadow")
     assert shadow.deviation_score_inflated is None
+
+
+def test_shadow_leaves_typicality_untouched():
+    """
+    Shadow must be inert. sigma is never multiplied in shadow, so rms_z is
+    un-inflated and the comparison against loo_distances stays valid -- and
+    typicality_band feeds _recommend() when IDENTITY_AXIS is on, so
+    withholding it here would let shadow change an action.
+    """
+    state = _state_with_baseline()
+    rng = np.random.default_rng(99)
+    vec = np.clip(rng.normal(0.62, 0.05, size=FEATURE_DIM), 0.0, 1.0)
+    feature_dict = {code: float(v) for code, v in zip(ALL_FEATURE_CODES, vec)}
+
+    def _run(mode):
+        return score(
+            state,
+            vec,
+            feature_dict,
+            submission_id="s1",
+            manifest=_manifest(0.95),
+            scoring_config=ScoringConfig(
+                topic_variance_inflation=mode, typicality_scoring_enabled=True
+            ),
+        )
+
+    assert _run("shadow").typicality_band == _run("off").typicality_band
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -917,7 +951,7 @@ In the `Layer7Output(` construction, after `topic_mean_inflation=...`:
 /Users/andrew/Desktop/Original/.venv/bin/python -m pytest tests/quantum/test_topic_variance_inflation.py -q
 ```
 
-Expected: `26 passed`.
+Expected: `27 passed`.
 
 If `test_shadow_score_equals_the_on_mode_score` fails, the live `D_raw` calibration at `original/quantum/scoring.py:863` has diverged from the `np.tanh(rms_z / 1.5)` used here. Read that line and match it exactly — do not adjust the test to accommodate a mismatch.
 
