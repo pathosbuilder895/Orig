@@ -16,7 +16,7 @@ original/constants.py::LENGTH_WEIGHT_SCHEDULE comment block:
   (0 comparison, 17 behavioral) take a neutral 1.0 raw factor.
 
   Each bucket is then rescaled by a single scalar so that
-  sum((TIER_WEIGHTS × factor)²) across the 103 features equals
+  sum((TIER_WEIGHTS × factor)²) across the FEATURE_DIM features equals
   sum(TIER_WEIGHTS²) — Σ(w²)-preservation. This means the flag cannot
   inflate or deflate the tanh-calibrated rms_z on average; it only
   redistributes weight across tiers. (The mean-normalisation step the
@@ -54,7 +54,7 @@ from original.constants import (  # noqa: E402
 CLIP_LO, CLIP_HI = 0.5, 2.0
 ALL_TIERS = sorted(TIER_WEIGHTS)  # 0..17
 
-# Features per tier, from the canonical feature list (Σ = 103).
+# Features per tier, from the canonical feature list (Σ = FEATURE_DIM).
 N_FEATURES_BY_TIER = {
     t: sum(1 for c in ALL_FEATURE_CODES if FEATURE_TIER.get(c, 0) == t)
     for t in ALL_TIERS
@@ -86,7 +86,7 @@ def raw_short_factors(f500: dict[int, float | None]) -> dict[int, float]:
 
 
 def sum_w2_rescale(raw: dict[int, float]) -> float:
-    """Scalar s such that factors raw/s preserve Σ(w²) over the 103 features."""
+    """Scalar s such that factors raw/s preserve Σ(w²) over the FEATURE_DIM features."""
     num = sum(
         N_FEATURES_BY_TIER[t] * (TIER_WEIGHTS[t] * raw[t]) ** 2 for t in ALL_TIERS
     )

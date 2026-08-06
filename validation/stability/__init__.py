@@ -1,5 +1,5 @@
 """
-validation/stability/ — length-stability study for Original's 103 features.
+validation/stability/ — length-stability study for Original's FEATURE_DIM features.
 
 For each feature i ∈ ALL_FEATURE_CODES and each length L ∈ {250, 500,
 1000, 2000, 5000}, compute the Fisher discriminant ratio across the
