@@ -833,11 +833,34 @@ def score(
     topic_inflation: np.ndarray | None = None
     if config.topic_variance_inflation in ("on", "shadow"):
         topic_inflation = _topic_inflation_vector(manifest)
+    # Keep the pre-inflation sigma so _decompose() below can be fed an
+    # un-inflated z (see the comment at the _decompose() call site for why).
+    _sigma_pre_topic_inflation = sigma
     if topic_inflation is not None and config.topic_variance_inflation == "on":
         sigma = sigma * topic_inflation
 
     sub_raw = submission_vector  # raw normalised [0,1] vector
     z = (sub_raw - mu) / sigma  # standardised deviation, shape (D,)
+
+    # z for the interference/explanation surface only (_decompose below) —
+    # deliberately NOT inflated. Widening sigma shrinks z, which shrinks
+    # |z| below _decompose's +-1.0 destructive threshold and can empty
+    # destructive_features entirely (measured: 5 -> 0 destructive features
+    # at d = 0.5 for a uniform z=1.15 submission). _recommend() requires
+    # type_token_ratio and error_kl_divergence to be PRESENT in
+    # destructive_features before ghostwriting_confirmed can force
+    # action="escalate" — so an emptied list can silently drop that forced
+    # escalate on exactly the cross-topic ghostwritten submissions this
+    # feature targets, and the professor narrative loses its
+    # destructive-feature explanation surface at the same time.
+    #
+    # destructive_features answers "which features moved"; inflation is a
+    # claim about certainty, not about what moved. Widening the band should
+    # change how alarmed rms_z/deviation_score make us (those DO use the
+    # inflated `z` above), not what we tell the professor moved.
+    z_for_decompose = z
+    if topic_inflation is not None and config.topic_variance_inflation == "on":
+        z_for_decompose = (sub_raw - mu) / _sigma_pre_topic_inflation
 
     # Apply tier weights then zero out inactive (no-data) features.
     # Phase 5: when an adaptive weight vector is supplied (built from the
@@ -1066,7 +1089,11 @@ def score(
     # ── Interference decomposition ────────────────────────────────────────────
     # Use local `mu` (potentially Bayesian-blended) so interference deltas
     # are computed against the same reference distribution as the z-scores.
-    interference = _decompose(xi, rho_xi, P, feature_dict, mu, z)
+    # Feed `z_for_decompose` (un-inflated), NOT `z` — see its definition
+    # above for why: destructive_features is an explanation surface, and
+    # topic inflation must not be able to empty it or suppress the forced
+    # ghostwriting escalate that depends on it.
+    interference = _decompose(xi, rho_xi, P, feature_dict, mu, z_for_decompose)
 
     # ── Baseline confidence ───────────────────────────────────────────────────
     bc = BaselineConfidence(

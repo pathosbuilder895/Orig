@@ -222,6 +222,45 @@ def test_high_topic_distance_lowers_the_deviation_score():
     assert on.topic_mean_inflation > 1.0
 
 
+def test_destructive_features_unchanged_between_off_and_on():
+    """
+    Finding 2: inflation shrinks z, which can push a feature's |z| below
+    _decompose's +-1.0 destructive threshold. destructive_features is an
+    *explanation* surface (which features moved), while inflation is a
+    claim about *certainty* -- widening the band should change how alarmed
+    rms_z/deviation_score make us, not what we tell the professor moved.
+    _decompose must therefore always be fed the un-inflated z, so
+    destructive_features (and the ghostwriting-escalate forcing that reads
+    it in _recommend) stay identical regardless of topic_variance_inflation.
+    """
+    state = _state_with_baseline()
+    rng = np.random.default_rng(99)
+    # Same fixture as test_high_topic_distance_lowers_the_deviation_score:
+    # baseline ~N(0.5, 0.05), submission ~N(0.62, 0.05) -> per-feature z is
+    # large enough (~2.4) to land solidly past the +-1.0 destructive
+    # threshold under "off", and the d=0.95 topic distance produces enough
+    # inflation to pull many of those features back under the threshold if
+    # _decompose were (incorrectly) fed the inflated z.
+    vec = np.clip(rng.normal(0.62, 0.05, size=FEATURE_DIM), 0.0, 1.0)
+
+    off = _score_with(state, vec, _manifest(0.95), "off")
+    on = _score_with(state, vec, _manifest(0.95), "on")
+
+    assert on.topic_inflation_applied is True  # confirm inflation actually fired
+    off_destructive = [f.code for f in off.interference.destructive_features]
+    on_destructive = [f.code for f in on.interference.destructive_features]
+    assert len(off_destructive) > 0, "fixture must produce destructive features to test anything"
+    assert on_destructive == off_destructive
+
+    # Same guarantee for constructive_features -- _decompose's classification
+    # of EVERY feature (not just the top-5 destructive list) must be
+    # unaffected, since a shrunk z could just as easily push a feature INTO
+    # the constructive band (|z| < 0.5) as out of the destructive one.
+    off_constructive = [f.code for f in off.interference.constructive_features]
+    on_constructive = [f.code for f in on.interference.constructive_features]
+    assert on_constructive == off_constructive
+
+
 def test_degraded_topic_resolution_yields_no_inflation_end_to_end():
     """
     A degraded resolve_topic() result must not inflate sigma even though its
