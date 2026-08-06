@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import random
 import sys
+import time
 from typing import Sequence
 
 from validation.attribution.lambdag import (
@@ -70,6 +71,15 @@ def lambdag_trial_signals(
                 for doc in tagged_baselines[other.author_id]
                 for s in doc
             ]
+            # Per-candidate cost varies a lot with a real author's actual
+            # sentence count/length (not just word count -- an author who
+            # writes long, low-punctuation sentences produces far more
+            # n-gram instances per sentence than a choppy, short-sentence
+            # writer at the same word count), so a fixed-time estimate
+            # from one measured candidate does not reliably predict the
+            # next one. Timing every candidate makes that variance visible
+            # instead of leaving progress a silent black box.
+            candidate_start = time.perf_counter()
             grammar = build_candidate_grammar_from_sentences(
                 candidate_sentences,
                 reference_sentences,
@@ -77,13 +87,16 @@ def lambdag_trial_signals(
                 repetitions=repetitions,
                 rng=random.Random(rng.random()),
             )
+            build_seconds = time.perf_counter() - candidate_start
             for source in authors:
                 for probe_index, probe_sentences in enumerate(tagged_probes[source.author_id]):
                     result = lambda_g_score(probe_sentences, grammar.candidate, grammar.reference)
                     identifier = trial_id(target.author_id, source.author_id, probe_index)
                     rows[identifier] = {"lambdag_score": result.lambda_g}
             print(
-                f"[lambdag] {partition_name}: {i + 1}/{len(authors)} candidate grammars built",
+                f"[lambdag] {partition_name}: {i + 1}/{len(authors)} candidate grammars built "
+                f"({target.author_id}: {build_seconds:.1f}s, "
+                f"{len(candidate_sentences)} candidate / {len(reference_sentences)} reference sentences)",
                 file=sys.stderr,
             )
         output[partition_name] = rows
