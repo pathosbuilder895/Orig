@@ -58,6 +58,9 @@ from ..constants import (
     LENGTH_BUCKETS_BY_TOKENS,
     LENGTH_WEIGHT_SCHEDULE,
     TIER_WEIGHTS,
+    TOPIC_INFLATE_GAIN,
+    TOPIC_NOVELTY_BOUNDS,
+    TOPIC_SENSITIVITY,
     TRAJECTORY_GROWTH_THRESHOLD,
     TRAJECTORY_REGRESSIVE_THRESHOLD,
 )
@@ -109,6 +112,50 @@ def _length_bucket_for(n_tokens: int) -> str:
         if lo <= n_tokens < hi:
             return name
     return "long"  # safety net: anything past the last bucket reads as 'long'
+
+
+# ── Topic-adaptive variance inflation ────────────────────────────────────────
+#
+# Pre-build the per-feature sensitivity vector once. An absent code reads as
+# 1.0 (median sensitivity), so the shipped empty TOPIC_SENSITIVITY table
+# yields an all-ones vector and the multiplier reduces to 1 + GAIN * d_eff.
+_TOPIC_SENSITIVITY_VECTOR = np.array(
+    [TOPIC_SENSITIVITY.get(code, 1.0) for code in ALL_FEATURE_CODES],
+    dtype=np.float64,
+)
+
+# Below this topic distance the correction is a no-op. Reusing the already-
+# calibrated "low novelty" bound rather than inventing a second threshold.
+_TOPIC_NOVELTY_FLOOR = float(TOPIC_NOVELTY_BOUNDS["low"])
+
+
+def _topic_inflation_vector(manifest: dict | None) -> np.ndarray | None:
+    """
+    Per-feature sigma multiplier derived from the manifest's topic distance.
+
+    Returns None — rather than an all-ones array — whenever the multiplier
+    would be exactly 1.0: no manifest, no usable ``baseline_distance``, or a
+    distance at or below ``_TOPIC_NOVELTY_FLOOR``. The caller skips the
+    multiply entirely on None, which is what makes ``d <= 0.25`` bit-for-bit
+    identical to flag-off rather than merely numerically close.
+    """
+    if not manifest:
+        return None
+    topic = manifest.get("topic") or {}
+    distance = topic.get("baseline_distance")
+    # bool is an int subclass; reject it explicitly so True can't read as 1.0.
+    if isinstance(distance, bool) or not isinstance(distance, int | float):
+        return None
+    distance = float(distance)
+    if not np.isfinite(distance):
+        return None
+    distance = min(max(distance, 0.0), 1.0)
+
+    d_eff = (distance - _TOPIC_NOVELTY_FLOOR) / (1.0 - _TOPIC_NOVELTY_FLOOR)
+    if d_eff <= 0.0:
+        return None
+
+    return 1.0 + TOPIC_INFLATE_GAIN * d_eff * _TOPIC_SENSITIVITY_VECTOR
 
 
 # ── Output dataclasses ────────────────────────────────────────────────────────
