@@ -1138,7 +1138,11 @@ def score(
 
     domain = DomainSignal(
         theological_register_score=theol_sub,
-        register_anomaly=abs(delta_theol) > 0.25,
+        # bool(...) because delta_theol is a numpy scalar, so the bare
+        # comparison yields np.bool_ rather than the declared `bool` — which
+        # pydantic flags as a DeprecationWarning when Layer7OutputResponse
+        # validates a real scored result.
+        register_anomaly=bool(abs(delta_theol) > 0.25),
         confessional_balance=balance,
     )
 
