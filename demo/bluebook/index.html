@@ -119,6 +119,15 @@
       if (q.get('tenant'))    localStorage.setItem('original_tenant', q.get('tenant'));
       if (q.get('candidate')) cfg.candidate = q.get('candidate');
       if (q.get('exam'))      cfg.title = q.get('exam');
+      // `?dev=1` arms the internal Tweaks panel for this browser and `?dev=0`
+      // disarms it — stored rather than read live so the flag survives the
+      // reloads a tuning pass makes. Setting it is necessary but not
+      // sufficient: devToolsEnabled() (components.jsx) still refuses a bound
+      // student launch, so a candidate cannot arm it mid-exam.
+      if (q.has('dev')) {
+        if (q.get('dev') && q.get('dev') !== '0') localStorage.setItem('bluebook_dev_tools', '1');
+        else localStorage.removeItem('bluebook_dev_tools');
+      }
     } catch (e) {}
   })();
   </script>

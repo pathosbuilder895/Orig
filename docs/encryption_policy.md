@@ -23,9 +23,10 @@ This document defines Original's encryption posture for protecting student data 
   see §2 for what that means in practice.
 - **Encryption in Transit:** TLS 1.3 (minimum), terminated at the Render edge.
 - **Key Management:** The only cryptographic key material the application
-  itself manages is an RSA key pair used for LTI JWT signing
-  (`original/canvas/keys.py`) — see §2.3. There are no per-institution
-  encryption keys and no application-level master key.
+  itself handles is an RSA key pair for LTI, supplied by the operator via
+  `LTI_PRIVATE_KEY`/`LTI_PRIVATE_KEY_FILE` and loaded in `original/lti.py`
+  — see §2.3. There are no per-institution encryption keys and no
+  application-level master key.
 - **Non-reversibility as a substitute control:** Stylometric feature vectors
   (the primary derived artifact the scoring pipeline relies on) are
   non-reversible by construction — they cannot be inverted back into the
@@ -96,34 +97,48 @@ PBKDF2-derived per-institution keys, or a master key for audit logs was
 describing a design that was never built. That content has been removed
 from this document rather than left in place as an aspirational claim.
 
-### 2.3 The one real cryptographic key material: LTI RSA keys
+### 2.3 The one real cryptographic key material: LTI RSA key
 
-The only cryptography the application itself manages is the RSA key pair
-used to sign LTI 1.3 JWTs for Canvas launches
-(`original/canvas/keys.py`).
+The only cryptography the application itself handles is an RSA key pair
+for LTI 1.3 (`original/lti.py`).
 
 **What it is:**
-- A 2048-bit RSA key pair (`_KEY_SIZE = 2048`, `canvas/keys.py:28-30`,
-  using `cryptography.hazmat`).
-- Used to sign JWTs for LTI launch/JWKS flows (`jose_jwt` signing) so
-  Canvas can verify the tool's identity.
-- Loaded from `LTI_PRIVATE_KEY_PEM` (or generated fresh at process start if
-  unset) and cached for the process lifetime (`@lru_cache`,
-  `canvas/keys.py`).
+- An RSA key pair the *operator* generates and supplies — the app never
+  generates one itself. Loaded from `LTI_PRIVATE_KEY` (inline PEM) or
+  `LTI_PRIVATE_KEY_FILE` (a path) via `_private_key_pem()`; re-read on every
+  call rather than cached (`original/lti.py:134-144`). If neither is set,
+  `_private_key_pem()` returns `None` and `/lti/jwks` publishes an empty key
+  set instead of failing — LTI is simply unconfigured.
+- **Not currently used to sign anything.** `_private_key_pem()` is called
+  only from `public_jwks()`, which derives the *public* modulus/exponent to
+  publish at `GET /lti/jwks` (`original/lti.py:152-178`, wired at
+  `original/routers/lti_routes.py:83-86`). The signing side of an LTI 1.3
+  launch runs the other direction: the platform (Canvas) signs the
+  `id_token` with *its own* key, and `verify_launch()` verifies it against
+  the **platform's** fetched JWKS (`original/lti.py:224-256`) — our key
+  never touches that path. The module docstring calls the published JWKS
+  forward-looking, for "future LTI-AGS signing" (grade-passback service
+  calls), which is not implemented yet — `grep -rn "jose_jwt.encode"
+  original/` returns nothing.
+- The published JWKS entry is hardcoded `"alg": "RS256"`, so whatever key
+  the operator supplies is expected to be RSA; there's no key-size
+  assertion in code (2048-bit is a convention, not an enforced minimum).
 
-**How it's stored at rest today:** when the private key is serialized to
-PEM (`get_private_key_pem()`, `canvas/keys.py:91`), it uses
-`serialization.NoEncryption()` — i.e., the PEM is **not**
-passphrase/cipher-protected at the serialization layer. Stated plainly
-rather than glossed over: the private key material's confidentiality
-currently rests on (a) not persisting the PEM to disk outside the
-environment-variable / in-memory path, and (b) Render's platform-level
-protections around environment variables and disk. There is no
-application-level encryption wrapping this key today.
+**How it's stored at rest today:** the app never serializes this key to PEM
+itself — the operator supplies an already-serialized PEM via an environment
+variable or a file, and the app only parses it
+(`serialization.load_pem_private_key`, no passphrase support). Stated
+plainly rather than glossed over: the private key material's
+confidentiality rests on (a) however the operator protects
+`LTI_PRIVATE_KEY`/`LTI_PRIVATE_KEY_FILE` outside this app, and (b) Render's
+platform-level protections around environment variables and disk. There is
+no application-level encryption wrapping this key today.
 
 **Key rotation:** there is no automated rotation. Rotating the key means
-setting a new `LTI_PRIVATE_KEY_PEM` and restarting the process, which
-generates a new `kid` and requires re-registering the JWKS with Canvas.
+setting a new `LTI_PRIVATE_KEY`/`LTI_PRIVATE_KEY_FILE` and restarting the
+process, which changes the derived `kid` (a SHA-256 hash of the PEM,
+`original/lti.py:147-149`) and requires re-registering the JWKS with
+Canvas.
 
 ---
 
@@ -314,10 +329,10 @@ provisioned.
 
 ## 5. Key Rotation
 
-- **LTI RSA signing key** (`canvas/keys.py`): no automated rotation exists
-  today. Rotating it means setting a new `LTI_PRIVATE_KEY_PEM` and
-  restarting the process, then re-registering the resulting JWKS `kid`
-  with Canvas. See §2.3.
+- **LTI RSA key** (`original/lti.py`): no automated rotation exists
+  today. Rotating it means setting a new `LTI_PRIVATE_KEY`/
+  `LTI_PRIVATE_KEY_FILE` and restarting the process, then re-registering the
+  resulting JWKS `kid` with Canvas. See §2.3.
 - **TLS certificates:** managed automatically by Render at the edge; not
   something the application configures.
 - There is no institution-key or master-key rotation process, because
@@ -333,7 +348,7 @@ provisioned.
 - [x] TLS 1.3 (minimum) for all traffic, terminated at the Render edge
 - [x] Admin credentials hashed (bcrypt, one-way)
 - [x] API tokens hashed (HMAC-SHA256, one-way)
-- [x] LTI RSA key pair used for JWT signing (`canvas/keys.py`)
+- [x] LTI RSA key pair configured and its public component published via JWKS (`original/lti.py`) — not yet used to sign anything (see §2.3)
 - [x] Feature vectors non-reversible by construction
 - [x] Manual deletion path (`delete_student`) implemented and auditable
 - [ ] Application-level encryption of row data — **not implemented**
@@ -411,9 +426,9 @@ post-mortem.
 - FERPA 34 CFR 99.3 (Definitions)
 - GDPR Article 32 (Security of Processing)
 - CCPA § 1798.150 (Data Security)
-- `docs/ARCHITECTURE.md` — live vs. dormant stack split
+- `docs/ARCHITECTURE.md` — live stack map (the dormant v1 stack was deleted in WS-6 P6)
 - `docs/dpa_template.md` — DPA-level commitments and its no-aspirational-claims banner
-- `original/canvas/keys.py` — LTI RSA key implementation
+- `original/lti.py` — LTI RSA key handling
 - `original/store.py` — SQLite store implementation
 
 ---

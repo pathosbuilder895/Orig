@@ -431,6 +431,7 @@ export const BB_API = {
   },
   isAuthed()        { try { return !!localStorage.getItem('original_principal_token'); } catch (e) { return false; } },
   isStudentLaunch() { try { return !!localStorage.getItem('bluebook_student_id'); }      catch (e) { return false; } },
+  isDevToolsArmed() { try { return localStorage.getItem('bluebook_dev_tools') === '1'; } catch (e) { return false; } },
   identity() {
     try {
       return {
@@ -442,3 +443,30 @@ export const BB_API = {
     } catch (e) { return { name: '', role: '', tenant: '', authed: false }; }
   },
 };
+
+// ─── Internal dev tools gate ─────────────────────────────────────────────────
+// The Tweaks panel (tweaks-panel.jsx) is an internal tuning surface, not part
+// of the product: its "Jump to screen" control alone can move the app from a
+// sitting straight into the professor console. It has been mounted for every
+// visitor, waiting on a `__activate_edit_mode` postMessage that anything on
+// the page — or any frame embedding it — can send. So the panel a candidate
+// cannot see is not the same as a panel a candidate cannot reach, and this is
+// what closes the second one.
+//
+// Runtime gate, deliberately. Render has no Node and serves the one committed
+// bluebook.bundle.js (BUILD.md), so a build-time strip would mean two bundles
+// and a way to ship the wrong one; the exam runs the same bytes either way.
+//
+// Armed the way every other Bluebook launch flag is set: index.html's
+// query-param bootstrap, which already turns ?sid/?tenant/?candidate into
+// localStorage. `?dev=1` stores `bluebook_dev_tools`, `?dev=0` clears it, and
+// it persists in between so reloading during a tuning pass doesn't lose it.
+//
+// Refused outright for a bound student launch, whatever that key says. A
+// candidate appending `?dev=1` mid-exam is the exact case this exists to
+// answer, and answering it with "well, they'd have to set a flag" is not an
+// answer. Staff have no student binding, so this costs them nothing.
+export function devToolsEnabled() {
+  if (BB_API.isStudentLaunch()) return false;
+  return BB_API.isDevToolsArmed();
+}

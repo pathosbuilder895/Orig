@@ -146,8 +146,19 @@ body{font-family:var(--font-u);background:var(--parchment);color:var(--ink);font
 
 <script>
 /* ── Config ── */
-const API = (window.opener && (window.opener.location.port === '8001' || window.opener.location.port === '8000'))
-  ? '' : 'http://localhost:8001';
+// Same-origin, always: this page is served by the API server itself (demo/ is
+// the frontend dir, student.html reaches it via a relative window.open), so a
+// relative path is correct in demo, pilot and production alike.
+//
+// This used to probe `window.opener.location.port` for 8001/8000 and otherwise
+// fall back to a hardcoded `http://localhost:8001`. On any real deploy the port
+// is '' — so every user took the fallback and POSTed their draft to their own
+// machine, where https blocks it as mixed content and the .catch(()=>{}) below
+// swallows it: the student is told their work was "saved locally" and nothing
+// reaches the server. Do not reintroduce a host/port probe here —
+// e2e/student-coach-origin.spec.mjs asserts every call targets this page's own
+// origin.
+const API = '';
 
 const studentId   = () => localStorage.getItem('original_student_id')   || 'demo_student';
 const studentName = () => localStorage.getItem('original_student_name') || 'Student';

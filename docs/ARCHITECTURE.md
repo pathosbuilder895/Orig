@@ -1,9 +1,11 @@
 # Architecture Map — which surface is live
 
-One page to prevent the recurring confusion: this repo contains **two
-backends**. Exactly one is live. (It used to contain three frontend
-generations; the dead `frontend/` and `web/` trees were removed 2026-07-07
-(ADR-006) — see git history.)
+One page to prevent the recurring confusion. This repo used to contain **two
+backends** (a live pilot stack and a dormant v1/Postgres stack); the v1 stack
+was deleted in WS-6 P6 (PR #90) — see the "DELETED" section below and git
+history. It also used to contain three frontend generations; the dead
+`frontend/` and `web/` trees were removed 2026-07-07 (ADR-006) — see git
+history.
 
 ## ✅ LIVE — the pilot stack (what professors use)
 
@@ -12,10 +14,20 @@ Browser ── demo/*.html  (Oxford-themed dashboards: professor/admin/operator/
        ── demo/bluebook/ (secure-exam app; index.html, same file dev + prod — React bundled in, no CDN)
             │
             ▼
-original/api.py  ←──── THE pilot backend ("legacy demo app", 1 file)
-  • loaded by run.py --demo via importlib path-hack (its name is shadowed
-    by the original/api/ package below)
-  • SQLite via original/store.py (WAL) — no ORM, no Postgres
+original/api.py  ←──── app assembly only (FastAPI instance, lifespan,
+  │                     middleware, CORS/security-header setup, route
+  │                     splicing) — imported plainly by run.py, no importlib
+  │                     hack (that existed only to dodge the now-deleted
+  │                     original/api/ package's name collision)
+  ▼
+original/routers/*.py  ←── the actual route handlers, one module per domain:
+  admin, auth, bluebook, health, imports, lti_routes, me, proctor, students,
+  students_baseline, students_scoring, tenants (+ shared helpers in _shared.py)
+  • persistence: original/repository.py seam — original/store.py (SQLite,
+    WAL) is the default backend; original/postgres_repository.py is a full
+    Postgres implementation, opt-in only via REPO_BACKEND/REPO_SHADOW (see
+    docs/OPS_RUNBOOK.md cutover procedure) — production stays SQLite unless
+    an operator flips that switch
   • auth: original/users.py + original/principal.py (tenant isolation)
   • LTI 1.3: original/lti.py  →  routes /lti/login /lti/launch /lti/jwks
   • hardening: ORIGINAL_ENV=pilot (see .env.example, render.yaml)
@@ -24,44 +36,30 @@ original/api.py  ←──── THE pilot backend ("legacy demo app", 1 file)
 Deployed per `render.yaml` (`original-demo` free sandbox, `original-pilot`
 paid + disk). Ops: `docs/OPS_RUNBOOK.md`. Canvas: `docs/CANVAS_RUNBOOK.md`.
 
-### The repository seam ([ADR-002](adr/002-data-layer-convergence.md), [ADR-006](adr/006-postgres-convergence.md))
+## 🪦 DELETED — the v1 stack
 
-`original/repository.py` defines a `Repository` protocol — every persistence
-operation the live API needs, backend-agnostic. `api.py` depends on
-`Repository` (via `get_repository(environment)`), never on `original/store.py`
-directly. Today the only implementation is `SqliteRepository`, delegating to
-`store.py`; a `PostgresRepository` plugs into the same seam once ADR-006's
-Postgres convergence lands, without the API layer changing. The seam started
-as a 9-method slice covering just the Formation feature; WS-6 Phase P1
-widened it to cover essentially every public `store.*` function, so this is
-now load-bearing for the whole app, not an optional abstraction — a new
-feature that calls `store` directly instead of going through `Repository`
-reopens exactly the two-backends-diverge problem ADR-002 exists to prevent.
+`original/main.py`, `original/api/` (the v1 package, including its own
+`api/v1/auth.py`/`core/security.py` auth and its own LTI at
+`original/canvas/lti.py` → `/canvas/lti/*`) and its ~62 tests were deleted in
+WS-6 P6 (PR #90, "decommission & unlock") — see git history, not the working
+tree. The router split above (`original/routers/`) is unrelated later work
+(WS-7.3) that happened to land in the same file `original/api/` used to
+shadow.
 
-## 🧊 DORMANT — the v1 stack (future Postgres path, ADR-004 Route B)
-
-```
-(v1's own UI, frontend/*.html, was removed 2026-07-07 (ADR-006); see git history)
-original/main.py + original/api/ (v1 package)
-  • SQLAlchemy/Postgres/Alembic; own auth (api/v1/auth.py, core/security.py)
-  • own LTI: original/canvas/lti.py → routes /canvas/lti/*   ← the OTHER LTI
-```
-
-⚠️ The duplicated LTI stack has already caused one real incident: the Canvas
-one-pager once documented `/canvas/lti/*` (v1's routes) instead of `/lti/*`
-(the pilot's). When touching anything LTI/auth, check which stack you're in.
-
-⚠️ **A second, narrower trap: the live `/canvas/baseline/*` routes share a URL
-prefix with the dormant `original/canvas/` package.** `original/api.py` (live)
-registers `POST /canvas/baseline/{student_id}/list-canvas-submissions` and
-`POST /canvas/baseline/{student_id}/import-baseline` — demo-grade Canvas
-submission-import stubs on the live pilot backend. These have nothing to do
-with `original/canvas/lti.py`'s dormant `/canvas/lti/*` routes above, but the
-shared `/canvas` prefix invites exactly the same mistake as the
-`original/api.py` vs `original/api/` module-shadowing trap this doc exists to
-warn about: seeing a `/canvas/...` path is not enough to tell which stack
-you're in. Check which *file* defines the route (`original/api.py` vs
-`original/canvas/`), not just the URL prefix.
+**Not everything under the old v1 paths is gone.** `original/db/` (SQLAlchemy
+models/session for the Postgres path) and `original/core/` (`config.py`,
+`logging.py`, `security.py`) still exist and are in normal lint/ruff scope
+(PR #96). Two things keep them alive:
+- `original/postgres_repository.py` (the live repository seam's Postgres
+  backend, see above) uses the SQLAlchemy models in `original/db/`.
+- `original/cli/delete_student.py` (the documented, live manual FERPA-deletion
+  CLI — see `README.md`/`SETUP.md`/`docs/data_inventory.md`) and
+  `original/cli/security_audit.py` import `original/core/config.py` and
+  `original/core/logging.py`, and `delete_student.py` additionally imports
+  `original/db/models` + `original/db/session`. PR #96 found these two CLIs
+  are real, live dependents — not v1 leftovers — and deleted only what had
+  zero importers (`db/models/canvas.py`, `core/config_patch.py`,
+  `core/exceptions.py`, `core/limiter.py`).
 
 ## 🪦 ABANDONED
 
@@ -72,5 +70,5 @@ you're in. Check which *file* defines the route (`original/api.py` vs
 ## Rules of thumb
 
 1. If it isn't reachable from `run.py --demo` or `render.yaml`, professors never see it.
-2. New pilot features go in `original/api.py` + `demo/` — not the v1 package — until the ADR-004 migration decision is made.
-3. There are two of several things (LTI, auth, schemas). Grep both before assuming.
+2. New pilot features go in `original/routers/` (or a new router module) + `demo/` — the v1 package is gone, there's nowhere else for them to go.
+3. LTI, auth, and schemas are each single-surface now (`original/lti.py`, `original/users.py`+`principal.py`, `original/schemas.py`) — the "grep both, which stack am I in" hazard was v1-era and no longer applies. The persistence seam is the one place two backends still coexist by design (SQLite default, Postgres opt-in) — see `original/repository.py`.

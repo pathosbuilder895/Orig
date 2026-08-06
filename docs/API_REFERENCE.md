@@ -61,7 +61,7 @@ their sensitivity (noted inline).
 | Method | Path | Purpose | Auth |
 |---|---|---|---|
 | GET | `/health` | Liveness/readiness probe; used by UptimeRobot/Render. | None |
-| GET | `/admin/health` | System health summary for the admin dashboard (backup age, DB status). | None (dashboard-facing; not guard-tokened) |
+| GET | `/admin/health` | System health summary for the admin dashboard (backup age, DB status). | Principal (staff); not guard-tokened. Infra probes should use `/health`. |
 
 ## Auth (staff + demo)
 
@@ -139,7 +139,7 @@ their sensitivity (noted inline).
 | GET | `/admin/calibration/runs` | List calibration runs (filterable by status/dataset). | Principal (staff) |
 | GET | `/admin/calibration/runs/{run_id}` | Fetch one calibration run, optionally with its full report. | Principal (staff) |
 | GET | `/admin/calibration/runs/{run_id}/suggestions` | Threshold-tuning suggestions derived from a finished run + corrections. | Principal (staff) |
-| POST | `/admin/calibration/runs/{run_id}/apply` | Persist a new active threshold set sourced from a calibration run. | Guard token |
+| POST | `/admin/calibration/runs/{run_id}/apply` | Persist a new active threshold set sourced from a calibration run. | Principal (staff) + guard token |
 | GET | `/admin/tuned-thresholds` | Currently-active tuned threshold set, or null. | Principal (staff) |
 | GET | `/admin/tuned-thresholds/history` | Audit list of every tuned-threshold version ever applied. | Principal (staff) |
 | POST | `/test/score` | Playground endpoint: run the full adaptive pipeline on inline text, no persistence. | None |

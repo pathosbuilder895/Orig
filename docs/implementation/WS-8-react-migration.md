@@ -1,5 +1,19 @@
 # WS-8 — Frontend → React migration
 
+> **⚖️ AMENDED by [ADR-008](../adr/008-ws8-frontend-convergence.md) (Accepted 2026-08-02) — read this first.**
+> The direction below is re-scoped: **Bluebook (`demo/bluebook/` + esbuild) is
+> the permanent exam-app frontend and does NOT migrate into `app/`.** `app/` +
+> the R2 component library serve the legacy static pages only (`professor.html`,
+> `student.html`, …) — the pages R2's tokens were actually derived from. R1
+> ("Bluebook fold-in") is closed as **superseded, not done** — Bluebook met R1's
+> real goals (ESM, bundled React, dev/prod parity) via its own pipeline. The
+> `@a11y` promotion gate is measurement-based and already blocking on all 13
+> Bluebook screens (PR #122). R3 remains live but targets the statics only;
+> before its first page: the second committed-`dist` freshness gate and
+> `run.py` static mount ADR-008's Consequences require. Sections below are kept
+> as written for their execution detail; where they say "one workspace" or
+> describe folding Bluebook in, ADR-008 governs.
+
 > Part of the [Master Implementation Plan](../AUDIT_2026-07-06.md) (Audit §9). Refs are a 2026-07-07 snapshot — resolve each cited `path:line` by its **named symbol** via [ANCHORS.md](ANCHORS.md); the tree is under active edit and line numbers drift.
 > **Findings:** W5–W15 (durable a11y), F5 (retire dead pages) · **Effort:** ~2 months part-time · **Depends on:** WS-4 hotfix first (§9 table) · **Unblocks:** the VPAT (WS-3 / D15, writable from axe evidence not hope), and WS-9's professor-side E2E coverage.
 

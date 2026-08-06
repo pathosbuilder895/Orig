@@ -169,6 +169,29 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
                 _genre_stats["n_samples"] if _genre_stats is not None else 0,
                 _genre_stats["n_students"] if _genre_stats is not None else 0,
             )
+            # Cohort fallback: when no same-genre prior exists yet, fall back
+            # to the genre-AGNOSTIC prior over the same tenant, with the same
+            # exclusion of the student being scored. Gated separately
+            # (COHORT_PRIOR_FALLBACK, default off) so the genre-keyed
+            # behaviour above is byte-identical unless explicitly enabled,
+            # and logged on its own line so the outcome=hit/miss coverage
+            # measurement for the genre prior stays uncontaminated.
+            #
+            # Inside the `if _genre:` block on purpose: scoring.score() only
+            # applies the prior when the submission carries a genre at all
+            # (`if _genre and _prior is not None`), so resolving a cohort
+            # prior for a genre-less submission would pay a full-store scan
+            # for a value that is then discarded.
+            if _genre_stats is None and os.environ.get("COHORT_PRIOR_FALLBACK") == "1":
+                _genre_stats = _repo().get_cohort_stats(_prior_tenant, student_id)
+                logging.getLogger(__name__).info(
+                    "bayesian_prior_cohort_fallback outcome=%s tenant=%s "
+                    "n_prior=%d n_students=%d",
+                    "hit" if _genre_stats is not None else "miss",
+                    _prior_tenant,
+                    _genre_stats["n_samples"] if _genre_stats is not None else 0,
+                    _genre_stats["n_students"] if _genre_stats is not None else 0,
+                )
     _scoring_config = dataclasses.replace(
         _scoring_config_env,
         authentic_fidelities=_authentic_fidelities,

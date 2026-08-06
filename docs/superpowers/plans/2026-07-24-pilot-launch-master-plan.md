@@ -278,7 +278,7 @@ def test_bluebook_route_inventory_is_complete(live_app):
 ### Task T7: WS-4 keyboard accessibility for Bluebook (EXCLUSIVE owner of bluebook JSX + bundle)
 
 **Files:**
-- Modify: the Bluebook JSX files containing click-only rows — find them with `grep -n "onClick" demo/bluebook/*.jsx | grep -v "button\|Button\|<a "` then confirm each is a `<div>`/`<tr>` acting as a button (known: list rows in the dashboard views; the WS-4 doc names them — read `docs/implementation/WS-4-accessibility.md` §open items)
+- Modify: the Bluebook JSX files containing click-only rows — find them with `grep -n "onClick" demo/bluebook/*.jsx | grep -v "button\|Button\|<a "` then confirm each is a `<div>`/`<tr>` acting as a button (known: list rows in the dashboard views; the WS-4 doc names them — read `docs/implementation/WS-4-accessibility-hotfix.md` §open items)
 - Modify: `demo/bluebook/bluebook.bundle.js` (rebuild, commit)
 - Test: `cd demo/bluebook && npm test` (vitest) + new keyboard tests; e2e specs must stay green
 

@@ -23,7 +23,7 @@ matrix, and a candid list of concerns about the plan's scope and approach.
 
 ---
 
-## Current status (updated 2026-07-16, against `origin/main` HEAD `835b655`)
+## Current status (updated 2026-08-02, against `origin/main` HEAD `718ef29`)
 
 Source: audit-remediation status review (`docs/AUDIT_2026-07-06.md` + this directory + live
 `git log`/`pytest`), cross-checked against actual code in this pass — see "Verified this pass"
@@ -36,21 +36,26 @@ metric tracked automatically.
 | 2 Guardrails | ✅ Done (100%) | 4-job gated CI, `.venv` on 3.11.15, ruff/black/mypy + pre-commit all landed. |
 | 3 Trust surface | ✅ Done (100%) | Docs/compliance corrected; VPAT correctly deferred to WS-4/WS-8. |
 | 4 Accessibility (exam-flow) | 🟡 ~78% | Open: several Bluebook rows still click-only `<div>`s (not keyboard-reachable); axe CI scan is non-blocking. |
-| 5 Test depth | 🟡 ~60% | Suite green (648 passed / 0 failed at last check). Open: no flag-matrix scoring tests, no full Bluebook-API CRUD tests; coverage 76.98% vs. 78% goal as of 2026-07-22 (the P6 v1 deletion removed ~2,100 dead statements from the denominator), `--cov-fail-under` now 72. |
+| 5 Test depth | 🟢 ~90% | Suite green (1,112 passed / 0 failed with `DATABASE_URL` set — see "Verified this pass"). `tests/test_flag_matrix.py` (flag-matrix scoring) and `tests/test_bluebook_crud.py`/`test_bluebook_api.py`/`test_bluebook_api_nulls.py` (Bluebook API/CRUD) now exist, closing both items this row used to list as open. `--cov-fail-under` is 78 (#104) and the suite clears it (81% measured — see below). |
 | 6 Postgres convergence | 🟢 code-complete | **All seven phases (P0–P6) merged to `main` 2026-07-17→22** (PRs #76 P3, #77 P4, #78 P5, #90 P6). `PostgresRepository` implements the full Protocol (only `db_path()` deliberately raises — SQLite-file backup tooling, P4 scope note); `scripts/migrate_sqlite_to_pg.py` proven at checksum parity across all 16 tables; `REPO_SHADOW=postgres` mirror + `REPO_BACKEND=postgres` cutover flip ship inert (default stays SQLite); in-memory `_STORE` demoted (multi-worker unlocked, proven cross-process); dormant v1 stack + its 62 tests deleted, importlib hack dissolved. **Remaining items are operational, not code:** deploy → shadow soak → restore drill → the one-env-var cutover per OPS_RUNBOOK. |
-| 7 API-layer refactor | 🟡 ~40% | Step 1 (`ScoringConfig`) + step 2 (typed pydantic request models, all but 1 of 8 endpoints) + step 5 (static gating, Canvas 501 stubs) landed. Step 3 (router split into `original/routers/`) **not started** — zero `APIRouter` usage; step 4 (de-async, flag GA, merge `ORIGINAL_ENV`/`ENVIRONMENT`) not started. |
-| 8 React migration | 🔵 ~15% | R0 (Vite/TS/eslint/vitest/axe scaffold) + R1 (Bluebook ESM, ahead of schedule) landed. R2 (shared components) is a single 7-line `SkipLink.tsx`. R3 (page migration) not started — no page migrated yet. |
-| 9 E2E + release hygiene | 🟡 ~87% | 4 parallel workers, professor-journey spec + Stage-2 breadth (~55 specs), `/health` returns real `commit` + single-sourced version. Open: no `pilot-YYYY-MM-DD` release-tag convention written down yet. |
+| 7 API-layer refactor | 🟢 ~85% | Step 1 (`ScoringConfig`) + step 2 (typed pydantic request models, all but 1 of 8 endpoints — `open_formation` in `students.py` still takes `body: dict`) + step 5 (static gating, Canvas 501 stubs) landed. Step 3's router split landed (#99): `original/api.py` is app-assembly only now (423 lines measured); handlers live in `original/routers/*.py` (12 router modules + shared helpers, ~3,629 lines total). Step 3's other half — extracting `score_submission`'s orchestration into `original/services/scoring_service.py` — has not happened; the handler is still ~350 lines inline in `students_scoring.py`. Step 4's de-async (#103) and the `ORIGINAL_ENV`/`ENVIRONMENT` merge (#106) landed; its flag-GA collapse has not — `run.py` still `setdefault`s `CONTEXT_MANIFEST_ENABLED`/`ADAPTIVE_WEIGHTS_ENABLED` and `students_scoring.py` still reads all three (incl. `NULL_MODEL`) as flags. |
+| 8 React migration | 🔵 ~25% | R0 (Vite/TS/eslint/vitest/axe scaffold) + R1 (Bluebook ESM, ahead of schedule) landed. R2 (shared components, #79) is now 10 components in `app/src/components/` (`Chart`, `DataTable`, `FileDrop`, `Heading`, `LabeledInput`, `LiveRegion`, `Modal`, `NavList`, `SkipLink`, `Timer` — ~1,800 lines incl. tests), not just `SkipLink.tsx`. R3 (page migration) still not started — no full page migrated yet. |
+| 9 E2E + release hygiene | 🟢 ~90% | 4 parallel workers, professor-journey spec + Stage-2 breadth (~55 specs), `/health` returns real `commit` + single-sourced version. The `pilot-YYYY-MM-DD` release-tag convention this row used to list as open is now written down (`docs/OPS_RUNBOOK.md`, "Tag every production deploy"). |
 
-**Verified this pass (2026-07-22):** confirmed directly against `origin/main` —
-- WS-6 P3–P6 all merged (#76, #77, #78, #90). `PostgresRepository` is a full implementation
-  (the 2026-07-16 note below that it was a skeleton is superseded); the contract suite runs
-  against a real `postgres:16` CI service container on every PR.
+**Verified this pass (2026-08-02):** confirmed directly against `origin/main` HEAD `718ef29` —
+- WS-6 P3–P6 all merged (#76, #77, #78, #90). `PostgresRepository` is a full implementation;
+  the contract suite runs against a real Postgres instance (verified locally with
+  `DATABASE_URL` pointed at a `postgres:16-alpine` container; CI runs the same suite against a
+  `postgres:16` service container on every PR, per `.github/workflows/test.yml`).
 - The dormant v1 stack is **gone**: `original/api|canvas|middleware|auth|schemas_v1|tasks` +
-  `main.py` + 62 v1 tests deleted; `run.py` imports `original.api` plainly (A9 dissolved);
+  `main.py` + its ~62 tests deleted; `run.py` imports `original.api` plainly (A9 dissolved);
   the in-memory `_STORE` is demoted, so `--workers N` is safe (proven cross-process).
-- Full suite green: 775 passed, 0 failed, zero xfail noise, on both backends; coverage 76.98%
-  against the 72 gate. `original/api.py` measures 3,265 lines.
+- Full suite green: `.venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -q
+  --cov=original --cov-report=term` with `DATABASE_URL` set to a local Postgres → **1,112
+  passed, 0 failed**, zero xfail/skip noise, coverage **81%** against the `--cov-fail-under=78`
+  gate (#104). Test count and coverage both drift as work lands — re-run rather than trust this
+  number; see CLAUDE.md's Testing section for the exact command and the without-`DATABASE_URL`
+  variant. `original/api.py` measures **423 lines** (it is app-assembly only now — see below).
 - The app still defaults to SQLite everywhere; Postgres activates only via the
   `REPO_SHADOW`/`REPO_BACKEND` env vars (OPS_RUNBOOK cutover procedure).
 
@@ -59,13 +64,15 @@ metric tracked automatically.
    the owner made the explicit go call ("Commit to Postgres → start P4") before P4 began;
    P3 had landed inert ahead of it (nothing production-facing depended on it). ADR-004's
    hold-on-SQLite posture is superseded by the executed WS-6 P3–P6.
-2. **`api.py` is still trending the wrong way**: 2,714 → 2,964 → 3,265 lines (2026-07-22; the
-   P5 maintenance middleware and db_path guards landed there). The one step that shrinks it
-   (WS-7 step 3, the router split) remains untouched — and with WS-6 code-complete, the
-   serialization concern is moot: WS-7.3 is now unambiguously next in line for `api.py`.
-3. **Coverage gate nearly caught up** — `--cov-fail-under` is 72 with actual coverage at
-   76.98% (2026-07-22) against the 78% target; the remaining WS-5 gaps (flag-matrix,
-   Bluebook CRUD tests) are what close the last point.
+2. ~~`api.py` is still trending the wrong way~~ **Resolved:** WS-7 step 3's router split
+   landed (#99, "split api.py into original/routers/ (no behavior change)"). `original/api.py`
+   measures 423 lines (2026-08-02, down from the 3,265-line peak this item used to track);
+   handlers moved to `original/routers/*.py` (12 router modules + shared helpers, ~3,629 lines
+   total). The other half of step 3 — extracting `score_submission`'s orchestration into a
+   `original/services/scoring_service.py` — has not happened; see the WS-7 row above.
+3. ~~Coverage gate nearly caught up~~ **Resolved:** `--cov-fail-under` was raised to 78 (#104,
+   "Add API coverage tests; raise the CI coverage gate to 78"), matching what this item used to
+   call the target. Measured coverage now sits at 81% (2026-08-02) — see "Verified this pass."
 
 ---
 
@@ -136,10 +143,12 @@ as a **strictly ordered backlog**, not a parallel schedule. Suggested waves:
     gate was resolved explicitly on 2026-07-17 (owner go call).
 11. ✅ WS-6 P3→P6 — landed 2026-07-17→22 (#76 PostgresRepository parity, #77 migration +
     shadow, #78 inert cutover mechanism, #90 `_STORE` demotion + v1 deletion). The cutover
-    itself is now an operator action (OPS_RUNBOOK). **WS-7 step 3 (router split) is next in
-    line and hasn't started.**
+    itself is now an operator action (OPS_RUNBOOK). **WS-7 step 3's router split has since
+    landed too (#99)** — `original/api.py` is 423 lines (app-assembly only); the
+    `scoring_service.py` extraction half of that step and step 4's flag-GA collapse remain
+    (see the WS-7 status row above).
 12. WS-8 (React migration) once WS-4 is live and WS-7 models exist. WS-9 rides alongside — it's
-    already ~87% done, further along than WS-8 would suggest.
+    already ~90% done, further along than WS-8 would suggest.
 
 ---
 
@@ -253,9 +262,9 @@ The router split (WS-7.3) and routing every `store.*` call through the seam (WS-
 → **Recommend:** serialize the shared-file steps: WS-7.1 (`ScoringConfig`) → WS-6 P1 (seam) →
 WS-7.3 (router split). "Interleave" should mean "alternate in sequence," not "edit in parallel."
 **Status (2026-07-16): the first two landed in the recommended order** (WS-7.1 → WS-6 P1, both
-confirmed on `origin/main`). **WS-7.3 (router split) is next and hasn't started** — `api.py` has
-grown to 2,964 lines in the meantime (WS-6 P2 + WS-7 steps 2/5 all landed on it too). Do the
-router split before any more schema/handler work touches this file.
+confirmed on `origin/main`). WS-7.3 (router split) followed (#99) — `api.py` peaked at 3,265
+lines before the split and measures 423 lines now (2026-08-02), with handlers moved to
+`original/routers/*.py`. The recommended serialization held end to end.
 
 **5. Deferring the v1 deletion to WS-6 P6 keeps the root-cause cruft alive for the whole migration.**
 §8 names the dormant v1 stack the root cause of ~a dozen findings, yet it's only deleted at the *end*

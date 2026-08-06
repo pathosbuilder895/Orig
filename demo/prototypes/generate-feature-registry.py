@@ -166,6 +166,15 @@ LOCALIZATION_GROUPS: Final = {
         "source_loyalty_index",
         "char_trigram_profile_divergence",
         "function_word_profile_divergence",
+        # Tier 18 — within-document dispersion (features/uniformity.py). Each
+        # is a second moment over the whole document, so no single span is the
+        # evidence: the document's own variability is.
+        "sentence_length_dispersion_ratio",
+        "window_feature_variance_ratio",
+        "function_word_burstiness_ratio",
+        "punctuation_dispersion_ratio",
+        "vocab_introduction_flatness",
+        "clause_depth_variance_ratio",
     },
     "behavioral": {
         "typing_speed_cv",

@@ -21,6 +21,7 @@ Uses the shared live_app/live_client fixtures from conftest.py (WS-5 §5.1)
 instead of re-deriving `run.load_legacy_demo_app()` at module scope.
 """
 
+import re
 import sqlite3
 
 import pytest
@@ -156,6 +157,203 @@ def test_demo_keeps_anonymous_roster(live_client):
     """No real_deploy fixture → demo behaviour unchanged."""
     r = live_client.get("/students")
     assert r.status_code == 200
+
+
+# ── 2b. Endpoint-level staff gate on the admin router ─────────────────────────
+# The §2 middleware only runs when ORIGINAL_ENV is real. Correction rows carry
+# student_id, so — exactly like /admin/audit — the handler keeps its own staff
+# check: it additionally rejects STUDENT principals in the demo, and it still
+# holds if a deploy is ever misconfigured with ORIGINAL_ENV unset.
+
+
+def test_admin_corrections_rejects_student_principal_in_demo(live_client):
+    """A student must never enumerate corrections, even in the demo sandbox.
+
+    `x-demo-role` drives the anonymous principal's role, so this exercises the
+    handler's `_require_staff` check without needing a real student login
+    (same technique as tests/test_tenants_api_coverage.py).
+    """
+    r = live_client.get("/admin/corrections", headers={"x-demo-role": "student"})
+    assert r.status_code == 403, r.text
+    assert r.json()["detail"] == "Staff role required."
+
+
+def test_admin_corrections_rejects_signed_in_student_in_demo(live_client):
+    """An authenticated student principal is refused on the same grounds.
+
+    Covers the non-demo principal branch of `_require_staff` (is_demo=False,
+    role="student"), which the x-demo-role header cannot reach.
+    """
+    stu = pr.mint_principal_token("corracme:bob", "student", "corracme")
+    r = live_client.get("/admin/corrections", headers=_auth(stu))
+    assert r.status_code == 403, r.text
+
+
+def test_admin_corrections_keeps_anonymous_demo_readable(live_client):
+    """The zero-login demo sandbox is unchanged — its principal is staff-role."""
+    r = live_client.get("/admin/corrections")
+    assert r.status_code == 200, r.text
+
+
+def test_admin_corrections_rejects_anonymous_in_pilot(real_deploy, live_client):
+    """On a real deploy an unauthenticated caller gets 401, never correction rows."""
+    r = live_client.get("/admin/corrections")
+    assert r.status_code == 401, r.text
+
+
+def test_admin_corrections_allows_staff_principal_in_pilot(real_deploy, live_client):
+    """A signed-in professor still reads the list the CorrectionPanel UI needs."""
+    prof = pr.mint_principal_token("prof_corr", "professor", "corracme")
+    r = live_client.get("/admin/corrections", headers=_auth(prof))
+    assert r.status_code == 200, r.text
+
+
+# The rest of the admin router carries the same gate, for the same reasons.
+# /admin/manifests is the sharpest case — manifest rows carry student_id and the
+# endpoint takes a student_id filter, so it is the exposure class /admin/audit
+# and /admin/corrections already guard against. The calibration-lab and
+# tuned-threshold surfaces are staff tooling that steers scoring globally.
+# docs/API_REFERENCE.md has documented every one of these as "Principal (staff)"
+# since it was written; these tests make the code match that contract.
+#
+# Each row is (method, path, json body, status a *staff* caller should get).
+# The bodies are deliberately unsatisfiable — an unknown dataset label and a
+# nonexistent run id — so the two POSTs prove the gate without starting a real
+# calibration run or writing a threshold set. A staff caller therefore lands on
+# the handler's own 422/404, which is itself the proof the gate let them past.
+ADMIN_STAFF_ONLY_ENDPOINTS = [
+    # Lives in routers/health.py, not routers/admin.py — the reason a by-hand
+    # sweep of the admin router missed it. See the route walk below.
+    ("GET", "/admin/health", None, 200),
+    ("GET", "/admin/manifests", None, 200),
+    ("GET", "/admin/manifests/stats", None, 200),
+    ("GET", "/admin/lab/datasets", None, 200),
+    ("GET", "/admin/calibration/runs", None, 200),
+    ("GET", "/admin/calibration/runs/999999", None, 404),
+    ("GET", "/admin/calibration/runs/999999/suggestions", None, 404),
+    ("GET", "/admin/tuned-thresholds", None, 200),
+    ("GET", "/admin/tuned-thresholds/history", None, 200),
+    ("POST", "/admin/calibration/run", {"dataset_label": "totally_made_up"}, 422),
+    (
+        "POST",
+        "/admin/calibration/runs/999999/apply",
+        {"no_action": 0.4, "monitor": 0.6, "escalate": 0.8},
+        404,
+    ),
+]
+
+# Readable ids in pytest output ("…[GET-/admin/manifests]") instead of body dicts.
+_ENDPOINT_IDS = [f"{m}-{p}" for m, p, _b, _s in ADMIN_STAFF_ONLY_ENDPOINTS]
+
+
+def _call(client, method, path, body, headers=None):
+    """Issue one request from the ADMIN_STAFF_ONLY_ENDPOINTS table."""
+    if method == "POST":
+        return client.post(path, json=body, headers=headers or {})
+    return client.get(path, headers=headers or {})
+
+
+@pytest.mark.parametrize(
+    "method,path,body,staff_status", ADMIN_STAFF_ONLY_ENDPOINTS, ids=_ENDPOINT_IDS
+)
+def test_admin_endpoint_rejects_student_principal_in_demo(
+    live_client, method, path, body, staff_status
+):
+    """A student must never reach admin tooling, even in the demo sandbox.
+
+    `x-demo-role` drives the anonymous principal's role, so this exercises each
+    handler's `_require_staff` check without needing a real student login.
+    """
+    r = _call(live_client, method, path, body, headers={"x-demo-role": "student"})
+    assert r.status_code == 403, f"{method} {path} -> {r.status_code}: {r.text}"
+    assert r.json()["detail"] == "Staff role required."
+
+
+@pytest.mark.parametrize(
+    "method,path,body,staff_status", ADMIN_STAFF_ONLY_ENDPOINTS, ids=_ENDPOINT_IDS
+)
+def test_admin_endpoint_rejects_signed_in_student_in_demo(
+    live_client, method, path, body, staff_status
+):
+    """An authenticated student principal is refused on the same grounds.
+
+    Covers the non-demo branch of `_require_staff` (is_demo=False,
+    role="student"), which the x-demo-role header cannot reach.
+    """
+    stu = pr.mint_principal_token("adminacme:bob", "student", "adminacme")
+    r = _call(live_client, method, path, body, headers=_auth(stu))
+    assert r.status_code == 403, f"{method} {path} -> {r.status_code}: {r.text}"
+
+
+@pytest.mark.parametrize(
+    "method,path,body,staff_status", ADMIN_STAFF_ONLY_ENDPOINTS, ids=_ENDPOINT_IDS
+)
+def test_admin_endpoint_keeps_anonymous_demo_working(
+    live_client, method, path, body, staff_status
+):
+    """The zero-login demo sandbox is unchanged — its principal is staff-role.
+
+    This is what keeps demo/admin.html, demo/admin-context.html, demo/lab.html
+    and demo/professor.html working without an Authorization header.
+    """
+    r = _call(live_client, method, path, body)
+    assert r.status_code == staff_status, f"{method} {path} -> {r.status_code}: {r.text}"
+
+
+@pytest.mark.parametrize(
+    "method,path,body,staff_status", ADMIN_STAFF_ONLY_ENDPOINTS, ids=_ENDPOINT_IDS
+)
+def test_admin_endpoint_rejects_anonymous_in_pilot(
+    real_deploy, live_client, method, path, body, staff_status
+):
+    """On a real deploy an unauthenticated caller gets 401, never admin data."""
+    r = _call(live_client, method, path, body)
+    assert r.status_code == 401, f"{method} {path} -> {r.status_code}: {r.text}"
+
+
+@pytest.mark.parametrize(
+    "method,path,body,staff_status", ADMIN_STAFF_ONLY_ENDPOINTS, ids=_ENDPOINT_IDS
+)
+def test_admin_endpoint_allows_staff_principal_in_pilot(
+    real_deploy, live_client, method, path, body, staff_status
+):
+    """A signed-in professor still reaches every surface the admin UIs need."""
+    prof = pr.mint_principal_token("prof_admin", "professor", "adminacme")
+    r = _call(live_client, method, path, body, headers=_auth(prof))
+    assert r.status_code == staff_status, f"{method} {path} -> {r.status_code}: {r.text}"
+
+
+def test_no_admin_route_answers_a_student_principal(live_app, live_client):
+    """Every /admin/* route refuses a student — enumerated from the app itself.
+
+    ADMIN_STAFF_ONLY_ENDPOINTS above is hand-maintained, so it only covers the
+    routes someone remembered to add. This walks the app's own route table
+    instead, which means a new /admin/* endpoint is covered the day it is
+    added, wherever its router lives. (It is how /admin/health was found: that
+    one sits in routers/health.py rather than routers/admin.py, so it was
+    missed by both the table above and a by-hand sweep of the admin router.)
+
+    Asserts only "not a success": FastAPI validates a request body *before*
+    calling the handler, so a POST carrying a placeholder body can legitimately
+    be refused as 422 rather than 403. The table-driven tests above pin the
+    exact status per endpoint; this pins the invariant that no /admin/* route
+    ever answers a student with 2xx.
+    """
+    checked = []
+    for route in live_app.routes:
+        path = getattr(route, "path", "")
+        if not path.startswith("/admin/"):
+            continue
+        # Path params get an id that resolves to nothing; the gate must fire
+        # regardless of whether the row exists.
+        concrete = re.sub(r"\{[^}]+\}", "999999", path)
+        for method in sorted(set(getattr(route, "methods", set())) - {"HEAD", "OPTIONS"}):
+            r = live_client.request(method, concrete, json={}, headers={"x-demo-role": "student"})
+            assert r.status_code >= 400, f"{method} {concrete} -> {r.status_code}: {r.text}"
+            checked.append(f"{method} {concrete}")
+    # Sanity: the walk actually reached the admin router rather than matching
+    # nothing and passing vacuously.
+    assert len(checked) >= 12, checked
 
 
 # ── 3. Demo surfaces disabled on real deploys ─────────────────────────────────

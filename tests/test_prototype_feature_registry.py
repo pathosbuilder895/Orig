@@ -7,7 +7,12 @@ import json
 import re
 from pathlib import Path
 
-from original.constants import ALL_FEATURE_CODES, FEATURE_NAMES, FEATURE_TIER
+from original.constants import (
+    ALL_FEATURE_CODES,
+    FEATURE_DIM,
+    FEATURE_NAMES,
+    FEATURE_TIER,
+)
 from original.explainer import FEATURE_PLAIN_NAMES
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -42,7 +47,7 @@ def test_generated_registry_is_current() -> None:
 
 def test_generated_registry_matches_backend_contract() -> None:
     rows = _generated_rows()
-    assert len(rows) == 103
+    assert len(rows) == FEATURE_DIM
     assert [row[0] for row in rows] == list(ALL_FEATURE_CODES)
 
     for code, name, plain, tier, localization_kind in rows:

@@ -1,0 +1,200 @@
+{
+  "label": "public_authors_nullmodel_N3",
+  "generated_at": "2026-08-02T05:12:16.717593Z",
+  "environment": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "environment": "testing",
+    "original_db": ":memory:",
+    "numpy_seeded": true,
+    "python_seeded": true,
+    "scoring_flags": {
+      "ADAPTIVE_WEIGHTS_ENABLED": "0",
+      "AMPLITUDE_SCORING_ENABLED": "0",
+      "BAYESIAN_PRIOR_ENABLED": "0",
+      "LENGTH_ADAPTIVE_WEIGHTS": "0"
+    }
+  },
+  "corpus": {
+    "corpus_dir": "validation/public_authors/corpus",
+    "manifest_path": "validation/public_authors/manifest.json",
+    "baselines_per_author": 3
+  },
+  "summary": {
+    "n_authors": 11,
+    "skipped_authors": [],
+    "total_same_pairs": 27,
+    "total_different_pairs": 270,
+    "median_per_author_auc": 1.0,
+    "iqr_per_author_auc": [
+      0.96,
+      1.0
+    ],
+    "pooled_uncalibrated_auc": 0.9527,
+    "pooled_uncalibrated_auc_ci_95": [
+      0.9195,
+      0.9782
+    ],
+    "pooled_uncalibrated_brier": 0.1271,
+    "pooled_uncalibrated_tpr_at_fpr": {
+      "0.01": 0.4815,
+      "0.05": 0.6667,
+      "0.10": 0.8519
+    }
+  },
+  "per_author": [
+    {
+      "author": "augustine",
+      "n_same": 3,
+      "n_different": 24,
+      "auc": 1.0,
+      "auc_ci_lo": 1.0,
+      "auc_ci_hi": 1.0,
+      "brier": 0.1187,
+      "tpr_at_fpr_01": 1.0,
+      "tpr_at_fpr_05": 1.0,
+      "tpr_at_fpr_10": 1.0
+    },
+    {
+      "author": "boethius",
+      "n_same": 2,
+      "n_different": 25,
+      "auc": 0.96,
+      "auc_ci_lo": 0.84,
+      "auc_ci_hi": 1.0,
+      "brier": 0.1365,
+      "tpr_at_fpr_01": 0.5,
+      "tpr_at_fpr_05": 0.5,
+      "tpr_at_fpr_10": 1.0
+    },
+    {
+      "author": "chesterton",
+      "n_same": 2,
+      "n_different": 25,
+      "auc": 0.84,
+      "auc_ci_lo": 0.68,
+      "auc_ci_hi": 0.96,
+      "brier": 0.1303,
+      "tpr_at_fpr_01": 0.0,
+      "tpr_at_fpr_05": 0.0,
+      "tpr_at_fpr_10": 0.0
+    },
+    {
+      "author": "douglass",
+      "n_same": 3,
+      "n_different": 24,
+      "auc": 1.0,
+      "auc_ci_lo": 1.0,
+      "auc_ci_hi": 1.0,
+      "brier": 0.1462,
+      "tpr_at_fpr_01": 1.0,
+      "tpr_at_fpr_05": 1.0,
+      "tpr_at_fpr_10": 1.0
+    },
+    {
+      "author": "edwards",
+      "n_same": 3,
+      "n_different": 24,
+      "auc": 0.9722,
+      "auc_ci_lo": 0.875,
+      "auc_ci_hi": 1.0,
+      "brier": 0.1287,
+      "tpr_at_fpr_01": 0.6667,
+      "tpr_at_fpr_05": 0.6667,
+      "tpr_at_fpr_10": 1.0
+    },
+    {
+      "author": "emerson",
+      "n_same": 2,
+      "n_different": 25,
+      "auc": 1.0,
+      "auc_ci_lo": 1.0,
+      "auc_ci_hi": 1.0,
+      "brier": 0.1118,
+      "tpr_at_fpr_01": 1.0,
+      "tpr_at_fpr_05": 1.0,
+      "tpr_at_fpr_10": 1.0
+    },
+    {
+      "author": "james",
+      "n_same": 4,
+      "n_different": 23,
+      "auc": 1.0,
+      "auc_ci_lo": 1.0,
+      "auc_ci_hi": 1.0,
+      "brier": 0.0672,
+      "tpr_at_fpr_01": 1.0,
+      "tpr_at_fpr_05": 1.0,
+      "tpr_at_fpr_10": 1.0
+    },
+    {
+      "author": "kempis",
+      "n_same": 2,
+      "n_different": 25,
+      "auc": 1.0,
+      "auc_ci_lo": 1.0,
+      "auc_ci_hi": 1.0,
+      "brier": 0.0822,
+      "tpr_at_fpr_01": 1.0,
+      "tpr_at_fpr_05": 1.0,
+      "tpr_at_fpr_10": 1.0
+    },
+    {
+      "author": "mill",
+      "n_same": 2,
+      "n_different": 25,
+      "auc": 0.96,
+      "auc_ci_lo": 0.84,
+      "auc_ci_hi": 1.0,
+      "brier": 0.2135,
+      "tpr_at_fpr_01": 0.5,
+      "tpr_at_fpr_05": 0.5,
+      "tpr_at_fpr_10": 1.0
+    },
+    {
+      "author": "newman",
+      "n_same": 2,
+      "n_different": 25,
+      "auc": 1.0,
+      "auc_ci_lo": 1.0,
+      "auc_ci_hi": 1.0,
+      "brier": 0.0968,
+      "tpr_at_fpr_01": 1.0,
+      "tpr_at_fpr_05": 1.0,
+      "tpr_at_fpr_10": 1.0
+    },
+    {
+      "author": "thoreau",
+      "n_same": 2,
+      "n_different": 25,
+      "auc": 0.74,
+      "auc_ci_lo": 0.36,
+      "auc_ci_hi": 1.0,
+      "brier": 0.1657,
+      "tpr_at_fpr_01": 0.5,
+      "tpr_at_fpr_05": 0.5,
+      "tpr_at_fpr_10": 0.5
+    }
+  ],
+  "extra": {
+    "eligible_authors": [
+      "augustine",
+      "boethius",
+      "chesterton",
+      "douglass",
+      "edwards",
+      "emerson",
+      "james",
+      "kempis",
+      "mill",
+      "newman",
+      "thoreau"
+    ],
+    "comparison": "baseline (flag off) vs impostor-null (NULL_MODEL=impostor)",
+    "baseline_median_per_author_auc": 0.98,
+    "baseline_iqr_per_author_auc": [
+      0.8975,
+      0.9946
+    ],
+    "baseline_pooled_uncalibrated_auc": 0.8883
+  }
+}

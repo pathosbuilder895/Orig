@@ -711,6 +711,48 @@ const FEATURE_ROWS = Object.freeze([
     "behavioral"
   ],
   [
+    "sentence_length_dispersion_ratio",
+    "Sentence-Length Dispersion",
+    "sentence length evenness",
+    18,
+    "document"
+  ],
+  [
+    "window_feature_variance_ratio",
+    "Window Feature Variance",
+    "consistency across the piece",
+    18,
+    "document"
+  ],
+  [
+    "function_word_burstiness_ratio",
+    "Function-Word Burstiness",
+    "function word pacing evenness",
+    18,
+    "document"
+  ],
+  [
+    "punctuation_dispersion_ratio",
+    "Punctuation Dispersion",
+    "punctuation spacing evenness",
+    18,
+    "document"
+  ],
+  [
+    "vocab_introduction_flatness",
+    "Vocab Introduction Flatness",
+    "steadiness of new vocabulary",
+    18,
+    "document"
+  ],
+  [
+    "clause_depth_variance_ratio",
+    "Clause-Depth Variance",
+    "clause depth evenness",
+    18,
+    "document"
+  ],
+  [
     "char_trigram_profile_divergence",
     "Char Trigram Divergence",
     "character-level divergence",

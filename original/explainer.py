@@ -128,6 +128,13 @@ FEATURE_PLAIN_NAMES: dict[str, str] = {
     "pause_density": "pause and thinking patterns",
     "paste_event_rate": "paste/paste-over events",
     "revision_depth": "depth of revisions",
+    # Tier 18 — Uniformity (within-document second moments)
+    "sentence_length_dispersion_ratio": "sentence length evenness",
+    "window_feature_variance_ratio": "consistency across the piece",
+    "function_word_burstiness_ratio": "function word pacing evenness",
+    "punctuation_dispersion_ratio": "punctuation spacing evenness",
+    "vocab_introduction_flatness": "steadiness of new vocabulary",
+    "clause_depth_variance_ratio": "clause depth evenness",
     # Comparison features
     "char_trigram_profile_divergence": "character-level divergence",
     "function_word_profile_divergence": "function word divergence",

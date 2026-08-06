@@ -1,0 +1,224 @@
+[
+  {
+    "name": "G1",
+    "passed": true,
+    "criterion": "pooled flagged rate <= 5%",
+    "current_value": "0.0% (UNINFORMATIVE: typicality thresholds unreachable at n<=4 \u2014 p-value floor 0.200 exceeds the loosest flag boundary 0.03, which needs n>=33; band-driven flags are impossible by construction, so this rate is not evidence of calibration)",
+    "detail": {
+      "n": 216,
+      "flagged": 0,
+      "pooled_flagged_rate": 0.0,
+      "per_corpus_flagged_rate": {
+        "seminary_group_0": 0.0,
+        "seminary_group_1": 0.0,
+        "seminary_group_2": 0.0,
+        "seminary_group_3": 0.0,
+        "seminary_group_4": 0.0,
+        "plato_apology": 0.0,
+        "plato_charmides": 0.0,
+        "plato_cratylus": 0.0,
+        "plato_euthydemus": 0.0,
+        "plato_gorgias": 0.0,
+        "plato_laches": 0.0,
+        "plato_laws": 0.0,
+        "plato_meno": 0.0,
+        "plato_parmenides": 0.0,
+        "plato_phaedo": 0.0,
+        "plato_phaedrus": 0.0,
+        "plato_philebus": 0.0,
+        "plato_protagoras": 0.0,
+        "plato_republic": 0.0,
+        "plato_sophist": 0.0,
+        "plato_statesman": 0.0,
+        "plato_symposium": 0.0,
+        "plato_theaetetus": 0.0,
+        "plato_timaeus": 0.0
+      },
+      "reachability": {
+        "observed": true,
+        "min_typicality_n": 4,
+        "p_floor": 0.2,
+        "threshold": 0.03,
+        "required_n": 33,
+        "reachable": false,
+        "n_folds_with_typicality": 216,
+        "note": "conformal p-values floor at 1/(n+1); at n=4 the floor is 0.200 and the 0.03 threshold needs n>=33 (design spec \u00a75 reachability table)"
+      },
+      "corpus_fingerprint": {
+        "seminary": "45d6f8cdad0ec4af",
+        "public_authors": "490f8721f7042297",
+        "plato": "7e1ee4df090573c8"
+      }
+    }
+  },
+  {
+    "name": "G2",
+    "passed": true,
+    "criterion": "median(impostor q) <= median(holdout q)",
+    "current_value": "impostor=0.048, holdout=0.222",
+    "detail": {
+      "holdout_q": [
+        0.16666666666666666,
+        0.4,
+        0.16666666666666666,
+        0.125,
+        0.08333333333333333,
+        0.4,
+        0.16666666666666666,
+        0.5,
+        0.2222222222222222,
+        0.08333333333333333,
+        0.36363636363636365,
+        0.16666666666666666,
+        0.45454545454545453,
+        0.08333333333333333,
+        0.5454545454545454,
+        0.25,
+        0.5454545454545454,
+        0.16666666666666666,
+        0.25
+      ],
+      "impostor_q": [
+        0.19047619047619047,
+        0.23809523809523808,
+        0.19047619047619047,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616
+      ],
+      "corpus_fingerprint": "7e1ee4df090573c8"
+    }
+  },
+  {
+    "name": "G2b",
+    "passed": true,
+    "criterion": "median(paraphrased impostor q) <= median(holdout q) \u2014 paraphrase proxy (mechanical transformation, not LLM paraphrase)",
+    "current_value": "paraphrased_impostor=0.048, holdout=0.250",
+    "detail": {
+      "n_holdout": 19,
+      "n_paraphrased_impostors": 20,
+      "n_ai_files": 20,
+      "n_holdout_scoring_errors": 0,
+      "n_impostor_scoring_errors": 0,
+      "n_null_typicality_skipped": 0,
+      "uniformity_enabled_during_leg": true,
+      "holdout_q": [
+        0.16666666666666666,
+        0.2,
+        0.25,
+        0.125,
+        0.08333333333333333,
+        0.4,
+        0.25,
+        0.3333333333333333,
+        0.2222222222222222,
+        0.08333333333333333,
+        0.36363636363636365,
+        0.16666666666666666,
+        0.45454545454545453,
+        0.08333333333333333,
+        0.5454545454545454,
+        0.25,
+        0.36363636363636365,
+        0.16666666666666666,
+        0.25
+      ],
+      "paraphrased_impostor_q": [
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616,
+        0.047619047619047616
+      ],
+      "proxy_note": "The impostor texts were transformed by a deterministic paraphrase proxy (mechanical transformation, not LLM paraphrase): fixed-table word substitution plus within-paragraph adjacent-sentence reordering (_paraphrase_proxy). A pass here is NOT evidence of robustness against real detector-guided LLM paraphrase attacks (the published one-line 'elevate the language' attack the design spec's research review cites) \u2014 no LLM is wired into this validation harness. MEASURED LIMITS of the transform on validation/corpus/ai_*.txt: it substitutes ~1% of tokens (1.1% measured; the table has 37 entries but they are rare in this corpus), and three of the six Tier-18 uniformity features \u2014 sentence_length_dispersion_ratio, punctuation_dispersion_ratio and clause_depth_variance_ratio \u2014 are invariant under it BY CONSTRUCTION, since reordering sentences within a paragraph permutes but does not change the per-sentence length / punctuation / clause-depth distributions, and a ~1% synonym swap does not either. So this gate stresses at most half the uniformity family, weakly. A real LLM-based paraphrase gate remains an open follow-up.",
+      "corpus_fingerprint": "7e1ee4df090573c8"
+    }
+  },
+  {
+    "name": "G3",
+    "passed": true,
+    "criterion": "public_authors top-1 accuracy >= 0.7 (impostor-calibrated attribution)",
+    "current_value": "0.727",
+    "detail": {
+      "top1_accuracy": 0.7273,
+      "top1_accuracy_raw_argmin": 0.3636,
+      "corpus_fingerprint": "490f8721f7042297"
+    }
+  },
+  {
+    "name": "G4",
+    "passed": true,
+    "criterion": "early <= middle <= late (typicality distance from early baseline)",
+    "current_value": "{'early': 0.628585327936142, 'middle': 0.6642066108375195, 'late': 0.7313997625599127}",
+    "detail": {
+      "group_means": {
+        "early": 0.628585327936142,
+        "middle": 0.6642066108375195,
+        "late": 0.7313997625599127
+      },
+      "corpus_fingerprint": "7e1ee4df090573c8"
+    }
+  },
+  {
+    "name": "G5",
+    "passed": false,
+    "criterion": "G1/G3/G4 collapse to chance under permuted author labels",
+    "current_value": "ERROR (machinery): G5 shuffled G1 leg: 80/216 scoring calls failed (>10%)",
+    "detail": {
+      "machinery_error": "G5 shuffled G1 leg: 80/216 scoring calls failed (>10%)",
+      "corpus_fingerprint": {
+        "seminary": "45d6f8cdad0ec4af",
+        "public_authors": "490f8721f7042297",
+        "plato": "7e1ee4df090573c8"
+      }
+    }
+  },
+  {
+    "name": "G6",
+    "passed": false,
+    "criterion": "per-group flagged rate for the p_central/too-uniform action must not differ by more than 2x between native_english=true and =false authentic samples \u2014 verdict covers the p_central action ONLY; the spec's per-group uniformity-feature comparison is recorded in detail as measurement, not gated (pending Tier-18 NORM_BOUNDS calibration)",
+    "current_value": "SKIPPED (threshold unreachable): p_central floor 1/(n+1)=0.200 at n=4, flag threshold 0.02 needs n>=49",
+    "detail": {
+      "min_typicality_n": 4,
+      "p_floor": 0.2,
+      "threshold": 0.02,
+      "required_n": 49,
+      "missing": "p_central floor 1/(n+1)=0.200 at n=4, flag threshold 0.02 needs n>=49",
+      "n_native_scored": 15,
+      "n_non_native_scored": 10,
+      "corpus_fingerprint": "a8af4ef81445909d"
+    }
+  }
+]

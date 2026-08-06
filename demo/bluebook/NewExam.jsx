@@ -7,11 +7,12 @@ import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, Logotype, MetaLabel, Seal, 
 // ════════════════════════════════════════════════════════════════
 const { useState: useNEState } = React;
 
-// Demo-mode fallback only — used when unauthenticated (no tenant to fetch
-// courses for) or when the live /bluebook/courses fetch fails outright.
-// Authenticated sessions always prefer the tenant's real course list so
-// exams can only reference courses that actually exist (see NewExamScreen).
-const COURSES = [
+// Demo fallback only. An unauthenticated visitor walking the demo still sees a
+// populated picker; a signed-in professor never does — they get their own
+// courses from GET /bluebook/courses. Same shape and same guard Courses.jsx
+// uses for MOCK_COURSES_DATA, so a real tenant can never be shown fabricated
+// course codes (professor-journey.spec.mjs's mock-leak guards pin that).
+const MOCK_COURSES = [
   { code: 'PHIL 301A', name: 'Ethics in the Modern World' },
   { code: 'POLS 204',  name: 'Foundations of Political Thought' },
   { code: 'PHIL 590',  name: 'Metaphysics and Epistemology' },
@@ -25,9 +26,15 @@ function FormField({ label, hint, children, id }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <MetaLabel htmlFor={id}>{label}</MetaLabel>
+        {/* BB.fade at its own resting strength, not a faded BB.fade. The extra
+            `opacity: 0.7` this used to carry composited to #617188 and read
+            3.85:1 at 13px, under WCAG AA's 4.5:1 — the same defect, and the
+            same fix, as the shared sidebar's `Original Analysis` control
+            (Dashboard.jsx, #105). Full BB.fade reads 6.80:1 and is still
+            plainly secondary to the field's own BB.cream value text. */}
         {hint && <span style={{
           fontFamily: fontBody, fontStyle: 'italic',
-          fontSize: 13, color: BB.fade, opacity: 0.7,
+          fontSize: 13, color: BB.fade,
         }}>{hint}</span>}
       </div>
       {children}
@@ -153,7 +160,6 @@ function ToggleRow({ label, desc, value, onChange }) {
 export function NewExamScreen({ onNavigate }) {
   const [title,     setTitle]     = useNEState('');
   const [course,    setCourse]    = useNEState('');
-  const [liveCourses, setLiveCourses] = useNEState(null); // null = not yet fetched
   const [duration,  setDuration]  = useNEState(90);
   const [minWords,  setMinWords]  = useNEState(600);
   const [maxWords,  setMaxWords]  = useNEState(1200);
@@ -168,27 +174,38 @@ export function NewExamScreen({ onNavigate }) {
   const [aiDetect,  setAiDetect]  = useNEState(true);
   const [saving,    setSaving]    = useNEState(false);
   const [saved,     setSaved]     = useNEState(false);
+  // ── Course picker (GET /bluebook/courses) ──
+  // `null` means the first fetch has not answered yet, which is a third state
+  // distinct from "answered, and you have none" — the screen says something
+  // different for each. Courses.jsx collapses the two because it only has to
+  // render a table; this screen has to decide what control to put under the
+  // Course label, so it keeps them apart.
+  const [serverCourses, setServerCourses] = useNEState(null);
+  const [coursesFailed, setCoursesFailed] = useNEState(false);
 
   React.useEffect(() => {
     let live = true;
-    BB_API.listCourses().then(list => { if (live) setLiveCourses(list); });
+    // BB_API.listCourses() resolves to `null` when the request failed or came
+    // back non-OK, and to an array (possibly empty) when it succeeded — the
+    // only signal available to tell a broken call from an empty roster.
+    BB_API.listCourses().then(list => {
+      if (!live) return;
+      if (list === null) { setCoursesFailed(true); setServerCourses([]); }
+      else setServerCourses(list);
+    });
     return () => { live = false; };
   }, []);
 
-  // GET /bluebook/courses succeeds (200) regardless of auth — scoped to the
-  // caller's tenant when authenticated, unscoped otherwise (same pattern
-  // Results.jsx already relies on for /bluebook/submissions) — so an empty
-  // array is a real, meaningful "this tenant has zero courses" result, not
-  // an auth gate. COURSES only fires on an outright fetch/network failure
-  // (listCourses() resolves null), matching Results.jsx's MOCK_RESULTS.
-  const courses = liveCourses !== null ? liveCourses : COURSES;
-  const noCoursesYet = liveCourses !== null && liveCourses.length === 0;
+  const loadingCourses = serverCourses === null;
+  const courses = (serverCourses && serverCourses.length)
+    ? serverCourses : (BB_API.isAuthed() ? [] : MOCK_COURSES);
+  // Default to the professor's first course until they pick another, without
+  // an extra effect that would fight a deliberate choice. When there is no
+  // list to pick from, the field is a typed code and `course` is it verbatim.
+  const selectedCourse = courses.some(c => c.code === course)
+    ? course : (courses.length ? courses[0].code : course);
 
-  React.useEffect(() => {
-    if (!course && courses.length) setCourse(courses[0].code);
-  }, [courses, course]);
-
-  const canSubmit = title.trim() && duration && prompts.some(p => p.trim()) && course && !noCoursesYet;
+  const canSubmit = title.trim() && duration && prompts.some(p => p.trim());
 
   function addPrompt() {
     setPrompts(ps => [...ps, '']);
@@ -205,11 +222,12 @@ export function NewExamScreen({ onNavigate }) {
   async function handleSave(publish = false) {
     if (!canSubmit || saving) return;
     const conditions = { blockAI, blockWeb, blockCopy, spellChk, phoneBlk, aiDetect };
+    const courseCode = (selectedCourse || '').trim();
     // Keep the live config so taking the exam immediately reflects these settings.
     window.BB_EXAM_CONFIG = {
       title:    title.trim(),
-      course,
-      courseTitle: course,
+      course:   courseCode,
+      courseTitle: courseCode,
       duration: Number(duration) || 90,
       minWords: Number(minWords) || 0,
       maxWords: Number(maxWords) || 0,
@@ -221,7 +239,7 @@ export function NewExamScreen({ onNavigate }) {
     try {
       const created = await BB_API.createExam({
         title:    title.trim(),
-        course,
+        course:   courseCode,
         duration: Number(duration) || 90,
         minWords: Number(minWords) || 0,
         maxWords: Number(maxWords) || 0,
@@ -314,24 +332,48 @@ export function NewExamScreen({ onNavigate }) {
                 placeholder="e.g. Ethics in the Modern World — Final Examination"
               />
             </FormField>
-            <FormField label="Course" id="neCourse">
-              {noCoursesYet ? (
-                <p style={{
+            {/* Course — the professor's real courses (GET /bluebook/courses),
+                read the same way Courses.jsx reads them. Three answers, three
+                controls: a picker once the list is in, and a typed course code
+                when there is nothing to pick from, so neither an empty roster
+                nor a failed call can strand someone who came here to write an
+                examination. `id="neCourse"` is on whichever control is live,
+                and the <label> only claims it once one exists. */}
+            <FormField label="Course" id={loadingCourses ? undefined : 'neCourse'}>
+              {loadingCourses ? (
+                <p role="status" style={{
                   fontFamily: fontBody, fontStyle: 'italic', fontSize: 15,
-                  color: BB.fade, margin: '6px 0 0',
-                }}>
-                  No courses yet — <button onClick={() => onNavigate('courses')} style={{
-                    fontFamily: 'inherit', fontStyle: 'inherit', fontSize: 'inherit',
-                    color: BB.gold, background: 'none', border: 'none', padding: 0,
-                    cursor: 'pointer', textDecoration: 'underline',
-                  }}>create one</button> before scheduling an examination.
-                </p>
-              ) : (
+                  color: BB.fade, margin: '8px 0 0',
+                }}>Loading your courses…</p>
+              ) : courses.length ? (
                 <SelectInput
                   id="neCourse"
-                  value={course} onChange={setCourse}
+                  value={selectedCourse} onChange={setCourse}
                   options={courses.map(c => ({ value: c.code, label: `${c.code} · ${c.name}` }))}
                 />
+              ) : (
+                <>
+                  <TextInput
+                    id="neCourse"
+                    value={course} onChange={setCourse}
+                    placeholder="PHIL 401"
+                  />
+                  <p role="status" style={{
+                    fontFamily: fontBody, fontSize: 15,
+                    color: BB.fade, margin: '2px 0 0',
+                  }}>
+                    {coursesFailed
+                      ? 'Your courses could not be loaded just now. Type the course code to carry on — the examination will still be saved.'
+                      : 'No courses yet. Type a code to carry on, or '}
+                    {!coursesFailed && (
+                      <button onClick={() => onNavigate('courses')} style={{
+                        fontFamily: fontBody, fontSize: 15, color: BB.gold,
+                        background: 'none', border: 'none', padding: 0,
+                        cursor: 'pointer', textDecoration: 'underline',
+                      }}>add one on the Courses screen →</button>
+                    )}
+                  </p>
+                </>
               )}
             </FormField>
           </div>
@@ -450,11 +492,20 @@ export function NewExamScreen({ onNavigate }) {
             {saving ? 'Creating…' : 'Publish Examination'}
           </BtnPrimary>
         </div>
+        {/* The one thing on this screen that says why both buttons are dead,
+            and it was the least legible thing on it: `rgba(139,155,180,0.4)`
+            is BB.fade at 40%, which composites to #38485b and reads 2.05:1 at
+            10px — under half of WCAG AA's 4.5:1. Full BB.fade reads 6.80:1
+            (the sidebar's resting tier, #105), and the size goes to 12.5px,
+            which is the product-wide readability floor MetaLabel already
+            documents and sets (components.jsx). Nothing else moves: same
+            copy, same right-aligned position, same mono/uppercase treatment
+            that keeps it subordinate to the buttons above it. */}
         {!canSubmit && (
           <p style={{
             textAlign: 'right', marginTop: 10,
-            fontFamily: fontMono, fontSize: 10, letterSpacing: '0.14em',
-            color: 'rgba(139,155,180,0.4)', textTransform: 'uppercase',
+            fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
+            color: BB.fade, textTransform: 'uppercase',
           }}>Title and at least one prompt are required</p>
         )}
       </div>

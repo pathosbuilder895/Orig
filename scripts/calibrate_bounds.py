@@ -55,6 +55,7 @@ try:
     from original.features.tier5 import extract_tier5
     from original.features.tier6 import extract_tier6
     from original.features.tier7 import extract_tier7
+    from original.features.uniformity import extract_uniformity
     from original.constants import (
         BASE_FEATURE_CODES,
         FEATURE_TIER,
@@ -86,6 +87,7 @@ def extract_raw(text: str) -> Dict[str, float]:
     raw.update(extract_tier5(doc))
     raw.update(extract_tier6(doc))
     raw.update(extract_tier7(doc))
+    raw.update(extract_uniformity(doc))
     return raw
 
 
@@ -127,6 +129,7 @@ _TIER_LABELS: Dict[int, str] = {
     5: "Tier 5 — POS & Shallow Syntax",
     6: "Tier 6 — Idiosyncratic Patterns",
     7: "Tier 7 — AI Detection Markers",
+    18: "Tier 18 — Uniformity (2nd Moments)",
 }
 
 
