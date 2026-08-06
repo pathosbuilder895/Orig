@@ -648,6 +648,7 @@ def _serialize(state: StudentState) -> str:
             "auth_weight": s.auth_weight,
             "assignment": s.assignment,
             "submitted_at": s.submitted_at,
+            "word_count": s.word_count,
             # Phase 4 context metadata — null-safe for legacy samples that
             # haven't been backfilled yet (caller persists after lazy
             # ensure_sample_context_metadata()).
@@ -721,6 +722,7 @@ def _deserialize(data: str) -> StudentState:
                 auth_weight=s["auth_weight"],
                 assignment=s.get("assignment", ""),
                 submitted_at=s.get("submitted_at", ""),
+                word_count=s.get("word_count"),
                 genre=s.get("genre"),
                 topic_centroid=topic_centroid,
                 context_manifest=s.get("context_manifest"),
@@ -874,6 +876,10 @@ def submission_student_id(submission_id: str) -> str | None:
         return str(m["student_id"])
     try:
         with _get_conn() as conn:
+            # The pattern matches against the JSON-encoded details_json, so
+            # an id containing chars JSON escapes (\ or ") won't match its
+            # own row and resolves to None — fail-safe, and ids are locally
+            # generated so this doesn't occur in practice.
             row = conn.execute(
                 "SELECT student_id FROM audit_log WHERE action = 'score' "
                 r"AND details_json LIKE ? ESCAPE '\' ORDER BY created_at DESC LIMIT 1",

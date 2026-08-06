@@ -307,6 +307,25 @@ _DEMO_ONLY_STATICS = frozenset(
         "/validation_thresholds.json",
     }
 )
+_DEMO_ONLY_STATIC_PREFIXES = frozenset({"/prototypes"})
+
+
+def _is_demo_only_static_path(path: str) -> bool:
+    """Return whether *path* belongs to a demo-only static surface.
+
+    Exact-file gates cover the legacy one-off artifacts above. Prefix gates
+    cover self-contained prototype directories, including their index pages,
+    JavaScript modules, stylesheets, images, and any future nested assets. The
+    explicit path-boundary check avoids accidentally hiding a legitimate path
+    such as ``/prototypes-public``.
+    """
+    normalized = path.rstrip("/") or "/"
+    if normalized in _DEMO_ONLY_STATICS:
+        return True
+    return any(
+        normalized == prefix or normalized.startswith(f"{prefix}/")
+        for prefix in _DEMO_ONLY_STATIC_PREFIXES
+    )
 
 
 def _is_staff_only_path(path: str) -> bool:
@@ -318,7 +337,7 @@ def _is_staff_only_path(path: str) -> bool:
 async def tenant_isolation(request: Request, call_next):
     principal = principal_mod.resolve_principal(request)
     request.state.principal = principal
-    if _IS_REAL_DEPLOY and request.url.path in _DEMO_ONLY_STATICS:
+    if _IS_REAL_DEPLOY and _is_demo_only_static_path(request.url.path):
         return JSONResponse(status_code=404, content={"detail": "Not found"})
     if _IS_REAL_DEPLOY and _is_staff_only_path(request.url.path):
         if principal.is_demo or principal.role == "student":

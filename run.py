@@ -84,7 +84,7 @@ def create_demo_app(frontend_dir: Path):
 
 def main():
     parser = argparse.ArgumentParser(description="Original authorship API server")
-    parser.add_argument("--port", type=int, default=8001)
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8001)))
     parser.add_argument(
         "--demo",
         action="store_true",

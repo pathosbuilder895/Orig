@@ -379,6 +379,11 @@ async function loadTenants() {
       submissionCount: totalSubs,
       troubledTenants: troubled,
     });
+    // Keep the stat tiles reconciled with the hero — both must reflect the
+    // same per-tenant sum, or the screen shows two different totals (BUG-2).
+    document.getElementById('ssTenants').textContent     = tenants.length || '—';
+    document.getElementById('ssStudents').textContent    = totalStudents;
+    document.getElementById('ssSubmissions').textContent = totalSubs;
 
     grid.innerHTML = tenants.map(t => {
       const s = statsByTenant[t.tenant_id] || {};

@@ -9,9 +9,6 @@ Fetches:
   2. PAN 2021 Authorship Verification dataset (Zenodo)
      — Pre-structured same/different-author pairs with ground truth
      — Cross-topic same-author pairs = the hard test for Original
-  3. PAN 2022 Authorship Verification dataset (Zenodo)
-     — Larger, includes cross-topic and cross-genre variants
-
 All data cached to .benchmark_cache/ — subsequent runs skip downloads.
 
 Usage
@@ -308,36 +305,23 @@ def fetch_arxiv(force: bool = False) -> dict[str, list[dict]]:
 
 # ── PAN Authorship Verification Datasets ──────────────────────────────────────
 
-# PAN 2021, 2022, 2023 authorship verification datasets on Zenodo.
+# PAN 2021 authorship verification test release on the authoritative PAN DOI.
 # Each is a ZIP containing:
 #   pan21-authorship-verification-training-large/
 #     pairs.jsonl   — {id, pair: [text1, text2], authors: [a1, a2]}
 #     truth.jsonl   — {id, same: bool, almost_same: bool}
 #
-# All three editions released under Creative Commons — free to download.
+# The previous 2021/2022/2023 record IDs pointed to unrelated Zenodo records.
+# Keep only the release whose authoritative PAN/Webis DOI has been verified.
 
 PAN_DATASETS = {
     2021: {
         "name": "PAN 2021 Authorship Verification",
-        "zenodo_id": "5176357",
-        "zenodo_url": "https://zenodo.org/record/5176357/files/pan21-authorship-verification-training-large.zip",
-        "zip_name": "pan21-authorship-verification-training-large.zip",
-        "inner_dir": "pan21-authorship-verification-training-large",
-        "note": "English, cross-topic, fan fiction + news + academic",
-    },
-    2022: {
-        "name": "PAN 2022 Authorship Verification",
-        "zenodo_url": "https://zenodo.org/record/7013764/files/pan22-authorship-verification-training-dataset-without-labels.zip",
-        "zip_name": "pan22-av-training.zip",
-        "inner_dir": "pan22-authorship-verification-training-dataset-without-labels",
-        "note": "Multilingual, cross-genre, includes cross-topic same-author pairs",
-    },
-    2023: {
-        "name": "PAN 2023 Authorship Verification",
-        "zenodo_url": "https://zenodo.org/record/7729936/files/pan23-authorship-verification-training-dataset20230410.zip",
-        "zip_name": "pan23-av-training.zip",
-        "inner_dir": "pan23-authorship-verification-training-dataset20230410",
-        "note": "English, cross-topic same-author pairs — hardest edition",
+        "zenodo_id": "5106099",
+        "zenodo_url": "https://zenodo.org/api/records/5106099/files/pan21-authorship-verification-test.zip/content",
+        "zip_name": "pan21-authorship-verification-test.zip",
+        "inner_dir": "pan21-authorship-verification-test",
+        "note": "English, open-set cross-topic fan fiction; official PAN/Webis DOI",
     },
 }
 
@@ -349,7 +333,7 @@ def fetch_pan(years: list[int] = None, force: bool = False) -> dict[int, dict]:
     where pairs is list of {id, texts: [t1, t2]} and truth is {id: bool}.
     """
     if years is None:
-        years = [2021, 2022, 2023]
+        years = [2021]
 
     PAN_DIR.mkdir(parents=True, exist_ok=True)
     results = {}
@@ -402,10 +386,11 @@ def fetch_pan(years: list[int] = None, force: bool = False) -> dict[int, dict]:
 
         if not pairs_path.exists():
             # Search recursively
-            found = list(year_dir.rglob("pairs.jsonl"))
+            found = [p for p in year_dir.rglob("*.jsonl") if "truth" not in p.name.lower()]
             if found:
                 pairs_path = found[0]
-                truth_path = pairs_path.parent / "truth.jsonl"
+                truth_candidates = list(pairs_path.parent.glob("*truth.jsonl"))
+                truth_path = truth_candidates[0] if truth_candidates else pairs_path.parent / "truth.jsonl"
             else:
                 log.error("  Could not find pairs.jsonl in extracted archive")
                 continue
@@ -702,7 +687,6 @@ def print_summary(arxiv_data: dict, pan_data: dict):
     print("\n▸ Ready to run:")
     print("  python scripts/benchmark.py --dataset arxiv")
     print("  python scripts/benchmark.py --dataset pan2021")
-    print("  python scripts/benchmark.py --dataset pan2022")
     print("  python scripts/benchmark.py --dataset all")
     print()
 
@@ -718,7 +702,7 @@ def main():
     parser.add_argument("--arxiv", action="store_true", help="Fetch arXiv papers only")
     parser.add_argument("--pan", action="store_true", help="Fetch PAN datasets only")
     parser.add_argument(
-        "--pan-year", type=int, choices=[2021, 2022, 2023], help="Fetch specific PAN year only"
+        "--pan-year", type=int, choices=[2021], help="Fetch the labeled PAN 2021 release only"
     )
     parser.add_argument("--raid", action="store_true", help="Fetch RAID sample CSV only")
     parser.add_argument("--m4", action="store_true", help="Fetch M4 JSONL files only")
@@ -751,7 +735,7 @@ def main():
         log.info("=" * 50)
         log.info("Fetching PAN datasets")
         log.info("=" * 50)
-        years = [args.pan_year] if args.pan_year else [2021, 2022, 2023]
+        years = [args.pan_year] if args.pan_year else [2021]
         pan_data = fetch_pan(years=years, force=args.force)
 
     if args.raid:

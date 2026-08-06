@@ -103,12 +103,12 @@ Close the four items that can silently lose FERPA-protected data or ship a known
 - **Verify:** `grep -n "GUARD_DESTRUCTIVE" docs/OPS_RUNBOOK.md` returns the new coverage; runbook names both semantics of `MAINTENANCE_TOKEN`. Doc-only; no test.
 
 ## Acceptance criteria
-- [ ] `pip-audit -r requirements-pilot.txt` is clean for python-jose (no PYSEC-2024-232/233); both requirements files pin `>=3.4.0` (B10).
-- [ ] An injected `sqlite3.Error` on write makes `store.put()` raise and log ERROR; the API returns 503 for that write instead of a silent success (A1).
-- [ ] `_load_all` fails startup on an existing-but-unreadable DB and starts empty only when the DB file is genuinely absent (A1).
-- [ ] `python run.py --demo` against an existing non-seed `ORIGINAL_DB` cannot clear or reseed it; `--port` default is 8001; banner advertises only pages that exist under `demo/` (B16).
-- [ ] `docs/OPS_RUNBOOK.md` documents both `MAINTENANCE_TOKEN` semantics and `GUARD_DESTRUCTIVE`; pilot token rotated if it predates the doc (F3 subset).
-- [ ] `.venv/bin/python -m pytest tests/ -q` → 0 failed (5 rate-limit tests XFAIL/XPASS as usual).
+- [x] `pip-audit -r requirements-pilot.txt` is clean for python-jose (no PYSEC-2024-232/233); both requirements files pin `>=3.4.0` (B10).
+- [x] An injected `sqlite3.Error` on write makes `store.put()` raise and log ERROR; the API returns 503 for that write instead of a silent success (A1).
+- [x] `_load_all` fails startup on an existing-but-unreadable DB and starts empty only when the DB file is genuinely absent (A1).
+- [x] `python run.py --demo` against an existing non-seed `ORIGINAL_DB` cannot clear or reseed it; `--port` default is 8001; banner advertises only pages that exist under `demo/` (B16).
+- [ ] `docs/OPS_RUNBOOK.md` documents both `MAINTENANCE_TOKEN` semantics and `GUARD_DESTRUCTIVE`; pilot token rotated if it predates the doc (F3 subset). (Doc coverage done — both sections present in OPS_RUNBOOK.md; token rotation is an operator action against the live pilot, unverifiable from the repo.)
+- [x] `.venv/bin/python -m pytest tests/ -q` → 0 failed (5 rate-limit tests XFAIL/XPASS as usual).
 
 ## Risks & watch-outs
 - **Byte-identical invariant:** untouched. None of these edits enter `original/quantum/` or the flag-gated scoring branches; flags-OFF output is unchanged. The A1 API seam only converts a swallowed write failure into a 503 — it never alters a *successful* score's bytes.

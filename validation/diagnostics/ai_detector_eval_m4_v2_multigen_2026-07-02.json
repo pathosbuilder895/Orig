@@ -1,5 +1,5 @@
 {
-  "dataset": "m4 eval split (held-out pairs \u2014 never trained on, even with --mix-m4)",
+  "dataset": "m4 eval split (held-out pairs — never trained on, even with --mix-m4)",
   "artifact": "/Users/andrew/Desktop/Original/original/data/ai_detector_v1.joblib",
   "trained_on": "autextification-2023-en+m4-academic-mix",
   "overall": {
@@ -142,7 +142,7 @@
     }
   },
   "env": {
-    "secret_key": "bench-key-do\u2026(44 chars)",
+    "secret_key": "bench-key-do…(44 chars)",
     "environment": "testing",
     "original_db": ":memory:",
     "numpy_seeded": true,
@@ -153,5 +153,6 @@
       "BAYESIAN_PRIOR_ENABLED": "0",
       "LENGTH_ADAPTIVE_WEIGHTS": "0"
     }
-  }
+  },
+  "_SCOPE_NOTE": "This file IS genuinely multi-generator (chatgpt/cohere/davinci, see per_generator_tpr) — its filename is accurate. But it is OUT-OF-DOMAIN academic text (M4), not seminary theology essays, so it does NOT satisfy the pilot runbook enablement gate, which requires an IN-DOMAIN multi-generator eval. That eval does not exist yet — see validation/diagnostics/README_multigen_eval.md and validation/diagnostics/multigen_harness.py."
 }

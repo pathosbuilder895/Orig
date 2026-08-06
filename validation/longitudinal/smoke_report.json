@@ -1,0 +1,64 @@
+{
+  "model_version": "longitudinal-ridge-v1",
+  "manifest": "validation/longitudinal/smoke_manifest.json",
+  "seed": 20260804,
+  "permutation_repeats": 200,
+  "summary": {
+    "n_probes": 2,
+    "n_longitudinal_eligible": 2,
+    "mean_static_deviation": 0.5845725847427504,
+    "mean_predicted_current_deviation": 0.5124532445746818,
+    "mean_drift_relief": 0.0,
+    "genuine_flag_rate": {
+      "0.4": {
+        "static": 1.0,
+        "drift_adjusted": 1.0
+      },
+      "0.6": {
+        "static": 0.5,
+        "drift_adjusted": 0.5
+      },
+      "0.75": {
+        "static": 0.0,
+        "drift_adjusted": 0.0
+      }
+    },
+    "selected_models": {
+      "constant": 2
+    },
+    "interpretations": {
+      "no_supported_drift": 1,
+      "unexplained_change": 1
+    }
+  },
+  "permutation_false_drift_selection_by_author": {
+    "twain": 0.01
+  },
+  "results": [
+    {
+      "author_id": "twain",
+      "filename": "twain/102_the_tragedy_of_pudd'nhead_wilson.txt",
+      "submitted_at": "1894-01-01",
+      "static_deviation": 0.5669079289304471,
+      "predicted_current_deviation": 0.407783044431741,
+      "drift_relief": 0.0,
+      "selected_model": "constant",
+      "interpretation": "no_supported_drift"
+    },
+    {
+      "author_id": "twain",
+      "filename": "twain/2874_personal_recollections_of_joan_of_arc.txt",
+      "submitted_at": "1896-01-01",
+      "static_deviation": 0.6022372405550538,
+      "predicted_current_deviation": 0.6171234447176225,
+      "drift_relief": 0.0,
+      "selected_model": "constant",
+      "interpretation": "unexplained_change"
+    }
+  ],
+  "limitations": [
+    "Genuine chronological probes only; pair with matched-peer impostor verification.",
+    "Thresholds are reported, never updated automatically.",
+    "Authors without ISO submitted_at metadata are excluded."
+  ]
+}

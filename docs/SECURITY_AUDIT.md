@@ -5,9 +5,10 @@
 > + `demo/` + `/lti/*`, with principal tokens, PBKDF2, hardened SQLite/WAL, and
 > Render-managed TLS, none of it examined here. This report's "SECURE for
 > pilot deployment" conclusion does not reflect the live stack.
-> A live-stack re-audit is scheduled — see WS-3 task 3 follow-up
+> The live-stack re-audit is done — see
+> [`docs/SECURITY_REAUDIT_2026-07-09.md`](SECURITY_REAUDIT_2026-07-09.md)
 > (auth throttle, `X-Guard-Token`/`MAINTENANCE_TOKEN` guard, tenant isolation,
-> CORS fail-fast via `ALLOWED_ORIGINS`).
+> CORS fail-fast via `ALLOWED_ORIGINS`) for the current verdict on each.
 > See `docs/ARCHITECTURE.md` for which stack is live.
 
 # Original Security Audit Report

@@ -74,15 +74,16 @@ Raise real test execution over the **live** pilot stack (`api.py` 61%, `store.py
 - **Verify:** `.venv/bin/python -m pytest tests/test_tier10_st_backend.py -v`; `.venv/bin/python -m pytest tests/test_v1_api_dormant.py -q` still collects the 26 tests (xfails still XPASS); no import references the old `test_api` name.
 
 ## Acceptance criteria
-- [ ] **Coverage ≥78% overall**, `original/api.py` **≥75%**, `original/store.py` **≥85%** (from 61%/73%), measured by `.venv/bin/python -m pytest tests/ validation/test_tier10_optional.py --cov=original --cov-report=term-missing`.
-- [ ] `--cov-fail-under` in CI **ratcheted** from WS-2's floor (70) up to **78**; CI goes red if coverage drops below it.
-- [ ] `test_bluebook_api.py` executes `api.py:623-742` (Bluebook CRUD) and the `lifespan` fail-closed guard (`:117-135`); tenant-scoping assertion present.
-- [ ] `test_store_bluebook.py` executes `store.py:1653-1813`; one injected-`sqlite3.Error` test proves a write failure surfaces (shared with WS-1.2).
-- [ ] `test_scoring_flags.py` runs `score()` under each flag combination; **flags-OFF output is byte-identical to the captured Phase-1 baseline**; the conformal-nudge escalation-only property holds.
-- [ ] `test_quantum.py`: `@given` count matches the Hypothesis import (both present or both removed); `test_empty_state` has a real `pytest.raises`; RNG seeded.
-- [ ] `middleware/rbac.py` and `tasks/scoring.py` deleted; `cli/security_audit.py` no longer references the deleted `rbac.py`; `cli/delete_student.py` tested or header-redirected.
-- [ ] `test_api.py` renamed to `test_v1_api_dormant.py`; `tier10` ST backend test green.
-- [ ] Full suite clean: `0 failed` (the 5 `TestAuthEndpoints` xfails remain XFAIL/XPASS, never failures).
+> Verified against the working tree 2026-07-09.
+- [ ] **Coverage ≥78% overall**, `original/api.py` **≥75%**, `original/store.py` **≥85%** (from 61%/73%), measured by `.venv/bin/python -m pytest tests/ validation/test_tier10_optional.py --cov=original --cov-report=term-missing`. — NOT DONE: measured **74% overall / 68% api.py / 80% store.py** — real progress over the 61%/73% baseline, but short of all three targets.
+- [ ] `--cov-fail-under` in CI **ratcheted** from WS-2's floor (70) up to **78**; CI goes red if coverage drops below it. — NOT DONE: CI currently sets `--cov-fail-under=72` (already ratcheted once from 70, but not yet to 78 — consistent with coverage not yet reaching 78%).
+- [x] `test_bluebook_api.py` executes `api.py:623-742` (Bluebook CRUD) and the `lifespan` fail-closed guard (`:117-135`); tenant-scoping assertion present. — DONE.
+- [x] `test_store_bluebook.py` executes `store.py:1653-1813`; one injected-`sqlite3.Error` test proves a write failure surfaces (shared with WS-1.2). — DONE (three separate `pytest.raises(sqlite3.Error)` tests, not just one).
+- [x] `test_scoring_flags.py` runs `score()` under each flag combination; **flags-OFF output is byte-identical to the captured Phase-1 baseline**; the conformal-nudge escalation-only property holds. — DONE, all three sub-properties present and passing.
+- [x] `test_quantum.py`: `@given` count matches the Hypothesis import (both present or both removed); `test_empty_state` has a real `pytest.raises`; RNG seeded. — DONE, with one deliberate deviation from the doc's literal suggestion: `test_empty_state` asserts the real contract (does not raise) rather than `pytest.raises`, since that's what the actual code does — a justified correction, not a gap.
+- [x] `middleware/rbac.py` and `tasks/scoring.py` deleted; `cli/security_audit.py` no longer references the deleted `rbac.py`; `cli/delete_student.py` tested or header-redirected. — DONE.
+- [x] `test_api.py` renamed to `test_v1_api_dormant.py`; `tier10` ST backend test green. — DONE.
+- [x] Full suite clean: `0 failed` (the 5 `TestAuthEndpoints` xfails remain XFAIL/XPASS, never failures). — DONE: confirmed 0 failed, 5 xpassed.
 
 ## Risks & watch-outs
 - **Flags-OFF byte-identical invariant (core project invariant):** 5.3 tests near `score()`. Assert against a *captured* Phase-1 baseline, never regenerate the baseline from the flags-ON path. Any test that would require changing `scoring.py` default behavior is out of scope — the task is tests only.

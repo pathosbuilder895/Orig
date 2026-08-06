@@ -30,7 +30,7 @@ When a new submission arrives, its feature vector is scored via variance-weighte
 
 ```
 z_i = (submission_i − baseline_mean_i) / baseline_std_i
-D_raw = tanh(RMS(z) / 2.5)
+D_raw = tanh(RMS(z) / 1.5)
 ```
 
 The score is then trajectory-adjusted (±15–25% based on whether the deviation aligns with observed writing development) and mapped to a recommended action.
@@ -117,7 +117,11 @@ Original currently uses 103 ordered feature dimensions from `original/constants.
 | 0.75 – 1.00 | `escalate` | Significant deviation — formal review |
 | RMS z > 3.0 | `escalate` (override) | Catastrophic drift — immediate review regardless of score |
 
-Fewer than 5 verified baselines suppresses escalation to `schedule_conversation` automatically.
+Fewer than 5 verified baselines should suppress escalation to
+`schedule_conversation` by institutional policy. The current live pilot path
+does not hard-enforce that downgrade; it exposes reduced baseline confidence
+and requires human review. See `MODEL_CARD.md` for the live-vs-v1 enforcement
+distinction.
 
 These thresholds generate recommendations only. `schedule_conversation` should be treated as an invitation to ask the student about process, sources, drafting conditions, accommodations, and possible legitimate changes in writing context. `escalate` means the case is ready for institutional review, not that misconduct has been proven.
 

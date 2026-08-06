@@ -2,10 +2,12 @@
 upload_utils.py — Shared text extraction utilities (dependency-free).
 
 Extracts plain text from PDF, DOCX, and TXT file bytes. Canonical home of
-the extractor; lives at the package root so it stays importable without
-triggering the v1 package chain (original/api/v1/__init__.py pulls
-SQLAlchemy + pydantic-settings, absent from the demo environment) — the
-dormant v1 app reaches it via the re-export shim at api/v1/upload_utils.py.
+the extractor; lives at the package root so BOTH stacks can import it:
+
+  - the live demo app (original/api.py + canvas/live_import.py), which must
+    never trigger the v1 package chain (original/api/v1/__init__.py pulls
+    SQLAlchemy + pydantic-settings, absent from the demo environment), and
+  - the dormant v1 app, via the re-export shim at api/v1/upload_utils.py.
 
 All extractors return a plain unicode string or raise ValueError with a
 human-readable reason so callers can attach it to per-file error reports.

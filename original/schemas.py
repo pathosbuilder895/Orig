@@ -42,6 +42,10 @@ class ScoreSubmissionRequest(BaseModel):
     text: str = Field(..., description="Raw essay text of the submission")
     submission_id: str = Field("", description="Optional external ID")
     assignment: str = Field("", description="Assignment name/label")
+    submitted_at: str = Field(
+        "",
+        description="Optional ISO submission date used only by report-only longitudinal analysis.",
+    )
     keystroke_data: dict | None = Field(
         None, description="Bbook stylemetry JSON for Tier 17 behavioral biometric scoring."
     )
@@ -552,6 +556,48 @@ class TrajectoryConformanceOut(BaseModel):
     adjustment_factor: float
 
 
+class DriftAnalysisOut(BaseModel):
+    """Report-only longitudinal analysis; never changes the recommendation."""
+
+    model_config = {"protected_namespaces": ()}
+
+    eligible: bool
+    reason: str | None
+    selected_model: str
+    historical_deviation: float | None
+    predicted_current_deviation: float | None
+    drift_relief: float | None
+    trend_confidence: float
+    predictive_improvement: float | None
+    sample_count: int
+    dated_sample_count: int
+    span_days: int
+    extrapolation_days: int | None
+    change_point_index: int | None
+    change_point_evidence: float | None
+    interpretation: str
+    feature_count: int
+    model_version: str
+
+
+class TrendAwareTypicalityOut(BaseModel):
+    """Report-only candidate null model for the typicality axis; never
+    changes the recommendation. See original.quantum.longitudinal
+    .trend_aware_typicality's docstring."""
+
+    model_config = {"protected_namespaces": ()}
+
+    eligible: bool
+    reason: str | None
+    p_far: float | None
+    p_central: float | None
+    band: str | None
+    loo_n: int
+    submission_deviation: float | None
+    selected_model: str
+    model_version: str
+
+
 class FeatureContributionOut(BaseModel):
     code: str
     name: str
@@ -725,6 +771,21 @@ class AiLikelihoodOut(BaseModel):
     top_indicators: list[AiIndicatorOut] = []
 
 
+class StyleAuthorshipOut(BaseModel):
+    """Peer-aligned same-author evidence; report-only and abstention-capable."""
+
+    model_config = {"protected_namespaces": ()}
+
+    probability_same_author: float
+    band: str  # "consistent" | "inconclusive"
+    consistent_at_strict_threshold: bool
+    strict_threshold: float
+    peer_profiles: int
+    baseline_samples: int
+    model_version: str
+    trained_on: str
+
+
 class Layer7OutputResponse(BaseModel):
     student_id: str
     submission_id: str
@@ -746,6 +807,14 @@ class Layer7OutputResponse(BaseModel):
     report: ScoringReportOut | None = None
     # AI-likelihood — populated only when AI_LIKELIHOOD_ENABLED=1; null otherwise.
     ai_likelihood: AiLikelihoodOut | None = None
+    # Modern peer-aligned authorship expert — default-off and action-blind.
+    style_authorship: StyleAuthorshipOut | None = None
+    # Longitudinal drift — default-off, report-only, and action-blind.
+    drift_analysis: DriftAnalysisOut | None = None
+    # Trend-aware typicality — same gating and same report-only contract as
+    # drift_analysis; a candidate null model for the separate TYPICALITY_
+    # SCORING axis, not yet promoted to influence it.
+    trend_aware_typicality: TrendAwareTypicalityOut | None = None
     # Plain-English explanation for professors/instructors
     human_explanation: dict[str, Any] | None = None
     # Two-axis verification: typicality axis. Present on quantum.scoring.

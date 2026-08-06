@@ -162,3 +162,47 @@ def test_score_response_includes_tension_arc_field():
         "paragraph_arcs",
     }
     assert expected_fields.issubset(set(TensionArcOut.model_fields.keys()))
+
+
+# ── 6. An unreachable embedder degrades instead of failing the submission ────
+
+
+def test_unreachable_embedder_degrades_to_zero_cohesion(monkeypatch, caplog):
+    """A missing sentence-transformers model must never 500 a submission.
+
+    `SentenceTransformer("all-MiniLM-L6-v2")` downloads from huggingface.co on
+    first use and raises OSError when the host is unreachable and nothing is
+    cached — the normal state of a CI runner or an air-gapped deploy. Only
+    ImportError used to be caught, so that OSError propagated out of
+    `analyze_tension_arc`, through `add_baseline`, and became a 500 on every
+    baseline upload. Cohesion is an optional signal: absent weights must fall
+    back to 0.0, exactly as an absent package already did.
+    """
+    import logging
+
+    from original import tension_arc
+
+    monkeypatch.setattr(tension_arc, "_embedder", None)
+    monkeypatch.setattr(tension_arc, "_embedder_available", None)
+
+    calls = {"n": 0}
+
+    def _unreachable(*args, **kwargs):
+        calls["n"] += 1
+        raise OSError("We couldn't connect to 'https://huggingface.co' to load the files")
+
+    import sys
+    import types
+
+    fake_module = types.ModuleType("sentence_transformers")
+    fake_module.SentenceTransformer = _unreachable
+    monkeypatch.setitem(sys.modules, "sentence_transformers", fake_module)
+
+    with caplog.at_level(logging.WARNING):
+        assert tension_arc._get_embedder() is None
+    assert "cohesion tension will be 0" in caplog.text
+
+    # And the failure is remembered: a second lookup must not retry the same
+    # failing download (it would otherwise repeat once per paragraph).
+    assert tension_arc._get_embedder() is None
+    assert calls["n"] == 1, "a failed model load must not be retried on every call"

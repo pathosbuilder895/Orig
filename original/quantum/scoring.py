@@ -43,6 +43,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from original.ai_likelihood import AiLikelihoodResult
+    from original.quantum.longitudinal import DriftAnalysis, TrendAwareTypicality
+    from original.style_authorship import StyleAuthorshipResult
     from original.tension_arc import TensionArcResult
 
 import numpy as np
@@ -356,6 +358,23 @@ class Layer7Output:
     # feeds the deviation score or the recommended action. None when the
     # flag is off — preserves byte-identical responses by default.
     ai_likelihood: AiLikelihoodResult | None = field(default=None)
+
+    # Peer-aligned modern authorship consistency expert. Default-off and
+    # report-only; never feeds deviation_score or the recommendation.
+    style_authorship: StyleAuthorshipResult | None = field(default=None)
+
+    # Report-only chronological model.  Computed by the live API after the
+    # production score so it cannot influence score math or recommendations.
+    drift_analysis: DriftAnalysis | None = field(default=None)
+
+    # Report-only candidate null model for the SEPARATE, TYPICALITY_SCORING-
+    # gated typicality axis (typicality_p_far/typicality_p_central above,
+    # calibrated against state.loo_distances). This computes the same
+    # p_far/p_central against a trend-aware reference instead — see
+    # trend_aware_typicality()'s docstring. Attached alongside drift_analysis
+    # for the same reason: additive, cannot change deviation_score or the
+    # recommendation, pending an institutional holdout per ADR-008.
+    trend_aware_typicality: TrendAwareTypicality | None = field(default=None)
 
 
 # ── Amplitude scoring helper ──────────────────────────────────────────────────
