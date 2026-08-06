@@ -277,9 +277,9 @@ class CandidateGrammar:
     reference: list[NGramLM]
 
 
-def build_candidate_grammar(
-    candidate_texts: list[str],
-    reference_pool_texts: list[str],
+def build_candidate_grammar_from_sentences(
+    candidate_sentences: list[tuple[str, ...]],
+    reference_sentences: list[tuple[str, ...]],
     *,
     order: int = 10,
     repetitions: int = 30,
@@ -287,8 +287,18 @@ def build_candidate_grammar(
     rng: random.Random | None = None,
 ) -> CandidateGrammar:
     """Build G_A and the r resampled reference Grammar Models (Algorithm 1,
-    lines 7, 9-13) for one candidate author. See `CandidateGrammar`'s
-    docstring for why this is split from scoring.
+    lines 7, 9-13) from ALREADY-POSNoise-tagged sentences. See
+    `CandidateGrammar`'s docstring for why build is split from scoring.
+
+    Takes pre-tagged sentences rather than raw text so a caller scoring
+    many candidates against overlapping reference pools (e.g. every author
+    in a partition, each referencing "everyone else") can run
+    `posnoise_sentences` once per document and reuse the result, instead of
+    re-tagging the same texts once per candidate -- spaCy tagging measured
+    at ~236ms/2500-word document, which is not negligible when a reference
+    pool has dozens of documents and is rebuilt for every candidate.
+    `build_candidate_grammar` below is the convenience wrapper for the
+    common case of a single candidate against one pool.
 
     `repetitions=30` (not the paper's default 100): Section 4/Figure 3
     reports "in most corpora, setting r=100 is unnecessary, as performance
@@ -297,9 +307,6 @@ def build_candidate_grammar(
     cost of this function.
     """
     rng = rng or random.Random()
-
-    candidate_sentences = [s for text in candidate_texts for s in posnoise_sentences(text)]
-    reference_sentences = [s for text in reference_pool_texts for s in posnoise_sentences(text)]
 
     if not candidate_sentences:
         raise ValueError("candidate produced no usable sentences after POSNoise")
@@ -310,7 +317,7 @@ def build_candidate_grammar(
             "reference set without replacement"
         )
 
-    candidate_model = NGramLM(candidate_sentences, order=order, discount=discount)
+    candidate_model = NGramLM(list(candidate_sentences), order=order, discount=discount)
     reference_models = [
         NGramLM(
             rng.sample(reference_sentences, len(candidate_sentences)),
@@ -320,6 +327,28 @@ def build_candidate_grammar(
         for _ in range(repetitions)
     ]
     return CandidateGrammar(candidate_model, reference_models)
+
+
+def build_candidate_grammar(
+    candidate_texts: list[str],
+    reference_pool_texts: list[str],
+    *,
+    order: int = 10,
+    repetitions: int = 30,
+    discount: float = 0.75,
+    rng: random.Random | None = None,
+) -> CandidateGrammar:
+    """Convenience wrapper: POSNoise-tag raw text, then
+    `build_candidate_grammar_from_sentences`. For repeated calls sharing
+    overlapping reference pools, tag once with `posnoise_sentences` and
+    call the sentence-based version directly instead.
+    """
+    candidate_sentences = [s for text in candidate_texts for s in posnoise_sentences(text)]
+    reference_sentences = [s for text in reference_pool_texts for s in posnoise_sentences(text)]
+    return build_candidate_grammar_from_sentences(
+        candidate_sentences, reference_sentences,
+        order=order, repetitions=repetitions, discount=discount, rng=rng,
+    )
 
 
 def compute_lambda_g(
