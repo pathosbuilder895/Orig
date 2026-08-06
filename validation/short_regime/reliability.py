@@ -1,7 +1,7 @@
 """Per-feature ICC(1) at the 500-word operating point.
 
 ICC = between-author variance / total variance per feature. Answers: which
-of the 103 features still separates authors at 500 words? Output feeds the
+of the FEATURE_DIM features still separates authors at 500 words? Output feeds the
 Task 6-8 decisions and any future refit of LENGTH_WEIGHT_SCHEDULE['short']
 (constants.py:298 — read the Σ(w²) normalisation comment before refitting).
 

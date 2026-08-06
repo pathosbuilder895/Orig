@@ -1,4 +1,4 @@
-"""The 103-feature pipeline must produce a byte-identical vector across processes.
+"""The FEATURE_DIM-feature pipeline must produce a byte-identical vector across processes.
 
 Why a subprocess test: several tier modules build per-sentence content-word
 sets (``tier2._content_words``) and then treat their iteration order as

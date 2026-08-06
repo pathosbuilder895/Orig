@@ -1,7 +1,7 @@
 """
 validation/plato/features.py — cached feature extraction for the Plato study.
 
-Turns corpus chunks into the 103-dimensional feature matrix that both the
+Turns corpus chunks into the FEATURE_DIM-dimensional feature matrix that both the
 translator gate and the Arm B seriation run on. Extraction is slow (spaCy on
 every chunk, plus the Tier 10 semantic backend), so results are cached to an
 ``.npz`` keyed on the manifest contents.
@@ -57,7 +57,7 @@ def _manifest_key(manifest: dict) -> str:
     """Hash the actual corpus BYTES, not just filenames and word counts.
 
     Keying on (filename, word_count) is not enough: stripping the per-line
-    indentation from the Timaeus changed 76 of 103 features while leaving every
+    indentation from the Timaeus changed 76 of the then-103 features while leaving every
     word count identical, so a stale cache was silently reused and the rebuilt
     corpus produced byte-identical (wrong) results. Any transformation that
     rewrites text without changing its word count has the same failure mode.
@@ -74,7 +74,7 @@ def _manifest_key(manifest: dict) -> str:
 def build_matrix(
     manifest: dict | None = None, force: bool = False, normalised: bool = False
 ) -> Tuple[np.ndarray, List[dict]]:
-    """Return (X, entries) where X is (n_chunks, 103), rows aligned to entries.
+    """Return (X, entries) where X is (n_chunks, FEATURE_DIM), rows aligned to entries.
 
     With ``normalised=True`` each chunk passes through
     ``validation.plato.normalise`` first, which unifies edition and
