@@ -4,7 +4,11 @@ import numpy as np
 import pytest
 
 from original.constants import ALL_FEATURE_CODES, FEATURE_DIM, TOPIC_INFLATE_GAIN
-from original.quantum.scoring import _topic_inflation_vector
+from original.quantum.scoring import (
+    ScoringConfig,
+    _rms_z_from_z,
+    _topic_inflation_vector,
+)
 
 
 def _manifest(distance):
@@ -61,9 +65,6 @@ def test_distance_is_clamped_to_unit_interval():
     assert _topic_inflation_vector(_manifest(-3.0)) is None
 
 
-from original.quantum.scoring import _rms_z_from_z
-
-
 def test_rms_z_from_z_matches_inline_formula():
     rng = np.random.default_rng(20260806)
     z = rng.normal(0.0, 2.0, size=FEATURE_DIM)
@@ -99,3 +100,29 @@ def test_rms_z_from_z_returns_zero_when_no_active_features():
     weight_vec = np.ones(FEATURE_DIM)
     active = np.zeros(FEATURE_DIM, dtype=bool)
     assert _rms_z_from_z(z, weight_vec, active, 0) == 0.0
+
+
+def test_default_config_is_off():
+    assert ScoringConfig().topic_variance_inflation == "off"
+
+
+@pytest.mark.parametrize(
+    "env_value,expected",
+    [
+        ("0", "off"),
+        ("1", "on"),
+        ("on", "on"),
+        ("shadow", "shadow"),
+        ("", "off"),
+        ("nonsense", "off"),
+        ("SHADOW", "shadow"),
+    ],
+)
+def test_from_env_parses_mode(monkeypatch, env_value, expected):
+    monkeypatch.setenv("TOPIC_VARIANCE_INFLATION", env_value)
+    assert ScoringConfig.from_env().topic_variance_inflation == expected
+
+
+def test_from_env_defaults_off_when_unset(monkeypatch):
+    monkeypatch.delenv("TOPIC_VARIANCE_INFLATION", raising=False)
+    assert ScoringConfig.from_env().topic_variance_inflation == "off"

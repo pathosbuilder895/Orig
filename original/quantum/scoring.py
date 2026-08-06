@@ -275,6 +275,24 @@ class RecommendedAction:
     rationale: str
 
 
+_TOPIC_INFLATION_MODES = frozenset({"off", "shadow", "on"})
+
+
+def _parse_topic_inflation_mode(raw: str) -> str:
+    """
+    Map TOPIC_VARIANCE_INFLATION to a mode. "1" is accepted as an alias for
+    "on" so the flag reads like every other boolean flag in the table.
+    Anything unrecognised falls back to "off" — an unparseable value must
+    never silently enable a score-changing correction.
+    """
+    value = (raw or "").strip().lower()
+    if value == "1":
+        return "on"
+    if value in _TOPIC_INFLATION_MODES:
+        return value
+    return "off"
+
+
 @dataclass(frozen=True)
 class ScoringConfig:
     """
@@ -335,6 +353,17 @@ class ScoringConfig:
     #               looked best on false-positive rate alone, but collapsed
     #               genuine-impostor severity when checked at a matched bar.
     llr_action_mode: str = "gate"  # was LLR_ACTION_MODE
+    # Topic-adaptive variance inflation (see original/constants.py's
+    # TOPIC_SENSITIVITY block and the 2026-08 topic-invariance spec).
+    #   "off"    — DEFAULT. Byte-identical to Phase 1.
+    #   "shadow" — compute the corrected score and attach it as
+    #              deviation_score_inflated; deviation_score and
+    #              recommendation are untouched. Stage 1 of rollout, and the
+    #              only way to learn the real distribution of topic distance
+    #              in pilot traffic.
+    #   "on"     — inflate sigma for real. CHANGES SCORES. Gated on gate G7
+    #              passing in both hold-out directions.
+    topic_variance_inflation: str = "off"
 
     # ── formerly call-time `from ..store import ...` ──────────────────────────
     # Confirmed-authentic fidelity scores for this student, for the conformal
@@ -362,6 +391,9 @@ class ScoringConfig:
             == "1",
             identity_axis_enabled=os.environ.get("IDENTITY_AXIS", "0") == "1",
             llr_action_mode=os.environ.get("LLR_ACTION_MODE", "gate"),
+            topic_variance_inflation=_parse_topic_inflation_mode(
+                os.environ.get("TOPIC_VARIANCE_INFLATION", "0")
+            ),
         )
 
 
