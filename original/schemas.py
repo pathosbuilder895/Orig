@@ -833,6 +833,14 @@ class Layer7OutputResponse(BaseModel):
     # Which reference produced the p-values above: "self" (per-student LOO)
     # or "pooled" (tenant-wide reference) — see Layer7Output.typicality_calibration.
     typicality_calibration: str | None = None
+    # Topic-adaptive variance inflation audit trail. Present on quantum.scoring.
+    # Layer7Output but NOT currently copied by api.py's _to_response() — same
+    # completeness-gap precedent as the typicality_* fields above. Defaults
+    # match Layer7Output's own so existing _to_response call sites (which
+    # don't pass them) stay valid.
+    topic_inflation_applied: bool = False
+    topic_distance: float | None = None
+    topic_mean_inflation: float | None = None
 
 
 # ── Student state summary ─────────────────────────────────────────────────────
