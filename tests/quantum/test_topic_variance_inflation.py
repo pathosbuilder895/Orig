@@ -232,19 +232,30 @@ def test_destructive_features_unchanged_between_off_and_on():
     _decompose must therefore always be fed the un-inflated z, so
     destructive_features (and the ghostwriting-escalate forcing that reads
     it in _recommend) stay identical regardless of topic_variance_inflation.
+
+    Regression-fixture note: this must discriminate the bug at a topic
+    distance production can actually produce. `resolve_topic` computes
+    (1 - cosine_sim) / 2 over non-negative TF-IDF vectors, which bounds
+    baseline_distance to [0, 0.5] -- d=0.95 (the value this test used to
+    use) is unreachable in production, and the max reachable multiplier at
+    d=0.5 is only 1 + TOPIC_INFLATE_GAIN * (0.5 - 0.25)/0.75 == 1.333. A
+    fixture only discriminates the bug at that ceiling if its per-feature
+    |z| sits close enough to +-1.0 for /1.333 to cross it -- roughly the
+    1.05-1.30 band. The submission below is derived directly from the
+    state's own baseline_mean/baseline_std as mu + 1.15*sigma per feature
+    (so the z-band is a property of the fixture, not of an RNG seed):
+    every feature lands at exactly z=1.15 (destructive, past the +-1.0
+    line) under "off", and 1.15 / 1.333 == 0.8626 (inside the neutral
+    0.5-1.0 band, i.e. NOT destructive) is what "on" would produce if
+    _decompose were fed the inflated z instead of the fix's un-inflated one.
     """
     state = _state_with_baseline()
-    rng = np.random.default_rng(99)
-    # Same fixture as test_high_topic_distance_lowers_the_deviation_score:
-    # baseline ~N(0.5, 0.05), submission ~N(0.62, 0.05) -> per-feature z is
-    # large enough (~2.4) to land solidly past the +-1.0 destructive
-    # threshold under "off", and the d=0.95 topic distance produces enough
-    # inflation to pull many of those features back under the threshold if
-    # _decompose were (incorrectly) fed the inflated z.
-    vec = np.clip(rng.normal(0.62, 0.05, size=FEATURE_DIM), 0.0, 1.0)
+    mu = state.baseline_mean
+    sigma = state.baseline_std
+    vec = np.clip(mu + 1.15 * sigma, 0.0, 1.0)
 
-    off = _score_with(state, vec, _manifest(0.95), "off")
-    on = _score_with(state, vec, _manifest(0.95), "on")
+    off = _score_with(state, vec, _manifest(0.5), "off")
+    on = _score_with(state, vec, _manifest(0.5), "on")
 
     assert on.topic_inflation_applied is True  # confirm inflation actually fired
     off_destructive = [f.code for f in off.interference.destructive_features]
@@ -259,6 +270,109 @@ def test_destructive_features_unchanged_between_off_and_on():
     off_constructive = [f.code for f in off.interference.constructive_features]
     on_constructive = [f.code for f in on.interference.constructive_features]
     assert on_constructive == off_constructive
+
+
+def _state_with_ghostwriting_baseline(seed=11):
+    """
+    Like ``_state_with_baseline``, but with the type_token_ratio and
+    error_kl_divergence columns overwritten to have a wider natural spread
+    (baseline_std ~0.136 and ~0.091 respectively, vs. ~0.067-0.09 for the
+    other 107 features). This is what lets the submission in
+    ``test_ghostwriting_escalate_survives_topic_inflation`` sit in the SAME
+    marginal z-band (~1.10, just past the +-1.0 destructive line, just
+    under the 1.333 production-ceiling multiplier) as the sibling
+    destructive-features test, while still keeping raw deltas at exactly
+    the T1-T11 special-case thresholds (TTR >= +0.15, error <= -0.10) --
+    those two constraints can't both be satisfied against the tighter,
+    unmodified baseline: a delta of 0.15 against sigma~0.07-0.09 lands at
+    z~1.7-2.2, comfortably destructive even after /1.333, so it would not
+    discriminate a reverted fix. The wider spread here is what makes a
+    threshold-sized delta ALSO a marginal one.
+    """
+    rng = np.random.default_rng(seed)
+    state = StudentState(student_id="topic-test-ghost")
+    ttr_idx = ALL_FEATURE_CODES.index("type_token_ratio")
+    err_idx = ALL_FEATURE_CODES.index("error_kl_divergence")
+    vectors = np.clip(rng.normal(0.5, 0.05, size=(5, FEATURE_DIM)), 0.0, 1.0)
+    vectors[:, ttr_idx] = np.array([0.30, 0.55, 0.70, 0.45, 0.60])
+    vectors[:, err_idx] = 0.5 + 0.85 * np.array([-0.20, -0.05, 0.10, -0.10, 0.05])
+    for i in range(5):
+        state.add_sample(
+            BaselineSample(
+                text=f"baseline {i}",
+                vector=vectors[i],
+                provenance="proctored",
+                auth_weight=1.0,
+                assignment=f"a{i}",
+            )
+        )
+    return state
+
+
+def test_ghostwriting_escalate_survives_topic_inflation():
+    """
+    Finding 2's stated real-world harm, tested end to end: `_recommend`
+    forces action="escalate" once ghostwriting_confirmed fires -- a T1-T11
+    entanglement anomaly (vocabulary-spike + error-vanish) PLUS both
+    type_token_ratio and error_kl_divergence present, with threshold-
+    crossing deltas, in the top constructive/destructive lists
+    (`interference.constructive_features + interference.destructive_features`).
+    That forced escalate must survive topic-variance inflation at the real
+    production ceiling (d=0.5) -- this is exactly the failure the
+    z_for_decompose fix (scoring.py) closed, and nothing before this test
+    exercised the ghostwriting path itself.
+
+    Construction: submission == baseline_mean everywhere (delta=0, z=0 --
+    every other feature lands comfortably inside the constructive band)
+    except two deliberately engineered features, scored against
+    ``_state_with_ghostwriting_baseline`` (wider natural spread for exactly
+    these two columns -- see its docstring for why):
+      - type_token_ratio:    mu + 0.15  (== the +0.15 TTR-spike threshold;
+                              z ~= 1.10 pre-inflation, ~= 0.82 post -- the
+                              same marginal band as the sibling
+                              destructive-features test)
+      - error_kl_divergence: mu - 0.10  (== the -0.10 error-vanish
+                              threshold; z ~= -1.10 pre-inflation, ~= -0.83
+                              post)
+    Both land just past the +-1.0 destructive line pre-inflation and, being
+    the ONLY destructive features in the whole 109-dim vector, are
+    guaranteed membership in the top-5 destructive list under "off" --
+    no reliance on RNG placement. Verified directly against the running
+    code: off.recommendation.action == "escalate" with deviation_score only
+    ~0.12 (far under the 0.75 ACTION_THRESHOLDS escalate floor), so the
+    escalate here is provably coming from the ghostwriting override, not
+    from the deviation score crossing its own threshold. Also verified
+    directly (by temporarily feeding _decompose the inflated z, mirroring
+    the reverted-fix check on the sibling test): this marginal construction
+    pushes both features' inflated z to ~0.83, out of the top-5 lists
+    entirely, ghostwriting_confirmed drops to False, and the "on" action
+    falls all the way to "no_action" -- i.e. this fixture would ALSO have
+    caught the original bug, not just the generic destructive-features one.
+    """
+    state = _state_with_ghostwriting_baseline()
+    mu = state.baseline_mean
+    vec = mu.copy()
+    ttr_idx = ALL_FEATURE_CODES.index("type_token_ratio")
+    err_idx = ALL_FEATURE_CODES.index("error_kl_divergence")
+    vec[ttr_idx] = np.clip(mu[ttr_idx] + 0.15, 0.0, 1.0)
+    vec[err_idx] = np.clip(mu[err_idx] - 0.10, 0.0, 1.0)
+
+    off = _score_with(state, vec, _manifest(0.5), "off")
+    on = _score_with(state, vec, _manifest(0.5), "on")
+
+    assert on.topic_inflation_applied is True  # confirm inflation actually fired
+
+    _GHOSTWRITING_TEXT = "AI ghostwriting signal detected"
+    assert off.recommendation.action == "escalate"
+    assert _GHOSTWRITING_TEXT in off.recommendation.rationale
+    assert off.authorship.deviation_score < 0.75, (
+        "fixture must not naturally escalate via deviation score alone -- "
+        "otherwise this test cannot tell the override apart from the "
+        "ordinary ACTION_THRESHOLDS path"
+    )
+
+    assert on.recommendation.action == "escalate"
+    assert _GHOSTWRITING_TEXT in on.recommendation.rationale
 
 
 def test_fidelity_conformal_pvalue_suppressed_when_sigma_inflated():
