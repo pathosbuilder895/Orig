@@ -855,16 +855,18 @@ def score(
     n_active = int(active.sum())
     rms_z = _rms_z_from_z(z, weight_vec, active, n_active)
 
-    # ── Shadow-mode preview ──────────────────────────────────────────────────
-    # Recompute rms_z against an inflated sigma and map it through the SAME
-    # tanh calibration used for the live D_raw below, so the number attached
-    # here is exactly what "on" would produce. Anything less makes shadow a
-    # preview of nothing.
-    deviation_score_inflated: float | None = None
+    # ── Shadow-mode preview (rms_z stage) ────────────────────────────────────
+    # Recompute rms_z against an inflated sigma here, where sub_raw, mu, sigma,
+    # weight_vec, active, and n_active are all in scope and sigma is still the
+    # un-inflated value in shadow mode. The final score isn't produced until
+    # after adj_factor exists below (Layer7Output.authorship.deviation_score
+    # is D_adjusted, not D_raw -- see the trajectory-adjustment block), so
+    # this only computes the intermediate rms_z; converting it through tanh
+    # happens later, alongside D_adjusted's own conversion.
+    _rms_z_inflated: float | None = None
     if topic_inflation is not None and config.topic_variance_inflation == "shadow":
         _z_inflated = (sub_raw - mu) / (sigma * topic_inflation)
         _rms_z_inflated = _rms_z_from_z(_z_inflated, weight_vec, active, n_active)
-        deviation_score_inflated = float(np.tanh(_rms_z_inflated / 1.5))
 
     # ── Two-axis verification: typicality axis (conformal, LOO-based) ────────
     # Gated by config.typicality_scoring_enabled (default OFF, preserves
@@ -1029,6 +1031,20 @@ def score(
             adj_factor = 1.0
 
     D_adjusted = float(np.clip(D_raw * adj_factor, 0.0, 1.0))
+
+    # ── Shadow-mode preview (final score) ────────────────────────────────────
+    # Mirrors D_adjusted's arithmetic exactly -- same tanh(rms_z / 1.5)
+    # calibration, then the SAME adj_factor from the trajectory block above
+    # (adj_factor depends only on xi and state.trajectory.vector, neither of
+    # which sigma inflation touches, so it is identical between shadow and
+    # "on" mode). That coupling is deliberate: deviation_score_inflated must
+    # always equal what "on" mode's deviation_score would be, for any
+    # trajectory direction, or shadow is previewing the wrong number.
+    deviation_score_inflated: float | None = None
+    if _rms_z_inflated is not None:
+        deviation_score_inflated = float(
+            np.clip(np.tanh(_rms_z_inflated / 1.5) * adj_factor, 0.0, 1.0)
+        )
 
     # ── Interference decomposition ────────────────────────────────────────────
     # Use local `mu` (potentially Bayesian-blended) so interference deltas

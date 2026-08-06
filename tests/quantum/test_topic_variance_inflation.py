@@ -281,6 +281,12 @@ def test_shadow_attaches_score_without_changing_the_verdict():
 
 
 def test_shadow_score_equals_the_on_mode_score():
+    # NOTE: this fixture's baseline is i.i.d. around a constant mean, so
+    # state.trajectory.direction lands "lateral" (alignment ~0.002) and
+    # adjustment_factor is 1.0 -- multiplying by it is a no-op here. That
+    # made this test pass even when the shadow preview forgot to apply
+    # adj_factor at all; see test_shadow_score_equals_the_on_mode_score_for_a_growth_trajectory
+    # below for the general (non-lateral) case.
     state = _state_with_baseline()
     rng = np.random.default_rng(99)
     vec = np.clip(rng.normal(0.62, 0.05, size=FEATURE_DIM), 0.0, 1.0)
@@ -290,6 +296,79 @@ def test_shadow_score_equals_the_on_mode_score():
 
     # Shadow must predict exactly what enabling the flag would do, or it is
     # not a preview of anything.
+    assert shadow.deviation_score_inflated == pytest.approx(
+        on.authorship.deviation_score
+    )
+
+
+def _state_with_growth_baseline(seed=11, n=5, base=0.20, step=0.18, noise=0.005):
+    """
+    A StudentState whose baseline samples drift monotonically (rather than
+    the i.i.d.-around-a-mean fixture above), so state.trajectory.vector is
+    not None and a submission that continues the trend clears
+    TRAJECTORY_GROWTH_THRESHOLD instead of landing in the lateral band.
+
+    Only the first half of the feature dimensions trend upward across
+    samples; the second half stays flat. Trajectory vectors are built from
+    per-sample UNIT-normalised vectors (state.py:_compute_trajectory), so a
+    uniform across-the-board increase would cancel out under normalisation
+    -- the asymmetry between the two halves is what gives the trend an
+    actual direction to detect.
+    """
+    rng = np.random.default_rng(seed)
+    state = StudentState(student_id="topic-test-growth")
+    half = FEATURE_DIM // 2
+    for i in range(n):
+        vec = np.full(FEATURE_DIM, base)
+        vec[:half] += i * step
+        vec = np.clip(vec + rng.normal(0.0, noise, size=FEATURE_DIM), 0.0, 1.0)
+        state.add_sample(
+            BaselineSample(
+                text=f"growth baseline {i}",
+                vector=vec,
+                provenance="proctored",
+                auth_weight=1.0,
+                assignment=f"a{i}",
+            )
+        )
+    return state
+
+
+def test_shadow_score_equals_the_on_mode_score_for_a_growth_trajectory():
+    """
+    Regression test for a shadow preview that silently dropped
+    D_adjusted's trajectory adjustment_factor. deviation_score_inflated
+    must mirror D_adjusted -- not D_raw -- for every trajectory direction,
+    not just the lateral one (adj_factor == 1.0) that the sibling test
+    above happens to exercise.
+    """
+    state = _state_with_growth_baseline()
+
+    # Continue the baseline's trend: first half elevated, second half low.
+    # This is not a random submission -- it is deliberately shaped to align
+    # with the baseline's drift direction so trajectory.direction lands
+    # "growth" rather than "lateral" or "insufficient_data".
+    rng = np.random.default_rng(99)
+    half = FEATURE_DIM // 2
+    vec = np.full(FEATURE_DIM, 0.02)
+    vec[:half] = 1.0
+    vec = np.clip(vec + rng.normal(0.0, 0.005, size=FEATURE_DIM), 0.0, 1.0)
+
+    shadow = _score_with(state, vec, _manifest(0.95), "shadow")
+    on = _score_with(state, vec, _manifest(0.95), "on")
+
+    # Prove the fixture is exercising the case it claims -- if this fixture
+    # ever drifts back into "lateral" (or fails to accumulate enough
+    # samples for a trajectory at all), adj_factor would silently become
+    # 1.0 again and the equality assertion below would stop being a
+    # meaningful test of the trajectory-adjustment coupling.
+    assert shadow.trajectory.direction == "growth"
+    assert on.trajectory.direction == "growth"
+
+    # Shadow must predict exactly what enabling the flag would do -- for
+    # this non-lateral trajectory, that means deviation_score_inflated must
+    # already be scaled by the SAME adj_factor (0.75 for growth) that
+    # D_adjusted applies on the "on" path.
     assert shadow.deviation_score_inflated == pytest.approx(
         on.authorship.deviation_score
     )
