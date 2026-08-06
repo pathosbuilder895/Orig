@@ -298,7 +298,7 @@ class ScoringConfig:
     """
     Every input to ``score()`` that used to be read live from ``os.environ``
     or fetched from ``store`` inside the function body (WS-7 step 1). This is
-    the ONE place those six env vars are read (via :meth:`from_env`) — the
+    the ONE place those eleven env vars are read (via :meth:`from_env`) — the
     scoring math itself is now a pure function of its arguments.
 
     ``ScoringConfig()`` (all defaults) reproduces the flags-OFF, no-calibration-
@@ -378,7 +378,7 @@ class ScoringConfig:
 
     @classmethod
     def from_env(cls) -> ScoringConfig:
-        """Build a config from the current environment. The ONE place these six vars are read."""
+        """Build a config from the current environment. The ONE place these eleven vars are read."""
         return cls(
             bayesian_prior_enabled=os.environ.get("BAYESIAN_PRIOR_ENABLED", "0") == "1",
             prior_weight=float(os.environ.get("PRIOR_WEIGHT", "3.0")),
