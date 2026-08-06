@@ -257,3 +257,74 @@ def test_impostor_pool_sigma_is_not_inflated():
     # corrected here to match the actual dataclass shape.
     assert on.authorship.llr_deviation_score is not None
     assert on.authorship.llr_deviation_score < off.authorship.llr_deviation_score
+
+
+def test_shadow_attaches_score_without_changing_the_verdict():
+    state = _state_with_baseline()
+    rng = np.random.default_rng(99)
+    vec = np.clip(rng.normal(0.62, 0.05, size=FEATURE_DIM), 0.0, 1.0)
+
+    off = _score_with(state, vec, _manifest(0.95), "off")
+    shadow = _score_with(state, vec, _manifest(0.95), "shadow")
+
+    # The live verdict is untouched...
+    assert shadow.authorship.deviation_score == off.authorship.deviation_score
+    assert shadow.recommendation.action == off.recommendation.action
+    assert shadow.topic_inflation_applied is False
+    # ...but the corrected score is observable.
+    assert shadow.deviation_score_inflated is not None
+    assert shadow.deviation_score_inflated < off.authorship.deviation_score
+    # And the diagnostics are recorded so the pilot d-distribution is
+    # measurable from the audit log alone.
+    assert shadow.topic_distance == pytest.approx(0.95)
+    assert shadow.topic_mean_inflation > 1.0
+
+
+def test_shadow_score_equals_the_on_mode_score():
+    state = _state_with_baseline()
+    rng = np.random.default_rng(99)
+    vec = np.clip(rng.normal(0.62, 0.05, size=FEATURE_DIM), 0.0, 1.0)
+
+    shadow = _score_with(state, vec, _manifest(0.95), "shadow")
+    on = _score_with(state, vec, _manifest(0.95), "on")
+
+    # Shadow must predict exactly what enabling the flag would do, or it is
+    # not a preview of anything.
+    assert shadow.deviation_score_inflated == pytest.approx(
+        on.authorship.deviation_score
+    )
+
+
+def test_no_shadow_score_below_the_floor():
+    state = _state_with_baseline()
+    rng = np.random.default_rng(99)
+    vec = np.clip(rng.normal(0.62, 0.05, size=FEATURE_DIM), 0.0, 1.0)
+    shadow = _score_with(state, vec, _manifest(0.10), "shadow")
+    assert shadow.deviation_score_inflated is None
+
+
+def test_shadow_leaves_typicality_untouched():
+    """
+    Shadow must be inert. sigma is never multiplied in shadow, so rms_z is
+    un-inflated and the comparison against loo_distances stays valid -- and
+    typicality_band feeds _recommend() when IDENTITY_AXIS is on, so
+    withholding it here would let shadow change an action.
+    """
+    state = _state_with_baseline()
+    rng = np.random.default_rng(99)
+    vec = np.clip(rng.normal(0.62, 0.05, size=FEATURE_DIM), 0.0, 1.0)
+    feature_dict = {code: float(v) for code, v in zip(ALL_FEATURE_CODES, vec)}
+
+    def _run(mode):
+        return score(
+            state,
+            vec,
+            feature_dict,
+            submission_id="s1",
+            manifest=_manifest(0.95),
+            scoring_config=ScoringConfig(
+                topic_variance_inflation=mode, typicality_scoring_enabled=True
+            ),
+        )
+
+    assert _run("shadow").typicality_band == _run("off").typicality_band

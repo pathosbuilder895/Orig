@@ -461,6 +461,11 @@ class Layer7Output:
     topic_distance: float | None = field(default=None)
     topic_mean_inflation: float | None = field(default=None)
 
+    # Shadow-mode preview: what deviation_score WOULD be under inflation.
+    # None unless config.topic_variance_inflation == "shadow" and the topic
+    # distance cleared the novelty floor. Never influences `recommendation`.
+    deviation_score_inflated: float | None = field(default=None)
+
     # Corpus-level AI-likelihood (orthogonal signal, set at the API layer
     # after quantum score when AI_LIKELIHOOD_ENABLED=1). Report-only: never
     # feeds the deviation score or the recommended action. None when the
@@ -850,6 +855,17 @@ def score(
     n_active = int(active.sum())
     rms_z = _rms_z_from_z(z, weight_vec, active, n_active)
 
+    # ── Shadow-mode preview ──────────────────────────────────────────────────
+    # Recompute rms_z against an inflated sigma and map it through the SAME
+    # tanh calibration used for the live D_raw below, so the number attached
+    # here is exactly what "on" would produce. Anything less makes shadow a
+    # preview of nothing.
+    deviation_score_inflated: float | None = None
+    if topic_inflation is not None and config.topic_variance_inflation == "shadow":
+        _z_inflated = (sub_raw - mu) / (sigma * topic_inflation)
+        _rms_z_inflated = _rms_z_from_z(_z_inflated, weight_vec, active, n_active)
+        deviation_score_inflated = float(np.tanh(_rms_z_inflated / 1.5))
+
     # ── Two-axis verification: typicality axis (conformal, LOO-based) ────────
     # Gated by config.typicality_scoring_enabled (default OFF, preserves
     # byte-identical Phase 1 behaviour). See original/quantum/typicality.py
@@ -1134,9 +1150,7 @@ def score(
         # Phase 3+: attach the adaptive context manifest (if any) for audit.
         # Stored as a plain dict so this module needs no original.context import.
         context_manifest=manifest,
-        topic_inflation_applied=(
-            topic_inflation is not None and config.topic_variance_inflation == "on"
-        ),
+        topic_inflation_applied=_sigma_was_inflated,
         topic_distance=(
             float(((manifest or {}).get("topic") or {})["baseline_distance"])
             if topic_inflation is not None
@@ -1145,6 +1159,7 @@ def score(
         topic_mean_inflation=(
             float(np.mean(topic_inflation)) if topic_inflation is not None else None
         ),
+        deviation_score_inflated=deviation_score_inflated,
     )
 
 

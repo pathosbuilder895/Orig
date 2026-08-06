@@ -841,6 +841,9 @@ class Layer7OutputResponse(BaseModel):
     topic_inflation_applied: bool = False
     topic_distance: float | None = None
     topic_mean_inflation: float | None = None
+    # Shadow-mode preview: what deviation_score WOULD be under inflation.
+    # See Layer7Output.deviation_score_inflated.
+    deviation_score_inflated: float | None = None
 
 
 # ── Student state summary ─────────────────────────────────────────────────────
