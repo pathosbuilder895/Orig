@@ -302,7 +302,20 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # "Authentic" is approximated as action == no_action here; the instructor
     # corrections flow (put_correction + is_correct=True) should override
     # this for any verdict the professor marks as wrong.
-    if result.authorship.quantum_fidelity > 0:
+    #
+    # Skip the write entirely when topic inflation was applied: quantum_
+    # fidelity itself is computed under the inflated sigma (baseline_std_
+    # override in _amplitude_score), so persisting it would enter an
+    # inflated-regime value into the SAME per-student calibration set as
+    # ordinary un-inflated fidelities. A later same-topic submission (no
+    # inflation) would then be scored against a contaminated set, and
+    # turning TOPIC_VARIANCE_INFLATION off again would not undo it -- the
+    # contamination lives in the database. Mirrors the fidelity_conformal_
+    # pvalue suppression in quantum/scoring.py exactly: both read
+    # topic_inflation_applied (set from the same _sigma_was_inflated there),
+    # so this can only skip on the "on" path -- shadow never sets it and
+    # stays byte-identical.
+    if result.authorship.quantum_fidelity > 0 and not result.topic_inflation_applied:
         try:
             _repo().put_fidelity_score(
                 submission_id=submission_id,

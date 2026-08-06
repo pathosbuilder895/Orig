@@ -1031,6 +1031,26 @@ def score(
     else:
         _fidelity, _conformal_p, _amp_components = 0.0, None, {}
 
+    # ── Topic inflation: suppress the conformal p-value ───────────────────────
+    # `conformal_pvalue(F, authentic_fidelities)` (inside _amplitude_score,
+    # called above) compares the live fidelity F -- computed under sigma_eff
+    # via baseline_std_override=sigma -- against a per-student calibration
+    # set accumulated under UN-inflated sigma. That is structurally the
+    # identical hazard the typicality guard a few dozen lines up exists for:
+    # a live statistic compared against a reference computed under a
+    # different sigma. Measured: F moves 0.536 -> 0.698 and conformal_p
+    # moves 0.0 -> 0.923 under inflation. _recommend() below reads
+    # conformal_p to nudge the action upward, so an uncorrected p-value here
+    # could change a verdict on the strength of a stale comparison. Suppress
+    # unconditionally (not just on the output field) so it can neither
+    # mislead the audit trail nor the action logic -- mirrors the
+    # typicality guard's "withhold rather than report wrong" precedent
+    # exactly. Keyed on _sigma_was_inflated ("on" mode only, real inflation
+    # vector present), so shadow mode -- which never multiplies sigma -- is
+    # unaffected and stays inert.
+    if _sigma_was_inflated:
+        _conformal_p = None
+
     # Map to [0,1] via tanh.
     #
     # Divisor calibration history

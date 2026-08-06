@@ -261,6 +261,58 @@ def test_destructive_features_unchanged_between_off_and_on():
     assert on_constructive == off_constructive
 
 
+def test_fidelity_conformal_pvalue_suppressed_when_sigma_inflated():
+    """
+    Finding 3: quantum_fidelity is computed under sigma_eff (baseline_std_
+    override=sigma is the INFLATED sigma at the amplitude-scoring call
+    site), but conformal_pvalue(F, authentic_fidelities) compares that F
+    against a per-student calibration set accumulated under UN-inflated
+    sigma -- the same apples-to-oranges hazard the typicality guard exists
+    for. fidelity_conformal_pvalue must be None whenever sigma was actually
+    inflated, and must NOT be suppressed in "off" or "shadow" (shadow never
+    multiplies sigma, so its fidelity path is untouched by this guard).
+    """
+    state = _state_with_baseline()
+    rng = np.random.default_rng(99)
+    vec = np.clip(rng.normal(0.62, 0.05, size=FEATURE_DIM), 0.0, 1.0)
+    feature_dict = {code: float(v) for code, v in zip(ALL_FEATURE_CODES, vec)}
+    # A calibration set that overlaps the un-inflated fidelity's range, so
+    # conformal_pvalue actually returns something other than a degenerate
+    # 0.5-empty-set default under "off" -- otherwise this test could pass
+    # for the wrong reason (an empty/no-op calibration set rather than a
+    # genuine suppression).
+    authentic_fidelities = [0.45, 0.5, 0.55, 0.6, 0.65]
+
+    def _run(mode):
+        return score(
+            state,
+            vec,
+            feature_dict,
+            submission_id="s1",
+            manifest=_manifest(0.95),
+            scoring_config=ScoringConfig(
+                topic_variance_inflation=mode,
+                amplitude_scoring_enabled=True,
+                authentic_fidelities=authentic_fidelities,
+            ),
+        )
+
+    off = _run("off")
+    on = _run("on")
+    shadow = _run("shadow")
+
+    assert off.authorship.quantum_fidelity > 0.0
+    assert off.authorship.fidelity_conformal_pvalue is not None
+
+    assert on.topic_inflation_applied is True
+    assert on.authorship.fidelity_conformal_pvalue is None
+
+    # Shadow never multiplies sigma, so its fidelity path is untouched by
+    # this guard -- it must match "off" exactly (shadow stays inert).
+    assert shadow.topic_inflation_applied is False
+    assert shadow.authorship.fidelity_conformal_pvalue == off.authorship.fidelity_conformal_pvalue
+
+
 def test_degraded_topic_resolution_yields_no_inflation_end_to_end():
     """
     A degraded resolve_topic() result must not inflate sigma even though its
