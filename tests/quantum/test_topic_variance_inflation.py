@@ -34,6 +34,33 @@ def test_returns_none_for_unusable_manifest():
     assert _topic_inflation_vector(_manifest(float("nan"))) is None
 
 
+def test_returns_none_when_topic_resolution_is_degraded():
+    # Finding 1b: resolve_topic returns baseline_distance=0.5 (the maximum
+    # reachable distance) on every failure path -- missing sklearn, empty
+    # baseline, centroid underflow, internal exception -- without raising,
+    # so those failures never reach run_resolvers' _errors list. Without
+    # this check a resolver failure would silently apply the single
+    # strongest possible sigma widening to the submission it should be
+    # LEAST confident about.
+    degraded_manifest = {
+        "topic": {"baseline_distance": 0.5, "novelty": "medium", "degraded": True}
+    }
+    assert _topic_inflation_vector(degraded_manifest) is None
+
+    # A high, non-degraded distance still inflates -- the guard is specific
+    # to the degraded marker, not to baseline_distance == 0.5 in general.
+    healthy_manifest = {
+        "topic": {"baseline_distance": 0.5, "novelty": "high", "degraded": False}
+    }
+    assert _topic_inflation_vector(healthy_manifest) is not None
+
+    # A resolver_outputs dict that predates this fix (no "degraded" key at
+    # all) must not be treated as degraded -- .get("degraded") reads falsy
+    # and the existing distance-based logic applies unchanged.
+    legacy_manifest = _manifest(0.5)
+    assert _topic_inflation_vector(legacy_manifest) is not None
+
+
 def test_shape_and_dtype_above_floor():
     vec = _topic_inflation_vector(_manifest(0.9))
     assert vec is not None
@@ -193,6 +220,38 @@ def test_high_topic_distance_lowers_the_deviation_score():
     assert on.topic_inflation_applied is True
     assert on.topic_distance == pytest.approx(0.95)
     assert on.topic_mean_inflation > 1.0
+
+
+def test_degraded_topic_resolution_yields_no_inflation_end_to_end():
+    """
+    A degraded resolve_topic() result must not inflate sigma even though its
+    baseline_distance (0.5) is the maximum reachable value and would
+    otherwise trigger the strongest possible correction.
+    """
+    state = _state_with_baseline()
+    rng = np.random.default_rng(99)
+    vec = np.clip(rng.normal(0.62, 0.05, size=FEATURE_DIM), 0.0, 1.0)
+    degraded_manifest = {
+        "topic": {"baseline_distance": 0.5, "novelty": "medium", "degraded": True}
+    }
+    healthy_manifest = {
+        "topic": {"baseline_distance": 0.5, "novelty": "high", "degraded": False}
+    }
+
+    off = _score_with(state, vec, degraded_manifest, "off")
+    degraded_on = _score_with(state, vec, degraded_manifest, "on")
+    healthy_on = _score_with(state, vec, healthy_manifest, "on")
+
+    assert degraded_on.topic_inflation_applied is False
+    assert degraded_on.topic_mean_inflation is None
+    assert degraded_on.authorship.deviation_score == off.authorship.deviation_score
+    assert degraded_on.recommendation.action == off.recommendation.action
+
+    # Sanity: the SAME baseline_distance, without the degraded marker, does
+    # inflate -- proves the guard is keyed on "degraded", not silently
+    # neutered by baseline_distance == 0.5 for some other reason.
+    assert healthy_on.topic_inflation_applied is True
+    assert healthy_on.authorship.deviation_score < off.authorship.deviation_score
 
 
 def test_typicality_refuses_to_run_under_inflation():

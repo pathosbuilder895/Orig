@@ -1006,9 +1006,16 @@ TOPIC_NOVELTY_BOUNDS: dict[str, float] = {
 # 109-dimensional constant.
 TOPIC_SENSITIVITY: dict[str, float] = {}
 
-# Multiplier strength at maximum topic distance. 1.0 doubles sigma for a
-# median-sensitivity feature at d = 1.0. Swept on the derivation corpus and
-# fixed before the hold-out is touched — see the spec's hold-out discipline.
+# Multiplier strength at maximum REACHABLE topic distance. resolve_topic's
+# TF-IDF vectors are non-negative, so cosine_sim in [0, 1] and therefore
+# baseline_distance = (1 - cosine_sim) / 2 in [0, 0.5] — d = 1.0 is
+# unreachable in production; do not calibrate or sweep against it.
+# At the real ceiling d = 0.5: d_eff = (0.5 - TOPIC_NOVELTY_BOUNDS["low"])
+# / 0.75 = (0.5 - 0.25) / 0.75 = 0.333, so with the shipped GAIN = 1.0 the
+# actual maximum multiplier for a median-sensitivity feature is
+# 1 + 1.0 * 0.333 = 1.333x, not the 2x that d = 1.0 would have implied.
+# Swept on the derivation corpus and fixed before the hold-out is touched —
+# see the spec's hold-out discipline.
 TOPIC_INFLATE_GAIN: float = 1.0
 
 # Ceiling on normalised per-feature sensitivity, so no single feature can be

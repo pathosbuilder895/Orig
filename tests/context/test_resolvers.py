@@ -173,6 +173,7 @@ class TestResolveTopic:
         out = r.resolve_topic(submission, baseline)
         assert out["novelty"] in ("low", "medium"), out
         assert out["baseline_distance"] < 0.5
+        assert out["degraded"] is False
 
     def test_high_novelty_when_submission_orthogonal(self):
         baseline = _build_baseline_corpus()
@@ -184,10 +185,16 @@ class TestResolveTopic:
         out = r.resolve_topic(submission, baseline)
         assert out["novelty"] in ("medium", "high")
         assert out["baseline_distance"] > 0.2
+        assert out["degraded"] is False
 
     def test_empty_baseline_returns_medium(self):
         out = r.resolve_topic("Any text.", [])
-        assert out == {"domain": "unknown", "baseline_distance": 0.5, "novelty": "medium"}
+        assert out == {
+            "domain": "unknown",
+            "baseline_distance": 0.5,
+            "novelty": "medium",
+            "degraded": True,
+        }
 
 
 # ══════════════════════════════════════════════════════════════════════════════

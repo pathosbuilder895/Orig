@@ -138,10 +138,27 @@ def _topic_inflation_vector(manifest: dict | None) -> np.ndarray | None:
     distance at or below ``_TOPIC_NOVELTY_FLOOR``. The caller skips the
     multiply entirely on None, which is what makes ``d <= 0.25`` bit-for-bit
     identical to flag-off rather than merely numerically close.
+
+    Also returns None whenever ``manifest["topic"]["degraded"]`` is truthy.
+    ``resolve_topic`` (context/resolvers.py) returns its 0.5 sentinel on
+    every failure path (missing sklearn, empty baseline_texts, centroid
+    underflow, internal exception) WITHOUT raising, so those failures never
+    reach ``run_resolvers``' ``_errors`` list — this is the only place that
+    can catch them. 0.5 is the maximum reachable ``baseline_distance`` (see
+    resolve_topic's docstring: TF-IDF cosine_sim ∈ [0, 1] bounds distance to
+    [0, 0.5]), so treating a degraded resolution as ordinary input would
+    apply the single strongest possible sigma widening to every resolver
+    failure — the opposite of failing safe. The ``degraded`` flag is checked
+    instead of, not in addition to, changing what 0.5 means: the sentinel
+    value itself is untouched so ``manifest._derive_directives``'s
+    ``novelty == "medium"`` behaviour for ADAPTIVE_WEIGHTS_ENABLED users is
+    unaffected.
     """
     if not manifest:
         return None
     topic = manifest.get("topic") or {}
+    if topic.get("degraded"):
+        return None
     distance = topic.get("baseline_distance")
     # bool is an int subclass; reject it explicitly so True can't read as 1.0.
     if isinstance(distance, bool) or not isinstance(distance, int | float):

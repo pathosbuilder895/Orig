@@ -218,10 +218,25 @@ corpus and then **fixed** before the hold-out is touched. Tuning gain against
 the hold-out silently converts it into a training set.
 
 Sweep grid: `GAIN ∈ {0.25, 0.5, 1.0, 1.5, 2.0}` × `MAX ∈ {2.0, 3.0, 5.0}`.
-`GAIN = 1.0`, `MAX = 3.0` is the starting point — at maximum topic distance
-(`d = 1.0`) that doubles sigma for a median-sensitivity feature and
-quadruples it for a chameleon, while leaving the most topic-invariant
-features nearly untouched. `eps = 1e-3` in the `s_A(f)` denominator, matching
+
+**Grid must be sized against the reachable range, `d ≤ 0.5`, not `d ≤ 1.0`.**
+`resolve_topic`'s TF-IDF vectors are non-negative, so `cosine_sim ∈ [0, 1]`
+and `baseline_distance = (1 − cosine_sim) / 2 ∈ [0, 0.5]` — `d = 1.0` is a
+regime production can never enter. A synthetic sweep or ablation that draws
+`d ∈ [0, 1]` (uniformly or otherwise) measures multiplier behavior over a
+range twice as wide as what will ever reach `_topic_inflation_vector`, and
+any headline number quoted from it (e.g. "the multiplier reaches Nx") is
+not a claim about production unless it is re-derived at `d ≤ 0.5`.
+
+`GAIN = 1.0`, `MAX = 3.0` is the starting point — at the real maximum
+*reachable* topic distance (`d = 0.5`, giving `d_eff = (0.5 − 0.25) / 0.75 =
+0.333`) that yields a `1.333×` multiplier for a median-sensitivity feature
+(`s_norm = 1.0`) and `2×` for a feature at the `s_norm = MAX = 3.0` ceiling
+(`1 + 1.0 × 0.333 × 3.0 ≈ 2.0`), while leaving the most topic-invariant
+features nearly untouched. (At `d = 1.0`, if it were reachable, the same
+arithmetic would give `2×`/`4×` respectively — those numbers describe a
+regime this system cannot enter and must not be quoted as the correction's
+real strength.) `eps = 1e-3` in the `s_A(f)` denominator, matching
 `dna_analysis.py:35`'s existing `EPS` guard.
 
 ---
