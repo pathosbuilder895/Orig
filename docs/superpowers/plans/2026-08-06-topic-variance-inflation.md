@@ -925,16 +925,29 @@ In `original/quantum/scoring.py`, directly after:
 add:
 
 ```python
-    # ── Shadow-mode preview ──────────────────────────────────────────────────
-    # Recompute rms_z against an inflated sigma and map it through the SAME
-    # tanh calibration used for the live D_raw below, so the number attached
-    # here is exactly what "on" would produce. Anything less makes shadow a
-    # preview of nothing.
-    deviation_score_inflated: float | None = None
+    # ── Shadow-mode preview (part 1: the inflated rms_z) ─────────────────────
+    # Recompute rms_z against an inflated sigma. The final score is NOT
+    # produced here — see part 2, below the trajectory block.
+    _rms_z_inflated: float | None = None
     if topic_inflation is not None and config.topic_variance_inflation == "shadow":
         _z_inflated = (sub_raw - mu) / (sigma * topic_inflation)
         _rms_z_inflated = _rms_z_from_z(_z_inflated, weight_vec, active, n_active)
-        deviation_score_inflated = float(np.tanh(_rms_z_inflated / 1.5))
+```
+
+⚠️ **Do not map `_rms_z_inflated` through `tanh` here.** `authorship.deviation_score` is populated from `D_adjusted`, not `D_raw` — and `D_adjusted = clip(D_raw * adj_factor, 0, 1)`, where `adj_factor` is 0.75 for a growth trajectory and 1.15 for a regressive one. `adj_factor` depends only on `xi` and `state.trajectory.vector`, neither of which sigma inflation touches, so it is identical in shadow and `"on"` mode — but it must still be applied, or shadow mis-previews every student with a detectable trajectory (`TRAJECTORY_MIN_SAMPLES` is 3, so that is most returning students).
+
+Add **part 2** immediately after `D_adjusted` is computed:
+
+```python
+    # ── Shadow-mode preview (part 2: mirror D_adjusted exactly) ──────────────
+    # Mirrors D_adjusted's arithmetic, NOT D_raw's: deviation_score is
+    # populated from D_adjusted, so a preview that skips adj_factor previews
+    # a number the live path never produces. Keep these two lines coupled.
+    deviation_score_inflated: float | None = None
+    if _rms_z_inflated is not None:
+        deviation_score_inflated = float(
+            np.clip(np.tanh(_rms_z_inflated / 1.5) * adj_factor, 0.0, 1.0)
+        )
 ```
 
 - [ ] **Step 5: Attach it**
@@ -953,7 +966,9 @@ In the `Layer7Output(` construction, after `topic_mean_inflation=...`:
 
 Expected: `27 passed`.
 
-If `test_shadow_score_equals_the_on_mode_score` fails, the live `D_raw` calibration at `original/quantum/scoring.py:863` has diverged from the `np.tanh(rms_z / 1.5)` used here. Read that line and match it exactly — do not adjust the test to accommodate a mismatch.
+If either equality test fails, the live calibration has diverged from what the shadow path reproduces. Read the `D_raw` / `adj_factor` / `D_adjusted` sequence in `score()` and match it exactly — do not adjust the test to accommodate a mismatch.
+
+**The lateral-trajectory fixture is not sufficient on its own.** A baseline of i.i.d. samples around a fixed mean yields a trajectory alignment near zero, which lands in the lateral band where `adj_factor == 1.0` — masking any failure to apply it. The suite must also include a test whose fixture drifts monotonically so the trajectory is genuinely `"growth"` or `"regressive"`, and that test must assert `result.trajectory.direction` is non-lateral **before** asserting score equality. Otherwise it can silently drift back into the lateral band and go on passing for the wrong reason.
 
 - [ ] **Step 7: Run the full suite**
 
