@@ -158,6 +158,41 @@ settled negative finding for this codebase's specific fusion setup, not a
 single inconclusive test: `C=0.5` isn't costing recall anywhere it's been
 checked.
 
+## #3 recommendation, tried: LambdaG, first look (small scale)
+
+Implemented from the paper — Kneser-Ney n-gram language models over
+POSNoise-masked "grammar" token streams (`validation/attribution/lambdag.py`),
+validated against the paper's own worked example before trusting it on real
+data — and wired into a three-way ablation
+(`validation/verify/pan_stack_lambdag.py`: `base_only` / `with_delta` /
+`with_lambdag`) on the same PAN partition/fusion discipline as the Delta and
+Cllr ablations above.
+
+First real run, small scale (8 authors/partition — 24 locked genuine trials,
+168 locked impostor trials; candidate-grammar building parallelized across
+cores via `lambdag_signals.py`, 4-11s/candidate observed at these settings):
+
+| | base_only | with_delta | with_lambdag |
+|---|---:|---:|---:|
+| AUC | 0.838 | 0.865 | 0.944 |
+| Recall @ 1% FPR | 41.7% | 50.0% | 45.8% |
+| Recall @ 5% FPR | 54.2% | 62.5% | 66.7% |
+| Recall @ 10% FPR | 62.5% | 66.7% | 75.0% |
+
+Honest reading: promising at this scale — the AUC gain over Delta alone
+(+0.079) is larger than anything else tried in this sweep, and recall@5%/10%
+both improve. But this is not yet a locked result by this project's own
+standard: with only 24 genuine trials, recall@1% moving 50.0%→45.8% is one
+trial's worth of difference, i.e. noise, not a regression — the same caution
+applied to every other small-N number in this repo. This needs the same
+n=100-scale lock the Delta and Cllr findings got (`DELTA_FUSION_FINDINGS'
+third-lock section, `pan_stack_cllr_lock100_run2.log`) before being cited as
+more than "worth scaling up." Not yet run at that scale: LambdaG's dominant
+cost is per-candidate grammar-building, now parallelized across cores, which
+is what makes an n=100 lock newly tractable — it wasn't before (a serial
+n=20 run at this settings was projected at ~6.8 hours and was killed rather
+than run to completion; see commit history around 2026-08-05).
+
 ## Search coverage note
 
 Two specific angles the search was asked to check — PAC-Bayes bounds
