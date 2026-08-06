@@ -834,10 +834,10 @@ class Layer7OutputResponse(BaseModel):
     # or "pooled" (tenant-wide reference) — see Layer7Output.typicality_calibration.
     typicality_calibration: str | None = None
     # Topic-adaptive variance inflation audit trail. Present on quantum.scoring.
-    # Layer7Output but NOT currently copied by api.py's _to_response() — same
-    # completeness-gap precedent as the typicality_* fields above. Defaults
-    # match Layer7Output's own so existing _to_response call sites (which
-    # don't pass them) stay valid.
+    # Layer7Output and copied through by routers/_shared.py's _to_response() —
+    # see its getattr(..., default) calls for these fields. Defaults here
+    # match Layer7Output's own so any call site that doesn't pass them stays
+    # valid.
     topic_inflation_applied: bool = False
     topic_distance: float | None = None
     topic_mean_inflation: float | None = None

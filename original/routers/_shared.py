@@ -439,6 +439,17 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
         typicality_n=getattr(r, "typicality_n", 0),
         typicality_source=getattr(r, "typicality_source", None),
         typicality_calibration=getattr(r, "typicality_calibration", None),
+        # Topic-adaptive variance inflation audit trail (TOPIC_VARIANCE_
+        # INFLATION). Previously computed on Layer7Output but never copied
+        # here, which made shadow mode's entire output unreachable outside
+        # unit tests -- CLAUDE.md instructs operators to "run shadow first"
+        # for Stage 1 of the rollout, and that requires these fields to
+        # actually reach the response. Follows the same getattr(...,
+        # default) pattern as the typicality_* fields immediately above.
+        topic_inflation_applied=getattr(r, "topic_inflation_applied", False),
+        topic_distance=getattr(r, "topic_distance", None),
+        topic_mean_inflation=getattr(r, "topic_mean_inflation", None),
+        deviation_score_inflated=getattr(r, "deviation_score_inflated", None),
         # Phase 3: ContextManifestOut when CONTEXT_MANIFEST_ENABLED=1, else None.
         context_manifest=(
             ContextManifestOut(**getattr(r, "context_manifest", None))

@@ -210,6 +210,26 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
         scoring_config=_scoring_config,
     )
 
+    # ── Topic-adaptive variance inflation audit line ───────────────────────────
+    # One INFO line per scoring call whenever TOPIC_VARIANCE_INFLATION is not
+    # "off" (i.e. "on" or "shadow"), so the pilot's d-distribution and
+    # inflation strength are measurable from the log alone even before
+    # anyone queries the manifest audit table -- this is what makes
+    # CLAUDE.md's "run shadow first" rollout guidance actually executable;
+    # previously shadow's entire output was reachable only from unit tests.
+    # Follows the bayesian_prior outcome=hit|miss precedent above: no
+    # student id in the line, only the aggregate numbers.
+    if _scoring_config_env.topic_variance_inflation != "off":
+        logging.getLogger(__name__).info(
+            "topic_inflation mode=%s d=%s mean_inflation=%s deviation=%.4f "
+            "deviation_inflated=%s",
+            _scoring_config_env.topic_variance_inflation,
+            result.topic_distance,
+            result.topic_mean_inflation,
+            result.authorship.deviation_score,
+            result.deviation_score_inflated,
+        )
+
     # Default-off, report-only longitudinal signal. The probe is never added
     # to the fitted history and this cannot change the primary score/action.
     from ..quantum.longitudinal import (

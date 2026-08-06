@@ -11,12 +11,21 @@ later compares un-inflated fidelities against. Persisting an inflated-regime
 value contaminates that set irreversibly — turning the flag back off does not
 undo a row already written. `students_scoring.py` must skip the write
 whenever `result.topic_inflation_applied` is True.
+
+Finding 4: shadow mode's unique output (`deviation_score_inflated`,
+`topic_distance`, `topic_mean_inflation`, `topic_inflation_applied`) must
+reach the HTTP response via `_to_response()`, or CLAUDE.md's "run shadow
+first" rollout guidance cannot actually be executed by an operator reading
+the API — see tests/test_schemas.py for `_to_response()`-level coverage of
+the same fields; the tests here exercise the live `/score` endpoint.
 """
 
 from __future__ import annotations
 
+import logging
 import uuid
 
+import pytest
 from fastapi.testclient import TestClient
 
 import original.store as store
@@ -119,3 +128,96 @@ def test_fidelity_persistence_still_happens_when_inflation_not_applied(monkeypat
     rows = _fidelity_rows(submission_id)
     assert len(rows) == 1
     assert rows[0][0] == submission_id
+
+
+# ── Finding 4: shadow-mode diagnostics must reach the HTTP response ──────────
+
+
+@pytest.mark.parametrize("mode", ["on", "shadow"])
+def test_topic_inflation_fields_reach_the_http_response(monkeypatch, mode):
+    monkeypatch.setenv("CONTEXT_MANIFEST_ENABLED", "1")
+    monkeypatch.setenv("TOPIC_VARIANCE_INFLATION", mode)
+    monkeypatch.delenv("ADAPTIVE_WEIGHTS_ENABLED", raising=False)
+    monkeypatch.delenv("AMPLITUDE_SCORING_ENABLED", raising=False)
+
+    sid = f"topic_infl_fields_{mode}_{uuid.uuid4().hex[:8]}"
+    _seed_student(sid)
+    submission_id = f"{sid}_sub_1"
+
+    resp = _score(sid, submission_id)
+
+    assert resp["topic_distance"] == pytest.approx(0.3292)
+    assert resp["topic_mean_inflation"] is not None
+    assert resp["topic_mean_inflation"] > 1.0
+
+    if mode == "on":
+        assert resp["topic_inflation_applied"] is True
+        # "on" mode folds the correction into deviation_score directly, so
+        # the shadow-only preview field stays null -- see
+        # quantum/scoring.py's deviation_score_inflated gating (only
+        # populated when mode == "shadow").
+        assert resp["deviation_score_inflated"] is None
+    else:  # shadow
+        assert resp["topic_inflation_applied"] is False
+        assert resp["deviation_score_inflated"] is not None
+        assert resp["deviation_score_inflated"] < resp["authorship"]["deviation_score"]
+
+
+def test_topic_inflation_fields_stay_null_when_flag_off(monkeypatch):
+    monkeypatch.setenv("CONTEXT_MANIFEST_ENABLED", "1")
+    monkeypatch.setenv("TOPIC_VARIANCE_INFLATION", "off")
+    monkeypatch.delenv("ADAPTIVE_WEIGHTS_ENABLED", raising=False)
+    monkeypatch.delenv("AMPLITUDE_SCORING_ENABLED", raising=False)
+
+    sid = f"topic_infl_fields_off_{uuid.uuid4().hex[:8]}"
+    _seed_student(sid)
+    submission_id = f"{sid}_sub_1"
+
+    resp = _score(sid, submission_id)
+
+    assert resp["topic_inflation_applied"] is False
+    assert resp["topic_distance"] is None
+    assert resp["topic_mean_inflation"] is None
+    assert resp["deviation_score_inflated"] is None
+
+
+def test_topic_inflation_log_line_emitted_when_mode_not_off(monkeypatch, caplog):
+    """
+    Follows the bayesian_prior outcome=hit|miss precedent (see
+    tests/test_bayesian_prior_wiring.py): one INFO line per scoring call
+    carrying the aggregate numbers, no student id, so the pilot's
+    d-distribution is measurable from the log alone. Only fires when the
+    mode is not "off".
+    """
+    monkeypatch.setenv("CONTEXT_MANIFEST_ENABLED", "1")
+    monkeypatch.setenv("TOPIC_VARIANCE_INFLATION", "shadow")
+    monkeypatch.delenv("ADAPTIVE_WEIGHTS_ENABLED", raising=False)
+    monkeypatch.delenv("AMPLITUDE_SCORING_ENABLED", raising=False)
+
+    sid = f"topic_infl_log_{uuid.uuid4().hex[:8]}"
+    _seed_student(sid)
+    submission_id = f"{sid}_sub_1"
+
+    caplog.set_level(logging.INFO, logger="original.routers.students_scoring")
+    _score(sid, submission_id)
+
+    hits = [m for m in caplog.messages if m.startswith("topic_inflation ")]
+    assert len(hits) == 1, caplog.text
+    assert "mode=shadow" in hits[0]
+    assert sid not in hits[0], "the audit line must not log student identifiers"
+
+
+def test_topic_inflation_log_line_absent_when_mode_off(monkeypatch, caplog):
+    monkeypatch.setenv("CONTEXT_MANIFEST_ENABLED", "1")
+    monkeypatch.setenv("TOPIC_VARIANCE_INFLATION", "off")
+    monkeypatch.delenv("ADAPTIVE_WEIGHTS_ENABLED", raising=False)
+    monkeypatch.delenv("AMPLITUDE_SCORING_ENABLED", raising=False)
+
+    sid = f"topic_infl_log_off_{uuid.uuid4().hex[:8]}"
+    _seed_student(sid)
+    submission_id = f"{sid}_sub_1"
+
+    caplog.set_level(logging.INFO, logger="original.routers.students_scoring")
+    _score(sid, submission_id)
+
+    assert [m for m in caplog.messages if m.startswith("topic_inflation ")] == []

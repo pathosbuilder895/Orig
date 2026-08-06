@@ -210,10 +210,14 @@ def _make_layer7_output(
     typicality_band: str | None = None,
     typicality_n: int = 0,
     trend_aware_typicality=None,
+    topic_inflation_applied: bool = False,
+    topic_distance: float | None = None,
+    topic_mean_inflation: float | None = None,
+    deviation_score_inflated: float | None = None,
 ) -> Layer7Output:
     """
-    Factory for Layer7Output with customizable typicality fields.
-    All other fields use minimal (default) values.
+    Factory for Layer7Output with customizable typicality and topic-inflation
+    fields. All other fields use minimal (default) values.
     """
     return Layer7Output(
         student_id="student-test",
@@ -247,6 +251,10 @@ def _make_layer7_output(
         typicality_band=typicality_band,
         typicality_n=typicality_n,
         trend_aware_typicality=trend_aware_typicality,
+        topic_inflation_applied=topic_inflation_applied,
+        topic_distance=topic_distance,
+        topic_mean_inflation=topic_mean_inflation,
+        deviation_score_inflated=deviation_score_inflated,
     )
 
 
@@ -390,3 +398,36 @@ def test_typicality_fields_are_none_when_not_computed():
     assert response.typicality_p_central is None
     assert response.typicality_band is None
     assert response.typicality_n == 0
+
+
+def test_topic_inflation_fields_round_trip_when_present():
+    """
+    Finding 4 (2026-08-06 review): deviation_score_inflated, topic_distance,
+    topic_mean_inflation, and topic_inflation_applied were computed on
+    Layer7Output but silently dropped by _to_response(), making shadow
+    mode's entire output unreachable outside unit tests even though
+    CLAUDE.md instructs operators to "run shadow first". Same completeness-
+    gap shape and same getattr(..., default) fix as the typicality fields
+    covered immediately above.
+    """
+    result = _make_layer7_output(
+        topic_inflation_applied=True,
+        topic_distance=0.42,
+        topic_mean_inflation=1.15,
+        deviation_score_inflated=0.37,
+    )
+    response = _to_response(result)
+    assert response.topic_inflation_applied is True
+    assert response.topic_distance == pytest.approx(0.42)
+    assert response.topic_mean_inflation == pytest.approx(1.15)
+    assert response.deviation_score_inflated == pytest.approx(0.37)
+
+
+def test_topic_inflation_fields_are_default_when_not_computed():
+    """Topic-inflation fields default to False/None when the flag is off."""
+    result = _make_layer7_output()  # all topic_* fields default
+    response = _to_response(result)
+    assert response.topic_inflation_applied is False
+    assert response.topic_distance is None
+    assert response.topic_mean_inflation is None
+    assert response.deviation_score_inflated is None
