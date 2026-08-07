@@ -13,7 +13,7 @@
 # security pin below. fastapi 0.128.8 required starlette<1.0.0,>=0.40.0, which is
 # incompatible with that same pin; fastapi>=0.139.0 declares starlette>=0.46.0 with
 # no upper bound, so it can resolve alongside starlette>=1.3.1.
-fastapi==0.139.0
+fastapi==0.141.1
 uvicorn[standard]==0.34.3
 pydantic==2.9.2
 # python-multipart <0.0.18 had CVE-2024-53981 (header injection) and later CVEs.
