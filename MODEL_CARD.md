@@ -199,9 +199,27 @@ tightening the requirements pin.
 
 **Demo/pilot enablement gate** — rule: **seminary AUC ≥ 0.85 AND
 false-positive rate ≤ 5% at `t_elevated` on authentic seminary essays**
-(`train_ai_detector.py eval-seminary` prints the verdict). Status: the
-shipped mixed-training model **passes** (AUC 1.0, FPR 4%, TPR 100% on
-25 authentic vs 20 Claude essays; archaic-prose flag rates 0%). Caveats
+(`train_ai_detector.py eval-seminary` prints the verdict). Status after the
+2026-08-07 109-dim retrain: **FAILS** — AUC 0.996 (CI95 0.982–1.0) clears the
+0.85 bar, but the false-positive rate is 8% against the 5% bar. The previous
+103-dim artifact read 4%. **`AI_LIKELIHOOD_ENABLED` must stay off.**
+
+⚠️ **Treat this gate as uninformative at the current corpus size — do not
+quote either verdict as evidence.** With n=25 authentic seminary essays the
+only achievable FPR values are 0%, 4%, 8%, 12%: **5% is not reachable**, so the
+criterion really means "at most 1 essay in 25." The retrain flags 2 rather
+than 1 — a one-essay difference, on a borderline essay that scored 0.7300
+against a 0.7381 threshold before and crossed it by 0.02. Wilson 95% CIs are
+[2.2%, 25.0%] for the new 2/25 and [0.7%, 19.5%] for the old 1/25; both
+contain the 5% bar, so the old pass and the new fail are not statistically
+distinguishable. Per `validation/README.md`'s three-valued convention
+(pass / fail / uninformative), a gate whose resolution is coarser than its own
+threshold should be reported **uninformative**. Growing the authentic pool is
+a prerequisite for this gate deciding anything: roughly 60 essays would
+support an honest "under 5%" claim if the detector is genuinely clean, and
+150–200 if the true rate sits near the bar.
+
+Caveats
 before flipping the flag anywhere pilot-facing: the in-domain sample is
 small (45 essays), single-generator (Claude), and corpus-synthesized —
 a larger multi-generator in-domain eval and an institutional decision

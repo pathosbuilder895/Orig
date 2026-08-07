@@ -25,6 +25,11 @@ Design contract (see MODEL_CARD.md):
     (feature_vector() on plain text with both tier groups disabled) — a
     corpus-level detector must also stay independent of any per-student
     comparison data that may be present at scoring time.
+  - masked_codes is validated against this module's _MASKED_CODES at load
+    time. Training and inference must agree about which dims are
+    placeholders: if they disagree, the model may have fitted a column the
+    runtime then erases, which shifts probabilities with nothing else to
+    trip. So it fails closed like any other schema mismatch.
 """
 
 from __future__ import annotations
@@ -171,6 +176,19 @@ def _load_artifact() -> None:
             _fail(
                 "artifact feature_codes do not match ALL_FEATURE_CODES — "
                 "the feature pipeline changed since training; retrain"
+            )
+            return
+        # Order is not meaningful here (unlike feature_codes, which is column
+        # order), so compare as sets — a harmless reordering must not fail closed.
+        artifact_masked = set(art.get("masked_codes") or ())
+        if artifact_masked != set(_MASKED_CODES):
+            missing = sorted(set(_MASKED_CODES) - artifact_masked)
+            extra = sorted(artifact_masked - set(_MASKED_CODES))
+            _fail(
+                f"artifact masked_codes disagree with this build "
+                f"(masked at predict time but not at training time: {missing}; "
+                f"masked at training time but not at predict time: {extra}) — "
+                f"retrain so both sides mask the same placeholder dims"
             )
             return
 

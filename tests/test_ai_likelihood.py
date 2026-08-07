@@ -25,12 +25,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 import run
+from original.ai_likelihood import _MASKED_CODES
 from original.constants import (
     ALL_FEATURE_CODES,
-    COMPARISON_CODES,
     FEATURE_DIM,
-    MUSICAL_COMPARISON_CODES,
-    TIER17_CODES,
     TIER18_CODES,
 )
 
@@ -61,7 +59,12 @@ _ESSAY = (
 
 
 def _make_fixture_artifact(
-    tmp_path: Path, *, thresholds=None, shuffle_codes=False, drift_refs=False
+    tmp_path: Path,
+    *,
+    thresholds=None,
+    shuffle_codes=False,
+    drift_refs=False,
+    bad_masked_codes=False,
 ) -> Path:
     """Train a tiny LogisticRegression and wrap it in the exact artifact schema."""
     import joblib
@@ -86,14 +89,19 @@ def _make_fixture_artifact(
     if shuffle_codes:
         codes = codes[::-1]
 
+    # Derived from the module rather than rebuilt from tier constants, so the
+    # fixture cannot silently drift out of agreement with the loader. It had:
+    # this list omitted TIER18_CODES while _MASKED_CODES included them.
+    masked_codes = list(_MASKED_CODES)
+    if bad_masked_codes:
+        masked_codes = [c for c in masked_codes if c not in set(TIER18_CODES)]
+
     artifact = {
         "schema_version": 1,
         "model": model,
         "model_name": "fixture_logreg",
         "feature_codes": codes,
-        "masked_codes": list(TIER17_CODES)
-        + list(MUSICAL_COMPARISON_CODES)
-        + list(COMPARISON_CODES),
+        "masked_codes": masked_codes,
         "thresholds": thresholds or {"elevated": 0.6, "strong": 0.9},
         "human_centroid": human_X.mean(axis=0),
         "human_std": np.maximum(human_X.std(axis=0), 1e-6),
@@ -277,6 +285,21 @@ def test_shuffled_feature_codes_disable_detector(tmp_path, monkeypatch, detector
     assert predict_ai_likelihood(np.full(FEATURE_DIM, 0.5)) is None
 
 
+def test_masked_codes_mismatch_disables_detector(tmp_path, monkeypatch, detector_reset):
+    """Training and inference must agree on which dims are placeholders.
+
+    An artifact whose masked set omits Tier 18 may have fitted those columns,
+    which the runtime then erases to 0.5 — a silent probability shift that no
+    other load check would notice.
+    """
+    fixture = _make_fixture_artifact(tmp_path, bad_masked_codes=True)
+    monkeypatch.setenv("AI_LIKELIHOOD_MODEL_PATH", str(fixture))
+    from original.ai_likelihood import predict_ai_likelihood, warm
+
+    assert warm() is False
+    assert predict_ai_likelihood(np.full(FEATURE_DIM, 0.5)) is None
+
+
 def test_reference_prob_drift_disables_detector(tmp_path, monkeypatch, detector_reset):
     fixture = _make_fixture_artifact(tmp_path, drift_refs=True)
     monkeypatch.setenv("AI_LIKELIHOOD_MODEL_PATH", str(fixture))
@@ -409,7 +432,8 @@ def test_committed_artifact_schema_matches_pipeline(monkeypatch, detector_reset)
     # Placeholder dims must be masked on both sides of the train/predict
     # boundary; a feature group added to the pipeline but not to masked_codes
     # would go live at predict time against a model that never saw it vary.
-    expected_masked = (
-        set(TIER17_CODES) | set(TIER18_CODES) | set(MUSICAL_COMPARISON_CODES) | set(COMPARISON_CODES)
-    )
-    assert expected_masked.issubset(set(art["masked_codes"]))
+    # Compared against the runtime's own set (not a hand-rebuilt union) so this
+    # cannot drift, and by equality rather than issubset so an artifact that
+    # masks something the runtime does not is caught too.
+    assert set(art["masked_codes"]) == set(_MASKED_CODES)
+    assert set(TIER18_CODES) <= set(art["masked_codes"])
