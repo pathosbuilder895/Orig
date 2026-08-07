@@ -7,7 +7,8 @@ rate that gates `AI_LIKELIHOOD_ENABLED`, see `scripts/train_ai_detector.py
 eval-seminary`) held only 25 essays — all synthetic, from
 `validation/generate_modern_corpus.py`'s 5 templated student profiles. At
 n=25 the gate moves in 1/25 = 0.04 steps, so a single borderline essay
-decides pass/fail (see MODEL_CARD.md v1.4.26). This script fetches real
+decides pass/fail (see MODEL_CARD.md v1.4.26, re-cleared in v1.4.27 by
+this corpus growth). This script fetches real
 public-domain theological/devotional prose — sermons and addresses by
 authors who died decades before any LLM existed, so authenticity is not in
 question — chunks it into essay-sized (~300-550 word) excerpts, and stages
