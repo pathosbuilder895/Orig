@@ -31,6 +31,7 @@ from original.constants import (
     FEATURE_DIM,
     MUSICAL_COMPARISON_CODES,
     TIER17_CODES,
+    TIER18_CODES,
 )
 
 app = run.load_legacy_demo_app()
@@ -361,3 +362,54 @@ def test_narrative_without_ai_likelihood_is_unchanged():
     assert base.has_ai_signals == low.has_ai_signals is False
     assert base.ai_likelihood_band is None
     assert low.ai_likelihood_band == "low"
+
+
+# ── 8. The COMMITTED artifact must actually load ──────────────────────────────
+#
+# Every test above uses in-test fixture artifacts, which is how the pipeline's
+# 103→109 growth (Tier 18, PR #115) silently disabled the shipped detector for
+# weeks: the loader fail-closed on the stale committed artifact, every scoring
+# call returned None, and the suite stayed green. These tests pin the real
+# artifact to the live pipeline so the next feature-dim bump (or an sklearn
+# skew that trips the reference-drift gate) fails the suite instead.
+
+
+def test_committed_artifact_loads_and_predicts(monkeypatch, detector_reset):
+    from original import ai_likelihood
+
+    monkeypatch.delenv("AI_LIKELIHOOD_MODEL_PATH", raising=False)
+    assert ai_likelihood.DEFAULT_ARTIFACT_PATH.exists(), (
+        f"committed artifact missing at {ai_likelihood.DEFAULT_ARTIFACT_PATH}"
+    )
+    assert ai_likelihood.warm() is True, (
+        "the committed artifact failed load-time validation — the detector is "
+        "silently disabled in production (retrain via scripts/train_ai_detector.py)"
+    )
+
+    result = ai_likelihood.predict_ai_likelihood(np.full(FEATURE_DIM, 0.5))
+    assert result is not None
+    assert 0.0 <= result.probability <= 1.0
+    assert result.band in {"low", "elevated", "strong"}
+
+    batch = ai_likelihood.predict_ai_likelihood_batch(np.full((3, FEATURE_DIM), 0.5))
+    assert batch is not None
+    assert len(batch) == 3
+    # scalar path rounds to 4 decimals; batch path returns raw probabilities
+    assert np.isclose(batch[0], result.probability, atol=5e-5)
+
+
+def test_committed_artifact_schema_matches_pipeline(monkeypatch, detector_reset):
+    import joblib
+
+    from original.ai_likelihood import DEFAULT_ARTIFACT_PATH
+
+    art = joblib.load(DEFAULT_ARTIFACT_PATH)
+    assert art["feature_codes"] == list(ALL_FEATURE_CODES)
+    assert art["model"].n_features_in_ == FEATURE_DIM
+    # Placeholder dims must be masked on both sides of the train/predict
+    # boundary; a feature group added to the pipeline but not to masked_codes
+    # would go live at predict time against a model that never saw it vary.
+    expected_masked = (
+        set(TIER17_CODES) | set(TIER18_CODES) | set(MUSICAL_COMPARISON_CODES) | set(COMPARISON_CODES)
+    )
+    assert expected_masked.issubset(set(art["masked_codes"]))

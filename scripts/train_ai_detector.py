@@ -175,7 +175,9 @@ def _features_npz_path(split: str) -> Path:
 
 
 def _load_cached_features(split: str) -> dict:
-    """Load an .npz cache, refusing to run if the source TSV changed."""
+    """Load an .npz cache, refusing to run if the source TSV or pipeline changed."""
+    from original.constants import FEATURE_DIM
+
     npz_path = _features_npz_path(split)
     sidecar = npz_path.with_suffix(".json")
     if not npz_path.exists() or not sidecar.exists():
@@ -190,6 +192,15 @@ def _load_cached_features(split: str) -> dict:
         raise RuntimeError(
             f"Stale feature cache: {tsv.name} sha256 {current[:12]}… does not match "
             f"sidecar {meta['source_sha256'][:12]}…. Re-run extract --split {split}."
+        )
+    # The source hash alone is not enough: the TSVs never change, but the
+    # feature pipeline does. A cache extracted at an older FEATURE_DIM would
+    # silently train an artifact the production loader then rejects (exactly
+    # how the 103-dim v1 artifact went inert when Tier 18 landed).
+    if meta.get("feature_dim") != FEATURE_DIM:
+        raise RuntimeError(
+            f"Stale feature cache: extracted at feature_dim={meta.get('feature_dim')}, "
+            f"pipeline is now {FEATURE_DIM}. Re-run extract --split {split}."
         )
     data = np.load(npz_path, allow_pickle=False)
     return {
@@ -286,9 +297,16 @@ def _load_m4_features() -> dict:
         raise FileNotFoundError(
             "No M4 feature cache. Run: " ".venv/bin/python scripts/train_ai_detector.py extract-m4"
         )
+    from original.constants import FEATURE_DIM
+
     meta = json.loads(sidecar.read_text())
     if meta["source_sha256"] != _m4_source_sha():
         raise RuntimeError("Stale M4 feature cache — re-run extract-m4.")
+    if meta.get("feature_dim") != FEATURE_DIM:
+        raise RuntimeError(
+            f"Stale M4 feature cache: extracted at feature_dim={meta.get('feature_dim')}, "
+            f"pipeline is now {FEATURE_DIM}. Re-run extract-m4."
+        )
     data = np.load(npz_path, allow_pickle=False)
     return {
         "X": data["X"],
@@ -489,6 +507,7 @@ def cmd_train(args: argparse.Namespace) -> int:
     from original.constants import (
         ALL_FEATURE_CODES,
         TIER17_CODES,
+        TIER18_CODES,
         MUSICAL_COMPARISON_CODES,
         COMPARISON_CODES,
     )
@@ -600,6 +619,7 @@ def cmd_train(args: argparse.Namespace) -> int:
         "model_name": primary,
         "feature_codes": list(ALL_FEATURE_CODES),
         "masked_codes": list(TIER17_CODES)
+        + list(TIER18_CODES)
         + list(MUSICAL_COMPARISON_CODES)
         + list(COMPARISON_CODES),
         "thresholds": thresholds,
@@ -901,13 +921,21 @@ def cmd_eval_seminary(args: argparse.Namespace) -> int:
 
     # Feature cache keyed on the manifest hash — the corpus is git-versioned,
     # so a manifest change is the signal that extraction must re-run.
+    from original.constants import FEATURE_DIM
+
     cache_path = _ROOT / ".benchmark_cache" / "seminary_features_v1.npz"
     sidecar_path = cache_path.with_suffix(".json")
     manifest_sha = _sha256(SEMINARY_MANIFEST)
     X = None
     if cache_path.exists() and sidecar_path.exists():
         meta = json.loads(sidecar_path.read_text())
-        if meta.get("manifest_sha256") == manifest_sha and meta.get("n") == len(texts):
+        # feature_dim guards against caches extracted by an older pipeline;
+        # sidecars written before the key existed count as stale.
+        if (
+            meta.get("manifest_sha256") == manifest_sha
+            and meta.get("n") == len(texts)
+            and meta.get("feature_dim") == FEATURE_DIM
+        ):
             cached = np.load(cache_path, allow_pickle=False)
             if cached["group"].astype(str).tolist() == group_of:
                 X = cached["X"]
@@ -921,6 +949,7 @@ def cmd_eval_seminary(args: argparse.Namespace) -> int:
                 {
                     "manifest_sha256": manifest_sha,
                     "n": len(texts),
+                    "feature_dim": FEATURE_DIM,
                     "extracted_at": datetime.now(timezone.utc).isoformat(),
                 },
                 indent=2,
