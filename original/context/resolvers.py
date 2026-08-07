@@ -271,22 +271,56 @@ def resolve_topic(text: str, baseline_texts: list[str]) -> dict[str, Any]:
     -------
     {
         "domain":            "unknown"  (LDA labelling deferred to a later PR),
-        "baseline_distance": cosine distance ∈ [0, 1] (0=identical, 1=orthogonal),
+        "baseline_distance": cosine distance. TfidfVectorizer output is
+                              non-negative, so cosine_sim ∈ [0, 1] and
+                              therefore baseline_distance ∈ [0, 0.5] in
+                              practice (0=identical, 0.5=orthogonal) — NOT
+                              [0, 1]. d = 1.0 is unreachable from this
+                              function; do not size calibration or sweep
+                              work against it (see TOPIC_INFLATE_GAIN in
+                              constants.py).
         "novelty":           "low" | "medium" | "high",
+        "degraded":          True on every fallback path below (missing
+                              sklearn, no/empty baseline_texts, centroid
+                              norm underflow, or any caught exception),
+                              False on a real computation. The 0.5
+                              "baseline_distance" sentinel on those paths
+                              historically meant "medium novelty" — under
+                              TOPIC_VARIANCE_INFLATION it would otherwise
+                              read as *maximum* topic distance (the ceiling
+                              of the [0, 0.5] range above) and silently
+                              apply the strongest possible sigma widening
+                              to a resolver failure. Callers that key
+                              inflation off this dict (see
+                              quantum/scoring.py:_topic_inflation_vector)
+                              MUST check "degraded" and treat it as
+                              "no inflation", not just read
+                              "baseline_distance".
     }
 
-    Falls back to {"baseline_distance": 0.5, "novelty": "medium"} if sklearn is
-    unavailable or fewer than 2 baseline texts are supplied.
+    Falls back to {"baseline_distance": 0.5, "novelty": "medium", "degraded":
+    True} if sklearn is unavailable or fewer than 2 baseline texts are
+    supplied.
     """
     if not baseline_texts or len(baseline_texts) < 1 or not (text or "").strip():
-        return {"domain": "unknown", "baseline_distance": 0.5, "novelty": "medium"}
+        return {
+            "domain": "unknown",
+            "baseline_distance": 0.5,
+            "novelty": "medium",
+            "degraded": True,
+        }
 
     try:
         from sklearn.feature_extraction.text import TfidfVectorizer
         from sklearn.preprocessing import normalize
     except ImportError:  # pragma: no cover
         log.warning("scikit-learn unavailable; topic resolver returning medium novelty.")
-        return {"domain": "unknown", "baseline_distance": 0.5, "novelty": "medium"}
+        return {
+            "domain": "unknown",
+            "baseline_distance": 0.5,
+            "novelty": "medium",
+            "degraded": True,
+        }
 
     try:
         vec = TfidfVectorizer(
@@ -302,19 +336,32 @@ def resolve_topic(text: str, baseline_texts: list[str]) -> dict[str, Any]:
         # Re-normalise centroid (mean-of-unit-vectors is not unit).
         norm = float(np.linalg.norm(baseline_centroid))
         if norm < 1e-12:
-            return {"domain": "unknown", "baseline_distance": 0.5, "novelty": "medium"}
+            return {
+                "domain": "unknown",
+                "baseline_distance": 0.5,
+                "novelty": "medium",
+                "degraded": True,
+            }
         baseline_centroid = baseline_centroid / norm
 
         submission_vec = vec.transform([text]).toarray()
         submission_vec = normalize(submission_vec, norm="l2")[0]
 
         cosine_sim = float(np.dot(baseline_centroid, submission_vec))
-        # Clip to [-1, 1] then convert to distance ∈ [0, 1].
+        # TF-IDF vectors are non-negative, so cosine_sim is mathematically
+        # confined to [0, 1] (never negative) and distance to [0, 0.5]. The
+        # clip to [-1, 1] is defensive only — floating-point slop, not a
+        # reachable negative-cosine regime.
         cosine_sim = max(-1.0, min(1.0, cosine_sim))
         distance = round((1.0 - cosine_sim) / 2.0, 4)
     except Exception as e:  # pragma: no cover
         log.warning("Topic resolver failed: %s", e)
-        return {"domain": "unknown", "baseline_distance": 0.5, "novelty": "medium"}
+        return {
+            "domain": "unknown",
+            "baseline_distance": 0.5,
+            "novelty": "medium",
+            "degraded": True,
+        }
 
     if distance < TOPIC_NOVELTY_BOUNDS["low"]:
         novelty = "low"
@@ -323,7 +370,12 @@ def resolve_topic(text: str, baseline_texts: list[str]) -> dict[str, Any]:
     else:
         novelty = "high"
 
-    return {"domain": "unknown", "baseline_distance": distance, "novelty": novelty}
+    return {
+        "domain": "unknown",
+        "baseline_distance": distance,
+        "novelty": novelty,
+        "degraded": False,
+    }
 
 
 # ══════════════════════════════════════════════════════════════════════════════

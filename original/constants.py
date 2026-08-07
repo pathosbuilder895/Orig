@@ -976,6 +976,54 @@ TOPIC_NOVELTY_BOUNDS: dict[str, float] = {
     "medium": 0.50,
 }
 
+# ── Topic-adaptive variance inflation (2026-08 topic-invariance work) ────────
+#
+# When TOPIC_VARIANCE_INFLATION is on, scoring widens each feature's expected
+# band in proportion to how far the submission's topic sits from the student's
+# baseline centroid:
+#
+#     d_eff     = clip((d - TOPIC_NOVELTY_BOUNDS["low"]) / 0.75, 0, 1)
+#     sigma_eff = sigma * (1 + TOPIC_INFLATE_GAIN * d_eff * s_norm)
+#
+# Rationale: baseline_std is estimated from a student's own samples, which
+# usually span a narrow topic range, so it encodes "how much this student
+# varies WHILE WRITING ABOUT THE SAME THINGS". On a new topic the topic-
+# sensitive features move by more than that sigma predicts and rms_z inflates
+# — measured at mean AUC 0.387 (INVERTED) on the leave-one-genre-out Lewis
+# corpus, validation/genre_crossgenre_2026-08/. See
+# docs/superpowers/specs/2026-08-06-topic-invariant-scoring-design.md.
+#
+# TOPIC_SENSITIVITY holds ALREADY-NORMALISED per-feature sensitivities: the
+# derivation script divides by the median over MEASURABLE features and clips
+# to [0, TOPIC_INFLATE_MAX] before writing them here, so the scoring path
+# needs no measurability lookup (original/ must never import validation/).
+# A code absent from this table reads as 1.0 — median sensitivity.
+#
+# SHIPPED EMPTY ON PURPOSE. An empty table means uniform sensitivity, i.e.
+# "inflate every feature in proportion to topic distance". The per-feature
+# table is a follow-on: cross_work_manifest.json currently carries 2 works
+# per author, and a drift estimate over two work-means cannot support a
+# 109-dimensional constant.
+TOPIC_SENSITIVITY: dict[str, float] = {}
+
+# Multiplier strength at maximum REACHABLE topic distance. resolve_topic's
+# TF-IDF vectors are non-negative, so cosine_sim in [0, 1] and therefore
+# baseline_distance = (1 - cosine_sim) / 2 in [0, 0.5] — d = 1.0 is
+# unreachable in production; do not calibrate or sweep against it.
+# At the real ceiling d = 0.5: d_eff = (0.5 - TOPIC_NOVELTY_BOUNDS["low"])
+# / 0.75 = (0.5 - 0.25) / 0.75 = 0.333, so with the shipped GAIN = 1.0 the
+# actual maximum multiplier for a median-sensitivity feature is
+# 1 + 1.0 * 0.333 = 1.333x, not the 2x that d = 1.0 would have implied.
+# Swept on the derivation corpus and fixed before the hold-out is touched —
+# see the spec's hold-out discipline.
+TOPIC_INFLATE_GAIN: float = 1.0
+
+# Ceiling on normalised per-feature sensitivity, so no single feature can be
+# inflated into irrelevance. Unused while TOPIC_SENSITIVITY is empty (every
+# lookup returns 1.0), but the clip lives in the derivation script that
+# populates the table.
+TOPIC_INFLATE_MAX: float = 3.0
+
 # Genre rule-based-fallback thresholds (per 100 words / per sentence as
 # appropriate). Tunable here so threshold sweeps don't require code changes.
 # NOTE: Phase 2 ships rule-based only; sklearn classifier deferred to a

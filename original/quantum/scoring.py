@@ -58,6 +58,9 @@ from ..constants import (
     LENGTH_BUCKETS_BY_TOKENS,
     LENGTH_WEIGHT_SCHEDULE,
     TIER_WEIGHTS,
+    TOPIC_INFLATE_GAIN,
+    TOPIC_NOVELTY_BOUNDS,
+    TOPIC_SENSITIVITY,
     TRAJECTORY_GROWTH_THRESHOLD,
     TRAJECTORY_REGRESSIVE_THRESHOLD,
 )
@@ -109,6 +112,88 @@ def _length_bucket_for(n_tokens: int) -> str:
         if lo <= n_tokens < hi:
             return name
     return "long"  # safety net: anything past the last bucket reads as 'long'
+
+
+# ── Topic-adaptive variance inflation ────────────────────────────────────────
+#
+# Pre-build the per-feature sensitivity vector once. An absent code reads as
+# 1.0 (median sensitivity), so the shipped empty TOPIC_SENSITIVITY table
+# yields an all-ones vector and the multiplier reduces to 1 + GAIN * d_eff.
+_TOPIC_SENSITIVITY_VECTOR = np.array(
+    [TOPIC_SENSITIVITY.get(code, 1.0) for code in ALL_FEATURE_CODES],
+    dtype=np.float64,
+)
+
+# Below this topic distance the correction is a no-op. Reusing the already-
+# calibrated "low novelty" bound rather than inventing a second threshold.
+_TOPIC_NOVELTY_FLOOR = float(TOPIC_NOVELTY_BOUNDS["low"])
+
+
+def _topic_inflation_vector(manifest: dict | None) -> np.ndarray | None:
+    """
+    Per-feature sigma multiplier derived from the manifest's topic distance.
+
+    Returns None — rather than an all-ones array — whenever the multiplier
+    would be exactly 1.0: no manifest, no usable ``baseline_distance``, or a
+    distance at or below ``_TOPIC_NOVELTY_FLOOR``. The caller skips the
+    multiply entirely on None, which is what makes ``d <= 0.25`` bit-for-bit
+    identical to flag-off rather than merely numerically close.
+
+    Also returns None whenever ``manifest["topic"]["degraded"]`` is truthy.
+    ``resolve_topic`` (context/resolvers.py) returns its 0.5 sentinel on
+    every failure path (missing sklearn, empty baseline_texts, centroid
+    underflow, internal exception) WITHOUT raising, so those failures never
+    reach ``run_resolvers``' ``_errors`` list — this is the only place that
+    can catch them. 0.5 is the maximum reachable ``baseline_distance`` (see
+    resolve_topic's docstring: TF-IDF cosine_sim ∈ [0, 1] bounds distance to
+    [0, 0.5]), so treating a degraded resolution as ordinary input would
+    apply the single strongest possible sigma widening to every resolver
+    failure — the opposite of failing safe. The ``degraded`` flag is checked
+    instead of, not in addition to, changing what 0.5 means: the sentinel
+    value itself is untouched so ``manifest._derive_directives``'s
+    ``novelty == "medium"`` behaviour for ADAPTIVE_WEIGHTS_ENABLED users is
+    unaffected.
+    """
+    if not manifest:
+        return None
+    topic = manifest.get("topic") or {}
+    if topic.get("degraded"):
+        return None
+    distance = topic.get("baseline_distance")
+    # bool is an int subclass; reject it explicitly so True can't read as 1.0.
+    if isinstance(distance, bool) or not isinstance(distance, int | float):
+        return None
+    distance = float(distance)
+    if not np.isfinite(distance):
+        return None
+    distance = min(max(distance, 0.0), 1.0)
+
+    d_eff = (distance - _TOPIC_NOVELTY_FLOOR) / (1.0 - _TOPIC_NOVELTY_FLOOR)
+    if d_eff <= 0.0:
+        return None
+
+    return 1.0 + TOPIC_INFLATE_GAIN * d_eff * _TOPIC_SENSITIVITY_VECTOR
+
+
+def _rms_z_from_z(
+    z: np.ndarray,
+    weight_vec: np.ndarray,
+    active: np.ndarray,
+    n_active: int,
+) -> float:
+    """
+    Winsorise, weight, mask, and reduce a z-vector to a single rms_z.
+
+    Extracted so the shadow-mode second pass under an inflated sigma uses
+    the identical sequence rather than a copy that can drift. The +-4 cap is
+    applied BEFORE weighting — see the block comment at the call site for why
+    that ordering matters.
+    """
+    z_capped = np.clip(z, -4.0, 4.0)
+    z_weighted = z_capped * weight_vec * active.astype(np.float64)
+    if n_active > 0:
+        return float(np.sqrt(np.sum(z_weighted**2) / n_active))
+    return 0.0
 
 
 # ── Output dataclasses ────────────────────────────────────────────────────────
@@ -207,12 +292,30 @@ class RecommendedAction:
     rationale: str
 
 
+_TOPIC_INFLATION_MODES = frozenset({"off", "shadow", "on"})
+
+
+def _parse_topic_inflation_mode(raw: str) -> str:
+    """
+    Map TOPIC_VARIANCE_INFLATION to a mode. "1" is accepted as an alias for
+    "on" so the flag reads like every other boolean flag in the table.
+    Anything unrecognised falls back to "off" — an unparseable value must
+    never silently enable a score-changing correction.
+    """
+    value = (raw or "").strip().lower()
+    if value == "1":
+        return "on"
+    if value in _TOPIC_INFLATION_MODES:
+        return value
+    return "off"
+
+
 @dataclass(frozen=True)
 class ScoringConfig:
     """
     Every input to ``score()`` that used to be read live from ``os.environ``
     or fetched from ``store`` inside the function body (WS-7 step 1). This is
-    the ONE place those six env vars are read (via :meth:`from_env`) — the
+    the ONE place those eleven env vars are read (via :meth:`from_env`) — the
     scoring math itself is now a pure function of its arguments.
 
     ``ScoringConfig()`` (all defaults) reproduces the flags-OFF, no-calibration-
@@ -267,6 +370,17 @@ class ScoringConfig:
     #               looked best on false-positive rate alone, but collapsed
     #               genuine-impostor severity when checked at a matched bar.
     llr_action_mode: str = "gate"  # was LLR_ACTION_MODE
+    # Topic-adaptive variance inflation (see original/constants.py's
+    # TOPIC_SENSITIVITY block and the 2026-08 topic-invariance spec).
+    #   "off"    — DEFAULT. Byte-identical to Phase 1.
+    #   "shadow" — compute the corrected score and attach it as
+    #              deviation_score_inflated; deviation_score and
+    #              recommendation are untouched. Stage 1 of rollout, and the
+    #              only way to learn the real distribution of topic distance
+    #              in pilot traffic.
+    #   "on"     — inflate sigma for real. CHANGES SCORES. Gated on gate G7
+    #              passing in both hold-out directions.
+    topic_variance_inflation: str = "off"
 
     # ── formerly call-time `from ..store import ...` ──────────────────────────
     # Confirmed-authentic fidelity scores for this student, for the conformal
@@ -281,7 +395,7 @@ class ScoringConfig:
 
     @classmethod
     def from_env(cls) -> ScoringConfig:
-        """Build a config from the current environment. The ONE place these six vars are read."""
+        """Build a config from the current environment. The ONE place these eleven vars are read."""
         return cls(
             bayesian_prior_enabled=os.environ.get("BAYESIAN_PRIOR_ENABLED", "0") == "1",
             prior_weight=float(os.environ.get("PRIOR_WEIGHT", "3.0")),
@@ -294,6 +408,9 @@ class ScoringConfig:
             == "1",
             identity_axis_enabled=os.environ.get("IDENTITY_AXIS", "0") == "1",
             llr_action_mode=os.environ.get("LLR_ACTION_MODE", "gate"),
+            topic_variance_inflation=_parse_topic_inflation_mode(
+                os.environ.get("TOPIC_VARIANCE_INFLATION", "0")
+            ),
         )
 
 
@@ -352,6 +469,19 @@ class Layer7Output:
     # import cycle. None when the manifest flag is off — preserves byte-
     # identical Phase 1 responses by default.
     context_manifest: dict[str, object] | None = field(default=None)
+
+    # ── Topic-adaptive variance inflation (audit trail) ───────────────────────
+    # All three stay at their defaults unless
+    # config.topic_variance_inflation is "on"/"shadow" AND the manifest
+    # carried a topic distance above the novelty floor.
+    topic_inflation_applied: bool = field(default=False)
+    topic_distance: float | None = field(default=None)
+    topic_mean_inflation: float | None = field(default=None)
+
+    # Shadow-mode preview: what deviation_score WOULD be under inflation.
+    # None unless config.topic_variance_inflation == "shadow" and the topic
+    # distance cleared the novelty floor. Never influences `recommendation`.
+    deviation_score_inflated: float | None = field(default=None)
 
     # Corpus-level AI-likelihood (orthogonal signal, set at the API layer
     # after quantum score when AI_LIKELIHOOD_ENABLED=1). Report-only: never
@@ -695,8 +825,42 @@ def score(
         except Exception as _exc:
             log.debug("Bayesian prior blend skipped: %s", _exc)
 
+    # ── Topic-adaptive variance inflation ────────────────────────────────────
+    # Placed AFTER the Bayesian-prior blend so it widens the EFFECTIVE sigma
+    # rather than racing it. `sigma` also feeds the amplitude path via
+    # baseline_std_override, so the correction stays coherent across both
+    # scoring routes instead of applying to rms_z alone.
+    topic_inflation: np.ndarray | None = None
+    if config.topic_variance_inflation in ("on", "shadow"):
+        topic_inflation = _topic_inflation_vector(manifest)
+    # Keep the pre-inflation sigma so _decompose() below can be fed an
+    # un-inflated z (see the comment at the _decompose() call site for why).
+    _sigma_pre_topic_inflation = sigma
+    if topic_inflation is not None and config.topic_variance_inflation == "on":
+        sigma = sigma * topic_inflation
+
     sub_raw = submission_vector  # raw normalised [0,1] vector
     z = (sub_raw - mu) / sigma  # standardised deviation, shape (D,)
+
+    # z for the interference/explanation surface only (_decompose below) —
+    # deliberately NOT inflated. Widening sigma shrinks z, which shrinks
+    # |z| below _decompose's +-1.0 destructive threshold and can empty
+    # destructive_features entirely (measured: 5 -> 0 destructive features
+    # at d = 0.5 for a uniform z=1.15 submission). _recommend() requires
+    # type_token_ratio and error_kl_divergence to be PRESENT in
+    # destructive_features before ghostwriting_confirmed can force
+    # action="escalate" — so an emptied list can silently drop that forced
+    # escalate on exactly the cross-topic ghostwritten submissions this
+    # feature targets, and the professor narrative loses its
+    # destructive-feature explanation surface at the same time.
+    #
+    # destructive_features answers "which features moved"; inflation is a
+    # claim about certainty, not about what moved. Widening the band should
+    # change how alarmed rms_z/deviation_score make us (those DO use the
+    # inflated `z` above), not what we tell the professor moved.
+    z_for_decompose = z
+    if topic_inflation is not None and config.topic_variance_inflation == "on":
+        z_for_decompose = (sub_raw - mu) / _sigma_pre_topic_inflation
 
     # Apply tier weights then zero out inactive (no-data) features.
     # Phase 5: when an adaptive weight vector is supplied (built from the
@@ -728,14 +892,21 @@ def score(
     # text typically pushes many features simultaneously above the cap, so
     # rms_z stays high.  It DOES prevent a single unlucky sentence-ending
     # coincidence from escalating a student's own writing.
-    z_capped = np.clip(z, -4.0, 4.0)
-    z_weighted = z_capped * weight_vec * active.astype(np.float64)
-
     n_active = int(active.sum())
-    if n_active > 0:
-        rms_z = float(np.sqrt(np.sum(z_weighted**2) / n_active))
-    else:
-        rms_z = 0.0
+    rms_z = _rms_z_from_z(z, weight_vec, active, n_active)
+
+    # ── Shadow-mode preview (rms_z stage) ────────────────────────────────────
+    # Recompute rms_z against an inflated sigma here, where sub_raw, mu, sigma,
+    # weight_vec, active, and n_active are all in scope and sigma is still the
+    # un-inflated value in shadow mode. The final score isn't produced until
+    # after adj_factor exists below (Layer7Output.authorship.deviation_score
+    # is D_adjusted, not D_raw -- see the trajectory-adjustment block), so
+    # this only computes the intermediate rms_z; converting it through tanh
+    # happens later, alongside D_adjusted's own conversion.
+    _rms_z_inflated: float | None = None
+    if topic_inflation is not None and config.topic_variance_inflation == "shadow":
+        _z_inflated = (sub_raw - mu) / (sigma * topic_inflation)
+        _rms_z_inflated = _rms_z_from_z(_z_inflated, weight_vec, active, n_active)
 
     # ── Two-axis verification: typicality axis (conformal, LOO-based) ────────
     # Gated by config.typicality_scoring_enabled (default OFF, preserves
@@ -748,7 +919,19 @@ def score(
     typicality_source: str | None = None
     typicality_calibration: str | None = None
 
-    if config.typicality_scoring_enabled and adaptive_weights is None:
+    # The new clause joins the existing `adaptive_weights is None` guard for
+    # the same reason: state.loo_distances is computed under the UNWEIGHTED,
+    # UN-INFLATED reference, so comparing a modified rms_z against that
+    # distribution is apples-to-oranges. Withhold the band rather than report
+    # a wrong one. See the NOTE a few lines below.
+    #
+    # Gated on mode == "on", NOT on `topic_inflation is not None`. In shadow
+    # mode sigma is never multiplied, so rms_z is un-inflated and the
+    # comparison against loo_distances stays valid — and typicality_band
+    # feeds _recommend() when IDENTITY_AXIS is on, so withholding it in
+    # shadow would let shadow change an action. Shadow must be inert.
+    _sigma_was_inflated = topic_inflation is not None and config.topic_variance_inflation == "on"
+    if config.typicality_scoring_enabled and adaptive_weights is None and not _sigma_was_inflated:
         from .typicality import NO_ACTION_CENTRAL_THRESHOLD, band_from_p, p_central
         from .typicality import p_far as p_far_fn
 
@@ -848,6 +1031,26 @@ def score(
     else:
         _fidelity, _conformal_p, _amp_components = 0.0, None, {}
 
+    # ── Topic inflation: suppress the conformal p-value ───────────────────────
+    # `conformal_pvalue(F, authentic_fidelities)` (inside _amplitude_score,
+    # called above) compares the live fidelity F -- computed under sigma_eff
+    # via baseline_std_override=sigma -- against a per-student calibration
+    # set accumulated under UN-inflated sigma. That is structurally the
+    # identical hazard the typicality guard a few dozen lines up exists for:
+    # a live statistic compared against a reference computed under a
+    # different sigma. Measured: F moves 0.536 -> 0.698 and conformal_p
+    # moves 0.0 -> 0.923 under inflation. _recommend() below reads
+    # conformal_p to nudge the action upward, so an uncorrected p-value here
+    # could change a verdict on the strength of a stale comparison. Suppress
+    # unconditionally (not just on the output field) so it can neither
+    # mislead the audit trail nor the action logic -- mirrors the
+    # typicality guard's "withhold rather than report wrong" precedent
+    # exactly. Keyed on _sigma_was_inflated ("on" mode only, real inflation
+    # vector present), so shadow mode -- which never multiplies sigma -- is
+    # unaffected and stays inert.
+    if _sigma_was_inflated:
+        _conformal_p = None
+
     # Map to [0,1] via tanh.
     #
     # Divisor calibration history
@@ -889,10 +1092,28 @@ def score(
 
     D_adjusted = float(np.clip(D_raw * adj_factor, 0.0, 1.0))
 
+    # ── Shadow-mode preview (final score) ────────────────────────────────────
+    # Mirrors D_adjusted's arithmetic exactly -- same tanh(rms_z / 1.5)
+    # calibration, then the SAME adj_factor from the trajectory block above
+    # (adj_factor depends only on xi and state.trajectory.vector, neither of
+    # which sigma inflation touches, so it is identical between shadow and
+    # "on" mode). That coupling is deliberate: deviation_score_inflated must
+    # always equal what "on" mode's deviation_score would be, for any
+    # trajectory direction, or shadow is previewing the wrong number.
+    deviation_score_inflated: float | None = None
+    if _rms_z_inflated is not None:
+        deviation_score_inflated = float(
+            np.clip(np.tanh(_rms_z_inflated / 1.5) * adj_factor, 0.0, 1.0)
+        )
+
     # ── Interference decomposition ────────────────────────────────────────────
     # Use local `mu` (potentially Bayesian-blended) so interference deltas
     # are computed against the same reference distribution as the z-scores.
-    interference = _decompose(xi, rho_xi, P, feature_dict, mu, z)
+    # Feed `z_for_decompose` (un-inflated), NOT `z` — see its definition
+    # above for why: destructive_features is an explanation surface, and
+    # topic inflation must not be able to empty it or suppress the forced
+    # ghostwriting escalate that depends on it.
+    interference = _decompose(xi, rho_xi, P, feature_dict, mu, z_for_decompose)
 
     # ── Baseline confidence ───────────────────────────────────────────────────
     bc = BaselineConfidence(
@@ -917,7 +1138,11 @@ def score(
 
     domain = DomainSignal(
         theological_register_score=theol_sub,
-        register_anomaly=abs(delta_theol) > 0.25,
+        # bool(...) because delta_theol is a numpy scalar, so the bare
+        # comparison yields np.bool_ rather than the declared `bool` — which
+        # pydantic flags as a DeprecationWarning when Layer7OutputResponse
+        # validates a real scored result.
+        register_anomaly=bool(abs(delta_theol) > 0.25),
         confessional_balance=balance,
     )
 
@@ -1009,6 +1234,16 @@ def score(
         # Phase 3+: attach the adaptive context manifest (if any) for audit.
         # Stored as a plain dict so this module needs no original.context import.
         context_manifest=manifest,
+        topic_inflation_applied=_sigma_was_inflated,
+        topic_distance=(
+            float(((manifest or {}).get("topic") or {})["baseline_distance"])
+            if topic_inflation is not None
+            else None
+        ),
+        topic_mean_inflation=(
+            float(np.mean(topic_inflation)) if topic_inflation is not None else None
+        ),
+        deviation_score_inflated=deviation_score_inflated,
     )
 
 
