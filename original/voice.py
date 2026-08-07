@@ -2,7 +2,7 @@
 voice.py — the student-facing *redacting* projection layer (ADR-005).
 
 This module is the single, server-side choke point that turns the rich internal
-state (the 103-feature baseline vector, raw divergence scores, action enums,
+state (the FEATURE_DIM-feature baseline vector, raw divergence scores, action enums,
 sample counts, formation reasons) into the *display-ready, formation-register*
 view the student dashboard consumes via ``GET /me/voice`` and ``POST /me/work``.
 
@@ -22,7 +22,7 @@ value this module returns. ``tests/test_voice_leak.py`` is the permanent gate.
 The voice-dimension taxonomy below (``VOICE_DIMENSIONS``) is deliberately a
 *blend* of several underlying features per dimension, and the mapping is kept
 here on the server — it is never shipped to the client, so the visualization is
-personal and real without being a lookup table back to the 103 features.
+personal and real without being a lookup table back to the FEATURE_DIM features.
 """
 
 from __future__ import annotations
@@ -123,7 +123,7 @@ def _clamp01(x: float) -> float:
 
 
 def project_fingerprint(baseline_vector: dict[str, float] | None) -> list[dict[str, Any]]:
-    """Blend the raw 103-feature baseline vector into named voice dimensions.
+    """Blend the raw FEATURE_DIM-feature baseline vector into named voice dimensions.
 
     Returns ``[{name, value}]`` where value ∈ [0, 1] is the mean of the
     dimension's constituent features. The feature codes themselves never appear

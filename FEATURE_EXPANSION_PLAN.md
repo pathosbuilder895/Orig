@@ -1,8 +1,8 @@
 # Original — Feature Expansion Plan
 
 > **Status: historical / superseded.** This plan targeted expansion from 34
-> features; the live pipeline has since shipped 103 features across 17 tiers
-> (`original/constants.py:206` `FEATURE_DIM = 103`). Kept for historical
+> features; the live pipeline has since shipped 109 features across 18 tiers
+> (`original/constants.py:221` `FEATURE_DIM = 109`). Kept for historical
 > context only — do not treat the feature counts below as current.
 
 ## Executive Summary

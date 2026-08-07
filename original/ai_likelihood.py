@@ -3,7 +3,7 @@ ai_likelihood.py — corpus-level AI-likelihood detector (second scoring mode).
 
 Loads the committed classifier artifact (original/data/ai_detector_v1.joblib,
 trained by scripts/train_ai_detector.py on the AuTexTification 2023 English
-subtask-1 train split) and scores the SAME 103-dim feature vector the
+subtask-1 train split) and scores the SAME FEATURE_DIM-wide feature vector the
 per-student Born-rule path already computes. This answers a different
 question than the identity verification: not "does this match student X's
 baseline?" but "does this look like AI-generated text at all?"
@@ -250,7 +250,7 @@ def _indicators(vec: np.ndarray, art: dict) -> list[AiIndicator]:
 
 def predict_ai_likelihood(vec: np.ndarray) -> AiLikelihoodResult | None:
     """
-    Score one submission's 103-dim feature vector. Returns None whenever the
+    Score one submission's FEATURE_DIM-wide feature vector. Returns None whenever the
     detector cannot produce a trustworthy answer — callers treat None as
     "signal unavailable", never as an error.
     """

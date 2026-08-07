@@ -233,7 +233,7 @@ class StudentState:
         - S ≈ 1 → maximally mixed (D orthogonal, equally-weighted samples)
                   — low baseline confidence
 
-        Computed via eigvalsh (symmetric fast path, O(D²), ~1 ms for D=103).
+        Computed via eigvalsh (symmetric fast path, O(D²), ~1 ms at the current D).
         Eigenvalues are clipped to [ε, 1] and renormalised before log to
         avoid numerical -inf for near-zero eigenvalues.
         """
@@ -609,8 +609,8 @@ def _ledoit_wolf_shrink(
     (2004) shrinkage — the standard fix for rank-deficient covariance
     estimators when the sample count N is small relative to the dimension D.
 
-    At N=3 baseline samples in a D=103 feature space, ``rho`` has rank ≤3:
-    100 of 103 eigen-directions carry exactly zero probability mass, so the
+    At N=3 baseline samples in a D=FEATURE_DIM feature space, ``rho`` has rank ≤3:
+    all but 3 of the D eigen-directions carry exactly zero probability mass, so the
     Born-rule projection ⟨ξ|ρ|ξ⟩ is blind to any submission feature that
     varies outside the 3-dim subspace the baseline happened to span. The
     shrunk estimator

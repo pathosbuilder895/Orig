@@ -92,7 +92,7 @@ _TIER_WEIGHT_VECTOR = np.array(
 # them into the score() math.
 #
 # Pre-build one length-scale vector per bucket so the per-call cost is a
-# single np multiply, not a 103-feature Python loop.
+# single np multiply, not a FEATURE_DIM-feature Python loop.
 def _build_length_scale_vector(bucket: str) -> np.ndarray:
     factors = LENGTH_WEIGHT_SCHEDULE[bucket]
     return np.array(

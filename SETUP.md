@@ -152,12 +152,12 @@ compliance detail.
 | API | FastAPI + uvicorn |
 | Database | Hardened SQLite/WAL for the pilot (`original/store.py`, `ORIGINAL_DB`) — see `docs/adr/004-postgres-migration.md`. A Postgres path exists only in the dormant v1 API. |
 | Feature extraction | Python: spaCy, sentence-transformers (optional), numpy |
-| Scoring | Quantum density matrix (103-dim Born rule) |
+| Scoring | Quantum density matrix (109-dim Born rule) |
 | LTI | IMS LTI 1.3 / OIDC, platform-agnostic via `LTI_PLATFORMS` (Canvas, Blackboard, Moodle, …) |
 | Auth | Principal tokens + PBKDF2 staff/student auth (`original/api.py`) |
 
-103 stylometric features across 17 tiers (`original/constants.py`,
-`FEATURE_DIM = 103`) — see the [README's feature table](README.md#the-103-dimensional-pipeline)
+109 stylometric features across 18 tiers (`original/constants.py`,
+`FEATURE_DIM = 109`) — see the [README's feature table](README.md#the-109-dimensional-pipeline)
 for the full tier-by-tier breakdown. Briefly:
 
 | Tiers | Coverage |
@@ -193,6 +193,6 @@ pip install pydantic-settings==2.3.4
 
 **Stored baselines have wrong dimension after a feature tier upgrade**
 Legacy baselines serialized at 74 or 89 dimensions are automatically padded
-to the current 103-dimensional vector with 0.5 (neutral mid-range) on load —
+to the current 109-dimensional vector with 0.5 (neutral mid-range) on load —
 you'll see a warning. To restore full accuracy, re-add those baseline
 samples via the professor dashboard, the API, or run `rebuild-baselines`.
