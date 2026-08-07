@@ -116,6 +116,9 @@ demo/bluebook/e2e/fixtures/.tenants-created.log
 # Hypothesis example database (property-test cache, machine-local)
 .hypothesis/
 
+# Project Gutenberg full-text fetch caches for the cross-work corpus.
+validation/public_authors/cross_work_corpus/*/_*_full.txt
+
 # Cached full Gutenberg bodies for the genre corpus. Regenerable by
 # validation/genre_2026-08/fetch_authors.py, several MB each, and the
 # committed chunks are what the labels actually reference.
