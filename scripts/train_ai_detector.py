@@ -383,11 +383,19 @@ def _load_artifact(model_path: Path) -> dict:
 
     art = joblib.load(model_path)
     from original.constants import ALL_FEATURE_CODES
+    from original.ai_likelihood import _MASKED_CODES
 
     if art["feature_codes"] != list(ALL_FEATURE_CODES):
         raise RuntimeError(
             "Artifact feature_codes do not match ALL_FEATURE_CODES — "
             "retrain against this checkout."
+        )
+    # Mirror the runtime loader: never publish eval numbers for an artifact
+    # ai_likelihood.py would refuse to load.
+    if set(art.get("masked_codes") or ()) != set(_MASKED_CODES):
+        raise RuntimeError(
+            "Artifact masked_codes disagree with original/ai_likelihood.py — "
+            "the runtime would reject this artifact; retrain against this checkout."
         )
     return art
 
@@ -504,13 +512,11 @@ def cmd_train(args: argparse.Namespace) -> int:
     from sklearn.metrics import roc_auc_score, brier_score_loss
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
-    from original.constants import (
-        ALL_FEATURE_CODES,
-        TIER17_CODES,
-        TIER18_CODES,
-        MUSICAL_COMPARISON_CODES,
-        COMPARISON_CODES,
-    )
+    from original.constants import ALL_FEATURE_CODES
+
+    # Single source of truth for the placeholder dims — the runtime module owns
+    # it, and its loader rejects any artifact whose masked_codes disagree.
+    from original.ai_likelihood import _MASKED_CODES
 
     cache = _load_cached_features("train")
     X, y = cache["X"].astype(np.float64), cache["y"].astype(np.int8)
@@ -536,6 +542,29 @@ def cmd_train(args: argparse.Namespace) -> int:
         )
 
     print(f"[train] n={len(y)} human={(y==0).sum()} ai={(y==1).sum()}")
+
+    # The artifact will DECLARE these dims as placeholders, and ai_likelihood.py
+    # forces them to 0.5 at predict time. If extraction actually produced live
+    # values for one, the shipped model would have learned from a signal the
+    # runtime then erases — silent probability skew with nothing to trip the
+    # loader. Verify the declaration is true of the data we are about to fit.
+    masked_idx = [ALL_FEATURE_CODES.index(c) for c in _MASKED_CODES]
+    live = [
+        (c, float(X[:, i].min()), float(X[:, i].max()))
+        for c, i in zip(_MASKED_CODES, masked_idx)
+        if not np.allclose(X[:, i], 0.5)
+    ]
+    if live:
+        detail = ", ".join(f"{c} (range {lo:.4f}–{hi:.4f})" for c, lo, hi in live)
+        print(
+            f"[train] FAIL: dims declared as masked are not constant 0.5 in the "
+            f"training matrix: {detail}. Either re-extract with those feature "
+            f"groups disabled, or drop them from _MASKED_CODES in "
+            f"original/ai_likelihood.py and retrain deliberately.",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"[train] verified {len(_MASKED_CODES)} masked dims are constant 0.5 in training data")
 
     def _hgb():
         return CalibratedClassifierCV(
@@ -618,10 +647,7 @@ def cmd_train(args: argparse.Namespace) -> int:
         "model": model,
         "model_name": primary,
         "feature_codes": list(ALL_FEATURE_CODES),
-        "masked_codes": list(TIER17_CODES)
-        + list(TIER18_CODES)
-        + list(MUSICAL_COMPARISON_CODES)
-        + list(COMPARISON_CODES),
+        "masked_codes": list(_MASKED_CODES),
         "thresholds": thresholds,
         # std floored at 0.02 (normalized [0,1] features) so near-constant
         # features can't produce absurd indicator z-scores downstream.
