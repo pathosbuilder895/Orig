@@ -37,7 +37,10 @@ langdetect>=1.0.9,<2.0
 # ── Document extraction (file-upload endpoints) ────────────────────────────────
 python-docx>=1.1,<2.0
 # pypdf <6.10.2 had multiple CVEs (path traversal, XML injection, ReDoS).
-pypdf>=6.10.2
+# pypdf <6.15.0 adds CVE-2026-71852 and CVE-2026-71870. Baseline uploads run
+# PdfReader over student-supplied files (original/upload_utils.py), so parser
+# CVEs here are reachable from untrusted input, not just theoretical.
+pypdf>=6.15.0
 
 # ── Canvas integration ─────────────────────────────────────────────────────────
 # canvas/live_import.py makes real Canvas Submissions API calls when

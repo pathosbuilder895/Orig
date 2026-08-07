@@ -34,7 +34,7 @@ Copied from CLAUDE.md / CI — binding on every task:
 - Never run `git add -A` in a clone containing a virtualenv; add files explicitly.
 - Commit style: `Fix ...`/`Add ...`/`Refactor ...`, co-author line `Co-Authored-By: Claude <model name> <noreply@anthropic.com>`.
 - Default behavior (SQLite, all flags off) must remain byte-identical unless the task says otherwise; `requirements-pilot.txt` environments must stay sqlalchemy-free on the default path (`import original.api` must not pull sqlalchemy).
-- Feature dimensionality: `FEATURE_DIM = 103`, 97 active by default; Tier 17 (6 behavioral features) is in `DISABLED_FEATURE_GROUPS` — tasks below collect/report Tier 17 data but MUST NOT enable the group.
+- Feature dimensionality: `FEATURE_DIM = 109`, 97 active by default; Tier 17 (6 behavioral features) and Tier 18 (6 uniformity features) are both in `DISABLED_FEATURE_GROUPS` — tasks below collect/report Tier 17 data but MUST NOT enable the group.
 
 ---
 
@@ -75,7 +75,7 @@ CODE WAVE 3 — after T6 merges (backend) and T7 merges (frontend/bundle)
 
 ## OPERATIONAL TRACK (not subagent work — human + assistant checklist)
 
-- [ ] **O1. Deploy** — Render dashboard: delete the failed Docker-runtime service → New → Blueprint → repo `pathosbuilder895/Orig`, branch `main` → paste `SECRET_KEY`, `MAINTENANCE_TOKEN`, `LTI_PRIVATE_KEY` from `~/Desktop/Original-secrets/render-env-sheet.txt` (leave `LTI_PLATFORMS`, `DATABASE_URL`, `REPO_*`, `MAINTENANCE_MODE` unset) → Apply. Then verify: `/health` returns `ok`/`pilot`/`sqlite`; `/lti/jwks` non-empty (kid `b4c53c942c470222`); anonymous lockdown spot-checks per `docs/PROVISIONING_CHECKLIST.md` §4.
+- [ ] **O1. Deploy** — Render dashboard: delete the failed Docker-runtime service → New → Blueprint → repo `pathosbuilder895/Orig`, branch `main` → paste `SECRET_KEY`, `MAINTENANCE_TOKEN`, `LTI_PRIVATE_KEY` from `~/Desktop/Original-secrets/render-env-sheet.txt` (leave `LTI_PLATFORMS`, `DATABASE_URL`, `REPO_*`, `MAINTENANCE_MODE` unset) → Apply. Then verify with `python -m scripts.o1_golive_check --base-url https://original-pilot.onrender.com --expect-kid 7939c6c8a6f9a736 --expect-commit <deployed-sha>`, which asserts all of: `/health` returns `ok`/`pilot`/`sqlite`; `/lti/jwks` non-empty with that kid; the anonymous lockdown spot-checks from `docs/PROVISIONING_CHECKLIST.md` §4; HSTS present and CORS closed. **Not** `scripts/pilot_smoke_test.py` — that one asserts `backend == "postgres"` and fails by design until O4. Secrets were rotated 2026-08-07; the kid above is the current key's, and the old `b4c53c942c470222` is retired.
 - [ ] **O2. Canvas ask — same day as O1** — send `~/Desktop/Original-secrets/canvas-admin-email.md` + `docs/canvas_developer_key.md` (as PDF) + `docs/dpa_template.md`. Need back: Client ID + Deployment ID.
 - [ ] **O3. Monitoring** — UptimeRobot/BetterStack on `https://original-pilot.onrender.com/health`, 1–5 min, alert → your email.
 - [ ] **O4. Pre-launch Postgres cutover** — New → Postgres (smallest tier, same region) → set `DATABASE_URL` → `render ssh original-pilot -- python -m alembic upgrade head` → brief `REPO_SHADOW=postgres` exercise → flip `REPO_BACKEND=postgres` → `python -m scripts.pilot_smoke_test --base-url https://original-pilot.onrender.com` must print PASS. (Full ceremony in `docs/OPS_RUNBOOK.md`; with zero users, no freeze window is needed.)
