@@ -44,7 +44,7 @@ import numpy as np
 from validation.plato import features as F
 from validation.plato.chronology import GROUP_NAMES, by_slug
 
-from original.constants import ALL_FEATURE_CODES, FEATURE_TIER  # noqa: E402
+from original.constants import ALL_FEATURE_CODES, FEATURE_DIM, FEATURE_TIER  # noqa: E402
 
 DEFAULT_BASELINE = ["apology", "crito", "gorgias"]
 
@@ -131,7 +131,7 @@ def compute(
     results = []
     for slug, idx in rows_by_slug.items():
         d = by_slug(slug)
-        Z = np.abs((X[idx] - mu) / sd)  # (n_chunks, 103)
+        Z = np.abs((X[idx] - mu) / sd)  # (n_chunks, FEATURE_DIM)
         per_tier = {}
         for t in sorted(set(tiers)):
             sel = (tiers == t) & live
@@ -221,7 +221,7 @@ def render(rep: dict, product: Dict[str, dict] | None = None) -> str:
         f"Per-tier movement from an early baseline "
         f"({'NORMALISED' if rep['normalised'] else 'RAW'} text)",
         f"baseline: {', '.join(rep['baseline'])}  ({rep['n_baseline_chunks']} chunks)",
-        f"active features: {rep['n_active_features']}/103  "
+        f"active features: {rep['n_active_features']}/{FEATURE_DIM}  "
         f"({rep['n_masked_features']} masked as constant/saturated in the baseline)",
         "",
         "values = mean |z| of the dialogue's chunks against the baseline distribution",

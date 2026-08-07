@@ -8,8 +8,8 @@ Inputs:
 For each length L:
   1. Slice each author's text into non-overlapping L-word windows.
   2. Run ``original.features.pipeline.feature_vector`` on each window to
-     get a 103-dim feature vector per window.
-  3. For each of the 103 features:
+     get a FEATURE_DIM-dim feature vector per window.
+  3. For each of the FEATURE_DIM features:
        within_var(i, L)  = mean over authors of var(matrix_a[:, i])
        between_var(i, L) = var across authors of mean(matrix_a[:, i])
        F(i, L)           = between_var / (within_var + eps)
@@ -64,7 +64,7 @@ _FEATURE_INDICES_MEASURED: List[int] = [
 class StabilityReport:
     """Result of ``per_feature_stability`` — everything the writer needs."""
 
-    feature_codes: List[str]  # length 103, ordered by ALL_FEATURE_CODES
+    feature_codes: List[str]  # length FEATURE_DIM, ordered by ALL_FEATURE_CODES
     feature_tiers: List[int]  # parallel to feature_codes
     lengths: List[int]  # the window sizes evaluated, ascending
     fisher_matrix: List[List[float]]  # shape (n_features, n_lengths); NaN for disabled-group rows

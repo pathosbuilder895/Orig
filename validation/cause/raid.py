@@ -1048,6 +1048,8 @@ def run_attack_family(
     attack family is touched only for the locked evaluation.
     """
 
+    from original.constants import FEATURE_DIM
+
     rows, X = _load_raid_features(raid_data, output, workers)
     result = evaluate_cross_attack_family_subtype(X, rows)
     source_payload = json.loads(raid_data.read_text(encoding="utf-8"))
@@ -1059,7 +1061,7 @@ def run_attack_family(
         "raid_input_sha256": hashlib.sha256(raid_data.read_bytes()).hexdigest(),
         "sampling_parameters": source_payload.get("parameters", {}),
         "feature_stack": (
-            "Original 103-feature vector plus frozen AI-likelihood probability; "
+            f"Original {FEATURE_DIM}-feature vector plus frozen AI-likelihood probability; "
             "no representation is fitted on the locked attack family"
         ),
         "evaluation": result,
@@ -1081,6 +1083,8 @@ def run_origin_invariance(
 ) -> dict:
     """Run generator- and attack-held AI-origin invariance evaluation."""
 
+    from original.constants import FEATURE_DIM
+
     rows, X = _load_raid_features(raid_data, output, workers)
     result = evaluate_ai_origin_invariance(X, rows)
     source_payload = json.loads(raid_data.read_text(encoding="utf-8"))
@@ -1091,7 +1095,7 @@ def run_origin_invariance(
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "raid_input_sha256": hashlib.sha256(raid_data.read_bytes()).hexdigest(),
         "sampling_parameters": source_payload.get("parameters", {}),
-        "feature_stack": "Original 103 features plus frozen AI-likelihood probability",
+        "feature_stack": f"Original {FEATURE_DIM} features plus frozen AI-likelihood probability",
         "evaluation": result,
         "interpretation": (
             "Positive means evidence of AI origin despite rewriting. This evaluator does not "

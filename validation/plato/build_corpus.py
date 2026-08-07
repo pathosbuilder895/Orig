@@ -100,7 +100,7 @@ def _normalise(text: str) -> str:
     Both are Gutenberg transcription artefacts, and the second one is
     destructive: some volunteers indent the entire body by six spaces (the
     Timaeus is transcribed this way). Measured effect of that indentation on a
-    2000-word chunk — 76 of 103 features change, with no error and no warning:
+    2000-word chunk — 76 of the then-103 features change, with no error and no warning:
 
         pos_bigram_entropy    0.000 -> 0.652   (Republic: 0.651)
         char_trigram_entropy  0.000 -> 0.619   (Republic: 0.628)
