@@ -9,7 +9,7 @@ configured (the key must be re-issued if the host ever changes).
 | Field | Value |
 |-------|-------|
 | **Tool Name** | Original — Authorship Verification |
-| **Tool Description** | Stylometric authorship verification for academic integrity. Builds per-student writing profiles from verified baselines and flags deviations using a 103-feature linguistic analysis engine. Includes Bluebook, a secure in-class examination environment for proctored baseline capture. |
+| **Tool Description** | Stylometric authorship verification for academic integrity. Builds per-student writing profiles from verified baselines and flags deviations using a 109-feature linguistic analysis engine. Includes Bluebook, a secure in-class examination environment for proctored baseline capture. |
 | **Company/Organization** | Original Academic Integrity |
 | **Contact Email** | admin@original-integrity.edu |
 | **Tool URL** | `https://original-pilot.onrender.com` |

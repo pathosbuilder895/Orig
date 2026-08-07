@@ -58,9 +58,14 @@ sessions). Rotation is a scheduled action — do not restart the pilot to
 rotate it without operator sign-off (server restarts require explicit
 permission per project policy).
 
-**Action item:** rotate the pilot's `MAINTENANCE_TOKEN` if the current value
-predates this documentation — it may have been set before its dual role
-(guard token + demo admin password) was understood.
+**Rotated 2026-08-07 — this action item is closed.** `SECRET_KEY`,
+`MAINTENANCE_TOKEN` and the LTI RSA key were all regenerated before the first
+deploy, so nothing was invalidated (there were no live sessions yet). The
+`MAINTENANCE_TOKEN` in use since then is a full `token_urlsafe(48)`; the
+retired one was 43 chars. The superseded 2026-07-18 values are in
+`~/Desktop/Original-secrets/rotated-out-2026-08-07/` and must not be reused —
+they leaked into an assistant session transcript, which is what prompted the
+rotation.
 
 ## Backups
 
@@ -149,6 +154,14 @@ rollback, still exists but is frozen).
   services deploy stop-then-start, so a merge must never take the service
   down on its own). The demo service may keep auto-deploy.
 - **Never deploy during a scheduled exam** (shared exam calendar with professors).
+- **After every deploy, verify it.** Pre-cutover that is
+  `python -m scripts.o1_golive_check --base-url https://original-pilot.onrender.com
+  --expect-kid <kid from the env sheet> --expect-commit <sha you deployed>`;
+  it exits non-zero on failure and covers `/health`, the JWKS kid, the
+  `docs/PROVISIONING_CHECKLIST.md` §4 anonymous lockdown, HSTS and CORS.
+  Once O4 has flipped the backend to Postgres, use
+  `scripts/pilot_smoke_test.py` instead — it asserts `backend == "postgres"`
+  and so fails by design before the cutover.
 - Rollback = Render dashboard → previous deploy → "Rollback". SQLite schema is
   additive (`CREATE TABLE IF NOT EXISTS`), so rolling back code is safe.
 - After editing any `demo/bluebook/*.jsx`: `cd demo/bluebook && npm run build`

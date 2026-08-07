@@ -5,7 +5,7 @@ exam. ~15 minutes. `$HOST` = the pilot URL. Use a throwaway "smoketest" course.
 
 ## A. Platform health
 
-- [ ] `curl $HOST/health` → 200, JSON includes `feature_dim: 103`.
+- [ ] `curl $HOST/health` → 200, JSON includes `feature_dim: 109`.
 - [ ] Render dashboard: deployed SHA == `main` HEAD; memory < 80% steady-state.
 - [ ] `curl -s -D- -o /dev/null $HOST/health | grep -i strict-transport` → HSTS present.
 - [ ] CORS locked: `curl -s -D- -o /dev/null -H "Origin: https://evil.example" $HOST/health | grep -i access-control-allow-origin` → no header echoed for foreign origin.
