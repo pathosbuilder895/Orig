@@ -19,11 +19,12 @@ Design contract (see MODEL_CARD.md):
     model into something that predicts differently (> 0.02 drift on the 8
     stored reference vectors), the detector disables itself rather than
     serve silently-changed probabilities.
-  - The 13 non-text placeholder dims (Tier 17 keystroke + musical-comparison
-    + comparison features) are forced to 0.5 before predicting, because
-    that is exactly what they were during training (feature_vector() on
-    plain text) — a corpus-level detector must also stay independent of any
-    per-student comparison data that may be present at scoring time.
+  - The non-text placeholder dims (Tier 17 keystroke + Tier 18 uniformity
+    + musical-comparison + comparison features) are forced to 0.5 before
+    predicting, because that is exactly what they were during training
+    (feature_vector() on plain text with both tier groups disabled) — a
+    corpus-level detector must also stay independent of any per-student
+    comparison data that may be present at scoring time.
 """
 
 from __future__ import annotations
@@ -44,6 +45,7 @@ from .constants import (
     FEATURE_NAMES,
     MUSICAL_COMPARISON_CODES,
     TIER17_CODES,
+    TIER18_CODES,
 )
 
 log = logging.getLogger(__name__)
@@ -54,8 +56,15 @@ REFERENCE_DRIFT_TOLERANCE = 0.02
 
 # Indices forced to 0.5 at predict time — must mirror the training-time
 # placeholders in features/pipeline.py (Tier 17 when no keystroke data;
-# comparison features always, until scoring time).
-_MASKED_CODES = list(TIER17_CODES) + list(MUSICAL_COMPARISON_CODES) + list(COMPARISON_CODES)
+# Tier 18 while the uniformity group is disabled; comparison features
+# always, until scoring time). Keep in sync with the artifact's
+# masked_codes in scripts/train_ai_detector.py.
+_MASKED_CODES = (
+    list(TIER17_CODES)
+    + list(TIER18_CODES)
+    + list(MUSICAL_COMPARISON_CODES)
+    + list(COMPARISON_CODES)
+)
 _MASKED_IDX = np.array([ALL_FEATURE_CODES.index(c) for c in _MASKED_CODES], dtype=np.intp)
 
 # Only features a professor can be handed as an explanation appear as

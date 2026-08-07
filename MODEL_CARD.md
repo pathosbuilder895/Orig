@@ -1,4 +1,4 @@
-# Model Card — Original Stylometric Scorer v1.4.25
+# Model Card — Original Stylometric Scorer v1.4.26
 
 This document describes the current feature pipeline, scoring model, output actions, reliability limits, and intended institutional use of Original.
 
@@ -55,9 +55,9 @@ suppression thresholds during human review.
 
 ## Feature Pipeline
 
-The current engine uses `FEATURE_DIM = 103` from `original/constants.py`.
+The current engine uses `FEATURE_DIM = 109` from `original/constants.py`.
 
-- **96 base dimensions** are extracted from text, citation behavior, and optional proctored keystroke data.
+- **102 base dimensions** are extracted from text, citation behavior, and optional proctored keystroke data.
 - **7 comparison/profile dimensions** are computed during scoring when baseline context is available — 2 pure comparison features (Tier 0 below) plus 5 baseline-relative features distributed across Tiers 9–11.
 - Legacy profiles with older dimensions are padded on load for backward compatibility.
 
@@ -80,7 +80,8 @@ The current engine uses `FEATURE_DIM = 103` from `original/constants.py`.
 | 15 | Lexical architecture | 5 | Semantic concentration, polysyndeton, chiasmus, Latinate ratio, nominalizations. |
 | 16 | Citation fingerprint | 8 | Signal verbs, source loyalty, block quotes, citation clustering, ibid., paraphrase style. |
 | 17 | Behavioral biometrics | 6 | Keystroke rhythm, bursts, deletion rate, pauses, paste events, revision depth. |
-| 0 | Comparison/profile features | 2 | The two pure baseline-relative comparison dimensions computed at scoring time. (The other 5 of the 7 comparison/profile dims are the baseline-relative features already counted in Tiers 9–11, so this Count column sums to 103.) |
+| 18 | Uniformity | 6 | Sentence-length dispersion, windowed feature variance, function-word burstiness, punctuation dispersion, vocabulary-introduction flatness, clause-depth variance. Disabled by default pending gates G2b (paraphrase-resistance) and G6 (fairness parity); neutral placeholders until enabled. |
+| 0 | Comparison/profile features | 2 | The two pure baseline-relative comparison dimensions computed at scoring time. (The other 5 of the 7 comparison/profile dims are the baseline-relative features already counted in Tiers 9–11, so this Count column sums to 109.) |
 
 Preprocessing removes bibliography, appendix, notes, parenthetical citation markers, footnote superscripts, and block quotes from prose features while preserving citation behavior for Tier 16.
 
@@ -694,6 +695,7 @@ The zero-login demo remains intentionally available for sales and evaluation. Re
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.4.26 | 2026-08-07 | Retrained the AI-likelihood detector artifact for the 109-feature pipeline (it had been silently inert since Tier 18 landed: the loader fail-closed on the 103-feature artifact). Same recipe, data, and seed as v1; Tier 18's six disabled dims added to masked_codes on both train and predict sides; cache loaders now validate feature_dim. Metrics are flat vs the old artifact (OOF AUC 0.8191 vs 0.8165; AuTexT test 0.7683 vs 0.7715; M4 0.9830 vs 0.9835; seminary core AUC 0.996 vs 1.0), but the seminary enablement gate now FAILS: FPR@elevated 0.08 (2/25) vs the 0.05 bar — one always-borderline essay (previously 0.7300 vs threshold 0.7381) crossed by 0.02. Enablement beyond shadow remains blocked until the gate is re-cleared; the n=25 pool's 0.04 granularity makes a single essay decisive and should be grown first. |
 | 1.4.25 | 2026-08-04 | Reproduced RepreGuard-style layerwise PCA activation directions with pinned Phi-2, 512 M4 training pairs, 512 disjoint calibration pairs, and external RAID/FAID diagnostics. RAID AUC was 0.9442, but recall at the ≤1% FPR operating point was 10% overall and 0% for synonym/paraphrase; FAID selected no direct or collaborative AI. The branch was rejected and production remains unchanged. |
 | 1.4.24 | 2026-08-04 | Added a validation-only closed-pool Gutenberg identity ranker combining LUAR, character, and content-reduced evidence. Known-peer precision/recall reached 95.10%/32.33%, but outside naming was 1.333%; stricter and runner-up-margin rules did not repair the guard. Exact names remain disabled. |
 | 1.4.23 | 2026-08-04 | Added a reproducible 400-author Project Gutenberg cross-work corpus and domain-local LUAR/style calibration. A pre-registered zero-calibration-FP rule passed the final untouched 100-author lock at 100% precision, 79.33% recall, and 0/300 observed FPR; it remains report-only pending a representative institutional student lock. |
