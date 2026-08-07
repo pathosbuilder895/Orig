@@ -119,6 +119,13 @@ demo/bluebook/e2e/fixtures/.tenants-created.log
 # Project Gutenberg full-text fetch caches for the cross-work corpus.
 validation/public_authors/cross_work_corpus/*/_*_full.txt
 
+# Derivation vectors for the topic-sensitivity study; regenerate with
+# validation/topic_sensitivity_2026-08/extract.py.
+validation/topic_sensitivity_2026-08/vectors.npy
+validation/topic_sensitivity_2026-08/vectors_meta.json
+validation/topic_sensitivity_2026-08/topic_sensitivity.npy
+validation/topic_sensitivity_2026-08/topic_sensitivity_constant.py
+
 # Cached full Gutenberg bodies for the genre corpus. Regenerable by
 # validation/genre_2026-08/fetch_authors.py, several MB each, and the
 # committed chunks are what the labels actually reference.
