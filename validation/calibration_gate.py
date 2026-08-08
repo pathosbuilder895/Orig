@@ -1,5 +1,5 @@
 """
-validation/calibration_gate.py — Phase 0 calibration gates (G1-G6) for the
+validation/calibration_gate.py — Phase 0 calibration gates (G1-G7) for the
 two-axis authorship verification redesign.
 
 Run:
@@ -28,6 +28,13 @@ authentic samples, bridging validation/benchmark/bias_slicer.slice_by and
 validation/bias_analysis._welch_t_test directly (run_bias_analysis's
 dict-based shape doesn't match bias_slicer's ScoringResult-based shape, so
 this gate does the bridging itself).
+G7 (cross-topic same-author FPR) is the topic-invariance gate from
+docs/superpowers/specs/2026-08-06-topic-invariant-scoring-design.md
+§Validation — a three-way CONJUNCTION (false-positive rate, impostor catch
+rate at a MATCHED severity bar, and above-chance cross-genre AUC) measured on
+the leave-one-genre-out corpus in validation/genre_crossgenre_2026-08/. That
+corpus is not committed, so G7 usually reports a loud "uninformative" skip
+rather than a verdict; see _compute_g7_cross_topic_data.
 """
 
 from __future__ import annotations
@@ -938,6 +945,504 @@ def _uniformity_slice_summary(per_group_features: dict[bool, list[dict[str, floa
     }
 
 
+# ── G7 — cross-topic same-author FPR ──────────────────────────────────────────
+#
+# Spec: docs/superpowers/specs/2026-08-06-topic-invariant-scoring-design.md
+# §Validation. The bar is a CONJUNCTION because of how LLR_ACTION_MODE=blend
+# failed: it looked excellent on the false-positive leg alone, and was caught
+# only because someone also checked the impostor catch rate at a MATCHED
+# severity bar. Any future correction that buys a clean FP rate by suppressing
+# genuine impostor severity must fail here, not pass on one headline number.
+
+_G7_FP_BAR = 0.25
+_G7_CATCH_BAR = 0.29
+_G7_AUC_BAR = 0.60
+
+_G7_CRITERION = (
+    "genuine cross-topic FP @ schedule_conversation+ <= 25% AND impostor "
+    "catch @ schedule_conversation+ >= 29% AND mean raw deviation_score "
+    "cross-genre AUC >= 0.60 — a CONJUNCTION: no single leg may carry a pass"
+)
+
+
+class _G7UnknownActionError(ValueError):
+    """Raised when a fold contains an action name outside production's
+    _ACTION_SEVERITY. A dedicated type so the caller can convert exactly this
+    condition into its "unrecognised action vocabulary" skip — a bare
+    `except ValueError` would also swallow e.g. statistics.StatisticsError
+    (a ValueError subclass) and file it under the wrong reason."""
+
+
+def _g7_leg_state(value, passes, domain: tuple[float, float] | None = (0.0, 1.0)) -> bool | None:
+    """
+    Tri-state for one leg: True (measured, cleared its bar), False (measured,
+    missed it), None (NOT MEASURED — a missing or non-finite value).
+
+    The None case is load-bearing. An unmeasured leg must never be confused
+    with a failed one in either direction: it cannot demonstrate a pass, and
+    it must not be allowed to bury a failure measured on the other legs. The
+    concrete route in is `_g7_auc` returning None — sklearn is absent from the
+    base requirements.txt, and roc_auc_score also declines a single-class
+    side — which would otherwise turn a measured 100% cross-topic
+    false-positive rate into "nothing measurable".
+    """
+    import math
+
+    if value is None:
+        return None
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(v):
+        return None
+    # Out-of-domain is UNMEASURED, not measured-and-compared. All three legs
+    # are proportions or an AUC, so [0, 1] is their whole domain, and the
+    # comparison is silently direction-dependent outside it: -0.4 satisfies
+    # `v <= 0.25` and would read as a PASSING false-positive leg, while 1.5
+    # happens to fail. Nonsense must not resolve to a pass on one side of the
+    # bar and a fail on the other.
+    if domain is not None and not (domain[0] <= v <= domain[1]):
+        return None
+    return bool(passes(v))
+
+
+def evaluate_g7_cross_topic_fpr(
+    cross_topic_fp_rate: float | None,
+    impostor_catch_rate: float | None,
+    mean_cross_genre_dev_auc: float | None,
+    n_genre_folds: int | None = None,
+    n_auc_folds: int | None = None,
+    n_catch_folds: int | None = None,
+    n_genuine: int | None = None,
+    n_impostor: int | None = None,
+    inflation_mode: str | None = None,
+    inflation_fire_rate: float | None = None,
+    informational: dict | None = None,
+) -> GateResult:
+    """
+    G7 — Cross-topic same-author false-positive rate. A student who writes
+    three papers on Pauline soteriology and then one on patristic
+    ecclesiology must not be flagged for it. Measured on the
+    leave-one-genre-out harness in validation/genre_crossgenre_2026-08/
+    (C.S. Lewis genuine, cross-genre; G.K. Chesterton impostor pool).
+
+    Three legs, ALL of which must hold (spec §Validation):
+
+      - `cross_topic_fp_rate`: genuine cross-topic submissions landing at
+        schedule_conversation or above. Must be <= 25% (42.4% at the time
+        the spec was written, under LLR_ACTION_MODE=gate).
+      - `impostor_catch_rate`: impostor submissions caught at that SAME
+        severity bar. Must be >= 29% — i.e. no more than a ~3pt drop from
+        the 31.9% the same harness measured. Comparing the two legs at a
+        matched bar is the whole point: `blend` cut false positives
+        beautifully and collapsed this leg from 33% to 3%.
+      - `mean_cross_genre_dev_auc`: mean raw deviation_score AUC across
+        genre folds. Must be >= 0.60. An inverted AUC (0.387 measured) IS
+        the defect; without this leg a correction that merely squashes every
+        score toward the middle would drop the FP rate while leaving the
+        ranking just as inverted. Requiring above-chance discrimination
+        forces the correction to be discriminative rather than lenient.
+
+    Three-valued like every other gate in this module, and by the same rule:
+    only a would-be PASS is ever downgraded to "uninformative". A measured
+    failure is evidence regardless of how thin the corpus behind it was, so
+    it is never softened (the invariant evaluate_g1_fpr and
+    evaluate_g3_attribution already enforce) — including when another leg
+    could not be measured at all, which must withhold a pass but must never
+    bury a failure. These conditions downgrade a would-be pass:
+
+      - An UNMEASURED leg (see _g7_leg_state): the conjunction cannot be
+        demonstrated when one of its three terms is missing.
+      - `n_genre_folds` < 2. All three headline numbers are means over
+        leave-one-genre-out folds; a mean over a single fold is not a
+        cross-genre claim at all. `n_auc_folds` is checked separately,
+        because a fold whose AUC is undefined still contributes to the two
+        action means — so the AUC leg can rest on a single fold while
+        `n_genre_folds` reads 6.
+      - `inflation_mode` == "shadow". Shadow leaves `deviation_score` and
+        `recommendation` untouched, so every leg measured under it describes
+        the un-corrected pipeline. Since the prescribed rollout is "run
+        shadow first", this is the likeliest route to a G7 [PASS] that means
+        nothing. Mode "off" is NOT downgraded: no claim about the correction
+        is being made there.
+      - A degenerate `n_genuine` / `n_impostor` (<= 0): nothing was scored on
+        that side.
+      - Sampling uncertainty on either PROPORTION leg, via
+        validation/power.py's Wilson interval — G3's argument applied twice.
+        Note the two legs need OPPOSITE directions: the FP bar is an upper
+        bound, so a demonstrated pass needs the whole interval BELOW it,
+        while the catch bar is a lower bound and needs it ABOVE. The AUC leg
+        gets no interval (a Hanley-McNeil/bootstrap CI is not worth standing
+        up here); `n_genre_folds` is the coarse guard that covers it.
+
+        LIMITATION, stated rather than buried: Wilson assumes independent
+        draws, and chunks from one work are not independent — the point
+        estimates are also unweighted means over folds, not pooled
+        proportions. The true interval is therefore WIDER than the one
+        computed here, so this check is a SCREEN, not a proof: it can catch
+        an under-powered pass, but "decidable" here does not establish that
+        a correlation-aware interval would agree. A cluster bootstrap over
+        six genre buckets would not be more trustworthy than the thing it
+        was correcting, which is why it is not attempted.
+      - `inflation_fire_rate` == 0. This is the
+        GENRE_INVARIANT_WEIGHTS_ENABLED trap closed at the gate: that
+        mechanism was built, tested, and could not fire in practice, so its
+        tier set stayed unvalidated while looking finished. If the topic
+        distances in this corpus never cross TOPIC_NOVELTY_BOUNDS["low"]
+        (0.25), sigma was never inflated, the run measured the UNCHANGED
+        pipeline, and its numbers say nothing about the correction under
+        test. Passing `None` (the default) means "not measured" and
+        preserves the legacy two-valued behaviour exactly, as with every
+        other optional parameter here.
+
+    `informational` is attach-only context merged into detail — it never
+    affects the verdict, and it is merged FIRST so a stray key cannot
+    overwrite a verdict-bearing one (same convention as G2b/G5/G6).
+
+    SIGNATURE NOTE: every parameter after the first three is optional and
+    should be passed BY KEYWORD — see validation/gate_contracts.py's
+    SIGNATURE TRAP docstring for why a positional slip is dangerous here.
+    """
+    fp_state = _g7_leg_state(cross_topic_fp_rate, lambda v: v <= _G7_FP_BAR)
+    catch_state = _g7_leg_state(impostor_catch_rate, lambda v: v >= _G7_CATCH_BAR)
+    auc_state = _g7_leg_state(mean_cross_genre_dev_auc, lambda v: v >= _G7_AUC_BAR)
+
+    legs = (("FP", fp_state), ("catch", catch_state), ("AUC", auc_state))
+    failed_legs = [label for label, state in legs if state is False]
+    unmeasured_legs = [label for label, state in legs if state is None]
+
+    # A measured failure outranks an unmeasured leg: the conjunction is an
+    # AND, so one leg missing its bar settles it no matter what could not be
+    # computed alongside. Only when nothing failed does an unmeasured leg
+    # matter, and then it can only withhold a pass — never grant one.
+    if failed_legs:
+        verdict = "fail"
+    elif unmeasured_legs:
+        verdict = "uninformative"
+    else:
+        verdict = "pass"
+
+    fp_leg_passed = fp_state is True
+    catch_leg_passed = catch_state is True
+    auc_leg_passed = auc_state is True
+
+    def _pct(value, state) -> str:
+        return "not measured" if state is None else f"{float(value):.1%}"
+
+    def _num(value, state) -> str:
+        return "not measured" if state is None else f"{float(value):.3f}"
+
+    current_value = (
+        f"FP@sched+={_pct(cross_topic_fp_rate, fp_state)} (bar <={_G7_FP_BAR:.1%}), "
+        f"catch@sched+={_pct(impostor_catch_rate, catch_state)} "
+        f"(bar >={_G7_CATCH_BAR:.1%}), "
+        f"mean cross-genre dev AUC={_num(mean_cross_genre_dev_auc, auc_state)} "
+        f"(bar >={_G7_AUC_BAR:.2f})"
+    )
+    # The mode is rendered UNCONDITIONALLY, because render() prints only
+    # name/verdict/criterion/current_value: without this, an "off" pass — the
+    # DEFAULT path, and so the likelier footgun than the shadow one guarded
+    # below — is indistinguishable from an "on" pass on the console, in a
+    # quoted line, or in a PR comment. Keeping the off pass quotable but
+    # self-labelling is cheaper than forbidding it.
+    if inflation_mode:
+        note = (
+            " — describes the shipped pipeline, not the correction"
+            if inflation_mode != "on"
+            else ""
+        )
+        current_value += f" [TOPIC_VARIANCE_INFLATION={inflation_mode}{note}]"
+    if failed_legs:
+        current_value += f" — FAILED: {', '.join(failed_legs)}"
+
+    detail = dict(informational or {})
+    detail.update(
+        {
+            "cross_topic_fp_rate": cross_topic_fp_rate,
+            "impostor_catch_rate": impostor_catch_rate,
+            "mean_cross_genre_dev_auc": mean_cross_genre_dev_auc,
+            "fp_leg_passed": fp_leg_passed,
+            "catch_leg_passed": catch_leg_passed,
+            "auc_leg_passed": auc_leg_passed,
+            "failed_legs": failed_legs,
+            "unmeasured_legs": unmeasured_legs,
+            "bars": {"fp": _G7_FP_BAR, "catch": _G7_CATCH_BAR, "auc": _G7_AUC_BAR},
+            "n_genre_folds": n_genre_folds,
+            "n_auc_folds": n_auc_folds,
+            "n_catch_folds": n_catch_folds,
+            "inflation_mode": inflation_mode,
+            "inflation_fire_rate": inflation_fire_rate,
+        }
+    )
+
+    reasons: list[str] = []
+
+    if unmeasured_legs and not failed_legs:
+        reasons.append(
+            f"the {', '.join(unmeasured_legs)} leg(s) could not be measured, "
+            "so the conjunction cannot be demonstrated"
+        )
+
+    if n_genre_folds is not None and n_genre_folds < 2:
+        reasons.append(
+            f"only {n_genre_folds} leave-one-genre-out fold(s) — a mean over "
+            "fewer than 2 folds is not a cross-genre measurement"
+        )
+
+    # The AUC leg has its own fold denominator: a fold whose AUC is undefined
+    # still contributes to the two action means, so n_genre_folds can be 6
+    # while the "mean cross-genre AUC" is a single fold's number. Guarding
+    # only n_genre_folds left that case unchallenged.
+    if auc_state is not None and n_auc_folds is not None and n_auc_folds < 2:
+        reasons.append(
+            f"the mean cross-genre AUC came from {n_auc_folds} fold(s) — a "
+            "mean over fewer than 2 folds is not a cross-genre measurement"
+        )
+
+    # Same argument for the catch mean's own denominator. Unreachable from
+    # the current orchestration (the impostor test split is constant across
+    # folds, so n_catch_folds == n_genre_folds), but the AUC leg proved that
+    # assuming one denominator covers all three is how a single-fold mean
+    # slips through, and a second hold-out corpus need not behave the same.
+    if catch_state is not None and n_catch_folds is not None and n_catch_folds < 2:
+        reasons.append(
+            f"the impostor catch rate came from {n_catch_folds} fold(s) — a "
+            "mean over fewer than 2 folds is not a cross-genre measurement"
+        )
+
+    # TOPIC_VARIANCE_INFLATION=shadow leaves deviation_score and
+    # recommendation untouched by construction (quantum/scoring.py's
+    # _sigma_was_inflated requires mode == "on"), so every G7 leg measured
+    # under shadow describes the UN-corrected pipeline and is bit-identical
+    # to flag-off. The prescribed rollout is "run shadow first", which makes
+    # a G7 [PASS] under shadow the single most likely way to walk into the
+    # GENRE_INVARIANT_WEIGHTS_ENABLED trap. Off is NOT downgraded: with the
+    # flag off nobody is claiming to have measured the correction, so a pass
+    # there is an honest statement about the pipeline as shipped.
+    if inflation_mode == "shadow":
+        reasons.append(
+            "TOPIC_VARIANCE_INFLATION=shadow leaves deviation_score and "
+            "recommendation untouched, so all three legs describe the "
+            "un-corrected pipeline — bit-identical to flag-off, and not "
+            "evidence about the correction. Re-measure with mode 'on'"
+        )
+
+    # Wilson intervals on the two proportion legs. A non-positive count is a
+    # can't-know, not a crash: validation.power raises below n=1, and the
+    # same convention evaluate_g1_fpr's FIX 5 uses (treat a degenerate count
+    # as unreachable rather than fatal) applies here.
+    if (n_genuine is not None and n_genuine > 0) or (n_impostor is not None and n_impostor > 0):
+        from validation.power import bar_decidable, wilson_interval
+
+        power: dict = {
+            "fp_bar": _G7_FP_BAR,
+            "catch_bar": _G7_CATCH_BAR,
+            "n_genuine": n_genuine,
+            "n_impostor": n_impostor,
+        }
+        def _successes(rate: float, n: int) -> int:
+            # validation.power raises when successes falls outside [0, n].
+            # This is a public gate API registered in gate_contracts.py, so a
+            # malformed direct call must degrade rather than raise out of the
+            # suite — the same convention as evaluate_g1_fpr's FIX 5.
+            return min(max(int(round(float(rate) * n)), 0), n)
+
+        if n_genuine is not None and n_genuine > 0 and fp_state is not None:
+            fp_successes = _successes(cross_topic_fp_rate, n_genuine)
+            power["fp_wilson_ci"] = list(wilson_interval(fp_successes, n_genuine))
+            # Upper-bound bar: a demonstrated pass needs the interval BELOW.
+            power["fp_bar_decidable"] = bar_decidable(fp_successes, n_genuine, _G7_FP_BAR)
+            # Recorded whatever the leg's verdict: a leg that MISSED its bar
+            # on an interval that also straddles it is a caveat worth
+            # carrying, even though only a would-be pass is ever downgraded.
+            if power["fp_bar_decidable"] != "below":
+                reasons.append(
+                    f"the {float(cross_topic_fp_rate):.1%} false-positive rate over "
+                    f"n={n_genuine} genuine cross-topic submissions has a 95% CI "
+                    f"that straddles the {_G7_FP_BAR:.0%} bar"
+                )
+        if n_impostor is not None and n_impostor > 0 and catch_state is not None:
+            catch_successes = _successes(impostor_catch_rate, n_impostor)
+            power["catch_wilson_ci"] = list(wilson_interval(catch_successes, n_impostor))
+            # Lower-bound bar: a demonstrated pass needs the interval ABOVE.
+            power["catch_bar_decidable"] = bar_decidable(
+                catch_successes, n_impostor, _G7_CATCH_BAR
+            )
+            if power["catch_bar_decidable"] != "above":
+                reasons.append(
+                    f"the {float(impostor_catch_rate):.1%} impostor catch rate over "
+                    f"n={n_impostor} impostor submissions has a 95% CI that "
+                    f"straddles the {_G7_CATCH_BAR:.0%} bar"
+                )
+        detail["power"] = power
+
+    if n_genuine is not None and n_genuine <= 0:
+        reasons.append("no genuine cross-topic submissions were scored")
+    if n_impostor is not None and n_impostor <= 0:
+        reasons.append("no impostor submissions were scored")
+
+    if inflation_fire_rate is not None and inflation_fire_rate <= 0.0:
+        reasons.append(
+            "the topic-variance inflation never fired on this corpus "
+            "(fire rate 0) — every topic distance sat at or below "
+            "TOPIC_NOVELTY_BOUNDS['low'], so sigma was never widened and "
+            "these numbers describe the UNCHANGED pipeline, not the "
+            "correction under test (the GENRE_INVARIANT_WEIGHTS_ENABLED trap)"
+        )
+
+    # Only a would-be pass is ever downgraded — a measured failure is real
+    # evidence regardless of the corpus behind it.
+    if verdict == "pass" and reasons:
+        verdict = "uninformative"
+    if verdict == "uninformative" and reasons:
+        current_value += " (UNINFORMATIVE: " + "; ".join(reasons) + ")"
+    detail["uninformative_reasons"] = reasons if verdict == "uninformative" else []
+    # The same reasons, kept even when they did NOT drive the verdict. A
+    # FAILURE measured on a run where the mechanism never fired is still a
+    # real failure of the pipeline as configured — it must not be softened
+    # (that would let a broken pipeline escape simply by not firing) — but a
+    # reader deciding what the number means needs to know the caveat existed.
+    # Discarding it on the fail branch was silent information loss.
+    detail["informativeness_caveats"] = reasons
+
+    return GateResult(
+        name="G7",
+        passed=verdict == "pass",
+        verdict=verdict,
+        criterion=_G7_CRITERION,
+        current_value=current_value,
+        detail=detail,
+    )
+
+
+_G7_SEVERITY_BAR = "schedule_conversation"
+
+
+def _g7_rate_at_or_above(actions: list[str], floor: str = _G7_SEVERITY_BAR) -> float:
+    """
+    Share of `actions` at or above `floor` in severity — action_mode_sweep.py's
+    `rate_at_or_above`, but reading the ordering from production's own
+    `original.quantum.scoring._ACTION_SEVERITY` instead of a second local
+    copy of the list. The harness keeps its own module-level SEVERITY dict;
+    duplicating it a third time here is exactly how a gate ends up measuring
+    a severity bar that production no longer agrees with.
+
+    An empty `actions` list returns 0.0, but callers must NOT average that in
+    as a fold rate — see _g7_fold_metrics, which drops empty folds entirely
+    (a bucket with nothing scored is not a 0% false-positive rate; it is no
+    measurement at all, and averaging it in would look like the best possible
+    result).
+
+    An action name outside `_ACTION_SEVERITY` raises. The tempting lenient
+    alternative — rank it below everything so the suite cannot crash — is not
+    neutral: "below no_action" means "not flagged", which silently DEFLATES
+    the false-positive leg and biases G7 toward passing. A gate that does not
+    recognise production's action vocabulary must refuse to produce a number,
+    and the caller turns that refusal into a loud skip.
+    """
+    from original.quantum.scoring import _ACTION_SEVERITY
+
+    floor_rank = _ACTION_SEVERITY.index(floor)
+    if not actions:
+        return 0.0
+    unknown = sorted({a for a in actions if a not in _ACTION_SEVERITY})
+    if unknown:
+        raise _G7UnknownActionError(
+            f"unrecognised action name(s) {unknown} — G7 reads its severity "
+            f"ordering from production's _ACTION_SEVERITY ({_ACTION_SEVERITY}); "
+            "scoring a vocabulary this gate does not understand would count "
+            "the unknown action as NOT flagged and bias the false-positive "
+            "leg toward passing"
+        )
+    ranked = [_ACTION_SEVERITY.index(a) for a in actions]
+    return sum(1 for r in ranked if r >= floor_rank) / len(ranked)
+
+
+def _g7_fold_metrics(folds: list[dict]) -> dict:
+    """
+    Reduce per-leave-one-genre-out-fold scoring output to G7's three headline
+    numbers, reproducing action_mode_sweep.py / sweep_harness.py's own
+    arithmetic.
+
+    Each fold is {"genre", "genuine_actions", "impostor_actions", "dev_auc",
+    "genuine_inflation_fired"}.
+
+    The means are UNWEIGHTED across genre buckets — `np.mean` over the
+    per-genre rates, which is what action_mode_sweep.py's summary does and
+    therefore what the 42.4% / 31.9% baseline numbers in the spec mean.
+    Pooling the chunks instead would silently reweight the result toward the
+    largest bucket and produce a number not comparable to the bar G7 is
+    judged against.
+
+    A fold contributes to a mean only if it actually scored something on that
+    side; `n_genre_folds` counts the folds behind the FALSE-POSITIVE mean,
+    since the genuine cross-topic side is this gate's subject. The catch and
+    AUC denominators travel separately (`n_catch_folds`, `n_auc_folds`)
+    rather than being assumed equal.
+
+    `inflation_fire_rate` is the share of genuine cross-topic submissions on
+    which the topic-variance inflation actually widened sigma. It is computed
+    here whenever the folds carry the count, but whether it is FORWARDED to
+    the evaluator is the caller's decision — with the flag off, a 0 fire rate
+    is correct and expected rather than a reason to distrust the run (see
+    _compute_g7_cross_topic_data).
+    """
+    import statistics
+
+    fp_rates: list[float] = []
+    catch_rates: list[float] = []
+    aucs: list[float] = []
+    n_genuine = 0
+    n_impostor = 0
+    n_fired = 0
+    fired_measured = False
+    per_fold: list[dict] = []
+
+    for fold in folds:
+        genuine = list(fold.get("genuine_actions") or [])
+        impostor = list(fold.get("impostor_actions") or [])
+        auc = fold.get("dev_auc")
+        row: dict = {
+            "genre": fold.get("genre"),
+            "n_genuine": len(genuine),
+            "n_impostor": len(impostor),
+            "dev_auc": auc,
+        }
+        if genuine:
+            rate = _g7_rate_at_or_above(genuine)
+            fp_rates.append(rate)
+            n_genuine += len(genuine)
+            row["fp_at_sched_plus"] = rate
+        if impostor:
+            rate = _g7_rate_at_or_above(impostor)
+            catch_rates.append(rate)
+            n_impostor += len(impostor)
+            row["catch_at_sched_plus"] = rate
+        if auc is not None:
+            aucs.append(float(auc))
+        if fold.get("genuine_inflation_fired") is not None:
+            fired_measured = True
+            n_fired += int(fold["genuine_inflation_fired"])
+        per_fold.append(row)
+
+    return {
+        "cross_topic_fp_rate": statistics.fmean(fp_rates) if fp_rates else None,
+        "impostor_catch_rate": statistics.fmean(catch_rates) if catch_rates else None,
+        "mean_cross_genre_dev_auc": statistics.fmean(aucs) if aucs else None,
+        "n_genre_folds": len(fp_rates),
+        "n_catch_folds": len(catch_rates),
+        "n_auc_folds": len(aucs),
+        "n_genuine": n_genuine,
+        "n_impostor": n_impostor,
+        "n_inflation_fired": n_fired if fired_measured else None,
+        "inflation_fire_rate": (
+            (n_fired / n_genuine) if (fired_measured and n_genuine) else None
+        ),
+        "per_fold": per_fold,
+    }
+
+
 # ── Task 9: corpus-group-scoped pooled calibration (pure helpers) ─────────────
 #
 # The real G1 leg (_score_corpus_for_g1, below) scores THREE different
@@ -1589,11 +2094,29 @@ def run_all() -> list[GateResult]:
     except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
         results.append(_machinery_error_result("G6", _G6_CRITERION, exc))
 
-    # Attach a corpus_fingerprint to every result so a future report can be
-    # checked for comparability against this one without re-deriving n's by
-    # hand — see _corpus_fingerprint's docstring for why this exists. Built
-    # from the corpora already loaded above (G6's is loaded fresh here since
-    # it's a distinct manifest-driven corpus none of the other legs touch).
+    # G7: cross-topic same-author FPR, on the leave-one-genre-out corpus in
+    # validation/genre_crossgenre_2026-08/. That corpus is NOT committed (the
+    # editions are under copyright), so on most checkouts this returns a loud
+    # "uninformative" skip naming the regeneration command rather than a
+    # verdict. It is wired in anyway, deliberately: an absent gate reads as
+    # "topic invariance is covered by this suite", which is precisely the
+    # claim that must not be made in silence — and --strict is then correct
+    # to refuse to bless the run. A crash is a machinery failure, same
+    # convention as the wrappers above.
+    try:
+        results.append(_compute_g7_cross_topic_data())
+    except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
+        results.append(_machinery_error_result("G7", _G7_CRITERION, exc))
+
+    # Attach a corpus_fingerprint to every TEXT-CORPUS result (G1-G6) so a
+    # future report can be checked for comparability against this one without
+    # re-deriving n's by hand — see _corpus_fingerprint's docstring for why
+    # this exists. Built from the corpora already loaded above (G6's is
+    # loaded fresh here since it's a distinct manifest-driven corpus none of
+    # the other legs touch). G7 is deliberately absent from
+    # result_corpus_keys: its corpus is cached feature vectors rather than
+    # text, so it fingerprints itself inside _compute_g7_cross_topic_data
+    # (including on its skip paths, where naming the snapshot matters most).
     corpus_fingerprints = {
         "seminary": _corpus_fingerprint(seminary_texts),
         "public_authors": _corpus_fingerprint(public_authors_texts),
@@ -2712,6 +3235,542 @@ def _compute_g4_group_means(
     return means, {"n_scored": n_scored, "n_errors": n_errors}
 
 
+# ── G7 — cross-topic orchestration ─────────────────────────────────────────────
+#
+# Drives the leave-one-genre-out corpus in validation/genre_crossgenre_2026-08/
+# and hands the reduced numbers to evaluate_g7_cross_topic_fpr.
+#
+# That corpus's raw text is NOT committed (the C.S. Lewis and G.K. Chesterton
+# editions used are still under US/UK copyright), and neither are the cached
+# vectors it derives. So on a fresh checkout this gate cannot be measured at
+# all. It is still wired into run_all(): an ABSENT gate reads to the next
+# person as "topic invariance is covered by the suite", which is exactly the
+# claim that must not be made silently. Instead it reports a loud
+# "uninformative" skip naming the command that regenerates the corpus —
+# the same honest-instrument convention _g6_insufficient_data_result uses.
+
+_G7_CORPUS_DIRNAME = "genre_crossgenre_2026-08"
+
+_G7_REMEDIATION = (
+    "regenerate the cached corpus: fetch the texts listed in "
+    "validation/genre_crossgenre_2026-08/clean_corpus.py's MANIFEST, then run "
+    "`python validation/genre_crossgenre_2026-08/extract_vectors.py` (~10 min "
+    "for 560 chunks). Raw text is deliberately not committed — the editions "
+    "are still under copyright."
+)
+
+
+def _g7_skip_result(
+    missing: str,
+    *,
+    reason: str = "corpus unavailable",
+    extra_detail: dict | None = None,
+) -> GateResult:
+    """
+    G7's loud can't-measure result. Never a silent pass: passed=False with a
+    current_value that is unmistakably "no verdict", and a detail that says
+    what was missing and how to fix it. verdict="uninformative" rather than
+    "fail" because the underlying data simply cannot support a verdict either
+    way — the same distinction _g6_insufficient_data_result draws against
+    _machinery_error_result's genuine-bug case.
+    """
+    detail = dict(extra_detail or {})
+    detail.update({"missing": missing, "remediation": _G7_REMEDIATION})
+    return GateResult(
+        name="G7",
+        passed=False,
+        verdict="uninformative",
+        criterion=_G7_CRITERION,
+        current_value=f"SKIPPED ({reason}): {missing}",
+        detail=detail,
+    )
+
+
+def _g7_make_state(records: list[dict], label: str):
+    """StudentState from cached vectors — action_mode_sweep.py's make_state.
+    text="" throughout: these baselines are vectors, never re-extracted."""
+    from original.quantum.state import BaselineSample, StudentState
+
+    state = StudentState(student_id=label)
+    for r in records:
+        state.add_sample(
+            BaselineSample(
+                text="",
+                vector=r["vector"],
+                provenance="proctored",
+                auth_weight=1.0,
+                # .get(), matching every sibling helper. The caller already
+                # refuses a corpus with genre-less genuine records, so these
+                # are belt-and-braces — but a bare r["genre"] here would turn
+                # a malformed corpus into a G7 MACHINERY error, which reads
+                # as "the gate is broken" rather than "the corpus is".
+                assignment=r.get("chunk_id", ""),
+                genre=r.get("genre", ""),
+            )
+        )
+    return state
+
+
+def _g7_auc(genuine_devs: list, impostor_devs: list) -> float | None:
+    """sweep_harness.py's auc_or_none: genuine labelled 0, impostor 1, so an
+    AUC below 0.5 means the ranking is INVERTED (genuine scoring more
+    anomalous than a different author) — the defect G7's third leg exists to
+    detect. Returns None rather than a number whenever the AUC is undefined
+    (a missing score, one empty side, or a single-class label vector)."""
+    if not genuine_devs or not impostor_devs:
+        return None
+    scores = list(genuine_devs) + list(impostor_devs)
+    if any(x is None for x in scores):
+        return None
+    try:
+        from sklearn.metrics import roc_auc_score
+    except ImportError:
+        return None
+    labels = [0] * len(genuine_devs) + [1] * len(impostor_devs)
+    try:
+        return float(roc_auc_score(labels, scores))
+    except ValueError:
+        return None
+
+
+def _g7_score_records(
+    state,
+    records: list[dict],
+    config,
+    impostor_stats,
+    baseline_texts: list[str],
+    texts_by_chunk: dict[str, str],
+) -> tuple[list[str], list, int]:
+    """
+    Score one side of one fold. Returns (actions, deviation_scores,
+    n_inflation_fired).
+
+    The manifest is the load-bearing part. Topic-variance inflation reads
+    `manifest["topic"]["baseline_distance"]` and does nothing at all without
+    it (quantum/scoring.py:_topic_inflation_vector returns None on a missing
+    manifest), so a fold scored the way action_mode_sweep.py scores — vectors
+    only, no manifest — can NEVER exercise the mechanism G7 is meant to judge.
+    The cached vectors_meta.json does not carry text, so this reaches for the
+    optional chunks.json beside it; when that is absent, no manifest is built,
+    inflation cannot fire, and the fire-rate guard in
+    evaluate_g7_cross_topic_fpr is what stops the resulting numbers from being
+    quoted as evidence about the correction.
+    """
+    from original.constants import ALL_FEATURE_CODES
+    from original.quantum.scoring import score
+
+    actions: list[str] = []
+    deviations: list = []
+    n_fired = 0
+    n_topic_usable = 0
+    for r in records:
+        vec = r["vector"]
+        # strict=True is belt-and-braces: _compute_g7_cross_topic_data already
+        # rejects a cache whose width doesn't match FEATURE_DIM, so this can
+        # only fire if a caller reaches this helper directly. Silent zip
+        # truncation here would build a partial feature dict.
+        fdict = {code: float(v) for code, v in zip(ALL_FEATURE_CODES, vec, strict=True)}
+        manifest = None
+        text = texts_by_chunk.get(r.get("chunk_id", ""))
+        if text and baseline_texts:
+            from original.context.resolvers import resolve_topic
+
+            manifest = {"topic": resolve_topic(text, baseline_texts)}
+            # resolve_topic never raises — it returns its 0.5 sentinel with
+            # degraded=True on every failure path (missing sklearn, empty
+            # vocabulary from stop-word-only text, centroid underflow). A
+            # degraded resolution means inflation CANNOT fire for this
+            # record, so it is counted separately from "text was present":
+            # the caller compares the two sides to catch a run where only
+            # one of them could be corrected.
+            if not (manifest["topic"] or {}).get("degraded"):
+                n_topic_usable += 1
+        result = score(
+            state,
+            vec,
+            fdict,
+            submission_id=r.get("chunk_id", ""),
+            manifest=manifest,
+            n_tokens=int(r.get("word_count") or 300),
+            impostor_stats=impostor_stats,
+            scoring_config=config,
+        )
+        actions.append(result.recommendation.action)
+        deviations.append(result.authorship.deviation_score)
+        if getattr(result, "topic_inflation_applied", False):
+            n_fired += 1
+    return actions, deviations, n_fired, n_topic_usable
+
+
+def _compute_g7_cross_topic_data(
+    corpus_dir=None,
+    genuine_author: str = "lewis",
+    impostor_author: str = "chesterton",
+) -> GateResult:
+    """
+    Run the leave-one-genre-out measurement behind G7 and return the finished
+    GateResult (an evaluation, or a loud SKIPPED result — never a silent
+    pass).
+
+    Reproduces action_mode_sweep.py's structure deliberately, because the bars
+    G7 is judged against are that harness's own numbers: hold out one genre of
+    the genuine author, build the baseline from every other genre, score both
+    the held-out genuine chunks and a held-out impostor split through the same
+    state, and average the per-genre rates unweighted.
+
+    The impostor pool is split calibration/test by parity WITHIN each work
+    (again matching the harness) so the Gaussian is fit on chunks disjoint
+    from the ones scored against it, and both halves cover every work evenly.
+
+    `null_model` is forced to "impostor": the 42.4% / 31.9% baseline was
+    measured there, and validation/benchmark/reproducibility.lock_environment
+    pins NULL_MODEL=none at import so the env cannot supply it. That is the
+    documented pattern for a runner that studies the impostor null on purpose
+    (see _SCORING_FLAG_DEFAULTS' comment naming
+    validation/verify/run_null_model.py). `llr_action_mode` and
+    `topic_variance_inflation` DO come from the env, so the spec's 2x2 joint
+    measurement (inflation on/off x llr gate/shadow) is a matter of setting
+    two variables — and the resolved configuration is recorded in detail,
+    since a G7 number measured under a different one is not comparable to the
+    bar.
+    """
+    from pathlib import Path as _Path
+
+    corpus_dir = _Path(corpus_dir) if corpus_dir else _ROOT / "validation" / _G7_CORPUS_DIRNAME
+    vectors_path = corpus_dir / "vectors.npy"
+    meta_path = corpus_dir / "vectors_meta.json"
+
+    absent = [p.name for p in (vectors_path, meta_path) if not p.exists()]
+    if absent:
+        return _g7_skip_result(
+            f"{' and '.join(absent)} not found in {corpus_dir}",
+            extra_detail={"corpus_dir": str(corpus_dir)},
+        )
+
+    import numpy as np
+
+    vectors = np.load(vectors_path)
+    meta = json.loads(meta_path.read_text())
+
+    # Computed as early as both inputs exist, so EVERY skip from here on can
+    # carry it. The reports that most need to identify the corpus snapshot
+    # are exactly these ones — "the cache is inconsistent", "the cache
+    # predates a feature change", "no chunks for author X" are all claims
+    # about one specific state of a file that is regenerated by hand and
+    # never committed.
+    corpus_fingerprint = hashlib.sha256(
+        (json.dumps(meta, sort_keys=True) + repr(tuple(vectors.shape))).encode("utf-8")
+    ).hexdigest()[:16]
+    corpus_detail = {
+        "corpus_dir": str(corpus_dir),
+        "corpus_fingerprint": corpus_fingerprint,
+    }
+
+    if len(meta) != len(vectors):
+        return _g7_skip_result(
+            f"vectors.npy has {len(vectors)} rows but vectors_meta.json has "
+            f"{len(meta)} records — the cache is inconsistent",
+            reason="corpus corrupt",
+            extra_detail=dict(corpus_detail),
+        )
+    # vectors.npy is a hand-regenerated CACHE, and this repo's FEATURE_DIM has
+    # been 74, 89, 96, 102 and 109 at different points. A stale cache of the
+    # wrong width must never be scored: zipping it against ALL_FEATURE_CODES
+    # truncates to the shorter of the two, so the run would score a partial
+    # feature dict and report a plausible-looking number measured on the wrong
+    # instrument. (At the density-matrix step it happens to raise instead of
+    # truncating today, which is luck, not a guard — and a crash there would
+    # surface as a G7 MACHINERY error, blaming the gate for a stale corpus.)
+    from original.constants import FEATURE_DIM
+
+    vector_dim = int(vectors.shape[1]) if vectors.ndim == 2 else -1
+    if vector_dim != FEATURE_DIM:
+        return _g7_skip_result(
+            f"vectors.npy is {vector_dim}-dimensional but the feature pipeline "
+            f"is now {FEATURE_DIM}-dimensional — the cache predates a feature "
+            "change and would be scored against a mismatched code list",
+            reason="corpus stale",
+            extra_detail={
+                **corpus_detail,
+                "vector_dim": vector_dim,
+                "expected_dim": FEATURE_DIM,
+            },
+        )
+
+    records = [{**m, "vector": vectors[i]} for i, m in enumerate(meta)]
+
+    # Optional: raw text, which is the ONLY way topic distance (and therefore
+    # the inflation under test) can be computed at all. See
+    # _g7_score_records' docstring.
+    texts_by_chunk: dict[str, str] = {}
+    chunks_path = corpus_dir / "chunks.json"
+    if chunks_path.exists():
+        try:
+            for chunk in json.loads(chunks_path.read_text()):
+                # A non-BLANK check, not a key-presence check.
+                # Whitespace-only (and stop-word-only) text sends
+                # resolve_topic down its degraded path, where
+                # _topic_inflation_vector returns None — so counting it as
+                # coverage reinstates exactly the one-sided inflation the
+                # symmetry check below exists to prevent, with the check
+                # itself fully satisfied.
+                text = chunk.get("text")
+                if chunk.get("chunk_id") and isinstance(text, str) and text.strip():
+                    texts_by_chunk[chunk["chunk_id"]] = text
+        except (ValueError, TypeError):
+            texts_by_chunk = {}
+
+    genuine = [r for r in records if r.get("author") == genuine_author]
+    impostor = [r for r in records if r.get("author") == impostor_author]
+
+    # A genuine record with no genre can never be HELD OUT (the fold loop
+    # keys on genre), so it would sit in every fold's baseline unnoticed —
+    # and _g7_make_state would then fail on the missing key, surfacing as a
+    # G7 machinery error that blames the gate for a malformed corpus. This is
+    # not hypothetical: multi_author_extract.py writes pa_meta.json with keys
+    # ("author", "chunk_id", "word_count") and no genre at all, and that file
+    # is the second hold-out direction the spec requires.
+    # chunk_id is the join key for topic text AND the submission id handed to
+    # score(); a record missing it cannot be matched to its text and used to
+    # crash inside scoring, which surfaces as a G7 MACHINERY error blaming
+    # the gate for a malformed corpus. Validated here with genre so both
+    # failures read the same way.
+    idless = [r for r in genuine + impostor if not r.get("chunk_id")]
+    if idless:
+        return _g7_skip_result(
+            f"{len(idless)} of {len(genuine) + len(impostor)} records carry no "
+            "chunk_id — it is the join key for topic text and the submission "
+            "id passed to score(), so neither can be resolved",
+            reason="corpus incomplete",
+            extra_detail={**corpus_detail, "n_records_without_chunk_id": len(idless)},
+        )
+
+    genreless = [r for r in genuine if not r.get("genre")]
+    if genreless:
+        return _g7_skip_result(
+            f"{len(genreless)} of {len(genuine)} genuine records carry no "
+            "genre label — they could never be held out, so they would join "
+            "every fold's baseline instead of being measured",
+            reason="corpus incomplete",
+            extra_detail={**corpus_detail, "n_genreless_genuine": len(genreless)},
+        )
+
+    if not genuine:
+        return _g7_skip_result(
+            f"no chunks for the genuine author {genuine_author!r} in {meta_path.name}",
+            reason="corpus incomplete",
+            extra_detail=dict(corpus_detail),
+        )
+    if len(impostor) < 2:
+        return _g7_skip_result(
+            f"{len(impostor)} chunk(s) for the impostor author "
+            f"{impostor_author!r} — the calibration/test parity split needs "
+            "at least 2, and a catch rate measured against the same chunks "
+            "the null was fit on would be circular",
+            reason="corpus incomplete",
+            extra_detail=dict(corpus_detail),
+        )
+
+    by_work: dict[str, list[dict]] = {}
+    for r in impostor:
+        by_work.setdefault(r.get("work", ""), []).append(r)
+    calib, test_impostor = [], []
+    for _work, rs in by_work.items():
+        for i, r in enumerate(rs):
+            (calib if i % 2 == 0 else test_impostor).append(r)
+    if not calib or not test_impostor:
+        return _g7_skip_result(
+            "the impostor parity split left one side empty — every work has "
+            "a single chunk, so the null would be fit on the chunks it scores",
+            reason="corpus incomplete",
+            extra_detail=dict(corpus_detail),
+        )
+
+    # Manifest coverage must be SYMMETRIC across the two sides. Topic
+    # inflation only widens sigma (sigma_eff >= sigma), so giving the genuine
+    # side manifests while the impostors are scored against an un-widened
+    # band can only lower the false-positive leg and raise the catch leg — it
+    # manufactures precisely the "clean FP that costs nothing" result G7
+    # exists to be immune to. A partial chunks.json is therefore refused
+    # outright rather than half-used. (bool(texts_by_chunk) was the original
+    # check and is far too weak: one covered chunk set it True.)
+    participating = genuine + test_impostor
+    n_with_text = sum(1 for r in participating if r.get("chunk_id") in texts_by_chunk)
+    if 0 < n_with_text < len(participating):
+        return _g7_skip_result(
+            f"chunks.json covers {n_with_text} of {len(participating)} scored "
+            "records — partial topic-text coverage would inflate one side's "
+            "sigma and not the other, biasing both action legs toward a pass",
+            reason="corpus inconsistent",
+            extra_detail={
+                **corpus_detail,
+                "n_records_with_text": n_with_text,
+                "n_records_total": len(participating),
+            },
+        )
+
+    from original.quantum.null_pool import fit_impostor_gaussian
+    from original.quantum.scoring import ScoringConfig
+
+    env_config = ScoringConfig.from_env()
+    config = ScoringConfig(
+        null_model="impostor",
+        llr_action_mode=env_config.llr_action_mode,
+        topic_variance_inflation=env_config.topic_variance_inflation,
+    )
+    impostor_stats = fit_impostor_gaussian([r["vector"] for r in calib])
+
+    folds: list[dict] = []
+    n_impostor_fired = 0
+    n_genuine_topic_usable = 0
+    n_impostor_topic_usable = 0
+    for genre in sorted({r.get("genre") for r in genuine if r.get("genre")}):
+        held_out = [r for r in genuine if r.get("genre") == genre]
+        baseline_records = [r for r in genuine if r.get("genre") != genre]
+        if not held_out or not baseline_records:
+            continue
+        state = _g7_make_state(baseline_records, f"g7_cross_{genre}")
+        baseline_texts = [
+            texts_by_chunk[r["chunk_id"]]
+            for r in baseline_records
+            if r.get("chunk_id") and r["chunk_id"] in texts_by_chunk
+        ]
+        genuine_actions, genuine_devs, n_fired, genuine_usable = _g7_score_records(
+            state, held_out, config, impostor_stats, baseline_texts, texts_by_chunk
+        )
+        impostor_actions, impostor_devs, n_fired_impostor, impostor_usable = (
+            _g7_score_records(
+                state, test_impostor, config, impostor_stats, baseline_texts, texts_by_chunk
+            )
+        )
+        n_impostor_fired += n_fired_impostor
+        n_genuine_topic_usable += genuine_usable
+        n_impostor_topic_usable += impostor_usable
+        folds.append(
+            {
+                "genre": genre,
+                "genuine_actions": genuine_actions,
+                "impostor_actions": impostor_actions,
+                "dev_auc": _g7_auc(genuine_devs, impostor_devs),
+                "genuine_inflation_fired": n_fired,
+            }
+        )
+
+    config_detail = {
+        "null_model": config.null_model,
+        "llr_action_mode": config.llr_action_mode,
+        "topic_variance_inflation": config.topic_variance_inflation,
+    }
+
+    # The other half of the coverage guard. Text can be present and non-blank
+    # yet still unusable — stop-word-only chunks give TfidfVectorizer an empty
+    # vocabulary, and resolve_topic returns degraded=True — so an input-side
+    # coverage count cannot see it. If topic resolution worked on one side and
+    # on none of the other, only one side could be corrected, and since
+    # sigma_eff >= sigma that biases the false-positive leg down and the catch
+    # leg up: the unearned pass this whole check exists to refuse.
+    if (n_genuine_topic_usable > 0) != (n_impostor_topic_usable > 0):
+        return _g7_skip_result(
+            f"topic resolution succeeded for {n_genuine_topic_usable} genuine "
+            f"and {n_impostor_topic_usable} impostor scorings — sigma would be "
+            "widened on one side only, biasing both action legs toward a pass",
+            reason="corpus inconsistent",
+            extra_detail={
+                **corpus_detail,
+                "scoring_config": config_detail,
+                "n_genuine_topic_usable": n_genuine_topic_usable,
+                "n_impostor_topic_usable": n_impostor_topic_usable,
+            },
+        )
+
+    try:
+        metrics = _g7_fold_metrics(folds)
+    except _G7UnknownActionError as exc:
+        # _g7_rate_at_or_above refuses an action vocabulary it does not
+        # recognise. That is a corpus/production mismatch, not a bug in the
+        # gate, so it reports as a loud skip rather than a machinery error.
+        return _g7_skip_result(
+            str(exc),
+            reason="unrecognised action vocabulary",
+            extra_detail={**corpus_detail, "scoring_config": config_detail},
+        )
+
+    # Skip ONLY when nothing at all was measured. Skipping whenever ANY leg
+    # is missing would discard a measured failure on the other legs — and
+    # since _g7_auc returns None whenever sklearn is absent (it is not in the
+    # base requirements.txt), that turned a measured 100% cross-topic
+    # false-positive rate into "nothing measurable". A partially-measured run
+    # goes to the evaluator, which fails on a missed bar and withholds a pass
+    # on a missing one.
+    if (
+        metrics["cross_topic_fp_rate"] is None
+        and metrics["impostor_catch_rate"] is None
+        and metrics["mean_cross_genre_dev_auc"] is None
+    ):
+        return _g7_skip_result(
+            f"{metrics['n_genre_folds']} usable leave-one-genre-out fold(s), "
+            f"{metrics['n_auc_folds']} with a defined AUC — nothing was "
+            "measured on any leg (a single-genre corpus leaves no cross-genre "
+            "baseline to hold anything out against)",
+            reason="nothing measurable",
+            extra_detail={**corpus_detail, "scoring_config": config_detail, **metrics},
+        )
+
+    # The fire rate is forwarded as a DOWNGRADE signal only when the
+    # mechanism was supposed to be active. With the flag off (or in shadow,
+    # where sigma is deliberately left alone) a zero fire rate is the correct
+    # and expected outcome, not a reason to distrust the measurement.
+    forwarded_fire_rate = (
+        metrics["inflation_fire_rate"] if config.topic_variance_inflation == "on" else None
+    )
+
+    return evaluate_g7_cross_topic_fpr(
+        metrics["cross_topic_fp_rate"],
+        metrics["impostor_catch_rate"],
+        metrics["mean_cross_genre_dev_auc"],
+        n_genre_folds=metrics["n_genre_folds"],
+        n_auc_folds=metrics["n_auc_folds"],
+        n_catch_folds=metrics["n_catch_folds"],
+        # Every genuine chunk is held out in exactly ONE fold, so its pooled
+        # count is already a count of distinct scored submissions. The
+        # impostor test split is not: it is re-scored against every fold's
+        # state, so the pooled figure is len(test_impostor) x n_folds. Those
+        # re-scorings are correlated, not independent draws, and feeding the
+        # pooled number to the Wilson interval would shrink the CI by roughly
+        # sqrt(n_folds) — over-confident in precisely the direction that lets
+        # an under-powered pass through the catch leg. Forward the DISTINCT
+        # count; the pooled figure travels in detail as n_impostor_scorings.
+        n_genuine=metrics["n_genuine"],
+        n_impostor=len(test_impostor),
+        inflation_mode=config.topic_variance_inflation,
+        inflation_fire_rate=forwarded_fire_rate,
+        informational={
+            "scoring_config": config_detail,
+            "corpus_dir": str(corpus_dir),
+            "corpus_fingerprint": corpus_fingerprint,
+            "genuine_author": genuine_author,
+            "impostor_author": impostor_author,
+            "n_impostor_scorings": metrics["n_impostor"],
+            "n_impostor_distinct": len(test_impostor),
+            "n_impostor_calibration": len(calib),
+            "topic_texts_available": n_with_text > 0,
+            "n_records_with_text": n_with_text,
+            "n_records_total": len(participating),
+            # GENUINE-SIDE fire rate — that is the side the false-positive
+            # leg is about, and the side the downgrade guard keys on. The
+            # impostor side's count travels separately rather than being
+            # silently folded in (or silently dropped, which is what the
+            # first cut did): a large gap between the two means the two
+            # sides were not treated alike.
+            "measured_inflation_fire_rate": metrics["inflation_fire_rate"],
+            "measured_impostor_inflation_fired": n_impostor_fired,
+            "n_genuine_topic_usable": n_genuine_topic_usable,
+            "n_impostor_topic_usable": n_impostor_topic_usable,
+            "per_fold": metrics["per_fold"],
+        },
+    )
+
+
 # ── G5 — permutation-null orchestration ────────────────────────────────────────
 #
 # One seeded label shuffle (seed 1730 by default — BENCHMARK_SEED + 1, so the
@@ -3061,7 +4120,7 @@ def run_g5(
 
 
 def render(results: list[GateResult]) -> str:
-    lines = ["╭─ Calibration gates (G1-G6) ─────────────────────────────────╮"]
+    lines = ["╭─ Calibration gates (G1-G7) ─────────────────────────────────╮"]
     for r in results:
         status = r.verdict.upper()
         lines.append(f"│ {r.name} [{status}] {r.criterion}")
@@ -3172,6 +4231,9 @@ def main(argv=None) -> int:
                 "g1_flagged_rate": 0.05,
                 "g3_top1": 0.7,
                 "g6_ratio": 2.0,
+                "g7_cross_topic_fp": _G7_FP_BAR,
+                "g7_impostor_catch": _G7_CATCH_BAR,
+                "g7_cross_genre_auc": _G7_AUC_BAR,
                 "no_action_far_threshold": NO_ACTION_FAR_THRESHOLD,
                 "no_action_central_threshold": NO_ACTION_CENTRAL_THRESHOLD,
                 "monitor_far_threshold": MONITOR_FAR_THRESHOLD,

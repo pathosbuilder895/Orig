@@ -40,6 +40,7 @@ from validation.calibration_gate import (
     evaluate_g4_career_drift_monotone,
     evaluate_g5_permutation_null,
     evaluate_g6_fairness,
+    evaluate_g7_cross_topic_fpr,
 )
 
 
@@ -246,6 +247,61 @@ GATE_CONTRACTS: dict[str, GateContract] = {
             "can't-know case — see "
             "TestWitnessesFailForTheRightReason.test_g6_fails_on_the_ratio_"
             "not_on_a_zero_rate_special_case."
+        ),
+    ),
+    "evaluate_g7_cross_topic_fpr": GateContract(
+        gate="G7",
+        claims="genuine cross-topic submissions are not flagged (FP @ "
+        "schedule_conversation+ <= 25%) WITHOUT buying that rate by "
+        "suppressing impostor severity at the same bar (catch >= 29%) or by "
+        "compressing scores (mean cross-genre deviation_score AUC >= 0.60)",
+        failure_witness=lambda: evaluate_g7_cross_topic_fpr(
+            cross_topic_fp_rate=0.05,
+            impostor_catch_rate=0.03,
+            mean_cross_genre_dev_auc=0.70,
+        ),
+        label_destruction=lambda: evaluate_g7_cross_topic_fpr(
+            cross_topic_fp_rate=0.27,
+            impostor_catch_rate=0.27,
+            mean_cross_genre_dev_auc=0.5,
+        ),
+        notes=(
+            "The failure witness is the LLR_ACTION_MODE=blend shape, "
+            "reproduced deliberately: a 5% cross-topic false-positive rate "
+            "(the best leg any candidate correction has produced) next to a "
+            "3% impostor catch rate at the SAME severity bar. blend really "
+            "did collapse that catch rate from 33% to 3% while looking like "
+            "the best option on false positives alone, and it was caught "
+            "only because someone checked both legs at a matched bar — so "
+            "the witness fails via the CATCH leg specifically, with the FP "
+            "and AUC legs both passing, pinned in "
+            "TestWitnessesFailForTheRightReason.test_g7_fails_because_the_"
+            "catch_leg_collapses_at_a_matched_severity_bar. A witness that "
+            "tripped the FP or AUC leg instead would leave the design's "
+            "highest-risk decision (inflating only the claimed-author side "
+            "of the llr difference, which biases delta toward 'more like the "
+            "claimed author' for everyone) untested — and that decision is "
+            "exactly what the spec says this leg decides. No counts, fold "
+            "count, or fire rate are supplied, so none of the three "
+            "downgrade-to-uninformative paths run and the fail is a plain "
+            "criterion fail.\n\n"
+            "The label-destruction leg is registered — unlike G2/G2b/G6 — "
+            "and it is a MATHEMATICAL GUARANTEE rather than a cherry-picked "
+            "imbalance. Destroying author labels makes the genuine and "
+            "impostor populations exchangeable draws from one pool, so (a) "
+            "their flagged rates at any fixed severity bar converge to a "
+            "single shared value and (b) the AUC converges to 0.5. Both "
+            "properties are fatal here independently. On (a): the FP bar is "
+            "an UPPER bound of 0.25 and the catch bar a LOWER bound of 0.29 "
+            "on what has become the same number, and 0.25 < 0.29, so NO "
+            "shared rate can satisfy both — the witness uses 0.27, which "
+            "sits in that gap and misses both bars at once "
+            "(test_g7_fp_and_catch_bars_cannot_both_hold_at_one_shared_rate "
+            "checks the gap itself still exists, so the guarantee cannot be "
+            "quietly voided by moving a bar). On (b): 0.5 is strictly below "
+            "the 0.60 AUC bar, which the spec set above chance for precisely "
+            "this reason. All three legs therefore fail, pinned in "
+            "test_g7_label_destruction_fails_all_three_legs_by_construction."
         ),
     ),
 }
