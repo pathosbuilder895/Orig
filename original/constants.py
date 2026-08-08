@@ -932,6 +932,22 @@ import math as _math
 
 # Eight target classes for the genre resolver (rule-based fallback in Phase 2;
 # trained classifier deferred to a follow-up).
+# The abstention outcome for the v2 genre resolver (GENRE_RESOLVER_V2).
+# APPENDED to GENRE_LABELS rather than replacing anything: the eight labels
+# below are persisted on BaselineSample.genre and used as get_genre_stats
+# pooling keys, so changing them would force a data migration. v1 sorted 86%
+# of all prose into rule 8's terminal `else` ("correspondence") and reported
+# it at a hardcoded 0.5 confidence — measured 2026-08-08 over 356 committed
+# documents. See docs/superpowers/specs/2026-08-08-genre-resolution-design.md.
+GENRE_UNKNOWN = "unknown"
+
+# Minimum calibrated probability required to CLAIM a genre; below it the
+# resolver abstains. Applied only to the Stage 2 model's output — Stage 1's
+# rule hits carry a placeholder confidence and are deliberately NOT
+# thresholded, since comparing a placeholder against a real threshold would
+# abstain on everything.
+GENRE_CONFIDENCE_MIN = 0.55
+
 GENRE_LABELS = [
     "academic_exegesis",
     "scholarly_essay",
@@ -941,6 +957,7 @@ GENRE_LABELS = [
     "correspondence",
     "blog_post",
     "structured_template",
+    GENRE_UNKNOWN,
 ]
 
 # Genre family mapping — used by Phase 4 baseline-cluster matching to award
