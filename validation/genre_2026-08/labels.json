@@ -1,0 +1,700 @@
+{
+ "version": 1,
+ "codebook_sha256": "22d612190fafc2ed048d4f134402509cff1ee8c1cdb522257fc4837cdbe2c30c",
+ "classes": [
+  "academic_exegesis",
+  "creative_fiction",
+  "personal_essay",
+  "scholarly_essay"
+ ],
+ "min_words": 250,
+ "per_class_cap": 40,
+ "entries": [
+  {
+   "path": "validation/corpus/burke_001.txt",
+   "author": "burke",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/burke_002.txt",
+   "author": "burke",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/burke_003.txt",
+   "author": "burke",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/burke_004.txt",
+   "author": "burke",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/burke_005.txt",
+   "author": "burke",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_hamilton_01.txt",
+   "author": "hamilton",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_hamilton_06.txt",
+   "author": "hamilton",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_hamilton_07.txt",
+   "author": "hamilton",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_hamilton_08.txt",
+   "author": "hamilton",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_hamilton_09.txt",
+   "author": "hamilton",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_jay_02.txt",
+   "author": "jay",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_jay_03.txt",
+   "author": "jay",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_jay_04.txt",
+   "author": "jay",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_jay_05.txt",
+   "author": "jay",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_madison_10.txt",
+   "author": "madison",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_madison_14.txt",
+   "author": "madison",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_madison_37.txt",
+   "author": "madison",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_madison_38.txt",
+   "author": "madison",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/paine_001.txt",
+   "author": "paine",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/corpus/paine_002.txt",
+   "author": "paine",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/corpus/paine_003.txt",
+   "author": "paine",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/corpus/paine_004.txt",
+   "author": "paine",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/corpus/seminary_01_ecclesiology.txt",
+   "author": "seminary_01",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_01_grace.txt",
+   "author": "seminary_01",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_01_justification.txt",
+   "author": "seminary_01",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_01_prayer.txt",
+   "author": "seminary_01",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_01_sin.txt",
+   "author": "seminary_01",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_02_ecclesiology.txt",
+   "author": "seminary_02",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_02_grace.txt",
+   "author": "seminary_02",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_02_justification.txt",
+   "author": "seminary_02",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_02_prayer.txt",
+   "author": "seminary_02",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_02_sin.txt",
+   "author": "seminary_02",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_03_ecclesiology.txt",
+   "author": "seminary_03",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_03_grace.txt",
+   "author": "seminary_03",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_03_justification.txt",
+   "author": "seminary_03",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_03_prayer.txt",
+   "author": "seminary_03",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_03_sin.txt",
+   "author": "seminary_03",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_04_ecclesiology.txt",
+   "author": "seminary_04",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_04_grace.txt",
+   "author": "seminary_04",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_04_justification.txt",
+   "author": "seminary_04",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_04_prayer.txt",
+   "author": "seminary_04",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_04_sin.txt",
+   "author": "seminary_04",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/seminary_05_ecclesiology.txt",
+   "author": "seminary_05",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/corpus/seminary_05_grace.txt",
+   "author": "seminary_05",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/corpus/seminary_05_justification.txt",
+   "author": "seminary_05",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/corpus/seminary_05_prayer.txt",
+   "author": "seminary_05",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/corpus/seminary_05_sin.txt",
+   "author": "seminary_05",
+   "label": "academic_exegesis",
+   "justification": "seminary coursework: analyses a doctrine for an assessor, expository structure",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/corpus/augustine/confessions_part_01.txt",
+   "author": "augustine",
+   "label": "personal_essay",
+   "justification": "Confessions: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/augustine/confessions_part_02.txt",
+   "author": "augustine",
+   "label": "personal_essay",
+   "justification": "Confessions: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/augustine/confessions_part_03.txt",
+   "author": "augustine",
+   "label": "personal_essay",
+   "justification": "Confessions: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/augustine/confessions_part_04.txt",
+   "author": "augustine",
+   "label": "personal_essay",
+   "justification": "Confessions: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/augustine/confessions_part_05.txt",
+   "author": "augustine",
+   "label": "personal_essay",
+   "justification": "Confessions: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/augustine/confessions_part_06.txt",
+   "author": "augustine",
+   "label": "personal_essay",
+   "justification": "Confessions: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/chesterton/orthodoxy_part_01.txt",
+   "author": "chesterton",
+   "label": "scholarly_essay",
+   "justification": "Orthodoxy: argumentative apologetic addressed to a general reader",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/chesterton/orthodoxy_part_02.txt",
+   "author": "chesterton",
+   "label": "scholarly_essay",
+   "justification": "Orthodoxy: argumentative apologetic addressed to a general reader",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/chesterton/orthodoxy_part_03.txt",
+   "author": "chesterton",
+   "label": "scholarly_essay",
+   "justification": "Orthodoxy: argumentative apologetic addressed to a general reader",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/chesterton/orthodoxy_part_04.txt",
+   "author": "chesterton",
+   "label": "scholarly_essay",
+   "justification": "Orthodoxy: argumentative apologetic addressed to a general reader",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/chesterton/orthodoxy_part_05.txt",
+   "author": "chesterton",
+   "label": "scholarly_essay",
+   "justification": "Orthodoxy: argumentative apologetic addressed to a general reader",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/douglass/my_bondage_and_my_freedom_part_01.txt",
+   "author": "douglass",
+   "label": "personal_essay",
+   "justification": "autobiography: narrative asserted as true of the writer",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/douglass/my_bondage_and_my_freedom_part_02.txt",
+   "author": "douglass",
+   "label": "personal_essay",
+   "justification": "autobiography: narrative asserted as true of the writer",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/douglass/my_bondage_and_my_freedom_part_03.txt",
+   "author": "douglass",
+   "label": "personal_essay",
+   "justification": "autobiography: narrative asserted as true of the writer",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/douglass/my_bondage_and_my_freedom_part_04.txt",
+   "author": "douglass",
+   "label": "personal_essay",
+   "justification": "autobiography: narrative asserted as true of the writer",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/douglass/my_bondage_and_my_freedom_part_05.txt",
+   "author": "douglass",
+   "label": "personal_essay",
+   "justification": "autobiography: narrative asserted as true of the writer",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/emerson/compensation.txt",
+   "author": "emerson",
+   "label": "personal_essay",
+   "justification": "first-person reflective essays; removing the I would destroy them",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/emerson/history.txt",
+   "author": "emerson",
+   "label": "personal_essay",
+   "justification": "first-person reflective essays; removing the I would destroy them",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/emerson/self_reliance.txt",
+   "author": "emerson",
+   "label": "personal_essay",
+   "justification": "first-person reflective essays; removing the I would destroy them",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/emerson/spiritual_laws.txt",
+   "author": "emerson",
+   "label": "personal_essay",
+   "justification": "first-person reflective essays; removing the I would destroy them",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/emerson/the_over_soul.txt",
+   "author": "emerson",
+   "label": "personal_essay",
+   "justification": "first-person reflective essays; removing the I would destroy them",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/james/the_varieties_of_religious_experience_part_01.txt",
+   "author": "james",
+   "label": "scholarly_essay",
+   "justification": "Gifford lectures: argues a thesis about religious experience to a public",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/james/the_varieties_of_religious_experience_part_02.txt",
+   "author": "james",
+   "label": "scholarly_essay",
+   "justification": "Gifford lectures: argues a thesis about religious experience to a public",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/james/the_varieties_of_religious_experience_part_03.txt",
+   "author": "james",
+   "label": "scholarly_essay",
+   "justification": "Gifford lectures: argues a thesis about religious experience to a public",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/james/the_varieties_of_religious_experience_part_04.txt",
+   "author": "james",
+   "label": "scholarly_essay",
+   "justification": "Gifford lectures: argues a thesis about religious experience to a public",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/james/the_varieties_of_religious_experience_part_05.txt",
+   "author": "james",
+   "label": "scholarly_essay",
+   "justification": "Gifford lectures: argues a thesis about religious experience to a public",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/mill/on_liberty_part_01.txt",
+   "author": "mill",
+   "label": "scholarly_essay",
+   "justification": "On Liberty: chain-of-argument prose about a public question",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/corpus/mill/on_liberty_part_02.txt",
+   "author": "mill",
+   "label": "scholarly_essay",
+   "justification": "On Liberty: chain-of-argument prose about a public question",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/corpus/mill/on_liberty_part_03.txt",
+   "author": "mill",
+   "label": "scholarly_essay",
+   "justification": "On Liberty: chain-of-argument prose about a public question",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/corpus/mill/on_liberty_part_04.txt",
+   "author": "mill",
+   "label": "scholarly_essay",
+   "justification": "On Liberty: chain-of-argument prose about a public question",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/corpus/newman/the_idea_of_a_university_part_01.txt",
+   "author": "newman",
+   "label": "scholarly_essay",
+   "justification": "lectures arguing a thesis about education, not homiletic",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/corpus/newman/the_idea_of_a_university_part_02.txt",
+   "author": "newman",
+   "label": "scholarly_essay",
+   "justification": "lectures arguing a thesis about education, not homiletic",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/corpus/newman/the_idea_of_a_university_part_03.txt",
+   "author": "newman",
+   "label": "scholarly_essay",
+   "justification": "lectures arguing a thesis about education, not homiletic",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/corpus/newman/the_idea_of_a_university_part_04.txt",
+   "author": "newman",
+   "label": "scholarly_essay",
+   "justification": "lectures arguing a thesis about education, not homiletic",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/corpus/thoreau/a_plea_for_captain_john_brown.txt",
+   "author": "thoreau",
+   "label": "personal_essay",
+   "justification": "first-person reflection organised by experience, not by argument",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/corpus/thoreau/civil_disobedience.txt",
+   "author": "thoreau",
+   "label": "personal_essay",
+   "justification": "first-person reflection organised by experience, not by argument",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/corpus/thoreau/life_without_principle.txt",
+   "author": "thoreau",
+   "label": "personal_essay",
+   "justification": "first-person reflection organised by experience, not by argument",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/corpus/thoreau/slavery_in_massachusetts.txt",
+   "author": "thoreau",
+   "label": "personal_essay",
+   "justification": "first-person reflection organised by experience, not by argument",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/corpus/thoreau/walking.txt",
+   "author": "thoreau",
+   "label": "personal_essay",
+   "justification": "first-person reflection organised by experience, not by argument",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/cross_work_corpus/christie/the_mysterious_affair_at_styles_01.txt",
+   "author": "christie",
+   "label": "creative_fiction",
+   "justification": "novels: invented persons and events, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/cross_work_corpus/christie/the_mysterious_affair_at_styles_02.txt",
+   "author": "christie",
+   "label": "creative_fiction",
+   "justification": "novels: invented persons and events, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/cross_work_corpus/christie/the_mysterious_affair_at_styles_03.txt",
+   "author": "christie",
+   "label": "creative_fiction",
+   "justification": "novels: invented persons and events, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/cross_work_corpus/christie/the_secret_adversary_01.txt",
+   "author": "christie",
+   "label": "creative_fiction",
+   "justification": "novels: invented persons and events, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/cross_work_corpus/christie/the_secret_adversary_02.txt",
+   "author": "christie",
+   "label": "creative_fiction",
+   "justification": "novels: invented persons and events, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/cross_work_corpus/christie/the_secret_adversary_03.txt",
+   "author": "christie",
+   "label": "creative_fiction",
+   "justification": "novels: invented persons and events, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/cross_work_corpus/dickens/a_tale_of_two_cities_01.txt",
+   "author": "dickens",
+   "label": "creative_fiction",
+   "justification": "novels: invented persons and events, advanced by scene and dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/cross_work_corpus/dickens/a_tale_of_two_cities_02.txt",
+   "author": "dickens",
+   "label": "creative_fiction",
+   "justification": "novels: invented persons and events, advanced by scene and dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/cross_work_corpus/dickens/a_tale_of_two_cities_03.txt",
+   "author": "dickens",
+   "label": "creative_fiction",
+   "justification": "novels: invented persons and events, advanced by scene and dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/cross_work_corpus/dickens/great_expectations_01.txt",
+   "author": "dickens",
+   "label": "creative_fiction",
+   "justification": "novels: invented persons and events, advanced by scene and dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/cross_work_corpus/dickens/great_expectations_02.txt",
+   "author": "dickens",
+   "label": "creative_fiction",
+   "justification": "novels: invented persons and events, advanced by scene and dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/cross_work_corpus/dickens/great_expectations_03.txt",
+   "author": "dickens",
+   "label": "creative_fiction",
+   "justification": "novels: invented persons and events, advanced by scene and dialogue",
+   "split": "holdout"
+  }
+ ]
+}
