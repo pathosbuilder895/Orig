@@ -146,7 +146,61 @@ def resolve_language(text: str) -> dict[str, Any]:
 
 def resolve_genre(text: str, citation_data: CitationData | None = None) -> dict[str, Any]:
     """
+    Genre resolution, dispatched on ``GENRE_RESOLVER_V2``.
+
+    ``off`` (default)
+        v1 rules — byte-identical to every release before this feature
+        existed, asserted over the committed corpora in
+        tests/context/test_genre_dispatch.py.
+    ``shadow``
+        v2 is computed and attached as ``shadow_primary`` /
+        ``shadow_confidence``; ``primary`` still comes from v1, so every
+        consumer is unaffected. One INFO line per call carries the pair,
+        because ``students_baseline.py`` persists only ``primary`` and the
+        label-shift distribution has to be recoverable from production logs.
+    ``on``
+        v2's verdict.
+
+    v2 abstains (``GENRE_UNKNOWN``) where v1 fell through to
+    ``correspondence`` — 86% of all committed documents, measured
+    2026-08-08. See
+    docs/superpowers/specs/2026-08-08-genre-resolution-design.md.
+    """
+    from .genre_mode import resolve_mode
+
+    mode = resolve_mode()
+    if mode == "off":
+        return _resolve_genre_v1(text, citation_data)
+
+    from .genre_v2 import resolve as _resolve_v2
+
+    v2 = _resolve_v2(text, citation_data)
+    if mode == "on":
+        return v2
+
+    v1 = _resolve_genre_v1(text, citation_data)
+    log.info(
+        "genre_shadow v1=%s v2=%s v2_confidence=%.3f",
+        v1.get("primary"),
+        v2.get("primary"),
+        float(v2.get("confidence") or 0.0),
+    )
+    return {
+        **v1,
+        "shadow_primary": v2.get("primary"),
+        "shadow_confidence": v2.get("confidence"),
+    }
+
+
+def _resolve_genre_v1(text: str, citation_data: CitationData | None = None) -> dict[str, Any]:
+    """
     Rule-based genre classification across the 8 GENRE_LABELS.
+
+    PRESERVED VERBATIM as the ``GENRE_RESOLVER_V2=off`` path. Do not "improve"
+    it: its exact output is the byte-identity baseline the default mode is
+    tested against. Its known defects — 86% of prose landing in rule 8's
+    terminal ``else``, four unreachable labels, a straight-quotes-only
+    dialogue regex — are fixed in ``genre_v2`` rather than here.
 
     Phase 2 ships ONLY the rule-based fallback (per the user's choice).
     A trained sklearn LogisticRegression follows in a later PR once the
