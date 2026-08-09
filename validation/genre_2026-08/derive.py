@@ -124,50 +124,109 @@ def probabilities(fit: dict, X: np.ndarray) -> np.ndarray:
     return e / e.sum(axis=1, keepdims=True)
 
 
-def choose_threshold(fit: dict) -> tuple[float, dict]:
+def _out_of_fold_predictions(entries: list[dict]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Smallest threshold on the DERIVATION split at which every claimed class
-    reaches the precision floor. Returns (threshold, per-class precision).
+    Leave-one-AUTHOR-out predictions over the derivation split.
 
-    Selected here and frozen; the hold-out never informs it.
+    Threshold selection on in-sample predictions is biased: the model has
+    already seen every document it is being scored on, so precision looks
+    better than it will be on anyone new, and the threshold chosen against it
+    is systematically too low. Holding out one author at a time reproduces
+    the thing the threshold has to survive — an unseen writer — using only
+    derivation data. The real hold-out is still never touched.
+
+    Leave-one-AUTHOR-out rather than leave-one-document-out for the same
+    reason the top-level split is author-disjoint: a document-level fold
+    leaves the same author's other documents in training, so the estimate
+    inherits exactly the author-recognition shortcut it is meant to exclude.
     """
-    proba = probabilities(fit, fit["_X"])
-    classes = np.asarray(fit["classes"])
-    predicted = classes[proba.argmax(axis=1)]
-    confidence = proba.max(axis=1)
-    truth = fit["_y"]
+    authors = sorted({e["author"] for e in entries})
+    truth: list[str] = []
+    predicted: list[str] = []
+    confidence: list[float] = []
+    for held_out in authors:
+        train = [e for e in entries if e["author"] != held_out]
+        test = [e for e in entries if e["author"] == held_out]
+        if not train or not test:
+            continue
+        if len({e["label"] for e in train}) < 2:
+            continue  # a single-class fold cannot fit a classifier
+        fold = fit_from_entries(train)
+        X, y = featurise(test)
+        proba = probabilities(fold, X)
+        classes = np.asarray(fold["classes"])
+        predicted.extend(classes[proba.argmax(axis=1)].tolist())
+        confidence.extend(proba.max(axis=1).tolist())
+        truth.extend(y.tolist())
+    return np.asarray(truth), np.asarray(predicted), np.asarray(confidence)
 
-    best: tuple[float, dict] | None = None
+
+def choose_threshold(fit: dict, entries: list[dict]) -> tuple[float, dict]:
+    """
+    Smallest threshold at which every claimed class reaches the precision
+    floor under LEAVE-ONE-AUTHOR-OUT cross-validation on the derivation
+    split. Returns (threshold, per-class out-of-fold precision).
+
+    Selected here and frozen. The hold-out never informs it.
+    """
+    truth, predicted, confidence = _out_of_fold_predictions(entries)
+
+    # Pick the threshold with the best out-of-fold MINIMUM per-class
+    # precision, and record honestly whether it clears the floor. An earlier
+    # cut raised instead of writing, which is the wrong failure mode: a gate
+    # that never receives numbers cannot report anything, and "the artifact
+    # would not build" is far less useful to the next reader than "here is
+    # exactly how far short it falls, per class".
+    best_threshold = _THRESHOLD_GRID[0]
+    best_per_class: dict[str, float | None] = {}
+    best_min = -1.0
     for threshold in _THRESHOLD_GRID:
         claimed = confidence >= threshold
         if not claimed.any():
             break
-        per_class = {}
+        per_class: dict[str, float | None] = {}
         for cls in fit["classes"]:
             mask = claimed & (predicted == cls)
-            if mask.sum() == 0:
-                per_class[cls] = None
-                continue
-            per_class[cls] = float((truth[mask] == cls).mean())
+            per_class[cls] = float((truth[mask] == cls).mean()) if mask.sum() else None
         scored = [v for v in per_class.values() if v is not None]
-        # Every class must still be claimed somewhere, and all must clear the
-        # floor. A threshold that silences a class entirely is not a pass.
-        if len(scored) == len(fit["classes"]) and min(scored) >= _PRECISION_FLOOR:
-            best = (threshold, per_class)
-            break
-    if best is None:
-        raise RuntimeError(
-            "no threshold on the derivation split reaches a per-class precision "
-            f"of {_PRECISION_FLOOR}. The signals do not separate these classes; "
-            "do not lower the floor to manufacture a pass."
-        )
-    return best
+        if not scored:
+            continue
+        # A class the model never claims is not "perfect precision" — it is
+        # an unusable class, and it must drag the minimum to zero rather than
+        # being quietly excluded from the average.
+        minimum = 0.0 if len(scored) < len(fit["classes"]) else min(scored)
+        if minimum > best_min:
+            best_min, best_threshold, best_per_class = minimum, threshold, per_class
+
+    unclaimable = sorted(c for c, v in best_per_class.items() if v is None)
+    meets_floor = not unclaimable and best_min >= _PRECISION_FLOOR
+
+    # When the floor is unreachable, every threshold ties at minimum 0.0 and
+    # the argmax above degenerates to the first grid point (0.25) — which
+    # would ship a model claiming a label at 25% confidence. A criterion that
+    # is not working must not be used to pick a number: fall back to the
+    # conservative constant and say so in the artifact.
+    threshold_source = "out-of-fold precision floor"
+    if not meets_floor:
+        from original.constants import GENRE_CONFIDENCE_MIN
+
+        best_threshold = GENRE_CONFIDENCE_MIN
+        threshold_source = "default constant (precision floor unreachable)"
+
+    return best_threshold, {
+        "threshold_source": threshold_source,
+        "per_class": best_per_class,
+        "min_precision": best_min,
+        "unclaimable_classes": unclaimable,
+        "meets_precision_floor": meets_floor,
+        "precision_floor": _PRECISION_FLOOR,
+    }
 
 
 def build_artifact() -> dict:
     entries = load_entries("derivation")
     fit = fit_from_entries(entries)
-    threshold, per_class = choose_threshold(fit)
+    threshold, oof = choose_threshold(fit, entries)
 
     # Reference rows for drift detection: the first derivation document of
     # each of the three largest classes, chosen deterministically.
@@ -187,7 +246,8 @@ def build_artifact() -> dict:
         "coef": fit["coef"],
         "intercept": fit["intercept"],
         "confidence_min": threshold,
-        "derivation_per_class_precision": per_class,
+        "out_of_fold": oof,
+        "meets_precision_floor": oof["meets_precision_floor"],
         "n_derivation": len(entries),
         "reference_signals": reference_signals.tolist(),
         "reference_probabilities": reference_probabilities.tolist(),
@@ -203,10 +263,17 @@ def main() -> None:
     print(f"wrote {OUT.relative_to(_ROOT)}")
     print(f"classes:        {artifact['classes']}")
     print(f"n_derivation:   {artifact['n_derivation']}")
-    print(f"confidence_min: {artifact['confidence_min']}")
-    print("derivation per-class precision:")
-    for cls, value in sorted(artifact["derivation_per_class_precision"].items()):
-        print(f"  {cls:20s} {value:.3f}")
+    print(f"confidence_min: {artifact['confidence_min']}  "
+          f"({artifact['out_of_fold']['threshold_source']})")
+    oof = artifact["out_of_fold"]
+    print("leave-one-author-out per-class precision (derivation):")
+    for cls, value in sorted(oof["per_class"].items()):
+        shown = f"{value:.3f}" if value is not None else "NEVER CLAIMED"
+        print(f"  {cls:20s} {shown}")
+    print(f"minimum:        {oof['min_precision']:.3f}  (floor {oof['precision_floor']})")
+    print(f"meets floor:    {oof['meets_precision_floor']}")
+    if oof["unclaimable_classes"]:
+        print(f"UNCLAIMABLE:    {oof['unclaimable_classes']}")
 
 
 if __name__ == "__main__":

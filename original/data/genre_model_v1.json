@@ -98,13 +98,23 @@
   0.5645723059183452,
   1.471012632387102
  ],
- "confidence_min": 0.59,
- "derivation_per_class_precision": {
-  "academic_exegesis": 1.0,
-  "creative_fiction": 1.0,
-  "personal_essay": 0.8,
-  "scholarly_essay": 1.0
+ "confidence_min": 0.55,
+ "out_of_fold": {
+  "threshold_source": "default constant (precision floor unreachable)",
+  "per_class": {
+   "academic_exegesis": 1.0,
+   "creative_fiction": null,
+   "personal_essay": 0.10526315789473684,
+   "scholarly_essay": 0.5483870967741935
+  },
+  "min_precision": 0.0,
+  "unclaimable_classes": [
+   "creative_fiction"
+  ],
+  "meets_precision_floor": false,
+  "precision_floor": 0.8
  },
+ "meets_precision_floor": false,
  "n_derivation": 70,
  "reference_signals": [
   [
