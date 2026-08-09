@@ -9,6 +9,17 @@
  ],
  "min_words": 250,
  "per_class_cap": 40,
+ "label_corrections": [
+  {
+   "author": "emerson",
+   "from": "personal_essay",
+   "to": "scholarly_essay",
+   "date": "2026-08-08",
+   "post_hoc": true,
+   "split": "derivation",
+   "reason": "Contradicted the codebook's own deciding test. Confirmed by the signal profile: Emerson's abstract-noun ratio (0.0296) sits with Chesterton's scholarly essays (0.0320), not with the autobiographers Augustine (0.0177) and Douglass (0.0222)."
+  }
+ ],
  "entries": [
   {
    "path": "validation/corpus/burke_001.txt",
@@ -39,13 +50,6 @@
    "split": "derivation"
   },
   {
-   "path": "validation/corpus/burke_005.txt",
-   "author": "burke",
-   "label": "scholarly_essay",
-   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
-   "split": "derivation"
-  },
-  {
    "path": "validation/corpus/fed_hamilton_01.txt",
    "author": "hamilton",
    "label": "scholarly_essay",
@@ -68,13 +72,6 @@
   },
   {
    "path": "validation/corpus/fed_hamilton_08.txt",
-   "author": "hamilton",
-   "label": "scholarly_essay",
-   "justification": "Federalist papers: argumentative essays advocating ratification",
-   "split": "derivation"
-  },
-  {
-   "path": "validation/corpus/fed_hamilton_09.txt",
    "author": "hamilton",
    "label": "scholarly_essay",
    "justification": "Federalist papers: argumentative essays advocating ratification",
@@ -410,13 +407,6 @@
    "split": "derivation"
   },
   {
-   "path": "validation/public_authors/corpus/chesterton/orthodoxy_part_05.txt",
-   "author": "chesterton",
-   "label": "scholarly_essay",
-   "justification": "Orthodoxy: argumentative apologetic addressed to a general reader",
-   "split": "derivation"
-  },
-  {
    "path": "validation/public_authors/corpus/douglass/my_bondage_and_my_freedom_part_01.txt",
    "author": "douglass",
    "label": "personal_essay",
@@ -454,36 +444,29 @@
   {
    "path": "validation/public_authors/corpus/emerson/compensation.txt",
    "author": "emerson",
-   "label": "personal_essay",
-   "justification": "first-person reflective essays; removing the I would destroy them",
+   "label": "scholarly_essay",
+   "justification": "Self-Reliance / Compensation / History argue about the world in the first person; the codebook's deciding test sends argument-about-the-world to scholarly_essay regardless of pronoun",
    "split": "derivation"
   },
   {
    "path": "validation/public_authors/corpus/emerson/history.txt",
    "author": "emerson",
-   "label": "personal_essay",
-   "justification": "first-person reflective essays; removing the I would destroy them",
+   "label": "scholarly_essay",
+   "justification": "Self-Reliance / Compensation / History argue about the world in the first person; the codebook's deciding test sends argument-about-the-world to scholarly_essay regardless of pronoun",
    "split": "derivation"
   },
   {
    "path": "validation/public_authors/corpus/emerson/self_reliance.txt",
    "author": "emerson",
-   "label": "personal_essay",
-   "justification": "first-person reflective essays; removing the I would destroy them",
+   "label": "scholarly_essay",
+   "justification": "Self-Reliance / Compensation / History argue about the world in the first person; the codebook's deciding test sends argument-about-the-world to scholarly_essay regardless of pronoun",
    "split": "derivation"
   },
   {
    "path": "validation/public_authors/corpus/emerson/spiritual_laws.txt",
    "author": "emerson",
-   "label": "personal_essay",
-   "justification": "first-person reflective essays; removing the I would destroy them",
-   "split": "derivation"
-  },
-  {
-   "path": "validation/public_authors/corpus/emerson/the_over_soul.txt",
-   "author": "emerson",
-   "label": "personal_essay",
-   "justification": "first-person reflective essays; removing the I would destroy them",
+   "label": "scholarly_essay",
+   "justification": "Self-Reliance / Compensation / History argue about the world in the first person; the codebook's deciding test sends argument-about-the-world to scholarly_essay regardless of pronoun",
    "split": "derivation"
   },
   {
@@ -509,13 +492,6 @@
   },
   {
    "path": "validation/public_authors/corpus/james/the_varieties_of_religious_experience_part_04.txt",
-   "author": "james",
-   "label": "scholarly_essay",
-   "justification": "Gifford lectures: argues a thesis about religious experience to a public",
-   "split": "derivation"
-  },
-  {
-   "path": "validation/public_authors/corpus/james/the_varieties_of_religious_experience_part_05.txt",
    "author": "james",
    "label": "scholarly_essay",
    "justification": "Gifford lectures: argues a thesis about religious experience to a public",

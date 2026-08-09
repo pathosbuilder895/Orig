@@ -86,8 +86,11 @@ GROUPS: list[tuple[str, str, str, str]] = [
     # personal_essay — the writer is the subject.
     ("validation/public_authors/corpus/thoreau/*.txt", "thoreau", "personal_essay",
      "first-person reflection organised by experience, not by argument"),
-    ("validation/public_authors/corpus/emerson/*.txt", "emerson", "personal_essay",
-     "first-person reflective essays; removing the I would destroy them"),
+    # CORRECTED 2026-08-08, post-hoc — see LABEL_CORRECTIONS below.
+    ("validation/public_authors/corpus/emerson/*.txt", "emerson", "scholarly_essay",
+     "Self-Reliance / Compensation / History argue about the world in the first "
+     "person; the codebook's deciding test sends argument-about-the-world to "
+     "scholarly_essay regardless of pronoun"),
     ("validation/public_authors/corpus/douglass/my_bondage_*.txt", "douglass", "personal_essay",
      "autobiography: narrative asserted as true of the writer"),
     ("validation/public_authors/corpus/augustine/confessions_*.txt", "augustine",
@@ -98,6 +101,42 @@ GROUPS: list[tuple[str, str, str, str]] = [
      "novels: invented persons and events, advanced by scene and dialogue"),
     ("validation/public_authors/cross_work_corpus/christie/*.txt", "christie",
      "creative_fiction", "novels: invented persons and events, advanced by scene and dialogue"),
+]
+
+# Post-hoc label corrections, recorded rather than quietly applied.
+#
+# Honesty requires flagging the timing: this correction was made AFTER the
+# first model was evaluated, which is exactly the ordering the codebook-first
+# discipline exists to prevent. Three things bound the damage, and a reader
+# should weigh them rather than take the correction on trust:
+#
+#   1. It is justified by the codebook INDEPENDENTLY of the outcome. The
+#      deciding test between personal_essay and scholarly_essay is "argument
+#      about the world -> scholarly; account of a life -> personal". Emerson's
+#      Self-Reliance, Compensation and History argue about the world. The
+#      original label was wrong when it was written, not merely inconvenient.
+#   2. Emerson is a DERIVATION author. The hold-out (seminary_05, dickens,
+#      thoreau, mill, newman, paine) is untouched, so the evaluation set
+#      remains independent of this change.
+#   3. Thoreau carries the SAME ambiguity — Civil Disobedience argues about
+#      the world while Walden recounts a life — and was deliberately NOT
+#      relabelled, because he is in the hold-out. Correcting test labels after
+#      seeing test results is not a correction, it is fitting.
+LABEL_CORRECTIONS = [
+    {
+        "author": "emerson",
+        "from": "personal_essay",
+        "to": "scholarly_essay",
+        "date": "2026-08-08",
+        "post_hoc": True,
+        "split": "derivation",
+        "reason": (
+            "Contradicted the codebook's own deciding test. Confirmed by the "
+            "signal profile: Emerson's abstract-noun ratio (0.0296) sits with "
+            "Chesterton's scholarly essays (0.0320), not with the "
+            "autobiographers Augustine (0.0177) and Douglass (0.0222)."
+        ),
+    },
 ]
 
 # Authors held out, chosen per class by sorted name so the split is
@@ -160,6 +199,7 @@ def build() -> dict:
         "classes": sorted(by_class),
         "min_words": MIN_WORDS,
         "per_class_cap": PER_CLASS_CAP,
+        "label_corrections": LABEL_CORRECTIONS,
         "entries": sorted(entries, key=lambda e: e["path"]),
     }
 

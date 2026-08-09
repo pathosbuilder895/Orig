@@ -184,6 +184,20 @@ SIGNAL_ORDER: tuple[str, ...] = (
     "signal_verb_rate",
     "question_rate",
     "mean_word_length",
+    # Argument-versus-narration. The six below exist because the ten above
+    # could not tell personal_essay from scholarly_essay: on the derivation
+    # split raw_first_person_ratio separated them by only 1.0 pooled SD
+    # (0.413 vs 0.278). First-person RATIO cannot distinguish "I arguing"
+    # from "I narrating" — Mill writes "I" while arguing about liberty,
+    # Thoreau writes "I" about what he did at Walden. The codebook's own
+    # deciding test is which kind of work the first person is doing, and
+    # these operationalise it.
+    "past_tense_ratio",
+    "modal_verb_rate",
+    "argumentative_connective_rate",
+    "narrative_connective_rate",
+    "abstract_noun_ratio",
+    "proper_noun_rate",
 )
 
 # Second-person address is a strong homiletic/instructional signal ("you must
@@ -192,6 +206,92 @@ SIGNAL_ORDER: tuple[str, ...] = (
 # features — they inform a metadata resolver, not the deviation score.
 _SECOND_PERSON = frozenset(
     {"you", "your", "yours", "yourself", "yourselves", "thou", "thee", "thy", "thine", "ye"}
+)
+
+_MODALS = frozenset(
+    {"must", "ought", "should", "shall", "may", "might", "cannot", "can", "would", "could"}
+)
+
+_ARGUMENTATIVE_CONNECTIVES = frozenset(
+    {
+        "therefore",
+        "however",
+        "thus",
+        "hence",
+        "moreover",
+        "nevertheless",
+        "consequently",
+        "furthermore",
+        "accordingly",
+        "conversely",
+        "whereas",
+        "indeed",
+        "nonetheless",
+        "otherwise",
+    }
+)
+
+_NARRATIVE_CONNECTIVES = frozenset(
+    {
+        "then",
+        "afterwards",
+        "afterward",
+        "suddenly",
+        "meanwhile",
+        "presently",
+        "next",
+        "later",
+        "once",
+        "soon",
+        "immediately",
+        "finally",
+    }
+)
+
+# Nominalisation suffixes: abstraction is the hallmark of expository prose,
+# and its absence of concrete narrative.
+_ABSTRACT_SUFFIXES = ("tion", "sion", "ness", "ity", "ism", "ment", "ance", "ence", "ship")
+
+# Irregular past forms common enough that an -ed test alone would miss the
+# narrative signal entirely.
+_IRREGULAR_PAST = frozenset(
+    {
+        "was",
+        "were",
+        "had",
+        "did",
+        "said",
+        "went",
+        "came",
+        "saw",
+        "took",
+        "made",
+        "knew",
+        "thought",
+        "found",
+        "gave",
+        "told",
+        "became",
+        "left",
+        "felt",
+        "brought",
+        "began",
+        "kept",
+        "held",
+        "stood",
+        "heard",
+        "let",
+        "put",
+        "sat",
+        "spoke",
+        "lay",
+        "ran",
+        "drew",
+        "fell",
+        "rose",
+        "grew",
+        "wrote",
+    }
 )
 
 
@@ -220,6 +320,7 @@ def extract_signals(text: str, citation_data=None) -> dict[str, float]:
         _, citation_data = preprocess(text)
 
     tokens = [t.lower() for t in _tokenize(text)]
+    n_tokens = max(1, len(tokens))
     cite_total = (
         citation_data.paren_citation_count
         + citation_data.footnote_marker_count
@@ -239,7 +340,38 @@ def extract_signals(text: str, citation_data=None) -> dict[str, float]:
         "signal_verb_rate": (sum(citation_data.signal_verb_counts.values()) / word_count) * 100.0,
         "question_rate": sum(1 for s in sentences if s.strip().endswith("?")) / len(sentences),
         "mean_word_length": sum(len(t) for t in tokens) / max(1, len(tokens)),
+        "past_tense_ratio": sum(
+            1 for t in tokens if t in _IRREGULAR_PAST or (t.endswith("ed") and len(t) > 3)
+        )
+        / n_tokens,
+        "modal_verb_rate": sum(1 for t in tokens if t in _MODALS) / n_tokens,
+        "argumentative_connective_rate": sum(1 for t in tokens if t in _ARGUMENTATIVE_CONNECTIVES)
+        / n_tokens,
+        "narrative_connective_rate": sum(1 for t in tokens if t in _NARRATIVE_CONNECTIVES)
+        / n_tokens,
+        "abstract_noun_ratio": sum(
+            1 for t in tokens if len(t) > 5 and t.endswith(_ABSTRACT_SUFFIXES)
+        )
+        / n_tokens,
+        # Capitalised tokens that are NOT sentence-initial: names of people
+        # and places, which peopled narrative has and abstract argument does
+        # not. Sentence-initial capitals are excluded because every sentence
+        # has one regardless of genre.
+        "proper_noun_rate": _proper_noun_rate(sentences) / 1.0,
     }
+
+
+def _proper_noun_rate(sentences) -> float:
+    """Share of tokens that are capitalised but not sentence-initial."""
+    from .resolvers import _tokenize
+
+    total = 0
+    proper = 0
+    for sentence in sentences:
+        words = _tokenize(sentence)
+        total += len(words)
+        proper += sum(1 for w in words[1:] if w[:1].isupper())
+    return proper / max(1, total)
 
 
 def signal_vector(text: str, citation_data=None) -> list[float]:

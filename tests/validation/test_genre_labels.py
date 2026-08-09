@@ -28,6 +28,25 @@ def labels():
     return json.loads(_LABELS.read_text())
 
 
+class TestLabelCorrections:
+    def test_post_hoc_corrections_are_recorded_not_silent(self, labels):
+        """A label changed after seeing a model's results must be visible in
+        the artifact, with its justification and its split, so a reader can
+        weigh it rather than take it on trust."""
+        for correction in labels.get("label_corrections", []):
+            assert correction["reason"]
+            assert correction["date"]
+            assert "post_hoc" in correction
+
+    def test_no_correction_touches_a_holdout_author(self, labels):
+        """Correcting a test label after seeing test results is not a
+        correction, it is fitting. Thoreau carries the same ambiguity as
+        Emerson and was deliberately left alone."""
+        holdout_authors = {e["author"] for e in labels["entries"] if e["split"] == "holdout"}
+        for correction in labels.get("label_corrections", []):
+            assert correction["author"] not in holdout_authors
+
+
 class TestLabelIntegrity:
     def test_every_label_is_in_the_class_set(self, labels):
         assert {e["label"] for e in labels["entries"]} <= _CLASSES

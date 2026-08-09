@@ -12,7 +12,7 @@ from original.context import genre_v2
 
 
 class TestSignalContract:
-    def test_signal_order_is_a_fixed_ten(self):
+    def test_signal_order_is_fixed(self):
         """The artifact pins this order; a silent reorder would feed the
         model shuffled columns."""
         assert genre_v2.SIGNAL_ORDER == (
@@ -26,6 +26,12 @@ class TestSignalContract:
             "signal_verb_rate",
             "question_rate",
             "mean_word_length",
+            "past_tense_ratio",
+            "modal_verb_rate",
+            "argumentative_connective_rate",
+            "narrative_connective_rate",
+            "abstract_noun_ratio",
+            "proper_noun_rate",
         )
 
     def test_extract_returns_every_signal_finite(self):
@@ -83,3 +89,71 @@ class TestSignalsDiscriminate:
             genre_v2.extract_signals(mixed)["sentence_length_dispersion"]
             > genre_v2.extract_signals(uniform)["sentence_length_dispersion"]
         )
+
+
+class TestArgumentVersusNarrationSignals:
+    """The codebook's deciding test between personal_essay and
+    scholarly_essay is "is the first person doing argumentative work or
+    autobiographical work?" — a distinction first-person RATIO cannot make.
+    Measured on the derivation split it separated those classes at only 1.0
+    pooled SD (0.413 vs 0.278), which is why they were confused. These six
+    signals operationalise the distinction the codebook actually draws."""
+
+    def test_past_tense_marks_narrative(self):
+        narrative = "He walked to the river and looked at the water he had crossed. " * 12
+        argument = "The claim requires evidence, and the evidence is not available. " * 12
+        assert (
+            genre_v2.extract_signals(narrative)["past_tense_ratio"]
+            > genre_v2.extract_signals(argument)["past_tense_ratio"]
+        )
+
+    def test_modal_verbs_mark_argument(self):
+        argument = "One must concede the point, and it ought to be granted freely. " * 12
+        narrative = "He walked out and closed the door behind him quietly. " * 12
+        assert (
+            genre_v2.extract_signals(argument)["modal_verb_rate"]
+            > genre_v2.extract_signals(narrative)["modal_verb_rate"]
+        )
+
+    def test_argumentative_connectives_mark_argument(self):
+        argument = "Therefore the case fails. However, moreover, consequently it stands. " * 12
+        narrative = "He rose early. He ate. He left the house before dawn. " * 12
+        assert (
+            genre_v2.extract_signals(argument)["argumentative_connective_rate"]
+            > genre_v2.extract_signals(narrative)["argumentative_connective_rate"]
+        )
+
+    def test_narrative_connectives_mark_narration(self):
+        narrative = "Then he left. Afterwards she followed. Suddenly it began to rain. " * 12
+        argument = "The principle holds, and the objection does not defeat it. " * 12
+        assert (
+            genre_v2.extract_signals(narrative)["narrative_connective_rate"]
+            > genre_v2.extract_signals(argument)["narrative_connective_rate"]
+        )
+
+    def test_abstract_nouns_mark_exposition(self):
+        abstract = "The justification of liberty requires attention to necessity. " * 12
+        concrete = "The dog ran past the gate and into the wet field. " * 12
+        assert (
+            genre_v2.extract_signals(abstract)["abstract_noun_ratio"]
+            > genre_v2.extract_signals(concrete)["abstract_noun_ratio"]
+        )
+
+    def test_proper_nouns_mark_peopled_narrative(self):
+        peopled = "Elizabeth met Darcy near Pemberley, and Jane followed with Bingley soon. " * 12
+        abstract = "The argument met the objection near the point, and it followed soon. " * 12
+        assert (
+            genre_v2.extract_signals(peopled)["proper_noun_rate"]
+            > genre_v2.extract_signals(abstract)["proper_noun_rate"]
+        )
+
+    def test_all_new_signals_are_in_the_order(self):
+        for name in (
+            "past_tense_ratio",
+            "modal_verb_rate",
+            "argumentative_connective_rate",
+            "narrative_connective_rate",
+            "abstract_noun_ratio",
+            "proper_noun_rate",
+        ):
+            assert name in genre_v2.SIGNAL_ORDER
