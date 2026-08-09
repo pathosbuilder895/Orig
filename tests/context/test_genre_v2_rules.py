@@ -10,19 +10,36 @@ from original.context import genre_v2
 
 
 class TestAbstention:
-    def test_ordinary_prose_abstains_rather_than_claiming_correspondence(self):
-        """The whole point. v1 returns "correspondence" for this at a
-        hardcoded 0.5 confidence; correspondence is rule 8's terminal else,
-        not a positive class."""
+    def test_the_rule_tree_abstains_on_ordinary_prose(self):
+        """The Stage 1 contract, asserted against the rule tree directly.
+        v1 returns "correspondence" for this at a hardcoded 0.5 confidence;
+        correspondence is rule 8's terminal else, not a positive class.
+
+        `resolve` no longer abstains here — Stage 2's model classifies it —
+        so the rule-level property is tested where it still lives."""
         text = (
             "The argument proceeds by considering the nature of the good, and "
             "whether it can be known apart from its particular instances. "
             "Those who deny this must account for the evident agreement of "
             "ordinary language on the matter, which is not easily set aside. "
         ) * 6
-        out = genre_v2.resolve(text)
+        out = genre_v2._resolve_by_rules(text)
         assert out["primary"] == GENRE_UNKNOWN
         assert out["confidence"] == 0.0
+
+    def test_the_model_claims_a_real_class_where_the_rules_gave_up(self):
+        """Stage 2's whole purpose: the rules abstain on ordinary expository
+        prose, the model recognises it."""
+        text = (
+            "The argument proceeds by considering the nature of the good, and "
+            "whether it can be known apart from its particular instances. "
+            "Those who deny this must account for the evident agreement of "
+            "ordinary language on the matter, which is not easily set aside. "
+        ) * 6
+        assert genre_v2._resolve_by_rules(text)["primary"] == GENRE_UNKNOWN
+        out = genre_v2.resolve(text)
+        assert out["primary"] != GENRE_UNKNOWN
+        assert out["confidence"] >= genre_v2._confidence_min()
 
     def test_empty_text_abstains(self):
         out = genre_v2.resolve("")

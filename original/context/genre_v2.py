@@ -23,10 +23,16 @@ artifact loader and an inference path in Stage 2.
 
 from __future__ import annotations
 
+import logging
+import os
 import re
+import threading
+from pathlib import Path
 from typing import Any
 
 from ..constants import GENRE_LABELS, GENRE_RULES, GENRE_UNKNOWN
+
+log = logging.getLogger(__name__)
 
 # Rule hits are UNCALIBRATED. 0.5 says "a rule matched", not "probability
 # 0.5" — which is exactly why GENRE_CONFIDENCE_MIN is NOT applied in Stage 1
@@ -242,12 +248,200 @@ def signal_vector(text: str, citation_data=None) -> list[float]:
     return [float(signals[name]) for name in SIGNAL_ORDER]
 
 
+# ── Stage 2: the calibrated model ─────────────────────────────────────────────
+#
+# A multinomial logistic regression stored as plain coefficients plus a
+# standardiser (original/data/genre_model_v1.json), NOT a pickled estimator.
+# The artifact is committed to git, so a pickle there would be a
+# code-execution surface; and keeping inference to numpy means this resolver
+# has NO sklearn runtime dependency — sklearn appears only in the dev and
+# demo locks, not the base requirements.txt. sklearn is used solely by the
+# offline derivation in validation/genre_2026-08/derive.py.
+
+_DEFAULT_ARTIFACT_PATH = Path(__file__).resolve().parent.parent / "data" / "genre_model_v1.json"
+_EXPECTED_SCHEMA_VERSION = 1
+
+_UNLOADED, _READY, _FAILED = 0, 1, 2
+_state = _UNLOADED
+_artifact: dict | None = None
+_lock = threading.Lock()
+
+
+def _artifact_path() -> Path:
+    override = os.environ.get("GENRE_MODEL_PATH", "").strip()
+    return Path(override) if override else _DEFAULT_ARTIFACT_PATH
+
+
+def _reset_artifact_for_test() -> None:
+    """Drop the cached artifact so a test can point GENRE_MODEL_PATH
+    elsewhere. Not used in production — the load is once per process."""
+    global _state, _artifact
+    with _lock:
+        _state, _artifact = _UNLOADED, None
+
+
+def _fail(reason: str) -> None:
+    global _state, _artifact
+    log.warning("Genre model disabled: %s (path=%s)", reason, _artifact_path())
+    _state, _artifact = _FAILED, None
+
+
+def _load_artifact() -> None:
+    """
+    Validate and cache the artifact, failing CLOSED on any drift.
+
+    "Closed" here means the resolver abstains — it does NOT fall back to the
+    rule tree. Silently swapping mechanisms is how a measurement stops meaning
+    what its label says: a "genre" recorded on a submission would sometimes be
+    a model verdict and sometimes a rule verdict, with nothing in the record
+    saying which.
+    """
+    global _state, _artifact
+    try:
+        import json
+
+        import numpy as np
+
+        path = _artifact_path()
+        if not path.exists():
+            _fail("artifact not found")
+            return
+        artifact = json.loads(path.read_text())
+
+        if not isinstance(artifact, dict):
+            _fail("artifact is not an object")
+            return
+        if artifact.get("schema_version") != _EXPECTED_SCHEMA_VERSION:
+            _fail("schema version mismatch")
+            return
+        if tuple(artifact.get("signal_order") or ()) != SIGNAL_ORDER:
+            _fail("signal order mismatch")
+            return
+
+        classes = artifact.get("classes") or []
+        coef = np.asarray(artifact.get("coef"), dtype=np.float64)
+        intercept = np.asarray(artifact.get("intercept"), dtype=np.float64)
+        mean = np.asarray(artifact.get("mean"), dtype=np.float64)
+        scale = np.asarray(artifact.get("scale"), dtype=np.float64)
+        if coef.shape != (len(classes), len(SIGNAL_ORDER)):
+            _fail("coefficient shape mismatch")
+            return
+        if intercept.shape != (len(classes),):
+            _fail("intercept shape mismatch")
+            return
+        if mean.shape != (len(SIGNAL_ORDER),) or scale.shape != (len(SIGNAL_ORDER),):
+            _fail("scaler shape mismatch")
+            return
+        if not np.all(scale > 0):
+            # A zero-scale column divides by zero and makes its coefficient
+            # meaningless — the artifact is not usable, not merely imprecise.
+            _fail("scaler has a non-positive scale")
+            return
+
+        threshold = float(artifact.get("confidence_min", -1.0))
+        if not 0.0 < threshold < 1.0:
+            _fail("invalid confidence floor")
+            return
+
+        # Numeric drift: the committed reference rows must still produce the
+        # probabilities they produced at derivation time. This catches a
+        # coefficient edited by hand, a numpy version that changed the
+        # arithmetic, and a truncated float in the JSON.
+        reference = np.asarray(artifact["reference_signals"], dtype=np.float64)
+        expected = np.asarray(artifact["reference_probabilities"], dtype=np.float64)
+        got = _softmax(((reference - mean) / scale) @ coef.T + intercept)
+        if float(np.max(np.abs(got - expected))) > 1e-8:
+            _fail("reference prediction drift")
+            return
+
+        artifact["_coef"] = coef
+        artifact["_intercept"] = intercept
+        artifact["_mean"] = mean
+        artifact["_scale"] = scale
+        _artifact, _state = artifact, _READY
+    except Exception as exc:  # noqa: BLE001 — any failure means abstain
+        _fail(f"{type(exc).__name__}: {exc}")
+
+
+def _softmax(z):
+    import numpy as np
+
+    z = np.asarray(z, dtype=np.float64)
+    z = z - z.max(axis=-1, keepdims=True)
+    e = np.exp(z)
+    return e / e.sum(axis=-1, keepdims=True)
+
+
+def _ensure_loaded() -> bool:
+    global _state
+    if _state == _READY:
+        return True
+    if _state == _FAILED:
+        return False
+    with _lock:
+        if _state == _UNLOADED:
+            _load_artifact()
+    return _state == _READY
+
+
+def _confidence_min() -> float:
+    if not _ensure_loaded() or _artifact is None:
+        from ..constants import GENRE_CONFIDENCE_MIN
+
+        return GENRE_CONFIDENCE_MIN
+    return float(_artifact["confidence_min"])
+
+
+def _class_probabilities(signals: list[float]) -> dict[str, float]:
+    """Calibrated class probabilities for one signal vector."""
+    import numpy as np
+
+    if not _ensure_loaded() or _artifact is None:
+        return {}
+    x = np.asarray(signals, dtype=np.float64)
+    z = ((x - _artifact["_mean"]) / _artifact["_scale"]) @ _artifact["_coef"].T + _artifact[
+        "_intercept"
+    ]
+    probabilities = _softmax(z)
+    return {cls: float(p) for cls, p in zip(_artifact["classes"], probabilities, strict=True)}
+
+
+def predict(text: str, citation_data=None) -> dict[str, Any]:
+    """
+    Model verdict, or abstention.
+
+    Abstains when the artifact will not load, when the text is empty, or when
+    the winning class probability falls below the artifact's frozen
+    confidence floor.
+    """
+    text = text or ""
+    if not text.strip():
+        return _abstain()
+    probabilities = _class_probabilities(signal_vector(text, citation_data))
+    if not probabilities:
+        return _abstain()
+    winner, confidence = max(probabilities.items(), key=lambda kv: kv[1])
+    if confidence < _confidence_min():
+        return _abstain()
+    return {"primary": winner, "confidence": float(confidence), "secondary": None}
+
+
 def resolve(text: str, citation_data=None) -> dict[str, Any]:
     """
     Genre with abstention. Same return shape as ``resolvers.resolve_genre``:
     ``{"primary", "confidence", "secondary"}``.
 
-    Stage 2 swaps the rule tree here for the calibrated model while keeping
-    the markup rule ahead of it and the abstention contract unchanged.
+    The markup rule runs FIRST — it keys on syntax rather than style, so it
+    needs no corpus evidence and no model — and everything else goes to the
+    calibrated classifier, which abstains rather than guessing.
     """
-    return _resolve_by_rules(text, citation_data)
+    text = text or ""
+    if not text.strip():
+        return _abstain()
+    if looks_structured(text):
+        return {
+            "primary": "structured_template",
+            "confidence": MARKUP_CONFIDENCE,
+            "secondary": None,
+        }
+    return predict(text, citation_data)

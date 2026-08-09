@@ -56,12 +56,31 @@ class TestSummarise:
 
 
 class TestMeasuredBaseline:
-    def test_v2_abstains_far_more_than_v1_on_the_seminary_corpus(self, mod, paths):
-        """The headline finding, pinned so a regression in either resolver
-        shows up here: v1 claims a label for everything (86% of it the
-        terminal else), v2 claims one only where a rule genuinely fires."""
+    def test_v1_has_no_abstention_outcome_at_all(self, mod, paths):
+        """v1 always claims a label — 86% of the time it is rule 8's terminal
+        else. Having somewhere honest to put "I don't know" is the whole
+        difference."""
         from original.constants import GENRE_UNKNOWN
 
         out = mod.summarise(paths)
         assert GENRE_UNKNOWN not in out["v1_distribution"]
-        assert out["abstention_rate"] > 0.5
+
+    def test_v2_spreads_across_classes_instead_of_one_bucket(self, mod):
+        """The headline finding over the full committed corpora: v1 puts 88%
+        of 813 documents in `correspondence`; v2 distributes across all four
+        trained classes and abstains on the rest. Pinned loosely — the exact
+        percentages will move if the model is re-derived — but a collapse
+        back to a single dominant bucket must fail here."""
+        out = mod.summarise(mod._corpus_paths())
+        distribution = out["v2_distribution"]
+        biggest = max(distribution.values()) / out["n"]
+        assert len(distribution) >= 4, f"v2 collapsed to {sorted(distribution)}"
+        assert biggest < 0.6, f"one label holds {biggest:.0%} of the corpus"
+
+    def test_v2_still_abstains_on_a_real_share(self, mod):
+        """Abstention must not vanish either: a model that always claims
+        something has given up the property Stage 1 bought."""
+        from original.constants import GENRE_UNKNOWN
+
+        out = mod.summarise(mod._corpus_paths())
+        assert out["v2_distribution"].get(GENRE_UNKNOWN, 0) > 0

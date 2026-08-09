@@ -53,10 +53,12 @@ class TestShadowIsInert:
             assert out["confidence"] == v1["confidence"], path.name
 
     def test_shadow_verdict_rides_along(self, monkeypatch):
+        from original.constants import GENRE_LABELS
+
         monkeypatch.setenv("GENRE_RESOLVER_V2", "shadow")
         out = resolve_genre("The matter is settled beyond dispute. " * 30)
-        assert out["shadow_primary"] == GENRE_UNKNOWN
-        assert out["shadow_confidence"] == 0.0
+        assert out["shadow_primary"] in GENRE_LABELS
+        assert 0.0 <= out["shadow_confidence"] <= 1.0
 
     def test_shadow_emits_one_log_line_per_call(self, monkeypatch, caplog):
         """students_baseline.py persists only `primary`, so the label-shift
@@ -75,7 +77,10 @@ class TestOnUsesV2:
         text = "The matter is settled beyond dispute. " * 30
         assert resolve_genre(text) == genre_v2.resolve(text)
 
-    def test_on_abstains_where_v1_claimed_correspondence(self, monkeypatch):
+    def test_on_replaces_v1s_terminal_else_guess(self, monkeypatch):
+        """v1's `correspondence` here is rule 8 giving up. v2 returns either a
+        real verdict from the model or an honest abstention — never the
+        dumping-ground label."""
         # Long sentences, no citations: v1 falls through every rule to its
         # terminal else. A SHORT repeated sentence would hit rule 5
         # (blog_post) instead and would not exercise the fallback at all.
@@ -88,7 +93,10 @@ class TestOnUsesV2:
         monkeypatch.setenv("GENRE_RESOLVER_V2", "off")
         assert resolve_genre(text)["primary"] == "correspondence"
         monkeypatch.setenv("GENRE_RESOLVER_V2", "on")
-        assert resolve_genre(text)["primary"] == GENRE_UNKNOWN
+        after = resolve_genre(text)["primary"]
+        assert after != "correspondence"
+        assert after in {GENRE_UNKNOWN, "academic_exegesis", "scholarly_essay",
+                         "personal_essay", "creative_fiction"}
 
     def test_on_carries_no_shadow_keys(self, monkeypatch):
         monkeypatch.setenv("GENRE_RESOLVER_V2", "on")
