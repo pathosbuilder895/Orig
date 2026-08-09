@@ -1,5 +1,5 @@
 """
-validation/calibration_gate.py — Phase 0 calibration gates (G1-G7) for the
+validation/calibration_gate.py — Phase 0 calibration gates (G1-G8) for the
 two-axis authorship verification redesign.
 
 Run:
@@ -35,6 +35,11 @@ rate at a MATCHED severity bar, and above-chance cross-genre AUC) measured on
 the leave-one-genre-out corpus in validation/genre_crossgenre_2026-08/. That
 corpus is not committed, so G7 usually reports a loud "uninformative" skip
 rather than a verdict; see _compute_g7_cross_topic_data.
+G8 (genre discrimination) checks that the v2 genre resolver claims labels
+that are right, often enough to be useful, for reasons that are about genre
+rather than about recognising the author — the third leg permutes genre
+labels across authors and requires accuracy to collapse to chance, because
+the labelled corpus confounds the two.
 """
 
 from __future__ import annotations
@@ -1316,6 +1321,164 @@ def evaluate_g7_cross_topic_fpr(
     )
 
 
+# ── G8 — genre discrimination ─────────────────────────────────────────────────
+#
+# Spec: docs/superpowers/specs/2026-08-08-genre-resolution-design.md.
+#
+# The third leg carries the weight. The labelled corpus confounds genre with
+# author — every Dickens document is one author AND one genre — so a
+# classifier can score well on the first two legs by recognising writers. The
+# author-shuffled control (permute genre labels ACROSS authors, re-fit, score)
+# is the only leg that can tell those apart.
+
+_G8_PRECISION_BAR = 0.80
+_G8_ABSTENTION_BAR = 0.50
+_G8_CONTROL_MARGIN = 0.10
+
+_G8_CRITERION = (
+    "minimum per-class precision on the author-disjoint hold-out >= 80% AND "
+    "abstention rate <= 50% AND author-shuffled control accuracy within 10pt "
+    "of chance — a CONJUNCTION: no single leg may carry a pass"
+)
+
+
+def evaluate_g8_genre_discrimination(
+    min_class_precision: float | None,
+    abstention_rate: float | None,
+    shuffled_accuracy: float | None,
+    n_classes: int = 4,
+    n_holdout: int | None = None,
+    informational: dict | None = None,
+) -> GateResult:
+    """
+    G8 — Genre discrimination. Does the v2 genre resolver claim labels that
+    are right, often enough to be useful, for reasons that are about genre?
+
+    Three legs, all of which must hold:
+
+      - `min_class_precision`: the MINIMUM per-class precision over claimed
+        labels on the author-disjoint hold-out, not the macro-average. An
+        average lets one class sit at 0.4 while the mean clears the bar, and
+        the cost of a wrong label is per-class: `creative_fiction` mutes tier
+        16, the academic genres expand the T8/T13 anchor set. Abstentions are
+        excluded from the denominator — they are not wrong answers, and
+        counting them as errors would punish the honesty the resolver is
+        built on.
+      - `abstention_rate`: <= 50%. This leg exists only to block the
+        degenerate solution the first leg invites — abstain on everything,
+        score perfect precision, classify nothing.
+      - `shuffled_accuracy`: within `_G8_CONTROL_MARGIN` of chance
+        (`1 / n_classes`). Permuting genre labels across authors and re-fitting
+        must destroy the model's predictive power. If it does not, the model
+        was keying on authorial style rather than genre, and the first two
+        legs were measuring the wrong thing entirely. The bar tracks the class
+        count because chance does.
+
+    Three-valued like every other gate here, and by the same rule: only a
+    would-be PASS is downgraded to "uninformative" — via a Wilson interval on
+    the precision leg when `n_holdout` is supplied. A measured failure is
+    never softened.
+    """
+    precision_state = _g7_leg_state(min_class_precision, lambda v: v >= _G8_PRECISION_BAR)
+    abstention_state = _g7_leg_state(abstention_rate, lambda v: v <= _G8_ABSTENTION_BAR)
+    chance = 1.0 / max(1, int(n_classes))
+    control_state = _g7_leg_state(
+        shuffled_accuracy, lambda v: v <= chance + _G8_CONTROL_MARGIN
+    )
+
+    legs = (
+        ("precision", precision_state),
+        ("abstention", abstention_state),
+        ("control", control_state),
+    )
+    failed_legs = [label for label, state in legs if state is False]
+    unmeasured_legs = [label for label, state in legs if state is None]
+
+    if failed_legs:
+        verdict = "fail"
+    elif unmeasured_legs:
+        verdict = "uninformative"
+    else:
+        verdict = "pass"
+
+    def _num(value, state) -> str:
+        return "not measured" if state is None else f"{float(value):.3f}"
+
+    current_value = (
+        f"min per-class precision={_num(min_class_precision, precision_state)} "
+        f"(bar >={_G8_PRECISION_BAR:.2f}), "
+        f"abstention={_num(abstention_rate, abstention_state)} "
+        f"(bar <={_G8_ABSTENTION_BAR:.2f}), "
+        f"shuffled-control={_num(shuffled_accuracy, control_state)} "
+        f"(bar <={chance + _G8_CONTROL_MARGIN:.2f}, chance={chance:.2f})"
+    )
+    if failed_legs:
+        current_value += f" — FAILED: {', '.join(failed_legs)}"
+
+    detail = dict(informational or {})
+    detail.update(
+        {
+            "min_class_precision": min_class_precision,
+            "abstention_rate": abstention_rate,
+            "shuffled_accuracy": shuffled_accuracy,
+            "chance": chance,
+            "n_classes": n_classes,
+            "precision_leg_passed": precision_state is True,
+            "abstention_leg_passed": abstention_state is True,
+            "control_leg_passed": control_state is True,
+            "failed_legs": failed_legs,
+            "unmeasured_legs": unmeasured_legs,
+            "bars": {
+                "precision": _G8_PRECISION_BAR,
+                "abstention": _G8_ABSTENTION_BAR,
+                "control": chance + _G8_CONTROL_MARGIN,
+            },
+            "n_holdout": n_holdout,
+        }
+    )
+
+    reasons: list[str] = []
+    if unmeasured_legs and not failed_legs:
+        reasons.append(
+            f"the {', '.join(unmeasured_legs)} leg(s) could not be measured, "
+            "so the conjunction cannot be demonstrated"
+        )
+
+    if n_holdout is not None and n_holdout > 0 and precision_state is not None:
+        from validation.power import bar_decidable, wilson_interval
+
+        successes = min(max(int(round(float(min_class_precision) * n_holdout)), 0), n_holdout)
+        decidable = bar_decidable(successes, n_holdout, _G8_PRECISION_BAR)
+        detail["power"] = {
+            "n_holdout": n_holdout,
+            "precision_wilson_ci": list(wilson_interval(successes, n_holdout)),
+            "precision_bar_decidable": decidable,
+            "bar": _G8_PRECISION_BAR,
+        }
+        if decidable != "above":
+            reasons.append(
+                f"the {float(min_class_precision):.1%} minimum per-class precision over "
+                f"n={n_holdout} hold-out documents has a 95% CI that straddles the "
+                f"{_G8_PRECISION_BAR:.0%} bar"
+            )
+
+    if verdict == "pass" and reasons:
+        verdict = "uninformative"
+    if verdict == "uninformative" and reasons:
+        current_value += " (UNINFORMATIVE: " + "; ".join(reasons) + ")"
+    detail["uninformative_reasons"] = reasons if verdict == "uninformative" else []
+    detail["informativeness_caveats"] = reasons
+
+    return GateResult(
+        name="G8",
+        passed=verdict == "pass",
+        verdict=verdict,
+        criterion=_G8_CRITERION,
+        current_value=current_value,
+        detail=detail,
+    )
+
+
 _G7_SEVERITY_BAR = "schedule_conversation"
 
 
@@ -2107,6 +2270,15 @@ def run_all() -> list[GateResult]:
         results.append(_compute_g7_cross_topic_data())
     except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
         results.append(_machinery_error_result("G7", _G7_CRITERION, exc))
+
+    # G8: genre discrimination on the author-disjoint hold-out, plus the
+    # author-shuffled control. Its corpus IS committed, so this normally
+    # returns a real verdict. A crash is a machinery failure, same convention
+    # as the wrappers above.
+    try:
+        results.append(_compute_g8_genre_data())
+    except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
+        results.append(_machinery_error_result("G8", _G8_CRITERION, exc))
 
     # Attach a corpus_fingerprint to every TEXT-CORPUS result (G1-G6) so a
     # future report can be checked for comparability against this one without
@@ -3771,6 +3943,60 @@ def _compute_g7_cross_topic_data(
     )
 
 
+def _compute_g8_genre_data() -> GateResult:
+    """
+    Run the genre hold-out evaluation and the author-shuffled control, and
+    hand the three numbers to evaluate_g8_genre_discrimination.
+
+    Unlike G7's corpus, G8's IS committed — labels.json and the model artifact
+    both live in the repo — so this normally returns a real verdict rather
+    than a skip. It still degrades to a loud skip when either is missing,
+    since both are regenerable and a fresh checkout that lacked them would
+    otherwise report a machinery error.
+    """
+    import importlib.util
+
+    evaluate_path = _ROOT / "validation" / "genre_2026-08" / "evaluate.py"
+    labels_path = _ROOT / "validation" / "genre_2026-08" / "labels.json"
+    artifact_path = _ROOT / "original" / "data" / "genre_model_v1.json"
+
+    missing = [p.name for p in (evaluate_path, labels_path, artifact_path) if not p.exists()]
+    if missing:
+        return GateResult(
+            name="G8",
+            passed=False,
+            verdict="uninformative",
+            criterion=_G8_CRITERION,
+            current_value=(
+                f"SKIPPED (corpus unavailable): {' and '.join(missing)} not found — "
+                "rebuild with validation/genre_2026-08/build_labels.py then derive.py"
+            ),
+            detail={"missing": missing},
+        )
+
+    spec = importlib.util.spec_from_file_location("genre_evaluate", evaluate_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    holdout = module.evaluate_holdout()
+    control = module.shuffled_control()
+    return evaluate_g8_genre_discrimination(
+        holdout["min_precision"],
+        holdout["abstention_rate"],
+        control["accuracy"],
+        n_classes=int(round(1.0 / control["chance"])) if control["chance"] else 4,
+        n_holdout=holdout["n_holdout"],
+        informational={
+            "per_class_precision": holdout["per_class_precision"],
+            "per_class_claimed": holdout["per_class_claimed"],
+            "classes_never_claimed": holdout["classes_never_claimed"],
+            "n_claimed": holdout["n_claimed"],
+            "n_abstained": holdout["n_abstained"],
+            "shuffled_control_n": control["n_holdout"],
+        },
+    )
+
+
 # ── G5 — permutation-null orchestration ────────────────────────────────────────
 #
 # One seeded label shuffle (seed 1730 by default — BENCHMARK_SEED + 1, so the
@@ -4120,7 +4346,7 @@ def run_g5(
 
 
 def render(results: list[GateResult]) -> str:
-    lines = ["╭─ Calibration gates (G1-G7) ─────────────────────────────────╮"]
+    lines = ["╭─ Calibration gates (G1-G8) ─────────────────────────────────╮"]
     for r in results:
         status = r.verdict.upper()
         lines.append(f"│ {r.name} [{status}] {r.criterion}")
@@ -4234,6 +4460,9 @@ def main(argv=None) -> int:
                 "g7_cross_topic_fp": _G7_FP_BAR,
                 "g7_impostor_catch": _G7_CATCH_BAR,
                 "g7_cross_genre_auc": _G7_AUC_BAR,
+                "g8_min_class_precision": _G8_PRECISION_BAR,
+                "g8_abstention": _G8_ABSTENTION_BAR,
+                "g8_control_margin": _G8_CONTROL_MARGIN,
                 "no_action_far_threshold": NO_ACTION_FAR_THRESHOLD,
                 "no_action_central_threshold": NO_ACTION_CENTRAL_THRESHOLD,
                 "monitor_far_threshold": MONITOR_FAR_THRESHOLD,

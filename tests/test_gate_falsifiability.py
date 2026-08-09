@@ -297,3 +297,33 @@ class TestG2bProxyLabelSurvives:
         result = GATE_CONTRACTS["evaluate_g2b_paraphrase_resistant"].failure_witness()
         assert "proxy" in result.criterion.lower()
         assert "proxy_note" in result.detail
+
+
+class TestG8Witnesses:
+    """G8's witnesses, pinned to the specific legs they exercise."""
+
+    def test_g8_fails_because_one_class_is_weak_not_because_of_the_other_legs(self):
+        result = GATE_CONTRACTS["evaluate_g8_genre_discrimination"].failure_witness()
+        assert result.detail["precision_leg_passed"] is False
+        assert result.detail["abstention_leg_passed"] is True
+        assert result.detail["control_leg_passed"] is True
+        assert result.detail["failed_legs"] == ["precision"]
+        assert "power" not in result.detail
+        assert result.detail["uninformative_reasons"] == []
+
+    def test_g8_label_destruction_is_the_shuffled_control(self):
+        """Under permuted genre labels a model that still predicts
+        confidently is recognising authors, not genres."""
+        contract = GATE_CONTRACTS["evaluate_g8_genre_discrimination"]
+        result = contract.label_destruction()
+        assert result.verdict != "pass"
+        assert result.detail["control_leg_passed"] is False
+        assert result.detail["shuffled_accuracy"] > result.detail["chance"]
+
+    def test_g8_control_bar_is_above_chance_so_destruction_can_never_pass(self):
+        """The guarantee behind registering a label-destruction leg at all:
+        the bar sits a fixed margin above chance, so an accuracy far above
+        chance cannot satisfy it at any class count."""
+        result = GATE_CONTRACTS["evaluate_g8_genre_discrimination"].label_destruction()
+        assert result.detail["bars"]["control"] == pytest.approx(result.detail["chance"] + 0.10)
+        assert result.detail["shuffled_accuracy"] > result.detail["bars"]["control"]

@@ -41,6 +41,7 @@ from validation.calibration_gate import (
     evaluate_g5_permutation_null,
     evaluate_g6_fairness,
     evaluate_g7_cross_topic_fpr,
+    evaluate_g8_genre_discrimination,
 )
 
 
@@ -302,6 +303,56 @@ GATE_CONTRACTS: dict[str, GateContract] = {
             "the 0.60 AUC bar, which the spec set above chance for precisely "
             "this reason. All three legs therefore fail, pinned in "
             "test_g7_label_destruction_fails_all_three_legs_by_construction."
+        ),
+    ),
+    "evaluate_g8_genre_discrimination": GateContract(
+        gate="G8",
+        claims="the v2 genre resolver claims labels that are right "
+        "(minimum per-class precision >= 80% on an author-disjoint hold-out), "
+        "often enough to be useful (abstention <= 50%), for reasons that are "
+        "about GENRE and not about recognising the author (accuracy under "
+        "permuted genre labels collapses to within 10pt of chance)",
+        failure_witness=lambda: evaluate_g8_genre_discrimination(
+            min_class_precision=0.55,
+            abstention_rate=0.40,
+            shuffled_accuracy=0.22,
+        ),
+        label_destruction=lambda: evaluate_g8_genre_discrimination(
+            min_class_precision=0.85,
+            abstention_rate=0.40,
+            shuffled_accuracy=0.85,
+        ),
+        notes=(
+            "The failure witness isolates the PRECISION leg: 0.55 minimum "
+            "per-class precision with a healthy abstention rate and a "
+            "control that collapses properly. It is deliberately a MINIMUM "
+            "rather than an average, because a macro-average lets one class "
+            "sit at 0.4 while the mean clears the bar, and the cost of a "
+            "wrong genre label is per-class -- creative_fiction mutes tier "
+            "16, the academic genres expand the T8/T13 anchor set, and the "
+            "label is a Bayesian prior pooling key. Pinned leg-by-leg in "
+            "TestWitnessesFailForTheRightReason.test_g8_fails_because_one_"
+            "class_is_weak_not_because_of_the_other_legs so the fail cannot "
+            "be explained by the abstention or control legs tipping it.\n\n"
+            "The label-destruction leg is registered and is not a "
+            "cherry-pick: it IS the gate's own third leg, fed the result "
+            "that destroyed labels are supposed to make impossible. "
+            "Permuting genre labels across authors and re-fitting must "
+            "collapse accuracy to chance (0.25 for the four classes); a "
+            "shuffled accuracy of 0.85 means the model still predicts "
+            "confidently when the labels no longer mean genre, which can "
+            "only be because it is recognising authorial style. That is the "
+            "exact confound this corpus has -- every Dickens document is one "
+            "author AND one genre -- so unlike G2/G2b/G6, a "
+            "label-destruction witness here is both possible and load-"
+            "bearing. It can never pass: the control leg's bar is chance + "
+            "0.10 = 0.35 for four classes, and 0.85 exceeds it by more than "
+            "the whole width of the range above chance. Pinned in "
+            "test_g8_label_destruction_is_the_shuffled_control.\n\n"
+            "Neither witness supplies n_holdout, so the Wilson-interval "
+            "downgrade path never runs and both are plain criterion fails "
+            "rather than 'uninformative' outcomes that merely happen not to "
+            "be passes."
         ),
     ),
 }

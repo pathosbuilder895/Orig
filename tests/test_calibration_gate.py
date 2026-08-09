@@ -3679,3 +3679,87 @@ def calibration_gate_resolve_topic():
     from original.context.resolvers import resolve_topic
 
     return resolve_topic
+
+
+# ── G8 — genre discrimination ─────────────────────────────────────────────────
+#
+# Spec: docs/superpowers/specs/2026-08-08-genre-resolution-design.md.
+# Three-leg conjunction, and the third leg is the one that matters: the
+# corpus confounds genre with author (every Dickens document is one author
+# AND one genre), so a classifier could score well by recognising writers.
+
+
+class TestG8GenreDiscrimination:
+    def test_passes_when_all_three_legs_clear(self):
+        r = calibration_gate.evaluate_g8_genre_discrimination(0.85, 0.40, 0.22)
+        assert r.verdict == "pass"
+        assert r.name == "G8"
+
+    def test_fails_on_a_single_weak_class(self):
+        """MINIMUM per-class precision, not macro-average: an average lets one
+        class sit at 0.4 while the mean clears the bar, and the consequence of
+        a wrong label is per-class — creative_fiction mutes tier 16, the
+        academic genres expand the anchor set."""
+        r = calibration_gate.evaluate_g8_genre_discrimination(0.55, 0.40, 0.22)
+        assert r.verdict == "fail"
+        assert r.detail["precision_leg_passed"] is False
+        assert r.detail["abstention_leg_passed"] is True
+        assert r.detail["control_leg_passed"] is True
+
+    def test_fails_when_it_abstains_on_almost_everything(self):
+        """Perfect precision by classifying nothing is the degenerate win."""
+        r = calibration_gate.evaluate_g8_genre_discrimination(1.0, 0.95, 0.22)
+        assert r.verdict == "fail"
+        assert r.detail["abstention_leg_passed"] is False
+
+    def test_fails_when_the_shuffled_control_still_predicts(self):
+        r = calibration_gate.evaluate_g8_genre_discrimination(0.85, 0.40, 0.75)
+        assert r.verdict == "fail"
+        assert r.detail["control_leg_passed"] is False
+
+    def test_bars_are_inclusive_at_the_spec_values(self):
+        r = calibration_gate.evaluate_g8_genre_discrimination(0.80, 0.50, 0.35)
+        assert r.verdict == "pass"
+
+    def test_just_outside_each_bar_fails(self):
+        assert calibration_gate.evaluate_g8_genre_discrimination(0.799, 0.50, 0.35).verdict == "fail"
+        assert calibration_gate.evaluate_g8_genre_discrimination(0.80, 0.501, 0.35).verdict == "fail"
+        assert calibration_gate.evaluate_g8_genre_discrimination(0.80, 0.50, 0.351).verdict == "fail"
+
+    def test_the_control_bar_tracks_the_class_count(self):
+        """Chance is 1/n_classes, so the bar cannot be a constant. A shuffled
+        accuracy of 0.55 is far above chance for 4 classes (0.25) and at
+        chance for 2 (0.50) — the same number must fail one and pass the
+        other, or the leg is not measuring 'collapsed to chance' at all."""
+        r4 = calibration_gate.evaluate_g8_genre_discrimination(0.85, 0.4, 0.55, n_classes=4)
+        r2 = calibration_gate.evaluate_g8_genre_discrimination(0.85, 0.4, 0.55, n_classes=2)
+        assert r4.detail["chance"] == 0.25
+        assert r4.verdict == "fail"
+        assert r4.detail["control_leg_passed"] is False
+        assert r2.detail["chance"] == 0.5
+        assert r2.verdict == "pass"
+
+    def test_current_value_names_every_leg(self):
+        r = calibration_gate.evaluate_g8_genre_discrimination(0.55, 0.40, 0.22)
+        assert "0.550" in r.current_value
+        assert "FAILED" in r.current_value
+
+    def test_a_thin_holdout_downgrades_a_pass(self):
+        r = calibration_gate.evaluate_g8_genre_discrimination(0.85, 0.40, 0.22, n_holdout=8)
+        assert r.verdict == "uninformative"
+
+    def test_a_thin_holdout_never_upgrades_a_failure(self):
+        r = calibration_gate.evaluate_g8_genre_discrimination(0.20, 0.99, 0.90, n_holdout=8)
+        assert r.verdict == "fail"
+
+    def test_a_well_powered_pass_stays_a_pass(self):
+        r = calibration_gate.evaluate_g8_genre_discrimination(0.97, 0.40, 0.22, n_holdout=400)
+        assert r.verdict == "pass"
+
+    def test_the_measured_state_of_the_shipped_model_fails(self):
+        """Recorded as measurement: min precision 0.625 on the author-disjoint
+        hold-out, abstention 3.6%, control 0.143. The gate failing here is the
+        gate working."""
+        r = calibration_gate.evaluate_g8_genre_discrimination(0.625, 0.036, 0.143)
+        assert r.verdict == "fail"
+        assert r.detail["failed_legs"] == ["precision"]
