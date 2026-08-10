@@ -187,7 +187,7 @@ typing-inspection==0.4.2
     # via fastapi
 urllib3==2.7.0
     # via requests
-uvicorn==0.34.3
+uvicorn==0.52.1
     # via -r requirements-demo.txt
 uvloop==0.22.1
     # via uvicorn
