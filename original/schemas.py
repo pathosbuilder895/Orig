@@ -514,6 +514,16 @@ class WindowScoreOut(BaseModel):
     end: int  # token offset (exclusive)
     score: float  # authorship deviation_score in [0, 1]
     confidence: str  # "low" | "medium"
+    ai_probability: float | None = Field(
+        None,
+        description=(
+            "Report-only shadow signal: calibrated p(AI-generated) for THIS "
+            "window. Populated only when AI_LIKELIHOOD_SHADOW=1 and the "
+            "detector produced a probability for this window; null otherwise. "
+            "Never influences blend_detected, shift_positions, or any "
+            "recommendation."
+        ),
+    )
 
 
 class BlendResultOut(BaseModel):
@@ -525,6 +535,21 @@ class BlendResultOut(BaseModel):
     per_section: list[WindowScoreOut]
     n_tokens: int = 0
     fallback_reason: str | None = None  # e.g. "text_too_short"
+    ai_window_max: float | None = Field(
+        None,
+        description=(
+            "Report-only: highest per-window AI-likelihood across the windows "
+            "that received a probability. Null when AI_LIKELIHOOD_SHADOW is "
+            "off or no window produced one."
+        ),
+    )
+    ai_window_mean: float | None = Field(
+        None,
+        description=(
+            "Report-only: mean per-window AI-likelihood over the windows that "
+            "received a probability (failed windows are excluded)."
+        ),
+    )
 
 
 # ── Layer 7 response models ───────────────────────────────────────────────────

@@ -342,3 +342,292 @@ class TestPydanticInterop:
         d2 = json.loads(s)
         assert d2["blend_detected"] is False
         assert d2["per_section"][0]["score"] == 0.1
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Per-window AI-likelihood shadow wiring (report-only)
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# The detector's document-level enablement gate FAILS (MODEL_CARD.md), so this
+# wiring must stay inert unless AI_LIKELIHOOD_SHADOW=1 and must never touch
+# blend_detected / blend_index / shift_positions. The flag-off byte-identical
+# test below is the proof of that; it follows the attach-only house pattern in
+# tests/test_style_authorship.py::test_api_flag_is_attach_only.
+
+# 14 tokens per repetition × 50 = 700 tokens → 4 windows at (300, 0.5):
+# (0,300) (150,450) (300,600) (400,700 — tail anchor).
+_SHADOW_TEXT = (
+    "The committee met on Monday to discuss the proposal. "
+    "Members reviewed the timeline carefully. "
+) * 50
+
+
+def _nan_safe(obj):
+    """Recursively map NaN → sentinel so dict == dict is usable (NaN != NaN)."""
+    if isinstance(obj, dict):
+        return {k: _nan_safe(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_nan_safe(v) for v in obj]
+    if isinstance(obj, float) and np.isnan(obj):
+        return "__nan__"
+    return obj
+
+
+def _run_shadow_blend(state, submission_id: str) -> BlendResult:
+    return detect_blend(
+        _SHADOW_TEXT,
+        state,
+        window_tokens=300,
+        overlap=0.5,
+        submission_id=submission_id,
+    )
+
+
+class TestWindowAiShadow:
+    """
+    The shadow path is monkeypatched at ``original.ai_likelihood`` (not at
+    ``original.context.blend``) on purpose: blend imports the predictor lazily,
+    inside the flag-on branch, so the committed artifact is never loaded on the
+    flag-off path. Patching the source module is therefore the only patch point
+    that also proves the import stays lazy.
+    """
+
+    @pytest.mark.slow
+    def test_flag_off_output_is_byte_identical(self, monkeypatch):
+        import original.ai_likelihood as ai_module
+
+        state = _state(3)
+
+        monkeypatch.delenv("AI_LIKELIHOOD_SHADOW", raising=False)
+        off = _run_shadow_blend(state, "shadow_inert").to_dict()
+
+        seen: dict = {}
+
+        def _fake_batch(vectors):
+            arr = np.asarray(vectors, dtype=np.float64)
+            seen["rows"] = arr.shape[0]
+            return np.linspace(0.10, 0.90, arr.shape[0])
+
+        monkeypatch.setattr(ai_module, "predict_ai_likelihood_batch", _fake_batch)
+        monkeypatch.setenv("AI_LIKELIHOOD_SHADOW", "1")
+        # Identical submission_id — the id feeds cluster matching and the
+        # per-window score audit ids, so varying it would not be a fair
+        # comparison.
+        on = _run_shadow_blend(state, "shadow_inert").to_dict()
+
+        assert seen.get("rows"), "flag on must reach the batch predictor exactly once"
+        assert off["ai_window_max"] is None
+        assert off["ai_window_mean"] is None
+        assert all(w["ai_probability"] is None for w in off["per_section"])
+        assert on["ai_window_max"] is not None
+        assert any(w["ai_probability"] is not None for w in on["per_section"])
+
+        for payload in (off, on):
+            payload.pop("ai_window_max")
+            payload.pop("ai_window_mean")
+            for window in payload["per_section"]:
+                window.pop("ai_probability")
+
+        # Everything that is not a new shadow field must be identical —
+        # including blend_detected, blend_index and shift_positions.
+        assert _nan_safe(on) == _nan_safe(off)
+
+    @pytest.mark.slow
+    def test_probabilities_land_on_their_own_windows(self, monkeypatch):
+        import original.ai_likelihood as ai_module
+
+        captured: dict = {}
+        call_count = {"n": 0}
+
+        def _fake_batch(vectors):
+            call_count["n"] += 1
+            arr = np.asarray(vectors, dtype=np.float64)
+            captured["rows"] = arr.shape[0]
+            return np.array([0.05 + 0.1 * i for i in range(arr.shape[0])])
+
+        monkeypatch.setattr(ai_module, "predict_ai_likelihood_batch", _fake_batch)
+        monkeypatch.setenv("AI_LIKELIHOOD_SHADOW", "1")
+
+        result = _run_shadow_blend(_state(3), "shadow_on")
+
+        n = len(result.per_section)
+        assert n >= 4
+        assert call_count["n"] == 1, "one batch call for the whole document, not one per window"
+        assert captured["rows"] == n, "every window extracted a vector in this fixture"
+
+        expected = [round(0.05 + 0.1 * i, 4) for i in range(n)]
+        assert [w.ai_probability for w in result.per_section] == expected
+        assert result.ai_window_max == max(expected)
+        assert result.ai_window_mean == round(float(np.mean(expected)), 4)
+
+    @pytest.mark.slow
+    def test_batch_returning_none_leaves_new_fields_none(self, monkeypatch):
+        import original.ai_likelihood as ai_module
+
+        monkeypatch.setattr(ai_module, "predict_ai_likelihood_batch", lambda vectors: None)
+        monkeypatch.setenv("AI_LIKELIHOOD_SHADOW", "1")
+
+        result = _run_shadow_blend(_state(3), "shadow_batch_none")
+
+        assert len(result.per_section) >= 4  # windows still scored normally
+        assert result.ai_window_max is None
+        assert result.ai_window_mean is None
+        assert all(w.ai_probability is None for w in result.per_section)
+
+    @pytest.mark.slow
+    def test_failed_window_does_not_shift_probabilities(self, monkeypatch):
+        """
+        Alignment guard. Simulated failure path: ``compute_full_features``
+        raises for exactly one window, which is the real per-window
+        try/except in ``detect_blend`` — that window scores NaN and
+        contributes NO feature vector, so the returned probability array is
+        shorter than ``per_section``. A naive positional zip would slide every
+        later probability one window earlier.
+        """
+        import original.ai_likelihood as ai_module
+        import original.context.blend as blend_module
+
+        failing_window = 1
+        real_features = blend_module.compute_full_features
+        calls = {"n": 0}
+
+        def _flaky_features(*args, **kwargs):
+            index = calls["n"]
+            calls["n"] += 1
+            if index == failing_window:
+                raise RuntimeError("synthetic per-window feature-extraction failure")
+            return real_features(*args, **kwargs)
+
+        monkeypatch.setattr(blend_module, "compute_full_features", _flaky_features)
+
+        probs = np.array([0.11, 0.22, 0.33, 0.44, 0.55, 0.66])
+        captured: dict = {}
+
+        def _fake_batch(vectors):
+            arr = np.asarray(vectors, dtype=np.float64)
+            captured["rows"] = arr.shape[0]
+            return probs[: arr.shape[0]]
+
+        monkeypatch.setattr(ai_module, "predict_ai_likelihood_batch", _fake_batch)
+        monkeypatch.setenv("AI_LIKELIHOOD_SHADOW", "1")
+
+        result = _run_shadow_blend(_state(3), "shadow_nan_alignment")
+
+        n = len(result.per_section)
+        assert n >= 4
+        assert captured["rows"] == n - 1, "the failed window must not contribute a vector"
+
+        assert np.isnan(result.per_section[failing_window].score)
+        assert result.per_section[failing_window].ai_probability is None
+
+        survivors = [i for i in range(n) if i != failing_window]
+        for position, section_index in enumerate(survivors):
+            assert result.per_section[section_index].ai_probability == round(
+                float(probs[position]), 4
+            )
+        # Explicit off-by-one witness: window 2 is the SECOND surviving
+        # window, so it takes probs[1] (0.22), never probs[2] (0.33).
+        assert result.per_section[2].ai_probability == 0.22
+
+        # Summaries ignore the failed window entirely.
+        surviving_probs = [round(float(probs[i]), 4) for i in range(n - 1)]
+        assert result.ai_window_max == max(surviving_probs)
+        assert result.ai_window_mean == round(float(np.mean(surviving_probs)), 4)
+
+    @pytest.mark.slow
+    def test_real_detector_accepts_the_vectors_blend_builds(self, monkeypatch):
+        """
+        Unmocked integration. Every other test in this class stubs the
+        predictor, so none of them would catch a width/schema mismatch between
+        the window vectors and the committed artifact — that failure mode is
+        silent (fail-closed None), not an exception.
+        """
+        from original.ai_likelihood import reset_for_tests, warm
+
+        reset_for_tests()
+        if not warm():
+            pytest.skip("committed AI-likelihood artifact unavailable in this environment")
+        try:
+            monkeypatch.setenv("AI_LIKELIHOOD_SHADOW", "1")
+            result = _run_shadow_blend(_state(3), "shadow_real_artifact")
+
+            probabilities = [w.ai_probability for w in result.per_section]
+            assert probabilities and all(p is not None for p in probabilities), (
+                "the real batch predictor returned None — the blend window "
+                "vectors no longer match the artifact's expected schema"
+            )
+            assert all(0.0 <= p <= 1.0 for p in probabilities)
+            assert result.ai_window_max == max(probabilities)
+            assert result.ai_window_mean == round(float(np.mean(probabilities)), 4)
+        finally:
+            reset_for_tests()
+
+    def test_short_text_leaves_new_fields_none(self, monkeypatch):
+        """Zero-window path must not raise or half-populate."""
+        import original.ai_likelihood as ai_module
+
+        def _explode(vectors):  # pragma: no cover — must never be reached
+            raise AssertionError("batch predictor called with no windows")
+
+        monkeypatch.setattr(ai_module, "predict_ai_likelihood_batch", _explode)
+        monkeypatch.setenv("AI_LIKELIHOOD_SHADOW", "1")
+
+        result = detect_blend("Just a few words.", _state(), window_tokens=300)
+        assert result.fallback_reason == "text_too_short"
+        assert result.per_section == []
+        assert result.ai_window_max is None
+        assert result.ai_window_mean is None
+
+
+class TestWindowAiShadowResponseContract:
+    def test_schema_defaults_are_none(self):
+        from original.schemas import BlendResultOut, WindowScoreOut
+
+        assert WindowScoreOut.model_fields["ai_probability"].default is None
+        assert BlendResultOut.model_fields["ai_window_max"].default is None
+        assert BlendResultOut.model_fields["ai_window_mean"].default is None
+
+        window = WindowScoreOut(start=0, end=300, score=0.2, confidence="low")
+        assert window.ai_probability is None
+
+    def test_router_passes_window_probabilities_through(self, monkeypatch):
+        """
+        The blend handler hand-builds its response field-by-field, so a new
+        dataclass field is silently dropped unless the converter is updated.
+        This exercises the real HTTP path with a stubbed detector result.
+        """
+        from fastapi.testclient import TestClient
+
+        import original.context.blend as blend_module
+        import run
+        from original import store
+
+        state = _state(3)
+        state.student_id = "demo:blend-shadow-student"
+        store.put(state)
+
+        stub = BlendResult(
+            blend_detected=True,
+            blend_index=0.9,
+            shift_positions=[450],
+            per_section=[
+                WindowScore(start=0, end=300, score=0.2, confidence="low", ai_probability=0.11),
+                WindowScore(start=150, end=450, score=0.8, confidence="low", ai_probability=None),
+            ],
+            n_tokens=450,
+            ai_window_max=0.11,
+            ai_window_mean=0.11,
+        )
+        monkeypatch.setattr(blend_module, "detect_blend", lambda **kwargs: stub)
+
+        client = TestClient(run.load_legacy_demo_app())
+        response = client.post(
+            f"/students/{state.student_id}/score/blend",
+            json={"text": _SHADOW_TEXT, "submission_id": "router-shadow"},
+        )
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["ai_window_max"] == 0.11
+        assert body["ai_window_mean"] == 0.11
+        assert body["per_section"][0]["ai_probability"] == 0.11
+        assert body["per_section"][1]["ai_probability"] is None

@@ -460,9 +460,18 @@ def score_blend(student_id: str, req: BlendDetectionRequest):
         blend_index=result.blend_index,
         shift_positions=list(result.shift_positions),
         per_section=[
-            WindowScoreOut(start=w.start, end=w.end, score=w.score, confidence=w.confidence)
+            WindowScoreOut(
+                start=w.start,
+                end=w.end,
+                score=w.score,
+                confidence=w.confidence,
+                # Report-only shadow field; None unless AI_LIKELIHOOD_SHADOW=1.
+                ai_probability=w.ai_probability,
+            )
             for w in result.per_section
         ],
         n_tokens=result.n_tokens,
         fallback_reason=result.fallback_reason,
+        ai_window_max=result.ai_window_max,
+        ai_window_mean=result.ai_window_mean,
     )
