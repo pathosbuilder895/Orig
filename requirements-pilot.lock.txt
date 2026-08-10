@@ -147,7 +147,7 @@ six==1.17.0
     # via
     #   ecdsa
     #   langdetect
-smart-open==8.0.0
+smart-open==8.0.1
     # via weasel
 spacy==3.8.14
     # via -r requirements-demo.txt
