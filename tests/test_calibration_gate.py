@@ -3757,11 +3757,14 @@ class TestG8GenreDiscrimination:
         assert r.verdict == "pass"
 
     def test_the_measured_state_of_the_shipped_model_fails(self):
-        """Recorded as measurement: min per-class precision 0.200 on the
-        author-disjoint hold-out, abstention 0.179, control 0.107. Only the
-        precision leg fails, and only on personal_essay — the class whose
-        boundary against scholarly_essay the corpus cannot realise. The gate
-        failing here is the gate working."""
-        r = calibration_gate.evaluate_g8_genre_discrimination(0.200, 0.179, 0.107)
+        """Recorded as measurement: min per-class precision 0.706 on the
+        author-disjoint hold-out, abstention 0.264, control 0.233 against
+        0.250 chance. Two legs pass. The precision leg fails on exactly five
+        documents, all Twain predicted personal_essay against a
+        creative_fiction label — first-person vernacular narrative is
+        stylometrically autobiography, and the codebook separates them by
+        TRUTH CLAIM, which no text-surface signal carries. The gate failing
+        here is the gate working."""
+        r = calibration_gate.evaluate_g8_genre_discrimination(0.706, 0.264, 0.233)
         assert r.verdict == "fail"
         assert r.detail["failed_legs"] == ["precision"]

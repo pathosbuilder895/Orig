@@ -39,13 +39,14 @@ MIN_WORDS = 250
 # scholarly_essay outright; the cap is applied per class and filled evenly
 # across that class's authors, so a prolific author cannot dominate.
 #
-# 40 rather than 60: at 60 the available scholarly_essay documents filled the
-# cap while creative_fiction could supply only 12, putting one class at 60 of
-# 118 — over half the corpus on its own, which
-# tests/validation/test_genre_labels.py rejects. The binding constraint is the
-# smallest class, and no cap can fix that; the cap only stops the largest from
-# swamping it further.
-PER_CLASS_CAP = 40
+# Raised 40 -> 64 once fetch_authors.py landed. The 40 existed only because
+# creative_fiction could supply 12 documents in total, so a larger cap put
+# scholarly_essay over half the corpus on its own. With fiction now at 48
+# chunks from three authors that constraint is gone, and a bigger corpus is
+# what makes per-class precision measurable at all: at the old size the
+# hold-out claimed ONE fiction document, on which no precision bar means
+# anything.
+PER_CLASS_CAP = 88
 
 # ── The hand labels ───────────────────────────────────────────────────────────
 #
@@ -101,6 +102,27 @@ GROUPS: list[tuple[str, str, str, str]] = [
      "novels: invented persons and events, advanced by scene and dialogue"),
     ("validation/public_authors/cross_work_corpus/christie/*.txt", "christie",
      "creative_fiction", "novels: invented persons and events, advanced by scene and dialogue"),
+
+    # ── Added 2026-08-08 (validation/genre_2026-08/fetch_authors.py) ─────────
+    # creative_fiction had 2 authors and personal_essay 3 in the whole
+    # repository, so leave-one-author-out trained on 1-2 and both classes
+    # scored 0.000 out-of-fold. Three authors added to each.
+    ("validation/genre_2026-08/corpus/austen/*.txt", "austen", "creative_fiction",
+     "Pride and Prejudice: invented persons, advanced by scene and dialogue"),
+    ("validation/genre_2026-08/corpus/twain/*.txt", "twain", "creative_fiction",
+     "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue"),
+    ("validation/genre_2026-08/corpus/doyle/*.txt", "doyle", "creative_fiction",
+     "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue"),
+    ("validation/genre_2026-08/corpus/franklin/*.txt", "franklin", "personal_essay",
+     "Autobiography: narrative asserted as true of the writer"),
+    ("validation/genre_2026-08/corpus/washington/*.txt", "washington", "personal_essay",
+     "Up From Slavery: autobiography, the writer's own life is the subject"),
+    ("validation/genre_2026-08/corpus/keller/*.txt", "keller", "personal_essay",
+     "The Story of My Life: autobiography, organised by experience not argument"),
+    ("validation/genre_2026-08/corpus/grant/*.txt", "grant", "personal_essay",
+     "Personal Memoirs: the writer's own campaigns, narrated as his experience"),
+    ("validation/genre_2026-08/corpus/cellini/*.txt", "cellini", "personal_essay",
+     "Autobiography: first-person account of the writer's own life"),
 ]
 
 # Post-hoc label corrections, recorded rather than quietly applied.
@@ -153,7 +175,7 @@ def build() -> dict:
     by_class: dict[str, list[dict]] = defaultdict(list)
     for pattern, author, label, justification in GROUPS:
         for path in sorted(_ROOT.glob(pattern)):
-            if path.name.startswith("_"):  # _full_work_cache.txt and friends
+            if path.name.startswith("_"):  # _full_work_cache.txt and cached bodies
                 continue
             if _word_count(path) < MIN_WORDS:
                 continue

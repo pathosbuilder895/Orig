@@ -8,7 +8,7 @@
   "scholarly_essay"
  ],
  "min_words": 250,
- "per_class_cap": 40,
+ "per_class_cap": 88,
  "label_corrections": [
   {
    "author": "emerson",
@@ -50,6 +50,76 @@
    "split": "derivation"
   },
   {
+   "path": "validation/corpus/burke_005.txt",
+   "author": "burke",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/burke_006.txt",
+   "author": "burke",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/burke_007.txt",
+   "author": "burke",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/burke_008.txt",
+   "author": "burke",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/burke_009.txt",
+   "author": "burke",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/burke_010.txt",
+   "author": "burke",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/burke_011.txt",
+   "author": "burke",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/burke_012.txt",
+   "author": "burke",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/burke_013.txt",
+   "author": "burke",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/burke_014.txt",
+   "author": "burke",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "derivation"
+  },
+  {
    "path": "validation/corpus/fed_hamilton_01.txt",
    "author": "hamilton",
    "label": "scholarly_essay",
@@ -72,6 +142,76 @@
   },
   {
    "path": "validation/corpus/fed_hamilton_08.txt",
+   "author": "hamilton",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_hamilton_09.txt",
+   "author": "hamilton",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_hamilton_11.txt",
+   "author": "hamilton",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_hamilton_12.txt",
+   "author": "hamilton",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_hamilton_13.txt",
+   "author": "hamilton",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_hamilton_15.txt",
+   "author": "hamilton",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_hamilton_16.txt",
+   "author": "hamilton",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_hamilton_17.txt",
+   "author": "hamilton",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_hamilton_21.txt",
+   "author": "hamilton",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_hamilton_22.txt",
+   "author": "hamilton",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_hamilton_23.txt",
    "author": "hamilton",
    "label": "scholarly_essay",
    "justification": "Federalist papers: argumentative essays advocating ratification",
@@ -106,6 +246,13 @@
    "split": "derivation"
   },
   {
+   "path": "validation/corpus/fed_jay_64.txt",
+   "author": "jay",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
    "path": "validation/corpus/fed_madison_10.txt",
    "author": "madison",
    "label": "scholarly_essay",
@@ -134,6 +281,76 @@
    "split": "derivation"
   },
   {
+   "path": "validation/corpus/fed_madison_39.txt",
+   "author": "madison",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_madison_40.txt",
+   "author": "madison",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_madison_41.txt",
+   "author": "madison",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_madison_42.txt",
+   "author": "madison",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_madison_43.txt",
+   "author": "madison",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_madison_44.txt",
+   "author": "madison",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_madison_45.txt",
+   "author": "madison",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_madison_46.txt",
+   "author": "madison",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_madison_47.txt",
+   "author": "madison",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/corpus/fed_madison_48.txt",
+   "author": "madison",
+   "label": "scholarly_essay",
+   "justification": "Federalist papers: argumentative essays advocating ratification",
+   "split": "derivation"
+  },
+  {
    "path": "validation/corpus/paine_001.txt",
    "author": "paine",
    "label": "scholarly_essay",
@@ -156,6 +373,69 @@
   },
   {
    "path": "validation/corpus/paine_004.txt",
+   "author": "paine",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/corpus/paine_005.txt",
+   "author": "paine",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/corpus/paine_006.txt",
+   "author": "paine",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/corpus/paine_007.txt",
+   "author": "paine",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/corpus/paine_008.txt",
+   "author": "paine",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/corpus/paine_009.txt",
+   "author": "paine",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/corpus/paine_010.txt",
+   "author": "paine",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/corpus/paine_011.txt",
+   "author": "paine",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/corpus/paine_012.txt",
+   "author": "paine",
+   "label": "scholarly_essay",
+   "justification": "political pamphlet: argues a thesis about institutions to a general reader",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/corpus/paine_013.txt",
    "author": "paine",
    "label": "scholarly_essay",
    "justification": "political pamphlet: argues a thesis about institutions to a general reader",
@@ -337,6 +617,1028 @@
    "split": "holdout"
   },
   {
+   "path": "validation/genre_2026-08/corpus/austen/emma_01.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/emma_02.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/emma_03.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/emma_04.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/emma_05.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/emma_06.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/emma_07.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/emma_08.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/emma_09.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/emma_10.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/emma_11.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/emma_12.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/emma_13.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/emma_14.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/pride_and_prejudice_01.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/pride_and_prejudice_02.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/pride_and_prejudice_03.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/pride_and_prejudice_04.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/pride_and_prejudice_05.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/pride_and_prejudice_06.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/pride_and_prejudice_07.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/pride_and_prejudice_08.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/pride_and_prejudice_09.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/pride_and_prejudice_10.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/pride_and_prejudice_11.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/austen/pride_and_prejudice_12.txt",
+   "author": "austen",
+   "label": "creative_fiction",
+   "justification": "Pride and Prejudice: invented persons, advanced by scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/cellini/the_autobiography_of_benvenuto_cellini_01.txt",
+   "author": "cellini",
+   "label": "personal_essay",
+   "justification": "Autobiography: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/cellini/the_autobiography_of_benvenuto_cellini_02.txt",
+   "author": "cellini",
+   "label": "personal_essay",
+   "justification": "Autobiography: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/cellini/the_autobiography_of_benvenuto_cellini_03.txt",
+   "author": "cellini",
+   "label": "personal_essay",
+   "justification": "Autobiography: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/cellini/the_autobiography_of_benvenuto_cellini_04.txt",
+   "author": "cellini",
+   "label": "personal_essay",
+   "justification": "Autobiography: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/cellini/the_autobiography_of_benvenuto_cellini_05.txt",
+   "author": "cellini",
+   "label": "personal_essay",
+   "justification": "Autobiography: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/cellini/the_autobiography_of_benvenuto_cellini_06.txt",
+   "author": "cellini",
+   "label": "personal_essay",
+   "justification": "Autobiography: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/cellini/the_autobiography_of_benvenuto_cellini_07.txt",
+   "author": "cellini",
+   "label": "personal_essay",
+   "justification": "Autobiography: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/cellini/the_autobiography_of_benvenuto_cellini_08.txt",
+   "author": "cellini",
+   "label": "personal_essay",
+   "justification": "Autobiography: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/cellini/the_autobiography_of_benvenuto_cellini_09.txt",
+   "author": "cellini",
+   "label": "personal_essay",
+   "justification": "Autobiography: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/cellini/the_autobiography_of_benvenuto_cellini_10.txt",
+   "author": "cellini",
+   "label": "personal_essay",
+   "justification": "Autobiography: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/cellini/the_autobiography_of_benvenuto_cellini_11.txt",
+   "author": "cellini",
+   "label": "personal_essay",
+   "justification": "Autobiography: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/cellini/the_autobiography_of_benvenuto_cellini_12.txt",
+   "author": "cellini",
+   "label": "personal_essay",
+   "justification": "Autobiography: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/cellini/the_autobiography_of_benvenuto_cellini_13.txt",
+   "author": "cellini",
+   "label": "personal_essay",
+   "justification": "Autobiography: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/cellini/the_autobiography_of_benvenuto_cellini_14.txt",
+   "author": "cellini",
+   "label": "personal_essay",
+   "justification": "Autobiography: first-person account of the writer's own life",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_adventures_of_sherlock_holmes_01.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_adventures_of_sherlock_holmes_02.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_adventures_of_sherlock_holmes_03.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_adventures_of_sherlock_holmes_04.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_adventures_of_sherlock_holmes_05.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_adventures_of_sherlock_holmes_06.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_adventures_of_sherlock_holmes_07.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_adventures_of_sherlock_holmes_08.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_adventures_of_sherlock_holmes_09.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_adventures_of_sherlock_holmes_10.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_adventures_of_sherlock_holmes_11.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_adventures_of_sherlock_holmes_12.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_adventures_of_sherlock_holmes_13.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_adventures_of_sherlock_holmes_14.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_hound_of_the_baskervilles_01.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_hound_of_the_baskervilles_02.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_hound_of_the_baskervilles_03.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_hound_of_the_baskervilles_04.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_hound_of_the_baskervilles_05.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_hound_of_the_baskervilles_06.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_hound_of_the_baskervilles_07.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_hound_of_the_baskervilles_08.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_hound_of_the_baskervilles_09.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_hound_of_the_baskervilles_10.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/doyle/the_hound_of_the_baskervilles_11.txt",
+   "author": "doyle",
+   "label": "creative_fiction",
+   "justification": "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/franklin/the_autobiography_of_benjamin_franklin_01.txt",
+   "author": "franklin",
+   "label": "personal_essay",
+   "justification": "Autobiography: narrative asserted as true of the writer",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/franklin/the_autobiography_of_benjamin_franklin_02.txt",
+   "author": "franklin",
+   "label": "personal_essay",
+   "justification": "Autobiography: narrative asserted as true of the writer",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/franklin/the_autobiography_of_benjamin_franklin_03.txt",
+   "author": "franklin",
+   "label": "personal_essay",
+   "justification": "Autobiography: narrative asserted as true of the writer",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/franklin/the_autobiography_of_benjamin_franklin_04.txt",
+   "author": "franklin",
+   "label": "personal_essay",
+   "justification": "Autobiography: narrative asserted as true of the writer",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/franklin/the_autobiography_of_benjamin_franklin_05.txt",
+   "author": "franklin",
+   "label": "personal_essay",
+   "justification": "Autobiography: narrative asserted as true of the writer",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/franklin/the_autobiography_of_benjamin_franklin_06.txt",
+   "author": "franklin",
+   "label": "personal_essay",
+   "justification": "Autobiography: narrative asserted as true of the writer",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/franklin/the_autobiography_of_benjamin_franklin_07.txt",
+   "author": "franklin",
+   "label": "personal_essay",
+   "justification": "Autobiography: narrative asserted as true of the writer",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/franklin/the_autobiography_of_benjamin_franklin_08.txt",
+   "author": "franklin",
+   "label": "personal_essay",
+   "justification": "Autobiography: narrative asserted as true of the writer",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/franklin/the_autobiography_of_benjamin_franklin_09.txt",
+   "author": "franklin",
+   "label": "personal_essay",
+   "justification": "Autobiography: narrative asserted as true of the writer",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/franklin/the_autobiography_of_benjamin_franklin_10.txt",
+   "author": "franklin",
+   "label": "personal_essay",
+   "justification": "Autobiography: narrative asserted as true of the writer",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/franklin/the_autobiography_of_benjamin_franklin_11.txt",
+   "author": "franklin",
+   "label": "personal_essay",
+   "justification": "Autobiography: narrative asserted as true of the writer",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/franklin/the_autobiography_of_benjamin_franklin_12.txt",
+   "author": "franklin",
+   "label": "personal_essay",
+   "justification": "Autobiography: narrative asserted as true of the writer",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/franklin/the_autobiography_of_benjamin_franklin_13.txt",
+   "author": "franklin",
+   "label": "personal_essay",
+   "justification": "Autobiography: narrative asserted as true of the writer",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/franklin/the_autobiography_of_benjamin_franklin_14.txt",
+   "author": "franklin",
+   "label": "personal_essay",
+   "justification": "Autobiography: narrative asserted as true of the writer",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/grant/personal_memoirs_of_u_s_grant_01.txt",
+   "author": "grant",
+   "label": "personal_essay",
+   "justification": "Personal Memoirs: the writer's own campaigns, narrated as his experience",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/grant/personal_memoirs_of_u_s_grant_02.txt",
+   "author": "grant",
+   "label": "personal_essay",
+   "justification": "Personal Memoirs: the writer's own campaigns, narrated as his experience",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/grant/personal_memoirs_of_u_s_grant_03.txt",
+   "author": "grant",
+   "label": "personal_essay",
+   "justification": "Personal Memoirs: the writer's own campaigns, narrated as his experience",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/grant/personal_memoirs_of_u_s_grant_04.txt",
+   "author": "grant",
+   "label": "personal_essay",
+   "justification": "Personal Memoirs: the writer's own campaigns, narrated as his experience",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/grant/personal_memoirs_of_u_s_grant_05.txt",
+   "author": "grant",
+   "label": "personal_essay",
+   "justification": "Personal Memoirs: the writer's own campaigns, narrated as his experience",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/grant/personal_memoirs_of_u_s_grant_06.txt",
+   "author": "grant",
+   "label": "personal_essay",
+   "justification": "Personal Memoirs: the writer's own campaigns, narrated as his experience",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/grant/personal_memoirs_of_u_s_grant_07.txt",
+   "author": "grant",
+   "label": "personal_essay",
+   "justification": "Personal Memoirs: the writer's own campaigns, narrated as his experience",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/grant/personal_memoirs_of_u_s_grant_08.txt",
+   "author": "grant",
+   "label": "personal_essay",
+   "justification": "Personal Memoirs: the writer's own campaigns, narrated as his experience",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/grant/personal_memoirs_of_u_s_grant_09.txt",
+   "author": "grant",
+   "label": "personal_essay",
+   "justification": "Personal Memoirs: the writer's own campaigns, narrated as his experience",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/grant/personal_memoirs_of_u_s_grant_10.txt",
+   "author": "grant",
+   "label": "personal_essay",
+   "justification": "Personal Memoirs: the writer's own campaigns, narrated as his experience",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/grant/personal_memoirs_of_u_s_grant_11.txt",
+   "author": "grant",
+   "label": "personal_essay",
+   "justification": "Personal Memoirs: the writer's own campaigns, narrated as his experience",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/grant/personal_memoirs_of_u_s_grant_12.txt",
+   "author": "grant",
+   "label": "personal_essay",
+   "justification": "Personal Memoirs: the writer's own campaigns, narrated as his experience",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/grant/personal_memoirs_of_u_s_grant_13.txt",
+   "author": "grant",
+   "label": "personal_essay",
+   "justification": "Personal Memoirs: the writer's own campaigns, narrated as his experience",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/grant/personal_memoirs_of_u_s_grant_14.txt",
+   "author": "grant",
+   "label": "personal_essay",
+   "justification": "Personal Memoirs: the writer's own campaigns, narrated as his experience",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/keller/the_story_of_my_life_01.txt",
+   "author": "keller",
+   "label": "personal_essay",
+   "justification": "The Story of My Life: autobiography, organised by experience not argument",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/keller/the_story_of_my_life_02.txt",
+   "author": "keller",
+   "label": "personal_essay",
+   "justification": "The Story of My Life: autobiography, organised by experience not argument",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/keller/the_story_of_my_life_03.txt",
+   "author": "keller",
+   "label": "personal_essay",
+   "justification": "The Story of My Life: autobiography, organised by experience not argument",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/keller/the_story_of_my_life_04.txt",
+   "author": "keller",
+   "label": "personal_essay",
+   "justification": "The Story of My Life: autobiography, organised by experience not argument",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/keller/the_story_of_my_life_05.txt",
+   "author": "keller",
+   "label": "personal_essay",
+   "justification": "The Story of My Life: autobiography, organised by experience not argument",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/keller/the_story_of_my_life_06.txt",
+   "author": "keller",
+   "label": "personal_essay",
+   "justification": "The Story of My Life: autobiography, organised by experience not argument",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/keller/the_story_of_my_life_07.txt",
+   "author": "keller",
+   "label": "personal_essay",
+   "justification": "The Story of My Life: autobiography, organised by experience not argument",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/keller/the_story_of_my_life_08.txt",
+   "author": "keller",
+   "label": "personal_essay",
+   "justification": "The Story of My Life: autobiography, organised by experience not argument",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/keller/the_story_of_my_life_09.txt",
+   "author": "keller",
+   "label": "personal_essay",
+   "justification": "The Story of My Life: autobiography, organised by experience not argument",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/keller/the_story_of_my_life_10.txt",
+   "author": "keller",
+   "label": "personal_essay",
+   "justification": "The Story of My Life: autobiography, organised by experience not argument",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/keller/the_story_of_my_life_11.txt",
+   "author": "keller",
+   "label": "personal_essay",
+   "justification": "The Story of My Life: autobiography, organised by experience not argument",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/keller/the_story_of_my_life_12.txt",
+   "author": "keller",
+   "label": "personal_essay",
+   "justification": "The Story of My Life: autobiography, organised by experience not argument",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/keller/the_story_of_my_life_13.txt",
+   "author": "keller",
+   "label": "personal_essay",
+   "justification": "The Story of My Life: autobiography, organised by experience not argument",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/keller/the_story_of_my_life_14.txt",
+   "author": "keller",
+   "label": "personal_essay",
+   "justification": "The Story of My Life: autobiography, organised by experience not argument",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/adventures_of_huckleberry_finn_01.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/adventures_of_huckleberry_finn_02.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/adventures_of_huckleberry_finn_03.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/adventures_of_huckleberry_finn_04.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/adventures_of_huckleberry_finn_05.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/adventures_of_huckleberry_finn_06.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/adventures_of_huckleberry_finn_07.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/adventures_of_huckleberry_finn_08.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/adventures_of_huckleberry_finn_09.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/adventures_of_huckleberry_finn_10.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/adventures_of_huckleberry_finn_11.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/adventures_of_huckleberry_finn_12.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/adventures_of_huckleberry_finn_13.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/adventures_of_huckleberry_finn_14.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/the_adventures_of_tom_sawyer_01.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/the_adventures_of_tom_sawyer_02.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/the_adventures_of_tom_sawyer_03.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/the_adventures_of_tom_sawyer_04.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/the_adventures_of_tom_sawyer_05.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/the_adventures_of_tom_sawyer_06.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/the_adventures_of_tom_sawyer_07.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/the_adventures_of_tom_sawyer_08.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/the_adventures_of_tom_sawyer_09.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/the_adventures_of_tom_sawyer_10.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/twain/the_adventures_of_tom_sawyer_11.txt",
+   "author": "twain",
+   "label": "creative_fiction",
+   "justification": "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/washington/up_from_slavery_01.txt",
+   "author": "washington",
+   "label": "personal_essay",
+   "justification": "Up From Slavery: autobiography, the writer's own life is the subject",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/washington/up_from_slavery_02.txt",
+   "author": "washington",
+   "label": "personal_essay",
+   "justification": "Up From Slavery: autobiography, the writer's own life is the subject",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/washington/up_from_slavery_03.txt",
+   "author": "washington",
+   "label": "personal_essay",
+   "justification": "Up From Slavery: autobiography, the writer's own life is the subject",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/washington/up_from_slavery_04.txt",
+   "author": "washington",
+   "label": "personal_essay",
+   "justification": "Up From Slavery: autobiography, the writer's own life is the subject",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/washington/up_from_slavery_05.txt",
+   "author": "washington",
+   "label": "personal_essay",
+   "justification": "Up From Slavery: autobiography, the writer's own life is the subject",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/washington/up_from_slavery_06.txt",
+   "author": "washington",
+   "label": "personal_essay",
+   "justification": "Up From Slavery: autobiography, the writer's own life is the subject",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/washington/up_from_slavery_07.txt",
+   "author": "washington",
+   "label": "personal_essay",
+   "justification": "Up From Slavery: autobiography, the writer's own life is the subject",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/washington/up_from_slavery_08.txt",
+   "author": "washington",
+   "label": "personal_essay",
+   "justification": "Up From Slavery: autobiography, the writer's own life is the subject",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/washington/up_from_slavery_09.txt",
+   "author": "washington",
+   "label": "personal_essay",
+   "justification": "Up From Slavery: autobiography, the writer's own life is the subject",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/washington/up_from_slavery_10.txt",
+   "author": "washington",
+   "label": "personal_essay",
+   "justification": "Up From Slavery: autobiography, the writer's own life is the subject",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/washington/up_from_slavery_11.txt",
+   "author": "washington",
+   "label": "personal_essay",
+   "justification": "Up From Slavery: autobiography, the writer's own life is the subject",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/washington/up_from_slavery_12.txt",
+   "author": "washington",
+   "label": "personal_essay",
+   "justification": "Up From Slavery: autobiography, the writer's own life is the subject",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/washington/up_from_slavery_13.txt",
+   "author": "washington",
+   "label": "personal_essay",
+   "justification": "Up From Slavery: autobiography, the writer's own life is the subject",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/genre_2026-08/corpus/washington/up_from_slavery_14.txt",
+   "author": "washington",
+   "label": "personal_essay",
+   "justification": "Up From Slavery: autobiography, the writer's own life is the subject",
+   "split": "holdout"
+  },
+  {
    "path": "validation/public_authors/corpus/augustine/confessions_part_01.txt",
    "author": "augustine",
    "label": "personal_essay",
@@ -407,6 +1709,13 @@
    "split": "derivation"
   },
   {
+   "path": "validation/public_authors/corpus/chesterton/orthodoxy_part_05.txt",
+   "author": "chesterton",
+   "label": "scholarly_essay",
+   "justification": "Orthodoxy: argumentative apologetic addressed to a general reader",
+   "split": "derivation"
+  },
+  {
    "path": "validation/public_authors/corpus/douglass/my_bondage_and_my_freedom_part_01.txt",
    "author": "douglass",
    "label": "personal_essay",
@@ -470,6 +1779,13 @@
    "split": "derivation"
   },
   {
+   "path": "validation/public_authors/corpus/emerson/the_over_soul.txt",
+   "author": "emerson",
+   "label": "scholarly_essay",
+   "justification": "Self-Reliance / Compensation / History argue about the world in the first person; the codebook's deciding test sends argument-about-the-world to scholarly_essay regardless of pronoun",
+   "split": "derivation"
+  },
+  {
    "path": "validation/public_authors/corpus/james/the_varieties_of_religious_experience_part_01.txt",
    "author": "james",
    "label": "scholarly_essay",
@@ -492,6 +1808,34 @@
   },
   {
    "path": "validation/public_authors/corpus/james/the_varieties_of_religious_experience_part_04.txt",
+   "author": "james",
+   "label": "scholarly_essay",
+   "justification": "Gifford lectures: argues a thesis about religious experience to a public",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/james/the_varieties_of_religious_experience_part_05.txt",
+   "author": "james",
+   "label": "scholarly_essay",
+   "justification": "Gifford lectures: argues a thesis about religious experience to a public",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/james/the_varieties_of_religious_experience_part_06.txt",
+   "author": "james",
+   "label": "scholarly_essay",
+   "justification": "Gifford lectures: argues a thesis about religious experience to a public",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/james/the_varieties_of_religious_experience_part_07.txt",
+   "author": "james",
+   "label": "scholarly_essay",
+   "justification": "Gifford lectures: argues a thesis about religious experience to a public",
+   "split": "derivation"
+  },
+  {
+   "path": "validation/public_authors/corpus/james/the_varieties_of_religious_experience_part_08.txt",
    "author": "james",
    "label": "scholarly_essay",
    "justification": "Gifford lectures: argues a thesis about religious experience to a public",
@@ -526,6 +1870,13 @@
    "split": "holdout"
   },
   {
+   "path": "validation/public_authors/corpus/mill/on_liberty_part_05.txt",
+   "author": "mill",
+   "label": "scholarly_essay",
+   "justification": "On Liberty: chain-of-argument prose about a public question",
+   "split": "holdout"
+  },
+  {
    "path": "validation/public_authors/corpus/newman/the_idea_of_a_university_part_01.txt",
    "author": "newman",
    "label": "scholarly_essay",
@@ -548,6 +1899,13 @@
   },
   {
    "path": "validation/public_authors/corpus/newman/the_idea_of_a_university_part_04.txt",
+   "author": "newman",
+   "label": "scholarly_essay",
+   "justification": "lectures arguing a thesis about education, not homiletic",
+   "split": "holdout"
+  },
+  {
+   "path": "validation/public_authors/corpus/newman/the_idea_of_a_university_part_05.txt",
    "author": "newman",
    "label": "scholarly_essay",
    "justification": "lectures arguing a thesis about education, not homiletic",
@@ -635,42 +1993,42 @@
    "author": "dickens",
    "label": "creative_fiction",
    "justification": "novels: invented persons and events, advanced by scene and dialogue",
-   "split": "holdout"
+   "split": "derivation"
   },
   {
    "path": "validation/public_authors/cross_work_corpus/dickens/a_tale_of_two_cities_02.txt",
    "author": "dickens",
    "label": "creative_fiction",
    "justification": "novels: invented persons and events, advanced by scene and dialogue",
-   "split": "holdout"
+   "split": "derivation"
   },
   {
    "path": "validation/public_authors/cross_work_corpus/dickens/a_tale_of_two_cities_03.txt",
    "author": "dickens",
    "label": "creative_fiction",
    "justification": "novels: invented persons and events, advanced by scene and dialogue",
-   "split": "holdout"
+   "split": "derivation"
   },
   {
    "path": "validation/public_authors/cross_work_corpus/dickens/great_expectations_01.txt",
    "author": "dickens",
    "label": "creative_fiction",
    "justification": "novels: invented persons and events, advanced by scene and dialogue",
-   "split": "holdout"
+   "split": "derivation"
   },
   {
    "path": "validation/public_authors/cross_work_corpus/dickens/great_expectations_02.txt",
    "author": "dickens",
    "label": "creative_fiction",
    "justification": "novels: invented persons and events, advanced by scene and dialogue",
-   "split": "holdout"
+   "split": "derivation"
   },
   {
    "path": "validation/public_authors/cross_work_corpus/dickens/great_expectations_03.txt",
    "author": "dickens",
    "label": "creative_fiction",
    "justification": "novels: invented persons and events, advanced by scene and dialogue",
-   "split": "holdout"
+   "split": "derivation"
   }
  ]
 }

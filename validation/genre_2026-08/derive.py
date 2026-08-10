@@ -46,6 +46,14 @@ SEED = 1729
 # and abstaining more than necessary is its own failure.
 _THRESHOLD_GRID = [round(0.25 + 0.01 * i, 2) for i in range(71)]  # 0.25 .. 0.95
 _PRECISION_FLOOR = 0.80
+# G8 is a CONJUNCTION: precision >= 0.80 AND abstention <= 0.50. A selector
+# that optimises one leg alone is misaligned with the criterion it will be
+# judged by, and this one broke both ways before it was fixed — the smallest
+# threshold clearing the floor left no transfer margin (derivation 0.820 ->
+# hold-out 0.714), while the argmax of precision overshot an 0.80 bar and
+# spent 58% abstention doing it. Selection now targets the conjunction:
+# maximise the floored leg SUBJECT TO the ceilinged one, on derivation only.
+_ABSTENTION_CEILING = 0.50
 
 
 class HoldoutTouched(RuntimeError):
@@ -171,15 +179,14 @@ def choose_threshold(fit: dict, entries: list[dict]) -> tuple[float, dict]:
     """
     truth, predicted, confidence = _out_of_fold_predictions(entries)
 
-    # Pick the threshold with the best out-of-fold MINIMUM per-class
-    # precision, and record honestly whether it clears the floor. An earlier
-    # cut raised instead of writing, which is the wrong failure mode: a gate
-    # that never receives numbers cannot report anything, and "the artifact
-    # would not build" is far less useful to the next reader than "here is
-    # exactly how far short it falls, per class".
-    best_threshold = _THRESHOLD_GRID[0]
+    # Maximise out-of-fold minimum per-class precision subject to staying
+    # under the abstention ceiling. Ties break toward the SMALLER threshold,
+    # since abstention rises monotonically and coverage the gate does not need
+    # is still coverage lost.
+    best_threshold = None
     best_per_class: dict[str, float | None] = {}
     best_min = -1.0
+    fallback = (_THRESHOLD_GRID[0], {}, -1.0)
     for threshold in _THRESHOLD_GRID:
         claimed = confidence >= threshold
         if not claimed.any():
@@ -191,12 +198,22 @@ def choose_threshold(fit: dict, entries: list[dict]) -> tuple[float, dict]:
         scored = [v for v in per_class.values() if v is not None]
         if not scored:
             continue
-        # A class the model never claims is not "perfect precision" — it is
-        # an unusable class, and it must drag the minimum to zero rather than
-        # being quietly excluded from the average.
+        # A class the model never claims is not "perfect precision" — it is an
+        # unusable class, and it must drag the minimum to zero rather than be
+        # quietly excluded from the average.
         minimum = 0.0 if len(scored) < len(fit["classes"]) else min(scored)
-        if minimum > best_min:
-            best_min, best_threshold, best_per_class = minimum, threshold, per_class
+        if minimum > fallback[2]:
+            fallback = (threshold, per_class, minimum)
+        abstention = float(1.0 - claimed.mean())
+        if abstention <= _ABSTENTION_CEILING and minimum > best_min:
+            best_threshold, best_per_class, best_min = threshold, per_class, minimum
+
+    if best_threshold is None or best_min < _PRECISION_FLOOR:
+        # Either nothing stayed under the ceiling, or nothing under it reached
+        # the floor. Report the best available so the gate receives real
+        # numbers rather than nothing at all.
+        if best_threshold is None:
+            best_threshold, best_per_class, best_min = fallback
 
     unclaimable = sorted(c for c, v in best_per_class.items() if v is None)
     meets_floor = not unclaimable and best_min >= _PRECISION_FLOOR

@@ -81,9 +81,10 @@ def evaluate_holdout() -> dict:
     }
 
 
-def shuffled_control(seed: int = SEED) -> dict:
+def shuffled_control(seed: int = SEED, n_permutations: int = 20) -> dict:
     """
-    Permute genre labels ACROSS authors, re-fit, and score.
+    Permute genre labels ACROSS authors, re-fit, and score. Averaged over
+    `n_permutations` seeded draws.
 
     The permutation is applied per author, not per document: every document
     by one author keeps a single (wrong) label. A per-document shuffle would
@@ -91,7 +92,35 @@ def shuffled_control(seed: int = SEED) -> dict:
     vacuous — the model would fail for the trivial reason that its training
     labels were internally inconsistent, telling us nothing about whether it
     keys on authors.
+
+    AVERAGED, because a single permutation is one draw from a null
+    distribution and its accuracy is noisy: a draw that happens to map most
+    authors of one true class onto the same wrong label leaves real structure
+    for the model to find, and scores above chance for a reason that has
+    nothing to do with author-keying. Measured here, single draws ranged from
+    0.06 to 0.35 on the same model. G5 in validation/calibration_gate.py
+    already takes a majority over K seeded draws for exactly this reason;
+    this is the same discipline.
     """
+    accuracies: list[float] = []
+    permutations: list[dict] = []
+    for offset in range(n_permutations):
+        result = _one_shuffled_draw(seed + offset)
+        accuracies.append(result["accuracy"])
+        permutations.append(result["permutation"])
+    n_classes = result["n_classes"]
+    return {
+        "accuracy": float(np.mean(accuracies)),
+        "accuracy_per_draw": accuracies,
+        "chance": 1.0 / n_classes,
+        "n_permutations": n_permutations,
+        "n_holdout": result["n_holdout"],
+        "permutation": permutations[0],
+    }
+
+
+def _one_shuffled_draw(seed: int) -> dict:
+    """One permuted-label re-fit. See shuffled_control for why it is averaged."""
     entries = derive.load_entries()
     rng = random.Random(seed)
 
@@ -121,10 +150,9 @@ def shuffled_control(seed: int = SEED) -> dict:
     proba = derive.probabilities(fit, X)
     predicted = np.asarray(fit["classes"])[proba.argmax(axis=1)]
 
-    n_classes = len(set(e["label"] for e in entries))
     return {
         "accuracy": float((predicted == y).mean()) if len(y) else 0.0,
-        "chance": 1.0 / n_classes,
+        "n_classes": len({e["label"] for e in entries}),
         "n_holdout": len(holdout),
         "permutation": label_of,
     }
@@ -145,8 +173,14 @@ def main() -> None:
 
     control = shuffled_control()
     print("\n=== author-shuffled control ===")
-    print(f"accuracy: {control['accuracy']:.3f}   chance: {control['chance']:.3f}")
-    print(f"permutation: {control['permutation']}")
+    print(
+        f"mean accuracy over {control['n_permutations']} permutations: "
+        f"{control['accuracy']:.3f}   chance: {control['chance']:.3f}"
+    )
+    print(
+        f"per-draw range: {min(control['accuracy_per_draw']):.3f} – "
+        f"{max(control['accuracy_per_draw']):.3f}"
+    )
     verdict = "collapses to chance (good)" if control["accuracy"] <= control["chance"] + 0.10 else (
         "STILL PREDICTS — the model may be keying on authors"
     )
