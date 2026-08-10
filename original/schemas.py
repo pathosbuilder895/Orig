@@ -517,10 +517,15 @@ class WindowScoreOut(BaseModel):
     ai_probability: float | None = Field(
         None,
         description=(
-            "Report-only shadow signal: calibrated p(AI-generated) for THIS "
-            "window. Populated only when AI_LIKELIHOOD_SHADOW=1 and the "
-            "detector produced a probability for this window; null otherwise. "
-            "Never influences blend_detected, shift_positions, or any "
+            "Report-only shadow signal: the AI-likelihood detector's raw "
+            "output for THIS window. UNCALIBRATED at window scale — the "
+            "detector was trained and thresholded on whole documents, so a "
+            "~300-token window is outside its evaluated regime. Read it as an "
+            "ordering/localization hint only; do NOT apply the document-level "
+            "low/elevated/strong thresholds to it (see MODEL_CARD.md). "
+            "Populated only when AI_LIKELIHOOD_SHADOW=1 and the detector "
+            "produced a value for this window; null otherwise. Never "
+            "influences blend_detected, shift_positions, or any "
             "recommendation."
         ),
     )
@@ -539,15 +544,19 @@ class BlendResultOut(BaseModel):
         None,
         description=(
             "Report-only: highest per-window AI-likelihood across the windows "
-            "that received a probability. Null when AI_LIKELIHOOD_SHADOW is "
-            "off or no window produced one."
+            "that received a value. Inherits the per-window UNCALIBRATED "
+            "caveat (see ai_probability and MODEL_CARD.md) — not comparable "
+            "to the document-level thresholds. Null when AI_LIKELIHOOD_SHADOW "
+            "is off or no window produced one."
         ),
     )
     ai_window_mean: float | None = Field(
         None,
         description=(
             "Report-only: mean per-window AI-likelihood over the windows that "
-            "received a probability (failed windows are excluded)."
+            "received a value (failed windows are excluded). Inherits the "
+            "per-window UNCALIBRATED caveat (see ai_probability and "
+            "MODEL_CARD.md) — not comparable to the document-level thresholds."
         ),
     )
 

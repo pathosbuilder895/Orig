@@ -28,6 +28,7 @@ from original.context.blend import (
     SHIFT_LOCATION_MIN_BLEND_INDEX,
     BlendResult,
     WindowScore,
+    _attach_window_ai_shadow,
     _pettitt_change_point,
     _window_offsets,
     detect_blend,
@@ -579,6 +580,155 @@ class TestWindowAiShadow:
         assert result.ai_window_mean is None
 
 
+class TestWindowAiShadowDefensiveBranches:
+    """
+    The guards in ``_attach_window_ai_shadow`` that a healthy predictor never
+    reaches. They are exercised at the helper directly rather than through
+    ``detect_blend`` because provoking each one end-to-end would mean a full
+    feature-extraction pass per branch for no extra coverage — the helper IS
+    the unit under test, and ``TestWindowAiShadow`` already proves
+    ``detect_blend`` calls it with index-parallel arguments.
+
+    Every branch here must leave the windows untouched (or partially
+    populated, for the non-finite skip) and never raise: a report-only signal
+    that raises would 500 the blend endpoint.
+    """
+
+    @staticmethod
+    def _sections(n: int = 3) -> list[WindowScore]:
+        return [
+            WindowScore(start=i * 150, end=i * 150 + 300, score=0.2, confidence="low")
+            for i in range(n)
+        ]
+
+    @staticmethod
+    def _vectors(n: int = 3) -> list[np.ndarray]:
+        return [np.full(FEATURE_DIM, 0.5) for _ in range(n)]
+
+    def test_all_windows_failed_extraction_attaches_nothing(self, monkeypatch):
+        """Empty ``indexed``: the predictor must not be called at all."""
+        import original.ai_likelihood as ai_module
+
+        def _explode(vectors):  # pragma: no cover — must never be reached
+            raise AssertionError("batch predictor called with zero usable vectors")
+
+        monkeypatch.setattr(ai_module, "predict_ai_likelihood_batch", _explode)
+        monkeypatch.setenv("AI_LIKELIHOOD_SHADOW", "1")
+
+        sections = self._sections(3)
+        assert _attach_window_ai_shadow(sections, [None, None, None]) == (None, None)
+        assert all(w.ai_probability is None for w in sections)
+
+    def test_length_mismatch_attaches_nothing(self, monkeypatch):
+        """
+        Second half of the alignment defence. The first half (a failed window
+        contributing no vector) is covered end-to-end above; this covers a
+        predictor that simply returns the wrong count — there is no safe way
+        to line those up, so nothing may be attached.
+        """
+        import original.ai_likelihood as ai_module
+
+        vectors = self._vectors(3)
+        monkeypatch.setattr(
+            ai_module,
+            "predict_ai_likelihood_batch",
+            lambda v: np.array([0.11, 0.22]),  # n-1 for n vectors
+        )
+        monkeypatch.setenv("AI_LIKELIHOOD_SHADOW", "1")
+
+        sections = self._sections(3)
+        assert _attach_window_ai_shadow(sections, vectors) == (None, None)
+        assert [w.ai_probability for w in sections] == [None, None, None]
+
+    def test_non_finite_probabilities_are_skipped(self, monkeypatch):
+        """NaN/inf windows are dropped; finite neighbours still land."""
+        import original.ai_likelihood as ai_module
+
+        vectors = self._vectors(3)
+        monkeypatch.setattr(
+            ai_module,
+            "predict_ai_likelihood_batch",
+            lambda v: np.array([0.25, np.nan, np.inf]),
+        )
+        monkeypatch.setenv("AI_LIKELIHOOD_SHADOW", "1")
+
+        sections = self._sections(3)
+        assert _attach_window_ai_shadow(sections, vectors) == (0.25, 0.25)
+        assert [w.ai_probability for w in sections] == [0.25, None, None]
+
+    def test_all_non_finite_leaves_summaries_none(self, monkeypatch):
+        import original.ai_likelihood as ai_module
+
+        vectors = self._vectors(2)
+        monkeypatch.setattr(
+            ai_module,
+            "predict_ai_likelihood_batch",
+            lambda v: np.array([np.nan, np.nan]),
+        )
+        monkeypatch.setenv("AI_LIKELIHOOD_SHADOW", "1")
+
+        sections = self._sections(2)
+        assert _attach_window_ai_shadow(sections, vectors) == (None, None)
+        assert all(w.ai_probability is None for w in sections)
+
+    def test_predictor_exception_is_swallowed(self, monkeypatch):
+        import original.ai_likelihood as ai_module
+
+        def _raise(vectors):
+            raise RuntimeError("synthetic predictor failure")
+
+        vectors = self._vectors(3)
+        monkeypatch.setattr(ai_module, "predict_ai_likelihood_batch", _raise)
+        monkeypatch.setenv("AI_LIKELIHOOD_SHADOW", "1")
+
+        sections = self._sections(3)
+        assert _attach_window_ai_shadow(sections, vectors) == (None, None)
+        assert all(w.ai_probability is None for w in sections)
+
+    def test_none_entries_coerce_to_nan_and_are_skipped(self, monkeypatch):
+        """
+        Documents the actual numpy behaviour: a ``None`` inside a float64
+        conversion becomes NaN rather than raising, so it falls to the
+        non-finite skip rather than the except. Recorded so a future reader
+        does not "fix" the guard against a failure mode that cannot happen.
+        """
+        import original.ai_likelihood as ai_module
+
+        vectors = self._vectors(3)
+        monkeypatch.setattr(
+            ai_module, "predict_ai_likelihood_batch", lambda v: [0.1, None, 0.3]
+        )
+        monkeypatch.setenv("AI_LIKELIHOOD_SHADOW", "1")
+
+        sections = self._sections(3)
+        assert _attach_window_ai_shadow(sections, vectors) == (0.3, 0.2)
+        assert [w.ai_probability for w in sections] == [0.1, None, 0.3]
+
+    @pytest.mark.parametrize(
+        "bad_output",
+        [
+            pytest.param([[0.1, 0.2], [0.3], [0.4, 0.5]], id="ragged"),
+            pytest.param(["not-a-float", "x", "y"], id="non_numeric"),
+            pytest.param([0.1, object(), 0.3], id="non_numeric_object"),
+        ],
+    )
+    def test_unconvertible_output_is_swallowed(self, monkeypatch, bad_output):
+        """
+        The array conversion must sit INSIDE the guard: a predictor returning
+        something np.asarray(dtype=float64) rejects would otherwise raise out
+        of detect_blend and 500 POST /students/{id}/score/blend.
+        """
+        import original.ai_likelihood as ai_module
+
+        vectors = self._vectors(3)
+        monkeypatch.setattr(ai_module, "predict_ai_likelihood_batch", lambda v: bad_output)
+        monkeypatch.setenv("AI_LIKELIHOOD_SHADOW", "1")
+
+        sections = self._sections(3)
+        assert _attach_window_ai_shadow(sections, vectors) == (None, None)
+        assert all(w.ai_probability is None for w in sections)
+
+
 class TestWindowAiShadowResponseContract:
     def test_schema_defaults_are_none(self):
         from original.schemas import BlendResultOut, WindowScoreOut
@@ -590,17 +740,21 @@ class TestWindowAiShadowResponseContract:
         window = WindowScoreOut(start=0, end=300, score=0.2, confidence="low")
         assert window.ai_probability is None
 
-    def test_router_passes_window_probabilities_through(self, monkeypatch):
+    def test_router_passes_window_probabilities_through(self, monkeypatch, store_reset):
         """
         The blend handler hand-builds its response field-by-field, so a new
         dataclass field is silently dropped unless the converter is updated.
         This exercises the real HTTP path with a stubbed detector result.
+
+        ``store_reset`` keeps the synthetic profile in a per-test tmp SQLite
+        file instead of whatever ORIGINAL_DB points at.
         """
         from fastapi.testclient import TestClient
 
         import original.context.blend as blend_module
         import run
-        from original import store
+
+        store = store_reset
 
         state = _state(3)
         state.student_id = "demo:blend-shadow-student"

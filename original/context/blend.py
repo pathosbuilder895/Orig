@@ -287,14 +287,16 @@ def _attach_window_ai_shadow(
         probabilities = predict_ai_likelihood_batch(
             np.vstack([vec for _, vec in indexed])  # raw, unmasked — it masks internally
         )
+        if probabilities is None:
+            return None, None
+        # Inside the guard on purpose: a predictor returning a ragged list, or
+        # one containing None, raises here — and a report-only signal must
+        # never surface as a 500 from the blend endpoint.
+        values = np.asarray(probabilities, dtype=np.float64).reshape(-1)
     except Exception as e:  # noqa: BLE001 — a report-only signal never breaks blend
         log.warning("blend: per-window AI-likelihood shadow failed (%s) — skipping", e)
         return None, None
 
-    if probabilities is None:
-        return None, None
-
-    values = np.asarray(probabilities, dtype=np.float64).reshape(-1)
     if values.shape[0] != len(indexed):
         # Cannot align → attach nothing rather than guess.
         log.warning(
