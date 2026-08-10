@@ -115,7 +115,17 @@ HYPERPARAMETER_PROVENANCE = (
     "sweep_development() in this module. The locked partition was not scored "
     "during selection. Both arms of the contrast necessarily share these "
     "values: the divergence isolates masking only if the estimator is "
-    "otherwise identical between arms."
+    "otherwise identical between arms. "
+    "Re-check result (standalone development AUC of the pre-registered gate "
+    "signal distorted_divergence, 2026-08-10): order 3 -> 0.744/0.747 "
+    "(matched/200k peer pool), order 4 -> 0.817/0.814, order 5 -> 0.815/0.821. "
+    "Order 3 is clearly worse; orders 4 and 5 are indistinguishable (0.814 vs "
+    "0.821 across 20 development authors) and the peer-pool size barely moves "
+    "anything. Phase 1's order=4/200k was therefore KEPT rather than re-tuned "
+    "to the nominal development maximum: chasing a 0.007 AUC difference at "
+    "this partition size is noise-fitting, and holding the value fixed keeps "
+    "this ablation directly comparable to the compression run. Abstention was "
+    "0.000 for all four signals at all six configurations."
 )
 
 
