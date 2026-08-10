@@ -71,7 +71,7 @@ pytest-cov==7.1.0
     # via -r requirements-dev.txt
 python-dateutil==2.9.0.post0
     # via matplotlib
-python-discovery==1.4.3
+python-discovery==1.5.1
     # via virtualenv
 pyyaml==6.0.3
     # via pre-commit
