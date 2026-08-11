@@ -451,6 +451,20 @@ def detect_blend(
                 # (this is a diagnostic re-score, not the
                 # primary scored call, so no calibration
                 # data is threaded through).
+                #
+                # No impostor_stats is passed, and that is
+                # deliberate: building the peer pool needs a
+                # repository scan per window. Consequence —
+                # under CHARACTERISTIC_WEIGHTS=on (and under
+                # NULL_MODEL=impostor) these per-window
+                # scores ABSTAIN while the document score in
+                # students_scoring.py does not, so window
+                # deviations are not directly comparable to
+                # the document deviation under those flags.
+                # Same divergence the admin playground has,
+                # for the same reason. Documented in the
+                # CLAUDE.md flag row; do not "fix" it by
+                # scanning the store once per window.
                 scoring_config=ScoringConfig.from_env(),
             )
             window_score = float(layer7.authorship.deviation_score)
