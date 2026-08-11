@@ -57,8 +57,29 @@ _fw_cache: dict[str, np.ndarray] = {}
 _vec_cache_dirty = False
 
 
+def _code_fingerprint() -> str:
+    """SHA-256 over the sources that determine a feature vector.
+
+    A cache keyed only on the text and FEATURE_DIM would silently survive a
+    change to the extraction code — and "I changed the features, now regenerate
+    the artifact" is precisely the workflow this script exists to serve. A
+    stale-but-well-formed cache is indistinguishable from a fresh one, so the
+    fingerprint is stored alongside the vectors and a mismatch discards them.
+    """
+    digest = hashlib.sha256()
+    sources = sorted((ROOT / "original" / "features").rglob("*.py"))
+    sources += [ROOT / "original" / "constants.py", ROOT / "original" / "fusion" / "channels.py"]
+    for path in sources:
+        digest.update(path.relative_to(ROOT).as_posix().encode())
+        digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
+_CODE_FINGERPRINT = _code_fingerprint()
+
+
 def _text_key(text: str) -> str:
-    return hashlib.sha256(f"fused_train.v1:{FEATURE_DIM}:{text}".encode()).hexdigest()
+    return hashlib.sha256(f"fused_train.v2:{FEATURE_DIM}:{text}".encode()).hexdigest()
 
 
 def _load_vec_cache() -> None:
@@ -66,6 +87,14 @@ def _load_vec_cache() -> None:
         return
     try:
         stored = np.load(_VEC_CACHE_PATH, allow_pickle=False)
+        fingerprint = str(stored["fingerprint"]) if "fingerprint" in stored else ""
+        if fingerprint != _CODE_FINGERPRINT:
+            print(
+                "feature cache: extraction code changed since it was written "
+                "— discarding and recomputing",
+                flush=True,
+            )
+            return
         _vec_cache.update(zip([str(k) for k in stored["keys"]], stored["vectors"]))
         print(f"feature cache: loaded {len(_vec_cache)} vectors", flush=True)
     except Exception as exc:  # noqa: BLE001 — a corrupt cache must not block training
@@ -76,12 +105,14 @@ def _save_vec_cache() -> None:
     if not _vec_cache_dirty:
         return
     _VEC_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    keys = list(_vec_cache)
     np.savez_compressed(
         _VEC_CACHE_PATH,
-        keys=np.array(list(_vec_cache)),
-        vectors=np.stack(list(_vec_cache.values())),
+        keys=np.array(keys),
+        vectors=np.stack([_vec_cache[k] for k in keys]),
+        fingerprint=np.array(_CODE_FINGERPRINT),
     )
-    print(f"feature cache: saved {len(_vec_cache)} vectors", flush=True)
+    print(f"feature cache: saved {len(keys)} vectors", flush=True)
 
 
 def _vector(text: str) -> np.ndarray:
@@ -125,15 +156,31 @@ def _raw(profile: dict, probe_vec, probe_text, probe_fw) -> list[float]:
 
 
 def _trials(authors, reference_pool, rng):
-    """(X, y) with y=1 meaning impostor. Ring assignment for impostor probes."""
+    """(X, y) with y=1 meaning impostor. Ring assignment for impostor probes.
+
+    References are drawn from ``reference_pool`` and the trial subject is always
+    excluded from their own reference set, mirroring production
+    (``peers.select_references`` filters on ``student_id != claimed_state.student_id``).
+    Without that exclusion the first ``N_REFERENCES`` authors of a self-referential
+    pool would be contrasted against their own baseline, deflating their
+    ``own - peer`` rows and skewing every value fitted from them.
+    """
     profiles = [_profile(list(a.baselines)) for a in authors]
-    ref_profiles = [_profile(list(a.baselines)) for a in reference_pool[:N_REFERENCES]]
+    pool_profiles = {id(a): _profile(list(a.baselines)) for a in reference_pool[: N_REFERENCES + 1]}
     order = list(range(len(authors)))
     rng.shuffle(order)
     impostor_of = {order[i]: order[(i + 1) % len(order)] for i in range(len(order))}
 
     rows, labels = [], []
     for index, author in enumerate(authors):
+        # Exactly N_REFERENCES peers, never the subject themselves — take one
+        # extra from the pool whenever the subject is in it.
+        refs = [pool_profiles[id(a)] for a in reference_pool[: N_REFERENCES + 1] if a is not author]
+        ref_profiles = refs[:N_REFERENCES]
+        if len(ref_profiles) != N_REFERENCES:
+            raise SystemExit(
+                f"reference pool too small: got {len(ref_profiles)}, need {N_REFERENCES}"
+            )
         probes = [(t, 0) for t in author.probes]
         probes += [(t, 1) for t in authors[impostor_of[index]].probes]
         for text, label in probes:
