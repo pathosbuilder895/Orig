@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 
 import numpy as np
 import pytest
@@ -12,6 +13,25 @@ from original.fusion import artifact as artifact_module
 from original.fusion import peers
 from original.fusion.expert import FusedScoreResult, predict_fused_score
 from original.quantum.state import BaselineSample, StudentState
+
+_EXPERT_LOGGER = "original.fusion.expert"
+
+
+def _expert_warnings(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+    """WARNING+ records emitted by the expert module during the captured call.
+
+    Used to discriminate an expected abstain (no WARNING; the guard returns
+    cleanly) from a masked crash (the blanket handler logs a WARNING with
+    the same None return value). A guard that has been deleted lets
+    execution fall through to an AttributeError that the blanket handler
+    converts to None — this is what should make these tests fail.
+    """
+    return [
+        record
+        for record in caplog.records
+        if record.name == _EXPERT_LOGGER and record.levelno >= logging.WARNING
+    ]
+
 
 _LONG = (
     "However, a reader might ask why these claims have been made; therefore we reply "
@@ -141,36 +161,69 @@ def test_supplied_and_extracted_vectors_agree(fixture_artifact):
     assert with_vector == without
 
 
-def test_abstains_on_short_probe(fixture_artifact):
+def test_abstains_on_short_probe(fixture_artifact, caplog):
     claimed = _state("t1:alice")
-    assert predict_fused_score("too short", claimed, [claimed] + _cohort()) is None
+    with caplog.at_level(logging.DEBUG, logger=_EXPERT_LOGGER):
+        result = predict_fused_score("too short", claimed, [claimed] + _cohort())
+    assert result is None
+    assert not _expert_warnings(caplog), "expected abstain, not a masked crash"
 
 
-def test_abstains_below_three_text_carrying_baselines(fixture_artifact):
+def test_abstains_below_three_text_carrying_baselines(fixture_artifact, caplog):
     claimed = _state("t1:alice", samples=2)
-    assert predict_fused_score(_LONG[:4000], claimed, [claimed] + _cohort()) is None
+    with caplog.at_level(logging.DEBUG, logger=_EXPERT_LOGGER):
+        result = predict_fused_score(_LONG[:4000], claimed, [claimed] + _cohort())
+    assert result is None
+    assert not _expert_warnings(caplog), "expected abstain, not a masked crash"
 
 
-def test_abstains_below_eight_peers(fixture_artifact):
+def test_abstains_below_eight_peers(fixture_artifact, caplog):
     claimed = _state("t1:alice")
-    assert predict_fused_score(_LONG[:4000], claimed, [claimed] + _cohort(5)) is None
+    with caplog.at_level(logging.DEBUG, logger=_EXPERT_LOGGER):
+        result = predict_fused_score(_LONG[:4000], claimed, [claimed] + _cohort(5))
+    assert result is None
+    assert not _expert_warnings(caplog), "expected abstain, not a masked crash"
 
 
-def test_abstains_when_the_artifact_is_unavailable(tmp_path, monkeypatch):
+def test_abstains_when_the_artifact_is_unavailable(tmp_path, monkeypatch, caplog):
     monkeypatch.setenv("FUSED_SCORE_MODEL_PATH", str(tmp_path / "absent.json"))
     artifact_module.reset_for_tests()
     peers.reset_cache_for_tests()
     claimed = _state("t1:alice")
-    assert predict_fused_score(_LONG[:4000], claimed, [claimed] + _cohort()) is None
+    with caplog.at_level(logging.DEBUG, logger=_EXPERT_LOGGER):
+        result = predict_fused_score(_LONG[:4000], claimed, [claimed] + _cohort())
+    assert result is None
+    assert not _expert_warnings(caplog), "expected abstain, not a masked crash"
 
 
-def test_never_raises_when_a_channel_explodes(fixture_artifact, monkeypatch):
+def test_abstains_on_probe_vector_shape_mismatch(fixture_artifact, caplog):
+    """Guard 5: ``_probe_vector`` returns None when the caller-supplied vector's
+    shape doesn't match the claimed student's baseline shape."""
+    claimed = _state("t1:alice")
+    wrong_shape = np.ones(FEATURE_DIM - 1, dtype=np.float64)
+    with caplog.at_level(logging.DEBUG, logger=_EXPERT_LOGGER):
+        result = predict_fused_score(
+            _LONG[:4000], claimed, [claimed] + _cohort(), probe_vector=wrong_shape
+        )
+    assert result is None
+    assert not _expert_warnings(caplog), "expected abstain, not a masked crash"
+
+
+def test_never_raises_when_a_channel_explodes(fixture_artifact, monkeypatch, caplog):
     monkeypatch.setattr(
         "original.fusion.expert.compression_distance",
         lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")),
     )
     claimed = _state("t1:alice")
-    assert predict_fused_score(_LONG[:4000], claimed, [claimed] + _cohort()) is None
+    with caplog.at_level(logging.DEBUG, logger=_EXPERT_LOGGER):
+        result = predict_fused_score(_LONG[:4000], claimed, [claimed] + _cohort())
+    assert result is None
+    # This *is* a genuine failure: the blanket handler must surface it at
+    # WARNING with a traceback, unlike the expected-abstain paths above.
+    warnings = _expert_warnings(caplog)
+    assert len(warnings) == 1
+    assert warnings[0].exc_info is not None
+    assert "boom" in warnings[0].getMessage()
 
 
 def test_honours_a_two_channel_artifact(tmp_path, monkeypatch):
@@ -197,3 +250,64 @@ def test_honours_a_two_channel_artifact(tmp_path, monkeypatch):
     result = predict_fused_score(_LONG[:4000], claimed, [claimed] + _cohort())
     assert result is not None
     assert set(result.channels) == {"peer_centered_z", "compression"}
+
+
+def test_channels_are_paired_with_their_own_weight_by_name(tmp_path, monkeypatch):
+    """Regression guard for dict-keyed (not positional) channel/weight alignment.
+
+    Every other artifact fixture in this file uses uniform weights, or a
+    ``channel_order`` that happens to already match
+    ``channels.CHANNEL_NAMES``. Either property hides a regression from
+    name-based lookup to positional zipping: uniform weights make the dot
+    product order-insensitive, and a matching order makes "by name" and "by
+    position" produce the same values. This artifact uses asymmetric
+    weights *and* a ``channel_order`` that reverses the first two canonical
+    channels (``compression`` before ``peer_centered_z``), so pairing by
+    position instead of by name changes the number.
+    """
+    channel_order = ["compression", "peer_centered_z"]
+    mu, sd, weights, intercept = [0.0, 0.0], [1.0, 1.0], [7.0, 2.0], 0.3
+    reference_inputs = [[0.1, 0.2]]
+    payload = {
+        "schema_version": 1,
+        "channel_order": channel_order,
+        "mu": mu,
+        "sd": sd,
+        "weights": weights,
+        "intercept": intercept,
+        "threshold_fa5": 0.5,
+        "threshold_fa1": 1.5,
+        "reference_inputs": reference_inputs,
+        "reference_outputs": [float(np.dot(reference_inputs[0], weights) + intercept)],
+        "provenance": {"dataset": "unit-test-alignment"},
+    }
+    path = tmp_path / "fused_alignment.json"
+    path.write_text(json.dumps(payload))
+    monkeypatch.setenv("FUSED_SCORE_MODEL_PATH", str(path))
+    artifact_module.reset_for_tests()
+    peers.reset_cache_for_tests()
+    claimed = _state("t1:alice")
+    result = predict_fused_score(_LONG[:4000], claimed, [claimed] + _cohort())
+    assert result is not None
+    assert set(result.channels) == {"compression", "peer_centered_z"}
+
+    # Ground truth computed independently: pair each channel's *own*
+    # centered value with its *own* weight, by name (mu=0, sd=1 here, so
+    # standardization is a no-op and this is just weights . centered +
+    # intercept).
+    expected = (
+        weights[0] * result.channels["compression"]
+        + weights[1] * result.channels["peer_centered_z"]
+        + intercept
+    )
+    assert result.fused_log_odds == pytest.approx(expected, abs=1e-4)
+
+    # Sanity: pairing the SAME centered values positionally against the
+    # OTHER channel's weight must give a materially different number, or
+    # this test couldn't actually detect the regression it targets.
+    wrong_by_position = (
+        weights[0] * result.channels["peer_centered_z"]
+        + weights[1] * result.channels["compression"]
+        + intercept
+    )
+    assert result.fused_log_odds != pytest.approx(wrong_by_position, abs=1e-4)

@@ -93,23 +93,33 @@ def predict_fused_score(
     too short, the claimed baseline carries fewer than three text samples,
     fewer than eight eligible same-tenant peers exist, the artifact is
     missing or invalid, or any channel fails.
+
+    Every abstain path is logged at DEBUG with a distinguishing reason —
+    these are ordinary operating states (a cold-start student, a
+    not-yet-installed artifact), not failures, and must not be confused in
+    the logs with the WARNING the blanket handler below emits for a genuine
+    bug.
     """
     try:
         # Cheapest checks first: a short probe or a missing artifact must not
         # pay for eight peer profiles before abstaining.
         if len(text.split()) < MIN_WORDS:
+            log.debug("Fused score abstain: probe below MIN_WORDS")
             return None
 
         model = load_artifact()
         if model is None:
+            log.debug("Fused score abstain: artifact unavailable")
             return None
 
         claimed_profile = build_profile(claimed_state)
         if claimed_profile is None:
+            log.debug("Fused score abstain: claimed baseline below MIN_BASELINES")
             return None
 
         references = select_references(claimed_state, states)
         if not references:
+            log.debug("Fused score abstain: fewer than N_REFERENCES eligible peers")
             return None
 
         probe_vec = _probe_vector(text, claimed_state, probe_vector)
@@ -138,7 +148,12 @@ def predict_fused_score(
             trained_on=model.trained_on,
         )
     except Exception as exc:  # noqa: BLE001
-        log.warning("Fused score failed (%s: %s); returning None", type(exc).__name__, exc)
+        log.warning(
+            "Fused score failed (%s: %s); returning None",
+            type(exc).__name__,
+            exc,
+            exc_info=True,
+        )
         return None
 
 
@@ -155,8 +170,8 @@ def _probe_vector(
 
         vector = np.asarray(feature_vector(text), dtype=np.float64)
     if vector.shape != claimed_state.baseline_mean.shape:
-        log.warning(
-            "Fused score: probe vector shape %s != baseline %s",
+        log.debug(
+            "Fused score abstain: probe vector shape %s != baseline %s",
             vector.shape,
             claimed_state.baseline_mean.shape,
         )
