@@ -42,6 +42,7 @@ from .db.models.live import (
     Correction,
     FidelityScore,
     FormationPathway,
+    FusedScore,
     ParkBeat,
     ParkSession,
     StaffUser,
@@ -334,6 +335,12 @@ class PostgresRepository:
                     )
                 )
                 session.execute(
+                    FusedScore.__table__.delete().where(
+                        FusedScore.tenant_id == tenant_id,
+                        FusedScore.student_id == local_id,
+                    )
+                )
+                session.execute(
                     SubmissionManifest.__table__.delete().where(
                         SubmissionManifest.tenant_id == tenant_id,
                         SubmissionManifest.student_id == local_id,
@@ -528,6 +535,12 @@ class PostgresRepository:
                         AiLikelihoodScore.student_id == local_id,
                     )
                 ).scalar_one()
+                fused_count = session.execute(
+                    select(func.count()).where(
+                        FusedScore.tenant_id == tenant_id,
+                        FusedScore.student_id == local_id,
+                    )
+                ).scalar_one()
                 name_row = session.get(StudentName, (tenant_id, local_id))
                 # Captured as plain values before the session closes below —
                 # ORM attribute access on a detached instance raises.
@@ -563,6 +576,7 @@ class PostgresRepository:
                     "instructor_corrections": {"count": int(correction_count)},
                     "audit_log_entries": {"count": int(audit_count)},
                     "ai_likelihood_scores": {"count": int(ai_likelihood_count)},
+                    "fused_scores": {"count": int(fused_count)},
                     "display_name": {"on_file": has_display_name},
                 },
                 "effective_sample_weight": state.effective_sample_count,
@@ -895,6 +909,75 @@ class PostgresRepository:
                 ]
         except Exception:
             log.exception("get_ai_likelihood_scores failed")
+            return []
+
+    def put_fused_score(
+        self,
+        submission_id,
+        student_id,
+        fused_log_odds,
+        probability,
+        band,
+        channels,
+        model_version="",
+    ):
+        try:
+            channels_json = json.dumps({k: float(v) for k, v in (channels or {}).items()})
+            with session_scope() as session:
+                tenant_id, local_id = split_scoped_id(student_id)
+                self._ensure_tenant_exists(session, tenant_id)
+                values = {
+                    "tenant_id": tenant_id,
+                    "student_id": local_id,
+                    "fused_log_odds": float(fused_log_odds),
+                    "probability": float(probability),
+                    "band": str(band),
+                    "channels_json": channels_json,
+                    "model_version": str(model_version),
+                    "created_at": datetime.now(UTC),
+                }
+                stmt = (
+                    pg_insert(FusedScore)
+                    .values(submission_id=submission_id, **values)
+                    .on_conflict_do_update(index_elements=["submission_id"], set_=values)
+                )
+                session.execute(stmt)
+        except Exception:
+            log.exception("put_fused_score failed for %s", submission_id)
+
+    def get_fused_scores(self, student_id=None, limit=500):
+        try:
+            with session_scope() as session:
+                stmt = select(FusedScore)
+                if student_id is not None:
+                    tenant_id, local_id = split_scoped_id(student_id)
+                    stmt = stmt.where(
+                        FusedScore.tenant_id == tenant_id,
+                        FusedScore.student_id == local_id,
+                    )
+                stmt = stmt.order_by(FusedScore.created_at.desc()).limit(int(limit))
+                rows = session.execute(stmt).scalars().all()
+                out = []
+                for row in rows:
+                    try:
+                        channels = json.loads(row.channels_json)
+                    except Exception:
+                        channels = {}
+                    out.append(
+                        {
+                            "submission_id": row.submission_id,
+                            "student_id": join_scoped_id(row.tenant_id, row.student_id),
+                            "fused_log_odds": row.fused_log_odds,
+                            "probability": row.probability,
+                            "band": row.band,
+                            "channels": {k: float(v) for k, v in channels.items()},
+                            "model_version": row.model_version,
+                            "created_at": row.created_at.isoformat() if row.created_at else "",
+                        }
+                    )
+                return out
+        except Exception:
+            log.exception("get_fused_scores failed")
             return []
 
     def get_genre_stats(self, genre, tenant, exclude_student_id):
