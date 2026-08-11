@@ -94,7 +94,7 @@ preshed==3.0.13
     # via
     #   spacy
     #   thinc
-pydantic==2.9.2
+pydantic==2.13.4
     # via
     #   -r requirements-demo.txt
     #   fastapi
