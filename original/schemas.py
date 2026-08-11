@@ -878,6 +878,17 @@ class Layer7OutputResponse(BaseModel):
     # Shadow-mode preview: what deviation_score WOULD be under inflation.
     # See Layer7Output.deviation_score_inflated.
     deviation_score_inflated: float | None = None
+    # Characteristic per-student feature weighting (CHARACTERISTIC_WEIGHTS)
+    # audit trail + shadow previews. Present on quantum.scoring.Layer7Output
+    # and copied through by routers/_shared.py's _to_response(). Defaults here
+    # match Layer7Output's own so any call site that doesn't pass them stays
+    # valid. characteristic_rms_z_preview / characteristic_deviation_preview
+    # are report-only and never influence `recommendation`.
+    characteristic_weighting_applied: bool = False
+    characteristic_mode: str | None = None
+    characteristic_factor_dispersion: float | None = None
+    characteristic_rms_z_preview: float | None = None
+    characteristic_deviation_preview: float | None = None
 
 
 # ── Student state summary ─────────────────────────────────────────────────────

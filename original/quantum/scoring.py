@@ -175,6 +175,128 @@ def _topic_inflation_vector(manifest: dict | None) -> np.ndarray | None:
     return 1.0 + TOPIC_INFLATE_GAIN * d_eff * _TOPIC_SENSITIVITY_VECTOR
 
 
+# ── Characteristic per-student feature weighting ─────────────────────────────
+#
+# Every other weighting mechanism in this module is POPULATION-derived: the
+# static TIER_WEIGHTS vector, the manifest's context-adaptive weights, the
+# per-tier length schedule. None of them ask which features are characteristic
+# of THIS student. The classic representative-and-distinctive criterion from
+# the stylometry literature is the ratio of between-author spread to
+# within-author spread, and both quantities are already in scope at the
+# weight-selection site: the impostor pool's sigma_null (null_pool.
+# build_impostor_stats) and the student's own baseline_std.
+#
+#     w_char_i  ∝  sigma_null_i / max(baseline_std_i, floor)
+#
+# Large ratio  = peers are all over the place on this feature but the student
+#                is consistent  → identity signal, weight it up.
+# Small ratio  = the student varies as much as the population does → noise.
+#
+# Floor: 0.005, the SAME value as null_pool.SIGMA_FLOOR and the hard minimum
+# inside state.baseline_std (and the same literal _llr_deviation floors
+# sigma_null with a few dozen lines below). state.baseline_std is in fact
+# ALREADY floored at max(0.005, 0.15/sqrt(N)) — strictly above this floor for
+# any real N — so the np.maximum here is defensive against a hand-built or
+# overridden std array, not load-bearing on the production path. A third
+# convention was deliberately not introduced.
+_CHARACTERISTIC_SIGMA_FLOOR = 0.005
+
+# The median-normalised ratio is clipped to the same [0.5, 2.0] band
+# LENGTH_WEIGHT_SCHEDULE's raw factors are clipped to. Without it a single
+# feature whose baseline_std sits at the floor while the peer pool is wide
+# can take a ratio in the tens and dominate rms_z on its own — the exact
+# single-feature-dominance failure the +-4 winsorisation exists to prevent
+# on the z side. Same ordering as LENGTH_WEIGHT_SCHEDULE: clip FIRST, then
+# Σ(w²)-rescale — so the RETURNED factors are the clipped band times a single
+# uniform alpha and can sit slightly outside [0.5, 2.0] (alpha < 1 whenever
+# the redistribution added variance). The bound constrains the RATIO spread,
+# not the post-rescale amplitude; letting the clip win instead would break
+# the Σ(w²) guarantee, which is the more important of the two.
+_CHARACTERISTIC_CLIP_LO = 0.5
+_CHARACTERISTIC_CLIP_HI = 2.0
+
+
+def _characteristic_weight_factor(
+    state: StudentState,
+    impostor_stats: tuple[np.ndarray, np.ndarray] | None,
+    base_weight_vec: np.ndarray,
+) -> np.ndarray | None:
+    """
+    Per-feature multiplier for ``base_weight_vec``, or None to abstain.
+
+    Returns None — rather than an all-ones array — on every ill-defined
+    input, so the caller can skip the multiply entirely and stay bit-for-bit
+    identical to flag-off rather than merely numerically close. Abstains when:
+
+      * ``impostor_stats`` is None (no peer pool — NULL_MODEL may be off, or
+        the tenant is below null_pool's cohort floors),
+      * the student has < 2 contributing baseline samples, where
+        ``state.baseline_std`` is the flat 0.15 uncertainty PRIOR rather than
+        a measurement of the student (the ratio would then be a statement
+        about the peer pool alone),
+      * shapes disagree with FEATURE_DIM, any input is non-finite or
+        negative, or the base weight vector is degenerate (Σ(w²) == 0, which
+        makes the rescale 0/0).
+
+    Normalisation: the raw ratios are divided by their median and clipped,
+    then rescaled so that ``sum((base_weight_vec × factor)²)`` equals
+    ``sum(base_weight_vec²)`` across the FEATURE_DIM features. That Σ(w²)
+    preservation is the load-bearing part and is NOT interchangeable with the
+    naive "mean factor = 1.0" normalisation — see the block comment on
+    LENGTH_WEIGHT_SCHEDULE in original/constants.py, which records that the
+    mean-1.0 fix left Σ(w²) inflated (variance adds to a sum of squares),
+    shifted mean deviation 0.796 → 0.893 on a 717-sample corpus, and
+    collapsed threshold-based classification. Preserving Σ(w²) means this
+    flag RE-DISTRIBUTES weight across features without inflating or deflating
+    the tanh-calibrated rms_z on average. The median division is therefore
+    only there to centre the ratios before the clip (a uniform rescale is
+    absorbed by the Σ(w²) step regardless).
+
+    The rescale is relative to the vector actually SELECTED by the caller
+    (static tier weights or the Phase-5 adaptive vector), which is why that
+    vector is a parameter rather than assumed to be _TIER_WEIGHT_VECTOR.
+    """
+    if impostor_stats is None:
+        return None
+    if state.authenticated_count < 2:
+        return None
+    try:
+        _mu_null, sigma_null = impostor_stats
+    except (TypeError, ValueError):
+        return None
+
+    sigma_null = np.asarray(sigma_null, dtype=np.float64)
+    base = np.asarray(base_weight_vec, dtype=np.float64)
+    baseline_std = np.asarray(state.baseline_std, dtype=np.float64)
+    if not (
+        sigma_null.shape == (FEATURE_DIM,)
+        and base.shape == (FEATURE_DIM,)
+        and baseline_std.shape == (FEATURE_DIM,)
+    ):
+        return None
+    if not (
+        np.all(np.isfinite(sigma_null))
+        and np.all(np.isfinite(base))
+        and np.all(np.isfinite(baseline_std))
+    ):
+        return None
+    if np.any(sigma_null < 0.0):
+        return None
+
+    ratio = sigma_null / np.maximum(baseline_std, _CHARACTERISTIC_SIGMA_FLOOR)
+    median = float(np.median(ratio))
+    if not np.isfinite(median) or median <= 0.0:
+        return None
+
+    factor = np.clip(ratio / median, _CHARACTERISTIC_CLIP_LO, _CHARACTERISTIC_CLIP_HI)
+
+    numer = float(np.sum(base**2))
+    denom = float(np.sum((base * factor) ** 2))
+    if not (np.isfinite(numer) and np.isfinite(denom)) or numer <= 0.0 or denom <= 0.0:
+        return None
+    return factor * float(np.sqrt(numer / denom))
+
+
 def _rms_z_from_z(
     z: np.ndarray,
     weight_vec: np.ndarray,
@@ -310,6 +432,24 @@ def _parse_topic_inflation_mode(raw: str) -> str:
     return "off"
 
 
+_CHARACTERISTIC_MODES = frozenset({"off", "shadow", "on"})
+
+
+def _parse_characteristic_mode(raw: str) -> str:
+    """
+    Map CHARACTERISTIC_WEIGHTS to a mode. Deliberately the same shape as
+    _parse_topic_inflation_mode above, including "1" as an alias for "on" and
+    the fall-back-to-"off" treatment of anything unrecognised: an unparseable
+    value must never silently enable a score-changing reweighting.
+    """
+    value = (raw or "").strip().lower()
+    if value == "1":
+        return "on"
+    if value in _CHARACTERISTIC_MODES:
+        return value
+    return "off"
+
+
 @dataclass(frozen=True)
 class ScoringConfig:
     """
@@ -381,6 +521,22 @@ class ScoringConfig:
     #   "on"     — inflate sigma for real. CHANGES SCORES. Gated on gate G7
     #              passing in both hold-out directions.
     topic_variance_inflation: str = "off"
+    # Characteristic per-student feature weighting (see
+    # _characteristic_weight_factor above). Weights each feature by the ratio
+    # of between-student spread (the impostor pool's sigma_null) to
+    # within-student spread (this student's baseline_std), Σ(w²)-preserving.
+    #   "off"    — DEFAULT. Byte-identical to Phase 1.
+    #   "shadow" — weight_vec is NOT touched; the reweighted rms_z and the
+    #              deviation score it would produce are attached report-only
+    #              as characteristic_rms_z_preview /
+    #              characteristic_deviation_preview, alongside
+    #              characteristic_factor_dispersion. The only way to learn
+    #              whether the factor is non-trivial on real traffic before
+    #              letting it move a verdict.
+    #   "on"     — CHANGES SCORES. Not validated: gate G-P3 requires the
+    #              leave-one-genre-out corpus in
+    #              validation/genre_crossgenre_2026-08/ and has not been run.
+    characteristic_weights: str = "off"
 
     # ── formerly call-time `from ..store import ...` ──────────────────────────
     # Confirmed-authentic fidelity scores for this student, for the conformal
@@ -395,7 +551,7 @@ class ScoringConfig:
 
     @classmethod
     def from_env(cls) -> ScoringConfig:
-        """Build a config from the current environment. The ONE place these eleven vars are read."""
+        """Build a config from the current environment. The ONE place these twelve vars are read."""
         return cls(
             bayesian_prior_enabled=os.environ.get("BAYESIAN_PRIOR_ENABLED", "0") == "1",
             prior_weight=float(os.environ.get("PRIOR_WEIGHT", "3.0")),
@@ -410,6 +566,9 @@ class ScoringConfig:
             llr_action_mode=os.environ.get("LLR_ACTION_MODE", "gate"),
             topic_variance_inflation=_parse_topic_inflation_mode(
                 os.environ.get("TOPIC_VARIANCE_INFLATION", "0")
+            ),
+            characteristic_weights=_parse_characteristic_mode(
+                os.environ.get("CHARACTERISTIC_WEIGHTS", "0")
             ),
         )
 
@@ -482,6 +641,31 @@ class Layer7Output:
     # None unless config.topic_variance_inflation == "shadow" and the topic
     # distance cleared the novelty floor. Never influences `recommendation`.
     deviation_score_inflated: float | None = field(default=None)
+
+    # ── Characteristic per-student feature weighting (audit trail) ───────────
+    # All five stay at their defaults unless config.characteristic_weights is
+    # "on"/"shadow" AND the factor was computable (impostor pool present, >= 2
+    # contributing baseline samples — see _characteristic_weight_factor).
+    #
+    # True only in "on" mode with a real factor: the reported deviation_score
+    # was produced under reweighted weights.
+    characteristic_weighting_applied: bool = field(default=False)
+    # "on" | "shadow" — which mode actually computed a factor. None when the
+    # flag is off OR the mechanism abstained, so a None here is the signal
+    # that a shadow soak learned nothing from this submission.
+    characteristic_mode: str | None = field(default=None)
+    # mean(|factor − 1|) over all FEATURE_DIM features. The instrumentation
+    # that answers "how far from 1.0 is this factor actually getting?" —
+    # populated in BOTH shadow and on. 0.0 would mean the mechanism is inert
+    # in practice regardless of what a corpus study says about it (the
+    # GENRE_INVARIANT_WEIGHTS_ENABLED failure mode).
+    characteristic_factor_dispersion: float | None = field(default=None)
+    # Shadow-mode previews: the reweighted rms_z, and the deviation_score it
+    # would have produced. None in "on" mode (where the live score already IS
+    # that number) and None when off/abstaining. Never influence
+    # `recommendation`.
+    characteristic_rms_z_preview: float | None = field(default=None)
+    characteristic_deviation_preview: float | None = field(default=None)
 
     # Corpus-level AI-likelihood (orthogonal signal, set at the API layer
     # after quantum score when AI_LIKELIHOOD_ENABLED=1). Report-only: never
@@ -869,6 +1053,32 @@ def score(
     # byte-identical results.
     weight_vec = adaptive_weights if adaptive_weights is not None else _TIER_WEIGHT_VECTOR
 
+    # ── Characteristic per-student weighting ─────────────────────────────────
+    # Order is deliberate and must stay select -> characteristic -> length.
+    # The Σ(w²) rescale inside _characteristic_weight_factor is relative to
+    # the vector just SELECTED above, so it has to run before the length
+    # schedule multiplies in its own (separately Σ(w²)-preserving) factors;
+    # running it after would rescale against a vector that already carries
+    # the length redistribution and silently undo part of it.
+    #
+    # _char_weight_vec is the "what would `on` produce" vector. In shadow mode
+    # it survives to the preview block below and `weight_vec` is left
+    # completely untouched — every downstream consumer of weight_vec
+    # (_rms_z_from_z, _llr_deviation, _amplitude_score) therefore sees exactly
+    # the flag-off vector, which is what makes shadow inert rather than
+    # nearly-inert. In "on" mode the roles swap: weight_vec becomes the
+    # reweighted vector and there is nothing left to preview.
+    _char_factor: np.ndarray | None = None
+    if config.characteristic_weights in ("on", "shadow"):
+        _char_factor = _characteristic_weight_factor(state, impostor_stats, weight_vec)
+    _char_weight_vec: np.ndarray | None = None
+    if _char_factor is not None:
+        _char_weight_vec = weight_vec * _char_factor
+        if config.characteristic_weights == "on":
+            weight_vec = _char_weight_vec
+            _char_weight_vec = None
+    _characteristic_applied = _char_factor is not None and config.characteristic_weights == "on"
+
     # ── Length-adaptive tier scaling ─────────────────────────────────────────
     # When config.length_adaptive_weights, scale the per-feature weight vector
     # by a per-tier factor that depends on the submission's word count. Tiers
@@ -878,6 +1088,10 @@ def score(
     if config.length_adaptive_weights:
         _bucket = _length_bucket_for(int(n_tokens))
         weight_vec = weight_vec * _LENGTH_SCALE_VECTORS[_bucket]
+        # The shadow preview must mirror "on" exactly, and "on" reaches this
+        # multiply with the characteristic factor already folded in.
+        if _char_weight_vec is not None:
+            _char_weight_vec = _char_weight_vec * _LENGTH_SCALE_VECTORS[_bucket]
 
     # Winsorise individual feature z-scores before weighting.
     # A single feature with |z| > 4 contributes 16× to the rms_z² sum —
@@ -908,6 +1122,17 @@ def score(
         _z_inflated = (sub_raw - mu) / (sigma * topic_inflation)
         _rms_z_inflated = _rms_z_from_z(_z_inflated, weight_vec, active, n_active)
 
+    # ── Shadow-mode preview (characteristic weighting) ───────────────────────
+    # Same z, same active mask, same n_active — only the weight vector
+    # differs, which is precisely what "on" would have changed. Non-None only
+    # in shadow mode with a computable factor (_char_weight_vec was cleared
+    # above in "on" mode). Converted through tanh alongside D_adjusted below,
+    # for the same reason the topic preview is: deviation_score is D_adjusted,
+    # not D_raw, and adj_factor does not exist yet here.
+    _char_rms_z_preview: float | None = None
+    if _char_weight_vec is not None:
+        _char_rms_z_preview = _rms_z_from_z(z, _char_weight_vec, active, n_active)
+
     # ── Two-axis verification: typicality axis (conformal, LOO-based) ────────
     # Gated by config.typicality_scoring_enabled (default OFF, preserves
     # byte-identical Phase 1 behaviour). See original/quantum/typicality.py
@@ -930,8 +1155,23 @@ def score(
     # comparison against loo_distances stays valid — and typicality_band
     # feeds _recommend() when IDENTITY_AXIS is on, so withholding it in
     # shadow would let shadow change an action. Shadow must be inert.
+    #
+    # `_characteristic_applied` joins the same guard for the identical
+    # reason, and is stated explicitly rather than left to the
+    # `adaptive_weights is None` clause: characteristic weighting reweights
+    # the STATIC tier vector too (adaptive_weights stays None on that path),
+    # so implicit coverage would be no coverage at all. Same "on"-only
+    # keying as _sigma_was_inflated — in shadow, weight_vec is never
+    # modified, so rms_z stays comparable to loo_distances and withholding
+    # the band would let shadow change an action via _recommend()'s
+    # IDENTITY_AXIS wiring.
     _sigma_was_inflated = topic_inflation is not None and config.topic_variance_inflation == "on"
-    if config.typicality_scoring_enabled and adaptive_weights is None and not _sigma_was_inflated:
+    if (
+        config.typicality_scoring_enabled
+        and adaptive_weights is None
+        and not _sigma_was_inflated
+        and not _characteristic_applied
+    ):
         from .typicality import NO_ACTION_CENTRAL_THRESHOLD, band_from_p, p_central
         from .typicality import p_far as p_far_fn
 
@@ -1106,6 +1346,17 @@ def score(
             np.clip(np.tanh(_rms_z_inflated / 1.5) * adj_factor, 0.0, 1.0)
         )
 
+    # Characteristic-weighting shadow preview, same coupling and for the same
+    # reason: adj_factor depends only on xi and state.trajectory.vector,
+    # neither of which reweighting touches, so applying it here is what makes
+    # characteristic_deviation_preview equal to what "on" mode's
+    # deviation_score would be for ANY trajectory direction.
+    characteristic_deviation_preview: float | None = None
+    if _char_rms_z_preview is not None:
+        characteristic_deviation_preview = float(
+            np.clip(np.tanh(_char_rms_z_preview / 1.5) * adj_factor, 0.0, 1.0)
+        )
+
     # ── Interference decomposition ────────────────────────────────────────────
     # Use local `mu` (potentially Bayesian-blended) so interference deltas
     # are computed against the same reference distribution as the z-scores.
@@ -1244,6 +1495,13 @@ def score(
             float(np.mean(topic_inflation)) if topic_inflation is not None else None
         ),
         deviation_score_inflated=deviation_score_inflated,
+        characteristic_weighting_applied=_characteristic_applied,
+        characteristic_mode=(config.characteristic_weights if _char_factor is not None else None),
+        characteristic_factor_dispersion=(
+            float(np.mean(np.abs(_char_factor - 1.0))) if _char_factor is not None else None
+        ),
+        characteristic_rms_z_preview=_char_rms_z_preview,
+        characteristic_deviation_preview=characteristic_deviation_preview,
     )
 
 

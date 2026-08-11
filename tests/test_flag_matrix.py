@@ -23,8 +23,19 @@ from original.quantum.null_pool import build_impostor_stats
 from original.quantum.scoring import Layer7Output, ScoringConfig, score
 from original.quantum.state import BaselineSample, StudentState
 
-FLAGS = ["CONTEXT_MANIFEST_ENABLED", "ADAPTIVE_WEIGHTS_ENABLED", "AMPLITUDE_SCORING_ENABLED"]
-MATRIX = list(itertools.product("01", repeat=len(FLAGS)))  # 8 combos
+# CHARACTERISTIC_WEIGHTS is a three-mode flag ("off"/"shadow"/"on"), but its
+# parser accepts "1" as an alias for "on" precisely so it reads like every
+# other boolean flag in the table — which is what lets it join this matrix's
+# "0"/"1" convention unchanged. "1" here therefore exercises the
+# score-CHANGING mode, which is the one that has to stay sane under every
+# other flag combination. "shadow" gets its own dedicated test below.
+FLAGS = [
+    "CONTEXT_MANIFEST_ENABLED",
+    "ADAPTIVE_WEIGHTS_ENABLED",
+    "AMPLITUDE_SCORING_ENABLED",
+    "CHARACTERISTIC_WEIGHTS",
+]
+MATRIX = list(itertools.product("01", repeat=len(FLAGS)))  # 16 combos
 NULLS = ["none", "impostor"]
 
 SUBMISSION_TEXT = (
@@ -132,18 +143,55 @@ def test_default_flags_match_all_off_exactly(monkeypatch):
     """Flags unset must behave byte-identically to explicitly '0'/'none'
     (Phase-1 guarantee)."""
     unset = _run(monkeypatch, dict.fromkeys(FLAGS + ["NULL_MODEL"]))
-    explicit = _score(monkeypatch, ("0", "0", "0"), "none")
+    explicit = _score(monkeypatch, ("0", "0", "0", "0"), "none")
     assert unset.authorship.deviation_score == pytest.approx(
         explicit.authorship.deviation_score, abs=1e-12
     )
     assert unset.recommendation.action == explicit.recommendation.action
 
 
+def test_characteristic_weights_shadow_is_attach_only(monkeypatch):
+    """CHARACTERISTIC_WEIGHTS=shadow may attach its previews but must never
+    change deviation_score or the action. Routed through the real wiring
+    (run_adaptive_pipeline + ScoringConfig.from_env + build_impostor_stats)
+    rather than score()'s internals, so a shadow leak shows up here."""
+    off = _run(
+        monkeypatch,
+        {
+            "CONTEXT_MANIFEST_ENABLED": "1",
+            "ADAPTIVE_WEIGHTS_ENABLED": "1",
+            "AMPLITUDE_SCORING_ENABLED": "0",
+            "CHARACTERISTIC_WEIGHTS": "off",
+            "NULL_MODEL": "impostor",
+        },
+    )
+    shadow = _run(
+        monkeypatch,
+        {
+            "CONTEXT_MANIFEST_ENABLED": "1",
+            "ADAPTIVE_WEIGHTS_ENABLED": "1",
+            "AMPLITUDE_SCORING_ENABLED": "0",
+            "CHARACTERISTIC_WEIGHTS": "shadow",
+            "NULL_MODEL": "impostor",
+        },
+    )
+    assert shadow.authorship.deviation_score == pytest.approx(
+        off.authorship.deviation_score, abs=1e-12
+    )
+    assert shadow.recommendation.action == off.recommendation.action
+    assert shadow.characteristic_weighting_applied is False
+    assert off.characteristic_mode is None
+    # The peer pool is present here, so shadow must actually have something
+    # to say — otherwise this test would pass on a no-op implementation.
+    assert shadow.characteristic_mode == "shadow"
+    assert shadow.characteristic_deviation_preview is not None
+
+
 def test_null_model_is_attach_only(monkeypatch):
     """NULL_MODEL=impostor may attach llr_deviation_score but must never
     change deviation_score or the action (documented attach-only contract)."""
-    off = _score(monkeypatch, ("1", "1", "0"), "none")
-    on = _score(monkeypatch, ("1", "1", "0"), "impostor")
+    off = _score(monkeypatch, ("1", "1", "0", "0"), "none")
+    on = _score(monkeypatch, ("1", "1", "0", "0"), "impostor")
     assert on.authorship.deviation_score == pytest.approx(off.authorship.deviation_score, abs=1e-12)
     assert on.recommendation.action == off.recommendation.action
     assert off.authorship.llr_deviation_score is None
