@@ -488,7 +488,39 @@ def apply_gate(primary: dict, corroboration: dict | None) -> dict:
             verdicts[code]["failed"].append(f"mutual_redundancy_with:{clash}")
             verdicts[code]["dropped_for"] = clash
 
-    return {"per_feature": verdicts, "frozen_list": kept}
+    # ── Three-valued verdict ────────────────────────────────────────────────
+    # validation/README.md: gate verdicts are pass / fail / uninformative, and
+    # a gate that cannot separate the cases it exists to separate downgrades a
+    # would-be pass to uninformative -- it must never be quoted as a pass.
+    #
+    # A filter that admits EVERY candidate has demonstrated no ability to tell
+    # a feature worth adding from one that is not. This is a property of the
+    # gate, evaluable from the gate's own output, not a new threshold: no
+    # criterion below is altered, and the raw accept-list is still reported as
+    # ``gate_output``. ``frozen_list`` -- what Phase 5B would consume -- is
+    # empty unless the verdict is an actual pass.
+    if not kept:
+        verdict = "fail"
+        reason = "no candidate cleared the pre-registered criteria"
+    elif len(kept) == len(CANDIDATE_CODES):
+        verdict = "uninformative"
+        reason = (
+            "every candidate cleared every criterion, so the gate did not "
+            "discriminate; see the calibration baseline in "
+            "validation/verify/dependency_redundancy.py, where the seven "
+            "features already in the production vector clear the same bars"
+        )
+    else:
+        verdict = "pass"
+        reason = f"{len(kept)} of {len(CANDIDATE_CODES)} candidates cleared every criterion"
+
+    return {
+        "per_feature": verdicts,
+        "gate_output": kept,
+        "verdict": verdict,
+        "verdict_reason": reason,
+        "frozen_list": kept if verdict == "pass" else [],
+    }
 
 
 def run(n_authors: int = DEFAULT_N_AUTHORS, results_path: Path = DEFAULT_RESULTS_PATH) -> dict:
@@ -543,7 +575,7 @@ def _print_table(report: dict) -> None:
     for code in sorted(CANDIDATE_CODES, key=lambda c: primary["features"][c]["auc"], reverse=True):
         row = primary["features"][code]
         cross = corroboration["features"][code]["auc"] if corroboration else float("nan")
-        status = "KEEP" if code in gate["frozen_list"] else "drop: " + ",".join(
+        status = "clears" if code in gate["gate_output"] else "drop: " + ",".join(
             gate["per_feature"][code]["failed"]
         )
         print(
@@ -572,7 +604,12 @@ def _print_table(report: dict) -> None:
         f"tier5 as-is {cost['tier5_asis_ms_per_document']:.0f} ms/doc, "
         f"mean {cost['mean_words_per_document']:.0f} words/doc"
     )
-    print(f"\nG-P5a frozen list ({len(gate['frozen_list'])}): {gate['frozen_list']}")
+    print(
+        f"\nG-P5a verdict: {gate['verdict'].upper()} "
+        f"({len(gate['gate_output'])}/{len(CANDIDATE_CODES)} candidates cleared)"
+    )
+    print(f"  {gate['verdict_reason']}")
+    print(f"frozen list for Phase 5B ({len(gate['frozen_list'])}): {gate['frozen_list']}")
     print(f"wall clock: {report['wall_clock_seconds']:.0f}s")
 
 

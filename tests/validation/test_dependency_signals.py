@@ -275,6 +275,70 @@ def test_icc1_is_high_for_separated_groups_and_zero_for_noise():
     assert icc1(rng.normal(size=100), index) < 0.30
 
 
+def _gate_input(per_code: dict, mutual: dict | None = None) -> dict:
+    codes = list(per_code)
+    return {
+        "features": {
+            code: {
+                "auc": values[0],
+                "icc1": values[1],
+                "max_abs_r_existing": values[2],
+                "max_abs_r_existing_with": "adjective_rate",
+            }
+            for code, values in per_code.items()
+        },
+        "mutual_correlations": {
+            a: {b: (mutual or {}).get((a, b), (mutual or {}).get((b, a), 0.0)) for b in codes}
+            for a in codes
+        },
+    }
+
+
+def test_gate_reports_uninformative_when_every_candidate_clears():
+    """The result this probe actually produced. A filter that admits all 14
+    candidates has shown no ability to separate them, so under
+    validation/README.md's three-valued convention it is uninformative and the
+    frozen list Phase 5B would consume must be empty."""
+    from validation.verify.dependency_probe import apply_gate
+
+    primary = _gate_input({code: (0.62, 0.55, 0.4) for code in CANDIDATE_CODES})
+    gate = apply_gate(primary, None)
+    assert gate["verdict"] == "uninformative"
+    assert len(gate["gate_output"]) == len(CANDIDATE_CODES)
+    assert gate["frozen_list"] == []
+
+
+def test_gate_passes_and_freezes_when_it_actually_discriminates():
+    from validation.verify.dependency_probe import apply_gate
+
+    per_code = {code: (0.40, 0.05, 0.99) for code in CANDIDATE_CODES}
+    per_code["dep_conj_rate"] = (0.62, 0.55, 0.40)
+    gate = apply_gate(_gate_input(per_code), None)
+    assert gate["verdict"] == "pass"
+    assert gate["frozen_list"] == ["dep_conj_rate"]
+
+
+def test_gate_fails_when_nothing_clears():
+    from validation.verify.dependency_probe import apply_gate
+
+    gate = apply_gate(_gate_input({code: (0.40, 0.05, 0.99) for code in CANDIDATE_CODES}), None)
+    assert gate["verdict"] == "fail"
+    assert gate["frozen_list"] == []
+
+
+def test_gate_drops_the_lower_auc_member_of_a_correlated_pair():
+    from validation.verify.dependency_probe import apply_gate
+
+    per_code = {code: (0.40, 0.05, 0.99) for code in CANDIDATE_CODES}
+    per_code["dep_conj_rate"] = (0.65, 0.55, 0.40)
+    per_code["dep_subord_coord_ratio"] = (0.60, 0.55, 0.40)
+    gate = apply_gate(
+        _gate_input(per_code, {("dep_conj_rate", "dep_subord_coord_ratio"): -0.94}), None
+    )
+    assert gate["frozen_list"] == ["dep_conj_rate"]
+    assert gate["per_feature"]["dep_subord_coord_ratio"]["dropped_for"] == "dep_conj_rate"
+
+
 def test_build_pairs_excludes_same_author_same_group_pairs():
     from validation.verify.dependency_probe import ProbeDocument, build_pairs
 
