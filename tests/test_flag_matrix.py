@@ -103,8 +103,15 @@ def _run(monkeypatch, env: dict) -> Layer7Output:
     )
 
     scoring_config = ScoringConfig.from_env()
+    # Mirror students_scoring.py's pool condition EXACTLY. It is not
+    # `null_model == "impostor"` any more: CHARACTERISTIC_WEIGHTS also needs
+    # the peer pool (its factor is sigma_null / baseline_std) and abstains to
+    # identity without one. Mirroring the old condition here would have made
+    # the 8 CHARACTERISTIC_WEIGHTS="1" x NULL_MODEL="none" combos exercise an
+    # abstaining no-op while this module's docstring advertises them as
+    # exercising the score-CHANGING mode.
     impostor_stats = None
-    if scoring_config.null_model == "impostor":
+    if scoring_config.null_model == "impostor" or scoring_config.characteristic_weights != "off":
         impostor_stats = build_impostor_stats(state.student_id, [state, *_PEER_STATES])
 
     return score(
@@ -185,6 +192,25 @@ def test_characteristic_weights_shadow_is_attach_only(monkeypatch):
     # to say — otherwise this test would pass on a no-op implementation.
     assert shadow.characteristic_mode == "shadow"
     assert shadow.characteristic_deviation_preview is not None
+
+
+@pytest.mark.parametrize("null", NULLS)
+def test_characteristic_on_is_not_a_no_op_under_either_null_model(monkeypatch, null):
+    """The matrix's CHARACTERISTIC_WEIGHTS="1" combos must exercise the
+    score-CHANGING mode under BOTH null models, not silently abstain under
+    NULL_MODEL="none".
+
+    Without the peer pool the factor abstains to identity, so half the matrix
+    would have been asserting sanity properties about flag-off arithmetic
+    while claiming to cover the flag. Pins the observable consequence of
+    _run's pool condition rather than the condition's source text."""
+    off = _score(monkeypatch, ("1", "1", "0", "0"), null)
+    on = _score(monkeypatch, ("1", "1", "0", "1"), null)
+    assert off.characteristic_mode is None
+    assert on.characteristic_mode == "on"
+    assert on.characteristic_weighting_applied is True
+    assert on.characteristic_factor_dispersion > 0.0
+    assert on.authorship.deviation_score != pytest.approx(off.authorship.deviation_score, abs=1e-12)
 
 
 def test_null_model_is_attach_only(monkeypatch):

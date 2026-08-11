@@ -132,7 +132,15 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             _impostor_stats = build_impostor_stats(student_id, _repo().all_states())
         except Exception:
             logging.getLogger(__name__).exception(
-                "impostor pool build failed for %s — llr score skipped", student_id
+                # Two consumers now depend on this pool, and which ones are
+                # live depends on the flags — naming only the llr route here
+                # is actively misleading during the one incident where
+                # anyone reads this line.
+                "impostor pool build failed for %s — dependent signals skipped "
+                "(null_model=%s characteristic_weights=%s)",
+                student_id,
+                _scoring_config_env.null_model,
+                _scoring_config_env.characteristic_weights,
             )
 
     # ── ScoringConfig persistence lookups (WS-7 step 1) ───────────────────────
