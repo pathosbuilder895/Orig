@@ -15,7 +15,7 @@
 pytest>=8.2,<9
 pytest-asyncio==1.4.0
 pytest-cov==7.1.0
-hypothesis==6.156.6
+hypothesis==6.165.2
 
 # Lint/format/type-check + git hook runner.
 ruff==0.6.9
