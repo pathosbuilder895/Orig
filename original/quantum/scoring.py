@@ -37,6 +37,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from original.ai_likelihood import AiLikelihoodResult
+    from original.fusion.expert import FusedScoreResult
     from original.quantum.longitudinal import DriftAnalysis
     from original.style_authorship import StyleAuthorshipResult
     from original.tension_arc import TensionArcResult
@@ -323,6 +324,11 @@ class Layer7Output:
     # Peer-aligned modern authorship consistency expert. Default-off and
     # report-only; never feeds deviation_score or the recommendation.
     style_authorship: StyleAuthorshipResult | None = field(default=None)
+
+    # Report-only fused stylometric score (original/fusion/). Set at the
+    # students_scoring call site, never here — this module must stay unaware
+    # the component exists, which is what makes the invariant testable.
+    fused_score: FusedScoreResult | None = field(default=None)
 
     # Report-only chronological model.  Computed by the live API after the
     # production score so it cannot influence score math or recommendations.

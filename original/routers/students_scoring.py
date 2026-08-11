@@ -262,6 +262,45 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
                 submission_id,
             )
 
+    # ── Fused stylometric score (report-only, two modes) ──────────────────────
+    #   FUSED_SCORE_SHADOW=1  → compute + persist ONLY; result.fused_score stays
+    #     None, so narrative/explainer/response never see it. This is how the
+    #     pilot false-alarm rate gets measured before the score is trusted.
+    #   FUSED_SCORE_ENABLED=1 → attach AND persist (strict superset).
+    # Never touches deviation_score, quantum_fidelity, or the recommendation;
+    # tests/fusion/test_wiring.py holds that invariant.
+    _fused_enabled = os.environ.get("FUSED_SCORE_ENABLED") == "1"
+    _fused_shadow = os.environ.get("FUSED_SCORE_SHADOW") == "1"
+    if _fused_enabled or _fused_shadow:
+        try:
+            from ..fusion import predict_fused_score
+
+            # `vec` is the probe's already-extracted feature vector; passing it
+            # keeps this signal from re-running the most expensive step in scoring.
+            _fused = predict_fused_score(req.text, state, _repo().all_states(), probe_vector=vec)
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "fused score inference failed for %s — signal skipped", submission_id
+            )
+            _fused = None
+        if _fused is not None:
+            if _fused_enabled:
+                result.fused_score = _fused
+            try:
+                _repo().put_fused_score(
+                    submission_id=submission_id,
+                    student_id=student_id,
+                    fused_log_odds=_fused.fused_log_odds,
+                    probability=_fused.probability_different_author,
+                    band=_fused.band,
+                    channels=_fused.channels,
+                    model_version=_fused.model_version,
+                )
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    "fused score persistence failed for %s", submission_id
+                )
+
     # ── Persist quantum fidelity for conformal calibration ───────────────────
     # Stores every scored fidelity so get_authentic_fidelities() can build
     # a calibration set for the conformal p-value on future submissions.
