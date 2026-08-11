@@ -241,9 +241,13 @@ CHANNEL_NAMES: tuple[str, ...] = (
 )
 
 # ── Channel 1: diagonal z ─────────────────────────────────────────────────────
-# Mirrors quantum/scoring.py's primary formulation exactly: winsorize |z| at
-# 4 sigma, RMS across features, tanh(rms / 1.5). Callers pass baseline_mean /
-# baseline_std straight from StudentState so the two can never drift apart.
+# Same shape as quantum/scoring.py's primary formulation — winsorize |z| at
+# 4 sigma, RMS across features, tanh(rms / 1.5) — but deliberately WITHOUT the
+# tier weight vector and the active-feature mask. This channel is peer-centered
+# downstream, so a per-feature prior that applies equally to the claimed author
+# and to all eight references would cancel out; leaving it off keeps the channel
+# a plain distance. Callers pass baseline_mean / baseline_std straight from
+# StudentState so the moments can never drift from production.
 _Z_CAP = 4.0
 _TANH_DIVISOR = 1.5
 _SIGMA_HARD_FLOOR = 0.005
@@ -1021,7 +1025,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `channels.*` (Task 1), `peers.select_references` / `peers.build_profile` / `peers.Profile` (Task 2), `artifact.load_artifact` (Task 3).
 - Produces:
   - `@dataclass(frozen=True) FusedScoreResult` with `fused_log_odds: float`, `probability_different_author: float`, `band: str`, `channels: dict[str, float]`, `reference_profiles: int`, `baseline_samples: int`, `model_version: str`, `trained_on: str`
-  - `predict_fused_score(text: str, claimed_state: StudentState, states: Iterable[StudentState]) -> FusedScoreResult | None`
+  - `predict_fused_score(text: str, claimed_state: StudentState, states: Iterable[StudentState], *, probe_vector: np.ndarray | None = None) -> FusedScoreResult | None`
   - `reset_for_tests() -> None`
 
 - [ ] **Step 1: Write the failing tests**
@@ -1137,6 +1141,39 @@ def test_result_is_deterministic(fixture_artifact):
     first = predict_fused_score(_LONG[:4000], claimed, cohort)
     second = predict_fused_score(_LONG[:4000], claimed, cohort)
     assert first == second
+
+
+def test_supplied_probe_vector_avoids_re_extraction(fixture_artifact, monkeypatch):
+    """The scoring path hands over the vector it already has; we must use it."""
+    import original.features.pipeline as pipeline
+
+    calls = {"n": 0}
+    real = pipeline.feature_vector
+
+    def counting(text):
+        calls["n"] += 1
+        return real(text)
+
+    monkeypatch.setattr(pipeline, "feature_vector", counting)
+    claimed = _state("t1:alice")
+    supplied = np.asarray(real(_LONG[:4000]), dtype=np.float64)
+    calls["n"] = 0
+    result = predict_fused_score(
+        _LONG[:4000], claimed, [claimed] + _cohort(), probe_vector=supplied
+    )
+    assert result is not None
+    assert calls["n"] == 0, "probe_vector was ignored and features were re-extracted"
+
+
+def test_supplied_and_extracted_vectors_agree(fixture_artifact):
+    from original.features.pipeline import feature_vector
+
+    claimed = _state("t1:alice")
+    cohort = [claimed] + _cohort()
+    supplied = np.asarray(feature_vector(_LONG[:4000]), dtype=np.float64)
+    with_vector = predict_fused_score(_LONG[:4000], claimed, cohort, probe_vector=supplied)
+    without = predict_fused_score(_LONG[:4000], claimed, cohort)
+    assert with_vector == without
 
 
 def test_abstains_on_short_probe(fixture_artifact):
@@ -1288,8 +1325,15 @@ def predict_fused_score(
     text: str,
     claimed_state: StudentState,
     states: Iterable[StudentState],
+    *,
+    probe_vector: np.ndarray | None = None,
 ) -> FusedScoreResult | None:
     """Fused, peer-centered evidence weight — or ``None`` when unavailable.
+
+    ``probe_vector`` lets the scoring path hand over the feature vector it
+    has already extracted. Feature extraction is the most expensive step in
+    scoring, and re-running it here would double that cost for every
+    submission; omit the argument only in tests and offline tools.
 
     Returns None (never raises, never a partial result) when the probe is
     too short, the claimed baseline carries fewer than three text samples,
@@ -1314,7 +1358,7 @@ def predict_fused_score(
         if not references:
             return None
 
-        probe_vec = _probe_vector(text, claimed_state)
+        probe_vec = _probe_vector(text, claimed_state, probe_vector)
         if probe_vec is None:
             return None
         probe_fw = function_word_matrix(text)
@@ -1345,17 +1389,18 @@ def predict_fused_score(
         return None
 
 
-def _probe_vector(text: str, claimed_state: StudentState) -> np.ndarray | None:
-    """Feature vector for the probe.
+def _probe_vector(
+    text: str,
+    claimed_state: StudentState,
+    supplied: np.ndarray | None,
+) -> np.ndarray | None:
+    """The probe's feature vector: the caller's if given, else extracted here."""
+    if supplied is not None:
+        vector = np.asarray(supplied, dtype=np.float64)
+    else:
+        from ..features.pipeline import feature_vector
 
-    ``predict_fused_score`` is called from the scoring path, which has
-    already extracted this vector — but the public signature deliberately
-    matches ``predict_style_authorship`` (text, state, states), so extract
-    here and let the caller's cache absorb the cost.
-    """
-    from ..features.pipeline import feature_vector
-
-    vector = np.asarray(feature_vector(text), dtype=np.float64)
+        vector = np.asarray(feature_vector(text), dtype=np.float64)
     if vector.shape != claimed_state.baseline_mean.shape:
         log.warning(
             "Fused score: probe vector shape %s != baseline %s",
@@ -1383,12 +1428,12 @@ __all__ = ["FusedScoreResult", "predict_fused_score", "reset_for_tests"]
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `.venv/bin/python -m pytest tests/fusion/test_expert.py -q`
-Expected: PASS — 10 passed
+Expected: PASS — 12 passed
 
 - [ ] **Step 5: Run the whole fusion suite**
 
 Run: `.venv/bin/python -m pytest tests/fusion/ -q`
-Expected: PASS — 44 passed
+Expected: PASS — 46 passed
 
 - [ ] **Step 6: Commit**
 
@@ -2467,7 +2512,11 @@ In `original/routers/students_scoring.py`, immediately after the `STYLE_AUTHORSH
         try:
             from ..fusion import predict_fused_score
 
-            _fused = predict_fused_score(req.text, state, _repo().all_states())
+            # `vec` is the probe's already-extracted feature vector; passing it
+            # keeps this signal from re-running the most expensive step in scoring.
+            _fused = predict_fused_score(
+                req.text, state, _repo().all_states(), probe_vector=vec
+            )
         except Exception:
             logging.getLogger(__name__).exception(
                 "fused score inference failed for %s — signal skipped", submission_id
@@ -2539,7 +2588,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 Run after Task 7. Every line must pass before the branch is considered done.
 
-- [ ] `.venv/bin/python -m pytest tests/fusion/ -q` → all pass (~57 tests)
+- [ ] `.venv/bin/python -m pytest tests/fusion/ -q` → all pass (~59 tests)
 - [ ] `.venv/bin/python -m pytest tests/ -q` → **0 failed**
 - [ ] `.venv/bin/python -c "import original.quantum.scoring"` with both flags unset → no `original.fusion` import (verify with `python -X importtime` or `sys.modules` check)
 - [ ] `git grep -n "fused" original/quantum/scoring.py` → only the `Layer7Output` field and its comment; no call into `original.fusion`
