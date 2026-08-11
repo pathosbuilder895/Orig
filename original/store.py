@@ -1154,6 +1154,7 @@ def get_fused_scores(student_id: str | None = None, limit: int = 500) -> list[di
         for row in rows:
             try:
                 channels = _json.loads(row[5])
+                channels = {k: float(v) for k, v in channels.items()}
             except Exception:
                 channels = {}
             out.append(
@@ -1163,7 +1164,7 @@ def get_fused_scores(student_id: str | None = None, limit: int = 500) -> list[di
                     "fused_log_odds": row[2],
                     "probability": row[3],
                     "band": row[4],
-                    "channels": {k: float(v) for k, v in channels.items()},
+                    "channels": channels,
                     "model_version": row[6],
                     "created_at": row[7],
                 }

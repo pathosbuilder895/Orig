@@ -961,6 +961,7 @@ class PostgresRepository:
                 for row in rows:
                     try:
                         channels = json.loads(row.channels_json)
+                        channels = {k: float(v) for k, v in channels.items()}
                     except Exception:
                         channels = {}
                     out.append(
@@ -970,7 +971,7 @@ class PostgresRepository:
                             "fused_log_odds": row.fused_log_odds,
                             "probability": row.probability,
                             "band": row.band,
-                            "channels": {k: float(v) for k, v in channels.items()},
+                            "channels": channels,
                             "model_version": row.model_version,
                             "created_at": row.created_at.isoformat() if row.created_at else "",
                         }
