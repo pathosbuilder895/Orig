@@ -85,7 +85,7 @@ numpy==2.2.6
     #   scipy
     #   spacy
     #   thinc
-packaging==26.2
+packaging==26.3
     # via
     #   spacy
     #   thinc
