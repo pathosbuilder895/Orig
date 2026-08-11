@@ -220,6 +220,7 @@ def _characteristic_weight_factor(
     state: StudentState,
     impostor_stats: tuple[np.ndarray, np.ndarray] | None,
     base_weight_vec: np.ndarray,
+    active: np.ndarray,
 ) -> np.ndarray | None:
     """
     Per-feature multiplier for ``base_weight_vec``, or None to abstain.
@@ -235,26 +236,64 @@ def _characteristic_weight_factor(
         a measurement of the student (the ratio would then be a statement
         about the peer pool alone),
       * shapes disagree with FEATURE_DIM, any input is non-finite or
-        negative, or the base weight vector is degenerate (Σ(w²) == 0, which
-        makes the rescale 0/0).
+        negative, the active mask selects nothing, or the base weight vector
+        is degenerate over the active set (Σ(w²) == 0, which makes the
+        rescale 0/0).
+
+    ``active`` is ``state.active_feature_mask`` as the caller already
+    computed it, and it is NOT an optional refinement — see "which feature
+    set" below.
 
     Normalisation: the raw ratios are divided by their median and clipped,
     then rescaled so that ``sum((base_weight_vec × factor)²)`` equals
-    ``sum(base_weight_vec²)`` across the FEATURE_DIM features. That Σ(w²)
-    preservation is the load-bearing part and is NOT interchangeable with the
-    naive "mean factor = 1.0" normalisation — see the block comment on
-    LENGTH_WEIGHT_SCHEDULE in original/constants.py, which records that the
-    mean-1.0 fix left Σ(w²) inflated (variance adds to a sum of squares),
-    shifted mean deviation 0.796 → 0.893 on a 717-sample corpus, and
-    collapsed threshold-based classification. Preserving Σ(w²) means this
-    flag RE-DISTRIBUTES weight across features without inflating or deflating
-    the tanh-calibrated rms_z on average. The median division is therefore
-    only there to centre the ratios before the clip (a uniform rescale is
-    absorbed by the Σ(w²) step regardless).
+    ``sum(base_weight_vec²)``. That Σ(w²) preservation is the load-bearing
+    part and is NOT interchangeable with the naive "mean factor = 1.0"
+    normalisation — see the block comment on LENGTH_WEIGHT_SCHEDULE in
+    original/constants.py, which records that the mean-1.0 fix left Σ(w²)
+    inflated (variance adds to a sum of squares), shifted mean deviation
+    0.796 → 0.893 on a 717-sample corpus, and collapsed threshold-based
+    classification. Preserving Σ(w²) means this flag RE-DISTRIBUTES weight
+    across features without inflating or deflating the tanh-calibrated rms_z
+    on average. The median division is therefore only there to centre the
+    ratios before the clip (a uniform rescale is absorbed by the Σ(w²) step
+    regardless).
+
+    WHICH feature set Σ(w²) is preserved over: the ACTIVE one. Every
+    consumer of the weight vector (``_rms_z_from_z``, ``_llr_deviation``,
+    ``encode_amplitudes``) multiplies by ``active`` and divides by
+    ``n_active``, so the only sum of squares that reaches rms_z is the one
+    taken over active features. Normalising over all FEATURE_DIM features
+    instead does NOT hold rms_z fixed on average, and the error is not
+    random: the inactive set is systematically at the clip FLOOR. Tier 17 +
+    Tier 18 (12 features, and the two highest tier weights — ~18% of the
+    static Σ(w²)) are in DISABLED_FEATURE_GROUPS by default, so every
+    baseline sample carries exactly 0.5 there; the peer pool is equally
+    constant, which pins sigma_null at null_pool.SIGMA_FLOOR while
+    baseline_std sits at its own adaptive floor, and the ratio lands
+    deterministically on _CHARACTERISTIC_CLIP_LO. Releasing that energy and
+    handing it to the live features through one uniform alpha measured
+    +16% active Σ(w²) and a ×1.08 rms_z on a realistic profile (5 baselines,
+    4 peers, n_active = 95/109) — i.e. a uniform upward false-positive bias
+    unrelated to how characteristic anything is, which is the same regression
+    class constants.py records for the mean-1.0 normalisation. Both sums are
+    preserved here in fact, because inactive features are left at exactly
+    1.0 and the rescale only touches the active ones; the active set is the
+    one that is load-bearing.
 
     The rescale is relative to the vector actually SELECTED by the caller
     (static tier weights or the Phase-5 adaptive vector), which is why that
     vector is a parameter rather than assumed to be _TIER_WEIGHT_VECTOR.
+
+    Denominator caveat: the within-student spread in the ratio is
+    ``state.baseline_std`` — the student's OWN measured spread. When
+    BAYESIAN_PRIOR_ENABLED=1 and the student is cold-start, the `sigma` that
+    standardises z at the call site is a blend of that and the cohort prior's
+    std, so the two are not the same quantity. That is deliberate: the factor
+    is a claim about how internally consistent THIS student is relative to
+    peers, and blending peer spread into the denominator would partially
+    cancel the numerator (sigma_null is drawn from the same peer population).
+    It does mean the factor is not exactly ``sigma_null / sigma_used_for_z``
+    under that flag combination.
     """
     if impostor_stats is None:
         return None
@@ -268,10 +307,12 @@ def _characteristic_weight_factor(
     sigma_null = np.asarray(sigma_null, dtype=np.float64)
     base = np.asarray(base_weight_vec, dtype=np.float64)
     baseline_std = np.asarray(state.baseline_std, dtype=np.float64)
+    active_mask = np.asarray(active).astype(bool)
     if not (
         sigma_null.shape == (FEATURE_DIM,)
         and base.shape == (FEATURE_DIM,)
         and baseline_std.shape == (FEATURE_DIM,)
+        and active_mask.shape == (FEATURE_DIM,)
     ):
         return None
     if not (
@@ -282,19 +323,33 @@ def _characteristic_weight_factor(
         return None
     if np.any(sigma_null < 0.0):
         return None
+    if not active_mask.any():
+        return None
 
     ratio = sigma_null / np.maximum(baseline_std, _CHARACTERISTIC_SIGMA_FLOOR)
-    median = float(np.median(ratio))
+    # Median over ACTIVE features only, for the same reason as the rescale:
+    # the inactive ratios are pinned constants, so including them drags the
+    # centring point by an amount that depends on how many features happen to
+    # be disabled rather than on the student.
+    median = float(np.median(ratio[active_mask]))
     if not np.isfinite(median) or median <= 0.0:
         return None
 
-    factor = np.clip(ratio / median, _CHARACTERISTIC_CLIP_LO, _CHARACTERISTIC_CLIP_HI)
+    # Inactive features keep an exact 1.0. They are masked out of every
+    # consumer anyway, so the value is inert — but pinning it means Σ(w²) is
+    # preserved over the full vector as well as the active set, and it keeps
+    # dead features out of characteristic_factor_dispersion's arithmetic.
+    factor = np.ones(FEATURE_DIM, dtype=np.float64)
+    factor[active_mask] = np.clip(
+        ratio[active_mask] / median, _CHARACTERISTIC_CLIP_LO, _CHARACTERISTIC_CLIP_HI
+    )
 
-    numer = float(np.sum(base**2))
-    denom = float(np.sum((base * factor) ** 2))
+    numer = float(np.sum(base[active_mask] ** 2))
+    denom = float(np.sum((base[active_mask] * factor[active_mask]) ** 2))
     if not (np.isfinite(numer) and np.isfinite(denom)) or numer <= 0.0 or denom <= 0.0:
         return None
-    return factor * float(np.sqrt(numer / denom))
+    factor[active_mask] *= float(np.sqrt(numer / denom))
+    return factor
 
 
 def _rms_z_from_z(
@@ -524,7 +579,9 @@ class ScoringConfig:
     # Characteristic per-student feature weighting (see
     # _characteristic_weight_factor above). Weights each feature by the ratio
     # of between-student spread (the impostor pool's sigma_null) to
-    # within-student spread (this student's baseline_std), Σ(w²)-preserving.
+    # within-student spread (this student's baseline_std), Σ(w²)-preserving
+    # OVER THE ACTIVE FEATURE SET (the only one rms_z sums over — see the
+    # helper's docstring; normalising over all 109 inflates every score).
     #   "off"    — DEFAULT. Byte-identical to Phase 1.
     #   "shadow" — weight_vec is NOT touched; the reweighted rms_z and the
     #              deviation score it would produce are attached report-only
@@ -654,11 +711,14 @@ class Layer7Output:
     # flag is off OR the mechanism abstained, so a None here is the signal
     # that a shadow soak learned nothing from this submission.
     characteristic_mode: str | None = field(default=None)
-    # mean(|factor − 1|) over all FEATURE_DIM features. The instrumentation
-    # that answers "how far from 1.0 is this factor actually getting?" —
-    # populated in BOTH shadow and on. 0.0 would mean the mechanism is inert
-    # in practice regardless of what a corpus study says about it (the
-    # GENRE_INVARIANT_WEIGHTS_ENABLED failure mode).
+    # mean(|factor − 1|) over the ACTIVE features (state.active_feature_mask)
+    # — not all FEATURE_DIM. The instrumentation that answers "how far from
+    # 1.0 is this factor actually getting?" — populated in BOTH shadow and
+    # on. 0.0 would mean the mechanism is inert in practice regardless of
+    # what a corpus study says about it (the GENRE_INVARIANT_WEIGHTS_ENABLED
+    # failure mode), which is exactly why inactive features must be excluded:
+    # they cannot move any score, so counting them makes the flag look less
+    # inert than it is.
     characteristic_factor_dispersion: float | None = field(default=None)
     # Shadow-mode previews: the reweighted rms_z, and the deviation_score it
     # would have produced. None in "on" mode (where the live score already IS
@@ -1061,6 +1121,12 @@ def score(
     # running it after would rescale against a vector that already carries
     # the length redistribution and silently undo part of it.
     #
+    # `active` is passed through because the Σ(w²) invariant has to hold over
+    # the ACTIVE feature set — the only one rms_z actually sums over. See the
+    # helper's docstring: normalising over all FEATURE_DIM features instead
+    # inflates rms_z ~8% on the default config, because the disabled tiers
+    # sit deterministically at the clip floor.
+    #
     # _char_weight_vec is the "what would `on` produce" vector. In shadow mode
     # it survives to the preview block below and `weight_vec` is left
     # completely untouched — every downstream consumer of weight_vec
@@ -1070,7 +1136,7 @@ def score(
     # reweighted vector and there is nothing left to preview.
     _char_factor: np.ndarray | None = None
     if config.characteristic_weights in ("on", "shadow"):
-        _char_factor = _characteristic_weight_factor(state, impostor_stats, weight_vec)
+        _char_factor = _characteristic_weight_factor(state, impostor_stats, weight_vec, active)
     _char_weight_vec: np.ndarray | None = None
     if _char_factor is not None:
         _char_weight_vec = weight_vec * _char_factor
@@ -1498,7 +1564,17 @@ def score(
         characteristic_weighting_applied=_characteristic_applied,
         characteristic_mode=(config.characteristic_weights if _char_factor is not None else None),
         characteristic_factor_dispersion=(
-            float(np.mean(np.abs(_char_factor - 1.0))) if _char_factor is not None else None
+            # ACTIVE features only. Inactive features are pinned at exactly
+            # 1.0 by the helper, so averaging over all FEATURE_DIM would
+            # dilute the number with a block of structural zeros that say
+            # nothing about the student — and, before the active-set fix,
+            # the same slots were pinned at the clip bound and INFLATED it
+            # (measured on the realistic profile: 0.217 over all vs 0.155
+            # over active, the 14 dead features averaging 0.480). This
+            # metric is the whole basis
+            # of the anti-inert-flag argument and of the prescribed shadow
+            # soak, so it has to describe features that can move a score.
+            float(np.mean(np.abs(_char_factor[active] - 1.0))) if _char_factor is not None else None
         ),
         characteristic_rms_z_preview=_char_rms_z_preview,
         characteristic_deviation_preview=characteristic_deviation_preview,

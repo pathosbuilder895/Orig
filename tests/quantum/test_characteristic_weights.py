@@ -23,12 +23,14 @@ import dataclasses
 import numpy as np
 import pytest
 
-from original.constants import ALL_FEATURE_CODES, FEATURE_DIM
+from original.constants import ALL_FEATURE_CODES, FEATURE_DIM, TIER17_CODES, TIER18_CODES
+from original.quantum.null_pool import build_impostor_stats
 from original.quantum.scoring import (
     _CHARACTERISTIC_SIGMA_FLOOR,
     _TIER_WEIGHT_VECTOR,
     ScoringConfig,
     _characteristic_weight_factor,
+    _rms_z_from_z,
     score,
 )
 from original.quantum.state import BaselineSample, StudentState
@@ -62,6 +64,73 @@ def _state_with_baseline(seed=11, n=5, student_id="char-test") -> StudentState:
     return state
 
 
+def _char_factor(state, impostor_stats, weight_vec, active=None):
+    """Call the helper the way score() does — with the state's REAL active
+    mask, not an assumed all-ones one."""
+    return _characteristic_weight_factor(
+        state,
+        impostor_stats,
+        weight_vec,
+        state.active_feature_mask if active is None else active,
+    )
+
+
+# ── Realistic active mask ────────────────────────────────────────────────────
+#
+# _state_with_baseline above gives every one of the 109 features genuine
+# variance, so its active mask is all-True and any invariant stated "over the
+# active set" is indistinguishable from the same invariant stated over all
+# FEATURE_DIM features. That is not the production shape. In the default
+# pilot config Tier 17 (behavioral) and Tier 18 (uniformity) are in
+# DISABLED_FEATURE_GROUPS, so every baseline vector carries exactly 0.5 in
+# those 12 slots, and a handful of features are never observed at all —
+# active_feature_mask drops both classes. Those slots carry the two HIGHEST
+# tier weights, and their sigma_null/baseline_std ratio is pinned by
+# construction (a constant peer pool floors sigma_null at
+# null_pool.SIGMA_FLOOR), so they land deterministically on the clip floor.
+# Normalising Σ(w²) over all features therefore released their weight to the
+# live features and inflated rms_z ~8%.
+_DEAD_CODES = ("chiasmus_rate", "structural_centrist_penalty", "hendiadys_rate")
+_PLACEHOLDER_IDX = [
+    i for i, c in enumerate(ALL_FEATURE_CODES) if c in set(TIER17_CODES) | set(TIER18_CODES)
+]
+_DEAD_IDX = [i for i, c in enumerate(ALL_FEATURE_CODES) if c in _DEAD_CODES]
+
+
+def _realistic_vector(rng):
+    v = np.clip(rng.normal(0.5, 0.05, size=FEATURE_DIM), 0.0, 1.0)
+    v[_PLACEHOLDER_IDX] = 0.5  # disabled groups -> exact neutral placeholder
+    v[_DEAD_IDX] = 0.0  # never observed in any baseline doc
+    return v
+
+
+def _realistic_state(seed=11, n=5, student_id="t1:char-real") -> StudentState:
+    rng = np.random.default_rng(seed)
+    state = StudentState(student_id=student_id)
+    for i in range(n):
+        state.add_sample(
+            BaselineSample(
+                text=f"baseline {i}",
+                vector=_realistic_vector(rng),
+                provenance="proctored",
+                auth_weight=1.0,
+                assignment=f"a{i}",
+            )
+        )
+    return state
+
+
+def _realistic_pool(n_peers=4, n_each=3):
+    """A peer pool built through the PRODUCTION builder, so the disabled
+    tiers get null_pool.SIGMA_FLOOR rather than a hand-chosen sigma."""
+    peers = [
+        _realistic_state(seed=100 + k, n=n_each, student_id=f"t1:peer{k}") for k in range(n_peers)
+    ]
+    stats = build_impostor_stats("t1:char-real", peers)
+    assert stats is not None
+    return stats
+
+
 def _impostor_stats(seed=7):
     """A peer pool whose per-feature spread VARIES across features — a flat
     sigma_null would make every ratio proportional to 1/baseline_std, which
@@ -93,7 +162,7 @@ def _submission(seed=99):
 
 def test_sum_of_squares_is_preserved_for_the_tier_weight_vector():
     state = _state_with_baseline()
-    factor = _characteristic_weight_factor(state, _impostor_stats(), _TIER_WEIGHT_VECTOR)
+    factor = _char_factor(state, _impostor_stats(), _TIER_WEIGHT_VECTOR)
     assert factor is not None
     w = _TIER_WEIGHT_VECTOR
     assert float(np.sum((w * factor) ** 2)) == pytest.approx(float(np.sum(w**2)), rel=1e-12)
@@ -106,7 +175,7 @@ def test_sum_of_squares_is_preserved_for_arbitrary_weight_vectors(seed):
     rng = np.random.default_rng(seed)
     state = _state_with_baseline(seed=seed + 30)
     w = rng.uniform(0.2, 2.0, size=FEATURE_DIM)
-    factor = _characteristic_weight_factor(state, _impostor_stats(seed=seed + 60), w)
+    factor = _char_factor(state, _impostor_stats(seed=seed + 60), w)
     assert factor is not None
     assert float(np.sum((w * factor) ** 2)) == pytest.approx(float(np.sum(w**2)), rel=1e-12)
 
@@ -115,43 +184,138 @@ def test_factor_is_non_trivial_so_the_invariant_is_not_vacuous():
     """A factor that is identically 1.0 would satisfy the invariant trivially.
     Assert the mechanism actually redistributes: some features up, some down."""
     state = _state_with_baseline()
-    factor = _characteristic_weight_factor(state, _impostor_stats(), _TIER_WEIGHT_VECTOR)
+    factor = _char_factor(state, _impostor_stats(), _TIER_WEIGHT_VECTOR)
     assert factor is not None
     assert factor.shape == (FEATURE_DIM,)
     assert float(factor.max()) > 1.0
     assert float(factor.min()) < 1.0
 
 
+# ── 1b. Sigma(w^2) invariant under a REALISTIC active mask ───────────────────
+#
+# These are the tests the two above cannot be: with an all-True mask the
+# active-set invariant and the all-features invariant are literally the same
+# assertion. Each of these FAILS against a helper that normalises over all
+# FEATURE_DIM features (measured on this fixture: active Sigma(w^2) +16%,
+# rms_z x1.077, deviation +0.033 at rms_z=1.0).
+
+
+def test_the_realistic_fixture_actually_has_an_incomplete_active_mask():
+    """Guard the guard: if this fixture ever goes all-active, the three tests
+    below silently stop testing anything."""
+    state = _realistic_state()
+    active = state.active_feature_mask
+    n_active = int(active.sum())
+    assert n_active < FEATURE_DIM
+    # The disabled tiers are the systematic part, and they are the ones that
+    # carry the highest tier weights.
+    assert not active[_PLACEHOLDER_IDX].any()
+    assert not active[_DEAD_IDX].any()
+    # Enough of the vector must survive for the test to be about a real score.
+    assert n_active > FEATURE_DIM * 0.8
+
+
+def test_sum_of_squares_is_preserved_over_the_active_set():
+    """Sigma(w^2) must be invariant over the feature set rms_z actually sums
+    over. _rms_z_from_z zeroes inactive features and divides by n_active, so
+    weight released from an inactive feature is weight invented from nothing."""
+    state = _realistic_state()
+    active = state.active_feature_mask
+    w = _TIER_WEIGHT_VECTOR
+    factor = _char_factor(state, _realistic_pool(), w)
+    assert factor is not None
+    before = float(np.sum((w**2)[active]))
+    after = float(np.sum(((w * factor) ** 2)[active]))
+    assert after == pytest.approx(before, rel=1e-12)
+
+
+def test_rms_z_is_unchanged_on_average_under_a_realistic_active_mask():
+    """The stated PURPOSE of the Sigma(w^2) rescale: redistribute weight
+    without inflating or deflating the tanh-calibrated rms_z on average. A
+    uniform z-vector is exactly the 'on average' case."""
+    state = _realistic_state()
+    active = state.active_feature_mask
+    n_active = int(active.sum())
+    w = _TIER_WEIGHT_VECTOR
+    factor = _char_factor(state, _realistic_pool(), w)
+    assert factor is not None
+    z = np.ones(FEATURE_DIM)
+    assert _rms_z_from_z(z, w * factor, active, n_active) == pytest.approx(
+        _rms_z_from_z(z, w, active, n_active), rel=1e-12
+    )
+
+
+def test_inactive_features_are_pinned_at_exactly_one():
+    """Two consequences: Sigma(w^2) is preserved over the FULL vector as well
+    as the active set, and dead features contribute exactly nothing to
+    characteristic_factor_dispersion instead of sitting at the clip bound."""
+    state = _realistic_state()
+    active = state.active_feature_mask
+    w = _TIER_WEIGHT_VECTOR
+    factor = _char_factor(state, _realistic_pool(), w)
+    assert factor is not None
+    assert np.all(factor[~active] == 1.0)
+    assert float(np.sum((w * factor) ** 2)) == pytest.approx(float(np.sum(w**2)), rel=1e-12)
+    # Still non-trivial where it counts, so the invariant is not vacuous.
+    assert float(factor[active].max()) > 1.0
+    assert float(factor[active].min()) < 1.0
+
+
+def test_abstains_when_the_active_mask_selects_nothing():
+    state = _realistic_state()
+    nothing = np.zeros(FEATURE_DIM, dtype=bool)
+    assert _char_factor(state, _realistic_pool(), _TIER_WEIGHT_VECTOR, active=nothing) is None
+
+
+def test_dispersion_is_reported_over_active_features_only():
+    """characteristic_factor_dispersion is the entire basis of the
+    anti-inert-flag argument and of the prescribed shadow soak, so it must
+    describe features that can actually move a score."""
+    state = _realistic_state()
+    active = state.active_feature_mask
+    out = _score_with(state, _submission(), "shadow", impostor_stats=_realistic_pool())
+    factor = _char_factor(state, _realistic_pool(), _TIER_WEIGHT_VECTOR)
+    assert factor is not None
+    assert out.characteristic_factor_dispersion == pytest.approx(
+        float(np.mean(np.abs(factor[active] - 1.0)))
+    )
+    # Distinct from the all-features average, which the pinned 1.0s dilute.
+    assert out.characteristic_factor_dispersion != pytest.approx(
+        float(np.mean(np.abs(factor - 1.0)))
+    )
+    assert out.characteristic_factor_dispersion > 0.0
+
+
 # ── 2. Abstention ────────────────────────────────────────────────────────────
 
 
 def test_abstains_without_impostor_stats():
-    assert _characteristic_weight_factor(_state_with_baseline(), None, _TIER_WEIGHT_VECTOR) is None
+    assert _char_factor(_state_with_baseline(), None, _TIER_WEIGHT_VECTOR) is None
 
 
 def test_abstains_on_a_thin_baseline():
     """With < 2 contributing samples baseline_std is the flat 0.15 uncertainty
     prior, not a measurement of the student — the ratio is meaningless."""
     thin = _state_with_baseline(n=1)
-    assert _characteristic_weight_factor(thin, _impostor_stats(), _TIER_WEIGHT_VECTOR) is None
+    assert _char_factor(thin, _impostor_stats(), _TIER_WEIGHT_VECTOR) is None
 
 
 def test_abstains_on_malformed_or_non_finite_impostor_sigma():
     state = _state_with_baseline()
     mu_null = np.full(FEATURE_DIM, 0.5)
     bad_shape = (mu_null, np.full(FEATURE_DIM - 3, 0.1))
-    assert _characteristic_weight_factor(state, bad_shape, _TIER_WEIGHT_VECTOR) is None
+    assert _char_factor(state, bad_shape, _TIER_WEIGHT_VECTOR) is None
 
     nan_sigma = np.full(FEATURE_DIM, 0.1)
     nan_sigma[4] = np.nan
-    assert _characteristic_weight_factor(state, (mu_null, nan_sigma), _TIER_WEIGHT_VECTOR) is None
+    assert _char_factor(state, (mu_null, nan_sigma), _TIER_WEIGHT_VECTOR) is None
 
 
 def test_abstains_on_a_degenerate_weight_vector():
     """A zero weight vector makes the rescale factor undefined (0/0)."""
     state = _state_with_baseline()
     zeros = np.zeros(FEATURE_DIM)
-    assert _characteristic_weight_factor(state, _impostor_stats(), zeros) is None
+    assert _char_factor(state, _impostor_stats(), zeros) is None
 
 
 def test_on_mode_with_no_impostor_stats_is_exactly_off():
