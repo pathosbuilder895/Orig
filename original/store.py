@@ -14,6 +14,7 @@ import json
 import logging
 import os
 import sqlite3
+import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -231,20 +232,31 @@ def _get_conn() -> sqlite3.Connection:
     # weights can be refit on real traffic without re-extracting features.
     conn.execute("""
         CREATE TABLE IF NOT EXISTS fused_scores (
-            submission_id   TEXT PRIMARY KEY,
-            student_id      TEXT NOT NULL,
-            fused_log_odds  REAL NOT NULL,
-            probability     REAL NOT NULL,
-            band            TEXT NOT NULL,
-            channels_json   TEXT NOT NULL DEFAULT '{}',
-            model_version   TEXT NOT NULL DEFAULT '',
-            created_at      TEXT NOT NULL
+            submission_id     TEXT PRIMARY KEY,
+            student_id        TEXT NOT NULL,
+            fused_log_odds    REAL NOT NULL,
+            probability       REAL NOT NULL,
+            band              TEXT NOT NULL,
+            channels_json     TEXT NOT NULL DEFAULT '{}',
+            model_version     TEXT NOT NULL DEFAULT '',
+            created_at        TEXT NOT NULL,
+            baseline_samples  INTEGER,
+            reference_profiles INTEGER
         )
     """)
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_fused_scores_student
             ON fused_scores(student_id, created_at)
     """)
+    # In-place upgrade for pre-existing DBs (no migration ladder yet —
+    # PRAGMA-guarded ALTERs, kept in sync with the fresh CREATE above). C1
+    # fix pass, 2026-08: these two columns make the baseline-volume confound
+    # recoverable from shadow data — see FusedScore in db/models/live.py.
+    _fused_cols = {r[1] for r in conn.execute("PRAGMA table_info(fused_scores)")}
+    if "baseline_samples" not in _fused_cols:
+        conn.execute("ALTER TABLE fused_scores ADD COLUMN baseline_samples INTEGER")
+    if "reference_profiles" not in _fused_cols:
+        conn.execute("ALTER TABLE fused_scores ADD COLUMN reference_profiles INTEGER")
     # Phase 0 — Tenant registry. Lightweight per-institution metadata that
     # lets us attach environment context (demo / pilot / production) to a
     # student cohort without a Postgres migration. Stored as a JSON blob so
@@ -1092,9 +1104,17 @@ def put_fused_score(
     band: str,
     channels: dict[str, float],
     model_version: str = "",
+    baseline_samples: int | None = None,
+    reference_profiles: int | None = None,
 ) -> None:
     """Upsert one fused-score row. Never raises — persistence must never
-    break the scoring endpoint (same contract as put_ai_likelihood_score)."""
+    break the scoring endpoint (same contract as put_ai_likelihood_score).
+
+    ``baseline_samples``/``reference_profiles`` (C1, 2026-08 fix pass) are
+    what let a later analysis recover the baseline-volume confound in the
+    compression channel from shadow data — see FusedScoreResult's docstring
+    in original/fusion/expert.py.
+    """
     import datetime
     import json as _json
 
@@ -1105,8 +1125,9 @@ def put_fused_score(
                 """
                 INSERT OR REPLACE INTO fused_scores
                     (submission_id, student_id, fused_log_odds, probability,
-                     band, channels_json, model_version, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                     band, channels_json, model_version, created_at,
+                     baseline_samples, reference_profiles)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     submission_id,
@@ -1117,6 +1138,8 @@ def put_fused_score(
                     _json.dumps({k: float(v) for k, v in (channels or {}).items()}),
                     str(model_version),
                     created_at,
+                    int(baseline_samples) if baseline_samples is not None else None,
+                    int(reference_profiles) if reference_profiles is not None else None,
                 ),
             )
             conn.commit()
@@ -1134,7 +1157,8 @@ def get_fused_scores(student_id: str | None = None, limit: int = 500) -> list[di
                 rows = conn.execute(
                     """
                     SELECT submission_id, student_id, fused_log_odds, probability,
-                           band, channels_json, model_version, created_at
+                           band, channels_json, model_version, created_at,
+                           baseline_samples, reference_profiles
                     FROM fused_scores WHERE student_id = ?
                     ORDER BY created_at DESC LIMIT ?
                     """,
@@ -1144,7 +1168,8 @@ def get_fused_scores(student_id: str | None = None, limit: int = 500) -> list[di
                 rows = conn.execute(
                     """
                     SELECT submission_id, student_id, fused_log_odds, probability,
-                           band, channels_json, model_version, created_at
+                           band, channels_json, model_version, created_at,
+                           baseline_samples, reference_profiles
                     FROM fused_scores
                     ORDER BY created_at DESC LIMIT ?
                     """,
@@ -1167,6 +1192,8 @@ def get_fused_scores(student_id: str | None = None, limit: int = 500) -> list[di
                     "channels": channels,
                     "model_version": row[6],
                     "created_at": row[7],
+                    "baseline_samples": row[8],
+                    "reference_profiles": row[9],
                 }
             )
         return out
@@ -1400,6 +1427,15 @@ def delete_student(student_id: str) -> bool:
         return False
 
     _GENRE_STATS_CACHE.clear()  # this student's tenant's (tenant, genre) entries may include them
+    # C2, 2026-08 fix pass: original.fusion.peers._cache holds each student's
+    # full concatenated raw baseline text in-process (report-only fused
+    # score, FUSED_SCORE_ENABLED/FUSED_SCORE_SHADOW). Guarded via
+    # sys.modules — the fusion package is optional and may never have been
+    # imported when the flags are off, and importing it here unconditionally
+    # would defeat the point of it being optional.
+    _fusion_peers = sys.modules.get("original.fusion.peers")
+    if _fusion_peers is not None:
+        _fusion_peers.clear_student(student_id)
     return True
 
 

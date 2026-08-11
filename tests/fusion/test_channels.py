@@ -39,7 +39,7 @@ def test_channel_names_are_the_documented_three():
 def test_diagonal_z_is_zero_when_probe_equals_baseline_mean():
     mean = np.full(FEATURE_DIM, 0.5)
     std = np.full(FEATURE_DIM, 0.1)
-    assert diagonal_z_distance(mean.copy(), mean, std) == pytest.approx(0.0)
+    assert diagonal_z_distance(mean, std, mean.copy()) == pytest.approx(0.0)
 
 
 def test_diagonal_z_matches_the_production_tanh_formula():
@@ -47,21 +47,21 @@ def test_diagonal_z_matches_the_production_tanh_formula():
     mean = np.full(FEATURE_DIM, 0.5)
     std = np.full(FEATURE_DIM, 0.1)
     probe = mean + 2.0 * std
-    assert diagonal_z_distance(probe, mean, std) == pytest.approx(np.tanh(2.0 / 1.5))
+    assert diagonal_z_distance(mean, std, probe) == pytest.approx(np.tanh(2.0 / 1.5))
 
 
 def test_diagonal_z_winsorizes_at_four_sigma():
     mean = np.full(FEATURE_DIM, 0.5)
     std = np.full(FEATURE_DIM, 0.1)
-    at_cap = diagonal_z_distance(mean + 4.0 * std, mean, std)
-    way_past = diagonal_z_distance(mean + 400.0 * std, mean, std)
+    at_cap = diagonal_z_distance(mean, std, mean + 4.0 * std)
+    way_past = diagonal_z_distance(mean, std, mean + 400.0 * std)
     assert at_cap == pytest.approx(way_past)
 
 
 def test_diagonal_z_floors_degenerate_sigma():
     mean = np.full(FEATURE_DIM, 0.5)
     std = np.zeros(FEATURE_DIM)
-    value = diagonal_z_distance(np.full(FEATURE_DIM, 0.6), mean, std)
+    value = diagonal_z_distance(mean, std, np.full(FEATURE_DIM, 0.6))
     assert np.isfinite(value)
     assert 0.0 <= value <= 1.0
 
@@ -109,7 +109,7 @@ def test_all_channels_are_deterministic():
     mean = np.full(FEATURE_DIM, 0.5)
     std = np.full(FEATURE_DIM, 0.1)
     probe = np.linspace(0.2, 0.8, FEATURE_DIM)
-    assert diagonal_z_distance(probe, mean, std) == diagonal_z_distance(probe, mean, std)
+    assert diagonal_z_distance(mean, std, probe) == diagonal_z_distance(mean, std, probe)
     assert compression_distance(_PROSE_A, _PROSE_B[:600]) == compression_distance(
         _PROSE_A, _PROSE_B[:600]
     )

@@ -53,6 +53,7 @@
     "n_development_authors": 120,
     "n_references": 8,
     "trained": "2026-08-11",
-    "seed": 20260807
+    "seed": 20260807,
+    "held_out_auc": 0.8907
   }
 }

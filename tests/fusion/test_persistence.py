@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import uuid
 
+import numpy as np
+
 import original.store as store
+from original.constants import FEATURE_DIM
 
 
 def _sid() -> str:
@@ -172,3 +175,57 @@ def test_malformed_channels_json_degrades_per_row_not_entire_student():
     assert healthy_row["channels"] == {"peer_centered_z": 0.5, "compression": -0.25}
     assert isinstance(healthy_row["channels"]["peer_centered_z"], float)
     assert isinstance(healthy_row["channels"]["compression"], float)
+
+
+def test_delete_student_clears_the_fusion_peer_cache():
+    """FERPA (C2): erasure must clear original.fusion.peers._cache too.
+
+    That module-level cache holds each student's full concatenated raw
+    baseline text (plus derived matrices) for the process lifetime — the
+    fused-score channels need it, but nothing evicted it on erasure before
+    this fix. store.delete_student already clears _GENRE_STATS_CACHE for
+    exactly this reason; this proves the same now happens for the fusion
+    peer cache.
+
+    Discrimination: this test fails if store.delete_student's call to
+    peers.clear_student is ever removed, because the cache would still
+    contain the student's fingerprint (and their raw text with it) after
+    "erasure" returns True.
+    """
+    from original.fusion import peers as fusion_peers
+    from original.quantum.state import BaselineSample, StudentState
+
+    fusion_peers.reset_cache_for_tests()
+    student_id = _sid()
+    long_text = (
+        "The careful reader will note the argument's structure and weigh "
+        "each premise on its own terms before accepting the conclusion. "
+    ) * 40  # comfortably above peers.MIN_WORDS
+
+    state = StudentState(student_id=student_id)
+    rng = np.random.default_rng(0)
+    for index in range(3):
+        state.add_sample(
+            BaselineSample(
+                text=long_text,
+                vector=rng.uniform(0.3, 0.7, FEATURE_DIM),
+                provenance="proctored",
+                auth_weight=1.0,
+                assignment=f"{student_id}-{index}",
+            )
+        )
+    store.put(state)
+
+    profile = fusion_peers.build_profile(state)
+    assert profile is not None
+    # The cache genuinely holds this student's raw baseline text before
+    # erasure — the premise the rest of the test depends on.
+    assert student_id in fusion_peers._cache_students
+    cached_key = next(iter(fusion_peers._cache_students[student_id]))
+    assert fusion_peers._cache[cached_key].text  # raw text is actually resident
+
+    assert store.delete_student(student_id) is True
+
+    assert student_id not in fusion_peers._cache_students
+    assert cached_key not in fusion_peers._cache
+    assert cached_key not in fusion_peers._key_student

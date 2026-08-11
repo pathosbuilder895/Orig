@@ -128,7 +128,66 @@ def test_enabled_persists_and_attaches(fixture_artifact, monkeypatch):
     attached = body.get("fused_score")
     assert attached is not None
     assert attached["band"] in {"consistent", "inconclusive", "divergent"}
-    assert len(store.get_fused_scores(student_id)) == 1
+    rows = store.get_fused_scores(student_id)
+    assert len(rows) == 1
+    # C1, 2026-08 fix pass: every persisted row must carry the baseline
+    # volume it was scored against, so the compression channel's confound
+    # (see CLAUDE.md's FUSED_SCORE_ENABLED caveat) can be regressed out of
+    # the shadow data later.
+    assert rows[0]["baseline_samples"] == 3
+    assert rows[0]["reference_profiles"] == 8
+
+
+@pytest.fixture()
+def fixture_two_channel_artifact(tmp_path, monkeypatch):
+    """Mirrors the shipped artifact's shape: only two of the three channels
+    are fused (the ablation dropped function_word_network)."""
+    mu, sd, weights = [0.0, 0.0], [1.0, 1.0], [1.0, 1.0]
+    payload = {
+        "schema_version": 1,
+        "channel_order": ["peer_centered_z", "compression"],
+        "mu": mu, "sd": sd, "weights": weights, "intercept": 0.0,
+        "threshold_fa5": 0.5, "threshold_fa1": 1.5,
+        "reference_inputs": [[0.1, 0.2]],
+        "reference_outputs": [float(np.dot([0.1, 0.2], weights))],
+        "provenance": {"dataset": "unit-test-2ch"},
+    }
+    path = tmp_path / "fused2.json"
+    path.write_text(json.dumps(payload))
+    monkeypatch.setenv("FUSED_SCORE_MODEL_PATH", str(path))
+    from original.fusion import reset_for_tests
+
+    reset_for_tests()
+    yield
+    reset_for_tests()
+
+
+def test_two_channel_artifact_still_persists_three_channel_values(
+    fixture_two_channel_artifact, monkeypatch
+):
+    """I1, 2026-08 fix pass: the shipped artifact only fuses two channels,
+    but function_word_network is computed on every call regardless (it costs
+    a function-word matrix per reference either way) and must not be thrown
+    away before persistence — that data is the only thing that can serve
+    the spec's stated reason for keeping the channel ("revisit the ablation
+    on real traffic"). The fused log-odds itself must still reflect only the
+    two channels the model actually uses.
+    """
+    monkeypatch.setenv("FUSED_SCORE_ENABLED", "1")
+    monkeypatch.delenv("FUSED_SCORE_SHADOW", raising=False)
+    student_id = _seed_cohort(f"wire{uuid.uuid4().hex[:6]}")
+    body = _score(student_id)
+    attached = body.get("fused_score")
+    assert attached is not None
+    assert set(attached["channels"]) == {"peer_centered_z", "compression"}
+
+    rows = store.get_fused_scores(student_id)
+    assert len(rows) == 1
+    assert set(rows[0]["channels"]) == {
+        "peer_centered_z",
+        "compression",
+        "function_word_network",
+    }
 
 
 def test_report_only_invariant_across_all_three_flag_states(fixture_artifact, monkeypatch):

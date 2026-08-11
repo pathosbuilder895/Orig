@@ -152,3 +152,53 @@ def test_ineligible_peers_do_not_count_toward_the_floor():
     cohort = [claimed] + [_state(f"t1:ok{i}") for i in range(5)]
     cohort += [_state(f"t1:short{i}", words="tiny") for i in range(10)]
     assert peers.select_references(claimed, cohort) == []
+
+
+# ── C2 (FERPA erasure) / I4 (bounded cache) ────────────────────────────────
+
+
+def test_clear_student_evicts_their_cached_profile():
+    claimed = _state("t1:alice")
+    peers.build_profile(claimed)
+    assert peers.cache_build_count() == 1
+    assert "t1:alice" in peers._cache_students
+
+    peers.clear_student("t1:alice")
+
+    assert "t1:alice" not in peers._cache_students
+    # Proves the Profile itself, not just the bookkeeping, was evicted: a
+    # fresh build_profile() call must pay the cache-miss cost again.
+    peers.build_profile(claimed)
+    assert peers.cache_build_count() == 2
+
+
+def test_clear_student_only_touches_that_student():
+    alice = _state("t1:alice")
+    bob = _state("t1:bob")
+    peers.build_profile(alice)
+    peers.build_profile(bob)
+
+    peers.clear_student("t1:alice")
+
+    assert "t1:alice" not in peers._cache_students
+    assert "t1:bob" in peers._cache_students
+    # bob's profile is still cached — rebuilding must not pay again.
+    builds_before = peers.cache_build_count()
+    peers.build_profile(bob)
+    assert peers.cache_build_count() == builds_before
+
+
+def test_clear_student_is_a_no_op_for_an_unknown_student():
+    peers.clear_student("t1:nobody")  # must not raise
+
+
+def test_cache_is_bounded_by_max_entries(monkeypatch):
+    """I4: once the cache exceeds its documented ceiling, the oldest-built
+    entry is evicted — the cache does not grow without bound."""
+    monkeypatch.setattr(peers, "_MAX_CACHE_ENTRIES", 3)
+    for i in range(5):
+        peers.build_profile(_state(f"t1:cap{i}"))
+    assert len(peers._cache) <= 3
+    # The earliest-built students were the ones evicted.
+    assert "t1:cap0" not in peers._cache_students
+    assert "t1:cap4" in peers._cache_students

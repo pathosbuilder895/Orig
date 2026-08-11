@@ -339,6 +339,15 @@ class FusedScore(LiveBase):
     channels_json: Mapped[str] = mapped_column(Text, nullable=False, server_default="{}")
     model_version: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Recoverability for the baseline-volume confound (C1, 2026-08 fix pass):
+    # the compression channel's distance drifts as Profile.text (the
+    # concatenation of every authenticated baseline) grows, and that growth
+    # is not yet capped or normalized. Persisting the exact baseline sample
+    # count and reference-pool size alongside every row is what lets a later
+    # analysis regress the confound out of the shadow data instead of
+    # discovering years later that it can't be reconstructed.
+    baseline_samples: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reference_profiles: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 # ── Feedback & calibration ────────────────────────────────────────────────────

@@ -110,6 +110,24 @@ def test_unknown_channel_name_fails_closed(write_artifact):
     assert artifact_module.load_artifact() is None
 
 
+def test_duplicate_channel_name_fails_closed(write_artifact):
+    """A repeated channel name (e.g. ["compression", "compression"]) would
+    otherwise pass every other check: both names are known, mu/sd/weights
+    still line up length-wise with channel_order, and the reference
+    self-check is internally consistent with the wrong model — it just
+    silently double-counts one channel and drops another (Minor, 2026-08 fix
+    pass)."""
+    payload = _valid_payload()
+    payload["channel_order"] = ["compression", "compression"]
+    payload["mu"], payload["sd"], payload["weights"] = [0.0, 0.0], [1.0, 1.0], [1.0, 1.0]
+    payload["reference_inputs"] = [[0.1, 0.2]]
+    payload["reference_outputs"] = [
+        float(np.dot([0.1, 0.2], [1.0, 1.0]) + payload["intercept"])
+    ]
+    write_artifact(payload)
+    assert artifact_module.load_artifact() is None
+
+
 def test_weight_length_mismatch_fails_closed(write_artifact):
     payload = _valid_payload()
     payload["weights"] = [1.0, 2.0]

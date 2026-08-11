@@ -86,6 +86,16 @@ def _parse(payload: dict) -> FusedArtifact | None:
     if not channel_order or any(name not in CHANNEL_NAMES for name in channel_order):
         _fail("unknown channel in channel_order")
         return None
+    if len(set(channel_order)) != len(channel_order):
+        # A duplicate (e.g. ["compression", "compression"]) would otherwise
+        # sail through every check below: both names are known, mu/sd/
+        # weights lengths match, and the reference self-check is internally
+        # consistent with the wrong model — it just silently double-counts
+        # one channel and drops another. Caught here, not by the shape
+        # checks, because a duplicate never breaks a length equality (Minor,
+        # 2026-08 fix pass).
+        _fail("duplicate channel name in channel_order")
+        return None
 
     mu = np.asarray(payload.get("mu", []), dtype=np.float64)
     sd = np.asarray(payload.get("sd", []), dtype=np.float64)

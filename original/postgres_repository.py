@@ -22,6 +22,7 @@ demo/pilot server's normal startup path.
 from __future__ import annotations
 
 import json
+import sys
 from datetime import UTC, datetime
 
 import numpy as np
@@ -361,6 +362,14 @@ class PostgresRepository:
                     session.delete(name_row)
             # this student's tenant's (tenant, genre) entries may include them
             self._genre_stats_cache.clear()
+            # C2, 2026-08 fix pass: see store.delete_student's matching
+            # comment — original.fusion.peers._cache holds each student's
+            # full raw baseline text in-process, keyed by the scoped
+            # student_id exactly as passed in here. Guarded via sys.modules
+            # since the fusion package is optional.
+            _fusion_peers = sys.modules.get("original.fusion.peers")
+            if _fusion_peers is not None:
+                _fusion_peers.clear_student(student_id)
             return True
         except Exception:
             log.exception("delete_student failed for %s", student_id)
@@ -920,6 +929,8 @@ class PostgresRepository:
         band,
         channels,
         model_version="",
+        baseline_samples=None,
+        reference_profiles=None,
     ):
         try:
             channels_json = json.dumps({k: float(v) for k, v in (channels or {}).items()})
@@ -935,6 +946,12 @@ class PostgresRepository:
                     "channels_json": channels_json,
                     "model_version": str(model_version),
                     "created_at": datetime.now(UTC),
+                    "baseline_samples": (
+                        int(baseline_samples) if baseline_samples is not None else None
+                    ),
+                    "reference_profiles": (
+                        int(reference_profiles) if reference_profiles is not None else None
+                    ),
                 }
                 stmt = (
                     pg_insert(FusedScore)
@@ -974,6 +991,8 @@ class PostgresRepository:
                             "channels": channels,
                             "model_version": row.model_version,
                             "created_at": row.created_at.isoformat() if row.created_at else "",
+                            "baseline_samples": row.baseline_samples,
+                            "reference_profiles": row.reference_profiles,
                         }
                     )
                 return out

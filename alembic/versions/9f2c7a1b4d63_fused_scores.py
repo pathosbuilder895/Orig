@@ -28,6 +28,11 @@ def upgrade() -> None:
         sa.Column("channels_json", sa.Text(), server_default="{}", nullable=False),
         sa.Column("model_version", sa.Text(), server_default="", nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        # Recoverability for the baseline-volume confound (C1, 2026-08 fix
+        # pass) — see original/db/models/live.py:FusedScore for why these
+        # are needed on every row, not just aggregated later.
+        sa.Column("baseline_samples", sa.Integer(), nullable=True),
+        sa.Column("reference_profiles", sa.Integer(), nullable=True),
         sa.ForeignKeyConstraint(
             ["tenant_id"],
             ["tenants.tenant_id"],

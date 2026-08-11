@@ -149,7 +149,7 @@ def _profile(texts: list[str]) -> dict:
 
 def _raw(profile: dict, probe_vec, probe_text, probe_fw) -> list[float]:
     return [
-        diagonal_z_distance(probe_vec, profile["mean"], profile["std"]),
+        diagonal_z_distance(profile["mean"], profile["std"], probe_vec),
         compression_distance(profile["text"], probe_text, baseline_size=profile["size"]),
         function_word_distance(profile["fw"], probe_fw),
     ]
@@ -248,7 +248,8 @@ def main() -> None:
         threshold_fa1 = threshold_fa5 + 1e-6
 
     eval_scores = ((X_eval[:, keep] - mu) / sd) @ weights + intercept
-    print(f"\nHELD-OUT AUC  = {_auc(eval_scores, y_eval):.4f}")
+    held_out_auc = _auc(eval_scores, y_eval)
+    print(f"\nHELD-OUT AUC  = {held_out_auc:.4f}")
     for name, bar in (("fa5", threshold_fa5), ("fa1", threshold_fa1)):
         caught = float(np.mean(eval_scores[y_eval == 1] >= bar))
         false_alarm = float(np.mean(eval_scores[y_eval == 0] >= bar))
@@ -275,6 +276,12 @@ def main() -> None:
             "n_references": N_REFERENCES,
             "trained": date.today().isoformat(),
             "seed": SEED,
+            # I5, 2026-08 fix pass: the shipped model's own measured
+            # performance travels with the artifact instead of living only
+            # in a training-run log that gets overwritten by the next run.
+            # The loader (artifact.py) only reads `dataset` from provenance,
+            # so this key is inert to load-time validation.
+            "held_out_auc": round(float(held_out_auc), 4),
         },
     }
     OUT_PATH.write_text(json.dumps(payload, indent=2) + "\n")

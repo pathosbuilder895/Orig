@@ -23,6 +23,14 @@ CHANNEL_NAMES: tuple[str, ...] = (
     "compression",
     "function_word_network",
 )
+# The shipped artifact (original/data/fused_score_v1.json) does NOT use
+# function_word_network — train_fused_score.py's ablation drops it (its AUC
+# gain fell below ABLATION_MIN_AUC_GAIN on the PAN development split). It
+# stays implemented and unit-tested, and expert.py still computes it on
+# every scoring call and persists it via FusedScoreResult.all_channels (I1,
+# 2026-08 fix pass), specifically so a later ablation-revisit on real pilot
+# traffic has the data without re-instrumenting anything. Do not delete this
+# channel on the assumption it's dead code.
 
 # ── Channel 1: diagonal z ─────────────────────────────────────────────────────
 # Same shape as quantum/scoring.py's primary formulation — winsorize |z| at
@@ -57,11 +65,16 @@ _TOKEN_RE = re.compile(r"[a-z']+")
 
 
 def diagonal_z_distance(
-    probe_vec: np.ndarray,
     baseline_mean: np.ndarray,
     baseline_std: np.ndarray,
+    probe_vec: np.ndarray,
 ) -> float:
-    """Winsorized RMS z-distance in [0, 1]; 0.0 means identical to the mean."""
+    """Winsorized RMS z-distance in [0, 1]; 0.0 means identical to the mean.
+
+    Argument order matches the module docstring's ``(baseline, probe)``
+    convention (aligned in the 2026-08 fix pass — this channel used to take
+    ``probe_vec`` first, unlike ``compression_distance`` and
+    ``function_word_distance``, which was a silent transposed-call trap)."""
     sigma = np.maximum(np.asarray(baseline_std, dtype=np.float64), _SIGMA_HARD_FLOOR)
     z = (
         np.asarray(probe_vec, dtype=np.float64) - np.asarray(baseline_mean, dtype=np.float64)

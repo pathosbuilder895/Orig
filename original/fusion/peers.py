@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import threading
+from collections import OrderedDict
 from collections.abc import Iterable
 from dataclasses import dataclass
 
@@ -60,20 +61,79 @@ class Profile:
     sample_count: int
 
 
-_cache: dict[str, Profile] = {}
+_cache: OrderedDict[str, Profile] = OrderedDict()
+# Cache key -> owning student_id, and the reverse index. Needed for both C2
+# (FERPA erasure must be able to find and evict everything a student's raw
+# text touched) and I4 (eviction must clean up its own bookkeeping, not just
+# `_cache`, or `_cache_students` would grow without bound too). The cache
+# key is a content fingerprint, not the student id, and a student's key
+# changes whenever their authenticated baseline text changes — so
+# `_cache_students` tracks every key ever built for a student, since a
+# stale key from before their most recent baseline edit can otherwise
+# outlive that edit in the cache.
+_key_student: dict[str, str] = {}
+_cache_students: dict[str, set[str]] = {}
 _cache_builds = 0
 _lock = threading.Lock()
+
+# Each cached Profile holds an author's full concatenated authenticated
+# baseline text plus derived matrices — measured ~107 KB/entry (I4, 2026-08
+# fix pass). Left unbounded, a term-long pilot of ~500 students each
+# accruing several baseline revisions would grow this dict without limit.
+# 2000 entries is a documented ceiling (roughly 214 MB worst case) that
+# comfortably covers a single tenant's active working set. Eviction is
+# oldest-inserted-first, not strict last-accessed LRU, so the cache-hit fast
+# path in build_profile() below can stay lock-free.
+_MAX_CACHE_ENTRIES = 2000
+
+
+def _evict_oldest_locked() -> None:
+    """Pop the oldest-inserted cache entry and its bookkeeping. Caller must
+    hold ``_lock``."""
+    if not _cache:
+        return
+    evicted_key, _ = _cache.popitem(last=False)
+    owner = _key_student.pop(evicted_key, None)
+    if owner is not None:
+        keys = _cache_students.get(owner)
+        if keys is not None:
+            keys.discard(evicted_key)
+            if not keys:
+                _cache_students.pop(owner, None)
 
 
 def reset_cache_for_tests() -> None:
     global _cache_builds
     with _lock:
         _cache.clear()
+        _key_student.clear()
+        _cache_students.clear()
         _cache_builds = 0
 
 
 def cache_build_count() -> int:
     return _cache_builds
+
+
+def clear_student(student_id: str) -> None:
+    """Evict every cached ``Profile`` entry for ``student_id`` (C2, 2026-08
+    fix pass — FERPA right-to-erasure).
+
+    ``store.delete_student`` purges every persistent store and already
+    explicitly clears ``_GENRE_STATS_CACHE`` for exactly this reason; this
+    module's ``_cache`` is the first long-lived in-process store of raw
+    student text in the live stack, and was not covered by that purge. Safe
+    to call for a student with no cached entries (a no-op) — the module may
+    not even be loaded when the fusion flags are off, so callers should
+    guard the import, not assume this function exists.
+    """
+    with _lock:
+        keys = _cache_students.pop(student_id, None)
+        if not keys:
+            return
+        for key in keys:
+            _cache.pop(key, None)
+            _key_student.pop(key, None)
 
 
 def _authenticated_texts(state: StudentState) -> list[str]:
@@ -125,7 +185,11 @@ def build_profile(state: StudentState) -> Profile | None:
             sample_count=len(texts),
         )
         _cache[key] = profile
+        _key_student[key] = state.student_id
+        _cache_students.setdefault(state.student_id, set()).add(key)
         _cache_builds += 1
+        if len(_cache) > _MAX_CACHE_ENTRIES:
+            _evict_oldest_locked()
         return profile
 
 

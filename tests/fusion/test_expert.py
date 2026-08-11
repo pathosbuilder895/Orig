@@ -98,6 +98,11 @@ def test_returns_a_populated_result_when_everything_is_available(fixture_artifac
     assert result.reference_profiles == 8
     assert result.baseline_samples == 3
     assert set(result.channels) == {"peer_centered_z", "compression", "function_word_network"}
+    assert set(result.all_channels) == {
+        "peer_centered_z",
+        "compression",
+        "function_word_network",
+    }
     assert 0.0 <= result.probability_different_author <= 1.0
     assert result.band in {"consistent", "inconclusive", "divergent"}
     assert result.model_version == "v1"
@@ -249,6 +254,19 @@ def test_honours_a_two_channel_artifact(tmp_path, monkeypatch):
     claimed = _state("t1:alice")
     result = predict_fused_score(_LONG[:4000], claimed, [claimed] + _cohort())
     assert result is not None
+    assert set(result.channels) == {"peer_centered_z", "compression"}
+    # I1, 2026-08 fix pass: function_word_network is computed on every call
+    # regardless of channel_order (see channels.py's note on why it's kept),
+    # and discarding that computed value before persistence wastes the exact
+    # cost the ablation-revisit the spec calls for depends on. `all_channels`
+    # must carry every computed channel even though only two feed the model.
+    assert set(result.all_channels) == {
+        "peer_centered_z",
+        "compression",
+        "function_word_network",
+    }
+    # The fused log-odds must not change because of this — only what gets
+    # persisted grows.
     assert set(result.channels) == {"peer_centered_z", "compression"}
 
 

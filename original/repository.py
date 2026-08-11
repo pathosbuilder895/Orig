@@ -121,6 +121,8 @@ class Repository(Protocol):
         band: str,
         channels: dict[str, float],
         model_version: str = "",
+        baseline_samples: int | None = None,
+        reference_profiles: int | None = None,
     ) -> None: ...
     def get_fused_scores(
         self,
@@ -445,6 +447,8 @@ class SqliteRepository:
         band: str,
         channels: dict[str, float],
         model_version: str = "",
+        baseline_samples: int | None = None,
+        reference_profiles: int | None = None,
     ) -> None:
         store.put_fused_score(
             submission_id,
@@ -454,6 +458,8 @@ class SqliteRepository:
             band,
             channels,
             model_version=model_version,
+            baseline_samples=baseline_samples,
+            reference_profiles=reference_profiles,
         )
 
     def get_fused_scores(

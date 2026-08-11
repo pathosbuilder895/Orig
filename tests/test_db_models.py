@@ -223,6 +223,8 @@ REPRESENTATIVE_ROWS = {
         channels_json='{"compression": -0.1}',
         model_version="v1",
         created_at=NOW,
+        baseline_samples=3,
+        reference_profiles=8,
     ),
     Correction: dict(
         submission_id="sub-001",
