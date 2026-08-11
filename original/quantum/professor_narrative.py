@@ -329,9 +329,9 @@ _FEATURE_PLAIN: dict[str, dict[str, Any]] = {
         "behavioral": True,
     },
     "burst_ratio": {
-        "label": "rapid typing bursts",
-        "more": "typed in more rapid bursts than usual — possibly transcribing pre-composed text",
-        "less": "typed with fewer rapid bursts than usual",
+        "label": "sustained typing bursts",
+        "more": "wrote in longer uninterrupted stretches than usual — possibly transcribing pre-composed text",
+        "less": "wrote in shorter stretches than usual, breaking off more often to pause",
         "ai_signal": False,
         "behavioral": True,
     },
