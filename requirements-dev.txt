@@ -18,7 +18,7 @@ pytest-cov==7.1.0
 hypothesis==6.156.6
 
 # Lint/format/type-check + git hook runner.
-ruff==0.6.9
+ruff==0.16.2
 mypy==2.3.0
 pre-commit>=4.6.1,<5
 
