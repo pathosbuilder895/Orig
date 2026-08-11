@@ -40,7 +40,7 @@ numpy==2.2.6
     #   matplotlib
     #   scikit-learn
     #   scipy
-packaging==26.2
+packaging==26.3
     # via
     #   matplotlib
     #   pytest
