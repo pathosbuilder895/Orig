@@ -166,21 +166,20 @@ def test_nan_in_intercept_fails_closed(write_artifact):
     assert artifact_module.load_artifact() is None
 
 
-def test_nan_in_mu_cannot_sneak_past_the_reference_drift_check(write_artifact):
-    """Regression for the reported hole: even if the finiteness check on mu
-    were somehow removed, the reference-drift comparison itself must not be
-    fooled by NaN (nan > tolerance is False, so a naive ``diff > tol`` gate
-    would silently accept this). Craft reference_outputs that are NOT NaN
-    (as a real payload's committed reference values would be) so this test
-    isolates the drift-check's own NaN-safety rather than the finiteness
-    check added for Finding 1.
+def test_reference_drift_comparison_is_nan_safe(write_artifact):
+    """Regression: the reference-drift comparison must not be fooled by NaN.
+    This is the only guard on reference_inputs/reference_outputs, and it uses
+    the NaN-safe form (np.all(... <= tol) rather than naive max() > tol), since
+    NaN > x always returns False and would silently pass.
+
+    Inject NaN directly into reference_inputs (which has no upstream finiteness
+    guard) to prove the drift comparison itself fails closed on non-finite
+    values. The injected NaN propagates through log_odds() into got, where
+    |nan - expected| <= tol is False, causing np.all(...) to fail and the
+    loader to close.
     """
     payload = _valid_payload()
-    payload["mu"][1] = float("nan")
-    # Keep reference_outputs as ordinary (non-NaN) floats, as they would be
-    # in a real committed artifact — got will be NaN because mu is NaN, but
-    # expected is not, so a NaN-blind ">" gate would treat |nan - x| > tol
-    # as False and pass this through.
+    payload["reference_inputs"][0][0] = float("nan")
     write_artifact(payload)
     assert artifact_module.load_artifact() is None
 
