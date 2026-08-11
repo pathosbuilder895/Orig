@@ -10,15 +10,23 @@ import pytest
 from original.fusion import artifact as artifact_module
 
 
+def _standardized_log_odds(values, mu, sd, weights, intercept) -> float:
+    """The real standardized formula, computed independently of artifact.py."""
+    standardized = (np.array(values) - np.array(mu)) / np.array(sd)
+    return float(np.dot(standardized, weights) + intercept)
+
+
 def _valid_payload() -> dict:
-    mu = [0.0, 0.0, 0.0]
-    sd = [1.0, 1.0, 1.0]
+    # mu/sd deliberately non-trivial (distinct, non-zero, not all equal) so
+    # that (values - mu) / sd is NOT the identity transform: a test built on
+    # this fixture can only pass if the standardization is actually applied.
+    mu = [1.5, -2.0, 0.25]
+    sd = [2.0, 0.5, 4.0]
     weights = [1.0, 2.0, -0.5]
     intercept = 0.25
     reference_inputs = [[0.1, 0.2, 0.3], [-0.4, 0.5, 0.0]]
     reference_outputs = [
-        float(np.dot((np.array(x) - mu) / np.array(sd), weights) + intercept)
-        for x in reference_inputs
+        _standardized_log_odds(x, mu, sd, weights, intercept) for x in reference_inputs
     ]
     return {
         "schema_version": 1,
@@ -58,10 +66,18 @@ def test_valid_artifact_loads(write_artifact):
 
 
 def test_log_odds_is_the_standardized_dot_product(write_artifact):
-    write_artifact(_valid_payload())
+    payload = _valid_payload()
+    write_artifact(payload)
     loaded = artifact_module.load_artifact()
     values = np.array([0.1, 0.2, 0.3])
-    expected = float(np.dot(values, [1.0, 2.0, -0.5]) + 0.25)
+    expected = _standardized_log_odds(
+        values, payload["mu"], payload["sd"], payload["weights"], payload["intercept"]
+    )
+    # Sanity check that the fixture is actually exercising standardization —
+    # if this fails, the fixture regressed back to an identity transform and
+    # the test above would no longer be able to catch a broken formula.
+    raw_dot = float(np.dot(values, payload["weights"]) + payload["intercept"])
+    assert expected != pytest.approx(raw_dot)
     assert loaded.log_odds(values) == pytest.approx(expected)
 
 
@@ -111,6 +127,60 @@ def test_reference_prediction_drift_fails_closed(write_artifact):
 def test_non_monotone_thresholds_fail_closed(write_artifact):
     payload = _valid_payload()
     payload["threshold_fa5"], payload["threshold_fa1"] = 1.5, 0.5
+    write_artifact(payload)
+    assert artifact_module.load_artifact() is None
+
+
+def test_zero_sd_fails_closed(write_artifact):
+    payload = _valid_payload()
+    payload["sd"][0] = 0.0
+    write_artifact(payload)
+    assert artifact_module.load_artifact() is None
+
+
+def test_negative_sd_fails_closed(write_artifact):
+    payload = _valid_payload()
+    payload["sd"][1] = -2.0
+    write_artifact(payload)
+    assert artifact_module.load_artifact() is None
+
+
+def test_nan_in_mu_fails_closed(write_artifact):
+    payload = _valid_payload()
+    payload["mu"][1] = float("nan")
+    write_artifact(payload)
+    assert artifact_module.load_artifact() is None
+
+
+def test_nan_in_weights_fails_closed(write_artifact):
+    payload = _valid_payload()
+    payload["weights"][0] = float("nan")
+    write_artifact(payload)
+    assert artifact_module.load_artifact() is None
+
+
+def test_nan_in_intercept_fails_closed(write_artifact):
+    payload = _valid_payload()
+    payload["intercept"] = float("nan")
+    write_artifact(payload)
+    assert artifact_module.load_artifact() is None
+
+
+def test_nan_in_mu_cannot_sneak_past_the_reference_drift_check(write_artifact):
+    """Regression for the reported hole: even if the finiteness check on mu
+    were somehow removed, the reference-drift comparison itself must not be
+    fooled by NaN (nan > tolerance is False, so a naive ``diff > tol`` gate
+    would silently accept this). Craft reference_outputs that are NOT NaN
+    (as a real payload's committed reference values would be) so this test
+    isolates the drift-check's own NaN-safety rather than the finiteness
+    check added for Finding 1.
+    """
+    payload = _valid_payload()
+    payload["mu"][1] = float("nan")
+    # Keep reference_outputs as ordinary (non-NaN) floats, as they would be
+    # in a real committed artifact — got will be NaN because mu is NaN, but
+    # expected is not, so a NaN-blind ">" gate would treat |nan - x| > tol
+    # as False and pass this through.
     write_artifact(payload)
     assert artifact_module.load_artifact() is None
 

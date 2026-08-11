@@ -96,11 +96,19 @@ def _parse(payload: dict) -> FusedArtifact | None:
     if not np.all(sd > 0):
         _fail("non-positive standardizer scale")
         return None
+    if not (np.all(np.isfinite(mu)) and np.all(np.isfinite(weights))):
+        _fail("non-finite value in mu or weights")
+        return None
 
     threshold_fa5 = float(payload.get("threshold_fa5", 0.0))
     threshold_fa1 = float(payload.get("threshold_fa1", 0.0))
     if not threshold_fa5 < threshold_fa1:
         _fail("thresholds are not monotone (fa5 must be below fa1)")
+        return None
+
+    intercept = float(payload.get("intercept", 0.0))
+    if not np.isfinite(intercept):
+        _fail("non-finite intercept")
         return None
 
     provenance = payload.get("provenance") or {}
@@ -109,7 +117,7 @@ def _parse(payload: dict) -> FusedArtifact | None:
         mu=mu,
         sd=sd,
         weights=weights,
-        intercept=float(payload.get("intercept", 0.0)),
+        intercept=intercept,
         threshold_fa5=threshold_fa5,
         threshold_fa1=threshold_fa1,
         model_version=f"v{EXPECTED_SCHEMA_VERSION}",
@@ -122,7 +130,12 @@ def _parse(payload: dict) -> FusedArtifact | None:
         _fail("reference inputs/outputs are missing or misshapen")
         return None
     got = np.asarray([candidate.log_odds(row) for row in reference_inputs])
-    if float(np.max(np.abs(got - expected))) > _REFERENCE_TOLERANCE:
+    # Inverted form (NaN-safe): a plain `diff > tolerance` gate is defeated by
+    # NaN, since every comparison against NaN is False. Asserting the
+    # in-tolerance condition and negating it instead means any NaN element
+    # makes `np.all(...)` False, so `not np.all(...)` is True and we fail
+    # closed, exactly as a genuine drift would.
+    if not np.all(np.abs(got - expected) <= _REFERENCE_TOLERANCE):
         _fail("reference prediction drift")
         return None
     return candidate
