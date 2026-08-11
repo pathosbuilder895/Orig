@@ -114,8 +114,18 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # see ScoringConfig.llr_action_mode's docstring in quantum/scoring.py.
     _scoring_config_env = ScoringConfig.from_env()
 
+    # CHARACTERISTIC_WEIGHTS also needs the peer pool — its factor is
+    # sigma_null / baseline_std — and abstains to identity without one. Build
+    # it for that flag too, or the mechanism would be silently inert on any
+    # deployment that hasn't also set NULL_MODEL=impostor (demo mode does;
+    # a bare production deploy does not). Handing impostor_stats to score()
+    # cannot by itself change anything else: _llr_deviation stays gated on
+    # null_model == "impostor" independently.
     _impostor_stats = None
-    if _scoring_config_env.null_model == "impostor":
+    if (
+        _scoring_config_env.null_model == "impostor"
+        or _scoring_config_env.characteristic_weights != "off"
+    ):
         try:
             from ..quantum.null_pool import build_impostor_stats
 
@@ -228,6 +238,28 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             result.topic_mean_inflation,
             result.authorship.deviation_score,
             result.deviation_score_inflated,
+        )
+
+    # ── Characteristic per-student weighting audit line ───────────────────────
+    # One INFO line per scoring call whenever CHARACTERISTIC_WEIGHTS is not
+    # "off". dispersion=None means the mechanism ABSTAINED (no peer pool, or
+    # a baseline under 2 contributing samples) and a dispersion at or near 0
+    # means it fired with a trivial factor — either way the flag is inert on
+    # this submission, which is exactly what a shadow soak has to be able to
+    # count. GENRE_INVARIANT_WEIGHTS_ENABLED is the cautionary precedent: a
+    # fully built, fully tested weighting mechanism that turned out to fire
+    # in 1 of 6 folds, and that once was classifier noise. Same privacy rule
+    # as the bayesian_prior / topic_inflation lines above: no student id,
+    # aggregate numbers only.
+    if _scoring_config_env.characteristic_weights != "off":
+        logging.getLogger(__name__).info(
+            "characteristic_weights mode=%s outcome=%s dispersion=%s deviation=%.4f "
+            "deviation_preview=%s",
+            _scoring_config_env.characteristic_weights,
+            "abstain" if result.characteristic_mode is None else "applied",
+            result.characteristic_factor_dispersion,
+            result.authorship.deviation_score,
+            result.characteristic_deviation_preview,
         )
 
     # Default-off, report-only longitudinal signal. The probe is never added
