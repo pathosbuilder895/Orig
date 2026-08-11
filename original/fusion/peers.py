@@ -35,7 +35,22 @@ MIN_BASELINES = 3
 
 @dataclass(frozen=True)
 class Profile:
-    """Everything the channels need from one author, computed once."""
+    """Everything the channels need from one author, computed once.
+
+    ``baseline_mean``/``baseline_std`` and the text-derived fields
+    (``text``, ``compressed_size``, ``fw_matrix``) are deliberately built
+    from different sample sets. The moments come straight from
+    ``StudentState``, which recency-weights over *every* sample with
+    ``auth_weight > 0`` regardless of length — that has to match
+    production ``deviation_score``, which uses exactly those moments. The
+    text channels only ever see authenticated samples of at least
+    ``MIN_WORDS`` words, because a short sample is noise for compression
+    and function-word statistics even though it is a perfectly good
+    contributor to the z-channel's mean/std. So a short authenticated
+    sample can move ``baseline_mean``/``baseline_std`` while being
+    invisible to ``text``/``compressed_size``/``fw_matrix``. This is
+    intended, not a bug.
+    """
 
     text: str
     compressed_size: int
@@ -89,20 +104,29 @@ def build_profile(state: StudentState) -> Profile | None:
     key = _fingerprint(state.student_id, texts)
     cached = _cache.get(key)
     if cached is not None:
+        # Fast path: no lock needed once the profile is cached.
         return cached
-    joined = "\n".join(texts)
-    profile = Profile(
-        text=joined,
-        compressed_size=compressed_size(joined.encode("utf-8", "ignore")),
-        fw_matrix=function_word_matrix(joined),
-        baseline_mean=state.baseline_mean,
-        baseline_std=state.baseline_std,
-        sample_count=len(texts),
-    )
+    # Slow path: double-checked locking. Another thread may have built
+    # this key while we were computing `key` above, so re-check inside
+    # the lock before paying for compression + the function-word matrix,
+    # and hold the lock across that work so two threads can never both
+    # build the same key.
     with _lock:
+        cached = _cache.get(key)
+        if cached is not None:
+            return cached
+        joined = "\n".join(texts)
+        profile = Profile(
+            text=joined,
+            compressed_size=compressed_size(joined.encode("utf-8", "ignore")),
+            fw_matrix=function_word_matrix(joined),
+            baseline_mean=state.baseline_mean,
+            baseline_std=state.baseline_std,
+            sample_count=len(texts),
+        )
         _cache[key] = profile
         _cache_builds += 1
-    return profile
+        return profile
 
 
 def _order_key(student_id: str) -> str:
