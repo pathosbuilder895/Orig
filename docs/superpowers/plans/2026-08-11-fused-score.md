@@ -19,7 +19,11 @@
 - **Abstain, never raise.** Every failure path returns `None` and logs one WARNING. No partial results.
 - **Determinism.** Same inputs ⇒ same output. Peer references are ordered by `sha256(student_id)`, never shuffled.
 - **Reference count is fixed at 8.** Below 8 eligible peers the expert abstains; above 8 it uses exactly the first 8.
-- **`FEATURE_DIM = 109`** (`original/constants.py`). Never reorder `ALL_FEATURE_CODES`.
+- **`FEATURE_DIM = 103`** on this branch (`original/constants.py:205`, `len(ALL_FEATURE_CODES)`).
+  Never reorder `ALL_FEATURE_CODES`. Note the three channels each reduce to a scalar, so the
+  artifact is dimension-independent — but `.benchmark_cache/features/feature_vectors.npz` was
+  built at 109 dims on another branch and its keys will all miss here, so Task 5 re-extracts
+  from scratch. That is expected, not a fault.
 - **Tenant isolation.** Peers come only from `tenant_of(student_id)` matches. Legacy flat ids (`tenant_of → None`) are their own cohort.
 - **Commit style:** `Add ...` / `Fix ...` / `Refactor ...`, one focused commit per task, co-author line `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
 
@@ -2551,7 +2555,7 @@ Expected: PASS — 6 passed
 In `CLAUDE.md`, in the environment-flag table immediately after the `AI_LIKELIHOOD_MODEL_PATH` row, add:
 
 ```markdown
-| `FUSED_SCORE_ENABLED` | `0` | Attaches the report-only fused stylometric score (`original/fusion/`) — peer-centered diagonal z + LZMA conditional compression + function-word adjacency network, logistic-fused into one calibrated evidence weight. Requires retained raw text, 3 authenticated baselines, and **exactly 8** eligible same-tenant peers (the artifact is calibrated at 8 references; below that it abstains rather than extrapolate). Never changes `deviation_score`, `quantum_fidelity`, or the recommended action — held by `tests/fusion/test_wiring.py`. Measured on the PAN cross-fandom hold-out at AUC 0.889 vs 0.798 for the production score (`validation` scratch, 2026-08-10 gate audit); **not yet validated against real student submissions** — run `FUSED_SCORE_SHADOW=1` first. |
+| `FUSED_SCORE_ENABLED` | `0` | Attaches the report-only fused stylometric score (`original/fusion/`) — peer-centered diagonal z + LZMA conditional compression + function-word adjacency network, logistic-fused into one calibrated evidence weight. Requires retained raw text, 3 authenticated baselines, and **exactly 8** eligible same-tenant peers (the artifact is calibrated at 8 references; below that it abstains rather than extrapolate). Never changes `deviation_score`, `quantum_fidelity`, or the recommended action — held by `tests/fusion/test_wiring.py`. Measured on the PAN cross-fandom hold-out at AUC 0.889 vs 0.798 for the production score (2026-08-10 gate audit, 52 held-out authors, 103-dim features); **not yet validated against real student submissions** — run `FUSED_SCORE_SHADOW=1` first. |
 | `FUSED_SCORE_SHADOW` | `0` | Computes and persists the fused score to `fused_scores` without attaching it (`result.fused_score` stays `None`). `channels_json` stores the peer-centered per-channel values so the fusion weights can be refit on real traffic without re-extracting features. Enablement is then one env flip with unbroken data continuity. |
 | `FUSED_SCORE_MODEL_PATH` | unset | Path override for the committed `original/data/fused_score_v1.json`. The loader fails closed (→ `None`, identical to flag-off) on schema-version, channel-name, vector-length, threshold-monotonicity, or reference-prediction drift. Regenerate with `.venv/bin/python scripts/train_fused_score.py`. |
 ```
