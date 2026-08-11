@@ -89,5 +89,5 @@ threadpoolctl==3.6.0
     # via scikit-learn
 typing-extensions==4.16.0
     # via mypy
-virtualenv==21.6.0
+virtualenv==21.7.3
     # via pre-commit
