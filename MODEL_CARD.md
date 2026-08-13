@@ -280,9 +280,18 @@ batched call, and reports `ai_probability` per window plus `ai_window_max` /
 `ai_window_mean`. The intent is localization — *where* in a document AI-like
 text sits — which the single document-level number cannot express.
 
-- **The document-level enablement gate above still FAILS** (FPR 8% vs. a 5%
-  bar, and uninformative at n=25). `AI_LIKELIHOOD_ENABLED` remains off, and
-  nothing about this wiring changes that verdict or provides evidence for it.
+- **The document-level enablement gate above has since been re-cleared, and
+  this wiring is not why.** This addendum originally recorded that gate as
+  failing (FPR 8% (2/25) vs. a 5% bar, and uninformative at that n) — the
+  v1.4.26 result, superseded on 2026-08-07 by v1.4.27's n=139 pool:
+  AUC 0.9975 (CI95 [0.9914, 1.0]), FPR@elevated 2.88% (4/139), TPR 95%,
+  `enablement_gate.passes = true` in
+  `validation/diagnostics/ai_detector_eval_seminary_2026-08-07_n139.json`.
+  `AI_LIKELIHOOD_ENABLED` nevertheless **remains off** — for the reasons in
+  "Caveats before flipping the flag" above (single-generator, majority
+  corpus-synthesized in-domain AI side; institutional decision outstanding),
+  not because the numeric gate fails. Nothing about this window wiring
+  changed that verdict in either direction or provides evidence for it.
 - **This is shadow-only and structurally inert.** The new fields are written
   but never read back: they cannot affect `blend_detected`, `blend_index`,
   `shift_positions`, `deviation_score`, or any recommended action. With the
@@ -296,8 +305,9 @@ text sits — which the single document-level number cannot express.
 - **Purpose is evidence collection.** Shadow-mode window data (especially
   whether AI-like probability concentrates in the same regions the Pettitt
   change-point already flags) is intended to inform re-evaluation of the
-  document-level gate, alongside the larger authentic-essay pool that gate
-  needs regardless.
+  document-level gate. The larger authentic-essay pool this bullet originally
+  called for has since been built (25 → 139 essays, v1.4.27); what the gate
+  still lacks is a multi-generator in-domain AI side.
 
 ---
 
