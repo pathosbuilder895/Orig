@@ -1,5 +1,10 @@
 # Bluebook Corrections UI Implementation Plan
 
+> **STATUS (2026-08-13): SHIPPED.** `CorrectionPanel` is live in
+> `demo/bluebook/Results.jsx` (uuid threading via `e4594885`), driven by
+> `professor-journey.spec.mjs`. The checkboxes were never ticked during
+> execution — read the code, not the boxes, as the source of truth.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace `Results.jsx`'s fake, local-only "Mark Reviewed" button with a real correction-filing panel that calls the already-working `POST /submissions/{id}/correct` / `GET /admin/corrections` endpoints, per `docs/superpowers/specs/2026-07-22-bluebook-corrections-ui-design.md` (approved).

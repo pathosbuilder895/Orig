@@ -1,6 +1,6 @@
 # Bluebook Corrections UI — Design
 
-**Date:** 2026-07-22 · **Status:** approved (user, this date) · **Sub-project 2 of 4** in the Bluebook improvement track (1: exam-day robustness — done; 3: keystroke→Tier-17; 4: WS-8 component adoption).
+**Date:** 2026-07-22 · **Status:** implemented (verified in code 2026-08-13 — `CorrectionPanel` in `demo/bluebook/Results.jsx`, uuid threading in `Exam.jsx` via `e4594885`, panel-driven e2e in `professor-journey.spec.mjs`) · **Sub-project 2 of 4** in the Bluebook improvement track (1: exam-day robustness — done, `b8f7ba29`/`67eeb571`; 3: keystroke→Tier-17 — pipeline built, enablement gated on pilot data; 4: WS-8 component adoption — **cancelled** by ADR-008 Option B, not pending).
 
 ## Problem
 

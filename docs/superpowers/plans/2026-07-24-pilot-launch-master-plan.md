@@ -1,5 +1,12 @@
 # Pilot Launch Master Plan (code waves + operational track)
 
+> **STATUS (2026-08-13): substantially shipped; checkbox state is stale.**
+> T2/T5/T7/T9 and more landed without boxes being ticked (T5's Tier 17
+> shadow report shipped as `scripts/tier17_report.py`, which now also takes
+> the pilot `DATABASE_URL`). Read the code, not the boxes. The standing rule
+> below still holds: tasks may collect/report Tier 17 data but MUST NOT
+> enable the behavioral feature group.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking. **Dispatch rule: a task may run concurrently with
