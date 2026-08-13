@@ -2089,6 +2089,190 @@ class TestComputeG6FairnessDataBaselineFailureSkipsFold:
         assert result.detail["n_non_native_scored"] == 5
 
 
+class _SequencedBaselineG6Client(_FakeG6Client):
+    """_FakeG6Client plus per-URL baseline STATUS SEQUENCES (last status
+    repeats), so a test can shape a fold's upload failures precisely:
+    [202] -> every upload drift-held (drift-only fold), [202, 500] -> a
+    drift hold followed by a genuine failure (mixed fold). Non-200 drift
+    responses carry the DriftPendingResponse-shaped detail the real
+    add_baseline raises with, though the leg only reads status_code."""
+
+    def __init__(self, payload_by_filename, baseline_status_sequences):
+        super().__init__(payload_by_filename)
+        self._sequences = {u: list(seq) for u, seq in baseline_status_sequences.items()}
+        self._calls: dict[str, int] = {}
+
+    def post(self, url, json=None):
+        if not url.endswith("/score") and url in self._sequences:
+            i = self._calls.get(url, 0)
+            self._calls[url] = i + 1
+            seq = self._sequences[url]
+            status = seq[min(i, len(seq) - 1)]
+            if status != 200:
+                body = (
+                    {"detail": {"status": "pending_review"}}
+                    if status in (202, 409)
+                    else {}
+                )
+                return _FakeG6Response(status, body)
+        return super().post(url, json=json)
+
+
+class TestComputeG6FairnessDataDriftHoldCarveOut:
+    """2026-08-13 diagnosis: the strict-run 'G6 native_english leg: 56/139
+    scoring calls failed (>10%)' machinery ERROR was entirely Phase-8
+    drift-gate holds (202 pending_review / 409 rebaseline_required) on
+    genuine same-author baseline uploads from the 2026-08-08 seminary corpus
+    growth (7f11771f) -- an in-process simulation of check_drift over the
+    same folds reproduces exactly 56/139 (7 distinct held files, magnitudes
+    0.2512-0.3333 vs the 0.25 anchor threshold). A drift hold is admission
+    control working on heterogeneous real prose, not a scoring-machinery
+    failure, so the leg must skip-and-count those folds the way G5's
+    shuffled-G1 leg already does (n_drift_rejected) instead of erroring the
+    whole gate."""
+
+    def _fixture(self, tmp_path, monkeypatch, n_native=8, n_non_native=5):
+        import validation.calibration_gate as cg
+
+        native_files = [f"native_{i}.txt" for i in range(n_native)]
+        non_native_files = [f"nonnative_{i}.txt" for i in range(n_non_native)]
+        _write_g6_fixture(tmp_path, {True: native_files, False: non_native_files})
+        monkeypatch.setattr(cg, "_ROOT", tmp_path)
+        payload_by_filename = {
+            f: _g6_payload(p_central=0.5, typicality_n=60)
+            for f in native_files + non_native_files
+        }
+        return cg, payload_by_filename
+
+    def test_drift_only_fold_failures_above_ten_percent_do_not_error_the_leg(
+        self, tmp_path, monkeypatch
+    ):
+        """RED signal before the fix: 2 drift-held folds of 13 (15%) tripped
+        _require_healthy_leg's >10% bar and turned the whole gate into
+        ERROR (machinery). They must instead be skipped, counted, and
+        reported, leaving the health check to genuine failures only."""
+        cg, payload_by_filename = self._fixture(tmp_path, monkeypatch)
+
+        client = _SequencedBaselineG6Client(
+            payload_by_filename,
+            {
+                "/students/demo:gate_g6_author_native_0/baseline": [202],
+                "/students/demo:gate_g6_author_native_1/baseline": [409],
+            },
+        )
+
+        result = cg._compute_g6_fairness_data(client)  # must not raise
+
+        assert result.detail["n_scoring_errors"] == 2
+        assert result.detail["n_drift_rejected_folds"] == 2
+        assert result.detail["n_genuine_scoring_errors"] == 0
+        assert result.detail["n_native_scored"] == 6
+        assert result.detail["n_non_native_scored"] == 5
+
+    def test_mixed_drift_and_genuine_failure_still_counts_as_machinery(
+        self, tmp_path, monkeypatch
+    ):
+        """A fold whose baseline failures mix a drift hold with a genuine
+        4xx/5xx is still evidence of real machinery trouble (same rule as
+        _score_corpus_for_g1's baseline_drift_only) -- the carve-out must
+        not over-forgive."""
+        cg, payload_by_filename = self._fixture(tmp_path, monkeypatch, n_native=6)
+
+        client = _SequencedBaselineG6Client(
+            payload_by_filename,
+            {"/students/demo:gate_g6_author_native_0/baseline": [202, 500]},
+        )
+
+        result = cg._compute_g6_fairness_data(client)
+
+        assert result.detail["n_scoring_errors"] == 1
+        assert result.detail["n_drift_rejected_folds"] == 0
+        assert result.detail["n_genuine_scoring_errors"] == 1
+        assert result.detail["n_native_scored"] == 5
+
+    def test_drift_counts_stay_visible_on_the_reachability_skip_path(
+        self, tmp_path, monkeypatch
+    ):
+        """The 2026-08-13 corpus exits through the threshold-unreachable
+        skip (min typicality_n=4 from the 5-essay synthetic authors), so
+        the drift-hold fold counts must ride that GateResult's detail too —
+        otherwise the very report documenting the leg hides that 56/139
+        folds were drift-held."""
+        cg, _ = self._fixture(tmp_path, monkeypatch)
+        # typicality_n=4 everywhere -> unreachable 0.02 threshold.
+        payload_by_filename = {
+            f"native_{i}.txt": _g6_payload(p_central=0.5, typicality_n=4) for i in range(8)
+        }
+        payload_by_filename.update(
+            {f"nonnative_{i}.txt": _g6_payload(p_central=0.5, typicality_n=4) for i in range(5)}
+        )
+
+        client = _SequencedBaselineG6Client(
+            payload_by_filename,
+            {"/students/demo:gate_g6_author_native_0/baseline": [202]},
+        )
+
+        result = cg._compute_g6_fairness_data(client)
+
+        assert result.current_value.startswith("SKIPPED (threshold unreachable):")
+        assert result.detail["n_scoring_errors"] == 1
+        assert result.detail["n_drift_rejected_folds"] == 1
+        assert result.detail["n_genuine_scoring_errors"] == 0
+
+    def test_genuine_failures_above_ten_percent_still_error_the_leg(
+        self, tmp_path, monkeypatch
+    ):
+        """Guard: the carve-out is drift-shaped statuses only -- a leg
+        riddled with genuine 5xx failures keeps failing loudly."""
+        cg, payload_by_filename = self._fixture(tmp_path, monkeypatch)
+
+        client = _SequencedBaselineG6Client(
+            payload_by_filename,
+            {
+                "/students/demo:gate_g6_author_native_0/baseline": [500],
+                "/students/demo:gate_g6_author_native_1/baseline": [500],
+            },
+        )
+
+        with pytest.raises(RuntimeError, match="G6 native_english leg"):
+            cg._compute_g6_fairness_data(client)
+
+
+class TestG5RealAnchorDriftCarveOut:
+    """Companion to the G6 carve-out above, for the other half of the same
+    2026-08-13 strict-run failure: 'G5 real G1 anchor leg: 42/326 scoring
+    calls failed (>10%)' -- also reproduced exactly (42/326) by simulating
+    check_drift over _score_corpus_for_g1's seminary folds. The anchor
+    health check must exclude drift-only folds (the count
+    _score_corpus_for_g1 already returns) instead of erroring G5 before any
+    shuffled leg runs."""
+
+    def test_drift_only_anchor_errors_do_not_raise(self):
+        calibration_gate._check_g5_real_anchor_health(
+            [0.5] * 284, n_errors=42, n_drift_rejected=42
+        )
+
+    def test_genuine_anchor_errors_above_ten_percent_still_raise(self):
+        with pytest.raises(RuntimeError, match="G5 real G1 anchor leg"):
+            calibration_gate._check_g5_real_anchor_health(
+                [0.5] * 284, n_errors=42, n_drift_rejected=0
+            )
+
+    def test_mixed_anchor_errors_health_check_uses_genuine_count_only(self):
+        # 20 genuine of 42 total errors against 284 successes: genuine rate
+        # 20/304 = 6.6% -> healthy; the drift-held remainder is reported,
+        # not gated.
+        calibration_gate._check_g5_real_anchor_health(
+            [0.5] * 284, n_errors=42, n_drift_rejected=22
+        )
+
+    def test_zero_deviation_samples_still_raise(self):
+        with pytest.raises(RuntimeError, match="zero deviation samples"):
+            calibration_gate._check_g5_real_anchor_health(
+                [], n_errors=0, n_drift_rejected=0
+            )
+
+
 class TestG6ReachabilityPrecheck:
     """Direct unit coverage of the pure helper extracted from
     _compute_g6_fairness_data (Gap 2) specifically so the reachability

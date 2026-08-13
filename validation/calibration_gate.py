@@ -844,6 +844,7 @@ def _g6_reachability_precheck(
     *,
     n_native_scored: int,
     n_non_native_scored: int,
+    extra_detail: dict | None = None,
 ) -> "GateResult | None":
     """
     Pure reachability pre-check, extracted from _compute_g6_fairness_data so
@@ -875,6 +876,11 @@ def _g6_reachability_precheck(
             threshold=threshold,
             n_native_scored=n_native_scored,
             n_non_native_scored=n_non_native_scored,
+            # Leg-health context (e.g. the drift-hold fold counts) must stay
+            # visible on this skip path too — the 2026-08-13 corpus exits
+            # HERE, so a detail-less skip would hide that 56/139 folds were
+            # drift-held from the very report that documents the leg.
+            extra_detail=extra_detail,
         )
     return None
 
@@ -1736,12 +1742,22 @@ def _score_corpus_for_g1(
     whose baseline is known incomplete must never be scored — see the
     module-level note on the 2026-07-28 vs 2026-07-30 drift) — so callers
     can distinguish "clean run" from "the numbers came from a broken leg"
-    (see _require_healthy_leg). This is UNCHANGED from before
-    n_drift_rejected existed: n_errors still counts every drift-rejected
-    fold too, because the real (non-shuffled) G1 leg's own health accounting
-    (run_g5's "G5 real G1 anchor leg" check on real_g1_n_errors) must keep
-    treating a drift-rejection on a real student's baseline as a genuine
-    signal about that leg, exactly as it does today.
+    (see _require_healthy_leg). n_errors remains the INCLUSIVE count —
+    every drift-rejected fold is still in it — but the real (non-shuffled)
+    G1 leg's health accounting no longer gates on it directly: run_all()
+    forwards n_drift_rejected to run_g5, whose anchor check
+    (_check_g5_real_anchor_health) gates on the genuine-failure count
+    n_errors - n_drift_rejected, the same carve-out the shuffled leg has
+    always applied. The original policy ("a drift-rejection on a real
+    student's baseline is a genuine signal about that leg") dated from when
+    the real corpora never triggered the drift gate; the 2026-08-08
+    seminary corpus growth (7f11771f) changed that — 42/326 real-leg folds
+    are drift-held (reproduced exactly by simulating check_drift over these
+    folds, magnitudes 0.2506-0.3903 vs the 0.25 anchor threshold, all on
+    genuine same-author uploads), which made the conservative admission
+    gate read as a permanent machinery ERROR and blocked G5 from running at
+    all. The held folds still travel loudly in G5's detail
+    (real_g1_drift_rejected_count and note).
 
     n_drift_rejected is a NEW, purely additive count, always <= n_errors: of
     the folds counted in n_errors because a baseline upload failed, this
@@ -1753,10 +1769,10 @@ def _score_corpus_for_g1(
     failures is NOT counted here — any genuine failure in the mix means the
     fold is still evidence of real machinery trouble. Callers that want to
     treat drift-rejection as an expected, non-machinery outcome (G5's
-    shuffled-G1 leg — see run_g5) can compute their own
+    shuffled-G1 leg AND, since the 2026-08-13 carve-out, the real anchor
+    leg — see run_g5 / _check_g5_real_anchor_health) can compute their own
     "genuine-failures-only" error count as n_errors - n_drift_rejected
-    before calling _require_healthy_leg; callers that don't care (run_all()'s
-    real G1 leg) simply discard this return value. pooled_typicality_ns is
+    before calling _require_healthy_leg. pooled_typicality_ns is
     each successful fold's top-level payload["typicality_n"] (also
     index-aligned with pooled_actions) — evaluate_g1_fpr's reachability
     annotation consumes it.
@@ -2132,10 +2148,10 @@ def run_all() -> list[GateResult]:
         real_g1_deviations,
         real_g1_errors,
         real_g1_typicality_ns,
-        _real_g1_drift_rejected,  # unused here — the real G1 leg keeps
-        # treating a drift-rejection the same as any other error (see
-        # _score_corpus_for_g1's docstring); only G5's shuffled-G1 leg
-        # (run_g5) distinguishes it.
+        real_g1_drift_rejected,  # forwarded to run_g5: the anchor health
+        # check gates on genuine failures only, excluding Phase-8
+        # drift-gate holds (see _score_corpus_for_g1's docstring on the
+        # 2026-08-13 carve-out).
     ) = _score_corpus_for_g1(client, "g1", texts_by_id)
 
     # Per-entity PER-FOLD LOO count, keyed the same way as texts_by_id — see
@@ -2242,6 +2258,7 @@ def run_all() -> list[GateResult]:
                 real_g1_deviations=real_g1_deviations,
                 real_g1_flagged_rate=g1_result.detail["pooled_flagged_rate"],
                 real_g1_n_errors=real_g1_errors,
+                real_g1_n_drift_rejected=real_g1_drift_rejected,
             )
         )
     except Exception as exc:  # noqa: BLE001 — see _g5_machinery_error_result
@@ -2810,7 +2827,12 @@ def _compute_g6_fairness_data(client) -> GateResult:
     Returns the finished GateResult (evaluate/skip dispatch lives here, next
     to the data realities that decide it). Raises RuntimeError via
     _require_healthy_leg on an unhealthy scoring leg — a 4xx-riddled leg is
-    a machinery failure, not "insufficient data".
+    a machinery failure, not "insufficient data". Folds whose only baseline
+    failures were Phase-8 drift-gate holds (202/409) are the exception:
+    they are skipped and counted (n_drift_rejected_folds in detail) but
+    excluded from that health check — same carve-out as G5's shuffled leg;
+    see the comment at the _require_healthy_leg call site for the
+    2026-08-13 diagnosis that forced this.
     """
     import json as _json
     import time
@@ -2849,6 +2871,7 @@ def _compute_g6_fairness_data(client) -> GateResult:
     per_group_features: dict[bool, list[dict[str, float]]] = {True: [], False: []}
     scoring_rows: list[ScoringResult] = []
     n_errors = 0
+    n_drift_rejected = 0
     n_null_typicality = 0
 
     with _uniformity_features_enabled():
@@ -2860,6 +2883,10 @@ def _compute_g6_fairness_data(client) -> GateResult:
             for held_out_idx, held_out in enumerate(author_entries):
                 sid = f"demo:gate_g6_{author_id}_{held_out_idx}"
                 baseline_failed = False
+                # True iff every failing baseline response was a Phase-8
+                # drift-gate hold (202/409) — same rule and rationale as
+                # _score_corpus_for_g1's baseline_drift_only.
+                baseline_drift_only = True
                 for i, other in enumerate(author_entries):
                     if i == held_out_idx:
                         continue
@@ -2874,11 +2901,15 @@ def _compute_g6_fairness_data(client) -> GateResult:
                     )
                     if r.status_code != 200:
                         baseline_failed = True
+                        if r.status_code not in (202, 409):
+                            baseline_drift_only = False
                 if baseline_failed:
                     # A fold whose baseline is known incomplete must not be
                     # scored — see _score_corpus_for_g1's identical
                     # convention.
                     n_errors += 1
+                    if baseline_drift_only:
+                        n_drift_rejected += 1
                     continue
                 t0 = time.perf_counter()
                 r = client.post(
@@ -2933,8 +2964,26 @@ def _compute_g6_fairness_data(client) -> GateResult:
                 )
 
     n_scored = sum(len(v) for v in results_by_group.values())
-    _require_healthy_leg("G6 native_english leg", n_success=n_scored, n_errors=n_errors)
+    # Drift-held folds (every failing upload 202/409) are excluded from the
+    # machinery health check: they are the Phase-8 admission gate holding
+    # genuine same-author uploads on heterogeneous real prose, not scoring
+    # failures. 2026-08-13 strict run: 56/139 folds (>10% -> permanent
+    # ERROR) traced entirely to drift holds after the 2026-08-08 seminary
+    # corpus growth — an in-process check_drift simulation reproduces the
+    # count exactly (7 distinct held files, magnitudes 0.2512-0.3333 vs the
+    # 0.25 anchor threshold). The counts still travel in detail below, and
+    # the per-group minimums keep a drift-gutted sample from being quoted.
+    _require_healthy_leg(
+        "G6 native_english leg",
+        n_success=n_scored,
+        n_errors=n_errors - n_drift_rejected,
+    )
 
+    _g6_drift_detail = {
+        "n_scoring_errors": n_errors,
+        "n_genuine_scoring_errors": n_errors - n_drift_rejected,
+        "n_drift_rejected_folds": n_drift_rejected,
+    }
     n_native = len(results_by_group[True])
     n_non_native = len(results_by_group[False])
     if n_native < _G6_MIN_PER_GROUP or n_non_native < _G6_MIN_PER_GROUP:
@@ -2942,6 +2991,7 @@ def _compute_g6_fairness_data(client) -> GateResult:
             _g6_short_group_message(n_native, n_non_native, _G6_MIN_PER_GROUP),
             n_native_scored=n_native,
             n_non_native_scored=n_non_native,
+            extra_detail=_g6_drift_detail,
         )
 
     # The vacuous-pass guard: on an unreachable-threshold sample (e.g. 5
@@ -2956,6 +3006,7 @@ def _compute_g6_fairness_data(client) -> GateResult:
         NO_ACTION_CENTRAL_THRESHOLD,
         n_native_scored=n_native,
         n_non_native_scored=n_non_native,
+        extra_detail=_g6_drift_detail,
     )
     if reachability_skip is not None:
         return reachability_skip
@@ -2987,7 +3038,16 @@ def _compute_g6_fairness_data(client) -> GateResult:
     informational = {
         "n_native_scored": n_native,
         "n_non_native_scored": n_non_native,
-        "n_scoring_errors": n_errors,
+        **_g6_drift_detail,
+        "drift_rejected_note": (
+            "folds dropped because the Phase-8 drift gate held a genuine "
+            "same-author baseline upload (202/409) — admission control, "
+            "not machinery failure; excluded from the >10% health check. "
+            "NOTE the surviving sample under-represents the most "
+            "heterogeneous authors (2026-08-13: seminary_09 lost all 16 "
+            "folds), so read the per-group rates with that composition "
+            "shift in mind."
+        ),
         "n_null_typicality_skipped": n_null_typicality,
         "flag_rule": f"typicality_p_central <= {NO_ACTION_CENTRAL_THRESHOLD}",
         "uniformity_enabled_during_leg": True,
@@ -3080,6 +3140,7 @@ def _compute_g6_fairness_data_pooled(client) -> GateResult:
     per_group_features: dict[bool, list[dict[str, float]]] = {True: [], False: []}
     scoring_rows: list[ScoringResult] = []
     n_errors = 0
+    n_drift_rejected = 0
     n_null_typicality = 0
     calibration_mode_counts: dict[str, int] = {"pooled": 0, "self": 0, "none": 0}
 
@@ -3123,6 +3184,8 @@ def _compute_g6_fairness_data_pooled(client) -> GateResult:
             for held_out_idx, held_out in enumerate(author_entries):
                 sid = f"demo:gate_g6pooled_{author_id}_{held_out_idx}"
                 baseline_failed = False
+                # Same drift-hold carve-out as _compute_g6_fairness_data.
+                baseline_drift_only = True
                 for i, other in enumerate(author_entries):
                     if i == held_out_idx:
                         continue
@@ -3137,8 +3200,12 @@ def _compute_g6_fairness_data_pooled(client) -> GateResult:
                     )
                     if r.status_code != 200:
                         baseline_failed = True
+                        if r.status_code not in (202, 409):
+                            baseline_drift_only = False
                 if baseline_failed:
                     n_errors += 1
+                    if baseline_drift_only:
+                        n_drift_rejected += 1
                     continue
 
                 own_state = store.get(sid)
@@ -3196,7 +3263,13 @@ def _compute_g6_fairness_data_pooled(client) -> GateResult:
                 )
 
     n_scored = sum(len(v) for v in results_by_group.values())
-    _require_healthy_leg("G6 pooled native_english leg", n_success=n_scored, n_errors=n_errors)
+    # Drift-held folds excluded from the machinery bar — same carve-out and
+    # rationale as _compute_g6_fairness_data's health check above.
+    _require_healthy_leg(
+        "G6 pooled native_english leg",
+        n_success=n_scored,
+        n_errors=n_errors - n_drift_rejected,
+    )
 
     n_native = len(results_by_group[True])
     n_non_native = len(results_by_group[False])
@@ -3205,7 +3278,12 @@ def _compute_g6_fairness_data_pooled(client) -> GateResult:
             _g6_short_group_message(n_native, n_non_native, _G6_MIN_PER_GROUP),
             n_native_scored=n_native,
             n_non_native_scored=n_non_native,
-            extra_detail={"calibration_mode_counts": calibration_mode_counts},
+            extra_detail={
+                "calibration_mode_counts": calibration_mode_counts,
+                "n_scoring_errors": n_errors,
+                "n_genuine_scoring_errors": n_errors - n_drift_rejected,
+                "n_drift_rejected_folds": n_drift_rejected,
+            },
         )
 
     reachability_skip = _g6_reachability_precheck(
@@ -3213,6 +3291,11 @@ def _compute_g6_fairness_data_pooled(client) -> GateResult:
         NO_ACTION_CENTRAL_THRESHOLD,
         n_native_scored=n_native,
         n_non_native_scored=n_non_native,
+        extra_detail={
+            "n_scoring_errors": n_errors,
+            "n_genuine_scoring_errors": n_errors - n_drift_rejected,
+            "n_drift_rejected_folds": n_drift_rejected,
+        },
     )
     if reachability_skip is not None:
         reachability_skip.detail["calibration_mode_counts"] = calibration_mode_counts
@@ -3243,6 +3326,8 @@ def _compute_g6_fairness_data_pooled(client) -> GateResult:
         "n_native_scored": n_native,
         "n_non_native_scored": n_non_native,
         "n_scoring_errors": n_errors,
+        "n_genuine_scoring_errors": n_errors - n_drift_rejected,
+        "n_drift_rejected_folds": n_drift_rejected,
         "n_null_typicality_skipped": n_null_typicality,
         "flag_rule": f"typicality_p_central <= {NO_ACTION_CENTRAL_THRESHOLD}",
         "uniformity_enabled_during_leg": True,
@@ -4186,10 +4271,43 @@ def _shuffled_public_authors_top1(rng) -> tuple[float, dict]:
     return report["summary"]["top1_accuracy"], info
 
 
+def _check_g5_real_anchor_health(
+    real_g1_deviations: list[float],
+    n_errors: int,
+    n_drift_rejected: int,
+) -> None:
+    """
+    Health-check the REAL G1 leg as G5's comparison anchor, gating on the
+    genuine-failure count only: n_errors - n_drift_rejected. Drift-held
+    folds (Phase-8 202/409 on a baseline upload) are admission control
+    working on heterogeneous real prose, not scoring-machinery failure —
+    the 2026-08-13 strict run's "G5 real G1 anchor leg: 42/326 scoring
+    calls failed" traced entirely to drift holds on the grown seminary
+    corpus (see _score_corpus_for_g1's docstring), which blocked every
+    shuffled leg from running at all. Extracted to a standalone function
+    (same convention as _g1_entity_baseline_counts) so this policy is
+    unit-testable without run_g5's expensive shuffled reruns.
+
+    Raises RuntimeError on an empty anchor sample or a >10% genuine-failure
+    rate, exactly as before the carve-out.
+    """
+    if not real_g1_deviations:
+        raise RuntimeError(
+            "G5: the real G1 leg produced zero deviation samples — nothing to "
+            "compare the shuffled leg against"
+        )
+    _require_healthy_leg(
+        "G5 real G1 anchor leg",
+        n_success=len(real_g1_deviations),
+        n_errors=n_errors - n_drift_rejected,
+    )
+
+
 def run_g5(
     real_g1_deviations: list[float],
     real_g1_flagged_rate: float | None = None,
     real_g1_n_errors: int = 0,
+    real_g1_n_drift_rejected: int = 0,
     seed: int = 1730,
 ) -> GateResult:
     """
@@ -4209,6 +4327,12 @@ def run_g5(
             anchor is health-checked exactly like the shuffled legs, because
             a 4xx-riddled anchor is a machinery failure, not a weakened
             comparison baseline.
+        real_g1_n_drift_rejected: of real_g1_n_errors, the folds whose only
+            failures were Phase-8 drift-gate holds (202/409) — excluded
+            from the anchor health check exactly as the shuffled leg has
+            always excluded its own drift holds (see
+            _check_g5_real_anchor_health for the 2026-08-13 rationale), and
+            reported in detail rather than gated.
         seed: one np.random.default_rng(seed) instance drives every shuffle,
             consumed in a fixed order — G1 document shuffle, then the G3
             author permutation, then the three G4 dialogue-list permutations
@@ -4230,15 +4354,10 @@ def run_g5(
     """
     import statistics
 
-    if not real_g1_deviations:
-        raise RuntimeError(
-            "G5: the real G1 leg produced zero deviation samples — nothing to "
-            "compare the shuffled leg against"
-        )
-    _require_healthy_leg(
-        "G5 real G1 anchor leg",
-        n_success=len(real_g1_deviations),
+    _check_g5_real_anchor_health(
+        real_g1_deviations,
         n_errors=real_g1_n_errors,
+        n_drift_rejected=real_g1_n_drift_rejected,
     )
 
     import numpy as np
@@ -4338,6 +4457,22 @@ def run_g5(
         informational={
             "seed": seed,
             "real_g1_flagged_rate": real_g1_flagged_rate,
+            "real_g1_n_scoring_errors": real_g1_n_errors,
+            "real_g1_n_genuine_scoring_errors": real_g1_n_errors - real_g1_n_drift_rejected,
+            "real_g1_drift_rejected_count": real_g1_n_drift_rejected,
+            "real_g1_drift_rejected_note": (
+                "folds of the REAL G1 anchor leg dropped because the "
+                "Phase-8 drift gate held a genuine same-author baseline "
+                "upload (202/409) — admission control being conservative "
+                "on heterogeneous real prose (2026-08-13: 42/326 on the "
+                "grown seminary corpus, magnitudes 0.2506-0.3903 vs the "
+                "0.25 anchor threshold), not machinery failure. Excluded "
+                "from the anchor health check; NOTE the surviving anchor "
+                "sample under-represents each author's most heterogeneous "
+                "documents, which biases the real-leg mean deviation "
+                "toward homogeneity — read the deviation-shift comparison "
+                "with that in mind."
+            ),
             "shuffled_g1_flagged_rate": shuffled_g1_flagged_rate,
             "flagged_rate_note": (
                 "context only, never gated: conformal typicality p-values "
