@@ -91,6 +91,33 @@ Weekly, run the shadow report against a backup copy:
 If any box is unchecked, stay in shadow. There is no cost to waiting;
 there is a large cost to a false accusation.
 
+### 3b. Topic-shadow telemetry (optional, score-neutral)
+
+One more shadow measurement is free once real traffic exists, and answers
+a question the 2026-08 cross-genre study could not: do real student
+submissions ever drift far enough from their baseline topic for the
+topic-variance correction to matter?
+
+- Set `TOPIC_VARIANCE_INFLATION=shadow` (dashboard env var, restart in a
+  maintenance window). Shadow attaches `deviation_score_inflated` and
+  `topic_distance` diagnostics to each scoring result **without touching
+  `deviation_score` or the recommendation** — tested to equal exactly
+  what `on` would produce.
+- After 2+ weeks, pull the distribution of `topic_distance` from scoring
+  audit records. If it clusters at or below 0.25 (the structural no-op
+  bound), the mechanism would never fire on this cohort and `on` is moot
+  regardless of its corpus performance — exactly the trap the
+  genre-invariant flag fell into. If a real tail exists above 0.25, gate
+  G7 (spec §Validation) becomes worth implementing.
+
+**Not free, despite appearances:** the cold-start prior's
+`bayesian_prior outcome=hit|miss` log line only fires when
+`BAYESIAN_PRIOR_ENABLED=1`, and that flag **changes scores** — do not
+enable it to collect telemetry. Measure prior coverage offline instead:
+`scripts/measure_genre_prior_scope.py` against pilot data (the 2026-07-29
+attempt found no genre-labelled dataset; re-try once real genre-tagged
+submissions accumulate).
+
 ## 4. Professor correction workflow
 
 Corrections are how the pilot learns. When a professor reviews a scored
