@@ -26,14 +26,18 @@ READY rule: >= 20 proctored samples with keystroke data, across >= 5
 distinct students, with non-degenerate distributions (p10 != p90) on at
 least 4 of the 6 features.
 
-Opens the DB read-only, so it is safe against a live pilot database or a
-backup copy.
+SQLite mode opens the DB file read-only (?mode=ro); Postgres mode is
+read-only by construction — it only calls PostgresRepository.all_states()
+(a SELECT), never get_or_create()/put(). Both are safe against a live
+pilot database or a backup copy.
 
 Usage:
     .venv/bin/python -m scripts.tier17_report
     .venv/bin/python -m scripts.tier17_report --db /data/profiles.db
     .venv/bin/python -m scripts.tier17_report --db backups/profiles-X.db \
         --out-md tier17_week3.md --out-json tier17_week3.json
+    DATABASE_URL=postgresql://... .venv/bin/python -m scripts.tier17_report \
+        --backend postgres
 """
 
 from __future__ import annotations
@@ -99,6 +103,21 @@ def _fetch_keystroke_samples(conn: sqlite3.Connection) -> list[dict]:
             if not keystroke_data:
                 continue
             out.append({"student_id": student_id, "keystroke_data": keystroke_data})
+    return out
+
+
+def _samples_from_states(states) -> list[dict]:
+    """Postgres-mode twin of _fetch_keystroke_samples: same filter
+    (provenance == "proctored", truthy keystroke_data), same output shape,
+    applied to StudentState objects instead of raw JSON rows."""
+    out: list[dict] = []
+    for state in states:
+        for sample in state.samples:
+            if sample.provenance != "proctored" or not sample.keystroke_data:
+                continue
+            out.append(
+                {"student_id": state.student_id, "keystroke_data": sample.keystroke_data}
+            )
     return out
 
 
@@ -212,21 +231,52 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    ap.add_argument("--db", default=str(_default_db_path()), help="Path to the SQLite database.")
+    ap.add_argument(
+        "--backend",
+        choices=("sqlite", "postgres"),
+        default="sqlite",
+        help="Where the student_profiles data lives. postgres reads DATABASE_URL "
+        "(like scripts/migrate_sqlite_to_pg.py); --db applies to sqlite only.",
+    )
+    ap.add_argument(
+        "--db", default=str(_default_db_path()), help="Path to the SQLite database (sqlite backend only)."
+    )
     ap.add_argument("--out-md", default=None, help="Write markdown here (default stdout).")
     ap.add_argument("--out-json", default=None, help="Also write the raw report JSON.")
     args = ap.parse_args(argv)
 
-    db_path = Path(args.db)
-    if not db_path.exists():
-        print(f"[tier17-report] DB not found: {db_path}", file=sys.stderr)
-        return 1
+    if args.backend == "postgres":
+        if not os.environ.get("DATABASE_URL", "").startswith("postgresql"):
+            print(
+                "[tier17-report] --backend postgres requires DATABASE_URL to "
+                "point at a postgresql:// instance",
+                file=sys.stderr,
+            )
+            return 2
+        # Deferred import (house pattern, see original/postgres_repository.py's
+        # module docstring): sqlite mode must not require sqlalchemy.
+        from original.db import postgres_session
 
-    conn = _connect_readonly(db_path)
-    try:
-        samples = _fetch_keystroke_samples(conn)
-    finally:
-        conn.close()
+        try:
+            with postgres_session.get_engine().connect():
+                pass
+        except Exception as e:
+            print(f"[tier17-report] cannot reach Postgres: {e}", file=sys.stderr)
+            return 1
+        from original.postgres_repository import PostgresRepository
+
+        samples = _samples_from_states(PostgresRepository().all_states())
+    else:
+        db_path = Path(args.db)
+        if not db_path.exists():
+            print(f"[tier17-report] DB not found: {db_path}", file=sys.stderr)
+            return 1
+
+        conn = _connect_readonly(db_path)
+        try:
+            samples = _fetch_keystroke_samples(conn)
+        finally:
+            conn.close()
 
     report = build_report(samples)
     md = to_markdown(report)
