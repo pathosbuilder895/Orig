@@ -163,12 +163,29 @@ def shuffled_control(seed: int = SEED, n_permutations: int = 20) -> dict:
     }
 
 
+# Cached across calls within a process, keyed on the labels file's digest so
+# a re-derive or a relabel invalidates it. shuffled_control is called more
+# than once per process — by the gate, and repeatedly by the test suite — and
+# each call would otherwise re-extract signals from every labelled document.
+_FEATURE_CACHE: dict[str, dict] = {}
+
+
+def _labels_digest() -> str:
+    import hashlib
+
+    return hashlib.sha256(derive.LABELS.read_bytes()).hexdigest()
+
+
 def _featurise_once(entries: list[dict]) -> dict:
     """Signals, author and split for every labelled document, extracted once."""
+    key = _labels_digest()
+    cached = _FEATURE_CACHE.get(key)
+    if cached is not None:
+        return cached
     X, y = derive.featurise(entries, allow_holdout=True)
     authors = np.array([e["author"] for e in entries])
     is_derivation = np.array([e["split"] == "derivation" for e in entries])
-    return {
+    corpus = {
         "X": X,
         "y": y,
         "authors": authors,
@@ -177,6 +194,8 @@ def _featurise_once(entries: list[dict]) -> dict:
         "n_holdout": int((~is_derivation).sum()),
         "author_label": {e["author"]: e["label"] for e in entries},
     }
+    _FEATURE_CACHE[key] = corpus
+    return corpus
 
 
 def _permute_labels(author_label: dict[str, str], rng: random.Random) -> tuple[dict, int]:

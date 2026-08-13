@@ -29,6 +29,14 @@ def holdout(mod):
     return mod.evaluate_holdout()
 
 
+@pytest.fixture(scope="module")
+def control(mod):
+    """One control run, shared. Each call featurises the whole labelled
+    corpus and fits 20 models; six independent calls were a measurable part
+    of pushing CI's pytest job past its 20-minute limit."""
+    return mod.shuffled_control(seed=1729)
+
+
 class TestHoldout:
     def test_reports_per_class_precision_and_abstention(self, holdout):
         assert holdout["n_holdout"] > 0
@@ -49,15 +57,14 @@ class TestHoldout:
 
 
 class TestShuffledControl:
-    def test_retained_authors_are_reported_not_engineered_away(self, mod):
+    def test_retained_authors_are_reported_not_engineered_away(self, control):
         """Forcing zero fixed points maps whole true classes onto single
         wrong labels, making the permuted labelling a mere RENAMING that
         stays perfectly learnable — measured at 0.621 against 0.333 chance.
         Uniform assignment is the correct null; the few retained authors are
         expected and are reported so the small excess over chance is
         attributable."""
-        out = mod.shuffled_control(seed=1729)
-        assert 0 <= out["mean_authors_retaining_true_label"] < out["n_authors_total"] / 2
+        assert 0 <= control["mean_authors_retaining_true_label"] < control["n_authors_total"] / 2
 
     def test_zero_permutations_returns_rather_than_raises(self, mod):
         """Previously raised NameError on an unbound `result`."""
@@ -66,28 +73,28 @@ class TestShuffledControl:
         assert out["n_permutations"] == 0
         assert out["accuracy_per_draw"] == []
 
-    def test_permuted_genre_labels_collapse_to_chance(self, mod):
+    def test_permuted_genre_labels_collapse_to_chance(self, control):
         """The direct test for "this is secretly an author classifier". If
         the model were keying on authorial style it would still predict well
         under permuted labels, because what it learned would not depend on
         the label being genre."""
-        out = mod.shuffled_control(seed=1729)
-        assert out["accuracy"] <= out["chance"] + 0.10
+        assert control["accuracy"] <= control["chance"] + 0.10
 
-    def test_the_permutation_actually_moves_labels(self, mod):
+    def test_the_permutation_actually_moves_labels(self, mod, control):
         """A permutation that happened to be the identity would make the
         control vacuous — it would 'collapse to chance' only by accident of
         the shuffle, or fail to collapse for the wrong reason."""
-        out = mod.shuffled_control(seed=1729)
         entries = mod.derive.load_entries()
         real = {e["author"]: e["label"] for e in entries}
-        moved = sum(1 for a, lbl in out["permutation"].items() if real[a] != lbl)
-        assert moved >= len(out["permutation"]) * 0.5
+        moved = sum(1 for a, lbl in control["permutation"].items() if real[a] != lbl)
+        assert moved >= len(control["permutation"]) * 0.5
 
     def test_the_control_is_deterministic(self, mod):
+        """Two runs at a small n_permutations — determinism is a property of
+        the seeding, not of the draw count, so this need not pay for 20."""
         assert (
-            mod.shuffled_control(seed=1729)["accuracy"]
-            == mod.shuffled_control(seed=1729)["accuracy"]
+            mod.shuffled_control(seed=1729, n_permutations=2)["accuracy"]
+            == mod.shuffled_control(seed=1729, n_permutations=2)["accuracy"]
         )
 
 
@@ -115,13 +122,12 @@ class TestMeasuredOutcome:
 
         assert holdout["abstention_rate"] <= _G8_ABSTENTION_BAR
 
-    def test_and_it_is_not_an_author_detector(self, mod):
+    def test_and_it_is_not_an_author_detector(self, control):
         """The leg that matters. Precision means nothing if the model reached
         it by recognising writers rather than genres."""
         from validation.calibration_gate import _G8_CONTROL_MARGIN
 
-        out = mod.shuffled_control(seed=1729)
-        assert out["accuracy"] <= out["chance"] + _G8_CONTROL_MARGIN
+        assert control["accuracy"] <= control["chance"] + _G8_CONTROL_MARGIN
 
 
 class TestUnclaimedClassesZeroTheMinimum:
