@@ -49,6 +49,23 @@ class TestHoldout:
 
 
 class TestShuffledControl:
+    def test_retained_authors_are_reported_not_engineered_away(self, mod):
+        """Forcing zero fixed points maps whole true classes onto single
+        wrong labels, making the permuted labelling a mere RENAMING that
+        stays perfectly learnable — measured at 0.621 against 0.333 chance.
+        Uniform assignment is the correct null; the few retained authors are
+        expected and are reported so the small excess over chance is
+        attributable."""
+        out = mod.shuffled_control(seed=1729)
+        assert 0 <= out["mean_authors_retaining_true_label"] < out["n_authors_total"] / 2
+
+    def test_zero_permutations_returns_rather_than_raises(self, mod):
+        """Previously raised NameError on an unbound `result`."""
+        out = mod.shuffled_control(seed=1729, n_permutations=0)
+        assert out["accuracy"] is None
+        assert out["n_permutations"] == 0
+        assert out["accuracy_per_draw"] == []
+
     def test_permuted_genre_labels_collapse_to_chance(self, mod):
         """The direct test for "this is secretly an author classifier". If
         the model were keying on authorial style it would still predict well
@@ -75,24 +92,36 @@ class TestShuffledControl:
 
 
 class TestMeasuredOutcome:
+    """These duplicate gate G8's conjunction deliberately, so a regression
+    shows up in the fast loop rather than only in the multi-minute gate
+    battery. The bars are IMPORTED from calibration_gate rather than
+    restated: duplicating an assertion is defence in depth, duplicating a
+    threshold is a chance for the two to disagree silently."""
+
     def test_the_model_meets_the_precision_floor(self, holdout):
         """Recorded as the measured state. It took three things to get here,
         and only the third was decisive: eight more authors (the thin classes
         had 2-3, so leave-one-author-out trained on 1-2 and scored 0.000), a
         selector aligned with the conjunction rather than one leg of it, and
         a taxonomy whose class boundaries text can actually carry."""
-        assert holdout["min_precision"] >= 0.80
+        from validation.calibration_gate import _G8_PRECISION_BAR
+
+        assert holdout["min_precision"] >= _G8_PRECISION_BAR
 
     def test_abstention_stays_under_the_ceiling(self, holdout):
         """Precision bought by abstaining on everything is the degenerate
         win; the ceiling is what makes the precision number mean something."""
-        assert holdout["abstention_rate"] <= 0.50
+        from validation.calibration_gate import _G8_ABSTENTION_BAR
+
+        assert holdout["abstention_rate"] <= _G8_ABSTENTION_BAR
 
     def test_and_it_is_not_an_author_detector(self, mod):
         """The leg that matters. Precision means nothing if the model reached
         it by recognising writers rather than genres."""
+        from validation.calibration_gate import _G8_CONTROL_MARGIN
+
         out = mod.shuffled_control(seed=1729)
-        assert out["accuracy"] <= out["chance"] + 0.10
+        assert out["accuracy"] <= out["chance"] + _G8_CONTROL_MARGIN
 
 
 class TestUnclaimedClassesZeroTheMinimum:

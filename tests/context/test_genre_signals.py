@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import math
 
+import pytest
+
 from original.context import genre_v2
 
 
@@ -157,3 +159,56 @@ class TestArgumentVersusNarrationSignals:
             "proper_noun_rate",
         ):
             assert name in genre_v2.SIGNAL_ORDER
+
+
+class TestSignalPrecisionFixes:
+    """Three feature-quality defects found in review. Each changes a model
+    input, so they were batched into one re-derive rather than fixed
+    piecemeal — every re-derive spends a hold-out consultation."""
+
+    def test_past_tense_does_not_count_ed_nouns_and_adverbs(self):
+        """`t.endswith("ed") and len(t) > 3` matched 'need', 'indeed',
+        'hundred', 'sacred' — all frequent in argumentative prose, which is
+        the class this signal is meant to distinguish narrative FROM. Worse,
+        'indeed' also counts as an argumentative connective, so one token
+        incremented both a narrative and an argument marker."""
+        text = "Indeed we need a hundred sacred united reasons. " * 12
+        assert genre_v2.extract_signals(text)["past_tense_ratio"] == 0.0
+
+    def test_past_tense_does_not_count_ambiguous_present_forms(self):
+        """'let' and 'put' are identical in present and past; 'let us
+        consider' and 'put simply' are exposition, not narrative."""
+        text = "Let us put the case simply and let the reader put it aside. " * 12
+        assert genre_v2.extract_signals(text)["past_tense_ratio"] == 0.0
+
+    def test_past_tense_still_counts_real_narrative(self):
+        text = "He walked to the river and looked at what he had carried. " * 12
+        assert genre_v2.extract_signals(text)["past_tense_ratio"] > 0.2
+
+    def test_dialogue_matches_quotations_longer_than_eighty_characters(self):
+        """The 1,80 span cap was inherited from v1's boolean 'is there any
+        dialogue' rule. As a continuous model feature it silently scored zero
+        on extended character speech and on block-style source quotation —
+        undercounting exactly where quoting is heaviest."""
+        long_quote = (
+            "“I have considered the matter at very great length indeed, and I "
+            "find that it will not answer at all in the circumstances.” "
+        )
+        assert len(long_quote) > 80
+        assert genre_v2.extract_signals(long_quote * 6)["dialogue_density"] > 0.0
+
+    def test_dialogue_does_not_run_away_across_paragraphs(self):
+        """An unbalanced quote must not swallow the rest of the document."""
+        text = "He said “this opens but never closes.\n\nA later paragraph entirely. " * 6
+        assert genre_v2.extract_signals(text)["dialogue_density"] >= 0.0
+
+    def test_every_per_word_rate_shares_one_denominator(self):
+        """second_person_ratio, citation_density and signal_verb_rate divided
+        by doc.word_count while the six newer rates divided by
+        len(_tokenize(text)). Two tokenisers, two scales, for signals that
+        read as parallel."""
+        text = "You must consider your own position, and you should say so. " * 12
+        signals = genre_v2.extract_signals(text)
+        tokens = [t.lower() for t in genre_v2._tokens_for_rates(text)]
+        expected = sum(1 for t in tokens if t in genre_v2._SECOND_PERSON) / len(tokens)
+        assert signals["second_person_ratio"] == pytest.approx(expected)

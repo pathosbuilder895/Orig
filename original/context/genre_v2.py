@@ -48,7 +48,24 @@ MARKUP_CONFIDENCE = 1.0
 # typographic quotes, so the creative_fiction branch could never fire on it:
 # measured 2026-08-08, Douglass is 0% straight / 64% curly and the Federalist
 # papers 0% / 36%. A plain bug, independent of the calibration problem.
-_DIALOGUE_RE = re.compile(r'"[^"]{1,80}"|“[^”]{1,80}”|‘[^’]{1,80}’')
+#
+# The 80-character span cap is also v1's, and it was harmless there because
+# the rule only asked "is there ANY dialogue". As the basis of a continuous
+# model feature it silently scored zero on extended character speech and on
+# block-style source quotation — undercounting precisely where quoting is
+# heaviest, and asymmetrically across classes. Raised to 400, which covers
+# ordinary speech and quoted sentences.
+#
+# A cap is still needed rather than removed: an unbalanced quotation mark
+# would otherwise let one match swallow the rest of the document. `[^"\n]`
+# additionally stops a match crossing a line break, so a stray opening quote
+# costs at most the remainder of its own line.
+_MAX_QUOTE_SPAN = 400
+_DIALOGUE_RE = re.compile(
+    rf'"[^"\n]{{1,{_MAX_QUOTE_SPAN}}}"'
+    rf"|“[^”\n]{{1,{_MAX_QUOTE_SPAN}}}”"
+    rf"|‘[^’\n]{{1,{_MAX_QUOTE_SPAN}}}’"
+)
 
 _STRUCTURE_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)]|#{1,6}\s|\[\s*[xX ]\s*\])")
 
@@ -255,8 +272,55 @@ _NARRATIVE_CONNECTIVES = frozenset(
 # and its absence of concrete narrative.
 _ABSTRACT_SUFFIXES = ("tion", "sion", "ness", "ity", "ism", "ment", "ance", "ence", "ship")
 
+# Words ending in -ed that are not past-tense verbs. Without this the suffix
+# test counted 'need' and 'indeed' — both markedly frequent in argumentative
+# prose, which is the class this signal exists to distinguish narrative FROM.
+# 'indeed' was doubly wrong: it also sits in _ARGUMENTATIVE_CONNECTIVES, so a
+# single token incremented an argument marker and a narrative marker at once.
+_NOT_PAST_ED = frozenset(
+    {
+        "need",
+        "indeed",
+        "hundred",
+        "sacred",
+        "united",
+        "wicked",
+        "naked",
+        "seed",
+        "deed",
+        "creed",
+        "breed",
+        "speed",
+        "greed",
+        "freed",
+        "agreed",
+        "exceed",
+        "succeed",
+        "proceed",
+        "indebted",
+        "aged",
+        "learned",
+        "blessed",
+        "beloved",
+        "hatred",
+        "embed",
+        "shed",
+        "sled",
+        "bed",
+        "fed",
+        "led",
+        "red",
+        "wed",
+    }
+)
+
 # Irregular past forms common enough that an -ed test alone would miss the
 # narrative signal entirely.
+#
+# EXCLUDES forms identical in the present tense — "let", "put", "read", "set",
+# "cut", "cost", "hurt". "let us consider" and "put simply" are exposition,
+# and counting them pushed scholarly prose toward the narrative end of the
+# very axis this signal defines.
 _IRREGULAR_PAST = frozenset(
     {
         "was",
@@ -283,8 +347,6 @@ _IRREGULAR_PAST = frozenset(
         "held",
         "stood",
         "heard",
-        "let",
-        "put",
         "sat",
         "spoke",
         "lay",
@@ -296,6 +358,30 @@ _IRREGULAR_PAST = frozenset(
         "wrote",
     }
 )
+
+
+def _is_past_tense(token: str) -> bool:
+    """True for tokens that genuinely mark past-tense narration."""
+    if token in _NOT_PAST_ED:
+        return False
+    return token in _IRREGULAR_PAST or (token.endswith("ed") and len(token) > 3)
+
+
+def _tokens_for_rates(text: str):
+    """
+    The ONE tokenisation every per-word rate divides by.
+
+    Named and shared deliberately. Three signals used to divide by
+    ``TextDoc.word_count`` while six divided by ``len(_tokenize(text))`` —
+    two different tokenisers, which disagree on punctuation, for quantities
+    that read as parallel "per word" rates. The standardiser absorbs a
+    constant factor so a model still fits, but the two groups drifted apart
+    differently as punctuation density changed, and nothing in the names said
+    which denominator a given signal used.
+    """
+    from .resolvers import _tokenize
+
+    return _tokenize(text)
 
 
 def extract_signals(text: str, citation_data=None) -> dict[str, float]:
@@ -316,13 +402,13 @@ def extract_signals(text: str, citation_data=None) -> dict[str, float]:
         return dict.fromkeys(SIGNAL_ORDER, 0.0)
 
     doc = TextDoc(text)
-    word_count = max(1, doc.word_count)
     sentences = doc.sentences or [text]
     lengths = [len(_tokenize(s)) for s in sentences] or [0]
     if citation_data is None:
         _, citation_data = preprocess(text)
 
-    tokens = [t.lower() for t in _tokenize(text)]
+    # One denominator for every per-word rate below — see _tokens_for_rates.
+    tokens = [t.lower() for t in _tokens_for_rates(text)]
     n_tokens = max(1, len(tokens))
     cite_total = (
         citation_data.paren_citation_count
@@ -336,17 +422,14 @@ def extract_signals(text: str, citation_data=None) -> dict[str, float]:
             float(statistics.pstdev(lengths)) if len(lengths) > 1 else 0.0
         ),
         "raw_first_person_ratio": float(first_person_ratio(doc)),
-        "second_person_ratio": sum(1 for t in tokens if t in _SECOND_PERSON) / word_count,
+        "second_person_ratio": sum(1 for t in tokens if t in _SECOND_PERSON) / n_tokens,
         "dialogue_density": len(_DIALOGUE_RE.findall(text)) / len(sentences),
-        "citation_density": (cite_total / word_count) * 100.0,
+        "citation_density": (cite_total / n_tokens) * 100.0,
         "raw_imperative_density": float(imperative_density(doc)),
-        "signal_verb_rate": (sum(citation_data.signal_verb_counts.values()) / word_count) * 100.0,
+        "signal_verb_rate": (sum(citation_data.signal_verb_counts.values()) / n_tokens) * 100.0,
         "question_rate": sum(1 for s in sentences if s.strip().endswith("?")) / len(sentences),
         "mean_word_length": sum(len(t) for t in tokens) / max(1, len(tokens)),
-        "past_tense_ratio": sum(
-            1 for t in tokens if t in _IRREGULAR_PAST or (t.endswith("ed") and len(t) > 3)
-        )
-        / n_tokens,
+        "past_tense_ratio": sum(1 for t in tokens if _is_past_tense(t)) / n_tokens,
         "modal_verb_rate": sum(1 for t in tokens if t in _MODALS) / n_tokens,
         "argumentative_connective_rate": sum(1 for t in tokens if t in _ARGUMENTATIVE_CONNECTIVES)
         / n_tokens,

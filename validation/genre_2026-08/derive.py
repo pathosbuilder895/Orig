@@ -182,6 +182,26 @@ def _out_of_fold_predictions(entries: list[dict]) -> tuple[np.ndarray, np.ndarra
     return np.asarray(truth), np.asarray(predicted), np.asarray(confidence)
 
 
+def _precision_at(truth, predicted, confidence, threshold, classes):
+    """Per-class out-of-fold precision at one threshold, plus its minimum.
+
+    A class claimed nowhere scores None and drags the minimum to 0.0 — an
+    unusable class is not perfect precision. Shared by the search below and
+    by the re-measurement that follows a fallback, so the two cannot compute
+    it differently.
+    """
+    claimed = confidence >= threshold
+    per_class: dict[str, float | None] = {}
+    for cls in classes:
+        mask = claimed & (predicted == cls)
+        per_class[cls] = float((truth[mask] == cls).mean()) if mask.sum() else None
+    scored = [v for v in per_class.values() if v is not None]
+    if not scored:
+        return per_class, 0.0
+    minimum = 0.0 if len(scored) < len(classes) else min(scored)
+    return per_class, minimum
+
+
 def choose_threshold(fit: dict, entries: list[dict]) -> tuple[float, dict]:
     """
     Smallest threshold at which every claimed class reaches the precision
@@ -204,29 +224,21 @@ def choose_threshold(fit: dict, entries: list[dict]) -> tuple[float, dict]:
         claimed = confidence >= threshold
         if not claimed.any():
             break
-        per_class: dict[str, float | None] = {}
-        for cls in fit["classes"]:
-            mask = claimed & (predicted == cls)
-            per_class[cls] = float((truth[mask] == cls).mean()) if mask.sum() else None
-        scored = [v for v in per_class.values() if v is not None]
-        if not scored:
+        per_class, minimum = _precision_at(
+            truth, predicted, confidence, threshold, fit["classes"]
+        )
+        if not any(v is not None for v in per_class.values()):
             continue
-        # A class the model never claims is not "perfect precision" — it is an
-        # unusable class, and it must drag the minimum to zero rather than be
-        # quietly excluded from the average.
-        minimum = 0.0 if len(scored) < len(fit["classes"]) else min(scored)
         if minimum > fallback[2]:
             fallback = (threshold, per_class, minimum)
         abstention = float(1.0 - claimed.mean())
         if abstention <= _ABSTENTION_CEILING and minimum > best_min:
             best_threshold, best_per_class, best_min = threshold, per_class, minimum
 
-    if best_threshold is None or best_min < _PRECISION_FLOOR:
-        # Either nothing stayed under the ceiling, or nothing under it reached
-        # the floor. Report the best available so the gate receives real
-        # numbers rather than nothing at all.
-        if best_threshold is None:
-            best_threshold, best_per_class, best_min = fallback
+    if best_threshold is None:
+        # Nothing stayed under the abstention ceiling. Report the best
+        # available so the gate receives real numbers rather than nothing.
+        best_threshold, best_per_class, best_min = fallback
 
     unclaimable = sorted(c for c, v in best_per_class.items() if v is None)
     meets_floor = not unclaimable and best_min >= _PRECISION_FLOOR
@@ -242,6 +254,15 @@ def choose_threshold(fit: dict, entries: list[dict]) -> tuple[float, dict]:
 
         best_threshold = GENRE_CONFIDENCE_MIN
         threshold_source = "default constant (precision floor unreachable)"
+        # Re-measure at the threshold actually being SHIPPED. Previously the
+        # diagnostics kept the numbers from the rejected candidate, so the
+        # artifact recorded confidence_min=0.55 beside a min_precision
+        # measured somewhere else entirely, and G8 consumed the pair as if
+        # they described one model.
+        best_per_class, best_min = _precision_at(
+            truth, predicted, confidence, best_threshold, fit["classes"]
+        )
+        unclaimable = sorted(c for c, v in best_per_class.items() if v is None)
 
     return best_threshold, {
         "threshold_source": threshold_source,

@@ -130,18 +130,19 @@ def shuffled_control(seed: int = SEED, n_permutations: int = 20) -> dict:
             "n_classes": corpus["n_classes"],
             "n_permutations": 0,
             "n_holdout": corpus["n_holdout"],
-            "n_failed_derangements": 0,
+            "n_authors_total": len(corpus["author_label"]),
+            "mean_authors_retaining_true_label": 0.0,
             "permutation": {},
         }
 
     accuracies: list[float] = []
     permutations: list[dict] = []
-    n_failed = 0
+    retained: list[int] = []
     for offset in range(max(0, n_permutations)):
         draw = _one_shuffled_draw(corpus, seed + offset)
         accuracies.append(draw["accuracy"])
         permutations.append(draw["permutation"])
-        n_failed += int(draw["derangement_failed"])
+        retained.append(draw["authors_retaining_true_label"])
 
     n_classes = corpus["n_classes"]
     return {
@@ -151,11 +152,13 @@ def shuffled_control(seed: int = SEED, n_permutations: int = 20) -> dict:
         "n_classes": n_classes,
         "n_permutations": len(accuracies),
         "n_holdout": corpus["n_holdout"],
-        # A draw that could not be fully deranged leaves some authors on
-        # their true label, which is legitimately predictable and lifts the
-        # control above chance for a reason unrelated to author-keying.
-        # Counted rather than hidden.
-        "n_failed_derangements": n_failed,
+        # Authors that happened to keep their true label under the uniform
+        # permutation. Expected, not a defect — see _permute_labels — but
+        # reported so the small excess over chance is attributable.
+        "n_authors_total": len(corpus["author_label"]),
+        "mean_authors_retaining_true_label": (
+            float(np.mean(retained)) if retained else 0.0
+        ),
         "permutation": permutations[0] if permutations else {},
     }
 
@@ -176,20 +179,43 @@ def _featurise_once(entries: list[dict]) -> dict:
     }
 
 
+def _permute_labels(author_label: dict[str, str], rng: random.Random) -> tuple[dict, int]:
+    """
+    Assign each author a label drawn from the same multiset, uniformly at
+    random. Returns the assignment and how many authors happened to keep
+    their true label.
+
+    UNIFORM, not deranged — and that is a deliberate correction of an earlier
+    attempt at this. Forcing zero fixed points by construction (group by
+    label, rotate by the largest group) maps whole true classes onto single
+    wrong labels, so the permuted labelling is merely a RENAMING of the real
+    classes and stays perfectly learnable. Measured: that construction sent
+    the control to 0.621 against 0.333 chance, which reads as "the model
+    still predicts" but is really "a consistent relabelling is trivially
+    learnable". The null has to scramble authors of the same class onto
+    DIFFERENT labels, which uniform assignment does and a block rotation
+    does not.
+
+    Fixed points are therefore expected and are not corrected for. Under a
+    model that uses no genre information, accuracy sits at chance whether or
+    not an author kept its label; under a model that does use genre, the few
+    retained authors are predicted correctly and lift the mean slightly above
+    chance. That small excess is a property of the null, not a flaw in it,
+    and it is what the +0.10 margin on G8's control leg accommodates. The
+    count is reported so the excess is attributable rather than mysterious.
+    """
+    authors = sorted(author_label)
+    labels = [author_label[a] for a in authors]
+    rng.shuffle(labels)
+    assignment = dict(zip(authors, labels, strict=True))
+    retained = sum(1 for a, lbl in assignment.items() if lbl == author_label[a])
+    return assignment, retained
+
+
 def _one_shuffled_draw(corpus: dict, seed: int) -> dict:
     """One permuted-label re-fit over the pre-extracted signal matrix."""
     rng = random.Random(seed)
-    authors = sorted(corpus["author_label"])
-    original = [corpus["author_label"][a] for a in authors]
-
-    permuted = original[:]
-    deranged = False
-    for _ in range(64):
-        rng.shuffle(permuted)
-        if all(p != o for p, o in zip(permuted, original, strict=True)):
-            deranged = True
-            break
-    label_of = dict(zip(authors, permuted, strict=True))
+    label_of, retained = _permute_labels(corpus["author_label"], rng)
 
     y_shuffled = np.array([label_of[a] for a in corpus["authors"]])
     train, test = corpus["is_derivation"], ~corpus["is_derivation"]
@@ -201,7 +227,7 @@ def _one_shuffled_draw(corpus: dict, seed: int) -> dict:
 
     return {
         "accuracy": float((predicted == truth).mean()) if len(truth) else 0.0,
-        "derangement_failed": not deranged,
+        "authors_retaining_true_label": retained,
         "permutation": label_of,
     }
 
