@@ -96,9 +96,22 @@ def fit_from_entries(entries: list[dict], *, allow_holdout: bool = False) -> dic
     evaluate.py) can re-fit on permuted labels through exactly this path
     rather than a parallel implementation that might differ.
     """
+    X, y = featurise(entries, allow_holdout=allow_holdout)
+    return fit_from_matrix(X, y)
+
+
+def fit_from_matrix(X: np.ndarray, y: np.ndarray) -> dict:
+    """
+    The actual fit, over an already-featurised matrix.
+
+    Split out so the author-shuffled control can re-fit 20 permutations
+    without re-extracting signals from every document 20 times: the signals
+    are a pure function of the text and identical across permutations, only
+    `y` changes. fit_from_entries delegates here, so there is still exactly
+    ONE fitting path and the control cannot drift from the real derivation.
+    """
     from sklearn.linear_model import LogisticRegression
 
-    X, y = featurise(entries, allow_holdout=allow_holdout)
     mean = X.mean(axis=0)
     scale = X.std(axis=0)
     # A zero-variance column would divide by zero and, worse, silently make

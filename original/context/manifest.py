@@ -19,7 +19,8 @@ Directive table (from the implementation plan)
 | length_regime == "micro"              | mute T1,2,3,5,7,9,10,11,15,16,17       |
 |                                       |  → keep T4,6,13,14                     |
 | length_regime == "short"              | mute T7; attenuate type_token_ratio    |
-| genre == "creative_fiction"           | mute T16                               |
+| genre in {narrative_prose,            | mute T16                               |
+|          creative_fiction}            |  (v1 label kept for stored baselines)  |
 | citations.citations_present is False  | mute T16                               |
 | citations.citations_present is True   | anchor T16                             |
 | composition_mode.mode == "tool_cleaned" | attenuate T11+T14; flag software_mediated |

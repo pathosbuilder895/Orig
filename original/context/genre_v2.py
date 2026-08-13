@@ -162,7 +162,10 @@ def _resolve_by_rules(text: str, citation_data=None) -> dict[str, Any]:
 
 # ── Stage 2: signals ──────────────────────────────────────────────────────────
 #
-# Ten interpretable quantities the pipeline can already compute. The ORDER is
+# Sixteen interpretable quantities the pipeline can already compute: the ten
+# original style signals plus the six argument-versus-narration signals added
+# when the first ten proved unable to separate argument from account. The
+# ORDER is
 # load-bearing: the committed artifact pins it, and the loader refuses an
 # artifact whose order disagrees, because a silent reorder would feed the
 # model shuffled columns and produce confident nonsense.
@@ -297,9 +300,9 @@ _IRREGULAR_PAST = frozenset(
 
 def extract_signals(text: str, citation_data=None) -> dict[str, float]:
     """
-    The ten genre signals. Returns zeros for empty input rather than raising:
-    this runs inside a best-effort resolver on the baseline-ingestion path,
-    where a crash would fail the upload.
+    The sixteen genre signals, keyed by SIGNAL_ORDER. Returns zeros for empty
+    input rather than raising: this runs inside a best-effort resolver on the
+    baseline-ingestion path, where a crash would fail the upload.
     """
     import statistics
 
@@ -357,7 +360,7 @@ def extract_signals(text: str, citation_data=None) -> dict[str, float]:
         # and places, which peopled narrative has and abstract argument does
         # not. Sentence-initial capitals are excluded because every sentence
         # has one regardless of genre.
-        "proper_noun_rate": _proper_noun_rate(sentences) / 1.0,
+        "proper_noun_rate": _proper_noun_rate(sentences),
     }
 
 

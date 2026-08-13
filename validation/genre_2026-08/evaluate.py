@@ -67,6 +67,21 @@ def evaluate_holdout() -> dict:
             correct[predicted] += 1
 
     per_class = {cls: correct[cls] / claimed[cls] for cls in sorted(claimed)}
+    never_claimed = sorted({e["label"] for e in entries} - set(claimed))
+
+    # A class the model NEVER predicts is not "perfect precision" — it is an
+    # unusable class, and it must drag the minimum to zero rather than drop
+    # silently out of the dict the minimum is taken over. Without this, the
+    # precision leg is passable by never claiming the hard class: abstaining
+    # on one CLASS is not the same as abstaining overall, so the abstention
+    # ceiling does not catch it.
+    #
+    # This mirrors derive.py's choose_threshold exactly (`minimum = 0.0 if
+    # len(scored) < len(fit["classes"])`). The two must agree: a threshold
+    # rejected at derivation for silencing a class cannot be one the gate
+    # then accepts.
+    min_precision = 0.0 if never_claimed else (min(per_class.values()) if per_class else 0.0)
+
     return {
         "n_holdout": len(entries),
         "n_claimed": sum(claimed.values()),
@@ -74,10 +89,9 @@ def evaluate_holdout() -> dict:
         "abstention_rate": n_abstained / len(entries) if entries else 0.0,
         "per_class_precision": per_class,
         "per_class_claimed": dict(claimed),
-        "min_precision": min(per_class.values()) if per_class else 0.0,
-        "classes_never_claimed": sorted(
-            {e["label"] for e in entries} - set(claimed)
-        ),
+        "min_precision": min_precision,
+        "min_precision_zeroed_by_unclaimed": bool(never_claimed),
+        "classes_never_claimed": never_claimed,
     }
 
 
@@ -98,62 +112,96 @@ def shuffled_control(seed: int = SEED, n_permutations: int = 20) -> dict:
     authors of one true class onto the same wrong label leaves real structure
     for the model to find, and scores above chance for a reason that has
     nothing to do with author-keying. Measured here, single draws ranged from
-    0.06 to 0.35 on the same model. G5 in validation/calibration_gate.py
+    0.014 to 0.528 on the same model. G5 in validation/calibration_gate.py
     already takes a majority over K seeded draws for exactly this reason;
     this is the same discipline.
     """
+    # Featurise ONCE. Signals are a pure function of the text, so they are
+    # identical across permutations — only the labels change. Re-extracting
+    # them per draw cost ~287 document featurisations x n_permutations
+    # (~5,700 for the default 20) inside both run_all() and the test suite.
+    entries = derive.load_entries()
+    corpus = _featurise_once(entries)
+    if len(corpus["authors"]) == 0 or corpus["n_holdout"] == 0:
+        return {
+            "accuracy": None,
+            "accuracy_per_draw": [],
+            "chance": None,
+            "n_classes": corpus["n_classes"],
+            "n_permutations": 0,
+            "n_holdout": corpus["n_holdout"],
+            "n_failed_derangements": 0,
+            "permutation": {},
+        }
+
     accuracies: list[float] = []
     permutations: list[dict] = []
-    for offset in range(n_permutations):
-        result = _one_shuffled_draw(seed + offset)
-        accuracies.append(result["accuracy"])
-        permutations.append(result["permutation"])
-    n_classes = result["n_classes"]
+    n_failed = 0
+    for offset in range(max(0, n_permutations)):
+        draw = _one_shuffled_draw(corpus, seed + offset)
+        accuracies.append(draw["accuracy"])
+        permutations.append(draw["permutation"])
+        n_failed += int(draw["derangement_failed"])
+
+    n_classes = corpus["n_classes"]
     return {
-        "accuracy": float(np.mean(accuracies)),
+        "accuracy": float(np.mean(accuracies)) if accuracies else None,
         "accuracy_per_draw": accuracies,
-        "chance": 1.0 / n_classes,
-        "n_permutations": n_permutations,
-        "n_holdout": result["n_holdout"],
-        "permutation": permutations[0],
+        "chance": 1.0 / n_classes if n_classes else None,
+        "n_classes": n_classes,
+        "n_permutations": len(accuracies),
+        "n_holdout": corpus["n_holdout"],
+        # A draw that could not be fully deranged leaves some authors on
+        # their true label, which is legitimately predictable and lifts the
+        # control above chance for a reason unrelated to author-keying.
+        # Counted rather than hidden.
+        "n_failed_derangements": n_failed,
+        "permutation": permutations[0] if permutations else {},
     }
 
 
-def _one_shuffled_draw(seed: int) -> dict:
-    """One permuted-label re-fit. See shuffled_control for why it is averaged."""
-    entries = derive.load_entries()
+def _featurise_once(entries: list[dict]) -> dict:
+    """Signals, author and split for every labelled document, extracted once."""
+    X, y = derive.featurise(entries, allow_holdout=True)
+    authors = np.array([e["author"] for e in entries])
+    is_derivation = np.array([e["split"] == "derivation" for e in entries])
+    return {
+        "X": X,
+        "y": y,
+        "authors": authors,
+        "is_derivation": is_derivation,
+        "n_classes": len(set(y.tolist())),
+        "n_holdout": int((~is_derivation).sum()),
+        "author_label": {e["author"]: e["label"] for e in entries},
+    }
+
+
+def _one_shuffled_draw(corpus: dict, seed: int) -> dict:
+    """One permuted-label re-fit over the pre-extracted signal matrix."""
     rng = random.Random(seed)
+    authors = sorted(corpus["author_label"])
+    original = [corpus["author_label"][a] for a in authors]
 
-    by_author: dict[str, list[dict]] = defaultdict(list)
-    for entry in entries:
-        by_author[entry["author"]].append(entry)
-
-    authors = sorted(by_author)
-    original = [by_author[a][0]["label"] for a in authors]
     permuted = original[:]
-    # Derange where possible so the control is not partly the real mapping.
+    deranged = False
     for _ in range(64):
         rng.shuffle(permuted)
         if all(p != o for p, o in zip(permuted, original, strict=True)):
+            deranged = True
             break
     label_of = dict(zip(authors, permuted, strict=True))
 
-    shuffled = [
-        {**entry, "label": label_of[entry["author"]]}
-        for entry in entries
-    ]
-    derivation = [e for e in shuffled if e["split"] == "derivation"]
-    holdout = [e for e in shuffled if e["split"] == "holdout"]
+    y_shuffled = np.array([label_of[a] for a in corpus["authors"]])
+    train, test = corpus["is_derivation"], ~corpus["is_derivation"]
 
-    fit = derive.fit_from_entries(derivation)
-    X, y = derive.featurise(holdout, allow_holdout=True)
-    proba = derive.probabilities(fit, X)
+    fit = derive.fit_from_matrix(corpus["X"][train], y_shuffled[train])
+    proba = derive.probabilities(fit, corpus["X"][test])
     predicted = np.asarray(fit["classes"])[proba.argmax(axis=1)]
+    truth = y_shuffled[test]
 
     return {
-        "accuracy": float((predicted == y).mean()) if len(y) else 0.0,
-        "n_classes": len({e["label"] for e in entries}),
-        "n_holdout": len(holdout),
+        "accuracy": float((predicted == truth).mean()) if len(truth) else 0.0,
+        "derangement_failed": not deranged,
         "permutation": label_of,
     }
 

@@ -33,6 +33,14 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+# Module scope, matching measure_shadow.py. summarise() imports
+# original.constants at call time, and calibration_gate loads validation
+# scripts via importlib.spec_from_file_location — a path that does NOT add
+# the repo root — so deferring this to main() would break any such importer.
+_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
 # Anchored on `genre_shadow` rather than on line start: Render prefixes each
 # line with a timestamp and stream name, and pytest's caplog does not.
 _LINE_RE = re.compile(
@@ -99,9 +107,6 @@ def summarise(lines) -> dict:
 
 
 def main() -> int:
-    _ROOT = Path(__file__).resolve().parent.parent.parent
-    sys.path.insert(0, str(_ROOT))
-
     if len(sys.argv) > 1:
         lines = Path(sys.argv[1]).read_text(errors="ignore").splitlines()
     else:

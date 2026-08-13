@@ -93,3 +93,51 @@ class TestMeasuredOutcome:
         it by recognising writers rather than genres."""
         out = mod.shuffled_control(seed=1729)
         assert out["accuracy"] <= out["chance"] + 0.10
+
+
+class TestUnclaimedClassesZeroTheMinimum:
+    """A class the model never predicts must drag min_precision to zero, the
+    same way derive.py's choose_threshold treats it. Otherwise the gate's
+    precision leg can be passed by simply never claiming the hard class —
+    the degenerate win the abstention ceiling does not cover, because
+    abstaining on one CLASS is not the same as abstaining overall."""
+
+    def test_a_class_never_claimed_zeroes_the_minimum(self, mod, monkeypatch):
+        from original.context import genre_v2
+
+        # Always claim one class, perfectly confidently. Precision on that
+        # class is whatever it is; the other two are never claimed at all.
+        monkeypatch.setattr(
+            genre_v2,
+            "predict",
+            lambda text, citation_data=None: {
+                "primary": "academic_exegesis",
+                "confidence": 0.99,
+                "secondary": None,
+            },
+        )
+        out = mod.evaluate_holdout()
+        assert out["classes_never_claimed"], "test setup no longer silences a class"
+        assert out["min_precision"] == 0.0
+
+    def test_the_reason_is_recorded_not_just_the_zero(self, mod, monkeypatch):
+        from original.context import genre_v2
+
+        monkeypatch.setattr(
+            genre_v2,
+            "predict",
+            lambda text, citation_data=None: {
+                "primary": "academic_exegesis",
+                "confidence": 0.99,
+                "secondary": None,
+            },
+        )
+        out = mod.evaluate_holdout()
+        assert out["min_precision_zeroed_by_unclaimed"] is True
+
+    def test_a_normal_run_is_unaffected(self, holdout):
+        """When every class is claimed the minimum is the ordinary minimum."""
+        if holdout["classes_never_claimed"]:
+            pytest.skip("a class is genuinely unclaimed on the current model")
+        assert holdout["min_precision"] == min(holdout["per_class_precision"].values())
+        assert holdout["min_precision_zeroed_by_unclaimed"] is False

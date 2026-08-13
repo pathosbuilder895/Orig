@@ -3777,3 +3777,25 @@ class TestG8GenreDiscrimination:
         )
         assert r.verdict == "pass"
         assert r.detail["failed_legs"] == []
+
+
+class TestG8SkipsWhenSklearnIsMissing:
+    """G8's author-shuffled control re-fits a LogisticRegression, but sklearn
+    is absent from the base requirements.txt — the very fact that motivated
+    keeping genre inference numpy-only. A missing dependency is a can't-know,
+    not a gate failure."""
+
+    def test_missing_sklearn_is_uninformative_not_a_machinery_error(self, monkeypatch):
+        monkeypatch.setattr(calibration_gate, "_sklearn_available", lambda: False)
+        result = calibration_gate._compute_g8_genre_data()
+        assert result.name == "G8"
+        assert result.verdict == "uninformative"
+        assert result.passed is False
+        assert "scikit-learn" in result.current_value
+
+    def test_the_skip_names_sklearn_as_the_missing_piece(self, monkeypatch):
+        monkeypatch.setattr(calibration_gate, "_sklearn_available", lambda: False)
+        result = calibration_gate._compute_g8_genre_data()
+        assert "sklearn" in result.detail["missing"] or "scikit-learn" in str(
+            result.detail["missing"]
+        )

@@ -3943,6 +3943,22 @@ def _compute_g7_cross_topic_data(
     )
 
 
+def _sklearn_available() -> bool:
+    """
+    Whether scikit-learn can be imported.
+
+    G8's author-shuffled control RE-FITS a LogisticRegression, so the gate
+    needs sklearn even though genre inference deliberately does not — sklearn
+    is absent from the base requirements.txt and present only in the dev and
+    demo locks. Checked explicitly so a missing dependency reports as a
+    can't-know rather than reaching run_all's crash handler, which would
+    render an environment gap as verdict="fail".
+    """
+    import importlib.util
+
+    return importlib.util.find_spec("sklearn") is not None
+
+
 def _compute_g8_genre_data() -> GateResult:
     """
     Run the genre hold-out evaluation and the author-shuffled control, and
@@ -3961,6 +3977,8 @@ def _compute_g8_genre_data() -> GateResult:
     artifact_path = _ROOT / "original" / "data" / "genre_model_v1.json"
 
     missing = [p.name for p in (evaluate_path, labels_path, artifact_path) if not p.exists()]
+    if not _sklearn_available():
+        missing = [*missing, "scikit-learn (required by the author-shuffled control)"]
     if missing:
         return GateResult(
             name="G8",
@@ -3968,8 +3986,10 @@ def _compute_g8_genre_data() -> GateResult:
             verdict="uninformative",
             criterion=_G8_CRITERION,
             current_value=(
-                f"SKIPPED (corpus unavailable): {' and '.join(missing)} not found — "
-                "rebuild with validation/genre_2026-08/build_labels.py then derive.py"
+                f"SKIPPED (prerequisite unavailable): {', '.join(missing)} — "
+                "rebuild the corpus with validation/genre_2026-08/build_labels.py "
+                "then derive.py; install scikit-learn (dev/demo lock) for the "
+                "author-shuffled control"
             ),
             detail={"missing": missing},
         )
@@ -3984,7 +4004,10 @@ def _compute_g8_genre_data() -> GateResult:
         holdout["min_precision"],
         holdout["abstention_rate"],
         control["accuracy"],
-        n_classes=int(round(1.0 / control["chance"])) if control["chance"] else 4,
+        # Taken directly from the control rather than reconstructed as
+        # round(1/chance): the round-trip was lossy and its fallback was
+        # pinned at 4, stale since the taxonomy merged to three classes.
+        n_classes=control["n_classes"],
         n_holdout=holdout["n_holdout"],
         informational={
             "per_class_precision": holdout["per_class_precision"],
