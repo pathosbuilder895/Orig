@@ -27,13 +27,20 @@ distinct students, with non-degenerate distributions (p10 != p90) on at
 least 4 of the 6 features.
 
 Opens the DB read-only, so it is safe against a live pilot database or a
-backup copy.
+backup copy. `--db` accepts either a SQLite file path or a
+postgres://... / postgresql://... URL (the live pilot's DATABASE_URL);
+the Postgres session is opened with default_transaction_read_only=on,
+so it carries the same safety guarantee as the SQLite ?mode=ro URI.
+psycopg2 is imported only on the Postgres path — the demo install
+(requirements-demo.txt) deliberately excludes it, and the SQLite path
+must keep working there.
 
 Usage:
     .venv/bin/python -m scripts.tier17_report
     .venv/bin/python -m scripts.tier17_report --db /data/profiles.db
     .venv/bin/python -m scripts.tier17_report --db backups/profiles-X.db \
         --out-md tier17_week3.md --out-json tier17_week3.json
+    .venv/bin/python -m scripts.tier17_report --db "$DATABASE_URL"
 """
 
 from __future__ import annotations
@@ -81,25 +88,73 @@ def _table_exists(conn: sqlite3.Connection, name: str) -> bool:
     )
 
 
-def _fetch_keystroke_samples(conn: sqlite3.Connection) -> list[dict]:
-    """Every proctored sample carrying a non-empty keystroke_data blob."""
-    if not _table_exists(conn, "student_profiles"):
-        return []
-    rows = conn.execute("SELECT student_id, data FROM student_profiles").fetchall()
+def _samples_from_profile_rows(rows: list[tuple[str, object]]) -> list[dict]:
+    """Shared row parser for both backends.
+
+    Each row is (student_key, data) where data is a JSON string (SQLite)
+    or an already-parsed dict (Postgres JSONB). Returns every proctored
+    sample carrying a non-empty keystroke_data blob.
+    """
     out: list[dict] = []
-    for student_id, data in rows:
-        try:
-            parsed = json.loads(data)
-        except (json.JSONDecodeError, TypeError):
-            continue
+    for student_key, data in rows:
+        if isinstance(data, dict):
+            parsed = data
+        else:
+            try:
+                parsed = json.loads(data)
+            except (json.JSONDecodeError, TypeError):
+                continue
         for sample in parsed.get("samples", []):
             if sample.get("provenance") != "proctored":
                 continue
             keystroke_data = sample.get("keystroke_data")
             if not keystroke_data:
                 continue
-            out.append({"student_id": student_id, "keystroke_data": keystroke_data})
+            out.append({"student_id": student_key, "keystroke_data": keystroke_data})
     return out
+
+
+def _fetch_keystroke_samples(conn: sqlite3.Connection) -> list[dict]:
+    """Every proctored sample carrying a non-empty keystroke_data blob."""
+    if not _table_exists(conn, "student_profiles"):
+        return []
+    rows = conn.execute("SELECT student_id, data FROM student_profiles").fetchall()
+    return _samples_from_profile_rows(rows)
+
+
+def _is_postgres_url(db: str) -> bool:
+    return db.startswith(("postgres://", "postgresql://"))
+
+
+def _connect_pg(url: str):
+    try:
+        import psycopg2
+    except ImportError as exc:
+        raise RuntimeError(
+            "psycopg2 is not installed — the Postgres path needs the pilot "
+            "install (requirements.txt); the demo install excludes it."
+        ) from exc
+    # libpq accepts both postgres:// and postgresql:// URIs. Read-only at
+    # the session level: this script's promise is that it can never write
+    # to a live pilot database.
+    return psycopg2.connect(url, options="-c default_transaction_read_only=on")
+
+
+def _fetch_keystroke_samples_pg(conn) -> list[dict]:
+    """Postgres twin of _fetch_keystroke_samples.
+
+    The live schema scopes student_profiles by tenant (composite PK), so the
+    student key is namespaced as "tenant_id:student_id" — two students with
+    the same local id at different tenants must not merge in per-student
+    counts. JSONB comes back already parsed.
+    """
+    with conn.cursor() as cur:
+        cur.execute("SELECT to_regclass('student_profiles')")
+        if cur.fetchone()[0] is None:
+            return []
+        cur.execute("SELECT tenant_id, student_id, data FROM student_profiles")
+        rows = [(f"{tenant_id}:{student_id}", data) for tenant_id, student_id, data in cur.fetchall()]
+    return _samples_from_profile_rows(rows)
 
 
 def _percentile(sorted_vals: list[float], pct: float) -> float:
@@ -212,21 +267,39 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    ap.add_argument("--db", default=str(_default_db_path()), help="Path to the SQLite database.")
+    ap.add_argument(
+        "--db",
+        default=str(_default_db_path()),
+        help="SQLite database path, or a postgres:// / postgresql:// URL (e.g. $DATABASE_URL).",
+    )
     ap.add_argument("--out-md", default=None, help="Write markdown here (default stdout).")
     ap.add_argument("--out-json", default=None, help="Also write the raw report JSON.")
     args = ap.parse_args(argv)
 
-    db_path = Path(args.db)
-    if not db_path.exists():
-        print(f"[tier17-report] DB not found: {db_path}", file=sys.stderr)
-        return 1
+    if _is_postgres_url(args.db):
+        try:
+            conn = _connect_pg(args.db)
+        except RuntimeError as exc:
+            print(f"[tier17-report] {exc}", file=sys.stderr)
+            return 1
+        except Exception as exc:
+            print(f"[tier17-report] Postgres connection failed: {exc}", file=sys.stderr)
+            return 1
+        try:
+            samples = _fetch_keystroke_samples_pg(conn)
+        finally:
+            conn.close()
+    else:
+        db_path = Path(args.db)
+        if not db_path.exists():
+            print(f"[tier17-report] DB not found: {db_path}", file=sys.stderr)
+            return 1
 
-    conn = _connect_readonly(db_path)
-    try:
-        samples = _fetch_keystroke_samples(conn)
-    finally:
-        conn.close()
+        conn = _connect_readonly(db_path)
+        try:
+            samples = _fetch_keystroke_samples(conn)
+        finally:
+            conn.close()
 
     report = build_report(samples)
     md = to_markdown(report)
