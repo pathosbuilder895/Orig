@@ -1,7 +1,7 @@
 # Genre Resolution v2 — Design
 
 **Date:** 2026-08-08
-**Status:** Approved, not yet implemented
+**Status:** Implemented, with four deviations — see “As built” at the end
 **Owner:** context / validation
 **Flag:** `GENRE_RESOLVER_V2` (default `off`)
 
@@ -396,3 +396,79 @@ Both belong in the `CLAUDE.md` flag-table entry, not a follow-up:
 - `blog_post` and `correspondence` detection. No corpus evidence exists for
   either; adding it means sourcing new corpora, which is its own task.
 - Per-student genre priors, and any use of genre in the professor narrative.
+
+---
+
+## As built (2026-08-08)
+
+The design below is preserved as approved. Four things changed during
+implementation, each because a measurement said so. Recorded here rather than
+edited into the text above, so the reasoning that led to the deviation stays
+legible.
+
+### 1. `sermon` dropped before any training
+
+The spec anticipated five classes. The only genuine homiletic texts in the
+repository are Jonathan Edwards' six sermon files — **one author**. A class
+evidenced by one author cannot be told apart from a detector for that author,
+and no hold-out split can reveal it because there is no second sermon author
+to hold out. The "no class carried by a single author" rule caught this
+before anything was trained, which is what it is for.
+
+### 2. Plato dropped
+
+The spec anticipated labelling the dialogues `creative_fiction`. Writing the
+codebook definitions excluded them on their own terms: Socratic dialogue is
+philosophical argument in dramatic form, which trips `creative_fiction`'s
+exclusion clause and equally fails `scholarly_essay`'s structural
+requirement. Plato is also 263 of the available documents, so one contestable
+call would have dominated class balance, and the corpus holds two
+translations of the same source — making the "author" of the English prose a
+translator and author-disjointness ambiguous.
+
+### 3. The class axis was redefined on mode of discourse
+
+`creative_fiction` and `personal_essay` were separated by TRUTH CLAIM
+("fiction does not assert that its events happened"), which is a fact about
+the world rather than a property of prose. It proved unlearnable exactly as
+that definition predicts: with the classifier scoring 1.000 on third-person
+novelists and 0.947 on scholarly essays, every hold-out error was Mark Twain
+predicted `personal_essay` against a `creative_fiction` label. *Huckleberry
+Finn* is a first-person narrative of a boy recounting his own experiences;
+stylometrically it IS autobiography.
+
+The two merged into **`narrative_prose`** on a mode-of-discourse axis —
+event-and-speech versus claim-and-warrant — which prose does carry, and which
+is what the label is used for downstream: the tier-16 mute exists because
+narrative lacks citations, and that holds whether the events are invented or
+true. Both old labels remain in `GENRE_LABELS` for stored values and are
+never emitted. See `validation/genre_2026-08/CODEBOOK.md`.
+
+### 4. The corpus needed eight more authors
+
+`creative_fiction` had 2 authors and `personal_essay` 3, so
+leave-one-author-out trained on 1–2 and both scored **0.000** out-of-fold —
+unmeasurable rather than merely poor. Austen, Twain, Doyle, Franklin,
+Washington, Keller, Grant and Cellini were added
+(`validation/genre_2026-08/fetch_authors.py`).
+
+### Final measured state
+
+| | value | bar |
+|---|---|---|
+| classes | `academic_exegesis`, `narrative_prose`, `scholarly_essay` | — |
+| labelled documents | 201 across 28 authors (147 derivation / 54 hold-out) | — |
+| confidence floor | 0.93, selected on derivation out-of-fold | — |
+| **minimum per-class precision** | **1.000** | ≥ 0.80 |
+| **abstention** | **33.3%** | ≤ 0.50 |
+| **author-shuffled control** | **0.320** (chance 0.333) | ≤ 0.433 |
+
+**Gate G8 passes.** Two cautions that survive the pass. The hold-out was
+consulted repeatedly across this work, so its independence is weakened —
+treat the numbers as the best available rather than as a clean single-shot
+estimate. And nothing here is validated against student writing: seminary
+papers are the only student-like text in the corpus and they are a single
+class, so two of the three classes rest entirely on published prose. Running
+`GENRE_RESOLVER_V2=shadow` against pilot traffic remains the outstanding
+prerequisite, and `validation/genre_2026-08/read_shadow_log.py` reads the
+result.

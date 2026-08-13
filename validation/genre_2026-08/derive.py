@@ -56,7 +56,7 @@ _PRECISION_FLOOR = 0.80
 _ABSTENTION_CEILING = 0.50
 
 
-class HoldoutTouched(RuntimeError):
+class HoldoutTouchedError(RuntimeError):
     """Raised if derivation reads a hold-out document."""
 
 
@@ -79,7 +79,7 @@ def featurise(entries: list[dict], *, allow_holdout: bool = False):
     rows, labels = [], []
     for entry in entries:
         if not allow_holdout and entry["split"] == "holdout":
-            raise HoldoutTouched(
+            raise HoldoutTouchedError(
                 f"derivation tried to read a hold-out document: {entry['path']}"
             )
         text = (_ROOT / entry["path"]).read_text(errors="ignore")
