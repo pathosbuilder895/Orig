@@ -31,6 +31,7 @@ echo ""
 echo "  Professor dashboard: http://localhost:8001/professor.html"
 echo "  Student dashboard:   http://localhost:8001/student.html"
 echo "  Onboarding:          http://localhost:8001/onboard.html"
+echo "  Bluebook exam room:  http://localhost:8001/bluebook/"
 echo ""
 
 exec "$PYTHON" run.py --demo --frontend-dir demo --port 8001

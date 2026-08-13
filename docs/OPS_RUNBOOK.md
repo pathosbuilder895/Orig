@@ -22,6 +22,13 @@ Never point a professor at `original-demo`. Never run sales demos on `original-p
 | `MAINTENANCE_TOKEN` | `X-Guard-Token` header for provisioning/destructive endpoints; also the demo-only break-glass admin password — see [Destructive-endpoint guard](#destructive-endpoint-guard-maintenance_token--guard_destructive) | `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
 | `LTI_PRIVATE_KEY` | tool RSA key for LTI | `openssl genrsa 2048` (paste PEM, `\n`-escaped) |
 | `LTI_PLATFORMS` | JSON array binding the Canvas issuer/client_id → tenant | see docs/CANVAS_RUNBOOK.md |
+| `BBOOK_API_URL` | base URL of the external Bbook exam app; unset = `/students/{id}/request-baseline` returns 503 with manual-upload guidance | from the Bbook deployment |
+| `BBOOK_EXTERNAL_SECRET` | shared secret sent as the `x-external-secret` header to Bbook; must EQUAL the value configured on the Bbook side — generate once, paste into both dashboards | `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
+
+Blueprint syncs ignore `sync: false` vars, so adding `BBOOK_*` to
+`render.yaml` did not prompt anyone for values — both stay unset (and the
+endpoint stays 503) until an operator sets them here by hand. The in-repo
+`/bluebook/` exam room does not use them.
 
 Keep copies in the password manager. **Rotating `SECRET_KEY` logs everyone out**
 (tokens are stateless); do it outside teaching hours and tell the professors.
