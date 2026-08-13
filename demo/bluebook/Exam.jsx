@@ -1,5 +1,5 @@
 import React from 'react';
-import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, Logotype, MetaLabel, Ornament, PARCHMENT_SHADES, Seal, fontBody, fontDisplay, fontMono } from './components.jsx';
+import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, Logotype, MetaLabel, Ornament, PARCHMENT_SHADES, STOCK_CANDIDATE, Seal, fontBody, fontDisplay, fontMono } from './components.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Examination Screens
@@ -11,7 +11,7 @@ const EXAM_META = {
   title:       'Ethics in the Modern World',
   course:      'PHIL 301A',
   courseTitle: 'Philosophy 301A',
-  candidate:   'Candidate No. 00042',
+  candidate:   STOCK_CANDIDATE,
   duration:    90 * 60, // seconds
   minWords:    600,
   maxWords:    1200,
@@ -116,6 +116,41 @@ async function bbResolveStudentId(cfg) {
     || localStorage.getItem('bluebook_candidate_email');
   if (email) return bbDeriveStudentId(tenant, email);
   return bbDeriveStudentId(tenant, (cfg && cfg.candidate) || 'candidate');
+}
+
+// The bound student id, if this sitting was launched with one. Same first
+// step as bbResolveStudentId's, but synchronous — an id that is already
+// canonical needs no derivation, and rendering can't await.
+function bbBoundStudentId() {
+  try {
+    return window.BB_STUDENT_ID || localStorage.getItem('bluebook_student_id') || '';
+  } catch (e) { return ''; }
+}
+
+// Short form of a canonical Original student id ("{tenant}:{sha256hex[:16]}"):
+// the leading 8 characters of the hash half. Opaque by construction — it
+// names nobody — but long enough to match against the {sid, name} roster
+// `roster_links.py --expected-out` leaves with the invigilator.
+function bbShortStudentId(sid) {
+  const s = String(sid || '');
+  const i = s.indexOf(':');
+  return (i === -1 ? s : s.slice(i + 1)).slice(0, 8);
+}
+
+// Who the sitting says it belongs to. The identity a launch BOUND must be
+// the identity the screens SHOW: /bluebook/launch stores the canonical
+// student id, but its links are name-free by default (FERPA), so most bound
+// sittings have no name to display and used to fall through to the demo's
+// stock candidate number over a perfectly good binding. Precedence:
+//   1. a real name — the operator opted into it (roster_links --include-name
+//      → ?candidate= → cfg.candidate, index.html's launch bootstrap)
+//   2. the bound student's opaque short id — the name-free default
+//   3. the stock demo label, when nothing at all is bound
+function bbCandidateLabel(cfg) {
+  const named = cfg && cfg.candidate;
+  if (named && named !== STOCK_CANDIDATE) return named;
+  const short = bbShortStudentId(bbBoundStudentId());
+  return short ? `Candidate ${short}` : STOCK_CANDIDATE;
 }
 
 // Auth header for whatever session is present (principal or student token),
@@ -253,7 +288,7 @@ export function BriefingScreen({ onNavigate }) {
               { label: 'Duration',      value: `${cfg.duration / 60} minutes` },
               { label: 'Minimum',       value: `${(cfg.minWords||0).toLocaleString()} words` },
               { label: 'Maximum',       value: `${(cfg.maxWords||0).toLocaleString()} words` },
-              { label: 'Candidate',     value: cfg.candidate },
+              { label: 'Candidate',     value: bbCandidateLabel(cfg) },
             ].map(({ label, value }, i) => (
               <div key={label}>
                 <div style={{
@@ -317,6 +352,7 @@ export function BriefingScreen({ onNavigate }) {
 // ─── Active Examination Screen ────────────────────────────────────────────────
 export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_SHADES.warm }) {
   const cfg = getExamConfig();
+  const candidateLabel = bbCandidateLabel(cfg);
   // Draft persistence: an exam must survive a crash, reload, or accidental
   // exit. Keyed per exam, restored on mount, cleared on successful seal.
   const draftKey = 'bb_draft_' + (cfg.id || cfg.title || 'exam');
@@ -420,7 +456,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
       // Nothing written when time ran out — don't post an empty baseline.
       window.BB_LAST_SUBMISSION = {
         words: 0, title: cfg.title, courseTitle: cfg.courseTitle,
-        candidate: cfg.candidate, studentId: null,
+        candidate: candidateLabel, studentId: null,
         ok: false, error: 'No text was written before time expired',
         expired: true,
       };
@@ -508,7 +544,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
       words: wordCount(content),
       title: cfg.title,
       courseTitle: cfg.courseTitle,
-      candidate: cfg.candidate,
+      candidate: candidateLabel,
       studentId: (result && result.studentId) || studentId,
       ok: !!(result && result.ok),
       error: (result && result.ok) ? null : String((lastError && lastError.message) || lastError || 'seal failed'),
@@ -782,7 +818,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
             fontFamily: fontMono, fontSize: 10,
             letterSpacing: '0.18em', textTransform: 'uppercase',
             color: BB.fade, textAlign: 'right', margin: 0,
-          }}>{cfg.candidate}</p>
+          }}>{candidateLabel}</p>
         </div>
 
         <GoldRule double />
@@ -971,7 +1007,7 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
   const finalWords = sub.words != null ? sub.words : wordsFinal;
   const examTitle  = sub.title || EXAM_META.title;
   const courseT    = sub.courseTitle || EXAM_META.courseTitle;
-  const candidate  = sub.candidate || EXAM_META.candidate;
+  const candidate  = sub.candidate || bbCandidateLabel(null);
   const transmitted = sub.ok === true;
   const transmitFailed = sub.ok === false;
   const isStudent = BB_API.isStudentLaunch();

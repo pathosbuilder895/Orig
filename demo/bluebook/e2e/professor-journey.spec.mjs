@@ -186,6 +186,10 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     await staffPage.getByText(examTitle, { exact: true }).click()
     await expect(staffPage.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
     await expect(staffPage.getByText(examTitle)).toBeVisible()
+    // Nothing is bound in a professor's preview, so the Candidate row keeps
+    // the demo's stock number — the other half of the rule auth.spec.mjs
+    // pins from the bound side (a launch must show its own student).
+    await expect(staffPage.getByText('Candidate No. 00042')).toBeVisible()
   })
 
   // ── 5 ────────────────────────────────────────────────────────────────

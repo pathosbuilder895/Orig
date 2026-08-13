@@ -1,5 +1,5 @@
 import React from 'react';
-import { BB, BB_API, BtnPrimary, GoldRule, Logotype, MetaLabel, Ornament, StatusBadge, fontBody, fontDisplay, fontMono, rowKeyDown } from './components.jsx';
+import { BB, BB_API, BtnPrimary, GoldRule, Logotype, MetaLabel, Ornament, STOCK_CANDIDATE, StatusBadge, fontBody, fontDisplay, fontMono, rowKeyDown } from './components.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Dashboard Screens
@@ -283,7 +283,7 @@ function openExam(exam, onNavigate) {
     minWords:    exam.minWords != null ? exam.minWords : 600,
     maxWords:    exam.maxWords != null ? exam.maxWords : 1200,
     prompt:      exam.prompt || '',
-    candidate:   (window.BB_EXAM_CONFIG && window.BB_EXAM_CONFIG.candidate) || 'Candidate No. 00042',
+    candidate:   (window.BB_EXAM_CONFIG && window.BB_EXAM_CONFIG.candidate) || STOCK_CANDIDATE,
     ...(exam.conditions || {}),
   };
   onNavigate('briefing');
