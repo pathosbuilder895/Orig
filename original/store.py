@@ -14,6 +14,7 @@ import json
 import logging
 import os
 import sqlite3
+import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -330,6 +331,37 @@ def _init_schema(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_ai_likelihood_student
             ON ai_likelihood_scores(student_id, created_at)
     """)
+    # Fused stylometric score (report-only, see original/fusion/). One row per
+    # scored submission when FUSED_SCORE_SHADOW=1 or FUSED_SCORE_ENABLED=1.
+    # channels_json holds the peer-centered per-channel values so the fusion
+    # weights can be refit on real traffic without re-extracting features.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS fused_scores (
+            submission_id     TEXT PRIMARY KEY,
+            student_id        TEXT NOT NULL,
+            fused_log_odds    REAL NOT NULL,
+            probability       REAL NOT NULL,
+            band              TEXT NOT NULL,
+            channels_json     TEXT NOT NULL DEFAULT '{}',
+            model_version     TEXT NOT NULL DEFAULT '',
+            created_at        TEXT NOT NULL,
+            baseline_samples  INTEGER,
+            reference_profiles INTEGER
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_fused_scores_student
+            ON fused_scores(student_id, created_at)
+    """)
+    # In-place upgrade for pre-existing DBs (no migration ladder yet —
+    # PRAGMA-guarded ALTERs, kept in sync with the fresh CREATE above). C1
+    # fix pass, 2026-08: these two columns make the baseline-volume confound
+    # recoverable from shadow data — see FusedScore in db/models/live.py.
+    _fused_cols = {r[1] for r in conn.execute("PRAGMA table_info(fused_scores)")}
+    if "baseline_samples" not in _fused_cols:
+        conn.execute("ALTER TABLE fused_scores ADD COLUMN baseline_samples INTEGER")
+    if "reference_profiles" not in _fused_cols:
+        conn.execute("ALTER TABLE fused_scores ADD COLUMN reference_profiles INTEGER")
     # Phase 0 — Tenant registry. Lightweight per-institution metadata that
     # lets us attach environment context (demo / pilot / production) to a
     # student cohort without a Postgres migration. Stored as a JSON blob so
@@ -1255,6 +1287,112 @@ def get_ai_likelihood_scores(
         return []
 
 
+def put_fused_score(
+    submission_id: str,
+    student_id: str,
+    fused_log_odds: float,
+    probability: float,
+    band: str,
+    channels: dict[str, float],
+    model_version: str = "",
+    baseline_samples: int | None = None,
+    reference_profiles: int | None = None,
+) -> None:
+    """Upsert one fused-score row. Never raises — persistence must never
+    break the scoring endpoint (same contract as put_ai_likelihood_score).
+
+    ``baseline_samples``/``reference_profiles`` (C1, 2026-08 fix pass) are
+    what let a later analysis recover the baseline-volume confound in the
+    compression channel from shadow data — see FusedScoreResult's docstring
+    in original/fusion/expert.py.
+    """
+    import datetime
+    import json as _json
+
+    created_at = datetime.datetime.utcnow().isoformat()
+    try:
+        with _get_conn() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO fused_scores
+                    (submission_id, student_id, fused_log_odds, probability,
+                     band, channels_json, model_version, created_at,
+                     baseline_samples, reference_profiles)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    submission_id,
+                    student_id,
+                    float(fused_log_odds),
+                    float(probability),
+                    str(band),
+                    _json.dumps({k: float(v) for k, v in (channels or {}).items()}),
+                    str(model_version),
+                    created_at,
+                    int(baseline_samples) if baseline_samples is not None else None,
+                    int(reference_profiles) if reference_profiles is not None else None,
+                ),
+            )
+            conn.commit()
+    except Exception:
+        log.exception("put_fused_score failed for %s", submission_id)
+
+
+def get_fused_scores(student_id: str | None = None, limit: int = 500) -> list[dict]:
+    """Fused-score rows, newest first. Empty list on any failure."""
+    import json as _json
+
+    try:
+        with _get_conn() as conn:
+            if student_id is not None:
+                rows = conn.execute(
+                    """
+                    SELECT submission_id, student_id, fused_log_odds, probability,
+                           band, channels_json, model_version, created_at,
+                           baseline_samples, reference_profiles
+                    FROM fused_scores WHERE student_id = ?
+                    ORDER BY created_at DESC LIMIT ?
+                    """,
+                    (student_id, int(limit)),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT submission_id, student_id, fused_log_odds, probability,
+                           band, channels_json, model_version, created_at,
+                           baseline_samples, reference_profiles
+                    FROM fused_scores
+                    ORDER BY created_at DESC LIMIT ?
+                    """,
+                    (int(limit),),
+                ).fetchall()
+        out = []
+        for row in rows:
+            try:
+                channels = _json.loads(row[5])
+                channels = {k: float(v) for k, v in channels.items()}
+            except Exception:
+                channels = {}
+            out.append(
+                {
+                    "submission_id": row[0],
+                    "student_id": row[1],
+                    "fused_log_odds": row[2],
+                    "probability": row[3],
+                    "band": row[4],
+                    "channels": channels,
+                    "model_version": row[6],
+                    "created_at": row[7],
+                    "baseline_samples": row[8],
+                    "reference_profiles": row[9],
+                }
+            )
+        return out
+    except Exception:
+        log.exception("get_fused_scores failed")
+        return []
+
+
 # ── Hierarchical Bayesian prior: cross-student genre statistics ───────────────
 
 
@@ -1485,6 +1623,7 @@ def delete_student(student_id: str) -> bool:
     - student_profiles      (SQLite — baseline profile)
     - fidelity_scores       (SQLite — conformal calibration data)
     - ai_likelihood_scores  (SQLite — shadow-mode detector rows)
+    - fused_scores          (SQLite — report-only fused score rows)
     - submission_manifests  (SQLite — adaptive-context audit log)
     - corrections           (SQLite — instructor feedback, by submission_id
                              to catch rows where student_id was never written)
@@ -1514,6 +1653,7 @@ def delete_student(student_id: str) -> bool:
             conn.execute("DELETE FROM student_profiles WHERE student_id = ?", (student_id,))
             conn.execute("DELETE FROM fidelity_scores WHERE student_id = ?", (student_id,))
             conn.execute("DELETE FROM ai_likelihood_scores WHERE student_id = ?", (student_id,))
+            conn.execute("DELETE FROM fused_scores WHERE student_id = ?", (student_id,))
             conn.execute("DELETE FROM submission_manifests WHERE student_id = ?", (student_id,))
             # Delete corrections by student_id AND by submission_id to cover
             # any rows where student_id was left NULL (FERPA completeness).
@@ -1537,6 +1677,15 @@ def delete_student(student_id: str) -> bool:
         return False
 
     _GENRE_STATS_CACHE.clear()  # this student's tenant's (tenant, genre) entries may include them
+    # C2, 2026-08 fix pass: original.fusion.peers._cache holds each student's
+    # full concatenated raw baseline text in-process (report-only fused
+    # score, FUSED_SCORE_ENABLED/FUSED_SCORE_SHADOW). Guarded via
+    # sys.modules — the fusion package is optional and may never have been
+    # imported when the flags are off, and importing it here unconditionally
+    # would defeat the point of it being optional.
+    _fusion_peers = sys.modules.get("original.fusion.peers")
+    if _fusion_peers is not None:
+        _fusion_peers.clear_student(student_id)
     return True
 
 
@@ -2873,6 +3022,11 @@ def student_data_inventory(student_id: str) -> dict | None:
                 (student_id,),
             ).fetchone()[0]
 
+            fused_count = conn.execute(
+                "SELECT COUNT(*) FROM fused_scores WHERE student_id = ?",
+                (student_id,),
+            ).fetchone()[0]
+
             name_row = conn.execute(
                 "SELECT display_name FROM student_names WHERE student_id = ?",
                 (student_id,),
@@ -2881,6 +3035,7 @@ def student_data_inventory(student_id: str) -> dict | None:
         log.exception("student_data_inventory DB query failed for %s", student_id)
         fidelity_count = manifest_rows = correction_count = audit_count = 0
         ai_likelihood_count = 0
+        fused_count = 0
         name_row = None
 
     manifests_by_action: dict = {}
@@ -2914,6 +3069,9 @@ def student_data_inventory(student_id: str) -> dict | None:
             },
             "ai_likelihood_scores": {
                 "count": int(ai_likelihood_count),
+            },
+            "fused_scores": {
+                "count": int(fused_count),
             },
             "display_name": {
                 "on_file": bool(name_row and name_row[0]),

@@ -35,6 +35,7 @@ from ..schemas import (
     DriftAnalysisOut,
     EntanglementAnomalyOut,
     FeatureContributionOut,
+    FusedScoreOut,
     InterferenceDecompositionOut,
     Layer7OutputResponse,
     RecommendedActionOut,
@@ -486,6 +487,11 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
         trend_aware_typicality=(
             TrendAwareTypicalityOut(**r.trend_aware_typicality.to_dict())
             if getattr(r, "trend_aware_typicality", None) is not None
+            else None
+        ),
+        fused_score=(
+            FusedScoreOut(**r.fused_score.__dict__)
+            if getattr(r, "fused_score", None) is not None
             else None
         ),
         # Human-friendly explanation for professors/instructors
