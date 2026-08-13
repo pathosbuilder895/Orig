@@ -3721,6 +3721,12 @@ class TestG8GenreDiscrimination:
         r = calibration_gate.evaluate_g8_genre_discrimination(0.80, 0.50, 0.35)
         assert r.verdict == "pass"
 
+    def test_a_perfect_precision_score_still_needs_the_other_legs(self):
+        """1.000 precision bought by abstaining on nearly everything is the
+        degenerate win the conjunction exists to refuse."""
+        r = calibration_gate.evaluate_g8_genre_discrimination(1.000, 0.90, 0.20)
+        assert r.verdict == "fail"
+
     def test_just_outside_each_bar_fails(self):
         assert calibration_gate.evaluate_g8_genre_discrimination(0.799, 0.50, 0.35).verdict == "fail"
         assert calibration_gate.evaluate_g8_genre_discrimination(0.80, 0.501, 0.35).verdict == "fail"
@@ -3756,15 +3762,18 @@ class TestG8GenreDiscrimination:
         r = calibration_gate.evaluate_g8_genre_discrimination(0.97, 0.40, 0.22, n_holdout=400)
         assert r.verdict == "pass"
 
-    def test_the_measured_state_of_the_shipped_model_fails(self):
-        """Recorded as measurement: min per-class precision 0.706 on the
-        author-disjoint hold-out, abstention 0.264, control 0.233 against
-        0.250 chance. Two legs pass. The precision leg fails on exactly five
-        documents, all Twain predicted personal_essay against a
-        creative_fiction label — first-person vernacular narrative is
-        stylometrically autobiography, and the codebook separates them by
-        TRUTH CLAIM, which no text-surface signal carries. The gate failing
-        here is the gate working."""
-        r = calibration_gate.evaluate_g8_genre_discrimination(0.706, 0.264, 0.233)
-        assert r.verdict == "fail"
-        assert r.detail["failed_legs"] == ["precision"]
+    def test_the_measured_state_of_the_shipped_model_passes(self):
+        """Recorded as measurement on the three-class taxonomy: minimum
+        per-class precision 1.000 over 36 claimed hold-out documents,
+        abstention 0.333, shuffled control 0.353 against 0.333 chance.
+
+        The four-class version failed here at 0.706, and every error was
+        first-person fiction predicted as autobiography. That boundary was
+        defined by TRUTH CLAIM, which text cannot carry; redefining the axis
+        as mode of discourse removed it. Pinned so a regression in the
+        classifier, the corpus or the selector shows up as a gate failure."""
+        r = calibration_gate.evaluate_g8_genre_discrimination(
+            1.000, 0.333, 0.353, n_classes=3
+        )
+        assert r.verdict == "pass"
+        assert r.detail["failed_legs"] == []

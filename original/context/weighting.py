@@ -86,18 +86,21 @@ ATTENUATE_FACTOR: float = 0.6
 # On the committed corpora v2 still abstains on 23% of documents, and a high
 # firing rate would be grounds for suspicion, not celebration.
 #
-# NOT RESOLVED — the tier set below is still unvalidated on independent data,
-# and gate G8 currently FAILS: minimum per-class precision on the
-# author-disjoint hold-out is 0.625 against a 0.80 floor. The signals do not
-# separate `personal_essay` from `scholarly_essay` for an unseen author, and
-# `creative_fiction` rests on the only two novelists in the repository. The
-# author-shuffled control does collapse to chance (0.143 vs 0.250), so the
-# model reads genre rather than authors — the failure is a corpus and feature
-# limit, not a broken approach.
+# ALSO RESOLVED — gate G8 now passes: minimum per-class precision 1.000 over
+# 36 claimed documents on the author-disjoint hold-out, abstention 33.3%, and
+# an author-shuffled control at 0.353 against 0.333 chance, so the classifier
+# reads genre rather than authors.
 #
-# Enabling GENRE_INVARIANT_WEIGHTS_ENABLED therefore still requires: G8
-# passing, and a separate validation of THIS tier set (2/3/9/10), which no
-# work so far has performed. See
+# NOT RESOLVED — the tier set below. Tiers 2/3/9/10 have never been validated
+# on independent data, and no work so far has attempted it: the genre effort
+# fixed the GATE this attenuation hangs off, not the attenuation itself.
+# `lexical_chain_density` is a tier-2 feature near the top of the DNA
+# invariance table, so attenuating tier 2 wholesale discards one of the most
+# topic-invariant signals available — that objection is untouched by anything
+# above.
+#
+# Enabling GENRE_INVARIANT_WEIGHTS_ENABLED therefore requires a separate
+# validation of THIS tier set. See
 # docs/superpowers/specs/2026-08-08-genre-resolution-design.md.
 GENRE_MISMATCH_ATTENUATE_TIERS: frozenset[int] = frozenset({2, 3, 9, 10})
 

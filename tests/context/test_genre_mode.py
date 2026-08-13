@@ -49,8 +49,15 @@ class TestGenreConstants:
 
     def test_the_original_eight_labels_are_untouched(self):
         """Persisted BaselineSample.genre values and get_genre_stats pooling
-        keys depend on these exact strings, so `unknown` is APPENDED rather
-        than substituted — no data migration."""
+        keys depend on these exact strings in this exact order. New labels
+        are APPENDED, never substituted or reordered — that is what keeps a
+        stored `personal_essay` readable after v2 stopped emitting it, and
+        what makes every taxonomy change migration-free.
+
+        The COUNT is deliberately not pinned: additions are expected (this
+        has grown twice, for `unknown` and `narrative_prose`). Pinning the
+        length would fail on every legitimate addition while catching none
+        of the dangerous edits, which are substitution and reordering."""
         from original.constants import GENRE_LABELS
 
         assert GENRE_LABELS[:8] == [
@@ -63,7 +70,20 @@ class TestGenreConstants:
             "blog_post",
             "structured_template",
         ]
-        assert len(GENRE_LABELS) == 9
+
+    def test_superseded_labels_survive_for_stored_values(self):
+        """v2 never emits these, but baselines ingested under v1 carry them
+        and must stay poolable and comparable."""
+        from original.constants import GENRE_LABELS
+
+        for label in ("creative_fiction", "personal_essay", "correspondence"):
+            assert label in GENRE_LABELS
+
+    def test_narrative_prose_is_appended_not_inserted(self):
+        from original.constants import GENRE_LABELS, GENRE_NARRATIVE_PROSE
+
+        assert GENRE_NARRATIVE_PROSE in GENRE_LABELS
+        assert GENRE_LABELS.index(GENRE_NARRATIVE_PROSE) >= 8
 
     def test_confidence_floor_is_a_real_probability(self):
         from original.constants import GENRE_CONFIDENCE_MIN

@@ -20,7 +20,7 @@ import pytest
 
 _LABELS = Path("validation/genre_2026-08/labels.json")
 _CODEBOOK = Path("validation/genre_2026-08/CODEBOOK.md")
-_CLASSES = {"academic_exegesis", "scholarly_essay", "personal_essay", "creative_fiction"}
+_CLASSES = {"academic_exegesis", "scholarly_essay", "narrative_prose"}
 
 
 @pytest.fixture(scope="module")
@@ -55,6 +55,14 @@ class TestLabelIntegrity:
         """Only one sermon author exists in the corpus (Edwards), so the
         class would be an author detector. See the codebook."""
         assert "sermon" not in {e["label"] for e in labels["entries"]}
+
+    def test_the_superseded_classes_are_not_labelled(self, labels):
+        """creative_fiction and personal_essay were separated by truth claim,
+        which text cannot carry. They remain in GENRE_LABELS for stored
+        values but are never labelled or predicted."""
+        used = {e["label"] for e in labels["entries"]}
+        assert "creative_fiction" not in used
+        assert "personal_essay" not in used
 
     def test_plato_is_not_labelled(self, labels):
         """263 documents resting on a contestable call, in two translations

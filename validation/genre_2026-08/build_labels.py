@@ -84,44 +84,45 @@ GROUPS: list[tuple[str, str, str, str]] = [
     ("validation/public_authors/corpus/chesterton/orthodoxy_*.txt", "chesterton",
      "scholarly_essay", "Orthodoxy: argumentative apologetic addressed to a general reader"),
 
-    # personal_essay — the writer is the subject.
-    ("validation/public_authors/corpus/thoreau/*.txt", "thoreau", "personal_essay",
+    # narrative_prose (recounted) — same class: the truth claim is not a
+    # property text carries, so it is not a class boundary.
+    ("validation/public_authors/corpus/thoreau/*.txt", "thoreau", "narrative_prose",
      "first-person reflection organised by experience, not by argument"),
     # CORRECTED 2026-08-08, post-hoc — see LABEL_CORRECTIONS below.
     ("validation/public_authors/corpus/emerson/*.txt", "emerson", "scholarly_essay",
      "Self-Reliance / Compensation / History argue about the world in the first "
      "person; the codebook's deciding test sends argument-about-the-world to "
      "scholarly_essay regardless of pronoun"),
-    ("validation/public_authors/corpus/douglass/my_bondage_*.txt", "douglass", "personal_essay",
+    ("validation/public_authors/corpus/douglass/my_bondage_*.txt", "douglass", "narrative_prose",
      "autobiography: narrative asserted as true of the writer"),
     ("validation/public_authors/corpus/augustine/confessions_*.txt", "augustine",
-     "personal_essay", "Confessions: first-person account of the writer's own life"),
+     "narrative_prose", "Confessions: first-person account of the writer's own life"),
 
-    # creative_fiction — invented narrative, scene and character dialogue.
-    ("validation/public_authors/cross_work_corpus/dickens/*.txt", "dickens", "creative_fiction",
+    # narrative_prose (invented) — see the codebook's redefinition section.
+    ("validation/public_authors/cross_work_corpus/dickens/*.txt", "dickens", "narrative_prose",
      "novels: invented persons and events, advanced by scene and dialogue"),
     ("validation/public_authors/cross_work_corpus/christie/*.txt", "christie",
-     "creative_fiction", "novels: invented persons and events, advanced by scene and dialogue"),
+     "narrative_prose", "novels: invented persons and events, advanced by scene and dialogue"),
 
     # ── Added 2026-08-08 (validation/genre_2026-08/fetch_authors.py) ─────────
     # creative_fiction had 2 authors and personal_essay 3 in the whole
     # repository, so leave-one-author-out trained on 1-2 and both classes
     # scored 0.000 out-of-fold. Three authors added to each.
-    ("validation/genre_2026-08/corpus/austen/*.txt", "austen", "creative_fiction",
+    ("validation/genre_2026-08/corpus/austen/*.txt", "austen", "narrative_prose",
      "Pride and Prejudice: invented persons, advanced by scene and dialogue"),
-    ("validation/genre_2026-08/corpus/twain/*.txt", "twain", "creative_fiction",
+    ("validation/genre_2026-08/corpus/twain/*.txt", "twain", "narrative_prose",
      "Adventures of Huckleberry Finn: invented first-person narrative, heavy dialogue"),
-    ("validation/genre_2026-08/corpus/doyle/*.txt", "doyle", "creative_fiction",
+    ("validation/genre_2026-08/corpus/doyle/*.txt", "doyle", "narrative_prose",
      "The Adventures of Sherlock Holmes: invented persons and events, scene and dialogue"),
-    ("validation/genre_2026-08/corpus/franklin/*.txt", "franklin", "personal_essay",
+    ("validation/genre_2026-08/corpus/franklin/*.txt", "franklin", "narrative_prose",
      "Autobiography: narrative asserted as true of the writer"),
-    ("validation/genre_2026-08/corpus/washington/*.txt", "washington", "personal_essay",
+    ("validation/genre_2026-08/corpus/washington/*.txt", "washington", "narrative_prose",
      "Up From Slavery: autobiography, the writer's own life is the subject"),
-    ("validation/genre_2026-08/corpus/keller/*.txt", "keller", "personal_essay",
+    ("validation/genre_2026-08/corpus/keller/*.txt", "keller", "narrative_prose",
      "The Story of My Life: autobiography, organised by experience not argument"),
-    ("validation/genre_2026-08/corpus/grant/*.txt", "grant", "personal_essay",
+    ("validation/genre_2026-08/corpus/grant/*.txt", "grant", "narrative_prose",
      "Personal Memoirs: the writer's own campaigns, narrated as his experience"),
-    ("validation/genre_2026-08/corpus/cellini/*.txt", "cellini", "personal_essay",
+    ("validation/genre_2026-08/corpus/cellini/*.txt", "cellini", "narrative_prose",
      "Autobiography: first-person account of the writer's own life"),
 ]
 

@@ -941,6 +941,17 @@ import math as _math
 # documents. See docs/superpowers/specs/2026-08-08-genre-resolution-design.md.
 GENRE_UNKNOWN = "unknown"
 
+# Added 2026-08-08. Replaces `creative_fiction` + `personal_essay` in the v2
+# class set: those two were separated by TRUTH CLAIM ("fiction does not assert
+# that its events happened"), which is a fact about the world rather than a
+# property of the prose, and was measured to be unlearnable — every hold-out
+# error was first-person fiction (Huckleberry Finn) predicted as autobiography,
+# which stylometrically it is. The replacement axis is mode of discourse:
+# event-and-speech versus claim-and-warrant. ADDITIVE — both old labels stay
+# below so stored sample.genre values and pooling keys remain valid; v2 simply
+# never emits them. See validation/genre_2026-08/CODEBOOK.md.
+GENRE_NARRATIVE_PROSE = "narrative_prose"
+
 # Minimum calibrated probability required to CLAIM a genre; below it the
 # resolver abstains. Applied only to the Stage 2 model's output — Stage 1's
 # rule hits carry a placeholder confidence and are deliberately NOT
@@ -957,6 +968,7 @@ GENRE_LABELS = [
     "correspondence",
     "blog_post",
     "structured_template",
+    GENRE_NARRATIVE_PROSE,
     GENRE_UNKNOWN,
 ]
 
@@ -972,6 +984,9 @@ GENRE_FAMILIES: dict[str, str] = {
     "correspondence":      "personal",
     "blog_post":           "personal",
     "structured_template": "structured",
+    # Narrative of events, invented or recounted — the family the two
+    # superseded labels ("creative" and "personal") were split across.
+    GENRE_NARRATIVE_PROSE: "narrative",
 }
 
 # Code-switching threshold: if any non-primary language window-proportion

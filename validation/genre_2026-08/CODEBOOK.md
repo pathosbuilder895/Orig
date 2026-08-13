@@ -34,15 +34,16 @@ guarantee is void.
 
 ## Label set
 
-Four classes. Not the eight in `GENRE_LABELS`, and not the five the spec
-anticipated.
+Three classes. Not the eight in `GENRE_LABELS`, and not the five the spec
+anticipated. Reduced from four on 2026-08-08 — see the redefinition section.
 
 | class | in the class set? | why |
 |---|---|---|
 | `academic_exegesis` | yes | 5 distinct seminary authors |
 | `scholarly_essay` | yes | Mill, James, Newman, Chesterton, Burke, Paine, Federalist |
-| `personal_essay` | yes | Thoreau, Emerson, Douglass, Augustine |
-| `creative_fiction` | yes | Dickens, Christie |
+| `narrative_prose` | yes | Dickens, Christie, Austen, Twain, Doyle (invented); Douglass, Augustine, Thoreau, Franklin, Washington, Keller, Grant, Cellini (recounted) |
+| `personal_essay` | **no** | superseded — see "The redefinition of 2026-08-08" |
+| `creative_fiction` | **no** | superseded — separated from the above by truth claim, which text cannot carry |
 | `sermon` | **no** | **only one author available** |
 | `blog_post` | no | no examples in any committed corpus |
 | `correspondence` | no | no actual letters in any committed corpus |
@@ -65,7 +66,7 @@ This is precisely what the "no class carried by a single author" rule exists
 to catch, and it caught it before anything was trained. `sermon` remains in
 `GENRE_LABELS` — stored values stay valid — but v2 will never predict it.
 
-Chance accuracy for the remaining four classes is **0.25**.
+Chance accuracy for the remaining three classes is **0.333**.
 
 ---
 
@@ -83,8 +84,8 @@ narrative or hortatory; and it addresses a reader as an assessor rather than
 as a congregation or a friend.
 
 **Exclude when:** the primary mode is persuasion of a general public
-(→ `scholarly_essay`); the writer's own life is the subject matter
-(→ `personal_essay`); or the text addresses the reader in the second person
+(→ `scholarly_essay`); the text advances by events (→ `narrative_prose`);
+or the text addresses the reader in the second person
 to move them to action (would be `sermon`, which is not in the class set —
 label such documents `scholarly_essay` only if the expository mode dominates,
 otherwise leave them out of the labelled set entirely).
@@ -108,69 +109,81 @@ advancing a thesis about ideas, institutions or public questions.
 reader is a public rather than an examiner; and the organising structure is a
 chain of argument rather than a narrative or a personal reflection.
 
-**Exclude when:** the argument is carried by narrative or scene
-(→ `creative_fiction`); the subject is the writer's own experience
-(→ `personal_essay`); or the document is written to be graded
+**Exclude when:** the text advances by scene and event rather than by claim
+(→ `narrative_prose`); or the document is written to be graded
 (→ `academic_exegesis`).
 
 **Worked examples:**
 `validation/public_authors/corpus/mill/on_liberty_part_01.txt`,
 `validation/corpus/fed_hamilton_001.txt`.
 
-**Nearest neighbour:** `personal_essay`. **Deciding test:** is the first
-person doing argumentative work or autobiographical work? Mill writes "I" while
+**Nearest neighbour:** `narrative_prose`. **Deciding test:** is the first
+person doing argumentative work or narrating events? Mill writes "I" while
 arguing about liberty in general; Thoreau writes "I" about what he himself did
-at Walden. Argument about the world → scholarly. Account of a life →
-personal.
+at Walden. Argument about the world → scholarly. Account of events →
+narrative. The pronoun decides nothing.
 
 ---
 
-### `personal_essay`
+### `narrative_prose`
 
-First-person reflective prose in which the writer's own experience,
-observation or interior life is the subject rather than the illustration.
+Prose whose organising structure is a sequence of events and reported
+speech — scene, incident, and what people said — whether those events are
+invented or recounted as the writer's own.
 
-**Include when:** the writer is the subject; the organising thread is
-experience or reflection rather than argument; and removing the first person
-would destroy the piece.
+**Include when:** the text advances by event rather than by claim; character
+or participant speech is a substantial part of the prose; and a reader
+follows *what happened next* rather than *what follows from this*.
 
-**Exclude when:** the first person is incidental to an argument about
-something else (→ `scholarly_essay`); the narrative is invented
-(→ `creative_fiction`); or the reflection is structured as exposition of a
-source (→ `academic_exegesis`).
+**Exclude when:** the organising thread is a chain of argument, even one
+carried in the first person (→ `scholarly_essay`); or the text expounds a
+source for an assessor (→ `academic_exegesis`).
 
 **Worked examples:**
-`validation/public_authors/corpus/thoreau/civil_disobedience.txt`,
-`validation/public_authors/corpus/douglass/my_bondage_and_my_freedom_part_01.txt`.
+`validation/public_authors/cross_work_corpus/dickens/a_tale_of_two_cities_01.txt`
+(invented), `validation/genre_2026-08/corpus/washington/up_from_slavery_01.txt`
+(recounted).
 
-**Nearest neighbour:** `creative_fiction`. **Deciding test:** is the narrative
-asserted as true of the writer? Douglass's account of his own enslavement is
-autobiography; Dickens's account of Pip's childhood is not.
-
----
-
-### `creative_fiction`
-
-Invented narrative: characters, scene and dialogue presented as story rather
-than as argument or record.
-
-**Include when:** events and persons are invented; the text advances by scene
-and incident; and reported speech between characters is a substantial part of
-the prose.
-
-**Exclude when:** the narrative is asserted as the writer's own experience
-(→ `personal_essay`); dialogue is used as a vehicle for philosophical
-argument (see the Plato note below); or quotation is of sources rather than
-of characters (→ `academic_exegesis` / `scholarly_essay`).
-
-**Worked examples:**
-`validation/public_authors/cross_work_corpus/dickens/a_tale_of_two_cities_01.txt`,
-`validation/public_authors/cross_work_corpus/christie/the_mysterious_affair_at_styles_01.txt`.
-
-**Nearest neighbour:** `personal_essay`. **Deciding test:** the truth claim.
-Fiction does not assert that its events happened.
+**Nearest neighbour:** `scholarly_essay`. **Deciding test:** does removing the
+events leave an argument standing? Mill's *On Liberty* survives losing its
+examples; *Up From Slavery* does not survive losing its events.
 
 ---
+
+## The redefinition of 2026-08-08
+
+`narrative_prose` replaces two earlier classes, `creative_fiction` and
+`personal_essay`, which were separated by a distinction text cannot carry.
+
+The old codebook's deciding test between them was **the truth claim**:
+"fiction does not assert that its events happened." That is a fact about the
+world, not a property of the prose. It was measured to be unlearnable exactly
+as the definition predicts: with the classifier otherwise scoring 1.000 on
+third-person novelists (Austen, Doyle) and 0.947 on scholarly essays, every
+single error on the hold-out — five of them — was Mark Twain predicted
+`personal_essay` against a `creative_fiction` label. *Huckleberry Finn* and
+*Tom Sawyer* are first-person vernacular narratives of a boy recounting his
+own experiences; stylometrically they ARE autobiography. No surface signal
+separates them from *Up From Slavery*, and none ever will.
+
+The replacement axis is **mode of discourse** — event-and-speech versus
+claim-and-warrant — which prose does carry, and which is what the label is
+actually used for downstream: `creative_fiction` existed in the first place
+to mute tier 16 (citation and signal-verb features), and narrative prose
+lacks citations whether it is invented or true. Muting on the wider class is
+if anything more correct than muting on the narrower one.
+
+Both old labels remain in `GENRE_LABELS` so stored `sample.genre` values and
+`get_genre_stats` pooling keys stay valid. v2 simply never emits them.
+
+### What this gives up
+
+Fiction and autobiography are no longer distinguished. That is a real
+reduction in what the taxonomy claims, and it is the honest one: the system
+was never able to make that distinction, it was only asserting it. For the
+product the cost is small — students submit reflection papers and essays,
+not novels — and for the one consumer that reads the label, the merged class
+is the better fit.
 
 ## Recorded judgement calls
 

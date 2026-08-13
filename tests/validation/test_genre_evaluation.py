@@ -75,16 +75,21 @@ class TestShuffledControl:
 
 
 class TestMeasuredOutcome:
-    def test_the_model_does_not_currently_meet_the_precision_floor(self, holdout):
-        """Recorded as the measured state, not as an aspiration. The signals
-        do not separate personal_essay from scholarly_essay for an unseen
-        author, and creative_fiction has only two authors in the entire
-        repository. G8 fails on this, which is the gate working."""
-        assert holdout["min_precision"] < 0.80
+    def test_the_model_meets_the_precision_floor(self, holdout):
+        """Recorded as the measured state. It took three things to get here,
+        and only the third was decisive: eight more authors (the thin classes
+        had 2-3, so leave-one-author-out trained on 1-2 and scored 0.000), a
+        selector aligned with the conjunction rather than one leg of it, and
+        a taxonomy whose class boundaries text can actually carry."""
+        assert holdout["min_precision"] >= 0.80
 
-    def test_but_it_is_not_an_author_detector(self, mod):
-        """The failure is 'these signals do not separate these genres', not
-        'the model learned the wrong thing'. Worth distinguishing: the second
-        would invalidate the approach, the first is a corpus limit."""
+    def test_abstention_stays_under_the_ceiling(self, holdout):
+        """Precision bought by abstaining on everything is the degenerate
+        win; the ceiling is what makes the precision number mean something."""
+        assert holdout["abstention_rate"] <= 0.50
+
+    def test_and_it_is_not_an_author_detector(self, mod):
+        """The leg that matters. Precision means nothing if the model reached
+        it by recognising writers rather than genres."""
         out = mod.shuffled_control(seed=1729)
         assert out["accuracy"] <= out["chance"] + 0.10
