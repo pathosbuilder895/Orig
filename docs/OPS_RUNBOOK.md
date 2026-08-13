@@ -67,6 +67,19 @@ retired one was 43 chars. The superseded 2026-07-18 values are in
 they leaked into an assistant session transcript, which is what prompted the
 rotation.
 
+**Rotated 2026-08-11 — LTI RSA key only, third occurrence of the same failure
+class.** The 2026-08-07 LTI private key leaked into another assistant session
+transcript (a secrets-file parsing attempt echoed line content — see
+`~/.claude/projects/-Users-andrew-Desktop-Original/memory/feedback_never_print_secrets_files.md`
+for the hardened handling rule going forward). Regenerated before any deploy
+exists, so this rotation is zero-risk: the tool key signs nothing today, and
+Canvas's developer key uses the `Public JWK URL` method
+(`docs/canvas_developer_key.md`), so no re-registration is needed regardless.
+New kid `aae43f60dabc7388` (was `7939c6c8a6f9a736`). `SECRET_KEY` and
+`MAINTENANCE_TOKEN` were **not** affected this time and were not rotated. The
+2026-08-07 LTI key is superseded in
+`~/Desktop/Original-secrets/rotated-out-2026-08-11/` and must not be reused.
+
 ## Backups
 
 The pilot's backup story changes at the WS-6 P5 cutover (SQLite → Postgres).

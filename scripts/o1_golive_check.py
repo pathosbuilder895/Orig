@@ -27,7 +27,7 @@ Usage
 -----
     python -m scripts.o1_golive_check \
         --base-url https://original-pilot.onrender.com \
-        --expect-kid 7939c6c8a6f9a736 \
+        --expect-kid aae43f60dabc7388 \
         [--expect-commit <sha>]
 """
 
