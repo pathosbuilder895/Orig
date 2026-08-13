@@ -409,11 +409,20 @@ def test_score(req: TestScoreRequest):
                 blend_index=br.blend_index,
                 shift_positions=list(br.shift_positions),
                 per_section=[
-                    WindowScoreOut(start=w.start, end=w.end, score=w.score, confidence=w.confidence)
+                    WindowScoreOut(
+                        start=w.start,
+                        end=w.end,
+                        score=w.score,
+                        confidence=w.confidence,
+                        # Report-only shadow field; None unless AI_LIKELIHOOD_SHADOW=1.
+                        ai_probability=w.ai_probability,
+                    )
                     for w in br.per_section
                 ],
                 n_tokens=br.n_tokens,
                 fallback_reason=br.fallback_reason,
+                ai_window_max=br.ai_window_max,
+                ai_window_mean=br.ai_window_mean,
             )
         except Exception as e:
             logging.getLogger(__name__).warning("playground blend failed: %s", e)

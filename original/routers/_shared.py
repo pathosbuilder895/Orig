@@ -451,6 +451,15 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
         topic_distance=getattr(r, "topic_distance", None),
         topic_mean_inflation=getattr(r, "topic_mean_inflation", None),
         deviation_score_inflated=getattr(r, "deviation_score_inflated", None),
+        # Characteristic per-student weighting (CHARACTERISTIC_WEIGHTS). Same
+        # reasoning as the topic block above: shadow mode's entire output is
+        # unreachable outside unit tests unless these reach the response, and
+        # a shadow soak is the whole point of the shadow mode.
+        characteristic_weighting_applied=getattr(r, "characteristic_weighting_applied", False),
+        characteristic_mode=getattr(r, "characteristic_mode", None),
+        characteristic_factor_dispersion=getattr(r, "characteristic_factor_dispersion", None),
+        characteristic_rms_z_preview=getattr(r, "characteristic_rms_z_preview", None),
+        characteristic_deviation_preview=getattr(r, "characteristic_deviation_preview", None),
         # Phase 3: ContextManifestOut when CONTEXT_MANIFEST_ENABLED=1, else None.
         context_manifest=(
             ContextManifestOut(**getattr(r, "context_manifest", None))

@@ -1,0 +1,1058 @@
+{
+  "corroboration": {
+    "features": {
+      "dep_advcl_rate": {
+        "auc": 0.5397805212620027,
+        "icc1": 0.44392503746991546,
+        "mean": 1.950496389635766,
+        "p01": 1.0646939250662655,
+        "p50": 1.9629372784712589,
+        "p99": 2.888674001557215,
+        "std": 0.4792765205488687
+      },
+      "dep_amod_rate": {
+        "auc": 0.713957475994513,
+        "icc1": 0.6148327988213662,
+        "mean": 5.515177131027523,
+        "p01": 3.254574932763652,
+        "p50": 5.363188311800212,
+        "p99": 7.9242103097254075,
+        "std": 1.2314876632677094
+      },
+      "dep_ccomp_rate": {
+        "auc": 0.6191700960219478,
+        "icc1": 0.41467305160472984,
+        "mean": 2.226091635275873,
+        "p01": 1.0922288901012305,
+        "p50": 2.098025127581778,
+        "p99": 3.638627655869035,
+        "std": 0.7243485677591629
+      },
+      "dep_conj_rate": {
+        "auc": 0.8300068587105625,
+        "icc1": 0.8867541190839869,
+        "mean": 4.5338109707857255,
+        "p01": 1.8588665784054135,
+        "p50": 4.497504695329509,
+        "p99": 7.695536191347351,
+        "std": 1.588587814308485
+      },
+      "dep_distance_cv": {
+        "auc": 0.7473251028806585,
+        "icc1": 0.7097014557431582,
+        "mean": 1.4958410142669403,
+        "p01": 1.040487822485587,
+        "p50": 1.4890773599249938,
+        "p99": 2.214418503889374,
+        "std": 0.2848882912909473
+      },
+      "dep_distance_mean": {
+        "auc": 0.7730452674897119,
+        "icc1": 0.8188417672198135,
+        "mean": 2.8998952495775994,
+        "p01": 2.219375706771988,
+        "p50": 2.9234387112963436,
+        "p99": 3.579347915500823,
+        "std": 0.3591930529082623
+      },
+      "dep_dobj_rate": {
+        "auc": 0.6196159122085048,
+        "icc1": 0.4952669103063598,
+        "mean": 4.656268855440281,
+        "p01": 3.1513849276500183,
+        "p50": 4.672861795021438,
+        "p99": 6.406604490812877,
+        "std": 0.9403347266862901
+      },
+      "dep_left_branching_ratio": {
+        "auc": 0.7926611796982167,
+        "icc1": 0.8519671195218937,
+        "mean": 0.4967626738996864,
+        "p01": 0.4431183478335212,
+        "p50": 0.4929794052201789,
+        "p99": 0.5546787961930455,
+        "std": 0.032052435789810915
+      },
+      "dep_morph_entropy": {
+        "auc": 0.5101851851851852,
+        "icc1": 0.12801964300266613,
+        "mean": 4.250652292936364,
+        "p01": 4.14817098302272,
+        "p50": 4.259911581560942,
+        "p99": 4.3731587173578035,
+        "std": 0.05805558868213788
+      },
+      "dep_normalized_tree_depth": {
+        "auc": 0.7072702331961591,
+        "icc1": 0.6910931884355241,
+        "mean": 0.31421180046114877,
+        "p01": 0.22914244465751143,
+        "p50": 0.3098339184475251,
+        "p99": 0.40636743652005825,
+        "std": 0.04948251637509577
+      },
+      "dep_nsubj_rate": {
+        "auc": 0.730315500685871,
+        "icc1": 0.7249312578015725,
+        "mean": 9.961450846548878,
+        "p01": 6.699681085989791,
+        "p50": 9.8297404226455,
+        "p99": 14.357257924068268,
+        "std": 1.898867486494786
+      },
+      "dep_pos_pair_entropy": {
+        "auc": 0.6097050754458162,
+        "icc1": 0.369225033374237,
+        "mean": 5.063352500700586,
+        "p01": 4.8297062861357265,
+        "p50": 5.095546494178685,
+        "p99": 5.221893484215794,
+        "std": 0.10839567015268121
+      },
+      "dep_relcl_rate": {
+        "auc": 0.6616941015089163,
+        "icc1": 0.46710703502233675,
+        "mean": 1.3970200528198637,
+        "p01": 0.5518037954187267,
+        "p50": 1.4074385024888292,
+        "p99": 2.403486765480866,
+        "std": 0.42868401980131404
+      },
+      "dep_subord_coord_ratio": {
+        "auc": 0.7186899862825789,
+        "icc1": 0.7077571226071658,
+        "mean": 0.4452168748650066,
+        "p01": 0.2791781393408427,
+        "p50": 0.43966503362373766,
+        "p99": 0.627630545225999,
+        "std": 0.08737476695089536
+      }
+    },
+    "mutual_correlations": {
+      "dep_advcl_rate": {
+        "dep_advcl_rate": 0.9999999999999999,
+        "dep_amod_rate": -0.26706957945716947,
+        "dep_ccomp_rate": 0.09373538701772233,
+        "dep_conj_rate": 0.1887331151308384,
+        "dep_distance_cv": 0.2804167360229418,
+        "dep_distance_mean": 0.4297462137006775,
+        "dep_dobj_rate": 0.18794509465294176,
+        "dep_left_branching_ratio": -0.15019716377197598,
+        "dep_morph_entropy": 0.4301629793746905,
+        "dep_normalized_tree_depth": -0.3333607076683315,
+        "dep_nsubj_rate": -0.0242623655754814,
+        "dep_pos_pair_entropy": 0.030663485287849797,
+        "dep_relcl_rate": -0.12244447931740343,
+        "dep_subord_coord_ratio": -0.09159027496465928
+      },
+      "dep_amod_rate": {
+        "dep_advcl_rate": -0.26706957945716947,
+        "dep_amod_rate": 1.0,
+        "dep_ccomp_rate": -0.4913973878163999,
+        "dep_conj_rate": 0.10963962779548586,
+        "dep_distance_cv": 0.3874251977653618,
+        "dep_distance_mean": 0.3246218170895902,
+        "dep_dobj_rate": -0.6609822890598603,
+        "dep_left_branching_ratio": -0.2547331032670813,
+        "dep_morph_entropy": -0.35286030476448427,
+        "dep_normalized_tree_depth": -0.4760846129641446,
+        "dep_nsubj_rate": -0.5377501491238623,
+        "dep_pos_pair_entropy": -0.035835181741955845,
+        "dep_relcl_rate": 0.4670772498811929,
+        "dep_subord_coord_ratio": -0.22008176820261235
+      },
+      "dep_ccomp_rate": {
+        "dep_advcl_rate": 0.09373538701772234,
+        "dep_amod_rate": -0.49139738781639986,
+        "dep_ccomp_rate": 1.0,
+        "dep_conj_rate": -0.4873368664790924,
+        "dep_distance_cv": -0.5275845575869372,
+        "dep_distance_mean": -0.5895455273797771,
+        "dep_dobj_rate": 0.6098606913136927,
+        "dep_left_branching_ratio": 0.5891876983789024,
+        "dep_morph_entropy": 0.5001871056013175,
+        "dep_normalized_tree_depth": 0.4341541716754495,
+        "dep_nsubj_rate": 0.8146603902932902,
+        "dep_pos_pair_entropy": -0.08258014167465405,
+        "dep_relcl_rate": -0.3285523075764988,
+        "dep_subord_coord_ratio": 0.7018340723611731
+      },
+      "dep_conj_rate": {
+        "dep_advcl_rate": 0.1887331151308384,
+        "dep_amod_rate": 0.10963962779548586,
+        "dep_ccomp_rate": -0.4873368664790924,
+        "dep_conj_rate": 0.9999999999999999,
+        "dep_distance_cv": 0.5722546327056857,
+        "dep_distance_mean": 0.5980590752358133,
+        "dep_dobj_rate": -0.20013043050906812,
+        "dep_left_branching_ratio": -0.8679736718139676,
+        "dep_morph_entropy": -0.3082282541218357,
+        "dep_normalized_tree_depth": -0.4444135311027226,
+        "dep_nsubj_rate": -0.5430587879557632,
+        "dep_pos_pair_entropy": -0.3642947838037195,
+        "dep_relcl_rate": 0.3298755573749202,
+        "dep_subord_coord_ratio": -0.9212973626141677
+      },
+      "dep_distance_cv": {
+        "dep_advcl_rate": 0.28041673602294176,
+        "dep_amod_rate": 0.38742519776536183,
+        "dep_ccomp_rate": -0.5275845575869371,
+        "dep_conj_rate": 0.5722546327056857,
+        "dep_distance_cv": 1.0,
+        "dep_distance_mean": 0.8758296199882666,
+        "dep_dobj_rate": -0.4340101793343639,
+        "dep_left_branching_ratio": -0.6804872617444174,
+        "dep_morph_entropy": -0.06211107506783191,
+        "dep_normalized_tree_depth": -0.7064690537965894,
+        "dep_nsubj_rate": -0.7401180389178951,
+        "dep_pos_pair_entropy": -0.2669620311435246,
+        "dep_relcl_rate": 0.4390076215704334,
+        "dep_subord_coord_ratio": -0.5033153625192711
+      },
+      "dep_distance_mean": {
+        "dep_advcl_rate": 0.4297462137006775,
+        "dep_amod_rate": 0.3246218170895902,
+        "dep_ccomp_rate": -0.5895455273797772,
+        "dep_conj_rate": 0.5980590752358133,
+        "dep_distance_cv": 0.8758296199882667,
+        "dep_distance_mean": 1.0,
+        "dep_dobj_rate": -0.46326522340790216,
+        "dep_left_branching_ratio": -0.7322468841587847,
+        "dep_morph_entropy": -0.06202529084358364,
+        "dep_normalized_tree_depth": -0.8257520022103396,
+        "dep_nsubj_rate": -0.7773548611278227,
+        "dep_pos_pair_entropy": -0.19398378980769249,
+        "dep_relcl_rate": 0.4173874758113366,
+        "dep_subord_coord_ratio": -0.5674115952952941
+      },
+      "dep_dobj_rate": {
+        "dep_advcl_rate": 0.18794509465294174,
+        "dep_amod_rate": -0.6609822890598603,
+        "dep_ccomp_rate": 0.6098606913136928,
+        "dep_conj_rate": -0.20013043050906812,
+        "dep_distance_cv": -0.43401017933436387,
+        "dep_distance_mean": -0.46326522340790216,
+        "dep_dobj_rate": 1.0,
+        "dep_left_branching_ratio": 0.39869438700342186,
+        "dep_morph_entropy": 0.4621750819092792,
+        "dep_normalized_tree_depth": 0.5248515158974402,
+        "dep_nsubj_rate": 0.7197749057991317,
+        "dep_pos_pair_entropy": -0.15360443561962844,
+        "dep_relcl_rate": -0.36090268384398355,
+        "dep_subord_coord_ratio": 0.3662601313189455
+      },
+      "dep_left_branching_ratio": {
+        "dep_advcl_rate": -0.15019716377197598,
+        "dep_amod_rate": -0.2547331032670813,
+        "dep_ccomp_rate": 0.5891876983789024,
+        "dep_conj_rate": -0.8679736718139675,
+        "dep_distance_cv": -0.6804872617444174,
+        "dep_distance_mean": -0.7322468841587847,
+        "dep_dobj_rate": 0.39869438700342186,
+        "dep_left_branching_ratio": 1.0,
+        "dep_morph_entropy": 0.37132400426596845,
+        "dep_normalized_tree_depth": 0.5823727346065791,
+        "dep_nsubj_rate": 0.7543438018020471,
+        "dep_pos_pair_entropy": 0.4275297046285185,
+        "dep_relcl_rate": -0.4180098123652706,
+        "dep_subord_coord_ratio": 0.8384977997147982
+      },
+      "dep_morph_entropy": {
+        "dep_advcl_rate": 0.43016297937469056,
+        "dep_amod_rate": -0.35286030476448427,
+        "dep_ccomp_rate": 0.5001871056013175,
+        "dep_conj_rate": -0.3082282541218357,
+        "dep_distance_cv": -0.062111075067831895,
+        "dep_distance_mean": -0.062025290843583644,
+        "dep_dobj_rate": 0.46217508190927925,
+        "dep_left_branching_ratio": 0.37132400426596845,
+        "dep_morph_entropy": 1.0,
+        "dep_normalized_tree_depth": 0.021569554302022346,
+        "dep_nsubj_rate": 0.4165737697154557,
+        "dep_pos_pair_entropy": 0.18751409460516513,
+        "dep_relcl_rate": -0.14291969986707903,
+        "dep_subord_coord_ratio": 0.4938965964982334
+      },
+      "dep_normalized_tree_depth": {
+        "dep_advcl_rate": -0.33336070766833154,
+        "dep_amod_rate": -0.47608461296414467,
+        "dep_ccomp_rate": 0.43415417167544956,
+        "dep_conj_rate": -0.44441353110272264,
+        "dep_distance_cv": -0.7064690537965894,
+        "dep_distance_mean": -0.8257520022103396,
+        "dep_dobj_rate": 0.5248515158974402,
+        "dep_left_branching_ratio": 0.5823727346065791,
+        "dep_morph_entropy": 0.02156955430202235,
+        "dep_normalized_tree_depth": 1.0,
+        "dep_nsubj_rate": 0.6471462274776882,
+        "dep_pos_pair_entropy": 0.2491978059139111,
+        "dep_relcl_rate": -0.5765722853860409,
+        "dep_subord_coord_ratio": 0.3788834387664148
+      },
+      "dep_nsubj_rate": {
+        "dep_advcl_rate": -0.024262365575481403,
+        "dep_amod_rate": -0.5377501491238622,
+        "dep_ccomp_rate": 0.8146603902932901,
+        "dep_conj_rate": -0.5430587879557632,
+        "dep_distance_cv": -0.740118038917895,
+        "dep_distance_mean": -0.7773548611278227,
+        "dep_dobj_rate": 0.7197749057991317,
+        "dep_left_branching_ratio": 0.7543438018020471,
+        "dep_morph_entropy": 0.41657376971545573,
+        "dep_normalized_tree_depth": 0.6471462274776884,
+        "dep_nsubj_rate": 1.0,
+        "dep_pos_pair_entropy": 0.1153016778069478,
+        "dep_relcl_rate": -0.3506061152749067,
+        "dep_subord_coord_ratio": 0.6665192761329044
+      },
+      "dep_pos_pair_entropy": {
+        "dep_advcl_rate": 0.030663485287849797,
+        "dep_amod_rate": -0.035835181741955845,
+        "dep_ccomp_rate": -0.08258014167465405,
+        "dep_conj_rate": -0.36429478380371944,
+        "dep_distance_cv": -0.2669620311435246,
+        "dep_distance_mean": -0.19398378980769249,
+        "dep_dobj_rate": -0.15360443561962842,
+        "dep_left_branching_ratio": 0.4275297046285185,
+        "dep_morph_entropy": 0.18751409460516513,
+        "dep_normalized_tree_depth": 0.2491978059139111,
+        "dep_nsubj_rate": 0.1153016778069478,
+        "dep_pos_pair_entropy": 1.0,
+        "dep_relcl_rate": -0.2629698437821227,
+        "dep_subord_coord_ratio": 0.19217880153497582
+      },
+      "dep_relcl_rate": {
+        "dep_advcl_rate": -0.12244447931740342,
+        "dep_amod_rate": 0.4670772498811929,
+        "dep_ccomp_rate": -0.3285523075764987,
+        "dep_conj_rate": 0.3298755573749202,
+        "dep_distance_cv": 0.4390076215704334,
+        "dep_distance_mean": 0.41738747581133656,
+        "dep_dobj_rate": -0.36090268384398355,
+        "dep_left_branching_ratio": -0.4180098123652706,
+        "dep_morph_entropy": -0.14291969986707903,
+        "dep_normalized_tree_depth": -0.5765722853860409,
+        "dep_nsubj_rate": -0.3506061152749067,
+        "dep_pos_pair_entropy": -0.26296984378212274,
+        "dep_relcl_rate": 1.0,
+        "dep_subord_coord_ratio": -0.18920655364930575
+      },
+      "dep_subord_coord_ratio": {
+        "dep_advcl_rate": -0.09159027496465927,
+        "dep_amod_rate": -0.22008176820261238,
+        "dep_ccomp_rate": 0.7018340723611732,
+        "dep_conj_rate": -0.9212973626141677,
+        "dep_distance_cv": -0.5033153625192711,
+        "dep_distance_mean": -0.5674115952952941,
+        "dep_dobj_rate": 0.3662601313189456,
+        "dep_left_branching_ratio": 0.8384977997147982,
+        "dep_morph_entropy": 0.4938965964982334,
+        "dep_normalized_tree_depth": 0.3788834387664148,
+        "dep_nsubj_rate": 0.6665192761329044,
+        "dep_pos_pair_entropy": 0.19217880153497582,
+        "dep_relcl_rate": -0.18920655364930572,
+        "dep_subord_coord_ratio": 1.0
+      }
+    },
+    "n_authors": 6,
+    "n_different_author_pairs": 540,
+    "n_documents": 36,
+    "n_same_author_pairs": 54
+  },
+  "corroboration_corpus": "validation/public_authors/cross_work_corpus (cross-work same-author pairs)",
+  "cost": {
+    "extract_fraction_of_parse": 0.020764960483786826,
+    "extract_ms_per_document": 6.4677985828893725,
+    "mean_words_per_document": 2581.25,
+    "n_documents": 12,
+    "parse_ms_per_document": 311.4765659168673,
+    "tier5_asis_ms_per_document": 2396.1941562520224
+  },
+  "gate_g_p5a": {
+    "frozen_list": [],
+    "gate_output": [
+      "dep_distance_mean",
+      "dep_conj_rate",
+      "dep_nsubj_rate",
+      "dep_normalized_tree_depth",
+      "dep_ccomp_rate",
+      "dep_subord_coord_ratio",
+      "dep_left_branching_ratio",
+      "dep_amod_rate",
+      "dep_distance_cv",
+      "dep_morph_entropy",
+      "dep_advcl_rate",
+      "dep_pos_pair_entropy",
+      "dep_dobj_rate",
+      "dep_relcl_rate"
+    ],
+    "per_feature": {
+      "dep_advcl_rate": {
+        "checks": {
+          "auc": true,
+          "corroboration": true,
+          "icc1": true,
+          "non_redundant_existing": true
+        },
+        "failed": [],
+        "passes_1_3_5": true
+      },
+      "dep_amod_rate": {
+        "checks": {
+          "auc": true,
+          "corroboration": true,
+          "icc1": true,
+          "non_redundant_existing": true
+        },
+        "failed": [],
+        "passes_1_3_5": true
+      },
+      "dep_ccomp_rate": {
+        "checks": {
+          "auc": true,
+          "corroboration": true,
+          "icc1": true,
+          "non_redundant_existing": true
+        },
+        "failed": [],
+        "passes_1_3_5": true
+      },
+      "dep_conj_rate": {
+        "checks": {
+          "auc": true,
+          "corroboration": true,
+          "icc1": true,
+          "non_redundant_existing": true
+        },
+        "failed": [],
+        "passes_1_3_5": true
+      },
+      "dep_distance_cv": {
+        "checks": {
+          "auc": true,
+          "corroboration": true,
+          "icc1": true,
+          "non_redundant_existing": true
+        },
+        "failed": [],
+        "passes_1_3_5": true
+      },
+      "dep_distance_mean": {
+        "checks": {
+          "auc": true,
+          "corroboration": true,
+          "icc1": true,
+          "non_redundant_existing": true
+        },
+        "failed": [],
+        "passes_1_3_5": true
+      },
+      "dep_dobj_rate": {
+        "checks": {
+          "auc": true,
+          "corroboration": true,
+          "icc1": true,
+          "non_redundant_existing": true
+        },
+        "failed": [],
+        "passes_1_3_5": true
+      },
+      "dep_left_branching_ratio": {
+        "checks": {
+          "auc": true,
+          "corroboration": true,
+          "icc1": true,
+          "non_redundant_existing": true
+        },
+        "failed": [],
+        "passes_1_3_5": true
+      },
+      "dep_morph_entropy": {
+        "checks": {
+          "auc": true,
+          "corroboration": true,
+          "icc1": true,
+          "non_redundant_existing": true
+        },
+        "failed": [],
+        "passes_1_3_5": true
+      },
+      "dep_normalized_tree_depth": {
+        "checks": {
+          "auc": true,
+          "corroboration": true,
+          "icc1": true,
+          "non_redundant_existing": true
+        },
+        "failed": [],
+        "passes_1_3_5": true
+      },
+      "dep_nsubj_rate": {
+        "checks": {
+          "auc": true,
+          "corroboration": true,
+          "icc1": true,
+          "non_redundant_existing": true
+        },
+        "failed": [],
+        "passes_1_3_5": true
+      },
+      "dep_pos_pair_entropy": {
+        "checks": {
+          "auc": true,
+          "corroboration": true,
+          "icc1": true,
+          "non_redundant_existing": true
+        },
+        "failed": [],
+        "passes_1_3_5": true
+      },
+      "dep_relcl_rate": {
+        "checks": {
+          "auc": true,
+          "corroboration": true,
+          "icc1": true,
+          "non_redundant_existing": true
+        },
+        "failed": [],
+        "passes_1_3_5": true
+      },
+      "dep_subord_coord_ratio": {
+        "checks": {
+          "auc": true,
+          "corroboration": true,
+          "icc1": true,
+          "non_redundant_existing": true
+        },
+        "failed": [],
+        "passes_1_3_5": true
+      }
+    },
+    "verdict": "uninformative",
+    "verdict_reason": "every candidate cleared every criterion, so the gate did not discriminate; see the calibration baseline in validation/verify/dependency_redundancy.py, where the seven features already in the production vector clear the same bars"
+  },
+  "preregistered": {
+    "max_abs_r_existing": 0.9,
+    "max_abs_r_mutual": 0.9,
+    "min_auc": 0.55,
+    "min_corroboration_auc": 0.5,
+    "min_icc1": 0.3
+  },
+  "primary": {
+    "features": {
+      "dep_advcl_rate": {
+        "auc": 0.587369772754781,
+        "existing_correlations": {
+          "adjective_rate": 0.10153095337245535,
+          "adverb_rate": 0.20587755172369956,
+          "clause_depth_mean": 0.40759704143414915,
+          "noun_verb_ratio": -0.15306061343546176,
+          "pos_bigram_entropy": -0.004826508862998332,
+          "pos_trigram_entropy": -0.003427991729582954,
+          "subordination_ratio": 0.4243368196810248
+        },
+        "icc1": 0.48009381072777424,
+        "max_abs_r_existing": 0.4243368196810248,
+        "max_abs_r_existing_with": "subordination_ratio",
+        "mean": 2.9038548522858427,
+        "p01": 1.2758095203974702,
+        "p50": 2.8753998196176562,
+        "p99": 4.9652276272663824,
+        "std": 0.7476726106267952
+      },
+      "dep_amod_rate": {
+        "auc": 0.5974246064166407,
+        "existing_correlations": {
+          "adjective_rate": 0.8489262605561695,
+          "adverb_rate": -0.017382434805621082,
+          "clause_depth_mean": 0.3535494327111308,
+          "noun_verb_ratio": 0.41893727377489726,
+          "pos_bigram_entropy": 0.2914997485123756,
+          "pos_trigram_entropy": 0.32149345946507946,
+          "subordination_ratio": 0.05259420992695172
+        },
+        "icc1": 0.5482064612141431,
+        "max_abs_r_existing": 0.8489262605561695,
+        "max_abs_r_existing_with": "adjective_rate",
+        "mean": 3.488542900038841,
+        "p01": 1.5922703777335983,
+        "p50": 3.410202606607447,
+        "p99": 6.203714344818066,
+        "std": 0.9636056255180272
+      },
+      "dep_ccomp_rate": {
+        "auc": 0.6143043127744925,
+        "existing_correlations": {
+          "adjective_rate": -0.2784371090690079,
+          "adverb_rate": 0.07819335493488525,
+          "clause_depth_mean": 0.14904623129687522,
+          "noun_verb_ratio": -0.3867336152549668,
+          "pos_bigram_entropy": -0.007335249419682971,
+          "pos_trigram_entropy": -0.03794963188009028,
+          "subordination_ratio": 0.30583595173127154
+        },
+        "icc1": 0.6432478713152484,
+        "max_abs_r_existing": 0.3867336152549668,
+        "max_abs_r_existing_with": "noun_verb_ratio",
+        "mean": 2.891970585393252,
+        "p01": 1.3232323136504949,
+        "p50": 2.7987164909012536,
+        "p99": 5.514204688172278,
+        "std": 0.8955160701775383
+      },
+      "dep_conj_rate": {
+        "auc": 0.642823929983516,
+        "existing_correlations": {
+          "adjective_rate": 0.040486081351284675,
+          "adverb_rate": 0.07291552835452199,
+          "clause_depth_mean": 0.25972607283689464,
+          "noun_verb_ratio": -0.037192547243701496,
+          "pos_bigram_entropy": 0.1627819489430545,
+          "pos_trigram_entropy": 0.1378731361025554,
+          "subordination_ratio": 0.1097078173120358
+        },
+        "icc1": 0.6385992431177239,
+        "max_abs_r_existing": 0.25972607283689464,
+        "max_abs_r_existing_with": "clause_depth_mean",
+        "mean": 3.2269786783258887,
+        "p01": 1.440474074074074,
+        "p50": 3.158736505397841,
+        "p99": 5.431011045016207,
+        "std": 0.8734870769095813
+      },
+      "dep_distance_cv": {
+        "auc": 0.5926952931378313,
+        "existing_correlations": {
+          "adjective_rate": 0.14686579710932635,
+          "adverb_rate": 0.2122151978319799,
+          "clause_depth_mean": 0.4861315396856703,
+          "noun_verb_ratio": 0.00645986816862929,
+          "pos_bigram_entropy": 0.23418889410584748,
+          "pos_trigram_entropy": 0.22613210525141664,
+          "subordination_ratio": 0.46729064619755767
+        },
+        "icc1": 0.30553464699090727,
+        "max_abs_r_existing": 0.4861315396856703,
+        "max_abs_r_existing_with": "clause_depth_mean",
+        "mean": 1.125094302158589,
+        "p01": 0.8457000543405131,
+        "p50": 1.0916662328457776,
+        "p99": 1.6441663643733833,
+        "std": 0.20233500086611922
+      },
+      "dep_distance_mean": {
+        "auc": 0.6468680656418946,
+        "existing_correlations": {
+          "adjective_rate": 0.28242065007787787,
+          "adverb_rate": 0.356678853399512,
+          "clause_depth_mean": 0.6959112027525135,
+          "noun_verb_ratio": -0.04575562827284315,
+          "pos_bigram_entropy": 0.345500059710096,
+          "pos_trigram_entropy": 0.3432298823989411,
+          "subordination_ratio": 0.6358527275824467
+        },
+        "icc1": 0.6741259594598425,
+        "max_abs_r_existing": 0.6959112027525135,
+        "max_abs_r_existing_with": "clause_depth_mean",
+        "mean": 2.3230243478684183,
+        "p01": 1.933560195875974,
+        "p50": 2.29789994578641,
+        "p99": 2.8780662887572843,
+        "std": 0.2020607837800795
+      },
+      "dep_dobj_rate": {
+        "auc": 0.5591236052033982,
+        "existing_correlations": {
+          "adjective_rate": -0.30954877985780005,
+          "adverb_rate": -0.259621424982294,
+          "clause_depth_mean": -0.11961015753810848,
+          "noun_verb_ratio": 0.005354917638192362,
+          "pos_bigram_entropy": -0.28812045456997365,
+          "pos_trigram_entropy": -0.2720914434326477,
+          "subordination_ratio": 0.028556334161320272
+        },
+        "icc1": 0.40471221198590374,
+        "max_abs_r_existing": 0.30954877985780005,
+        "max_abs_r_existing_with": "adjective_rate",
+        "mean": 6.357237092580119,
+        "p01": 4.7899240619108605,
+        "p50": 6.3099041533546325,
+        "p99": 8.185884633458642,
+        "std": 0.7334893935136113
+      },
+      "dep_left_branching_ratio": {
+        "auc": 0.6045439587872186,
+        "existing_correlations": {
+          "adjective_rate": 0.06469822348625376,
+          "adverb_rate": 0.013437943297861726,
+          "clause_depth_mean": -0.2646675082836062,
+          "noun_verb_ratio": 0.004258682201979039,
+          "pos_bigram_entropy": 0.0821133326564755,
+          "pos_trigram_entropy": 0.08155631805691252,
+          "subordination_ratio": -0.1128411805727851
+        },
+        "icc1": 0.5557211390862772,
+        "max_abs_r_existing": 0.2646675082836062,
+        "max_abs_r_existing_with": "clause_depth_mean",
+        "mean": 0.5093537202595662,
+        "p01": 0.45344106723182814,
+        "p50": 0.5093976834034506,
+        "p99": 0.5652545155993431,
+        "std": 0.022770768467420155
+      },
+      "dep_morph_entropy": {
+        "auc": 0.5925279823863702,
+        "existing_correlations": {
+          "adjective_rate": 0.46868632445199754,
+          "adverb_rate": 0.31506370453560184,
+          "clause_depth_mean": 0.2870710361496259,
+          "noun_verb_ratio": -0.24306478009317098,
+          "pos_bigram_entropy": 0.4758351701377837,
+          "pos_trigram_entropy": 0.4880962815390613,
+          "subordination_ratio": 0.16999859858562602
+        },
+        "icc1": 0.4878072767408899,
+        "max_abs_r_existing": 0.4880962815390613,
+        "max_abs_r_existing_with": "pos_trigram_entropy",
+        "mean": 4.216084769424786,
+        "p01": 4.062477248006994,
+        "p50": 4.22091712390734,
+        "p99": 4.338427133742778,
+        "std": 0.0630413484525962
+      },
+      "dep_normalized_tree_depth": {
+        "auc": 0.6261850043515349,
+        "existing_correlations": {
+          "adjective_rate": -0.2990501609494222,
+          "adverb_rate": -0.27484958090463374,
+          "clause_depth_mean": -0.8249128188902749,
+          "noun_verb_ratio": 0.16934086928347905,
+          "pos_bigram_entropy": -0.2533572037684513,
+          "pos_trigram_entropy": -0.2221500215987394,
+          "subordination_ratio": -0.6932520395084698
+        },
+        "icc1": 0.6064379463003133,
+        "max_abs_r_existing": 0.8249128188902749,
+        "max_abs_r_existing_with": "clause_depth_mean",
+        "mean": 0.3916909917049108,
+        "p01": 0.2848224773408396,
+        "p50": 0.39237713922027306,
+        "p99": 0.4946524393816997,
+        "std": 0.03941697985134731
+      },
+      "dep_nsubj_rate": {
+        "auc": 0.6299665277633687,
+        "existing_correlations": {
+          "adjective_rate": -0.6173753220749344,
+          "adverb_rate": -0.12313311544599352,
+          "clause_depth_mean": -0.5275295418430148,
+          "noun_verb_ratio": -0.42863529808995765,
+          "pos_bigram_entropy": -0.3540440017005485,
+          "pos_trigram_entropy": -0.37044456908633333,
+          "subordination_ratio": -0.17930636190445937
+        },
+        "icc1": 0.6379534919987748,
+        "max_abs_r_existing": 0.6173753220749344,
+        "max_abs_r_existing_with": "adjective_rate",
+        "mean": 13.787333279097467,
+        "p01": 10.342494195094355,
+        "p50": 13.765873492769298,
+        "p99": 17.78991358024691,
+        "std": 1.5884323540474756
+      },
+      "dep_pos_pair_entropy": {
+        "auc": 0.5786442339281391,
+        "existing_correlations": {
+          "adjective_rate": 0.35045221026758455,
+          "adverb_rate": 0.2120920442304764,
+          "clause_depth_mean": -0.08048896264922646,
+          "noun_verb_ratio": 0.17625176278652596,
+          "pos_bigram_entropy": 0.6375725382161604,
+          "pos_trigram_entropy": 0.6589573916504459,
+          "subordination_ratio": -0.06167343187381797
+        },
+        "icc1": 0.4662993553766746,
+        "max_abs_r_existing": 0.6589573916504459,
+        "max_abs_r_existing_with": "pos_trigram_entropy",
+        "mean": 5.012419594848354,
+        "p01": 4.68217872538097,
+        "p50": 5.021926449538172,
+        "p99": 5.3182863031546885,
+        "std": 0.13035398568698903
+      },
+      "dep_relcl_rate": {
+        "auc": 0.5566652581814618,
+        "existing_correlations": {
+          "adjective_rate": 0.2324868173748578,
+          "adverb_rate": 0.21596125849404504,
+          "clause_depth_mean": 0.4891252107027508,
+          "noun_verb_ratio": -0.256199848561012,
+          "pos_bigram_entropy": 0.4456329739720959,
+          "pos_trigram_entropy": 0.40839290993958594,
+          "subordination_ratio": 0.4115667719464988
+        },
+        "icc1": 0.39467095047289275,
+        "max_abs_r_existing": 0.4891252107027508,
+        "max_abs_r_existing_with": "clause_depth_mean",
+        "mean": 0.8959657628911682,
+        "p01": 0.29874294864126183,
+        "p50": 0.8775430195600733,
+        "p99": 1.6725127520625511,
+        "std": 0.30916381835869716
+      },
+      "dep_subord_coord_ratio": {
+        "auc": 0.6068362054183813,
+        "existing_correlations": {
+          "adjective_rate": -0.03228325224761256,
+          "adverb_rate": 0.05450339665606929,
+          "clause_depth_mean": 0.07949446208019904,
+          "noun_verb_ratio": -0.17678478002149253,
+          "pos_bigram_entropy": -0.05023781992111506,
+          "pos_trigram_entropy": -0.048822273400483514,
+          "subordination_ratio": 0.23058820410516348
+        },
+        "icc1": 0.5955584371585276,
+        "max_abs_r_existing": 0.23058820410516348,
+        "max_abs_r_existing_with": "subordination_ratio",
+        "mean": 0.5768784208069864,
+        "p01": 0.3911755724198872,
+        "p50": 0.576291034991917,
+        "p99": 0.7489239482200645,
+        "std": 0.07707279956164383
+      }
+    },
+    "mutual_correlations": {
+      "dep_advcl_rate": {
+        "dep_advcl_rate": 1.0,
+        "dep_amod_rate": 0.13012698920555058,
+        "dep_ccomp_rate": -0.03544570425112822,
+        "dep_conj_rate": -0.0734580542542513,
+        "dep_distance_cv": 0.21918139010840362,
+        "dep_distance_mean": 0.32888393084278533,
+        "dep_dobj_rate": 0.09560573934384235,
+        "dep_left_branching_ratio": -0.27241327662366105,
+        "dep_morph_entropy": 0.17376745792494092,
+        "dep_normalized_tree_depth": -0.4311590753026653,
+        "dep_nsubj_rate": -0.2446827439087309,
+        "dep_pos_pair_entropy": -0.37230062112232293,
+        "dep_relcl_rate": 0.08372707368284019,
+        "dep_subord_coord_ratio": 0.3759619455946092
+      },
+      "dep_amod_rate": {
+        "dep_advcl_rate": 0.13012698920555058,
+        "dep_amod_rate": 1.0,
+        "dep_ccomp_rate": -0.35598456282338387,
+        "dep_conj_rate": -0.04413185077511715,
+        "dep_distance_cv": 0.123889580730179,
+        "dep_distance_mean": 0.2483011437434433,
+        "dep_dobj_rate": -0.21901171046847687,
+        "dep_left_branching_ratio": 0.0851411846327191,
+        "dep_morph_entropy": 0.3728773074570477,
+        "dep_normalized_tree_depth": -0.24636333325377843,
+        "dep_nsubj_rate": -0.6894282033627337,
+        "dep_pos_pair_entropy": 0.19347270147066375,
+        "dep_relcl_rate": 0.1008982888263437,
+        "dep_subord_coord_ratio": -0.0032923861724459005
+      },
+      "dep_ccomp_rate": {
+        "dep_advcl_rate": -0.03544570425112822,
+        "dep_amod_rate": -0.35598456282338387,
+        "dep_ccomp_rate": 0.9999999999999999,
+        "dep_conj_rate": 0.0038958965599656227,
+        "dep_distance_cv": 0.2500055293568741,
+        "dep_distance_mean": 0.2908379886122572,
+        "dep_dobj_rate": 0.2067530673123518,
+        "dep_left_branching_ratio": 0.13678913034539675,
+        "dep_morph_entropy": -0.19041828177709805,
+        "dep_normalized_tree_depth": -0.3003655169866474,
+        "dep_nsubj_rate": 0.5414631124501147,
+        "dep_pos_pair_entropy": -0.1418616818069744,
+        "dep_relcl_rate": 0.06290108478898018,
+        "dep_subord_coord_ratio": 0.33154590487810637
+      },
+      "dep_conj_rate": {
+        "dep_advcl_rate": -0.07345805425425131,
+        "dep_amod_rate": -0.04413185077511715,
+        "dep_ccomp_rate": 0.0038958965599656227,
+        "dep_conj_rate": 1.0,
+        "dep_distance_cv": 0.330225340407712,
+        "dep_distance_mean": 0.41174723362983817,
+        "dep_dobj_rate": -0.027386333341923037,
+        "dep_left_branching_ratio": -0.5795660453072521,
+        "dep_morph_entropy": -0.05841264375965775,
+        "dep_normalized_tree_depth": -0.25959721805069225,
+        "dep_nsubj_rate": -0.15895119757383833,
+        "dep_pos_pair_entropy": -0.054881949372738444,
+        "dep_relcl_rate": -0.00603370593048988,
+        "dep_subord_coord_ratio": -0.8341366769095692
+      },
+      "dep_distance_cv": {
+        "dep_advcl_rate": 0.21918139010840362,
+        "dep_amod_rate": 0.123889580730179,
+        "dep_ccomp_rate": 0.25000552935687415,
+        "dep_conj_rate": 0.33022534040771195,
+        "dep_distance_cv": 1.0,
+        "dep_distance_mean": 0.7596970913117714,
+        "dep_dobj_rate": 0.029488544420476836,
+        "dep_left_branching_ratio": -0.2221850012373259,
+        "dep_morph_entropy": 0.14629205998749656,
+        "dep_normalized_tree_depth": -0.47417032055461966,
+        "dep_nsubj_rate": -0.2738151923240603,
+        "dep_pos_pair_entropy": 0.0092337018315691,
+        "dep_relcl_rate": 0.24955871257617757,
+        "dep_subord_coord_ratio": -0.030900909696262937
+      },
+      "dep_distance_mean": {
+        "dep_advcl_rate": 0.32888393084278533,
+        "dep_amod_rate": 0.2483011437434433,
+        "dep_ccomp_rate": 0.2908379886122571,
+        "dep_conj_rate": 0.4117472336298382,
+        "dep_distance_cv": 0.7596970913117714,
+        "dep_distance_mean": 1.0,
+        "dep_dobj_rate": -0.033236817109686866,
+        "dep_left_branching_ratio": -0.21563171825602978,
+        "dep_morph_entropy": 0.2550847196859976,
+        "dep_normalized_tree_depth": -0.7390579794787234,
+        "dep_nsubj_rate": -0.410561003376012,
+        "dep_pos_pair_entropy": 0.03219547747587386,
+        "dep_relcl_rate": 0.3225000878328073,
+        "dep_subord_coord_ratio": -0.07359269061393338
+      },
+      "dep_dobj_rate": {
+        "dep_advcl_rate": 0.09560573934384235,
+        "dep_amod_rate": -0.21901171046847684,
+        "dep_ccomp_rate": 0.20675306731235182,
+        "dep_conj_rate": -0.027386333341923037,
+        "dep_distance_cv": 0.02948854442047684,
+        "dep_distance_mean": -0.033236817109686866,
+        "dep_dobj_rate": 1.0,
+        "dep_left_branching_ratio": -0.18539991811751225,
+        "dep_morph_entropy": -0.22447843774868306,
+        "dep_normalized_tree_depth": -0.01368341403047422,
+        "dep_nsubj_rate": 0.1776540417868755,
+        "dep_pos_pair_entropy": -0.34871803831631826,
+        "dep_relcl_rate": -0.12303214309503341,
+        "dep_subord_coord_ratio": 0.12044892153410401
+      },
+      "dep_left_branching_ratio": {
+        "dep_advcl_rate": -0.27241327662366105,
+        "dep_amod_rate": 0.0851411846327191,
+        "dep_ccomp_rate": 0.13678913034539675,
+        "dep_conj_rate": -0.5795660453072521,
+        "dep_distance_cv": -0.2221850012373259,
+        "dep_distance_mean": -0.2156317182560298,
+        "dep_dobj_rate": -0.18539991811751225,
+        "dep_left_branching_ratio": 1.0,
+        "dep_morph_entropy": 0.07117347245439977,
+        "dep_normalized_tree_depth": 0.21084370323317725,
+        "dep_nsubj_rate": 0.26725377446333665,
+        "dep_pos_pair_entropy": 0.27938502238624685,
+        "dep_relcl_rate": 0.030645149056846316,
+        "dep_subord_coord_ratio": 0.4065784415498311
+      },
+      "dep_morph_entropy": {
+        "dep_advcl_rate": 0.17376745792494092,
+        "dep_amod_rate": 0.3728773074570478,
+        "dep_ccomp_rate": -0.19041828177709805,
+        "dep_conj_rate": -0.05841264375965775,
+        "dep_distance_cv": 0.14629205998749656,
+        "dep_distance_mean": 0.25508471968599755,
+        "dep_dobj_rate": -0.22447843774868304,
+        "dep_left_branching_ratio": 0.07117347245439977,
+        "dep_morph_entropy": 1.0,
+        "dep_normalized_tree_depth": -0.25863474111783646,
+        "dep_nsubj_rate": -0.42619943657728,
+        "dep_pos_pair_entropy": 0.2993831041571787,
+        "dep_relcl_rate": 0.3766093877983295,
+        "dep_subord_coord_ratio": 0.10232944362845604
+      },
+      "dep_normalized_tree_depth": {
+        "dep_advcl_rate": -0.4311590753026653,
+        "dep_amod_rate": -0.24636333325377846,
+        "dep_ccomp_rate": -0.3003655169866473,
+        "dep_conj_rate": -0.25959721805069225,
+        "dep_distance_cv": -0.4741703205546197,
+        "dep_distance_mean": -0.7390579794787234,
+        "dep_dobj_rate": -0.01368341403047422,
+        "dep_left_branching_ratio": 0.21084370323317728,
+        "dep_morph_entropy": -0.25863474111783646,
+        "dep_normalized_tree_depth": 1.0,
+        "dep_nsubj_rate": 0.37438209174429654,
+        "dep_pos_pair_entropy": 0.13040182496293518,
+        "dep_relcl_rate": -0.30306083586658156,
+        "dep_subord_coord_ratio": -0.11075078551269532
+      },
+      "dep_nsubj_rate": {
+        "dep_advcl_rate": -0.2446827439087309,
+        "dep_amod_rate": -0.6894282033627338,
+        "dep_ccomp_rate": 0.5414631124501147,
+        "dep_conj_rate": -0.1589511975738383,
+        "dep_distance_cv": -0.27381519232406026,
+        "dep_distance_mean": -0.410561003376012,
+        "dep_dobj_rate": 0.1776540417868755,
+        "dep_left_branching_ratio": 0.26725377446333665,
+        "dep_morph_entropy": -0.42619943657728,
+        "dep_normalized_tree_depth": 0.3743820917442965,
+        "dep_nsubj_rate": 1.0,
+        "dep_pos_pair_entropy": -0.1827398841575149,
+        "dep_relcl_rate": -0.18597995364967465,
+        "dep_subord_coord_ratio": 0.16790610766923328
+      },
+      "dep_pos_pair_entropy": {
+        "dep_advcl_rate": -0.37230062112232293,
+        "dep_amod_rate": 0.19347270147066375,
+        "dep_ccomp_rate": -0.14186168180697442,
+        "dep_conj_rate": -0.05488194937273845,
+        "dep_distance_cv": 0.0092337018315691,
+        "dep_distance_mean": 0.03219547747587386,
+        "dep_dobj_rate": -0.3487180383163183,
+        "dep_left_branching_ratio": 0.27938502238624685,
+        "dep_morph_entropy": 0.2993831041571788,
+        "dep_normalized_tree_depth": 0.1304018249629352,
+        "dep_nsubj_rate": -0.1827398841575149,
+        "dep_pos_pair_entropy": 1.0,
+        "dep_relcl_rate": 0.18632888112947596,
+        "dep_subord_coord_ratio": -0.08197791035310603
+      },
+      "dep_relcl_rate": {
+        "dep_advcl_rate": 0.08372707368284019,
+        "dep_amod_rate": 0.1008982888263437,
+        "dep_ccomp_rate": 0.06290108478898018,
+        "dep_conj_rate": -0.00603370593048988,
+        "dep_distance_cv": 0.24955871257617754,
+        "dep_distance_mean": 0.3225000878328073,
+        "dep_dobj_rate": -0.1230321430950334,
+        "dep_left_branching_ratio": 0.03064514905684632,
+        "dep_morph_entropy": 0.3766093877983294,
+        "dep_normalized_tree_depth": -0.30306083586658156,
+        "dep_nsubj_rate": -0.18597995364967465,
+        "dep_pos_pair_entropy": 0.18632888112947596,
+        "dep_relcl_rate": 1.0,
+        "dep_subord_coord_ratio": 0.19302106091046517
+      },
+      "dep_subord_coord_ratio": {
+        "dep_advcl_rate": 0.3759619455946092,
+        "dep_amod_rate": -0.0032923861724459,
+        "dep_ccomp_rate": 0.33154590487810637,
+        "dep_conj_rate": -0.8341366769095692,
+        "dep_distance_cv": -0.030900909696262933,
+        "dep_distance_mean": -0.07359269061393338,
+        "dep_dobj_rate": 0.120448921534104,
+        "dep_left_branching_ratio": 0.4065784415498311,
+        "dep_morph_entropy": 0.10232944362845604,
+        "dep_normalized_tree_depth": -0.11075078551269532,
+        "dep_nsubj_rate": 0.16790610766923328,
+        "dep_pos_pair_entropy": -0.08197791035310603,
+        "dep_relcl_rate": 0.19302106091046517,
+        "dep_subord_coord_ratio": 0.9999999999999998
+      }
+    },
+    "n_authors": 120,
+    "n_different_author_pairs": 257040,
+    "n_documents": 720,
+    "n_same_author_pairs": 1080
+  },
+  "primary_corpus": "PAN 2020 development partition (cross-fandom same-author pairs)",
+  "schema": "validation.dependency_probe.v1",
+  "wall_clock_seconds": 268.6723039150238
+}

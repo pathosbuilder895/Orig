@@ -514,6 +514,21 @@ class WindowScoreOut(BaseModel):
     end: int  # token offset (exclusive)
     score: float  # authorship deviation_score in [0, 1]
     confidence: str  # "low" | "medium"
+    ai_probability: float | None = Field(
+        None,
+        description=(
+            "Report-only shadow signal: the AI-likelihood detector's raw "
+            "output for THIS window. UNCALIBRATED at window scale — the "
+            "detector was trained and thresholded on whole documents, so a "
+            "~300-token window is outside its evaluated regime. Read it as an "
+            "ordering/localization hint only; do NOT apply the document-level "
+            "low/elevated/strong thresholds to it (see MODEL_CARD.md). "
+            "Populated only when AI_LIKELIHOOD_SHADOW=1 and the detector "
+            "produced a value for this window; null otherwise. Never "
+            "influences blend_detected, shift_positions, or any "
+            "recommendation."
+        ),
+    )
 
 
 class BlendResultOut(BaseModel):
@@ -525,6 +540,25 @@ class BlendResultOut(BaseModel):
     per_section: list[WindowScoreOut]
     n_tokens: int = 0
     fallback_reason: str | None = None  # e.g. "text_too_short"
+    ai_window_max: float | None = Field(
+        None,
+        description=(
+            "Report-only: highest per-window AI-likelihood across the windows "
+            "that received a value. Inherits the per-window UNCALIBRATED "
+            "caveat (see ai_probability and MODEL_CARD.md) — not comparable "
+            "to the document-level thresholds. Null when AI_LIKELIHOOD_SHADOW "
+            "is off or no window produced one."
+        ),
+    )
+    ai_window_mean: float | None = Field(
+        None,
+        description=(
+            "Report-only: mean per-window AI-likelihood over the windows that "
+            "received a value (failed windows are excluded). Inherits the "
+            "per-window UNCALIBRATED caveat (see ai_probability and "
+            "MODEL_CARD.md) — not comparable to the document-level thresholds."
+        ),
+    )
 
 
 # ── Layer 7 response models ───────────────────────────────────────────────────
@@ -868,6 +902,17 @@ class Layer7OutputResponse(BaseModel):
     # Shadow-mode preview: what deviation_score WOULD be under inflation.
     # See Layer7Output.deviation_score_inflated.
     deviation_score_inflated: float | None = None
+    # Characteristic per-student feature weighting (CHARACTERISTIC_WEIGHTS)
+    # audit trail + shadow previews. Present on quantum.scoring.Layer7Output
+    # and copied through by routers/_shared.py's _to_response(). Defaults here
+    # match Layer7Output's own so any call site that doesn't pass them stays
+    # valid. characteristic_rms_z_preview / characteristic_deviation_preview
+    # are report-only and never influence `recommendation`.
+    characteristic_weighting_applied: bool = False
+    characteristic_mode: str | None = None
+    characteristic_factor_dispersion: float | None = None
+    characteristic_rms_z_preview: float | None = None
+    characteristic_deviation_preview: float | None = None
 
 
 # ── Student state summary ─────────────────────────────────────────────────────

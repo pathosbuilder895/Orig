@@ -1,0 +1,113 @@
+{
+  "existing_tier5_reference": {
+    "adjective_rate": {
+      "auc": 0.6194038703444341,
+      "icc1": 0.5825394388150733
+    },
+    "adverb_rate": {
+      "auc": 0.6503230798492237,
+      "icc1": 0.6804566671178474
+    },
+    "clause_depth_mean": {
+      "auc": 0.6079321582027873,
+      "icc1": 0.6637726494535261
+    },
+    "noun_verb_ratio": {
+      "auc": 0.5818863453303132,
+      "icc1": 0.5027283520017608
+    },
+    "pos_bigram_entropy": {
+      "auc": 0.5989832682044011,
+      "icc1": 0.5762405569987447
+    },
+    "pos_trigram_entropy": {
+      "auc": 0.598109679571417,
+      "icc1": 0.5916451906531026
+    },
+    "subordination_ratio": {
+      "auc": 0.6341350640050258,
+      "icc1": 0.6412689431942789
+    }
+  },
+  "features": {
+    "dep_advcl_rate": {
+      "cv_r2_on_full_vector": 0.3571031472140239,
+      "cv_r2_on_tier5": 0.2037016503840351,
+      "in_sample_r2_on_full_vector": 0.5954668145096907
+    },
+    "dep_amod_rate": {
+      "cv_r2_on_full_vector": 0.7201857400706599,
+      "cv_r2_on_tier5": 0.8304556955454256,
+      "in_sample_r2_on_full_vector": 0.8102233378151407
+    },
+    "dep_ccomp_rate": {
+      "cv_r2_on_full_vector": 0.5229685840041374,
+      "cv_r2_on_tier5": 0.23365673890049132,
+      "in_sample_r2_on_full_vector": 0.700179789044897
+    },
+    "dep_conj_rate": {
+      "cv_r2_on_full_vector": 0.2350108008371773,
+      "cv_r2_on_tier5": 0.024743163378928235,
+      "in_sample_r2_on_full_vector": 0.5208804405549354
+    },
+    "dep_distance_cv": {
+      "cv_r2_on_full_vector": 0.3587592961137599,
+      "cv_r2_on_tier5": 0.24749870436669585,
+      "in_sample_r2_on_full_vector": 0.5278376007047878
+    },
+    "dep_distance_mean": {
+      "cv_r2_on_full_vector": 0.7174237414595908,
+      "cv_r2_on_tier5": 0.5503519750996227,
+      "in_sample_r2_on_full_vector": 0.8291683217228842
+    },
+    "dep_dobj_rate": {
+      "cv_r2_on_full_vector": 0.16546347809333917,
+      "cv_r2_on_tier5": 0.1281197878170277,
+      "in_sample_r2_on_full_vector": 0.4250310010117473
+    },
+    "dep_left_branching_ratio": {
+      "cv_r2_on_full_vector": 0.1940271467630138,
+      "cv_r2_on_tier5": 0.07944355273524273,
+      "in_sample_r2_on_full_vector": 0.4915936926190324
+    },
+    "dep_morph_entropy": {
+      "cv_r2_on_full_vector": 0.492182017190237,
+      "cv_r2_on_tier5": 0.3274241137860835,
+      "in_sample_r2_on_full_vector": 0.6833361041035284
+    },
+    "dep_normalized_tree_depth": {
+      "cv_r2_on_full_vector": 0.785291708356489,
+      "cv_r2_on_tier5": 0.6977635859146908,
+      "in_sample_r2_on_full_vector": 0.8656878658573608
+    },
+    "dep_nsubj_rate": {
+      "cv_r2_on_full_vector": 0.7086778318423796,
+      "cv_r2_on_tier5": 0.6548035706238383,
+      "in_sample_r2_on_full_vector": 0.8074962608930347
+    },
+    "dep_pos_pair_entropy": {
+      "cv_r2_on_full_vector": 0.4823471622084722,
+      "cv_r2_on_tier5": 0.5744948741478747,
+      "in_sample_r2_on_full_vector": 0.6587321407087483
+    },
+    "dep_relcl_rate": {
+      "cv_r2_on_full_vector": 0.3440809273869,
+      "cv_r2_on_tier5": 0.3338916574494639,
+      "in_sample_r2_on_full_vector": 0.4907431843331167
+    },
+    "dep_subord_coord_ratio": {
+      "cv_r2_on_full_vector": 0.1865855438069648,
+      "cv_r2_on_tier5": 0.0,
+      "in_sample_r2_on_full_vector": 0.49604077350683273
+    }
+  },
+  "fold_rule": "author index modulo 5 over the sorted author ordering",
+  "n_authors": 120,
+  "n_different_author_pairs": 257040,
+  "n_documents": 720,
+  "n_folds": 5,
+  "n_live_production_features": 81,
+  "n_same_author_pairs": 1080,
+  "schema": "validation.dependency_redundancy.v1",
+  "status": "descriptive only -- does not feed gate G-P5a"
+}

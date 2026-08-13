@@ -270,6 +270,35 @@ requires corroborating deviation evidence) behind a separate
 `AI_LIKELIHOOD_ACTION_NUDGE_ENABLED` flag, and is gated on a pilot semester
 of in-domain false-positive data.
 
+### Addendum (2026-08-10) — window-level shadow wiring
+
+The blend endpoint (`POST /students/{id}/score/blend`) now carries a
+**window-level** shadow of this detector. When `AI_LIKELIHOOD_SHADOW=1`, the
+rolling-stylometry loop in `original/context/blend.py` hands the per-window
+feature vectors it already builds to `predict_ai_likelihood_batch` in one
+batched call, and reports `ai_probability` per window plus `ai_window_max` /
+`ai_window_mean`. The intent is localization — *where* in a document AI-like
+text sits — which the single document-level number cannot express.
+
+- **The document-level enablement gate above still FAILS** (FPR 8% vs. a 5%
+  bar, and uninformative at n=25). `AI_LIKELIHOOD_ENABLED` remains off, and
+  nothing about this wiring changes that verdict or provides evidence for it.
+- **This is shadow-only and structurally inert.** The new fields are written
+  but never read back: they cannot affect `blend_detected`, `blend_index`,
+  `shift_positions`, `deviation_score`, or any recommended action. With the
+  flag off the module is not even imported and blend output is byte-identical
+  (`tests/context/test_blend.py::TestWindowAiShadow`).
+- **No numeric gate was cleared to ship it, and none was claimed.** There is
+  no window-level calibration: the detector was trained and thresholded on
+  whole documents, so a 300-token window is out of its evaluated regime and
+  per-window probabilities should be read as ordering/localization hints
+  only, never as calibrated probabilities.
+- **Purpose is evidence collection.** Shadow-mode window data (especially
+  whether AI-like probability concentrates in the same regions the Pettitt
+  change-point already flags) is intended to inform re-evaluation of the
+  document-level gate, alongside the larger authentic-essay pool that gate
+  needs regardless.
+
 ---
 
 ## Modern Authorship Consistency Expert (report-only, optional)

@@ -26,6 +26,12 @@ Output
                      (typically 0 or 1 for a single mid-document shift).
     per_section    — one ``WindowScore`` per overlapping window.
 
+Optionally, under ``AI_LIKELIHOOD_SHADOW=1``, each window also carries a
+report-only ``ai_probability`` (plus ``ai_window_max`` / ``ai_window_mean``
+summaries) from the corpus-level AI-likelihood detector — a localization
+hint about *where* AI-like text sits. See ``_attach_window_ai_shadow``: it
+is written and never read, so it cannot influence any output above.
+
 Implementation choices
 ======================
 - Reuses ``_tokenize`` from ``tier1`` so window boundaries match other
@@ -46,6 +52,7 @@ Implementation choices
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import asdict, dataclass
 from typing import Any
 
@@ -110,6 +117,10 @@ class WindowScore:
     end: int  # token offset (exclusive)
     score: float  # authorship deviation_score in [0, 1]
     confidence: str  # "low" (window < 500 tokens) | "medium"
+    # Report-only shadow signal — see ``_attach_window_ai_shadow``. None unless
+    # AI_LIKELIHOOD_SHADOW=1 and the detector produced a probability for THIS
+    # window. Never read by anything in this module.
+    ai_probability: float | None = None
 
 
 @dataclass
@@ -127,6 +138,11 @@ class BlendResult:
     per_section: list[WindowScore]
     n_tokens: int = 0  # total token count (audit field)
     fallback_reason: str | None = None  # populated when graceful degradation kicked in
+    # Report-only shadow summaries over the windows that actually received a
+    # probability (failed windows are ignored). None when the flag is off, the
+    # detector abstained, or no window produced a probability.
+    ai_window_max: float | None = None
+    ai_window_mean: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -211,6 +227,98 @@ def _window_offsets(
         offsets.append((n_tokens - window_tokens, n_tokens))
 
     return offsets
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Per-window AI-likelihood shadow (report-only)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def _attach_window_ai_shadow(
+    per_section: list[WindowScore],
+    window_vectors: list[np.ndarray | None],
+) -> tuple[float | None, float | None]:
+    """
+    Attach per-window AI-likelihood probabilities in place; return the summary.
+
+    Strictly report-only. Nothing in ``detect_blend`` reads ``ai_probability``,
+    ``ai_window_max`` or ``ai_window_mean``, so this cannot move
+    ``blend_index``, ``shift_positions`` or ``blend_detected``. With
+    ``AI_LIKELIHOOD_SHADOW`` unset the function returns before importing the
+    detector at all, which keeps the flag-off path byte-identical (and keeps
+    ``ai_likelihood``'s "never imported on the flag-off path" contract).
+
+    The detector's own document-level enablement gate currently FAILS
+    (MODEL_CARD.md), which is why there is no non-shadow mode here.
+
+    Alignment
+    ---------
+    ``window_vectors`` is index-parallel to ``per_section``: a window whose
+    feature extraction raised holds ``None``. Only the non-``None`` entries are
+    stacked, and each probability is written back through the *recorded* window
+    index rather than by position, so a failed window can never shift a
+    probability onto its neighbour.
+
+    Parameters
+    ----------
+    per_section :
+        Window timeline, mutated in place.
+    window_vectors :
+        One entry per window, same order; ``None`` where extraction failed.
+
+    Returns
+    -------
+    (ai_window_max, ai_window_mean)
+        Over the windows that actually received a probability; ``(None, None)``
+        if none did.
+    """
+    if os.environ.get("AI_LIKELIHOOD_SHADOW") != "1":
+        return None, None
+
+    indexed = [(i, v) for i, v in enumerate(window_vectors) if v is not None]
+    if not indexed:
+        return None, None
+
+    try:
+        # Lazy import: the detector artifact must not be loaded on the
+        # flag-off path.
+        from ..ai_likelihood import predict_ai_likelihood_batch
+
+        probabilities = predict_ai_likelihood_batch(
+            np.vstack([vec for _, vec in indexed])  # raw, unmasked — it masks internally
+        )
+        if probabilities is None:
+            return None, None
+        # Inside the guard on purpose: a predictor returning a ragged list, or
+        # one containing None, raises here — and a report-only signal must
+        # never surface as a 500 from the blend endpoint.
+        values = np.asarray(probabilities, dtype=np.float64).reshape(-1)
+    except Exception as e:  # noqa: BLE001 — a report-only signal never breaks blend
+        log.warning("blend: per-window AI-likelihood shadow failed (%s) — skipping", e)
+        return None, None
+
+    if values.shape[0] != len(indexed):
+        # Cannot align → attach nothing rather than guess.
+        log.warning(
+            "blend: AI-likelihood batch returned %d probabilities for %d window "
+            "vectors — skipping the shadow signal",
+            values.shape[0],
+            len(indexed),
+        )
+        return None, None
+
+    attached: list[float] = []
+    for (section_index, _vec), probability in zip(indexed, values, strict=True):
+        p = float(probability)
+        if not np.isfinite(p):
+            continue
+        rounded = round(p, 4)
+        per_section[section_index].ai_probability = rounded
+        attached.append(rounded)
+
+    if not attached:
+        return None, None
+    return max(attached), round(float(np.mean(attached)), 4)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -311,8 +419,13 @@ def detect_blend(
 
     # ── Score each window ────────────────────────────────────────────────────
     per_section: list[WindowScore] = []
+    # Index-parallel to per_section: the extracted feature vector, or None when
+    # this window failed. Keeping the None placeholder (rather than a compacted
+    # list) is what makes the shadow attachment below alignment-safe.
+    window_vectors: list[np.ndarray | None] = []
     for start, end in offsets:
         window_text = " ".join(tokens[start:end])
+        vec: np.ndarray | None = None
         try:
             if cluster_indices:
                 feat_dict = compute_full_features(
@@ -338,6 +451,20 @@ def detect_blend(
                 # (this is a diagnostic re-score, not the
                 # primary scored call, so no calibration
                 # data is threaded through).
+                #
+                # No impostor_stats is passed, and that is
+                # deliberate: building the peer pool needs a
+                # repository scan per window. Consequence —
+                # under CHARACTERISTIC_WEIGHTS=on (and under
+                # NULL_MODEL=impostor) these per-window
+                # scores ABSTAIN while the document score in
+                # students_scoring.py does not, so window
+                # deviations are not directly comparable to
+                # the document deviation under those flags.
+                # Same divergence the admin playground has,
+                # for the same reason. Documented in the
+                # CLAUDE.md flag row; do not "fix" it by
+                # scanning the store once per window.
                 scoring_config=ScoringConfig.from_env(),
             )
             window_score = float(layer7.authorship.deviation_score)
@@ -347,6 +474,7 @@ def detect_blend(
             log.warning("blend: window [%d, %d) scoring failed: %s", start, end, e)
             window_score = float("nan")
 
+        window_vectors.append(vec)
         per_section.append(
             WindowScore(
                 start=start,
@@ -355,6 +483,11 @@ def detect_blend(
                 confidence=confidence_label,
             )
         )
+
+    # ── Report-only: per-window AI-likelihood shadow ─────────────────────────
+    # Runs before aggregation only so both return paths below can carry the
+    # summary; nothing downstream reads these values.
+    ai_window_max, ai_window_mean = _attach_window_ai_shadow(per_section, window_vectors)
 
     # ── Aggregate: blend_index, shift detection ──────────────────────────────
     valid_scores = np.array(
@@ -370,6 +503,8 @@ def detect_blend(
             per_section=per_section,
             n_tokens=n_tokens,
             fallback_reason="insufficient_valid_windows",
+            ai_window_max=ai_window_max,
+            ai_window_mean=ai_window_mean,
         )
 
     std_score = float(np.std(valid_scores))
@@ -403,6 +538,8 @@ def detect_blend(
         per_section=per_section,
         n_tokens=n_tokens,
         fallback_reason=None,
+        ai_window_max=ai_window_max,
+        ai_window_mean=ai_window_mean,
     )
 
 
