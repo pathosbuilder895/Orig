@@ -107,7 +107,7 @@ exclude-not-abort behavior rule 4 describes.
     # fast unit layer (part of the main suite)
     .venv/bin/python -m pytest tests/ -q
 
-    # gate battery — G1-G7, corpus-driven via the in-process API client.
+    # gate battery — G1-G8, corpus-driven via the in-process API client.
     # This is a multi-minute run (it LOO-scores whole documents across
     # seminary + public_authors + Plato, plus the G5 permutation-null
     # rerun) — don't run it casually, and use --strict before quoting
@@ -127,6 +127,14 @@ exclude-not-abort behavior rule 4 describes.
     # distance is computed from TEXT, and without it the topic-variance
     # inflation under test cannot fire at all, which G7 detects and reports
     # rather than scoring the un-inflated pipeline and calling it a pass.
+
+    # what would GENRE_RESOLVER_V2 change? (committed corpora)
+    .venv/bin/python validation/genre_2026-08/measure_shadow.py
+
+    # ...and on REAL traffic, which is the number that actually decides the
+    # rollout. Requires GENRE_RESOLVER_V2=shadow set on a deployment first;
+    # reading it here measures fixtures, not students.
+    render logs --tail 100000 | .venv/bin/python validation/genre_2026-08/read_shadow_log.py
 
     # attribution benchmark, three engines side by side — this is what
     # produced the committed report above.
