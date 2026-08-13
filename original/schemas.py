@@ -786,6 +786,27 @@ class StyleAuthorshipOut(BaseModel):
     trained_on: str
 
 
+class FusedScoreOut(BaseModel):
+    """Report-only fused stylometric score (original/fusion/); never feeds
+    deviation_score, quantum_fidelity, or the recommended action.
+
+    Populated only when FUSED_SCORE_ENABLED=1 AND the expert produced a
+    result (not an abstention); null otherwise — preserves the flag-off
+    byte-identical contract.
+    """
+
+    model_config = {"protected_namespaces": ()}
+
+    fused_log_odds: float
+    probability_different_author: float
+    band: str  # "consistent" | "inconclusive" | "divergent"
+    channels: dict[str, float]
+    reference_profiles: int
+    baseline_samples: int
+    model_version: str
+    trained_on: str
+
+
 class Layer7OutputResponse(BaseModel):
     student_id: str
     submission_id: str
@@ -815,6 +836,9 @@ class Layer7OutputResponse(BaseModel):
     # drift_analysis; a candidate null model for the separate TYPICALITY_
     # SCORING axis, not yet promoted to influence it.
     trend_aware_typicality: TrendAwareTypicalityOut | None = None
+    # Report-only fused stylometric score (original/fusion/) — default-off
+    # and action-blind; populated only when FUSED_SCORE_ENABLED=1.
+    fused_score: FusedScoreOut | None = None
     # Plain-English explanation for professors/instructors
     human_explanation: dict[str, Any] | None = None
     # Two-axis verification: typicality axis. Present on quantum.scoring.

@@ -22,6 +22,7 @@ demo/pilot server's normal startup path.
 from __future__ import annotations
 
 import json
+import sys
 from datetime import UTC, datetime
 
 import numpy as np
@@ -42,6 +43,7 @@ from .db.models.live import (
     Correction,
     FidelityScore,
     FormationPathway,
+    FusedScore,
     ParkBeat,
     ParkSession,
     StaffUser,
@@ -342,6 +344,12 @@ class PostgresRepository:
                     )
                 )
                 session.execute(
+                    FusedScore.__table__.delete().where(
+                        FusedScore.tenant_id == tenant_id,
+                        FusedScore.student_id == local_id,
+                    )
+                )
+                session.execute(
                     SubmissionManifest.__table__.delete().where(
                         SubmissionManifest.tenant_id == tenant_id,
                         SubmissionManifest.student_id == local_id,
@@ -362,6 +370,14 @@ class PostgresRepository:
                     session.delete(name_row)
             # this student's tenant's (tenant, genre) entries may include them
             self._genre_stats_cache.clear()
+            # C2, 2026-08 fix pass: see store.delete_student's matching
+            # comment — original.fusion.peers._cache holds each student's
+            # full raw baseline text in-process, keyed by the scoped
+            # student_id exactly as passed in here. Guarded via sys.modules
+            # since the fusion package is optional.
+            _fusion_peers = sys.modules.get("original.fusion.peers")
+            if _fusion_peers is not None:
+                _fusion_peers.clear_student(student_id)
             return True
         except Exception:
             log.exception("delete_student failed for %s", student_id)
@@ -536,6 +552,12 @@ class PostgresRepository:
                         AiLikelihoodScore.student_id == local_id,
                     )
                 ).scalar_one()
+                fused_count = session.execute(
+                    select(func.count()).where(
+                        FusedScore.tenant_id == tenant_id,
+                        FusedScore.student_id == local_id,
+                    )
+                ).scalar_one()
                 name_row = session.get(StudentName, (tenant_id, local_id))
                 # Captured as plain values before the session closes below —
                 # ORM attribute access on a detached instance raises.
@@ -571,6 +593,7 @@ class PostgresRepository:
                     "instructor_corrections": {"count": int(correction_count)},
                     "audit_log_entries": {"count": int(audit_count)},
                     "ai_likelihood_scores": {"count": int(ai_likelihood_count)},
+                    "fused_scores": {"count": int(fused_count)},
                     "display_name": {"on_file": has_display_name},
                 },
                 "effective_sample_weight": state.effective_sample_count,
@@ -903,6 +926,86 @@ class PostgresRepository:
                 ]
         except Exception:
             log.exception("get_ai_likelihood_scores failed")
+            return []
+
+    def put_fused_score(
+        self,
+        submission_id,
+        student_id,
+        fused_log_odds,
+        probability,
+        band,
+        channels,
+        model_version="",
+        baseline_samples=None,
+        reference_profiles=None,
+    ):
+        try:
+            channels_json = json.dumps({k: float(v) for k, v in (channels or {}).items()})
+            with session_scope() as session:
+                tenant_id, local_id = split_scoped_id(student_id)
+                self._ensure_tenant_exists(session, tenant_id)
+                values = {
+                    "tenant_id": tenant_id,
+                    "student_id": local_id,
+                    "fused_log_odds": float(fused_log_odds),
+                    "probability": float(probability),
+                    "band": str(band),
+                    "channels_json": channels_json,
+                    "model_version": str(model_version),
+                    "created_at": datetime.now(UTC),
+                    "baseline_samples": (
+                        int(baseline_samples) if baseline_samples is not None else None
+                    ),
+                    "reference_profiles": (
+                        int(reference_profiles) if reference_profiles is not None else None
+                    ),
+                }
+                stmt = (
+                    pg_insert(FusedScore)
+                    .values(submission_id=submission_id, **values)
+                    .on_conflict_do_update(index_elements=["submission_id"], set_=values)
+                )
+                session.execute(stmt)
+        except Exception:
+            log.exception("put_fused_score failed for %s", submission_id)
+
+    def get_fused_scores(self, student_id=None, limit=500):
+        try:
+            with session_scope() as session:
+                stmt = select(FusedScore)
+                if student_id is not None:
+                    tenant_id, local_id = split_scoped_id(student_id)
+                    stmt = stmt.where(
+                        FusedScore.tenant_id == tenant_id,
+                        FusedScore.student_id == local_id,
+                    )
+                stmt = stmt.order_by(FusedScore.created_at.desc()).limit(int(limit))
+                rows = session.execute(stmt).scalars().all()
+                out = []
+                for row in rows:
+                    try:
+                        channels = json.loads(row.channels_json)
+                        channels = {k: float(v) for k, v in channels.items()}
+                    except Exception:
+                        channels = {}
+                    out.append(
+                        {
+                            "submission_id": row.submission_id,
+                            "student_id": join_scoped_id(row.tenant_id, row.student_id),
+                            "fused_log_odds": row.fused_log_odds,
+                            "probability": row.probability,
+                            "band": row.band,
+                            "channels": channels,
+                            "model_version": row.model_version,
+                            "created_at": row.created_at.isoformat() if row.created_at else "",
+                            "baseline_samples": row.baseline_samples,
+                            "reference_profiles": row.reference_profiles,
+                        }
+                    )
+                return out
+        except Exception:
+            log.exception("get_fused_scores failed")
             return []
 
     def get_genre_stats(self, genre, tenant, exclude_student_id):

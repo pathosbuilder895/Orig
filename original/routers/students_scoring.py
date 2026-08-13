@@ -102,6 +102,22 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # real submission length, not a fixed default.
     _n_tokens = len(req.text.split())
 
+    # ── Shared all_states() lookup (I3, 2026-08 fix pass) ─────────────────────
+    # store.all_states() does a full-table select and JSON-deserializes every
+    # student, including all sample texts. Three signals below each want the
+    # full cohort (impostor pool, style-authorship, fused score); calling
+    # _repo().all_states() separately at each site tripled that cost on every
+    # submission. Computed at most once, lazily — most scoring calls have at
+    # least one of the three consumers off, and a request with all three off
+    # should not pay for the query at all.
+    _all_states_cache: list | None = None
+
+    def _all_states() -> list:
+        nonlocal _all_states_cache
+        if _all_states_cache is None:
+            _all_states_cache = _repo().all_states()
+        return _all_states_cache
+
     # ── Explicit null model (rank-and-null work, production wiring) ───────────
     # NULL_MODEL=impostor: pool authenticated baseline vectors from the
     # claimed student's same-tenant peers into a diagonal-Gaussian impostor
@@ -119,7 +135,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
         try:
             from ..quantum.null_pool import build_impostor_stats
 
-            _impostor_stats = build_impostor_stats(student_id, _repo().all_states())
+            _impostor_stats = build_impostor_stats(student_id, _all_states())
         except Exception:
             logging.getLogger(__name__).exception(
                 "impostor pool build failed for %s — llr score skipped", student_id
@@ -308,13 +324,71 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             result.style_authorship = predict_style_authorship(
                 req.text,
                 state,
-                _repo().all_states(),
+                _all_states(),
             )
         except Exception:
             logging.getLogger(__name__).exception(
                 "style-authorship inference failed for %s — signal skipped",
                 submission_id,
             )
+
+    # ── Fused stylometric score (report-only, two modes) ──────────────────────
+    #   FUSED_SCORE_SHADOW=1  → compute + persist ONLY; result.fused_score stays
+    #     None, so narrative/explainer/response never see it. This is how the
+    #     pilot false-alarm rate gets measured before the score is trusted.
+    #   FUSED_SCORE_ENABLED=1 → attach AND persist (strict superset).
+    # Never touches deviation_score, quantum_fidelity, or the recommendation;
+    # tests/fusion/test_wiring.py holds that invariant.
+    _fused_enabled = os.environ.get("FUSED_SCORE_ENABLED") == "1"
+    _fused_shadow = os.environ.get("FUSED_SCORE_SHADOW") == "1"
+    if _fused_enabled or _fused_shadow:
+        _fused = None
+        _fused_reason = "router_exception"
+        _fused_n_peers = 0
+        _fused_n_baselines = 0
+        try:
+            from ..fusion import predict_fused_score_with_reason
+
+            # `vec` is the probe's already-extracted feature vector; passing it
+            # keeps this signal from re-running the most expensive step in scoring.
+            _fused, _fused_reason, _fused_n_peers, _fused_n_baselines = (
+                predict_fused_score_with_reason(req.text, state, _all_states(), probe_vector=vec)
+            )
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "fused score inference failed for %s — signal skipped", submission_id
+            )
+            _fused = None
+        # I2, 2026-08 fix pass: one INFO line per scoring call so an operator
+        # running shadow mode can count hit vs abstain and see the dominant
+        # abstain reason, instead of every abstain landing at DEBUG and the
+        # success path logging nothing at all. No student ids.
+        logging.getLogger(__name__).info(
+            "fused_score outcome=%s reason=%s n_peers=%d n_baselines=%d",
+            "hit" if _fused is not None else "abstain",
+            _fused_reason,
+            _fused_n_peers,
+            _fused_n_baselines,
+        )
+        if _fused is not None:
+            if _fused_enabled:
+                result.fused_score = _fused
+            try:
+                _repo().put_fused_score(
+                    submission_id=submission_id,
+                    student_id=student_id,
+                    fused_log_odds=_fused.fused_log_odds,
+                    probability=_fused.probability_different_author,
+                    band=_fused.band,
+                    channels=_fused.all_channels,
+                    model_version=_fused.model_version,
+                    baseline_samples=_fused.baseline_samples,
+                    reference_profiles=_fused.reference_profiles,
+                )
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    "fused score persistence failed for %s", submission_id
+                )
 
     # ── Persist quantum fidelity for conformal calibration ───────────────────
     # Stores every scored fidelity so get_authentic_fidelities() can build
