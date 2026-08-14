@@ -108,7 +108,14 @@ topic-variance correction to matter?
   bound), the mechanism would never fire on this cohort and `on` is moot
   regardless of its corpus performance — exactly the trap the
   genre-invariant flag fell into. If a real tail exists above 0.25, gate
-  G7 (spec §Validation) becomes worth implementing.
+  G7 becomes worth *running*: it is implemented as of 2026-08-14
+  (`validation/calibration_gate.py:evaluate_g7_cross_topic_fpr`, wired into
+  `run_all()`) but has never returned a verdict, because its corpus is not
+  committed — on a fresh checkout it reports `uninformative` and
+  `--strict` exits 1. Note also that a shadow run can never produce a G7
+  pass: shadow leaves `deviation_score` and the recommendation untouched,
+  so all three legs come out identical to flag-off, and G7 downgrades that
+  to `uninformative` rather than letting it read as a pass.
 
 **Not free, despite appearances:** the cold-start prior's
 `bayesian_prior outcome=hit|miss` log line only fires when
@@ -117,6 +124,37 @@ enable it to collect telemetry. Measure prior coverage offline instead:
 `scripts/measure_genre_prior_scope.py` against pilot data (the 2026-07-29
 attempt found no genre-labelled dataset; re-try once real genre-tagged
 submissions accumulate).
+
+### 3c. Genre-resolver shadow (optional, score-neutral)
+
+The second score-neutral measurement, and the higher priority of the two:
+it is the only way to get the one number no corpus can supply — **how often
+the genre classifier abstains on real student writing**. Everything known
+about v2 comes from 19th-century published prose plus 25 seminary papers.
+
+- Set `GENRE_RESOLVER_V2=shadow` (dashboard env var, restart in a
+  maintenance window). Inert by construction: `primary` still comes from
+  the v1 rules and nothing downstream moves. Shadow attaches
+  `shadow_primary` / `shadow_confidence` and emits one
+  `genre_shadow v1=… v2=…` INFO line per call. Both baseline ingestion and
+  scoring call `resolve_genre`, so every submission emits a line.
+- After 2+ weeks:
+  `render logs --tail 100000 | .venv/bin/python validation/genre_2026-08/read_shadow_log.py`.
+  The reader distinguishes "shadow ran and never abstained" from "shadow
+  was never on" — in a bare abstention rate those are identical and only
+  one of them is a measurement.
+- **What the number means.** The hold-out abstention rate is 33.3%
+  (ceiling 50%). Substantially higher on real submissions means the
+  3-class taxonomy does not fit seminary writing and the class set needs
+  revisiting before `on` is considered. Substantially *lower* is not good
+  news either — it would mean the classifier is confidently labelling
+  genres it was never trained on. Sermons are the known gap: v2 carries no
+  `sermon` label and, on the one out-of-taxonomy corpus measured, abstained
+  on only 7 of 11 such documents rather than all 11
+  (`docs/research/2026-08-13-genre-resolver-fix-scoping.md` §Addendum).
+- ⚠️ Do **not** skip to `GENRE_RESOLVER_V2=on` on the strength of gate G8.
+  G8 passes, but `on` changes scores: the genre label drives tier-16
+  muting and T8/T13 anchor expansion, and is a Bayesian-prior pooling key.
 
 ## 4. Professor correction workflow
 
