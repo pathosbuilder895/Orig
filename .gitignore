@@ -22,7 +22,6 @@ venv/
 
 # Testing
 .coverage
-coverage.xml
 htmlcov/
 .pytest_cache/
 
@@ -122,6 +121,12 @@ demo/bluebook/e2e/fixtures/.tenants-created.log
 # committed chunks are what the labels actually reference.
 validation/genre_2026-08/corpus/**/_*_full.txt
 
-# SDD scratch (subagent-driven-development ledger + review packages)
-.superpowers/
-coverage.json
+# Cross-genre study (gate G7) source text and derived artifacts. NEVER
+# commit: the Lewis corpus is Canadian-public-domain but still under
+# copyright in the US/UK (see validation/genre_crossgenre_2026-08/README.md).
+# Local-only by design — regenerate per that README's fetch instructions.
+validation/genre_crossgenre_2026-08/raw/
+validation/genre_crossgenre_2026-08/clean/
+validation/genre_crossgenre_2026-08/chunks.json
+validation/genre_crossgenre_2026-08/vectors.npy
+validation/genre_crossgenre_2026-08/vectors_meta.json
