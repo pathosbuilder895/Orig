@@ -1,0 +1,5366 @@
+{
+ "config": {
+  "thresholds": [
+   0.16,
+   0.17,
+   0.18,
+   0.19,
+   0.2,
+   0.21,
+   0.22,
+   0.23,
+   0.24,
+   0.25,
+   0.26,
+   0.27,
+   0.28,
+   0.29,
+   0.3,
+   0.31,
+   0.32,
+   0.33,
+   0.34,
+   0.35,
+   0.36,
+   0.37,
+   0.38,
+   0.39,
+   0.4,
+   0.41,
+   0.42,
+   0.43,
+   0.44,
+   0.45
+  ],
+  "anchor_sets": {
+   "t4": [
+    4
+   ],
+   "t6": [
+    6
+   ],
+   "t4+6": [
+    4,
+    6
+   ],
+   "t4+6+8+13": [
+    4,
+    6,
+    8,
+    13
+   ]
+  },
+  "seq_cap": 24,
+  "n_shuffles": 5,
+  "recency_decay": 0.85,
+  "genuine_authors": {
+   "burke": 60,
+   "douglass": 60,
+   "fed_hamilton": 51,
+   "fed_jay": 5,
+   "fed_madison": 14,
+   "lincoln": 60,
+   "paine": 60,
+   "seminary_01": 5,
+   "seminary_02": 5,
+   "seminary_03": 5,
+   "seminary_04": 5,
+   "seminary_05": 5,
+   "seminary_06": 18,
+   "seminary_07": 20,
+   "seminary_08": 22,
+   "seminary_09": 16,
+   "seminary_10": 22,
+   "seminary_11": 16,
+   "pa_augustine": 6,
+   "pa_boethius": 5,
+   "pa_chesterton": 5,
+   "pa_douglass": 6,
+   "pa_edwards": 6,
+   "pa_emerson": 5,
+   "pa_james": 8,
+   "pa_kempis": 5,
+   "pa_mill": 5,
+   "pa_newman": 5,
+   "pa_thoreau": 5
+  },
+  "impostor_only": {
+   "ai": 20,
+   "ghost": 5
+  }
+ },
+ "auc": {
+  "t4": {
+   "historical": {
+    "k3": 0.7625874125874126,
+    "k5": 0.7454254079254079,
+    "full": 0.7546620046620046
+   },
+   "public_authors": {
+    "k3": 0.8001967213114755,
+    "k5": 0.8025901639344263,
+    "full": 0.8028360655737705
+   },
+   "seminary": {
+    "k3": 0.6912292179802956,
+    "k5": 0.6897860221674876,
+    "full": 0.7082396859605912
+   },
+   "pooled": {
+    "k3": 0.7586944689025854,
+    "k5": 0.7540814856319539,
+    "full": 0.759455695189306
+   }
+  },
+  "t6": {
+   "historical": {
+    "k3": 0.6892968142968143,
+    "k5": 0.7056526806526806,
+    "full": 0.641482128982129
+   },
+   "public_authors": {
+    "k3": 0.6545081967213114,
+    "k5": 0.6957213114754098,
+    "full": 0.6893770491803278
+   },
+   "seminary": {
+    "k3": 0.5643896243842365,
+    "k5": 0.5540255541871921,
+    "full": 0.5502424568965517
+   },
+   "pooled": {
+    "k3": 0.6390010405827263,
+    "k5": 0.6539606179460498,
+    "full": 0.6392131593692468
+   }
+  },
+  "t4+6": {
+   "historical": {
+    "k3": 0.7704156954156954,
+    "k5": 0.7692501942501943,
+    "full": 0.7206002331002331
+   },
+   "public_authors": {
+    "k3": 0.7498852459016393,
+    "k5": 0.7760655737704918,
+    "full": 0.7694918032786885
+   },
+   "seminary": {
+    "k3": 0.6495920566502463,
+    "k5": 0.6453856219211823,
+    "full": 0.6568041871921182
+   },
+   "pooled": {
+    "k3": 0.7269310814055872,
+    "k5": 0.7358688865764829,
+    "full": 0.7251148643240215
+   }
+  },
+  "t4+6+8+13": {
+   "historical": {
+    "k3": 0.8034382284382284,
+    "k5": 0.8023892773892773,
+    "full": 0.7898212898212899
+   },
+   "public_authors": {
+    "k3": 0.7500819672131147,
+    "k5": 0.7761639344262296,
+    "full": 0.7741803278688525
+   },
+   "seminary": {
+    "k3": 0.7079279556650246,
+    "k5": 0.7000808189655172,
+    "full": 0.6986453201970443
+   },
+   "pooled": {
+    "k3": 0.7398295045225326,
+    "k5": 0.7438325462258865,
+    "full": 0.7372784759465301
+   }
+  }
+ },
+ "sweep": [
+  {
+   "anchor_set": "t4",
+   "threshold": 0.16,
+   "genuine_checks": 1860,
+   "genuine_holds": 210,
+   "false_hold_rate": 0.11290322580645161,
+   "false_hold_rate_by_family": {
+    "historical": 0.06060606060606061,
+    "seminary": 0.19270833333333334,
+    "public_authors": 0.04666666666666667
+   },
+   "authors_with_any_hold": 13,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     210
+    ],
+    "2": [
+     137,
+     73
+    ],
+    "3": [
+     163,
+     47
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.2,
+    "3-5": 0.09267241379310345,
+    "6+": 0.08385093167701864
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 542,
+   "catch_rate": 0.2689826302729528,
+   "catch_rate_by_family": {
+    "historical": 0.03333333333333333,
+    "seminary": 0.3753694581280788,
+    "public_authors": 0.24262295081967214
+   },
+   "catch_rate_k3": 0.284863523573201,
+   "catch_rate_k5": 0.2395715896279594
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.17,
+   "genuine_checks": 1860,
+   "genuine_holds": 169,
+   "false_hold_rate": 0.09086021505376345,
+   "false_hold_rate_by_family": {
+    "historical": 0.050505050505050504,
+    "seminary": 0.15885416666666666,
+    "public_authors": 0.023333333333333334
+   },
+   "authors_with_any_hold": 12,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     169
+    ],
+    "2": [
+     120,
+     49
+    ],
+    "3": [
+     145,
+     24
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.14320987654320988,
+    "3-5": 0.08280254777070063,
+    "6+": 0.07317073170731707
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 425,
+   "catch_rate": 0.2109181141439206,
+   "catch_rate_by_family": {
+    "historical": 0.028205128205128206,
+    "seminary": 0.30640394088669953,
+    "public_authors": 0.16885245901639345
+   },
+   "catch_rate_k3": 0.26004962779156326,
+   "catch_rate_k5": 0.23015021459227467
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.18,
+   "genuine_checks": 1860,
+   "genuine_holds": 130,
+   "false_hold_rate": 0.06989247311827956,
+   "false_hold_rate_by_family": {
+    "historical": 0.036616161616161616,
+    "seminary": 0.12630208333333334,
+    "public_authors": 0.013333333333333334
+   },
+   "authors_with_any_hold": 12,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     130
+    ],
+    "2": [
+     93,
+     37
+    ],
+    "3": [
+     109,
+     21
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.12594458438287154,
+    "3-5": 0.058315334773218146,
+    "6+": 0.053
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 351,
+   "catch_rate": 0.17419354838709677,
+   "catch_rate_by_family": {
+    "historical": 0.02564102564102564,
+    "seminary": 0.26108374384236455,
+    "public_authors": 0.12459016393442623
+   },
+   "catch_rate_k3": 0.20694789081885856,
+   "catch_rate_k5": 0.19098712446351931
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.19,
+   "genuine_checks": 1860,
+   "genuine_holds": 108,
+   "false_hold_rate": 0.05806451612903226,
+   "false_hold_rate_by_family": {
+    "historical": 0.03156565656565657,
+    "seminary": 0.10416666666666667,
+    "public_authors": 0.01
+   },
+   "authors_with_any_hold": 11,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     108
+    ],
+    "2": [
+     81,
+     27
+    ],
+    "3": [
+     91,
+     17
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.10309278350515463,
+    "3-5": 0.045454545454545456,
+    "6+": 0.046534653465346534
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 284,
+   "catch_rate": 0.14094292803970224,
+   "catch_rate_by_family": {
+    "historical": 0.017948717948717947,
+    "seminary": 0.21280788177339902,
+    "public_authors": 0.1
+   },
+   "catch_rate_k3": 0.16277915632754342,
+   "catch_rate_k5": 0.16488004083716182
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.2,
+   "genuine_checks": 1860,
+   "genuine_holds": 88,
+   "false_hold_rate": 0.047311827956989246,
+   "false_hold_rate_by_family": {
+    "historical": 0.026515151515151516,
+    "seminary": 0.08463541666666667,
+    "public_authors": 0.006666666666666667
+   },
+   "authors_with_any_hold": 9,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     88
+    ],
+    "2": [
+     68,
+     20
+    ],
+    "3": [
+     76,
+     12
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.08421052631578947,
+    "3-5": 0.034934497816593885,
+    "6+": 0.03913894324853229
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 207,
+   "catch_rate": 0.10272952853598015,
+   "catch_rate_by_family": {
+    "historical": 0.017948717948717947,
+    "seminary": 0.15862068965517243,
+    "public_authors": 0.06393442622950819
+   },
+   "catch_rate_k3": 0.12258064516129032,
+   "catch_rate_k5": 0.10617662072485962
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.21,
+   "genuine_checks": 1860,
+   "genuine_holds": 81,
+   "false_hold_rate": 0.043548387096774194,
+   "false_hold_rate_by_family": {
+    "historical": 0.022727272727272728,
+    "seminary": 0.07942708333333333,
+    "public_authors": 0.006666666666666667
+   },
+   "authors_with_any_hold": 9,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     81
+    ],
+    "2": [
+     63,
+     18
+    ],
+    "3": [
+     69,
+     12
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.08421052631578947,
+    "3-5": 0.02857142857142857,
+    "6+": 0.0351219512195122
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 161,
+   "catch_rate": 0.07990074441687345,
+   "catch_rate_by_family": {
+    "historical": 0.01282051282051282,
+    "seminary": 0.1270935960591133,
+    "public_authors": 0.04426229508196721
+   },
+   "catch_rate_k3": 0.0967741935483871,
+   "catch_rate_k5": 0.08218478815722308
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.22,
+   "genuine_checks": 1860,
+   "genuine_holds": 64,
+   "false_hold_rate": 0.034408602150537634,
+   "false_hold_rate_by_family": {
+    "historical": 0.020202020202020204,
+    "seminary": 0.0625,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 7,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     64
+    ],
+    "2": [
+     49,
+     15
+    ],
+    "3": [
+     55,
+     9
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.06199460916442048,
+    "3-5": 0.024175824175824177,
+    "6+": 0.029013539651837523
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 129,
+   "catch_rate": 0.06401985111662531,
+   "catch_rate_by_family": {
+    "historical": 0.010256410256410256,
+    "seminary": 0.10541871921182266,
+    "public_authors": 0.029508196721311476
+   },
+   "catch_rate_k3": 0.07692307692307693,
+   "catch_rate_k5": 0.06699751861042183
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.23,
+   "genuine_checks": 1860,
+   "genuine_holds": 52,
+   "false_hold_rate": 0.02795698924731183,
+   "false_hold_rate_by_family": {
+    "historical": 0.020202020202020204,
+    "seminary": 0.046875,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 7,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     52
+    ],
+    "2": [
+     43,
+     9
+    ],
+    "3": [
+     47,
+     5
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.04132231404958678,
+    "3-5": 0.022026431718061675,
+    "6+": 0.02588686481303931
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 95,
+   "catch_rate": 0.04714640198511166,
+   "catch_rate_by_family": {
+    "historical": 0.007692307692307693,
+    "seminary": 0.07980295566502463,
+    "public_authors": 0.018032786885245903
+   },
+   "catch_rate_k3": 0.05459057071960298,
+   "catch_rate_k5": 0.060049627791563275
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.24,
+   "genuine_checks": 1860,
+   "genuine_holds": 41,
+   "false_hold_rate": 0.02204301075268817,
+   "false_hold_rate_by_family": {
+    "historical": 0.013888888888888888,
+    "seminary": 0.0390625,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 6,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     41
+    ],
+    "2": [
+     33,
+     8
+    ],
+    "3": [
+     36,
+     5
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.025210084033613446,
+    "3-5": 0.015521064301552107,
+    "6+": 0.02376425855513308
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 75,
+   "catch_rate": 0.03722084367245657,
+   "catch_rate_by_family": {
+    "historical": 0.005128205128205128,
+    "seminary": 0.06600985221674877,
+    "public_authors": 0.009836065573770493
+   },
+   "catch_rate_k3": 0.04218362282878412,
+   "catch_rate_k5": 0.048635235732009924
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.25,
+   "genuine_checks": 1860,
+   "genuine_holds": 36,
+   "false_hold_rate": 0.01935483870967742,
+   "false_hold_rate_by_family": {
+    "historical": 0.013888888888888888,
+    "seminary": 0.032552083333333336,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 5,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     36
+    ],
+    "2": [
+     28,
+     8
+    ],
+    "3": [
+     31,
+     5
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.02247191011235955,
+    "3-5": 0.015521064301552107,
+    "6+": 0.019943019943019943
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 60,
+   "catch_rate": 0.02977667493796526,
+   "catch_rate_by_family": {
+    "historical": 0.002564102564102564,
+    "seminary": 0.05517241379310345,
+    "public_authors": 0.004918032786885246
+   },
+   "catch_rate_k3": 0.03176178660049628,
+   "catch_rate_k5": 0.03325062034739454
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.26,
+   "genuine_checks": 1860,
+   "genuine_holds": 26,
+   "false_hold_rate": 0.013978494623655914,
+   "false_hold_rate_by_family": {
+    "historical": 0.007575757575757576,
+    "seminary": 0.026041666666666668,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 5,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     26
+    ],
+    "2": [
+     19,
+     7
+    ],
+    "3": [
+     21,
+     5
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.01971830985915493,
+    "3-5": 0.013333333333333334,
+    "6+": 0.012322274881516588
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 41,
+   "catch_rate": 0.020347394540942927,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.03842364532019704,
+    "public_authors": 0.003278688524590164
+   },
+   "catch_rate_k3": 0.025310173697270472,
+   "catch_rate_k5": 0.02630272952853598
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.27,
+   "genuine_checks": 1860,
+   "genuine_holds": 13,
+   "false_hold_rate": 0.006989247311827957,
+   "false_hold_rate_by_family": {
+    "historical": 0.006313131313131313,
+    "seminary": 0.010416666666666666,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 5,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     13
+    ],
+    "2": [
+     13,
+     0
+    ],
+    "3": [
+     13,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.011135857461024499,
+    "6+": 0.007525870178739417
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 33,
+   "catch_rate": 0.016377171215880892,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.03251231527093596,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.017866004962779156,
+   "catch_rate_k5": 0.021339950372208438
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.28,
+   "genuine_checks": 1860,
+   "genuine_holds": 11,
+   "false_hold_rate": 0.005913978494623656,
+   "false_hold_rate_by_family": {
+    "historical": 0.005050505050505051,
+    "seminary": 0.009114583333333334,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 5,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     11
+    ],
+    "2": [
+     11,
+     0
+    ],
+    "3": [
+     11,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.006711409395973154,
+    "6+": 0.007511737089201878
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 29,
+   "catch_rate": 0.014392059553349877,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.02857142857142857,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.014392059553349877,
+   "catch_rate_k5": 0.014392059553349877
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.29,
+   "genuine_checks": 1860,
+   "genuine_holds": 9,
+   "false_hold_rate": 0.004838709677419355,
+   "false_hold_rate_by_family": {
+    "historical": 0.005050505050505051,
+    "seminary": 0.006510416666666667,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 4,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     9
+    ],
+    "2": [
+     9,
+     0
+    ],
+    "3": [
+     9,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.004484304932735426,
+    "6+": 0.006566604127579738
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 25,
+   "catch_rate": 0.01240694789081886,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.024630541871921183,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.010918114143920596,
+   "catch_rate_k5": 0.01240694789081886
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.3,
+   "genuine_checks": 1860,
+   "genuine_holds": 4,
+   "false_hold_rate": 0.002150537634408602,
+   "false_hold_rate_by_family": {
+    "historical": 0.0025252525252525255,
+    "seminary": 0.0026041666666666665,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 2,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     4
+    ],
+    "2": [
+     4,
+     0
+    ],
+    "3": [
+     4,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.004484304932735426,
+    "6+": 0.001876172607879925
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 21,
+   "catch_rate": 0.010421836228287842,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.020689655172413793,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.008436724565756825,
+   "catch_rate_k5": 0.009429280397022333
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.31,
+   "genuine_checks": 1860,
+   "genuine_holds": 2,
+   "false_hold_rate": 0.001075268817204301,
+   "false_hold_rate_by_family": {
+    "historical": 0.0025252525252525255,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 1,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     2
+    ],
+    "2": [
+     2,
+     0
+    ],
+    "3": [
+     2,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0022471910112359553,
+    "6+": 0.0009372071227741331
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 15,
+   "catch_rate": 0.007444168734491315,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.014778325123152709,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0064516129032258064,
+   "catch_rate_k5": 0.006947890818858561
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.32,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 10,
+   "catch_rate": 0.004962779156327543,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.009852216748768473,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.004962779156327543,
+   "catch_rate_k5": 0.005955334987593052
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.33,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 9,
+   "catch_rate": 0.004466501240694789,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.008866995073891626,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.004962779156327543,
+   "catch_rate_k5": 0.005459057071960298
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.34,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 7,
+   "catch_rate": 0.0034739454094292804,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.006896551724137931,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0034739454094292804,
+   "catch_rate_k5": 0.003970223325062035
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.35,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 6,
+   "catch_rate": 0.002977667493796526,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.005911330049261084,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.002977667493796526,
+   "catch_rate_k5": 0.002977667493796526
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.36,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 6,
+   "catch_rate": 0.002977667493796526,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.005911330049261084,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.002977667493796526,
+   "catch_rate_k5": 0.002977667493796526
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.37,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 5,
+   "catch_rate": 0.0024813895781637717,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0049261083743842365,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.002977667493796526,
+   "catch_rate_k5": 0.002977667493796526
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.38,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 5,
+   "catch_rate": 0.0024813895781637717,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0049261083743842365,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0024813895781637717,
+   "catch_rate_k5": 0.0024813895781637717
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.39,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 4,
+   "catch_rate": 0.0019851116625310174,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.003940886699507389,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0024813895781637717,
+   "catch_rate_k5": 0.0019851116625310174
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.4,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 4,
+   "catch_rate": 0.0019851116625310174,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.003940886699507389,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0024813895781637717,
+   "catch_rate_k5": 0.0019851116625310174
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.41,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 4,
+   "catch_rate": 0.0019851116625310174,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.003940886699507389,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0024813895781637717,
+   "catch_rate_k5": 0.0019851116625310174
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.42,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 3,
+   "catch_rate": 0.001488833746898263,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.002955665024630542,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.001488833746898263,
+   "catch_rate_k5": 0.001488833746898263
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.43,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 3,
+   "catch_rate": 0.001488833746898263,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.002955665024630542,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0009925558312655087,
+   "catch_rate_k5": 0.001488833746898263
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.44,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 3,
+   "catch_rate": 0.001488833746898263,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.002955665024630542,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0004962779156327543,
+   "catch_rate_k5": 0.001488833746898263
+  },
+  {
+   "anchor_set": "t4",
+   "threshold": 0.45,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 2,
+   "catch_rate": 0.0009925558312655087,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0019704433497536944,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0004962779156327543,
+   "catch_rate_k5": 0.0009925558312655087
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.16,
+   "genuine_checks": 1860,
+   "genuine_holds": 1106,
+   "false_hold_rate": 0.5946236559139785,
+   "false_hold_rate_by_family": {
+    "historical": 0.49242424242424243,
+    "seminary": 0.7291666666666666,
+    "public_authors": 0.52
+   },
+   "authors_with_any_hold": 28,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     1106
+    ],
+    "2": [
+     426,
+     680
+    ],
+    "3": [
+     663,
+     443
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.6620370370370371,
+    "3-5": 0.622895622895623,
+    "6+": 0.4079601990049751
+   },
+   "impostor_checks": 1658,
+   "impostor_caught": 1032,
+   "catch_rate": 0.6224366706875754,
+   "catch_rate_by_family": {
+    "historical": 0.4846153846153846,
+    "seminary": 0.7296969696969697,
+    "public_authors": 0.5440180586907449
+   },
+   "catch_rate_k3": 0.6387213510253317,
+   "catch_rate_k5": 0.6332916145181476
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.17,
+   "genuine_checks": 1860,
+   "genuine_holds": 1062,
+   "false_hold_rate": 0.5709677419354838,
+   "false_hold_rate_by_family": {
+    "historical": 0.4671717171717172,
+    "seminary": 0.69921875,
+    "public_authors": 0.5166666666666667
+   },
+   "authors_with_any_hold": 28,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     1062
+    ],
+    "2": [
+     438,
+     624
+    ],
+    "3": [
+     664,
+     398
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.6453558504221955,
+    "3-5": 0.578096947935368,
+    "6+": 0.43248945147679324
+   },
+   "impostor_checks": 1658,
+   "impostor_caught": 995,
+   "catch_rate": 0.6001206272617612,
+   "catch_rate_by_family": {
+    "historical": 0.45384615384615384,
+    "seminary": 0.7115151515151515,
+    "public_authors": 0.5214446952595937
+   },
+   "catch_rate_k3": 0.6115802171290712,
+   "catch_rate_k5": 0.6389201349831272
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.18,
+   "genuine_checks": 1860,
+   "genuine_holds": 1010,
+   "false_hold_rate": 0.543010752688172,
+   "false_hold_rate_by_family": {
+    "historical": 0.4393939393939394,
+    "seminary": 0.6627604166666666,
+    "public_authors": 0.51
+   },
+   "authors_with_any_hold": 28,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     1010
+    ],
+    "2": [
+     442,
+     568
+    ],
+    "3": [
+     663,
+     347
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.6232439335887612,
+    "3-5": 0.553763440860215,
+    "6+": 0.41040462427745666
+   },
+   "impostor_checks": 1658,
+   "impostor_caught": 953,
+   "catch_rate": 0.5747889022919179,
+   "catch_rate_by_family": {
+    "historical": 0.44358974358974357,
+    "seminary": 0.6872727272727273,
+    "public_authors": 0.48081264108352145
+   },
+   "catch_rate_k3": 0.5886610373944512,
+   "catch_rate_k5": 0.6197975253093363
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.19,
+   "genuine_checks": 1860,
+   "genuine_holds": 940,
+   "false_hold_rate": 0.5053763440860215,
+   "false_hold_rate_by_family": {
+    "historical": 0.40025252525252525,
+    "seminary": 0.625,
+    "public_authors": 0.4766666666666667
+   },
+   "authors_with_any_hold": 28,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     940
+    ],
+    "2": [
+     439,
+     501
+    ],
+    "3": [
+     644,
+     296
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.5817174515235457,
+    "3-5": 0.5244122965641953,
+    "6+": 0.39316239316239315
+   },
+   "impostor_checks": 1714,
+   "impostor_caught": 954,
+   "catch_rate": 0.5565927654609102,
+   "catch_rate_by_family": {
+    "historical": 0.43333333333333335,
+    "seminary": 0.6581818181818182,
+    "public_authors": 0.4849699398797595
+   },
+   "catch_rate_k3": 0.5845974329054843,
+   "catch_rate_k5": 0.5842696629213483
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.2,
+   "genuine_checks": 1860,
+   "genuine_holds": 899,
+   "false_hold_rate": 0.48333333333333334,
+   "false_hold_rate_by_family": {
+    "historical": 0.38257575757575757,
+    "seminary": 0.5989583333333334,
+    "public_authors": 0.4533333333333333
+   },
+   "authors_with_any_hold": 28,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     899
+    ],
+    "2": [
+     437,
+     462
+    ],
+    "3": [
+     635,
+     264
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.55359765051395,
+    "3-5": 0.5045045045045045,
+    "6+": 0.38782051282051283
+   },
+   "impostor_checks": 1714,
+   "impostor_caught": 921,
+   "catch_rate": 0.5373395565927654,
+   "catch_rate_by_family": {
+    "historical": 0.4282051282051282,
+    "seminary": 0.6363636363636364,
+    "public_authors": 0.4589178356713427
+   },
+   "catch_rate_k3": 0.5705950991831972,
+   "catch_rate_k5": 0.5474974463738509
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.21,
+   "genuine_checks": 1860,
+   "genuine_holds": 783,
+   "false_hold_rate": 0.42096774193548386,
+   "false_hold_rate_by_family": {
+    "historical": 0.32954545454545453,
+    "seminary": 0.5481770833333334,
+    "public_authors": 0.33666666666666667
+   },
+   "authors_with_any_hold": 27,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     783
+    ],
+    "2": [
+     414,
+     369
+    ],
+    "3": [
+     595,
+     188
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.4968847352024922,
+    "3-5": 0.43947858472998136,
+    "6+": 0.33480176211453744
+   },
+   "impostor_checks": 1865,
+   "impostor_caught": 921,
+   "catch_rate": 0.4938337801608579,
+   "catch_rate_by_family": {
+    "historical": 0.36923076923076925,
+    "seminary": 0.6,
+    "public_authors": 0.40540540540540543
+   },
+   "catch_rate_k3": 0.528686327077748,
+   "catch_rate_k5": 0.4912923923006416
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.22,
+   "genuine_checks": 1860,
+   "genuine_holds": 713,
+   "false_hold_rate": 0.38333333333333336,
+   "false_hold_rate_by_family": {
+    "historical": 0.30303030303030304,
+    "seminary": 0.5078125,
+    "public_authors": 0.27666666666666667
+   },
+   "authors_with_any_hold": 27,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     713
+    ],
+    "2": [
+     400,
+     313
+    ],
+    "3": [
+     562,
+     151
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.460655737704918,
+    "3-5": 0.3783783783783784,
+    "6+": 0.3224043715846995
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 944,
+   "catch_rate": 0.4684863523573201,
+   "catch_rate_by_family": {
+    "historical": 0.3564102564102564,
+    "seminary": 0.5665024630541872,
+    "public_authors": 0.3770491803278688
+   },
+   "catch_rate_k3": 0.4992555831265509,
+   "catch_rate_k5": 0.45169082125603865
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.23,
+   "genuine_checks": 1860,
+   "genuine_holds": 626,
+   "false_hold_rate": 0.3365591397849462,
+   "false_hold_rate_by_family": {
+    "historical": 0.25757575757575757,
+    "seminary": 0.4622395833333333,
+    "public_authors": 0.22333333333333333
+   },
+   "authors_with_any_hold": 26,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     626
+    ],
+    "2": [
+     368,
+     258
+    ],
+    "3": [
+     503,
+     123
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.4231433506044905,
+    "3-5": 0.330078125,
+    "6+": 0.2756827048114434
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 862,
+   "catch_rate": 0.4277915632754342,
+   "catch_rate_by_family": {
+    "historical": 0.32051282051282054,
+    "seminary": 0.516256157635468,
+    "public_authors": 0.34918032786885245
+   },
+   "catch_rate_k3": 0.4665012406947891,
+   "catch_rate_k5": 0.39244410177332306
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.24,
+   "genuine_checks": 1860,
+   "genuine_holds": 562,
+   "false_hold_rate": 0.3021505376344086,
+   "false_hold_rate_by_family": {
+    "historical": 0.22601010101010102,
+    "seminary": 0.4166666666666667,
+    "public_authors": 0.21
+   },
+   "authors_with_any_hold": 25,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     562
+    ],
+    "2": [
+     351,
+     211
+    ],
+    "3": [
+     476,
+     86
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.37662337662337664,
+    "3-5": 0.310546875,
+    "6+": 0.24721878862793573
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 787,
+   "catch_rate": 0.3905707196029777,
+   "catch_rate_by_family": {
+    "historical": 0.3,
+    "seminary": 0.470935960591133,
+    "public_authors": 0.31475409836065577
+   },
+   "catch_rate_k3": 0.42133995037220845,
+   "catch_rate_k5": 0.3706896551724138
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.25,
+   "genuine_checks": 1860,
+   "genuine_holds": 486,
+   "false_hold_rate": 0.26129032258064516,
+   "false_hold_rate_by_family": {
+    "historical": 0.19065656565656566,
+    "seminary": 0.3658854166666667,
+    "public_authors": 0.18
+   },
+   "authors_with_any_hold": 25,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     486
+    ],
+    "2": [
+     313,
+     173
+    ],
+    "3": [
+     416,
+     70
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.33723196881091616,
+    "3-5": 0.2795275590551181,
+    "6+": 0.20381406436233612
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 722,
+   "catch_rate": 0.3583126550868486,
+   "catch_rate_by_family": {
+    "historical": 0.24102564102564103,
+    "seminary": 0.44236453201970444,
+    "public_authors": 0.2934426229508197
+   },
+   "catch_rate_k3": 0.3880893300248139,
+   "catch_rate_k5": 0.3305785123966942
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.26,
+   "genuine_checks": 1860,
+   "genuine_holds": 414,
+   "false_hold_rate": 0.22258064516129034,
+   "false_hold_rate_by_family": {
+    "historical": 0.16287878787878787,
+    "seminary": 0.3151041666666667,
+    "public_authors": 0.14333333333333334
+   },
+   "authors_with_any_hold": 23,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     414
+    ],
+    "2": [
+     290,
+     124
+    ],
+    "3": [
+     372,
+     42
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.2863070539419087,
+    "3-5": 0.23387096774193547,
+    "6+": 0.18140589569160998
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 627,
+   "catch_rate": 0.31116625310173696,
+   "catch_rate_by_family": {
+    "historical": 0.20256410256410257,
+    "seminary": 0.3783251231527094,
+    "public_authors": 0.26885245901639343
+   },
+   "catch_rate_k3": 0.35086848635235734,
+   "catch_rate_k5": 0.30524220305242206
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.27,
+   "genuine_checks": 1860,
+   "genuine_holds": 356,
+   "false_hold_rate": 0.1913978494623656,
+   "false_hold_rate_by_family": {
+    "historical": 0.125,
+    "seminary": 0.2838541666666667,
+    "public_authors": 0.13
+   },
+   "authors_with_any_hold": 23,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     356
+    ],
+    "2": [
+     265,
+     91
+    ],
+    "3": [
+     331,
+     25
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.24017467248908297,
+    "3-5": 0.20454545454545456,
+    "6+": 0.16013071895424835
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 509,
+   "catch_rate": 0.25260545905707193,
+   "catch_rate_by_family": {
+    "historical": 0.14102564102564102,
+    "seminary": 0.31231527093596056,
+    "public_authors": 0.22459016393442624
+   },
+   "catch_rate_k3": 0.3042183622828784,
+   "catch_rate_k5": 0.26741871267418715
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.28,
+   "genuine_checks": 1860,
+   "genuine_holds": 299,
+   "false_hold_rate": 0.16075268817204302,
+   "false_hold_rate_by_family": {
+    "historical": 0.09722222222222222,
+    "seminary": 0.24869791666666666,
+    "public_authors": 0.10333333333333333
+   },
+   "authors_with_any_hold": 22,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     299
+    ],
+    "2": [
+     231,
+     68
+    ],
+    "3": [
+     281,
+     18
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.21621621621621623,
+    "3-5": 0.1535181236673774,
+    "6+": 0.13833157338965152
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 414,
+   "catch_rate": 0.2054590570719603,
+   "catch_rate_by_family": {
+    "historical": 0.11538461538461539,
+    "seminary": 0.24630541871921183,
+    "public_authors": 0.19508196721311474
+   },
+   "catch_rate_k3": 0.2511166253101737,
+   "catch_rate_k5": 0.2342398022249691
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.29,
+   "genuine_checks": 1860,
+   "genuine_holds": 239,
+   "false_hold_rate": 0.128494623655914,
+   "false_hold_rate_by_family": {
+    "historical": 0.08207070707070707,
+    "seminary": 0.19791666666666666,
+    "public_authors": 0.07333333333333333
+   },
+   "authors_with_any_hold": 20,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     239
+    ],
+    "2": [
+     195,
+     44
+    ],
+    "3": [
+     227,
+     12
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.1792452830188679,
+    "3-5": 0.1108695652173913,
+    "6+": 0.11475409836065574
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 327,
+   "catch_rate": 0.16228287841191066,
+   "catch_rate_by_family": {
+    "historical": 0.09743589743589744,
+    "seminary": 0.18719211822660098,
+    "public_authors": 0.16229508196721312
+   },
+   "catch_rate_k3": 0.2044665012406948,
+   "catch_rate_k5": 0.20023350846468185
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.3,
+   "genuine_checks": 1860,
+   "genuine_holds": 200,
+   "false_hold_rate": 0.10752688172043011,
+   "false_hold_rate_by_family": {
+    "historical": 0.0707070707070707,
+    "seminary": 0.16276041666666666,
+    "public_authors": 0.06333333333333334
+   },
+   "authors_with_any_hold": 18,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     200
+    ],
+    "2": [
+     170,
+     30
+    ],
+    "3": [
+     193,
+     7
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.15328467153284672,
+    "3-5": 0.10583153347732181,
+    "6+": 0.08924949290060852
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 251,
+   "catch_rate": 0.12456575682382134,
+   "catch_rate_by_family": {
+    "historical": 0.06153846153846154,
+    "seminary": 0.14187192118226602,
+    "public_authors": 0.1360655737704918
+   },
+   "catch_rate_k3": 0.1617866004962779,
+   "catch_rate_k5": 0.1576458223857068
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.31,
+   "genuine_checks": 1860,
+   "genuine_holds": 161,
+   "false_hold_rate": 0.08655913978494624,
+   "false_hold_rate_by_family": {
+    "historical": 0.05808080808080808,
+    "seminary": 0.13020833333333334,
+    "public_authors": 0.05
+   },
+   "authors_with_any_hold": 17,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     161
+    ],
+    "2": [
+     141,
+     20
+    ],
+    "3": [
+     156,
+     5
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.13861386138613863,
+    "3-5": 0.07929515418502203,
+    "6+": 0.0688622754491018
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 203,
+   "catch_rate": 0.10074441687344914,
+   "catch_rate_by_family": {
+    "historical": 0.038461538461538464,
+    "seminary": 0.11822660098522167,
+    "public_authors": 0.11147540983606558
+   },
+   "catch_rate_k3": 0.1359801488833747,
+   "catch_rate_k5": 0.1255911718339464
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.32,
+   "genuine_checks": 1860,
+   "genuine_holds": 116,
+   "false_hold_rate": 0.06236559139784946,
+   "false_hold_rate_by_family": {
+    "historical": 0.04040404040404041,
+    "seminary": 0.09375,
+    "public_authors": 0.04
+   },
+   "authors_with_any_hold": 15,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     116
+    ],
+    "2": [
+     104,
+     12
+    ],
+    "3": [
+     114,
+     2
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.11224489795918367,
+    "3-5": 0.057777777777777775,
+    "6+": 0.04518664047151277
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 162,
+   "catch_rate": 0.0803970223325062,
+   "catch_rate_by_family": {
+    "historical": 0.02564102564102564,
+    "seminary": 0.09458128078817735,
+    "public_authors": 0.09180327868852459
+   },
+   "catch_rate_k3": 0.11563275434243177,
+   "catch_rate_k5": 0.10614818707304256
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.33,
+   "genuine_checks": 1860,
+   "genuine_holds": 84,
+   "false_hold_rate": 0.04516129032258064,
+   "false_hold_rate_by_family": {
+    "historical": 0.026515151515151516,
+    "seminary": 0.0703125,
+    "public_authors": 0.03
+   },
+   "authors_with_any_hold": 15,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     84
+    ],
+    "2": [
+     75,
+     9
+    ],
+    "3": [
+     82,
+     2
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.10077519379844961,
+    "3-5": 0.042505592841163314,
+    "6+": 0.025341130604288498
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 127,
+   "catch_rate": 0.0630272952853598,
+   "catch_rate_by_family": {
+    "historical": 0.007692307692307693,
+    "seminary": 0.0729064039408867,
+    "public_authors": 0.08196721311475409
+   },
+   "catch_rate_k3": 0.09578163771712159,
+   "catch_rate_k5": 0.0882816605359958
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.34,
+   "genuine_checks": 1860,
+   "genuine_holds": 69,
+   "false_hold_rate": 0.037096774193548385,
+   "false_hold_rate_by_family": {
+    "historical": 0.021464646464646464,
+    "seminary": 0.055989583333333336,
+    "public_authors": 0.03
+   },
+   "authors_with_any_hold": 15,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     69
+    ],
+    "2": [
+     62,
+     7
+    ],
+    "3": [
+     68,
+     1
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.09375,
+    "3-5": 0.036036036036036036,
+    "6+": 0.016472868217054265
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 102,
+   "catch_rate": 0.050620347394540945,
+   "catch_rate_by_family": {
+    "historical": 0.007692307692307693,
+    "seminary": 0.05517241379310345,
+    "public_authors": 0.07049180327868852
+   },
+   "catch_rate_k3": 0.08238213399503722,
+   "catch_rate_k5": 0.07041513399894903
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.35,
+   "genuine_checks": 1860,
+   "genuine_holds": 47,
+   "false_hold_rate": 0.025268817204301075,
+   "false_hold_rate_by_family": {
+    "historical": 0.013888888888888888,
+    "seminary": 0.037760416666666664,
+    "public_authors": 0.023333333333333334
+   },
+   "authors_with_any_hold": 14,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     47
+    ],
+    "2": [
+     43,
+     4
+    ],
+    "3": [
+     46,
+     1
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.07446808510638298,
+    "3-5": 0.01809954751131222,
+    "6+": 0.01055662188099808
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 75,
+   "catch_rate": 0.03722084367245657,
+   "catch_rate_by_family": {
+    "historical": 0.007692307692307693,
+    "seminary": 0.04039408866995074,
+    "public_authors": 0.05081967213114754
+   },
+   "catch_rate_k3": 0.06451612903225806,
+   "catch_rate_k5": 0.05972434915773354
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.36,
+   "genuine_checks": 1860,
+   "genuine_holds": 37,
+   "false_hold_rate": 0.01989247311827957,
+   "false_hold_rate_by_family": {
+    "historical": 0.010101010101010102,
+    "seminary": 0.032552083333333336,
+    "public_authors": 0.013333333333333334
+   },
+   "authors_with_any_hold": 13,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     37
+    ],
+    "2": [
+     33,
+     4
+    ],
+    "3": [
+     36,
+     1
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.06951871657754011,
+    "3-5": 0.011286681715575621,
+    "6+": 0.005752636625119847
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 60,
+   "catch_rate": 0.02977667493796526,
+   "catch_rate_by_family": {
+    "historical": 0.002564102564102564,
+    "seminary": 0.030541871921182268,
+    "public_authors": 0.04590163934426229
+   },
+   "catch_rate_k3": 0.055583126550868486,
+   "catch_rate_k5": 0.049515058703420115
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.37,
+   "genuine_checks": 1860,
+   "genuine_holds": 26,
+   "false_hold_rate": 0.013978494623655914,
+   "false_hold_rate_by_family": {
+    "historical": 0.006313131313131313,
+    "seminary": 0.024739583333333332,
+    "public_authors": 0.006666666666666667
+   },
+   "authors_with_any_hold": 10,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     26
+    ],
+    "2": [
+     22,
+     4
+    ],
+    "3": [
+     25,
+     1
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.05434782608695652,
+    "3-5": 0.006756756756756757,
+    "6+": 0.0028625954198473282
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 45,
+   "catch_rate": 0.022332506203473945,
+   "catch_rate_by_family": {
+    "historical": 0.002564102564102564,
+    "seminary": 0.022660098522167486,
+    "public_authors": 0.03442622950819672
+   },
+   "catch_rate_k3": 0.04367245657568238,
+   "catch_rate_k5": 0.03970223325062035
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.38,
+   "genuine_checks": 1860,
+   "genuine_holds": 22,
+   "false_hold_rate": 0.011827956989247311,
+   "false_hold_rate_by_family": {
+    "historical": 0.006313131313131313,
+    "seminary": 0.020833333333333332,
+    "public_authors": 0.0033333333333333335
+   },
+   "authors_with_any_hold": 9,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     22
+    ],
+    "2": [
+     19,
+     3
+    ],
+    "3": [
+     21,
+     1
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.04918032786885246,
+    "3-5": 0.0045045045045045045,
+    "6+": 0.0019047619047619048
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 36,
+   "catch_rate": 0.017866004962779156,
+   "catch_rate_by_family": {
+    "historical": 0.002564102564102564,
+    "seminary": 0.017733990147783252,
+    "public_authors": 0.027868852459016394
+   },
+   "catch_rate_k3": 0.034739454094292806,
+   "catch_rate_k5": 0.03176178660049628
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.39,
+   "genuine_checks": 1860,
+   "genuine_holds": 19,
+   "false_hold_rate": 0.01021505376344086,
+   "false_hold_rate_by_family": {
+    "historical": 0.003787878787878788,
+    "seminary": 0.01953125,
+    "public_authors": 0.0033333333333333335
+   },
+   "authors_with_any_hold": 9,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     19
+    ],
+    "2": [
+     16,
+     3
+    ],
+    "3": [
+     18,
+     1
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.04657534246575343,
+    "3-5": 0.002257336343115124,
+    "6+": 0.0009505703422053232
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 29,
+   "catch_rate": 0.014392059553349877,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.013793103448275862,
+    "public_authors": 0.02459016393442623
+   },
+   "catch_rate_k3": 0.02382133995037221,
+   "catch_rate_k5": 0.02729528535980149
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.4,
+   "genuine_checks": 1860,
+   "genuine_holds": 16,
+   "false_hold_rate": 0.008602150537634409,
+   "false_hold_rate_by_family": {
+    "historical": 0.003787878787878788,
+    "seminary": 0.015625,
+    "public_authors": 0.0033333333333333335
+   },
+   "authors_with_any_hold": 8,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     16
+    ],
+    "2": [
+     13,
+     3
+    ],
+    "3": [
+     15,
+     1
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.03867403314917127,
+    "3-5": 0.002257336343115124,
+    "6+": 0.0009478672985781991
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 24,
+   "catch_rate": 0.011910669975186104,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.009852216748768473,
+    "public_authors": 0.022950819672131147
+   },
+   "catch_rate_k3": 0.01687344913151365,
+   "catch_rate_k5": 0.02183622828784119
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.41,
+   "genuine_checks": 1860,
+   "genuine_holds": 12,
+   "false_hold_rate": 0.0064516129032258064,
+   "false_hold_rate_by_family": {
+    "historical": 0.0012626262626262627,
+    "seminary": 0.013020833333333334,
+    "public_authors": 0.0033333333333333335
+   },
+   "authors_with_any_hold": 7,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     12
+    ],
+    "2": [
+     9,
+     3
+    ],
+    "3": [
+     11,
+     1
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.03333333333333333,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 17,
+   "catch_rate": 0.008436724565756825,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.006896551724137931,
+    "public_authors": 0.01639344262295082
+   },
+   "catch_rate_k3": 0.014392059553349877,
+   "catch_rate_k5": 0.01687344913151365
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.42,
+   "genuine_checks": 1860,
+   "genuine_holds": 10,
+   "false_hold_rate": 0.005376344086021506,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.01171875,
+    "public_authors": 0.0033333333333333335
+   },
+   "authors_with_any_hold": 6,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     10
+    ],
+    "2": [
+     8,
+     2
+    ],
+    "3": [
+     9,
+     1
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.027932960893854747,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 15,
+   "catch_rate": 0.007444168734491315,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.006896551724137931,
+    "public_authors": 0.013114754098360656
+   },
+   "catch_rate_k3": 0.009429280397022333,
+   "catch_rate_k5": 0.01588089330024814
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.43,
+   "genuine_checks": 1860,
+   "genuine_holds": 7,
+   "false_hold_rate": 0.003763440860215054,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0078125,
+    "public_authors": 0.0033333333333333335
+   },
+   "authors_with_any_hold": 5,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     7
+    ],
+    "2": [
+     7,
+     0
+    ],
+    "3": [
+     7,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.01971830985915493,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 11,
+   "catch_rate": 0.005459057071960298,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0049261083743842365,
+    "public_authors": 0.009836065573770493
+   },
+   "catch_rate_k3": 0.0064516129032258064,
+   "catch_rate_k5": 0.01141439205955335
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.44,
+   "genuine_checks": 1860,
+   "genuine_holds": 5,
+   "false_hold_rate": 0.002688172043010753,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.006510416666666667,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 3,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     5
+    ],
+    "2": [
+     5,
+     0
+    ],
+    "3": [
+     5,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.014164305949008499,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 7,
+   "catch_rate": 0.0034739454094292804,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0049261083743842365,
+    "public_authors": 0.003278688524590164
+   },
+   "catch_rate_k3": 0.004962779156327543,
+   "catch_rate_k5": 0.008933002481389578
+  },
+  {
+   "anchor_set": "t6",
+   "threshold": 0.45,
+   "genuine_checks": 1860,
+   "genuine_holds": 4,
+   "false_hold_rate": 0.002150537634408602,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.005208333333333333,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 3,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     4
+    ],
+    "2": [
+     4,
+     0
+    ],
+    "3": [
+     4,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.011363636363636364,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 5,
+   "catch_rate": 0.0024813895781637717,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.002955665024630542,
+    "public_authors": 0.003278688524590164
+   },
+   "catch_rate_k3": 0.0024813895781637717,
+   "catch_rate_k5": 0.005955334987593052
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.16,
+   "genuine_checks": 1860,
+   "genuine_holds": 671,
+   "false_hold_rate": 0.36075268817204303,
+   "false_hold_rate_by_family": {
+    "historical": 0.22601010101010102,
+    "seminary": 0.5416666666666666,
+    "public_authors": 0.25333333333333335
+   },
+   "authors_with_any_hold": 25,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     671
+    ],
+    "2": [
+     319,
+     352
+    ],
+    "3": [
+     454,
+     217
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.4954128440366973,
+    "3-5": 0.36893203883495146,
+    "6+": 0.2272069464544139
+   },
+   "impostor_checks": 1814,
+   "impostor_caught": 983,
+   "catch_rate": 0.541896361631753,
+   "catch_rate_by_family": {
+    "historical": 0.28205128205128205,
+    "seminary": 0.6767567567567567,
+    "public_authors": 0.49498997995991983
+   },
+   "catch_rate_k3": 0.5722160970231532,
+   "catch_rate_k5": 0.509046052631579
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.17,
+   "genuine_checks": 1860,
+   "genuine_holds": 571,
+   "false_hold_rate": 0.306989247311828,
+   "false_hold_rate_by_family": {
+    "historical": 0.17424242424242425,
+    "seminary": 0.4830729166666667,
+    "public_authors": 0.20666666666666667
+   },
+   "authors_with_any_hold": 24,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     571
+    ],
+    "2": [
+     303,
+     268
+    ],
+    "3": [
+     413,
+     158
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.43791946308724833,
+    "3-5": 0.3073852295409182,
+    "6+": 0.20445609436435125
+   },
+   "impostor_checks": 1870,
+   "impostor_caught": 905,
+   "catch_rate": 0.4839572192513369,
+   "catch_rate_by_family": {
+    "historical": 0.2358974358974359,
+    "seminary": 0.6043243243243244,
+    "public_authors": 0.45765765765765765
+   },
+   "catch_rate_k3": 0.5176470588235295,
+   "catch_rate_k5": 0.4775767112509835
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.18,
+   "genuine_checks": 1860,
+   "genuine_holds": 458,
+   "false_hold_rate": 0.24623655913978496,
+   "false_hold_rate_by_family": {
+    "historical": 0.13005050505050506,
+    "seminary": 0.40234375,
+    "public_authors": 0.15333333333333332
+   },
+   "authors_with_any_hold": 23,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     458
+    ],
+    "2": [
+     269,
+     189
+    ],
+    "3": [
+     356,
+     102
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.37084870848708484,
+    "3-5": 0.2310838445807771,
+    "6+": 0.17370325693606756
+   },
+   "impostor_checks": 1925,
+   "impostor_caught": 781,
+   "catch_rate": 0.4057142857142857,
+   "catch_rate_by_family": {
+    "historical": 0.16923076923076924,
+    "seminary": 0.5027027027027027,
+    "public_authors": 0.4098360655737705
+   },
+   "catch_rate_k3": 0.4451948051948052,
+   "catch_rate_k5": 0.4007936507936508
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.19,
+   "genuine_checks": 1860,
+   "genuine_holds": 350,
+   "false_hold_rate": 0.1881720430107527,
+   "false_hold_rate_by_family": {
+    "historical": 0.10227272727272728,
+    "seminary": 0.3072916666666667,
+    "public_authors": 0.11
+   },
+   "authors_with_any_hold": 21,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     350
+    ],
+    "2": [
+     231,
+     119
+    ],
+    "3": [
+     293,
+     57
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.288981288981289,
+    "3-5": 0.16772823779193205,
+    "6+": 0.14537444933920704
+   },
+   "impostor_checks": 1925,
+   "impostor_caught": 645,
+   "catch_rate": 0.33506493506493507,
+   "catch_rate_by_family": {
+    "historical": 0.1076923076923077,
+    "seminary": 0.43783783783783786,
+    "public_authors": 0.32459016393442625
+   },
+   "catch_rate_k3": 0.3864935064935065,
+   "catch_rate_k5": 0.33163265306122447
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.2,
+   "genuine_checks": 1860,
+   "genuine_holds": 267,
+   "false_hold_rate": 0.1435483870967742,
+   "false_hold_rate_by_family": {
+    "historical": 0.07954545454545454,
+    "seminary": 0.234375,
+    "public_authors": 0.08
+   },
+   "authors_with_any_hold": 19,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     267
+    ],
+    "2": [
+     186,
+     81
+    ],
+    "3": [
+     228,
+     39
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.24175824175824176,
+    "3-5": 0.12095032397408208,
+    "6+": 0.10721868365180467
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 567,
+   "catch_rate": 0.2813895781637717,
+   "catch_rate_by_family": {
+    "historical": 0.05384615384615385,
+    "seminary": 0.38226600985221676,
+    "public_authors": 0.25901639344262295
+   },
+   "catch_rate_k3": 0.3260545905707196,
+   "catch_rate_k5": 0.3076474022183304
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.21,
+   "genuine_checks": 1860,
+   "genuine_holds": 193,
+   "false_hold_rate": 0.10376344086021505,
+   "false_hold_rate_by_family": {
+    "historical": 0.054292929292929296,
+    "seminary": 0.18229166666666666,
+    "public_authors": 0.03333333333333333
+   },
+   "authors_with_any_hold": 16,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     193
+    ],
+    "2": [
+     140,
+     53
+    ],
+    "3": [
+     164,
+     29
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.19489559164733178,
+    "3-5": 0.08405172413793104,
+    "6+": 0.07253886010362694
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 461,
+   "catch_rate": 0.22878411910669974,
+   "catch_rate_by_family": {
+    "historical": 0.03333333333333333,
+    "seminary": 0.3310344827586207,
+    "public_authors": 0.18360655737704917
+   },
+   "catch_rate_k3": 0.27344913151364764,
+   "catch_rate_k5": 0.2548283261802575
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.22,
+   "genuine_checks": 1860,
+   "genuine_holds": 144,
+   "false_hold_rate": 0.07741935483870968,
+   "false_hold_rate_by_family": {
+    "historical": 0.03787878787878788,
+    "seminary": 0.13671875,
+    "public_authors": 0.03
+   },
+   "authors_with_any_hold": 16,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     144
+    ],
+    "2": [
+     109,
+     35
+    ],
+    "3": [
+     125,
+     19
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.15980629539951574,
+    "3-5": 0.06753812636165578,
+    "6+": 0.04757085020242915
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 338,
+   "catch_rate": 0.16774193548387098,
+   "catch_rate_by_family": {
+    "historical": 0.020512820512820513,
+    "seminary": 0.24039408866995074,
+    "public_authors": 0.14098360655737704
+   },
+   "catch_rate_k3": 0.2218362282878412,
+   "catch_rate_k5": 0.2017167381974249
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.23,
+   "genuine_checks": 1860,
+   "genuine_holds": 111,
+   "false_hold_rate": 0.05967741935483871,
+   "false_hold_rate_by_family": {
+    "historical": 0.027777777777777776,
+    "seminary": 0.10546875,
+    "public_authors": 0.02666666666666667
+   },
+   "authors_with_any_hold": 15,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     111
+    ],
+    "2": [
+     86,
+     25
+    ],
+    "3": [
+     97,
+     14
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.1325,
+    "3-5": 0.042222222222222223,
+    "6+": 0.03861386138613861
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 250,
+   "catch_rate": 0.12406947890818859,
+   "catch_rate_by_family": {
+    "historical": 0.015384615384615385,
+    "seminary": 0.18226600985221675,
+    "public_authors": 0.09672131147540984
+   },
+   "catch_rate_k3": 0.17419354838709677,
+   "catch_rate_k5": 0.14163090128755365
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.24,
+   "genuine_checks": 1860,
+   "genuine_holds": 82,
+   "false_hold_rate": 0.04408602150537634,
+   "false_hold_rate_by_family": {
+    "historical": 0.017676767676767676,
+    "seminary": 0.08203125,
+    "public_authors": 0.016666666666666666
+   },
+   "authors_with_any_hold": 13,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     82
+    ],
+    "2": [
+     60,
+     22
+    ],
+    "3": [
+     68,
+     14
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.11928934010152284,
+    "3-5": 0.026905829596412557,
+    "6+": 0.022549019607843137
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 191,
+   "catch_rate": 0.09478908188585608,
+   "catch_rate_by_family": {
+    "historical": 0.002564102564102564,
+    "seminary": 0.14285714285714285,
+    "public_authors": 0.07377049180327869
+   },
+   "catch_rate_k3": 0.1315136476426799,
+   "catch_rate_k5": 0.11534334763948498
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.25,
+   "genuine_checks": 1860,
+   "genuine_holds": 63,
+   "false_hold_rate": 0.03387096774193549,
+   "false_hold_rate_by_family": {
+    "historical": 0.015151515151515152,
+    "seminary": 0.06380208333333333,
+    "public_authors": 0.006666666666666667
+   },
+   "authors_with_any_hold": 12,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     63
+    ],
+    "2": [
+     45,
+     18
+    ],
+    "3": [
+     51,
+     12
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.09844559585492228,
+    "3-5": 0.015730337078651686,
+    "6+": 0.01749271137026239
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 135,
+   "catch_rate": 0.06699751861042183,
+   "catch_rate_by_family": {
+    "historical": 0.002564102564102564,
+    "seminary": 0.10147783251231528,
+    "public_authors": 0.05081967213114754
+   },
+   "catch_rate_k3": 0.09230769230769231,
+   "catch_rate_k5": 0.08535980148883375,
+   "held_files_at_production_default": [
+    {
+     "author": "seminary_07",
+     "path": "validation/corpus/seminary_07_003.txt",
+     "magnitude": 0.29805
+    },
+    {
+     "author": "seminary_09",
+     "path": "validation/corpus/seminary_09_002.txt",
+     "magnitude": 0.33330000000000004
+    },
+    {
+     "author": "seminary_09",
+     "path": "validation/corpus/seminary_09_016.txt",
+     "magnitude": 0.29195000000000004
+    },
+    {
+     "author": "seminary_10",
+     "path": "validation/corpus/seminary_10_004.txt",
+     "magnitude": 0.25505
+    }
+   ]
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.26,
+   "genuine_checks": 1860,
+   "genuine_holds": 46,
+   "false_hold_rate": 0.024731182795698924,
+   "false_hold_rate_by_family": {
+    "historical": 0.013888888888888888,
+    "seminary": 0.044270833333333336,
+    "public_authors": 0.0033333333333333335
+   },
+   "authors_with_any_hold": 10,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     46
+    ],
+    "2": [
+     30,
+     16
+    ],
+    "3": [
+     34,
+     12
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.07446808510638298,
+    "3-5": 0.008988764044943821,
+    "6+": 0.013474494706448507
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 99,
+   "catch_rate": 0.04913151364764268,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.07783251231527094,
+    "public_authors": 0.03278688524590164
+   },
+   "catch_rate_k3": 0.06401985111662531,
+   "catch_rate_k5": 0.06947890818858561
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.27,
+   "genuine_checks": 1860,
+   "genuine_holds": 33,
+   "false_hold_rate": 0.017741935483870968,
+   "false_hold_rate_by_family": {
+    "historical": 0.007575757575757576,
+    "seminary": 0.03515625,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 9,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     33
+    ],
+    "2": [
+     21,
+     12
+    ],
+    "3": [
+     24,
+     9
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.056910569105691054,
+    "3-5": 0.008928571428571428,
+    "6+": 0.007670182166826462
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 74,
+   "catch_rate": 0.03672456575682382,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.060098522167487685,
+    "public_authors": 0.021311475409836064
+   },
+   "catch_rate_k3": 0.044168734491315136,
+   "catch_rate_k5": 0.054094292803970226
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.28,
+   "genuine_checks": 1860,
+   "genuine_holds": 30,
+   "false_hold_rate": 0.016129032258064516,
+   "false_hold_rate_by_family": {
+    "historical": 0.006313131313131313,
+    "seminary": 0.032552083333333336,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 8,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     30
+    ],
+    "2": [
+     18,
+     12
+    ],
+    "3": [
+     21,
+     9
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.056910569105691054,
+    "3-5": 0.004484304932735426,
+    "6+": 0.0066985645933014355
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 49,
+   "catch_rate": 0.024317617866004962,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.041379310344827586,
+    "public_authors": 0.011475409836065573
+   },
+   "catch_rate_k3": 0.032754342431761785,
+   "catch_rate_k5": 0.03771712158808933
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.29,
+   "genuine_checks": 1860,
+   "genuine_holds": 16,
+   "false_hold_rate": 0.008602150537634409,
+   "false_hold_rate_by_family": {
+    "historical": 0.003787878787878788,
+    "seminary": 0.016927083333333332,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 5,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     16
+    ],
+    "2": [
+     11,
+     5
+    ],
+    "3": [
+     13,
+     3
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.027932960893854747,
+    "3-5": 0.004484304932735426,
+    "6+": 0.003787878787878788
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 35,
+   "catch_rate": 0.017369727047146403,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.02857142857142857,
+    "public_authors": 0.009836065573770493
+   },
+   "catch_rate_k3": 0.024317617866004962,
+   "catch_rate_k5": 0.02630272952853598
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.3,
+   "genuine_checks": 1860,
+   "genuine_holds": 10,
+   "false_hold_rate": 0.005376344086021506,
+   "false_hold_rate_by_family": {
+    "historical": 0.003787878787878788,
+    "seminary": 0.009114583333333334,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 4,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     10
+    ],
+    "2": [
+     7,
+     3
+    ],
+    "3": [
+     9,
+     1
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.01971830985915493,
+    "3-5": 0.0022471910112359553,
+    "6+": 0.0018867924528301887
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 31,
+   "catch_rate": 0.015384615384615385,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.02561576354679803,
+    "public_authors": 0.00819672131147541
+   },
+   "catch_rate_k3": 0.017866004962779156,
+   "catch_rate_k5": 0.02183622828784119
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.31,
+   "genuine_checks": 1860,
+   "genuine_holds": 7,
+   "false_hold_rate": 0.003763440860215054,
+   "false_hold_rate_by_family": {
+    "historical": 0.0025252525252525255,
+    "seminary": 0.006510416666666667,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 4,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     7
+    ],
+    "2": [
+     5,
+     2
+    ],
+    "3": [
+     6,
+     1
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.014164305949008499,
+    "3-5": 0.0,
+    "6+": 0.0018814675446848542
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 24,
+   "catch_rate": 0.011910669975186104,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.020689655172413793,
+    "public_authors": 0.004918032786885246
+   },
+   "catch_rate_k3": 0.01240694789081886,
+   "catch_rate_k5": 0.01588089330024814
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.32,
+   "genuine_checks": 1860,
+   "genuine_holds": 6,
+   "false_hold_rate": 0.0032258064516129032,
+   "false_hold_rate_by_family": {
+    "historical": 0.0012626262626262627,
+    "seminary": 0.006510416666666667,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 3,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     6
+    ],
+    "2": [
+     4,
+     2
+    ],
+    "3": [
+     5,
+     1
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.014164305949008499,
+    "3-5": 0.0,
+    "6+": 0.0009407337723424271
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 14,
+   "catch_rate": 0.006947890818858561,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.013793103448275862,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.010421836228287842,
+   "catch_rate_k5": 0.008933002481389578
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.33,
+   "genuine_checks": 1860,
+   "genuine_holds": 6,
+   "false_hold_rate": 0.0032258064516129032,
+   "false_hold_rate_by_family": {
+    "historical": 0.0012626262626262627,
+    "seminary": 0.006510416666666667,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 3,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     6
+    ],
+    "2": [
+     4,
+     2
+    ],
+    "3": [
+     5,
+     1
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.014164305949008499,
+    "3-5": 0.0,
+    "6+": 0.0009407337723424271
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 8,
+   "catch_rate": 0.003970223325062035,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.007881773399014778,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.006947890818858561,
+   "catch_rate_k5": 0.005459057071960298
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.34,
+   "genuine_checks": 1860,
+   "genuine_holds": 4,
+   "false_hold_rate": 0.002150537634408602,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.005208333333333333,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 2,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     4
+    ],
+    "2": [
+     2,
+     2
+    ],
+    "3": [
+     3,
+     1
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.011363636363636364,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 5,
+   "catch_rate": 0.0024813895781637717,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0049261083743842365,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.004962779156327543,
+   "catch_rate_k5": 0.0034739454094292804
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.35,
+   "genuine_checks": 1860,
+   "genuine_holds": 2,
+   "false_hold_rate": 0.001075268817204301,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0026041666666666665,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 1,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     2
+    ],
+    "2": [
+     1,
+     1
+    ],
+    "3": [
+     2,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.005714285714285714,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 2,
+   "catch_rate": 0.0009925558312655087,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0019704433497536944,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0024813895781637717,
+   "catch_rate_k5": 0.0019851116625310174
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.36,
+   "genuine_checks": 1860,
+   "genuine_holds": 1,
+   "false_hold_rate": 0.0005376344086021505,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0013020833333333333,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 1,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     1
+    ],
+    "2": [
+     1,
+     0
+    ],
+    "3": [
+     1,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0028653295128939827,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 1,
+   "catch_rate": 0.0004962779156327543,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0009852216748768472,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0009925558312655087,
+   "catch_rate_k5": 0.0009925558312655087
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.37,
+   "genuine_checks": 1860,
+   "genuine_holds": 1,
+   "false_hold_rate": 0.0005376344086021505,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0013020833333333333,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 1,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     1
+    ],
+    "2": [
+     1,
+     0
+    ],
+    "3": [
+     1,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0028653295128939827,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0004962779156327543,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.38,
+   "genuine_checks": 1860,
+   "genuine_holds": 1,
+   "false_hold_rate": 0.0005376344086021505,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0013020833333333333,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 1,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     1
+    ],
+    "2": [
+     1,
+     0
+    ],
+    "3": [
+     1,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0028653295128939827,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.39,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.4,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.41,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.42,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.43,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.44,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6",
+   "threshold": 0.45,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.16,
+   "genuine_checks": 1860,
+   "genuine_holds": 129,
+   "false_hold_rate": 0.06935483870967742,
+   "false_hold_rate_by_family": {
+    "historical": 0.03156565656565657,
+    "seminary": 0.13020833333333334,
+    "public_authors": 0.013333333333333334
+   },
+   "authors_with_any_hold": 14,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     129
+    ],
+    "2": [
+     97,
+     32
+    ],
+    "3": [
+     114,
+     15
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.12151898734177215,
+    "3-5": 0.06866952789699571,
+    "6+": 0.04904904904904905
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 358,
+   "catch_rate": 0.17766749379652605,
+   "catch_rate_by_family": {
+    "historical": 0.002564102564102564,
+    "seminary": 0.32413793103448274,
+    "public_authors": 0.04590163934426229
+   },
+   "catch_rate_k3": 0.19702233250620346,
+   "catch_rate_k5": 0.17135416666666667
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.17,
+   "genuine_checks": 1860,
+   "genuine_holds": 86,
+   "false_hold_rate": 0.046236559139784944,
+   "false_hold_rate_by_family": {
+    "historical": 0.021464646464646464,
+    "seminary": 0.08854166666666667,
+    "public_authors": 0.0033333333333333335
+   },
+   "authors_with_any_hold": 11,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     86
+    ],
+    "2": [
+     64,
+     22
+    ],
+    "3": [
+     73,
+     13
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.09610389610389611,
+    "3-5": 0.03736263736263736,
+    "6+": 0.03137254901960784
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 258,
+   "catch_rate": 0.12803970223325062,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.24236453201970443,
+    "public_authors": 0.019672131147540985
+   },
+   "catch_rate_k3": 0.1444168734491315,
+   "catch_rate_k5": 0.11979166666666667
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.18,
+   "genuine_checks": 1860,
+   "genuine_holds": 62,
+   "false_hold_rate": 0.03333333333333333,
+   "false_hold_rate_by_family": {
+    "historical": 0.011363636363636364,
+    "seminary": 0.06770833333333333,
+    "public_authors": 0.0033333333333333335
+   },
+   "authors_with_any_hold": 10,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     62
+    ],
+    "2": [
+     43,
+     19
+    ],
+    "3": [
+     50,
+     12
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.07692307692307693,
+    "3-5": 0.03070175438596491,
+    "6+": 0.018500486854917234
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 158,
+   "catch_rate": 0.07841191066997519,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.1497536945812808,
+    "public_authors": 0.009836065573770493
+   },
+   "catch_rate_k3": 0.1032258064516129,
+   "catch_rate_k5": 0.07604166666666666
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.19,
+   "genuine_checks": 1860,
+   "genuine_holds": 42,
+   "false_hold_rate": 0.02258064516129032,
+   "false_hold_rate_by_family": {
+    "historical": 0.010101010101010102,
+    "seminary": 0.04296875,
+    "public_authors": 0.0033333333333333335
+   },
+   "authors_with_any_hold": 9,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     42
+    ],
+    "2": [
+     31,
+     11
+    ],
+    "3": [
+     34,
+     8
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.05945945945945946,
+    "3-5": 0.015590200445434299,
+    "6+": 0.012487992315081652
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 105,
+   "catch_rate": 0.052109181141439205,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.10344827586206896,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.07344913151364764,
+   "catch_rate_k5": 0.05364583333333333
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.2,
+   "genuine_checks": 1860,
+   "genuine_holds": 30,
+   "false_hold_rate": 0.016129032258064516,
+   "false_hold_rate_by_family": {
+    "historical": 0.005050505050505051,
+    "seminary": 0.032552083333333336,
+    "public_authors": 0.0033333333333333335
+   },
+   "authors_with_any_hold": 8,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     30
+    ],
+    "2": [
+     19,
+     11
+    ],
+    "3": [
+     22,
+     8
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.05434782608695652,
+    "3-5": 0.011185682326621925,
+    "6+": 0.004784688995215311
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 71,
+   "catch_rate": 0.03523573200992556,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.06995073891625615,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.04813895781637717,
+   "catch_rate_k5": 0.03177083333333333
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.21,
+   "genuine_checks": 1860,
+   "genuine_holds": 14,
+   "false_hold_rate": 0.007526881720430108,
+   "false_hold_rate_by_family": {
+    "historical": 0.0012626262626262627,
+    "seminary": 0.016927083333333332,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 5,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     14
+    ],
+    "2": [
+     9,
+     5
+    ],
+    "3": [
+     11,
+     3
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.027932960893854747,
+    "3-5": 0.0044943820224719105,
+    "6+": 0.001892147587511826
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 52,
+   "catch_rate": 0.025806451612903226,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.05123152709359606,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.025806451612903226,
+   "catch_rate_k5": 0.026041666666666668
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.22,
+   "genuine_checks": 1860,
+   "genuine_holds": 8,
+   "false_hold_rate": 0.004301075268817204,
+   "false_hold_rate_by_family": {
+    "historical": 0.0012626262626262627,
+    "seminary": 0.009114583333333334,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 3,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     8
+    ],
+    "2": [
+     3,
+     5
+    ],
+    "3": [
+     5,
+     3
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.01971830985915493,
+    "3-5": 0.0,
+    "6+": 0.000942507068803016
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 29,
+   "catch_rate": 0.014392059553349877,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.02857142857142857,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.015384615384615385,
+   "catch_rate_k5": 0.016377171215880892
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.23,
+   "genuine_checks": 1860,
+   "genuine_holds": 3,
+   "false_hold_rate": 0.0016129032258064516,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.00390625,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 2,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     3
+    ],
+    "2": [
+     2,
+     1
+    ],
+    "3": [
+     3,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.008547008547008548,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 17,
+   "catch_rate": 0.008436724565756825,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.016748768472906402,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.008436724565756825,
+   "catch_rate_k5": 0.008933002481389578
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.24,
+   "genuine_checks": 1860,
+   "genuine_holds": 1,
+   "false_hold_rate": 0.0005376344086021505,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0013020833333333333,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 1,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     1
+    ],
+    "2": [
+     1,
+     0
+    ],
+    "3": [
+     1,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0028653295128939827,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 12,
+   "catch_rate": 0.005955334987593052,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.011822660098522168,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.004466501240694789,
+   "catch_rate_k5": 0.004466501240694789
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.25,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 2,
+   "catch_rate": 0.0009925558312655087,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0019704433497536944,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0024813895781637717,
+   "catch_rate_k5": 0.001488833746898263
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.26,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 1,
+   "catch_rate": 0.0004962779156327543,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0009852216748768472,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0004962779156327543,
+   "catch_rate_k5": 0.0009925558312655087
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.27,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0004962779156327543,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.28,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.29,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.3,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.31,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.32,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.33,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.34,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.35,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.36,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.37,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.38,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.39,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.4,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.41,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.42,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.43,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.44,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  },
+  {
+   "anchor_set": "t4+6+8+13",
+   "threshold": 0.45,
+   "genuine_checks": 1860,
+   "genuine_holds": 0,
+   "false_hold_rate": 0.0,
+   "false_hold_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "authors_with_any_hold": 0,
+   "n_genuine_authors": 29,
+   "outcome_202_409_by_consecutive": {
+    "1": [
+     0,
+     0
+    ],
+    "2": [
+     0,
+     0
+    ],
+    "3": [
+     0,
+     0
+    ]
+   },
+   "hold_rate_by_baseline_size": {
+    "1-2": 0.0,
+    "3-5": 0.0,
+    "6+": 0.0
+   },
+   "impostor_checks": 2015,
+   "impostor_caught": 0,
+   "catch_rate": 0.0,
+   "catch_rate_by_family": {
+    "historical": 0.0,
+    "seminary": 0.0,
+    "public_authors": 0.0
+   },
+   "catch_rate_k3": 0.0,
+   "catch_rate_k5": 0.0
+  }
+ ]
+}

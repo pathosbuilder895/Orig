@@ -346,7 +346,7 @@ class StudentState:
     def check_drift(
         self,
         new_sample: BaselineSample,
-        threshold: float = 0.25,
+        threshold: float = 0.30,
         consecutive_required: int = 2,
     ) -> DriftResult:
         """
@@ -359,8 +359,16 @@ class StudentState:
             The candidate sample being considered for ingestion.
         threshold : float
             Drift magnitude above which a sample is treated as an outlier.
-            ``0.25`` is conservative (anchor features are normalised to
-            [0, 1] so 0.25 = 25 % mean deviation across the anchor codes).
+            Calibrated at ``0.30`` against real single-author corpora
+            (``validation/drift_calibration_2026-08/``, 2026-08-13): the old
+            ``0.25`` default held 3.4 % of genuine same-author uploads
+            (6.4 % on seminary-register prose; one real-sermon author lost
+            28 % of uploads) while catching only 6.7 % of same-register
+            impostor uploads — and 0.9 % of AI-generated ones. ``0.30``
+            cuts the genuine false-hold rate ~6x (0.5 % pooled / 0.9 %
+            seminary) and keeps the gate as what the measurement shows it
+            can honestly be: an extreme-outlier hygiene rail, not an
+            impostor detector (the scoring path owns that job).
         consecutive_required : int
             How many consecutive outliers it takes to flip the
             recommendation from ``flag_for_review`` to ``rebaseline``.

@@ -113,6 +113,22 @@ class TestCheckDriftDecisions:
         # mean(|0.75 - 0.5|) = 0.25 → accept (boundary is inclusive).
         assert r.recommendation == "accept"
 
+    def test_calibrated_default_threshold_is_030(self):
+        # 2026-08-13 calibration (docs/calibration/drift_gate_threshold_
+        # 2026-08-13.md): default raised 0.25 → 0.30. A magnitude in the
+        # (0.25, 0.30] band — where the old default falsely held genuine
+        # seminary uploads — must now accept by default.
+        state = _state_with_baseline(value=0.5, n=3)
+        in_band = _baseline_sample(value=0.78)  # mean |delta| = 0.28
+        r = state.check_drift(in_band)
+        assert r.recommendation == "accept"
+        assert r.drift_detected is False
+        # Just over the calibrated default still holds.
+        state2 = _state_with_baseline(value=0.5, n=3)
+        over = _baseline_sample(value=0.81)  # mean |delta| = 0.31
+        r2 = state2.check_drift(over)
+        assert r2.recommendation == "flag_for_review"
+
     def test_custom_consecutive_required(self):
         # If we require 3 consecutive, two outliers should still flag, not
         # rebaseline.
