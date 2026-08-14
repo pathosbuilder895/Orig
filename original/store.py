@@ -1467,6 +1467,22 @@ def get_genre_stats(genre: str, tenant: str | None, exclude_student_id: str | No
     students or fewer than MIN_GENRE_VECTORS matching authentic samples remain
     in that tenant.
     """
+    from .constants import GENRE_UNKNOWN
+
+    # GENRE_UNKNOWN is the v2 resolver's abstention, not a genre. Pooling
+    # every unclassified sample together would rebuild the "correspondence"
+    # dumping ground under a new name — one bucket holding sermons, fiction
+    # and lab reports alike — and estimate a "same-genre" prior from an
+    # arbitrary mixture. Returning None here means the caller falls back to
+    # the student-only baseline, which is the honest answer.
+    #
+    # Returned explicitly rather than by passing genre=None to _pool_groups:
+    # None there means *no genre filter*, i.e. the genre-AGNOSTIC cohort pool
+    # behind get_cohort_stats. That would hand back a cross-genre prior under
+    # the name of a same-genre one — the exact confusion this guard prevents.
+    if genre == GENRE_UNKNOWN:
+        return None
+
     return genre_stats_from_groups(_pool_groups(tenant, genre), exclude_student_id)
 
 

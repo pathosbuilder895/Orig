@@ -41,6 +41,7 @@ from validation.calibration_gate import (
     evaluate_g4_career_drift_monotone,
     evaluate_g5_permutation_null,
     evaluate_g6_fairness,
+    evaluate_g7_cross_topic_fpr,
     render,
     run_g5,
 )
@@ -2559,3 +2560,1242 @@ class TestScoreCorpusForG1PooledGroupSegregation:
         # seminary_group_0 (alone in its group once the short entity is
         # excluded) falls back to self-calibration.
         assert all(call["pooled_states"] == {} for call in calls)
+
+
+# ── G7 — cross-topic same-author FPR ──────────────────────────────────────────
+#
+# Spec: docs/superpowers/specs/2026-08-06-topic-invariant-scoring-design.md
+# §Validation. Three-way CONJUNCTION, deliberately — the acceptance bar was
+# written this way because LLR_ACTION_MODE=blend looked excellent on the
+# false-positive leg alone and was caught only because someone also checked
+# the catch rate at a matched severity bar.
+
+
+class TestG7Conjunction:
+    """All three legs must hold. No single leg may carry a pass."""
+
+    def test_passes_when_all_three_legs_clear_their_bars(self):
+        result = evaluate_g7_cross_topic_fpr(0.20, 0.35, 0.70)
+        assert result.verdict == "pass"
+        assert result.passed is True
+        assert result.name == "G7"
+
+    def test_fails_when_cross_topic_false_positive_rate_exceeds_bar(self):
+        result = evaluate_g7_cross_topic_fpr(0.30, 0.35, 0.70)
+        assert result.verdict == "fail"
+        assert result.detail["fp_leg_passed"] is False
+        assert result.detail["catch_leg_passed"] is True
+        assert result.detail["auc_leg_passed"] is True
+
+    def test_fails_when_catch_rate_collapses_even_though_fp_looks_excellent(self):
+        """The `blend` shape: a spectacular false-positive rate bought by
+        suppressing genuine impostor severity. The whole reason G7 is a
+        conjunction rather than an FP threshold."""
+        result = evaluate_g7_cross_topic_fpr(0.05, 0.03, 0.70)
+        assert result.verdict == "fail"
+        assert result.detail["fp_leg_passed"] is True
+        assert result.detail["catch_leg_passed"] is False
+
+    def test_fails_when_auc_stays_at_or_below_chance_despite_good_rates(self):
+        """The score-compression shape: inflation squashes everything toward
+        the middle, so the FP rate falls while the ranking stays inverted.
+        An inverted AUC *is* the defect G7 exists to detect."""
+        result = evaluate_g7_cross_topic_fpr(0.05, 0.35, 0.45)
+        assert result.verdict == "fail"
+        assert result.detail["auc_leg_passed"] is False
+        assert result.detail["fp_leg_passed"] is True
+        assert result.detail["catch_leg_passed"] is True
+
+    def test_bars_are_inclusive_exactly_at_the_spec_values(self):
+        """Spec reads `<= 25%`, `>= 29%`, `>= 0.60`. Pin the boundary so a
+        `<` / `<=` mutation cannot survive."""
+        result = evaluate_g7_cross_topic_fpr(0.25, 0.29, 0.60)
+        assert result.verdict == "pass"
+
+    def test_just_outside_each_bar_fails(self):
+        assert evaluate_g7_cross_topic_fpr(0.2501, 0.29, 0.60).verdict == "fail"
+        assert evaluate_g7_cross_topic_fpr(0.25, 0.2899, 0.60).verdict == "fail"
+        assert evaluate_g7_cross_topic_fpr(0.25, 0.29, 0.5999).verdict == "fail"
+
+    def test_current_value_names_every_measured_leg_and_its_bar(self):
+        result = evaluate_g7_cross_topic_fpr(0.30, 0.35, 0.70)
+        # A reader must be able to see WHICH leg failed without opening
+        # detail — the conjunction is worthless if the report only says
+        # "G7 [FAIL]". Every measured value is rendered, and the failing leg
+        # is named.
+        assert "30.0%" in result.current_value
+        assert "35.0%" in result.current_value
+        assert "0.700" in result.current_value
+        assert "FAILED: FP" in result.current_value
+        assert "catch" not in result.current_value.split("FAILED:")[1]
+
+    def test_all_three_bars_travel_in_the_criterion_string(self):
+        result = evaluate_g7_cross_topic_fpr(0.20, 0.35, 0.70)
+        assert "25" in result.criterion
+        assert "29" in result.criterion
+        assert "0.60" in result.criterion
+
+    def test_measured_values_are_recorded_in_detail(self):
+        result = evaluate_g7_cross_topic_fpr(0.20, 0.35, 0.70)
+        assert result.detail["cross_topic_fp_rate"] == 0.20
+        assert result.detail["impostor_catch_rate"] == 0.35
+        assert result.detail["mean_cross_genre_dev_auc"] == 0.70
+
+
+class TestG7FoldCount:
+    """A mean over genre folds is only a cross-genre claim if there is more
+    than one fold."""
+
+    def test_single_fold_downgrades_a_would_be_pass_to_uninformative(self):
+        result = evaluate_g7_cross_topic_fpr(0.20, 0.35, 0.70, n_genre_folds=1)
+        assert result.verdict == "uninformative"
+        assert result.passed is False
+
+    def test_two_folds_leave_a_pass_intact(self):
+        result = evaluate_g7_cross_topic_fpr(0.20, 0.35, 0.70, n_genre_folds=2)
+        assert result.verdict == "pass"
+
+    def test_single_fold_never_upgrades_a_genuine_failure(self):
+        """Only a would-be pass can become uninformative — a measured
+        failure is evidence regardless of how few folds produced it."""
+        result = evaluate_g7_cross_topic_fpr(0.90, 0.01, 0.10, n_genre_folds=1)
+        assert result.verdict == "fail"
+
+    def test_zero_folds_is_uninformative_not_a_pass(self):
+        result = evaluate_g7_cross_topic_fpr(0.20, 0.35, 0.70, n_genre_folds=0)
+        assert result.verdict == "uninformative"
+
+
+class TestG7SamplingUncertainty:
+    """G3's Wilson-interval argument, applied to G7's two proportion legs: a
+    point estimate that clears its bar on a corpus too small to distinguish
+    it from the other side is not evidence of a pass."""
+
+    def test_pass_with_undecidable_fp_rate_is_uninformative(self):
+        result = evaluate_g7_cross_topic_fpr(
+            0.20, 0.35, 0.70, n_genuine=10, n_impostor=500, n_genre_folds=6
+        )
+        assert result.verdict == "uninformative"
+        assert result.detail["power"]["fp_bar_decidable"] == "undecided"
+
+    def test_pass_with_undecidable_catch_rate_is_uninformative(self):
+        result = evaluate_g7_cross_topic_fpr(
+            0.10, 0.40, 0.70, n_genuine=500, n_impostor=10, n_genre_folds=6
+        )
+        assert result.verdict == "uninformative"
+        assert result.detail["power"]["catch_bar_decidable"] == "undecided"
+
+    def test_a_well_powered_pass_stays_a_pass(self):
+        result = evaluate_g7_cross_topic_fpr(
+            0.10, 0.50, 0.70, n_genuine=500, n_impostor=500, n_genre_folds=6
+        )
+        assert result.verdict == "pass"
+        assert result.detail["power"]["fp_bar_decidable"] == "below"
+        assert result.detail["power"]["catch_bar_decidable"] == "above"
+
+    def test_sampling_uncertainty_never_downgrades_a_measured_failure(self):
+        result = evaluate_g7_cross_topic_fpr(
+            0.90, 0.01, 0.10, n_genuine=10, n_impostor=10, n_genre_folds=6
+        )
+        assert result.verdict == "fail"
+
+    def test_omitting_both_counts_preserves_two_valued_behaviour(self):
+        result = evaluate_g7_cross_topic_fpr(0.20, 0.35, 0.70)
+        assert result.verdict == "pass"
+        assert "power" not in result.detail
+
+    def test_the_fp_leg_needs_its_interval_below_the_bar_not_merely_above(self):
+        """The FP bar is an UPPER bound (<= 25%), so a demonstrated pass
+        needs the whole interval BELOW it. Binding this leg to "above" — the
+        direction G3's lower-bound check uses — would invert the test."""
+        result = evaluate_g7_cross_topic_fpr(
+            0.10, 0.50, 0.70, n_genuine=500, n_impostor=500
+        )
+        assert result.detail["power"]["fp_bar_decidable"] == "below"
+        assert result.verdict == "pass"
+
+
+class TestG7MechanismActuallyFired:
+    """The GENRE_INVARIANT_WEIGHTS_ENABLED trap, closed at the gate. A
+    correction that never fires on the corpus cannot be credited with the
+    numbers that corpus produced."""
+
+    def test_pass_is_uninformative_when_the_inflation_never_fired(self):
+        result = evaluate_g7_cross_topic_fpr(
+            0.20, 0.35, 0.70, n_genre_folds=6, inflation_fire_rate=0.0
+        )
+        assert result.verdict == "uninformative"
+        assert result.detail["inflation_fire_rate"] == 0.0
+
+    def test_pass_survives_when_the_inflation_fired_somewhere(self):
+        result = evaluate_g7_cross_topic_fpr(
+            0.20, 0.35, 0.70, n_genre_folds=6, inflation_fire_rate=0.42
+        )
+        assert result.verdict == "pass"
+
+    def test_a_failure_is_never_downgraded_by_a_zero_fire_rate(self):
+        result = evaluate_g7_cross_topic_fpr(
+            0.90, 0.01, 0.10, n_genre_folds=6, inflation_fire_rate=0.0
+        )
+        assert result.verdict == "fail"
+
+    def test_omitting_the_fire_rate_preserves_two_valued_behaviour(self):
+        result = evaluate_g7_cross_topic_fpr(0.20, 0.35, 0.70, n_genre_folds=6)
+        assert result.verdict == "pass"
+        assert result.detail["inflation_fire_rate"] is None
+
+    def test_the_reason_for_an_uninformative_verdict_is_stated_in_current_value(self):
+        result = evaluate_g7_cross_topic_fpr(
+            0.20, 0.35, 0.70, n_genre_folds=6, inflation_fire_rate=0.0
+        )
+        assert "UNINFORMATIVE" in result.current_value
+
+
+class TestG7Informational:
+    def test_informational_is_merged_first_and_cannot_overwrite_a_verdict_key(self):
+        result = evaluate_g7_cross_topic_fpr(
+            0.20,
+            0.35,
+            0.70,
+            informational={"cross_topic_fp_rate": 999.0, "note": "context"},
+        )
+        assert result.detail["cross_topic_fp_rate"] == 0.20
+        assert result.detail["note"] == "context"
+
+    def test_informational_never_changes_the_verdict(self):
+        with_info = evaluate_g7_cross_topic_fpr(
+            0.20, 0.35, 0.70, informational={"anything": "at all"}
+        )
+        without = evaluate_g7_cross_topic_fpr(0.20, 0.35, 0.70)
+        assert with_info.verdict == without.verdict == "pass"
+
+
+class TestG7FoldMetrics:
+    """The pure reduction from per-fold scoring output to G7's three headline
+    numbers. Must reproduce action_mode_sweep.py's own arithmetic exactly —
+    if it doesn't, the gate is measuring something subtly different from the
+    harness that produced the 42.4% / 31.9% / 0.387 baseline it is judged
+    against."""
+
+    @staticmethod
+    def _fold(genre, genuine, impostor, dev_auc=0.7, fired=0):
+        return {
+            "genre": genre,
+            "genuine_actions": genuine,
+            "impostor_actions": impostor,
+            "dev_auc": dev_auc,
+            "genuine_inflation_fired": fired,
+        }
+
+    def test_counts_schedule_conversation_and_escalate_but_not_lower(self):
+        fold = self._fold(
+            "theology",
+            ["no_action", "monitor", "schedule_conversation", "escalate"],
+            ["no_action", "escalate"],
+        )
+        out = calibration_gate._g7_fold_metrics([fold])
+        assert out["cross_topic_fp_rate"] == 0.5  # 2 of 4 at sched+
+        assert out["impostor_catch_rate"] == 0.5  # 1 of 2 at sched+
+
+    def test_averages_per_fold_rates_unweighted_not_pooled(self):
+        """action_mode_sweep.py takes np.mean over the per-GENRE rates, so a
+        small genre bucket counts as much as a large one. Pooling the chunks
+        instead would silently reweight toward the biggest bucket."""
+        folds = [
+            # 1 of 1 flagged -> fold rate 1.0
+            self._fold("narnia", ["escalate"], ["escalate"]),
+            # 1 of 9 flagged -> fold rate 0.111...
+            self._fold("essays", ["escalate"] + ["no_action"] * 8, ["no_action"]),
+        ]
+        out = calibration_gate._g7_fold_metrics(folds)
+        # Unweighted mean of the two fold rates: (1.0 + 1/9) / 2
+        assert out["cross_topic_fp_rate"] == pytest.approx((1.0 + 1.0 / 9.0) / 2)
+        # Pooled would be 2/10 = 0.2 — pin that we did NOT do that.
+        assert out["cross_topic_fp_rate"] != pytest.approx(0.2)
+
+    def test_reports_pooled_counts_for_the_power_check(self):
+        folds = [
+            self._fold("narnia", ["escalate"], ["escalate", "no_action"]),
+            self._fold("essays", ["no_action"] * 8, ["no_action"]),
+        ]
+        out = calibration_gate._g7_fold_metrics(folds)
+        assert out["n_genuine"] == 9
+        assert out["n_impostor"] == 3
+        assert out["n_genre_folds"] == 2
+
+    def test_skips_none_aucs_and_reports_how_many_folds_contributed(self):
+        folds = [
+            self._fold("narnia", ["no_action"], ["escalate"], dev_auc=0.8),
+            self._fold("essays", ["no_action"], ["escalate"], dev_auc=None),
+            self._fold("satire", ["no_action"], ["escalate"], dev_auc=0.6),
+        ]
+        out = calibration_gate._g7_fold_metrics(folds)
+        assert out["mean_cross_genre_dev_auc"] == pytest.approx(0.7)
+        assert out["n_auc_folds"] == 2
+        assert out["n_genre_folds"] == 3
+
+    def test_all_aucs_none_yields_none_rather_than_a_fabricated_number(self):
+        folds = [self._fold("narnia", ["no_action"], ["escalate"], dev_auc=None)]
+        out = calibration_gate._g7_fold_metrics(folds)
+        assert out["mean_cross_genre_dev_auc"] is None
+        assert out["n_auc_folds"] == 0
+
+    def test_inflation_fire_rate_is_the_share_of_genuine_submissions(self):
+        folds = [
+            self._fold("narnia", ["no_action"] * 4, ["escalate"], fired=1),
+            self._fold("essays", ["no_action"] * 6, ["escalate"], fired=4),
+        ]
+        out = calibration_gate._g7_fold_metrics(folds)
+        assert out["n_genuine"] == 10
+        assert out["inflation_fire_rate"] == pytest.approx(0.5)
+
+    def test_no_folds_does_not_crash_and_reports_nothing_measured(self):
+        out = calibration_gate._g7_fold_metrics([])
+        assert out["n_genre_folds"] == 0
+        assert out["n_genuine"] == 0
+        assert out["n_impostor"] == 0
+        assert out["mean_cross_genre_dev_auc"] is None
+
+    def test_a_fold_with_no_scored_chunks_contributes_no_rate(self):
+        """An empty bucket must not be averaged in as a 0% false-positive
+        rate — that would look like the best possible result."""
+        folds = [
+            self._fold("narnia", [], [], dev_auc=None),
+            self._fold("essays", ["escalate"], ["escalate"]),
+        ]
+        out = calibration_gate._g7_fold_metrics(folds)
+        assert out["cross_topic_fp_rate"] == 1.0
+        assert out["n_genre_folds"] == 1
+
+    def test_severity_bar_tracks_production_not_a_local_copy(self):
+        """The bar is schedule_conversation+, defined by production's own
+        _ACTION_SEVERITY ordering. A local duplicate could drift out of
+        sync with it silently."""
+        from original.quantum.scoring import _ACTION_SEVERITY
+
+        assert _ACTION_SEVERITY.index("schedule_conversation") == 2
+        at_or_above = _ACTION_SEVERITY[2:]
+        fold = self._fold("theology", list(at_or_above), list(_ACTION_SEVERITY))
+        out = calibration_gate._g7_fold_metrics([fold])
+        assert out["cross_topic_fp_rate"] == 1.0
+        assert out["impostor_catch_rate"] == pytest.approx(2 / 4)
+
+
+def _write_g7_corpus(tmp_path, genres=("theology", "narnia"), n_per_genre=8, n_impostor=10):
+    """Synthetic stand-in for validation/genre_crossgenre_2026-08/'s cached
+    vectors. The real corpus is not committed (the Lewis/Chesterton texts are
+    still under copyright), so the end-to-end orchestration is exercised here
+    on a generated one of the same shape."""
+    import numpy as np
+
+    from original.constants import FEATURE_DIM
+
+    rng = np.random.RandomState(1729)
+    vectors, meta = [], []
+
+    for genre in genres:
+        for i in range(n_per_genre):
+            vectors.append(np.clip(rng.normal(0.5, 0.05, FEATURE_DIM), 0.0, 1.0))
+            meta.append(
+                {
+                    "author": "genuine_author",
+                    "work": f"{genre}_work",
+                    "genre": genre,
+                    "chunk_id": f"{genre}_work_{i}",
+                    "word_count": 500,
+                }
+            )
+    for i in range(n_impostor):
+        vectors.append(np.clip(rng.normal(0.62, 0.05, FEATURE_DIM), 0.0, 1.0))
+        meta.append(
+            {
+                "author": "impostor_author",
+                "work": "impostor_work",
+                "genre": "essays",
+                "chunk_id": f"impostor_work_{i}",
+                "word_count": 500,
+            }
+        )
+
+    np.save(tmp_path / "vectors.npy", np.stack(vectors))
+    (tmp_path / "vectors_meta.json").write_text(json.dumps(meta))
+    return tmp_path
+
+
+class TestG7CorpusAbsent:
+    """The Lewis/Chesterton corpus is NOT committed. A gate whose corpus is
+    missing must say so loudly — never a silent pass, and never omitted from
+    the suite (an absent gate reads as 'topic invariance is covered')."""
+
+    def test_missing_corpus_is_uninformative_not_a_pass(self, tmp_path):
+        result = calibration_gate._compute_g7_cross_topic_data(corpus_dir=tmp_path)
+        assert result.name == "G7"
+        assert result.verdict == "uninformative"
+        assert result.passed is False
+
+    def test_missing_corpus_reads_as_skipped_not_as_a_measurement(self, tmp_path):
+        result = calibration_gate._compute_g7_cross_topic_data(corpus_dir=tmp_path)
+        assert "SKIPPED" in result.current_value
+        assert "vectors.npy" in result.current_value
+
+    def test_missing_corpus_names_the_command_that_regenerates_it(self, tmp_path):
+        result = calibration_gate._compute_g7_cross_topic_data(corpus_dir=tmp_path)
+        assert "extract_vectors" in result.detail["remediation"]
+
+    def test_metadata_without_vectors_is_also_a_skip(self, tmp_path):
+        (tmp_path / "vectors_meta.json").write_text("[]")
+        result = calibration_gate._compute_g7_cross_topic_data(corpus_dir=tmp_path)
+        assert result.verdict == "uninformative"
+
+
+class TestG7CorpusMeasurement:
+    def test_measures_a_real_corpus_end_to_end(self, tmp_path):
+        _write_g7_corpus(tmp_path)
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        assert result.name == "G7"
+        assert result.verdict in ("pass", "fail", "uninformative")
+        # Two genre buckets, held out one at a time.
+        assert result.detail["n_genre_folds"] == 2
+        assert 0.0 <= result.detail["cross_topic_fp_rate"] <= 1.0
+        assert 0.0 <= result.detail["impostor_catch_rate"] <= 1.0
+
+    def test_records_which_scoring_configuration_it_measured(self, tmp_path):
+        _write_g7_corpus(tmp_path)
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        config = result.detail["scoring_config"]
+        # The spec's baseline numbers were measured against the impostor null
+        # with llr_action_mode=gate; a G7 number measured under a different
+        # configuration is not comparable to the bar and must say so.
+        assert config["null_model"] == "impostor"
+        assert "llr_action_mode" in config
+        assert "topic_variance_inflation" in config
+
+    def test_a_corpus_with_no_impostor_author_is_a_loud_skip(self, tmp_path):
+        _write_g7_corpus(tmp_path, n_impostor=0)
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        assert result.verdict == "uninformative"
+        assert "SKIPPED" in result.current_value
+
+    def test_a_single_genre_corpus_cannot_measure_cross_genre(self, tmp_path):
+        _write_g7_corpus(tmp_path, genres=("theology",))
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        # Leaving out the only genre leaves no baseline at all, so there is
+        # no cross-genre fold to measure.
+        assert result.verdict == "uninformative"
+
+    def test_inflation_off_does_not_downgrade_on_a_zero_fire_rate(self, tmp_path):
+        """With TOPIC_VARIANCE_INFLATION off, sigma is never widened and a 0
+        fire rate is correct — not a reason to distrust the run. The
+        'mechanism never fired' downgrade must apply only when the mechanism
+        was supposed to be active."""
+        _write_g7_corpus(tmp_path)
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        assert result.detail["scoring_config"]["topic_variance_inflation"] == "off"
+        # fire rate is measured for the record but not forwarded as a downgrade
+        assert result.detail["inflation_fire_rate"] is None
+        reasons = result.detail.get("uninformative_reasons") or []
+        assert not any("never fired" in r for r in reasons)
+
+
+class TestG7InflationCanActuallyFire:
+    """The gate is worthless if the mechanism it judges can never fire under
+    it. Topic-variance inflation reads manifest["topic"]["baseline_distance"],
+    and the cached vectors carry no text — so this pins that the orchestration
+    really does build a manifest from the optional chunks.json, and that a
+    genuinely distant topic crosses TOPIC_NOVELTY_BOUNDS["low"]."""
+
+    @staticmethod
+    def _corpus_with_text(tmp_path):
+        import numpy as np
+
+        from original.constants import FEATURE_DIM
+
+        rng = np.random.RandomState(4242)
+        # Two genres with disjoint vocabularies, so the held-out genre sits
+        # far from the baseline centroid in TF-IDF space.
+        vocab = {
+            "theology": (
+                "grace covenant atonement justification sanctification doctrine "
+                "scripture epistle apostle redemption righteousness faith"
+            ).split(),
+            "narnia": (
+                "lion wardrobe snow queen beaver castle sword badger sledge "
+                "forest lamppost centaur"
+            ).split(),
+        }
+        vectors, meta, chunks = [], [], []
+        for genre, words in vocab.items():
+            for i in range(8):
+                vectors.append(np.clip(rng.normal(0.5, 0.05, FEATURE_DIM), 0.0, 1.0))
+                chunk_id = f"{genre}_work_{i}"
+                meta.append(
+                    {
+                        "author": "genuine_author",
+                        "work": f"{genre}_work",
+                        "genre": genre,
+                        "chunk_id": chunk_id,
+                        "word_count": 500,
+                    }
+                )
+                # Deterministic but varied sentences from the genre's vocabulary.
+                body = " ".join(words[(i + k) % len(words)] for k in range(60))
+                chunks.append({"chunk_id": chunk_id, "text": body})
+        for i in range(10):
+            vectors.append(np.clip(rng.normal(0.62, 0.05, FEATURE_DIM), 0.0, 1.0))
+            chunk_id = f"impostor_work_{i}"
+            meta.append(
+                {
+                    "author": "impostor_author",
+                    "work": "impostor_work",
+                    "genre": "essays",
+                    "chunk_id": chunk_id,
+                    "word_count": 500,
+                }
+            )
+            chunks.append(
+                {"chunk_id": chunk_id, "text": " ".join(["essay prose commentary"] * 20)}
+            )
+
+        np.save(tmp_path / "vectors.npy", np.stack(vectors))
+        (tmp_path / "vectors_meta.json").write_text(json.dumps(meta))
+        (tmp_path / "chunks.json").write_text(json.dumps(chunks))
+        return tmp_path
+
+    def test_without_text_the_mechanism_cannot_fire_at_all(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("TOPIC_VARIANCE_INFLATION", "on")
+        _write_g7_corpus(tmp_path)  # vectors only, no chunks.json
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        assert result.detail["topic_texts_available"] is False
+        assert result.detail["measured_inflation_fire_rate"] == 0.0
+        # ...and with the flag ON, that zero is forwarded, so the run can
+        # never be quoted as evidence about the correction.
+        assert result.detail["inflation_fire_rate"] == 0.0
+        assert result.verdict != "pass"
+
+    def test_with_text_a_distant_topic_actually_widens_sigma(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("TOPIC_VARIANCE_INFLATION", "on")
+        self._corpus_with_text(tmp_path)
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        assert result.detail["topic_texts_available"] is True
+        assert result.detail["scoring_config"]["topic_variance_inflation"] == "on"
+        assert result.detail["measured_inflation_fire_rate"] > 0.0, (
+            "the leave-one-genre-out folds never crossed the 0.25 topic-"
+            "distance floor — G7 cannot judge a mechanism that never fires"
+        )
+
+
+class TestG7ImpostorCountIsNotDoubleCounted:
+    """The impostor test split is scored against EVERY fold's state, so the
+    pooled count is n_distinct x n_folds. Feeding that to the Wilson interval
+    would shrink the CI by ~sqrt(n_folds) and make the gate over-confident in
+    exactly the direction that lets a weak pass through — the same chunks
+    re-scored under a different baseline are not independent draws."""
+
+    def test_power_check_uses_distinct_impostor_chunks_not_pooled_scorings(self, tmp_path):
+        # 10 impostor chunks -> parity split -> 5 calibration / 5 test.
+        # 2 genres -> 2 folds -> 10 pooled impostor scorings, 5 distinct.
+        _write_g7_corpus(tmp_path, genres=("theology", "narnia"), n_impostor=10)
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        assert result.detail["n_genre_folds"] == 2
+        assert result.detail["n_impostor_scorings"] == 10
+        assert result.detail["power"]["n_impostor"] == 5
+
+    def test_genuine_chunks_are_each_held_out_once_so_pooling_is_honest(self, tmp_path):
+        _write_g7_corpus(tmp_path, genres=("theology", "narnia"), n_per_genre=8)
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        # Every genuine chunk is scored in exactly one fold, so the pooled
+        # count IS the distinct count here — no correction needed.
+        assert result.detail["power"]["n_genuine"] == 16
+
+
+class TestG7StaleCorpusWidth:
+    """vectors.npy is a CACHE, regenerated by hand and not committed. This
+    repo's FEATURE_DIM has been 74, 89, 96, 102 and 109 at various points, so
+    a stale cache of the wrong width is a live hazard. Zipping it against
+    ALL_FEATURE_CODES would silently truncate to the shorter of the two and
+    score a partial feature dict — a plausible-looking number measured on the
+    wrong instrument, which is precisely what this validation layer exists to
+    prevent."""
+
+    def test_a_stale_width_cache_is_a_loud_skip_not_a_silent_measurement(self, tmp_path):
+        import numpy as np
+
+        from original.constants import FEATURE_DIM
+
+        _write_g7_corpus(tmp_path)
+        stale = np.load(tmp_path / "vectors.npy")[:, : FEATURE_DIM - 13]
+        np.save(tmp_path / "vectors.npy", stale)
+
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        assert result.verdict == "uninformative"
+        assert "SKIPPED" in result.current_value
+        assert str(FEATURE_DIM) in result.current_value
+        assert result.detail["vector_dim"] == FEATURE_DIM - 13
+
+    def test_a_correct_width_cache_still_measures(self, tmp_path):
+        _write_g7_corpus(tmp_path)
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        assert "SKIPPED" not in result.current_value
+
+
+class TestG7UnmeasuredLegs:
+    """A leg that could not be measured must never rescue a failure, and must
+    never be mistaken for a leg that passed. Reachable for real: _g7_auc
+    returns None when sklearn is missing (it is absent from the base
+    requirements.txt) or when one side scores a single class."""
+
+    def test_a_measured_failure_still_fails_when_the_auc_is_unavailable(self):
+        result = evaluate_g7_cross_topic_fpr(0.90, 0.35, None)
+        assert result.verdict == "fail"
+        assert result.detail["failed_legs"] == ["FP"]
+        assert result.detail["unmeasured_legs"] == ["AUC"]
+
+    def test_all_measured_legs_passing_with_an_unmeasured_auc_is_uninformative(self):
+        result = evaluate_g7_cross_topic_fpr(0.20, 0.35, None)
+        assert result.verdict == "uninformative"
+        assert result.passed is False
+        assert result.detail["unmeasured_legs"] == ["AUC"]
+
+    def test_an_unmeasured_leg_is_not_reported_as_a_failed_leg(self):
+        result = evaluate_g7_cross_topic_fpr(0.20, 0.35, None)
+        assert "AUC" not in result.detail["failed_legs"]
+        assert result.detail["auc_leg_passed"] is False
+
+    def test_every_leg_unmeasured_is_uninformative_not_a_pass(self):
+        result = evaluate_g7_cross_topic_fpr(None, None, None)
+        assert result.verdict == "uninformative"
+        assert set(result.detail["unmeasured_legs"]) == {"FP", "catch", "AUC"}
+
+    def test_current_value_marks_an_unmeasured_leg_rather_than_printing_a_number(self):
+        result = evaluate_g7_cross_topic_fpr(0.20, 0.35, None)
+        assert "not measured" in result.current_value.lower()
+
+
+class TestG7ShadowModeCannotPass:
+    """TOPIC_VARIANCE_INFLATION=shadow leaves deviation_score and
+    recommendation untouched by construction, so all three G7 legs describe
+    the UN-corrected pipeline. The prescribed workflow is 'run shadow first',
+    so a G7 [PASS] under shadow is the exact GENRE_INVARIANT_WEIGHTS_ENABLED
+    misreading this gate exists to prevent."""
+
+    def test_shadow_downgrades_a_would_be_pass(self):
+        result = evaluate_g7_cross_topic_fpr(
+            0.20, 0.35, 0.70, n_genre_folds=6, inflation_mode="shadow"
+        )
+        assert result.verdict == "uninformative"
+        assert any("shadow" in r for r in result.detail["uninformative_reasons"])
+
+    def test_shadow_never_upgrades_a_failure(self):
+        result = evaluate_g7_cross_topic_fpr(
+            0.90, 0.01, 0.10, n_genre_folds=6, inflation_mode="shadow"
+        )
+        assert result.verdict == "fail"
+
+    def test_on_mode_with_a_live_fire_rate_still_passes(self):
+        result = evaluate_g7_cross_topic_fpr(
+            0.20, 0.35, 0.70, n_genre_folds=6, inflation_mode="on", inflation_fire_rate=0.4
+        )
+        assert result.verdict == "pass"
+
+    def test_off_mode_is_an_honest_measurement_of_the_shipped_pipeline(self):
+        """With the flag off nobody is claiming to have measured the
+        correction, so an off-mode pass is a true statement about the
+        pipeline as shipped and is not downgraded."""
+        result = evaluate_g7_cross_topic_fpr(
+            0.20, 0.35, 0.70, n_genre_folds=6, inflation_mode="off"
+        )
+        assert result.verdict == "pass"
+
+
+class TestG7AucFoldGuard:
+    def test_a_single_auc_fold_downgrades_a_pass(self):
+        result = evaluate_g7_cross_topic_fpr(
+            0.20, 0.35, 0.99, n_genre_folds=6, n_auc_folds=1
+        )
+        assert result.verdict == "uninformative"
+
+    def test_two_auc_folds_leave_a_pass_intact(self):
+        result = evaluate_g7_cross_topic_fpr(
+            0.20, 0.35, 0.99, n_genre_folds=6, n_auc_folds=2
+        )
+        assert result.verdict == "pass"
+
+    def test_the_auc_fold_guard_never_upgrades_a_failure(self):
+        result = evaluate_g7_cross_topic_fpr(
+            0.90, 0.01, 0.10, n_genre_folds=6, n_auc_folds=1
+        )
+        assert result.verdict == "fail"
+
+
+class TestG7DegenerateRatesDoNotCrash:
+    """evaluate_g7_cross_topic_fpr is a public gate API registered in
+    gate_contracts.py, so a malformed direct call must degrade rather than
+    raise out of the gate suite (validation.power raises on successes > n)."""
+
+    def test_an_out_of_range_rate_does_not_raise(self):
+        result = evaluate_g7_cross_topic_fpr(1.5, 0.35, 0.70, n_genuine=10)
+        assert result.verdict in ("pass", "fail", "uninformative")
+
+    def test_a_nan_rate_does_not_raise(self):
+        result = evaluate_g7_cross_topic_fpr(float("nan"), 0.35, 0.70, n_genuine=10)
+        assert result.verdict in ("pass", "fail", "uninformative")
+
+
+class TestG7RejectsUnknownActions:
+    """An unrecognised action name silently ranked below no_action, so it was
+    counted as NOT flagged — biasing the false-positive leg toward passing.
+    The gate must refuse to score a vocabulary it does not understand."""
+
+    def test_an_unknown_action_is_refused_rather_than_counted_as_unflagged(self):
+        with pytest.raises(ValueError, match="unrecognised|unknown"):
+            calibration_gate._g7_fold_metrics(
+                [
+                    {
+                        "genre": "theology",
+                        "genuine_actions": ["escalate", "suspend_account"],
+                        "impostor_actions": ["escalate"],
+                        "dev_auc": 0.7,
+                        "genuine_inflation_fired": 0,
+                    }
+                ]
+            )
+
+    def test_production_action_names_are_all_accepted(self):
+        from original.quantum.scoring import _ACTION_SEVERITY
+
+        out = calibration_gate._g7_fold_metrics(
+            [
+                {
+                    "genre": "theology",
+                    "genuine_actions": list(_ACTION_SEVERITY),
+                    "impostor_actions": list(_ACTION_SEVERITY),
+                    "dev_auc": 0.7,
+                    "genuine_inflation_fired": 0,
+                }
+            ]
+        )
+        assert out["cross_topic_fp_rate"] == pytest.approx(0.5)
+
+
+class TestG7OrchestrationDoesNotBuryFailures:
+    def test_a_measured_failure_is_reported_even_when_the_auc_is_unavailable(
+        self, tmp_path, monkeypatch
+    ):
+        """sklearn is absent from the base requirements.txt, so every fold's
+        AUC can legitimately be None. Short-circuiting to a SKIP in that case
+        discarded whatever the two action legs had already measured — here a
+        100% cross-topic false-positive rate, the exact failure G7 exists to
+        catch, reported as 'nothing measurable'."""
+        _write_g7_corpus(tmp_path)
+        monkeypatch.setattr(
+            calibration_gate,
+            "_g7_fold_metrics",
+            lambda folds: {
+                "cross_topic_fp_rate": 1.0,
+                "impostor_catch_rate": 1.0,
+                "mean_cross_genre_dev_auc": None,
+                "n_genre_folds": 2,
+                "n_catch_folds": 2,
+                "n_auc_folds": 0,
+                "n_genuine": 16,
+                "n_impostor": 10,
+                "n_inflation_fired": 0,
+                "inflation_fire_rate": 0.0,
+                "per_fold": [],
+            },
+        )
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        assert result.verdict == "fail"
+        assert result.detail["failed_legs"] == ["FP"]
+        assert result.detail["unmeasured_legs"] == ["AUC"]
+
+    def test_nothing_measured_at_all_is_still_a_skip(self, tmp_path, monkeypatch):
+        _write_g7_corpus(tmp_path)
+        monkeypatch.setattr(
+            calibration_gate,
+            "_g7_fold_metrics",
+            lambda folds: {
+                "cross_topic_fp_rate": None,
+                "impostor_catch_rate": None,
+                "mean_cross_genre_dev_auc": None,
+                "n_genre_folds": 0,
+                "n_catch_folds": 0,
+                "n_auc_folds": 0,
+                "n_genuine": 0,
+                "n_impostor": 0,
+                "n_inflation_fired": None,
+                "inflation_fire_rate": None,
+                "per_fold": [],
+            },
+        )
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        assert result.verdict == "uninformative"
+        assert "SKIPPED" in result.current_value
+
+    def test_an_unknown_action_name_becomes_a_loud_skip_not_a_machinery_error(
+        self, tmp_path, monkeypatch
+    ):
+        _write_g7_corpus(tmp_path)
+
+        def _boom(folds):
+            raise calibration_gate._G7UnknownActionError(
+                "unrecognised action name(s) ['suspend_account']"
+            )
+
+        monkeypatch.setattr(calibration_gate, "_g7_fold_metrics", _boom)
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        assert result.verdict == "uninformative"
+        assert "SKIPPED" in result.current_value
+
+
+class TestG7OrchestrationForwardsMode:
+    def test_shadow_mode_cannot_produce_a_pass(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("TOPIC_VARIANCE_INFLATION", "shadow")
+        _write_g7_corpus(tmp_path)
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        assert result.detail["inflation_mode"] == "shadow"
+        assert result.verdict != "pass"
+
+    def test_the_auc_fold_denominator_is_forwarded(self, tmp_path):
+        _write_g7_corpus(tmp_path)
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        assert result.detail["n_auc_folds"] == 2
+
+
+class TestG7ManifestCoverageSymmetry:
+    """A chunks.json covering the genuine chunks but not the impostor ones
+    gives the genuine side a widened sigma while the impostors are scored
+    against an un-widened band. Since sigma_eff >= sigma that can only lower
+    the false-positive leg and inflate the catch leg — manufacturing exactly
+    the 'clean FP that costs nothing' artifact G7 exists to be immune to."""
+
+    @staticmethod
+    def _corpus(tmp_path, cover_impostors: bool):
+        import numpy as np
+
+        from original.constants import FEATURE_DIM
+
+        rng = np.random.RandomState(99)
+        vectors, meta, chunks = [], [], []
+        for genre, words in (
+            ("theology", "grace covenant atonement justification doctrine epistle"),
+            ("narnia", "lion wardrobe queen beaver castle lamppost"),
+        ):
+            for i in range(8):
+                vectors.append(np.clip(rng.normal(0.5, 0.05, FEATURE_DIM), 0, 1))
+                cid = f"{genre}_w_{i}"
+                meta.append({"author": "g", "work": f"{genre}_w", "genre": genre,
+                             "chunk_id": cid, "word_count": 500})
+                chunks.append({"chunk_id": cid, "text": (words + " ") * 12})
+        for i in range(10):
+            vectors.append(np.clip(rng.normal(0.62, 0.05, FEATURE_DIM), 0, 1))
+            cid = f"imp_w_{i}"
+            meta.append({"author": "i", "work": "imp_w", "genre": "essays",
+                         "chunk_id": cid, "word_count": 500})
+            if cover_impostors:
+                chunks.append({"chunk_id": cid, "text": "essay prose commentary " * 12})
+
+        np.save(tmp_path / "vectors.npy", np.stack(vectors))
+        (tmp_path / "vectors_meta.json").write_text(json.dumps(meta))
+        (tmp_path / "chunks.json").write_text(json.dumps(chunks))
+        return tmp_path
+
+    def test_asymmetric_text_coverage_is_refused(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("TOPIC_VARIANCE_INFLATION", "on")
+        self._corpus(tmp_path, cover_impostors=False)
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path, genuine_author="g", impostor_author="i"
+        )
+        assert result.verdict == "uninformative"
+        assert "SKIPPED" in result.current_value
+        assert result.detail["n_records_with_text"] < result.detail["n_records_total"]
+
+    def test_symmetric_text_coverage_is_accepted(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("TOPIC_VARIANCE_INFLATION", "on")
+        self._corpus(tmp_path, cover_impostors=True)
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path, genuine_author="g", impostor_author="i"
+        )
+        assert "SKIPPED" not in result.current_value
+        assert result.detail["topic_texts_available"] is True
+
+
+class TestG7CorpusHygiene:
+    def test_a_genuine_record_without_a_genre_is_refused(self, tmp_path):
+        """A genre-less record can never be held out, so it would sit in
+        EVERY fold's baseline unnoticed — and _g7_make_state would then crash
+        on the missing key, surfacing as a G7 machinery error that blames the
+        gate for a malformed corpus. The second hold-out corpus the spec
+        requires is exactly this shape: multi_author_extract.py writes
+        pa_meta.json with no genre field at all."""
+        _write_g7_corpus(tmp_path)
+        meta = json.loads((tmp_path / "vectors_meta.json").read_text())
+        del meta[0]["genre"]
+        (tmp_path / "vectors_meta.json").write_text(json.dumps(meta))
+
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        assert result.verdict == "uninformative"
+        assert "SKIPPED" in result.current_value
+        assert "genre" in result.current_value
+
+    def test_the_corpus_is_fingerprinted_so_two_reports_are_comparable(self, tmp_path):
+        """G7 is the one gate whose corpus is uncommitted and regenerated by
+        hand, so 'is this report comparable to the last one?' is least
+        answerable by inspection."""
+        _write_g7_corpus(tmp_path)
+        first = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        assert first.detail["corpus_fingerprint"]
+
+        meta = json.loads((tmp_path / "vectors_meta.json").read_text())
+        meta[0]["work"] = "a_different_work"
+        (tmp_path / "vectors_meta.json").write_text(json.dumps(meta))
+        second = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        assert second.detail["corpus_fingerprint"] != first.detail["corpus_fingerprint"]
+
+
+class TestG7SecondRoundReviewFixes:
+    """Follow-ups from the second adversarial review pass."""
+
+    def test_a_record_without_a_chunk_id_is_a_loud_skip_not_a_machinery_error(self, tmp_path):
+        """c1: `submission_id=r["chunk_id"]` survived the .get() conversion,
+        so a record carrying a genre but no chunk_id still crashed inside
+        scoring and surfaced as 'ERROR (machinery)' — blaming the gate for a
+        malformed corpus, the exact outcome the genre guard exists to
+        prevent."""
+        _write_g7_corpus(tmp_path)
+        meta = json.loads((tmp_path / "vectors_meta.json").read_text())
+        del meta[0]["chunk_id"]
+        (tmp_path / "vectors_meta.json").write_text(json.dumps(meta))
+
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        assert result.verdict == "uninformative"
+        assert "SKIPPED" in result.current_value
+        assert "chunk_id" in result.current_value
+
+    def test_blank_text_does_not_count_as_topic_coverage(self, tmp_path, monkeypatch):
+        """c2: coverage tested key presence, so whitespace-only text counted
+        as covered while resolve_topic degraded on it — reinstating exactly
+        the one-sided inflation the coverage check was added to prevent."""
+        monkeypatch.setenv("TOPIC_VARIANCE_INFLATION", "on")
+        _write_g7_corpus(tmp_path)
+        meta = json.loads((tmp_path / "vectors_meta.json").read_text())
+        chunks = []
+        for m in meta:
+            real = m["author"] == "genuine_author"
+            chunks.append(
+                {
+                    "chunk_id": m["chunk_id"],
+                    "text": ("grace covenant doctrine " * 12) if real else "   \n  ",
+                }
+            )
+        (tmp_path / "chunks.json").write_text(json.dumps(chunks))
+
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        assert result.verdict == "uninformative"
+        assert "SKIPPED" in result.current_value
+
+    def test_one_sided_degraded_topic_resolution_is_refused(self, tmp_path, monkeypatch):
+        """c2, the half a coverage check cannot see: text that is non-blank
+        but unusable (stop words only) sends resolve_topic down its degraded
+        path, so sigma widens on one side only with coverage fully
+        satisfied."""
+        monkeypatch.setenv("TOPIC_VARIANCE_INFLATION", "on")
+        _write_g7_corpus(tmp_path)
+        meta = json.loads((tmp_path / "vectors_meta.json").read_text())
+        (tmp_path / "chunks.json").write_text(
+            json.dumps([{"chunk_id": m["chunk_id"], "text": "grace covenant doctrine " * 12}
+                        for m in meta])
+        )
+        real_resolve = calibration_gate_resolve_topic()
+
+        def fake_resolve(text, baseline_texts):
+            out = dict(real_resolve(text, baseline_texts))
+            # Impostor chunks degrade; genuine ones resolve normally.
+            if "impostor" in text:
+                out["degraded"] = True
+            return out
+
+        import original.context.resolvers as resolvers
+
+        monkeypatch.setattr(resolvers, "resolve_topic", fake_resolve)
+        # Impostor texts are tagged so fake_resolve can spot them.
+        chunks = json.loads((tmp_path / "chunks.json").read_text())
+        for c in chunks:
+            if c["chunk_id"].startswith("impostor"):
+                c["text"] = "impostor " + c["text"]
+        (tmp_path / "chunks.json").write_text(json.dumps(chunks))
+
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="genuine_author",
+            impostor_author="impostor_author",
+        )
+        assert result.verdict == "uninformative"
+        assert "SKIPPED" in result.current_value
+
+    def test_every_skip_after_the_corpus_loads_carries_a_fingerprint(self, tmp_path):
+        """Finding 5: 'the cache is inconsistent' / 'no chunks for author X'
+        are claims about one specific corpus state, and were the reports
+        least able to identify it."""
+        _write_g7_corpus(tmp_path)
+        result = calibration_gate._compute_g7_cross_topic_data(
+            corpus_dir=tmp_path,
+            genuine_author="nobody_by_this_name",
+            impostor_author="impostor_author",
+        )
+        assert "SKIPPED" in result.current_value
+        assert result.detail["corpus_fingerprint"]
+        assert result.detail["corpus_dir"]
+
+    def test_the_inflation_mode_travels_in_the_rendered_line(self):
+        """(b): render() prints only current_value, so an off-mode pass was
+        indistinguishable from an on-mode pass in a console line, a quoted
+        result, or a PR comment. off remains passable — but self-labelling."""
+        result = evaluate_g7_cross_topic_fpr(
+            0.10, 0.50, 0.70, n_genre_folds=6, n_auc_folds=6, inflation_mode="off"
+        )
+        assert result.verdict == "pass"
+        assert "TOPIC_VARIANCE_INFLATION=off" in result.current_value
+
+    def test_a_rate_outside_the_unit_interval_is_unmeasured_not_a_pass(self):
+        """c3: -0.4 <= 0.25 is True, so a nonsense rate read as a PASSING
+        false-positive leg."""
+        result = evaluate_g7_cross_topic_fpr(-0.4, 0.35, 0.70)
+        assert result.detail["fp_leg_passed"] is False
+        assert "FP" in result.detail["unmeasured_legs"]
+        assert result.verdict != "pass"
+
+    def test_the_catch_fold_denominator_is_guarded_like_the_others(self):
+        result = evaluate_g7_cross_topic_fpr(
+            0.20, 0.35, 0.70, n_genre_folds=6, n_auc_folds=6, n_catch_folds=1
+        )
+        assert result.verdict == "uninformative"
+
+    def test_an_unrelated_value_error_is_not_mislabelled_as_a_bad_vocabulary(
+        self, tmp_path, monkeypatch
+    ):
+        """`statistics.StatisticsError` subclasses ValueError, so a broad
+        except would file any of them under 'unrecognised action
+        vocabulary'."""
+        _write_g7_corpus(tmp_path)
+
+        def _boom(folds):
+            raise ValueError("something else entirely")
+
+        monkeypatch.setattr(calibration_gate, "_g7_fold_metrics", _boom)
+        with pytest.raises(ValueError, match="something else entirely"):
+            calibration_gate._compute_g7_cross_topic_data(
+                corpus_dir=tmp_path,
+                genuine_author="genuine_author",
+                impostor_author="impostor_author",
+            )
+
+
+def calibration_gate_resolve_topic():
+    from original.context.resolvers import resolve_topic
+
+    return resolve_topic
+
+
+# ── G8 — genre discrimination ─────────────────────────────────────────────────
+#
+# Spec: docs/superpowers/specs/2026-08-08-genre-resolution-design.md.
+# Three-leg conjunction, and the third leg is the one that matters: the
+# corpus confounds genre with author (every Dickens document is one author
+# AND one genre), so a classifier could score well by recognising writers.
+
+
+class TestG8GenreDiscrimination:
+    def test_passes_when_all_three_legs_clear(self):
+        r = calibration_gate.evaluate_g8_genre_discrimination(0.85, 0.40, 0.22)
+        assert r.verdict == "pass"
+        assert r.name == "G8"
+
+    def test_fails_on_a_single_weak_class(self):
+        """MINIMUM per-class precision, not macro-average: an average lets one
+        class sit at 0.4 while the mean clears the bar, and the consequence of
+        a wrong label is per-class — creative_fiction mutes tier 16, the
+        academic genres expand the anchor set."""
+        r = calibration_gate.evaluate_g8_genre_discrimination(0.55, 0.40, 0.22)
+        assert r.verdict == "fail"
+        assert r.detail["precision_leg_passed"] is False
+        assert r.detail["abstention_leg_passed"] is True
+        assert r.detail["control_leg_passed"] is True
+
+    def test_fails_when_it_abstains_on_almost_everything(self):
+        """Perfect precision by classifying nothing is the degenerate win."""
+        r = calibration_gate.evaluate_g8_genre_discrimination(1.0, 0.95, 0.22)
+        assert r.verdict == "fail"
+        assert r.detail["abstention_leg_passed"] is False
+
+    def test_fails_when_the_shuffled_control_still_predicts(self):
+        r = calibration_gate.evaluate_g8_genre_discrimination(0.85, 0.40, 0.75)
+        assert r.verdict == "fail"
+        assert r.detail["control_leg_passed"] is False
+
+    def test_bars_are_inclusive_at_the_spec_values(self):
+        r = calibration_gate.evaluate_g8_genre_discrimination(0.80, 0.50, 0.35)
+        assert r.verdict == "pass"
+
+    def test_a_perfect_precision_score_still_needs_the_other_legs(self):
+        """1.000 precision bought by abstaining on nearly everything is the
+        degenerate win the conjunction exists to refuse."""
+        r = calibration_gate.evaluate_g8_genre_discrimination(1.000, 0.90, 0.20)
+        assert r.verdict == "fail"
+
+    def test_just_outside_each_bar_fails(self):
+        assert calibration_gate.evaluate_g8_genre_discrimination(0.799, 0.50, 0.35).verdict == "fail"
+        assert calibration_gate.evaluate_g8_genre_discrimination(0.80, 0.501, 0.35).verdict == "fail"
+        assert calibration_gate.evaluate_g8_genre_discrimination(0.80, 0.50, 0.351).verdict == "fail"
+
+    def test_the_control_bar_tracks_the_class_count(self):
+        """Chance is 1/n_classes, so the bar cannot be a constant. A shuffled
+        accuracy of 0.55 is far above chance for 4 classes (0.25) and at
+        chance for 2 (0.50) — the same number must fail one and pass the
+        other, or the leg is not measuring 'collapsed to chance' at all."""
+        r4 = calibration_gate.evaluate_g8_genre_discrimination(0.85, 0.4, 0.55, n_classes=4)
+        r2 = calibration_gate.evaluate_g8_genre_discrimination(0.85, 0.4, 0.55, n_classes=2)
+        assert r4.detail["chance"] == 0.25
+        assert r4.verdict == "fail"
+        assert r4.detail["control_leg_passed"] is False
+        assert r2.detail["chance"] == 0.5
+        assert r2.verdict == "pass"
+
+    def test_current_value_names_every_leg(self):
+        r = calibration_gate.evaluate_g8_genre_discrimination(0.55, 0.40, 0.22)
+        assert "0.550" in r.current_value
+        assert "FAILED" in r.current_value
+
+    def test_a_thin_holdout_downgrades_a_pass(self):
+        r = calibration_gate.evaluate_g8_genre_discrimination(0.85, 0.40, 0.22, n_holdout=8)
+        assert r.verdict == "uninformative"
+
+    def test_a_thin_holdout_never_upgrades_a_failure(self):
+        r = calibration_gate.evaluate_g8_genre_discrimination(0.20, 0.99, 0.90, n_holdout=8)
+        assert r.verdict == "fail"
+
+    def test_a_well_powered_pass_stays_a_pass(self):
+        r = calibration_gate.evaluate_g8_genre_discrimination(0.97, 0.40, 0.22, n_holdout=400)
+        assert r.verdict == "pass"
+
+    def test_the_measured_state_of_the_shipped_model_passes(self):
+        """Recorded as measurement on the three-class taxonomy: minimum
+        per-class precision 1.000 over 36 claimed hold-out documents,
+        abstention 0.333, shuffled control 0.353 against 0.333 chance.
+
+        The four-class version failed here at 0.706, and every error was
+        first-person fiction predicted as autobiography. That boundary was
+        defined by TRUTH CLAIM, which text cannot carry; redefining the axis
+        as mode of discourse removed it. Pinned so a regression in the
+        classifier, the corpus or the selector shows up as a gate failure."""
+        r = calibration_gate.evaluate_g8_genre_discrimination(
+            1.000, 0.333, 0.353, n_classes=3
+        )
+        assert r.verdict == "pass"
+        assert r.detail["failed_legs"] == []
+
+
+class TestG8SkipsWhenSklearnIsMissing:
+    """G8's author-shuffled control re-fits a LogisticRegression, but sklearn
+    is absent from the base requirements.txt — the very fact that motivated
+    keeping genre inference numpy-only. A missing dependency is a can't-know,
+    not a gate failure."""
+
+    def test_missing_sklearn_is_uninformative_not_a_machinery_error(self, monkeypatch):
+        monkeypatch.setattr(calibration_gate, "_sklearn_available", lambda: False)
+        result = calibration_gate._compute_g8_genre_data()
+        assert result.name == "G8"
+        assert result.verdict == "uninformative"
+        assert result.passed is False
+        assert "scikit-learn" in result.current_value
+
+    def test_the_skip_names_sklearn_as_the_missing_piece(self, monkeypatch):
+        monkeypatch.setattr(calibration_gate, "_sklearn_available", lambda: False)
+        result = calibration_gate._compute_g8_genre_data()
+        assert "sklearn" in result.detail["missing"] or "scikit-learn" in str(
+            result.detail["missing"]
+        )

@@ -189,6 +189,60 @@ class TestWitnessesFailForTheRightReason:
         assert result.detail["ratio_status"] == "both_nonzero"
         assert result.detail["ratio"] > 2.0
 
+    def test_g7_fails_because_the_catch_leg_collapses_at_a_matched_severity_bar(self):
+        """G7's witness reproduces the LLR_ACTION_MODE=blend failure shape:
+        a spectacular cross-topic false-positive rate bought by suppressing
+        genuine impostor severity. Pin that the fail comes from the CATCH
+        leg alone — the spec calls that leg the one that decides the
+        design's highest-risk decision (inflating only the claimed-author
+        side of the llr difference), so a witness that failed via the FP or
+        AUC leg instead would leave it untested.
+        """
+        result = GATE_CONTRACTS["evaluate_g7_cross_topic_fpr"].failure_witness()
+        assert result.detail["catch_leg_passed"] is False
+        assert result.detail["fp_leg_passed"] is True
+        assert result.detail["auc_leg_passed"] is True
+        assert result.detail["failed_legs"] == ["catch"]
+        # No counts / fold count / fire rate supplied, so none of the three
+        # downgrade paths ran — this is a plain criterion fail, not an
+        # "uninformative" that happens to also not be "pass".
+        assert "power" not in result.detail
+        assert result.detail["uninformative_reasons"] == []
+
+    def test_g7_label_destruction_fails_all_three_legs_by_construction(self):
+        """Under destroyed author labels the genuine and impostor
+        populations are exchangeable draws from one pool, so their flagged
+        rates at any fixed severity bar converge to the SAME value and the
+        AUC converges to chance. The witness encodes exactly that shape.
+        """
+        contract = GATE_CONTRACTS["evaluate_g7_cross_topic_fpr"]
+        result = contract.label_destruction()
+        d = result.detail
+        # One shared rate for both populations — that IS label destruction.
+        assert d["cross_topic_fp_rate"] == d["impostor_catch_rate"]
+        # Chance AUC, strictly below a bar deliberately set above chance.
+        assert d["mean_cross_genre_dev_auc"] == 0.5
+        assert d["mean_cross_genre_dev_auc"] < d["bars"]["auc"]
+        assert set(d["failed_legs"]) == {"FP", "catch", "AUC"}
+
+    def test_g7_fp_and_catch_bars_cannot_both_hold_at_one_shared_rate(self):
+        """The mathematical guarantee behind G7's label-destruction leg,
+        checkable rather than asserted on faith: the FP bar is an UPPER
+        bound (<= 0.25) and the catch bar a LOWER bound (>= 0.29) on what
+        becomes a single number once the labels are destroyed. Since
+        0.25 < 0.29 there is no rate satisfying both, so no label-destroyed
+        input can pass G7 — independently of the AUC leg.
+        """
+        result = calibration_gate.evaluate_g7_cross_topic_fpr(0.27, 0.27, 0.99)
+        bars = result.detail["bars"]
+        assert bars["fp"] < bars["catch"], (
+            "the FP and catch bars have converged — G7's conjunction is no "
+            "longer label-sensitive on the action legs alone"
+        )
+        # A perfect AUC cannot rescue it.
+        assert result.verdict == "fail"
+        assert result.detail["auc_leg_passed"] is True
+
     def test_g3_label_destruction_is_a_mathematical_guarantee_not_luck(self):
         """1/9 chance-level accuracy is registered as G3's label-destruction
         leg. Pin that it fails via the same plain threshold (not the
@@ -243,3 +297,33 @@ class TestG2bProxyLabelSurvives:
         result = GATE_CONTRACTS["evaluate_g2b_paraphrase_resistant"].failure_witness()
         assert "proxy" in result.criterion.lower()
         assert "proxy_note" in result.detail
+
+
+class TestG8Witnesses:
+    """G8's witnesses, pinned to the specific legs they exercise."""
+
+    def test_g8_fails_because_one_class_is_weak_not_because_of_the_other_legs(self):
+        result = GATE_CONTRACTS["evaluate_g8_genre_discrimination"].failure_witness()
+        assert result.detail["precision_leg_passed"] is False
+        assert result.detail["abstention_leg_passed"] is True
+        assert result.detail["control_leg_passed"] is True
+        assert result.detail["failed_legs"] == ["precision"]
+        assert "power" not in result.detail
+        assert result.detail["uninformative_reasons"] == []
+
+    def test_g8_label_destruction_is_the_shuffled_control(self):
+        """Under permuted genre labels a model that still predicts
+        confidently is recognising authors, not genres."""
+        contract = GATE_CONTRACTS["evaluate_g8_genre_discrimination"]
+        result = contract.label_destruction()
+        assert result.verdict != "pass"
+        assert result.detail["control_leg_passed"] is False
+        assert result.detail["shuffled_accuracy"] > result.detail["chance"]
+
+    def test_g8_control_bar_is_above_chance_so_destruction_can_never_pass(self):
+        """The guarantee behind registering a label-destruction leg at all:
+        the bar sits a fixed margin above chance, so an accuracy far above
+        chance cannot satisfy it at any class count."""
+        result = GATE_CONTRACTS["evaluate_g8_genre_discrimination"].label_destruction()
+        assert result.detail["bars"]["control"] == pytest.approx(result.detail["chance"] + 0.10)
+        assert result.detail["shuffled_accuracy"] > result.detail["bars"]["control"]

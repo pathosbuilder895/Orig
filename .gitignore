@@ -115,3 +115,8 @@ demo/bluebook/e2e/fixtures/.tenants-created.log
 
 # Hypothesis example database (property-test cache, machine-local)
 .hypothesis/
+
+# Cached full Gutenberg bodies for the genre corpus. Regenerable by
+# validation/genre_2026-08/fetch_authors.py, several MB each, and the
+# committed chunks are what the labels actually reference.
+validation/genre_2026-08/corpus/**/_*_full.txt

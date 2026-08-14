@@ -70,7 +70,19 @@ def _extract_sub_genre(manifest: object) -> str | None:
 
 def _genre_similarity(submission_genre: str | None, sample_genre: str | None) -> float:
     """Three-step ladder: 1.0 same label, 0.5 same family, 0.0 otherwise."""
-    if submission_genre is None or sample_genre is None:
+    from ..constants import GENRE_UNKNOWN
+
+    if (
+        submission_genre is None
+        or sample_genre is None
+        # GENRE_UNKNOWN is an abstention. Because it is a real string in
+        # GENRE_LABELS it would otherwise compare EQUAL to itself below and
+        # score a perfect 1.0 — two documents nobody could classify would
+        # look like a perfect genre match and be preferentially selected into
+        # a baseline cluster. Identical ignorance is not agreement.
+        or submission_genre == GENRE_UNKNOWN
+        or sample_genre == GENRE_UNKNOWN
+    ):
         # Conservative: an unknown genre can't be claimed as a match. We
         # don't return 0.5 here — that would inflate similarity for
         # under-tagged samples and bias selection toward them.
@@ -309,11 +321,21 @@ def genre_covered_by_baseline(manifest: object, state: object) -> bool:
     submission's genre or every baseline sample's genre is unclassified —
     an unknown genre is never treated as "definitely novel."
     """
+    from ..constants import GENRE_UNKNOWN
+
     sub_genre = _extract_sub_genre(manifest)
-    if sub_genre is None:
+    # GENRE_UNKNOWN is the v2 resolver's abstention, not a genre. Treating it
+    # as one would let "we could not classify this submission" read as
+    # "definitely a novel genre" and attenuate a real score on the strength
+    # of not knowing something.
+    if sub_genre is None or sub_genre == GENRE_UNKNOWN:
         return True
     samples = getattr(state, "samples", None) or []
-    known_genres = {s.genre for s in samples if getattr(s, "genre", None) is not None}
+    known_genres = {
+        s.genre
+        for s in samples
+        if getattr(s, "genre", None) is not None and s.genre != GENRE_UNKNOWN
+    }
     if not known_genres:
         return True
     return sub_genre in known_genres

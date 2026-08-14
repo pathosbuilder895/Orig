@@ -43,7 +43,35 @@ jobs:
   pytest:
     runs-on: ubuntu-latest
     needs: lint
-    timeout-minutes: 20
+    # Raised 20 -> 30 (2026-08-14). The reason is RUNNER VARIANCE, not suite
+    # growth — every measurement below is the same job on ubuntu-latest:
+    #
+    #   ~9m10s   common ancestor, ~99 commits back
+    #    17m57s  main (fused score, POSNoise, tier-17 rehearsal, seminary corpus)
+    #    >20m    genre-resolver branch — CANCELLED at the cap; pytest itself
+    #            had passed, so it read as a test failure when it was a clock
+    #            failure
+    #    18m17s  same branch after trimming its own tests
+    #    15m06s  the two MERGED
+    #
+    # The merge is faster than either parent, which is not a real speedup —
+    # it is the spread. A job whose true cost is ~15-18m swings wide enough
+    # on shared runners to hit 20m intermittently, and it already did once.
+    # 30 covers that spread with room left to catch a genuine hang before it
+    # burns three quarters of an hour. (An earlier version of this comment
+    # predicted ~27m for the merge by adding each branch's growth to the
+    # shared base; the 15m06s measurement falsified it. Do not re-derive the
+    # cap that way — measure it.)
+    #
+    # A single job serially running the whole suite is at the end of its
+    # useful life; the next person to add a multi-minute test should split
+    # this into a matrix (or pytest-xdist) rather than raise the number
+    # again. Heaviest tests as of this merge, measured locally: the six
+    # tests/fusion/test_wiring.py cases at ~72-82s EACH (~8m of one job),
+    # then test_dirichlet_multinomial_drift ~32s,
+    # test_calibration_scoring_config ~31s, test_feature_pipeline_determinism
+    # ~23s + ~17s. The fusion six are the obvious first target.
+    timeout-minutes: 30
     # WS-6 P3: gives the contract suite's "postgres" backend parametrization
     # (tests/test_repository_contract.py) something real to run against —
     # it self-skips cleanly without this, so its absence was silent rather

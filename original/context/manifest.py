@@ -19,7 +19,8 @@ Directive table (from the implementation plan)
 | length_regime == "micro"              | mute T1,2,3,5,7,9,10,11,15,16,17       |
 |                                       |  → keep T4,6,13,14                     |
 | length_regime == "short"              | mute T7; attenuate type_token_ratio    |
-| genre == "creative_fiction"           | mute T16                               |
+| genre in {narrative_prose,            | mute T16                               |
+|          creative_fiction}            |  (v1 label kept for stored baselines)  |
 | citations.citations_present is False  | mute T16                               |
 | citations.citations_present is True   | anchor T16                             |
 | composition_mode.mode == "tool_cleaned" | attenuate T11+T14; flag software_mediated |
@@ -37,6 +38,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from ..constants import (
+    GENRE_NARRATIVE_PROSE,
     TIER1_CODES,
     TIER2_CODES,
     TIER3_CODES,
@@ -220,7 +222,13 @@ def _derive_directives(resolver_outputs: dict[str, dict]) -> dict[str, Any]:
 
     # ── Genre ────────────────────────────────────────────────────────────────
     genre_label = genre.get("primary")
-    if genre_label == "creative_fiction":
+    # Both labels mute T16, and for one reason: tier 16 is the citation
+    # fingerprint (signal-verb entropy, source loyalty, block-quote rate), and
+    # narrative prose has no citations to fingerprint. That is true whether
+    # the events are invented or recounted, which is exactly why the v2
+    # taxonomy merged the two — see validation/genre_2026-08/CODEBOOK.md.
+    # "creative_fiction" is retained for baselines stored under the v1 label.
+    if genre_label in ("creative_fiction", GENRE_NARRATIVE_PROSE):
         mute.update(TIER16_CODES)
     if genre_label in _PROSODIC_ANCHOR_GENRES:
         anchors.update({8, 13})

@@ -72,24 +72,36 @@ ATTENUATE_FACTOR: float = 0.6
 # applied when the submission's genre is genuinely new to this student) is
 # what keeps it safe: it never fires for the common case.
 #
-# ⚠️ CURRENTLY INERT — the gate this hangs off cannot fire in practice.
-# `resolvers.resolve_genre` does not discriminate genre on real prose: on the
-# 10-author validation/public_authors/ corpus it put 265/316 chunks (84%) in
-# "correspondence", which is not a positive classification at all but rule 8's
-# terminal `else` ("no rule matched, no citation cues"). On the very corpus
-# this was designed for it collapses all six of Lewis's hand-labelled genres —
-# Narnia, theology, Screwtape — into the same bucket, so
-# `genre_covered_by_baseline` returns True nearly always and this attenuation
-# would fire in 1 of 6 leave-one-genre-out folds, driven by classifier noise
-# rather than a real genre difference. Reproduce with
-# validation/genre_crossgenre_2026-08/genre_invariant_validate.py.
+# ⚠️ STILL NOT AUTHORISED, but the reason changed on 2026-08-08. Two blockers
+# stood here; one is resolved and one is not.
 #
-# Consequence: enabling GENRE_INVARIANT_WEIGHTS_ENABLED today buys almost
-# nothing and what little it does is arbitrary. The tier set below is
-# therefore UNVALIDATED on independent data — the test that would have
-# validated it could not be run, because no author in an independent corpus
-# has two genres the classifier can tell apart. Fix resolve_genre first, then
-# re-run that script; only then is this worth enabling.
+# RESOLVED — the classifier no longer mislabels silently. v1 sorted 86% of all
+# prose into rule 8's terminal `else` ("correspondence"), so
+# `genre_covered_by_baseline` returned True nearly always and this attenuation
+# fired only on classifier noise. GENRE_RESOLVER_V2 abstains instead of
+# guessing, and `genre_covered_by_baseline` now attenuates only on a CONFIDENT
+# mismatch — `unknown` on either side means do nothing. So the gate fires
+# rarely and for a real reason rather than never and for a fake one. Note the
+# consequence: a working classifier does not make this attenuation fire MORE.
+# On the committed corpora v2 still abstains on 23% of documents, and a high
+# firing rate would be grounds for suspicion, not celebration.
+#
+# ALSO RESOLVED — gate G8 now passes: minimum per-class precision 1.000 over
+# 36 claimed documents on the author-disjoint hold-out, abstention 33.3%, and
+# an author-shuffled control at 0.353 against 0.333 chance, so the classifier
+# reads genre rather than authors.
+#
+# NOT RESOLVED — the tier set below. Tiers 2/3/9/10 have never been validated
+# on independent data, and no work so far has attempted it: the genre effort
+# fixed the GATE this attenuation hangs off, not the attenuation itself.
+# `lexical_chain_density` is a tier-2 feature near the top of the DNA
+# invariance table, so attenuating tier 2 wholesale discards one of the most
+# topic-invariant signals available — that objection is untouched by anything
+# above.
+#
+# Enabling GENRE_INVARIANT_WEIGHTS_ENABLED therefore requires a separate
+# validation of THIS tier set. See
+# docs/superpowers/specs/2026-08-08-genre-resolution-design.md.
 GENRE_MISMATCH_ATTENUATE_TIERS: frozenset[int] = frozenset({2, 3, 9, 10})
 
 
