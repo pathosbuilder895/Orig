@@ -41,7 +41,7 @@ from original.constants import ALL_FEATURE_CODES, FEATURE_TIER
 from .metrics import arrays_from_results, brier_score
 
 
-# Position indices for each tier in the FEATURE_DIM=103 vector.
+# Position indices for each tier in the FEATURE_DIM-wide vector.
 # Built once at import time so the ablation loop is cheap.
 TIER_POSITIONS: Dict[int, np.ndarray] = {}
 for _pos, _code in enumerate(ALL_FEATURE_CODES):

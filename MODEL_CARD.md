@@ -1,4 +1,4 @@
-# Model Card — Original Stylometric Scorer v1.4.25
+# Model Card — Original Stylometric Scorer v1.4.27
 
 This document describes the current feature pipeline, scoring model, output actions, reliability limits, and intended institutional use of Original.
 
@@ -55,9 +55,9 @@ suppression thresholds during human review.
 
 ## Feature Pipeline
 
-The current engine uses `FEATURE_DIM = 103` from `original/constants.py`.
+The current engine uses `FEATURE_DIM = 109` from `original/constants.py`.
 
-- **96 base dimensions** are extracted from text, citation behavior, and optional proctored keystroke data.
+- **102 base dimensions** are extracted from text, citation behavior, and optional proctored keystroke data.
 - **7 comparison/profile dimensions** are computed during scoring when baseline context is available — 2 pure comparison features (Tier 0 below) plus 5 baseline-relative features distributed across Tiers 9–11.
 - Legacy profiles with older dimensions are padded on load for backward compatibility.
 
@@ -80,7 +80,8 @@ The current engine uses `FEATURE_DIM = 103` from `original/constants.py`.
 | 15 | Lexical architecture | 5 | Semantic concentration, polysyndeton, chiasmus, Latinate ratio, nominalizations. |
 | 16 | Citation fingerprint | 8 | Signal verbs, source loyalty, block quotes, citation clustering, ibid., paraphrase style. |
 | 17 | Behavioral biometrics | 6 | Keystroke rhythm, bursts, deletion rate, pauses, paste events, revision depth. |
-| 0 | Comparison/profile features | 2 | The two pure baseline-relative comparison dimensions computed at scoring time. (The other 5 of the 7 comparison/profile dims are the baseline-relative features already counted in Tiers 9–11, so this Count column sums to 103.) |
+| 18 | Uniformity | 6 | Sentence-length dispersion, windowed feature variance, function-word burstiness, punctuation dispersion, vocabulary-introduction flatness, clause-depth variance. Disabled by default pending gates G2b (paraphrase-resistance) and G6 (fairness parity); neutral placeholders until enabled. |
+| 0 | Comparison/profile features | 2 | The two pure baseline-relative comparison dimensions computed at scoring time. (The other 5 of the 7 comparison/profile dims are the baseline-relative features already counted in Tiers 9–11, so this Count column sums to 109.) |
 
 Preprocessing removes bibliography, appendix, notes, parenthetical citation markers, footnote superscripts, and block quotes from prose features while preserving citation behavior for Tier 16.
 
@@ -151,7 +152,7 @@ This posture is especially important for multilingual writers, students with dis
 A supervised human-vs-AI classifier that runs **alongside** the per-student
 identity verification, answering a different question: not "does this match
 student X's baseline?" but "does this look like AI-generated text at all?"
-Motivated by the PR #21 diagnostic: Original's own 103 features + a plain
+Motivated by the PR #21 diagnostic: Original's own then-103 features + a plain
 classifier reached AUC 0.7402 on AuTexTification where the per-student
 Born-rule path (never trained on a labeled example) scored 0.6091.
 
@@ -198,13 +199,68 @@ tightening the requirements pin.
 
 **Demo/pilot enablement gate** — rule: **seminary AUC ≥ 0.85 AND
 false-positive rate ≤ 5% at `t_elevated` on authentic seminary essays**
-(`train_ai_detector.py eval-seminary` prints the verdict). Status: the
-shipped mixed-training model **passes** (AUC 1.0, FPR 4%, TPR 100% on
-25 authentic vs 20 Claude essays; archaic-prose flag rates 0%). Caveats
-before flipping the flag anywhere pilot-facing: the in-domain sample is
-small (45 essays), single-generator (Claude), and corpus-synthesized —
-a larger multi-generator in-domain eval and an institutional decision
-should precede enablement. Known trade-off: detection of RAID's
+(`train_ai_detector.py eval-seminary` prints the verdict). Status: **passes**
+(AUC 0.9975, CI95 [0.9914, 1.0]; FPR@elevated 2.88% (4/139); TPR 95% on 139
+authentic vs 20 Claude essays; archaic-prose flag rates 0%) — see
+`validation/diagnostics/ai_detector_eval_seminary_2026-08-07_n139.json`.
+
+⚠️ **History — why the n=25 verdict on this gate was never usable evidence
+either way.** With only 25 authentic seminary essays, the only achievable
+FPR values were 0%, 4%, 8%, 12%: 5% was not reachable, so the criterion
+really meant "at most 1 essay in 25." The 2026-08-07 109-dim retrain (v1.4.26)
+flagged 2 rather than 1 — a one-essay difference, on a borderline essay that
+scored 0.7300 against a 0.7381 threshold before and crossed it by 0.02.
+Wilson 95% CIs were [2.2%, 25.0%] for that 2/25 and [0.7%, 19.5%] for the
+prior 1/25; both contained the 5% bar, so the pre-retrain pass and the
+post-retrain fail were not statistically distinguishable — per
+`validation/README.md`'s three-valued convention (pass / fail /
+uninformative), a gate whose resolution is coarser than its own threshold
+should be reported **uninformative**, not read either way. Growing the pool
+was the prerequisite for this gate deciding anything.
+
+The `seminary_authentic` pool was grown from 25 to 139 essays (2026-08-07,
+`scripts/fetch_seminary_theology_corpus.py` + `scripts/add_seminary_essays.py`)
+for exactly that reason. At n=139 the same always-borderline essay only
+costs 0.0072 per flip instead of 0.04, and the gate now clears with real
+margin (2.88% vs the 5% bar) rather than sitting inside a CI that spans it.
+
+Four essays flag at `t_elevated`, evenly split between two source
+pools — worth reading as two distinct false-positive registers, not one:
+  - **Synthetic, systematic/hedging register**: `seminary_04_prayer.txt`
+    (0.7586) and `seminary_01_ecclesiology.txt` (0.7595), both from the
+    original templated corpus. Both read as comprehensively-hedged
+    academic exposition — "may be attributed to several factors: ...",
+    explicit objective/subjective contrasts, a closing paragraph that
+    pivots to practical payoff for the reader ("For seminary students
+    entering ministry, ecclesiology shapes everything"). That closing
+    move in particular is a common LLM essay convention; it is plausibly
+    a property of how the templated generator (`generate_modern_corpus.py`)
+    itself writes, not evidence about real student prose.
+  - **Real historical, oratorical/rhetorical register**: a Phillips
+    Brooks address (`seminary_11_010.txt`, 0.8081 — the single highest
+    probability of any human document in the whole corpus, above even
+    5 of the 20 genuine Claude essays) and a Spurgeon sermon
+    (`seminary_10_008.txt`, 0.7924). Both are built from heavy anaphora
+    ("It is as if the engine... It is as if the tree... It is as if the
+    ocean..."), direct rhetorical questions to the audience, and
+    sustained parallel structure — genuinely authentic 19th-century
+    homiletic prose, sourced from Project Gutenberg, no synthetic corpus
+    involved. The uniform, highly patterned cadence that makes this
+    register persuasive from a pulpit is stylometrically close to the
+    low-burstiness regularity the detector was trained to associate with
+    machine generation.
+  Neither register is unique to the pilot's synthetic corpus — the second
+  finding means the false-positive risk is real for genuinely human,
+  rhetorically dense theological writing generally, and should inform how
+  any pilot-facing use of this signal is framed (a flag on a strongly
+  rhetorical sermon-style submission is weaker evidence than a flag on
+  plain expository prose).
+
+Caveats before flipping the flag anywhere pilot-facing: the in-domain
+sample is still single-generator (Claude) and majority corpus-synthesized
+(114 of 139 are real, but the 20 AI-side essays are not) — a larger
+multi-generator in-domain eval and an institutional decision should
+precede enablement. Known trade-off: detection of RAID's
 adversarially-attacked generations dropped relative to v1; adversarial
 robustness remains out of scope for this mode.
 
@@ -213,6 +269,35 @@ actions would follow the conformal-nudge pattern (raise-only, never lowers,
 requires corroborating deviation evidence) behind a separate
 `AI_LIKELIHOOD_ACTION_NUDGE_ENABLED` flag, and is gated on a pilot semester
 of in-domain false-positive data.
+
+### Addendum (2026-08-10) — window-level shadow wiring
+
+The blend endpoint (`POST /students/{id}/score/blend`) now carries a
+**window-level** shadow of this detector. When `AI_LIKELIHOOD_SHADOW=1`, the
+rolling-stylometry loop in `original/context/blend.py` hands the per-window
+feature vectors it already builds to `predict_ai_likelihood_batch` in one
+batched call, and reports `ai_probability` per window plus `ai_window_max` /
+`ai_window_mean`. The intent is localization — *where* in a document AI-like
+text sits — which the single document-level number cannot express.
+
+- **The document-level enablement gate above still FAILS** (FPR 8% vs. a 5%
+  bar, and uninformative at n=25). `AI_LIKELIHOOD_ENABLED` remains off, and
+  nothing about this wiring changes that verdict or provides evidence for it.
+- **This is shadow-only and structurally inert.** The new fields are written
+  but never read back: they cannot affect `blend_detected`, `blend_index`,
+  `shift_positions`, `deviation_score`, or any recommended action. With the
+  flag off the module is not even imported and blend output is byte-identical
+  (`tests/context/test_blend.py::TestWindowAiShadow`).
+- **No numeric gate was cleared to ship it, and none was claimed.** There is
+  no window-level calibration: the detector was trained and thresholded on
+  whole documents, so a 300-token window is out of its evaluated regime and
+  per-window probabilities should be read as ordering/localization hints
+  only, never as calibrated probabilities.
+- **Purpose is evidence collection.** Shadow-mode window data (especially
+  whether AI-like probability concentrates in the same regions the Pettitt
+  change-point already flags) is intended to inform re-evaluation of the
+  document-level gate, alongside the larger authentic-essay pool that gate
+  needs regardless.
 
 ---
 
@@ -694,6 +779,8 @@ The zero-login demo remains intentionally available for sales and evaluation. Re
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.4.27 | 2026-08-07 | Grew the seminary_authentic pool from 25 to 139 essays — 114 real sermons/addresses from six theologians who died decades before any LLM existed (Moody, Torrey, Murray, Drummond, Spurgeon, Brooks; Project Gutenberg, `scripts/fetch_seminary_theology_corpus.py` + `scripts/add_seminary_essays.py`) — because v1.4.26's n=25 pool moved in 0.04-wide steps and one borderline essay decided the gate. Re-cleared: AUC 0.9975 (CI95 0.9914-1.0), FPR@elevated 2.88% (4/139) vs the 5% bar. The 4 flagged essays split into two distinct false-positive registers (both documented above under "Demo/pilot enablement gate"): 2 synthetic essays in a comprehensively-hedged academic-systematic style, and — new finding — 2 genuinely real, non-synthetic 19th-century oratorical prose (a Phillips Brooks address at 0.8081, the highest human probability in the whole corpus; a Spurgeon sermon at 0.7924), both built on heavy anaphora and direct rhetorical address. The oratorical-register finding means this false-positive mode is not a corpus-synthesis artifact — it generalizes to real, rhetorically dense theological writing. |
+| 1.4.26 | 2026-08-07 | Retrained the AI-likelihood detector artifact for the 109-feature pipeline (it had been silently inert since Tier 18 landed: the loader fail-closed on the 103-feature artifact). Same recipe, data, and seed as v1; Tier 18's six disabled dims added to masked_codes on both train and predict sides; cache loaders now validate feature_dim. Metrics are flat vs the old artifact (OOF AUC 0.8191 vs 0.8165; AuTexT test 0.7683 vs 0.7715; M4 0.9830 vs 0.9835; seminary core AUC 0.996 vs 1.0), but the seminary enablement gate now FAILS: FPR@elevated 0.08 (2/25) vs the 0.05 bar — one always-borderline essay (previously 0.7300 vs threshold 0.7381) crossed by 0.02. Enablement beyond shadow remains blocked until the gate is re-cleared; the n=25 pool's 0.04 granularity makes a single essay decisive and should be grown first. |
 | 1.4.25 | 2026-08-04 | Reproduced RepreGuard-style layerwise PCA activation directions with pinned Phi-2, 512 M4 training pairs, 512 disjoint calibration pairs, and external RAID/FAID diagnostics. RAID AUC was 0.9442, but recall at the ≤1% FPR operating point was 10% overall and 0% for synonym/paraphrase; FAID selected no direct or collaborative AI. The branch was rejected and production remains unchanged. |
 | 1.4.24 | 2026-08-04 | Added a validation-only closed-pool Gutenberg identity ranker combining LUAR, character, and content-reduced evidence. Known-peer precision/recall reached 95.10%/32.33%, but outside naming was 1.333%; stricter and runner-up-margin rules did not repair the guard. Exact names remain disabled. |
 | 1.4.23 | 2026-08-04 | Added a reproducible 400-author Project Gutenberg cross-work corpus and domain-local LUAR/style calibration. A pre-registered zero-calibration-FP rule passed the final untouched 100-author lock at 100% precision, 79.33% recall, and 0/300 observed FPR; it remains report-only pending a representative institutional student lock. |

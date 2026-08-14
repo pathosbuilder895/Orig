@@ -321,7 +321,7 @@ def compute_full_features(
                           placeholder set by ``extract_features``).
 
     Returns:
-        Complete feature dict with all 103 features normalised to [0,1].
+        Complete feature dict with all FEATURE_DIM features normalised to [0,1].
     """
     # Extract base features (comparison features set to 0.5 placeholder)
     features = extract_features(text, keystroke_data=keystroke_data)

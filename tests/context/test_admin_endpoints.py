@@ -404,6 +404,75 @@ class TestPlaygroundEndpoint:
         assert "blend_index" in body["blend"]
         assert isinstance(body["blend"]["per_section"], list)
 
+    def test_playground_blend_passes_ai_shadow_fields_through(
+        self, client_module_db, monkeypatch
+    ):
+        """
+        /test/score hand-builds its own BlendResultOut, separately from the
+        blend endpoint's converter. An operator collecting shadow evidence
+        with AI_LIKELIHOOD_SHADOW=1 through the playground must see the
+        per-window ai_probability and the two summaries — a converter that
+        drops them looks exactly like the detector abstaining.
+        """
+        client, _module, _db = client_module_db
+
+        import original.context.blend as blend_module
+        from original.context.blend import BlendResult, WindowScore
+
+        stub = BlendResult(
+            blend_detected=True,
+            blend_index=0.9,
+            shift_positions=[450],
+            per_section=[
+                WindowScore(start=0, end=300, score=0.2, confidence="low", ai_probability=0.11),
+                WindowScore(start=150, end=450, score=0.8, confidence="low", ai_probability=None),
+            ],
+            n_tokens=450,
+            ai_window_max=0.11,
+            ai_window_mean=0.11,
+        )
+        monkeypatch.setattr(blend_module, "detect_blend", lambda **kwargs: stub)
+
+        resp = client.post(
+            "/test/score",
+            json={
+                "text": "The committee considered the proposal carefully. " * 60,
+                "baseline_texts": [
+                    "Earlier baseline submission for the test student.",
+                    "Another baseline with similar style.",
+                ],
+                "enable_blend": True,
+            },
+        )
+        assert resp.status_code == 200, resp.text
+        blend = resp.json()["blend"]
+        assert blend["ai_window_max"] == 0.11
+        assert blend["ai_window_mean"] == 0.11
+        assert blend["per_section"][0]["ai_probability"] == 0.11
+        assert blend["per_section"][1]["ai_probability"] is None
+
+    def test_playground_blend_ai_fields_null_by_default(self, client_module_db, monkeypatch):
+        """Flag off (the default): the fields are present but null, not absent."""
+        client, _module, _db = client_module_db
+        monkeypatch.delenv("AI_LIKELIHOOD_SHADOW", raising=False)
+
+        resp = client.post(
+            "/test/score",
+            json={
+                "text": "The committee considered the proposal carefully. " * 60,
+                "baseline_texts": [
+                    "Earlier baseline submission for the test student.",
+                    "Another baseline with similar style.",
+                ],
+                "enable_blend": True,
+            },
+        )
+        assert resp.status_code == 200, resp.text
+        blend = resp.json()["blend"]
+        assert blend["ai_window_max"] is None
+        assert blend["ai_window_mean"] is None
+        assert all(w["ai_probability"] is None for w in blend["per_section"])
+
     def test_playground_no_db_writes(self, client_module_db):
         client, module, _db = client_module_db
         # Confirm the audit table is empty before.

@@ -1,0 +1,155 @@
+{
+  "dataset": "raid_sample (cross-dataset transfer, frozen model + thresholds)",
+  "artifact": "/Users/andrew/Desktop/Original/.claude/worktrees/youthful-ramanujan-74f399/original/data/ai_detector_v1.joblib",
+  "note": "RAID sample is generations-heavy (only ~8 human rows \u2014 read the human flag rate as anecdote, not an FPR) and many generations carry adversarial attacks. attack_vs_clean and per_attack are AI-rows-only TPRs. AUC is only reported when both classes are present in usable volume.",
+  "overall": {
+    "n": 499,
+    "n_human": 8,
+    "n_ai": 491,
+    "auc": 0.5104,
+    "brier": 0.3255,
+    "accuracy_at_0.5": 0.523,
+    "tpr_at_fpr_05": 0.3279,
+    "tpr_at_fpr_01": 0.3279,
+    "at_t_elevated": {
+      "threshold": 0.738647,
+      "tpr": 0.3727,
+      "fpr": 0.25
+    },
+    "at_t_strong": {
+      "threshold": 0.917647,
+      "tpr": 0.055,
+      "fpr": 0.0
+    }
+  },
+  "per_generator": {
+    "chatgpt": {
+      "n": 22,
+      "flag_rate_at_t_elevated": 0.6364,
+      "flag_rate_at_t_strong": 0.1818
+    },
+    "cohere": {
+      "n": 28,
+      "flag_rate_at_t_elevated": 0.0357,
+      "flag_rate_at_t_strong": 0.0
+    },
+    "cohere-chat": {
+      "n": 20,
+      "flag_rate_at_t_elevated": 0.3,
+      "flag_rate_at_t_strong": 0.05
+    },
+    "gpt2": {
+      "n": 103,
+      "flag_rate_at_t_elevated": 0.6019,
+      "flag_rate_at_t_strong": 0.1165
+    },
+    "gpt3": {
+      "n": 18,
+      "flag_rate_at_t_elevated": 0.1667,
+      "flag_rate_at_t_strong": 0.0556
+    },
+    "gpt4": {
+      "n": 19,
+      "flag_rate_at_t_elevated": 0.1579,
+      "flag_rate_at_t_strong": 0.0
+    },
+    "human": {
+      "n": 8,
+      "flag_rate_at_t_elevated": 0.25,
+      "flag_rate_at_t_strong": 0.0
+    },
+    "llama-chat": {
+      "n": 22,
+      "flag_rate_at_t_elevated": 0.1364,
+      "flag_rate_at_t_strong": 0.0
+    },
+    "mistral": {
+      "n": 62,
+      "flag_rate_at_t_elevated": 0.4032,
+      "flag_rate_at_t_strong": 0.1129
+    },
+    "mistral-chat": {
+      "n": 59,
+      "flag_rate_at_t_elevated": 0.2203,
+      "flag_rate_at_t_strong": 0.0
+    },
+    "mpt": {
+      "n": 62,
+      "flag_rate_at_t_elevated": 0.2903,
+      "flag_rate_at_t_strong": 0.0161
+    },
+    "mpt-chat": {
+      "n": 76,
+      "flag_rate_at_t_elevated": 0.4605,
+      "flag_rate_at_t_strong": 0.0132
+    }
+  },
+  "attack_vs_clean": {
+    "clean": {
+      "n": 139,
+      "tpr_at_t_elevated": 0.3525,
+      "tpr_at_t_strong": 0.0863
+    },
+    "attacked": {
+      "n": 352,
+      "tpr_at_t_elevated": 0.3807,
+      "tpr_at_t_strong": 0.0426
+    }
+  },
+  "per_attack": {
+    "article_deletion": {
+      "n": 56,
+      "tpr_at_t_elevated": 0.25,
+      "tpr_at_t_strong": 0.0536
+    },
+    "homoglyph": {
+      "n": 54,
+      "tpr_at_t_elevated": 0.1852,
+      "tpr_at_t_strong": 0.0185
+    },
+    "insert_paragraphs": {
+      "n": 103,
+      "tpr_at_t_elevated": 0.301,
+      "tpr_at_t_strong": 0.1068
+    },
+    "none": {
+      "n": 139,
+      "tpr_at_t_elevated": 0.3525,
+      "tpr_at_t_strong": 0.0863
+    },
+    "upper_lower": {
+      "n": 40,
+      "tpr_at_t_elevated": 0.2,
+      "tpr_at_t_strong": 0.0
+    },
+    "whitespace": {
+      "n": 64,
+      "tpr_at_t_elevated": 0.5625,
+      "tpr_at_t_strong": 0.0
+    },
+    "zero_width_space": {
+      "n": 35,
+      "tpr_at_t_elevated": 1.0,
+      "tpr_at_t_strong": 0.0
+    }
+  },
+  "env": {
+    "secret_key": "bench-key-do\u2026(44 chars)",
+    "environment": "testing",
+    "original_db": "/var/folders/tp/l48kv_q561jfkygwcvcr9lsc0000gn/T/original_bench_iodhj1dt.db",
+    "numpy_seeded": true,
+    "python_seeded": true,
+    "model_hub_offline": true,
+    "scoring_flags": {
+      "CONTEXT_MANIFEST_ENABLED": "0",
+      "ADAPTIVE_WEIGHTS_ENABLED": "0",
+      "AMPLITUDE_SCORING_ENABLED": "0",
+      "BAYESIAN_PRIOR_ENABLED": "0",
+      "LENGTH_ADAPTIVE_WEIGHTS": "0",
+      "RANK_REMEDIATION": "none",
+      "STYLE_AUTHORSHIP_ENABLED": "0",
+      "IDENTITY_AXIS": "0",
+      "NULL_MODEL": "none"
+    }
+  }
+}

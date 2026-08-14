@@ -29,6 +29,7 @@ StudentName             student_names
 SubmissionManifest      submission_manifests
 FidelityScore           fidelity_scores
 AiLikelihoodScore       ai_likelihood_scores
+FusedScore              fused_scores
 Correction              corrections
 CalibrationRun          calibration_runs
 TunedThresholds         tuned_thresholds_v2
@@ -309,6 +310,44 @@ class AiLikelihoodScore(LiveBase):
     band: Mapped[str] = mapped_column(Text, nullable=False)
     model_version: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class FusedScore(LiveBase):
+    """Report-only fused stylometric score (``fused_scores``).
+
+    One row per scored submission when FUSED_SCORE_SHADOW=1 or
+    FUSED_SCORE_ENABLED=1. ``channels_json`` carries the peer-centered
+    per-channel values so weights can be refit without re-extraction.
+    """
+
+    __tablename__ = "fused_scores"
+    __table_args__ = (
+        Index(
+            "idx_fused_scores_tenant_student",
+            "tenant_id",
+            "student_id",
+            "created_at",
+        ),
+    )
+
+    submission_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, ForeignKey("tenants.tenant_id"), nullable=False)
+    student_id: Mapped[str] = mapped_column(Text, nullable=False)
+    fused_log_odds: Mapped[float] = mapped_column(Float, nullable=False)
+    probability: Mapped[float] = mapped_column(Float, nullable=False)
+    band: Mapped[str] = mapped_column(Text, nullable=False)
+    channels_json: Mapped[str] = mapped_column(Text, nullable=False, server_default="{}")
+    model_version: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Recoverability for the baseline-volume confound (C1, 2026-08 fix pass):
+    # the compression channel's distance drifts as Profile.text (the
+    # concatenation of every authenticated baseline) grows, and that growth
+    # is not yet capped or normalized. Persisting the exact baseline sample
+    # count and reference-pool size alongside every row is what lets a later
+    # analysis regress the confound out of the shadow data instead of
+    # discovering years later that it can't be reconstructed.
+    baseline_samples: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reference_profiles: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 # ── Feedback & calibration ────────────────────────────────────────────────────
@@ -635,7 +674,7 @@ class ParkBeat(LiveBase):
     )
 
 
-#: All 19 live models in store-DDL order, for tests and the P3 repository.
+#: All 20 live models in store-DDL order, for tests and the P3 repository.
 LIVE_MODELS = [
     StudentProfile,
     StudentName,
@@ -645,6 +684,7 @@ LIVE_MODELS = [
     TunedThresholds,
     FidelityScore,
     AiLikelihoodScore,
+    FusedScore,
     Tenant,
     StaffUser,
     BluebookExam,

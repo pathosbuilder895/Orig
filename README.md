@@ -1,6 +1,6 @@
 # Original — Authorship Verification for Academic Integrity
 
-Original verifies whether a submitted paper is consistent with the student's own authenticated writing history. It builds a per-student writing profile from verified baseline samples, then scores new submissions against that profile using a **103-dimensional stylometric pipeline** and a quantum density matrix scoring engine.
+Original verifies whether a submitted paper is consistent with the student's own authenticated writing history. It builds a per-student writing profile from verified baseline samples, then scores new submissions against that profile using a **109-dimensional stylometric pipeline** and a quantum density matrix scoring engine.
 
 Designed for seminaries and colleges that want a pastoral, explainable, FERPA-conscious alternative to text-matching plagiarism tools — one that detects ghostwriting, AI-assisted writing, and significant deviation from a student's established voice while preserving human review, student conversation, and documented institutional process.
 
@@ -76,7 +76,7 @@ Installs dependencies, downloads the spaCy language model, seeds five synthetic 
 
 ---
 
-## The 103-dimensional pipeline
+## The 109-dimensional pipeline
 
 Original currently uses 103 ordered feature dimensions from `original/constants.py`: 96 base dimensions extracted from prose, citations, and optional proctored keystroke data, plus 7 comparison/profile dimensions computed during scoring. Before prose features run, the text passes through a **preprocessing stage** that strips bibliography, appendix, and notes sections, removes parenthetical citation markers and footnote superscripts from prose, and strips block quotes — while extracting citation fingerprint data for Tier 16.
 
@@ -261,7 +261,7 @@ What retention actually looks like today:
   both remove a student and all associated data (submissions, scoring
   results, baselines). The live `DELETE /students/{id}` endpoint does the
   same over HTTP.
-- Feature vectors (the 103-dimensional stylometric encoding) are
+- Feature vectors (the 109-dimensional stylometric encoding) are
   non-reversible — they cannot be used to reconstruct the original text.
 - Student data is never sold or used to train external models.
 
@@ -378,7 +378,7 @@ original/
 │   └── scoring.py            Born-rule scoring, interference decomposition,
 │                             catastrophic drift alert
 ├── tension_arc.py            Catastrophe index κ (Tier 12)
-├── constants.py              All 103 feature dimensions, tier weights, norm bounds,
+├── constants.py              All 109 feature dimensions, tier weights, norm bounds,
 │                             lexicons, thresholds
 └── schemas_v1/               Pydantic request/response models
 

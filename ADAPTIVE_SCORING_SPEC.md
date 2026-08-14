@@ -1,7 +1,7 @@
 # Ωriginal — Adaptive Scoring Architecture Spec
 
 > **Status: historical / superseded.** This spec's phases (2–8) have shipped
-> (last landed 2026-05-12); the pipeline now runs at 103 features / 17 tiers.
+> (last landed 2026-05-12); the pipeline now runs at 109 features / 18 tiers.
 > Kept for historical context on the phased design rationale only.
 
 > **For Claude Code:** This document specifies the next major architectural evolution of the scoring pipeline. Implement in phases, in order. Each phase is independently testable. Do not refactor existing Phase 1 code unless a phase explicitly requires it.

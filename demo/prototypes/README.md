@@ -25,7 +25,7 @@ surface, not a production route.
 
 ## Feature registry and evidence resolution
 
-The prototypes carry a deploy-safe, generated copy of Original's 103-feature
+The prototypes carry a deploy-safe, generated copy of Original's 109-feature
 contract in `feature-registry.generated.js`. It is generated directly from the
 canonical code order, tier membership, and technical labels in
 `original/constants.py`, plus professor-facing descriptions from

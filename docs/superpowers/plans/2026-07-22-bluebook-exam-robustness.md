@@ -1,5 +1,10 @@
 # Bluebook Exam-Day Robustness Implementation Plan
 
+> **STATUS (2026-08-13): SHIPPED.** The work below landed via `b8f7ba29` /
+> `67eeb571` and is verified in code and e2e (see the spec's Status line).
+> The checkboxes were never ticked during execution — read the code, not the
+> boxes, as the source of truth for this file.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Pin exam deadlines server-side, make sealing idempotent and retryable, add offline awareness, and finish the exam page's a11y — per the approved spec `docs/superpowers/specs/2026-07-22-bluebook-exam-robustness-design.md`.

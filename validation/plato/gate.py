@@ -2,7 +2,7 @@
 validation/plato/gate.py — the translator-penetration gate.
 
 Plato wrote in Greek. Original's feature pipeline is hard-locked to English:
-roughly 60 of its 103 features are English lexical/surface measures, 14 need
+roughly 60 of its FEATURE_DIM features are English lexical/surface measures, 14 need
 the ``en_core_web_sm`` model, and both prosodic tiers use an English
 vowel-cluster stress heuristic. So this study necessarily measures Plato *as
 rendered by a translator*, and the obvious objection is that it measures only

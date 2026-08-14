@@ -514,6 +514,21 @@ class WindowScoreOut(BaseModel):
     end: int  # token offset (exclusive)
     score: float  # authorship deviation_score in [0, 1]
     confidence: str  # "low" | "medium"
+    ai_probability: float | None = Field(
+        None,
+        description=(
+            "Report-only shadow signal: the AI-likelihood detector's raw "
+            "output for THIS window. UNCALIBRATED at window scale — the "
+            "detector was trained and thresholded on whole documents, so a "
+            "~300-token window is outside its evaluated regime. Read it as an "
+            "ordering/localization hint only; do NOT apply the document-level "
+            "low/elevated/strong thresholds to it (see MODEL_CARD.md). "
+            "Populated only when AI_LIKELIHOOD_SHADOW=1 and the detector "
+            "produced a value for this window; null otherwise. Never "
+            "influences blend_detected, shift_positions, or any "
+            "recommendation."
+        ),
+    )
 
 
 class BlendResultOut(BaseModel):
@@ -525,6 +540,25 @@ class BlendResultOut(BaseModel):
     per_section: list[WindowScoreOut]
     n_tokens: int = 0
     fallback_reason: str | None = None  # e.g. "text_too_short"
+    ai_window_max: float | None = Field(
+        None,
+        description=(
+            "Report-only: highest per-window AI-likelihood across the windows "
+            "that received a value. Inherits the per-window UNCALIBRATED "
+            "caveat (see ai_probability and MODEL_CARD.md) — not comparable "
+            "to the document-level thresholds. Null when AI_LIKELIHOOD_SHADOW "
+            "is off or no window produced one."
+        ),
+    )
+    ai_window_mean: float | None = Field(
+        None,
+        description=(
+            "Report-only: mean per-window AI-likelihood over the windows that "
+            "received a value (failed windows are excluded). Inherits the "
+            "per-window UNCALIBRATED caveat (see ai_probability and "
+            "MODEL_CARD.md) — not comparable to the document-level thresholds."
+        ),
+    )
 
 
 # ── Layer 7 response models ───────────────────────────────────────────────────
@@ -786,6 +820,27 @@ class StyleAuthorshipOut(BaseModel):
     trained_on: str
 
 
+class FusedScoreOut(BaseModel):
+    """Report-only fused stylometric score (original/fusion/); never feeds
+    deviation_score, quantum_fidelity, or the recommended action.
+
+    Populated only when FUSED_SCORE_ENABLED=1 AND the expert produced a
+    result (not an abstention); null otherwise — preserves the flag-off
+    byte-identical contract.
+    """
+
+    model_config = {"protected_namespaces": ()}
+
+    fused_log_odds: float
+    probability_different_author: float
+    band: str  # "consistent" | "inconclusive" | "divergent"
+    channels: dict[str, float]
+    reference_profiles: int
+    baseline_samples: int
+    model_version: str
+    trained_on: str
+
+
 class Layer7OutputResponse(BaseModel):
     student_id: str
     submission_id: str
@@ -815,6 +870,9 @@ class Layer7OutputResponse(BaseModel):
     # drift_analysis; a candidate null model for the separate TYPICALITY_
     # SCORING axis, not yet promoted to influence it.
     trend_aware_typicality: TrendAwareTypicalityOut | None = None
+    # Report-only fused stylometric score (original/fusion/) — default-off
+    # and action-blind; populated only when FUSED_SCORE_ENABLED=1.
+    fused_score: FusedScoreOut | None = None
     # Plain-English explanation for professors/instructors
     human_explanation: dict[str, Any] | None = None
     # Two-axis verification: typicality axis. Present on quantum.scoring.
@@ -844,6 +902,17 @@ class Layer7OutputResponse(BaseModel):
     # Shadow-mode preview: what deviation_score WOULD be under inflation.
     # See Layer7Output.deviation_score_inflated.
     deviation_score_inflated: float | None = None
+    # Characteristic per-student feature weighting (CHARACTERISTIC_WEIGHTS)
+    # audit trail + shadow previews. Present on quantum.scoring.Layer7Output
+    # and copied through by routers/_shared.py's _to_response(). Defaults here
+    # match Layer7Output's own so any call site that doesn't pass them stays
+    # valid. characteristic_rms_z_preview / characteristic_deviation_preview
+    # are report-only and never influence `recommendation`.
+    characteristic_weighting_applied: bool = False
+    characteristic_mode: str | None = None
+    characteristic_factor_dispersion: float | None = None
+    characteristic_rms_z_preview: float | None = None
+    characteristic_deviation_preview: float | None = None
 
 
 # ── Student state summary ─────────────────────────────────────────────────────

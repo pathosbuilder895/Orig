@@ -85,6 +85,59 @@ test.describe('Bound student launch (magic-link / LTI launch consequence)', () =
     await expect(page.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
     await expect(page.getByPlaceholder('you@institution.edu')).toHaveCount(0)
   })
+
+  // The identity a launch binds must also be the identity the sitting SHOWS.
+  // GET /bluebook/launch stores the canonical Original student id, but the
+  // links roster_links.py hands out are name-free by default (FERPA), so the
+  // screens used to keep displaying the demo's stock "Candidate No. 00042"
+  // over a correctly bound sitting (wire proof 2026-08-13, observation 2).
+  // Name-free binding must surface the opaque short id instead.
+  const BOUND_SID = 'demo:ab12cd34ef567890'
+  const BOUND_SHORT = 'Candidate ab12cd34'
+  const STOCK_CANDIDATE = 'Candidate No. 00042'
+
+  test('a name-free bound launch shows the short bound id, not the stock number',
+    async ({ page }) => {
+      await page.addInitScript((sid) => {
+        localStorage.setItem('bluebook_student_id', sid)
+        // No `candidate` key: exactly what a name-free launch leaves behind,
+        // since /bluebook/launch only appends ?candidate= when the operator
+        // opted into --include-name.
+        window.BB_EXAM_CONFIG = {
+          title: 'Name-free Bound Launch', course: 'PHIL 301A', courseTitle: 'PHIL 301A',
+          duration: 60, minWords: 0, maxWords: null,
+        }
+      }, BOUND_SID)
+      await page.goto('/bluebook/')
+      await page.waitForLoadState('networkidle')
+
+      // Instructions screen (BriefingScreen) — the Candidate meta row.
+      await expect(page.getByText(BOUND_SHORT)).toBeVisible({ timeout: 10_000 })
+      await expect(page.getByText(STOCK_CANDIDATE)).toHaveCount(0)
+
+      // Exam room masthead (ExamScreen) — same identity, right of the title.
+      await page.locator('button', { hasText: /begin/i }).first().click()
+      await expect(page.locator('textarea[placeholder="Begin writing here…"]'))
+        .toBeVisible({ timeout: 10_000 })
+      await expect(page.getByText(BOUND_SHORT)).toBeVisible()
+      await expect(page.getByText(STOCK_CANDIDATE)).toHaveCount(0)
+    })
+
+  test('a launch that carried a name (--include-name) shows the name', async ({ page }) => {
+    await page.addInitScript((sid) => {
+      localStorage.setItem('bluebook_student_id', sid)
+      // index.html's bootstrap copies ?candidate= into cfg.candidate.
+      window.BB_EXAM_CONFIG = {
+        title: 'Named Bound Launch', course: 'PHIL 301A', courseTitle: 'PHIL 301A',
+        candidate: 'Jane Doe', duration: 60, minWords: 0, maxWords: null,
+      }
+    }, BOUND_SID)
+    await page.goto('/bluebook/')
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByText('Jane Doe')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText(BOUND_SHORT)).toHaveCount(0)
+    await expect(page.getByText(STOCK_CANDIDATE)).toHaveCount(0)
+  })
 })
 
 // Runs in true isolation: exhausts the server's IP-keyed login throttle

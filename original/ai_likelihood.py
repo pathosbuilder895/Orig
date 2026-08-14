@@ -3,7 +3,7 @@ ai_likelihood.py — corpus-level AI-likelihood detector (second scoring mode).
 
 Loads the committed classifier artifact (original/data/ai_detector_v1.joblib,
 trained by scripts/train_ai_detector.py on the AuTexTification 2023 English
-subtask-1 train split) and scores the SAME 103-dim feature vector the
+subtask-1 train split) and scores the SAME FEATURE_DIM-wide feature vector the
 per-student Born-rule path already computes. This answers a different
 question than the identity verification: not "does this match student X's
 baseline?" but "does this look like AI-generated text at all?"
@@ -19,11 +19,17 @@ Design contract (see MODEL_CARD.md):
     model into something that predicts differently (> 0.02 drift on the 8
     stored reference vectors), the detector disables itself rather than
     serve silently-changed probabilities.
-  - The 13 non-text placeholder dims (Tier 17 keystroke + musical-comparison
-    + comparison features) are forced to 0.5 before predicting, because
-    that is exactly what they were during training (feature_vector() on
-    plain text) — a corpus-level detector must also stay independent of any
-    per-student comparison data that may be present at scoring time.
+  - The non-text placeholder dims (Tier 17 keystroke + Tier 18 uniformity
+    + musical-comparison + comparison features) are forced to 0.5 before
+    predicting, because that is exactly what they were during training
+    (feature_vector() on plain text with both tier groups disabled) — a
+    corpus-level detector must also stay independent of any per-student
+    comparison data that may be present at scoring time.
+  - masked_codes is validated against this module's _MASKED_CODES at load
+    time. Training and inference must agree about which dims are
+    placeholders: if they disagree, the model may have fitted a column the
+    runtime then erases, which shifts probabilities with nothing else to
+    trip. So it fails closed like any other schema mismatch.
 """
 
 from __future__ import annotations
@@ -44,6 +50,7 @@ from .constants import (
     FEATURE_NAMES,
     MUSICAL_COMPARISON_CODES,
     TIER17_CODES,
+    TIER18_CODES,
 )
 
 log = logging.getLogger(__name__)
@@ -54,8 +61,15 @@ REFERENCE_DRIFT_TOLERANCE = 0.02
 
 # Indices forced to 0.5 at predict time — must mirror the training-time
 # placeholders in features/pipeline.py (Tier 17 when no keystroke data;
-# comparison features always, until scoring time).
-_MASKED_CODES = list(TIER17_CODES) + list(MUSICAL_COMPARISON_CODES) + list(COMPARISON_CODES)
+# Tier 18 while the uniformity group is disabled; comparison features
+# always, until scoring time). Keep in sync with the artifact's
+# masked_codes in scripts/train_ai_detector.py.
+_MASKED_CODES = (
+    list(TIER17_CODES)
+    + list(TIER18_CODES)
+    + list(MUSICAL_COMPARISON_CODES)
+    + list(COMPARISON_CODES)
+)
 _MASKED_IDX = np.array([ALL_FEATURE_CODES.index(c) for c in _MASKED_CODES], dtype=np.intp)
 
 # Only features a professor can be handed as an explanation appear as
@@ -164,6 +178,19 @@ def _load_artifact() -> None:
                 "the feature pipeline changed since training; retrain"
             )
             return
+        # Order is not meaningful here (unlike feature_codes, which is column
+        # order), so compare as sets — a harmless reordering must not fail closed.
+        artifact_masked = set(art.get("masked_codes") or ())
+        if artifact_masked != set(_MASKED_CODES):
+            missing = sorted(set(_MASKED_CODES) - artifact_masked)
+            extra = sorted(artifact_masked - set(_MASKED_CODES))
+            _fail(
+                f"artifact masked_codes disagree with this build "
+                f"(masked at predict time but not at training time: {missing}; "
+                f"masked at training time but not at predict time: {extra}) — "
+                f"retrain so both sides mask the same placeholder dims"
+            )
+            return
 
         ref_X = np.asarray(art["reference_vectors"], dtype=np.float64)
         ref_p = np.asarray(art["reference_probs"], dtype=np.float64)
@@ -250,7 +277,7 @@ def _indicators(vec: np.ndarray, art: dict) -> list[AiIndicator]:
 
 def predict_ai_likelihood(vec: np.ndarray) -> AiLikelihoodResult | None:
     """
-    Score one submission's 103-dim feature vector. Returns None whenever the
+    Score one submission's FEATURE_DIM-wide feature vector. Returns None whenever the
     detector cannot produce a trustworthy answer — callers treat None as
     "signal unavailable", never as an error.
     """

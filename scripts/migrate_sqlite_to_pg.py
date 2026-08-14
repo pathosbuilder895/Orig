@@ -71,6 +71,7 @@ from original.db.models.live import (
     Correction,
     FidelityScore,
     FormationPathway,
+    FusedScore,
     ParkBeat,
     ParkSession,
     StaffUser,
@@ -652,6 +653,69 @@ class _AiLikelihoodMigrator(_Migrator):
         ]
 
 
+class _FusedScoreMigrator(_Migrator):
+    name = "fused_scores"
+    model = FusedScore
+    pk = "submission_id"
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(
+            "SELECT submission_id, student_id, fused_log_odds, probability, band, "
+            "channels_json, model_version, created_at, baseline_samples, "
+            "reference_profiles FROM fused_scores"
+        ).fetchall()
+        return [
+            {
+                "submission_id": r[0],
+                "student_id": _scoped(r[1]),
+                "fused_log_odds": r[2],
+                "probability": r[3],
+                "band": r[4],
+                "channels_json": r[5],
+                "model_version": r[6],
+                "created_at": _canon_ts(r[7]),
+                "baseline_samples": r[8],
+                "reference_profiles": r[9],
+            }
+            for r in rows
+        ]
+
+    def to_model(self, row):
+        tenant_id, local_id = _split_local(row["student_id"])
+        return FusedScore(
+            submission_id=row["submission_id"],
+            tenant_id=tenant_id,
+            student_id=local_id,
+            fused_log_odds=row["fused_log_odds"],
+            probability=row["probability"],
+            band=row["band"],
+            channels_json=row["channels_json"],
+            model_version=row["model_version"],
+            created_at=_parse_ts(row["created_at"]),
+            baseline_samples=row["baseline_samples"],
+            reference_profiles=row["reference_profiles"],
+        )
+
+    def read_pg(self, session):
+        from original.db.tenancy_shim import join_scoped_id
+
+        return [
+            {
+                "submission_id": f.submission_id,
+                "student_id": join_scoped_id(f.tenant_id, f.student_id),
+                "fused_log_odds": f.fused_log_odds,
+                "probability": f.probability,
+                "band": f.band,
+                "channels_json": f.channels_json,
+                "model_version": f.model_version,
+                "created_at": _canon_ts(f.created_at),
+                "baseline_samples": f.baseline_samples,
+                "reference_profiles": f.reference_profiles,
+            }
+            for f in session.query(FusedScore).all()
+        ]
+
+
 class _BluebookExamMigrator(_Migrator):
     name = "bluebook_exams"
     model = BluebookExam
@@ -1193,6 +1257,7 @@ MIGRATORS: list[_Migrator] = [
     _TunedThresholdsMigrator(),
     _FidelityMigrator(),
     _AiLikelihoodMigrator(),
+    _FusedScoreMigrator(),
     _BluebookExamMigrator(),
     _BluebookSubmissionMigrator(),
     _BluebookCourseMigrator(),

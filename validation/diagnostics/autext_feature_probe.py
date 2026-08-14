@@ -9,7 +9,7 @@ Random Forest.
 
 That comparison conflates two different things:
 
-  1. Original's FEATURES — the 103-dim stylometric vector
+  1. Original's FEATURES — the FEATURE_DIM-dim stylometric vector
      (original/features/pipeline.py:feature_vector).
   2. Original's SCORING METHOD — a density-matrix identity-verification
      mechanism that has never seen a single labeled human-vs-AI example.
@@ -18,7 +18,7 @@ That comparison conflates two different things:
 
 This script separates them. In parallel, on the SAME train/test split:
 
-  A. Extract Original's 103 features for each row, train a
+  A. Extract Original's FEATURE_DIM features for each row, train a
      RandomForestClassifier (StyloAI's own classifier choice) directly
      on those features.
   B. Extract a classifier-agnostic, feature-set-agnostic stylometric
@@ -32,7 +32,7 @@ Interpretation:
     The production scoring method (per-student Born-rule density
     matrix, never trained on this task) is the bottleneck — an
     architecture question, not a feature-engineering one.
-  - If (A) is still far below 0.88 (and/or below (B)): the 103 feature
+  - If (A) is still far below 0.88 (and/or below (B)): the FEATURE_DIM feature
     tiers themselves lack short-text AI-detection signal relative to a
     generic character-n-gram baseline — a bigger lift (new features).
 
@@ -133,10 +133,10 @@ def run(*, n_train: int, n_test: int, seed: int = BENCHMARK_SEED, out_path: Path
 
     y_train, y_test = _y(train_rows), _y(test_rows)
 
-    # ── A. Original's 103 features ──
-    print("[probe] extracting Original's 103 features (train)…", file=sys.stderr)
+    # ── A. Original's FEATURE_DIM features ──
+    print(f"[probe] extracting Original's {FEATURE_DIM} features (train)…", file=sys.stderr)
     Xa_train = _extract_original_features(train_rows, "original-train")
-    print("[probe] extracting Original's 103 features (test)…", file=sys.stderr)
+    print(f"[probe] extracting Original's {FEATURE_DIM} features (test)…", file=sys.stderr)
     Xa_test = _extract_original_features(test_rows, "original-test")
 
     clf_a = RandomForestClassifier(n_estimators=200, random_state=seed, n_jobs=-1)
@@ -149,7 +149,7 @@ def run(*, n_train: int, n_test: int, seed: int = BENCHMARK_SEED, out_path: Path
         "accuracy": round(float(accuracy_score(y_test, pred_a)), 4),
         "brier": round(float(brier_score_loss(y_test, proba_a)), 4),
     }
-    print(f"[probe] (A) Original 103 features + RandomForest: {result_a}", file=sys.stderr)
+    print(f"[probe] (A) Original {FEATURE_DIM} features + RandomForest: {result_a}", file=sys.stderr)
 
     # ── B. TF-IDF character n-gram baseline (feature-set-agnostic) ──
     print("[probe] fitting TF-IDF char-ngram baseline…", file=sys.stderr)
@@ -169,7 +169,7 @@ def run(*, n_train: int, n_test: int, seed: int = BENCHMARK_SEED, out_path: Path
     }
     print(f"[probe] (B) TF-IDF char-ngram + RandomForest: {result_b}", file=sys.stderr)
 
-    # ── Feature importance from (A) — which of Original's 103 features
+    # ── Feature importance from (A) — which of Original's FEATURE_DIM features
     #    actually carry AI-detection signal, for follow-up. ──
     from original.constants import ALL_FEATURE_CODES
 
@@ -215,7 +215,7 @@ def run(*, n_train: int, n_test: int, seed: int = BENCHMARK_SEED, out_path: Path
     print(f"│  StyloAI (paper, full 33k train)     AUC=0.8800  acc=0.8100      │")
     print(f"│  Original production (PR #20)        AUC=0.6091  Brier=0.2771    │")
     print(
-        f"│  (A) Original 103 feat + RF (n={n_train:<5})  AUC={result_a['auc']:.4f}  acc={result_a['accuracy']:.4f}  │"
+        f"│  (A) Original {FEATURE_DIM} feat + RF (n={n_train:<5})  AUC={result_a['auc']:.4f}  acc={result_a['accuracy']:.4f}  │"
     )
     print(
         f"│  (B) TF-IDF char-ngram + RF (n={n_train:<5})  AUC={result_b['auc']:.4f}  acc={result_b['accuracy']:.4f}  │"

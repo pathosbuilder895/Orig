@@ -514,6 +514,10 @@ def run(
     max_bundles_per_source_variant: int = 40,
     workers: int = 4,
 ) -> dict:
+    # Local import: this module defers every ``original.*`` import so that
+    # main() can set AI_LIKELIHOOD_ENABLED before the pipeline is imported.
+    from original.constants import FEATURE_DIM
+
     cache_path = output.with_suffix(".features.npz")
     bundles, X = load_feature_matrix(
         data_path,
@@ -540,7 +544,7 @@ def run(
             "rows_per_bundle": rows_per_bundle,
             "max_bundles_per_source_variant": max_bundles_per_source_variant,
             "feature_count": int(X.shape[1]),
-            "features": "Original 103 features + frozen AI-likelihood probability",
+            "features": f"Original {FEATURE_DIM} features + frozen AI-likelihood probability",
             "split": "leave-one-dataset_source-out; paired variants share source fold",
             "warning": (
                 "PADBen records are sentences. Bundles stabilize document features but "

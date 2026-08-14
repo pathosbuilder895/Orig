@@ -158,13 +158,24 @@ their sensitivity (noted inline).
 
 | Method | Path | Purpose | Auth |
 |---|---|---|---|
+| GET | `/bluebook/launch?t={token}` | Redeem a magic-link launch token (minted offline by `scripts/roster_links.py`): mints a short student session + proctor attestation into localStorage and redirects to `/bluebook/`. 400 on an invalid/expired token. | Signed launch token in `t` |
 | POST | `/bluebook/exams` | Create an exam. | Principal (staff) — tenant derived from request |
 | GET | `/bluebook/exams` | List exams (tenant-scoped; `SUPER_ROLES` see all). | Principal (any), tenant-scoped |
 | GET | `/bluebook/exams/{exam_id}` | Get one exam; 403 on cross-tenant access. | Principal (any), tenant-scoped |
-| POST | `/bluebook/submissions` | Record one sat examination (the integrity reading for the Results view). | Principal (staff/student per Bluebook flow) |
+| POST | `/bluebook/exams/{exam_id}/session` | Begin or resume a sitting. Body: `student_id` or `candidate`. First call pins `deadline_at = started_at + exam.duration`; every later call returns the same row (reopening never restarts the clock). Returns `{exam_id, started_at, deadline_at, server_now, duration_seconds}`. | Principal (student/demo per Bluebook flow) |
+| POST | `/bluebook/submissions` | Record one sat examination (the integrity reading for the Results view). Idempotent on `submission_uuid`; seals > 5 min past `deadline_at` are tagged `late: true`. | Principal (staff/student per Bluebook flow) |
 | GET | `/bluebook/submissions` | List submissions (tenant-scoped). | Principal (any), tenant-scoped |
 | POST | `/bluebook/courses` | Create a course. | Principal (staff) |
 | GET | `/bluebook/courses` | List courses (tenant-scoped). | Principal (any), tenant-scoped |
+
+## Proctor phone-park (`original/routers/proctor.py`; client is `demo/bluebook/parked.html`)
+
+| Method | Path | Purpose | Auth |
+|---|---|---|---|
+| POST | `/proctor/park/open` | Open (or re-join) a phone-park for one exam sitting. Body: `{exam_session_id}`. Returns `{park_token, qr_url}`; re-opening a live session returns the SAME token. Sweeps rows past the 24h retention window. | Principal (staff), tenant-scoped |
+| POST | `/proctor/park/beat` | One heartbeat from a parked phone. Body: `{park_token, student_hint, state}` with `state` ∈ `parked` \| `foreground_lost` \| `resumed`. **Anonymous by design** — the handler takes no `Request`, so IP/UA are unreachable; the token is the sole capability. 404 for unknown *and* expired tokens alike. | Park token only |
+| GET | `/proctor/park/status?exam_session_id=…` | Live tiles: `{tiles: [{student_hint, state, last_seen_seconds_ago, transitions}]}`. `state` is derived — a phone silent > 30s reads `dropped` regardless of its last claim. | Principal (staff), own tenant only |
+| DELETE | `/proctor/park/{exam_session_id}` | Delete the park session and all its beats (ephemeral data only — deliberately not behind the ops guard; early deletion is data minimisation). | Principal (staff), own tenant only |
 
 ---
 

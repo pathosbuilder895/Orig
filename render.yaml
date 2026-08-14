@@ -129,6 +129,18 @@ services:
         value: "1"
       - key: ADAPTIVE_WEIGHTS_ENABLED
         value: "1"
+      # ── Bbook external exam app (original/bbook_client.py) ──
+      # Outbound client for POST /students/{id}/request-baseline. Both unset
+      # means that endpoint returns 503 with manual-upload guidance — the
+      # in-repo /bluebook/ exam room does NOT depend on these. NOTE: because
+      # this blueprint is already deployed and syncs ignore sync:false vars,
+      # adding these here does NOT prompt for values — both must be set by
+      # hand in the Render dashboard (docs/OPS_RUNBOOK.md). The secret must
+      # equal the value configured on the Bbook side; do not generateValue.
+      - key: BBOOK_API_URL
+        sync: false
+      - key: BBOOK_EXTERNAL_SECRET
+        sync: false
       # ── AI-likelihood detector (second scoring mode) ──
       # Pilot weeks 1-4: ENABLED stays "0" (nothing is ever surfaced to
       # professors); SHADOW is dashboard-managed (sync: false) so ops can

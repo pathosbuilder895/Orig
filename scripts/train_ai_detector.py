@@ -1,7 +1,7 @@
 """
 scripts/train_ai_detector.py — train + evaluate the AI-likelihood detector.
 
-The second scoring mode. PR #21's diagnostic proved Original's 103 features
+The second scoring mode. PR #21's diagnostic proved Original's then-103 features
 carry real human-vs-AI signal (AUC 0.7402 with a plain classifier at only
 n_train=1000, vs 0.6091 for the production per-student Born-rule path); the
 bottleneck was the scoring method, which had never seen a labeled example.
@@ -11,7 +11,7 @@ that `original/ai_likelihood.py` loads at runtime.
 
 Subcommands (run in this order):
 
-    extract        Extract 103-dim feature matrices from the cached
+    extract        Extract FEATURE_DIM-wide feature matrices from the cached
                    AuTexTification TSVs into .npz caches (parallel; the
                    expensive step — ~8 min per split at 8 workers).
     train          Train the calibrated classifier on the full official
@@ -175,7 +175,9 @@ def _features_npz_path(split: str) -> Path:
 
 
 def _load_cached_features(split: str) -> dict:
-    """Load an .npz cache, refusing to run if the source TSV changed."""
+    """Load an .npz cache, refusing to run if the source TSV or pipeline changed."""
+    from original.constants import FEATURE_DIM
+
     npz_path = _features_npz_path(split)
     sidecar = npz_path.with_suffix(".json")
     if not npz_path.exists() or not sidecar.exists():
@@ -190,6 +192,15 @@ def _load_cached_features(split: str) -> dict:
         raise RuntimeError(
             f"Stale feature cache: {tsv.name} sha256 {current[:12]}… does not match "
             f"sidecar {meta['source_sha256'][:12]}…. Re-run extract --split {split}."
+        )
+    # The source hash alone is not enough: the TSVs never change, but the
+    # feature pipeline does. A cache extracted at an older FEATURE_DIM would
+    # silently train an artifact the production loader then rejects (exactly
+    # how the 103-dim v1 artifact went inert when Tier 18 landed).
+    if meta.get("feature_dim") != FEATURE_DIM:
+        raise RuntimeError(
+            f"Stale feature cache: extracted at feature_dim={meta.get('feature_dim')}, "
+            f"pipeline is now {FEATURE_DIM}. Re-run extract --split {split}."
         )
     data = np.load(npz_path, allow_pickle=False)
     return {
@@ -286,9 +297,16 @@ def _load_m4_features() -> dict:
         raise FileNotFoundError(
             "No M4 feature cache. Run: " ".venv/bin/python scripts/train_ai_detector.py extract-m4"
         )
+    from original.constants import FEATURE_DIM
+
     meta = json.loads(sidecar.read_text())
     if meta["source_sha256"] != _m4_source_sha():
         raise RuntimeError("Stale M4 feature cache — re-run extract-m4.")
+    if meta.get("feature_dim") != FEATURE_DIM:
+        raise RuntimeError(
+            f"Stale M4 feature cache: extracted at feature_dim={meta.get('feature_dim')}, "
+            f"pipeline is now {FEATURE_DIM}. Re-run extract-m4."
+        )
     data = np.load(npz_path, allow_pickle=False)
     return {
         "X": data["X"],
@@ -365,11 +383,19 @@ def _load_artifact(model_path: Path) -> dict:
 
     art = joblib.load(model_path)
     from original.constants import ALL_FEATURE_CODES
+    from original.ai_likelihood import _MASKED_CODES
 
     if art["feature_codes"] != list(ALL_FEATURE_CODES):
         raise RuntimeError(
             "Artifact feature_codes do not match ALL_FEATURE_CODES — "
             "retrain against this checkout."
+        )
+    # Mirror the runtime loader: never publish eval numbers for an artifact
+    # ai_likelihood.py would refuse to load.
+    if set(art.get("masked_codes") or ()) != set(_MASKED_CODES):
+        raise RuntimeError(
+            "Artifact masked_codes disagree with original/ai_likelihood.py — "
+            "the runtime would reject this artifact; retrain against this checkout."
         )
     return art
 
@@ -486,12 +512,11 @@ def cmd_train(args: argparse.Namespace) -> int:
     from sklearn.metrics import roc_auc_score, brier_score_loss
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
-    from original.constants import (
-        ALL_FEATURE_CODES,
-        TIER17_CODES,
-        MUSICAL_COMPARISON_CODES,
-        COMPARISON_CODES,
-    )
+    from original.constants import ALL_FEATURE_CODES
+
+    # Single source of truth for the placeholder dims — the runtime module owns
+    # it, and its loader rejects any artifact whose masked_codes disagree.
+    from original.ai_likelihood import _MASKED_CODES
 
     cache = _load_cached_features("train")
     X, y = cache["X"].astype(np.float64), cache["y"].astype(np.int8)
@@ -517,6 +542,29 @@ def cmd_train(args: argparse.Namespace) -> int:
         )
 
     print(f"[train] n={len(y)} human={(y==0).sum()} ai={(y==1).sum()}")
+
+    # The artifact will DECLARE these dims as placeholders, and ai_likelihood.py
+    # forces them to 0.5 at predict time. If extraction actually produced live
+    # values for one, the shipped model would have learned from a signal the
+    # runtime then erases — silent probability skew with nothing to trip the
+    # loader. Verify the declaration is true of the data we are about to fit.
+    masked_idx = [ALL_FEATURE_CODES.index(c) for c in _MASKED_CODES]
+    live = [
+        (c, float(X[:, i].min()), float(X[:, i].max()))
+        for c, i in zip(_MASKED_CODES, masked_idx)
+        if not np.allclose(X[:, i], 0.5)
+    ]
+    if live:
+        detail = ", ".join(f"{c} (range {lo:.4f}–{hi:.4f})" for c, lo, hi in live)
+        print(
+            f"[train] FAIL: dims declared as masked are not constant 0.5 in the "
+            f"training matrix: {detail}. Either re-extract with those feature "
+            f"groups disabled, or drop them from _MASKED_CODES in "
+            f"original/ai_likelihood.py and retrain deliberately.",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"[train] verified {len(_MASKED_CODES)} masked dims are constant 0.5 in training data")
 
     def _hgb():
         return CalibratedClassifierCV(
@@ -599,9 +647,7 @@ def cmd_train(args: argparse.Namespace) -> int:
         "model": model,
         "model_name": primary,
         "feature_codes": list(ALL_FEATURE_CODES),
-        "masked_codes": list(TIER17_CODES)
-        + list(MUSICAL_COMPARISON_CODES)
-        + list(COMPARISON_CODES),
+        "masked_codes": list(_MASKED_CODES),
         "thresholds": thresholds,
         # std floored at 0.02 (normalized [0,1] features) so near-constant
         # features can't produce absurd indicator z-scores downstream.
@@ -901,13 +947,21 @@ def cmd_eval_seminary(args: argparse.Namespace) -> int:
 
     # Feature cache keyed on the manifest hash — the corpus is git-versioned,
     # so a manifest change is the signal that extraction must re-run.
+    from original.constants import FEATURE_DIM
+
     cache_path = _ROOT / ".benchmark_cache" / "seminary_features_v1.npz"
     sidecar_path = cache_path.with_suffix(".json")
     manifest_sha = _sha256(SEMINARY_MANIFEST)
     X = None
     if cache_path.exists() and sidecar_path.exists():
         meta = json.loads(sidecar_path.read_text())
-        if meta.get("manifest_sha256") == manifest_sha and meta.get("n") == len(texts):
+        # feature_dim guards against caches extracted by an older pipeline;
+        # sidecars written before the key existed count as stale.
+        if (
+            meta.get("manifest_sha256") == manifest_sha
+            and meta.get("n") == len(texts)
+            and meta.get("feature_dim") == FEATURE_DIM
+        ):
             cached = np.load(cache_path, allow_pickle=False)
             if cached["group"].astype(str).tolist() == group_of:
                 X = cached["X"]
@@ -921,6 +975,7 @@ def cmd_eval_seminary(args: argparse.Namespace) -> int:
                 {
                     "manifest_sha256": manifest_sha,
                     "n": len(texts),
+                    "feature_dim": FEATURE_DIM,
                     "extracted_at": datetime.now(timezone.utc).isoformat(),
                 },
                 indent=2,

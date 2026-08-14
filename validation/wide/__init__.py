@@ -7,7 +7,7 @@ public dataset into the corpus + ``ValidationManifest`` shape that
 orchestrator in ``run.py`` builds the corpus, runs calibration, and
 writes the report family from ``validation/benchmark/``.
 
-The math (Born-rule scoring, 103-feature pipeline, density matrix) is
+The math (Born-rule scoring, FEATURE_DIM-feature pipeline, density matrix) is
 unchanged — these adapters only provide a richer + more public corpus
 to test it against.
 """

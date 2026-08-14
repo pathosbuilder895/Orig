@@ -54,7 +54,7 @@ pluggy==1.6.0
     # via
     #   pytest
     #   pytest-cov
-pre-commit==4.6.0
+pre-commit==4.6.1
     # via -r requirements-dev.txt
 pygments==2.20.0
     # via pytest
@@ -65,13 +65,13 @@ pytest==8.4.2
     #   -r requirements-dev.txt
     #   pytest-asyncio
     #   pytest-cov
-pytest-asyncio==0.24.0
+pytest-asyncio==1.4.0
     # via -r requirements-dev.txt
 pytest-cov==7.1.0
     # via -r requirements-dev.txt
 python-dateutil==2.9.0.post0
     # via matplotlib
-python-discovery==1.4.3
+python-discovery==1.5.1
     # via virtualenv
 pyyaml==6.0.3
     # via pre-commit

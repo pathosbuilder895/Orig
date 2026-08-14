@@ -13,14 +13,14 @@
 # pytest-asyncio (all versions through 1.2.0) caps at pytest<9. Pin to
 # >=8.2,<9 to stay compatible.
 pytest>=8.2,<9
-pytest-asyncio==0.24.0
+pytest-asyncio==1.4.0
 pytest-cov==7.1.0
 hypothesis==6.156.6
 
 # Lint/format/type-check + git hook runner.
 ruff==0.6.9
 mypy==2.3.0
-pre-commit>=4.6.0,<5
+pre-commit>=4.6.1,<5
 
 # Plotting (ROC + calibration SVGs in the benchmark report).
 matplotlib>=3.7,<4

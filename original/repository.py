@@ -112,6 +112,23 @@ class Repository(Protocol):
         student_id: str | None = None,
         limit: int = 500,
     ) -> list[dict]: ...
+    def put_fused_score(
+        self,
+        submission_id: str,
+        student_id: str,
+        fused_log_odds: float,
+        probability: float,
+        band: str,
+        channels: dict[str, float],
+        model_version: str = "",
+        baseline_samples: int | None = None,
+        reference_profiles: int | None = None,
+    ) -> None: ...
+    def get_fused_scores(
+        self,
+        student_id: str | None = None,
+        limit: int = 500,
+    ) -> list[dict]: ...
     def get_genre_stats(
         self, genre: str, tenant: str | None, exclude_student_id: str | None
     ) -> dict | None: ...
@@ -423,6 +440,37 @@ class SqliteRepository:
         limit: int = 500,
     ) -> list[dict]:
         return store.get_ai_likelihood_scores(student_id=student_id, limit=limit)
+
+    def put_fused_score(
+        self,
+        submission_id: str,
+        student_id: str,
+        fused_log_odds: float,
+        probability: float,
+        band: str,
+        channels: dict[str, float],
+        model_version: str = "",
+        baseline_samples: int | None = None,
+        reference_profiles: int | None = None,
+    ) -> None:
+        store.put_fused_score(
+            submission_id,
+            student_id,
+            fused_log_odds,
+            probability,
+            band,
+            channels,
+            model_version=model_version,
+            baseline_samples=baseline_samples,
+            reference_profiles=reference_profiles,
+        )
+
+    def get_fused_scores(
+        self,
+        student_id: str | None = None,
+        limit: int = 500,
+    ) -> list[dict]:
+        return store.get_fused_scores(student_id, limit=limit)
 
     def get_genre_stats(
         self, genre: str, tenant: str | None, exclude_student_id: str | None
@@ -739,6 +787,7 @@ _WRITE_METHODS = frozenset(
         "put_fidelity_score",
         "update_fidelity_authenticity",
         "put_ai_likelihood_score",
+        "put_fused_score",
         "put_correction",
         "start_calibration_run",
         "complete_calibration_run",

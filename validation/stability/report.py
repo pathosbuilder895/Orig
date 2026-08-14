@@ -7,7 +7,7 @@ stability output doesn't pollute the benchmarks tree.
 
 Emits four files:
 
-  report.json              — full 103×L Fisher matrix + corpus state + env lock
+  report.json              — full FEATURE_DIM×L Fisher matrix + corpus state + env lock
   report.md                — readable summary (top-30, bottom-20, per-tier)
   length_stability.csv     — one row per feature
   per_tier_summary.csv     — one row per tier (excluding 0 = comparison

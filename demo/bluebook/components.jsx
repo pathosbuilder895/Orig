@@ -39,6 +39,13 @@ export const PARCHMENT_SHADES = {
   cool:  '#EEF2EC',
 };
 
+// The demo's stock candidate label. Shared because Exam.jsx's
+// bbCandidateLabel() recognises it as "nothing real is bound here" — if
+// Dashboard.jsx were to carry its own copy and the two drifted, a bound
+// student who stepped back through the Examinations list would be handed a
+// literal bbCandidateLabel() reads as somebody's actual name.
+export const STOCK_CANDIDATE = 'Candidate No. 00042';
+
 // ─── Logotype ────────────────────────────────────────────────────────────────
 export function Logotype({ size = 22, onClick, light = false }) {
   const Tag = onClick ? 'button' : 'span';

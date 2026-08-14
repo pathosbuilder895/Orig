@@ -4,7 +4,7 @@ annotated-doc==0.0.4
     # via
     #   fastapi
     #   typer
-annotated-types==0.7.0
+annotated-types==0.8.0
     # via pydantic
 anyio==4.14.1
     # via
@@ -45,7 +45,7 @@ cymem==2.0.13
     #   thinc
 ecdsa==0.19.2
     # via python-jose
-fastapi==0.139.0
+fastapi==0.141.1
     # via -r requirements-demo.txt
 h11==0.16.0
     # via
@@ -147,7 +147,7 @@ six==1.17.0
     # via
     #   ecdsa
     #   langdetect
-smart-open==8.0.0
+smart-open==8.0.1
     # via weasel
 spacy==3.8.14
     # via -r requirements-demo.txt
@@ -187,7 +187,7 @@ typing-inspection==0.4.2
     # via fastapi
 urllib3==2.7.0
     # via requests
-uvicorn==0.34.3
+uvicorn==0.52.1
     # via -r requirements-demo.txt
 uvloop==0.22.1
     # via uvicorn
@@ -200,7 +200,7 @@ watchfiles==1.2.0
     # via uvicorn
 weasel==1.0.0
     # via spacy
-websockets==16.0
+websockets==16.1.1
     # via uvicorn
-wrapt==2.2.2
+wrapt==2.3.0
     # via smart-open

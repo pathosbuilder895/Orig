@@ -234,3 +234,110 @@ def test_json_output(ready_db, tmp_path):
     data = json.loads(out_json.read_text())
     assert data["verdict"] == "READY"
     assert data["totals"]["distinct_students"] == 5
+
+
+# ── Postgres path ──────────────────────────────────────────────────────────────
+# No live server in the suite (conftest pins DATABASE_URL to sqlite:///:memory:),
+# so these exercise the real routing, parsing, and fetcher code against stubs.
+# The fetcher's SQL runs against a duck-typed cursor; only the network is faked.
+
+
+class _FakeCursor:
+    def __init__(self, regclass, rows):
+        self._regclass = regclass
+        self._rows = rows
+        self._last_sql = ""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def execute(self, sql):
+        self._last_sql = sql
+
+    def fetchone(self):
+        return (self._regclass,)
+
+    def fetchall(self):
+        return self._rows
+
+
+class _FakeConn:
+    def __init__(self, regclass="student_profiles", rows=()):
+        self.cursor_obj = _FakeCursor(regclass, list(rows))
+        self.closed = False
+
+    def cursor(self):
+        return self.cursor_obj
+
+    def close(self):
+        self.closed = True
+
+
+def test_postgres_url_detection():
+    assert tier17_report._is_postgres_url("postgres://u:p@host/db")
+    assert tier17_report._is_postgres_url("postgresql://u:p@host/db")
+    assert not tier17_report._is_postgres_url("profiles.db")
+    assert not tier17_report._is_postgres_url("/data/profiles.db")
+
+
+def test_profile_row_parser_accepts_jsonb_dicts():
+    """Postgres JSONB rows arrive already parsed — same filtering as SQLite."""
+    rows = [
+        (
+            "tenant_a:stud_1",
+            {
+                "samples": [
+                    _sample("proctored", _composer_keystroke_data()),
+                    _sample("verified", _composer_keystroke_data()),
+                    _sample("proctored", keystroke_data=None),
+                ]
+            },
+        ),
+        ("tenant_a:stud_2", {"samples": [_sample("proctored", _transcriber_keystroke_data())]}),
+    ]
+    samples = tier17_report._samples_from_profile_rows(rows)
+    assert [s["student_id"] for s in samples] == ["tenant_a:stud_1", "tenant_a:stud_2"]
+
+
+def test_pg_fetcher_namespaces_students_by_tenant():
+    """Same local student id at two tenants must count as two students."""
+    doc = {"samples": [_sample("proctored", _composer_keystroke_data())]}
+    conn = _FakeConn(rows=[("tenant_a", "stud_1", doc), ("tenant_b", "stud_1", doc)])
+    samples = tier17_report._fetch_keystroke_samples_pg(conn)
+    report = tier17_report.build_report(samples)
+    assert report["totals"]["distinct_students"] == 2
+    assert set(report["per_student"]) == {"tenant_a:stud_1", "tenant_b:stud_1"}
+
+
+def test_pg_fetcher_missing_table_returns_empty():
+    conn = _FakeConn(regclass=None, rows=[("t", "s", {"samples": []})])
+    assert tier17_report._fetch_keystroke_samples_pg(conn) == []
+
+
+def test_postgres_url_routes_to_pg_fetcher(monkeypatch, capsys):
+    """main() with a postgresql:// --db must not touch the SQLite path (no
+    file-exists check) and must close the connection."""
+    conn = _FakeConn()
+    canned = [
+        {"student_id": f"t:stud_{i}", "keystroke_data": _composer_keystroke_data()}
+        for i in range(3)
+    ]
+    monkeypatch.setattr(tier17_report, "_connect_pg", lambda url: conn)
+    monkeypatch.setattr(tier17_report, "_fetch_keystroke_samples_pg", lambda c: canned)
+    assert tier17_report.main(["--db", "postgresql://example.invalid/pilot"]) == 0
+    out = capsys.readouterr().out
+    assert "proctored samples with keystroke data: **3**" in out
+    assert "Verdict: **NOT READY**" in out
+    assert conn.closed
+
+
+def test_postgres_driver_missing_is_a_clean_error(monkeypatch, capsys):
+    def _raise(url):
+        raise RuntimeError("psycopg2 is not installed — the Postgres path needs the pilot install")
+
+    monkeypatch.setattr(tier17_report, "_connect_pg", _raise)
+    assert tier17_report.main(["--db", "postgresql://example.invalid/pilot"]) == 1
+    assert "psycopg2 is not installed" in capsys.readouterr().err

@@ -102,6 +102,22 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # real submission length, not a fixed default.
     _n_tokens = len(req.text.split())
 
+    # ── Shared all_states() lookup (I3, 2026-08 fix pass) ─────────────────────
+    # store.all_states() does a full-table select and JSON-deserializes every
+    # student, including all sample texts. Three signals below each want the
+    # full cohort (impostor pool, style-authorship, fused score); calling
+    # _repo().all_states() separately at each site tripled that cost on every
+    # submission. Computed at most once, lazily — most scoring calls have at
+    # least one of the three consumers off, and a request with all three off
+    # should not pay for the query at all.
+    _all_states_cache: list | None = None
+
+    def _all_states() -> list:
+        nonlocal _all_states_cache
+        if _all_states_cache is None:
+            _all_states_cache = _repo().all_states()
+        return _all_states_cache
+
     # ── Explicit null model (rank-and-null work, production wiring) ───────────
     # NULL_MODEL=impostor: pool authenticated baseline vectors from the
     # claimed student's same-tenant peers into a diagonal-Gaussian impostor
@@ -114,15 +130,33 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # see ScoringConfig.llr_action_mode's docstring in quantum/scoring.py.
     _scoring_config_env = ScoringConfig.from_env()
 
+    # CHARACTERISTIC_WEIGHTS also needs the peer pool — its factor is
+    # sigma_null / baseline_std — and abstains to identity without one. Build
+    # it for that flag too, or the mechanism would be silently inert on any
+    # deployment that hasn't also set NULL_MODEL=impostor (demo mode does;
+    # a bare production deploy does not). Handing impostor_stats to score()
+    # cannot by itself change anything else: _llr_deviation stays gated on
+    # null_model == "impostor" independently.
     _impostor_stats = None
-    if _scoring_config_env.null_model == "impostor":
+    if (
+        _scoring_config_env.null_model == "impostor"
+        or _scoring_config_env.characteristic_weights != "off"
+    ):
         try:
             from ..quantum.null_pool import build_impostor_stats
 
-            _impostor_stats = build_impostor_stats(student_id, _repo().all_states())
+            _impostor_stats = build_impostor_stats(student_id, _all_states())
         except Exception:
             logging.getLogger(__name__).exception(
-                "impostor pool build failed for %s — llr score skipped", student_id
+                # Two consumers now depend on this pool, and which ones are
+                # live depends on the flags — naming only the llr route here
+                # is actively misleading during the one incident where
+                # anyone reads this line.
+                "impostor pool build failed for %s — dependent signals skipped "
+                "(null_model=%s characteristic_weights=%s)",
+                student_id,
+                _scoring_config_env.null_model,
+                _scoring_config_env.characteristic_weights,
             )
 
     # ── ScoringConfig persistence lookups (WS-7 step 1) ───────────────────────
@@ -230,6 +264,28 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             result.deviation_score_inflated,
         )
 
+    # ── Characteristic per-student weighting audit line ───────────────────────
+    # One INFO line per scoring call whenever CHARACTERISTIC_WEIGHTS is not
+    # "off". dispersion=None means the mechanism ABSTAINED (no peer pool, or
+    # a baseline under 2 contributing samples) and a dispersion at or near 0
+    # means it fired with a trivial factor — either way the flag is inert on
+    # this submission, which is exactly what a shadow soak has to be able to
+    # count. GENRE_INVARIANT_WEIGHTS_ENABLED is the cautionary precedent: a
+    # fully built, fully tested weighting mechanism that turned out to fire
+    # in 1 of 6 folds, and that once was classifier noise. Same privacy rule
+    # as the bayesian_prior / topic_inflation lines above: no student id,
+    # aggregate numbers only.
+    if _scoring_config_env.characteristic_weights != "off":
+        logging.getLogger(__name__).info(
+            "characteristic_weights mode=%s outcome=%s dispersion=%s deviation=%.4f "
+            "deviation_preview=%s",
+            _scoring_config_env.characteristic_weights,
+            "abstain" if result.characteristic_mode is None else "applied",
+            result.characteristic_factor_dispersion,
+            result.authorship.deviation_score,
+            result.characteristic_deviation_preview,
+        )
+
     # Default-off, report-only longitudinal signal. The probe is never added
     # to the fitted history and this cannot change the primary score/action.
     from ..quantum.longitudinal import (
@@ -308,13 +364,71 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             result.style_authorship = predict_style_authorship(
                 req.text,
                 state,
-                _repo().all_states(),
+                _all_states(),
             )
         except Exception:
             logging.getLogger(__name__).exception(
                 "style-authorship inference failed for %s — signal skipped",
                 submission_id,
             )
+
+    # ── Fused stylometric score (report-only, two modes) ──────────────────────
+    #   FUSED_SCORE_SHADOW=1  → compute + persist ONLY; result.fused_score stays
+    #     None, so narrative/explainer/response never see it. This is how the
+    #     pilot false-alarm rate gets measured before the score is trusted.
+    #   FUSED_SCORE_ENABLED=1 → attach AND persist (strict superset).
+    # Never touches deviation_score, quantum_fidelity, or the recommendation;
+    # tests/fusion/test_wiring.py holds that invariant.
+    _fused_enabled = os.environ.get("FUSED_SCORE_ENABLED") == "1"
+    _fused_shadow = os.environ.get("FUSED_SCORE_SHADOW") == "1"
+    if _fused_enabled or _fused_shadow:
+        _fused = None
+        _fused_reason = "router_exception"
+        _fused_n_peers = 0
+        _fused_n_baselines = 0
+        try:
+            from ..fusion import predict_fused_score_with_reason
+
+            # `vec` is the probe's already-extracted feature vector; passing it
+            # keeps this signal from re-running the most expensive step in scoring.
+            _fused, _fused_reason, _fused_n_peers, _fused_n_baselines = (
+                predict_fused_score_with_reason(req.text, state, _all_states(), probe_vector=vec)
+            )
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "fused score inference failed for %s — signal skipped", submission_id
+            )
+            _fused = None
+        # I2, 2026-08 fix pass: one INFO line per scoring call so an operator
+        # running shadow mode can count hit vs abstain and see the dominant
+        # abstain reason, instead of every abstain landing at DEBUG and the
+        # success path logging nothing at all. No student ids.
+        logging.getLogger(__name__).info(
+            "fused_score outcome=%s reason=%s n_peers=%d n_baselines=%d",
+            "hit" if _fused is not None else "abstain",
+            _fused_reason,
+            _fused_n_peers,
+            _fused_n_baselines,
+        )
+        if _fused is not None:
+            if _fused_enabled:
+                result.fused_score = _fused
+            try:
+                _repo().put_fused_score(
+                    submission_id=submission_id,
+                    student_id=student_id,
+                    fused_log_odds=_fused.fused_log_odds,
+                    probability=_fused.probability_different_author,
+                    band=_fused.band,
+                    channels=_fused.all_channels,
+                    model_version=_fused.model_version,
+                    baseline_samples=_fused.baseline_samples,
+                    reference_profiles=_fused.reference_profiles,
+                )
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    "fused score persistence failed for %s", submission_id
+                )
 
     # ── Persist quantum fidelity for conformal calibration ───────────────────
     # Stores every scored fidelity so get_authentic_fidelities() can build
@@ -460,9 +574,18 @@ def score_blend(student_id: str, req: BlendDetectionRequest):
         blend_index=result.blend_index,
         shift_positions=list(result.shift_positions),
         per_section=[
-            WindowScoreOut(start=w.start, end=w.end, score=w.score, confidence=w.confidence)
+            WindowScoreOut(
+                start=w.start,
+                end=w.end,
+                score=w.score,
+                confidence=w.confidence,
+                # Report-only shadow field; None unless AI_LIKELIHOOD_SHADOW=1.
+                ai_probability=w.ai_probability,
+            )
             for w in result.per_section
         ],
         n_tokens=result.n_tokens,
         fallback_reason=result.fallback_reason,
+        ai_window_max=result.ai_window_max,
+        ai_window_mean=result.ai_window_mean,
     )

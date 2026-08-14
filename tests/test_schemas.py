@@ -214,10 +214,16 @@ def _make_layer7_output(
     topic_distance: float | None = None,
     topic_mean_inflation: float | None = None,
     deviation_score_inflated: float | None = None,
+    characteristic_weighting_applied: bool = False,
+    characteristic_mode: str | None = None,
+    characteristic_factor_dispersion: float | None = None,
+    characteristic_rms_z_preview: float | None = None,
+    characteristic_deviation_preview: float | None = None,
 ) -> Layer7Output:
     """
-    Factory for Layer7Output with customizable typicality and topic-inflation
-    fields. All other fields use minimal (default) values.
+    Factory for Layer7Output with customizable typicality, topic-inflation
+    and characteristic-weighting fields. All other fields use minimal
+    (default) values.
     """
     return Layer7Output(
         student_id="student-test",
@@ -255,6 +261,11 @@ def _make_layer7_output(
         topic_distance=topic_distance,
         topic_mean_inflation=topic_mean_inflation,
         deviation_score_inflated=deviation_score_inflated,
+        characteristic_weighting_applied=characteristic_weighting_applied,
+        characteristic_mode=characteristic_mode,
+        characteristic_factor_dispersion=characteristic_factor_dispersion,
+        characteristic_rms_z_preview=characteristic_rms_z_preview,
+        characteristic_deviation_preview=characteristic_deviation_preview,
     )
 
 
@@ -288,8 +299,7 @@ def test_layer7_output_round_trip_full_no_dropped_fields():
     assert response.authorship.deviation_score == result.authorship.deviation_score
     assert response.authorship.quantum_fidelity == result.authorship.quantum_fidelity
     assert (
-        response.authorship.fidelity_conformal_pvalue
-        == result.authorship.fidelity_conformal_pvalue
+        response.authorship.fidelity_conformal_pvalue == result.authorship.fidelity_conformal_pvalue
     )
     assert response.authorship.llr_deviation_score == result.authorship.llr_deviation_score
 
@@ -360,6 +370,44 @@ def test_typicality_fields_round_trip_when_present():
     assert response.typicality_p_central == 0.58
     assert response.typicality_band == "no_action"
     assert response.typicality_n == 7
+
+
+def test_characteristic_weighting_fields_round_trip_through_to_response():
+    """All five CHARACTERISTIC_WEIGHTS audit fields copy through
+    _to_response() when populated, and keep their dataclass defaults when
+    absent.
+
+    _to_response is a HAND-ROLLED converter: nothing derives its field list
+    from Layer7Output, so the five getattr() copies can be deleted without
+    any other test noticing. (Mutation-tested: deleting them left 86 tests
+    green.) test_layer7_output_dataclass_fields_all_have_response_counterparts
+    only proves the Pydantic model HAS the fields, not that the converter
+    fills them. Without this test a refactor can silently remove the entire
+    shadow surface from the API response while CI stays green -- and the
+    shadow soak CLAUDE.md prescribes would then collect nothing at all.
+    Same contract, and same reason, as
+    test_typicality_fields_round_trip_when_present above.
+    """
+    result = _make_layer7_output(
+        characteristic_weighting_applied=True,
+        characteristic_mode="shadow",
+        characteristic_factor_dispersion=0.163,
+        characteristic_rms_z_preview=1.21,
+        characteristic_deviation_preview=0.64,
+    )
+    response = _to_response(result)
+    assert response.characteristic_weighting_applied is True
+    assert response.characteristic_mode == "shadow"
+    assert response.characteristic_factor_dispersion == 0.163
+    assert response.characteristic_rms_z_preview == 1.21
+    assert response.characteristic_deviation_preview == 0.64
+
+    absent = _to_response(_make_layer7_output())
+    assert absent.characteristic_weighting_applied is False
+    assert absent.characteristic_mode is None
+    assert absent.characteristic_factor_dispersion is None
+    assert absent.characteristic_rms_z_preview is None
+    assert absent.characteristic_deviation_preview is None
 
 
 def test_trend_aware_typicality_round_trips_through_to_response():
