@@ -43,7 +43,30 @@ jobs:
   pytest:
     runs-on: ubuntu-latest
     needs: lint
-    timeout-minutes: 20
+    # Raised 20 -> 40 when the genre-resolver branch merged (2026-08-14).
+    # Not a slow-test regression — two branches each grew the suite from the
+    # same ~9m base in parallel and neither was over the cap alone: main was
+    # at 17m57s (fused score, POSNoise, tier-17 rehearsal, seminary corpus),
+    # the merging branch at 18m17s (gates G7/G8, genre corpus). Merged, the
+    # additive estimate is ~27m, so the cap would have been hit by the merge
+    # itself rather than by any one commit.
+    #
+    # 45 is a hang-catcher, not a target, and is deliberately well above the
+    # ~27m estimate: the two independent ways of predicting the merged cost
+    # disagree (additive-on-CI says ~27m; scaling the 13m13s local merged run
+    # by this branch's own 3.3x local->CI ratio says ~44m), and the cost of
+    # guessing low is a red main plus a wasted 45-minute cycle.
+    #
+    # A single job serially running the whole suite is at the end of its
+    # useful life; the next person to add a multi-minute test should split
+    # this into a matrix (or pytest-xdist) rather than raise the number
+    # again. Heaviest tests as of this merge, measured locally: the six
+    # tests/fusion/test_wiring.py cases at ~72-82s EACH (~8m of one job),
+    # then test_dirichlet_multinomial_drift ~32s,
+    # test_calibration_scoring_config ~31s, test_feature_pipeline_determinism
+    # ~23s + ~17s. The fusion six are the obvious first target — they came
+    # from main, not from this branch.
+    timeout-minutes: 45
     # WS-6 P3: gives the contract suite's "postgres" backend parametrization
     # (tests/test_repository_contract.py) something real to run against —
     # it self-skips cleanly without this, so its absence was silent rather
