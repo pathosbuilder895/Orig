@@ -75,7 +75,7 @@ python-discovery==1.5.1
     # via virtualenv
 pyyaml==6.0.3
     # via pre-commit
-ruff==0.6.9
+ruff==0.16.2
     # via -r requirements-dev.txt
 scikit-learn==1.6.1
     # via -r requirements-dev.txt
