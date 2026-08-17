@@ -232,13 +232,91 @@ jobs:
           # mint is intentionally never exposed over HTTP) and must sign it
           # with the same secret the server above was started with.
           SECRET_KEY: ci-test-only-secret-do-not-deploy
-        # @serial-lockout is excluded: it deliberately trips the login
-        # throttle, which would otherwise 429 every other spec's staff
-        # login in this same run (see e2e/auth.spec.mjs) — and the raised
-        # LOGIN_THROTTLE_MAX_ATTEMPTS above means it can't even trigger the
-        # 429 it's testing for within a reasonable attempt count anyway.
-        # Runs standalone, e.g.: npx playwright test --workers=1 -g "throttle lockout"
+        # @serial-lockout is excluded here for two independent reasons: it
+        # deliberately trips the login throttle, which would otherwise 429
+        # every other spec's staff login in this same run (see
+        # e2e/auth.spec.mjs), and the raised LOGIN_THROTTLE_MAX_ATTEMPTS
+        # above means it could not trigger the 429 it asserts on anyway.
+        # It is NOT skipped in CI — the three steps below run it against a
+        # second, default-throttle server. Keep this exclusion.
         run: cd demo/bluebook && npx playwright test --grep-invert "@serial-lockout"
+
+      # ---------------------------------------------------------------
+      # Login-throttle lockout: the one spec that needs the PRODUCTION
+      # throttle limit, run against its own server.
+      #
+      # WHY A SECOND SERVER RATHER THAN FOLDING THIS BACK INTO THE FIRST:
+      # e2e/auth.spec.mjs's "@serial-lockout" spec drives exactly 11 bad
+      # logins and asserts the server answers "Too many sign-in attempts."
+      # That assertion is only reachable at the production default of 10
+      # (LOGIN_THROTTLE_MAX_ATTEMPTS, original/routers/_shared.py:228). The
+      # first server above raises the limit to 500 because the rest of the
+      # suite legitimately needs hundreds of real logins — under 500 the
+      # 429 can never fire and the spec passes vacuously. The two limits
+      # are mutually exclusive inside one process: the value is read once
+      # at import and the attempt counter is a process-global, IP-keyed
+      # dict. So without this second server a security-relevant control
+      # has a test that CANNOT FAIL. Do not "simplify" these steps away.
+      # ---------------------------------------------------------------
+      - name: Stop the raised-throttle server
+        # It must be fully down before the lockout server binds :8001.
+        # Otherwise the health poll in the next step would pass against the
+        # OLD (raised-throttle) server while the new one silently failed to
+        # bind — and the spec would go right back to being vacuous, with a
+        # green check on it. Poll /health until it STOPS answering.
+        run: |
+          kill "$(cat /tmp/original.pid)" 2>/dev/null || true
+          for i in $(seq 1 30); do
+            if ! curl -sf http://localhost:8001/health > /dev/null; then
+              echo "Raised-throttle server down after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Something is still answering on :8001 after 30s -- refusing to start the lockout server on top of it."
+          exit 1
+
+      - name: Start Original demo server at the DEFAULT login throttle
+        # Identical env to the first server EXCEPT that
+        # LOGIN_THROTTLE_MAX_ATTEMPTS is deliberately absent, so the
+        # production default of 10 applies. Distinct pid/log files so the
+        # cleanup step can reap both independently.
+        env:
+          ORIGINAL_ENV: pilot
+          SECRET_KEY: ci-test-only-secret-do-not-deploy
+          MAINTENANCE_TOKEN: ci-test-only
+        # --skip-seed for the same reason as above: seeding hard-refuses
+        # under ORIGINAL_ENV=pilot. The spec provisions its own tenant and
+        # staff login over REST, so it needs no seeded state.
+        run: |
+          python run.py --demo --frontend-dir demo --port 8001 --skip-seed \
+            > /tmp/original-ci-lockout.log 2>&1 &
+          echo $! > /tmp/original-lockout.pid
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8001/health > /dev/null; then
+              echo "Lockout server ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Lockout server failed to start. Log:"
+          cat /tmp/original-ci-lockout.log
+          exit 1
+
+      - name: Run the login-throttle lockout spec
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:8001
+          SECRET_KEY: ci-test-only-secret-do-not-deploy
+        # --workers=1: the spec exhausts a process-global, IP-keyed bucket,
+        # so nothing else may be logging in beside it.
+        # --retries=0 overrides the config's CI retry (playwright.config.mjs
+        # sets retries: 1). A retry here cannot help and actively hurts: the
+        # throttle window is 300s, so a retry starting seconds later hits
+        # the still-exhausted bucket in its OWN fixture setup
+        # (provisionTenantWithStaff calls /auth/login), and the reported
+        # failure becomes "staffLogin failed: 429" instead of the real
+        # assertion failure.
+        run: cd demo/bluebook && npx playwright test --workers=1 --retries=0 -g "@serial-lockout"
 
       - name: Upload Playwright report on failure
         if: failure()
@@ -248,9 +326,17 @@ jobs:
           path: demo/bluebook/playwright-report/
           retention-days: 14
 
-      - name: Stop Original server
+      - name: Stop Original servers
         if: always()
-        run: kill $(cat /tmp/original.pid) 2>/dev/null || true
+        # BOTH servers: the raised-throttle one (normally already stopped
+        # mid-job, but still running if the main Playwright step failed)
+        # and the default-throttle lockout one. Either pid file may be
+        # absent if the job failed before that step ran — don't orphan
+        # whichever one did start.
+        run: |
+          for pidfile in /tmp/original.pid /tmp/original-lockout.pid; do
+            [ -f "$pidfile" ] && kill "$(cat "$pidfile")" 2>/dev/null || true
+          done
 
   security:
     runs-on: ubuntu-latest
