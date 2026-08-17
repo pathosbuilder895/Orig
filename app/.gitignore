@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Vitest coverage output (text/html/lcov)
+coverage
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
