@@ -33,6 +33,12 @@ Coverage on `original/` was **78.69%** in that run, against CI's
 `--cov-fail-under=78` — the margin is under a point, so a change that adds
 untested lines can fail CI on coverage alone while every test passes.
 A clean run is **0 failed**; treat any failure as real.
+A `changed-tests` pre-push hook (`.pre-commit-config.yaml` →
+`scripts/changed_tests.py`) maps the pushed diff to its associated test files
+(naming convention + import scan; heuristics pinned by
+`tests/test_changed_tests_mapping.py`) and runs them, auto-detecting the local
+Postgres container so postgres-marked tests execute rather than skip.
+`SKIP=changed-tests git push` bypasses it in an emergency.
 The ~165 skips are essentially all the `postgres`-marked tests (166 collected
 under `-m postgres`), which self-skip when no `DATABASE_URL` Postgres is
 reachable. **Do not leave them skipped: run them locally.** `make test-postgres`
