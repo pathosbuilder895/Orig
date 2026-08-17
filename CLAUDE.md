@@ -18,17 +18,28 @@ Stylometric authorship verification system for academic integrity. Per-student q
 
 ## Testing
 ```bash
-.venv/bin/python -m pytest tests/ -q                  # full suite (~1050 tests as of 2026-08-01, ~145s; ~1053 with validation/test_tier10_optional.py)
+.venv/bin/python -m pytest tests/ -q                  # full suite (~2336 collected as of 2026-08-17)
 .venv/bin/python -m pytest tests/quantum/ -v          # quantum module only
 .venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -q   # exact CI command
 ```
 Test count grows regularly — treat the numbers above as approximate (get the
 current count with `.venv/bin/python -m pytest --collect-only -q tests/ 2>&1 | tail -1`),
 not a pinned figure to keep in sync by hand.
-The 5 `TestAuthEndpoints` tests that 429 under full-suite rate-limit exhaustion are
-marked `xfail(strict=False)` — they show as XFAIL/XPASS, never as failures. A clean
-run is **0 failed**; treat any failure as real. (Historical note: counts before
-2026-06 were inflated ~2× by macOS Finder-duplicate test files, since removed.)
+**Budget ~11–12 minutes for the full run, not seconds** — the exact CI command
+measured **11m19s** locally on 2026-08-17 (2174 passed, 165 skipped), and it
+routinely lands anywhere in 5–12 min depending on machine load. It will outrun
+a 600s tool timeout and get backgrounded, so do not run it on a short budget.
+Coverage on `original/` was **78.69%** in that run, against CI's
+`--cov-fail-under=78` — the margin is under a point, so a change that adds
+untested lines can fail CI on coverage alone while every test passes.
+A clean run is **0 failed**; treat any failure as real.
+The ~165 skips are expected locally and are essentially all the `postgres`-marked
+tests (166 collected under `-m postgres`), which self-skip when no `DATABASE_URL`
+Postgres is reachable. CI runs them for real against a Postgres 16 service
+container, so "165 skipped" locally means untested-here, not broken — if you
+touch the repository/persistence layer, local green does not cover it.
+(Historical note: counts before 2026-06 were inflated ~2× by macOS
+Finder-duplicate test files, since removed.)
 
 ---
 
