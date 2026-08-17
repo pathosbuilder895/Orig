@@ -33,11 +33,16 @@ Coverage on `original/` was **78.69%** in that run, against CI's
 `--cov-fail-under=78` — the margin is under a point, so a change that adds
 untested lines can fail CI on coverage alone while every test passes.
 A clean run is **0 failed**; treat any failure as real.
-The ~165 skips are expected locally and are essentially all the `postgres`-marked
-tests (166 collected under `-m postgres`), which self-skip when no `DATABASE_URL`
-Postgres is reachable. CI runs them for real against a Postgres 16 service
-container, so "165 skipped" locally means untested-here, not broken — if you
-touch the repository/persistence layer, local green does not cover it.
+The ~165 skips are essentially all the `postgres`-marked tests (166 collected
+under `-m postgres`), which self-skip when no `DATABASE_URL` Postgres is
+reachable. **Do not leave them skipped: run them locally.** `make test-postgres`
+(or `bash scripts/local_postgres.sh up` + `DATABASE_URL=$(bash scripts/local_postgres.sh url)`)
+starts a Docker Postgres 16 container identical to CI's service container and
+runs the marker suite — measured 166 passed in ~14s on 2026-08-17. CI also runs
+them (Postgres 16 service container in `.github/workflows/test.yml`), but if you
+touch the repository/persistence layer, run them locally before pushing — a
+plain local `pytest` green does not cover that layer. To include them in a full
+run, export `DATABASE_URL` the same way before `make test`.
 (Historical note: counts before 2026-06 were inflated ~2× by macOS
 Finder-duplicate test files, since removed.)
 
