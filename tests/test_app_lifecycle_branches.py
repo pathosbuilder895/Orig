@@ -288,42 +288,50 @@ class _FakeHealthRepo:
         return self._db_path
 
 
-def test_admin_health_degrades_when_manifest_stats_raises(monkeypatch, tmp_path):
+def test_admin_health_degrades_when_manifest_stats_raises(monkeypatch, live_client, store_reset, tmp_path):
     monkeypatch.setattr(
         health_mod,
         "_repo",
         lambda: _FakeHealthRepo(manifest_stats_raises=True, db_path=tmp_path / "p.db"),
     )
-    out = health_mod.admin_health(_fake_request(principal=_staff_principal()))
+    r = live_client.get("/admin/health")
+    assert r.status_code == 200
+    out = r.json()
     assert out["total_submissions"] == 0
     assert out["flagged_count"] == 0
 
 
-def test_admin_health_degrades_when_list_manifests_raises(monkeypatch, tmp_path):
+def test_admin_health_degrades_when_list_manifests_raises(monkeypatch, live_client, store_reset, tmp_path):
     monkeypatch.setattr(
         health_mod,
         "_repo",
         lambda: _FakeHealthRepo(list_manifests_raises=True, db_path=tmp_path / "p.db"),
     )
-    out = health_mod.admin_health(_fake_request(principal=_staff_principal()))
+    r = live_client.get("/admin/health")
+    assert r.status_code == 200
+    out = r.json()
     assert out["avg_latency_ms"] is None
 
 
-def test_admin_health_averages_latency_when_present(monkeypatch, tmp_path):
+def test_admin_health_averages_latency_when_present(monkeypatch, live_client, store_reset, tmp_path):
     items = [{"latency_ms": 120}, {"latency_ms": 80}, {"latency_ms": None}]
     monkeypatch.setattr(
         health_mod, "_repo", lambda: _FakeHealthRepo(items=items, db_path=tmp_path / "p.db")
     )
-    out = health_mod.admin_health(_fake_request(principal=_staff_principal()))
+    r = live_client.get("/admin/health")
+    assert r.status_code == 200
+    out = r.json()
     assert out["avg_latency_ms"] == 100
 
 
-def test_admin_health_latency_stays_none_when_all_items_lack_it(monkeypatch, tmp_path):
+def test_admin_health_latency_stays_none_when_all_items_lack_it(monkeypatch, live_client, store_reset, tmp_path):
     items = [{"latency_ms": None}, {"latency_ms": None}]
     monkeypatch.setattr(
         health_mod, "_repo", lambda: _FakeHealthRepo(items=items, db_path=tmp_path / "p.db")
     )
-    out = health_mod.admin_health(_fake_request(principal=_staff_principal()))
+    r = live_client.get("/admin/health")
+    assert r.status_code == 200
+    out = r.json()
     assert out["avg_latency_ms"] is None
 
 
