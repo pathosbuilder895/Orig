@@ -522,3 +522,89 @@ def test_admin_health_reports_backup_age(live_client):
     body = r.json()
     assert "backups_enabled" in body
     assert "last_backup_age_seconds" in body
+
+
+# ── Backup module — remaining branch arms (p3-task-4 sweep) ─────────────────
+# The tests above exercise the happy paths (consistent copy, pruning, missing
+# db, resolve_backup_dir). These close the arms they don't: the outer
+# except in run_backup, _prune's per-file OSError swallow, and the two
+# distinct "no age" cases in latest_backup_age_seconds (dir absent vs. dir
+# present but empty of matching backups) plus its multi-file loop.
+
+
+def test_run_backup_handles_internal_failure_gracefully(tmp_path):
+    """A file that exists but isn't a real SQLite database makes
+    ``src.backup(dst)`` raise (DatabaseError) — the outer ``except Exception``
+    must catch it and degrade to None, never propagate."""
+    db = tmp_path / "profiles.db"
+    db.write_bytes(b"not a real sqlite database at all")
+    dest = tmp_path / "backups"
+    result = backup_mod.run_backup(db, dest, keep=3)
+    assert result is None
+
+
+def test_prune_ignores_oserror_on_unlink(tmp_path, monkeypatch):
+    """A file that vanishes (or is locked) between glob() and unlink() must
+    not blow up pruning — the per-file OSError is swallowed and the count
+    of files actually removed reflects that."""
+    import os
+    from pathlib import Path
+
+    dest = tmp_path / "backups"
+    dest.mkdir()
+    for i in range(5):
+        p = dest / f"{backup_mod.BACKUP_PREFIX}2020010100{i:04d}.db"
+        p.write_bytes(b"old")
+        os.utime(p, (1000 + i, 1000 + i))
+
+    def _raise(self, *a, **kw):
+        raise OSError("locked")
+
+    monkeypatch.setattr(Path, "unlink", _raise)
+    removed = backup_mod._prune(dest, keep=1)
+    assert removed == 0
+    assert len(list(dest.glob(f"{backup_mod.BACKUP_PREFIX}*.db"))) == 5
+
+
+def test_latest_backup_age_second_file_older_does_not_reset_max(tmp_path, monkeypatch):
+    """The loop's ``if newest is None or mtime > newest`` must be able to
+    evaluate False on a later item (a later glob match that is actually
+    OLDER than the running max) without disturbing the tracked newest —
+    real-filesystem glob order isn't guaranteed, so this pins the order
+    with a fake glob rather than relying on directory-entry ordering."""
+    import time
+    from pathlib import Path
+
+    dest = tmp_path / "backups"
+    dest.mkdir()
+
+    class _FakeStat:
+        def __init__(self, mtime):
+            self.st_mtime = mtime
+
+    class _FakeMatch:
+        def __init__(self, mtime):
+            self._mtime = mtime
+
+        def stat(self):
+            return _FakeStat(self._mtime)
+
+    now = time.time()
+    # First match is the newest; second is much older — the second
+    # iteration's comparison must come back False (no new max).
+    fakes = [_FakeMatch(now - 5), _FakeMatch(now - 10_000)]
+    monkeypatch.setattr(Path, "glob", lambda self, pattern: iter(fakes))
+
+    age = backup_mod.latest_backup_age_seconds(dest)
+    assert age is not None
+    assert age < 60  # anchored to the first (newer) fake, not the older one
+
+
+def test_latest_backup_age_existing_dir_with_no_matching_files_is_none(tmp_path):
+    """A backups directory that exists but holds no ``profiles-*.db`` files
+    is a distinct arm from 'the directory doesn't exist at all' — both must
+    return None, but only the latter short-circuits on is_dir()."""
+    dest = tmp_path / "backups"
+    dest.mkdir()
+    (dest / "unrelated.txt").write_bytes(b"x")
+    assert backup_mod.latest_backup_age_seconds(dest) is None

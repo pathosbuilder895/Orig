@@ -206,3 +206,249 @@ def test_unreachable_embedder_degrades_to_zero_cohesion(monkeypatch, caplog):
     # failing download (it would otherwise repeat once per paragraph).
     assert tension_arc._get_embedder() is None
     assert calls["n"] == 1, "a failed model load must not be retried on every call"
+
+
+# ── 7. Remaining branch arms (p3-task-4 support-module sweep) ────────────────
+# The tests above exercise the real spaCy + sentence-transformers happy path
+# (via the module-level fixtures other tests trigger first) and the embedder
+# import-fallback arm. These close what's left: the spaCy import-fallback arm
+# (mirrors #6 but for spaCy, not the embedder), the `_get_nlp` load-trigger
+# arm, and a set of small pure helpers that are cleanest to unit-test directly
+# with hand-built inputs rather than fishing for real text that happens to
+# produce the right internal shape.
+
+
+def test_load_models_spacy_unavailable_degrades_to_none(monkeypatch, caplog):
+    """Mirrors test_unreachable_embedder_degrades_to_zero_cohesion, but for
+    spaCy: `spacy.load("en_core_web_sm")` raising (missing package or missing
+    model download) must set `_spacy_available = False` and log a warning,
+    never propagate."""
+    import logging
+    import sys
+    import types
+
+    from original import tension_arc
+
+    monkeypatch.setattr(tension_arc, "_nlp", None)
+    monkeypatch.setattr(tension_arc, "_spacy_available", None)
+    # Don't touch the embedder globals — leave load_models' embedder branch
+    # alone so this test only exercises the spaCy try/except.
+    monkeypatch.setattr(tension_arc, "_embedder", object())
+
+    def _raise_load(name):
+        raise OSError("model 'en_core_web_sm' not found")
+
+    fake_spacy = types.ModuleType("spacy")
+    fake_spacy.load = _raise_load
+    monkeypatch.setitem(sys.modules, "spacy", fake_spacy)
+
+    with caplog.at_level(logging.WARNING):
+        tension_arc.load_models()
+
+    assert tension_arc._spacy_available is False
+    assert tension_arc._nlp is None
+    assert "spaCy unavailable" in caplog.text
+
+
+def test_load_models_skips_embedder_block_when_already_loaded(monkeypatch):
+    """`if _embedder is None` must be False (and the whole embedder try/except
+    skipped) when a previous call already populated it — covers the
+    'load_models called a second time' exit arm."""
+    from original import tension_arc
+
+    sentinel = object()
+    monkeypatch.setattr(tension_arc, "_embedder", sentinel)
+    monkeypatch.setattr(tension_arc, "_nlp", object())  # also skip the spaCy branch
+    monkeypatch.setattr(tension_arc, "_spacy_available", True)
+
+    tension_arc.load_models()
+
+    assert tension_arc._embedder is sentinel  # untouched — never re-attempted
+
+
+def test_get_nlp_triggers_load_models_when_unset(monkeypatch):
+    """`_get_nlp()` must call `load_models()` itself when `_nlp` is still
+    None and spaCy hasn't already been marked unavailable — the lazy-load
+    path used by `_analyze_paragraph` on first real use."""
+    from original import tension_arc
+
+    monkeypatch.setattr(tension_arc, "_nlp", None)
+    monkeypatch.setattr(tension_arc, "_spacy_available", None)
+
+    result = tension_arc._get_nlp()
+
+    # Either spaCy loaded for real (this environment has it, per the other
+    # integration tests in this file) or it degraded to unavailable — either
+    # way `_spacy_available` must no longer be the untested `None` sentinel.
+    assert tension_arc._spacy_available is not None
+    assert result is tension_arc._nlp
+
+
+def test_cosine_near_zero_vector_returns_zero():
+    import numpy as np
+
+    from original.tension_arc import _cosine
+
+    assert _cosine(np.zeros(3), np.array([1.0, 2.0, 3.0])) == 0.0
+    assert _cosine(np.array([1.0, 0.0]), np.zeros(2)) == 0.0
+
+
+class _FakeHead:
+    def __init__(self, i):
+        self.i = i
+
+
+class _FakeToken:
+    def __init__(self, dep_, head_i):
+        self.dep_ = dep_
+        self.head = _FakeHead(head_i)
+
+
+class _FakeSent:
+    """Minimal stand-in for a spaCy `Span` — only what `_syntactic_tension`
+    touches: iteration over tokens, `.start`/`.end`/`.text`."""
+
+    def __init__(self, tokens, start, end, text):
+        self._tokens = tokens
+        self.start = start
+        self.end = end
+        self.text = text
+
+    def __iter__(self):
+        return iter(self._tokens)
+
+
+def test_syntactic_tension_unresolved_open_structure_loops_past_it():
+    """An open-dependency token whose head lies OUTSIDE the sentence
+    boundary must not count as resolved, and the loop must continue past
+    it to any remaining tokens — a real spaCy parse essentially never
+    produces this shape, so a fake token/sent stands in for it."""
+    from original.tension_arc import _syntactic_tension
+
+    unresolved = _FakeToken(dep_="advcl", head_i=99)  # head far outside [0, 5)
+    trailing = _FakeToken(dep_="det", head_i=1)  # not an open label — no-op
+    sent = _FakeSent([unresolved, trailing], start=0, end=5, text="Some clause here.")
+
+    # open_count=1 (unresolved), resolved_count=0 -> (1 - 0) / max(1, 1) = 1.0
+    assert _syntactic_tension(sent) == 1.0
+
+
+def test_classify_move_concession_claim_and_evidence_arms():
+    from original.tension_arc import _classify_move
+
+    assert _classify_move("Admittedly this could be improved.") == "K"
+    assert _classify_move("Clearly this argument holds up.") == "C"
+    assert _classify_move("The council convened in 1517 to address the matter.") == "E"
+
+
+def test_find_peaks_detects_boundary_peaks():
+    from original.tension_arc import TENSION_THRESHOLD, _find_peaks
+
+    assert TENSION_THRESHOLD < 0.5
+    vals = [0.5, 0.1, 0.1, 0.5]
+    peaks = _find_peaks(vals)
+    # Both the first and last elements qualify as boundary peaks.
+    assert peaks == [0, 3]
+
+
+def test_analyze_paragraph_returns_neutral_arc_when_spacy_unavailable(monkeypatch):
+    from original.tension_arc import _analyze_paragraph
+
+    monkeypatch.setattr("original.tension_arc._nlp", None)
+    monkeypatch.setattr("original.tension_arc._spacy_available", False)
+
+    arc = _analyze_paragraph("Some paragraph text of no particular consequence at all.", 0)
+
+    assert arc.sentences == []
+    assert arc.resolution_ratio == 1.0
+    assert arc.peak_count == 0
+
+
+def test_analyze_paragraph_returns_neutral_arc_when_no_sentences():
+    """spaCy parses the paragraph but finds zero sentence spans (e.g. an
+    empty string) — a distinct arm from 'spaCy unavailable'."""
+    from original import tension_arc
+
+    tension_arc.load_models()
+    if tension_arc._nlp is None:
+        import pytest
+
+        pytest.skip("spaCy not available in this environment")
+
+    arc = tension_arc._analyze_paragraph("", 0)
+    assert arc.sentences == []
+    assert arc.resolution_ratio == 1.0
+
+
+def test_authenticity_signal_near_zero_baseline_returns_one():
+    from original.tension_arc import _authenticity_signal
+
+    assert _authenticity_signal(0.5, 0.0) == 1.0
+    assert _authenticity_signal(0.5, 0.0005) == 1.0
+
+
+def test_authenticity_signal_computes_relative_deviation():
+    from original.tension_arc import _authenticity_signal
+
+    # Submission kappa matches the baseline exactly -> full agreement.
+    assert _authenticity_signal(0.4, 0.4) == 1.0
+    # Submission kappa is maximally far from the baseline -> clipped to 0.
+    assert _authenticity_signal(0.0, 0.4) == 0.0
+
+
+def test_arc_flag_authenticity_deviation_branch():
+    from original.tension_arc import _arc_flag
+
+    flag, reason = _arc_flag(
+        kappa=0.1,
+        mu_rho=0.5,
+        mean_tension=0.2,
+        max_tension=0.25,
+        authenticity=0.5,  # < 0.70 -> baseline-deviation branch wins outright
+        num_rho_values=5,
+    )
+    assert flag == "review"
+    assert "baseline" in reason.lower()
+
+
+def test_arc_flag_kappa_based_ai_typical_branch():
+    from original.tension_arc import _arc_flag
+
+    flag, reason = _arc_flag(
+        kappa=0.05,
+        mu_rho=0.9,
+        mean_tension=0.15,
+        max_tension=0.20,  # not < 0.18, so the flat-amplitude branch is skipped
+        authenticity=None,
+        num_rho_values=3,  # >= 3, enabling the kappa-based signal
+    )
+    assert flag == "ai_typical"
+    assert "catastrophe index" in reason.lower()
+
+
+def test_analyze_tension_arc_returns_review_when_paragraphs_split_to_empty():
+    """>= 200 words overall, but every blank-line-separated chunk is under
+    the 30-char paragraph floor — `_split_paragraphs` filters all of them
+    out, so `paragraphs` comes back empty despite passing the word-count
+    gate. Distinct from the `insufficient_length` short-circuit."""
+    from original.tension_arc import analyze_tension_arc
+
+    text = "\n\n".join(["word"] * 250)  # 250 words, each its own tiny "paragraph"
+    result = analyze_tension_arc(text)
+
+    assert result.paragraph_arcs == []
+    assert result.arc_flag == "review"
+    assert result.arc_flag_reason == "Insufficient text structure for tension arc analysis."
+
+
+# NOTE on original/tension_arc.py's `if __name__ == "__main__":` block
+# (module lines ~574-648): this is a manual CLI self-test/demo script (loads
+# real models, runs two hard-coded examples, prints a comparison table — no
+# assertions). It only executes when the module is run directly
+# (`python -m original.tension_arc` / `python original/tension_arc.py`),
+# never on import, so pytest's coverage of this module can never reach it —
+# there's no unit to assert against, and driving it via subprocess would
+# require a real network-fetched sentence-transformers model (or a redundant
+# duplicate of the fallback tests above) for zero additional verification
+# value. Left uncovered deliberately; no pragma added per policy — this note
+# is the justification.

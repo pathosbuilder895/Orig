@@ -241,6 +241,97 @@ def test_submission_result_redaction():
     assert res["steady"], "constructive features should surface as steady dimensions"
 
 
+# ── Unit: remaining branch arms in the pure projection helpers ───────────────
+# (p3-task-4 support-module branch-coverage sweep — not new leak-contract
+# assertions, just table-driven coverage of arms the redaction tests above
+# don't happen to exercise.)
+
+
+def test_clamp01_clamps_both_directions():
+    assert voice_mod._clamp01(-0.5) == 0.0
+    assert voice_mod._clamp01(1.5) == 1.0
+    assert voice_mod._clamp01(0.5) == 0.5
+
+
+def test_short_period_handles_falsy_input():
+    assert voice_mod._short_period(None) == ""
+    assert voice_mod._short_period("") == ""
+    assert voice_mod._short_period("2025-10-09T00:00:00") == "2025-10-09"
+
+
+def test_project_voice_notes_skips_blank_note():
+    corrections = [
+        {"notes": "   ", "reviewer": "Dr. X", "created_at": "2025-10-09T00:00:00"},
+        {"notes": "Good work.", "reviewer": "Dr. Y", "created_at": "2025-10-10T00:00:00"},
+    ]
+    notes = voice_mod.project_voice_notes(corrections)
+    assert len(notes) == 1
+    assert notes[0]["note"] == "Good work."
+
+
+def test_project_review_opportunities_skips_no_action_then_returns():
+    manifests = [
+        {"action": "no_action", "created_at": "2025-10-09T00:00:00"},
+        {"action": "monitor", "created_at": "2025-10-10T00:00:00"},
+    ]
+    opp = voice_mod.project_review_opportunities(manifests)
+    assert len(opp) == 1
+    assert opp[0]["locator"] == "2025-10-10"
+
+
+def test_project_headline_growth_bands():
+    # grew_by >= 8 -> "strengthened" band
+    arc_up = [{"fidelity": 40}, {"fidelity": 50}]
+    head = voice_mod.project_headline("Dana", arc_up)
+    assert "strengthened" in head["headline"]
+    assert "up 10 since" in head["subhead"]
+
+    # -8 < grew_by < 8 -> the "settling" else band, and grew_by > 0 still
+    # appends the "up N" clause.
+    arc_settle = [{"fidelity": 50}, {"fidelity": 53}]
+    head2 = voice_mod.project_headline("Dana", arc_settle)
+    assert "settling" in head2["headline"]
+    assert "up 3 since" in head2["subhead"]
+
+
+def test_project_submission_result_handles_missing_recommendation_and_interference():
+    # No "recommendation"/"interference" keys at all: the internal `_get`
+    # helper must resolve `obj=None` for those lookups rather than raising.
+    layer7 = {"authorship": {"deviation_score": 0.1}}
+    res = voice_mod.project_submission_result(layer7, "Dana")
+    assert res["headline"] == "This reads like you."
+    assert res["steady"] == []
+
+
+def test_project_submission_result_escalate_uses_the_else_branch():
+    layer7 = {
+        "recommendation": {"action": "escalate"},
+        "authorship": {"deviation_score": 0.9},
+        "interference": {"constructive_features": []},
+    }
+    res = voice_mod.project_submission_result(layer7, "Dana")
+    assert res["headline"] == "Some passages here read differently from your voice."
+    assert res["review_opportunity"] is True
+
+
+def test_project_submission_result_stops_after_three_steady_dimensions():
+    # 4 distinct-dimension constructive features: steady_dims must cap at 3
+    # and `break`, never reaching the 4th (Register) dimension.
+    constructive = [
+        {"code": "mean_sentence_length"},  # Cadence
+        {"code": "type_token_ratio"},  # Diction
+        {"code": "punctuation_diversity"},  # Texture
+        {"code": "theological_register_score"},  # Register — must not be reached
+    ]
+    layer7 = {
+        "recommendation": {"action": "monitor"},
+        "interference": {"constructive_features": constructive},
+    }
+    res = voice_mod.project_submission_result(layer7, "Dana")
+    assert len(res["steady"]) == 3
+    assert not any("register" in s.lower() for s in res["steady"])
+
+
 # ── Integration: live endpoints over a signed-in student ─────────────────────
 
 
