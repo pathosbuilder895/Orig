@@ -1950,10 +1950,20 @@ class TestDeleteStudentFullFootprint:
         repo.put_fidelity_score("sub-ferpa1", "sem:ferpa", 0.8, is_authentic=True)
         repo.put_ai_likelihood_score("sub-ferpa1", "sem:ferpa", 0.3, "low")
         repo.put_fused_score("sub-ferpa1", "sem:ferpa", 0.5, 0.6, "low", {"peer_centered_z": 0.1})
+        # The audit log is a read surface too, and its details_json can carry
+        # PII (e.g. a submission excerpt) — FERPA erasure must purge it, not
+        # just the scoring tables. Seeded via the protocol, like every other
+        # row here.
+        repo.log_audit(
+            action="score",
+            student_id="sem:ferpa",
+            details={"submission_id": "sub-ferpa1"},
+        )
 
         # Sanity: everything is actually there before deleting.
         assert repo.student_data_inventory("sem:ferpa") is not None
         assert "sem:ferpa" in {r["id"] for r in repo.roster_for_tenant("sem")}
+        assert repo.list_audit(student_id="sem:ferpa")["total"] == 1
 
         assert repo.delete_student("sem:ferpa") is True
 
@@ -1969,6 +1979,7 @@ class TestDeleteStudentFullFootprint:
         assert repo.list_corrections(student_id="sem:ferpa")["items"] == []
         assert repo.list_corrections(submission_id="sub-ferpa1")["items"] == []
         assert repo.list_manifests(student_id="sem:ferpa")["total"] == 0
+        assert repo.list_audit(student_id="sem:ferpa")["items"] == []
 
 
 class TestDeleteTenantStudentsEmptyTenant:

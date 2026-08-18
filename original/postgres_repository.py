@@ -368,6 +368,30 @@ class PostgresRepository:
                 name_row = session.get(StudentName, (tenant_id, local_id))
                 if name_row is not None:
                     session.delete(name_row)
+                # FERPA erasure (mirrors store.delete_student's audit_log
+                # purge): audit_log is keyed differently from every other
+                # student-scoped table above — it does NOT use the tenancy
+                # shim's legacy-flat sentinel, so a colon-less student_id
+                # rows there have tenant_id=NULL, not
+                # split_scoped_id()'s _LEGACY_FLAT_TENANT. Re-derive with
+                # _split_for_audit (the same helper log_audit/list_audit
+                # use) rather than reusing tenant_id/local_id above, or a
+                # legacy-flat student's audit rows would silently survive
+                # deletion.
+                audit_tenant_id, audit_local_id = self._split_for_audit(student_id, None)
+                if audit_tenant_id is not None:
+                    session.execute(
+                        AuditLogEntry.__table__.delete().where(
+                            AuditLogEntry.tenant_id == audit_tenant_id,
+                            AuditLogEntry.student_id == audit_local_id,
+                        )
+                    )
+                else:
+                    session.execute(
+                        AuditLogEntry.__table__.delete().where(
+                            AuditLogEntry.student_id == audit_local_id
+                        )
+                    )
             # this student's tenant's (tenant, genre) entries may include them
             self._genre_stats_cache.clear()
             # C2, 2026-08 fix pass: see store.delete_student's matching
