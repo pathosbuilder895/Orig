@@ -33,7 +33,7 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from original.constants import FEATURE_DIM
+from original.constants import FEATURE_DIM, GENRE_UNKNOWN
 from original.context.manifest import ContextManifest
 from original.quantum.state import BaselineSample, StudentState
 from original.repository import PostgresRepository, get_repository, reset_repository
@@ -382,6 +382,21 @@ class TestGetGenreStats:
         for i in range(6):
             repo.put(_make_state(f"student-M{i}", n=1, genre="rhetoric"))
         assert repo.get_genre_stats("different_genre", None, None) is None
+
+    def test_genre_unknown_abstains_even_with_enough_samples(self, repo):
+        # GENRE_UNKNOWN ("unknown") is the v2 resolver's abstention, not a
+        # genre — pooling every unclassified sample together would rebuild
+        # the "correspondence" dumping ground under a new name. Six
+        # students clears both floors (MIN_GENRE_VECTORS=5,
+        # MIN_GENRE_STUDENTS=3) trivially, same as
+        # test_returns_stats_with_enough_samples above, so a None result
+        # here can only come from the explicit GENRE_UNKNOWN guard, not
+        # from an underpopulated pool. PostgresRepository was missing this
+        # guard entirely until Part 1/Task 5 of the persistence
+        # branch-coverage sweep — this test is what caught it.
+        for i in range(6):
+            repo.put(_make_state(f"student-N{i}", n=1, genre=GENRE_UNKNOWN))
+        assert repo.get_genre_stats(GENRE_UNKNOWN, None, None) is None
 
 
 # ── get_genre_stats distinct-student floor ───────────────────────────────────
@@ -949,6 +964,19 @@ class TestGetOrCreateAndBasics:
         assert "sem:count-b" in ids
         assert repo.count() >= 2
 
+    def test_clear_is_a_documented_no_op(self, repo):
+        # Both backends document clear() as a permanent no-op (WS-6 P6):
+        # persisted data always survives it. SqliteRepository forwards to
+        # store.clear() (itself an intentional no-op — see its docstring);
+        # PostgresRepository has no in-memory cache to clear at all. Neither
+        # side had ever actually been called within the persistence-cluster
+        # test scope before this.
+        repo.put(_make_state("sem:survives-clear", n=1))
+        repo.clear()
+        state = repo.get("sem:survives-clear")
+        assert state is not None
+        assert state.sample_count == 1
+
     def test_all_states(self, repo):
         repo.put(_make_state("sem:all-a", n=2))
         states = repo.all_states()
@@ -1304,6 +1332,9 @@ class TestCalibrationRuns:
         run = repo.get_calibration_run(run_id, include_report=False)
         assert "report" not in run
 
+    def test_get_calibration_run_unknown_id_returns_none(self, repo):
+        assert repo.get_calibration_run(999999) is None
+
 
 # ── Tuned thresholds ──────────────────────────────────────────────────────
 
@@ -1417,6 +1448,26 @@ class TestBluebook:
         assert {e["id"] for e in repo.list_bluebook_exams("sem-x")} == {"exam-D"}
         assert {e["id"] for e in repo.list_bluebook_exams(None)} >= {"exam-D", "exam-E"}
 
+    def test_submissions_tenant_id_none_lists_across_tenants(self, repo):
+        # Mirrors test_exams_scoped_by_tenant's None-tenant (operator view)
+        # case for submissions -- both backends branch on
+        # "tenant_id is None" to skip the WHERE filter, and it was never
+        # exercised for this method within the persistence-cluster scope.
+        repo.put_bluebook_submission(
+            {"id": "bbsub-D", "tenant_id": "sem-x", "exam_id": "ex", "candidate": "X"}
+        )
+        repo.put_bluebook_submission(
+            {"id": "bbsub-E", "tenant_id": "sem-y", "exam_id": "ex", "candidate": "Y"}
+        )
+        assert {s["id"] for s in repo.list_bluebook_submissions("sem-x")} == {"bbsub-D"}
+        assert {s["id"] for s in repo.list_bluebook_submissions(None)} >= {"bbsub-D", "bbsub-E"}
+
+    def test_courses_tenant_id_none_lists_across_tenants(self, repo):
+        repo.put_bluebook_course({"id": "course-D", "tenant_id": "sem-x", "name": "X"})
+        repo.put_bluebook_course({"id": "course-E", "tenant_id": "sem-y", "name": "Y"})
+        assert {c["id"] for c in repo.list_bluebook_courses("sem-x")} == {"course-D"}
+        assert {c["id"] for c in repo.list_bluebook_courses(None)} >= {"course-D", "course-E"}
+
 
 # ── Users ─────────────────────────────────────────────────────────────────
 
@@ -1466,6 +1517,18 @@ class TestAuditLog:
         repo.log_audit(action="score", student_id="sem-z:carol", details={})
         result = repo.list_audit(student_id="sem-z:carol")
         assert result["items"][0]["tenant_id"] == "sem-z"
+
+    def test_list_audit_by_legacy_flat_student_id(self, repo):
+        # A colon-less (legacy-flat) student_id has no tenant to derive --
+        # PostgresRepository's audit_log.tenant_id column stays genuinely
+        # NULL for it (unlike every other student-scoped table, which
+        # assigns the tenancy shim's legacy-flat sentinel -- see
+        # PostgresRepository._split_for_audit's docstring). list_audit must
+        # still find the row by student_id alone in that case.
+        repo.log_audit(action="baseline_add", student_id="legacyflat_dave")
+        result = repo.list_audit(student_id="legacyflat_dave")
+        assert result["total"] == 1
+        assert result["items"][0]["student_id"] == "legacyflat_dave"
 
 
 # ── Formation pathways ────────────────────────────────────────────────────
@@ -1748,6 +1811,18 @@ class TestRosterStatus:
         assert roster["sem:mon"]["status"] == "monitor"
         assert roster["sem:clean"]["status"] == "clear"
         assert roster["sem:unscored"]["status"] == "clear"
+
+    def test_roster_status_with_manifest_but_no_action_recorded(self, repo):
+        # Different from "sem:unscored" above (no manifest row at all, so
+        # the student never appears in the action query's result set): here
+        # a manifest row DOES exist but with action=None -- both backends
+        # build a {student: latest_action} map with `if action:` guarding
+        # the assignment, so a falsy action must still leave the student
+        # unmapped rather than mapped to None.
+        repo.put(_make_state("sem:no-action-recorded", n=1))
+        _seed_manifest(repo, "sub-no-action", "sem:no-action-recorded", action=None)
+        roster = {r["id"]: r for r in repo.roster_for_tenant("sem")}
+        assert roster["sem:no-action-recorded"]["status"] == "clear"
 
     def test_roster_names_counts_and_scoping(self, repo):
         state = _make_state("sem:named", n=3)

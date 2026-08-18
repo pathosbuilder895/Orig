@@ -33,21 +33,45 @@ sense for one backend's internals:
      bluebook_submissions.submission_uuid/late) -- exercising the
      column-absent side needs a fixture DB that predates those columns.
      store.py's public API always writes through the CURRENT schema, so
-     there is no way to construct that fixture except raw SQL. Raw SQL here
-     is controller-sanctioned for this file only, to construct the
-     pre-migration fixture states. Assertions always read back through
-     the protocol, never through raw SQL.
+     there is no way to construct that fixture except raw SQL. Raw SQL
+     here never writes/corrupts anything a test then asserts was already
+     there -- it only constructs fixture state (or, for
+     TestInitSchemaMigrationArms, reads back a pre-migration column list
+     that has no protocol-level surface at all; see that class's own
+     docstring for why those particular reads are raw SQL by necessity).
+
+Part 1/Task 5 (persistence branch-coverage sweep) added a second wave below
+the original four items, same idioms: the remaining single-session-call
+PostgresRepository/store.py exception guards (a big parametrized table per
+backend, monkeypatching ``session_scope``/``_get_conn`` respectively),
+guards that re-raise instead of swallowing, two-stage "boom after the Nth
+call" guards for methods that make more than one session/connection call
+(``advance_formation_pathway``, store's ``delete_student``), inner
+per-row JSON-corruption fallbacks that are SQLite/Text-column-specific
+(``list_manifests``/``manifest_stats``/``load_baseline_requests``/
+``park_beat``/``park_tiles`` in store.py; ``get_fused_scores`` in
+PostgresRepository -- ``channels_json`` is a plain Text column there,
+deliberately, so corruption is representable the same way), and the
+legacy-short-vector dimension-padding arm shared by both backends'
+deserializers. A cross-backend divergence surfaced while writing the
+GENRE_UNKNOWN contract test (test_repository_contract.py) -- see
+``postgres_repository.PostgresRepository.get_genre_stats``'s updated
+docstring and its own commit for the fix.
 """
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
 
 from original import postgres_repository, store
+from original.constants import FEATURE_DIM
+from original.quantum.state import StudentState
 
 # ── Step 1: PostgresRepository exception guards ───────────────────────────
 
@@ -437,3 +461,876 @@ class TestInitSchemaMigrationArms:
             assert fused_cols_repeat == fused_cols_after
         finally:
             conn.close()
+
+
+# ── Step 4: Remaining PostgresRepository exception guards (single
+# session_scope call) ──────────────────────────────────────────────────────
+#
+# Same idiom as Step 1 -- monkeypatch session_scope to raise, assert the
+# documented degraded return value -- for every guard Step 1 (Task 4) didn't
+# reach. One parametrized table rather than ~40 near-identical functions.
+
+_PG_SINGLE_CALL_GUARDS = [
+    ("get", ("sem:pg-guard-1",), {}, None),
+    ("list_ids", (), {}, []),
+    ("all_states", (), {}, []),
+    ("count", (), {}, 0),
+    ("list_ids_for_tenant", ("sem",), {}, []),
+    ("get_display_name", ("sem:pg-guard-1",), {}, ""),
+    ("get_manifest", ("sub-pg-guard",), {}, None),
+    ("submission_student_id", ("sub-pg-guard",), {}, None),
+    ("put_fidelity_score", ("sub-pg-guard", "sem:pg-guard-1", 0.5, True), {}, None),
+    ("get_authentic_fidelities", ("sem:pg-guard-1",), {}, []),
+    ("update_fidelity_authenticity", ("sub-pg-guard", True), {}, None),
+    ("put_ai_likelihood_score", ("sub-pg-guard", "sem:pg-guard-1", 0.5, "low"), {}, None),
+    ("put_fused_score", ("sub-pg-guard", "sem:pg-guard-1", 0.1, 0.5, "low", {}), {}, None),
+    ("list_corrections", (), {}, {"total": 0, "limit": 100, "offset": 0, "items": []}),
+    ("start_calibration_run", ("dataset-pg-guard",), {}, None),
+    (
+        "complete_calibration_run",
+        (1,),
+        {"auc": 0.5, "n_essays_scored": 1, "n_authors": 1, "report": {}},
+        False,
+    ),
+    ("fail_calibration_run", (1, "boom"), {}, False),
+    ("get_calibration_run", (1,), {}, None),
+    (
+        "put_tuned_thresholds",
+        (),
+        {"no_action": 0.1, "monitor": 0.2, "escalate": 0.3, "source": "manual"},
+        None,
+    ),
+    ("get_active_tuned_thresholds", (), {}, None),
+    ("list_tuned_thresholds", (), {}, {"total": 0, "limit": 50, "offset": 0, "items": []}),
+    ("get_tenant", ("sem",), {}, None),
+    ("list_tenants", (), {}, []),
+    ("put_tenant", ("sem", "Seminary"), {}, None),
+    (
+        "tenant_stats",
+        ("sem",),
+        {},
+        {
+            "tenant_id": "sem",
+            "student_count": 0,
+            "sample_count": 0,
+            "submission_count": 0,
+            "last_active_at": None,
+            "action_counts": {},
+        },
+    ),
+    ("put_user", ("u-pg-guard", "pg-guard@example.com", "hash", "admin", "sem"), {}, None),
+    ("get_user_by_email", ("pg-guard@example.com",), {}, None),
+    ("get_bluebook_exam", ("exam-pg-guard",), {}, None),
+    ("list_bluebook_exams", ("sem",), {}, []),
+    ("list_bluebook_submissions", ("sem",), {}, []),
+    ("get_bluebook_submission_by_uuid", ("uuid-pg-guard",), {}, None),
+    ("get_bluebook_session", ("exam-pg-guard", "key-pg-guard"), {}, None),
+    ("list_bluebook_courses", ("sem",), {}, []),
+    ("log_audit", ("action-pg-guard",), {}, None),
+    ("list_audit", (), {}, {"total": 0, "limit": 100, "offset": 0, "items": []}),
+    ("get_formation_pathway", ("sem:pg-guard-1",), {}, None),
+    ("open_formation_pathway", ("sem:pg-guard-1",), {}, None),
+    (
+        "put_baseline_request",
+        ("req-pg-guard", "sem:pg-guard-1", "pending", 100.0, "{}"),
+        {},
+        None,
+    ),
+    ("load_baseline_requests", (), {}, []),
+    # get_genre_stats/get_cohort_stats have no guard of their own -- the
+    # exception is caught one level down, inside the private _pool_groups()
+    # helper they both share, which returns [] on failure (deliberately
+    # uncached; see its own comment) so genre_stats_from_groups([], ...)
+    # falls back to None the same way an underpopulated pool would.
+    ("get_genre_stats", ("lab_report", "sem", None), {}, None),
+    ("get_cohort_stats", ("sem", None), {}, None),
+]
+
+
+@pytest.mark.postgres
+@pytest.mark.parametrize("method_name, args, kwargs, expected", _PG_SINGLE_CALL_GUARDS)
+def test_pg_repository_guard_swallows_session_failure(
+    monkeypatch, method_name, args, kwargs, expected
+):
+    monkeypatch.setattr(postgres_repository, "session_scope", _boom)
+    repo = postgres_repository.PostgresRepository()
+    result = getattr(repo, method_name)(*args, **kwargs)
+    assert result == expected
+
+
+@pytest.mark.postgres
+def test_get_or_create_returns_fresh_state_on_session_failure(monkeypatch):
+    """get_or_create's degraded return isn't a plain constant like the rest
+    of the table above -- it's a fresh StudentState carrying the requested
+    id (mirroring the real "unknown id" path), so it gets its own
+    assertion rather than an equality check."""
+    monkeypatch.setattr(postgres_repository, "session_scope", _boom)
+    result = postgres_repository.PostgresRepository().get_or_create("sem:pg-goc-guard")
+    assert result.student_id == "sem:pg-goc-guard"
+    assert result.sample_count == 0
+
+
+# ── Step 5: PostgresRepository guards that re-raise instead of swallowing ──
+#
+# A handful of writers log-and-``raise`` rather than returning a degraded
+# value -- matching store.py's sqlite3.Error writers (Step 8 below), which
+# also surface write failures instead of silently dropping them.
+
+_PG_RERAISING_GUARDS = [
+    ("put", (StudentState(student_id="sem:pg-put-guard"),), {}),
+    ("put_bluebook_exam", ({"id": "exam-pg-raise", "tenant_id": "sem", "title": "T"},), {}),
+    ("put_bluebook_submission", ({"id": "sub-pg-raise", "tenant_id": "sem"},), {}),
+    (
+        "get_or_create_bluebook_session",
+        ("exam-pg-raise", "key-pg-raise", "sem", 1800),
+        {},
+    ),
+    ("put_bluebook_course", ({"id": "course-pg-raise", "tenant_id": "sem", "name": "N"},), {}),
+]
+
+
+@pytest.mark.postgres
+@pytest.mark.parametrize("method_name, args, kwargs", _PG_RERAISING_GUARDS)
+def test_pg_repository_guard_reraises_on_session_failure(monkeypatch, method_name, args, kwargs):
+    monkeypatch.setattr(postgres_repository, "session_scope", _boom)
+    repo = postgres_repository.PostgresRepository()
+    with pytest.raises(RuntimeError, match="simulated connection failure"):
+        getattr(repo, method_name)(*args, **kwargs)
+
+
+# ── Step 6: PostgresRepository two-stage guards ────────────────────────────
+#
+# advance_formation_pathway calls get_formation_pathway (1 session_scope
+# call) BEFORE its own try/except (a 2nd call) to decide whether there's
+# even an open pathway to advance. A single global session_scope boom makes
+# that FIRST call fail too, so get_formation_pathway's own guard returns
+# None, and advance_formation_pathway short-circuits on its "no open
+# pathway" branch -- never reaching its own except block at all. Real
+# Postgres sets up a genuinely open pathway first (session_scope call #1,
+# unpatched); only the SECOND call (this method's own UPDATE) is made to
+# fail, isolating the branch under test.
+
+
+@pytest.mark.postgres
+def test_advance_formation_pathway_returns_none_on_second_session_failure(monkeypatch):
+    repo = postgres_repository.PostgresRepository()
+    student_id = "sem:pg-advance-guard"
+    opened = repo.open_formation_pathway(student_id)
+    assert opened["status"] == "open"
+
+    real_session_scope = postgres_repository.session_scope
+    calls = {"n": 0}
+
+    def _boom_after_first_call():
+        calls["n"] += 1
+        if calls["n"] > 1:
+            raise RuntimeError("simulated connection failure")
+        return real_session_scope()
+
+    monkeypatch.setattr(postgres_repository, "session_scope", _boom_after_first_call)
+    assert repo.advance_formation_pathway(student_id) is None
+
+
+# ── Step 7: PostgresRepository partial branches ────────────────────────────
+
+
+@pytest.mark.postgres
+def test_parse_iso_or_now_falsy_input_returns_now():
+    """_parse_iso_or_now(None) skips the parse attempt entirely -- a pure
+    function, no session/DB involved."""
+    before = datetime.now(UTC)
+    result = postgres_repository.PostgresRepository._parse_iso_or_now(None)
+    after = datetime.now(UTC)
+    assert before <= result <= after
+
+
+@pytest.mark.postgres
+def test_parse_iso_or_now_malformed_string_falls_back_to_now():
+    """A string that fails datetime.fromisoformat() hits the except
+    ValueError: pass arm, then falls through to the same "now" default."""
+    before = datetime.now(UTC)
+    result = postgres_repository.PostgresRepository._parse_iso_or_now("not-a-valid-iso-date")
+    after = datetime.now(UTC)
+    assert before <= result <= after
+
+
+@pytest.mark.postgres
+def test_doc_to_state_pads_legacy_short_vector():
+    """Mirrors test_store_deserialize_pads_legacy_short_vector (Step 10)
+    for the Postgres side. PostgresRepository has no public write path that
+    produces a short vector -- every real caller constructs a StudentState
+    from the current FEATURE_DIM-wide feature pipeline -- so the fixture
+    doc is written directly through session_scope/the ORM: the sanctioned
+    exception for constructing states unreachable through the protocol.
+    The assertion reads back through repo.get(), the public API."""
+    from original.db.models.live import StudentProfile
+    from original.db.postgres_session import session_scope
+
+    tenant_id, local_id = "sem", "pg-legacy-dim-student"
+    student_id = f"{tenant_id}:{local_id}"
+    short_vector = [0.25] * 74  # pre-Tier-13-15 width, shorter than FEATURE_DIM
+    doc = {
+        "student_id": student_id,
+        "samples": [
+            {
+                "text": "legacy short-vector sample",
+                "vector": short_vector,
+                "provenance": "instructor_verified",
+                "auth_weight": 1.0,
+                "assignment": "",
+                "submitted_at": "",
+                "genre": None,
+                "topic_centroid": None,
+                "context_manifest": None,
+                "keystroke_data": None,
+            }
+        ],
+        "baseline_kappa": None,
+        "kappa_log": [],
+        "consecutive_drift_count": 0,
+    }
+    with session_scope() as session:
+        postgres_repository.PostgresRepository._ensure_tenant_exists(session, tenant_id)
+        # merge(), not add(): this file's tests share one real Postgres
+        # instance with no per-test table wipe (unlike
+        # test_repository_contract.py's `repo` fixture), so a plain INSERT
+        # would violate the primary key on a second local run against the
+        # same persistent container. merge() upserts by primary key.
+        session.merge(StudentProfile(tenant_id=tenant_id, student_id=local_id, data=doc))
+
+    repo = postgres_repository.PostgresRepository()
+    state = repo.get(student_id)
+    assert state is not None
+    vector = state.samples[0].vector
+    assert vector.shape == (FEATURE_DIM,)
+    assert list(vector[:74]) == short_vector
+    assert all(v == pytest.approx(0.5) for v in vector[74:])
+
+
+@pytest.mark.postgres
+def test_get_fused_scores_degrades_channels_on_corrupted_json_row():
+    """Mirrors test_store_get_fused_scores_degrades_channels_on_corrupted_json
+    (Step 1b) for PostgresRepository's own inner per-row fallback.
+    channels_json is a plain Text column on FusedScore (see its model
+    comment) precisely so this failure mode is representable the same way
+    on both backends -- constructed with a raw UPDATE through the same
+    session factory the repository itself uses (sanctioned: constructs a
+    state unreachable through the protocol). The assertion reads back
+    through repo.get_fused_scores(), the public API."""
+    from sqlalchemy import text
+
+    from original.db.postgres_session import session_scope
+
+    repo = postgres_repository.PostgresRepository()
+    repo.put_fused_score(
+        submission_id="sub-pg-corrupt-1",
+        student_id="sem:pg-corrupt-stu",
+        fused_log_odds=0.1,
+        probability=0.52,
+        band="low",
+        channels={"peer_centered_z": 0.4},
+        model_version="v1",
+    )
+    with session_scope() as session:
+        session.execute(
+            text("UPDATE fused_scores SET channels_json = :v WHERE submission_id = :sid"),
+            {"v": "{not valid json", "sid": "sub-pg-corrupt-1"},
+        )
+
+    rows = repo.get_fused_scores(student_id="sem:pg-corrupt-stu")
+    assert len(rows) == 1
+    assert rows[0]["submission_id"] == "sub-pg-corrupt-1"
+    assert rows[0]["band"] == "low"
+    assert rows[0]["channels"] == {}
+
+
+@pytest.mark.postgres
+def test_delete_tenant_students_records_failed_id_when_delete_student_fails(monkeypatch):
+    """delete_tenant_students only calls delete_student() on ids it just
+    fetched via list_ids_for_tenant(), which by construction exist -- so
+    delete_student() genuinely returning False is unreachable through the
+    protocol alone. Monkeypatching delete_student itself is the same
+    sanctioned "narrow seam" idiom as monkeypatching session_scope, one
+    level up: it's the only way to observe the failed-ids bookkeeping
+    (the else branch of delete_tenant_students' own if/else) at all."""
+    # A dedicated tenant -- this file's tests share one real Postgres
+    # instance with no per-test table wipe (unlike test_repository_contract.py's
+    # `repo` fixture), so a shared id like "sem" would pick up other tests'
+    # students and make deleted_count depend on run order.
+    tenant_id = "pg-bulk-delete-guard-tenant"
+    repo = postgres_repository.PostgresRepository()
+    repo.put(StudentState(student_id=f"{tenant_id}:pg-bulk-ok"))
+    repo.put(StudentState(student_id=f"{tenant_id}:pg-bulk-fail"))
+
+    real_delete_student = repo.delete_student
+
+    def _fake_delete_student(student_id):
+        if student_id == f"{tenant_id}:pg-bulk-fail":
+            return False
+        return real_delete_student(student_id)
+
+    monkeypatch.setattr(repo, "delete_student", _fake_delete_student)
+    result = repo.delete_tenant_students(tenant_id)
+    assert result["deleted_count"] == 1
+    assert result["failed_ids"] == [f"{tenant_id}:pg-bulk-fail"]
+
+
+# ── Step 8: Remaining store.py exception guards (single _get_conn call) ────
+#
+# Mirrors Step 4 for store.py's module-level functions, monkeypatching
+# store._get_conn (the narrowest seam store.py's own connections go
+# through -- see module docstring item 1's rationale, same idiom one level
+# down).
+
+
+def _store_boom():
+    raise RuntimeError("simulated connection failure")
+
+
+def _store_boom_sqlite_error():
+    raise sqlite3.OperationalError("simulated connection failure")
+
+
+_STORE_SINGLE_CALL_GUARDS = [
+    (
+        "put_manifest",
+        ("sub-store-guard", "sem:store-guard-1", {"created_at": "2026-01-01T00:00:00Z"}),
+        {},
+        None,
+    ),
+    ("submission_student_id", ("sub-store-guard",), {}, None),
+    ("get_manifest", ("sub-store-guard",), {}, None),
+    ("list_manifests", (), {}, {"total": 0, "limit": 100, "offset": 0, "items": []}),
+    (
+        "manifest_stats",
+        (),
+        {},
+        {
+            "total": 0,
+            "by_action": {},
+            "by_flag": {},
+            "by_length_regime": {},
+            "mean_divergence": None,
+            "since": None,
+            "until": None,
+        },
+    ),
+    ("put_fidelity_score", ("sub-store-guard", "sem:store-guard-1", 0.5, True), {}, None),
+    ("get_authentic_fidelities", ("sem:store-guard-1",), {}, []),
+    ("put_ai_likelihood_score", ("sub-store-guard", "sem:store-guard-1", 0.5, "low"), {}, None),
+    ("get_ai_likelihood_scores", (), {}, []),
+    ("put_fused_score", ("sub-store-guard", "sem:store-guard-1", 0.1, 0.5, "low", {}), {}, None),
+    ("get_fused_scores", (), {}, []),
+    ("update_fidelity_authenticity", ("sub-store-guard", True), {}, None),
+    # A single global boom exercises BOTH of put_correction's guards in one
+    # call: no student_id/original_* kwargs forces the audit_log fallback
+    # lookup (its own try/except Exception: pass), which then also fails,
+    # leaving student_id None before the main INSERT try/except is reached.
+    ("put_correction", ("sub-store-corr-guard", True), {}, None),
+    ("list_corrections", (), {}, {"total": 0, "limit": 100, "offset": 0, "items": []}),
+    ("start_calibration_run", ("dataset-store-guard",), {}, None),
+    (
+        "complete_calibration_run",
+        (1,),
+        {"auc": 0.5, "n_essays_scored": 1, "n_authors": 1, "report": {}},
+        False,
+    ),
+    ("fail_calibration_run", (1, "boom"), {}, False),
+    ("list_calibration_runs", (), {}, {"total": 0, "limit": 50, "offset": 0, "items": []}),
+    ("get_calibration_run", (1,), {}, None),
+    (
+        "put_tuned_thresholds",
+        (),
+        {"no_action": 0.1, "monitor": 0.2, "escalate": 0.3, "source": "manual"},
+        None,
+    ),
+    ("get_active_tuned_thresholds", (), {}, None),
+    ("list_tuned_thresholds", (), {}, {"total": 0, "limit": 50, "offset": 0, "items": []}),
+    ("put_tenant", ("sem", "Seminary"), {}, None),
+    ("get_tenant", ("sem",), {}, None),
+    ("put_user", ("u-store-guard", "store-guard@example.com", "hash", "admin", "sem"), {}, None),
+    ("get_user_by_email", ("store-guard@example.com",), {}, None),
+    ("get_bluebook_exam", ("exam-store-guard",), {}, None),
+    ("list_bluebook_exams", ("sem",), {}, []),
+    ("list_bluebook_submissions", ("sem",), {}, []),
+    ("get_bluebook_submission_by_uuid", ("uuid-store-guard",), {}, None),
+    ("get_bluebook_session", ("exam-store-guard", "key-store-guard"), {}, None),
+    ("list_bluebook_courses", ("sem",), {}, []),
+    ("list_tenants", (), {}, []),
+    ("log_audit", ("action-store-guard",), {}, None),
+    ("list_audit", (), {}, {"total": 0, "limit": 100, "offset": 0, "items": []}),
+    ("set_display_name", ("sem:store-guard-1", "Name"), {}, None),
+    ("get_display_name", ("sem:store-guard-1",), {}, ""),
+    ("_display_names_for", (["sem:store-guard-1"],), {}, {}),
+    ("_latest_actions_for", (["sem:store-guard-1"],), {}, {}),
+    ("get_formation_pathway", ("sem:store-guard-1",), {}, None),
+    ("open_formation_pathway", ("sem:store-guard-1",), {}, None),
+    (
+        "put_baseline_request",
+        ("req-store-guard", "sem:store-guard-1", "pending", 100.0, "{}"),
+        {},
+        None,
+    ),
+    ("load_baseline_requests", (), {}, []),
+]
+
+
+@pytest.mark.parametrize("func_name, args, kwargs, expected", _STORE_SINGLE_CALL_GUARDS)
+def test_store_guard_swallows_connection_failure(monkeypatch, func_name, args, kwargs, expected):
+    monkeypatch.setattr(store, "_get_conn", _store_boom)
+    fn = getattr(store, func_name)
+    result = fn(*args, **kwargs)
+    assert result == expected
+
+
+# ── Step 9: store.py guards that re-raise instead of swallowing ────────────
+#
+# These four writers catch sqlite3.Error specifically (not bare Exception)
+# and re-raise -- matching PostgresRepository's equivalent writers (Step 5),
+# which log-and-raise on generic Exception. _store_boom_sqlite_error raises
+# sqlite3.OperationalError so it's actually caught by that narrower except
+# clause, not just propagated past it uncaught.
+
+_STORE_SQLITE_ERROR_GUARDS = [
+    ("put_bluebook_exam", ({"id": "exam-store-raise", "tenant_id": "sem", "title": "T"},), {}),
+    ("put_bluebook_submission", ({"id": "sub-store-raise", "tenant_id": "sem"},), {}),
+    (
+        "get_or_create_bluebook_session",
+        ("exam-store-raise", "key-store-raise", "sem", 1800),
+        {},
+    ),
+    ("put_bluebook_course", ({"id": "course-store-raise", "tenant_id": "sem", "name": "N"},), {}),
+]
+
+
+@pytest.mark.parametrize("func_name, args, kwargs", _STORE_SQLITE_ERROR_GUARDS)
+def test_store_guard_reraises_sqlite_error_on_connection_failure(
+    monkeypatch, func_name, args, kwargs
+):
+    monkeypatch.setattr(store, "_get_conn", _store_boom_sqlite_error)
+    fn = getattr(store, func_name)
+    with pytest.raises(sqlite3.OperationalError, match="simulated connection failure"):
+        fn(*args, **kwargs)
+
+
+# ── Step 10: store.py two-stage guards ──────────────────────────────────────
+#
+# Same "boom after the Nth real call" idiom as Step 6, for the three
+# store.py functions whose own except block sits behind an EARLIER,
+# unguarded call using the same _get_conn seam (get()/list_ids() have no
+# try/except of their own at all -- the WS-1 A1 "fail loudly on a corrupt
+# DB" guarantee documented near _persist()'s definition -- so a single
+# global boom raises there first and never reaches the guard under test).
+
+
+def test_store_tenant_stats_returns_zeroed_stats_on_second_connection_failure(
+    store_reset, monkeypatch
+):
+    """tenant_stats() calls list_ids_for_tenant() -> list_ids() (unguarded)
+    before its own try/except. Call #1 (list_ids()) succeeds for real
+    (returning [] against the isolated, empty store_reset DB); call #2
+    (tenant_stats' own submission_manifests query) is made to fail."""
+    real_get_conn = store_reset._get_conn
+    calls = {"n": 0}
+
+    def _boom_after_first_call():
+        calls["n"] += 1
+        if calls["n"] > 1:
+            raise RuntimeError("simulated connection failure")
+        return real_get_conn()
+
+    monkeypatch.setattr(store_reset, "_get_conn", _boom_after_first_call)
+    result = store_reset.tenant_stats("sem-tenant-stats-guard")
+    assert result == {
+        "tenant_id": "sem-tenant-stats-guard",
+        "student_count": 0,
+        "sample_count": 0,
+        "submission_count": 0,
+        "last_active_at": None,
+        "action_counts": {},
+    }
+
+
+def test_store_delete_student_returns_false_on_second_connection_failure(store_reset, monkeypatch):
+    """delete_student() calls get() (unguarded) as an existence pre-check
+    before its own try/except. Call #1 (get()) must succeed and find the
+    real profile put() persisted; call #2 (delete_student's own DELETEs) is
+    made to fail."""
+    student_id = "sem:store-delete-guard"
+    store_reset.put(StudentState(student_id=student_id))
+
+    real_get_conn = store_reset._get_conn
+    calls = {"n": 0}
+
+    def _boom_after_first_call():
+        calls["n"] += 1
+        if calls["n"] > 1:
+            raise RuntimeError("simulated connection failure")
+        return real_get_conn()
+
+    monkeypatch.setattr(store_reset, "_get_conn", _boom_after_first_call)
+    assert store_reset.delete_student(student_id) is False
+
+
+def test_store_advance_formation_pathway_returns_none_on_second_connection_failure(
+    store_reset, monkeypatch
+):
+    """Mirrors test_advance_formation_pathway_returns_none_on_second_session_failure
+    (Step 6) for store.py: get_formation_pathway (call #1, real) must find
+    a genuinely open pathway before advance_formation_pathway's own UPDATE
+    (call #2) is made to fail."""
+    student_id = "sem:store-advance-guard"
+    opened = store_reset.open_formation_pathway(student_id)
+    assert opened["status"] == "open"
+
+    real_get_conn = store_reset._get_conn
+    calls = {"n": 0}
+
+    def _boom_after_first_call():
+        calls["n"] += 1
+        if calls["n"] > 1:
+            raise RuntimeError("simulated connection failure")
+        return real_get_conn()
+
+    monkeypatch.setattr(store_reset, "_get_conn", _boom_after_first_call)
+    assert store_reset.advance_formation_pathway(student_id) is None
+
+
+def test_store_student_data_inventory_degrades_on_second_connection_failure(
+    store_reset, monkeypatch
+):
+    """student_data_inventory() calls get() (unguarded) as an existence
+    pre-check before its own try/except, same shape as delete_student()
+    above. Call #1 (get()) must succeed and find the real profile put()
+    persisted; call #2 (student_data_inventory's own COUNT queries) is made
+    to fail, degrading every count to 0 rather than raising."""
+    student_id = "sem:store-inventory-guard"
+    store_reset.put(StudentState(student_id=student_id))
+
+    real_get_conn = store_reset._get_conn
+    calls = {"n": 0}
+
+    def _boom_after_first_call():
+        calls["n"] += 1
+        if calls["n"] > 1:
+            raise RuntimeError("simulated connection failure")
+        return real_get_conn()
+
+    monkeypatch.setattr(store_reset, "_get_conn", _boom_after_first_call)
+    result = store_reset.student_data_inventory(student_id)
+    assert result is not None
+    cats = result["data_categories"]
+    assert cats["fidelity_scores"]["count"] == 0
+    assert cats["submission_manifests"]["total"] == 0
+    assert cats["instructor_corrections"]["count"] == 0
+    assert cats["audit_log_entries"]["count"] == 0
+    assert cats["ai_likelihood_scores"]["count"] == 0
+    assert cats["fused_scores"]["count"] == 0
+    assert cats["display_name"]["on_file"] is False
+
+
+def test_store_delete_tenant_students_records_failed_id_when_delete_student_fails(
+    store_reset, monkeypatch
+):
+    """Mirrors test_delete_tenant_students_records_failed_id_when_delete_student_fails
+    (Step 7) for store.py's module-level delete_student -- same "the False
+    branch is unreachable through the protocol alone" reasoning."""
+    store_reset.put(StudentState(student_id="sem:store-bulk-ok"))
+    store_reset.put(StudentState(student_id="sem:store-bulk-fail"))
+
+    real_delete_student = store_reset.delete_student
+
+    def _fake_delete_student(student_id):
+        if student_id == "sem:store-bulk-fail":
+            return False
+        return real_delete_student(student_id)
+
+    monkeypatch.setattr(store_reset, "delete_student", _fake_delete_student)
+    result = store_reset.delete_tenant_students("sem")
+    assert result["deleted_count"] == 1
+    assert result["failed_ids"] == ["sem:store-bulk-fail"]
+
+
+# ── Step 11: store.py inner per-row JSON-corruption fallbacks ──────────────
+#
+# Same raw-SQL-constructs-the-fixture idiom as Step 1b, for every other
+# store.py function with its own per-row try/except around a TEXT-column
+# JSON blob (manifest_json, data_json, transitions_json) -- get_fused_scores'
+# twin was already covered by Task 4; these are the ones Task 4 didn't
+# reach.
+
+
+def test_store_list_manifests_degrades_on_corrupted_manifest_json(store_reset):
+    store_reset.put_manifest(
+        "sub-store-corrupt-1",
+        "sem:store-corrupt-stu",
+        {"created_at": "2026-01-01T00:00:00Z"},
+        action="monitor",
+    )
+    conn = sqlite3.connect(str(store_reset._DB_PATH))
+    try:
+        conn.execute(
+            "UPDATE submission_manifests SET manifest_json = ? WHERE submission_id = ?",
+            ("{not valid json", "sub-store-corrupt-1"),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    result = store_reset.list_manifests(student_id="sem:store-corrupt-stu")
+    assert result["total"] == 1
+    item = result["items"][0]
+    assert item["submission_id"] == "sub-store-corrupt-1"
+    assert item["flags"] == []
+    assert item["anchor_tiers"] == []
+    assert item["length_regime"] == "unknown"
+
+
+def test_store_manifest_stats_degrades_on_corrupted_manifest_json(store_reset):
+    store_reset.put_manifest(
+        "sub-store-corrupt-2",
+        "sem:store-corrupt-stu2",
+        {"created_at": "2026-01-01T00:00:00Z"},
+        action="no_action",
+    )
+    conn = sqlite3.connect(str(store_reset._DB_PATH))
+    try:
+        conn.execute(
+            "UPDATE submission_manifests SET manifest_json = ? WHERE submission_id = ?",
+            ("{not valid json", "sub-store-corrupt-2"),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    result = store_reset.manifest_stats()
+    assert result["total"] == 1
+    assert result["by_action"] == {"no_action": 1}
+    assert result["by_length_regime"] == {"unknown": 1}
+    assert result["by_flag"] == {}
+
+
+def test_store_get_calibration_run_degrades_report_on_corrupted_json(store_reset):
+    run_id = store_reset.start_calibration_run("dataset-store-corrupt")
+    store_reset.complete_calibration_run(
+        run_id, auc=0.5, n_essays_scored=1, n_authors=1, report={"roc": [0.1]}
+    )
+    conn = sqlite3.connect(str(store_reset._DB_PATH))
+    try:
+        conn.execute(
+            "UPDATE calibration_runs SET report_json = ? WHERE id = ?",
+            ("{not valid json", run_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    run = store_reset.get_calibration_run(run_id, include_report=True)
+    assert run is not None
+    assert run["status"] == "completed"
+    assert run["report"] == {}
+
+
+def test_store_load_baseline_requests_skips_corrupted_row(store_reset):
+    store_reset.put_baseline_request(
+        "req-store-good", "sem:store-stu1", "pending", 100.0, json.dumps({"marker": "good"})
+    )
+    conn = sqlite3.connect(str(store_reset._DB_PATH))
+    try:
+        conn.execute(
+            "INSERT INTO baseline_requests "
+            "(external_request_id, student_id, status, requested_at, data_json) "
+            "VALUES (?, ?, ?, ?, ?)",
+            ("req-store-corrupt", "sem:store-stu2", "pending", 200.0, "{not valid json"),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    result = store_reset.load_baseline_requests()
+    assert len(result) == 1
+    assert result[0]["marker"] == "good"
+
+
+def test_store_park_beat_and_park_tiles_recover_from_corrupted_transitions_json(store_reset):
+    """park_beat and park_tiles each parse transitions_json independently
+    (there's no shared helper), so each gets its own corruption exercised
+    separately: first a state-change park_beat() call that reads back
+    corrupted history and discards it rather than crashing (3426-3427),
+    then a fresh corruption with no intervening park_beat call so nothing
+    "heals" the column before park_tiles reads it directly (3459-3460)."""
+    now = datetime.now(UTC)
+    exam_session_id, tenant_id, token = "park-corrupt-exam", "sem", "park-corrupt-token"
+    hint = "park-corrupt-hint"
+
+    store_reset.park_open(exam_session_id, tenant_id, token, now)
+    store_reset.park_beat(token, hint, "active", now)
+
+    conn = sqlite3.connect(str(store_reset._DB_PATH))
+    try:
+        conn.execute(
+            "UPDATE park_beats SET transitions_json = ? WHERE park_token = ? AND student_hint = ?",
+            ("{not valid json", token, hint),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    store_reset.park_beat(token, hint, "dropped", now)
+    tiles = store_reset.park_tiles(exam_session_id)
+    assert len(tiles) == 1
+    assert tiles[0]["state"] == "dropped"
+    assert tiles[0]["transitions"] == [{"state": "dropped", "at": store.park_iso_utc(now)}]
+
+    conn = sqlite3.connect(str(store_reset._DB_PATH))
+    try:
+        conn.execute(
+            "UPDATE park_beats SET transitions_json = ? WHERE park_token = ? AND student_hint = ?",
+            ("{not valid json", token, hint),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    tiles_after_corruption = store_reset.park_tiles(exam_session_id)
+    assert len(tiles_after_corruption) == 1
+    assert tiles_after_corruption[0]["transitions"] == []
+
+
+# ── Step 12: legacy-dimension padding, store.py side ────────────────────────
+
+
+def test_store_deserialize_pads_legacy_short_vector(store_reset):
+    """Mirrors test_doc_to_state_pads_legacy_short_vector (Step 7) for
+    store.py's own _deserialize. store.py's public write API always
+    produces FEATURE_DIM-wide vectors, so the only way to construct a
+    stored document with a legacy short vector is a raw INSERT of a hand-
+    built JSON blob -- sanctioned to construct this otherwise-unreachable
+    fixture state. The assertion reads back through store.get(), the
+    public API."""
+    student_id = "sem:store-legacy-dim-student"
+    short_vector = [0.25] * 62  # pre-Tier-8-12 width, shorter than FEATURE_DIM
+    doc = {
+        "student_id": student_id,
+        "samples": [
+            {
+                "text": "legacy short-vector sample",
+                "vector": short_vector,
+                "provenance": "instructor_verified",
+                "auth_weight": 1.0,
+                "assignment": "",
+                "submitted_at": "",
+                "word_count": None,
+                "genre": None,
+                "topic_centroid": None,
+                "context_manifest": None,
+                "keystroke_data": None,
+            }
+        ],
+        "baseline_kappa": None,
+        "kappa_log": [],
+        "consecutive_drift_count": 0,
+    }
+    # Trigger schema creation first -- a bare sqlite3.connect() against a
+    # brand-new store_reset DB file predates _init_schema() ever running on
+    # it, so student_profiles doesn't exist yet.
+    store_reset.list_ids()
+    conn = sqlite3.connect(str(store_reset._DB_PATH))
+    try:
+        conn.execute(
+            "INSERT OR REPLACE INTO student_profiles (student_id, data) VALUES (?, ?)",
+            (student_id, json.dumps(doc)),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    state = store_reset.get(student_id)
+    assert state is not None
+    vector = state.samples[0].vector
+    assert vector.shape == (FEATURE_DIM,)
+    assert list(vector[:62]) == short_vector
+    assert all(v == pytest.approx(0.5) for v in vector[62:])
+
+
+# ── Step 13: original/db/session.py (dormant v1 stack) ─────────────────────
+#
+# Never reached by anything in the live stack (see the module's own
+# docstring); Step 2 already covers its get_engine() branches. get_db()/
+# init_db()/drop_db() were still at 0% within this scoped run.
+
+
+def test_db_session_get_db_yields_and_closes_session():
+    from original.db import session as db_session
+
+    gen = db_session.get_db()
+    session = next(gen)
+    assert session is not None
+    # Drive past the yield so the `finally: session.close()` line runs too.
+    with pytest.raises(StopIteration):
+        next(gen)
+
+
+def test_db_session_init_db_and_drop_db_against_a_throwaway_engine(monkeypatch):
+    """init_db()/drop_db() bind to the module-level _engine global (built
+    once at import time from whatever DATABASE_URL the dormant v1 Settings
+    resolved to then), not a fresh get_engine() call -- monkeypatch that
+    global to a throwaway in-memory engine so this never touches the real
+    configured database."""
+    from sqlalchemy import create_engine, inspect
+
+    from original.db import session as db_session
+    from original.db.base import Base
+
+    throwaway_engine = create_engine("sqlite:///:memory:")
+    monkeypatch.setattr(db_session, "_engine", throwaway_engine)
+
+    db_session.init_db()
+    assert set(Base.metadata.tables) <= set(inspect(throwaway_engine).get_table_names())
+
+    db_session.drop_db()
+    assert inspect(throwaway_engine).get_table_names() == []
+
+
+def test_postgres_session_init_db_and_drop_db_against_a_throwaway_engine(monkeypatch):
+    """The LIVE schema's init_db()/drop_db() (original/db/postgres_session.py)
+    -- distinct from the dormant v1 pair just above -- call get_engine()
+    fresh each time rather than binding a cached global, so monkeypatching
+    get_engine() itself is the narrow seam here. Every other test that
+    needs the live schema (test_repository_contract.py's `repo` fixture)
+    calls LiveBase.metadata.create_all()/table.delete() directly against
+    the real shared Postgres instance instead of through these two
+    wrappers, which is why they were still uncovered -- and exactly why
+    this test must NOT run them for real: drop_db() would wipe every table
+    other tests in this session depend on."""
+    from sqlalchemy import create_engine, inspect
+
+    from original.db import postgres_session
+    from original.db.models.live import LiveBase
+
+    throwaway_engine = create_engine("sqlite:///:memory:")
+    monkeypatch.setattr(postgres_session, "get_engine", lambda: throwaway_engine)
+
+    postgres_session.init_db()
+    assert set(LiveBase.metadata.tables) <= set(inspect(throwaway_engine).get_table_names())
+
+    postgres_session.drop_db()
+    assert inspect(throwaway_engine).get_table_names() == []
+
+
+# ── Step 14: repository.py's SqliteRepository.db_path() ────────────────────
+#
+# PostgresRepository.db_path() raising NotImplementedError is already
+# covered by tests/test_baseline_requests.py::
+# test_postgres_repo_db_path_has_no_equivalent (outside this task's scoped
+# file list, confirmed by direct measurement -- see the task report). Only
+# the SqliteRepository forwarding line had no coverage anywhere in scope.
+
+
+def test_sqlite_repository_db_path_matches_store_db_path(store_reset):
+    import original.repository as repository
+
+    repository.reset_repository()
+    repo = repository.get_repository()
+    assert isinstance(repo, repository.SqliteRepository)
+    assert repo.db_path() == store_reset._DB_PATH

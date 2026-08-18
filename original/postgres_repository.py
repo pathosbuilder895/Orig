@@ -29,7 +29,7 @@ import numpy as np
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from .constants import FEATURE_DIM
+from .constants import FEATURE_DIM, GENRE_UNKNOWN
 from .core.logging import get_logger
 from .db.models.live import (
     AiLikelihoodScore,
@@ -1035,7 +1035,21 @@ class PostgresRepository:
     def get_genre_stats(self, genre, tenant, exclude_student_id):
         """Tenant-scoped, self-excluding genre prior — see
         store.get_genre_stats's docstring for the full contract.
+
+        Mirrors store.get_genre_stats's GENRE_UNKNOWN guard exactly (added
+        Part 1/Task 5 of the persistence branch-coverage sweep — this
+        backend was missing it, a real cross-backend divergence caught
+        while writing the dual-backend contract test): GENRE_UNKNOWN is the
+        v2 resolver's abstention, not a genre. Without this guard,
+        _pool_groups(tenant, "unknown") would pool every authenticated
+        sample literally tagged genre="unknown" together and hand back a
+        prior for that arbitrary mixture under the name of a same-genre
+        prior — exactly the "correspondence" dumping-ground failure mode
+        the resolver was fixed to avoid. Returning None here means the
+        caller falls back to the student-only baseline, same as SQLite.
         """
+        if genre == GENRE_UNKNOWN:
+            return None
         return genre_stats_from_groups(self._pool_groups(tenant, genre), exclude_student_id)
 
     def get_cohort_stats(self, tenant, exclude_student_id):
