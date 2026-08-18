@@ -114,11 +114,11 @@ def _make_state(student_id: str, n: int = 1, genre: str | None = None) -> Studen
     return state
 
 
-def _seed_manifest(repo, submission_id: str, student_id: str, action: str = "no_action"):
+def _seed_manifest(repo, submission_id: str, student_id: str, action: str = "no_action", created_at: str = "2026-01-01T00:00:00Z"):
     repo.put_manifest(
         submission_id=submission_id,
         student_id=student_id,
-        manifest={"created_at": "2026-01-01T00:00:00Z"},
+        manifest={"created_at": created_at},
         divergence_score=0.2,
         action=action,
     )
@@ -1731,7 +1731,7 @@ class TestRosterStatus:
         repo.put(_make_state("sem:zero", n=0))
         repo.put(_make_state("sem:esc", n=2))
         _seed_manifest(repo, "sub-r1", "sem:esc", action="monitor")
-        _seed_manifest(repo, "sub-r2", "sem:esc", action="escalate")  # last write wins
+        _seed_manifest(repo, "sub-r2", "sem:esc", action="escalate", created_at="2026-01-02T00:00:00Z")  # strictly later — pins chronological ordering, not insertion-order tie-break
         repo.put(_make_state("sem:conv", n=1))
         _seed_manifest(repo, "sub-r3", "sem:conv", action="schedule_conversation")
         repo.put(_make_state("sem:mon", n=1))
