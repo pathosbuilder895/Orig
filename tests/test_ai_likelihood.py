@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import sys
 import uuid
 from pathlib import Path
 
@@ -65,6 +66,9 @@ def _make_fixture_artifact(
     shuffle_codes=False,
     drift_refs=False,
     bad_masked_codes=False,
+    schema_version=1,
+    not_a_dict=False,
+    drop_key=None,
 ) -> Path:
     """Train a tiny LogisticRegression and wrap it in the exact artifact schema."""
     import joblib
@@ -97,7 +101,7 @@ def _make_fixture_artifact(
         masked_codes = [c for c in masked_codes if c not in set(TIER18_CODES)]
 
     artifact = {
-        "schema_version": 1,
+        "schema_version": schema_version,
         "model": model,
         "model_name": "fixture_logreg",
         "feature_codes": codes,
@@ -115,6 +119,10 @@ def _make_fixture_artifact(
             "dataset": {"name": "fixture-dataset"},
         },
     }
+    if drop_key:
+        artifact.pop(drop_key, None)
+    if not_a_dict:
+        artifact = ["not", "a", "dict"]
     path = tmp_path / "fixture_detector.joblib"
     joblib.dump(artifact, path)
     return path
@@ -437,3 +445,161 @@ def test_committed_artifact_schema_matches_pipeline(monkeypatch, detector_reset)
     # masks something the runtime does not is caught too.
     assert set(art["masked_codes"]) == set(_MASKED_CODES)
     assert set(TIER18_CODES) <= set(art["masked_codes"])
+
+
+# ── Additional _load_artifact validation arms ─────────────────────────────────
+
+
+def test_non_dict_artifact_disables_detector(tmp_path, monkeypatch, detector_reset):
+    fixture = _make_fixture_artifact(tmp_path, not_a_dict=True)
+    monkeypatch.setenv("AI_LIKELIHOOD_MODEL_PATH", str(fixture))
+    from original.ai_likelihood import predict_ai_likelihood, warm
+
+    assert warm() is False
+    assert predict_ai_likelihood(np.full(FEATURE_DIM, 0.5)) is None
+
+
+def test_schema_version_mismatch_disables_detector(tmp_path, monkeypatch, detector_reset):
+    fixture = _make_fixture_artifact(tmp_path, schema_version=2)
+    monkeypatch.setenv("AI_LIKELIHOOD_MODEL_PATH", str(fixture))
+    from original.ai_likelihood import predict_ai_likelihood, warm
+
+    assert warm() is False
+    assert predict_ai_likelihood(np.full(FEATURE_DIM, 0.5)) is None
+
+
+def test_generic_load_exception_disables_detector(tmp_path, monkeypatch, detector_reset):
+    """A malformed-but-dict artifact missing a required key raises inside the
+    loader (KeyError) — the broad `except Exception` arm must still fail
+    closed rather than propagate."""
+    fixture = _make_fixture_artifact(tmp_path, drop_key="reference_vectors")
+    monkeypatch.setenv("AI_LIKELIHOOD_MODEL_PATH", str(fixture))
+    from original.ai_likelihood import predict_ai_likelihood, warm
+
+    assert warm() is False
+    assert predict_ai_likelihood(np.full(FEATURE_DIM, 0.5)) is None
+
+
+def test_import_error_escalating_inconsistent_version_warning_is_tolerated(
+    tmp_path, monkeypatch, detector_reset
+):
+    """If sklearn.exceptions.InconsistentVersionWarning can't be imported, the
+    loader just skips the warning escalation (`except ImportError: pass`) and
+    still loads a structurally-valid artifact — this is not a fail-closed arm."""
+    fixture = _make_fixture_artifact(tmp_path)
+    monkeypatch.setenv("AI_LIKELIHOOD_MODEL_PATH", str(fixture))
+    monkeypatch.setitem(sys.modules, "sklearn.exceptions", None)
+    from original.ai_likelihood import warm
+
+    assert warm() is True
+
+
+def test_ensure_loaded_skips_reload_when_already_loaded_inside_lock(detector_reset, monkeypatch):
+    """Double-checked locking guard: if another thread finished loading while
+    this call was waiting on the lock, `_ensure_loaded` must not call
+    `_load_artifact` again — it just observes the now-current state."""
+    import original.ai_likelihood as ai_likelihood_module
+
+    class _WonTheRaceLock:
+        def __enter__(self):
+            ai_likelihood_module._state = ai_likelihood_module._READY
+            ai_likelihood_module._artifact = {"raced": True}
+
+        def __exit__(self, *exc_info):
+            return False
+
+    def _boom():
+        raise AssertionError("_load_artifact must not run when state changed under the lock")
+
+    monkeypatch.setattr(ai_likelihood_module, "_lock", _WonTheRaceLock())
+    monkeypatch.setattr(ai_likelihood_module, "_load_artifact", _boom)
+    assert ai_likelihood_module._state == ai_likelihood_module._UNLOADED
+    assert ai_likelihood_module._ensure_loaded() is True
+    assert ai_likelihood_module._artifact == {"raced": True}
+
+
+# ── _band boundary ─────────────────────────────────────────────────────────────
+
+
+def test_band_boundaries_are_inclusive_on_the_low_side():
+    from original.ai_likelihood import _band
+
+    thresholds = {"elevated": 0.6, "strong": 0.9}
+    assert _band(0.0, thresholds) == "low"
+    assert _band(0.5999, thresholds) == "low"
+    assert _band(0.6, thresholds) == "elevated"  # elevated boundary, inclusive
+    assert _band(0.8999, thresholds) == "elevated"
+    assert _band(0.9, thresholds) == "strong"  # strong boundary, inclusive
+    assert _band(1.0, thresholds) == "strong"
+
+
+# ── predict_ai_likelihood: dimensionality + broad exception guard ─────────────
+
+
+def test_predict_wrong_length_vector_returns_none(tmp_path, monkeypatch, detector_reset):
+    fixture = _make_fixture_artifact(tmp_path)
+    monkeypatch.setenv("AI_LIKELIHOOD_MODEL_PATH", str(fixture))
+    from original.ai_likelihood import predict_ai_likelihood
+
+    assert predict_ai_likelihood(np.full(FEATURE_DIM - 1, 0.5)) is None
+
+
+def test_predict_malformed_vector_fails_closed(tmp_path, monkeypatch, detector_reset):
+    """A vector that can't be coerced to float64 (e.g. strings) must not
+    propagate — the prediction-time `except Exception` fails closed to None."""
+    fixture = _make_fixture_artifact(tmp_path)
+    monkeypatch.setenv("AI_LIKELIHOOD_MODEL_PATH", str(fixture))
+    from original.ai_likelihood import predict_ai_likelihood
+
+    bad_vec = np.array(["not", "a", "number"] * (FEATURE_DIM // 3 + 1))[:FEATURE_DIM]
+    assert predict_ai_likelihood(bad_vec) is None
+
+
+# ── predict_ai_likelihood_batch's arms ─────────────────────────────────────────
+
+
+def test_batch_missing_artifact_returns_none(tmp_path, monkeypatch, detector_reset):
+    monkeypatch.setenv("AI_LIKELIHOOD_MODEL_PATH", str(tmp_path / "nope.joblib"))
+    from original.ai_likelihood import predict_ai_likelihood_batch
+
+    assert predict_ai_likelihood_batch(np.full((3, FEATURE_DIM), 0.5)) is None
+
+
+def test_batch_reshapes_a_single_1d_vector(tmp_path, monkeypatch, detector_reset):
+    fixture = _make_fixture_artifact(tmp_path)
+    monkeypatch.setenv("AI_LIKELIHOOD_MODEL_PATH", str(fixture))
+    from original.ai_likelihood import predict_ai_likelihood, predict_ai_likelihood_batch
+
+    vec = np.full(FEATURE_DIM, 0.5)
+    vec[_PPX_IDX] = 0.85
+    batch = predict_ai_likelihood_batch(vec)  # 1D input, not (n, FEATURE_DIM)
+    assert batch is not None
+    assert batch.shape == (1,)
+    scalar = predict_ai_likelihood(vec)
+    assert np.isclose(batch[0], scalar.probability, atol=5e-5)
+
+
+def test_batch_empty_input_fails_closed(tmp_path, monkeypatch, detector_reset):
+    """An empty batch (0 rows) passes the dimensionality check — shape is
+    (0, FEATURE_DIM) — but sklearn's predict_proba refuses a 0-sample input
+    and raises; the batch predictor must fail closed to None rather than
+    propagate that, exactly like every other predict-time exception here."""
+    fixture = _make_fixture_artifact(tmp_path)
+    monkeypatch.setenv("AI_LIKELIHOOD_MODEL_PATH", str(fixture))
+    from original.ai_likelihood import predict_ai_likelihood_batch
+
+    assert predict_ai_likelihood_batch(np.empty((0, FEATURE_DIM))) is None
+
+
+def test_batch_mixed_none_and_vector_rows_fails_closed(tmp_path, monkeypatch, detector_reset):
+    """blend.py's caller filters None window vectors out before calling the
+    batch predictor, but the batch predictor is called from more than one
+    place — it must fail closed on its own if ever handed a ragged/None-mixed
+    input rather than raise (np.asarray(..., dtype=float64) on a list mixing
+    None with a full vector raises ValueError: inhomogeneous shape)."""
+    fixture = _make_fixture_artifact(tmp_path)
+    monkeypatch.setenv("AI_LIKELIHOOD_MODEL_PATH", str(fixture))
+    from original.ai_likelihood import predict_ai_likelihood_batch
+
+    mixed = [None, np.full(FEATURE_DIM, 0.5)]
+    assert predict_ai_likelihood_batch(mixed) is None
