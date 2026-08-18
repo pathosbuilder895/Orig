@@ -1719,3 +1719,47 @@ class TestPhonePark:
         }
         forbidden = {"ip", "ip_address", "user_agent", "location", "device", "student_id", "email"}
         assert not (session_keys | tile_keys) & forbidden
+
+
+# ── Roster + status ladder (WS-6 P1 gap closure, branch-coverage part 1) ──────
+
+
+class TestRosterStatus:
+    def test_status_ladder_reflects_latest_action(self, repo):
+        # Ladder: 0 samples → no_baseline; escalate/schedule_conversation →
+        # needs_review; monitor → monitor; anything else → clear.
+        repo.put(_make_state("sem:zero", n=0))
+        repo.put(_make_state("sem:esc", n=2))
+        _seed_manifest(repo, "sub-r1", "sem:esc", action="monitor")
+        _seed_manifest(repo, "sub-r2", "sem:esc", action="escalate")  # last write wins
+        repo.put(_make_state("sem:conv", n=1))
+        _seed_manifest(repo, "sub-r3", "sem:conv", action="schedule_conversation")
+        repo.put(_make_state("sem:mon", n=1))
+        _seed_manifest(repo, "sub-r4", "sem:mon", action="monitor")
+        repo.put(_make_state("sem:clean", n=1))
+        _seed_manifest(repo, "sub-r5", "sem:clean", action="no_action")
+        repo.put(_make_state("sem:unscored", n=1))  # no manifest at all
+
+        roster = {r["id"]: r for r in repo.roster_for_tenant("sem")}
+        assert roster["sem:zero"]["status"] == "no_baseline"
+        assert roster["sem:esc"]["status"] == "needs_review"
+        assert roster["sem:conv"]["status"] == "needs_review"
+        assert roster["sem:mon"]["status"] == "monitor"
+        assert roster["sem:clean"]["status"] == "clear"
+        assert roster["sem:unscored"]["status"] == "clear"
+
+    def test_roster_names_counts_and_scoping(self, repo):
+        state = _make_state("sem:named", n=3)
+        repo.put(state)
+        repo.set_display_name("sem:named", "Alice Example")
+        repo.put(_make_state("sem:anon", n=1))
+        repo.put(_make_state("other:outsider", n=1))  # different tenant
+
+        roster = {r["id"]: r for r in repo.roster_for_tenant("sem")}
+        assert set(roster) == {"sem:named", "sem:anon"}
+        assert roster["sem:named"]["name"] == "Alice Example"
+        assert roster["sem:named"]["has_name"] is True
+        assert roster["sem:anon"]["has_name"] is False
+        assert roster["sem:anon"]["name"].startswith("Student ")
+        assert roster["sem:named"]["sample_count"] == 3
+        assert roster["sem:named"]["authenticated_count"] == 3  # instructor_verified
