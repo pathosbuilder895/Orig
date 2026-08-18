@@ -34,6 +34,7 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from original.constants import FEATURE_DIM
+from original.context.manifest import ContextManifest
 from original.quantum.state import BaselineSample, StudentState
 from original.repository import PostgresRepository, get_repository, reset_repository
 
@@ -1763,3 +1764,147 @@ class TestRosterStatus:
         assert roster["sem:anon"]["name"].startswith("Student ")
         assert roster["sem:named"]["sample_count"] == 3
         assert roster["sem:named"]["authenticated_count"] == 3  # instructor_verified
+
+
+# ── Manifest read-model gaps (WS-6 P1 gap closure, branch-coverage part 1,
+#    task 2: put_manifest / list_manifests / manifest_stats /
+#    list_calibration_runs) ─────────────────────────────────────────────────
+
+
+class TestManifestUpsertAndTypes:
+    def test_put_manifest_upsert_same_submission_id_wins(self, repo):
+        # Both backends key the underlying row on submission_id (SQLite's
+        # INSERT OR REPLACE, Postgres's ON CONFLICT DO UPDATE) — a second
+        # write for the same id must replace the row in place, not append.
+        repo.put_manifest(
+            "sub-up1",
+            "sem:upsert",
+            {"created_at": "2026-01-01T00:00:00Z", "flags": ["first"]},
+            divergence_score=0.1,
+            action="no_action",
+        )
+        repo.put_manifest(
+            "sub-up1",
+            "sem:upsert",
+            {"created_at": "2026-01-05T00:00:00Z", "flags": ["second"]},
+            divergence_score=0.9,
+            action="escalate",
+        )
+        m = repo.get_manifest("sub-up1")
+        assert m["action"] == "escalate"
+        assert m["divergence_score"] == 0.9
+        assert m["manifest"]["flags"] == ["second"]
+
+        result = repo.list_manifests(student_id="sem:upsert")
+        assert result["total"] == 1
+        assert len(result["items"]) == 1
+        assert result["items"][0]["submission_id"] == "sub-up1"
+        assert result["items"][0]["action"] == "escalate"
+
+    def test_put_manifest_accepts_context_manifest_object(self, repo):
+        # put_manifest's `manifest` param is typed "ContextManifest or its
+        # to_dict()" — the hasattr(manifest, "to_json") branch is the real
+        # production call shape (context/pipeline.py passes the dataclass
+        # itself), not just the dict shortcut every other test in this file
+        # uses.
+        manifest = ContextManifest(
+            submission_id="sub-obj1",
+            language={},
+            genre={},
+            topic={},
+            length_regime="short",
+            citations={},
+            composition_mode={},
+            flags=["from_object"],
+            created_at="2026-01-03T00:00:00Z",
+        )
+        repo.put_manifest(
+            "sub-obj1", "sem:objtype", manifest, divergence_score=0.25, action="monitor"
+        )
+        m = repo.get_manifest("sub-obj1")
+        assert m["student_id"] == "sem:objtype"
+        assert m["action"] == "monitor"
+        assert m["divergence_score"] == 0.25
+        assert m["manifest"]["flags"] == ["from_object"]
+
+    def test_put_manifest_unsupported_type_is_swallowed(self, repo):
+        # Neither hasattr(..., "to_json") nor isinstance(..., dict) — the
+        # else arm logs a warning and returns without writing a row
+        # (best-effort audit log, never allowed to break the scoring path).
+        repo.put_manifest("sub-bad1", "sem:badtype", "not-a-manifest", action="monitor")
+        assert repo.get_manifest("sub-bad1") is None
+        result = repo.list_manifests(student_id="sem:badtype")
+        assert result["total"] == 0
+
+
+class TestListManifestsFilterBoundaries:
+    def test_since_until_boundaries_are_inclusive(self, repo):
+        _seed_manifest(repo, "sub-b1", "sem:bounds", created_at="2026-02-01T00:00:00Z")
+        _seed_manifest(repo, "sub-b2", "sem:bounds", created_at="2026-02-02T00:00:00Z")
+        _seed_manifest(repo, "sub-b3", "sem:bounds", created_at="2026-02-03T00:00:00Z")
+
+        since_result = repo.list_manifests(student_id="sem:bounds", since="2026-02-02T00:00:00Z")
+        assert {i["submission_id"] for i in since_result["items"]} == {"sub-b2", "sub-b3"}
+
+        until_result = repo.list_manifests(student_id="sem:bounds", until="2026-02-02T00:00:00Z")
+        assert {i["submission_id"] for i in until_result["items"]} == {"sub-b1", "sub-b2"}
+
+    def test_empty_result_set(self, repo):
+        _seed_manifest(repo, "sub-e1", "sem:somebody")
+        result = repo.list_manifests(student_id="nobody-here")
+        assert result == {"total": 0, "limit": 100, "offset": 0, "items": []}
+
+
+class TestManifestStatsEdgeCases:
+    def test_empty_store_denominator_is_safe(self, repo):
+        stats = repo.manifest_stats()
+        assert stats["total"] == 0
+        assert stats["mean_divergence"] is None
+        assert stats["by_action"] == {}
+        assert stats["by_flag"] == {}
+        assert stats["by_length_regime"] == {}
+
+    def test_since_cutoff_excludes_everything(self, repo):
+        _seed_manifest(repo, "sub-st1", "sem:stats1", created_at="2026-01-01T00:00:00Z")
+        stats = repo.manifest_stats(since="2026-06-01T00:00:00Z")
+        assert stats["total"] == 0
+        assert stats["mean_divergence"] is None
+        assert stats["since"] == "2026-06-01T00:00:00Z"
+
+    def test_until_filters_a_subset(self, repo):
+        _seed_manifest(repo, "sub-st2", "sem:stats2", created_at="2026-01-01T00:00:00Z")
+        _seed_manifest(repo, "sub-st3", "sem:stats2", created_at="2026-03-01T00:00:00Z")
+        stats = repo.manifest_stats(until="2026-01-15T00:00:00Z")
+        assert stats["total"] == 1
+
+    def test_divergence_none_excluded_from_mean(self, repo):
+        # A manifest written without a divergence_score (None) must not
+        # pull the running mean toward zero — the loop only accumulates
+        # rows where the score is not None.
+        repo.put_manifest(
+            "sub-st4", "sem:stats3", {"created_at": "2026-01-01T00:00:00Z"}, action="no_action"
+        )
+        repo.put_manifest(
+            "sub-st5",
+            "sem:stats3",
+            {"created_at": "2026-01-01T00:00:00Z"},
+            divergence_score=0.6,
+            action="monitor",
+        )
+        stats = repo.manifest_stats()
+        assert stats["total"] == 2
+        assert stats["mean_divergence"] == 0.6
+
+
+class TestCalibrationRunsListFilters:
+    def test_list_calibration_runs_on_empty_store(self, repo):
+        result = repo.list_calibration_runs()
+        assert result == {"total": 0, "limit": 50, "offset": 0, "items": []}
+
+    def test_list_calibration_runs_filters_by_dataset_label(self, repo):
+        repo.start_calibration_run("dataset-E")
+        run_f = repo.start_calibration_run("dataset-F")
+        result = repo.list_calibration_runs(dataset_label="dataset-F")
+        assert result["total"] == 1
+        assert result["items"][0]["id"] == run_f
+        assert result["items"][0]["dataset_label"] == "dataset-F"
