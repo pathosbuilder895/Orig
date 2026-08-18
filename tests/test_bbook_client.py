@@ -101,9 +101,11 @@ class TestRequestBaseline:
         )
         sent = _FakeClient.last_json
         assert sent["externalRequestId"] == "fixed-key"
-        for key in ("institutionName", "requestedBy", "minWordCount",
-                    "maxWordCount", "promptText"):
-            assert key in sent
+        assert sent["institutionName"] == "Sem"
+        assert sent["requestedBy"] == "prof@sem.edu"
+        assert sent["minWordCount"] == 200
+        assert sent["maxWordCount"] == 800
+        assert sent["promptText"] == "Discuss."
 
 
 class TestFetchStatus:
