@@ -613,6 +613,15 @@ def test_pg_repository_guard_reraises_on_session_failure(monkeypatch, method_nam
 
 @pytest.mark.postgres
 def test_advance_formation_pathway_returns_none_on_second_session_failure(monkeypatch):
+    # Unlike every test in Step 4/5 above (which fully replace session_scope
+    # with _boom and never dial out), the first call here is real -- so this
+    # one actually needs a reachable Postgres to self-skip against, matching
+    # the file's documented "safe to run in any sandbox" contract.
+    if not _postgres_session_available():
+        pytest.skip(
+            "no reachable Postgres -- set DATABASE_URL to a postgresql:// "
+            "instance to run this two-stage guard test"
+        )
     repo = postgres_repository.PostgresRepository()
     student_id = "sem:pg-advance-guard"
     opened = repo.open_formation_pathway(student_id)
@@ -663,6 +672,11 @@ def test_doc_to_state_pads_legacy_short_vector():
     doc is written directly through session_scope/the ORM: the sanctioned
     exception for constructing states unreachable through the protocol.
     The assertion reads back through repo.get(), the public API."""
+    if not _postgres_session_available():
+        pytest.skip(
+            "no reachable Postgres -- set DATABASE_URL to a postgresql:// "
+            "instance to run this legacy-dimension-padding test"
+        )
     from original.db.models.live import StudentProfile
     from original.db.postgres_session import session_scope
 
@@ -717,6 +731,11 @@ def test_get_fused_scores_degrades_channels_on_corrupted_json_row():
     session factory the repository itself uses (sanctioned: constructs a
     state unreachable through the protocol). The assertion reads back
     through repo.get_fused_scores(), the public API."""
+    if not _postgres_session_available():
+        pytest.skip(
+            "no reachable Postgres -- set DATABASE_URL to a postgresql:// "
+            "instance to run this inner-JSON-corruption-fallback test"
+        )
     from sqlalchemy import text
 
     from original.db.postgres_session import session_scope
@@ -753,6 +772,11 @@ def test_delete_tenant_students_records_failed_id_when_delete_student_fails(monk
     sanctioned "narrow seam" idiom as monkeypatching session_scope, one
     level up: it's the only way to observe the failed-ids bookkeeping
     (the else branch of delete_tenant_students' own if/else) at all."""
+    if not _postgres_session_available():
+        pytest.skip(
+            "no reachable Postgres -- set DATABASE_URL to a postgresql:// "
+            "instance to run this bulk-delete partial-failure test"
+        )
     # A dedicated tenant -- this file's tests share one real Postgres
     # instance with no per-test table wipe (unlike test_repository_contract.py's
     # `repo` fixture), so a shared id like "sem" would pick up other tests'
