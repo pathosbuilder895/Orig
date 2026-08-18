@@ -350,6 +350,15 @@ async def upload_baseline_batch(
     # an instructor can see which files were held without aborting the batch.
     drift_holds: list[dict] = []
 
+    # Dedup: seed from every hash already on record for this student via the
+    # same helper add_baseline's seal-replay guard and the Canvas-import route
+    # use (falls back to hashing .text when a sample's .text_hash didn't
+    # survive a persistence round-trip — BaselineSample.text_hash is a plain
+    # attribute, not a stored field, so it never does). Grown as files are
+    # admitted below so duplicates *within* this same batch are still caught
+    # without a second per-file repository read.
+    seen_hashes = _existing_text_hashes(student_id)
+
     for upload in files:
         filename = upload.filename or "unknown"
         ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
@@ -384,7 +393,7 @@ async def upload_baseline_batch(
         import hashlib as _hashlib
 
         text_hash = _hashlib.sha256(text.encode()).hexdigest()
-        if any(getattr(s, "text_hash", None) == text_hash for s in state.samples):
+        if text_hash in seen_hashes:
             skipped_duplicates += 1
             continue
 
@@ -404,8 +413,9 @@ async def upload_baseline_batch(
             assignment=label,
             submitted_at="",
         )
-        # Attach hash for future dedup checks
-        sample.text_hash = text_hash  # type: ignore[attr-defined]
+        # Recorded locally (not on the sample — see the comment above
+        # seen_hashes) so a duplicate later in *this* batch is still caught.
+        seen_hashes.add(text_hash)
 
         # ── Phase 8: per-file drift gate (best-effort) ────────────────────────
         # Batch ingestion does NOT 202/409 on drift — that would block the
