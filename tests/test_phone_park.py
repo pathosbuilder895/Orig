@@ -129,6 +129,28 @@ def test_park_routes_are_mounted(live_app):
         assert (path, method) in live, f"missing {method} {path}"
 
 
+def test_open_without_the_clock_fixture_uses_the_real_wall_clock(store_reset, live_client):
+    """proctor.py:82 — `_now()`'s real `datetime.now(UTC)` body. Every other
+    test in this file requests the `clock` fixture, which monkeypatches
+    `_now` to a frozen, movable time — so the real implementation is never
+    actually executed anywhere else in the suite. This test deliberately
+    omits `clock`: open + a real anonymous beat both call `_now()` for real
+    (proctor.py:164,213), and the resulting tile's `last_seen_seconds_ago` —
+    derived from that same real clock — comes back at (or very near) zero,
+    proving the real implementation ran rather than a frozen one."""
+    headers = _professor(live_client, "sem-dallas", "realclock@sem.edu")
+
+    token = _open(live_client, headers)["park_token"]
+    beat_r = _beat(live_client, token, "hint-realclock")
+    assert beat_r.status_code == 200, beat_r.text
+
+    status = _status(live_client, headers)
+    assert status.status_code == 200, status.text
+    tiles = status.json()["tiles"]
+    assert tiles, "a beat should create at least one tile"
+    assert tiles[0]["last_seen_seconds_ago"] < 5
+
+
 # ── open ──────────────────────────────────────────────────────────────────────
 
 

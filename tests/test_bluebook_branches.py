@@ -112,3 +112,25 @@ def test_launch_success_without_name_or_exam(live_client, store_reset):
     assert f'localStorage.setItem("bluebook_student_id","{sid}")' in body
     assert 'var u="/bluebook/";' in body
     assert "candidate=" not in body
+
+
+def test_launch_success_swallows_a_set_display_name_failure(
+    live_client, store_reset, monkeypatch
+):
+    """bluebook.py:[68,69] — `except Exception: pass` around the best-effort
+    set_display_name call. It must not fail the whole launch (the student
+    still gets authenticated and redirected) even if persisting the display
+    name errors out."""
+    from original.repository import SqliteRepository
+
+    def _boom(self, student_id, name):
+        raise RuntimeError("simulated set_display_name failure")
+
+    monkeypatch.setattr(SqliteRepository, "set_display_name", _boom)
+
+    sid = "bbrx:launchstudent3"
+    token = student_auth.mint_launch_token(sid, _TENANT, exam="exam-1", name="Boom Student")
+    r = live_client.get("/bluebook/launch", params={"t": token})
+
+    assert r.status_code == 200, r.text
+    assert f'localStorage.setItem("bluebook_student_id","{sid}")' in r.text

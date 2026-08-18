@@ -247,6 +247,30 @@ def test_resolve_app_version_falls_back_when_pyproject_has_no_version_line(monke
     assert api_mod._resolve_app_version() == "0.1.0"
 
 
+def test_resolve_app_version_falls_back_when_pyproject_is_unreadable(monkeypatch):
+    """api.py:[197,198] — `except OSError: pass`, distinct from the "no
+    version line" test above (that one reads pyproject.toml successfully
+    and finds no match; this one fails the read itself, e.g. a stripped
+    deployment artifact missing the file)."""
+
+    class _FakePath:
+        def resolve(self):
+            return self
+
+        @property
+        def parent(self):
+            return self
+
+        def __truediv__(self, other):
+            return self
+
+        def read_text(self):
+            raise OSError("simulated missing pyproject.toml")
+
+    monkeypatch.setattr(api_mod, "Path", lambda *a, **kw: _FakePath())
+    assert api_mod._resolve_app_version() == "0.1.0"
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # routers/health.py: admin_health — 3/4 branches (degraded-dependency arms)
 #   [68,70]  list_manifests() returned items -> latency list built

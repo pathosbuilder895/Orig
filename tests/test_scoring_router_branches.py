@@ -212,3 +212,264 @@ def test_all_states_cache_is_reused_across_two_consumers_in_one_request(
     monkeypatch.setenv("STYLE_AUTHORSHIP_ENABLED", "1")
     r = _score(live_client, sid, force=True)
     assert r.status_code == 200, r.text
+
+
+# ── FUSED_SCORE_{ENABLED,SHADOW}: abstain + hit + persist-failure arms ──────
+# students_scoring.py:375-431. Two modes share one call site:
+#   [384,385]  True arm — either flag turns the block on at all.
+#   [413,452]  False arm — `_fused is None` (abstain), skip persistence.
+#   [413,414]  True arm — a "hit" (non-None) fused score.
+#   [414,415]/[414,416] — FUSED_SCORE_ENABLED attaches to the response vs.
+#     FUSED_SCORE_SHADOW-only persists but leaves the field null.
+# The abstain arms are reachable cheaply (SUBMISSION_TEXT is short — under
+# fusion's own MIN_WORDS floor — so predict_fused_score_with_reason abstains
+# before even touching the artifact or peer pool). The "hit" arms need
+# original.fusion's own MIN_BASELINES (3) and N_REFERENCES (8) floors met
+# for real, which tests/fusion/test_wiring.py already exercises at full
+# scale — reproduced here at the *minimum* viable cohort size (exactly 8
+# peers, not test_wiring.py's 12, and one cohort shared across all three
+# assertions below) to keep this fast enough for the scoped branch-coverage
+# run: building even the minimal cohort costs ~40s of real feature
+# extraction over 27 HTTP baseline calls, so it is deliberately not repeated
+# per-assertion.
+
+
+def test_fused_score_flag_on_but_probe_too_short_is_a_clean_abstain(
+    live_client, store_reset, monkeypatch
+):
+    sid = "fused-abstain"
+    assert _add_baseline(live_client, sid).status_code == 200
+
+    monkeypatch.setenv("FUSED_SCORE_SHADOW", "1")
+    r = _score(live_client, sid, force=True)
+
+    assert r.status_code == 200, r.text
+    assert r.json().get("fused_score") is None
+
+
+def test_fused_score_hit_enabled_shadow_and_persistence_failure(
+    live_client, store_reset, monkeypatch, tmp_path
+):
+    import json
+    import uuid
+
+    import numpy as np
+
+    from original.fusion import reset_for_tests
+
+    # A tiny local artifact (same shape test_wiring.py's fixture_artifact
+    # uses) so this doesn't depend on the real shipped model's calibration.
+    payload = {
+        "schema_version": 1,
+        "channel_order": ["peer_centered_z", "compression", "function_word_network"],
+        "mu": [0.0, 0.0, 0.0],
+        "sd": [1.0, 1.0, 1.0],
+        "weights": [1.0, 1.0, 1.0],
+        "intercept": 0.0,
+        "threshold_fa5": 0.5,
+        "threshold_fa1": 1.5,
+        "reference_inputs": [[0.1, 0.2, 0.3]],
+        "reference_outputs": [float(np.dot([0.1, 0.2, 0.3], [1.0, 1.0, 1.0]))],
+        "provenance": {"dataset": "unit-test"},
+    }
+    artifact_path = tmp_path / "fused.json"
+    artifact_path.write_text(json.dumps(payload))
+    monkeypatch.setenv("FUSED_SCORE_MODEL_PATH", str(artifact_path))
+    reset_for_tests()
+
+    tenant = f"fusedhit{uuid.uuid4().hex[:6]}"
+    r = live_client.post(
+        "/tenants", json={"tenant_id": tenant, "name": tenant, "environment": "demo"}
+    )
+    assert r.status_code == 201, r.text
+
+    long_text = (
+        "However, a reader might ask why these claims have been made; therefore we "
+        "reply that the argument is careful and that it is also sound. "
+    ) * 40
+    claimed = f"{tenant}:alice"
+    for name in ["alice"] + [f"peer{i}" for i in range(8)]:  # exactly N_REFERENCES
+        student_id = f"{tenant}:{name}"
+        for index in range(3):  # MIN_BASELINES
+            resp = live_client.post(
+                f"/students/{student_id}/baseline",
+                json={
+                    "text": long_text,
+                    "provenance": "proctored",
+                    "assignment": f"{name}-{index}",
+                },
+            )
+            assert resp.status_code == 200, resp.text
+
+    # ── [414,415]: FUSED_SCORE_ENABLED=1 → attached AND persisted ───────────
+    monkeypatch.setenv("FUSED_SCORE_ENABLED", "1")
+    monkeypatch.delenv("FUSED_SCORE_SHADOW", raising=False)
+    r_enabled = live_client.post(
+        f"/students/{claimed}/score",
+        json={"text": long_text, "submission_id": uuid.uuid4().hex},
+    )
+    assert r_enabled.status_code == 200, r_enabled.text
+    assert r_enabled.json().get("fused_score") is not None
+
+    # ── [414,416]: SHADOW-only → persisted, field STILL null ────────────────
+    monkeypatch.delenv("FUSED_SCORE_ENABLED", raising=False)
+    monkeypatch.setenv("FUSED_SCORE_SHADOW", "1")
+    r_shadow = live_client.post(
+        f"/students/{claimed}/score",
+        json={"text": long_text, "submission_id": uuid.uuid4().hex},
+    )
+    assert r_shadow.status_code == 200, r_shadow.text
+    assert r_shadow.json().get("fused_score") is None
+
+    # ── persistence exception (best-effort, never surfaces to the caller) ───
+    from original.repository import SqliteRepository
+
+    def _put_fused_score_boom(self, **kwargs):
+        raise RuntimeError("simulated fused-score persistence failure")
+
+    monkeypatch.setattr(SqliteRepository, "put_fused_score", _put_fused_score_boom)
+    r_persist_fail = live_client.post(
+        f"/students/{claimed}/score",
+        json={"text": long_text, "submission_id": uuid.uuid4().hex},
+    )
+    assert r_persist_fail.status_code == 200, r_persist_fail.text
+
+
+# ── `force=True` cache-bypass arm ────────────────────────────────────────────
+# students_scoring.py:[52,62] — `force` is a plain route parameter alongside
+# a Pydantic body model, so FastAPI resolves it as a QUERY parameter, not
+# part of the JSON body. `_score()`'s `force=True` kwarg above lands *inside*
+# `json={...}` (harmless here — the cache-check block is a no-op stub either
+# way, `existing_result` is hardcoded `None` regardless of `force`), but it
+# never actually sets the query param, so the `not force` False arm (skip the
+# cache-check block entirely) was never taken by any existing test. Verified
+# empirically before writing this test.
+
+
+def test_force_true_as_a_real_query_param_skips_the_cache_check_block(
+    live_client, store_reset
+):
+    sid = "force-query-param"
+    assert _add_baseline(live_client, sid).status_code == 200
+
+    r = live_client.post(
+        SCORE.format(sid=sid),
+        json={"text": SUBMISSION_TEXT},
+        params={"force": "true"},
+    )
+
+    assert r.status_code == 200, r.text
+
+
+# ── Best-effort exception handlers ───────────────────────────────────────────
+# These are statement-only gaps, not branch pairs (try/except isn't a branch
+# coverage.py tracks) — students_scoring.py has many of this shape (adaptive
+# pipeline fallback, impostor-pool build, ai_likelihood/fused/fidelity/
+# manifest persistence, report assembly, audit log — all "log and continue,
+# never fail the request"). The four below are the highest-value ones
+# (whole-orchestrator fallback, and the three persistence writes every
+# scored submission goes through); the remainder are the same shape and are
+# documented, not chased, in the sweep report.
+
+
+def test_adaptive_pipeline_catastrophic_failure_falls_back_to_phase1(
+    live_client, store_reset, monkeypatch
+):
+    """students_scoring.py:85-97 — `except Exception as e:` around the
+    whole adaptive-context orchestrator call. A broken resolver must not be
+    able to take down scoring; the handler falls back to plain
+    extract_features/feature_vector (Phase 1 behaviour)."""
+    import original.context.pipeline as pipeline_mod
+
+    def _boom(**kwargs):
+        raise RuntimeError("simulated adaptive pipeline failure")
+
+    monkeypatch.setattr(pipeline_mod, "run_adaptive_pipeline", _boom)
+
+    sid = "adaptive-pipeline-boom"
+    assert _add_baseline(live_client, sid).status_code == 200
+
+    r = _score(live_client, sid, force=True)
+
+    assert r.status_code == 200, r.text
+
+
+def test_fidelity_persistence_failure_is_swallowed(live_client, store_reset, monkeypatch):
+    """students_scoring.py:460-461 — `except Exception as _e:` around
+    put_fidelity_score. A failing conformal-calibration write must not
+    fail the scoring response. Only reachable when
+    `result.authorship.quantum_fidelity > 0` on the INTERNAL Layer7Output
+    (quantum_fidelity is the Phase 6 amplitude-encoding score, computed
+    only under AMPLITUDE_SCORING_ENABLED=1). Patch the leaf
+    `original.quantum.amplitude.quantum_fidelity` function so the internal
+    value is unconditionally positive regardless of amplitude-encoding
+    numerics on a short test document.
+
+    Can't assert this via the HTTP response's `authorship.quantum_fidelity`
+    field — schemas.py:576's own docstring documents that `_to_response()`
+    never copies it from the internal dataclass ("WS-7 S9 completeness
+    gap... silently dropped today"), so that field always reads 0.0
+    regardless of the internal value. Verified empirically: the internal
+    branch this test targets is independent of that separate, pre-existing,
+    already-tracked serialization gap — asserting response status is the
+    right level here, matching every other "swallowed exception" test in
+    this file."""
+    import original.quantum.amplitude as amplitude_mod
+    from original.repository import SqliteRepository
+
+    monkeypatch.setattr(amplitude_mod, "quantum_fidelity", lambda psi_b, psi_s: 0.87)
+    monkeypatch.setenv("AMPLITUDE_SCORING_ENABLED", "1")
+
+    def _boom(self, **kwargs):
+        raise RuntimeError("simulated put_fidelity_score failure")
+
+    monkeypatch.setattr(SqliteRepository, "put_fidelity_score", _boom)
+
+    sid = "fidelity-persist-boom"
+    assert _add_baseline(live_client, sid).status_code == 200
+
+    r = _score(live_client, sid, force=True)
+
+    assert r.status_code == 200, r.text
+
+
+def test_manifest_persistence_failure_is_swallowed(live_client, store_reset, monkeypatch):
+    """students_scoring.py:477-478 — `except Exception as e:` around
+    put_manifest. Requires CONTEXT_MANIFEST_ENABLED=1 so `manifest is not
+    None`, else the persist block is skipped entirely (not this arm)."""
+    from original.repository import SqliteRepository
+
+    def _boom(self, **kwargs):
+        raise RuntimeError("simulated put_manifest failure")
+
+    monkeypatch.setattr(SqliteRepository, "put_manifest", _boom)
+    monkeypatch.setenv("CONTEXT_MANIFEST_ENABLED", "1")
+
+    sid = "manifest-persist-boom"
+    assert _add_baseline(live_client, sid).status_code == 200
+
+    r = _score(live_client, sid, force=True)
+
+    assert r.status_code == 200, r.text
+
+
+def test_audit_log_failure_is_swallowed(live_client, store_reset, monkeypatch):
+    """students_scoring.py:523-524 — the bare `except Exception: pass`
+    around the final best-effort audit-log write."""
+    from original.repository import SqliteRepository
+
+    real_log_audit = SqliteRepository.log_audit
+
+    def _boom(self, **kwargs):
+        if kwargs.get("action") == "score":
+            raise RuntimeError("simulated log_audit failure")
+        return real_log_audit(self, **kwargs)
+
+    monkeypatch.setattr(SqliteRepository, "log_audit", _boom)
+
+    sid = "auditlog-persist-boom"
+    assert _add_baseline(live_client, sid).status_code == 200
+
+    r = _score(live_client, sid, force=True)
+
+    assert r.status_code == 200, r.text

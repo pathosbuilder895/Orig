@@ -246,6 +246,88 @@ def test_fetch_text_happy_path(live_client, store_reset, monkeypatch):
 # never created.
 
 
+# ── import_canvas_baseline: check_drift raising is best-effort ──────────────
+
+
+def test_import_admits_the_sample_when_check_drift_itself_raises(
+    live_client, store_reset, monkeypatch
+):
+    """imports.py:[211,212] — `except Exception as exc:` around
+    `state.check_drift(sample)`. Best-effort: a raising drift check must not
+    fail the whole import, and (unlike the drift-HOLD arm above) the sample
+    is still admitted. Same monkeypatch idiom as
+    tests/test_students_baseline_batch.py's
+    test_drift_check_exception_leaves_drift_result_none."""
+    from original.quantum.state import StudentState
+
+    sid = "canvas-drift-exception"
+    for text in (U1, U2, U3):
+        assert _add_baseline(live_client, sid, text).status_code == 200
+
+    def _boom(self, *args, **kwargs):
+        raise RuntimeError("simulated check_drift failure")
+
+    monkeypatch.setattr(StudentState, "check_drift", _boom)
+
+    _stub_canvas(
+        monkeypatch,
+        submissions=[{"id": "606", "submission_type": "online_text_entry"}],
+        texts={"606": GOOD_SUBMISSION_TEXT},
+    )
+    r = live_client.post(
+        IMPORT.format(sid=sid),
+        json={
+            **CONFIG,
+            "canvas_course_id": "c1",
+            "canvas_user_id": "u1",
+            "submission_ids": ["606"],
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["imported"] == 1
+    assert body["drift_holds"] == []
+
+
+# ── import_canvas_baseline: per-submission catch-all ─────────────────────────
+
+
+def test_import_records_a_per_submission_error_without_aborting_the_batch(
+    live_client, store_reset, monkeypatch
+):
+    """imports.py:[220,221] — the outer `except Exception as exc:` around
+    the whole per-submission body, distinct from the inner check_drift-only
+    handler above. `get_submission_text` raising is the simplest way to
+    reach it without disturbing the drift/dedup logic it wraps."""
+    monkeypatch.setattr(canvas_live, "make_client", lambda: _FakeAsyncClient())
+
+    async def _fetch_submissions(
+        client, canvas_url, access_token, course_id, user_id, submission_ids=None
+    ):
+        return [{"id": "707", "submission_type": "online_text_entry"}]
+
+    async def _get_submission_text_boom(sub, access_token, client):
+        raise RuntimeError("simulated Canvas fetch failure")
+
+    monkeypatch.setattr(canvas_live, "fetch_submissions", _fetch_submissions)
+    monkeypatch.setattr(canvas_live, "get_submission_text", _get_submission_text_boom)
+
+    r = live_client.post(
+        IMPORT.format(sid="canvas-per-submission-error"),
+        json={
+            **CONFIG,
+            "canvas_course_id": "c1",
+            "canvas_user_id": "u1",
+            "submission_ids": ["707"],
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["imported"] == 0
+    assert len(body["errors"]) == 1
+    assert "707" in body["errors"][0]
+
+
 def test_list_canvas_submissions_for_a_never_seen_student(live_client, store_reset, monkeypatch):
     _stub_canvas(
         monkeypatch,

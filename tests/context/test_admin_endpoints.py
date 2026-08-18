@@ -196,6 +196,32 @@ class TestStoreHelpers:
 # ══════════════════════════════════════════════════════════════════════════════
 
 
+class TestAdminAuditEndpoint:
+    """admin.py:[72,73] — GET /admin/audit's own body (`limit = min(limit,
+    500); return _repo().list_audit(...)`) was never called by any existing
+    test in the suite (only staff-guard rejection paths were, elsewhere)."""
+
+    def test_empty_db_returns_no_rows(self, client_module_db):
+        client, _module, _db = client_module_db
+        resp = client.get("/admin/audit")
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["items"] == []
+
+    def test_seeded_rows_are_returned_most_recent_first(self, client_module_db):
+        client, module, _db = client_module_db
+        module.store.log_audit(action="baseline_add", student_id="student_0")
+        module.store.log_audit(action="score", student_id="student_0")
+        module.store.log_audit(action="score", student_id="student_1")
+
+        resp = client.get("/admin/audit", params={"student_id": "student_0"})
+
+        assert resp.status_code == 200, resp.text
+        items = resp.json()["items"]
+        assert len(items) == 2
+        assert all(item["student_id"] == "student_0" for item in items)
+
+
 class TestAdminManifestsEndpoint:
     def test_empty_db_returns_zero(self, client_module_db):
         client, _module, _db = client_module_db
@@ -358,6 +384,38 @@ class TestCorrectionEndpoint:
         resp = client.post("/submissions/sub_readbackmiss/correct", json={"is_correct": True})
         assert resp.status_code == 500, resp.text
         assert "not found on read-back" in resp.json()["detail"]
+
+    def test_cross_tenant_correction_is_403(self, client_module_db):
+        """admin.py:[174,175] — the anonymous demo principal can correct a
+        submission owned by a flat/demo-tenant student (every other
+        correction test above), but NOT one owned by a student registered
+        under a real, non-demo-visible tenant. Register "realtenant" with
+        environment="production" (default is "demo" — see
+        CreateTenantRequest — so this must be explicit), seed a manifest row
+        naming a student under it, then attempt the correction anonymously."""
+        client, module, _db = client_module_db
+        resp = client.post(
+            "/tenants",
+            json={"tenant_id": "realtenant", "name": "Real Tenant", "environment": "production"},
+        )
+        assert resp.status_code == 201, resp.text
+
+        from original.context.manifest import build_manifest
+        from original.context.resolvers import run_resolvers
+
+        out = run_resolvers("cross tenant correction text " * 30, ["B1.", "B2."])
+        m = build_manifest("sub_crosstenant", out)
+        module.store.put_manifest(
+            "sub_crosstenant",
+            "realtenant:bob",
+            m,
+            divergence_score=0.2,
+            action="no_action",
+        )
+
+        resp = client.post("/submissions/sub_crosstenant/correct", json={"is_correct": True})
+        assert resp.status_code == 403, resp.text
+        assert "Cross-tenant access denied" in resp.json()["detail"]
 
 
 class TestAdminCorrectionsListEndpoint:

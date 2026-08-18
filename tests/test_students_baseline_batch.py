@@ -147,6 +147,27 @@ class TestUploadBatchBranches:
 # ── Step 3: remaining upload_baseline_batch arms ──────────────────────────────
 
 
+def _docx_bytes(paragraphs: list[str]) -> bytes:
+    from docx import Document
+
+    doc = Document()
+    for p in paragraphs:
+        doc.add_paragraph(p)
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
+def _blank_pdf_bytes() -> bytes:
+    from pypdf import PdfWriter
+
+    writer = PdfWriter()
+    writer.add_blank_page(width=200, height=200)
+    buf = io.BytesIO()
+    writer.write(buf)
+    return buf.getvalue()
+
+
 class TestUploadBatchRemainingArms:
     def test_pdf_extraction_error_hits_the_pdf_arm(self, live_client, store_reset):
         """Not a real PDF, but enters the ``elif ext == "pdf"`` branch and is
@@ -156,6 +177,87 @@ class TestUploadBatchRemainingArms:
             [("broken.pdf", io.BytesIO(b"not a pdf file"), "application/pdf")],
         )
         assert any("extraction error" in e for e in r.json()["errors"])
+
+    def test_valid_docx_is_extracted_and_imported(self, live_client, store_reset):
+        """students_baseline.py:375 — the real docx-paragraph-join success
+        path. Every other batch docx test uses a corrupt file (the
+        extraction-error arm) — no existing test imports a genuine .docx."""
+        raw = _docx_bytes([GOOD_TEXT, "A second paragraph, also long enough."])
+        r = _post_files(
+            live_client, "s-batch-docx-valid",
+            [
+                (
+                    "paper.docx",
+                    io.BytesIO(raw),
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            ],
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["imported"] == 1
+
+    def test_valid_pdf_is_extracted_without_raising(self, live_client, store_reset):
+        """students_baseline.py:380 — the real pypdf page-extract success
+        line. A blank page yields no extractable text (so the sample is
+        reported as "no text extracted", not imported — the batch
+        importer's own next arm), but line 380 itself must execute without
+        raising, which the corrupt-pdf test above never reaches."""
+        raw = _blank_pdf_bytes()
+        r = _post_files(
+            live_client, "s-batch-pdf-valid",
+            [("scan.pdf", io.BytesIO(raw), "application/pdf")],
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["imported"] == 0
+        assert any("no text extracted" in e for e in body["errors"])
+
+    def test_feature_extraction_failure_is_reported_not_fatal(
+        self, live_client, store_reset, monkeypatch
+    ):
+        """students_baseline.py:[403,405] — `except Exception as exc:
+        errors.append(...); continue` around feature_vector(). A raising
+        extractor must not abort the whole batch."""
+        import original.routers.students_baseline as students_baseline_mod
+
+        def _boom(text, **kwargs):
+            raise RuntimeError("simulated feature extraction failure")
+
+        monkeypatch.setattr(students_baseline_mod, "feature_vector", _boom)
+
+        r = _post_files(
+            live_client, "s-batch-featurefail",
+            [("a.txt", io.BytesIO(GOOD_TEXT.encode()), "text/plain")],
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["imported"] == 0
+        assert any("feature extraction failed" in e for e in body["errors"])
+
+    def test_check_drift_exception_in_batch_still_admits_the_sample(
+        self, live_client, store_reset, monkeypatch
+    ):
+        """students_baseline.py:[436,438] — the batch importer's own
+        `except Exception as exc:` around `state.check_drift(sample)`,
+        distinct from the single-add endpoint's equivalent
+        (test_drift_check_exception_leaves_drift_result_none above) and
+        from imports.py's Canvas-side equivalent — three separate call
+        sites, three separate arms."""
+        from original.quantum.state import StudentState
+
+        def _boom(self, *args, **kwargs):
+            raise RuntimeError("simulated check_drift failure in batch")
+
+        monkeypatch.setattr(StudentState, "check_drift", _boom)
+
+        r = _post_files(
+            live_client, "s-batch-drift-exc",
+            [("a.txt", io.BytesIO(GOOD_TEXT.encode()), "text/plain")],
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["imported"] == 1
+        assert body["drift_holds"] == []
 
     def test_non_authenticated_provenance_skips_tension_arc_update(self, live_client, store_reset):
         """provenance not in ('proctored', 'verified') must still import the
@@ -253,6 +355,61 @@ class TestAddBaselineBranches:
         r = _add_baseline(live_client, "s-addbase-drift-exc", GOOD_TEXT)
         assert r.status_code == 200, r.text
         assert "drift" not in r.json()
+
+    def test_persist_failure_is_a_503(self, live_client, store_reset, monkeypatch):
+        """_shared.py:_persist_or_503 — `except sqlite3.Error:` maps a raised
+        storage error to a 503 rather than a 500 or a silently-lost write.
+        No existing test in the suite drives this seam (grepped for
+        `_persist_or_503`/"storage temporarily unavailable" — no hits), so
+        it's covered here in add_baseline's natural home."""
+        import sqlite3
+
+        from original.repository import SqliteRepository
+
+        def _boom(self, state):
+            raise sqlite3.OperationalError("simulated disk-full write failure")
+
+        monkeypatch.setattr(SqliteRepository, "put", _boom)
+
+        r = _add_baseline(live_client, "s-addbase-persist-503", GOOD_TEXT)
+
+        assert r.status_code == 503, r.text
+        assert "storage temporarily unavailable" in r.json()["detail"]
+
+    def test_genre_resolution_failure_is_best_effort(self, live_client, store_reset, monkeypatch):
+        """students_baseline.py:[92,93] — `except Exception: pass` around
+        resolve_genre(). A raising resolver must not fail ingestion; the
+        sample is admitted with no genre label."""
+        import original.context.resolvers as resolvers_mod
+
+        def _boom(text):
+            raise RuntimeError("simulated genre resolver failure")
+
+        monkeypatch.setattr(resolvers_mod, "resolve_genre", _boom)
+
+        r = _add_baseline(live_client, "s-addbase-genre-exc", GOOD_TEXT)
+
+        assert r.status_code == 200, r.text
+
+    def test_baseline_request_autocomplete_failure_is_best_effort(
+        self, live_client, store_reset, monkeypatch
+    ):
+        """students_baseline.py:[175,176] — `except Exception as e:` around
+        baseline_requests.mark_completed_for_student(). A raising
+        auto-complete must not fail the add itself."""
+        import original.baseline_requests as baseline_requests_mod
+
+        def _boom(student_id):
+            raise RuntimeError("simulated auto-complete failure")
+
+        monkeypatch.setattr(
+            baseline_requests_mod, "mark_completed_for_student", _boom
+        )
+
+        r = _add_baseline(live_client, "s-addbase-autocomplete-exc", GOOD_TEXT)
+
+        assert r.status_code == 200, r.text
+        assert "completed_baseline_requests" not in r.json()
 
     def test_authenticated_add_completes_pending_baseline_request(
         self, live_client, store_reset, monkeypatch
@@ -418,6 +575,100 @@ class TestRequestProctoredBaseline:
         body = r.json()
         assert body["bbook_exam_id"] == "exam-stub"
         assert body["expires_at"] is None
+
+    def test_malformed_expiry_leaves_expires_at_none(self, live_client, store_reset, monkeypatch):
+        """students_baseline.py:[302,303] — `except Exception: pending.
+        expires_at = None`, distinct from the "no expiry at all" arm above
+        (`expiresAt is None`, skipping the parse attempt entirely): here
+        Bbook returns a non-empty but unparseable ISO string, so
+        `datetime.fromisoformat` itself raises."""
+        import original.bbook_client as bbook_client
+
+        monkeypatch.setattr(bbook_client, "is_enabled", lambda: True)
+        result = self._stub_result(bbook_client, expiresAt="not-a-real-timestamp")
+        monkeypatch.setattr(bbook_client, "request_baseline", lambda **kw: result)
+
+        r = live_client.post(
+            REQUEST_BASELINE.format(sid="s-req-badexpiry"),
+            json={"student_email": "b@x.edu", "student_name": "Bea"},
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["bbook_exam_id"] == "exam-stub"
+        assert body["expires_at"] is None
+
+    def test_bbook_call_failure_is_a_502(self, live_client, store_reset, monkeypatch):
+        """students_baseline.py:[285,288] — the `except Exception as e:`
+        around the `bbook_client.request_baseline` call itself (distinct
+        from `test_disabled_returns_503`, which never reaches this call at
+        all)."""
+        import original.bbook_client as bbook_client
+
+        monkeypatch.setattr(bbook_client, "is_enabled", lambda: True)
+
+        def _boom(**kwargs):
+            raise RuntimeError("simulated Bbook outage")
+
+        monkeypatch.setattr(bbook_client, "request_baseline", _boom)
+
+        r = live_client.post(
+            REQUEST_BASELINE.format(sid="s-req-bbookdown"),
+            json={"student_email": "f@x.edu", "student_name": "Fae"},
+        )
+        assert r.status_code == 502, r.text
+        assert "Bbook call failed" in r.json()["detail"]
+
+
+class TestBaselineRequestsListEndpoints:
+    """students_baseline.py:312,321-322 — neither GET endpoint was ever
+    called by any existing test in the suite.
+
+    original.baseline_requests keeps a process-wide in-memory cache that
+    hydrates from SQLite once and is NOT reset by store_reset (that only
+    swaps the DB file) — tests/test_baseline_requests.py's own fixture
+    resets it explicitly for the same reason. Every test below does the
+    same (`_reset_cache()` before the call — the module's own documented
+    test hook) so it isn't reading requests a sibling test in this same
+    file (or an earlier test module in the same process) already recorded.
+    """
+
+    def test_list_pending_starts_empty(self, live_client, store_reset):
+        import original.baseline_requests as baseline_requests_mod
+
+        baseline_requests_mod._reset_cache()
+        r = live_client.get("/baseline-requests/pending")
+        assert r.status_code == 200, r.text
+        assert r.json() == {"requests": []}
+
+    def test_list_all_starts_empty(self, live_client, store_reset):
+        import original.baseline_requests as baseline_requests_mod
+
+        baseline_requests_mod._reset_cache()
+        r = live_client.get("/baseline-requests")
+        assert r.status_code == 200, r.text
+        assert r.json() == {"requests": []}
+
+    def test_list_all_includes_a_recorded_request(self, live_client, store_reset, monkeypatch):
+        import original.baseline_requests as baseline_requests_mod
+        import original.bbook_client as bbook_client
+
+        baseline_requests_mod._reset_cache()
+        monkeypatch.setattr(bbook_client, "is_enabled", lambda: True)
+        result = TestRequestProctoredBaseline._stub_result(bbook_client)
+        monkeypatch.setattr(bbook_client, "request_baseline", lambda **kw: result)
+        posted = live_client.post(
+            REQUEST_BASELINE.format(sid="s-req-listall"),
+            json={"student_email": "g@x.edu", "student_name": "Gia"},
+        )
+        assert posted.status_code == 200, posted.text
+
+        pending = live_client.get("/baseline-requests/pending")
+        assert pending.status_code == 200, pending.text
+        assert len(pending.json()["requests"]) == 1
+
+        all_r = live_client.get("/baseline-requests")
+        assert all_r.status_code == 200, all_r.text
+        assert len(all_r.json()["requests"]) == 1
 
 
 # ── Step 3: _existing_text_hashes remaining arms ──────────────────────────────

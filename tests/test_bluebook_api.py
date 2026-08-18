@@ -273,6 +273,42 @@ def test_submission_conflict_but_prior_lookup_miss_propagates(
         )
 
 
+def test_non_sqlite_conflict_when_sqlalchemy_is_unavailable(
+    live_client, store_reset, monkeypatch
+):
+    """bluebook.py:[246,247] — the `except ImportError: _SAIntegrityError =
+    ()` fallback in the lazy sqlalchemy import. sqlalchemy IS installed in
+    this venv (test_submission_non_conflict_repo_error_propagates above
+    reaches the same `from sqlalchemy.exc import IntegrityError` line, but
+    the import there always succeeds), so simulate its absence the same way
+    tests/test_students_router_branches.py does for python-docx/pypdf:
+    `sys.modules["sqlalchemy.exc"] = None` forces the next import of that
+    submodule to raise ImportError (CPython import-system contract).  With
+    `_SAIntegrityError` then the empty tuple, `isinstance(e, ())` is always
+    False, so a non-conflict error still correctly falls through to the bare
+    `raise` — same externally-observable behaviour as when sqlalchemy IS
+    importable, proving the fallback is behaviourally inert, just reached
+    differently."""
+    import sys
+
+    import original.api as api_mod
+
+    monkeypatch.setitem(sys.modules, "sqlalchemy.exc", None)
+
+    repo = api_mod._repo()
+
+    def _boom(rec):
+        raise RuntimeError("simulated non-conflict repo failure, no sqlalchemy")
+
+    monkeypatch.setattr(repo, "put_bluebook_submission", _boom)
+
+    with pytest.raises(RuntimeError, match="simulated non-conflict repo failure"):
+        live_client.post(
+            "/bluebook/submissions",
+            json=_submission_body(submission_uuid="uu-no-sqlalchemy"),
+        )
+
+
 # ── Baseline replay guard (robustness spec §2, seal step 2) ───────────────────
 
 
