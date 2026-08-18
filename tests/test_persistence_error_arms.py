@@ -20,8 +20,10 @@ sense for one backend's internals:
      ``get_fused_scores`` (one corrupted row degrades to ``channels={}``
      instead of failing the whole read) -- store.py's own public API only
      ever writes valid JSON, so producing a corrupted column needs one raw
-     SQL UPDATE against the fixture row (sanctioned exception, used only to
-     corrupt -- never to assert through).
+     SQL UPDATE against the fixture row. Raw SQL here is controller-sanctioned
+     for this file only, to construct states unreachable through the Repository
+     protocol (corrupting stored JSON for the fallback test). Assertions always
+     go through the protocol.
   3. ``get_engine()`` bootstrap arms in ``original/db/session.py`` (dormant
      v1, zero prior coverage) and ``original/db/postgres_session.py`` (the
      live schema's lazily-built, process-cached engine) -- the
@@ -31,9 +33,10 @@ sense for one backend's internals:
      bluebook_submissions.submission_uuid/late) -- exercising the
      column-absent side needs a fixture DB that predates those columns.
      store.py's public API always writes through the CURRENT schema, so
-     there is no way to construct that fixture except raw SQL (sanctioned
-     exception per the task brief: raw SQL here ONLY builds the
-     pre-migration fixture, never asserts through it).
+     there is no way to construct that fixture except raw SQL. Raw SQL here
+     is controller-sanctioned for this file only, to construct the
+     pre-migration fixture states. Assertions always read back through
+     the protocol, never through raw SQL.
 """
 
 from __future__ import annotations
@@ -138,6 +141,13 @@ def test_student_data_inventory_returns_none_on_session_failure(monkeypatch):
 def test_delete_student_returns_false_on_session_failure(monkeypatch):
     monkeypatch.setattr(postgres_repository, "session_scope", _boom)
     assert postgres_repository.PostgresRepository().delete_student("sem:stu1") is False
+
+
+@pytest.mark.postgres
+def test_set_display_name_swallows_session_failure(monkeypatch):
+    monkeypatch.setattr(postgres_repository, "session_scope", _boom)
+    repo = postgres_repository.PostgresRepository()
+    assert repo.set_display_name("sem:err-student", "Name") is None
 
 
 # ── Step 1b: store.py's matching inner JSON-corruption fallback ───────────
