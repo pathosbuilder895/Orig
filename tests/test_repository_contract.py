@@ -1920,3 +1920,182 @@ class TestCalibrationRunsListFilters:
         result = repo.list_calibration_runs()
         ids_newest_first = [item["id"] for item in result["items"]]
         assert ids_newest_first.index(run_second) < ids_newest_first.index(run_first)
+
+
+# ── Deletion, inventory, and correction branch gaps (WS-6 P1 gap closure,
+#    branch-coverage part 1, task 3: delete_student / delete_tenant_students /
+#    student_data_inventory / put_correction / set_display_name /
+#    get_fused_scores / get_ai_likelihood_scores) ────────────────────────────
+
+
+class TestDeleteStudentFullFootprint:
+    def test_delete_removes_every_associated_record(self, repo):
+        # TestDeleteStudent (above) already covers the unknown-id False arm
+        # and the bare-profile True arm. This closes the branches that only
+        # fire when the student *also* has manifests (sub_ids truthy — the
+        # orphaned-corrections-by-submission_id purge), a display name row
+        # (Postgres's explicit `name_row is not None` arm — SQLite's DELETE
+        # is unconditional SQL and has no equivalent branch), and a live
+        # original.fusion.peers module (the sys.modules guard's True arm).
+        import original.fusion.peers  # noqa: F401 — populates sys.modules so
+        # the `if _fusion_peers is not None:` guard in both delete_student
+        # implementations takes its True arm; clear_student() is documented
+        # as a safe no-op for a student with nothing cached
+        # (original/fusion/peers.py:clear_student).
+
+        repo.put(_make_state("sem:ferpa", n=2))
+        repo.set_display_name("sem:ferpa", "FERPA Student")
+        _seed_manifest(repo, "sub-ferpa1", "sem:ferpa", action="monitor")
+        repo.put_correction("sub-ferpa1", True, student_id="sem:ferpa")
+        repo.put_fidelity_score("sub-ferpa1", "sem:ferpa", 0.8, is_authentic=True)
+        repo.put_ai_likelihood_score("sub-ferpa1", "sem:ferpa", 0.3, "low")
+        repo.put_fused_score("sub-ferpa1", "sem:ferpa", 0.5, 0.6, "low", {"peer_centered_z": 0.1})
+
+        # Sanity: everything is actually there before deleting.
+        assert repo.student_data_inventory("sem:ferpa") is not None
+        assert "sem:ferpa" in {r["id"] for r in repo.roster_for_tenant("sem")}
+
+        assert repo.delete_student("sem:ferpa") is True
+
+        # FERPA right-to-erasure: nothing of the student survives, on any
+        # read surface the Repository protocol exposes.
+        assert repo.get("sem:ferpa") is None
+        assert repo.student_data_inventory("sem:ferpa") is None
+        assert repo.get_display_name("sem:ferpa") == ""
+        assert "sem:ferpa" not in {r["id"] for r in repo.roster_for_tenant("sem")}
+        assert repo.get_fused_scores(student_id="sem:ferpa") == []
+        assert repo.get_ai_likelihood_scores(student_id="sem:ferpa") == []
+        assert repo.get_authentic_fidelities("sem:ferpa") == []
+        assert repo.list_corrections(student_id="sem:ferpa")["items"] == []
+        assert repo.list_corrections(submission_id="sub-ferpa1")["items"] == []
+        assert repo.list_manifests(student_id="sem:ferpa")["total"] == 0
+
+
+class TestDeleteTenantStudentsEmptyTenant:
+    def test_empty_tenant_returns_zero_with_no_failures(self, repo):
+        # Zero-ids arm: list_ids_for_tenant comes back empty, so the for
+        # loop over ids_to_delete never enters its body at all.
+        result = repo.delete_tenant_students("no-such-tenant-at-all")
+        assert result == {"deleted_count": 0, "failed_ids": []}
+
+
+class TestStudentDataInventoryManifestBreakdown:
+    def test_manifests_grouped_by_action(self, repo):
+        # TestStudentDataInventory (above) covers the unknown-student None
+        # arm and a known student with zero manifests. This closes the
+        # manifest_rows-truthy arm: the per-action breakdown loop only runs
+        # when there is at least one manifest row to group.
+        repo.put(_make_state("sem:inv2", n=1))
+        _seed_manifest(repo, "sub-inv2a", "sem:inv2", action="monitor")
+        _seed_manifest(
+            repo, "sub-inv2b", "sem:inv2", action="monitor", created_at="2026-01-02T00:00:00Z"
+        )
+        _seed_manifest(
+            repo, "sub-inv2c", "sem:inv2", action="escalate", created_at="2026-01-03T00:00:00Z"
+        )
+
+        inv = repo.student_data_inventory("sem:inv2")
+        manifests = inv["data_categories"]["submission_manifests"]
+        assert manifests["total"] == 3
+        assert manifests["by_action"]["monitor"]["count"] == 2
+        assert manifests["by_action"]["escalate"]["count"] == 1
+
+
+class TestPutCorrectionFallbackChain:
+    def test_explicit_divergence_score_not_overwritten_by_manifest(self, repo):
+        # original_divergence_score is supplied directly, but student_id is
+        # not — the compound auto-fill condition is still True (it enters
+        # the `existing is not None` block to fill in student_id and
+        # original_action from the manifest), but the nested
+        # `if original_divergence_score is None:` must take its False arm
+        # and leave the caller-supplied value alone.
+        _seed_manifest(repo, "sub-corr-div", "sem:corrdiv", action="escalate")
+        cid = repo.put_correction(
+            "sub-corr-div",
+            False,
+            original_divergence_score=0.42,
+            created_at="2026-04-01T00:00:00Z",
+        )
+        assert cid is not None
+        item = repo.list_corrections(submission_id="sub-corr-div")["items"][0]
+        assert item["student_id"] == "sem:corrdiv"  # still auto-filled from the manifest
+        assert item["original_divergence_score"] == 0.42  # NOT overwritten by the manifest's 0.2
+        assert item["created_at"].startswith("2026-04-01")
+
+    def test_falls_back_to_score_audit_row_when_no_manifest(self, repo):
+        # No manifest exists for this submission_id at all, so student_id
+        # is still None after the manifest auto-fill attempt — both
+        # backends then fall back to the most recent action='score'
+        # audit_log row for this submission (store.py inlines the query;
+        # Postgres delegates to submission_student_id(), which checks the
+        # same two sources in the same order).
+        repo.log_audit(
+            action="score",
+            student_id="sem:auditfallback",
+            details={"submission_id": "sub-corr-audit"},
+        )
+        cid = repo.put_correction("sub-corr-audit", True)
+        assert cid is not None
+        item = repo.list_corrections(submission_id="sub-corr-audit")["items"][0]
+        assert item["student_id"] == "sem:auditfallback"
+
+    def test_student_id_stays_none_when_totally_unresolvable(self, repo):
+        # No manifest, no matching audit_log row, no explicit student_id —
+        # every fallback in the chain comes up empty and student_id is
+        # persisted as None rather than raising.
+        cid = repo.put_correction("sub-corr-orphan", False)
+        assert cid is not None
+        item = repo.list_corrections(submission_id="sub-corr-orphan")["items"][0]
+        assert item["student_id"] is None
+
+    def test_same_submission_twice_both_retained(self, repo):
+        # Corrections are an append-only feedback log, not an upsert keyed
+        # on submission_id — an instructor revising their own earlier call
+        # must not silently erase the first entry.
+        repo.put_correction("sub-corr-twice", False, student_id="sem:twice", reviewer="profA")
+        repo.put_correction("sub-corr-twice", True, student_id="sem:twice", reviewer="profB")
+        result = repo.list_corrections(submission_id="sub-corr-twice")
+        assert result["total"] == 2
+        reviewers = {item["reviewer"] for item in result["items"]}
+        assert reviewers == {"profA", "profB"}
+
+
+class TestSetDisplayNameBlankAndUpdate:
+    def test_blank_name_does_not_overwrite_existing(self, repo):
+        repo.set_display_name("sem:blankguard", "Real Name")
+        repo.set_display_name("sem:blankguard", "   ")  # blank after strip -- a no-op
+        assert repo.get_display_name("sem:blankguard") == "Real Name"
+
+    def test_set_twice_latest_name_wins(self, repo):
+        repo.set_display_name("sem:renamed", "First Name")
+        repo.set_display_name("sem:renamed", "Second Name")
+        assert repo.get_display_name("sem:renamed") == "Second Name"
+
+
+class TestFusedAndAiLikelihoodScoresEmptyVsPopulated:
+    def test_get_fused_scores_empty_no_filter(self, repo):
+        assert repo.get_fused_scores() == []
+
+    def test_get_fused_scores_populated_filtered_by_student(self, repo):
+        repo.put_fused_score(
+            "sub-fs1", "sem:fused1", 0.4, 0.6, "low", {"peer_centered_z": 0.2, "compression": 0.1}
+        )
+        repo.put_fused_score("sub-fs2", "sem:fused2", 1.2, 0.9, "high", {"peer_centered_z": 0.8})
+
+        result = repo.get_fused_scores(student_id="sem:fused1")
+        assert len(result) == 1
+        assert result[0]["submission_id"] == "sub-fs1"
+        assert result[0]["student_id"] == "sem:fused1"
+        assert result[0]["channels"]["peer_centered_z"] == 0.2
+
+    def test_get_ai_likelihood_scores_empty_no_filter(self, repo):
+        assert repo.get_ai_likelihood_scores() == []
+
+    def test_get_ai_likelihood_scores_populated_filtered_by_student(self, repo):
+        repo.put_ai_likelihood_score("sub-ai1", "sem:ai1", 0.7, "high")
+        repo.put_ai_likelihood_score("sub-ai2", "sem:ai2", 0.2, "low")
+
+        result = repo.get_ai_likelihood_scores(student_id="sem:ai1")
+        assert len(result) == 1
+        assert result[0]["submission_id"] == "sub-ai1"
+        assert result[0]["band"] == "high"
