@@ -64,10 +64,11 @@ def v1_session(tmp_path, monkeypatch):
     ``original.db.session.SessionLocal``) means the CLI's own
     ``init_db()``/module-level engine is never touched -- that real engine
     defaults to ``postgresql://original:original@localhost:5432/original_db``
-    (original/core/config.py), though tests/conftest.py's
-    ``DATABASE_URL=sqlite:///:memory:`` safety-net default would catch any
-    stray use of it even if this patch were somehow missing. Nothing in this
-    file ever points at ``profiles.db`` or a real database.
+    (original/core/config.py). The monkeypatch on cli._get_db_session is the ONLY
+    isolation mechanism — it hard-fails if the attribute is missing. (conftest's
+    sqlite ``DATABASE_URL=sqlite:///:memory:`` default is NOT a reliable net: CI
+    presets a real postgresql:// URL, which setdefault won't override.) Nothing
+    in this file ever points at ``profiles.db`` or a real database.
     """
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
@@ -205,13 +206,14 @@ class TestDeleteStudentData:
         assert cli.delete_student_data("no-such-id", force=True) is False
 
     def test_force_delete_removes_every_associated_record(self, v1_session):
-        from original.db.models import BaselineSample, Student, Submission
+        from original.db.models import BaselineSample, Student, StudentEnrollment, Submission
 
         sid = _seed_v1_student(v1_session)
         assert cli.delete_student_data(sid, force=True) is True
         assert v1_session.query(Student).filter_by(id=sid).count() == 0
         assert v1_session.query(Submission).filter_by(student_id=sid).count() == 0
         assert v1_session.query(BaselineSample).filter_by(student_id=sid).count() == 0
+        assert v1_session.query(StudentEnrollment).filter_by(student_id=sid).count() == 0
 
     def test_force_delete_removes_scoring_results_and_instructor_decisions(self, v1_session):
         """Covers the True arm of the decision_count/scoring_count print
