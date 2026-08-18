@@ -1,58 +1,41 @@
 """Behavioral tests for the manual FERPA-deletion CLI (branch-coverage part 3, task 1).
 
-``original/cli/delete_student.py`` is 0% covered. It targets the DORMANT v1
+``original/cli/delete_student.py`` was 0% covered. It targets the DORMANT v1
 SQLAlchemy stack (``original/db/models``) via a raw ``Session`` -- a
 completely separate persistence layer from the LIVE stack's
-``store.py``/``postgres_repository.py``. The module's own header docstring
-already disclaims it: "NOT the live FERPA deletion path ... Do not treat
-this CLI as authoritative for student data deletion." The live path is
-``DELETE /students/{id}`` (``original/routers/students.py`` ->
-``store.delete_student``/``postgres_repository.delete_student``), which is
-extensively covered elsewhere (``tests/test_pilot_lockdown.py``,
-``tests/test_repository_contract.py``, ``tests/test_persistence_error_arms.py``,
-``tests/test_store_fidelity.py``, ``tests/fusion/test_persistence.py``).
-Nothing here touches that path or any real data -- see the ``v1_session``
-fixture below.
+``store.py``/``postgres_repository.py``. Despite the module's own header
+docstring hedging ("NOT the live FERPA deletion path"), it is the
+documented manual FERPA-deletion tool (CLAUDE.md/pyproject) and the stated
+reason the v1 db stack is kept alive at all -- per controller decision, it
+is fixed here rather than removed; removal remains on the humans' WS-6
+schedule. Nothing here touches real data -- see the ``v1_session`` fixture
+below.
 
-*** REAL BUG FOUND, 2026-08-18 ***
-``delete_student_data()``'s first two delete steps build queries shaped like
-``session.query(InstructorDecision).join(Submission).filter(...).delete(...)``
-(and the identical shape for ``ScoringResult``, delete_student.py:167-182).
-SQLAlchemy's ORM ``Query`` API unconditionally forbids calling
-``.delete()``/``.update()`` on a ``Query`` that has already had ``.join()``
-called on it:
-
-    sqlalchemy.exc.InvalidRequestError: Can't call Query.update() or
-    Query.delete() when join(), outerjoin(), select_from(), or from_self()
-    has been called
-
-This is a query-construction-time check, independent of whether any row
-would actually match -- it fires even against completely empty tables (see
-the reproduction referenced in .superpowers/sdd/p3-task-1-report.md). That
-means every confirmed deletion (``force=True`` or typed "DELETE") for every
-student, with or without associated decisions/scores, is caught by the
+*** REAL BUG FOUND AND FIXED, 2026-08-18 ***
+``delete_student_data()``'s first two delete steps built queries shaped
+like ``session.query(InstructorDecision).join(Submission).filter(...)
+.delete(...)`` (and the identical shape for ``ScoringResult``). SQLAlchemy's
+ORM ``Query`` API unconditionally forbids calling ``.delete()``/``.update()``
+on a ``Query`` that has already had ``.join()`` called on it
+(``sqlalchemy.exc.InvalidRequestError``) -- a query-construction-time check,
+independent of whether any row would actually match. That meant every
+confirmed deletion, for every student, was caught by the
 ``except SQLAlchemyError`` handler, rolled back, and reported as "Database
-error during deletion" -- ``delete_student_data()`` can never return
-``True`` through this code path, and by extension ``main()`` can never
-return exit code 0 for a real deletion, on the pinned SQLAlchemy
-(requirements.txt pins 2.0.51; reproduced here on the installed 2.0.35 --
-this ``Query.delete()`` restriction is a stable, version-independent part of
-the ORM Query API, not a recent regression, so this is not expected to be a
-version artifact).
+error during deletion" -- ``delete_student_data()`` could never return
+``True``, and ``main()`` could never return exit code 0, for a real
+deletion, regardless of ``--force``/``--hard-delete``. Fixed by filtering on
+a subquery of the student's submission ids instead of joining
+(``InstructorDecision.submission_id.in_(...)`` /
+``ScoringResult.submission_id.in_(...)``) -- see
+``delete_student.py``'s "Submission ids for this student" comment. Full
+writeup, including the pre-fix reproduction and BLOCKED report, in
+.superpowers/sdd/p3-task-1-report.md.
 
-Practical fallout for this test file: every line past the first delete step
--- the per-count "if count > 0" print arms, the final success prints, and
-the ``log.info`` call (delete_student.py:173-226) -- is unreachable through
-this function as it ships today. No ``# pragma: no cover`` was added for
-that region; it is a real, honestly-reported coverage gap caused by a real
-bug, not an intentionally-excluded branch. See
-.superpowers/sdd/p3-task-1-report.md for the full writeup.
-
-The two tests that assert the *intended* (bug-free) behavior keep their
-original, un-softened assertions and are marked ``xfail(strict=True)`` so a
-real fix flips them to an XPASS failure that demands this comment (and the
-report) be updated. Separate, passing tests characterize the actual current
-behavior without asserting it is correct.
+``hard_delete`` is accepted by ``delete_student_data()``'s signature but
+still never read anywhere in its body (confirmed by grep) -- left as-is per
+controller decision (documented-parameter semantics are a product
+question, not something to silently change while fixing an unrelated
+bug); both arms currently perform the same full deletion.
 """
 
 from __future__ import annotations
@@ -60,6 +43,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import pytest
+from sqlalchemy.exc import SQLAlchemyError
 
 from original.cli import delete_student as cli
 
@@ -168,20 +152,58 @@ def _seed_v1_student(session, sid="00000000-0000-0000-0000-000000000001"):
     return sid
 
 
+def _seed_v1_student_with_scoring_and_decision(session, sid="00000000-0000-0000-0000-000000000002"):
+    """Extends ``_seed_v1_student`` with one ``ScoringResult`` and one
+    ``InstructorDecision`` on its submission -- the shape needed to exercise
+    the *True* arm of the ``decision_count``/``scoring_count`` "if count > 0"
+    print gates (delete_student.py, steps 1-2), which the plain
+    ``_seed_v1_student`` shape (zero of each) never reaches."""
+    from original.db.models import InstructorDecision, ScoringResult
+
+    _seed_v1_student(session, sid=sid)
+    session.add(
+        ScoringResult(
+            submission_id=f"sub-{sid}",
+            model_version="v1",
+            deviation_score=0.1,
+            authorship_probability=0.9,
+            recommended_action="clear",
+            baseline_confidence={},
+            full_result={},
+            feature_vector={},
+            scored_at=datetime.utcnow(),
+        )
+    )
+    session.add(InstructorDecision(submission_id=f"sub-{sid}", action="clear"))
+    session.commit()
+    return sid
+
+
+def _seed_bare_student(session, sid="00000000-0000-0000-0000-000000000003"):
+    """A student with an Institution but no course, submissions, baseline
+    samples, or enrollments -- exercises the *False* arm of every
+    "if <count> > 0" print gate in delete_student_data()."""
+    from original.db.models import Institution, Student
+
+    institution = Institution(id=f"inst-{sid}", name=f"Institution {sid}", subdomain=f"sub-{sid}")
+    session.add(institution)
+    session.add(
+        Student(
+            id=sid,
+            external_id="ext-bare",
+            full_name="Bare Student",
+            email="bare-student@example.edu",
+            institution_id=institution.id,
+        )
+    )
+    session.commit()
+    return sid
+
+
 class TestDeleteStudentData:
     def test_unknown_student_returns_false(self, v1_session):
         assert cli.delete_student_data("no-such-id", force=True) is False
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "REAL BUG (see module docstring): "
-            "session.query(InstructorDecision).join(Submission).delete() raises "
-            "sqlalchemy.exc.InvalidRequestError because Query.delete() forbids a "
-            "prior .join(). Confirmed deletions always fail today -- this test "
-            "encodes the correct/intended behavior, deliberately not softened."
-        ),
-    )
     def test_force_delete_removes_every_associated_record(self, v1_session):
         from original.db.models import BaselineSample, Student, Submission
 
@@ -191,22 +213,34 @@ class TestDeleteStudentData:
         assert v1_session.query(Submission).filter_by(student_id=sid).count() == 0
         assert v1_session.query(BaselineSample).filter_by(student_id=sid).count() == 0
 
-    def test_force_delete_currently_fails_and_deletes_nothing(self, v1_session):
-        """Characterizes the ACTUAL current behavior (the inverse of the
-        xfail'd test above, which encodes the correct/intended behavior).
-        This one passes for real and pins down that a confirmed deletion
-        attempt (1) returns False, not True, and (2) leaves every record
-        untouched -- session.rollback() undoes the attempt cleanly, so a
-        student with real associated data is never left partially/orphaned-
-        deleted by this bug, it's just never deleted at all."""
-        from original.db.models import BaselineSample, Student, StudentEnrollment, Submission
+    def test_force_delete_removes_scoring_results_and_instructor_decisions(self, v1_session):
+        """Covers the True arm of the decision_count/scoring_count print
+        gates via the subquery-based deletes -- also the arms that
+        exercised the pre-fix bug most directly, since it fired regardless
+        of whether these rows existed."""
+        from original.db.models import (
+            InstructorDecision,
+            ScoringResult,
+            Student,
+            Submission,
+        )
 
-        sid = _seed_v1_student(v1_session)
-        assert cli.delete_student_data(sid, force=True) is False
-        assert v1_session.query(Student).filter_by(id=sid).count() == 1
-        assert v1_session.query(Submission).filter_by(student_id=sid).count() == 1
-        assert v1_session.query(BaselineSample).filter_by(student_id=sid).count() == 1
-        assert v1_session.query(StudentEnrollment).filter_by(student_id=sid).count() == 1
+        sid = _seed_v1_student_with_scoring_and_decision(v1_session)
+        assert cli.delete_student_data(sid, force=True) is True
+        assert v1_session.query(Student).filter_by(id=sid).count() == 0
+        assert v1_session.query(Submission).filter_by(student_id=sid).count() == 0
+        assert v1_session.query(ScoringResult).count() == 0
+        assert v1_session.query(InstructorDecision).count() == 0
+
+    def test_force_delete_of_bare_student_with_no_associated_records(self, v1_session):
+        """Covers the False arm of every "if <count> > 0" print gate --
+        submissions/baselines/enrollments/decisions/scoring all zero for a
+        student who has nothing beyond the Student row itself."""
+        from original.db.models import Student
+
+        sid = _seed_bare_student(v1_session)
+        assert cli.delete_student_data(sid, force=True) is True
+        assert v1_session.query(Student).filter_by(id=sid).count() == 0
 
     def test_declined_confirmation_deletes_nothing(self, v1_session, monkeypatch):
         from original.db.models import Student
@@ -216,48 +250,62 @@ class TestDeleteStudentData:
         assert cli.delete_student_data(sid, force=False) is False
         assert v1_session.query(Student).filter_by(id=sid).count() == 1
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="Same underlying join()+delete() bug as test_force_delete_removes_every_associated_record.",
-    )
-    def test_typed_DELETE_confirms(self, v1_session, monkeypatch):
+    def test_typed_delete_confirms(self, v1_session, monkeypatch):
         sid = _seed_v1_student(v1_session)
         monkeypatch.setattr("builtins.input", lambda _: "DELETE")
         assert cli.delete_student_data(sid, force=False) is True
 
-    def test_typed_DELETE_passes_the_gate_then_hits_the_same_bug(self, v1_session, monkeypatch):
-        """Isolates the confirmation-prompt behavior (input() is consulted,
-        "DELETE" is accepted, the gate opens) from the unrelated DB bug that
-        fires once deletion actually starts."""
-        sid = _seed_v1_student(v1_session)
-        monkeypatch.setattr("builtins.input", lambda _: "DELETE")
-        assert cli.delete_student_data(sid, force=False) is False
-
-    def test_hard_delete_flag_hits_the_same_bug_as_soft_delete(self, v1_session):
+    def test_hard_delete_flag_is_accepted_but_changes_no_behavior(self, v1_session):
         """hard_delete is accepted by delete_student_data()'s signature but
         never read anywhere in its body (grep confirms no other reference)
-        -- it selects no branch. Both arms currently observe the same
-        (buggy) outcome; this documents that rather than assuming a
-        soft-delete audit-trail arm exists."""
-        sid = _seed_v1_student(v1_session)
-        assert cli.delete_student_data(sid, hard_delete=True, force=True) is False
-        assert cli.delete_student_data(sid, hard_delete=False, force=True) is False
+        -- it selects no branch, both arms perform full deletion. Left as-is
+        per controller decision (a product question, not a bug this task
+        fixes). Uses two independently-seeded students since the first
+        call's success removes the row the second call would otherwise
+        target."""
+        from original.db.models import Student
 
-    def test_sqlalchemy_error_branch_reports_and_rolls_back(self, v1_session, capsys):
-        """Directly exercises the ``except SQLAlchemyError`` branch -- the
-        same branch the join()+delete() bug hits organically -- and asserts
-        the user-facing error message."""
+        sid_hard = _seed_v1_student(v1_session, sid="10000000-0000-0000-0000-000000000001")
+        assert cli.delete_student_data(sid_hard, hard_delete=True, force=True) is True
+        assert v1_session.query(Student).filter_by(id=sid_hard).count() == 0
+
+        sid_soft = _seed_v1_student(v1_session, sid="10000000-0000-0000-0000-000000000002")
+        assert cli.delete_student_data(sid_soft, hard_delete=False, force=True) is True
+        assert v1_session.query(Student).filter_by(id=sid_soft).count() == 0
+
+    def test_sqlalchemy_error_branch_reports_and_rolls_back(self, v1_session, monkeypatch, capsys):
+        """Directly exercises the ``except SQLAlchemyError`` branch by
+        forcing session.commit() to fail after every delete step has run
+        but before anything is persisted. Asserts both the user-facing
+        error message and the rollback safety net: a genuine (simulated)
+        DB failure here leaves the student and every associated record
+        untouched, not partially deleted."""
+        from original.db.models import BaselineSample, Student, Submission
+
         sid = _seed_v1_student(v1_session)
+
+        def _boom():
+            raise SQLAlchemyError("simulated commit failure")
+
+        monkeypatch.setattr(v1_session, "commit", _boom)
         assert cli.delete_student_data(sid, force=True) is False
         err = capsys.readouterr().err
         assert "Database error during deletion" in err
 
+        # Only .commit was patched; the real .rollback() ran inside the
+        # except block, so v1_session is safe to query again here and
+        # confirms nothing was actually persisted (the rollback undid the
+        # in-transaction deletes).
+        assert v1_session.query(Student).filter_by(id=sid).count() == 1
+        assert v1_session.query(Submission).filter_by(student_id=sid).count() == 1
+        assert v1_session.query(BaselineSample).filter_by(student_id=sid).count() == 1
+
     def test_generic_exception_branch_reports_and_rolls_back(self, v1_session, monkeypatch, capsys):
         """Forces a non-SQLAlchemyError exception to reach the second
-        ``except Exception`` handler, which the organic SQLAlchemy bug above
-        does NOT exercise (InvalidRequestError is a SQLAlchemyError subclass,
-        caught by the more specific handler first) -- this is the only way
-        to reach this branch without a second, unrelated bug."""
+        ``except Exception`` handler -- there is no organic trigger for this
+        arm (every real failure path in the function is a SQLAlchemyError
+        subclass), so this deliberately, minimally monkeypatches an
+        internal print helper to raise."""
 
         def _boom(*_args, **_kwargs):
             raise RuntimeError("boom")
@@ -305,21 +353,10 @@ class TestMain:
     def test_confirmed_force_delete_of_unknown_student_returns_1(self, v1_session):
         assert cli.main(["--student-id", "no-such-id", "--confirm", "--force"]) == 1
 
-    def test_confirmed_force_delete_of_real_student_currently_returns_1(self, v1_session):
-        """Would be the exit-0 "success" arm once the join()+delete() bug
-        above is fixed; documents the actual current outcome instead of
-        softening it -- see TestDeleteStudentData's matching pair."""
-        sid = _seed_v1_student(v1_session)
-        assert cli.main(["--student-id", sid, "--confirm", "--force"]) == 1
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="Same underlying join()+delete() bug; main() can never return 0 today.",
-    )
     def test_confirmed_force_delete_of_real_student_returns_0_on_success(self, v1_session):
         sid = _seed_v1_student(v1_session)
         assert cli.main(["--student-id", sid, "--confirm", "--force"]) == 0
 
     def test_hard_delete_flag_is_accepted_and_threaded_through(self, v1_session):
         sid = _seed_v1_student(v1_session)
-        assert cli.main(["--student-id", sid, "--confirm", "--force", "--hard-delete"]) == 1
+        assert cli.main(["--student-id", sid, "--confirm", "--force", "--hard-delete"]) == 0
