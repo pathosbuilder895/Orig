@@ -1887,10 +1887,16 @@ def start_calibration_run(
     """
     Insert a `running` row and return its row id. The lab UI polls
     ``get_calibration_run`` until status flips to `completed` or `failed`.
+
+    ``started_at`` is stored at microsecond resolution (fixed-width, like
+    ``park_iso_utc``) rather than whole seconds: ``list_calibration_runs``
+    orders by this column, and Postgres's ``CalibrationRun.started_at``
+    already carries microseconds, so whole-second truncation here made two
+    runs started in the same second tie with an undefined sqlite ordering.
     """
     from datetime import datetime
 
-    started_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    started_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     try:
         with _get_conn() as conn:
             cur = conn.execute(

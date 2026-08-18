@@ -1908,3 +1908,15 @@ class TestCalibrationRunsListFilters:
         assert result["total"] == 1
         assert result["items"][0]["id"] == run_f
         assert result["items"][0]["dataset_label"] == "dataset-F"
+
+    def test_list_calibration_runs_orders_newest_first_with_distinct_timestamps(self, repo):
+        run_first = repo.start_calibration_run("dataset-G")
+        run_second = repo.start_calibration_run("dataset-H")
+
+        first_started_at = repo.get_calibration_run(run_first)["started_at"]
+        second_started_at = repo.get_calibration_run(run_second)["started_at"]
+        assert first_started_at != second_started_at
+
+        result = repo.list_calibration_runs()
+        ids_newest_first = [item["id"] for item in result["items"]]
+        assert ids_newest_first.index(run_second) < ids_newest_first.index(run_first)
