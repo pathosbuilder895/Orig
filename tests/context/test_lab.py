@@ -455,6 +455,28 @@ class TestLabEndpoints:
         )
         assert resp.status_code == 422
 
+    def test_run_endpoint_accepted_returns_running_status(self, client_module_db, monkeypatch):
+        """The success arm (run_id is NOT None) of admin_run_calibration —
+        every other test in this class only exercises the 422 (unknown
+        dataset) failure arm. lab.runner.trigger_run is stubbed so this stays
+        fast and doesn't actually spawn a real multi-minute calibration on
+        the module-global single-worker thread pool; trigger_run's own
+        success path (real dataset → real row insert → real thread submit)
+        is exercised directly by TestCalibrationRunStore below."""
+        import original.lab.runner as runner_module
+
+        monkeypatch.setattr(runner_module, "trigger_run", lambda **kw: (777, None))
+        client, _module, _db = client_module_db
+        resp = client.post(
+            "/admin/calibration/run",
+            json={"dataset_label": "multi_author"},
+        )
+        assert resp.status_code == 202, resp.text
+        body = resp.json()
+        assert body["run_id"] == 777
+        assert body["status"] == "running"
+        assert body["dataset_label"] == "multi_author"
+
     def test_get_run_404(self, client_module_db):
         client, _module, _db = client_module_db
         resp = client.get("/admin/calibration/runs/9999")
@@ -513,6 +535,49 @@ class TestLabEndpoints:
         resp = client.get(f"/admin/calibration/runs/{run_id}/suggestions")
         assert resp.status_code == 409
 
+    def test_suggestions_use_active_tuned_thresholds_as_current(self, client_module_db):
+        """When a tuned-threshold set is already active, suggestions must
+        report deltas against IT (the `if active is not None:` arm) rather
+        than falling back to the Phase-1 defaults every other suggestions
+        test above exercises (no threshold set applied first)."""
+        client, module, _db = client_module_db
+        applied_run = module.store.start_calibration_run(dataset_label="multi_author")
+        module.store.complete_calibration_run(
+            applied_run,
+            auc=0.9,
+            n_essays_scored=20,
+            n_authors=3,
+            report=_synthetic_report(n_pos=20, n_neg=10),
+        )
+        # Deliberately far from any plausible F1-optimal point on the
+        # synthetic report below: generate_suggestions only emits the
+        # threshold_no_action suggestion when it differs from `current` by
+        # more than 0.01, and this test needs that suggestion present to
+        # prove `current` came from the applied set.
+        apply_resp = client.post(
+            f"/admin/calibration/runs/{applied_run}/apply",
+            json={"no_action": 0.05, "monitor": 0.58, "escalate": 0.79},
+        )
+        assert apply_resp.status_code == 200, apply_resp.text
+
+        run_id = module.store.start_calibration_run(dataset_label="multi_author")
+        module.store.complete_calibration_run(
+            run_id,
+            auc=0.97,
+            n_essays_scored=30,
+            n_authors=3,
+            report=_synthetic_report(n_pos=20, n_neg=10, pos_mean=0.20, neg_mean=0.85),
+        )
+        resp = client.get(f"/admin/calibration/runs/{run_id}/suggestions")
+        assert resp.status_code == 200, resp.text
+        # The suggestion engine received the just-applied set as `current`,
+        # not None — visible as a non-zero delta on the no_action suggestion
+        # (its `current_value` is the applied 0.33, not the generic default).
+        no_action = next(
+            s for s in resp.json()["suggestions"] if s["type"] == "threshold_no_action"
+        )
+        assert no_action["current_value"] == pytest.approx(0.05)
+
     def test_apply_endpoint_versions_thresholds(self, client_module_db):
         client, module, _db = client_module_db
         run_id = module.store.start_calibration_run(dataset_label="multi_author")
@@ -551,6 +616,41 @@ class TestLabEndpoints:
         )
         assert resp.status_code == 404
 
+    def test_apply_persist_failure_is_a_500(self, client_module_db, monkeypatch):
+        """put_tuned_thresholds() returning None (insert failed) must not be
+        reported as a 200 with a fabricated active-thresholds body."""
+        from original.repository import SqliteRepository
+
+        client, module, _db = client_module_db
+        run_id = module.store.start_calibration_run(dataset_label="multi_author")
+        module.store.complete_calibration_run(
+            run_id,
+            auc=0.9,
+            n_essays_scored=20,
+            n_authors=3,
+            report=_synthetic_report(n_pos=20, n_neg=10),
+        )
+        monkeypatch.setattr(SqliteRepository, "put_tuned_thresholds", lambda self, **kw: None)
+        resp = client.post(
+            f"/admin/calibration/runs/{run_id}/apply",
+            json={"no_action": 0.4, "monitor": 0.6, "escalate": 0.8},
+        )
+        assert resp.status_code == 500, resp.text
+        assert "persist" in resp.json()["detail"].lower()
+
+    def test_runs_list_invalid_limit_returns_422(self, client_module_db):
+        client, _module, _db = client_module_db
+        resp = client.get("/admin/calibration/runs", params={"limit": 0})
+        assert resp.status_code == 422
+        resp = client.get("/admin/calibration/runs", params={"limit": 5000})
+        assert resp.status_code == 422
+
+    def test_runs_list_negative_offset_returns_422(self, client_module_db):
+        client, _module, _db = client_module_db
+        resp = client.get("/admin/calibration/runs", params={"offset": -1})
+        assert resp.status_code == 422
+        assert "offset" in resp.json()["detail"]
+
     def test_active_thresholds_null_when_none_set(self, client_module_db):
         client, _module, _db = client_module_db
         resp = client.get("/admin/tuned-thresholds")
@@ -575,3 +675,10 @@ class TestLabEndpoints:
         resp = client.get("/admin/tuned-thresholds/history")
         assert resp.status_code == 200
         assert resp.json()["total"] == 2
+
+    def test_history_invalid_limit_returns_422(self, client_module_db):
+        client, _module, _db = client_module_db
+        resp = client.get("/admin/tuned-thresholds/history", params={"limit": 0})
+        assert resp.status_code == 422
+        resp = client.get("/admin/tuned-thresholds/history", params={"limit": 5000})
+        assert resp.status_code == 422

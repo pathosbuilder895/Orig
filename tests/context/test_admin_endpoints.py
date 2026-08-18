@@ -251,6 +251,12 @@ class TestAdminManifestsEndpoint:
         resp = client.get("/admin/manifests", params={"limit": 5000})
         assert resp.status_code == 422
 
+    def test_negative_offset_returns_422(self, client_module_db):
+        client, _module, _db = client_module_db
+        resp = client.get("/admin/manifests", params={"offset": -1})
+        assert resp.status_code == 422
+        assert "offset" in resp.json()["detail"]
+
 
 class TestAdminStatsEndpoint:
     def test_stats_endpoint(self, client_module_db):
@@ -331,6 +337,28 @@ class TestCorrectionEndpoint:
         ).json()
         assert listed["total"] == 3
 
+    def test_persist_failure_is_a_500(self, client_module_db, monkeypatch):
+        """put_correction() returning None (insert failed) must not be
+        reported as a 200 with a fabricated body."""
+        from original.repository import SqliteRepository
+
+        monkeypatch.setattr(SqliteRepository, "put_correction", lambda self, **kw: None)
+        client, _module, _db = client_module_db
+        resp = client.post("/submissions/sub_persistfail/correct", json={"is_correct": True})
+        assert resp.status_code == 500, resp.text
+        assert "persist" in resp.json()["detail"].lower()
+
+    def test_readback_miss_after_insert_is_a_500(self, client_module_db, monkeypatch):
+        """The insert reports success but the round-trip read-back finds no
+        row — the id-mismatch/race guard, not the same failure as above."""
+        from original.repository import SqliteRepository
+
+        monkeypatch.setattr(SqliteRepository, "list_corrections", lambda self, **kw: {"items": []})
+        client, _module, _db = client_module_db
+        resp = client.post("/submissions/sub_readbackmiss/correct", json={"is_correct": True})
+        assert resp.status_code == 500, resp.text
+        assert "not found on read-back" in resp.json()["detail"]
+
 
 class TestAdminCorrectionsListEndpoint:
     def test_list_corrections_via_http(self, client_module_db):
@@ -352,6 +380,19 @@ class TestAdminCorrectionsListEndpoint:
             params={"is_correct": "false"},
         ).json()
         assert wrong_only["total"] == 2
+
+    def test_invalid_limit_returns_422(self, client_module_db):
+        client, _module, _db = client_module_db
+        resp = client.get("/admin/corrections", params={"limit": 0})
+        assert resp.status_code == 422
+        resp = client.get("/admin/corrections", params={"limit": 5000})
+        assert resp.status_code == 422
+
+    def test_negative_offset_returns_422(self, client_module_db):
+        client, _module, _db = client_module_db
+        resp = client.get("/admin/corrections", params={"offset": -1})
+        assert resp.status_code == 422
+        assert "offset" in resp.json()["detail"]
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -383,6 +424,32 @@ class TestPlaygroundEndpoint:
         assert body["layer7"]["report"] is not None
         # By default, blend is OFF.
         assert body["blend"] is None
+
+    def test_playground_without_manifest_skips_report(self, client_module_db):
+        """enable_manifest=False (with enable_adaptive_weights=False too, since
+        the latter implies the former) short-circuits the manifest stage —
+        adaptive.manifest stays None, so the ``if adaptive.manifest is not
+        None:`` report-assembly block is skipped entirely rather than
+        attempted and swallowed."""
+        client, _module, _db = client_module_db
+        text = "The committee considered the proposal carefully. " * 30
+        resp = client.post(
+            "/test/score",
+            json={
+                "text": text,
+                "baseline_texts": [
+                    "Earlier baseline submission for the test student.",
+                    "Another baseline with similar style.",
+                    "A third baseline rounding out the corpus.",
+                ],
+                "enable_manifest": False,
+                "enable_adaptive_weights": False,
+            },
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["layer7"]["context_manifest"] is None
+        assert body["layer7"]["report"] is None
 
     def test_playground_with_blend(self, client_module_db):
         client, _module, _db = client_module_db
