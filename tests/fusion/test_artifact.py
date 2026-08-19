@@ -221,3 +221,72 @@ def test_result_is_cached_after_first_load(write_artifact):
     first = artifact_module.load_artifact()
     path.unlink()
     assert artifact_module.load_artifact() is first
+
+
+def test_malformed_json_fails_closed(tmp_path, monkeypatch):
+    """`_load`'s broad except: genuinely invalid JSON — not a _parse
+    validation failure — must still fail closed rather than raise."""
+    path = tmp_path / "malformed.json"
+    path.write_text("{not valid json")
+    monkeypatch.setenv("FUSED_SCORE_MODEL_PATH", str(path))
+    artifact_module.reset_for_tests()
+    assert artifact_module.load_artifact() is None
+
+
+def test_second_call_after_a_failure_stays_closed_without_rereading(write_artifact):
+    """Once `_state` is `_FAILED`, load_artifact() must short-circuit on
+    the outer `_state == _FAILED` check rather than re-attempting `_load`.
+    Proved by fixing the file on disk after the first failing call: if the
+    second call re-read it, it would now succeed — it must not."""
+    payload = _valid_payload()
+    payload["schema_version"] = 999
+    path = write_artifact(payload)
+    assert artifact_module.load_artifact() is None  # first call: fails closed
+
+    path.write_text(json.dumps(_valid_payload()))  # now valid on disk
+    assert artifact_module.load_artifact() is None  # still closed: no re-read
+
+
+def test_reference_input_output_row_count_mismatch_fails_closed(write_artifact):
+    """`_parse`'s one remaining validation arm: reference_inputs and
+    reference_outputs both present but with mismatched row counts. Every
+    other reference-check test above uses matching counts, so this arm
+    (`reference_inputs.shape[0] != expected.shape[0]`) was never hit."""
+    payload = _valid_payload()
+    payload["reference_outputs"] = payload["reference_outputs"][:1]  # 2 inputs, 1 output
+    write_artifact(payload)
+    assert artifact_module.load_artifact() is None
+
+
+def test_second_thread_skips_reloading_after_the_first_resolves_state(monkeypatch):
+    """load_artifact()'s double-checked locking: once another thread has
+    already moved `_state` off `_UNLOADED` by the time this call acquires
+    the lock, it must return that result directly rather than calling
+    `_load()` again. Simulated deterministically (no real threads, no
+    timing) with a fake lock whose __enter__ flips `_state` at exactly the
+    moment the real lock's __enter__ would hand control back — the
+    observable effect of the race is identical either way. Same technique
+    as ai_likelihood.py / style_authorship.py's `_ensure_loaded` race test."""
+    artifact_module.reset_for_tests()
+    sentinel = object()
+
+    class _WonTheRaceLock:
+        def __enter__(self):
+            artifact_module._state = artifact_module._READY
+            artifact_module._artifact = sentinel
+            return True
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    def _boom():
+        raise AssertionError("_load must not run when state changed under the lock")
+
+    monkeypatch.setattr(artifact_module, "_lock", _WonTheRaceLock())
+    monkeypatch.setattr(artifact_module, "_load", _boom)
+
+    result = artifact_module.load_artifact()
+
+    assert result is sentinel
+    artifact_module._state = artifact_module._UNLOADED
+    artifact_module._artifact = None
