@@ -173,3 +173,190 @@ def test_st_backend_falls_back_cleanly_when_encode_raises(monkeypatch):
 
     assert "semantic_field_dispersion" in result
     assert 0.0 <= result["semantic_field_dispersion"] <= 1.0
+
+
+# ── `_get_st_model` failure arms ─────────────────────────────────────────────
+
+
+def test_get_st_model_caches_failure_and_short_circuits(monkeypatch):
+    """Once `_st_failed` is set, subsequent calls must return None immediately
+    without re-attempting the (expensive) import/instantiation — branch:
+    `if _st_failed: return None`."""
+    monkeypatch.setattr(tier10, "_st_model", None)
+    monkeypatch.setattr(tier10, "_st_failed", True)
+
+    calls = {"n": 0}
+
+    def _boom(model_name):
+        calls["n"] += 1
+        raise RuntimeError("should never be called — failure is cached")
+
+    fake_module = types.ModuleType("sentence_transformers")
+    fake_module.SentenceTransformer = _boom  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "sentence_transformers", fake_module)
+
+    result = tier10._get_st_model()
+
+    assert result is None
+    assert calls["n"] == 0
+
+
+def test_get_st_model_handles_load_failure_and_caches_it(monkeypatch, caplog):
+    """A genuine import/load failure (package missing, or the model download
+    unreachable) must be caught, logged, and remembered in `_st_failed` so it
+    isn't retried on every call."""
+    monkeypatch.setattr(tier10, "_st_model", None)
+    monkeypatch.setattr(tier10, "_st_failed", False)
+    # Setting sys.modules[name] = None is the standard idiom for forcing
+    # `import name` to raise ImportError without needing the real package
+    # to actually be absent.
+    monkeypatch.setitem(sys.modules, "sentence_transformers", None)
+
+    with caplog.at_level(logging.INFO, logger="original.features.tier10"):
+        result = tier10._get_st_model()
+
+    assert result is None
+    assert tier10._st_failed is True
+    assert any(
+        "sentence-transformers unavailable" in rec.message for rec in caplog.records
+    ), "expected the ST backend-unavailable log line to fire"
+
+    # Second call short-circuits via the cached-failure branch above.
+    result2 = tier10._get_st_model()
+    assert result2 is None
+
+
+# ── `_tfidf_encode` arms (unit-tested directly) ──────────────────────────────
+
+
+def test_tfidf_encode_returns_none_for_fewer_than_two_sentences():
+    assert tier10._tfidf_encode([]) is None
+    assert tier10._tfidf_encode(["only one sentence here"]) is None
+
+
+def test_tfidf_encode_with_provided_vocab_uses_transform_not_fit():
+    """When a fitted vocabulary is supplied, `_tfidf_encode` must call
+    `.transform()` on it rather than fitting a new vocabulary — this is the
+    shared-feature-space path `compute_tier10_comparison` relies on."""
+    from sklearn.feature_extraction.text import TfidfVectorizer
+
+    fitted = TfidfVectorizer(
+        min_df=1, max_features=300, sublinear_tf=True, strip_accents="unicode"
+    )
+    fitted.fit(["The quick brown fox jumps.", "Over the lazy dog again."])
+
+    result = tier10._tfidf_encode(
+        ["A new sentence entirely different.", "Another new sentence here too."],
+        vocab=fitted,
+    )
+
+    assert result is not None
+    assert result.shape[0] == 2
+    assert result.shape[1] == len(fitted.vocabulary_)
+
+
+def test_tfidf_encode_returns_none_when_vectorizer_raises():
+    """Symbol-only sentences leave scikit-learn with an empty vocabulary,
+    which raises ValueError inside the try block — must degrade to None."""
+    result = tier10._tfidf_encode(["!!!", "???"])
+    assert result is None
+
+
+# ── `_encode_sentences` model-absent arm ─────────────────────────────────────
+
+
+def test_encode_sentences_uses_tfidf_when_model_is_none(monkeypatch):
+    """When `_get_st_model()` returns None (no ST backend at all, as opposed
+    to it raising at encode time), `_encode_sentences` must skip straight to
+    the TF-IDF path — branch: `if model is not None` false arm."""
+    monkeypatch.setattr(tier10, "_get_st_model", lambda: None)
+
+    doc = TextDoc(_long_prose())
+    result = tier10._encode_sentences(doc)
+
+    assert result is not None
+    assert result.ndim == 2
+
+
+def test_tfidf_fallback_produces_real_non_neutral_dispersion(monkeypatch):
+    """CLAUDE.md pins this: the TF-IDF fallback is a genuine implementation,
+    not a placeholder — it must produce a real, non-neutral dispersion value
+    when the ST backend is simply absent (not merely too-few-sentences)."""
+    monkeypatch.setattr(tier10, "_get_st_model", lambda: None)
+
+    text = (
+        "The cat sat on the warm mat by the window. "
+        "The cat chased a small mouse across the yard. "
+        "A dog barked loudly at the passing mail truck. "
+        "Sunlight filtered through the tall green trees. "
+        "The old library smelled of dust and ancient paper. "
+    )
+    doc = TextDoc(text)
+    result = tier10.extract_tier10_standalone(doc)
+
+    dispersion = result["semantic_field_dispersion"]
+    assert dispersion != 0.5, "0.5 must only fire on too-few-usable-sentences, not a missing backend"
+    assert 0.0 <= dispersion <= 1.0
+
+
+# ── `extract_tier10_profile` too-short arm ───────────────────────────────────
+
+
+def test_extract_tier10_profile_returns_zero_array_when_too_short():
+    doc = TextDoc("Hi.")
+    profile = tier10.extract_tier10_profile(doc)
+
+    embs = profile["_semantic_embeddings"]
+    assert isinstance(embs, np.ndarray)
+    assert embs.shape == (1, 384)
+    assert np.all(embs == 0.0)
+
+
+# ── `compute_tier10_comparison` remaining arms ───────────────────────────────
+
+
+def test_compute_tier10_comparison_clears_mismatched_dimensions_and_rebuilds():
+    """Pre-computed embeddings whose vector widths disagree (e.g. two TF-IDF
+    encodings fit on different independent vocabularies) must be discarded so
+    the function falls through to the shared-vocabulary TF-IDF rebuild path,
+    rather than comparing incompatible vector spaces."""
+    rng = np.random.default_rng(0)
+    sub_profile = {
+        "_semantic_embeddings": rng.random((2, 50)).astype(np.float32),
+        "_sentences": ["Sub sentence one here about foxes.", "Sub sentence two here about dogs."],
+    }
+    baseline_profiles = {
+        "_semantic_embeddings_list": [rng.random((2, 10)).astype(np.float32)],
+        "_sentences_list": [
+            ["Base sentence one here about cats.", "Base sentence two here about birds."]
+        ],
+    }
+
+    result = tier10.compute_tier10_comparison(sub_profile, baseline_profiles)
+
+    assert "semantic_centroid_proximity" in result
+    assert 0.0 <= result["semantic_centroid_proximity"] <= 1.0
+
+
+def test_compute_tier10_comparison_returns_neutral_when_rebuild_has_too_few_sentences():
+    """The TF-IDF rebuild path itself requires >= 2 sentences per group; a
+    single-sentence submission or baseline group must degrade to the neutral
+    fallback rather than raise."""
+    sub_profile = {"_sentences": ["Only one sentence."]}
+    baseline_profiles = {"_sentences_list": [["Only one baseline sentence."]]}
+
+    result = tier10.compute_tier10_comparison(sub_profile, baseline_profiles)
+
+    assert result == {"semantic_centroid_proximity": 0.5}
+
+
+def test_compute_tier10_comparison_returns_neutral_when_vectorizer_fit_raises():
+    """A shared-vocabulary fit across symbol-only sentences leaves scikit-learn
+    with an empty vocabulary, raising inside the rebuild `try` block — must
+    degrade to the neutral fallback rather than propagate."""
+    sub_profile = {"_sentences": ["!!!", "???"]}
+    baseline_profiles = {"_sentences_list": [["@@@", "###"]]}
+
+    result = tier10.compute_tier10_comparison(sub_profile, baseline_profiles)
+
+    assert result == {"semantic_centroid_proximity": 0.5}
