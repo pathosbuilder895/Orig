@@ -109,14 +109,22 @@ jobs:
 
       - name: Run pytest with coverage
         # Ratcheted 70 (WS-2) -> 72 (WS-5) -> 78 (#104, additional API
-        # coverage tests). 78 was the doc's original aspirational overall
-        # target and is now the enforced floor. Do not raise this past what
-        # `--cov-report=term-missing` actually shows passing locally.
+        # coverage tests) -> 98 (2026-08-20, branch-coverage effort,
+        # docs/superpowers/plans/2026-08-17-branch-coverage-*.md). The 78
+        # floor measured LINE coverage only; --cov-branch switched the
+        # measured metric to statements+branches combined, which is why the
+        # floor jumped rather than crept -- a line can be "covered" while
+        # one of its conditional arms never ran, and --cov-branch is what
+        # actually catches that. Full-suite measured combined coverage was
+        # 99.61% (11601 stmts/45 missing, 3024 branches/12 missing+10
+        # partial) on 2026-08-20; 98 leaves headroom for runner variance.
+        # Do not raise this past what `--cov-report=term-missing` actually
+        # shows passing locally.
         env:
           DATABASE_URL: postgresql://original:original@localhost:5432/original_test
         run: |
           python -m pytest tests/ validation/test_tier10_optional.py \
-            --cov=original --cov-report=xml --cov-fail-under=78
+            --cov=original --cov-branch --cov-report=xml --cov-fail-under=98
 
       - name: Upload coverage report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
