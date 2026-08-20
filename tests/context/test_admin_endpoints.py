@@ -417,6 +417,28 @@ class TestCorrectionEndpoint:
         assert resp.status_code == 403, resp.text
         assert "Cross-tenant access denied" in resp.json()["detail"]
 
+    def test_fidelity_authenticity_update_failure_is_swallowed(self, client_module_db, monkeypatch):
+        """admin.py:[251,254] — `except Exception as _fid_exc:` around
+        `_repo().update_fidelity_authenticity(...)`, the conformal-calibration
+        feedback write that closes the loop after an instructor correction.
+        By the time this runs the correction row is already persisted (same
+        best-effort shape as test_fidelity_persistence_failure_is_swallowed
+        in tests/test_scoring_router_branches.py), so a failing update must
+        not turn a successful correction into a 500 — only be logged at
+        DEBUG."""
+        from original.repository import SqliteRepository
+
+        def _boom(self, submission_id, is_authentic):
+            raise RuntimeError("simulated fidelity authenticity update failure")
+
+        monkeypatch.setattr(SqliteRepository, "update_fidelity_authenticity", _boom)
+        client, _module, _db = client_module_db
+
+        resp = client.post("/submissions/sub_fidelity_boom/correct", json={"is_correct": True})
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["is_correct"] is True
+
 
 class TestAdminCorrectionsListEndpoint:
     def test_list_corrections_via_http(self, client_module_db):
@@ -645,3 +667,91 @@ class TestPlaygroundEndpoint:
             },
         )
         assert resp.status_code == 422
+
+    def test_playground_baseline_feature_extraction_failure_is_422(
+        self, client_module_db, monkeypatch
+    ):
+        """admin.py:[333,334] — `except Exception as exc:` around
+        `feature_vector(t)` while building the synthetic baseline samples,
+        re-raised as a 422 naming the failing baseline_texts index. Unlike
+        the other three admin.py guards in this residual sweep, this one is
+        NOT a swallowed best-effort arm — feature extraction is load-bearing
+        for the synthetic StudentState, so a failure here must abort the
+        request with a clear per-index error rather than continue."""
+        import original.routers.admin as admin_mod
+
+        def _boom(text, **kwargs):
+            raise RuntimeError("simulated feature extraction failure")
+
+        monkeypatch.setattr(admin_mod, "feature_vector", _boom)
+        client, _module, _db = client_module_db
+
+        resp = client.post(
+            "/test/score",
+            json={
+                "text": "Some submission text. " * 20,
+                "baseline_texts": ["Earlier baseline submission for the test student."],
+            },
+        )
+
+        assert resp.status_code == 422, resp.text
+        assert "baseline_texts[0] feature extraction failed" in resp.json()["detail"]
+
+    def test_playground_report_assembly_failure_is_swallowed(self, client_module_db, monkeypatch):
+        """admin.py:[388,389] — `except Exception as e:` around
+        `build_report(...)` in the playground, a separate call site from
+        students_scoring.py's own report-assembly guard. Only reached when
+        `adaptive.manifest is not None`, true by default (enable_manifest
+        defaults to True — see test_playground_runs_pipeline above). A
+        broken report builder must not fail the playground response, only
+        leave `layer7.report` null."""
+        import original.context.report as report_mod
+
+        def _boom(*args, **kwargs):
+            raise RuntimeError("simulated report assembly failure")
+
+        monkeypatch.setattr(report_mod, "build_report", _boom)
+        client, _module, _db = client_module_db
+
+        resp = client.post(
+            "/test/score",
+            json={
+                "text": "The committee considered the proposal carefully. " * 30,
+                "baseline_texts": [
+                    "Earlier baseline submission for the test student.",
+                    "Another baseline with similar style.",
+                    "A third baseline rounding out the corpus.",
+                ],
+            },
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["layer7"]["report"] is None
+
+    def test_playground_blend_detection_failure_is_swallowed(self, client_module_db, monkeypatch):
+        """admin.py:[427,428] — `except Exception as e:` around
+        `detect_blend(...)` in the playground's optional blend step
+        (enable_blend=True). A broken blend detector must not fail the
+        playground response, only leave `blend` null."""
+        import original.context.blend as blend_mod
+
+        def _boom(*args, **kwargs):
+            raise RuntimeError("simulated blend detection failure")
+
+        monkeypatch.setattr(blend_mod, "detect_blend", _boom)
+        client, _module, _db = client_module_db
+
+        resp = client.post(
+            "/test/score",
+            json={
+                "text": "The committee considered the proposal carefully. " * 60,
+                "baseline_texts": [
+                    "Earlier baseline submission for the test student.",
+                    "Another baseline with similar style.",
+                ],
+                "enable_blend": True,
+            },
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["blend"] is None

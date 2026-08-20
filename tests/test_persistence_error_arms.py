@@ -1009,6 +1009,38 @@ def test_store_delete_student_returns_false_on_second_connection_failure(store_r
     assert store_reset.delete_student(student_id) is False
 
 
+def test_store_delete_student_clears_fusion_peer_cache_when_module_is_imported(
+    store_reset, monkeypatch
+):
+    """store.py:[1702,1704] — `_fusion_peers = sys.modules.get(
+    "original.fusion.peers"); if _fusion_peers is not None: ...clear_student(...)`.
+
+    original.fusion.peers is optional and guarded via sys.modules precisely
+    because the fusion package may never have been imported when the fused-
+    score flags are off — delete_student() must not import it itself. Since
+    other tests in a full suite run may or may not have already imported the
+    real module (an ambient, order-dependent side effect), pin the state
+    directly with monkeypatch.setitem(sys.modules, ...) rather than relying
+    on import order: a fake module with a `clear_student` spy proves both
+    that the True arm is taken (sys.modules lookup finds it) AND that the
+    real function gets called with the deleted student's id -- something the
+    module-import-only version of this test (test_repository_contract.py's
+    TestDeleteStudentFullFootprint) doesn't itself assert."""
+    import sys
+    import types
+
+    student_id = "sem:fusion-peer-clear"
+    store_reset.put(StudentState(student_id=student_id))
+
+    calls: list[str] = []
+    fake_peers = types.ModuleType("original.fusion.peers")
+    fake_peers.clear_student = lambda sid: calls.append(sid)
+    monkeypatch.setitem(sys.modules, "original.fusion.peers", fake_peers)
+
+    assert store_reset.delete_student(student_id) is True
+    assert calls == [student_id]
+
+
 def test_store_advance_formation_pathway_returns_none_on_second_connection_failure(
     store_reset, monkeypatch
 ):

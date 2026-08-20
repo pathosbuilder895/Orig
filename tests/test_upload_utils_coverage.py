@@ -142,6 +142,43 @@ def test_corrupt_pdf_raises_valueerror_not_the_library_exception():
     assert "PDF extraction failed" in str(exc.value)
 
 
+# ── optional-dependency `except ImportError` guards ────────────────────────────
+# Both pypdf and python-docx ARE installed in this venv (used by the round-trip
+# tests above), so their `except ImportError:` branches are unreachable without
+# faking the import failure. Same technique as tests/test_tier5.py's
+# `_get_nlp` spaCy-unavailable test and tests/test_students_router_branches.py's
+# students.py upload-route equivalents (a separate, duplicate implementation —
+# this module's own guards were not covered by those): setting
+# `sys.modules[name] = None` forces the next `from X import Y` to raise
+# ImportError (CPython import-system contract).
+
+
+def test_pdf_extraction_raises_when_pypdf_is_not_installed(monkeypatch):
+    """upload_utils.py:[43,44] — `except ImportError:` around `from pypdf
+    import PdfReader`, raising the documented pip-install hint."""
+    import sys
+
+    monkeypatch.setitem(sys.modules, "pypdf", None)
+
+    with pytest.raises(ValueError) as exc:
+        extract_text_from_bytes(b"not a real pdf", "scan.pdf")
+    assert "pypdf is not installed" in str(exc.value)
+    assert "pip install pypdf" in str(exc.value)
+
+
+def test_docx_extraction_raises_when_python_docx_is_not_installed(monkeypatch):
+    """upload_utils.py:[55,56] — `except ImportError:` around `from docx
+    import Document`, raising the documented pip-install hint."""
+    import sys
+
+    monkeypatch.setitem(sys.modules, "docx", None)
+
+    with pytest.raises(ValueError) as exc:
+        extract_text_from_bytes(b"not a real docx", "paper.docx")
+    assert "python-docx is not installed" in str(exc.value)
+    assert "pip install python-docx" in str(exc.value)
+
+
 # ── word_count ────────────────────────────────────────────────────────────────
 
 

@@ -473,3 +473,156 @@ def test_audit_log_failure_is_swallowed(live_client, store_reset, monkeypatch):
     r = _score(live_client, sid, force=True)
 
     assert r.status_code == 200, r.text
+
+
+# ── Final-sweep residual arms (cross-cluster branch-coverage closure) ───────
+# The tests above (Part 2) chased the highest-value best-effort guards;
+# these six close the remaining residual `except Exception:` arms a later
+# full-suite measurement found still missing in students_scoring.py. Same
+# idiom throughout: set the one env flag needed to reach the guarded block,
+# monkeypatch the specific inline-imported leaf function to raise, and
+# assert the request still returns 200 — a broken optional signal must never
+# fail the scoring endpoint.
+
+
+def test_impostor_pool_build_exception_is_swallowed(live_client, store_reset, monkeypatch):
+    """students_scoring.py:149-150 — `except Exception:` around
+    `build_impostor_stats(...)`. Reached whenever NULL_MODEL=impostor (or
+    CHARACTERISTIC_WEIGHTS != "off") makes the impostor-pool block run at
+    all; a broken pool builder must not take the scoring endpoint down with
+    it, only skip the signals that depend on it (llr_deviation_score,
+    characteristic weighting)."""
+    import original.quantum.null_pool as null_pool_mod
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("simulated impostor pool build failure")
+
+    monkeypatch.setattr(null_pool_mod, "build_impostor_stats", _boom)
+    monkeypatch.setenv("NULL_MODEL", "impostor")
+
+    sid = "impostor-pool-boom"
+    assert _add_baseline(live_client, sid).status_code == 200
+
+    r = _score(live_client, sid, force=True)
+
+    assert r.status_code == 200, r.text
+
+
+def test_longitudinal_genre_resolution_exception_is_swallowed(live_client, store_reset, monkeypatch):
+    """students_scoring.py:304-305 — `except Exception:` around
+    `resolve_genre(req.text)` inside the LONGITUDINAL_DRIFT_ENABLED block. A
+    broken genre resolver must not prevent the (report-only) longitudinal
+    drift analysis from running — it just falls back to
+    `_longitudinal_genre = None`."""
+    import original.context.resolvers as resolvers_mod
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("simulated genre resolution failure")
+
+    monkeypatch.setattr(resolvers_mod, "resolve_genre", _boom)
+    monkeypatch.setenv("LONGITUDINAL_DRIFT_ENABLED", "1")
+
+    sid = "longitudinal-genre-boom"
+    assert _add_baseline(live_client, sid).status_code == 200
+
+    r = _score(live_client, sid, force=True)
+
+    assert r.status_code == 200, r.text
+
+
+def test_ai_likelihood_persistence_exception_is_swallowed(live_client, store_reset, monkeypatch):
+    """students_scoring.py:354-355 — `except Exception:` around
+    `_repo().put_ai_likelihood_score(...)`. Only reachable when the
+    predictor actually returns a non-None result, so the leaf predictor
+    itself is patched to a fixed successful result (same style as
+    test_fidelity_persistence_failure_is_swallowed's amplitude patch above)
+    rather than relying on the real model producing one for arbitrary text."""
+    import original.ai_likelihood as ai_likelihood_mod
+    from original.repository import SqliteRepository
+
+    fake_result = ai_likelihood_mod.AiLikelihoodResult(
+        probability=0.42, band="elevated", model_version="v1", trained_on="unit-test"
+    )
+    monkeypatch.setattr(ai_likelihood_mod, "predict_ai_likelihood", lambda vec: fake_result)
+
+    def _boom(self, **kwargs):
+        raise RuntimeError("simulated ai_likelihood persistence failure")
+
+    monkeypatch.setattr(SqliteRepository, "put_ai_likelihood_score", _boom)
+    monkeypatch.setenv("AI_LIKELIHOOD_SHADOW", "1")
+
+    sid = "ai-likelihood-persist-boom"
+    assert _add_baseline(live_client, sid).status_code == 200
+
+    r = _score(live_client, sid, force=True)
+
+    assert r.status_code == 200, r.text
+
+
+def test_style_authorship_inference_exception_is_swallowed(live_client, store_reset, monkeypatch):
+    """students_scoring.py:369-370 — `except Exception:` around
+    `predict_style_authorship(...)`. Report-only and action-blind by
+    contract; a broken expert must only skip `result.style_authorship`, not
+    fail the request."""
+    import original.style_authorship as style_authorship_mod
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("simulated style-authorship inference failure")
+
+    monkeypatch.setattr(style_authorship_mod, "predict_style_authorship", _boom)
+    monkeypatch.setenv("STYLE_AUTHORSHIP_ENABLED", "1")
+
+    sid = "style-authorship-boom"
+    assert _add_baseline(live_client, sid).status_code == 200
+
+    r = _score(live_client, sid, force=True)
+
+    assert r.status_code == 200, r.text
+
+
+def test_fused_score_inference_exception_is_swallowed(live_client, store_reset, monkeypatch):
+    """students_scoring.py:397-401 — `except Exception:` around
+    `predict_fused_score_with_reason(...)`. FUSED_SCORE_SHADOW=1 is enough
+    to enter the block (no need for the full 8-peer cohort test_wiring.py
+    and the fused-hit test above build — the leaf function is replaced
+    outright, so it never gets far enough to need real peer data)."""
+    import original.fusion as fusion_mod
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("simulated fused-score inference failure")
+
+    monkeypatch.setattr(fusion_mod, "predict_fused_score_with_reason", _boom)
+    monkeypatch.setenv("FUSED_SCORE_SHADOW", "1")
+
+    sid = "fused-score-inference-boom"
+    assert _add_baseline(live_client, sid).status_code == 200
+
+    r = _score(live_client, sid, force=True)
+
+    assert r.status_code == 200, r.text
+    assert r.json().get("fused_score") is None
+
+
+def test_report_assembly_exception_is_swallowed_in_score_submission(
+    live_client, store_reset, monkeypatch
+):
+    """students_scoring.py:495-496 — `except Exception as e:` around
+    `build_report(...)` in score_submission (distinct from admin.py's own
+    playground report-assembly guard, a separate call site). Only reached
+    when a manifest was actually built (CONTEXT_MANIFEST_ENABLED=1); a
+    broken report builder must not fail the scoring response, only leave
+    `report=None`."""
+    import original.context.report as report_mod
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("simulated report assembly failure")
+
+    monkeypatch.setattr(report_mod, "build_report", _boom)
+    monkeypatch.setenv("CONTEXT_MANIFEST_ENABLED", "1")
+
+    sid = "report-assembly-boom"
+    assert _add_baseline(live_client, sid).status_code == 200
+
+    r = _score(live_client, sid, force=True)
+
+    assert r.status_code == 200, r.text
