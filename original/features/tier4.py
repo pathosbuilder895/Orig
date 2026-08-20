@@ -34,7 +34,9 @@ def _shannon_entropy(counter: Counter) -> float:
         return 0.0
     entropy = 0.0
     for count in counter.values():
-        if count > 0:
+        # Counter.values() only ever yields counted occurrences (>= 1), so
+        # the False arm is unreachable — count can never be <= 0 here.
+        if count > 0:  # pragma: no branch
             p = count / total
             entropy -= p * math.log2(p)
     return entropy

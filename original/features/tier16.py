@@ -71,7 +71,9 @@ def signal_verb_entropy(cd: CitationData) -> float:
     entropy = 0.0
     for count in counts.values():
         p = count / total
-        if p > 0:
+        # counts.values() only ever holds counted occurrences (>= 1), so
+        # p can never be <= 0 here — the False arm is unreachable.
+        if p > 0:  # pragma: no branch
             entropy -= p * math.log2(p)
     return entropy
 
