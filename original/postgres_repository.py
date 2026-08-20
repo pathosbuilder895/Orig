@@ -220,7 +220,10 @@ class PostgresRepository:
                 return self._doc_to_state(row.data) if row else None
         except Exception:
             log.exception("get failed for %s", student_id)
-            return None
+            raise  # mirror store.py's get(): a lookup failure must surface, not be
+            # mistaken for "student doesn't exist" -- session.get() already
+            # returns None for a genuinely missing row above, with no exception
+            # involved, so nothing legitimate is being swallowed here.
 
     def get_or_create(self, student_id):
         """SqliteRepository's get_or_create() inserts a fresh StudentState
@@ -249,7 +252,10 @@ class PostgresRepository:
                 return state
         except Exception:
             log.exception("get_or_create failed for %s", student_id)
-            return StudentState(student_id=student_id)
+            raise  # mirror store.py's _persist: a lookup/write failure must surface,
+            # not be mistaken for "this is a brand-new student" -- the "no row
+            # found yet, create one" path above already returns without ever
+            # raising, so nothing legitimate is being swallowed here.
 
     def put(self, state):
         try:

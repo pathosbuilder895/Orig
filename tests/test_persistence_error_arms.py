@@ -484,7 +484,6 @@ class TestInitSchemaMigrationArms:
 # reach. One parametrized table rather than ~40 near-identical functions.
 
 _PG_SINGLE_CALL_GUARDS = [
-    ("get", ("sem:pg-guard-1",), {}, None),
     ("list_ids", (), {}, []),
     ("all_states", (), {}, []),
     ("count", (), {}, 0),
@@ -571,25 +570,24 @@ def test_pg_repository_guard_swallows_session_failure(
     assert result == expected
 
 
-@pytest.mark.postgres
-def test_get_or_create_returns_fresh_state_on_session_failure(monkeypatch):
-    """get_or_create's degraded return isn't a plain constant like the rest
-    of the table above -- it's a fresh StudentState carrying the requested
-    id (mirroring the real "unknown id" path), so it gets its own
-    assertion rather than an equality check."""
-    monkeypatch.setattr(postgres_repository, "session_scope", _boom)
-    result = postgres_repository.PostgresRepository().get_or_create("sem:pg-goc-guard")
-    assert result.student_id == "sem:pg-goc-guard"
-    assert result.sample_count == 0
-
-
 # ── Step 5: PostgresRepository guards that re-raise instead of swallowing ──
 #
 # A handful of writers log-and-``raise`` rather than returning a degraded
 # value -- matching store.py's sqlite3.Error writers (Step 8 below), which
 # also surface write failures instead of silently dropping them.
-
+#
+# get()/get_or_create() belong here too (final-review fix): a session
+# failure is a real infrastructure error, not "this student doesn't exist
+# yet" -- the not-found case is already represented without an exception
+# (session.get() returns None for a missing row; see the `row is not None`
+# branch in get_or_create()), so there is no legitimate "not found"
+# exception to swallow here. Before the fix, get() returned None and
+# get_or_create() fabricated an empty StudentState on ANY exception
+# (connection drop, pool exhaustion, ...), indistinguishable from a
+# genuinely new/missing student -- masking real outages as normal states.
 _PG_RERAISING_GUARDS = [
+    ("get", ("sem:pg-guard-1",), {}),
+    ("get_or_create", ("sem:pg-goc-guard",), {}),
     ("put", (StudentState(student_id="sem:pg-put-guard"),), {}),
     ("put_bluebook_exam", ({"id": "exam-pg-raise", "tenant_id": "sem", "title": "T"},), {}),
     ("put_bluebook_submission", ({"id": "sub-pg-raise", "tenant_id": "sem"},), {}),
