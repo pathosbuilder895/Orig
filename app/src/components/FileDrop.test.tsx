@@ -52,6 +52,17 @@ describe('FileDrop', () => {
     expect(onFiles).not.toHaveBeenCalled();
   });
 
+  it('ignores a drop that carries no files', () => {
+    const onFiles = vi.fn();
+    render(<FileDrop label="Upload files" onFiles={onFiles} />);
+    const zone = screen.getByLabelText('Upload files').closest('label')!;
+
+    fireEvent.drop(zone, { dataTransfer: { files: [] } });
+
+    expect(onFiles).not.toHaveBeenCalled();
+    expect(zone.className).not.toContain('file-drop-zone--dragging');
+  });
+
   it('forwards accept and multiple to the underlying input', () => {
     render(<FileDrop label="Drop files" onFiles={() => {}} accept=".csv" multiple />);
     const input = screen.getByLabelText('Drop files');
