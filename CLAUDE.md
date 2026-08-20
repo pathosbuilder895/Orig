@@ -155,7 +155,13 @@ function_word_burstiness_ratio, punctuation_dispersion_ratio,
 vocab_introduction_flatness, clause_depth_variance_ratio`) are both in
 `DISABLED_FEATURE_GROUPS` by default — Tier 17 pending live keystroke data
 from Bbook, Tier 18 pending gates G2b (paraphrase-resistance) and G6
-(fairness parity); Tier 10 semantic (2 features:
+(fairness parity). Tier 17's estimators and bounds were recalibrated
+2026-08-11 against published keystroke benchmarks *before* any baseline
+exists — see `docs/calibration/tier17_cadence_benchmarks_2026-08-11.md`.
+Two bounds (`pause_density`, and the `burst_ratio`/`revision_depth`/
+`paste_event_rate` ceilings) are plausibility guardrails, not derived; re-derive
+them from `scripts/tier17_report.py` output on real proctored data before
+removing `behavioral` from `DISABLED_FEATURE_GROUPS`. Tier 10 semantic (2 features:
 `semantic_field_dispersion, semantic_centroid_proximity`) has a genuine TF-IDF
 fallback backend (`original/features/tier10.py`) that produces real, non-neutral
 values when sentence-transformers is unavailable — it is not a placeholder-only

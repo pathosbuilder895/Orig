@@ -154,10 +154,10 @@ TIER15_CODES = [
 # when absent (uploaded papers, Canvas imports).  Stored in the same FEATURE_DIM-wide
 # feature vector so existing density matrix math requires no changes.
 TIER17_CODES = [
-    "typing_speed_cv",    # CV of inter-keystroke intervals (rhythm consistency)
-    "burst_ratio",        # fraction of keystrokes in rapid bursts (< 150 ms)
+    "typing_speed_cv",    # robust CV of inter-keystroke intervals (rhythm consistency)
+    "burst_ratio",        # fraction of keystrokes in >=10-keystroke pause-delimited bursts
     "deletion_rate",      # Backspace/Delete / total keystrokes
-    "pause_density",      # long pauses (>3s) per 100 words
+    "pause_density",      # planning pauses (2s–20s) per 100 words
     "paste_event_rate",   # paste events per 100 words
     "revision_depth",     # mean chars affected per deletion event
 ]
@@ -664,11 +664,25 @@ NORM_BOUNDS: dict[str, tuple[float, float]] = {
     # paraphrase_density: per 100 words; typical 0–3 markers per 100 words
     "paraphrase_density":        (0.0,  3.0),
     # Tier 17 — Behavioral Biometrics (from Bbook live keystroke capture)
-    # Defaults to 0.5 (neutral) when keystroke data is absent.
-    "typing_speed_cv":   (0.0,  2.0),   # CV of IKI; 0=perfectly even, 2=highly variable
-    "burst_ratio":       (0.0,  1.0),   # fraction of keystrokes < 150 ms apart
-    "deletion_rate":     (0.0,  0.5),   # deletions / total keystrokes; >0.4 is unusual
-    "pause_density":     (0.0,  20.0),  # long pauses per 100 words; >15 is unusual
+    # Defaults to the midpoint (→ 0.5 neutral) when keystroke data is absent.
+    # Recalibrated 2026-08-11 against Dhakal et al. 2018 (136.9M keystrokes,
+    # 168,960 participants); see original/features/tier17.py for provenance and
+    # docs/calibration/tier17_cadence_benchmarks_2026-08-11.md for the derivation.
+    # DERIVED bounds:
+    "typing_speed_cv":   (0.0,  1.5),   # robust CV, IQR/(1.349*median). Recovers the
+                                        # writer's sigma_log almost exactly; population
+                                        # anchor 0.451, typical composition 0.47–0.63,
+                                        # 1.5 covers sigma_log up to ~1.4.  Perfectly
+                                        # square-wave cadence (~4.4) clips — synthetic,
+                                        # not physiological.
+    "deletion_rate":     (0.0,  0.20),  # deletions / keystrokes; 6.31% mean, SD 4.48%
+                                        # → 0.20 is mean+3SD.  Was 0.5, which packed
+                                        # all real variance into the bottom 20%.
+    # GUARDRAIL bounds — plausibility ceilings, not derived from published data:
+    "burst_ratio":       (0.0,  1.0),   # fraction of keystrokes in >=10-keystroke
+                                        # pause-delimited bursts; genuinely spans [0,1]
+    "pause_density":     (0.0,  40.0),  # 2s–20s pauses per 100 words. Was 20.0 at a
+                                        # 3 s threshold; 2 s admits materially more.
     "paste_event_rate":  (0.0,  5.0),   # paste events per 100 words; should be ~0
     "revision_depth":    (0.0,  50.0),  # mean chars per deletion; >30 = bulk rewriting
     # Tier 18 — Uniformity (second-moment generation-artifact signal)
