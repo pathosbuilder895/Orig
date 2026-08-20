@@ -1454,6 +1454,29 @@ class TestBluebook:
         assert repo.get_bluebook_session("ex-c1", "sem:al")["deadline_at"] == first["deadline_at"]
         assert repo.get_bluebook_session("ex-c1", "sem:nobody") is None
 
+    def test_submission_student_id_verbatim_for_colonless_id(self, repo):
+        """A normal anonymous Bluebook sitting supplies a colon-less
+        student_id (routers/bluebook.py:207-209), e.g. "alice123" -- not
+        already tenant-prefixed. The stored student_id column must come
+        back byte-for-byte identical to what was put in, on both backends.
+        PostgresRepository used to reconstruct it via
+        join_scoped_id(row.tenant_id, row.student_id), which prepended the
+        submission's tenant_id ("sem:alice123") even though the caller never
+        supplied a scoped id -- a divergence from SqliteRepository, which
+        always returns the raw stored column verbatim."""
+        repo.put_bluebook_submission(
+            {
+                "id": "bbsub-verbatim",
+                "tenant_id": "sem",
+                "exam_id": "exam-verbatim",
+                "student_id": "alice123",
+                "candidate": "Alice",
+            }
+        )
+        subs = repo.list_bluebook_submissions("sem")
+        match = next(s for s in subs if s["id"] == "bbsub-verbatim")
+        assert match["student_id"] == "alice123"
+
     def test_submission_uuid_lookup(self, repo):
         repo.put_bluebook_submission(
             {

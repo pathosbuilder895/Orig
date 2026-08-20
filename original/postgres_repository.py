@@ -1703,7 +1703,14 @@ class PostgresRepository:
 
     @staticmethod
     def _bluebook_sub_to_dict(row: BluebookSubmission) -> dict:
-        scoped_sid = join_scoped_id(row.tenant_id, row.student_id) if row.student_id else ""
+        # student_id is stored verbatim (see put_bluebook_submission) -- return
+        # the raw column value directly, mirroring store.py's _bluebook_sub_to_dict
+        # (`sid = row[3] or ""`). Do NOT reconstruct via join_scoped_id: the
+        # caller's student_id is not necessarily "tenant:local" (an anonymous
+        # Bluebook sitting supplies a colon-less id -- routers/bluebook.py:
+        # 207-209), and joining it against the submission's own tenant_id would
+        # silently prepend a scope the caller never asked for.
+        scoped_sid = row.student_id or ""
         candidate_id = row.student_id[:6] if row.student_id else "—"
         return {
             "id": row.submission_id,
@@ -1729,14 +1736,19 @@ class PostgresRepository:
         try:
             with session_scope() as session:
                 self._ensure_tenant_exists(session, rec["tenant_id"])
-                raw_student_id = rec.get("student_id")
-                local_student_id = split_scoped_id(raw_student_id)[1] if raw_student_id else None
+                # student_id is stored verbatim -- exactly what the caller
+                # passed, not split/reconstructed -- mirroring store.py's
+                # put_bluebook_submission, which stores rec.get("student_id")
+                # as-is. tenant_id (rec["tenant_id"]) is stored separately in
+                # its own column for tenant-scoped filtering (see
+                # list_bluebook_submissions), independent of whatever shape
+                # student_id happens to be.
                 session.add(
                     BluebookSubmission(
                         submission_id=rec["id"],
                         exam_id=rec.get("exam_id"),
                         tenant_id=rec["tenant_id"],
-                        student_id=local_student_id,
+                        student_id=rec.get("student_id"),
                         candidate=rec.get("candidate"),
                         exam_title=rec.get("exam_title"),
                         course=rec.get("course"),
