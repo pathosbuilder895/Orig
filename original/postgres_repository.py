@@ -389,7 +389,8 @@ class PostgresRepository:
                 else:
                     session.execute(
                         AuditLogEntry.__table__.delete().where(
-                            AuditLogEntry.student_id == audit_local_id
+                            AuditLogEntry.student_id == audit_local_id,
+                            AuditLogEntry.tenant_id.is_(None),
                         )
                     )
             # this student's tenant's (tenant, genre) entries may include them

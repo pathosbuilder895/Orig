@@ -2056,6 +2056,60 @@ class TestDeleteStudentFullFootprint:
         assert repo.list_manifests(student_id="sem:ferpa")["total"] == 0
         assert repo.list_audit(student_id="sem:ferpa")["items"] == []
 
+    def test_delete_legacy_flat_student_does_not_purge_other_tenants_audit_log(self, repo):
+        # Final whole-branch review, C1: audit_log stores the LOCAL id for a
+        # colon-scoped student (log_audit's _split_for_audit splits
+        # "sem:alice" into tenant_id="sem", student_id="alice"), so a
+        # legacy-flat student who happens to share that same local id
+        # ("alice", no colon) is a real collision risk on Postgres, where
+        # audit_log has separate tenant_id/student_id columns. delete_student's
+        # else-branch (colon-less student_id) used to purge audit_log by
+        # student_id alone with no tenant_id predicate at all, so deleting
+        # legacy-flat "alice" would also wipe tenant "sem"'s "sem:alice"
+        # audit history. SQLite has no equivalent bug: it stores the full
+        # scoped string in audit_log.student_id, so "alice" != "sem:alice"
+        # there and no collision is possible — this is a Postgres-only
+        # regression, but the test runs on both backends via the shared
+        # `repo` fixture since the assertion holds (vacuously, on sqlite).
+        #
+        # Deliberately not asserted here: repo.list_audit(student_id="alice")
+        # totals. list_audit()'s own colon-less else-branch (line ~1929) has
+        # the identical missing-tenant-predicate shape and would match BOTH
+        # rows once they collide — a separate, pre-existing bug outside this
+        # fix's scope. Querying by "sem:alice" always takes list_audit's
+        # `if tenant_id is not None` arm, which already filters correctly on
+        # both columns, so it stays a clean probe of delete_student's fix.
+        repo.put(_make_state("sem:alice", n=1))
+        repo.put(_make_state("alice", n=1))
+
+        repo.log_audit(action="score", student_id="sem:alice", details={})
+        repo.log_audit(action="score", student_id="alice", details={})
+
+        assert repo.list_audit(student_id="sem:alice")["total"] == 1
+
+        assert repo.delete_student("alice") is True
+
+        # The tenant-scoped student sharing the same local id must survive
+        # untouched — this is the actual regression being guarded against.
+        result = repo.list_audit(student_id="sem:alice")
+        assert result["total"] == 1
+        assert result["items"][0]["student_id"] == "sem:alice"
+
+    def test_delete_legacy_flat_student_still_purges_own_audit_log(self, repo):
+        # Regression guard for the fix itself: the else-branch's added
+        # `tenant_id IS NULL` predicate must not become so narrow that a
+        # genuinely legacy-flat student (no colliding tenant-scoped student)
+        # stops having their own audit rows purged on FERPA erasure. No
+        # local-id collision here, so this also incidentally sidesteps
+        # list_audit's own else-branch quirk noted above.
+        repo.put(_make_state("solo-legacy-flat", n=1))
+        repo.log_audit(action="score", student_id="solo-legacy-flat", details={})
+        assert repo.list_audit(student_id="solo-legacy-flat")["total"] == 1
+
+        assert repo.delete_student("solo-legacy-flat") is True
+
+        assert repo.list_audit(student_id="solo-legacy-flat")["items"] == []
+
 
 class TestDeleteTenantStudentsEmptyTenant:
     def test_empty_tenant_returns_zero_with_no_failures(self, repo):
