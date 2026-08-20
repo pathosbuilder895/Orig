@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from original.features import uniformity
 from original.features.pipeline import TextDoc
 from original.features.uniformity import extract_uniformity
 
@@ -64,3 +65,47 @@ class TestExtractUniformity:
         # fine and are not flagged here.)
         assert "min(1.0," not in source
         assert "min(1," not in source
+
+
+# ── Guard-arm branch tests (branch-coverage part 6, task 1) ──────────────────
+#
+# Each of the six ratio functions guards twice: a short-input arm returning
+# exactly 0.5, and a degenerate-denominator/post-windowing re-guard arm. The
+# second arm in every one of the six is unreachable through any real TextDoc
+# (see the `# pragma: no cover` annotations in original/features/uniformity.py
+# for the per-function argument) — the first arm is the only one a genuine
+# document can hit, so it's the only one tested here.
+
+
+class TestUniformityGuardArms:
+    def test_sentence_length_dispersion_short_input_is_neutral(self):
+        assert uniformity.sentence_length_dispersion_ratio(TextDoc("One. Two.")) == 0.5
+
+    def test_window_variance_needs_six_sentences(self):
+        five = "Alpha one. Beta two. Gamma three. Delta four. Epsilon five."
+        assert uniformity.window_feature_variance_ratio(TextDoc(five)) == 0.5
+
+    def test_window_variance_normal_path_returns_a_real_variance(self):
+        nine = (
+            "Short one. A somewhat longer second sentence here. Tiny. "
+            "Another middling sentence follows now. Very small. "
+            "This sentence extends to a considerable and deliberate length indeed. "
+            "Brief. Medium sized sentence again here. Final one closes."
+        )
+        value = uniformity.window_feature_variance_ratio(TextDoc(nine))
+        assert value != 0.5 and value >= 0.0
+
+    def test_function_word_burstiness_needs_five_function_words(self):
+        doc = TextDoc("Ships sail westward.")
+        assert uniformity.function_word_burstiness_ratio(doc) == 0.5
+
+    def test_punctuation_dispersion_needs_four_sentences(self):
+        doc = TextDoc("A one. B two. C three.")
+        assert uniformity.punctuation_dispersion_ratio(doc) == 0.5
+
+    def test_vocab_introduction_flatness_short_input_is_neutral(self):
+        doc = TextDoc("Few words only here.")
+        assert uniformity.vocab_introduction_flatness(doc) == 0.5
+
+    def test_clause_depth_variance_short_input_is_neutral(self):
+        assert uniformity.clause_depth_variance_ratio(TextDoc("Deep. Shallow.")) == 0.5
