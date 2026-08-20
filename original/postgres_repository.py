@@ -146,6 +146,7 @@ class PostgresRepository:
                     "auth_weight": s.auth_weight,
                     "assignment": s.assignment,
                     "submitted_at": s.submitted_at,
+                    "word_count": s.word_count,
                     "genre": s.genre,
                     "topic_centroid": (
                         s.topic_centroid.tolist() if s.topic_centroid is not None else None
@@ -200,6 +201,7 @@ class PostgresRepository:
                     auth_weight=s["auth_weight"],
                     assignment=s.get("assignment", ""),
                     submitted_at=s.get("submitted_at", ""),
+                    word_count=s.get("word_count"),
                     genre=s.get("genre"),
                     topic_centroid=topic_centroid,
                     context_manifest=s.get("context_manifest"),

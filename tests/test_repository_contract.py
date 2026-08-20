@@ -1046,6 +1046,41 @@ class TestKeystrokeDataRoundtrip:
         assert all(s.keystroke_data is None for s in reloaded.samples)
 
 
+class TestWordCountRoundtrip:
+    """BaselineSample.word_count (original/quantum/state.py:52) must survive a
+    full put()/get() round trip on both backends identically. store.py's
+    _serialize/_deserialize carry it; PostgresRepository's _state_to_doc/
+    _doc_to_state used to silently drop it, so a real, populated value
+    (original/routers/imports.py:200 sets it from len(text.split())) was
+    lost on every Postgres round-trip."""
+
+    def test_word_count_survives_put_get(self, repo):
+        state = StudentState(student_id="sem:word-count-roundtrip", samples=[])
+        state.add_sample(
+            BaselineSample(
+                text="sample with a known word count",
+                vector=np.full(FEATURE_DIM, 0.5, dtype=np.float64),
+                provenance="verified",
+                auth_weight=1.0,
+                word_count=742,
+            )
+        )
+        repo.put(state)
+
+        reloaded = repo.get("sem:word-count-roundtrip")
+        assert reloaded is not None
+        assert reloaded.samples[0].word_count == 742
+
+    def test_sample_without_word_count_loads_as_none(self, repo):
+        """Backward compatibility: a sample with no word_count set must come
+        back as None, not raise and not require a migration."""
+        state = _make_state("sem:word-count-legacy", n=2)
+        repo.put(state)
+        reloaded = repo.get("sem:word-count-legacy")
+        assert reloaded is not None
+        assert all(s.word_count is None for s in reloaded.samples)
+
+
 class TestDensityMatrixRoundtrip:
     """WS-6 P3's own named acceptance bar: "Property-test the round-trip:
     fidelity(rho_in, rho_out) ~= 1.0 for random density matrices through the
