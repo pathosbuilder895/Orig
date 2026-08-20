@@ -311,6 +311,54 @@ def test_abstains_on_malformed_or_non_finite_impostor_sigma():
     assert _char_factor(state, (mu_null, nan_sigma), _TIER_WEIGHT_VECTOR) is None
 
 
+def test_abstains_when_impostor_stats_does_not_unpack_to_a_pair():
+    """``try: _mu_null, sigma_null = impostor_stats`` — a non-iterable
+    value hits TypeError on unpack, a distinct failure mode from the
+    ``impostor_stats is None`` guard above it (verified: unpacking a bare
+    int raises ``TypeError: cannot unpack non-iterable int object``,
+    caught by ``except (TypeError, ValueError)``)."""
+    state = _state_with_baseline()
+    assert _char_factor(state, 42, _TIER_WEIGHT_VECTOR) is None
+
+
+def test_abstains_when_impostor_stats_has_wrong_arity():
+    """The other half of ``except (TypeError, ValueError)``: a 3-tuple
+    raises ``ValueError: too many values to unpack (expected 2)`` on the
+    same unpack line."""
+    state = _state_with_baseline()
+    triple = (
+        np.full(FEATURE_DIM, 0.5),
+        np.full(FEATURE_DIM, 0.1),
+        np.full(FEATURE_DIM, 0.2),
+    )
+    assert _char_factor(state, triple, _TIER_WEIGHT_VECTOR) is None
+
+
+def test_abstains_on_negative_impostor_sigma():
+    """sigma_null is a standard deviation — a negative entry is
+    nonsensical and must abstain via the explicit
+    ``np.any(sigma_null < 0.0)`` guard rather than feeding a negative
+    ratio into the clip/rescale below."""
+    state = _state_with_baseline()
+    mu_null = np.full(FEATURE_DIM, 0.5)
+    sigma_null = np.full(FEATURE_DIM, 0.1)
+    sigma_null[3] = -0.01  # one negative entry is enough to trip np.any(...)
+    assert _char_factor(state, (mu_null, sigma_null), _TIER_WEIGHT_VECTOR) is None
+
+
+def test_abstains_when_active_ratio_median_is_non_positive():
+    """sigma_null == 0 for every feature -> ratio = sigma_null /
+    max(baseline_std, floor) == 0 everywhere -> median(ratio[active]) ==
+    0.0, caught explicitly by ``median <= 0.0`` rather than being allowed
+    to divide-by-zero at ``ratio / median`` a few lines below. Verified by
+    direct call: with this state/vector pair the helper returns None, not
+    a NaN-laced array."""
+    state = _state_with_baseline()
+    mu_null = np.full(FEATURE_DIM, 0.5)
+    sigma_null = np.zeros(FEATURE_DIM)
+    assert _char_factor(state, (mu_null, sigma_null), _TIER_WEIGHT_VECTOR) is None
+
+
 def test_abstains_on_a_degenerate_weight_vector():
     """A zero weight vector makes the rescale factor undefined (0/0)."""
     state = _state_with_baseline()
