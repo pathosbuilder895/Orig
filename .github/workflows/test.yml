@@ -147,8 +147,8 @@ jobs:
       - name: Typecheck
         run: cd app && npm run typecheck
 
-      - name: Unit + axe tests
-        run: cd app && npm test
+      - name: Unit + axe tests (with coverage thresholds)
+        run: cd app && npm run test:coverage
 
       - name: Build
         run: cd app && npm run build
