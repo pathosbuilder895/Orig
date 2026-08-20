@@ -44,6 +44,21 @@ repos:
         entry: bash -c 'f=$(git diff --cached --name-only | grep -E "\.(db|sqlite3?)$" | grep -v "^demo/seed\.db$" || true); [ -z "$f" ] || { echo "DB file staged:"; echo "$f"; exit 1; }'
         language: system
         pass_filenames: false
+      - id: changed-tests            # pre-push: run the tests associated with the pushed changes
+        name: run tests for changed files
+        stages: [pre-push]
+        # Venv resolution works from the main checkout AND from git worktrees
+        # (where .venv/bin/python doesn't exist relative to the worktree root —
+        # --git-common-dir points back at the main repo). Mapping heuristics
+        # live in scripts/changed_tests.py, pinned by
+        # tests/test_changed_tests_mapping.py. Escape hatch for a hot push:
+        # SKIP=changed-tests git push.
+        entry: >-
+          bash -c 'PY=.venv/bin/python; [ -x "$PY" ] || PY="$(git rev-parse --path-format=absolute --git-common-dir)/../.venv/bin/python"; exec "$PY" scripts/changed_tests.py --from-git --run'
+        language: system
+        pass_filenames: false
+        verbose: true
+
       - id: bundle-freshness         # pre-push heuristic; CI byte-diff (B2) is the real gate
         name: bluebook bundle freshness
         stages: [pre-push]
