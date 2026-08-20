@@ -524,7 +524,15 @@ class StudentState:
         # Per-dimension linear fit: slope = δψ[d]
         t_mean = t.mean()
         t_var = ((t - t_mean) ** 2).sum()
-        if t_var < 1e-12:
+        # t = arange(N) for N >= TRAJECTORY_MIN_SAMPLES (guarded above), so
+        # t_var = N*(N**2-1)/12 (sum-of-squared-deviations of consecutive
+        # integers). At the smallest reachable N == TRAJECTORY_MIN_SAMPLES
+        # == 3: t=[0,1,2], mean=1, t_var = (0-1)^2+(1-1)^2+(2-1)^2 = 2.0,
+        # and it only grows with N. 2.0 is nowhere near the 1e-12 floor, so
+        # this guard cannot fire through the public API — dead by construction,
+        # not merely untested. Kept as defensive float-paranoia (matches the
+        # `gamma > 0` guard in _ledoit_wolf_shrink below).
+        if t_var < 1e-12:  # pragma: no cover
             delta = np.zeros(FEATURE_DIM)
             r2 = 0.0
         else:
