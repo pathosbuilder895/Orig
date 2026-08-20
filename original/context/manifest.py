@@ -217,7 +217,11 @@ def _derive_directives(resolver_outputs: dict[str, dict]) -> dict[str, Any]:
         mute.update(_codes_in_tiers([1, 2, 3, 5, 7, 9, 10, 11, 15, 16, 17]))
     elif regime == "short":
         mute.update(TIER7_CODES)
-        if "type_token_ratio" in TIER1_CODES:
+        # TIER1_CODES is a fixed module-level constant (constants.py) that
+        # always contains "type_token_ratio" as its first entry — the False
+        # arm is unreachable without editing constants.py's feature ordering,
+        # which CLAUDE.md forbids without explicit permission.
+        if "type_token_ratio" in TIER1_CODES:  # pragma: no branch
             attenuate.add("type_token_ratio")
 
     # ── Genre ────────────────────────────────────────────────────────────────
