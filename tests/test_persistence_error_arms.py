@@ -1041,6 +1041,31 @@ def test_store_delete_student_clears_fusion_peer_cache_when_module_is_imported(
     assert calls == [student_id]
 
 
+def test_store_delete_student_skips_fusion_peer_cache_when_module_absent(
+    store_reset, monkeypatch
+):
+    """store.py:[1702,1704] -- False arm. The sibling test above
+    (test_store_delete_student_clears_fusion_peer_cache_when_module_is_imported)
+    forces `original.fusion.peers` to be present in sys.modules, which only
+    ever exercises the True arm (`1703->1704`) of the guard. The False arm
+    (`1703->1705`, straight to `return True` with no clear_student() call)
+    needs the module to be genuinely absent from sys.modules, which is not
+    guaranteed by ambient state -- some other test in the process, or the
+    fusion-enabled flags, may have already imported original.fusion.peers as
+    a side effect. Pin the absence directly with monkeypatch.delitem(...,
+    raising=False) so this proves the guard skips the cache-clear step
+    regardless of what ran before it, rather than merely running default
+    (potentially already-True-arm) sys.modules state."""
+    import sys
+
+    monkeypatch.delitem(sys.modules, "original.fusion.peers", raising=False)
+
+    student_id = "sem:fusion-peer-absent"
+    store_reset.put(StudentState(student_id=student_id))
+
+    assert store_reset.delete_student(student_id) is True
+
+
 def test_store_advance_formation_pathway_returns_none_on_second_connection_failure(
     store_reset, monkeypatch
 ):
