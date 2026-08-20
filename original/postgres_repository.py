@@ -565,12 +565,23 @@ class PostgresRepository:
                         Correction.tenant_id == tenant_id, Correction.student_id == local_id
                     )
                 ).scalar_one()
-                audit_count = session.execute(
-                    select(func.count(AuditLogEntry.id)).where(
-                        AuditLogEntry.tenant_id == tenant_id,
-                        AuditLogEntry.student_id == local_id,
+                # audit_log's tenant_id is genuinely NULL for a colon-less
+                # student_id (unlike every other table here, which uses the
+                # general shim's "__legacy_flat__" sentinel) -- re-derive via
+                # _split_for_audit for this one query, matching the fixes in
+                # delete_student (77ec3741) and list_audit (994e8efb).
+                audit_tenant_id, audit_local_id = self._split_for_audit(student_id, None)
+                if audit_tenant_id is not None:
+                    audit_count_stmt = select(func.count(AuditLogEntry.id)).where(
+                        AuditLogEntry.tenant_id == audit_tenant_id,
+                        AuditLogEntry.student_id == audit_local_id,
                     )
-                ).scalar_one()
+                else:
+                    audit_count_stmt = select(func.count(AuditLogEntry.id)).where(
+                        AuditLogEntry.student_id == audit_local_id,
+                        AuditLogEntry.tenant_id.is_(None),
+                    )
+                audit_count = session.execute(audit_count_stmt).scalar_one()
                 ai_likelihood_count = session.execute(
                     select(func.count()).where(
                         AiLikelihoodScore.tenant_id == tenant_id,

@@ -2188,6 +2188,32 @@ class TestStudentDataInventoryManifestBreakdown:
         assert manifests["by_action"]["escalate"]["count"] == 1
 
 
+class TestStudentDataInventoryLegacyFlatAuditCount:
+    def test_legacy_flat_student_audit_count_is_not_under_reported(self, repo):
+        # Third instance of the same bug family as 77ec3741 (delete_student)
+        # and 994e8efb (list_audit): student_data_inventory's audit_count
+        # query reuses split_scoped_id's tenant_id/local_id -- the general
+        # shim, which assigns the "__legacy_flat__" sentinel for a colon-less
+        # id -- to filter AuditLogEntry. But audit_log rows for a colon-less
+        # student are written with tenant_id=NULL (log_audit's
+        # _split_for_audit, a different rule: derive only when the id has a
+        # colon). "__legacy_flat__" never matches NULL, so this query always
+        # returns 0 for a genuinely legacy-flat student even when real audit
+        # history exists. Unlike the two siblings this isn't a cross-tenant
+        # leak -- the sentinel matches nothing, so it's a silent
+        # under-count -- but student_data_inventory backs
+        # GET /students/{id}/data-inventory, whose stated purpose is FERPA
+        # proof of what's on file, so telling a legacy-flat student their
+        # audit history is empty when it isn't is the wrong kind of wrong.
+        repo.put(_make_state("solo-legacy-flat-audit", n=1))
+        repo.log_audit(action="score", student_id="solo-legacy-flat-audit", details={})
+        repo.log_audit(action="view", student_id="solo-legacy-flat-audit", details={})
+
+        inv = repo.student_data_inventory("solo-legacy-flat-audit")
+
+        assert inv["data_categories"]["audit_log_entries"]["count"] == 2
+
+
 class TestPutCorrectionFallbackChain:
     def test_explicit_divergence_score_not_overwritten_by_manifest(self, repo):
         # original_divergence_score is supplied directly, but student_id is
