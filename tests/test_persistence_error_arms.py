@@ -293,16 +293,29 @@ def test_postgres_session_get_engine_caches_and_reuses_sqlite_scheme(monkeypatch
 def _postgres_session_available() -> bool:
     """Mirrors test_repository_contract.py's ``_postgres_available()``
     (checked at call time, not import time, so it reflects DATABASE_URL as
-    of the moment this test actually runs)."""
+    of the moment this test actually runs).
+
+    Also ensures the live schema exists via ``LiveBase.metadata.create_all``
+    (checkfirst=True by default, so this is a cheap no-op when the schema is
+    already present). Without this, a test file that ran earlier in the same
+    session and dropped the schema in its own teardown (test_cutover.py,
+    test_migration.py both do) leaves Postgres reachable but tableless, and
+    the tests below would fail with UndefinedTable instead of exercising the
+    guard behaviour they're testing -- reachability alone isn't the same
+    contract as "safe to run in any sandbox."."""
     db_url = os.environ.get("DATABASE_URL", "")
     if not db_url.startswith("postgresql"):
         return False
     from original.db import postgres_session
+    from original.db.models.live import LiveBase
 
     try:
         postgres_session.reset_engine()
-        with postgres_session.get_engine().connect():
-            return True
+        engine = postgres_session.get_engine()
+        with engine.connect():
+            pass
+        LiveBase.metadata.create_all(bind=engine)
+        return True
     except Exception:
         return False
 
