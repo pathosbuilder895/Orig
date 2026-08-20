@@ -338,6 +338,18 @@ def test_compute_tier10_comparison_clears_mismatched_dimensions_and_rebuilds():
     assert 0.0 <= result["semantic_centroid_proximity"] <= 1.0
 
 
+def test_compute_tier10_comparison_returns_neutral_when_no_sentences_stored_for_rebuild():
+    """With no pre-computed embeddings AND no raw sentences stored on either
+    side, the TF-IDF rebuild path has nothing to fit a vocabulary against —
+    must degrade to the neutral fallback rather than reach the vectorizer at
+    all (the too-few-sentences and vectorizer-exception tests below cover the
+    rebuild path once sentences ARE present; this covers the case where the
+    rebuild can't even start)."""
+    result = tier10.compute_tier10_comparison({}, {})
+
+    assert result == {"semantic_centroid_proximity": 0.5}
+
+
 def test_compute_tier10_comparison_returns_neutral_when_rebuild_has_too_few_sentences():
     """The TF-IDF rebuild path itself requires >= 2 sentences per group; a
     single-sentence submission or baseline group must degrade to the neutral
