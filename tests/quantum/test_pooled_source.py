@@ -40,3 +40,22 @@ def test_skips_states_without_usable_distances():
     }
     out = collect_tenant_distances(states, tenant="demo", exclude_sid="demo:zed")
     assert len(out) == 1
+
+
+class _RaisingState:
+    """A state whose loo_distances can't be coerced to a float array —
+    the malformed-data guard collect_tenant_distances defends against."""
+
+    @property
+    def loo_distances(self):
+        return ["not", "numeric"]
+
+
+def test_skips_states_whose_distances_cannot_be_coerced_to_float():
+    states = {
+        "demo:alice": _RaisingState(),
+        "demo:bob": _FakeState([0.9, 1.2]),
+    }
+    out = collect_tenant_distances(states, tenant="demo", exclude_sid="demo:zed")
+    assert len(out) == 1
+    assert np.allclose(out[0], [0.9, 1.2])
