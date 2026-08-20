@@ -1229,6 +1229,35 @@ class TestManifests:
         assert result["total"] >= 1
         assert all(i["action"] == "escalate" for i in result["items"])
 
+    def test_missing_created_at_agrees_on_sort_position_across_backends(self, repo):
+        """A manifest put() with no created_at (falsy/missing) must sort
+        consistently with an explicit far-past created_at, identically on
+        both backends. PostgresRepository._parse_iso_or_now substitutes
+        datetime.now(UTC) for a falsy created_at (so the missing-timestamp
+        entry sorts FIRST/newest under `ORDER BY created_at DESC`), while
+        store.py used to store the literal empty string "" (which sorts
+        LAST/oldest, since "" is lexicographically smallest) -- opposite
+        placement for the same input on the two backends."""
+        repo.put_manifest(
+            "sub-explicit-past",
+            "sem:explicit-past",
+            {"created_at": "2020-01-01T00:00:00Z"},
+            action="no_action",
+        )
+        repo.put_manifest(
+            "sub-missing-created-at",
+            "sem:missing-created-at",
+            {},  # no "created_at" key at all -> falsy -> "now" substituted
+            action="no_action",
+        )
+        result = repo.list_manifests(action="no_action")
+        ids = [i["submission_id"] for i in result["items"]]
+        assert set(ids) == {"sub-explicit-past", "sub-missing-created-at"}
+        # DESC by created_at: "now" (substituted for the missing value) is
+        # newer than the explicit 2020 timestamp, so it must sort first --
+        # on BOTH backends.
+        assert ids.index("sub-missing-created-at") < ids.index("sub-explicit-past")
+
     def test_list_manifests_filters_by_flag(self, repo):
         repo.put_manifest(
             "sub-l4",

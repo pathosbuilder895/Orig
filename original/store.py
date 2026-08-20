@@ -880,6 +880,16 @@ def put_manifest(
         else:
             log.warning("put_manifest: unsupported manifest type %r", type(manifest))
             return
+        # A falsy/missing created_at defaults to "now" -- mirrors
+        # PostgresRepository._parse_iso_or_now. Storing the literal empty
+        # string here used to sort LAST under `ORDER BY created_at DESC`
+        # (since "" is lexicographically smallest), the opposite of
+        # Postgres's substituted "now" sorting FIRST -- same input,
+        # opposite placement across backends. "missing timestamp defaults
+        # to now" is also the more sensible behavior for a manifest that's
+        # presumably being created right now.
+        if not created_at:
+            created_at = datetime.now(UTC).isoformat()
 
         with _get_conn() as conn:
             conn.execute(
