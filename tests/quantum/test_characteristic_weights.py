@@ -378,6 +378,34 @@ def test_on_mode_with_no_impostor_stats_is_exactly_off():
     assert on.characteristic_mode is None
 
 
+def test_score_with_thin_baseline_is_exactly_off():
+    """The OTHER abstention guard — authenticated_count < 2 — must also be
+    identity at the score() level, not merely 'close to' identity. Mirrors
+    test_on_mode_with_no_impostor_stats_is_exactly_off above, but triggers
+    abstention via a thin baseline instead of a missing peer pool.
+
+    impostor_stats is deliberately present and valid here (unlike the sibling
+    test), so that if this test ever passed for the wrong reason — the
+    no-impostor-stats guard firing instead of the thin-baseline one — it
+    would be caught: test_abstains_on_a_thin_baseline already proves the
+    isolated helper returns None for this exact (thin state, impostor_stats)
+    pair, and the assertion repeated here pins that this test's fixture is
+    really exercising the baseline-count guard and not silently degenerating
+    into a re-test of the missing-stats path.
+    """
+    thin = _state_with_baseline(n=1)
+    assert thin.authenticated_count < 2
+    stats = _impostor_stats()
+    assert _char_factor(thin, stats, _TIER_WEIGHT_VECTOR) is None
+    vec = _submission()
+    off = _score_with(thin, vec, "off", impostor_stats=stats)
+    on = _score_with(thin, vec, "on", impostor_stats=stats)
+    assert on.authorship.deviation_score == off.authorship.deviation_score
+    assert on.recommendation.action == off.recommendation.action
+    assert on.characteristic_weighting_applied is False
+    assert on.characteristic_mode is None
+
+
 def test_sigma_floor_matches_the_existing_convention():
     """SIGMA_FLOOR = 0.005 in null_pool, and state.baseline_std's own hard
     minimum. Do not introduce a third convention."""
