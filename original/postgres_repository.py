@@ -1909,7 +1909,24 @@ class PostgresRepository:
         self, action, student_id=None, tenant_id=None, actor=None, result="ok", details=None
     ):
         try:
-            tenant_id, local_student_id = self._split_for_audit(student_id, tenant_id)
+            # Always normalize a colon-scoped student_id down to its bare
+            # local id for storage, regardless of whether the caller also
+            # passed an explicit tenant_id -- unlike _split_for_audit's
+            # `tenant_id is None` gate (which exists for callers that
+            # *don't* pass an explicit tenant_id and need one derived from
+            # the colon prefix). Real callers (original/routers/bluebook.py)
+            # pass both an explicit tenant_id AND a colon-scoped student_id
+            # together, and every reader (list_audit, delete_student,
+            # student_data_inventory) re-derives via
+            # _split_for_audit(student_id, None), expecting student_id to be
+            # the bare local id whenever tenant_id is set. The caller's own
+            # tenant_id, when given, is authoritative -- it is never
+            # overwritten by the colon prefix.
+            local_student_id = student_id
+            if local_student_id and ":" in local_student_id:
+                colon_tenant_id, local_student_id = local_student_id.split(":", 1)
+                if tenant_id is None:
+                    tenant_id = colon_tenant_id
             with session_scope() as session:
                 session.add(
                     AuditLogEntry(

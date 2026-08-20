@@ -2214,6 +2214,85 @@ class TestStudentDataInventoryLegacyFlatAuditCount:
         assert inv["data_categories"]["audit_log_entries"]["count"] == 2
 
 
+class TestLogAuditExplicitTenantWithScopedStudentId:
+    def test_explicit_tenant_and_colon_scoped_id_both_passed(self, repo):
+        # Final-review bug: bluebook.py's log_audit call sites (magic_launch,
+        # record_submission) pass BOTH an explicit tenant_id AND a
+        # colon-scoped student_id (e.g. tenant_id="sem", student_id=
+        # "sem:alice") -- the calling convention every other production
+        # caller in this codebase avoids. PostgresRepository._split_for_audit
+        # only strips the colon when tenant_id is None, so with both passed
+        # the colon-stripping never fired and the row was stored with
+        # student_id="sem:alice" (colon still embedded) and tenant_id="sem".
+        # Every reader (list_audit, delete_student, student_data_inventory)
+        # re-derives via _split_for_audit(student_id, None), expecting
+        # student_id to be the BARE local id whenever tenant_id is set --
+        # so a row written this way could never be found, purged, or
+        # counted correctly. log_audit must always normalize a colon-scoped
+        # student_id to its bare local id, independent of whether the
+        # caller also passed tenant_id explicitly.
+        repo.log_audit(action="test", student_id="sem:alice", tenant_id="sem")
+
+        result = repo.list_audit(student_id="sem:alice")
+
+        assert result["total"] == 1
+        assert result["items"][0]["action"] == "test"
+        assert result["items"][0]["student_id"] == "sem:alice"
+        assert result["items"][0]["tenant_id"] == "sem"
+
+    def test_caller_tenant_id_wins_over_colon_prefix_when_they_disagree(self, repo):
+        # The caller's explicit tenant_id is authoritative -- it must not be
+        # silently overwritten by whatever tenant the colon prefix implies.
+        # This guards against a naive fix that always re-derives tenant_id
+        # from the colon prefix instead of only filling it in when the
+        # caller left it as None. Looked up by action rather than
+        # student_id: the two backends compose the stored student_id
+        # differently in a tenant_id/colon-prefix mismatch (Postgres
+        # normalizes to the bare local id under the caller's tenant, SQLite
+        # keeps the original string verbatim -- not the invariant under
+        # test here), but both must agree that tenant_id stays the
+        # caller's "sem", not the colon prefix's "other".
+        repo.log_audit(action="test-tenant-wins", student_id="other:bob", tenant_id="sem")
+
+        result = repo.list_audit(action="test-tenant-wins")
+
+        assert result["total"] == 1
+        assert result["items"][0]["tenant_id"] == "sem"
+
+    def test_no_explicit_tenant_still_derives_from_colon_prefix(self, repo):
+        # Regression guard: the existing correct calling convention (no
+        # tenant_id, colon-scoped student_id) must be unaffected by the fix.
+        repo.log_audit(action="test", student_id="sem:carol")
+
+        result = repo.list_audit(student_id="sem:carol")
+
+        assert result["total"] == 1
+        assert result["items"][0]["student_id"] == "sem:carol"
+        assert result["items"][0]["tenant_id"] == "sem"
+
+    def test_bare_tenant_with_colon_less_student_id_unaffected(self, repo):
+        # Regression guard: the other existing correct calling convention
+        # (bare tenant_id, colon-less student_id) must be unaffected too --
+        # there's no colon to strip, so this call shape must be untouched
+        # by the fix. Looked up by action rather than
+        # list_audit(student_id="dave") -- that lookup path re-derives via
+        # _split_for_audit(student_id, None), which treats a colon-less id
+        # as implying tenant_id IS NULL and so would not match this row's
+        # explicit tenant_id="sem" either before or after this fix; that's
+        # an orthogonal, pre-existing list_audit quirk, not something this
+        # fix touches. Not asserting the exact returned student_id string:
+        # Postgres's list_audit formats it scoped ("sem:dave", via
+        # join_scoped_id whenever tenant_id is set) while SQLite returns
+        # the stored column verbatim ("dave") -- a pre-existing read-side
+        # formatting difference between backends, unrelated to this fix.
+        repo.log_audit(action="test-bare-tenant-colonless", student_id="dave", tenant_id="sem")
+
+        result = repo.list_audit(action="test-bare-tenant-colonless")
+
+        assert result["total"] == 1
+        assert result["items"][0]["tenant_id"] == "sem"
+
+
 class TestPutCorrectionFallbackChain:
     def test_explicit_divergence_score_not_overwritten_by_manifest(self, repo):
         # original_divergence_score is supplied directly, but student_id is
