@@ -36,18 +36,30 @@ class TestLedoitWolfShrink:
         assert not np.allclose(out, rho)                # something actually moved
 
     def test_alpha_is_clamped_to_at_most_one(self):
-        # Wildly disagreeing samples push pi_hat >> gamma → alpha hits the
-        # min(1, ·) clamp and the result IS the isotropic target.
-        D = 6
+        # D=3 (not 6): shrinking target_scale=1/D pulls gamma down faster
+        # than pi_hat as D shrinks, so the unclamped ratio pi_hat/gamma
+        # crosses 1 and the min(1, ·) clamp actually engages. Hand-derived:
+        #   vecs = eye(3)[:2] = [e0, e1] (orthogonal unit vectors), w=[0.5,0.5]
+        #   rho = diag(0.5, 0.5, 0)
+        #   target_scale = tr(rho)/D = 1/3 → target = diag(1/3, 1/3, 1/3)
+        #   rho - target = diag(1/6, 1/6, -1/3)
+        #   gamma = (1/6)^2 + (1/6)^2 + (1/3)^2 = 1/36 + 1/36 + 4/36 = 1/6
+        #   outer_0 - rho = diag(0.5, -0.5, 0)  → sum-sq = 0.5
+        #   outer_1 - rho = diag(-0.5, 0.5, 0)  → sum-sq = 0.5
+        #   pi_hat = 0.5^2*0.5 + 0.5^2*0.5 = 0.125 + 0.125 = 0.25
+        #   alpha_raw = pi_hat / gamma = 0.25 / (1/6) = 1.5  → clamped to 1.0
+        # Verified against a live run of _ledoit_wolf_shrink (not just by
+        # hand): with alpha=1 the output must equal the isotropic target
+        # exactly, which is asserted below rather than treated as one
+        # branch of an either/or.
+        D = 3
         vecs = np.eye(D)[:2]                            # orthogonal, max disagreement
         w = np.array([0.5, 0.5])
         rho = sum(wi * np.outer(v, v) for wi, v in zip(w, vecs))
         out = _ledoit_wolf_shrink(rho, vecs, w)
         target = np.trace(rho) / D * np.eye(D)
-        if np.allclose(out, target):
-            assert np.isclose(np.trace(out), 1.0)
-        else:  # alpha < 1 with this geometry — still valid; assert the blend
-            assert np.isclose(np.trace(out), 1.0)
+        assert np.allclose(out, target)          # alpha hit the clamp: out IS the target
+        assert np.isclose(np.trace(out), 1.0)    # convex combo of tr=1 matrices
 
 
 class TestRankRemediationFlag:
