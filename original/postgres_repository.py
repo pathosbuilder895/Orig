@@ -1697,7 +1697,15 @@ class PostgresRepository:
         # 207-209), and joining it against the submission's own tenant_id would
         # silently prepend a scope the caller never asked for.
         scoped_sid = row.student_id or ""
-        candidate_id = row.student_id[:6] if row.student_id else "—"
+        # Mirror store.py's idiom exactly: strip a tenant prefix if present,
+        # then take the first 6 characters of the local part. scoped_sid is
+        # verbatim (see the comment above), so a colon-scoped student_id
+        # (e.g. "sem:alice123") must have its prefix stripped before
+        # truncating, or candidateId leaks tenant-prefix characters instead
+        # of the student-identifying ones ("sem:al" instead of "alice1").
+        candidate_id = (
+            scoped_sid.split(":")[-1][:6] if ":" in scoped_sid else (scoped_sid[:6] or "—")
+        )
         return {
             "id": row.submission_id,
             "exam_id": row.exam_id,

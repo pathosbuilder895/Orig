@@ -1492,7 +1492,18 @@ class TestBluebook:
         join_scoped_id(row.tenant_id, row.student_id), which prepended the
         submission's tenant_id ("sem:alice123") even though the caller never
         supplied a scoped id -- a divergence from SqliteRepository, which
-        always returns the raw stored column verbatim."""
+        always returns the raw stored column verbatim.
+
+        candidateId (rendered as "No. {candidateId}" in demo/bluebook/Results.jsx)
+        must derive the same way on both backends too: strip a tenant prefix
+        if present, then take the first 6 characters of the local part --
+        store.py's idiom is
+        ``sid.split(":")[-1][:6] if ":" in sid else (sid[:6] or "-")``.
+        Covers both a colon-less id (no prefix to strip) and a colon-scoped
+        id (prefix must be stripped before truncating) so a backend that
+        truncates the raw, unstripped student_id instead -- as
+        PostgresRepository once did after the verbatim fix above, deriving
+        candidateId from the full scoped string -- is caught."""
         repo.put_bluebook_submission(
             {
                 "id": "bbsub-verbatim",
@@ -1502,9 +1513,22 @@ class TestBluebook:
                 "candidate": "Alice",
             }
         )
+        repo.put_bluebook_submission(
+            {
+                "id": "bbsub-scoped",
+                "tenant_id": "sem",
+                "exam_id": "exam-verbatim",
+                "student_id": "sem:alice123",
+                "candidate": "Alice",
+            }
+        )
         subs = repo.list_bluebook_submissions("sem")
-        match = next(s for s in subs if s["id"] == "bbsub-verbatim")
-        assert match["student_id"] == "alice123"
+        colonless = next(s for s in subs if s["id"] == "bbsub-verbatim")
+        scoped = next(s for s in subs if s["id"] == "bbsub-scoped")
+        assert colonless["student_id"] == "alice123"
+        assert colonless["candidateId"] == "alice1"
+        assert scoped["student_id"] == "sem:alice123"
+        assert scoped["candidateId"] == "alice1"
 
     def test_submission_uuid_lookup(self, repo):
         repo.put_bluebook_submission(
