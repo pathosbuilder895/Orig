@@ -687,7 +687,9 @@ def _ledoit_wolf_shrink(
         outer_i = np.outer(vectors[i], vectors[i])
         pi_hat += (norm_weights[i] ** 2) * float(np.sum((outer_i - rho) ** 2))
 
-    alpha = min(1.0, pi_hat / gamma) if gamma > 0 else 1.0
+    alpha = min(1.0, pi_hat / gamma) if gamma > 0 else 1.0  # pragma: no branch
+    # (gamma > 0 is guaranteed by the early return above; the else arm is
+    # float-paranoia kept for safety, unreachable by construction)
     alpha = max(0.0, alpha)  # guard against float noise pushing <0
 
     return (1.0 - alpha) * rho + alpha * target
