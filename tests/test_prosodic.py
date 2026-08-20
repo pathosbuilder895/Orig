@@ -27,6 +27,7 @@ import types
 from collections import Counter
 
 import numpy as np
+import pytest
 
 from original.features import prosodic
 from original.features.tier1 import TextDoc
@@ -185,30 +186,63 @@ class _FakeLexeme:
         self.vector = vector
 
 
-class _FakeVocab:
+# Two orthogonal unit directions (e0, e1 in R^300), each shared by a pair
+# of words. Fixed, hardcoded values -- NOT derived from hash(word), which
+# is randomized per-process unless PYTHONHASHSEED is pinned and would make
+# the expected result unreproducible across runs.
+_E0 = np.array([1.0] + [0.0] * 299)
+_E1 = np.array([0.0, 1.0] + [0.0] * 298)
+_FIXED_VECTORS = {
+    "alpha": _E0,
+    "beta": _E0,
+    "gamma": _E1,
+    "delta": _E1,
+}
+
+
+class _FixedVocab:
     """Deterministic fake vocab — real en_core_web_sm ships no word
     vectors (has_vector is always False), so the cosine-similarity branch
-    is otherwise unreachable without a stand-in."""
+    is otherwise unreachable without a stand-in. Unlike a hash-seeded
+    random vocab, every word maps to a fixed, known vector so the expected
+    output can be derived by hand and checked independently of whatever
+    the function under test happens to return."""
 
     def __getitem__(self, word):
-        rng = np.random.RandomState(abs(hash(word)) % (2**31))
-        return _FakeLexeme(rng.rand(300))
+        return _FakeLexeme(_FIXED_VECTORS[word])
 
 
 class _FakeNLPWithVectors:
     def __init__(self):
-        self.vocab = _FakeVocab()
+        self.vocab = _FixedVocab()
 
 
 def test_semantic_field_concentration_computes_cosine_similarity_with_vectors(monkeypatch):
+    """alpha/beta share direction e0, gamma/delta share direction e1, and
+    e0 ⟂ e1. Of the 6 unique pairs among the 4 words, 2 are same-direction
+    (cosine sim ~1.0: alpha-beta, gamma-delta) and 4 are orthogonal
+    (cosine sim 0.0: every alpha/beta-gamma/delta cross pair). Hand-derived
+    expected value:
+
+        mean_sim = (2*1.0 + 4*0.0) / 6 = 1/3
+        result   = clip((mean_sim + 1.0) / 2.0, 0.0, 1.0) = (1/3 + 1) / 2 = 2/3
+
+    (The source normalizes each vector by norm + 1e-8 before the dot
+    product, so same-direction pairs land at ~0.99999998 rather than
+    exactly 1.0 -- off by ~1e-8, well within pytest.approx's tolerance.)
+    This is independently derivable from the formula and would catch a
+    wrong triu offset (e.g. including the diagonal, which would pull the
+    mean toward 1.0) or a wrong normalization/matmul axis, unlike a bare
+    0.0 <= result <= 1.0 bounds check that every successful return value
+    satisfies by construction."""
     monkeypatch.setattr(prosodic, "_get_nlp", lambda: _FakeNLPWithVectors())
     monkeypatch.setattr(prosodic, "_spacy_ok", True)
 
-    text = "Elephants migrate savannas seasons water routes patterns valleys elephants"
+    text = "alpha alpha beta beta gamma gamma delta delta"
     doc = TextDoc(text)
     result = prosodic._semantic_field_concentration(doc)
     assert isinstance(result, float)
-    assert 0.0 <= result <= 1.0
+    assert result == pytest.approx(2.0 / 3.0, abs=1e-6)
 
 
 # ── `_chiasmus_rate` arms ───────────────────────────────────────────────────
