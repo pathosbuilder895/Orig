@@ -202,6 +202,25 @@ class TestSignalPrecisionFixes:
         text = "He said “this opens but never closes.\n\nA later paragraph entirely. " * 6
         assert genre_v2.extract_signals(text)["dialogue_density"] >= 0.0
 
+    def test_accepts_precomputed_citation_data(self):
+        """When the caller already has a `CitationData` (the pipeline does,
+        on the shared preprocess() call), `extract_signals` must use it
+        rather than re-running `preprocess` itself."""
+        from collections import Counter
+
+        from original.features.preprocess import CitationData
+
+        text = "The matter under discussion proceeds along familiar lines. " * 12
+        citation_data = CitationData(
+            paren_citation_count=5, signal_verb_counts=Counter({"argues": 4})
+        )
+        out = genre_v2.extract_signals(text, citation_data=citation_data)
+        # citation_density / signal_verb_rate are derived straight from the
+        # supplied CitationData, not from a fresh preprocess() of `text`
+        # (which contains no parentheticals or signal verbs of its own).
+        assert out["citation_density"] > 0.0
+        assert out["signal_verb_rate"] > 0.0
+
     def test_every_per_word_rate_shares_one_denominator(self):
         """second_person_ratio, citation_density and signal_verb_rate divided
         by doc.word_count while the six newer rates divided by
