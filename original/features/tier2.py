@@ -188,7 +188,10 @@ def lexical_chain_density(doc: TextDoc) -> float:
             continue
         intersection = len(a & b)
         union = len(a | b)
-        if union > 0:
+        if union > 0:  # pragma: no branch — unreachable: a and b are both
+            # non-empty sets here (the `not a or not b` check above already
+            # `continue`d otherwise), and the union of two non-empty sets
+            # always has cardinality >= 1.
             scores.append(intersection / union)
 
     return sum(scores) / len(scores) if scores else 0.0
@@ -201,7 +204,10 @@ def paragraph_topic_position(doc: TextDoc) -> float:
     fronted topic sentences.
     """
     paras = doc.paragraphs
-    if not paras:
+    if not paras:  # pragma: no cover — unreachable: TextDoc.paragraphs is
+        # built by _split_paragraphs (tier1.py), which always falls back to
+        # `[[text]]` when no paragraph survives splitting — it can never
+        # return an empty list, even for empty/whitespace-only text.
         return 0.5
 
     fronted = 0
@@ -226,7 +232,8 @@ def paragraph_topic_position(doc: TextDoc) -> float:
 def avg_paragraph_length(doc: TextDoc) -> float:
     """Mean sentences per paragraph."""
     paras = doc.paragraphs
-    if not paras:
+    if not paras:  # pragma: no cover — unreachable: same guarantee as
+        # paragraph_topic_position above — _split_paragraphs never returns [].
         return float(doc.sentence_count)
     return sum(len(p) for p in paras) / len(paras)
 

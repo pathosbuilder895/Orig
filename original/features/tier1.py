@@ -61,7 +61,12 @@ def _split_paragraphs(text: str) -> list[list[str]]:
         p = p.strip()
         if p:
             sents = _split_sentences(p)
-            if sents:
+            if sents:  # pragma: no branch — unreachable: p is non-empty after
+                # .strip() (guarded by the `if p:` above) and _split_sentences
+                # only removes matched interior whitespace, never characters,
+                # so a non-empty, already-stripped input can never come back
+                # as an empty sentence list (verified by brute-force search
+                # over representative punctuation/whitespace combinations).
                 result.append(sents)
     return result if result else [[text]]
 
