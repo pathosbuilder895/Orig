@@ -381,26 +381,14 @@ class PostgresRepository:
                 # student-scoped table above — it does NOT use the tenancy
                 # shim's legacy-flat sentinel, so a colon-less student_id
                 # rows there have tenant_id=NULL, not
-                # split_scoped_id()'s _LEGACY_FLAT_TENANT. Re-derive with
-                # _split_for_audit (the same helper log_audit/list_audit
-                # use) rather than reusing tenant_id/local_id above, or a
-                # legacy-flat student's audit rows would silently survive
-                # deletion.
-                audit_tenant_id, audit_local_id = self._split_for_audit(student_id, None)
-                if audit_tenant_id is not None:
-                    session.execute(
-                        AuditLogEntry.__table__.delete().where(
-                            AuditLogEntry.tenant_id == audit_tenant_id,
-                            AuditLogEntry.student_id == audit_local_id,
-                        )
-                    )
-                else:
-                    session.execute(
-                        AuditLogEntry.__table__.delete().where(
-                            AuditLogEntry.student_id == audit_local_id,
-                            AuditLogEntry.tenant_id.is_(None),
-                        )
-                    )
+                # split_scoped_id()'s _LEGACY_FLAT_TENANT. Scope via
+                # _audit_scope_criteria (shared with list_audit and
+                # student_data_inventory) rather than reusing
+                # tenant_id/local_id above, or a legacy-flat student's audit
+                # rows would silently survive deletion.
+                session.execute(
+                    AuditLogEntry.__table__.delete().where(*self._audit_scope_criteria(student_id))
+                )
             # this student's tenant's (tenant, genre) entries may include them
             self._genre_stats_cache.clear()
             # C2, 2026-08 fix pass: see store.delete_student's matching
@@ -575,20 +563,12 @@ class PostgresRepository:
                 ).scalar_one()
                 # audit_log's tenant_id is genuinely NULL for a colon-less
                 # student_id (unlike every other table here, which uses the
-                # general shim's "__legacy_flat__" sentinel) -- re-derive via
-                # _split_for_audit for this one query, matching the fixes in
-                # delete_student (77ec3741) and list_audit (994e8efb).
-                audit_tenant_id, audit_local_id = self._split_for_audit(student_id, None)
-                if audit_tenant_id is not None:
-                    audit_count_stmt = select(func.count(AuditLogEntry.id)).where(
-                        AuditLogEntry.tenant_id == audit_tenant_id,
-                        AuditLogEntry.student_id == audit_local_id,
-                    )
-                else:
-                    audit_count_stmt = select(func.count(AuditLogEntry.id)).where(
-                        AuditLogEntry.student_id == audit_local_id,
-                        AuditLogEntry.tenant_id.is_(None),
-                    )
+                # general shim's "__legacy_flat__" sentinel) -- scope via
+                # _audit_scope_criteria, shared with delete_student and
+                # list_audit.
+                audit_count_stmt = select(func.count(AuditLogEntry.id)).where(
+                    *self._audit_scope_criteria(student_id)
+                )
                 audit_count = session.execute(audit_count_stmt).scalar_one()
                 ai_likelihood_count = session.execute(
                     select(func.count()).where(
@@ -1925,6 +1905,25 @@ class PostgresRepository:
             tenant_id, student_id = student_id.split(":", 1)
         return tenant_id, student_id
 
+    @staticmethod
+    def _audit_scope_criteria(student_id: str) -> list:
+        """SQLAlchemy filter criteria scoping AuditLogEntry rows to
+        student_id, correctly handling the legacy-flat (tenant_id IS NULL)
+        vs tenant-scoped split. Shared by delete_student,
+        student_data_inventory, and list_audit — see _split_for_audit's
+        docstring for why audit_log's tenant scoping can't reuse the
+        general tenancy shim."""
+        audit_tenant_id, audit_local_id = PostgresRepository._split_for_audit(student_id, None)
+        if audit_tenant_id is not None:
+            return [
+                AuditLogEntry.tenant_id == audit_tenant_id,
+                AuditLogEntry.student_id == audit_local_id,
+            ]
+        return [
+            AuditLogEntry.student_id == audit_local_id,
+            AuditLogEntry.tenant_id.is_(None),
+        ]
+
     def log_audit(
         self, action, student_id=None, tenant_id=None, actor=None, result="ok", details=None
     ):
@@ -1968,17 +1967,7 @@ class PostgresRepository:
             with session_scope() as session:
                 stmt = select(AuditLogEntry)
                 if student_id:
-                    tenant_id, local_id = self._split_for_audit(student_id, None)
-                    if tenant_id is not None:
-                        stmt = stmt.where(
-                            AuditLogEntry.tenant_id == tenant_id,
-                            AuditLogEntry.student_id == local_id,
-                        )
-                    else:
-                        stmt = stmt.where(
-                            AuditLogEntry.student_id == local_id,
-                            AuditLogEntry.tenant_id.is_(None),
-                        )
+                    stmt = stmt.where(*self._audit_scope_criteria(student_id))
                 if action:
                     stmt = stmt.where(AuditLogEntry.action == action)
                 total = session.execute(
