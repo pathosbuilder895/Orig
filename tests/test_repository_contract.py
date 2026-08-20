@@ -2073,12 +2073,13 @@ class TestDeleteStudentFullFootprint:
         # `repo` fixture since the assertion holds (vacuously, on sqlite).
         #
         # Deliberately not asserted here: repo.list_audit(student_id="alice")
-        # totals. list_audit()'s own colon-less else-branch (line ~1929) has
-        # the identical missing-tenant-predicate shape and would match BOTH
-        # rows once they collide — a separate, pre-existing bug outside this
-        # fix's scope. Querying by "sem:alice" always takes list_audit's
-        # `if tenant_id is not None` arm, which already filters correctly on
-        # both columns, so it stays a clean probe of delete_student's fix.
+        # totals. list_audit()'s own colon-less else-branch (line ~1930) had
+        # the identical missing-tenant-predicate shape and would have matched
+        # BOTH rows once they collide — a separate cross-tenant READ leak,
+        # fixed and covered by TestListAuditLegacyFlatTenantScoping below.
+        # Querying by "sem:alice" always takes list_audit's `if tenant_id is
+        # not None` arm, which already filters correctly on both columns, so
+        # it stays a clean probe of delete_student's fix.
         repo.put(_make_state("sem:alice", n=1))
         repo.put(_make_state("alice", n=1))
 
@@ -2109,6 +2110,52 @@ class TestDeleteStudentFullFootprint:
         assert repo.delete_student("solo-legacy-flat") is True
 
         assert repo.list_audit(student_id="solo-legacy-flat")["items"] == []
+
+
+class TestListAuditLegacyFlatTenantScoping:
+    def test_legacy_flat_lookup_does_not_leak_other_tenants_audit_log(self, repo):
+        # Sibling bug to delete_student's fix in 77ec3741 (same file):
+        # list_audit's own colon-less else-branch (line ~1930) had the
+        # identical missing-tenant-predicate shape. audit_log stores the
+        # LOCAL id for a colon-scoped student (log_audit's _split_for_audit
+        # splits "sem:alice" into tenant_id="sem", student_id="alice"), so on
+        # Postgres — where audit_log has separate tenant_id/student_id
+        # columns — querying list_audit(student_id="alice") for a genuinely
+        # colon-less "alice" would ALSO match tenant "sem"'s "sem:alice" row:
+        # a cross-tenant audit-log READ LEAK (not just a deletion bug), and
+        # details_json can carry PII (IPs, submission ids, actor emails).
+        # SQLite stores the full scoped string in audit_log.student_id, so
+        # "alice" != "sem:alice" there and no collision is possible — this is
+        # a Postgres-only regression, but the test runs on both backends via
+        # the shared `repo` fixture since the assertion holds (vacuously) on
+        # sqlite too.
+        repo.put(_make_state("sem:alice", n=1))
+        repo.put(_make_state("alice", n=1))
+
+        repo.log_audit(action="score", student_id="sem:alice", details={"note": "tenant-scoped"})
+        repo.log_audit(action="score", student_id="alice", details={"note": "legacy-flat"})
+
+        result = repo.list_audit(student_id="alice")
+
+        assert result["total"] == 1
+        assert len(result["items"]) == 1
+        assert result["items"][0]["student_id"] == "alice"
+        assert all(item["tenant_id"] != "sem" for item in result["items"])
+
+    def test_tenant_scoped_lookup_still_works_after_fix(self, repo):
+        # Regression guard: the fix must only touch the else (colon-less)
+        # branch — the `if tenant_id is not None` arm for a colon-scoped
+        # lookup ("sem:alice") must keep matching only that tenant's own row.
+        repo.put(_make_state("sem:alice", n=1))
+        repo.put(_make_state("alice", n=1))
+
+        repo.log_audit(action="score", student_id="sem:alice", details={})
+        repo.log_audit(action="score", student_id="alice", details={})
+
+        result = repo.list_audit(student_id="sem:alice")
+
+        assert result["total"] == 1
+        assert result["items"][0]["student_id"] == "sem:alice"
 
 
 class TestDeleteTenantStudentsEmptyTenant:

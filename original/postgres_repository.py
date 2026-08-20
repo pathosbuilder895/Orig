@@ -1927,7 +1927,10 @@ class PostgresRepository:
                             AuditLogEntry.student_id == local_id,
                         )
                     else:
-                        stmt = stmt.where(AuditLogEntry.student_id == local_id)
+                        stmt = stmt.where(
+                            AuditLogEntry.student_id == local_id,
+                            AuditLogEntry.tenant_id.is_(None),
+                        )
                 if action:
                     stmt = stmt.where(AuditLogEntry.action == action)
                 total = session.execute(
