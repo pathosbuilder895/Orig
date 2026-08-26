@@ -314,7 +314,10 @@ text sits — which the single document-level number cannot express.
   no window-level calibration: the detector was trained and thresholded on
   whole documents, so a 300-token window is out of its evaluated regime and
   per-window probabilities should be read as ordering/localization hints
-  only, never as calibrated probabilities.
+  only, never as calibrated probabilities. Every such window is below the
+  500-token reliability floor and therefore low-confidence; values may rank
+  regions within one document, but are not comparable with document bands
+  and must never be aggregated across documents.
 - **Purpose is evidence collection.** Shadow-mode window data (especially
   whether AI-like probability concentrates in the same regions the Pettitt
   change-point already flags) is intended to inform re-evaluation of the
