@@ -1,0 +1,35 @@
+name: Weekly calibration battery
+
+on:
+  schedule:
+    - cron: "17 8 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  calibration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      # TODO(campaign-plan-02): regenerate the uncommitted G7 corpus here
+      # after its reproducible fetch/cache workflow lands.
+      - name: Run strict G1-G8 battery
+        run: python -m validation.calibration_gate --strict --out calibration-report.json
+      - name: Upload calibration report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: calibration-report
+          path: calibration-report.json
+          if-no-files-found: warn
+          retention-days: 30

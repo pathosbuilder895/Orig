@@ -115,6 +115,11 @@ exclude-not-abort behavior rule 4 describes.
     # gate as non-failing.
     .venv/bin/python -m validation.calibration_gate --strict
 
+    # G8's shuffled-label control requires scikit-learn. It is installed by
+    # requirements-demo.txt (and therefore requirements.txt), with the same
+    # supported range in requirements-dev.txt. A hand-built environment
+    # without it reports G8 UNINFORMATIVE and strict mode exits non-zero.
+
     # NOTE on G7 (cross-topic same-author FPR): its corpus
     # (validation/genre_crossgenre_2026-08/) is NOT committed — the Lewis
     # and Chesterton editions are still under copyright — so on a fresh

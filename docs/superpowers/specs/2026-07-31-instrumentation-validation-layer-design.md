@@ -371,14 +371,15 @@ alone.
    config, easily changed). The advisory suggests up to 2,000-word windows —
    defensible for public authors, but it would shrink the seminary corpus to
    near-nothing.
-3. **`--strict` default for CI:** default lenient (uninformative ≠ red) as
-   designed, or strict from day one for `calibration_gate`?
+3. **`--strict` default for CI:** Resolved 2026-08-26: scheduled validation
+   invokes `--strict`; interactive runs remain lenient unless requested.
 4. **sklearn engine:** include behind a flag now (designed above) or defer
    entirely to keep C5 numpy-only.
-5. **CI coverage for the gate battery:** `.github/workflows/test.yml` runs
-   only lint (scoped to `original/`) and the fast pytest suite, so the
-   corpus-driven G1–G6 run is manual-only and nothing invokes `--strict`.
-   The falsifiability and property tests (C6) *do* run per-push, which is
-   what stops a can't-fail gate from merging. Recommendation: leave the
-   battery manual rather than spend a 20-minute CI budget on it; add a
-   nightly job only if gate drift becomes a real problem.
+5. **CI coverage for the gate battery:** Decision updated 2026-08-26:
+   `.github/workflows/calibration-battery.yml` runs the strict G1–G8 battery
+   weekly and on manual dispatch, uploads its JSON report, and is deliberately
+   non-blocking while regenerable-only G7 remains unavailable on a fresh
+   checkout. Plan 02 owns adding that regeneration step. The per-PR
+   `.github/workflows/test.yml` remains focused on unit/integration coverage.
+   The falsifiability and property tests (C6) still run per-push, which is
+   what stops a can't-fail gate from merging.

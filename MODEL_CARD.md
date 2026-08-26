@@ -197,6 +197,19 @@ logged reason. If that happens after a dependency bump, retrain the artifact
 on the deployed sklearn version (`train_ai_detector.py train`) rather than
 tightening the requirements pin.
 
+### Pooled typicality calibration (experimental, default off)
+
+`TYPICALITY_POOLED_CALIBRATION=1` uses same-tenant peers' leave-one-out
+distances when at least three peer students and 30 distances remain after
+excluding the scored student; thin cohorts fall back to self-calibration. It
+addresses the structural `1/(N+1)` p-value floor that makes the 0.03 action
+boundary unreachable below 33 distances, but it changes typicality bands and
+is not enabled. The live `/score` route does not currently supply the pooled
+reference, so the audit calls `quantum.score()` directly. Exchangeability has
+only been established within seminary and Plato separately—not across their
+union or for `public_authors`; see
+`validation/audits/pooled_calibration_payoff.py`.
+
 **Demo/pilot enablement gate** — rule: **seminary AUC ≥ 0.85 AND
 false-positive rate ≤ 5% at `t_elevated` on authentic seminary essays**
 (`train_ai_detector.py eval-seminary` prints the verdict). Status: **passes**
