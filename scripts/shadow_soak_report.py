@@ -13,6 +13,7 @@ import statistics
 from collections import Counter
 from pathlib import Path
 
+from validation.fusion_confound.analyze import analyze_rows
 from validation.genre_2026_08_compat import genre_summary
 
 _TOPIC = re.compile(
@@ -133,6 +134,20 @@ def summarize_sqlite(path: Path) -> dict:
             ).fetchall()
             scores = [float(row[0]) for row in rows if row[0] is not None]
             bands = Counter(row[1] for row in rows)
+            confound_rows = []
+            for row in rows:
+                try:
+                    channels = json.loads(row[2] or "{}")
+                except (TypeError, json.JSONDecodeError):
+                    channels = {}
+                confound_rows.append(
+                    {
+                        "fused_score": row[0],
+                        "channels": channels,
+                        "baseline_samples": row[3],
+                        "reference_profiles": row[4],
+                    }
+                )
             fused = {
                 "signal_absent": len(rows) == 0,
                 "rows": len(rows),
@@ -141,6 +156,7 @@ def summarize_sqlite(path: Path) -> dict:
                 "confound_ready_rows": sum(
                     row[3] is not None and row[4] is not None for row in rows
                 ),
+                "baseline_volume_confound": analyze_rows(confound_rows),
             }
 
         ai = {"signal_absent": True, "rows": 0}
