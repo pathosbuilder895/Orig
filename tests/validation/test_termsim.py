@@ -2,6 +2,7 @@ import pytest
 
 from validation.termsim.gate import evaluate_t1, evaluate_t2, evaluate_t3, evaluate_t4
 from validation.termsim.metrics import compute
+from validation.termsim.runner import run_events
 from validation.termsim.script import dumps, generate, script_hash
 
 
@@ -39,3 +40,18 @@ def test_term_script_is_seeded_and_scenario_constraints_hold():
     assert hybrid and all(e["proxy"] is True for e in hybrid)
     changed = [e for e in first if e.get("onset_week") is not None]
     assert all(5 <= e["onset_week"] <= 9 for e in changed)
+
+
+def test_runner_uses_live_api(live_client, store_reset):
+    events = generate(7, cohort_sizes=(3,), weeks=3)
+    # The real feature pipeline needs submission-sized prose; repeated words
+    # keep this smoke deterministic and cheap while still crossing its floors.
+    def text_for(event):
+        return (("Careful writers revise claims with evidence and context. " * 70)
+                + str(event["document_index"]))
+
+    rows = run_events(live_client, events, text_for)
+    assert len(rows) == 3
+    assert all(row["action"] in {"no_action", "monitor", "schedule_conversation", "escalate"}
+               for row in rows)
+    assert all(row["baseline_count"] == 3 for row in rows)
