@@ -1,8 +1,10 @@
 import pytest
 
 from validation.termsim.gate import evaluate_t1, evaluate_t2, evaluate_t3, evaluate_t4
+from validation.termsim.matrix import cells
 from validation.termsim.metrics import compute
 from validation.termsim.runner import run_events
+from validation.termsim.scorecard import HONESTY, build, markdown
 from validation.termsim.script import dumps, generate, script_hash
 
 
@@ -55,3 +57,16 @@ def test_runner_uses_live_api(live_client, store_reset):
     assert all(row["action"] in {"no_action", "monitor", "schedule_conversation", "escalate"}
                for row in rows)
     assert all(row["baseline_count"] == 3 for row in rows)
+
+
+def test_standard_matrix_and_scorecard_diff_are_explicit():
+    matrix = cells()
+    assert set(matrix) == {"baseline", "llr-shadow", "no-context", "topic-inflation",
+                           "characteristic-weights", "genre-v2"}
+    baseline = compute([])
+    changed = compute([])
+    baseline["honest_term_flag_probability"]["monitor"].update(rate=0.2, n=10)
+    changed["honest_term_flag_probability"]["monitor"].update(rate=0.1, n=10)
+    card = build("llr-shadow", 1, changed, matrix["llr-shadow"], baseline)
+    assert card["diff_vs_baseline"]["monitor"] == pytest.approx(-0.1)
+    assert HONESTY in markdown(card)
