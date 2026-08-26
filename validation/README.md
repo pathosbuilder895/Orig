@@ -88,6 +88,11 @@ Report ("The instruments were broken, not the math") and
 
 ## Real measured evidence
 
+The 2026-08-26 G2 floor-asymmetry audit returned **genuine**, not artifact:
+8/19 holdouts (42.1%) versus 20/23 impostors (87.0%) were already at their
+own conformal rank-1 floor. The separation survives a scale-free rank read;
+see `validation/audits/g2_floor_asymmetry_2026-08-26.json`.
+
 `validation/benchmarks/2026-07-31/public_authors/report.json` (committed;
 `validation/benchmarks/*` is otherwise git-ignored and only specific runs are
 added as evidence — see `validation/benchmarks/README.md`) is a real run of
