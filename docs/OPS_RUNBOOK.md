@@ -240,6 +240,19 @@ default).
 
 ## Routine maintenance
 
+### Dependency-update policy
+
+Do not mass-merge Dependabot changes. Any npm update under `demo/bluebook/`
+must rebuild and commit `bluebook.bundle.js` in the same PR. Python updates
+touching the scoring/runtime stack (including pydantic, Starlette, and httpx)
+require the full local suite and Postgres marker suite before merge. Any
+scikit-learn or joblib movement additionally triggers the AI-detector and
+style-authorship artifact self-tests: both loaders compare stored reference
+predictions and fail closed on drift. If AI reference predictions move by
+more than 0.02, retrain with `scripts/train_ai_detector.py` and commit a new
+artifact; never hide version drift by pinning around it. Apply the equivalent
+retrain/self-test discipline to `style_authorship_v1.joblib`.
+
 | Cadence | Action |
 |---|---|
 | daily | off-box backup pull (manual); uptime monitor + in-app backups run themselves |

@@ -23,6 +23,10 @@ missing, make the pilot soak turn-key, build a term-shaped simulator so flags ar
 certified the way the product is actually used, and stop losing finished work on
 stranded branches.
 
+**Plan hygiene:** old checkboxes in this repository are historically unreliable.
+Each campaign goal's completion PR must update its plan state, and a dated completion
+report—not unchecked prose—is the durable evidence that acceptance criteria ran.
+
 ---
 
 ## The five plans
