@@ -43,7 +43,7 @@ from ..quantum.professor_narrative import build_professor_explanation
 # ── Tunable thresholds ───────────────────────────────────────────────────────
 
 # Divergence-score → verdict thresholds. The 0.30 boundary is conservative
-# — well below the current `monitor` action threshold (0.55) — so the
+# — well below the current `monitor` action threshold (0.60) — so the
 # narrative leans toward "authentic" even when the raw probability is mid-
 # range. We treat the report as a human-facing summary: "anomalous" should
 # only fire when the math is unambiguous.

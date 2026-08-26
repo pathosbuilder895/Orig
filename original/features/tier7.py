@@ -1,7 +1,7 @@
 """
 features/tier7.py — Tier 7: AI Detection Markers
 
-Seven features targeting the statistical signatures of LLM-generated text.
+Six features targeting the statistical signatures of LLM-generated text.
 Function word distributions, lexical diversity patterns, and positional
 variance behave differently in AI text vs. human text — even when the
 AI is prompted to "write like" a specific person.
