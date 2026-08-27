@@ -322,3 +322,20 @@ def test_accrete_skips_flagged_submissions():
     # The flagged submission must NOT be folded into the baseline.
     assert [r["kind"] for r in rows] == ["baseline", "score"]
     assert rows[-1]["baseline_count"] == 1
+
+
+def test_different_seeds_diversify_honest_persona_assignment():
+    """Regression: persona assignment used to be a pure function of
+    (cohort_size, index), so HONEST/COLDSTART/TRANSFER were bit-identical
+    across every seed and 'run 3 seeds' added no real independent samples
+    for the scenarios T-1/T-3/T-4 gate on. It must now consume the seeded
+    RNG like everything else in the script.
+    """
+    manifest = build_manifest()
+    first = generate(1, cohort_sizes=(8,), personas=manifest["personas"])
+    second = generate(2, cohort_sizes=(8,), personas=manifest["personas"])
+    honest_first = [e["persona"] for e in first if e["scenario"] == "HONEST"
+                    and e["kind"] == "baseline"]
+    honest_second = [e["persona"] for e in second if e["scenario"] == "HONEST"
+                     and e["kind"] == "baseline"]
+    assert honest_first != honest_second

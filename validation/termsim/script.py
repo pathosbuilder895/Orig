@@ -61,10 +61,16 @@ def generate(seed: int, cohort_sizes=(3, 8, 25), weeks=15,
             if scenario not in scenarios:
                 continue
             student = f"{tenant}:student-{index:03d}"
+            # Seeded, not a modulo of (cohort_size, index): a fixed formula
+            # here would make every scenario whose script never otherwise
+            # touches rng (HONEST, COLDSTART, TRANSFER's own persona pick)
+            # bit-identical across seeds, defeating the point of running
+            # multiple seeds — cross-seed "stability" would just be
+            # re-measuring the same cohort three times.
             if scenario == "TRANSFER" and multi_work:
-                chosen = multi_work[(cohort_size + index) % len(multi_work)]
+                chosen = multi_work[rng.randrange(len(multi_work))]
             elif meta:
-                chosen = meta[(cohort_size + index) % len(meta)]
+                chosen = meta[rng.randrange(len(meta))]
             else:
                 chosen = {"id": None, "n_groups": 1}
             persona, n_groups = chosen["id"], chosen["n_groups"]
