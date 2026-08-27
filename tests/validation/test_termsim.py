@@ -59,6 +59,75 @@ def test_persona_scripts_swap_sources_and_resolve_committed_text():
     assert len(resolver(events[0]).split()) >= 300
 
 
+class _CannedResponse:
+    def __init__(self, status_code, payload):
+        self.status_code = status_code
+        self._payload = payload
+        self.text = str(payload)
+
+    def json(self):
+        return self._payload
+
+
+class _CannedClient:
+    """Replays responses shaped exactly like the live Layer7OutputResponse.
+
+    llr_deviation_score lives on authorship, inflation is
+    topic_inflation_applied, and drift-gate holds are HTTP 202/409 on the
+    baseline route — the fields a top-level .get() silently misses.
+    """
+
+    def __init__(self, baseline_statuses):
+        self._baseline_statuses = list(baseline_statuses)
+
+    def post(self, url, json=None, headers=None):
+        if url == "/tenants":
+            return _CannedResponse(201, {})
+        if url.endswith("/baseline"):
+            status = self._baseline_statuses.pop(0)
+            body = {} if status == 200 else {
+                "detail": {"status": "pending_review", "drift": {"recommendation": "flag_for_review"}}
+            }
+            return _CannedResponse(status, body)
+        return _CannedResponse(200, {
+            "recommendation": {"action": "no_action"},
+            "authorship": {"deviation_score": 0.31, "llr_deviation_score": 0.42},
+            "typicality_n": 4,
+            "topic_distance": 0.12,
+            "topic_inflation_applied": True,
+            "fused_score": None,
+        })
+
+
+def test_runner_extracts_nested_fields_and_records_drift_holds():
+    events = [
+        {"tenant": "t", "student": "t:s0", "week": 0, "kind": "baseline",
+         "document_index": 0, "scenario": "HONEST", "authenticated": True},
+        {"tenant": "t", "student": "t:s0", "week": 0, "kind": "baseline",
+         "document_index": 1, "scenario": "HONEST", "authenticated": True},
+        {"tenant": "t", "student": "t:s0", "week": 1, "kind": "score",
+         "document_index": 2, "scenario": "HONEST"},
+    ]
+    # Second onboarding upload is held by the drift gate (202) — the run
+    # must record the hold and continue, not crash the cell.
+    client = _CannedClient(baseline_statuses=[200, 202, 200])
+    rows = run_events(client, events, lambda event: "text", accrete=True)
+    holds = [r for r in rows if r["kind"] == "baseline"]
+    assert [r["drift_gate_held"] for r in holds] == [False, True]
+    scored = [r for r in rows if r["kind"] == "score"]
+    assert len(scored) == 1
+    row = scored[0]
+    assert row["llr_deviation_score"] == 0.42
+    assert row["null_abstained"] is False
+    assert row["inflation_fired"] is True
+    assert row["topic_distance"] == 0.12
+    # Only the accepted onboarding upload counts toward the baseline.
+    assert row["baseline_count"] == 1
+    # The accrete re-upload was accepted, so it is recorded as unheld.
+    accrete_rows = [r for r in rows if r["kind"] == "accrete"]
+    assert [r["drift_gate_held"] for r in accrete_rows] == [False]
+
+
 def test_runner_uses_live_api(live_client, store_reset):
     events = generate(7, cohort_sizes=(3,), weeks=3, scenarios=("HONEST",))
     # The real feature pipeline needs submission-sized prose; repeated words
@@ -68,10 +137,14 @@ def test_runner_uses_live_api(live_client, store_reset):
                 + str(event["document_index"]))
 
     rows = run_events(live_client, events, text_for)
-    assert len(rows) == 3
+    scored = [row for row in rows if row["kind"] == "score"]
+    assert len(scored) == 3
     assert all(row["action"] in {"no_action", "monitor", "schedule_conversation", "escalate"}
-               for row in rows)
-    assert all(row["baseline_count"] == 3 for row in rows)
+               for row in scored)
+    assert all(row["baseline_count"] == 3 for row in scored)
+    uploads = [row for row in rows if row["kind"] == "baseline"]
+    assert len(uploads) == 9
+    assert all(row["drift_gate_held"] in (True, False) for row in uploads)
 
 
 def test_vector_cache_warm_and_cold_are_identical(tmp_path, monkeypatch):

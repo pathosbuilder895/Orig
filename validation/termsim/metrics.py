@@ -108,7 +108,6 @@ def compute(events: list[dict]) -> dict:
             )
 
     engagement_fields = {
-        "drift_gate_hold": "drift_gate_held",
         "null_abstain": "null_abstained",
         "prior_abstain": "prior_abstained",
         "fused_abstain": "fused_abstained",
@@ -117,6 +116,12 @@ def compute(events: list[dict]) -> dict:
         "blend_shift": "blend_shift_detected",
     }
     engagement = {}
+    # Drift-gate holds happen on baseline/accrete uploads, never on scores.
+    uploads = [e for e in events if e.get("kind") in ("baseline", "accrete")
+               and e.get("drift_gate_held") is not None]
+    engagement["drift_gate_hold"] = rate(
+        sum(bool(e["drift_gate_held"]) for e in uploads), len(uploads)
+    )
     for label, field in engagement_fields.items():
         measurable = [e for e in scored if e.get(field) is not None]
         engagement[label] = rate(sum(bool(e[field]) for e in measurable), len(measurable))

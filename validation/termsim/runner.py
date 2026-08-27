@@ -67,9 +67,16 @@ def run_events(
                 json={"text": text, "provenance": "verified", "submitted_at": submitted_at},
                 headers=headers[tenant],
             )
-            if response.status_code != 200:
+            # 202/409 are the drift gate holding the upload — a legitimate
+            # deployment outcome this harness exists to measure, not an error.
+            if response.status_code not in (200, 202, 409):
                 raise RuntimeError(f"baseline HTTP {response.status_code}: {response.text}")
-            baseline_counts[student] = baseline_counts.get(student, 0) + 1
+            held = response.status_code != 200
+            if not held:
+                baseline_counts[student] = baseline_counts.get(student, 0) + 1
+            row = dict(event)
+            row["drift_gate_held"] = held
+            output.append(row)
             continue
 
         response = client.post(
@@ -81,18 +88,18 @@ def run_events(
         if response.status_code != 200:
             raise RuntimeError(f"score HTTP {response.status_code}: {response.text}")
         payload = response.json()
+        llr = payload["authorship"].get("llr_deviation_score")
         row = dict(event)
         row.update(
             {
                 "action": payload["recommendation"]["action"],
                 "deviation_score": payload["authorship"]["deviation_score"],
-                "llr_deviation_score": payload.get("llr_deviation_score"),
+                "llr_deviation_score": llr,
                 "typicality_n": payload.get("typicality_n"),
                 "typicality_abstained": not bool(payload.get("typicality_n")),
                 "topic_distance": payload.get("topic_distance"),
-                "inflation_fired": payload.get("topic_variance_inflation_fired"),
-                "drift_gate_held": payload.get("drift_gate_held"),
-                "null_abstained": payload.get("llr_deviation_score") is None,
+                "inflation_fired": payload.get("topic_inflation_applied"),
+                "null_abstained": llr is None,
                 "fused_abstained": payload.get("fused_score") is None,
                 "baseline_count": baseline_counts.get(student, 0),
             }
@@ -104,6 +111,14 @@ def run_events(
                 json={"text": text, "provenance": "verified", "submitted_at": submitted_at},
                 headers=headers[tenant],
             )
-            if accepted.status_code == 200:
+            if accepted.status_code not in (200, 202, 409):
+                raise RuntimeError(
+                    f"accrete HTTP {accepted.status_code}: {accepted.text}"
+                )
+            held = accepted.status_code != 200
+            if not held:
                 baseline_counts[student] = baseline_counts.get(student, 0) + 1
+            accrete_row = dict(event)
+            accrete_row.update({"kind": "accrete", "drift_gate_held": held})
+            output.append(accrete_row)
     return output
