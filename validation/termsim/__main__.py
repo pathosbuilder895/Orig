@@ -39,6 +39,8 @@ def _run_cell(payload: tuple) -> dict:
     ids = [p["id"] for p in manifest["personas"]]
     events = generate(seed, cohort_sizes=cohorts, weeks=weeks, persona_ids=ids)
     started = time.perf_counter()
+    from validation.termsim.runner import install_vector_cache
+    install_vector_cache(ROOT / ".benchmark_cache" / "termsim" / "vectors")
     with TestClient(run.load_legacy_demo_app()) as client:
         from validation.termsim.runner import run_events
         rows = run_events(client, events, CorpusTextResolver(manifest), accrete=True)

@@ -4,7 +4,7 @@ from validation.termsim.gate import evaluate_t1, evaluate_t2, evaluate_t3, evalu
 from validation.termsim.matrix import cells
 from validation.termsim.metrics import compute
 from validation.termsim.personas import CorpusTextResolver, build_manifest
-from validation.termsim.runner import run_events
+from validation.termsim.runner import install_vector_cache, run_events
 from validation.termsim.scorecard import HONESTY, build, markdown
 from validation.termsim.script import dumps, generate, script_hash
 
@@ -70,6 +70,22 @@ def test_runner_uses_live_api(live_client, store_reset):
     assert all(row["action"] in {"no_action", "monitor", "schedule_conversation", "escalate"}
                for row in rows)
     assert all(row["baseline_count"] == 3 for row in rows)
+
+
+def test_vector_cache_warm_and_cold_are_identical(tmp_path, monkeypatch):
+    import numpy as np
+    from original.features import pipeline
+    from original.routers import students_scoring
+
+    calls = []
+    expected = np.arange(109, dtype=float)
+    monkeypatch.setattr(pipeline, "feature_vector",
+                        lambda text, keystroke_data=None: calls.append(text) or expected.copy())
+    install_vector_cache(tmp_path)
+    cold = students_scoring.feature_vector("same committed document")
+    warm = students_scoring.feature_vector("same committed document")
+    assert np.array_equal(cold, warm)
+    assert calls == ["same committed document"]
 
 
 def test_standard_matrix_and_scorecard_diff_are_explicit():

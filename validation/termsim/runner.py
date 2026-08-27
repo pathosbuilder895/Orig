@@ -3,8 +3,42 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import date, timedelta
+import fcntl
+import hashlib
+from pathlib import Path
+
+import numpy as np
 
 from original.principal import mint_principal_token
+
+
+def install_vector_cache(cache_dir: Path) -> None:
+    """Patch only the harness route bindings; production extraction is untouched."""
+    from original.constants import BASE_FEATURE_DIM
+    from original.features.pipeline import feature_vector as extract
+    from original.routers import students_baseline, students_scoring
+
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    def cached(text: str, keystroke_data=None):
+        # Behavioral features are request-specific and deliberately bypassed.
+        if keystroke_data:
+            return extract(text, keystroke_data=keystroke_data)
+        key = hashlib.sha256(f"{BASE_FEATURE_DIM}\0{text}".encode()).hexdigest()
+        path = cache_dir / f"{key}.npy"
+        lock_path = cache_dir / f"{key}.lock"
+        with lock_path.open("w") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            if path.exists():
+                return np.load(path)
+            vector = extract(text)
+            temporary = path.with_suffix(".tmp.npy")
+            np.save(temporary, vector)
+            temporary.replace(path)
+            return vector
+
+    students_baseline.feature_vector = cached
+    students_scoring.feature_vector = cached
 
 
 def run_events(
