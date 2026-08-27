@@ -49,6 +49,23 @@ Record each verdict in the corresponding `CLAUDE.md` row and `MODEL_CARD.md`.
 Fused shadow may stay on to grow its cheap longitudinal dataset; tear down
 characteristic shadow after its latency-bounded measurement.
 
+The peer-state scan benchmark is reproducible at the three pre-registered
+volumes with:
+
+```bash
+.venv/bin/python scripts/benchmark_characteristic_shadow.py --backend sqlite
+TERMSIM_BENCHMARK_DATABASE_URL="$LOCAL_POSTGRES_URL" \
+  .venv/bin/python scripts/benchmark_characteristic_shadow.py --backend postgres
+```
+
+The 2026-08-26 SQLite fixture measured p95 2.08/2.42/32.59 ms at
+50/500/5,000 profiles (`validation/characteristic_shadow_latency_2026-08-26.json`),
+so the bounded-pilot decision is to retain the scan with a 100 ms p95 alert.
+The Postgres measurement remains required before cutover; the campaign host's
+Docker daemon was unavailable, and the script refuses to target any implicit or
+production DSN. A Postgres result over the alert changes the decision to a bounded,
+tenant-scoped peer-stat query before shadow is enabled.
+
 ## Other Postgres-ready checks
 
 ```bash
