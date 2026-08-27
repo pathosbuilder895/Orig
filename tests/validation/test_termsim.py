@@ -33,16 +33,18 @@ def test_termsim_gate_failure_witnesses_and_power_floors():
 
 
 def test_term_script_is_seeded_and_scenario_constraints_hold():
-    first = generate(20260826, cohort_sizes=(8,))
-    second = generate(20260826, cohort_sizes=(8,))
+    first = generate(20260826, cohort_sizes=(24,))
+    second = generate(20260826, cohort_sizes=(24,))
     assert dumps(first) == dumps(second)
     assert script_hash(first) == script_hash(second)
+    # One tenant per cohort, scenarios mixed within it per SCENARIO_PATTERN.
+    assert {e["tenant"] for e in first} == {"termsim-cohort-24"}
     cold = [e for e in first if e["scenario"] == "COLDSTART" and e["kind"] == "baseline"]
-    # COLDSTART alternates 1/2 onboarding baselines per student index.
-    assert len(cold) == 12
+    # COLDSTART alternates 1/2 onboarding baselines per coldstart ordinal.
+    assert len(cold) == 6
     counts = {student: sum(e["student"] == student for e in cold)
               for student in {e["student"] for e in cold}}
-    assert sorted(counts.values()) == [1, 1, 1, 1, 2, 2, 2, 2]
+    assert sorted(counts.values()) == [1, 1, 2, 2]
     hybrid = [e for e in first if e["scenario"] == "HYBRID" and e["kind"] == "score"]
     assert hybrid and all(e["proxy"] is True for e in hybrid)
     changed = [e for e in first if e.get("onset_week") is not None]
@@ -56,7 +58,7 @@ def test_term_script_is_seeded_and_scenario_constraints_hold():
 def test_persona_scripts_swap_sources_and_resolve_committed_text():
     manifest = build_manifest()
     personas = manifest["personas"][:12]
-    events = generate(20260826, cohort_sizes=(8,), personas=personas)
+    events = generate(20260826, cohort_sizes=(24,), personas=personas)
     ghost_after = [e for e in events if e["scenario"] == "GHOST" and e.get("after_onset")]
     assert ghost_after and all(e["source_persona"] != e["persona"] for e in ghost_after)
     # TRANSFER is the SAME author writing from a held-out work — never a
@@ -171,7 +173,7 @@ def test_runner_extracts_nested_fields_and_records_drift_holds():
 
 
 def test_runner_uses_live_api(live_client, store_reset):
-    events = generate(7, cohort_sizes=(3,), weeks=3, scenarios=("HONEST",))
+    events = generate(7, cohort_sizes=(4,), weeks=3, scenarios=("HONEST",))
     # The real feature pipeline needs submission-sized prose; repeated words
     # keep this smoke deterministic and cheap while still crossing its floors.
     def text_for(event):
@@ -180,12 +182,12 @@ def test_runner_uses_live_api(live_client, store_reset):
 
     rows = run_events(live_client, events, text_for)
     scored = [row for row in rows if row["kind"] == "score"]
-    assert len(scored) == 3
+    assert len(scored) == 2
     assert all(row["action"] in {"no_action", "monitor", "schedule_conversation", "escalate"}
                for row in scored)
     assert all(row["baseline_count"] == 3 for row in scored)
     uploads = [row for row in rows if row["kind"] == "baseline"]
-    assert len(uploads) == 9
+    assert len(uploads) == 6
     assert all(row["drift_gate_held"] in (True, False) for row in uploads)
 
 
