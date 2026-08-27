@@ -1,0 +1,341 @@
+{
+  "cell": "baseline",
+  "metrics": {
+    "baseline_growth_slope": {
+      "mean": 0.03745134555708977,
+      "n_students": 12,
+      "per_student": [
+        0.06808702877610022,
+        0.027126712462291456,
+        0.07852047968608467,
+        -0.023928838696117293,
+        0.06808702877610022,
+        0.027126712462291456,
+        0.07852047968608467,
+        -0.023928838696117293,
+        0.06808702877610022,
+        0.027126712462291456,
+        0.07852047968608467,
+        -0.023928838696117293
+      ]
+    },
+    "coldstart_transfer_deltas": {
+      "COLDSTART": {
+        "escalate": -0.42307692307692313,
+        "monitor": 0.0,
+        "schedule_conversation": 0.0
+      },
+      "TRANSFER": {
+        "escalate": -0.32307692307692315,
+        "monitor": 0.0,
+        "schedule_conversation": 0.0
+      }
+    },
+    "honest_term_flag_probability": {
+      "escalate": {
+        "n": 39,
+        "rate": 0.9230769230769231,
+        "successes": 36,
+        "wilson_ci95": [
+          0.7967862687194474,
+          0.9734930859265043
+        ]
+      },
+      "monitor": {
+        "n": 39,
+        "rate": 1.0,
+        "successes": 39,
+        "wilson_ci95": [
+          0.9103301463997611,
+          1.0
+        ]
+      },
+      "schedule_conversation": {
+        "n": 39,
+        "rate": 1.0,
+        "successes": 39,
+        "wilson_ci95": [
+          0.9103301463997611,
+          1.0
+        ]
+      }
+    },
+    "mechanism_engagement": {
+      "blend_shift": {
+        "n": 0,
+        "rate": null,
+        "successes": 0,
+        "wilson_ci95": null
+      },
+      "drift_gate_hold": {
+        "n": 361,
+        "rate": 0.01662049861495845,
+        "successes": 6,
+        "wilson_ci95": [
+          0.007638911676412924,
+          0.03578157546101877
+        ]
+      },
+      "fused_abstain": {
+        "n": 756,
+        "rate": 1.0,
+        "successes": 756,
+        "wilson_ci95": [
+          0.9949442094247012,
+          1.0
+        ]
+      },
+      "inflation_fire": {
+        "n": 756,
+        "rate": 0.0,
+        "successes": 0,
+        "wilson_ci95": [
+          0.0,
+          0.005055790575298851
+        ]
+      },
+      "null_abstain": {
+        "n": 756,
+        "rate": 0.08333333333333333,
+        "successes": 63,
+        "wilson_ci95": [
+          0.06567519920023665,
+          0.10520462627917906
+        ]
+      },
+      "prior_abstain": {
+        "n": 0,
+        "rate": null,
+        "successes": 0,
+        "wilson_ci95": null
+      },
+      "typicality_abstain": {
+        "n": 756,
+        "rate": 1.0,
+        "successes": 756,
+        "wilson_ci95": [
+          0.9949442094247012,
+          1.0
+        ]
+      }
+    },
+    "scenario_term_flag_probability": {
+      "COLDSTART": {
+        "escalate": {
+          "n": 18,
+          "rate": 0.5,
+          "successes": 9,
+          "wilson_ci95": [
+            0.2903070395897999,
+            0.7096929604102
+          ]
+        },
+        "monitor": {
+          "n": 18,
+          "rate": 1.0,
+          "successes": 18,
+          "wilson_ci95": [
+            0.8241154494176252,
+            1.0
+          ]
+        },
+        "schedule_conversation": {
+          "n": 18,
+          "rate": 1.0,
+          "successes": 18,
+          "wilson_ci95": [
+            0.8241154494176252,
+            1.0
+          ]
+        }
+      },
+      "HONEST": {
+        "escalate": {
+          "n": 39,
+          "rate": 0.9230769230769231,
+          "successes": 36,
+          "wilson_ci95": [
+            0.7967862687194474,
+            0.9734930859265043
+          ]
+        },
+        "monitor": {
+          "n": 39,
+          "rate": 1.0,
+          "successes": 39,
+          "wilson_ci95": [
+            0.9103301463997611,
+            1.0
+          ]
+        },
+        "schedule_conversation": {
+          "n": 39,
+          "rate": 1.0,
+          "successes": 39,
+          "wilson_ci95": [
+            0.9103301463997611,
+            1.0
+          ]
+        }
+      },
+      "TRANSFER": {
+        "escalate": {
+          "n": 15,
+          "rate": 0.6,
+          "successes": 9,
+          "wilson_ci95": [
+            0.357464427565077,
+            0.8017577191740534
+          ]
+        },
+        "monitor": {
+          "n": 15,
+          "rate": 1.0,
+          "successes": 15,
+          "wilson_ci95": [
+            0.7961107336956521,
+            1.0
+          ]
+        },
+        "schedule_conversation": {
+          "n": 15,
+          "rate": 1.0,
+          "successes": 15,
+          "wilson_ci95": [
+            0.7961107336956521,
+            1.0
+          ]
+        }
+      }
+    },
+    "tier_precision": {
+      "escalate": {
+        "n": 369,
+        "rate": 0.37398373983739835,
+        "successes": 138,
+        "wilson_ci95": [
+          0.32615012109560004,
+          0.42441419361606303
+        ]
+      },
+      "monitor": {
+        "n": 732,
+        "rate": 0.19672131147540983,
+        "successes": 144,
+        "wilson_ci95": [
+          0.16953849543169927,
+          0.22707077482429058
+        ]
+      },
+      "schedule_conversation": {
+        "n": 689,
+        "rate": 0.20899854862119013,
+        "successes": 144,
+        "wilson_ci95": [
+          0.18029303961616844,
+          0.24093109011276237
+        ]
+      }
+    },
+    "time_to_detection": {
+      "AI": {
+        "monitor": {
+          "caught": {
+            "n": 9,
+            "rate": 1.0,
+            "successes": 9,
+            "wilson_ci95": [
+              0.7008472464490407,
+              1.0
+            ]
+          },
+          "censored": 0,
+          "median_delay_weeks_among_caught": 0
+        },
+        "schedule_conversation": {
+          "caught": {
+            "n": 9,
+            "rate": 1.0,
+            "successes": 9,
+            "wilson_ci95": [
+              0.7008472464490407,
+              1.0
+            ]
+          },
+          "censored": 0,
+          "median_delay_weeks_among_caught": 0
+        }
+      },
+      "GHOST": {
+        "monitor": {
+          "caught": {
+            "n": 21,
+            "rate": 1.0,
+            "successes": 21,
+            "wilson_ci95": [
+              0.8453561767357979,
+              0.9999999999999999
+            ]
+          },
+          "censored": 0,
+          "median_delay_weeks_among_caught": 0
+        },
+        "schedule_conversation": {
+          "caught": {
+            "n": 21,
+            "rate": 1.0,
+            "successes": 21,
+            "wilson_ci95": [
+              0.8453561767357979,
+              0.9999999999999999
+            ]
+          },
+          "censored": 0,
+          "median_delay_weeks_among_caught": 0
+        }
+      },
+      "HYBRID": {
+        "monitor": {
+          "caught": {
+            "n": 6,
+            "rate": 1.0,
+            "successes": 6,
+            "wilson_ci95": [
+              0.6096569663469354,
+              0.9999999999999999
+            ]
+          },
+          "censored": 0,
+          "median_delay_weeks_among_caught": 0
+        },
+        "schedule_conversation": {
+          "caught": {
+            "n": 6,
+            "rate": 1.0,
+            "successes": 6,
+            "wilson_ci95": [
+              0.6096569663469354,
+              0.9999999999999999
+            ]
+          },
+          "censored": 0,
+          "median_delay_weeks_among_caught": 0
+        }
+      }
+    }
+  },
+  "pooled_from": [
+    {
+      "event_log": "/Users/andrew/Desktop/Original/.claude/worktrees/termsim-validation-harness-b04ef3/.benchmark_cache/termsim/seed-20260826/baseline.jsonl",
+      "seed_dir": "seed-20260826"
+    },
+    {
+      "event_log": "/Users/andrew/Desktop/Original/.claude/worktrees/termsim-validation-harness-b04ef3/.benchmark_cache/termsim/seed-20260827/baseline.jsonl",
+      "seed_dir": "seed-20260827"
+    },
+    {
+      "event_log": "/Users/andrew/Desktop/Original/.claude/worktrees/termsim-validation-harness-b04ef3/.benchmark_cache/termsim/seed-20260828/baseline.jsonl",
+      "seed_dir": "seed-20260828"
+    }
+  ]
+}
