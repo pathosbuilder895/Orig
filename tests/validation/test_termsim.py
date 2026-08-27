@@ -209,8 +209,8 @@ def test_vector_cache_warm_and_cold_are_identical(tmp_path, monkeypatch):
 
 def test_standard_matrix_and_scorecard_diff_are_explicit():
     matrix = cells()
-    assert set(matrix) == {"baseline", "llr-shadow", "no-context", "topic-inflation",
-                           "characteristic-weights", "genre-v2"}
+    assert set(matrix) == {"baseline", "baseline-frozen", "llr-shadow", "no-context",
+                           "topic-inflation", "characteristic-weights", "genre-v2"}
     baseline = compute([])
     changed = compute([])
     baseline["honest_term_flag_probability"]["monitor"].update(rate=0.2, n=10)
@@ -295,3 +295,26 @@ def test_runner_postgres_smoke(monkeypatch, store_reset):
     finally:
         reset_repository()
         postgres_session.reset_engine()
+
+
+def test_accrete_skips_flagged_submissions():
+    events = [
+        {"tenant": "t", "student": "t:s0", "week": 0, "kind": "baseline",
+         "doc_number": 0, "scenario": "HONEST", "authenticated": True},
+        {"tenant": "t", "student": "t:s0", "week": 1, "kind": "score",
+         "doc_number": 1, "scenario": "HONEST"},
+    ]
+
+    class _FlaggingClient(_CannedClient):
+        def post(self, url, json=None, headers=None):
+            response = super().post(url, json=json, headers=headers)
+            if url.endswith("/score"):
+                response._payload = dict(response._payload)
+                response._payload["recommendation"] = {"action": "escalate"}
+            return response
+
+    client = _FlaggingClient(baseline_statuses=[200, 200])
+    rows = run_events(client, events, lambda event: "text", accrete=True)
+    # The flagged submission must NOT be folded into the baseline.
+    assert [r["kind"] for r in rows] == ["baseline", "score"]
+    assert rows[-1]["baseline_count"] == 1

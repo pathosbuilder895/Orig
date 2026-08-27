@@ -8,6 +8,15 @@ STANDARD = {
         "NULL_MODEL": "impostor",
         "LLR_ACTION_MODE": "gate",
     },
+    # Identical flags to `baseline` but the runner never accretes accepted
+    # submissions — the accrete-vs-frozen delta is itself a metric (T2's
+    # two-mode requirement; the main-path analogue of the fused C1 confound).
+    "baseline-frozen": {
+        "CONTEXT_MANIFEST_ENABLED": "1",
+        "ADAPTIVE_WEIGHTS_ENABLED": "1",
+        "NULL_MODEL": "impostor",
+        "LLR_ACTION_MODE": "gate",
+    },
     "llr-shadow": {
         "CONTEXT_MANIFEST_ENABLED": "1",
         "ADAPTIVE_WEIGHTS_ENABLED": "1",
@@ -41,6 +50,10 @@ STANDARD = {
         "GENRE_RESOLVER_V2": "on",
     },
 }
+
+
+# Cells the runner replays WITHOUT accreting accepted submissions.
+FROZEN_CELLS = frozenset({"baseline-frozen"})
 
 
 def cells(name="standard") -> dict[str, dict[str, str]]:

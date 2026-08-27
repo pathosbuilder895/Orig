@@ -9,7 +9,7 @@ import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
-from validation.termsim.matrix import cells
+from validation.termsim.matrix import FROZEN_CELLS, cells
 from validation.termsim.metrics import compute
 from validation.termsim.personas import CorpusTextResolver, build_manifest
 from validation.termsim.scorecard import build, json_text, markdown, verify_diff_directions
@@ -59,7 +59,8 @@ def _run_cell(payload: tuple) -> dict:
     install_vector_cache(ROOT / ".benchmark_cache" / "termsim" / "vectors")
     with TestClient(run.load_legacy_demo_app()) as client:
         from validation.termsim.runner import run_events
-        rows = run_events(client, events, CorpusTextResolver(manifest), accrete=True)
+        rows = run_events(client, events, CorpusTextResolver(manifest),
+                          accrete=name not in FROZEN_CELLS)
     elapsed = time.perf_counter() - started
     output = Path(out_dir)
     output.mkdir(parents=True, exist_ok=True)

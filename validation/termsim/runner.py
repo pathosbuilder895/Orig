@@ -132,17 +132,21 @@ def run_events(
             }
         )
         output.append(row)
-        if accrete:
-            accepted = client.post(
+        # Accrete-mode adds only ACCEPTED submissions (nothing at
+        # schedule_conversation or above) — a deployment would not fold a
+        # flagged submission into the very baseline it was flagged against.
+        # The baseline route's own drift gate still gets the final word.
+        if accrete and row["action"] in ("no_action", "monitor"):
+            upload = client.post(
                 f"/students/{student}/baseline",
                 json={"text": text, "provenance": "verified", "submitted_at": submitted_at},
                 headers=headers[tenant],
             )
-            if accepted.status_code not in (200, 202, 409):
+            if upload.status_code not in (200, 202, 409):
                 raise RuntimeError(
-                    f"accrete HTTP {accepted.status_code}: {accepted.text}"
+                    f"accrete HTTP {upload.status_code}: {upload.text}"
                 )
-            held = accepted.status_code != 200
+            held = upload.status_code != 200
             if not held:
                 baseline_counts[student] = baseline_counts.get(student, 0) + 1
             accrete_row = dict(event)
