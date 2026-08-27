@@ -130,7 +130,8 @@ class _CannedClient:
         if url.endswith("/baseline"):
             status = self._baseline_statuses.pop(0)
             body = {} if status == 200 else {
-                "detail": {"status": "pending_review", "drift": {"recommendation": "flag_for_review"}}
+                "detail": {"status": "pending_review",
+                           "drift": {"recommendation": "flag_for_review"}}
             }
             return _CannedResponse(status, body)
         return _CannedResponse(200, {
@@ -193,6 +194,7 @@ def test_runner_uses_live_api(live_client, store_reset):
 
 def test_vector_cache_warm_and_cold_are_identical(tmp_path, monkeypatch):
     import numpy as np
+
     from original.features import pipeline
     from original.routers import students_scoring
 
@@ -237,6 +239,7 @@ def test_diff_direction_check_flags_gate_exceeding_shadow():
 
 def test_gate_evidence_pools_seeds_without_merging_students(tmp_path):
     import json as json_module
+
     from validation.termsim.__main__ import pooled_gate_evidence
 
     for seed in ("seed-1", "seed-2"):
@@ -282,6 +285,7 @@ def test_runner_postgres_smoke(monkeypatch, store_reset):
     reset_repository()
     try:
         from fastapi.testclient import TestClient
+
         import run as run_module
 
         client = TestClient(run_module.load_legacy_demo_app())

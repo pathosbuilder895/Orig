@@ -1,4 +1,10 @@
-"""Pure deployment-outcome metrics over TermSim event dictionaries."""
+"""Pure deployment-outcome metrics over TermSim event dictionaries.
+
+Everything here aggregates response-level scalars (actions, scores, abstain
+flags) — never per-feature columns. If a future metric aggregates over
+feature columns it MUST go through validation/measurability.py's checks so
+blank/scoring-only/disabled features raise instead of averaging in silently.
+"""
 from __future__ import annotations
 
 import math

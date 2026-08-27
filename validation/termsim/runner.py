@@ -1,10 +1,10 @@
 """Replay TermSim events through the live FastAPI routes."""
 from __future__ import annotations
 
-from collections.abc import Callable
-from datetime import date, timedelta
 import fcntl
 import hashlib
+from collections.abc import Callable
+from datetime import date, timedelta
 from pathlib import Path
 
 import numpy as np

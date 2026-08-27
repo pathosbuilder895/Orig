@@ -13,7 +13,7 @@ from validation.termsim.matrix import FROZEN_CELLS, cells
 from validation.termsim.metrics import compute
 from validation.termsim.personas import CorpusTextResolver, build_manifest
 from validation.termsim.scorecard import build, json_text, markdown, verify_diff_directions
-from validation.termsim.script import dumps, generate, script_hash
+from validation.termsim.script import generate, script_hash
 
 ROOT = Path(__file__).resolve().parents[2]
 SCORE_FLAGS = {
@@ -49,6 +49,7 @@ def _run_cell(payload: tuple) -> dict:
     os.environ.setdefault("SECRET_KEY", "termsim-isolated-secret-" * 3)
 
     from fastapi.testclient import TestClient
+
     import run
 
     manifest = build_manifest()
@@ -99,7 +100,8 @@ def _describe(seed: int, cohorts: tuple[int, ...], weeks: int) -> None:
     for scenario in ("HONEST", "GHOST", "AI", "HYBRID", "COLDSTART", "TRANSFER"):
         scores = [e for e in events if e["scenario"] == scenario and e["kind"] == "score"]
         onsets = sorted({e["onset_week"] for e in scores if e.get("onset_week") is not None})
-        print(f"  {scenario}: {len(scores)} submissions" + (f"; onset weeks {onsets}" if onsets else ""))
+        onset_note = f"; onset weeks {onsets}" if onsets else ""
+        print(f"  {scenario}: {len(scores)} submissions{onset_note}")
     print(f"script_sha256={script_hash(events)}")
 
 
@@ -112,7 +114,9 @@ def main(argv=None) -> int:
     run_parser.add_argument("--seed", type=int, default=20260826)
     run_parser.add_argument("--cohorts", default="3,8,25")
     run_parser.add_argument("--weeks", type=int, default=15)
-    run_parser.add_argument("--scenarios", default=",".join(("HONEST", "GHOST", "AI", "HYBRID", "COLDSTART", "TRANSFER")))
+    run_parser.add_argument(
+        "--scenarios",
+        default=",".join(("HONEST", "GHOST", "AI", "HYBRID", "COLDSTART", "TRANSFER")))
     run_parser.add_argument("--workers", type=int, default=3)
     run_parser.add_argument("--backend", choices=("sqlite", "postgres"), default="sqlite")
     run_parser.add_argument("--out", default=str(ROOT / ".benchmark_cache" / "termsim"))

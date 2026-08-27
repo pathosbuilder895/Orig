@@ -28,8 +28,8 @@ slip silently binds to the wrong parameter and can flip a witness from
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Optional
 
 from validation.calibration_gate import (
     GateResult,
@@ -55,7 +55,7 @@ class GateContract:
     gate: str
     claims: str
     failure_witness: Callable[[], GateResult]
-    label_destruction: Optional[Callable[[], GateResult]] = None
+    label_destruction: Callable[[], GateResult] | None = None
     notes: str = ""
 
 
