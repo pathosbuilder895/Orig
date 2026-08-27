@@ -43,3 +43,28 @@ def markdown(scorecard: dict) -> str:
 
 def json_text(scorecard: dict) -> str:
     return json.dumps(scorecard, indent=2, sort_keys=True) + "\n"
+
+
+def verify_diff_directions(metrics_by_cell: dict[str, dict]) -> list[dict]:
+    """Directional sanity checks between matrix cells on identical scripts.
+
+    LLR_ACTION_MODE=gate may only DOWNGRADE actions relative to shadow, so on
+    the same script the TRANSFER term-flag probability under `baseline` (gate)
+    must not exceed `llr-shadow`'s at any threshold. A violation means the
+    harness compared different scripts or the mode leaked — either way the
+    run's diffs are not trustworthy.
+    """
+    checks = []
+    gate = metrics_by_cell.get("baseline")
+    shadow = metrics_by_cell.get("llr-shadow")
+    if gate and shadow:
+        for threshold in ("monitor", "schedule_conversation", "escalate"):
+            lhs = gate["scenario_term_flag_probability"]["TRANSFER"][threshold]["rate"]
+            rhs = shadow["scenario_term_flag_probability"]["TRANSFER"][threshold]["rate"]
+            comparable = lhs is not None and rhs is not None
+            checks.append({
+                "check": f"gate<=shadow TRANSFER {threshold}",
+                "gate_rate": lhs, "shadow_rate": rhs,
+                "ok": (lhs <= rhs) if comparable else None,
+            })
+    return checks

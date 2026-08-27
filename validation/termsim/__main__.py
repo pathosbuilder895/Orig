@@ -12,7 +12,7 @@ from pathlib import Path
 from validation.termsim.matrix import cells
 from validation.termsim.metrics import compute
 from validation.termsim.personas import CorpusTextResolver, build_manifest
-from validation.termsim.scorecard import build, json_text, markdown
+from validation.termsim.scorecard import build, json_text, markdown, verify_diff_directions
 from validation.termsim.script import dumps, generate, script_hash
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -57,6 +57,28 @@ def _run_cell(payload: tuple) -> dict:
             "event_log": str(log_path), "metrics": compute(rows)}
 
 
+def pooled_gate_evidence(seed_dirs: list[Path], cell: str = "baseline") -> dict:
+    """Pool a cell's event logs across seeds into one gate-evidence payload.
+
+    Students are namespaced by seed before pooling so per-student term
+    aggregation never merges two seeds' terms; the pooled metrics are what
+    reports/latest.json feeds the T-gates (T-4's minimum-N floor is only
+    reachable pooled — one seed carries 6 COLDSTART students against a
+    floor of 8).
+    """
+    rows = []
+    provenance = []
+    for seed_dir in seed_dirs:
+        log_path = seed_dir / f"{cell}.jsonl"
+        seed_name = seed_dir.name
+        for line in log_path.read_text().splitlines():
+            row = json.loads(line)
+            row["student"] = f"{seed_name}:{row['student']}"
+            rows.append(row)
+        provenance.append({"seed_dir": seed_name, "event_log": str(log_path)})
+    return {"cell": cell, "metrics": compute(rows), "pooled_from": provenance}
+
+
 def _describe(seed: int, cohorts: tuple[int, ...], weeks: int) -> None:
     events = generate(seed, cohort_sizes=cohorts, weeks=weeks)
     print(f"TermSim seed {seed}: {weeks} weeks; cohorts {', '.join(map(str, cohorts))}")
@@ -83,7 +105,24 @@ def main(argv=None) -> int:
     describe.add_argument("--seed", type=int, default=20260826)
     describe.add_argument("--cohorts", default="3,8,25")
     describe.add_argument("--weeks", type=int, default=15)
+    evidence = sub.add_parser("gate-evidence")
+    evidence.add_argument("--seeds", required=True,
+                          help="comma-separated seeds whose runs to pool")
+    evidence.add_argument("--cell", default="baseline")
+    evidence.add_argument("--runs", default=str(ROOT / ".benchmark_cache" / "termsim"))
+    evidence.add_argument("--out", default=str(ROOT / "validation" / "termsim"
+                                               / "reports" / "latest.json"))
     args = parser.parse_args(argv)
+    if args.command == "gate-evidence":
+        seed_dirs = [Path(args.runs) / f"seed-{s.strip()}" for s in args.seeds.split(",")]
+        payload = pooled_gate_evidence(seed_dirs, args.cell)
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+        honest = payload["metrics"]["honest_term_flag_probability"]
+        print(f"wrote {out} (honest schedule_conversation rate="
+              f"{honest['schedule_conversation']['rate']})")
+        return 0
     cohorts = tuple(int(value) for value in args.cohorts.split(","))
     if args.command == "describe":
         _describe(args.seed, cohorts, args.weeks)
@@ -116,7 +155,14 @@ def main(argv=None) -> int:
                      ("elapsed_seconds", "script_sha256", "manifest_sha256", "event_log")})
         (run_dir / f"{result['cell']}.json").write_text(json_text(card))
         (run_dir / f"{result['cell']}.md").write_text(markdown(card))
-    return 0
+    checks = verify_diff_directions({r["cell"]: r["metrics"] for r in results})
+    if checks:
+        (run_dir / "diff_checks.json").write_text(
+            json.dumps(checks, indent=2, sort_keys=True) + "\n")
+        for check in checks:
+            status = {True: "ok", False: "VIOLATED", None: "not comparable"}[check["ok"]]
+            print(f"{check['check']}: {status}")
+    return 0 if all(c["ok"] is not False for c in checks) else 1
 
 
 if __name__ == "__main__":

@@ -218,3 +218,37 @@ def test_standard_matrix_and_scorecard_diff_are_explicit():
     card = build("llr-shadow", 1, changed, matrix["llr-shadow"], baseline)
     assert card["diff_vs_baseline"]["monitor"] == pytest.approx(-0.1)
     assert HONESTY in markdown(card)
+
+
+def test_diff_direction_check_flags_gate_exceeding_shadow():
+    from validation.termsim.scorecard import verify_diff_directions
+
+    def cell(rate):
+        return {"scenario_term_flag_probability": {"TRANSFER": {
+            threshold: {"rate": rate, "n": 10}
+            for threshold in ("monitor", "schedule_conversation", "escalate")}}}
+
+    ok = verify_diff_directions({"baseline": cell(0.4), "llr-shadow": cell(0.5)})
+    assert ok and all(c["ok"] for c in ok)
+    bad = verify_diff_directions({"baseline": cell(0.6), "llr-shadow": cell(0.5)})
+    assert bad and all(c["ok"] is False for c in bad)
+    assert verify_diff_directions({"baseline": cell(0.4)}) == []
+
+
+def test_gate_evidence_pools_seeds_without_merging_students(tmp_path):
+    import json as json_module
+    from validation.termsim.__main__ import pooled_gate_evidence
+
+    for seed in ("seed-1", "seed-2"):
+        seed_dir = tmp_path / seed
+        seed_dir.mkdir()
+        rows = [{"kind": "score", "student": "t:s0", "scenario": "HONEST", "week": 1,
+                 "action": "schedule_conversation" if seed == "seed-1" else "no_action",
+                 "baseline_count": 3, "deviation_score": 0.5}]
+        (seed_dir / "baseline.jsonl").write_text(
+            "".join(json_module.dumps(r) + "\n" for r in rows))
+    payload = pooled_gate_evidence([tmp_path / "seed-1", tmp_path / "seed-2"])
+    honest = payload["metrics"]["honest_term_flag_probability"]["schedule_conversation"]
+    # Two seeds' students stay two students: one flagged of two.
+    assert honest["n"] == 2
+    assert honest["rate"] == 0.5
