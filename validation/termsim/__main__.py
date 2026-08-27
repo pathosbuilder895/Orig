@@ -22,7 +22,7 @@ SCORE_FLAGS = {
 
 
 def _run_cell(payload: tuple) -> dict:
-    name, flags, seed, cohorts, weeks, scenarios, out_dir = payload
+    name, flags, seed, cohorts, weeks, scenarios, out_dir, backend = payload
     # Determinism guard: main() exports this before spawning workers, so a
     # worker without it means the harness was entered some other way.
     assert os.environ.get("PYTHONHASHSEED") == "0", "PYTHONHASHSEED=0 not exported"
@@ -31,8 +31,21 @@ def _run_cell(payload: tuple) -> dict:
     os.environ.update(flags)
     db_dir = Path(tempfile.mkdtemp(prefix=f"termsim-{name}-"))
     os.environ["ORIGINAL_DB"] = str(db_dir / "profiles.db")
-    os.environ["DATABASE_URL"] = f"sqlite:///{db_dir / 'live.db'}"
-    os.environ["REPO_BACKEND"] = "sqlite"
+    if backend == "postgres":
+        from validation.termsim.runner import create_postgres_schema, isolated_postgres_url
+
+        base_url = os.environ.get("DATABASE_URL", "")
+        if not base_url.startswith("postgresql"):
+            raise RuntimeError(
+                "--backend postgres needs DATABASE_URL set to a postgresql:// "
+                "instance — run `bash scripts/local_postgres.sh up` and export "
+                "DATABASE_URL=$(bash scripts/local_postgres.sh url)")
+        os.environ["DATABASE_URL"] = isolated_postgres_url(base_url, name)
+        os.environ["REPO_BACKEND"] = "postgres"
+        create_postgres_schema()
+    else:
+        os.environ["DATABASE_URL"] = f"sqlite:///{db_dir / 'live.db'}"
+        os.environ["REPO_BACKEND"] = "sqlite"
     os.environ.setdefault("SECRET_KEY", "termsim-isolated-secret-" * 3)
 
     from fastapi.testclient import TestClient
@@ -100,6 +113,7 @@ def main(argv=None) -> int:
     run_parser.add_argument("--weeks", type=int, default=15)
     run_parser.add_argument("--scenarios", default=",".join(("HONEST", "GHOST", "AI", "HYBRID", "COLDSTART", "TRANSFER")))
     run_parser.add_argument("--workers", type=int, default=3)
+    run_parser.add_argument("--backend", choices=("sqlite", "postgres"), default="sqlite")
     run_parser.add_argument("--out", default=str(ROOT / ".benchmark_cache" / "termsim"))
     describe = sub.add_parser("describe")
     describe.add_argument("--seed", type=int, default=20260826)
@@ -136,7 +150,8 @@ def main(argv=None) -> int:
         matrix = {args.cell: matrix[args.cell]}
     run_dir = Path(args.out) / f"seed-{args.seed}"
     scenarios = tuple(value.strip().upper() for value in args.scenarios.split(","))
-    payloads = [(name, flags, args.seed, cohorts, args.weeks, scenarios, str(run_dir))
+    payloads = [(name, flags, args.seed, cohorts, args.weeks, scenarios, str(run_dir),
+                 args.backend)
                 for name, flags in matrix.items()]
     results = []
     # Import through the canonical module name: macOS uses spawn and cannot

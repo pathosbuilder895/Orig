@@ -41,6 +41,33 @@ def install_vector_cache(cache_dir: Path) -> None:
     students_scoring.feature_vector = cached
 
 
+def isolated_postgres_url(base_url: str, cell: str) -> str:
+    """Create (dropping any stale copy) a per-cell database on the local
+    Postgres instance and return its URL. Cells run in parallel worker
+    processes; a shared database would interleave their tenants, so each
+    cell gets ``termsim_<cell>`` on the same server instead."""
+    import sqlalchemy
+
+    dbname = f"termsim_{cell.replace('-', '_')}"
+    engine = sqlalchemy.create_engine(base_url, isolation_level="AUTOCOMMIT")
+    try:
+        with engine.connect() as conn:
+            conn.execute(sqlalchemy.text(f'DROP DATABASE IF EXISTS "{dbname}"'))
+            conn.execute(sqlalchemy.text(f'CREATE DATABASE "{dbname}"'))
+    finally:
+        engine.dispose()
+    return base_url.rsplit("/", 1)[0] + "/" + dbname
+
+
+def create_postgres_schema() -> None:
+    """Create the live schema on whatever DATABASE_URL now points at."""
+    from original.db import postgres_session
+    from original.db.models.live import LiveBase
+
+    postgres_session.reset_engine()
+    LiveBase.metadata.create_all(bind=postgres_session.get_engine())
+
+
 def run_events(
     client, events: list[dict], text_for: Callable[[dict], str], accrete=False
 ) -> list[dict]:

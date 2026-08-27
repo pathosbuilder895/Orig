@@ -252,3 +252,46 @@ def test_gate_evidence_pools_seeds_without_merging_students(tmp_path):
     # Two seeds' students stay two students: one flagged of two.
     assert honest["n"] == 2
     assert honest["rate"] == 0.5
+
+
+@pytest.mark.postgres
+def test_runner_postgres_smoke(monkeypatch, store_reset):
+    """The TermSim runner exercises the real Postgres persistence path.
+
+    Skips (like every postgres-marked test) unless DATABASE_URL points at a
+    reachable postgresql:// instance — `bash scripts/local_postgres.sh up`.
+    """
+    base_url = None
+    import os
+    db_url = os.environ.get("DATABASE_URL", "")
+    if db_url.startswith("postgresql"):
+        base_url = db_url
+    if base_url is None:
+        pytest.skip("no reachable Postgres — set DATABASE_URL to run this")
+    from original.db import postgres_session
+    from original.repository import reset_repository
+    from validation.termsim.runner import create_postgres_schema, isolated_postgres_url
+
+    try:
+        cell_url = isolated_postgres_url(base_url, "pytest_smoke")
+    except Exception as error:  # server present in env but unreachable
+        pytest.skip(f"Postgres not reachable: {error}")
+    monkeypatch.setenv("DATABASE_URL", cell_url)
+    monkeypatch.setenv("REPO_BACKEND", "postgres")
+    create_postgres_schema()
+    reset_repository()
+    try:
+        from fastapi.testclient import TestClient
+        import run as run_module
+
+        client = TestClient(run_module.load_legacy_demo_app())
+        events = generate(7, cohort_sizes=(4,), weeks=3, scenarios=("HONEST",))
+        text = "Careful writers revise claims with evidence and context. " * 70
+        rows = run_events(client, events, lambda event: text + str(event["doc_number"]))
+        scored = [row for row in rows if row["kind"] == "score"]
+        assert len(scored) == 2
+        assert all(row["action"] in {"no_action", "monitor", "schedule_conversation",
+                                     "escalate"} for row in scored)
+    finally:
+        reset_repository()
+        postgres_session.reset_engine()
