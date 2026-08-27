@@ -22,7 +22,7 @@ SCORE_FLAGS = {
 
 
 def _run_cell(payload: tuple) -> dict:
-    name, flags, seed, cohorts, weeks, out_dir = payload
+    name, flags, seed, cohorts, weeks, scenarios, out_dir = payload
     for key in SCORE_FLAGS:
         os.environ[key] = "0"
     os.environ.update(flags)
@@ -37,7 +37,8 @@ def _run_cell(payload: tuple) -> dict:
 
     manifest = build_manifest()
     ids = [p["id"] for p in manifest["personas"]]
-    events = generate(seed, cohort_sizes=cohorts, weeks=weeks, persona_ids=ids)
+    events = generate(seed, cohort_sizes=cohorts, weeks=weeks, persona_ids=ids,
+                      scenarios=scenarios)
     started = time.perf_counter()
     from validation.termsim.runner import install_vector_cache
     install_vector_cache(ROOT / ".benchmark_cache" / "termsim" / "vectors")
@@ -73,6 +74,7 @@ def main(argv=None) -> int:
     run_parser.add_argument("--seed", type=int, default=20260826)
     run_parser.add_argument("--cohorts", default="3,8,25")
     run_parser.add_argument("--weeks", type=int, default=15)
+    run_parser.add_argument("--scenarios", default=",".join(("HONEST", "GHOST", "AI", "HYBRID", "COLDSTART", "TRANSFER")))
     run_parser.add_argument("--workers", type=int, default=3)
     run_parser.add_argument("--out", default=str(ROOT / ".benchmark_cache" / "termsim"))
     describe = sub.add_parser("describe")
@@ -89,7 +91,8 @@ def main(argv=None) -> int:
     if args.cell:
         matrix = {args.cell: matrix[args.cell]}
     run_dir = Path(args.out) / f"seed-{args.seed}"
-    payloads = [(name, flags, args.seed, cohorts, args.weeks, str(run_dir))
+    scenarios = tuple(value.strip().upper() for value in args.scenarios.split(","))
+    payloads = [(name, flags, args.seed, cohorts, args.weeks, scenarios, str(run_dir))
                 for name, flags in matrix.items()]
     results = []
     # Import through the canonical module name: macOS uses spawn and cannot

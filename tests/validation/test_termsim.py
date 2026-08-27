@@ -38,7 +38,9 @@ def test_term_script_is_seeded_and_scenario_constraints_hold():
     assert dumps(first) == dumps(second)
     assert script_hash(first) == script_hash(second)
     cold = [e for e in first if e["scenario"] == "COLDSTART" and e["kind"] == "baseline"]
-    assert len(cold) == 2
+    assert len(cold) == 16
+    assert all(sum(e["student"] == student for e in cold) == 2
+               for student in {e["student"] for e in cold})
     hybrid = [e for e in first if e["scenario"] == "HYBRID" and e["kind"] == "score"]
     assert hybrid and all(e["proxy"] is True for e in hybrid)
     changed = [e for e in first if e.get("onset_week") is not None]
@@ -58,7 +60,7 @@ def test_persona_scripts_swap_sources_and_resolve_committed_text():
 
 
 def test_runner_uses_live_api(live_client, store_reset):
-    events = generate(7, cohort_sizes=(3,), weeks=3)
+    events = generate(7, cohort_sizes=(3,), weeks=3, scenarios=("HONEST",))
     # The real feature pipeline needs submission-sized prose; repeated words
     # keep this smoke deterministic and cheap while still crossing its floors.
     def text_for(event):
