@@ -120,6 +120,19 @@ exclude-not-abort behavior rule 4 describes.
     # gate as non-failing.
     .venv/bin/python -m validation.calibration_gate --strict
 
+    # deployment-shaped layer (real API, isolated DB per matrix cell)
+    .venv/bin/python -m validation.termsim describe --seed 20260826
+    .venv/bin/python -m validation.termsim run --matrix standard --seed 20260826
+
+TermSim is the mandatory middle leg for score-changing flags. Enablement now
+requires all three: (1) the relevant corpus gate passes, (2) the identical-script
+TermSim diff is acceptable, and (3) the pilot shadow soak demonstrates that the
+mechanism engages sanely on real traffic. Its public-domain personas are synthetic;
+absolute rates do not transfer to students. Only configuration differences on the
+same script are interpretable. The harness patches the two API route modules' local
+`feature_vector` bindings to use `.benchmark_cache/termsim/vectors/`; production code
+has no cache path, and baseline-dependent comparison dimensions are always recomputed.
+
     # G8's shuffled-label control requires scikit-learn. It is installed by
     # requirements-demo.txt (and therefore requirements.txt), with the same
     # supported range in requirements-dev.txt. A hand-built environment
