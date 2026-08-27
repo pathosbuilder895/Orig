@@ -1,6 +1,7 @@
 import pytest
 
 from validation.fusion_confound.analyze import analyze_rows
+from validation.fusion_confound.synthetic import report as synthetic_report
 
 
 def test_recovers_baseline_volume_slope_controlling_reference_count():
@@ -28,3 +29,10 @@ def test_abstains_loudly_when_rows_are_thin():
     report = analyze_rows([{"abstain_reason": "thin_reference"}])
     assert report["verdict"] == "uninformative"
     assert report["abstain_reasons"] == {"thin_reference": 1}
+
+
+def test_synthetic_fixture_reproduces_known_endpoint_shape():
+    result = synthetic_report()
+    assert result["fixture"]["compression_at_3"] == pytest.approx(0.799)
+    assert result["fixture"]["compression_at_48"] == pytest.approx(0.730)
+    assert result["compression_channel"]["baseline_slope"] < 0
