@@ -47,6 +47,7 @@ from validation.calibration_gate import (
     evaluate_g_t3_growth,
     evaluate_g_t4_coldstart,
 )
+from validation.termsim.gate import FUSED_COMPRESSION_SLOPE
 
 
 @dataclass(frozen=True)
@@ -71,8 +72,13 @@ GATE_CONTRACTS: dict[str, GateContract] = {
     ),
     "evaluate_g_t3_growth": GateContract(
         gate="T-3", claims="baseline-growth neutrality",
-        failure_witness=lambda: evaluate_g_t3_growth(0.03, 5),
-        notes="Longitudinal neutrality has no authorship-label input to destroy.",
+        # The witness is the MEASURED fused compression-channel confound
+        # (0.799 @ 3 baselines -> 0.730 @ 48; tests/test_fusion_confound.py),
+        # not a synthetic number: T-3's bound is calibrated below it so the
+        # known-bad channel demonstrably fails this gate when attached.
+        failure_witness=lambda: evaluate_g_t3_growth(FUSED_COMPRESSION_SLOPE, 8),
+        notes="Longitudinal neutrality has no authorship-label input to destroy; "
+              "witness = the measured fused C1 slope.",
     ),
     "evaluate_g_t4_coldstart": GateContract(
         gate="T-4", claims="cold-start parity",
