@@ -38,25 +38,67 @@ def test_term_script_is_seeded_and_scenario_constraints_hold():
     assert dumps(first) == dumps(second)
     assert script_hash(first) == script_hash(second)
     cold = [e for e in first if e["scenario"] == "COLDSTART" and e["kind"] == "baseline"]
-    assert len(cold) == 16
-    assert all(sum(e["student"] == student for e in cold) == 2
-               for student in {e["student"] for e in cold})
+    # COLDSTART alternates 1/2 onboarding baselines per student index.
+    assert len(cold) == 12
+    counts = {student: sum(e["student"] == student for e in cold)
+              for student in {e["student"] for e in cold}}
+    assert sorted(counts.values()) == [1, 1, 1, 1, 2, 2, 2, 2]
     hybrid = [e for e in first if e["scenario"] == "HYBRID" and e["kind"] == "score"]
     assert hybrid and all(e["proxy"] is True for e in hybrid)
     changed = [e for e in first if e.get("onset_week") is not None]
     assert all(5 <= e["onset_week"] <= 9 for e in changed)
+    # Home submissions never reuse an onboarding draw from the same pool.
+    honest_home = [e for e in first if e["scenario"] == "HONEST"
+                   and e["kind"] == "score" and e["doc_role"] == "home"]
+    assert honest_home and all(e["doc_number"] >= 3 for e in honest_home)
 
 
 def test_persona_scripts_swap_sources_and_resolve_committed_text():
     manifest = build_manifest()
-    ids = [p["id"] for p in manifest["personas"][:12]]
-    events = generate(20260826, cohort_sizes=(8,), persona_ids=ids)
+    personas = manifest["personas"][:12]
+    events = generate(20260826, cohort_sizes=(8,), personas=personas)
     ghost_after = [e for e in events if e["scenario"] == "GHOST" and e.get("after_onset")]
-    transfer = [e for e in events if e["scenario"] == "TRANSFER" and e["kind"] == "score"]
     assert ghost_after and all(e["source_persona"] != e["persona"] for e in ghost_after)
-    assert transfer and all(not e["genre_covered_by_baseline"] for e in transfer)
+    # TRANSFER is the SAME author writing from a held-out work — never a
+    # different persona (that would be GHOST all term, not a transfer).
+    transfer = [e for e in events if e["scenario"] == "TRANSFER" and e["kind"] == "score"]
+    assert transfer
+    assert all(e["source_persona"] == e["persona"] for e in transfer)
+    assert all(e["doc_role"] == "away" for e in transfer)
+    assert all(not e["genre_covered_by_baseline"] for e in transfer)
+    multi = {p["id"] for p in personas if p["n_groups"] >= 2}
+    assert all(e["persona"] in multi for e in transfer)
+    # HONEST terms contain exactly the scripted mid-term curriculum shift.
+    shifts = [e for e in events if e["scenario"] == "HONEST" and e.get("curriculum_shift")]
+    assert shifts and all(e["doc_role"] == "away" for e in shifts)
     resolver = CorpusTextResolver(manifest)
     assert len(resolver(events[0]).split()) >= 300
+
+
+def test_resolver_home_and_away_pools_are_disjoint_for_multiwork_personas():
+    manifest = build_manifest()
+    resolver = CorpusTextResolver(manifest)
+    checked = 0
+    for persona in manifest["personas"]:
+        if persona["n_groups"] < 2:
+            continue
+        home, away = resolver._pools(persona)
+        assert not set(home) & set(away)
+        assert set(home) | set(away) == set(range(persona["n_docs"]))
+        checked += 1
+    assert checked >= 10
+
+
+def test_mechanical_paraphrase_is_deterministic_prose():
+    from validation.termsim.personas import _mechanical_paraphrase
+
+    text = "First point made. Second point follows; with a caveat. Third — final — point."
+    out = _mechanical_paraphrase(text)
+    assert out == _mechanical_paraphrase(text)
+    assert out != text
+    assert sorted(out.replace(",", "").replace(".", "").split()) \
+        == sorted(text.replace(";", "").replace(",", "").replace(".", "")
+                  .replace("—", "").split())
 
 
 class _CannedResponse:
@@ -102,11 +144,11 @@ class _CannedClient:
 def test_runner_extracts_nested_fields_and_records_drift_holds():
     events = [
         {"tenant": "t", "student": "t:s0", "week": 0, "kind": "baseline",
-         "document_index": 0, "scenario": "HONEST", "authenticated": True},
+         "doc_number": 0, "scenario": "HONEST", "authenticated": True},
         {"tenant": "t", "student": "t:s0", "week": 0, "kind": "baseline",
-         "document_index": 1, "scenario": "HONEST", "authenticated": True},
+         "doc_number": 1, "scenario": "HONEST", "authenticated": True},
         {"tenant": "t", "student": "t:s0", "week": 1, "kind": "score",
-         "document_index": 2, "scenario": "HONEST"},
+         "doc_number": 2, "scenario": "HONEST"},
     ]
     # Second onboarding upload is held by the drift gate (202) — the run
     # must record the hold and continue, not crash the cell.
@@ -134,7 +176,7 @@ def test_runner_uses_live_api(live_client, store_reset):
     # keep this smoke deterministic and cheap while still crossing its floors.
     def text_for(event):
         return (("Careful writers revise claims with evidence and context. " * 70)
-                + str(event["document_index"]))
+                + str(event["doc_number"]))
 
     rows = run_events(live_client, events, text_for)
     scored = [row for row in rows if row["kind"] == "score"]

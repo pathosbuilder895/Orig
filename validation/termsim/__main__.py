@@ -23,6 +23,9 @@ SCORE_FLAGS = {
 
 def _run_cell(payload: tuple) -> dict:
     name, flags, seed, cohorts, weeks, scenarios, out_dir = payload
+    # Determinism guard: main() exports this before spawning workers, so a
+    # worker without it means the harness was entered some other way.
+    assert os.environ.get("PYTHONHASHSEED") == "0", "PYTHONHASHSEED=0 not exported"
     for key in SCORE_FLAGS:
         os.environ[key] = "0"
     os.environ.update(flags)
@@ -36,9 +39,8 @@ def _run_cell(payload: tuple) -> dict:
     import run
 
     manifest = build_manifest()
-    ids = [p["id"] for p in manifest["personas"]]
-    events = generate(seed, cohort_sizes=cohorts, weeks=weeks, persona_ids=ids,
-                      scenarios=scenarios)
+    events = generate(seed, cohort_sizes=cohorts, weeks=weeks,
+                      personas=manifest["personas"], scenarios=scenarios)
     started = time.perf_counter()
     from validation.termsim.runner import install_vector_cache
     install_vector_cache(ROOT / ".benchmark_cache" / "termsim" / "vectors")
@@ -87,6 +89,9 @@ def main(argv=None) -> int:
         _describe(args.seed, cohorts, args.weeks)
         return 0
 
+    # Exported (not just checked) so spawned workers inherit it; the parent
+    # process's own hashing never feeds the metrics (all JSON is sort_keys).
+    os.environ["PYTHONHASHSEED"] = "0"
     matrix = cells(args.matrix)
     if args.cell:
         matrix = {args.cell: matrix[args.cell]}

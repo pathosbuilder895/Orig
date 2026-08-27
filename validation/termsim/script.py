@@ -1,4 +1,20 @@
-"""Deterministic 15-week TermSim curriculum script generation."""
+"""Deterministic 15-week TermSim curriculum script generation.
+
+Events name intent, not text: a document role ("home" = the persona's main
+body of work, "away" = a held-out work by the same author) plus an ordinal,
+resolved by personas.CorpusTextResolver. That separation is what makes the
+scenarios controlled contrasts:
+
+- HONEST draws home-work only, except one scripted mid-term curriculum
+  shift (an away-work submission) when the persona has a second work —
+  the cross-topic event every real term contains.
+- TRANSFER is the SAME persona writing from a held-out work all term
+  (baselines never covered it) — same author, shifted material. This is a
+  work/topic transfer; a true cross-genre same-author corpus is not
+  committable (Plan 02's Lewis corpus), so genre transfer stays out of v1.
+- GHOST swaps in a different persona (same corpus register when possible)
+  from a sampled onset week.
+"""
 from __future__ import annotations
 
 import hashlib
@@ -6,46 +22,87 @@ import json
 import random
 
 SCENARIOS = ("HONEST", "GHOST", "AI", "HYBRID", "COLDSTART", "TRANSFER")
+CURRICULUM_SHIFT_WEEK = 7
+
+
+def _persona_meta(personas) -> list[dict]:
+    """Accept manifest persona dicts (or ids, for capability-free scripts)."""
+    meta = []
+    for p in personas or []:
+        if isinstance(p, str):
+            meta.append({"id": p, "n_groups": 1})
+        else:
+            meta.append({"id": p["id"], "n_groups": p.get("n_groups", 1)})
+    return meta
 
 
 def generate(seed: int, cohort_sizes=(3, 8, 25), weeks=15,
-             persona_ids: list[str] | None = None,
+             personas: list | None = None,
              scenarios: tuple[str, ...] = SCENARIOS) -> list[dict]:
     rng = random.Random(seed)
+    meta = _persona_meta(personas)
+    multi_work = [m for m in meta if m["n_groups"] >= 2]
     events = []
     for cohort_size in cohort_sizes:
         for scenario in scenarios:
             tenant = f"termsim-{scenario.lower()}-{cohort_size}"
             for index in range(cohort_size):
                 student = f"{tenant}:student-{index:03d}"
-                persona = persona_ids[(cohort_size + index) % len(persona_ids)] if persona_ids else None
-                alternatives = [p for p in (persona_ids or []) if p != persona]
-                substitute = alternatives[rng.randrange(len(alternatives))] if alternatives else persona
-                baseline_count = 2 if scenario == "COLDSTART" else 3
+                if scenario == "TRANSFER" and multi_work:
+                    chosen = multi_work[(cohort_size + index) % len(multi_work)]
+                elif meta:
+                    chosen = meta[(cohort_size + index) % len(meta)]
+                else:
+                    chosen = {"id": None, "n_groups": 1}
+                persona, n_groups = chosen["id"], chosen["n_groups"]
+                same_register = [m["id"] for m in meta
+                                 if m["id"] != persona and str(m["id"]).split(":")[0]
+                                 == str(persona).split(":")[0]]
+                alternatives = same_register or [m["id"] for m in meta
+                                                 if m["id"] != persona]
+                substitute = (alternatives[rng.randrange(len(alternatives))]
+                              if alternatives else persona)
+                # COLDSTART alternates 1/2 onboarding baselines (below both
+                # TRAJECTORY_MIN_SAMPLES and the measured-sigma regime);
+                # everything else gets the modal pilot profile of 3.
+                baseline_count = (1 + index % 2) if scenario == "COLDSTART" else 3
                 for number in range(baseline_count):
                     events.append({"tenant": tenant, "student": student, "week": 0,
-                                   "kind": "baseline", "document_index": number,
-                                   "scenario": scenario, "authenticated": True,
-                                   "persona": persona, "source_persona": persona})
+                                   "kind": "baseline", "scenario": scenario,
+                                   "authenticated": True, "persona": persona,
+                                   "source_persona": persona, "source_kind": "persona",
+                                   "doc_role": "home", "doc_number": number})
                 onset = rng.randint(5, 9) if scenario in {"GHOST", "AI", "HYBRID"} else None
                 for number, week in enumerate(range(1, weeks, 2)):
+                    after_onset = onset is not None and week >= onset
+                    transfer = scenario == "TRANSFER"
+                    shift = (not transfer and not after_onset and n_groups >= 2
+                             and week == CURRICULUM_SHIFT_WEEK)
+                    away = transfer or shift
+                    if scenario == "GHOST" and after_onset:
+                        source_persona = substitute
+                    else:
+                        source_persona = persona
+                    if scenario == "AI" and after_onset:
+                        source_kind = "ai"
+                    elif scenario == "HYBRID" and after_onset:
+                        source_kind = "mechanical-paraphrase"
+                    else:
+                        source_kind = "persona"
                     events.append({"tenant": tenant, "student": student, "week": week,
-                                   "kind": "score", "document_index": baseline_count + number,
-                                   "scenario": scenario, "onset_week": onset,
-                                   "after_onset": onset is not None and week >= onset,
+                                   "kind": "score", "scenario": scenario,
+                                   "onset_week": onset, "after_onset": after_onset,
                                    "proxy": scenario == "HYBRID",
                                    "persona": persona,
-                                   "source_persona": (
-                                       substitute if scenario in {"GHOST", "TRANSFER"}
-                                       and (scenario == "TRANSFER" or (onset is not None and week >= onset))
-                                       else persona
-                                   ),
-                                   "source_kind": (
-                                       "ai" if scenario == "AI" and onset is not None and week >= onset
-                                       else "mechanical-paraphrase" if scenario == "HYBRID"
-                                       and onset is not None and week >= onset else "persona"
-                                   ),
-                                   "genre_covered_by_baseline": scenario != "TRANSFER"})
+                                   "source_persona": source_persona,
+                                   "source_kind": source_kind,
+                                   "doc_role": "away" if away else "home",
+                                   # Home submissions continue past the onboarding
+                                   # draws; away pools are disjoint so they start at 0.
+                                   "doc_number": (baseline_count + number) if not away
+                                   else (number if transfer else 0),
+                                   "curriculum_shift": shift,
+                                   "genre_covered_by_baseline": not away})
     return sorted(events, key=lambda e: (e["week"], e["tenant"], e["student"], e["kind"]))
 
 
