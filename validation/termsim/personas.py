@@ -130,6 +130,30 @@ def build_manifest(root: Path = ROOT) -> dict:
     return manifest
 
 
+class CorpusTextResolver:
+    """Resolve script events to committed text without copying corpus payloads."""
+
+    def __init__(self, manifest: dict, root: Path = ROOT):
+        self.root = root
+        self.personas = {p["id"]: p for p in manifest["personas"]}
+        self.ai = []
+        for path in sorted((root / "validation" / "corpus").glob("ai_*.txt")):
+            self.ai.extend(chunk_text(path.read_text(errors="ignore")))
+
+    def __call__(self, event: dict) -> str:
+        if event.get("source_kind") == "ai" and self.ai:
+            return self.ai[event["document_index"] % len(self.ai)]
+        persona = self.personas[event["source_persona"]]
+        document = persona["documents"][event["document_index"] % len(persona["documents"])]
+        chunks = chunk_text((self.root / document["path"]).read_text(errors="ignore"))
+        text = chunks[document["chunk_index"]]
+        if event.get("source_kind") == "mechanical-paraphrase":
+            # Deterministic mechanical proxy: rotate each sentence's first word.
+            words = text.split()
+            text = " ".join(words[1:] + words[:1]) if words else text
+        return text
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--build", action="store_true")

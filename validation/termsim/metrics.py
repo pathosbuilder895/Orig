@@ -72,12 +72,65 @@ def compute(events: list[dict]) -> dict:
             y_mean = sum(y for _, y in points) / len(points)
             growth.append(sum((x-x_mean)*(y-y_mean) for x, y in points)
                           / sum((x-x_mean)**2 for x, _ in points))
+    # Precision is defined over submissions, unlike the term-level budget.
+    precision = {}
+    scored = [e for e in events if e.get("kind") == "score"]
+    for threshold in ("monitor", "schedule_conversation", "escalate"):
+        flagged = [e for e in scored if _at_least(e.get("action", "no_action"), threshold)]
+        true_positive = sum(
+            e.get("scenario") in {"GHOST", "AI", "HYBRID"} and e.get("after_onset")
+            for e in flagged
+        )
+        precision[threshold] = rate(true_positive, len(flagged))
+
+    # Honest comparison scenarios use the same term-level unit as T-1/T-4.
+    scenario_term = {}
+    for scenario in ("HONEST", "COLDSTART", "TRANSFER"):
+        by_student: dict[str, list[dict]] = defaultdict(list)
+        for event in scored:
+            if event.get("scenario") == scenario:
+                by_student[event["student"]].append(event)
+        scenario_term[scenario] = {}
+        for threshold in ("monitor", "schedule_conversation", "escalate"):
+            count = sum(any(_at_least(e["action"], threshold) for e in rows)
+                        for rows in by_student.values())
+            scenario_term[scenario][threshold] = rate(count, len(by_student))
+
+    deltas = {}
+    for scenario in ("COLDSTART", "TRANSFER"):
+        deltas[scenario] = {}
+        for threshold in ("monitor", "schedule_conversation", "escalate"):
+            candidate = scenario_term[scenario][threshold]["rate"]
+            reference = scenario_term["HONEST"][threshold]["rate"]
+            deltas[scenario][threshold] = (
+                candidate - reference
+                if candidate is not None and reference is not None else None
+            )
+
+    engagement_fields = {
+        "drift_gate_hold": "drift_gate_held",
+        "null_abstain": "null_abstained",
+        "prior_abstain": "prior_abstained",
+        "fused_abstain": "fused_abstained",
+        "typicality_abstain": "typicality_abstained",
+        "inflation_fire": "inflation_fired",
+        "blend_shift": "blend_shift_detected",
+    }
+    engagement = {}
+    for label, field in engagement_fields.items():
+        measurable = [e for e in scored if e.get(field) is not None]
+        engagement[label] = rate(sum(bool(e[field]) for e in measurable), len(measurable))
+
     return {
         "honest_term_flag_probability": honest_term,
         "time_to_detection": detections,
+        "tier_precision": precision,
         "baseline_growth_slope": {
             "n_students": len(growth),
             "mean": sum(growth) / len(growth) if growth else None,
             "per_student": growth,
         },
+        "scenario_term_flag_probability": scenario_term,
+        "coldstart_transfer_deltas": deltas,
+        "mechanism_engagement": engagement,
     }

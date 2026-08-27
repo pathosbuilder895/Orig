@@ -3,6 +3,7 @@ import pytest
 from validation.termsim.gate import evaluate_t1, evaluate_t2, evaluate_t3, evaluate_t4
 from validation.termsim.matrix import cells
 from validation.termsim.metrics import compute
+from validation.termsim.personas import CorpusTextResolver, build_manifest
 from validation.termsim.runner import run_events
 from validation.termsim.scorecard import HONESTY, build, markdown
 from validation.termsim.script import dumps, generate, script_hash
@@ -42,6 +43,18 @@ def test_term_script_is_seeded_and_scenario_constraints_hold():
     assert hybrid and all(e["proxy"] is True for e in hybrid)
     changed = [e for e in first if e.get("onset_week") is not None]
     assert all(5 <= e["onset_week"] <= 9 for e in changed)
+
+
+def test_persona_scripts_swap_sources_and_resolve_committed_text():
+    manifest = build_manifest()
+    ids = [p["id"] for p in manifest["personas"][:12]]
+    events = generate(20260826, cohort_sizes=(8,), persona_ids=ids)
+    ghost_after = [e for e in events if e["scenario"] == "GHOST" and e.get("after_onset")]
+    transfer = [e for e in events if e["scenario"] == "TRANSFER" and e["kind"] == "score"]
+    assert ghost_after and all(e["source_persona"] != e["persona"] for e in ghost_after)
+    assert transfer and all(not e["genre_covered_by_baseline"] for e in transfer)
+    resolver = CorpusTextResolver(manifest)
+    assert len(resolver(events[0]).split()) >= 300
 
 
 def test_runner_uses_live_api(live_client, store_reset):

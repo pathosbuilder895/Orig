@@ -54,7 +54,12 @@ def run_events(
                 "deviation_score": payload["authorship"]["deviation_score"],
                 "llr_deviation_score": payload.get("llr_deviation_score"),
                 "typicality_n": payload.get("typicality_n"),
+                "typicality_abstained": not bool(payload.get("typicality_n")),
                 "topic_distance": payload.get("topic_distance"),
+                "inflation_fired": payload.get("topic_variance_inflation_fired"),
+                "drift_gate_held": payload.get("drift_gate_held"),
+                "null_abstained": payload.get("llr_deviation_score") is None,
+                "fused_abstained": payload.get("fused_score") is None,
                 "baseline_count": baseline_counts.get(student, 0),
             }
         )
