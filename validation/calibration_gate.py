@@ -2125,9 +2125,10 @@ def evaluate_g_t2_detection(caught_rate: float, n: int) -> GateResult:
 
 
 def evaluate_g_t3_growth(growth_slope: float, n: int) -> GateResult:
-    from validation.termsim.gate import evaluate_t3
-    return _termsim_result("T-3", evaluate_t3(growth_slope, n),
-                           "absolute honest baseline-growth slope <0.01")
+    from validation.termsim.gate import GROWTH_SLOPE_BOUND, evaluate_t3
+    return _termsim_result(
+        "T-3", evaluate_t3(growth_slope, n),
+        f"absolute honest baseline-growth slope <{GROWTH_SLOPE_BOUND}")
 
 
 def evaluate_g_t4_coldstart(coldstart_rate: float, honest_rate: float, n: int) -> GateResult:
