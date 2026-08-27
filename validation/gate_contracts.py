@@ -42,6 +42,10 @@ from validation.calibration_gate import (
     evaluate_g6_fairness,
     evaluate_g7_cross_topic_fpr,
     evaluate_g8_genre_discrimination,
+    evaluate_g_t1_honest_term,
+    evaluate_g_t2_detection,
+    evaluate_g_t3_growth,
+    evaluate_g_t4_coldstart,
 )
 
 
@@ -55,6 +59,26 @@ class GateContract:
 
 
 GATE_CONTRACTS: dict[str, GateContract] = {
+    "evaluate_g_t1_honest_term": GateContract(
+        gate="T-1", claims="honest-term action budget",
+        failure_witness=lambda: evaluate_g_t1_honest_term(0.20, 0.03, 8),
+        notes="Deployment outcome gate; label destruction is not applicable to honest-term rates.",
+    ),
+    "evaluate_g_t2_detection": GateContract(
+        gate="T-2", claims="GHOST detection floor",
+        failure_witness=lambda: evaluate_g_t2_detection(0.20, 5),
+        notes="The scenario is itself the positive control; no separate label-destruction leg.",
+    ),
+    "evaluate_g_t3_growth": GateContract(
+        gate="T-3", claims="baseline-growth neutrality",
+        failure_witness=lambda: evaluate_g_t3_growth(0.03, 5),
+        notes="Longitudinal neutrality has no authorship-label input to destroy.",
+    ),
+    "evaluate_g_t4_coldstart": GateContract(
+        gate="T-4", claims="cold-start parity",
+        failure_witness=lambda: evaluate_g_t4_coldstart(0.50, 0.10, 8),
+        notes="Cohort parity has no authorship-label input to destroy.",
+    ),
     "evaluate_g1_fpr": GateContract(
         gate="G1",
         claims="pooled same-author flagged rate <= 5%",

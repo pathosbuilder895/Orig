@@ -2106,6 +2106,60 @@ def _g3_inputs_from_pa_report(pa_report: dict) -> tuple[float, float | None, int
     )
 
 
+def _termsim_result(name: str, value: dict, criterion: str) -> GateResult:
+    return GateResult(name=name, passed=value["verdict"] == "pass", criterion=criterion,
+                      current_value=value["reason"], detail=value,
+                      verdict=value["verdict"])
+
+
+def evaluate_g_t1_honest_term(schedule_rate: float, escalate_rate: float, n: int) -> GateResult:
+    from validation.termsim.gate import evaluate_t1
+    return _termsim_result("T-1", evaluate_t1(schedule_rate, escalate_rate, n),
+                           "honest term: schedule <=10% and escalate <=2%")
+
+
+def evaluate_g_t2_detection(caught_rate: float, n: int) -> GateResult:
+    from validation.termsim.gate import evaluate_t2
+    return _termsim_result("T-2", evaluate_t2(caught_rate, n),
+                           "GHOST caught by term end at monitor+ >=60%")
+
+
+def evaluate_g_t3_growth(growth_slope: float, n: int) -> GateResult:
+    from validation.termsim.gate import evaluate_t3
+    return _termsim_result("T-3", evaluate_t3(growth_slope, n),
+                           "absolute honest baseline-growth slope <0.01")
+
+
+def evaluate_g_t4_coldstart(coldstart_rate: float, honest_rate: float, n: int) -> GateResult:
+    from validation.termsim.gate import evaluate_t4
+    return _termsim_result("T-4", evaluate_t4(coldstart_rate, honest_rate, n),
+                           "cold-start honest-term rate <=2x honest rate")
+
+
+def _compute_termsim_gates() -> list[GateResult]:
+    path = _ROOT / "validation" / "termsim" / "reports" / "latest.json"
+    if not path.exists():
+        reason = "TermSim evidence missing; run python -m validation.termsim run"
+        return [GateResult(name=f"T-{n}", passed=False, criterion="TermSim deployment outcome",
+                           current_value=reason, detail={"reason": reason},
+                           verdict="uninformative") for n in range(1, 5)]
+    payload = json.loads(path.read_text())
+    metrics = payload["metrics"]
+    honest = metrics["honest_term_flag_probability"]
+    detection = metrics["time_to_detection"]["GHOST"]["monitor"]["caught"]
+    growth = metrics["baseline_growth_slope"]
+    scenarios = metrics["scenario_term_flag_probability"]
+    cold = scenarios["COLDSTART"]["schedule_conversation"]
+    honest_schedule = scenarios["HONEST"]["schedule_conversation"]
+    return [
+        evaluate_g_t1_honest_term(honest["schedule_conversation"]["rate"],
+                                  honest["escalate"]["rate"], honest["escalate"]["n"]),
+        evaluate_g_t2_detection(detection["rate"], detection["n"]),
+        evaluate_g_t3_growth(growth["mean"], growth["n_students"]),
+        evaluate_g_t4_coldstart(cold["rate"], honest_schedule["rate"], cold["n"]),
+    ]
+
+
 def run_all() -> list[GateResult]:
     # Defensive reset, before anything else: ENV_LOCK (module import time,
     # above) already put us on ORIGINAL_DB=":memory:", so this is a no-op
@@ -2296,6 +2350,11 @@ def run_all() -> list[GateResult]:
         results.append(_compute_g8_genre_data())
     except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
         results.append(_machinery_error_result("G8", _G8_CRITERION, exc))
+
+    # Deployment-shaped gates consume the latest deterministic TermSim metrics.
+    # Corpus extraction remains outside this already-expensive battery; the
+    # scheduled TermSim job refreshes this small committed evidence artifact.
+    results.extend(_compute_termsim_gates())
 
     # Attach a corpus_fingerprint to every TEXT-CORPUS result (G1-G6) so a
     # future report can be checked for comparability against this one without
@@ -4504,7 +4563,7 @@ def run_g5(
 
 
 def render(results: list[GateResult]) -> str:
-    lines = ["╭─ Calibration gates (G1-G8) ─────────────────────────────────╮"]
+    lines = ["╭─ Calibration gates (G1-G8 + T-1…T-4) ──────────────────────╮"]
     for r in results:
         status = r.verdict.upper()
         lines.append(f"│ {r.name} [{status}] {r.criterion}")
