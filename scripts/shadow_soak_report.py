@@ -13,6 +13,8 @@ import statistics
 from collections import Counter
 from pathlib import Path
 
+from sqlalchemy import create_engine, inspect, text
+
 from validation.fusion_confound.analyze import analyze_rows
 from validation.genre_2026_08_compat import genre_summary
 
@@ -176,9 +178,53 @@ def summarize_sqlite(path: Path) -> dict:
         conn.close()
 
 
-def build_report(lines: list[str], db_path: Path | None = None) -> dict:
+def summarize_database(url: str) -> dict:
+    """Read either SQLite or Postgres through the production SQL dialect layer."""
+    engine = create_engine(url)
+    try:
+        tables = set(inspect(engine).get_table_names())
+        with engine.connect() as conn:
+            fused = {"signal_absent": True, "rows": 0}
+            if "fused_scores" in tables:
+                rows = conn.execute(text(
+                    "SELECT fused_score, band, channels_json, baseline_samples, "
+                    "reference_profiles FROM fused_scores"
+                )).fetchall()
+                scores = [float(row[0]) for row in rows if row[0] is not None]
+                confound_rows = []
+                for row in rows:
+                    try:
+                        channels = json.loads(row[2] or "{}")
+                    except (TypeError, json.JSONDecodeError):
+                        channels = {}
+                    confound_rows.append({"fused_score": row[0], "channels": channels,
+                                          "baseline_samples": row[3],
+                                          "reference_profiles": row[4]})
+                fused = {"signal_absent": not rows, "rows": len(rows),
+                         "score": _distribution(scores),
+                         "bands": dict(Counter(row[1] for row in rows)),
+                         "confound_ready_rows": sum(row[3] is not None and row[4] is not None
+                                                    for row in rows),
+                         "baseline_volume_confound": analyze_rows(confound_rows)}
+            ai = {"signal_absent": True, "rows": 0}
+            if "ai_likelihood_scores" in tables:
+                rows = conn.execute(text(
+                    "SELECT probability, band FROM ai_likelihood_scores"
+                )).fetchall()
+                ai = {"signal_absent": not rows, "rows": len(rows),
+                      "probability": _distribution([float(row[0]) for row in rows]),
+                      "bands": dict(Counter(row[1] for row in rows)),
+                      "gate_note": "join instructor labels; require at least 30 before quoting FPR"}
+            return {"fused_score": fused, "ai_likelihood": ai}
+    finally:
+        engine.dispose()
+
+
+def build_report(lines: list[str], db_path: Path | None = None, db_url: str | None = None) -> dict:
     report = summarize_logs(lines)
-    if db_path is None:
+    if db_url is not None:
+        report.update(summarize_database(db_url))
+    elif db_path is None:
         report.update(
             {
                 "fused_score": {"signal_absent": True, "reason": "database not supplied"},
@@ -201,8 +247,9 @@ def main(argv=None) -> int:
     parser.add_argument("--out")
     args = parser.parse_args(argv)
     lines = Path(args.log).read_text(errors="ignore").splitlines()
-    db_path = Path(args.db) if args.db and "://" not in args.db else None
-    report = build_report(lines, db_path)
+    db_url = args.db if args.db and "://" in args.db else None
+    db_path = Path(args.db) if args.db and db_url is None else None
+    report = build_report(lines, db_path, db_url)
     text = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.out:
         Path(args.out).write_text(text)

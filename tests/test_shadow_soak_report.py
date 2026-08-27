@@ -48,3 +48,7 @@ def test_database_sections_are_aggregated(tmp_path):
     assert report["fused_score"]["rows"] == 1
     assert report["fused_score"]["confound_ready_rows"] == 1
     assert report["ai_likelihood"]["bands"] == {"low": 1}
+
+    url_report = build_report([], db_url=f"sqlite:///{db}")
+    assert url_report["fused_score"]["rows"] == 1
+    assert url_report["ai_likelihood"]["bands"] == {"low": 1}
