@@ -123,6 +123,10 @@ exclude-not-abort behavior rule 4 describes.
     # deployment-shaped layer (real API, isolated DB per matrix cell)
     .venv/bin/python -m validation.termsim describe --seed 20260826
     .venv/bin/python -m validation.termsim run --matrix standard --seed 20260826
+    # persistence-faithful variant (needs `bash scripts/local_postgres.sh up`):
+    .venv/bin/python -m validation.termsim run --matrix standard --seed 20260826 --backend postgres
+    # pool >=3 seeds' baseline cells into the T-gate evidence artifact:
+    .venv/bin/python -m validation.termsim gate-evidence --seeds 20260826,20260827,20260828
 
 TermSim is the mandatory middle leg for score-changing flags. Enablement now
 requires all three: (1) the relevant corpus gate passes, (2) the identical-script
