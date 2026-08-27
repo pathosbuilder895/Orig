@@ -1,4 +1,8 @@
 import sqlite3
+import os
+
+import pytest
+from sqlalchemy import create_engine, text
 
 from scripts.shadow_soak_report import build_report, summarize_logs
 
@@ -52,3 +56,21 @@ def test_database_sections_are_aggregated(tmp_path):
     url_report = build_report([], db_url=f"sqlite:///{db}")
     assert url_report["fused_score"]["rows"] == 1
     assert url_report["ai_likelihood"]["bands"] == {"low": 1}
+
+
+@pytest.mark.postgres
+def test_postgres_url_fixture_is_supported():
+    url = os.environ.get("DATABASE_URL", "")
+    if not url.startswith("postgresql"):
+        pytest.skip("set DATABASE_URL to the isolated local Postgres test database")
+    engine = create_engine(url)
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception as exc:
+        pytest.skip(f"local Postgres fixture is unreachable: {exc}")
+    finally:
+        engine.dispose()
+    report = build_report([], db_url=url)
+    assert set(report) >= {"genre", "topic", "characteristic_weights", "fused_score",
+                           "ai_likelihood", "bayesian_prior_scope"}
