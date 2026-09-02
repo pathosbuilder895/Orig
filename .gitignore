@@ -22,6 +22,8 @@ venv/
 
 # Testing
 .coverage
+coverage.xml
+coverage.json
 htmlcov/
 .pytest_cache/
 
@@ -115,6 +117,9 @@ demo/bluebook/e2e/fixtures/.tenants-created.log
 
 # Hypothesis example database (property-test cache, machine-local)
 .hypothesis/
+
+# SDD scratch (subagent-driven-development ledger + review packages)
+.superpowers/
 
 # Project Gutenberg full-text fetch caches for the cross-work corpus.
 validation/public_authors/cross_work_corpus/*/_*_full.txt

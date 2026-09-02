@@ -58,7 +58,7 @@ Generated from local refs. `git cherry main <branch>` supplies the unique-commit
 | `claude/study-reliability-comparison-63ca13` | 2026-07-27 | 1 | unknown — human review | `git cherry` reports 1 unique patch(es); retain until content review |
 | `claude/t3-wave-1-pilot-launch-e94d92` | 2026-07-24 | 0 | landed-via-squash/ancestry | `git cherry` has no `+` commits; deletion recommended |
 | `claude/t4-wave-1-pilot-launch-17fe18` | 2026-07-24 | 0 | landed-via-squash/ancestry | `git cherry` has no `+` commits; deletion recommended |
-| `claude/termsim-validation-harness-b04ef3` | 2026-08-26 | 0 | landed-via-squash/ancestry | `git cherry` has no `+` commits; deletion recommended |
+| `claude/termsim-validation-harness-b04ef3` | 2026-08-26 | 0 | merged into main (2026-09-02) | Self-stale entry corrected: this table was generated *from* this branch before its final 12 commits (T-3 bound calibration, first-light report) landed, so `git cherry` against the pre-audit tip showed 0 unique patches against itself. The whole-app architecture review (2026-09-02) recommended merging this branch over its subset `codex/campaign-completion` — it carries the calibrated T-3 bound and the persona-seeding fix. Fast-forwarded onto `main`; safe to delete once no other worktree references it. |
 | `claude/test-baseline-branches-4f9c65` | 2026-08-10 | 0 | landed-via-squash/ancestry | `git cherry` has no `+` commits; deletion recommended |
 | `claude/test-coverage-postgres-setup-b16499` | 2026-08-20 | 0 | landed-via-squash/ancestry | `git cherry` has no `+` commits; deletion recommended |
 | `claude/timothy-paul-jones-response-989ec9` | 2026-08-10 | 0 | landed-via-squash/ancestry | `git cherry` has no `+` commits; deletion recommended |
