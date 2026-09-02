@@ -31,8 +31,13 @@ def test_cross_work_includes_named_authors_and_multiple_essayists() -> None:
 
 
 def test_cross_work_windows_are_fixed_length_and_spaced() -> None:
+    # lead_in=0: this synthetic fixture has no front matter to strip and is
+    # far shorter than the real corpus's 2500-word lead_in default — the
+    # concern here is window mechanics (length, spacing, boundaries), not
+    # front-matter detection, which test_cross_work_hash_contract_is_content_addressed's
+    # manifest already exercises against the real corpus.
     text = " ".join(f"w{i}" for i in range(1000))
-    windows = _sample_windows(text, 3, words_per_window=100)
+    windows = _sample_windows(text, 3, words_per_window=100, lead_in=0)
     assert [len(window.split()) for window in windows] == [100, 100, 100]
     assert windows[0].split()[0] == "w0"
     assert windows[-1].split()[-1] == "w999"
@@ -40,7 +45,7 @@ def test_cross_work_windows_are_fixed_length_and_spaced() -> None:
 
 def test_cross_work_hash_contract_is_content_addressed() -> None:
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    assert manifest["version"] == "3.0-six-author-cross-work"
+    assert manifest["version"] == "4.1-six-author-cross-work-4x8-leadin"
     source_hashes = {}
     for entry in manifest["entries"]:
         text = (CORPUS / entry["filename"]).read_text(encoding="utf-8")
