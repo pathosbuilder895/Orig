@@ -235,6 +235,10 @@ def provision_and_score(
             body = response.json()
             if body.get("authenticated_count") is not None:
                 outcome.authenticated_count = body["authenticated_count"]
+            # Defence-in-depth only: the route answers {"skipped": true} solely
+            # when the request carries a submission_uuid, which this harness
+            # never sends -- so this arm is unreachable from here today and
+            # exists to fail loudly if the dedup contract widens.
             if body.get("skipped"):
                 outcome.baselines_rejected += 1
                 outcome.notes.append(
