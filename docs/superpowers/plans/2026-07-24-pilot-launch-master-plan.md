@@ -10,6 +10,12 @@
 > Read the code, not the boxes. The standing rule below still holds: tasks may
 > collect/report Tier 17 data but MUST NOT enable the behavioral feature group.
 
+> **Plan hygiene (2026-08-26):** historical checkbox state is not accepted as
+> completion evidence. For the Codex campaign series and future campaigns,
+> the PR completing a goal updates that goal's checkbox/state, and a dated
+> completion report is the durable record (see the 2026-08-20 branch-coverage
+> completion report for the model).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking. **Dispatch rule: a task may run concurrently with

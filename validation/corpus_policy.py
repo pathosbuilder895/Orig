@@ -10,6 +10,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+# Declared for future verification runners. No production or validation
+# runner currently calls check_verification_pool(); tests enforce only the
+# policy helper's contract.
 VERIFICATION_MIN_WORDS = 300  # matches the public_authors chunker floor
 # Equal to the verification floor today, by measured decision (2026-07-31,
 # design-spec open decision #2). The draft proposed 500, but against the real

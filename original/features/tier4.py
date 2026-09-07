@@ -1,7 +1,7 @@
 """
 features/tier4.py — Tier 4: Character & Punctuation Fingerprint
 
-Eight features capturing sub-word and punctuation habits that are
+Seven features capturing sub-word and punctuation habits that are
 deeply unconscious, highly author-specific, and survive vocabulary
 substitution — the primary attack vector for both human editors
 and AI paraphrasers.

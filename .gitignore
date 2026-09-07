@@ -23,6 +23,7 @@ venv/
 # Testing
 .coverage
 coverage.xml
+coverage.json
 htmlcov/
 .pytest_cache/
 
@@ -117,11 +118,30 @@ demo/bluebook/e2e/fixtures/.tenants-created.log
 # Hypothesis example database (property-test cache, machine-local)
 .hypothesis/
 
+# SDD scratch (subagent-driven-development ledger + review packages)
+.superpowers/
+
+# Project Gutenberg full-text fetch caches for the cross-work corpus.
+validation/public_authors/cross_work_corpus/*/_*_full.txt
+
+# Derivation vectors for the topic-sensitivity study; regenerate with
+# validation/topic_sensitivity_2026-08/extract.py.
+validation/topic_sensitivity_2026-08/vectors.npy
+validation/topic_sensitivity_2026-08/vectors_meta.json
+validation/topic_sensitivity_2026-08/topic_sensitivity.npy
+validation/topic_sensitivity_2026-08/topic_sensitivity_constant.py
+
 # Cached full Gutenberg bodies for the genre corpus. Regenerable by
 # validation/genre_2026-08/fetch_authors.py, several MB each, and the
 # committed chunks are what the labels actually reference.
 validation/genre_2026-08/corpus/**/_*_full.txt
 
-# SDD scratch (subagent-driven-development ledger + review packages)
-.superpowers/
-coverage.json
+# Cross-genre study (gate G7) source text and derived artifacts. NEVER
+# commit: the Lewis corpus is Canadian-public-domain but still under
+# copyright in the US/UK (see validation/genre_crossgenre_2026-08/README.md).
+# Local-only by design — regenerate per that README's fetch instructions.
+validation/genre_crossgenre_2026-08/raw/
+validation/genre_crossgenre_2026-08/clean/
+validation/genre_crossgenre_2026-08/chunks.json
+validation/genre_crossgenre_2026-08/vectors.npy
+validation/genre_crossgenre_2026-08/vectors_meta.json

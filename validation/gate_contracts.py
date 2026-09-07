@@ -28,8 +28,8 @@ slip silently binds to the wrong parameter and can flip a witness from
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Optional
 
 from validation.calibration_gate import (
     GateResult,
@@ -42,7 +42,12 @@ from validation.calibration_gate import (
     evaluate_g6_fairness,
     evaluate_g7_cross_topic_fpr,
     evaluate_g8_genre_discrimination,
+    evaluate_g_t1_honest_term,
+    evaluate_g_t2_detection,
+    evaluate_g_t3_growth,
+    evaluate_g_t4_coldstart,
 )
+from validation.termsim.gate import FUSED_COMPRESSION_SLOPE
 
 
 @dataclass(frozen=True)
@@ -50,11 +55,36 @@ class GateContract:
     gate: str
     claims: str
     failure_witness: Callable[[], GateResult]
-    label_destruction: Optional[Callable[[], GateResult]] = None
+    label_destruction: Callable[[], GateResult] | None = None
     notes: str = ""
 
 
 GATE_CONTRACTS: dict[str, GateContract] = {
+    "evaluate_g_t1_honest_term": GateContract(
+        gate="T-1", claims="honest-term action budget",
+        failure_witness=lambda: evaluate_g_t1_honest_term(0.20, 0.03, 8),
+        notes="Deployment outcome gate; label destruction is not applicable to honest-term rates.",
+    ),
+    "evaluate_g_t2_detection": GateContract(
+        gate="T-2", claims="GHOST detection floor",
+        failure_witness=lambda: evaluate_g_t2_detection(0.20, 5),
+        notes="The scenario is itself the positive control; no separate label-destruction leg.",
+    ),
+    "evaluate_g_t3_growth": GateContract(
+        gate="T-3", claims="baseline-growth neutrality",
+        # The witness is the MEASURED fused compression-channel confound
+        # (0.799 @ 3 baselines -> 0.730 @ 48; tests/test_fusion_confound.py),
+        # not a synthetic number: T-3's bound is calibrated below it so the
+        # known-bad channel demonstrably fails this gate when attached.
+        failure_witness=lambda: evaluate_g_t3_growth(FUSED_COMPRESSION_SLOPE, 8),
+        notes="Longitudinal neutrality has no authorship-label input to destroy; "
+              "witness = the measured fused C1 slope.",
+    ),
+    "evaluate_g_t4_coldstart": GateContract(
+        gate="T-4", claims="cold-start parity",
+        failure_witness=lambda: evaluate_g_t4_coldstart(0.50, 0.10, 8),
+        notes="Cohort parity has no authorship-label input to destroy.",
+    ),
     "evaluate_g1_fpr": GateContract(
         gate="G1",
         claims="pooled same-author flagged rate <= 5%",

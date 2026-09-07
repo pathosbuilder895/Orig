@@ -197,6 +197,19 @@ logged reason. If that happens after a dependency bump, retrain the artifact
 on the deployed sklearn version (`train_ai_detector.py train`) rather than
 tightening the requirements pin.
 
+### Pooled typicality calibration (experimental, default off)
+
+`TYPICALITY_POOLED_CALIBRATION=1` uses same-tenant peers' leave-one-out
+distances when at least three peer students and 30 distances remain after
+excluding the scored student; thin cohorts fall back to self-calibration. It
+addresses the structural `1/(N+1)` p-value floor that makes the 0.03 action
+boundary unreachable below 33 distances, but it changes typicality bands and
+is not enabled. The live `/score` route does not currently supply the pooled
+reference, so the audit calls `quantum.score()` directly. Exchangeability has
+only been established within seminary and Plato separately—not across their
+union or for `public_authors`; see
+`validation/audits/pooled_calibration_payoff.py`.
+
 **Demo/pilot enablement gate** — rule: **seminary AUC ≥ 0.85 AND
 false-positive rate ≤ 5% at `t_elevated` on authentic seminary essays**
 (`train_ai_detector.py eval-seminary` prints the verdict). Status: **passes**
@@ -280,9 +293,18 @@ batched call, and reports `ai_probability` per window plus `ai_window_max` /
 `ai_window_mean`. The intent is localization — *where* in a document AI-like
 text sits — which the single document-level number cannot express.
 
-- **The document-level enablement gate above still FAILS** (FPR 8% vs. a 5%
-  bar, and uninformative at n=25). `AI_LIKELIHOOD_ENABLED` remains off, and
-  nothing about this wiring changes that verdict or provides evidence for it.
+- **The document-level enablement gate above has since been re-cleared, and
+  this wiring is not why.** This addendum originally recorded that gate as
+  failing (FPR 8% (2/25) vs. a 5% bar, and uninformative at that n) — the
+  v1.4.26 result, superseded on 2026-08-07 by v1.4.27's n=139 pool:
+  AUC 0.9975 (CI95 [0.9914, 1.0]), FPR@elevated 2.88% (4/139), TPR 95%,
+  `enablement_gate.passes = true` in
+  `validation/diagnostics/ai_detector_eval_seminary_2026-08-07_n139.json`.
+  `AI_LIKELIHOOD_ENABLED` nevertheless **remains off** — for the reasons in
+  "Caveats before flipping the flag" above (single-generator, majority
+  corpus-synthesized in-domain AI side; institutional decision outstanding),
+  not because the numeric gate fails. Nothing about this window wiring
+  changed that verdict in either direction or provides evidence for it.
 - **This is shadow-only and structurally inert.** The new fields are written
   but never read back: they cannot affect `blend_detected`, `blend_index`,
   `shift_positions`, `deviation_score`, or any recommended action. With the
@@ -292,12 +314,16 @@ text sits — which the single document-level number cannot express.
   no window-level calibration: the detector was trained and thresholded on
   whole documents, so a 300-token window is out of its evaluated regime and
   per-window probabilities should be read as ordering/localization hints
-  only, never as calibrated probabilities.
+  only, never as calibrated probabilities. Every such window is below the
+  500-token reliability floor and therefore low-confidence; values may rank
+  regions within one document, but are not comparable with document bands
+  and must never be aggregated across documents.
 - **Purpose is evidence collection.** Shadow-mode window data (especially
   whether AI-like probability concentrates in the same regions the Pettitt
   change-point already flags) is intended to inform re-evaluation of the
-  document-level gate, alongside the larger authentic-essay pool that gate
-  needs regardless.
+  document-level gate. The larger authentic-essay pool this bullet originally
+  called for has since been built (25 → 139 essays, v1.4.27); what the gate
+  still lacks is a multi-generator in-domain AI side.
 
 ---
 
