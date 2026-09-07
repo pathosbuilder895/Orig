@@ -123,7 +123,8 @@ jobs:
         env:
           DATABASE_URL: postgresql://original:original@localhost:5432/original_test
         run: |
-          python -m pytest tests/ validation/test_tier10_optional.py -m "not blocker" \
+          python -m pytest tests/ validation/test_tier10_optional.py \
+            -m "not blocker and not certification" \
             --cov=original --cov-branch --cov-report=xml --cov-fail-under=98
 
       - name: Upload coverage report
@@ -133,14 +134,22 @@ jobs:
           path: coverage.xml
           retention-days: 14
 
-  # Runs @pytest.mark.blocker tests — known-red tests that pin documented
-  # open product gaps (docs/testing/10-gap-register.md). This job IS
-  # blocking, but on the opposite condition from `pytest` above: it fails
-  # the day one of these tests unexpectedly PASSES, or is SKIPPED without a
-  # message containing "uninformative" (a bare skip is not a way to make a
-  # red test green — see scripts/known_red.py and pytest.ini's `blocker`
-  # marker docstring). No Postgres service — these tests don't need one,
-  # and the job is meant to stay cheap and fast.
+  # Home of the whole certification group, which the `pytest` job above
+  # deselects (-m "not blocker and not certification"): these tests provision
+  # profiles through the live API and cost minutes, which does not belong in
+  # the blocking per-PR lane.
+  #
+  # Two steps, blocking on opposite conditions:
+  #   1. Certification WITNESSES (`certification and not blocker`) must PASS.
+  #      A witness proves the harness can detect the failure its blocker pins;
+  #      if the witness breaks, the blocker's red proves nothing.
+  #   2. @pytest.mark.blocker tests — known-red tests that pin documented open
+  #      product gaps (docs/testing/10-gap-register.md) — must NOT pass. This
+  #      step fails the day one of them unexpectedly PASSES, or is SKIPPED
+  #      without a message containing "uninformative" (a bare skip is not a
+  #      way to make a red test green — see scripts/known_red.py and
+  #      pytest.ini's `blocker` marker docstring).
+  # No Postgres service — these tests don't need one.
   known-red:
     runs-on: ubuntu-latest
     needs: lint
@@ -159,6 +168,9 @@ jobs:
 
       - name: Install spaCy model
         run: python -m spacy download en_core_web_sm
+
+      - name: Certification witnesses (must pass)
+        run: python -m pytest tests/ -m "certification and not blocker" -q -p no:cacheprovider
 
       - name: Run known-red policy check
         run: python scripts/known_red.py

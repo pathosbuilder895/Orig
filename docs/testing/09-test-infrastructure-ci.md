@@ -91,7 +91,7 @@ in one file stays local.
 
 | Marker | Meaning | Where it runs |
 |---|---|---|
-| `certification` | three-valued behavioural gate (§06 §3, §02 §2.1); writes a verdict to `certification-report.json` | every PR, and the weekly battery |
+| `certification` | three-valued behavioural gate (§06 §3, §02 §2.1); writes a verdict to `certification-report.json` | every PR, and the weekly battery; the whole group runs inside the `known-red` job rather than the blocking `pytest` run (which deselects it with `-m "not blocker and not certification"`) — witnesses as a must-pass step, `blocker`-marked certifications via `scripts/known_red.py` |
 | `security` | abuse-case suite (§04) | every PR; also `pytest -m security` before go-live |
 | `perf` | latency/concurrency budgets (§07) | every PR, `uninformative`-aware |
 | `boot` | tests that spawn the server as a subprocess (§08 §2, §8) | `boot-matrix` job only |
