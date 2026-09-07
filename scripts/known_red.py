@@ -33,11 +33,19 @@ GAP_ID_RE = re.compile(r"T-\d+")
 class BlockerResult:
     classname: str
     name: str
-    outcome: str  # "passed" | "failed" | "error" | "skipped"
+    outcome: str  # "passed" | "failed" | "error" | "skipped" | "uninformative"
 
 
 def parse_junit(xml_text: str) -> list[BlockerResult]:
-    """Parse a pytest --junitxml report into one result per <testcase>."""
+    """Parse a pytest --junitxml report into one result per <testcase>.
+
+    A <skipped> testcase is split into two distinct outcomes based on its
+    skip message, not left as one bare "skipped": a certification test may
+    legitimately call `pytest.skip("uninformative — <reason>")` when a
+    sample-size floor isn't met (the plan's three-valued pass/fail/
+    uninformative rule), and that must not be conflated with a blocker test
+    someone skipped to dodge the known-red policy without saying why.
+    """
     root = ET.fromstring(xml_text)
     results = []
     for case in root.iter("testcase"):
@@ -45,10 +53,13 @@ def parse_junit(xml_text: str) -> list[BlockerResult]:
             outcome = "failed"
         elif case.find("error") is not None:
             outcome = "error"
-        elif case.find("skipped") is not None:
-            outcome = "skipped"
         else:
-            outcome = "passed"
+            skipped = case.find("skipped")
+            if skipped is None:
+                outcome = "passed"
+            else:
+                message = skipped.get("message") or ""
+                outcome = "uninformative" if "uninformative" in message else "skipped"
         results.append(
             BlockerResult(case.get("classname", ""), case.get("name", ""), outcome)
         )
@@ -56,10 +67,13 @@ def parse_junit(xml_text: str) -> list[BlockerResult]:
 
 
 def decide(results: list[BlockerResult]) -> int:
-    """The known-red policy: any PASS fails the job; otherwise it succeeds
-    (including the "zero collected" case — that is a notice, not a failure).
+    """The known-red policy: exit 1 if any blocker test PASSED, or if any
+    was skipped without an "uninformative" reason (skipping is not a way to
+    make a red test green); otherwise exit 0 — including "uninformative"
+    outcomes, which count like fail/error, and the "zero collected" case,
+    which is a notice, not a failure.
     """
-    if any(r.outcome == "passed" for r in results):
+    if any(r.outcome in ("passed", "skipped") for r in results):
         return 1
     return 0
 
@@ -143,11 +157,17 @@ def main() -> int:
 
     code = decide(results)
     if code == 1:
-        print(
-            "\nknown-red: at least one @pytest.mark.blocker test PASSED — "
-            "these gaps appear closed; remove @pytest.mark.blocker and move "
-            "the register row to green."
-        )
+        if any(r.outcome == "passed" for r in results):
+            print(
+                "\nknown-red: at least one @pytest.mark.blocker test PASSED — "
+                "these gaps appear closed; remove @pytest.mark.blocker and move "
+                "the register row to green."
+            )
+        if any(r.outcome == "skipped" for r in results):
+            print(
+                "\nknown-red: blocker test skipped without an `uninformative` "
+                "reason — skipping is not a way to make a red test green."
+            )
     return code
 
 
