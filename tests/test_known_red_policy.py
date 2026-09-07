@@ -54,6 +54,28 @@ NONE_XML = """<?xml version="1.0" encoding="utf-8"?>
 <testsuites><testsuite name="pytest" tests="0">
 </testsuite></testsuites>"""
 
+SKIPPED_UNINFORMATIVE_XML = """<?xml version="1.0" encoding="utf-8"?>
+<testsuites><testsuite name="pytest" tests="1">
+<testcase classname="tests.test_gaps" name="test_one" time="0.01">
+<skipped type="pytest.skip" message="uninformative &#8212; sample size floor not met">uninformative — sample size floor not met</skipped>
+</testcase>
+</testsuite></testsuites>"""
+
+SKIPPED_PLAIN_XML = """<?xml version="1.0" encoding="utf-8"?>
+<testsuites><testsuite name="pytest" tests="1">
+<testcase classname="tests.test_gaps" name="test_one" time="0.01">
+<skipped type="pytest.skip" message="not implemented yet">not implemented yet</skipped>
+</testcase>
+</testsuite></testsuites>"""
+
+MIXED_PASS_AND_PLAIN_SKIP_XML = """<?xml version="1.0" encoding="utf-8"?>
+<testsuites><testsuite name="pytest" tests="2">
+<testcase classname="tests.test_gaps" name="test_one" time="0.01" />
+<testcase classname="tests.test_gaps" name="test_two" time="0.01">
+<skipped type="pytest.skip" message="not implemented yet">not implemented yet</skipped>
+</testcase>
+</testsuite></testsuites>"""
+
 
 class TestParseAndDecide:
     def test_all_failed_or_errored_is_zero(self):
@@ -70,6 +92,21 @@ class TestParseAndDecide:
         results = known_red.parse_junit(NONE_XML)
         assert results == []
         assert known_red.decide(results) == 0
+
+    def test_skipped_with_uninformative_reason_is_uninformative_and_zero(self):
+        results = known_red.parse_junit(SKIPPED_UNINFORMATIVE_XML)
+        assert [r.outcome for r in results] == ["uninformative"]
+        assert known_red.decide(results) == 0
+
+    def test_skipped_without_uninformative_reason_is_policy_violation(self):
+        results = known_red.parse_junit(SKIPPED_PLAIN_XML)
+        assert [r.outcome for r in results] == ["skipped"]
+        assert known_red.decide(results) == 1
+
+    def test_mix_of_pass_and_plain_skip_is_one(self):
+        results = known_red.parse_junit(MIXED_PASS_AND_PLAIN_SKIP_XML)
+        assert [r.outcome for r in results] == ["passed", "skipped"]
+        assert known_red.decide(results) == 1
 
 
 class TestGapIdExtraction:
@@ -116,9 +153,13 @@ class TestEveryBlockerTestNamesItsGap:
     """
 
     def test_blocker_tests_have_gap_id_docstrings(self):
+        # Scoped to "tests/" to match scripts/known_red.py's own scope
+        # (it runs "pytest tests/ -m blocker") — a bare, path-less
+        # collect-only here would guard a different (wider) set of tests
+        # than the script actually enforces.
         proc = subprocess.run(
             [
-                sys.executable, "-m", "pytest", "--collect-only", "-q",
+                sys.executable, "-m", "pytest", "tests/", "--collect-only", "-q",
                 "-m", "blocker", "-p", "no:cacheprovider",
             ],
             cwd=REPO_ROOT, capture_output=True, text=True,

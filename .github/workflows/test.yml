@@ -136,9 +136,11 @@ jobs:
   # Runs @pytest.mark.blocker tests — known-red tests that pin documented
   # open product gaps (docs/testing/10-gap-register.md). This job IS
   # blocking, but on the opposite condition from `pytest` above: it fails
-  # the day one of these tests unexpectedly PASSES (see scripts/known_red.py
-  # and pytest.ini's `blocker` marker docstring). No Postgres service —
-  # these tests don't need one, and the job is meant to stay cheap and fast.
+  # the day one of these tests unexpectedly PASSES, or is SKIPPED without a
+  # message containing "uninformative" (a bare skip is not a way to make a
+  # red test green — see scripts/known_red.py and pytest.ini's `blocker`
+  # marker docstring). No Postgres service — these tests don't need one,
+  # and the job is meant to stay cheap and fast.
   known-red:
     runs-on: ubuntu-latest
     needs: lint
