@@ -59,7 +59,7 @@ def parse_junit(xml_text: str) -> list[BlockerResult]:
                 outcome = "passed"
             else:
                 message = skipped.get("message") or ""
-                outcome = "uninformative" if "uninformative" in message else "skipped"
+                outcome = "uninformative" if "uninformative" in message.lower() else "skipped"
         results.append(
             BlockerResult(case.get("classname", ""), case.get("name", ""), outcome)
         )

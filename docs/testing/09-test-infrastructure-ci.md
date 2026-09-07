@@ -95,7 +95,7 @@ in one file stays local.
 | `security` | abuse-case suite (§04) | every PR; also `pytest -m security` before go-live |
 | `perf` | latency/concurrency budgets (§07) | every PR, `uninformative`-aware |
 | `boot` | tests that spawn the server as a subprocess (§08 §2, §8) | `boot-matrix` job only |
-| `blocker` | a test that fails on this branch because of a documented open gap, its docstring's first line naming the gap id (e.g. `T-02: pending baseline requests leak cross-tenant.`); never use `xfail`, `skip`, or a weakened assertion to make a red test green, and a test that is green on this branch is NOT marked `blocker` | excluded from the blocking `pytest` run via `-m "not blocker"`; run separately by the `known-red` job (`scripts/known_red.py`), which fails the day one of these tests unexpectedly passes |
+| `blocker` | a test that fails on this branch because of a documented open gap, its docstring's first line naming the gap id (e.g. `T-02: pending baseline requests leak cross-tenant.`); never use `xfail`, `skip`, or a weakened assertion to make a red test green, and a test that is green on this branch is NOT marked `blocker` | excluded from the blocking `pytest` run via `-m "not blocker"`; run separately by the `known-red` job (`scripts/known_red.py`), which fails the day one of these tests unexpectedly passes, or is skipped without `uninformative` in its skip reason (a sample-size floor is the only legitimate skip) |
 | `mutation_target` | *not a selector* — documents which modules the weekly mutation run covers; a test asserts the list matches the workflow |
 
 `--strict-markers` on, so a typo cannot create a silently-unselected marker.
