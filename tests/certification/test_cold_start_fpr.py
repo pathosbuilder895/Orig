@@ -216,6 +216,12 @@ def test_harness_flags_a_different_author(live_client, store_reset, corpus_autho
         )
         pytest.skip(f"uninformative — {len(usable)} authors scored cleanly, floor is {MIN_AUTHORS}")
 
+    # Both arms must cover the same author set, or the median comparison
+    # silently becomes unpaired; fail loudly if any genuine rescore was lost.
+    assert set(genuine_by_author) == {o.author_id for o in usable}, (
+        f"genuine rescores missing for "
+        f"{sorted({o.author_id for o in usable} - set(genuine_by_author))}"
+    )
     impostor_deviations = [o.deviation_score for o in usable if o.deviation_score is not None]
     genuine_deviations = [
         genuine_by_author[o.author_id] for o in usable if o.author_id in genuine_by_author
