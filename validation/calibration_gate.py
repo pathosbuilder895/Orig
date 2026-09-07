@@ -2161,7 +2161,32 @@ def _compute_termsim_gates() -> list[GateResult]:
     ]
 
 
+# Set by run_all() for main()'s report: the vector-cache description (dir,
+# key scheme, backend) when CALIBRATION_GATE_VECTOR_CACHE was honoured, else
+# None. A report must be able to say whether its extraction was memoised.
+LAST_RUN_VECTOR_CACHE: dict | None = None
+
+
 def run_all() -> list[GateResult]:
+    """Run every gate. When CALIBRATION_GATE_VECTOR_CACHE names a directory,
+    the two API route modules' feature_vector bindings are memoised on disk
+    for the duration of this call only (validation/vector_cache.py — same
+    vectors, one extraction per distinct text instead of one per fold) and
+    restored afterwards, even if a leg raises."""
+    global LAST_RUN_VECTOR_CACHE
+    from validation.vector_cache import maybe_install_from_env
+
+    restore, description = maybe_install_from_env()
+    LAST_RUN_VECTOR_CACHE = description
+    if description is not None:
+        print(f"vector cache: {description['dir']} (backend={description['semantic_backend']})")
+    try:
+        return _run_all_gates()
+    finally:
+        restore()
+
+
+def _run_all_gates() -> list[GateResult]:
     # Defensive reset, before anything else: ENV_LOCK (module import time,
     # above) already put us on ORIGINAL_DB=":memory:", so this is a no-op
     # today (the first _get_conn() call in a fresh process already gets an
@@ -4691,6 +4716,7 @@ def main(argv=None) -> int:
             json.dumps(
                 {
                     "experiment": spec_to_dict(spec),
+                    "vector_cache": LAST_RUN_VECTOR_CACHE,
                     "gates": [asdict(r) for r in results],
                 },
                 indent=2,
