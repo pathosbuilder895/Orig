@@ -64,3 +64,33 @@ def store_reset(tmp_path, monkeypatch):
 
     store._GENRE_STATS_CACHE.clear()
     store._GENRE_STATS_CACHE.clear()
+
+
+@pytest.fixture
+def pilot_env(live_app, monkeypatch):
+    """Put the loaded live app into real-deploy (pilot) mode.
+
+    Mirrors tests/test_pilot_lockdown.py's `real_deploy` fixture exactly —
+    same module (original.api), same attribute (_IS_REAL_DEPLOY) — via
+    monkeypatch, so it self-reverts on teardown. Yields nothing.
+    """
+    import original.api
+
+    monkeypatch.setattr(original.api, "_IS_REAL_DEPLOY", True)
+    yield
+
+
+@pytest.fixture
+def principal_headers():
+    """Factory fixture: make(sub, role, tenant_id) -> Authorization header dict.
+
+    Mints a signed principal token the same way tests/test_tenant_isolation.py's
+    `_auth` helper does, via original.principal.mint_principal_token.
+    """
+    from original import principal as pr
+
+    def make(sub: str, role: str, tenant_id: str) -> dict:
+        token = pr.mint_principal_token(sub, role, tenant_id)
+        return {"Authorization": f"Bearer {token}"}
+
+    return make

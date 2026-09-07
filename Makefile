@@ -1,10 +1,19 @@
 # Makefile — task runner that hard-codes .venv/bin/python so the system-python
 # / 3.9-vs-3.11 trap (CLAUDE.md, WS-2 task 2.7) stops mattering.
 
-.PHONY: test test-quantum test-postgres db-up db-down run bundle e2e lint preflight backup setup
+.PHONY: test test-quantum test-postgres db-up db-down run bundle e2e lint preflight backup setup test-security test-cert test-known-red
 
 test:
 	.venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -q
+
+test-security:
+	.venv/bin/python -m pytest tests/ -m security -q
+
+test-cert:
+	.venv/bin/python -m pytest tests/ -m certification -q
+
+test-known-red:
+	.venv/bin/python scripts/known_red.py
 
 test-quantum:
 	.venv/bin/python -m pytest tests/quantum/ -v
