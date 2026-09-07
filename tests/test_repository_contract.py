@@ -33,7 +33,8 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from original.constants import FEATURE_DIM
+from original.constants import FEATURE_DIM, GENRE_UNKNOWN
+from original.context.manifest import ContextManifest
 from original.quantum.state import BaselineSample, StudentState
 from original.repository import PostgresRepository, get_repository, reset_repository
 
@@ -114,11 +115,11 @@ def _make_state(student_id: str, n: int = 1, genre: str | None = None) -> Studen
     return state
 
 
-def _seed_manifest(repo, submission_id: str, student_id: str, action: str = "no_action"):
+def _seed_manifest(repo, submission_id: str, student_id: str, action: str = "no_action", created_at: str = "2026-01-01T00:00:00Z"):
     repo.put_manifest(
         submission_id=submission_id,
         student_id=student_id,
-        manifest={"created_at": "2026-01-01T00:00:00Z"},
+        manifest={"created_at": created_at},
         divergence_score=0.2,
         action=action,
     )
@@ -381,6 +382,21 @@ class TestGetGenreStats:
         for i in range(6):
             repo.put(_make_state(f"student-M{i}", n=1, genre="rhetoric"))
         assert repo.get_genre_stats("different_genre", None, None) is None
+
+    def test_genre_unknown_abstains_even_with_enough_samples(self, repo):
+        # GENRE_UNKNOWN ("unknown") is the v2 resolver's abstention, not a
+        # genre — pooling every unclassified sample together would rebuild
+        # the "correspondence" dumping ground under a new name. Six
+        # students clears both floors (MIN_GENRE_VECTORS=5,
+        # MIN_GENRE_STUDENTS=3) trivially, same as
+        # test_returns_stats_with_enough_samples above, so a None result
+        # here can only come from the explicit GENRE_UNKNOWN guard, not
+        # from an underpopulated pool. PostgresRepository was missing this
+        # guard entirely until Part 1/Task 5 of the persistence
+        # branch-coverage sweep — this test is what caught it.
+        for i in range(6):
+            repo.put(_make_state(f"student-N{i}", n=1, genre=GENRE_UNKNOWN))
+        assert repo.get_genre_stats(GENRE_UNKNOWN, None, None) is None
 
 
 # ── get_genre_stats distinct-student floor ───────────────────────────────────
@@ -948,6 +964,19 @@ class TestGetOrCreateAndBasics:
         assert "sem:count-b" in ids
         assert repo.count() >= 2
 
+    def test_clear_is_a_documented_no_op(self, repo):
+        # Both backends document clear() as a permanent no-op (WS-6 P6):
+        # persisted data always survives it. SqliteRepository forwards to
+        # store.clear() (itself an intentional no-op — see its docstring);
+        # PostgresRepository has no in-memory cache to clear at all. Neither
+        # side had ever actually been called within the persistence-cluster
+        # test scope before this.
+        repo.put(_make_state("sem:survives-clear", n=1))
+        repo.clear()
+        state = repo.get("sem:survives-clear")
+        assert state is not None
+        assert state.sample_count == 1
+
     def test_all_states(self, repo):
         repo.put(_make_state("sem:all-a", n=2))
         states = repo.all_states()
@@ -1015,6 +1044,41 @@ class TestKeystrokeDataRoundtrip:
         reloaded = repo.get("sem:keystroke-legacy")
         assert reloaded is not None
         assert all(s.keystroke_data is None for s in reloaded.samples)
+
+
+class TestWordCountRoundtrip:
+    """BaselineSample.word_count (original/quantum/state.py:52) must survive a
+    full put()/get() round trip on both backends identically. store.py's
+    _serialize/_deserialize carry it; PostgresRepository's _state_to_doc/
+    _doc_to_state used to silently drop it, so a real, populated value
+    (original/routers/imports.py:200 sets it from len(text.split())) was
+    lost on every Postgres round-trip."""
+
+    def test_word_count_survives_put_get(self, repo):
+        state = StudentState(student_id="sem:word-count-roundtrip", samples=[])
+        state.add_sample(
+            BaselineSample(
+                text="sample with a known word count",
+                vector=np.full(FEATURE_DIM, 0.5, dtype=np.float64),
+                provenance="verified",
+                auth_weight=1.0,
+                word_count=742,
+            )
+        )
+        repo.put(state)
+
+        reloaded = repo.get("sem:word-count-roundtrip")
+        assert reloaded is not None
+        assert reloaded.samples[0].word_count == 742
+
+    def test_sample_without_word_count_loads_as_none(self, repo):
+        """Backward compatibility: a sample with no word_count set must come
+        back as None, not raise and not require a migration."""
+        state = _make_state("sem:word-count-legacy", n=2)
+        repo.put(state)
+        reloaded = repo.get("sem:word-count-legacy")
+        assert reloaded is not None
+        assert all(s.word_count is None for s in reloaded.samples)
 
 
 class TestDensityMatrixRoundtrip:
@@ -1165,6 +1229,35 @@ class TestManifests:
         assert result["total"] >= 1
         assert all(i["action"] == "escalate" for i in result["items"])
 
+    def test_missing_created_at_agrees_on_sort_position_across_backends(self, repo):
+        """A manifest put() with no created_at (falsy/missing) must sort
+        consistently with an explicit far-past created_at, identically on
+        both backends. PostgresRepository._parse_iso_or_now substitutes
+        datetime.now(UTC) for a falsy created_at (so the missing-timestamp
+        entry sorts FIRST/newest under `ORDER BY created_at DESC`), while
+        store.py used to store the literal empty string "" (which sorts
+        LAST/oldest, since "" is lexicographically smallest) -- opposite
+        placement for the same input on the two backends."""
+        repo.put_manifest(
+            "sub-explicit-past",
+            "sem:explicit-past",
+            {"created_at": "2020-01-01T00:00:00Z"},
+            action="no_action",
+        )
+        repo.put_manifest(
+            "sub-missing-created-at",
+            "sem:missing-created-at",
+            {},  # no "created_at" key at all -> falsy -> "now" substituted
+            action="no_action",
+        )
+        result = repo.list_manifests(action="no_action")
+        ids = [i["submission_id"] for i in result["items"]]
+        assert set(ids) == {"sub-explicit-past", "sub-missing-created-at"}
+        # DESC by created_at: "now" (substituted for the missing value) is
+        # newer than the explicit 2020 timestamp, so it must sort first --
+        # on BOTH backends.
+        assert ids.index("sub-missing-created-at") < ids.index("sub-explicit-past")
+
     def test_list_manifests_filters_by_flag(self, repo):
         repo.put_manifest(
             "sub-l4",
@@ -1303,6 +1396,9 @@ class TestCalibrationRuns:
         run = repo.get_calibration_run(run_id, include_report=False)
         assert "report" not in run
 
+    def test_get_calibration_run_unknown_id_returns_none(self, repo):
+        assert repo.get_calibration_run(999999) is None
+
 
 # ── Tuned thresholds ──────────────────────────────────────────────────────
 
@@ -1387,6 +1483,53 @@ class TestBluebook:
         assert repo.get_bluebook_session("ex-c1", "sem:al")["deadline_at"] == first["deadline_at"]
         assert repo.get_bluebook_session("ex-c1", "sem:nobody") is None
 
+    def test_submission_student_id_verbatim_for_colonless_id(self, repo):
+        """A normal anonymous Bluebook sitting supplies a colon-less
+        student_id (routers/bluebook.py:207-209), e.g. "alice123" -- not
+        already tenant-prefixed. The stored student_id column must come
+        back byte-for-byte identical to what was put in, on both backends.
+        PostgresRepository used to reconstruct it via
+        join_scoped_id(row.tenant_id, row.student_id), which prepended the
+        submission's tenant_id ("sem:alice123") even though the caller never
+        supplied a scoped id -- a divergence from SqliteRepository, which
+        always returns the raw stored column verbatim.
+
+        candidateId (rendered as "No. {candidateId}" in demo/bluebook/Results.jsx)
+        must derive the same way on both backends too: strip a tenant prefix
+        if present, then take the first 6 characters of the local part --
+        store.py's idiom is
+        ``sid.split(":")[-1][:6] if ":" in sid else (sid[:6] or "-")``.
+        Covers both a colon-less id (no prefix to strip) and a colon-scoped
+        id (prefix must be stripped before truncating) so a backend that
+        truncates the raw, unstripped student_id instead -- as
+        PostgresRepository once did after the verbatim fix above, deriving
+        candidateId from the full scoped string -- is caught."""
+        repo.put_bluebook_submission(
+            {
+                "id": "bbsub-verbatim",
+                "tenant_id": "sem",
+                "exam_id": "exam-verbatim",
+                "student_id": "alice123",
+                "candidate": "Alice",
+            }
+        )
+        repo.put_bluebook_submission(
+            {
+                "id": "bbsub-scoped",
+                "tenant_id": "sem",
+                "exam_id": "exam-verbatim",
+                "student_id": "sem:alice123",
+                "candidate": "Alice",
+            }
+        )
+        subs = repo.list_bluebook_submissions("sem")
+        colonless = next(s for s in subs if s["id"] == "bbsub-verbatim")
+        scoped = next(s for s in subs if s["id"] == "bbsub-scoped")
+        assert colonless["student_id"] == "alice123"
+        assert colonless["candidateId"] == "alice1"
+        assert scoped["student_id"] == "sem:alice123"
+        assert scoped["candidateId"] == "alice1"
+
     def test_submission_uuid_lookup(self, repo):
         repo.put_bluebook_submission(
             {
@@ -1415,6 +1558,26 @@ class TestBluebook:
         repo.put_bluebook_exam({"id": "exam-E", "tenant_id": "sem-y", "title": "Y"})
         assert {e["id"] for e in repo.list_bluebook_exams("sem-x")} == {"exam-D"}
         assert {e["id"] for e in repo.list_bluebook_exams(None)} >= {"exam-D", "exam-E"}
+
+    def test_submissions_tenant_id_none_lists_across_tenants(self, repo):
+        # Mirrors test_exams_scoped_by_tenant's None-tenant (operator view)
+        # case for submissions -- both backends branch on
+        # "tenant_id is None" to skip the WHERE filter, and it was never
+        # exercised for this method within the persistence-cluster scope.
+        repo.put_bluebook_submission(
+            {"id": "bbsub-D", "tenant_id": "sem-x", "exam_id": "ex", "candidate": "X"}
+        )
+        repo.put_bluebook_submission(
+            {"id": "bbsub-E", "tenant_id": "sem-y", "exam_id": "ex", "candidate": "Y"}
+        )
+        assert {s["id"] for s in repo.list_bluebook_submissions("sem-x")} == {"bbsub-D"}
+        assert {s["id"] for s in repo.list_bluebook_submissions(None)} >= {"bbsub-D", "bbsub-E"}
+
+    def test_courses_tenant_id_none_lists_across_tenants(self, repo):
+        repo.put_bluebook_course({"id": "course-D", "tenant_id": "sem-x", "name": "X"})
+        repo.put_bluebook_course({"id": "course-E", "tenant_id": "sem-y", "name": "Y"})
+        assert {c["id"] for c in repo.list_bluebook_courses("sem-x")} == {"course-D"}
+        assert {c["id"] for c in repo.list_bluebook_courses(None)} >= {"course-D", "course-E"}
 
 
 # ── Users ─────────────────────────────────────────────────────────────────
@@ -1465,6 +1628,18 @@ class TestAuditLog:
         repo.log_audit(action="score", student_id="sem-z:carol", details={})
         result = repo.list_audit(student_id="sem-z:carol")
         assert result["items"][0]["tenant_id"] == "sem-z"
+
+    def test_list_audit_by_legacy_flat_student_id(self, repo):
+        # A colon-less (legacy-flat) student_id has no tenant to derive --
+        # PostgresRepository's audit_log.tenant_id column stays genuinely
+        # NULL for it (unlike every other student-scoped table, which
+        # assigns the tenancy shim's legacy-flat sentinel -- see
+        # PostgresRepository._split_for_audit's docstring). list_audit must
+        # still find the row by student_id alone in that case.
+        repo.log_audit(action="baseline_add", student_id="legacyflat_dave")
+        result = repo.list_audit(student_id="legacyflat_dave")
+        assert result["total"] == 1
+        assert result["items"][0]["student_id"] == "legacyflat_dave"
 
 
 # ── Formation pathways ────────────────────────────────────────────────────
@@ -1719,3 +1894,611 @@ class TestPhonePark:
         }
         forbidden = {"ip", "ip_address", "user_agent", "location", "device", "student_id", "email"}
         assert not (session_keys | tile_keys) & forbidden
+
+
+# ── Roster + status ladder (WS-6 P1 gap closure, branch-coverage part 1) ──────
+
+
+class TestRosterStatus:
+    def test_status_ladder_reflects_latest_action(self, repo):
+        # Ladder: 0 samples → no_baseline; escalate/schedule_conversation →
+        # needs_review; monitor → monitor; anything else → clear.
+        repo.put(_make_state("sem:zero", n=0))
+        repo.put(_make_state("sem:esc", n=2))
+        _seed_manifest(repo, "sub-r1", "sem:esc", action="monitor")
+        _seed_manifest(repo, "sub-r2", "sem:esc", action="escalate", created_at="2026-01-02T00:00:00Z")  # strictly later — pins chronological ordering, not insertion-order tie-break
+        repo.put(_make_state("sem:conv", n=1))
+        _seed_manifest(repo, "sub-r3", "sem:conv", action="schedule_conversation")
+        repo.put(_make_state("sem:mon", n=1))
+        _seed_manifest(repo, "sub-r4", "sem:mon", action="monitor")
+        repo.put(_make_state("sem:clean", n=1))
+        _seed_manifest(repo, "sub-r5", "sem:clean", action="no_action")
+        repo.put(_make_state("sem:unscored", n=1))  # no manifest at all
+
+        roster = {r["id"]: r for r in repo.roster_for_tenant("sem")}
+        assert roster["sem:zero"]["status"] == "no_baseline"
+        assert roster["sem:esc"]["status"] == "needs_review"
+        assert roster["sem:conv"]["status"] == "needs_review"
+        assert roster["sem:mon"]["status"] == "monitor"
+        assert roster["sem:clean"]["status"] == "clear"
+        assert roster["sem:unscored"]["status"] == "clear"
+
+    def test_roster_status_with_manifest_but_no_action_recorded(self, repo):
+        # Different from "sem:unscored" above (no manifest row at all, so
+        # the student never appears in the action query's result set): here
+        # a manifest row DOES exist but with action=None -- both backends
+        # build a {student: latest_action} map with `if action:` guarding
+        # the assignment, so a falsy action must still leave the student
+        # unmapped rather than mapped to None.
+        repo.put(_make_state("sem:no-action-recorded", n=1))
+        _seed_manifest(repo, "sub-no-action", "sem:no-action-recorded", action=None)
+        roster = {r["id"]: r for r in repo.roster_for_tenant("sem")}
+        assert roster["sem:no-action-recorded"]["status"] == "clear"
+
+    def test_roster_names_counts_and_scoping(self, repo):
+        state = _make_state("sem:named", n=3)
+        repo.put(state)
+        repo.set_display_name("sem:named", "Alice Example")
+        repo.put(_make_state("sem:anon", n=1))
+        repo.put(_make_state("other:outsider", n=1))  # different tenant
+
+        roster = {r["id"]: r for r in repo.roster_for_tenant("sem")}
+        assert set(roster) == {"sem:named", "sem:anon"}
+        assert roster["sem:named"]["name"] == "Alice Example"
+        assert roster["sem:named"]["has_name"] is True
+        assert roster["sem:anon"]["has_name"] is False
+        assert roster["sem:anon"]["name"].startswith("Student ")
+        assert roster["sem:named"]["sample_count"] == 3
+        assert roster["sem:named"]["authenticated_count"] == 3  # instructor_verified
+
+
+# ── Manifest read-model gaps (WS-6 P1 gap closure, branch-coverage part 1,
+#    task 2: put_manifest / list_manifests / manifest_stats /
+#    list_calibration_runs) ─────────────────────────────────────────────────
+
+
+class TestManifestUpsertAndTypes:
+    def test_put_manifest_upsert_same_submission_id_wins(self, repo):
+        # Both backends key the underlying row on submission_id (SQLite's
+        # INSERT OR REPLACE, Postgres's ON CONFLICT DO UPDATE) — a second
+        # write for the same id must replace the row in place, not append.
+        repo.put_manifest(
+            "sub-up1",
+            "sem:upsert",
+            {"created_at": "2026-01-01T00:00:00Z", "flags": ["first"]},
+            divergence_score=0.1,
+            action="no_action",
+        )
+        repo.put_manifest(
+            "sub-up1",
+            "sem:upsert",
+            {"created_at": "2026-01-05T00:00:00Z", "flags": ["second"]},
+            divergence_score=0.9,
+            action="escalate",
+        )
+        m = repo.get_manifest("sub-up1")
+        assert m["action"] == "escalate"
+        assert m["divergence_score"] == 0.9
+        assert m["manifest"]["flags"] == ["second"]
+
+        result = repo.list_manifests(student_id="sem:upsert")
+        assert result["total"] == 1
+        assert len(result["items"]) == 1
+        assert result["items"][0]["submission_id"] == "sub-up1"
+        assert result["items"][0]["action"] == "escalate"
+
+    def test_put_manifest_accepts_context_manifest_object(self, repo):
+        # put_manifest's `manifest` param is typed "ContextManifest or its
+        # to_dict()" — the hasattr(manifest, "to_json") branch is the real
+        # production call shape (context/pipeline.py passes the dataclass
+        # itself), not just the dict shortcut every other test in this file
+        # uses.
+        manifest = ContextManifest(
+            submission_id="sub-obj1",
+            language={},
+            genre={},
+            topic={},
+            length_regime="short",
+            citations={},
+            composition_mode={},
+            flags=["from_object"],
+            created_at="2026-01-03T00:00:00Z",
+        )
+        repo.put_manifest(
+            "sub-obj1", "sem:objtype", manifest, divergence_score=0.25, action="monitor"
+        )
+        m = repo.get_manifest("sub-obj1")
+        assert m["student_id"] == "sem:objtype"
+        assert m["action"] == "monitor"
+        assert m["divergence_score"] == 0.25
+        assert m["manifest"]["flags"] == ["from_object"]
+
+    def test_put_manifest_unsupported_type_is_swallowed(self, repo):
+        # Neither hasattr(..., "to_json") nor isinstance(..., dict) — the
+        # else arm logs a warning and returns without writing a row
+        # (best-effort audit log, never allowed to break the scoring path).
+        repo.put_manifest("sub-bad1", "sem:badtype", "not-a-manifest", action="monitor")
+        assert repo.get_manifest("sub-bad1") is None
+        result = repo.list_manifests(student_id="sem:badtype")
+        assert result["total"] == 0
+
+
+class TestListManifestsFilterBoundaries:
+    def test_since_until_boundaries_are_inclusive(self, repo):
+        _seed_manifest(repo, "sub-b1", "sem:bounds", created_at="2026-02-01T00:00:00Z")
+        _seed_manifest(repo, "sub-b2", "sem:bounds", created_at="2026-02-02T00:00:00Z")
+        _seed_manifest(repo, "sub-b3", "sem:bounds", created_at="2026-02-03T00:00:00Z")
+
+        since_result = repo.list_manifests(student_id="sem:bounds", since="2026-02-02T00:00:00Z")
+        assert {i["submission_id"] for i in since_result["items"]} == {"sub-b2", "sub-b3"}
+
+        until_result = repo.list_manifests(student_id="sem:bounds", until="2026-02-02T00:00:00Z")
+        assert {i["submission_id"] for i in until_result["items"]} == {"sub-b1", "sub-b2"}
+
+    def test_empty_result_set(self, repo):
+        _seed_manifest(repo, "sub-e1", "sem:somebody")
+        result = repo.list_manifests(student_id="nobody-here")
+        assert result == {"total": 0, "limit": 100, "offset": 0, "items": []}
+
+
+class TestManifestStatsEdgeCases:
+    def test_empty_store_denominator_is_safe(self, repo):
+        stats = repo.manifest_stats()
+        assert stats["total"] == 0
+        assert stats["mean_divergence"] is None
+        assert stats["by_action"] == {}
+        assert stats["by_flag"] == {}
+        assert stats["by_length_regime"] == {}
+
+    def test_since_cutoff_excludes_everything(self, repo):
+        _seed_manifest(repo, "sub-st1", "sem:stats1", created_at="2026-01-01T00:00:00Z")
+        stats = repo.manifest_stats(since="2026-06-01T00:00:00Z")
+        assert stats["total"] == 0
+        assert stats["mean_divergence"] is None
+        assert stats["since"] == "2026-06-01T00:00:00Z"
+
+    def test_until_filters_a_subset(self, repo):
+        _seed_manifest(repo, "sub-st2", "sem:stats2", created_at="2026-01-01T00:00:00Z")
+        _seed_manifest(repo, "sub-st3", "sem:stats2", created_at="2026-03-01T00:00:00Z")
+        stats = repo.manifest_stats(until="2026-01-15T00:00:00Z")
+        assert stats["total"] == 1
+
+    def test_divergence_none_excluded_from_mean(self, repo):
+        # A manifest written without a divergence_score (None) must not
+        # pull the running mean toward zero — the loop only accumulates
+        # rows where the score is not None.
+        repo.put_manifest(
+            "sub-st4", "sem:stats3", {"created_at": "2026-01-01T00:00:00Z"}, action="no_action"
+        )
+        repo.put_manifest(
+            "sub-st5",
+            "sem:stats3",
+            {"created_at": "2026-01-01T00:00:00Z"},
+            divergence_score=0.6,
+            action="monitor",
+        )
+        stats = repo.manifest_stats()
+        assert stats["total"] == 2
+        assert stats["mean_divergence"] == 0.6
+
+
+class TestCalibrationRunsListFilters:
+    def test_list_calibration_runs_on_empty_store(self, repo):
+        result = repo.list_calibration_runs()
+        assert result == {"total": 0, "limit": 50, "offset": 0, "items": []}
+
+    def test_list_calibration_runs_filters_by_dataset_label(self, repo):
+        repo.start_calibration_run("dataset-E")
+        run_f = repo.start_calibration_run("dataset-F")
+        result = repo.list_calibration_runs(dataset_label="dataset-F")
+        assert result["total"] == 1
+        assert result["items"][0]["id"] == run_f
+        assert result["items"][0]["dataset_label"] == "dataset-F"
+
+    def test_list_calibration_runs_orders_newest_first_with_distinct_timestamps(self, repo):
+        run_first = repo.start_calibration_run("dataset-G")
+        run_second = repo.start_calibration_run("dataset-H")
+
+        first_started_at = repo.get_calibration_run(run_first)["started_at"]
+        second_started_at = repo.get_calibration_run(run_second)["started_at"]
+        assert first_started_at != second_started_at
+
+        result = repo.list_calibration_runs()
+        ids_newest_first = [item["id"] for item in result["items"]]
+        assert ids_newest_first.index(run_second) < ids_newest_first.index(run_first)
+
+
+# ── Deletion, inventory, and correction branch gaps (WS-6 P1 gap closure,
+#    branch-coverage part 1, task 3: delete_student / delete_tenant_students /
+#    student_data_inventory / put_correction / set_display_name /
+#    get_fused_scores / get_ai_likelihood_scores) ────────────────────────────
+
+
+class TestDeleteStudentFullFootprint:
+    def test_delete_removes_every_associated_record(self, repo):
+        # TestDeleteStudent (above) already covers the unknown-id False arm
+        # and the bare-profile True arm. This closes the branches that only
+        # fire when the student *also* has manifests (sub_ids truthy — the
+        # orphaned-corrections-by-submission_id purge), a display name row
+        # (Postgres's explicit `name_row is not None` arm — SQLite's DELETE
+        # is unconditional SQL and has no equivalent branch), and a live
+        # original.fusion.peers module (the sys.modules guard's True arm).
+        import original.fusion.peers  # noqa: F401 — populates sys.modules so
+        # the `if _fusion_peers is not None:` guard in both delete_student
+        # implementations takes its True arm; clear_student() is documented
+        # as a safe no-op for a student with nothing cached
+        # (original/fusion/peers.py:clear_student).
+
+        repo.put(_make_state("sem:ferpa", n=2))
+        repo.set_display_name("sem:ferpa", "FERPA Student")
+        _seed_manifest(repo, "sub-ferpa1", "sem:ferpa", action="monitor")
+        repo.put_correction("sub-ferpa1", True, student_id="sem:ferpa")
+        repo.put_fidelity_score("sub-ferpa1", "sem:ferpa", 0.8, is_authentic=True)
+        repo.put_ai_likelihood_score("sub-ferpa1", "sem:ferpa", 0.3, "low")
+        repo.put_fused_score("sub-ferpa1", "sem:ferpa", 0.5, 0.6, "low", {"peer_centered_z": 0.1})
+        # The audit log is a read surface too, and its details_json can carry
+        # PII (e.g. a submission excerpt) — FERPA erasure must purge it, not
+        # just the scoring tables. Seeded via the protocol, like every other
+        # row here.
+        repo.log_audit(
+            action="score",
+            student_id="sem:ferpa",
+            details={"submission_id": "sub-ferpa1"},
+        )
+
+        # Sanity: everything is actually there before deleting.
+        assert repo.student_data_inventory("sem:ferpa") is not None
+        assert "sem:ferpa" in {r["id"] for r in repo.roster_for_tenant("sem")}
+        assert repo.list_audit(student_id="sem:ferpa")["total"] == 1
+
+        assert repo.delete_student("sem:ferpa") is True
+
+        # FERPA right-to-erasure: nothing of the student survives, on any
+        # read surface the Repository protocol exposes.
+        assert repo.get("sem:ferpa") is None
+        assert repo.student_data_inventory("sem:ferpa") is None
+        assert repo.get_display_name("sem:ferpa") == ""
+        assert "sem:ferpa" not in {r["id"] for r in repo.roster_for_tenant("sem")}
+        assert repo.get_fused_scores(student_id="sem:ferpa") == []
+        assert repo.get_ai_likelihood_scores(student_id="sem:ferpa") == []
+        assert repo.get_authentic_fidelities("sem:ferpa") == []
+        assert repo.list_corrections(student_id="sem:ferpa")["items"] == []
+        assert repo.list_corrections(submission_id="sub-ferpa1")["items"] == []
+        assert repo.list_manifests(student_id="sem:ferpa")["total"] == 0
+        assert repo.list_audit(student_id="sem:ferpa")["items"] == []
+
+    def test_delete_legacy_flat_student_does_not_purge_other_tenants_audit_log(self, repo):
+        # Final whole-branch review, C1: audit_log stores the LOCAL id for a
+        # colon-scoped student (log_audit's _split_for_audit splits
+        # "sem:alice" into tenant_id="sem", student_id="alice"), so a
+        # legacy-flat student who happens to share that same local id
+        # ("alice", no colon) is a real collision risk on Postgres, where
+        # audit_log has separate tenant_id/student_id columns. delete_student's
+        # else-branch (colon-less student_id) used to purge audit_log by
+        # student_id alone with no tenant_id predicate at all, so deleting
+        # legacy-flat "alice" would also wipe tenant "sem"'s "sem:alice"
+        # audit history. SQLite has no equivalent bug: it stores the full
+        # scoped string in audit_log.student_id, so "alice" != "sem:alice"
+        # there and no collision is possible — this is a Postgres-only
+        # regression, but the test runs on both backends via the shared
+        # `repo` fixture since the assertion holds (vacuously, on sqlite).
+        #
+        # Deliberately not asserted here: repo.list_audit(student_id="alice")
+        # totals. list_audit()'s own colon-less else-branch (line ~1930) had
+        # the identical missing-tenant-predicate shape and would have matched
+        # BOTH rows once they collide — a separate cross-tenant READ leak,
+        # fixed and covered by TestListAuditLegacyFlatTenantScoping below.
+        # Querying by "sem:alice" always takes list_audit's `if tenant_id is
+        # not None` arm, which already filters correctly on both columns, so
+        # it stays a clean probe of delete_student's fix.
+        repo.put(_make_state("sem:alice", n=1))
+        repo.put(_make_state("alice", n=1))
+
+        repo.log_audit(action="score", student_id="sem:alice", details={})
+        repo.log_audit(action="score", student_id="alice", details={})
+
+        assert repo.list_audit(student_id="sem:alice")["total"] == 1
+
+        assert repo.delete_student("alice") is True
+
+        # The tenant-scoped student sharing the same local id must survive
+        # untouched — this is the actual regression being guarded against.
+        result = repo.list_audit(student_id="sem:alice")
+        assert result["total"] == 1
+        assert result["items"][0]["student_id"] == "sem:alice"
+
+    def test_delete_legacy_flat_student_still_purges_own_audit_log(self, repo):
+        # Regression guard for the fix itself: the else-branch's added
+        # `tenant_id IS NULL` predicate must not become so narrow that a
+        # genuinely legacy-flat student (no colliding tenant-scoped student)
+        # stops having their own audit rows purged on FERPA erasure. No
+        # local-id collision here, so this also incidentally sidesteps
+        # list_audit's own else-branch quirk noted above.
+        repo.put(_make_state("solo-legacy-flat", n=1))
+        repo.log_audit(action="score", student_id="solo-legacy-flat", details={})
+        assert repo.list_audit(student_id="solo-legacy-flat")["total"] == 1
+
+        assert repo.delete_student("solo-legacy-flat") is True
+
+        assert repo.list_audit(student_id="solo-legacy-flat")["items"] == []
+
+
+class TestListAuditLegacyFlatTenantScoping:
+    def test_legacy_flat_lookup_does_not_leak_other_tenants_audit_log(self, repo):
+        # Sibling bug to delete_student's fix in 77ec3741 (same file):
+        # list_audit's own colon-less else-branch (line ~1930) had the
+        # identical missing-tenant-predicate shape. audit_log stores the
+        # LOCAL id for a colon-scoped student (log_audit's _split_for_audit
+        # splits "sem:alice" into tenant_id="sem", student_id="alice"), so on
+        # Postgres — where audit_log has separate tenant_id/student_id
+        # columns — querying list_audit(student_id="alice") for a genuinely
+        # colon-less "alice" would ALSO match tenant "sem"'s "sem:alice" row:
+        # a cross-tenant audit-log READ LEAK (not just a deletion bug), and
+        # details_json can carry PII (IPs, submission ids, actor emails).
+        # SQLite stores the full scoped string in audit_log.student_id, so
+        # "alice" != "sem:alice" there and no collision is possible — this is
+        # a Postgres-only regression, but the test runs on both backends via
+        # the shared `repo` fixture since the assertion holds (vacuously) on
+        # sqlite too.
+        repo.put(_make_state("sem:alice", n=1))
+        repo.put(_make_state("alice", n=1))
+
+        repo.log_audit(action="score", student_id="sem:alice", details={"note": "tenant-scoped"})
+        repo.log_audit(action="score", student_id="alice", details={"note": "legacy-flat"})
+
+        result = repo.list_audit(student_id="alice")
+
+        assert result["total"] == 1
+        assert len(result["items"]) == 1
+        assert result["items"][0]["student_id"] == "alice"
+        assert all(item["tenant_id"] != "sem" for item in result["items"])
+
+    def test_tenant_scoped_lookup_still_works_after_fix(self, repo):
+        # Regression guard: the fix must only touch the else (colon-less)
+        # branch — the `if tenant_id is not None` arm for a colon-scoped
+        # lookup ("sem:alice") must keep matching only that tenant's own row.
+        repo.put(_make_state("sem:alice", n=1))
+        repo.put(_make_state("alice", n=1))
+
+        repo.log_audit(action="score", student_id="sem:alice", details={})
+        repo.log_audit(action="score", student_id="alice", details={})
+
+        result = repo.list_audit(student_id="sem:alice")
+
+        assert result["total"] == 1
+        assert result["items"][0]["student_id"] == "sem:alice"
+
+
+class TestDeleteTenantStudentsEmptyTenant:
+    def test_empty_tenant_returns_zero_with_no_failures(self, repo):
+        # Zero-ids arm: list_ids_for_tenant comes back empty, so the for
+        # loop over ids_to_delete never enters its body at all.
+        result = repo.delete_tenant_students("no-such-tenant-at-all")
+        assert result == {"deleted_count": 0, "failed_ids": []}
+
+
+class TestStudentDataInventoryManifestBreakdown:
+    def test_manifests_grouped_by_action(self, repo):
+        # TestStudentDataInventory (above) covers the unknown-student None
+        # arm and a known student with zero manifests. This closes the
+        # manifest_rows-truthy arm: the per-action breakdown loop only runs
+        # when there is at least one manifest row to group.
+        repo.put(_make_state("sem:inv2", n=1))
+        _seed_manifest(repo, "sub-inv2a", "sem:inv2", action="monitor")
+        _seed_manifest(
+            repo, "sub-inv2b", "sem:inv2", action="monitor", created_at="2026-01-02T00:00:00Z"
+        )
+        _seed_manifest(
+            repo, "sub-inv2c", "sem:inv2", action="escalate", created_at="2026-01-03T00:00:00Z"
+        )
+
+        inv = repo.student_data_inventory("sem:inv2")
+        manifests = inv["data_categories"]["submission_manifests"]
+        assert manifests["total"] == 3
+        assert manifests["by_action"]["monitor"]["count"] == 2
+        assert manifests["by_action"]["escalate"]["count"] == 1
+
+
+class TestStudentDataInventoryLegacyFlatAuditCount:
+    def test_legacy_flat_student_audit_count_is_not_under_reported(self, repo):
+        # Third instance of the same bug family as 77ec3741 (delete_student)
+        # and 994e8efb (list_audit): student_data_inventory's audit_count
+        # query reuses split_scoped_id's tenant_id/local_id -- the general
+        # shim, which assigns the "__legacy_flat__" sentinel for a colon-less
+        # id -- to filter AuditLogEntry. But audit_log rows for a colon-less
+        # student are written with tenant_id=NULL (log_audit's
+        # _split_for_audit, a different rule: derive only when the id has a
+        # colon). "__legacy_flat__" never matches NULL, so this query always
+        # returns 0 for a genuinely legacy-flat student even when real audit
+        # history exists. Unlike the two siblings this isn't a cross-tenant
+        # leak -- the sentinel matches nothing, so it's a silent
+        # under-count -- but student_data_inventory backs
+        # GET /students/{id}/data-inventory, whose stated purpose is FERPA
+        # proof of what's on file, so telling a legacy-flat student their
+        # audit history is empty when it isn't is the wrong kind of wrong.
+        repo.put(_make_state("solo-legacy-flat-audit", n=1))
+        repo.log_audit(action="score", student_id="solo-legacy-flat-audit", details={})
+        repo.log_audit(action="view", student_id="solo-legacy-flat-audit", details={})
+
+        inv = repo.student_data_inventory("solo-legacy-flat-audit")
+
+        assert inv["data_categories"]["audit_log_entries"]["count"] == 2
+
+
+class TestLogAuditExplicitTenantWithScopedStudentId:
+    def test_explicit_tenant_and_colon_scoped_id_both_passed(self, repo):
+        # Final-review bug: bluebook.py's log_audit call sites (magic_launch,
+        # record_submission) pass BOTH an explicit tenant_id AND a
+        # colon-scoped student_id (e.g. tenant_id="sem", student_id=
+        # "sem:alice") -- the calling convention every other production
+        # caller in this codebase avoids. PostgresRepository._split_for_audit
+        # only strips the colon when tenant_id is None, so with both passed
+        # the colon-stripping never fired and the row was stored with
+        # student_id="sem:alice" (colon still embedded) and tenant_id="sem".
+        # Every reader (list_audit, delete_student, student_data_inventory)
+        # re-derives via _split_for_audit(student_id, None), expecting
+        # student_id to be the BARE local id whenever tenant_id is set --
+        # so a row written this way could never be found, purged, or
+        # counted correctly. log_audit must always normalize a colon-scoped
+        # student_id to its bare local id, independent of whether the
+        # caller also passed tenant_id explicitly.
+        repo.log_audit(action="test", student_id="sem:alice", tenant_id="sem")
+
+        result = repo.list_audit(student_id="sem:alice")
+
+        assert result["total"] == 1
+        assert result["items"][0]["action"] == "test"
+        assert result["items"][0]["student_id"] == "sem:alice"
+        assert result["items"][0]["tenant_id"] == "sem"
+
+    def test_caller_tenant_id_wins_over_colon_prefix_when_they_disagree(self, repo):
+        # The caller's explicit tenant_id is authoritative -- it must not be
+        # silently overwritten by whatever tenant the colon prefix implies.
+        # This guards against a naive fix that always re-derives tenant_id
+        # from the colon prefix instead of only filling it in when the
+        # caller left it as None. Looked up by action rather than
+        # student_id: the two backends compose the stored student_id
+        # differently in a tenant_id/colon-prefix mismatch (Postgres
+        # normalizes to the bare local id under the caller's tenant, SQLite
+        # keeps the original string verbatim -- not the invariant under
+        # test here), but both must agree that tenant_id stays the
+        # caller's "sem", not the colon prefix's "other".
+        repo.log_audit(action="test-tenant-wins", student_id="other:bob", tenant_id="sem")
+
+        result = repo.list_audit(action="test-tenant-wins")
+
+        assert result["total"] == 1
+        assert result["items"][0]["tenant_id"] == "sem"
+
+    def test_no_explicit_tenant_still_derives_from_colon_prefix(self, repo):
+        # Regression guard: the existing correct calling convention (no
+        # tenant_id, colon-scoped student_id) must be unaffected by the fix.
+        repo.log_audit(action="test", student_id="sem:carol")
+
+        result = repo.list_audit(student_id="sem:carol")
+
+        assert result["total"] == 1
+        assert result["items"][0]["student_id"] == "sem:carol"
+        assert result["items"][0]["tenant_id"] == "sem"
+
+    def test_bare_tenant_with_colon_less_student_id_unaffected(self, repo):
+        # Regression guard: the other existing correct calling convention
+        # (bare tenant_id, colon-less student_id) must be unaffected too --
+        # there's no colon to strip, so this call shape must be untouched
+        # by the fix. Looked up by action rather than
+        # list_audit(student_id="dave") -- that lookup path re-derives via
+        # _split_for_audit(student_id, None), which treats a colon-less id
+        # as implying tenant_id IS NULL and so would not match this row's
+        # explicit tenant_id="sem" either before or after this fix; that's
+        # an orthogonal, pre-existing list_audit quirk, not something this
+        # fix touches. Not asserting the exact returned student_id string:
+        # Postgres's list_audit formats it scoped ("sem:dave", via
+        # join_scoped_id whenever tenant_id is set) while SQLite returns
+        # the stored column verbatim ("dave") -- a pre-existing read-side
+        # formatting difference between backends, unrelated to this fix.
+        repo.log_audit(action="test-bare-tenant-colonless", student_id="dave", tenant_id="sem")
+
+        result = repo.list_audit(action="test-bare-tenant-colonless")
+
+        assert result["total"] == 1
+        assert result["items"][0]["tenant_id"] == "sem"
+
+
+class TestPutCorrectionFallbackChain:
+    def test_explicit_divergence_score_not_overwritten_by_manifest(self, repo):
+        # original_divergence_score is supplied directly, but student_id is
+        # not — the compound auto-fill condition is still True (it enters
+        # the `existing is not None` block to fill in student_id and
+        # original_action from the manifest), but the nested
+        # `if original_divergence_score is None:` must take its False arm
+        # and leave the caller-supplied value alone.
+        _seed_manifest(repo, "sub-corr-div", "sem:corrdiv", action="escalate")
+        cid = repo.put_correction(
+            "sub-corr-div",
+            False,
+            original_divergence_score=0.42,
+            created_at="2026-04-01T00:00:00Z",
+        )
+        assert cid is not None
+        item = repo.list_corrections(submission_id="sub-corr-div")["items"][0]
+        assert item["student_id"] == "sem:corrdiv"  # still auto-filled from the manifest
+        assert item["original_divergence_score"] == 0.42  # NOT overwritten by the manifest's 0.2
+        assert item["created_at"].startswith("2026-04-01")
+
+    def test_falls_back_to_score_audit_row_when_no_manifest(self, repo):
+        # No manifest exists for this submission_id at all, so student_id
+        # is still None after the manifest auto-fill attempt — both
+        # backends then fall back to the most recent action='score'
+        # audit_log row for this submission (store.py inlines the query;
+        # Postgres delegates to submission_student_id(), which checks the
+        # same two sources in the same order).
+        repo.log_audit(
+            action="score",
+            student_id="sem:auditfallback",
+            details={"submission_id": "sub-corr-audit"},
+        )
+        cid = repo.put_correction("sub-corr-audit", True)
+        assert cid is not None
+        item = repo.list_corrections(submission_id="sub-corr-audit")["items"][0]
+        assert item["student_id"] == "sem:auditfallback"
+
+    def test_student_id_stays_none_when_totally_unresolvable(self, repo):
+        # No manifest, no matching audit_log row, no explicit student_id —
+        # every fallback in the chain comes up empty and student_id is
+        # persisted as None rather than raising.
+        cid = repo.put_correction("sub-corr-orphan", False)
+        assert cid is not None
+        item = repo.list_corrections(submission_id="sub-corr-orphan")["items"][0]
+        assert item["student_id"] is None
+
+    def test_same_submission_twice_both_retained(self, repo):
+        # Corrections are an append-only feedback log, not an upsert keyed
+        # on submission_id — an instructor revising their own earlier call
+        # must not silently erase the first entry.
+        repo.put_correction("sub-corr-twice", False, student_id="sem:twice", reviewer="profA")
+        repo.put_correction("sub-corr-twice", True, student_id="sem:twice", reviewer="profB")
+        result = repo.list_corrections(submission_id="sub-corr-twice")
+        assert result["total"] == 2
+        reviewers = {item["reviewer"] for item in result["items"]}
+        assert reviewers == {"profA", "profB"}
+
+
+class TestSetDisplayNameBlankAndUpdate:
+    def test_blank_name_does_not_overwrite_existing(self, repo):
+        repo.set_display_name("sem:blankguard", "Real Name")
+        repo.set_display_name("sem:blankguard", "   ")  # blank after strip -- a no-op
+        assert repo.get_display_name("sem:blankguard") == "Real Name"
+
+    def test_set_twice_latest_name_wins(self, repo):
+        repo.set_display_name("sem:renamed", "First Name")
+        repo.set_display_name("sem:renamed", "Second Name")
+        assert repo.get_display_name("sem:renamed") == "Second Name"
+
+
+class TestFusedAndAiLikelihoodScoresEmptyVsPopulated:
+    def test_get_fused_scores_empty_no_filter(self, repo):
+        assert repo.get_fused_scores() == []
+
+    def test_get_fused_scores_populated_filtered_by_student(self, repo):
+        repo.put_fused_score(
+            "sub-fs1", "sem:fused1", 0.4, 0.6, "low", {"peer_centered_z": 0.2, "compression": 0.1}
+        )
+        repo.put_fused_score("sub-fs2", "sem:fused2", 1.2, 0.9, "high", {"peer_centered_z": 0.8})
+
+        result = repo.get_fused_scores(student_id="sem:fused1")
+        assert len(result) == 1
+        assert result[0]["submission_id"] == "sub-fs1"
+        assert result[0]["student_id"] == "sem:fused1"
+        assert result[0]["channels"]["peer_centered_z"] == 0.2
+
+    def test_get_ai_likelihood_scores_empty_no_filter(self, repo):
+        assert repo.get_ai_likelihood_scores() == []
+
+    def test_get_ai_likelihood_scores_populated_filtered_by_student(self, repo):
+        repo.put_ai_likelihood_score("sub-ai1", "sem:ai1", 0.7, "high")
+        repo.put_ai_likelihood_score("sub-ai2", "sem:ai2", 0.2, "low")
+
+        result = repo.get_ai_likelihood_scores(student_id="sem:ai1")
+        assert len(result) == 1
+        assert result[0]["submission_id"] == "sub-ai1"
+        assert result[0]["band"] == "high"

@@ -84,6 +84,17 @@ def test_blend_re_derives_tier_from_combined_score():
     assert candidates["blend"] == "schedule_conversation"
 
 
+def test_blend_action_clips_to_escalate_at_the_boundary():
+    # blended = 0.5*1.0 + 0.5*1.0 = 1.0. ACTION_THRESHOLDS["escalate"] is
+    # (0.75, 1.00) with hi EXCLUSIVE (`lo <= blended < hi`), so the
+    # for-loop's `1.00 <= blended < 1.00` never matches at the top of the
+    # range -- verified directly: the `if blended >= 1.0: blend_action =
+    # "escalate"` fallback below the loop is what has to catch this
+    # boundary, mirroring _recommend's own `deviation >= 1.0` handling.
+    candidates = _llr_action_candidates("no_action", deviation=1.0, llr_deviation_score=1.0)
+    assert candidates["blend"] == "escalate"
+
+
 def test_thresholds_are_symmetric_around_the_documented_midpoint():
     # AuthorshipSignal.llr_deviation_score docstring: 0.5 = "as consistent
     # with one as the other". The action thresholds must straddle it evenly.

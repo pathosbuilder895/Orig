@@ -175,6 +175,60 @@ class TestAnchorTierSelection:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Empty tier-code-list defensive arms (state.py:455, 462-463)
+#
+# `check_drift` builds `indices = [code_to_index[c] for c in tier_codes[tier]
+# if c in code_to_index]` per anchor tier, then `continue`s past any tier that
+# resolves to zero indices (line 455), and — if every anchor tier resolves to
+# zero indices — falls through to a defensive `accept` (lines 462-463) rather
+# than average over an empty dict. TIER4_CODES/TIER6_CODES are non-empty in
+# real constants.py, so neither arm is reachable through the public API with
+# real data; `check_drift`'s local `from ..constants import (...)` re-reads
+# the module attribute on every call, so monkeypatching
+# `original.constants.TIER{4,6}_CODES` before calling reliably exercises both
+# defensive arms without touching production behaviour.
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestEmptyAnchorTierGuards:
+    def test_single_empty_tier_is_skipped_not_averaged(self, monkeypatch):
+        # TIER6_CODES emptied → indices=[] for tier 6 → `continue` (line 455).
+        # TIER4_CODES is untouched, so tier 4 still resolves and per_tier is
+        # NOT empty — this must NOT fall into the all-empty guard (462-463).
+        import original.constants as constants_mod
+
+        monkeypatch.setattr(constants_mod, "TIER6_CODES", [])
+        state = _state_with_baseline(value=0.5, n=3)
+        new = _baseline_sample(value=0.95)
+        r = state.check_drift(new)
+        # Only tier 4 contributed a deviation; tier 6 was skipped outright.
+        assert set(r.anchor_tier_deviations.keys()) == {4}
+        # mean(|0.95-0.5|) over tier-4 codes only == 0.45 (uniform vectors).
+        assert r.drift_magnitude == pytest.approx(0.45, abs=1e-4)
+        assert r.recommendation == "flag_for_review"
+
+    def test_all_tiers_empty_falls_back_to_defensive_accept(self, monkeypatch):
+        # Both default anchor tiers emptied → per_tier stays {} → the
+        # defensive "no anchor tier had any codes" guard fires (462-463),
+        # NOT the bootstrap guard (this state already has a baseline).
+        import original.constants as constants_mod
+
+        monkeypatch.setattr(constants_mod, "TIER4_CODES", [])
+        monkeypatch.setattr(constants_mod, "TIER6_CODES", [])
+        state = _state_with_baseline(value=0.5, n=3)
+        # Bump the counter first so we can prove this guard RESETS it, same
+        # as the bootstrap/normal-accept guards do.
+        state._consecutive_drift_count = 1
+        new = _baseline_sample(value=0.95)
+        r = state.check_drift(new)
+        assert r.recommendation == "accept"
+        assert r.drift_detected is False
+        assert r.drift_magnitude == 0.0
+        assert r.anchor_tier_deviations == {}
+        assert r.consecutive_drift_count == 0
+        assert state._consecutive_drift_count == 0
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Persistence: counter survives serialise/deserialise
 # ══════════════════════════════════════════════════════════════════════════════
 

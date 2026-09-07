@@ -18,7 +18,7 @@ Stylometric authorship verification system for academic integrity. Per-student q
 
 ## Testing
 ```bash
-.venv/bin/python -m pytest tests/ -q                  # full suite (~2336 collected as of 2026-08-17)
+.venv/bin/python -m pytest tests/ -q                  # full suite (~3275 collected as of 2026-08-20)
 .venv/bin/python -m pytest tests/quantum/ -v          # quantum module only
 .venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -q   # exact CI command
 ```
@@ -26,12 +26,16 @@ Test count grows regularly — treat the numbers above as approximate (get the
 current count with `.venv/bin/python -m pytest --collect-only -q tests/ 2>&1 | tail -1`),
 not a pinned figure to keep in sync by hand.
 **Budget ~11–12 minutes for the full run, not seconds** — the exact CI command
-measured **11m19s** locally on 2026-08-17 (2174 passed, 165 skipped), and it
-routinely lands anywhere in 5–12 min depending on machine load. It will outrun
-a 600s tool timeout and get backgrounded, so do not run it on a short budget.
-Coverage on `original/` was **78.69%** in that run, against CI's
-`--cov-fail-under=78` — the margin is under a point, so a change that adds
-untested lines can fail CI on coverage alone while every test passes.
+measured **11m14s** locally on 2026-08-20 with local Postgres up (3273 passed,
+5 skipped), and it routinely lands anywhere in 5–12 min depending on machine
+load. It will outrun a 600s tool timeout and get backgrounded, so do not run
+it on a short budget.
+Coverage on `original/` was **99.61%** in that run (combined statement +
+branch coverage, since CI runs with `--cov-branch`), against CI's
+`--cov-fail-under=98` — the margin is about 1.6 points, tighter than it
+sounds once branches are in the denominator, so a change that adds a
+meaningful amount of untested lines or branches can still fail CI on
+coverage alone while every test passes.
 A clean run is **0 failed**; treat any failure as real.
 A `changed-tests` pre-push hook (`.pre-commit-config.yaml` →
 `scripts/changed_tests.py`) maps the pushed diff to its associated test files
@@ -39,12 +43,13 @@ A `changed-tests` pre-push hook (`.pre-commit-config.yaml` →
 `tests/test_changed_tests_mapping.py`) and runs them, auto-detecting the local
 Postgres container so postgres-marked tests execute rather than skip.
 `SKIP=changed-tests git push` bypasses it in an emergency.
-The ~165 skips are essentially all the `postgres`-marked tests (166 collected
-under `-m postgres`), which self-skip when no `DATABASE_URL` Postgres is
+Without a reachable `DATABASE_URL`, most of that count reopens as skips: the
+`postgres`-marked tests (270 collected under `-m postgres`, up from 166 as the
+branch-coverage effort added new ones) self-skip when no Postgres instance is
 reachable. **Do not leave them skipped: run them locally.** `make test-postgres`
 (or `bash scripts/local_postgres.sh up` + `DATABASE_URL=$(bash scripts/local_postgres.sh url)`)
 starts a Docker Postgres 16 container identical to CI's service container and
-runs the marker suite — measured 166 passed in ~14s on 2026-08-17. CI also runs
+runs the marker suite — measured 270 passed in ~10s on 2026-08-20. CI also runs
 them (Postgres 16 service container in `.github/workflows/test.yml`), but if you
 touch the repository/persistence layer, run them locally before pushing — a
 plain local `pytest` green does not cover that layer. To include them in a full

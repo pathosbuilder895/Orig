@@ -89,6 +89,24 @@ describe('DataTable', () => {
     expect(scores).toEqual(['72', '88', '95']);
   });
 
+  it('falls back to the original row order when the sorted column disappears', () => {
+    const { rerender } = render(
+      <DataTable columns={columns} rows={students} getRowKey={(row) => row.id} />,
+    );
+    const nameHeader = screen.getByRole('columnheader', { name: /Name/ });
+    fireEvent.click(within(nameHeader).getByRole('button'));
+    expect(nameColumnCells()).toEqual(['Amir', 'Priya', 'Zoe']);
+
+    const withoutName = columns.filter((column) => column.key !== 'name');
+    rerender(<DataTable columns={withoutName} rows={students} getRowKey={(row) => row.id} />);
+    // Sort state still says "name" — the guard must fall back to input order.
+    const scores = screen
+      .getAllByRole('row')
+      .slice(1)
+      .map((row) => within(row).getAllByRole('cell')[0].textContent);
+    expect(scores).toEqual(['88', '95', '72']);
+  });
+
   it('has zero axe violations', async () => {
     const { container } = render(
       <DataTable

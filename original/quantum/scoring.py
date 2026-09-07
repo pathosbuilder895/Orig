@@ -1921,7 +1921,17 @@ def _recommend(
         matrix_action = _identity_axis_action(
             typicality_band, typicality_source, llr_deviation_score
         )
-        if matrix_action is not None:
+        # `_identity_axis_action` returns None ONLY when its own
+        # `typicality_band is None` — impossible here, since this call site
+        # is already gated on `typicality_band is not None` two lines above.
+        # `row` is always one of {"typical","too-far","too-central"} and
+        # `col` always one of {"distinctive","non_distinctive","fits_others"}
+        # (both if/elif/else chains are exhaustive), and `matrix` covers all
+        # 9 combinations, so the lookup can never miss either. The `is not
+        # None` check is therefore structurally dead defensive code from
+        # this call site — not reachable by any (typicality_band,
+        # typicality_source, llr_deviation_score) input.
+        if matrix_action is not None:  # pragma: no branch
             action = matrix_action
 
     # ── Entanglement override ─────────────────────────────────────────────────

@@ -90,7 +90,10 @@ def _word_stress(word: str) -> list[int]:
     stress = [0] * n
     if n == 1:
         stress[0] = 1
-    elif n >= 2:
+    # n = max(1, len(groups)) is always >= 1; when the `if` above is False,
+    # n is necessarily >= 2, so this elif is always True here — the False
+    # arm is unreachable.
+    elif n >= 2:  # pragma: no branch
         stress[-2] = 1  # penultimate (most common English pattern)
     return stress
 

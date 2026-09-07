@@ -106,4 +106,49 @@ describe('Timer', () => {
     const { container } = render(<Timer durationSeconds={600} label="Time remaining" />);
     expect(await axe(container)).toHaveNoViolations();
   });
+
+  it('renders hour-scale countdowns as H:MM:SS', () => {
+    render(<Timer durationSeconds={7200} />);
+    expect(screen.getByText('2:00:00')).toBeInTheDocument();
+    expect(screen.getByLabelText('2 hours remaining')).toBeInTheDocument();
+  });
+
+  it('speaks a single hour in the singular', () => {
+    render(<Timer durationSeconds={3660} />);
+    expect(screen.getByText('1:01:00')).toBeInTheDocument();
+    expect(screen.getByLabelText('1 hour, 1 minute remaining')).toBeInTheDocument();
+  });
+
+  it('countdown with no duration pins the display at 00:00 and never fires milestones', () => {
+    vi.useFakeTimers();
+    const onExpire = vi.fn();
+    render(<Timer onExpire={onExpire} />);
+    advance(30);
+    expect(screen.getByText('00:00')).toBeInTheDocument();
+    expect(screen.getByLabelText('less than a second remaining')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('');
+    expect(onExpire).not.toHaveBeenCalled();
+  });
+
+  it('a zero-second duration disables milestones and low-time styling rather than dividing by zero', () => {
+    vi.useFakeTimers();
+    render(<Timer durationSeconds={0} />);
+    advance(2);
+    expect(screen.getByText('00:00')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('');
+  });
+
+  it('does not re-announce or re-fire expiry when the effect re-runs after expiring', () => {
+    vi.useFakeTimers();
+    const first = vi.fn();
+    const second = vi.fn();
+    const { rerender } = render(<Timer durationSeconds={2} onExpire={first} />);
+    advance(2);
+    expect(first).toHaveBeenCalledTimes(1);
+
+    rerender(<Timer durationSeconds={2} onExpire={second} />);
+    expect(second).not.toHaveBeenCalled();
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('status')).toHaveTextContent('Time has expired.');
+  });
 });

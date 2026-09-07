@@ -519,13 +519,21 @@ def detect_blend(
         and len(valid_scores) >= MIN_WINDOWS_FOR_SHIFT_DETECTION
     ):
         change_idx, _p_value = _pettitt_change_point(valid_scores)
-        if change_idx is not None:
+        # change_idx is only None when len(valid_scores) < MIN_WINDOWS_FOR_SHIFT_DETECTION
+        # (_pettitt_change_point's own guard), but this call is only reached
+        # after the identical len(valid_scores) >= MIN_WINDOWS_FOR_SHIFT_DETECTION
+        # check above — so change_idx is always an int here.
+        if change_idx is not None:  # pragma: no branch
             # Map back to a token offset: the END of the window AT the
             # change point is the boundary between the two regimes.
             # change_idx indexes into valid_scores (after NaN filtering);
             # remap to per_section index space.
             valid_indices = [i for i, w in enumerate(per_section) if not np.isnan(w.score)]
-            if change_idx < len(valid_indices):
+            # valid_indices and valid_scores are built from the identical
+            # not-NaN filter over the same unmutated per_section, so their
+            # lengths always match, and change_idx (an argmax over an
+            # (n-1)-length array) is always < len(valid_indices) == n.
+            if change_idx < len(valid_indices):  # pragma: no branch
                 section_idx = valid_indices[change_idx]
                 shift_positions.append(per_section[section_idx].end)
 

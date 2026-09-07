@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { axe } from 'jest-axe';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Modal } from './Modal';
 
 function Harness() {
@@ -119,5 +119,35 @@ describe('Modal', () => {
       </div>,
     );
     expect(screen.getByTestId('background').closest('[inert]')).toBeNull();
+  });
+
+  it('opens cleanly when nothing focusable held focus beforehand', () => {
+    const spy = vi.spyOn(document, 'activeElement', 'get').mockReturnValue(null);
+    const { unmount } = render(
+      <Modal open onClose={() => {}} title="No prior focus">
+        <button type="button">Inside</button>
+      </Modal>,
+    );
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    spy.mockRestore();
+    unmount(); // close path must not throw despite the null capture
+  });
+
+  it('lets Tab pass through when focus is between the trap boundaries', () => {
+    render(
+      <Modal open onClose={() => {}} title="Trap">
+        <button type="button">Middle</button>
+        <button type="button">Last</button>
+      </Modal>,
+    );
+    // Focusables inside the panel: [built-in close button, Middle, Last].
+    screen.getByRole('button', { name: 'Middle' }).focus();
+    const notPrevented = fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Tab' });
+    expect(notPrevented).toBe(true); // fireEvent returns false iff preventDefault fired
+    const notPreventedBack = fireEvent.keyDown(screen.getByRole('dialog'), {
+      key: 'Tab',
+      shiftKey: true,
+    });
+    expect(notPreventedBack).toBe(true);
   });
 });

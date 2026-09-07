@@ -83,6 +83,27 @@ describe('NavList', () => {
     expect(document.activeElement).toBe(roster);
   });
 
+  it('ArrowRight and ArrowLeft mirror ArrowDown and ArrowUp', () => {
+    render(<NavList items={items} aria-label="Course sections" />);
+    const baselines = screen.getByRole('link', { name: 'Baselines' });
+    baselines.focus();
+
+    fireEvent.keyDown(baselines, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(screen.getByRole('link', { name: 'Imports' }));
+
+    fireEvent.keyDown(screen.getByRole('link', { name: 'Imports' }), { key: 'ArrowLeft' });
+    expect(document.activeElement).toBe(baselines);
+  });
+
+  it('leaves unhandled keys alone (no preventDefault, no focus move)', () => {
+    render(<NavList items={items} aria-label="Course sections" />);
+    const baselines = screen.getByRole('link', { name: 'Baselines' });
+    baselines.focus();
+    const notPrevented = fireEvent.keyDown(baselines, { key: 'a' });
+    expect(notPrevented).toBe(true);
+    expect(document.activeElement).toBe(baselines);
+  });
+
   it('Home and End jump to the first and last items', () => {
     render(<NavList items={items} aria-label="Course sections" />);
     const baselines = screen.getByRole('link', { name: 'Baselines' });

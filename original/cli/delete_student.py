@@ -163,11 +163,19 @@ def delete_student_data(
         # Begin deletion
         print("\nDeleting student data...")
 
+        # Submission ids for this student, used below instead of .join() --
+        # SQLAlchemy's Query API forbids calling .delete()/.update() on a
+        # Query that has already had .join() called on it
+        # (sqlalchemy.exc.InvalidRequestError), so the cascade deletes below
+        # filter on a subquery of matching submission ids instead of joining.
+        student_submission_ids = session.query(Submission.id).filter(
+            Submission.student_id == student_id
+        )
+
         # 1. Delete instructor decisions (cascade from submissions)
         decision_count = (
             session.query(InstructorDecision)
-            .join(Submission)
-            .filter(Submission.student_id == student_id)
+            .filter(InstructorDecision.submission_id.in_(student_submission_ids))
             .delete(synchronize_session="fetch")
         )
         if decision_count > 0:
@@ -176,8 +184,7 @@ def delete_student_data(
         # 2. Delete scoring results (cascade from submissions)
         scoring_count = (
             session.query(ScoringResult)
-            .join(Submission)
-            .filter(Submission.student_id == student_id)
+            .filter(ScoringResult.submission_id.in_(student_submission_ids))
             .delete(synchronize_session="fetch")
         )
         if scoring_count > 0:

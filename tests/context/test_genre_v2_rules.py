@@ -3,13 +3,25 @@ tests/context/test_genre_v2_rules.py — the abstaining genre resolver.
 
 Task 2 of docs/superpowers/plans/2026-08-08-genre-resolution-v2.md.
 """
+
 from __future__ import annotations
+
+from collections import Counter
 
 from original.constants import GENRE_UNKNOWN
 from original.context import genre_v2
+from original.features.preprocess import CitationData
 
 
 class TestAbstention:
+    def test_the_rule_tree_abstains_on_empty_text_directly(self):
+        """`_resolve_by_rules` has its own empty-text guard, independent of
+        the one in `resolve`/`predict` — exercised here by calling it
+        directly rather than through `resolve`."""
+        out = genre_v2._resolve_by_rules("")
+        assert out["primary"] == GENRE_UNKNOWN
+        assert out["confidence"] == 0.0
+
     def test_the_rule_tree_abstains_on_ordinary_prose(self):
         """The Stage 1 contract, asserted against the rule tree directly.
         v1 returns "correspondence" for this at a hardcoded 0.5 confidence;
@@ -67,6 +79,15 @@ class TestStructuredTemplate:
         text = "This is ordinary prose about a subject. " * 20 + "\n- one bullet\n"
         assert genre_v2.resolve(text)["primary"] != "structured_template"
 
+    def test_the_rule_tree_short_circuits_on_markup_directly(self):
+        """`_resolve_by_rules` runs the markup check itself, ahead of the
+        signal-verb/citation branches below it — exercised directly rather
+        than through `resolve`, which never reaches the rule tree at all."""
+        text = "# Heading\n- first point\n- second point\n- third point\n1. step one\n"
+        out = genre_v2._resolve_by_rules(text)
+        assert out["primary"] == "structured_template"
+        assert out["confidence"] == genre_v2.MARKUP_CONFIDENCE
+
 
 class TestCurlyQuoteFix:
     def test_typographic_quotes_are_recognised_as_dialogue(self):
@@ -86,6 +107,78 @@ class TestCurlyQuoteFix:
 
     def test_empty_text_is_not_dialogue(self):
         assert genre_v2.dialogue_present("") is False
+
+
+class TestRuleArmsFireOnEngineeredSignals:
+    """v1 was measured to starve four of these branches entirely (signal-verb
+    count and imperative density sit at a median of 0 on every real corpus,
+    academic and oratory alike), so the corpora this suite otherwise draws on
+    never drive them. Each test supplies an explicit ``citation_data`` —
+    exercising the "caller already computed it" branch of `_resolve_by_rules`
+    (`citation_data is not None`, skipping `preprocess`) as a side effect —
+    so citation/signal-verb counts are pinned exactly rather than hoped for
+    from prose, while sentence length and pronoun choice in the text control
+    the remaining thresholds."""
+
+    def test_academic_exegesis_arm(self):
+        text = (
+            "This extended expository sentence intentionally contains more "
+            "than twenty separate tokens so that the mean sentence length "
+            "threshold for the academic rule is comfortably exceeded. "
+        ) * 8
+        citation_data = CitationData(
+            paren_citation_count=20, signal_verb_counts=Counter({"argues": 3})
+        )
+        out = genre_v2._resolve_by_rules(text, citation_data=citation_data)
+        assert out == {
+            "primary": "academic_exegesis",
+            "confidence": genre_v2.RULE_CONFIDENCE,
+            "secondary": None,
+        }
+
+    def test_scholarly_essay_arm(self):
+        """Citation density clears the scholarly floor (half the academic
+        one) but the sentences are short, so the academic arm's msl leg
+        fails and the elif falls through to scholarly_essay instead."""
+        text = "This shorter sentence works fine. " * 20
+        citation_data = CitationData(
+            paren_citation_count=2, signal_verb_counts=Counter({"claims": 3})
+        )
+        out = genre_v2._resolve_by_rules(text, citation_data=citation_data)
+        assert out == {
+            "primary": "scholarly_essay",
+            "confidence": genre_v2.RULE_CONFIDENCE,
+            "secondary": None,
+        }
+
+    def test_sermon_arm(self):
+        """High imperative density plus a first-person-dominant pronoun mix
+        and no citations at all."""
+        text = (
+            "Consider these things. Examine your own heart daily. "
+            "I say to you, repent now. I beg. "
+        ) * 12
+        out = genre_v2._resolve_by_rules(text, citation_data=CitationData())
+        assert out == {
+            "primary": "sermon",
+            "confidence": genre_v2.RULE_CONFIDENCE,
+            "secondary": None,
+        }
+
+    def test_creative_fiction_arm(self):
+        """Dialogue-bearing narrative with no first-person pronouns (so the
+        personal_essay arm above it in the elif chain does not claim it
+        first) and no citation or signal-verb activity at all."""
+        text = (
+            'He said, "they shall go at once," and turned away. '
+            "She looked back once more at the door. "
+        ) * 15
+        out = genre_v2._resolve_by_rules(text, citation_data=CitationData())
+        assert out == {
+            "primary": "creative_fiction",
+            "confidence": genre_v2.RULE_CONFIDENCE,
+            "secondary": None,
+        }
 
 
 class TestContract:

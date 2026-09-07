@@ -16,12 +16,13 @@ suite already covers.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import List, Optional
 
 import numpy as np
 import pytest
 
-from original.constants import FEATURE_DIM
+from original.constants import ALL_FEATURE_CODES, FEATURE_DIM
 from original.context.blend import (
     BLEND_DETECT_THRESHOLD,
     BLEND_INDEX_NOISE_FLOOR,
@@ -37,6 +38,24 @@ from original.quantum.state import BaselineSample, StudentState
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
+
+class _FakeAuthorship:
+    """Stand-in for Layer7Output.authorship — only `.deviation_score` is read."""
+
+    def __init__(self, deviation_score: float):
+        self.deviation_score = deviation_score
+
+
+class _FakeLayer7:
+    """Stand-in for the `quantum_score(...)` return value used by detect_blend."""
+
+    def __init__(self, deviation_score: float):
+        self.authorship = _FakeAuthorship(deviation_score)
+
+
+def _fake_feat_dict() -> dict:
+    return {c: 0.5 for c in ALL_FEATURE_CODES}
 
 
 def _state(n_samples: int = 3) -> StudentState:
@@ -285,6 +304,131 @@ class TestEndToEnd:
             assert not np.isnan(w.score)
             assert 0.0 <= w.score <= 1.0
             assert w.confidence == "low"  # window_tokens=300 < 500
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Real code-path branch coverage: cluster fallback, insufficient windows, shift
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# TestBlendAggregation above deliberately re-implements the aggregation math
+# inline ("Rather than monkeypatch the orchestrator, we replicate the
+# aggregator inline so test logic stays explicit") — which means the actual
+# code inside `detect_blend` for the cluster-exception fallback, the no-cluster
+# per-window path, the <2-valid-windows fallback, and the real shift-detection
+# block were never executed by any prior test. These tests drive the genuine
+# `detect_blend` code for those branches, mocking only the expensive pieces
+# (orchestrator cluster matching, feature extraction, quantum scoring) so they
+# stay fast and deterministic. TestEndToEnd already covers the with-cluster
+# per-window path against the real pipeline.
+
+
+class TestDetectBlendClusterFailureFallback:
+    def test_orchestrator_exception_falls_back_to_full_baseline(self, monkeypatch):
+        import original.context.blend as blend_module
+
+        def _boom(**kwargs):
+            raise RuntimeError("synthetic orchestrator failure")
+
+        calls: list[dict] = []
+
+        def _fake_features(window_text, baseline_texts, baseline_indices=None):
+            calls.append({"baseline_indices": baseline_indices})
+            return _fake_feat_dict()
+
+        def _fake_quantum_score(**kwargs):
+            return _FakeLayer7(0.2)
+
+        monkeypatch.setattr(blend_module, "run_adaptive_pipeline", _boom)
+        monkeypatch.setattr(blend_module, "compute_full_features", _fake_features)
+        monkeypatch.setattr(blend_module, "quantum_score", _fake_quantum_score)
+
+        text = "word " * 700
+        result = detect_blend(text, _state(2), window_tokens=300, overlap=0.5)
+
+        # The orchestrator failure is swallowed — blend still produces a
+        # normal (non-fallback) result against the full baseline.
+        assert result.fallback_reason is None
+        assert len(result.per_section) >= 2
+        assert calls, "compute_full_features must have been called at least once"
+        # cluster_indices ended up [] after the exception, so every per-window
+        # feature call must take the no-cluster (legacy) branch — never with a
+        # non-None baseline_indices.
+        assert all(c["baseline_indices"] is None for c in calls)
+
+
+class TestDetectBlendInsufficientValidWindows:
+    def test_single_window_triggers_fallback(self, monkeypatch):
+        import original.context.blend as blend_module
+
+        def _fake_pipeline(**kwargs):
+            return SimpleNamespace(cluster_indices=[])
+
+        def _fake_features(window_text, baseline_texts, baseline_indices=None):
+            return _fake_feat_dict()
+
+        def _fake_quantum_score(**kwargs):
+            return _FakeLayer7(0.3)
+
+        monkeypatch.setattr(blend_module, "run_adaptive_pipeline", _fake_pipeline)
+        monkeypatch.setattr(blend_module, "compute_full_features", _fake_features)
+        monkeypatch.setattr(blend_module, "quantum_score", _fake_quantum_score)
+
+        # Exactly window_tokens worth of tokens → `_window_offsets` returns a
+        # single (0, n_tokens) window (see TestWindowOffsets), so only one
+        # window is ever scored — below the `len(valid_scores) < 2` fallback
+        # threshold, which real feature-extraction end-to-end tests never hit
+        # because they use long, multi-window texts.
+        text = "word " * 50
+        result = detect_blend(text, _state(2), window_tokens=50, overlap=0.5)
+
+        assert len(result.per_section) == 1
+        assert result.fallback_reason == "insufficient_valid_windows"
+        assert result.blend_detected is False
+        assert result.blend_index == 0.0
+        assert result.shift_positions == []
+
+
+class TestDetectBlendShiftDetectionRealPath:
+    def test_real_detect_blend_reports_a_shift(self, monkeypatch):
+        import original.context.blend as blend_module
+
+        def _fake_pipeline(**kwargs):
+            return SimpleNamespace(cluster_indices=[0])
+
+        def _fake_features(window_text, baseline_texts, baseline_indices=None):
+            return _fake_feat_dict()
+
+        # 5 low-scoring windows followed by 6 high-scoring windows — a clean
+        # mid-document shift with enough windows (11 >= MIN_WINDOWS_FOR_SHIFT_
+        # DETECTION) for the real Pettitt call inside detect_blend to fire.
+        scores = [0.1, 0.1, 0.1, 0.1, 0.1, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9]
+        score_iter = iter(scores)
+
+        def _fake_quantum_score(**kwargs):
+            return _FakeLayer7(next(score_iter))
+
+        monkeypatch.setattr(blend_module, "run_adaptive_pipeline", _fake_pipeline)
+        monkeypatch.setattr(blend_module, "compute_full_features", _fake_features)
+        monkeypatch.setattr(blend_module, "quantum_score", _fake_quantum_score)
+
+        text = "word " * 300
+        result = detect_blend(text, _state(2), window_tokens=50, overlap=0.5)
+
+        assert len(result.per_section) == len(scores)
+        assert result.fallback_reason is None
+        assert result.blend_index >= SHIFT_LOCATION_MIN_BLEND_INDEX
+        assert result.blend_detected is True
+        assert len(result.shift_positions) == 1
+        # Boundary should land in the middle third of the document, in token
+        # space — same shape of assertion as
+        # TestBlendAggregation.test_mid_document_shift_detected, but now
+        # driven through the real detect_blend code path instead of the
+        # reimplemented aggregator.
+        total_tokens = result.n_tokens
+        shift = result.shift_positions[0]
+        assert (
+            total_tokens / 3 <= shift <= 2 * total_tokens / 3
+        ), f"shift {shift} not near midpoint of {total_tokens}"
 
 
 # ══════════════════════════════════════════════════════════════════════════════

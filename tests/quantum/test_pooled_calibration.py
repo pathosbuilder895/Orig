@@ -45,3 +45,18 @@ def test_stats_report_the_reachable_floor():
     assert stats["n"] == 60
     assert stats["p_floor"] == pytest.approx(1 / 61)
     assert stats["n_students"] is None  # not recoverable from the pooled array
+
+
+def test_stats_none_ref_reports_zero_n_and_floor_of_one():
+    """The caller's real-world None comes from build_pooled_reference itself
+    (below-floor cohort) — every other test here only ever passes a
+    non-empty ref through, so the guard's True arm has no coverage."""
+    stats = pooled_reference_stats(None)
+    assert stats == {"n": 0, "p_floor": 1.0, "n_students": None}
+
+
+def test_stats_empty_ref_array_reports_same_as_none():
+    """`ref is None` and `len(ref) == 0` are two different ways into the same
+    guard body — an empty (but non-None) array must be handled identically."""
+    stats = pooled_reference_stats(np.array([]))
+    assert stats == {"n": 0, "p_floor": 1.0, "n_students": None}

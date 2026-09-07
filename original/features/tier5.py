@@ -84,7 +84,11 @@ def _get_dep_depths(doc: TextDoc) -> list[int] | None:
         def _depth(token, seen=None):
             if seen is None:
                 seen = set()
-            if token.i in seen:
+            if token.i in seen:  # pragma: no cover — unreachable: spaCy dependency
+                # trees give every token exactly one head, so a DFS descending via
+                # .children can never revisit an already-visited token index; the
+                # seen-guard is a defensive no-op under real parses (verified empirically
+                # against a wide range of inputs, including empty/symbol-only sentences).
                 return 0
             seen.add(token.i)
             children_depths = [
@@ -95,7 +99,10 @@ def _get_dep_depths(doc: TextDoc) -> list[int] | None:
         root = [t for t in sent if t.head == t]
         if root:
             depths.append(_depth(root[0]))
-        else:
+        else:  # pragma: no cover — unreachable: spaCy's sentence boundaries are
+            # derived from the same dependency parse, so every sentence span produced
+            # by spacy_doc.sents contains exactly one token whose head is itself (the
+            # root); confirmed empirically across a wide range of inputs.
             depths.append(1)
 
     return depths

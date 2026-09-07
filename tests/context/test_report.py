@@ -8,6 +8,7 @@ and JSON-safe serialisation.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Dict, List, Optional
 
 import numpy as np
@@ -28,6 +29,9 @@ from original.context.report import (
     VERDICT_AUTHENTIC_BELOW,
     VERDICT_ANOMALOUS_AT_OR_ABOVE,
     ScoringReport,
+    _anchor_consistency,
+    _baseline_cluster_labels,
+    _flatten_flags,
     _verdict_for,
     _confidence_for,
     build_report,
@@ -238,6 +242,46 @@ class TestAnchorTierScores:
         assert 99 not in report.anchor_tier_scores
         assert 4 in report.anchor_tier_scores
 
+    def test_code_missing_from_one_vector_is_skipped_not_zeroed(self):
+        # A code absent from feature_vector or baseline_vector must be
+        # excluded from the average (not treated as a 0/1 delta) — exercises
+        # the loop's False arm on `if code in feat and code in base`, with a
+        # subsequent present code so the loop continues past it.
+        codes = list(TIER4_CODES)
+        assert len(codes) >= 2, "test needs a multi-code tier"
+        present, missing = codes[0], codes[1]
+        layer7 = SimpleNamespace(
+            feature_vector={present: 0.5},  # `missing` absent from feat
+            baseline_vector={present: 0.5, missing: 0.9},
+        )
+        result = _anchor_consistency(layer7, [4])
+        # Only `present` (a perfect match) contributed to the average.
+        assert result[4] == 1.0
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# _flatten_flags — private helper, not currently wired into build_report but
+# unit-tested directly for its dict-vs-dataclass tolerance.
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class TestFlattenFlags:
+    def test_flattens_from_dict(self):
+        assert _flatten_flags({"flags": ["software_mediated", "code_switched"]}) == [
+            "software_mediated",
+            "code_switched",
+        ]
+
+    def test_flattens_from_dict_missing_flags_key(self):
+        assert _flatten_flags({}) == []
+
+    def test_flattens_from_object_attribute(self):
+        obj = SimpleNamespace(flags=["topic_novelty_high"])
+        assert _flatten_flags(obj) == ["topic_novelty_high"]
+
+    def test_flattens_from_object_missing_attribute(self):
+        assert _flatten_flags(SimpleNamespace()) == []
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Baseline cluster resolution
@@ -284,6 +328,15 @@ class TestBaselineCluster:
         state = _make_state(n_samples=2)
         report = build_report(layer7, m, state)
         assert report.baseline_cluster == ["assignment_0"]
+
+    def test_resolves_from_dataclass_manifest_directly(self):
+        # build_report always normalises to a dict before calling this
+        # helper — call it directly with the ContextManifest dataclass
+        # (not its .to_dict()) to exercise the object-attribute branch.
+        m = _make_manifest(cluster_indices=[0, 1])
+        state = _make_state(n_samples=3)
+        labels = _baseline_cluster_labels(m, state)
+        assert labels == ["assignment_0", "assignment_1"]
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -363,6 +416,41 @@ class TestNarrative:
         n2 = generate_narrative(m, layer7)
         assert n1 == n2
 
+    def test_no_anchor_summary_sentence_when_no_anchor_tiers(self):
+        # anchor_tiers=[] means _anchor_consistency returns {} — the whole
+        # anchor-summary block (uniform/split) must be skipped entirely.
+        m = _make_manifest(anchor_tiers=[])
+        layer7 = _make_layer7()
+        narr = generate_narrative(m, layer7)
+        assert "anchor tier" not in narr.lower()
+
+    def test_split_anchor_summary_when_tiers_diverge(self):
+        # Tier 4 stays a perfect match; tier 6 is pushed to 0 consistency —
+        # the >= 0.10 spread must select the "split" template (weakest vs
+        # strongest), not the "uniform" one.
+        m = _make_manifest(anchor_tiers=[4, 6])
+        feat_over = {c: 0.0 for c in TIER6_CODES}
+        base_over = {c: 1.0 for c in TIER6_CODES}
+        layer7 = _make_layer7(feature_overrides=feat_over, baseline_overrides=base_over)
+        narr = generate_narrative(m, layer7)
+        assert "ranges from" in narr
+
+    def test_no_citation_fragment_when_citations_present_is_neither(self):
+        # citations.citations_present absent (neither True nor False) must
+        # skip both the "present" and "absent" fragments.
+        manifest_dict = _make_manifest().to_dict()
+        manifest_dict["citations"] = {}
+        layer7 = _make_layer7()
+        narr = generate_narrative(manifest_dict, layer7)
+        assert "Citations are present" not in narr
+        assert "No citations" not in narr
+
+    def test_mentions_confidence_high(self):
+        m = _make_manifest()
+        layer7 = _make_layer7(effective_sample_count=20.0)
+        narr = generate_narrative(m, layer7)
+        assert "Confidence is `high`" in narr
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # build_report end-to-end
@@ -418,6 +506,36 @@ class TestBuildReport:
         assert r1.verdict == r2.verdict
         assert r1.confidence == r2.confidence
         assert r1.anchor_tier_scores == r2.anchor_tier_scores
+
+    def test_tolerates_manifest_with_neither_to_dict_nor_dict(self):
+        # A manifest that is neither a dict nor a to_dict()-bearing object
+        # (e.g. None, or a bare unexpected type) must fall back to an empty
+        # manifest dict rather than raising.
+        layer7 = _make_layer7()
+        state = _make_state()
+        report = build_report(layer7, object(), state)
+        assert report.context_manifest == {}
+        assert report.anchor_tier_scores == {}
+        assert report.baseline_cluster == []
+        # submission_id falls back to layer7.submission_id when the manifest
+        # supplies none.
+        assert report.submission_id == "sub1"
+
+    def test_tolerates_professor_explanation_failure(self, monkeypatch):
+        # build_professor_explanation is wrapped in try/except so a narrative
+        # bug in the professor-facing explainer never breaks scoring.
+        import original.context.report as report_mod
+
+        def _boom(*_args, **_kwargs):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(report_mod, "build_professor_explanation", _boom)
+        m = _make_manifest()
+        layer7 = _make_layer7()
+        report = build_report(layer7, m, _make_state())
+        assert report.professor_explanation is None
+        # The rest of the report is still fully populated.
+        assert report.verdict is not None
 
 
 # ══════════════════════════════════════════════════════════════════════════════

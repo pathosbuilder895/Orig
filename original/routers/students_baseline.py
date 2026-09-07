@@ -26,23 +26,34 @@ router = APIRouter()
 # ── Add baseline sample ───────────────────────────────────────────────────────
 
 
-def _existing_text_hashes(student_id: str) -> set[str]:
-    """SHA-256 hashes of every baseline sample's text for dedup, covering both
+def _hashes_from_samples(samples) -> set[str]:
+    """SHA-256 hashes of a sample iterable's text for dedup, covering both
     batch-uploaded samples (which carry .text_hash) and paste-added ones
-    (hashed from .text here). Missing student → empty set, never created."""
+    (hashed from .text here). Pure — takes samples directly so a caller that
+    already holds a fetched StudentState can dedup without a second repo
+    round-trip."""
     import hashlib as _hashlib
 
-    state = _repo().get(student_id)
-    if state is None:
-        return set()
     hashes: set[str] = set()
-    for s in state.samples:
+    for s in samples:
         h = getattr(s, "text_hash", None)
         if not h and getattr(s, "text", None):
             h = _hashlib.sha256(s.text.encode()).hexdigest()
         if h:
             hashes.add(h)
     return hashes
+
+
+def _existing_text_hashes(student_id: str) -> set[str]:
+    """SHA-256 hashes of every baseline sample's text for dedup. Fetches the
+    student's state itself; missing student → empty set, never created.
+    Callers that already have a fetched/created state in hand should call
+    ``_hashes_from_samples(state.samples)`` directly instead, to avoid a
+    redundant repo round-trip."""
+    state = _repo().get(student_id)
+    if state is None:
+        return set()
+    return _hashes_from_samples(state.samples)
 
 
 @router.post("/students/{student_id}/baseline")
@@ -60,12 +71,14 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
 
     # Seal-replay guard (robustness spec §2, seal step 2): a retried baseline
     # upload carrying the same submission_uuid must not double-count an
-    # identical text as a second sample.
+    # identical text as a second sample. Built from `state.samples` (already
+    # fetched/created above) rather than _existing_text_hashes(student_id),
+    # which would redundantly re-fetch the same state from the repo.
     if req.submission_uuid:
         import hashlib
 
         text_hash = hashlib.sha256(req.text.encode()).hexdigest()
-        if text_hash in _existing_text_hashes(student_id):
+        if text_hash in _hashes_from_samples(state.samples):
             return {
                 "skipped": True,
                 "reason": "duplicate_text",
@@ -350,6 +363,19 @@ async def upload_baseline_batch(
     # an instructor can see which files were held without aborting the batch.
     drift_holds: list[dict] = []
 
+    # Dedup: seed from every hash already on record for this student, using
+    # the same hash-building logic add_baseline's seal-replay guard and the
+    # Canvas-import route use (falls back to hashing .text when a sample's
+    # .text_hash didn't survive a persistence round-trip — BaselineSample
+    # .text_hash is a plain attribute, not a stored field, so it never does).
+    # Built from `state.samples` (already fetched by get_or_create above)
+    # rather than via _existing_text_hashes(student_id), which would re-fetch
+    # the same state from the repo a second time for no reason — there's no
+    # await between the two calls, so nothing could have changed in between.
+    # Grown as files are admitted below so duplicates *within* this same
+    # batch are still caught without a second per-file repository read.
+    seen_hashes = _hashes_from_samples(state.samples)
+
     for upload in files:
         filename = upload.filename or "unknown"
         ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
@@ -384,7 +410,7 @@ async def upload_baseline_batch(
         import hashlib as _hashlib
 
         text_hash = _hashlib.sha256(text.encode()).hexdigest()
-        if any(getattr(s, "text_hash", None) == text_hash for s in state.samples):
+        if text_hash in seen_hashes:
             skipped_duplicates += 1
             continue
 
@@ -404,8 +430,9 @@ async def upload_baseline_batch(
             assignment=label,
             submitted_at="",
         )
-        # Attach hash for future dedup checks
-        sample.text_hash = text_hash  # type: ignore[attr-defined]
+        # Recorded locally (not on the sample — see the comment above
+        # seen_hashes) so a duplicate later in *this* batch is still caught.
+        seen_hashes.add(text_hash)
 
         # ── Phase 8: per-file drift gate (best-effort) ────────────────────────
         # Batch ingestion does NOT 202/409 on drift — that would block the

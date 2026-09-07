@@ -61,9 +61,7 @@ class TestFailClosed:
     def test_reference_prediction_drift_is_refused(self, monkeypatch, tmp_path):
         artifact = json.loads(_ARTIFACT.read_text())
         shifted = [[min(1.0, p + 0.5) for p in row] for row in artifact["reference_probabilities"]]
-        monkeypatch.setenv(
-            "GENRE_MODEL_PATH", _mutated(tmp_path, reference_probabilities=shifted)
-        )
+        monkeypatch.setenv("GENRE_MODEL_PATH", _mutated(tmp_path, reference_probabilities=shifted))
         assert genre_v2.predict("Prose. " * 30)["primary"] == GENRE_UNKNOWN
 
     def test_a_malformed_artifact_is_refused_not_raised(self, monkeypatch, tmp_path):
@@ -78,6 +76,85 @@ class TestFailClosed:
         scale[0] = 0.0
         monkeypatch.setenv("GENRE_MODEL_PATH", _mutated(tmp_path, scale=scale))
         assert genre_v2.predict("Prose. " * 30)["primary"] == GENRE_UNKNOWN
+
+    def test_a_non_object_artifact_is_refused(self, monkeypatch, tmp_path):
+        """The artifact must be a JSON object — a bare list or scalar at the
+        top level fails the very first shape check, before any field is
+        even looked up."""
+        path = tmp_path / "not_a_dict.json"
+        path.write_text(json.dumps([1, 2, 3]))
+        monkeypatch.setenv("GENRE_MODEL_PATH", str(path))
+        out = genre_v2.predict("Prose. " * 30)
+        assert out["primary"] == GENRE_UNKNOWN
+        assert out["confidence"] == 0.0
+
+    def test_a_coefficient_shape_mismatch_is_refused(self, monkeypatch, tmp_path):
+        """One fewer coefficient row than there are classes — the kind of
+        drift a hand-edited or half-written artifact could produce."""
+        artifact = json.loads(_ARTIFACT.read_text())
+        coef = artifact["coef"][:-1]
+        monkeypatch.setenv("GENRE_MODEL_PATH", _mutated(tmp_path, coef=coef))
+        assert genre_v2.predict("Prose. " * 30)["primary"] == GENRE_UNKNOWN
+
+    def test_an_intercept_shape_mismatch_is_refused(self, monkeypatch, tmp_path):
+        artifact = json.loads(_ARTIFACT.read_text())
+        intercept = artifact["intercept"][:-1]
+        monkeypatch.setenv("GENRE_MODEL_PATH", _mutated(tmp_path, intercept=intercept))
+        assert genre_v2.predict("Prose. " * 30)["primary"] == GENRE_UNKNOWN
+
+    def test_a_scaler_shape_mismatch_is_refused(self, monkeypatch, tmp_path):
+        """`mean`/`scale` must be exactly SIGNAL_ORDER-wide; a truncated
+        standardiser vector is unusable, not merely imprecise."""
+        artifact = json.loads(_ARTIFACT.read_text())
+        mean = artifact["mean"][:-1]
+        monkeypatch.setenv("GENRE_MODEL_PATH", _mutated(tmp_path, mean=mean))
+        assert genre_v2.predict("Prose. " * 30)["primary"] == GENRE_UNKNOWN
+
+    def test_an_invalid_confidence_floor_is_refused(self, monkeypatch, tmp_path):
+        """`confidence_min` must sit strictly inside (0, 1); a floor of
+        exactly 1.0 could never be cleared by any prediction and is a sign
+        the artifact itself is broken, not merely strict."""
+        monkeypatch.setenv("GENRE_MODEL_PATH", _mutated(tmp_path, confidence_min=1.0))
+        assert genre_v2.predict("Prose. " * 30)["primary"] == GENRE_UNKNOWN
+
+
+class TestEnsureLoaded:
+    def test_skips_reload_if_another_thread_already_loaded_under_the_lock(self, monkeypatch):
+        """Double-checked locking: the outer `_state == _UNLOADED` check and
+        the one repeated inside the lock can legitimately disagree if
+        another thread finished loading in between. Simulated here with a
+        fake lock whose __enter__ advances state, standing in for that
+        thread — `_load_artifact` must not be called a second time."""
+        genre_v2._state = genre_v2._UNLOADED
+
+        class _RacyLock:
+            def __enter__(self):
+                genre_v2._state = genre_v2._READY
+                return self
+
+            def __exit__(self, *exc_info):
+                return False
+
+        monkeypatch.setattr(genre_v2, "_lock", _RacyLock())
+
+        def _must_not_reload():
+            raise AssertionError("must not reload once another thread already did")
+
+        monkeypatch.setattr(genre_v2, "_load_artifact", _must_not_reload)
+        assert genre_v2._ensure_loaded() is True
+
+
+class TestConfidenceMin:
+    def test_falls_back_to_the_constant_when_the_artifact_will_not_load(
+        self, monkeypatch, tmp_path
+    ):
+        """`_confidence_min` has its own fallback, independent of
+        `predict`'s abstention: when there is no usable artifact it must
+        still return a real floor rather than propagating the failure."""
+        from original.constants import GENRE_CONFIDENCE_MIN
+
+        monkeypatch.setenv("GENRE_MODEL_PATH", str(tmp_path / "nope.json"))
+        assert genre_v2._confidence_min() == GENRE_CONFIDENCE_MIN
 
 
 class TestInference:

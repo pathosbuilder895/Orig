@@ -29,7 +29,7 @@ import numpy as np
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from .constants import FEATURE_DIM
+from .constants import FEATURE_DIM, GENRE_UNKNOWN
 from .core.logging import get_logger
 from .db.models.live import (
     AiLikelihoodScore,
@@ -146,6 +146,7 @@ class PostgresRepository:
                     "auth_weight": s.auth_weight,
                     "assignment": s.assignment,
                     "submitted_at": s.submitted_at,
+                    "word_count": s.word_count,
                     "genre": s.genre,
                     "topic_centroid": (
                         s.topic_centroid.tolist() if s.topic_centroid is not None else None
@@ -200,6 +201,7 @@ class PostgresRepository:
                     auth_weight=s["auth_weight"],
                     assignment=s.get("assignment", ""),
                     submitted_at=s.get("submitted_at", ""),
+                    word_count=s.get("word_count"),
                     genre=s.get("genre"),
                     topic_centroid=topic_centroid,
                     context_manifest=s.get("context_manifest"),
@@ -218,7 +220,10 @@ class PostgresRepository:
                 return self._doc_to_state(row.data) if row else None
         except Exception:
             log.exception("get failed for %s", student_id)
-            return None
+            raise  # mirror store.py's get(): a lookup failure must surface, not be
+            # mistaken for "student doesn't exist" -- session.get() already
+            # returns None for a genuinely missing row above, with no exception
+            # involved, so nothing legitimate is being swallowed here.
 
     def get_or_create(self, student_id):
         """SqliteRepository's get_or_create() inserts a fresh StudentState
@@ -247,7 +252,10 @@ class PostgresRepository:
                 return state
         except Exception:
             log.exception("get_or_create failed for %s", student_id)
-            return StudentState(student_id=student_id)
+            raise  # mirror store.py's _persist: a lookup/write failure must surface,
+            # not be mistaken for "this is a brand-new student" -- the "no row
+            # found yet, create one" path above already returns without ever
+            # raising, so nothing legitimate is being swallowed here.
 
     def put(self, state):
         try:
@@ -368,6 +376,19 @@ class PostgresRepository:
                 name_row = session.get(StudentName, (tenant_id, local_id))
                 if name_row is not None:
                     session.delete(name_row)
+                # FERPA erasure (mirrors store.delete_student's audit_log
+                # purge): audit_log is keyed differently from every other
+                # student-scoped table above — it does NOT use the tenancy
+                # shim's legacy-flat sentinel, so a colon-less student_id
+                # rows there have tenant_id=NULL, not
+                # split_scoped_id()'s _LEGACY_FLAT_TENANT. Scope via
+                # _audit_scope_criteria (shared with list_audit and
+                # student_data_inventory) rather than reusing
+                # tenant_id/local_id above, or a legacy-flat student's audit
+                # rows would silently survive deletion.
+                session.execute(
+                    AuditLogEntry.__table__.delete().where(*self._audit_scope_criteria(student_id))
+                )
             # this student's tenant's (tenant, genre) entries may include them
             self._genre_stats_cache.clear()
             # C2, 2026-08 fix pass: see store.delete_student's matching
@@ -540,12 +561,15 @@ class PostgresRepository:
                         Correction.tenant_id == tenant_id, Correction.student_id == local_id
                     )
                 ).scalar_one()
-                audit_count = session.execute(
-                    select(func.count(AuditLogEntry.id)).where(
-                        AuditLogEntry.tenant_id == tenant_id,
-                        AuditLogEntry.student_id == local_id,
-                    )
-                ).scalar_one()
+                # audit_log's tenant_id is genuinely NULL for a colon-less
+                # student_id (unlike every other table here, which uses the
+                # general shim's "__legacy_flat__" sentinel) -- scope via
+                # _audit_scope_criteria, shared with delete_student and
+                # list_audit.
+                audit_count_stmt = select(func.count(AuditLogEntry.id)).where(
+                    *self._audit_scope_criteria(student_id)
+                )
+                audit_count = session.execute(audit_count_stmt).scalar_one()
                 ai_likelihood_count = session.execute(
                     select(func.count()).where(
                         AiLikelihoodScore.tenant_id == tenant_id,
@@ -1011,7 +1035,21 @@ class PostgresRepository:
     def get_genre_stats(self, genre, tenant, exclude_student_id):
         """Tenant-scoped, self-excluding genre prior — see
         store.get_genre_stats's docstring for the full contract.
+
+        Mirrors store.get_genre_stats's GENRE_UNKNOWN guard exactly (added
+        Part 1/Task 5 of the persistence branch-coverage sweep — this
+        backend was missing it, a real cross-backend divergence caught
+        while writing the dual-backend contract test): GENRE_UNKNOWN is the
+        v2 resolver's abstention, not a genre. Without this guard,
+        _pool_groups(tenant, "unknown") would pool every authenticated
+        sample literally tagged genre="unknown" together and hand back a
+        prior for that arbitrary mixture under the name of a same-genre
+        prior — exactly the "correspondence" dumping-ground failure mode
+        the resolver was fixed to avoid. Returning None here means the
+        caller falls back to the student-only baseline, same as SQLite.
         """
+        if genre == GENRE_UNKNOWN:
+            return None
         return genre_stats_from_groups(self._pool_groups(tenant, genre), exclude_student_id)
 
     def get_cohort_stats(self, tenant, exclude_student_id):
@@ -1651,8 +1689,23 @@ class PostgresRepository:
 
     @staticmethod
     def _bluebook_sub_to_dict(row: BluebookSubmission) -> dict:
-        scoped_sid = join_scoped_id(row.tenant_id, row.student_id) if row.student_id else ""
-        candidate_id = row.student_id[:6] if row.student_id else "—"
+        # student_id is stored verbatim (see put_bluebook_submission) -- return
+        # the raw column value directly, mirroring store.py's _bluebook_sub_to_dict
+        # (`sid = row[3] or ""`). Do NOT reconstruct via join_scoped_id: the
+        # caller's student_id is not necessarily "tenant:local" (an anonymous
+        # Bluebook sitting supplies a colon-less id -- routers/bluebook.py:
+        # 207-209), and joining it against the submission's own tenant_id would
+        # silently prepend a scope the caller never asked for.
+        scoped_sid = row.student_id or ""
+        # Mirror store.py's idiom exactly: strip a tenant prefix if present,
+        # then take the first 6 characters of the local part. scoped_sid is
+        # verbatim (see the comment above), so a colon-scoped student_id
+        # (e.g. "sem:alice123") must have its prefix stripped before
+        # truncating, or candidateId leaks tenant-prefix characters instead
+        # of the student-identifying ones ("sem:al" instead of "alice1").
+        candidate_id = (
+            scoped_sid.split(":")[-1][:6] if ":" in scoped_sid else (scoped_sid[:6] or "—")
+        )
         return {
             "id": row.submission_id,
             "exam_id": row.exam_id,
@@ -1677,14 +1730,19 @@ class PostgresRepository:
         try:
             with session_scope() as session:
                 self._ensure_tenant_exists(session, rec["tenant_id"])
-                raw_student_id = rec.get("student_id")
-                local_student_id = split_scoped_id(raw_student_id)[1] if raw_student_id else None
+                # student_id is stored verbatim -- exactly what the caller
+                # passed, not split/reconstructed -- mirroring store.py's
+                # put_bluebook_submission, which stores rec.get("student_id")
+                # as-is. tenant_id (rec["tenant_id"]) is stored separately in
+                # its own column for tenant-scoped filtering (see
+                # list_bluebook_submissions), independent of whatever shape
+                # student_id happens to be.
                 session.add(
                     BluebookSubmission(
                         submission_id=rec["id"],
                         exam_id=rec.get("exam_id"),
                         tenant_id=rec["tenant_id"],
-                        student_id=local_student_id,
+                        student_id=rec.get("student_id"),
                         candidate=rec.get("candidate"),
                         exam_title=rec.get("exam_title"),
                         course=rec.get("course"),
@@ -1855,11 +1913,47 @@ class PostgresRepository:
             tenant_id, student_id = student_id.split(":", 1)
         return tenant_id, student_id
 
+    @staticmethod
+    def _audit_scope_criteria(student_id: str) -> list:
+        """SQLAlchemy filter criteria scoping AuditLogEntry rows to
+        student_id, correctly handling the legacy-flat (tenant_id IS NULL)
+        vs tenant-scoped split. Shared by delete_student,
+        student_data_inventory, and list_audit — see _split_for_audit's
+        docstring for why audit_log's tenant scoping can't reuse the
+        general tenancy shim."""
+        audit_tenant_id, audit_local_id = PostgresRepository._split_for_audit(student_id, None)
+        if audit_tenant_id is not None:
+            return [
+                AuditLogEntry.tenant_id == audit_tenant_id,
+                AuditLogEntry.student_id == audit_local_id,
+            ]
+        return [
+            AuditLogEntry.student_id == audit_local_id,
+            AuditLogEntry.tenant_id.is_(None),
+        ]
+
     def log_audit(
         self, action, student_id=None, tenant_id=None, actor=None, result="ok", details=None
     ):
         try:
-            tenant_id, local_student_id = self._split_for_audit(student_id, tenant_id)
+            # Always normalize a colon-scoped student_id down to its bare
+            # local id for storage, regardless of whether the caller also
+            # passed an explicit tenant_id -- unlike _split_for_audit's
+            # `tenant_id is None` gate (which exists for callers that
+            # *don't* pass an explicit tenant_id and need one derived from
+            # the colon prefix). Real callers (original/routers/bluebook.py)
+            # pass both an explicit tenant_id AND a colon-scoped student_id
+            # together, and every reader (list_audit, delete_student,
+            # student_data_inventory) re-derives via
+            # _split_for_audit(student_id, None), expecting student_id to be
+            # the bare local id whenever tenant_id is set. The caller's own
+            # tenant_id, when given, is authoritative -- it is never
+            # overwritten by the colon prefix.
+            local_student_id = student_id
+            if local_student_id and ":" in local_student_id:
+                colon_tenant_id, local_student_id = local_student_id.split(":", 1)
+                if tenant_id is None:
+                    tenant_id = colon_tenant_id
             with session_scope() as session:
                 session.add(
                     AuditLogEntry(
@@ -1881,14 +1975,7 @@ class PostgresRepository:
             with session_scope() as session:
                 stmt = select(AuditLogEntry)
                 if student_id:
-                    tenant_id, local_id = self._split_for_audit(student_id, None)
-                    if tenant_id is not None:
-                        stmt = stmt.where(
-                            AuditLogEntry.tenant_id == tenant_id,
-                            AuditLogEntry.student_id == local_id,
-                        )
-                    else:
-                        stmt = stmt.where(AuditLogEntry.student_id == local_id)
+                    stmt = stmt.where(*self._audit_scope_criteria(student_id))
                 if action:
                     stmt = stmt.where(AuditLogEntry.action == action)
                 total = session.execute(

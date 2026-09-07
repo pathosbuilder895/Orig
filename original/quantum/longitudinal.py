@@ -436,10 +436,18 @@ def trend_aware_typicality(
         else:
             reference = fold_values.mean(axis=0)
             residuals = fold_values - reference
-        if len(fold_t) >= 2:
+        if len(fold_t) >= 2:  # pragma: no branch
             scale = np.maximum(residuals.std(axis=0, ddof=1), 0.02)
         else:
-            scale = np.full(reference.shape, 0.15)
+            # Structurally unreachable from either call site below. The
+            # eligibility gate above (`n < max(cfg.min_samples_for_trend, 3)`)
+            # enforces a hard floor of n >= 3 regardless of config. The LOO
+            # call passes `fold_t = np.delete(t, i)`, length n-1 >= 2; the
+            # final reference call passes the full `t`, length n >= 3. Both
+            # are always >= 2, so this flat 0.15 fallback -- kept as
+            # defensive float-paranoia for a floor that could theoretically
+            # move -- can never execute today.
+            scale = np.full(reference.shape, 0.15)  # pragma: no cover
         return reference, scale
 
     loo: list[float] = []

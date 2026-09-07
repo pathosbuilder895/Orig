@@ -49,6 +49,15 @@ class TestPCentral:
         loo = [1.0, 2.0, 3.0]
         assert p_central(100.0, loo) == 1.0
 
+    def test_empty_loo_distances_raises(self):
+        """Mirrors TestPFar.test_empty_loo_distances_raises — p_central has
+        its own independent `if n == 0: raise` guard (typicality.py:73-74)
+        that was never exercised; p_far's empty-input test does not cover it."""
+        import pytest
+
+        with pytest.raises(ValueError):
+            p_central(1.0, [])
+
     def test_p_far_and_p_central_are_complementary_at_extremes(self):
         """A point that is rank-1-farthest has p_far at the floor and
         p_central at the ceiling, and vice versa for rank-1-closest."""

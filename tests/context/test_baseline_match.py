@@ -7,11 +7,14 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+import original.context.baseline_match as baseline_match_module
 from original.constants import FEATURE_DIM
 from original.context.baseline_match import (
+    _ensure_tfidf_vectorizer,
     _genre_similarity,
     _topic_similarity,
     _recency_weight,
+    _transform_centroid,
     ensure_sample_context_metadata,
     genre_covered_by_baseline,
     match_baseline_cluster,
@@ -112,6 +115,84 @@ class TestRecencyWeight:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Per-student TF-IDF vectoriser
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class TestEnsureTfidfVectorizer:
+    def test_returns_none_when_sklearn_unavailable(self, monkeypatch):
+        # Simulates a dev environment without sklearn — the module-level
+        # `TfidfVectorizer = None` fallback in the try/except import block.
+        monkeypatch.setattr(baseline_match_module, "TfidfVectorizer", None)
+        state = StudentState(student_id="s", samples=[_sample("Some real prose here.")])
+        assert _ensure_tfidf_vectorizer(state) is None
+
+    def test_returns_cached_vectorizer_without_refitting(self):
+        sentinel = object()
+        state = StudentState(student_id="s", samples=[_sample("Some real prose here.")])
+        state._tfidf_vectorizer = sentinel
+        assert _ensure_tfidf_vectorizer(state) is sentinel
+
+    def test_returns_none_when_no_samples(self):
+        state = StudentState(student_id="s", samples=[])
+        assert _ensure_tfidf_vectorizer(state) is None
+
+    def test_returns_none_when_all_sample_texts_blank(self):
+        state = StudentState(
+            student_id="s",
+            samples=[_sample(""), _sample("   ")],
+        )
+        assert _ensure_tfidf_vectorizer(state) is None
+
+    def test_returns_none_when_vocabulary_empty_after_preprocessing(self):
+        # Non-blank text that nonetheless tokenises to nothing under the
+        # \b\w\w+\b pattern (punctuation-only) — sklearn's fit() raises
+        # ValueError("empty vocabulary...") which must be swallowed.
+        state = StudentState(
+            student_id="s",
+            samples=[_sample("..."), _sample("!!!"), _sample("??? ---")],
+        )
+        assert _ensure_tfidf_vectorizer(state) is None
+
+    def test_fits_and_caches_over_real_texts(self):
+        state = StudentState(
+            student_id="s",
+            samples=[
+                _sample("Plato writes about the form of justice extensively."),
+                _sample("Modern democracy thrives when citizens deliberate."),
+            ],
+        )
+        vec = _ensure_tfidf_vectorizer(state)
+        assert vec is not None
+        assert state._tfidf_vectorizer is vec
+
+
+class TestTransformCentroid:
+    def test_blank_text_returns_none(self):
+        state = StudentState(student_id="s", samples=[_sample("Real prose about justice.")])
+        vec = _ensure_tfidf_vectorizer(state)
+        assert _transform_centroid(vec, "   ") is None
+
+    def test_transform_exception_is_swallowed(self):
+        class _ExplodingVectorizer:
+            def transform(self, texts):
+                raise RuntimeError("synthetic transform failure")
+
+        assert _transform_centroid(_ExplodingVectorizer(), "non-blank text") is None
+
+    def test_successful_transform_returns_float64_vector(self):
+        state = StudentState(
+            student_id="s",
+            samples=[_sample("Plato writes about the form of justice extensively.")],
+        )
+        vec = _ensure_tfidf_vectorizer(state)
+        centroid = _transform_centroid(vec, "Plato writes about justice.")
+        assert centroid is not None
+        assert centroid.dtype == np.float64
+        assert centroid.ndim == 1
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Lazy backfill
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -150,6 +231,55 @@ class TestEnsureSampleContextMetadata:
         mutated_second = ensure_sample_context_metadata(state)
         assert mutated_first is False  # already populated
         assert mutated_second is False  # still no change
+
+    def test_no_samples_returns_false(self):
+        state = StudentState(student_id="s", samples=[])
+        assert ensure_sample_context_metadata(state) is False
+
+    def test_genre_resolver_falsy_primary_skips_mutation(self, monkeypatch):
+        # resolve_genre() can legitimately return {"primary": None} (or a
+        # falsy label) — the `if g:` guard must skip the assignment rather
+        # than writing a falsy genre onto the sample.
+        monkeypatch.setattr(
+            baseline_match_module, "resolve_genre", lambda text: {"primary": None}
+        )
+        state = StudentState(student_id="s", samples=[_sample("Some real prose here.")])
+        # Topic backfill can still mutate independently of genre, so pin the
+        # genre-specific behaviour directly rather than asserting on the
+        # overall `mutated` return value.
+        ensure_sample_context_metadata(state)
+        assert state.samples[0].genre is None
+
+    def test_genre_resolver_exception_is_logged_and_skipped(self, monkeypatch):
+        def _explode(text):
+            raise RuntimeError("synthetic genre-resolution failure")
+
+        monkeypatch.setattr(baseline_match_module, "resolve_genre", _explode)
+        state = StudentState(student_id="s", samples=[_sample("Some real prose here.")])
+        # Must not raise — the exception is caught and logged.
+        ensure_sample_context_metadata(state)
+        assert state.samples[0].genre is None
+
+    def test_topic_centroid_transform_failure_leaves_centroid_none(self):
+        # Pre-cache a fake vectoriser on the state so _ensure_tfidf_vectorizer
+        # returns it without refitting (cached is not None), and whose
+        # transform() always fails — exercising the `centroid is not None`
+        # False branch (the loop continues without mutating topic_centroid).
+        class _ExplodingVectorizer:
+            def transform(self, texts):
+                raise RuntimeError("synthetic transform failure")
+
+        state = StudentState(
+            student_id="s",
+            samples=[_sample("Some real prose that should get a genre.")],
+        )
+        state._tfidf_vectorizer = _ExplodingVectorizer()
+        mutated = ensure_sample_context_metadata(state)
+        # Genre backfill still succeeds (real resolve_genre), so `mutated` is
+        # True — but the topic centroid must remain unset.
+        assert mutated is True
+        assert state.samples[0].genre is not None
+        assert state.samples[0].topic_centroid is None
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -239,6 +369,29 @@ class TestMatchBaselineCluster:
             n_top=3,
         )
         assert len(idx) <= 3
+
+    def test_submission_text_with_no_usable_vectorizer_stays_topic_neutral(self):
+        # All baseline sample texts are blank → _ensure_tfidf_vectorizer
+        # returns None even though submission_text is provided, so the
+        # `if vec is not None:` branch is skipped and sub_centroid stays
+        # None — topic similarity falls back to the 0.5 neutral for every
+        # sample rather than raising.
+        state = StudentState(
+            student_id="s",
+            samples=[
+                _sample("", genre="blog_post"),
+                _sample("   ", genre="blog_post"),
+            ],
+        )
+        idx, anchor_only = match_baseline_cluster(
+            _manifest("blog_post"),
+            state,
+            submission_text="A non-blank submission with real words.",
+        )
+        # genre_sim=1.0 + topic_sim=0.5(neutral) + recency → composite >= 0.5
+        # for both samples, so this reaches a real (non-anchor-only) match.
+        assert anchor_only is False
+        assert idx != []
 
 
 # ══════════════════════════════════════════════════════════════════════════════

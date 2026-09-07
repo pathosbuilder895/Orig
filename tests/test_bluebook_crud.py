@@ -170,6 +170,41 @@ def test_exam_list_excludes_other_tenants(live_client, store_reset):
     assert "Tenant A Exam" not in titles_b
 
 
+def test_exam_list_anonymous_sees_demo_tenant_only(live_client, store_reset):
+    """Anonymous callers resolve to the demo principal (is_demo=True) —
+    covers the branch that falls out of the tenant-scoped `if` into the
+    `elif p and p.is_demo` arm, listing the demo tenant rather than the
+    caller's own (nonexistent) tenant."""
+    token_a = _provision_professor(live_client, "bbcrud", "prof.exam6a@bbcrud.edu")
+    live_client.post(
+        "/bluebook/exams",
+        json={"title": "Tenant A Exam Anon Check", "course": "A-102"},
+        headers=_auth(token_a),
+    )
+    listed_anon = live_client.get("/bluebook/exams")
+    assert listed_anon.status_code == 200
+    titles_anon = [e["title"] for e in listed_anon.json()["exams"]]
+    assert "Tenant A Exam Anon Check" not in titles_anon
+
+
+def test_exam_list_operator_token_sees_all_tenants(live_client, store_reset):
+    """A cross-tenant `operator`/`super_admin` principal is neither
+    tenant-scoped (its role is in SUPER_ROLES) nor the anonymous demo —
+    covers the trailing `else` arm (list_bluebook_exams(None), the
+    "all tenants" registry view)."""
+    token_a = _provision_professor(live_client, "bbcrud", "prof.exam7a@bbcrud.edu")
+    live_client.post(
+        "/bluebook/exams",
+        json={"title": "Tenant A Exam Operator Check", "course": "A-103"},
+        headers=_auth(token_a),
+    )
+    op_token = pr.mint_principal_token("op1", "operator", "bbcrud-ops")
+    listed_op = live_client.get("/bluebook/exams", headers=_auth(op_token))
+    assert listed_op.status_code == 200
+    titles_op = [e["title"] for e in listed_op.json()["exams"]]
+    assert "Tenant A Exam Operator Check" in titles_op
+
+
 # ── Courses ────────────────────────────────────────────────────────────────
 
 
@@ -217,6 +252,37 @@ def test_course_list_excludes_other_tenants(live_client, store_reset):
     listed_b = live_client.get("/bluebook/courses", headers=_auth(token_b))
     names_b = [c["name"] for c in listed_b.json()["courses"]]
     assert "Tenant A Course" not in names_b
+
+
+def test_course_list_anonymous_sees_demo_tenant_only(live_client, store_reset):
+    """Mirrors test_exam_list_anonymous_sees_demo_tenant_only: covers the
+    `elif p and p.is_demo` arm for the courses list."""
+    token_a = _provision_professor(live_client, "bbcrud", "prof.course4a@bbcrud.edu")
+    live_client.post(
+        "/bluebook/courses",
+        json={"name": "Tenant A Course Anon Check", "code": "A-102"},
+        headers=_auth(token_a),
+    )
+    listed_anon = live_client.get("/bluebook/courses")
+    assert listed_anon.status_code == 200
+    names_anon = [c["name"] for c in listed_anon.json()["courses"]]
+    assert "Tenant A Course Anon Check" not in names_anon
+
+
+def test_course_list_operator_token_sees_all_tenants(live_client, store_reset):
+    """Mirrors test_exam_list_operator_token_sees_all_tenants: covers the
+    trailing `else` arm (list_bluebook_courses(None)) for the courses list."""
+    token_a = _provision_professor(live_client, "bbcrud", "prof.course5a@bbcrud.edu")
+    live_client.post(
+        "/bluebook/courses",
+        json={"name": "Tenant A Course Operator Check", "code": "A-103"},
+        headers=_auth(token_a),
+    )
+    op_token = pr.mint_principal_token("op1", "operator", "bbcrud-ops")
+    listed_op = live_client.get("/bluebook/courses", headers=_auth(op_token))
+    assert listed_op.status_code == 200
+    names_op = [c["name"] for c in listed_op.json()["courses"]]
+    assert "Tenant A Course Operator Check" in names_op
 
 
 # ── Submissions (the Results view) ────────────────────────────────────────
@@ -282,6 +348,29 @@ def test_submission_list_excludes_other_tenants(live_client, store_reset):
     listed_b = live_client.get("/bluebook/submissions", headers=_auth(token_b))
     candidates_b = [s["candidate"] for s in listed_b.json()["submissions"]]
     assert "Tenant A Candidate" not in candidates_b
+
+
+def test_submission_list_operator_token_sees_all_tenants(live_client, store_reset):
+    """The tenant-scoped (professor token, covered above) and demo/anonymous
+    (covered by test_seal_replay_returns_prior_result in
+    tests/test_bluebook_api.py) arms are already exercised elsewhere — this
+    closes the remaining `else` arm (list_bluebook_submissions(None)) for the
+    cross-tenant operator/super_admin view."""
+    token_a = _provision_professor(live_client, "bbcrud", "prof.sub3a@bbcrud.edu")
+    live_client.post(
+        "/bluebook/submissions",
+        json={
+            "student_id": "bbcrud:stu3",
+            "candidate": "Tenant A Operator Check",
+            "exam_title": "Tenant A Exam",
+        },
+        headers=_auth(token_a),
+    )
+    op_token = pr.mint_principal_token("op1", "operator", "bbcrud-ops")
+    listed_op = live_client.get("/bluebook/submissions", headers=_auth(op_token))
+    assert listed_op.status_code == 200
+    candidates_op = [s["candidate"] for s in listed_op.json()["submissions"]]
+    assert "Tenant A Operator Check" in candidates_op
 
 
 # ── Student roster ─────────────────────────────────────────────────────────
