@@ -148,3 +148,7 @@ validation/genre_crossgenre_2026-08/clean/
 validation/genre_crossgenre_2026-08/chunks.json
 validation/genre_crossgenre_2026-08/vectors.npy
 validation/genre_crossgenre_2026-08/vectors_meta.json
+
+# Certification suite verdict report (tests/certification/conftest.py:record_verdict).
+# Regenerated on every run and uploaded by the CI certification job.
+certification-report.json
