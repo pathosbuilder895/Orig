@@ -8,11 +8,36 @@ on:
 permissions:
   contents: read
 
+# One battery at a time: a dispatched run must not race the weekly one for
+# the same vector cache.
+concurrency:
+  group: calibration-battery
+  cancel-in-progress: false
+
 jobs:
-  calibration:
+  battery:
+    name: battery (${{ matrix.name }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The full battery cannot fit one hosted runner: a warm-cache run on a
+    # 10-core Mac took ~7 h (2026-09-07) and the first CI attempt was cut
+    # off at the 6-hour cap inside G5. It is split across legs with --only
+    # (validation/calibration_gate.py) and merged below; a job that still
+    # overruns shows up as a missing leg in the merged report, never as a
+    # silent pass. Legs are grouped by measured cost.
+    timeout-minutes: 360
     continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: g1, legs: "G1,G1p" }
+          - { name: g2, legs: "G2" }
+          - { name: g2b, legs: "G2b" }
+          - { name: g3g4, legs: "G3,G4" }
+          - { name: g5, legs: "G5" }
+          - { name: g6g7g8t, legs: "G6,G7,G8,T" }
+    env:
+      CALIBRATION_GATE_VECTOR_CACHE: .benchmark_cache/calibration_gate/vectors
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -21,15 +46,89 @@ jobs:
           cache: pip
       - name: Install dependencies
         run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Install spaCy model
+        run: python -m spacy download en_core_web_sm
+      # Feature vectors are a pure function of (text, feature layout, disabled
+      # groups, tier-10 backend) -- validation/vector_cache.py keys on exactly
+      # that, so a stale entry can never be served. This key additionally
+      # drops the whole cache when the feature implementation or a committed
+      # corpus changes; restore-keys pick the newest cache for the same hash
+      # from any earlier run or matrix job, so the cache converges across runs
+      # even when a job is cut off (the save step below always runs).
+      - name: Restore feature-vector cache
+        id: vector-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .benchmark_cache/calibration_gate/vectors
+          key: calibration-vectors-${{ runner.os }}-${{ hashFiles('original/constants.py', 'original/features/**', 'validation/corpus/**', 'validation/manifest.json', 'validation/plato/corpus/**', 'validation/public_authors/corpus/**', 'validation/public_authors/manifest.json', 'validation/genre_2026-08/**') }}-${{ github.run_id }}-${{ matrix.name }}
+          restore-keys: |
+            calibration-vectors-${{ runner.os }}-${{ hashFiles('original/constants.py', 'original/features/**', 'validation/corpus/**', 'validation/manifest.json', 'validation/plato/corpus/**', 'validation/public_authors/corpus/**', 'validation/public_authors/manifest.json', 'validation/genre_2026-08/**') }}-
+            calibration-vectors-${{ runner.os }}-
       # TODO(campaign-plan-02): regenerate the uncommitted G7 corpus here
-      # after its reproducible fetch/cache workflow lands.
-      - name: Run strict G1-G8 battery
-        run: python -m validation.calibration_gate --strict --out calibration-report.json
-      - name: Upload calibration report
+      # after its reproducible fetch/cache workflow lands. Until then G7 is
+      # UNINFORMATIVE on a fresh checkout and --strict exits 1 -- which is
+      # why this job is continue-on-error rather than blocking.
+      # `timeout` ends the step before the job cap so the save/upload steps
+      # still run.
+      - name: Run strict battery legs ${{ matrix.legs }}
+        run: |
+          set -o pipefail
+          timeout 330m python -m validation.calibration_gate --strict --only "${{ matrix.legs }}" --out "calibration-report-${{ matrix.name }}.json" 2>&1 | tee "battery-${{ matrix.name }}.log"
+      - name: Save feature-vector cache
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .benchmark_cache/calibration_gate/vectors
+          key: ${{ steps.vector-cache.outputs.cache-primary-key }}
+      - name: Upload leg report and log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: calibration-report-${{ matrix.name }}
+          path: |
+            calibration-report-${{ matrix.name }}.json
+            battery-${{ matrix.name }}.log
+          if-no-files-found: warn
+          retention-days: 30
+
+  merge:
+    name: merge reports
+    needs: battery
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Download leg reports
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: calibration-report-*
+          path: legs
+          merge-multiple: true
+      - name: Merge into one report
+        run: |
+          ls -la legs
+          python scripts/merge_calibration_reports.py calibration-report.json legs/calibration-report-*.json | tee merge.log || true
+      - name: Gate table to job summary
+        if: always()
+        run: |
+          {
+            echo '```'
+            cat merge.log 2>/dev/null || true
+            python scripts/merge_calibration_reports.py --summary calibration-report.json 2>/dev/null || echo "no merged report (every leg job failed before writing one -- see the leg artifacts)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload merged report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: calibration-report
-          path: calibration-report.json
+          path: |
+            calibration-report.json
+            legs/battery-*.log
           if-no-files-found: warn
           retention-days: 30

@@ -1,0 +1,738 @@
+{
+  "experiment": {
+    "task": "calibration_suite",
+    "git_sha": "642b1d082fb8da47ab33108753e12cd87ced91a8",
+    "seed": 1729,
+    "env_lock": {
+      "CONTEXT_MANIFEST_ENABLED": "0",
+      "ADAPTIVE_WEIGHTS_ENABLED": "0",
+      "AMPLITUDE_SCORING_ENABLED": "0",
+      "BAYESIAN_PRIOR_ENABLED": "0",
+      "LENGTH_ADAPTIVE_WEIGHTS": "0",
+      "RANK_REMEDIATION": "none",
+      "STYLE_AUTHORSHIP_ENABLED": "0",
+      "IDENTITY_AXIS": "0",
+      "NULL_MODEL": "none"
+    },
+    "corpora": {
+      "seminary": {
+        "n_authors": 27,
+        "n_documents": 135,
+        "total_words": 57536,
+        "docs_per_author": {
+          "seminary_group_0": 5,
+          "seminary_group_1": 5,
+          "seminary_group_10": 5,
+          "seminary_group_11": 5,
+          "seminary_group_12": 5,
+          "seminary_group_13": 5,
+          "seminary_group_14": 5,
+          "seminary_group_15": 5,
+          "seminary_group_16": 5,
+          "seminary_group_17": 5,
+          "seminary_group_18": 5,
+          "seminary_group_19": 5,
+          "seminary_group_2": 5,
+          "seminary_group_20": 5,
+          "seminary_group_21": 5,
+          "seminary_group_22": 5,
+          "seminary_group_23": 5,
+          "seminary_group_24": 5,
+          "seminary_group_25": 5,
+          "seminary_group_26": 5,
+          "seminary_group_3": 5,
+          "seminary_group_4": 5,
+          "seminary_group_5": 5,
+          "seminary_group_6": 5,
+          "seminary_group_7": 5,
+          "seminary_group_8": 5,
+          "seminary_group_9": 5
+        },
+        "provenance": "student_pilot"
+      },
+      "public_authors": {
+        "n_authors": 11,
+        "n_documents": 34,
+        "total_words": 383646,
+        "docs_per_author": {
+          "augustine": 3,
+          "boethius": 3,
+          "chesterton": 3,
+          "douglass": 3,
+          "edwards": 3,
+          "emerson": 3,
+          "james": 4,
+          "kempis": 3,
+          "mill": 3,
+          "newman": 3,
+          "thoreau": 3
+        },
+        "provenance": "real_historical"
+      },
+      "plato": {
+        "n_authors": 27,
+        "n_documents": 216,
+        "total_words": 427276,
+        "docs_per_author": {
+          "plato_apology": 6,
+          "plato_charmides": 5,
+          "plato_cratylus": 12,
+          "plato_critias": 3,
+          "plato_crito": 3,
+          "plato_eryxias": 3,
+          "plato_euthydemus": 8,
+          "plato_euthyphro": 3,
+          "plato_gorgias": 12,
+          "plato_hippias_minor": 3,
+          "plato_ion": 2,
+          "plato_laches": 5,
+          "plato_laws": 12,
+          "plato_lysis": 4,
+          "plato_menexenus": 4,
+          "plato_meno": 6,
+          "plato_parmenides": 9,
+          "plato_phaedo": 12,
+          "plato_phaedrus": 11,
+          "plato_philebus": 12,
+          "plato_protagoras": 11,
+          "plato_republic": 12,
+          "plato_sophist": 11,
+          "plato_statesman": 12,
+          "plato_symposium": 11,
+          "plato_theaetetus": 12,
+          "plato_timaeus": 12
+        },
+        "provenance": "real_historical"
+      },
+      "g1_scored": {
+        "n_authors": 46,
+        "n_documents": 326,
+        "total_words": 435750,
+        "docs_per_author": {
+          "plato_apology": 6,
+          "plato_charmides": 5,
+          "plato_cratylus": 12,
+          "plato_euthydemus": 8,
+          "plato_gorgias": 12,
+          "plato_laches": 5,
+          "plato_laws": 12,
+          "plato_meno": 6,
+          "plato_parmenides": 9,
+          "plato_phaedo": 12,
+          "plato_phaedrus": 11,
+          "plato_philebus": 12,
+          "plato_protagoras": 11,
+          "plato_republic": 12,
+          "plato_sophist": 11,
+          "plato_statesman": 12,
+          "plato_symposium": 11,
+          "plato_theaetetus": 12,
+          "plato_timaeus": 12,
+          "seminary_group_0": 5,
+          "seminary_group_1": 5,
+          "seminary_group_10": 5,
+          "seminary_group_11": 5,
+          "seminary_group_12": 5,
+          "seminary_group_13": 5,
+          "seminary_group_14": 5,
+          "seminary_group_15": 5,
+          "seminary_group_16": 5,
+          "seminary_group_17": 5,
+          "seminary_group_18": 5,
+          "seminary_group_19": 5,
+          "seminary_group_2": 5,
+          "seminary_group_20": 5,
+          "seminary_group_21": 5,
+          "seminary_group_22": 5,
+          "seminary_group_23": 5,
+          "seminary_group_24": 5,
+          "seminary_group_25": 5,
+          "seminary_group_26": 5,
+          "seminary_group_3": 5,
+          "seminary_group_4": 5,
+          "seminary_group_5": 5,
+          "seminary_group_6": 5,
+          "seminary_group_7": 5,
+          "seminary_group_8": 5,
+          "seminary_group_9": 5
+        },
+        "provenance": "g1_loo_eligible_subset"
+      }
+    },
+    "windowing": {
+      "source": "corpus documents as-is"
+    },
+    "features": {
+      "total": 109,
+      "status_counts": {
+        "measurable": 89,
+        "scoring_only": 7,
+        "structurally_blank": 1,
+        "disabled": 12
+      }
+    },
+    "aggregation": {
+      "tier_rule": "median"
+    },
+    "thresholds": {
+      "g1_flagged_rate": 0.05,
+      "g3_top1": 0.7,
+      "g6_ratio": 2.0,
+      "g7_cross_topic_fp": 0.25,
+      "g7_impostor_catch": 0.29,
+      "g7_cross_genre_auc": 0.6,
+      "g8_min_class_precision": 0.8,
+      "g8_abstention": 0.5,
+      "g8_control_margin": 0.1,
+      "no_action_far_threshold": 0.03,
+      "no_action_central_threshold": 0.02,
+      "monitor_far_threshold": 0.015,
+      "schedule_far_threshold": 0.005
+    },
+    "created_at": "2026-09-08T10:25:56+00:00"
+  },
+  "vector_cache": {
+    "dir": "/Users/andrew/Desktop/Original/.claude/worktrees/validation-gate-repair-1b8d72/.benchmark_cache/calibration_gate/vectors",
+    "key_scheme": "sha256(FEATURE_DIM, ALL_FEATURE_CODES, sorted DISABLED_FEATURE_GROUPS, tier10 backend, text)",
+    "semantic_backend": "st",
+    "scope": "students_baseline.feature_vector and students_scoring.feature_vector, for the duration of run_all() only"
+  },
+  "gates": [
+    {
+      "name": "G1",
+      "passed": false,
+      "criterion": "pooled flagged rate <= 5%",
+      "current_value": "0.0% (UNINFORMATIVE: typicality thresholds unreachable at n<=4 \u2014 p-value floor 0.200 exceeds the loosest flag boundary 0.03, which needs n>=33; band-driven flags are impossible by construction, so this rate is not evidence of calibration)",
+      "detail": {
+        "n": 316,
+        "flagged": 0,
+        "pooled_flagged_rate": 0.0,
+        "per_corpus_flagged_rate": {
+          "seminary_group_0": 0.0,
+          "seminary_group_1": 0.0,
+          "seminary_group_2": 0.0,
+          "seminary_group_3": 0.0,
+          "seminary_group_4": 0.0,
+          "seminary_group_5": 0.0,
+          "seminary_group_6": 0.0,
+          "seminary_group_7": 0.0,
+          "seminary_group_8": 0.0,
+          "seminary_group_9": 0.0,
+          "seminary_group_10": 0.0,
+          "seminary_group_11": 0.0,
+          "seminary_group_12": 0.0,
+          "seminary_group_13": 0.0,
+          "seminary_group_14": 0.0,
+          "seminary_group_15": 0.0,
+          "seminary_group_16": 0.0,
+          "seminary_group_17": 0.0,
+          "seminary_group_18": 0.0,
+          "seminary_group_19": 0.0,
+          "seminary_group_20": 0.0,
+          "seminary_group_21": 0.0,
+          "seminary_group_22": 0.0,
+          "seminary_group_23": 0.0,
+          "seminary_group_24": 0.0,
+          "seminary_group_25": 0.0,
+          "seminary_group_26": 0.0,
+          "plato_apology": 0.0,
+          "plato_charmides": 0.0,
+          "plato_cratylus": 0.0,
+          "plato_euthydemus": 0.0,
+          "plato_gorgias": 0.0,
+          "plato_laches": 0.0,
+          "plato_laws": 0.0,
+          "plato_meno": 0.0,
+          "plato_parmenides": 0.0,
+          "plato_phaedo": 0.0,
+          "plato_phaedrus": 0.0,
+          "plato_philebus": 0.0,
+          "plato_protagoras": 0.0,
+          "plato_republic": 0.0,
+          "plato_sophist": 0.0,
+          "plato_statesman": 0.0,
+          "plato_symposium": 0.0,
+          "plato_theaetetus": 0.0,
+          "plato_timaeus": 0.0
+        },
+        "reachability": {
+          "observed": true,
+          "min_typicality_n": 4,
+          "p_floor": 0.2,
+          "threshold": 0.03,
+          "required_n": 33,
+          "reachable": false,
+          "n_folds_with_typicality": 316,
+          "note": "conformal p-values floor at 1/(n+1); at n=4 the floor is 0.200 and the 0.03 threshold needs n>=33 (design spec \u00a75 reachability table)"
+        },
+        "power": {
+          "band_threshold": 0.03,
+          "max_entity_n": 11,
+          "min_conformal_p_at_max_n": 0.08333333333333333,
+          "entities_reachable": 0,
+          "entities_total": 46,
+          "min_docs_for_band": 33,
+          "rule_of_three_fpr_upper": 0.00949367088607595
+        },
+        "corpus_fingerprint": {
+          "seminary": "f584fb6922c06762",
+          "public_authors": "dbe8e776b56bdadc",
+          "plato": "7e1ee4df090573c8"
+        }
+      },
+      "verdict": "uninformative"
+    },
+    {
+      "name": "G1p",
+      "passed": false,
+      "criterion": "pooled-calibration twin of G1: flagged rate <= 5% with each fold's typicality band calibrated on same-group peers' LOO distances",
+      "current_value": "8.9%",
+      "detail": {
+        "n": 191,
+        "flagged": 17,
+        "pooled_flagged_rate": 0.08900523560209424,
+        "per_corpus_flagged_rate": {
+          "plato_apology": 0.16666666666666666,
+          "plato_charmides": 0.2,
+          "plato_cratylus": 0.0,
+          "plato_euthydemus": 0.125,
+          "plato_gorgias": 0.16666666666666666,
+          "plato_laches": 0.2,
+          "plato_laws": 0.08333333333333333,
+          "plato_meno": 0.0,
+          "plato_parmenides": 0.1111111111111111,
+          "plato_phaedo": 0.08333333333333333,
+          "plato_phaedrus": 0.09090909090909091,
+          "plato_philebus": 0.08333333333333333,
+          "plato_protagoras": 0.09090909090909091,
+          "plato_republic": 0.08333333333333333,
+          "plato_sophist": 0.0,
+          "plato_statesman": 0.08333333333333333,
+          "plato_symposium": 0.0,
+          "plato_theaetetus": 0.08333333333333333,
+          "plato_timaeus": 0.16666666666666666
+        },
+        "reachability": {
+          "observed": true,
+          "min_typicality_n": 179,
+          "p_floor": 0.005555555555555556,
+          "threshold": 0.03,
+          "required_n": 33,
+          "reachable": true,
+          "n_folds_with_typicality": 191,
+          "note": "conformal p-values floor at 1/(n+1); at n=179 the floor is 0.006 and the 0.03 threshold needs n>=33 (design spec \u00a75 reachability table)"
+        },
+        "calibration_mode_counts": {
+          "pooled": 191,
+          "self": 0,
+          "none": 0
+        },
+        "pool_reference_sizes": {
+          "plato_apology": 6,
+          "plato_charmides": 5,
+          "plato_cratylus": 12,
+          "plato_euthydemus": 8,
+          "plato_gorgias": 12,
+          "plato_laches": 5,
+          "plato_laws": 12,
+          "plato_meno": 6,
+          "plato_parmenides": 9,
+          "plato_phaedo": 12,
+          "plato_phaedrus": 11,
+          "plato_philebus": 12,
+          "plato_protagoras": 11,
+          "plato_republic": 12,
+          "plato_sophist": 11,
+          "plato_statesman": 12,
+          "plato_symposium": 11,
+          "plato_theaetetus": 12,
+          "plato_timaeus": 12
+        },
+        "per_group_flagged_rates": {
+          "plato": {
+            "n": 191,
+            "flagged": 17,
+            "flagged_rate": 0.08900523560209424
+          }
+        },
+        "per_group_reachability": {
+          "plato": {
+            "observed": true,
+            "min_typicality_n": 179,
+            "p_floor": 0.005555555555555556,
+            "threshold": 0.03,
+            "required_n": 33,
+            "reachable": true,
+            "n_folds_with_typicality": 191,
+            "note": "conformal p-values floor at 1/(n+1); at n=179 the floor is 0.006 and the 0.03 threshold needs n>=33 (design spec \u00a75 reachability table)"
+          }
+        },
+        "n_drift_rejected": 0,
+        "licensed_groups": [
+          "plato"
+        ],
+        "exchangeability_audit": "validation/audits/pooling_exchangeability_2026-09-07.json",
+        "population_note": "only entities in licensed_groups are scored; G1 (self-calibrated) remains the leg that covers every corpus",
+        "caveat": "folds are scored by calling original.quantum.scoring.score() directly with pooled_states -- the live /score route does not supply a pooled reference (see _score_corpus_for_g1_pooled's docstring), so this measures what TYPICALITY_POOLED_CALIBRATION would do if the route supported it, not shipped behaviour",
+        "corpus_fingerprint": {
+          "seminary": "f584fb6922c06762",
+          "public_authors": "dbe8e776b56bdadc",
+          "plato": "7e1ee4df090573c8"
+        }
+      },
+      "verdict": "fail"
+    },
+    {
+      "name": "G2",
+      "passed": true,
+      "criterion": "median(impostor q) <= median(holdout q)",
+      "current_value": "impostor=0.048, holdout=0.200",
+      "detail": {
+        "holdout_q": [
+          0.16666666666666666,
+          0.2,
+          0.08333333333333333,
+          0.125,
+          0.08333333333333333,
+          0.2,
+          0.16666666666666666,
+          0.5,
+          0.2222222222222222,
+          0.08333333333333333,
+          0.36363636363636365,
+          0.16666666666666666,
+          0.45454545454545453,
+          0.08333333333333333,
+          0.5454545454545454,
+          0.25,
+          0.5454545454545454,
+          0.16666666666666666,
+          0.25
+        ],
+        "impostor_q": [
+          0.19047619047619047,
+          0.23809523809523808,
+          0.19047619047619047,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616
+        ],
+        "corpus_fingerprint": "7e1ee4df090573c8"
+      },
+      "verdict": "pass"
+    },
+    {
+      "name": "G2b",
+      "passed": true,
+      "criterion": "median(paraphrased impostor q) <= median(holdout q) \u2014 paraphrase proxy (mechanical transformation, not LLM paraphrase)",
+      "current_value": "paraphrased_impostor=0.048, holdout=0.250",
+      "detail": {
+        "n_holdout": 19,
+        "n_paraphrased_impostors": 20,
+        "n_ai_files": 20,
+        "n_holdout_scoring_errors": 0,
+        "n_impostor_scoring_errors": 0,
+        "n_null_typicality_skipped": 0,
+        "uniformity_enabled_during_leg": true,
+        "holdout_q": [
+          0.3333333333333333,
+          0.2,
+          0.16666666666666666,
+          0.125,
+          0.08333333333333333,
+          0.2,
+          0.25,
+          0.3333333333333333,
+          0.2222222222222222,
+          0.08333333333333333,
+          0.2727272727272727,
+          0.16666666666666666,
+          0.45454545454545453,
+          0.08333333333333333,
+          0.5454545454545454,
+          0.25,
+          0.36363636363636365,
+          0.25,
+          0.25
+        ],
+        "paraphrased_impostor_q": [
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616,
+          0.047619047619047616
+        ],
+        "proxy_note": "The impostor texts were transformed by a deterministic paraphrase proxy (mechanical transformation, not LLM paraphrase): fixed-table word substitution plus within-paragraph adjacent-sentence reordering (_paraphrase_proxy). A pass here is NOT evidence of robustness against real detector-guided LLM paraphrase attacks (the published one-line 'elevate the language' attack the design spec's research review cites) \u2014 no LLM is wired into this validation harness. MEASURED LIMITS of the transform on validation/corpus/ai_*.txt: it substitutes ~1% of tokens (1.1% measured; the table has 37 entries but they are rare in this corpus), and three of the six Tier-18 uniformity features \u2014 sentence_length_dispersion_ratio, punctuation_dispersion_ratio and clause_depth_variance_ratio \u2014 are invariant under it BY CONSTRUCTION, since reordering sentences within a paragraph permutes but does not change the per-sentence length / punctuation / clause-depth distributions, and a ~1% synonym swap does not either. So this gate stresses at most half the uniformity family, weakly. A real LLM-based paraphrase gate remains an open follow-up.",
+        "corpus_fingerprint": "7e1ee4df090573c8"
+      },
+      "verdict": "pass"
+    },
+    {
+      "name": "G3",
+      "passed": false,
+      "criterion": "public_authors top-1 accuracy >= 0.7 (impostor-calibrated attribution)",
+      "current_value": "0.778",
+      "detail": {
+        "top1_accuracy": 0.7778,
+        "top1_accuracy_raw_argmin": 0.7037,
+        "power": {
+          "n_essays": 27,
+          "wilson_ci": [
+            0.5924270453692919,
+            0.8939290451059105
+          ],
+          "bar": 0.7,
+          "bar_decidable": "undecided"
+        },
+        "corpus_fingerprint": "dbe8e776b56bdadc"
+      },
+      "verdict": "uninformative"
+    },
+    {
+      "name": "G4",
+      "passed": true,
+      "criterion": "early <= middle <= late (typicality distance from early baseline)",
+      "current_value": "{'early': 0.6355469370804219, 'middle': 0.6663290712698797, 'late': 0.7314143749830934}",
+      "detail": {
+        "group_means": {
+          "early": 0.6355469370804219,
+          "middle": 0.6663290712698797,
+          "late": 0.7314143749830934
+        },
+        "corpus_fingerprint": "7e1ee4df090573c8"
+      },
+      "verdict": "pass"
+    },
+    {
+      "name": "G5",
+      "passed": true,
+      "criterion": "G1/G3/G4 collapse to chance under permuted author labels",
+      "current_value": "g1_dev real=0.633 shuffled=0.685, g3_acc=0.148, g4_nonmonotone=2/3",
+      "detail": {
+        "real_g1_mean_deviation": 0.6332623909868105,
+        "shuffled_g1_mean_deviation": 0.6845091430980693,
+        "shuffled_g3_accuracy": 0.1481,
+        "g4_nonmonotone_draws": 2,
+        "g4_total_draws": 3,
+        "seed": 1730,
+        "real_g1_flagged_rate": 0.0,
+        "real_g1_n_scoring_errors": 10,
+        "real_g1_n_genuine_scoring_errors": 0,
+        "real_g1_drift_rejected_count": 10,
+        "real_g1_drift_rejected_note": "folds of the REAL G1 anchor leg dropped because the Phase-8 drift gate held a genuine same-author baseline upload (202/409) \u2014 admission control being conservative on heterogeneous real prose (2026-08-13: 42/326 on the grown seminary corpus, magnitudes 0.2506-0.3903 vs the 0.25 anchor threshold), not machinery failure. Excluded from the anchor health check; NOTE the surviving anchor sample under-represents each author's most heterogeneous documents, which biases the real-leg mean deviation toward homogeneity \u2014 read the deviation-shift comparison with that in mind.",
+        "shuffled_g1_flagged_rate": 0.0,
+        "flagged_rate_note": "context only, never gated: conformal typicality p-values floor at 1/(N+1) and every G1 entity has at most ~a dozen LOO folds, pinning the action band to no_action for real and shuffled labels alike",
+        "shuffled_g1_n_folds": 265,
+        "shuffled_g1_n_scoring_errors": 61,
+        "shuffled_g1_n_genuine_scoring_errors": 0,
+        "shuffled_g1_drift_rejected_count": 61,
+        "shuffled_g1_drift_rejected_rate": 0.18711656441717792,
+        "drift_rejected_note": "folds where the Phase-8 drift gate (original/routers/students_baseline.py) rejected a baseline upload as pending_review/rebaseline_required (202/409) \u2014 this is expected on a shuffled-label corpus (cross-author grab-bag baselines) and is independent, complementary evidence of real authorship coherence, not a machinery failure. Excluded from shuffled_g1_n_genuine_scoring_errors and from this leg's >10% health-check threshold; still excluded from the deviation-shift comparison (its baseline genuinely wasn't built).",
+        "shuffled_g3_n_essays": 27,
+        "shuffled_g3_n_scoring_errors": 0,
+        "shuffled_g3_n_eligible_authors": 11,
+        "shuffled_g3_attribution_method": "impostor_calibrated_z",
+        "g4_draws": [
+          {
+            "group_means": {
+              "early": 0.6199381693980605,
+              "middle": 0.6310094730612562,
+              "late": 0.6982676027428555
+            },
+            "monotone": true,
+            "n_scored": 213,
+            "n_errors": 0
+          },
+          {
+            "group_means": {
+              "early": 0.6003080642209574,
+              "middle": 0.650351504723238,
+              "late": 0.6471223013438626
+            },
+            "monotone": false,
+            "n_scored": 205,
+            "n_errors": 0
+          },
+          {
+            "group_means": {
+              "early": 0.6424080961843688,
+              "middle": 0.6568058166869015,
+              "late": 0.6281783529978424
+            },
+            "monotone": false,
+            "n_scored": 210,
+            "n_errors": 0
+          }
+        ],
+        "corpus_fingerprint": {
+          "seminary": "f584fb6922c06762",
+          "public_authors": "dbe8e776b56bdadc",
+          "plato": "7e1ee4df090573c8"
+        }
+      },
+      "verdict": "pass"
+    },
+    {
+      "name": "G6",
+      "passed": false,
+      "criterion": "per-group flagged rate for the p_central/too-uniform action must not differ by more than 2x between native_english=true and =false authentic samples \u2014 verdict covers the p_central action ONLY; the spec's per-group uniformity-feature comparison is recorded in detail as measurement, not gated (pending Tier-18 NORM_BOUNDS calibration)",
+      "current_value": "SKIPPED (threshold unreachable): p_central floor 1/(n+1)=0.200 at n=4, flag threshold 0.02 needs n>=49",
+      "detail": {
+        "n_scoring_errors": 15,
+        "n_genuine_scoring_errors": 0,
+        "n_drift_rejected_folds": 15,
+        "min_typicality_n": 4,
+        "p_floor": 0.2,
+        "threshold": 0.02,
+        "required_n": 49,
+        "missing": "p_central floor 1/(n+1)=0.200 at n=4, flag threshold 0.02 needs n>=49",
+        "n_native_scored": 114,
+        "n_non_native_scored": 10,
+        "corpus_fingerprint": "45479aafe14abaa6"
+      },
+      "verdict": "uninformative"
+    },
+    {
+      "name": "G7",
+      "passed": false,
+      "criterion": "genuine cross-topic FP @ schedule_conversation+ <= 25% AND impostor catch @ schedule_conversation+ >= 29% AND mean raw deviation_score cross-genre AUC >= 0.60 \u2014 a CONJUNCTION: no single leg may carry a pass",
+      "current_value": "SKIPPED (corpus unavailable): vectors.npy and vectors_meta.json not found in /Users/andrew/Desktop/Original/.claude/worktrees/validation-gate-repair-1b8d72/validation/genre_crossgenre_2026-08",
+      "detail": {
+        "corpus_dir": "/Users/andrew/Desktop/Original/.claude/worktrees/validation-gate-repair-1b8d72/validation/genre_crossgenre_2026-08",
+        "missing": "vectors.npy and vectors_meta.json not found in /Users/andrew/Desktop/Original/.claude/worktrees/validation-gate-repair-1b8d72/validation/genre_crossgenre_2026-08",
+        "remediation": "regenerate the cached corpus: fetch the texts listed in validation/genre_crossgenre_2026-08/clean_corpus.py's MANIFEST, then run `python validation/genre_crossgenre_2026-08/extract_vectors.py` (~10 min for 560 chunks). Raw text is deliberately not committed \u2014 the editions are still under copyright."
+      },
+      "verdict": "uninformative"
+    },
+    {
+      "name": "G8",
+      "passed": true,
+      "criterion": "minimum per-class precision on the author-disjoint hold-out >= 80% AND abstention rate <= 50% AND author-shuffled control accuracy within 10pt of chance \u2014 a CONJUNCTION: no single leg may carry a pass",
+      "current_value": "min per-class precision=1.000 (bar >=0.80), abstention=0.333 (bar <=0.50), shuffled-control=0.306 (bar <=0.43, chance=0.33)",
+      "detail": {
+        "per_class_precision": {
+          "academic_exegesis": 1.0,
+          "narrative_prose": 1.0,
+          "scholarly_essay": 1.0
+        },
+        "per_class_claimed": {
+          "scholarly_essay": 18,
+          "academic_exegesis": 4,
+          "narrative_prose": 14
+        },
+        "classes_never_claimed": [],
+        "n_claimed": 36,
+        "n_abstained": 18,
+        "shuffled_control_n": 54,
+        "min_class_precision": 1.0,
+        "abstention_rate": 0.3333333333333333,
+        "shuffled_accuracy": 0.3055555555555555,
+        "chance": 0.3333333333333333,
+        "n_classes": 3,
+        "precision_leg_passed": true,
+        "abstention_leg_passed": true,
+        "control_leg_passed": true,
+        "failed_legs": [],
+        "unmeasured_legs": [],
+        "bars": {
+          "precision": 0.8,
+          "abstention": 0.5,
+          "control": 0.43333333333333335
+        },
+        "n_holdout": 54,
+        "power": {
+          "n_holdout": 54,
+          "precision_wilson_ci": [
+            0.9335841332189981,
+            1.0
+          ],
+          "precision_bar_decidable": "above",
+          "bar": 0.8
+        },
+        "uninformative_reasons": [],
+        "informativeness_caveats": []
+      },
+      "verdict": "pass"
+    },
+    {
+      "name": "T-1",
+      "passed": false,
+      "criterion": "honest term: schedule <=10% and escalate <=2%",
+      "current_value": "honest-term action budget",
+      "detail": {
+        "verdict": "fail",
+        "passed": false,
+        "reason": "honest-term action budget"
+      },
+      "verdict": "fail"
+    },
+    {
+      "name": "T-2",
+      "passed": true,
+      "criterion": "GHOST caught by term end at monitor+ >=60%",
+      "current_value": "ghost detection floor",
+      "detail": {
+        "verdict": "pass",
+        "passed": true,
+        "reason": "ghost detection floor"
+      },
+      "verdict": "pass"
+    },
+    {
+      "name": "T-3",
+      "passed": false,
+      "criterion": "absolute honest baseline-growth slope <0.001",
+      "current_value": "baseline-growth neutrality",
+      "detail": {
+        "verdict": "fail",
+        "passed": false,
+        "reason": "baseline-growth neutrality"
+      },
+      "verdict": "fail"
+    },
+    {
+      "name": "T-4",
+      "passed": true,
+      "criterion": "cold-start honest-term rate <=2x honest rate",
+      "current_value": "cold-start parity",
+      "detail": {
+        "verdict": "pass",
+        "passed": true,
+        "reason": "cold-start parity"
+      },
+      "verdict": "pass"
+    }
+  ]
+}

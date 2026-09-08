@@ -1,0 +1,2763 @@
+{
+  "generated_at": "2026-09-08T00:02:01.473422+00:00",
+  "elapsed_seconds": 1750.8818255830047,
+  "assessor": "validation.audits.pooling_exchangeability.assess_exchangeability",
+  "assessor_limits": {
+    "ratio_limit": 1.0,
+    "ks_limit": 0.5,
+    "min_students": 3,
+    "min_per_student": 2
+  },
+  "quantity": "StudentState.loo_distances (leave-one-out rms_z per contributing sample) after uploading every text of the entity via /students/{sid}/baseline",
+  "corpus_fingerprints": {
+    "seminary": "f584fb6922c06762",
+    "plato": "7e1ee4df090573c8",
+    "public_authors": "dbe8e776b56bdadc",
+    "g6_native_english": "45479aafe14abaa6"
+  },
+  "upload_health": {
+    "g1_corpora": {
+      "seminary_group_0": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_1": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_2": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_3": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_4": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_5": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_6": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_7": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_8": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_9": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_10": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_11": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_12": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_13": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_14": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_15": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_16": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_17": {
+        "n_texts": 5,
+        "ok": 4,
+        "drift_hold": 1,
+        "other_failure": 0,
+        "n_distances": 4
+      },
+      "seminary_group_18": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_19": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_20": {
+        "n_texts": 5,
+        "ok": 1,
+        "drift_hold": 4,
+        "other_failure": 0,
+        "n_distances": 0
+      },
+      "seminary_group_21": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_22": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_23": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_24": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_25": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_group_26": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "plato_apology": {
+        "n_texts": 6,
+        "ok": 6,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 6
+      },
+      "plato_charmides": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "plato_cratylus": {
+        "n_texts": 12,
+        "ok": 12,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 12
+      },
+      "plato_critias": {
+        "n_texts": 3,
+        "ok": 3,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 3
+      },
+      "plato_crito": {
+        "n_texts": 3,
+        "ok": 3,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 3
+      },
+      "plato_eryxias": {
+        "n_texts": 3,
+        "ok": 3,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 3
+      },
+      "plato_euthydemus": {
+        "n_texts": 8,
+        "ok": 8,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 8
+      },
+      "plato_euthyphro": {
+        "n_texts": 3,
+        "ok": 3,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 3
+      },
+      "plato_gorgias": {
+        "n_texts": 12,
+        "ok": 12,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 12
+      },
+      "plato_hippias_minor": {
+        "n_texts": 3,
+        "ok": 3,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 3
+      },
+      "plato_ion": {
+        "n_texts": 2,
+        "ok": 2,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 2
+      },
+      "plato_laches": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "plato_laws": {
+        "n_texts": 12,
+        "ok": 12,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 12
+      },
+      "plato_lysis": {
+        "n_texts": 4,
+        "ok": 4,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 4
+      },
+      "plato_menexenus": {
+        "n_texts": 4,
+        "ok": 4,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 4
+      },
+      "plato_meno": {
+        "n_texts": 6,
+        "ok": 6,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 6
+      },
+      "plato_parmenides": {
+        "n_texts": 9,
+        "ok": 9,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 9
+      },
+      "plato_phaedo": {
+        "n_texts": 12,
+        "ok": 12,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 12
+      },
+      "plato_phaedrus": {
+        "n_texts": 11,
+        "ok": 11,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 11
+      },
+      "plato_philebus": {
+        "n_texts": 12,
+        "ok": 12,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 12
+      },
+      "plato_protagoras": {
+        "n_texts": 11,
+        "ok": 11,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 11
+      },
+      "plato_republic": {
+        "n_texts": 12,
+        "ok": 12,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 12
+      },
+      "plato_sophist": {
+        "n_texts": 11,
+        "ok": 11,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 11
+      },
+      "plato_statesman": {
+        "n_texts": 12,
+        "ok": 12,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 12
+      },
+      "plato_symposium": {
+        "n_texts": 11,
+        "ok": 11,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 11
+      },
+      "plato_theaetetus": {
+        "n_texts": 12,
+        "ok": 12,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 12
+      },
+      "plato_timaeus": {
+        "n_texts": 12,
+        "ok": 12,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 12
+      },
+      "emerson": {
+        "n_texts": 3,
+        "ok": 3,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 3
+      },
+      "douglass": {
+        "n_texts": 3,
+        "ok": 3,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 3
+      },
+      "thoreau": {
+        "n_texts": 3,
+        "ok": 3,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 3
+      },
+      "mill": {
+        "n_texts": 3,
+        "ok": 3,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 3
+      },
+      "chesterton": {
+        "n_texts": 3,
+        "ok": 3,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 3
+      },
+      "newman": {
+        "n_texts": 3,
+        "ok": 3,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 3
+      },
+      "james": {
+        "n_texts": 4,
+        "ok": 4,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 4
+      },
+      "kempis": {
+        "n_texts": 3,
+        "ok": 3,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 3
+      },
+      "augustine": {
+        "n_texts": 3,
+        "ok": 3,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 3
+      },
+      "boethius": {
+        "n_texts": 3,
+        "ok": 3,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 3
+      },
+      "edwards": {
+        "n_texts": 3,
+        "ok": 3,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 3
+      }
+    },
+    "g6": {
+      "seminary_01": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_02": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_03": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_04": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_05": {
+        "n_texts": 5,
+        "ok": 5,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 5
+      },
+      "seminary_06": {
+        "n_texts": 18,
+        "ok": 18,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 18
+      },
+      "seminary_07": {
+        "n_texts": 20,
+        "ok": 20,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 20
+      },
+      "seminary_08": {
+        "n_texts": 22,
+        "ok": 22,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 22
+      },
+      "seminary_09": {
+        "n_texts": 16,
+        "ok": 15,
+        "drift_hold": 1,
+        "other_failure": 0,
+        "n_distances": 15
+      },
+      "seminary_10": {
+        "n_texts": 22,
+        "ok": 22,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 22
+      },
+      "seminary_11": {
+        "n_texts": 16,
+        "ok": 16,
+        "drift_hold": 0,
+        "other_failure": 0,
+        "n_distances": 16
+      }
+    }
+  },
+  "populations": [
+    {
+      "label": "seminary",
+      "description": "every seminary entity with >= 2 contributing samples",
+      "entities": [
+        "seminary_group_0",
+        "seminary_group_1",
+        "seminary_group_10",
+        "seminary_group_11",
+        "seminary_group_12",
+        "seminary_group_13",
+        "seminary_group_14",
+        "seminary_group_15",
+        "seminary_group_16",
+        "seminary_group_17",
+        "seminary_group_18",
+        "seminary_group_19",
+        "seminary_group_2",
+        "seminary_group_20",
+        "seminary_group_21",
+        "seminary_group_22",
+        "seminary_group_23",
+        "seminary_group_24",
+        "seminary_group_25",
+        "seminary_group_26",
+        "seminary_group_3",
+        "seminary_group_4",
+        "seminary_group_5",
+        "seminary_group_6",
+        "seminary_group_7",
+        "seminary_group_8",
+        "seminary_group_9"
+      ],
+      "between_within_variance_ratio": 0.2276443143473746,
+      "ks_max_pairwise": 0.7258064516129032,
+      "verdict": "heterogeneous",
+      "n_students": 26,
+      "summary": {
+        "per_entity": {
+          "seminary_group_0": {
+            "n": 5,
+            "mean": 0.9308656798573391,
+            "std": 0.09483365522630549
+          },
+          "seminary_group_1": {
+            "n": 5,
+            "mean": 0.9100654609349121,
+            "std": 0.06258846543329037
+          },
+          "seminary_group_2": {
+            "n": 5,
+            "mean": 0.9328676025507721,
+            "std": 0.21519327358967147
+          },
+          "seminary_group_3": {
+            "n": 5,
+            "mean": 0.9794663460655599,
+            "std": 0.10483888840391493
+          },
+          "seminary_group_4": {
+            "n": 5,
+            "mean": 1.0285117835500877,
+            "std": 0.19346285902669613
+          },
+          "seminary_group_5": {
+            "n": 5,
+            "mean": 1.199214348566421,
+            "std": 0.1574817735286142
+          },
+          "seminary_group_6": {
+            "n": 5,
+            "mean": 1.187839142349026,
+            "std": 0.205342173690273
+          },
+          "seminary_group_7": {
+            "n": 5,
+            "mean": 1.1251924675427758,
+            "std": 0.10557113612067634
+          },
+          "seminary_group_8": {
+            "n": 5,
+            "mean": 1.165339029947853,
+            "std": 0.16414316188965333
+          },
+          "seminary_group_9": {
+            "n": 5,
+            "mean": 1.0670527352119623,
+            "std": 0.13484478889736431
+          },
+          "seminary_group_10": {
+            "n": 5,
+            "mean": 1.1186058006998438,
+            "std": 0.13112135459713925
+          },
+          "seminary_group_11": {
+            "n": 5,
+            "mean": 1.0539731906185346,
+            "std": 0.05469918524747319
+          },
+          "seminary_group_12": {
+            "n": 5,
+            "mean": 1.1571724423571488,
+            "std": 0.09107546864772359
+          },
+          "seminary_group_13": {
+            "n": 5,
+            "mean": 1.1152757719307456,
+            "std": 0.18845589751140113
+          },
+          "seminary_group_14": {
+            "n": 5,
+            "mean": 1.0848589840327554,
+            "std": 0.17633710465521313
+          },
+          "seminary_group_15": {
+            "n": 5,
+            "mean": 1.192238690176929,
+            "std": 0.1814825999886957
+          },
+          "seminary_group_16": {
+            "n": 5,
+            "mean": 1.1467503074351746,
+            "std": 0.02908695924465089
+          },
+          "seminary_group_17": {
+            "n": 4,
+            "mean": 1.1970548756316186,
+            "std": 0.10847646055540638
+          },
+          "seminary_group_18": {
+            "n": 5,
+            "mean": 1.094090744955202,
+            "std": 0.1546128247354766
+          },
+          "seminary_group_19": {
+            "n": 5,
+            "mean": 1.0996159573195923,
+            "std": 0.08571617882364332
+          },
+          "seminary_group_20": {
+            "n": 0,
+            "mean": null,
+            "std": null
+          },
+          "seminary_group_21": {
+            "n": 5,
+            "mean": 1.0902474556715815,
+            "std": 0.2119878134694845
+          },
+          "seminary_group_22": {
+            "n": 5,
+            "mean": 1.107819281995864,
+            "std": 0.16353265795903152
+          },
+          "seminary_group_23": {
+            "n": 5,
+            "mean": 1.1074342328903055,
+            "std": 0.16436007918854975
+          },
+          "seminary_group_24": {
+            "n": 5,
+            "mean": 1.1518377740587538,
+            "std": 0.18612814576173559
+          },
+          "seminary_group_25": {
+            "n": 5,
+            "mean": 1.0642922896646554,
+            "std": 0.16197618199697064
+          },
+          "seminary_group_26": {
+            "n": 5,
+            "mean": 1.0251590783863562,
+            "std": 0.2349091387134587
+          }
+        },
+        "n_entities": 27,
+        "n_distances": 129,
+        "entity_mean_min": 0.9100654609349121,
+        "entity_mean_max": 1.199214348566421,
+        "entity_mean_median": 1.103525095104949
+      }
+    },
+    {
+      "label": "seminary_g1_eligible",
+      "description": "seminary entities with >= 5 texts -- the population _score_corpus_for_g1_pooled actually pools",
+      "entities": [
+        "seminary_group_0",
+        "seminary_group_1",
+        "seminary_group_10",
+        "seminary_group_11",
+        "seminary_group_12",
+        "seminary_group_13",
+        "seminary_group_14",
+        "seminary_group_15",
+        "seminary_group_16",
+        "seminary_group_17",
+        "seminary_group_18",
+        "seminary_group_19",
+        "seminary_group_2",
+        "seminary_group_20",
+        "seminary_group_21",
+        "seminary_group_22",
+        "seminary_group_23",
+        "seminary_group_24",
+        "seminary_group_25",
+        "seminary_group_26",
+        "seminary_group_3",
+        "seminary_group_4",
+        "seminary_group_5",
+        "seminary_group_6",
+        "seminary_group_7",
+        "seminary_group_8",
+        "seminary_group_9"
+      ],
+      "between_within_variance_ratio": 0.2276443143473746,
+      "ks_max_pairwise": 0.7258064516129032,
+      "verdict": "heterogeneous",
+      "n_students": 26,
+      "summary": {
+        "per_entity": {
+          "seminary_group_0": {
+            "n": 5,
+            "mean": 0.9308656798573391,
+            "std": 0.09483365522630549
+          },
+          "seminary_group_1": {
+            "n": 5,
+            "mean": 0.9100654609349121,
+            "std": 0.06258846543329037
+          },
+          "seminary_group_2": {
+            "n": 5,
+            "mean": 0.9328676025507721,
+            "std": 0.21519327358967147
+          },
+          "seminary_group_3": {
+            "n": 5,
+            "mean": 0.9794663460655599,
+            "std": 0.10483888840391493
+          },
+          "seminary_group_4": {
+            "n": 5,
+            "mean": 1.0285117835500877,
+            "std": 0.19346285902669613
+          },
+          "seminary_group_5": {
+            "n": 5,
+            "mean": 1.199214348566421,
+            "std": 0.1574817735286142
+          },
+          "seminary_group_6": {
+            "n": 5,
+            "mean": 1.187839142349026,
+            "std": 0.205342173690273
+          },
+          "seminary_group_7": {
+            "n": 5,
+            "mean": 1.1251924675427758,
+            "std": 0.10557113612067634
+          },
+          "seminary_group_8": {
+            "n": 5,
+            "mean": 1.165339029947853,
+            "std": 0.16414316188965333
+          },
+          "seminary_group_9": {
+            "n": 5,
+            "mean": 1.0670527352119623,
+            "std": 0.13484478889736431
+          },
+          "seminary_group_10": {
+            "n": 5,
+            "mean": 1.1186058006998438,
+            "std": 0.13112135459713925
+          },
+          "seminary_group_11": {
+            "n": 5,
+            "mean": 1.0539731906185346,
+            "std": 0.05469918524747319
+          },
+          "seminary_group_12": {
+            "n": 5,
+            "mean": 1.1571724423571488,
+            "std": 0.09107546864772359
+          },
+          "seminary_group_13": {
+            "n": 5,
+            "mean": 1.1152757719307456,
+            "std": 0.18845589751140113
+          },
+          "seminary_group_14": {
+            "n": 5,
+            "mean": 1.0848589840327554,
+            "std": 0.17633710465521313
+          },
+          "seminary_group_15": {
+            "n": 5,
+            "mean": 1.192238690176929,
+            "std": 0.1814825999886957
+          },
+          "seminary_group_16": {
+            "n": 5,
+            "mean": 1.1467503074351746,
+            "std": 0.02908695924465089
+          },
+          "seminary_group_17": {
+            "n": 4,
+            "mean": 1.1970548756316186,
+            "std": 0.10847646055540638
+          },
+          "seminary_group_18": {
+            "n": 5,
+            "mean": 1.094090744955202,
+            "std": 0.1546128247354766
+          },
+          "seminary_group_19": {
+            "n": 5,
+            "mean": 1.0996159573195923,
+            "std": 0.08571617882364332
+          },
+          "seminary_group_20": {
+            "n": 0,
+            "mean": null,
+            "std": null
+          },
+          "seminary_group_21": {
+            "n": 5,
+            "mean": 1.0902474556715815,
+            "std": 0.2119878134694845
+          },
+          "seminary_group_22": {
+            "n": 5,
+            "mean": 1.107819281995864,
+            "std": 0.16353265795903152
+          },
+          "seminary_group_23": {
+            "n": 5,
+            "mean": 1.1074342328903055,
+            "std": 0.16436007918854975
+          },
+          "seminary_group_24": {
+            "n": 5,
+            "mean": 1.1518377740587538,
+            "std": 0.18612814576173559
+          },
+          "seminary_group_25": {
+            "n": 5,
+            "mean": 1.0642922896646554,
+            "std": 0.16197618199697064
+          },
+          "seminary_group_26": {
+            "n": 5,
+            "mean": 1.0251590783863562,
+            "std": 0.2349091387134587
+          }
+        },
+        "n_entities": 27,
+        "n_distances": 129,
+        "entity_mean_min": 0.9100654609349121,
+        "entity_mean_max": 1.199214348566421,
+        "entity_mean_median": 1.103525095104949
+      }
+    },
+    {
+      "label": "plato",
+      "description": "every plato entity with >= 2 contributing samples",
+      "entities": [
+        "plato_apology",
+        "plato_charmides",
+        "plato_cratylus",
+        "plato_critias",
+        "plato_crito",
+        "plato_eryxias",
+        "plato_euthydemus",
+        "plato_euthyphro",
+        "plato_gorgias",
+        "plato_hippias_minor",
+        "plato_ion",
+        "plato_laches",
+        "plato_laws",
+        "plato_lysis",
+        "plato_menexenus",
+        "plato_meno",
+        "plato_parmenides",
+        "plato_phaedo",
+        "plato_phaedrus",
+        "plato_philebus",
+        "plato_protagoras",
+        "plato_republic",
+        "plato_sophist",
+        "plato_statesman",
+        "plato_symposium",
+        "plato_theaetetus",
+        "plato_timaeus"
+      ],
+      "between_within_variance_ratio": 0.08232605898291394,
+      "ks_max_pairwise": 0.6448598130841121,
+      "verdict": "heterogeneous",
+      "n_students": 27,
+      "summary": {
+        "per_entity": {
+          "plato_apology": {
+            "n": 6,
+            "mean": 0.8118344010336936,
+            "std": 0.1899316272994324
+          },
+          "plato_charmides": {
+            "n": 5,
+            "mean": 0.8266403485869681,
+            "std": 0.15293384340825095
+          },
+          "plato_cratylus": {
+            "n": 12,
+            "mean": 0.8492263783709298,
+            "std": 0.13908175265275088
+          },
+          "plato_critias": {
+            "n": 3,
+            "mean": 0.9283385514295747,
+            "std": 0.1257432654247019
+          },
+          "plato_crito": {
+            "n": 3,
+            "mean": 0.8683930160293105,
+            "std": 0.13828908085926533
+          },
+          "plato_eryxias": {
+            "n": 3,
+            "mean": 0.8220892824462297,
+            "std": 0.17933998926050287
+          },
+          "plato_euthydemus": {
+            "n": 8,
+            "mean": 0.8434786589730415,
+            "std": 0.20020207649145919
+          },
+          "plato_euthyphro": {
+            "n": 3,
+            "mean": 0.884226103591335,
+            "std": 0.13378352704098123
+          },
+          "plato_gorgias": {
+            "n": 12,
+            "mean": 0.8444731437829666,
+            "std": 0.27594842057158986
+          },
+          "plato_hippias_minor": {
+            "n": 3,
+            "mean": 0.9161906458520367,
+            "std": 0.16197429994710683
+          },
+          "plato_ion": {
+            "n": 2,
+            "mean": 0.7482067775167506,
+            "std": 0.0
+          },
+          "plato_laches": {
+            "n": 5,
+            "mean": 0.8737732048141023,
+            "std": 0.21252105606565036
+          },
+          "plato_laws": {
+            "n": 12,
+            "mean": 0.8448469746846455,
+            "std": 0.15769894661270184
+          },
+          "plato_lysis": {
+            "n": 4,
+            "mean": 0.8067249747907878,
+            "std": 0.1970968774205072
+          },
+          "plato_menexenus": {
+            "n": 4,
+            "mean": 1.0353920877671703,
+            "std": 0.17085266790487746
+          },
+          "plato_meno": {
+            "n": 6,
+            "mean": 0.7230859398775661,
+            "std": 0.14675587015842795
+          },
+          "plato_parmenides": {
+            "n": 9,
+            "mean": 0.812323059836785,
+            "std": 0.318937843986497
+          },
+          "plato_phaedo": {
+            "n": 12,
+            "mean": 0.8573703749198,
+            "std": 0.16929393339985618
+          },
+          "plato_phaedrus": {
+            "n": 11,
+            "mean": 0.8321284633412208,
+            "std": 0.1972103974022509
+          },
+          "plato_philebus": {
+            "n": 12,
+            "mean": 0.8035202571641286,
+            "std": 0.2029278093205307
+          },
+          "plato_protagoras": {
+            "n": 11,
+            "mean": 0.820920070117685,
+            "std": 0.1775535827821322
+          },
+          "plato_republic": {
+            "n": 12,
+            "mean": 0.8124396278725041,
+            "std": 0.25841440573497193
+          },
+          "plato_sophist": {
+            "n": 11,
+            "mean": 0.7841623543276682,
+            "std": 0.0918648894542964
+          },
+          "plato_statesman": {
+            "n": 12,
+            "mean": 0.8152390214795933,
+            "std": 0.19718231234478262
+          },
+          "plato_symposium": {
+            "n": 11,
+            "mean": 0.8265421917837251,
+            "std": 0.1307458022904523
+          },
+          "plato_theaetetus": {
+            "n": 12,
+            "mean": 0.8295067137947574,
+            "std": 0.21429289994221087
+          },
+          "plato_timaeus": {
+            "n": 12,
+            "mean": 0.868990346369491,
+            "std": 0.25092524422328016
+          }
+        },
+        "n_entities": 27,
+        "n_distances": 216,
+        "entity_mean_min": 0.7230859398775661,
+        "entity_mean_max": 1.0353920877671703,
+        "entity_mean_median": 0.8295067137947574
+      }
+    },
+    {
+      "label": "plato_g1_eligible",
+      "description": "plato entities with >= 5 texts -- the population _score_corpus_for_g1_pooled actually pools",
+      "entities": [
+        "plato_apology",
+        "plato_charmides",
+        "plato_cratylus",
+        "plato_euthydemus",
+        "plato_gorgias",
+        "plato_laches",
+        "plato_laws",
+        "plato_meno",
+        "plato_parmenides",
+        "plato_phaedo",
+        "plato_phaedrus",
+        "plato_philebus",
+        "plato_protagoras",
+        "plato_republic",
+        "plato_sophist",
+        "plato_statesman",
+        "plato_symposium",
+        "plato_theaetetus",
+        "plato_timaeus"
+      ],
+      "between_within_variance_ratio": 0.02480135581077253,
+      "ks_max_pairwise": 0.39316239316239315,
+      "verdict": "exchangeable",
+      "n_students": 19,
+      "summary": {
+        "per_entity": {
+          "plato_apology": {
+            "n": 6,
+            "mean": 0.8118344010336936,
+            "std": 0.1899316272994324
+          },
+          "plato_charmides": {
+            "n": 5,
+            "mean": 0.8266403485869681,
+            "std": 0.15293384340825095
+          },
+          "plato_cratylus": {
+            "n": 12,
+            "mean": 0.8492263783709298,
+            "std": 0.13908175265275088
+          },
+          "plato_euthydemus": {
+            "n": 8,
+            "mean": 0.8434786589730415,
+            "std": 0.20020207649145919
+          },
+          "plato_gorgias": {
+            "n": 12,
+            "mean": 0.8444731437829666,
+            "std": 0.27594842057158986
+          },
+          "plato_laches": {
+            "n": 5,
+            "mean": 0.8737732048141023,
+            "std": 0.21252105606565036
+          },
+          "plato_laws": {
+            "n": 12,
+            "mean": 0.8448469746846455,
+            "std": 0.15769894661270184
+          },
+          "plato_meno": {
+            "n": 6,
+            "mean": 0.7230859398775661,
+            "std": 0.14675587015842795
+          },
+          "plato_parmenides": {
+            "n": 9,
+            "mean": 0.812323059836785,
+            "std": 0.318937843986497
+          },
+          "plato_phaedo": {
+            "n": 12,
+            "mean": 0.8573703749198,
+            "std": 0.16929393339985618
+          },
+          "plato_phaedrus": {
+            "n": 11,
+            "mean": 0.8321284633412208,
+            "std": 0.1972103974022509
+          },
+          "plato_philebus": {
+            "n": 12,
+            "mean": 0.8035202571641286,
+            "std": 0.2029278093205307
+          },
+          "plato_protagoras": {
+            "n": 11,
+            "mean": 0.820920070117685,
+            "std": 0.1775535827821322
+          },
+          "plato_republic": {
+            "n": 12,
+            "mean": 0.8124396278725041,
+            "std": 0.25841440573497193
+          },
+          "plato_sophist": {
+            "n": 11,
+            "mean": 0.7841623543276682,
+            "std": 0.0918648894542964
+          },
+          "plato_statesman": {
+            "n": 12,
+            "mean": 0.8152390214795933,
+            "std": 0.19718231234478262
+          },
+          "plato_symposium": {
+            "n": 11,
+            "mean": 0.8265421917837251,
+            "std": 0.1307458022904523
+          },
+          "plato_theaetetus": {
+            "n": 12,
+            "mean": 0.8295067137947574,
+            "std": 0.21429289994221087
+          },
+          "plato_timaeus": {
+            "n": 12,
+            "mean": 0.868990346369491,
+            "std": 0.25092524422328016
+          }
+        },
+        "n_entities": 19,
+        "n_distances": 191,
+        "entity_mean_min": 0.7230859398775661,
+        "entity_mean_max": 0.8737732048141023,
+        "entity_mean_median": 0.8266403485869681
+      }
+    },
+    {
+      "label": "public_authors",
+      "description": "every public_authors entity with >= 2 contributing samples",
+      "entities": [
+        "augustine",
+        "boethius",
+        "chesterton",
+        "douglass",
+        "edwards",
+        "emerson",
+        "james",
+        "kempis",
+        "mill",
+        "newman",
+        "thoreau"
+      ],
+      "between_within_variance_ratio": 0.9442341150609981,
+      "ks_max_pairwise": 0.8709677419354839,
+      "verdict": "heterogeneous",
+      "n_students": 11,
+      "summary": {
+        "per_entity": {
+          "emerson": {
+            "n": 3,
+            "mean": 0.7236053459141606,
+            "std": 0.09063363353545216
+          },
+          "douglass": {
+            "n": 3,
+            "mean": 0.8565919847302385,
+            "std": 0.17319571376867138
+          },
+          "thoreau": {
+            "n": 3,
+            "mean": 0.8855836872076317,
+            "std": 0.09555633120623239
+          },
+          "mill": {
+            "n": 3,
+            "mean": 1.1401341234392435,
+            "std": 0.3361874433012311
+          },
+          "chesterton": {
+            "n": 3,
+            "mean": 0.8735241763071363,
+            "std": 0.21182874211568972
+          },
+          "newman": {
+            "n": 3,
+            "mean": 0.6691834643574762,
+            "std": 0.18619622941957487
+          },
+          "james": {
+            "n": 4,
+            "mean": 0.4852033170367107,
+            "std": 0.1415644796669418
+          },
+          "kempis": {
+            "n": 3,
+            "mean": 0.5074293820355548,
+            "std": 0.05820935522102106
+          },
+          "augustine": {
+            "n": 3,
+            "mean": 0.8131813795244053,
+            "std": 0.057432187160389704
+          },
+          "boethius": {
+            "n": 3,
+            "mean": 0.9948577258512442,
+            "std": 0.12645988779683687
+          },
+          "edwards": {
+            "n": 3,
+            "mean": 0.9530876901793022,
+            "std": 0.17371762738754778
+          }
+        },
+        "n_entities": 11,
+        "n_distances": 34,
+        "entity_mean_min": 0.4852033170367107,
+        "entity_mean_max": 1.1401341234392435,
+        "entity_mean_median": 0.8565919847302385
+      }
+    },
+    {
+      "label": "public_authors_g1_eligible",
+      "description": "public_authors entities with >= 5 texts -- the population _score_corpus_for_g1_pooled actually pools",
+      "entities": [],
+      "between_within_variance_ratio": null,
+      "ks_max_pairwise": null,
+      "verdict": "insufficient",
+      "n_students": 0,
+      "summary": {
+        "per_entity": {},
+        "n_entities": 0,
+        "n_distances": 0,
+        "entity_mean_min": null,
+        "entity_mean_max": null,
+        "entity_mean_median": null
+      }
+    },
+    {
+      "label": "seminary+plato",
+      "description": "cross-group union the pooled G1 leg currently forbids",
+      "entities": [
+        "plato_apology",
+        "plato_charmides",
+        "plato_cratylus",
+        "plato_critias",
+        "plato_crito",
+        "plato_eryxias",
+        "plato_euthydemus",
+        "plato_euthyphro",
+        "plato_gorgias",
+        "plato_hippias_minor",
+        "plato_ion",
+        "plato_laches",
+        "plato_laws",
+        "plato_lysis",
+        "plato_menexenus",
+        "plato_meno",
+        "plato_parmenides",
+        "plato_phaedo",
+        "plato_phaedrus",
+        "plato_philebus",
+        "plato_protagoras",
+        "plato_republic",
+        "plato_sophist",
+        "plato_statesman",
+        "plato_symposium",
+        "plato_theaetetus",
+        "plato_timaeus",
+        "seminary_group_0",
+        "seminary_group_1",
+        "seminary_group_10",
+        "seminary_group_11",
+        "seminary_group_12",
+        "seminary_group_13",
+        "seminary_group_14",
+        "seminary_group_15",
+        "seminary_group_16",
+        "seminary_group_17",
+        "seminary_group_18",
+        "seminary_group_19",
+        "seminary_group_2",
+        "seminary_group_20",
+        "seminary_group_21",
+        "seminary_group_22",
+        "seminary_group_23",
+        "seminary_group_24",
+        "seminary_group_25",
+        "seminary_group_26",
+        "seminary_group_3",
+        "seminary_group_4",
+        "seminary_group_5",
+        "seminary_group_6",
+        "seminary_group_7",
+        "seminary_group_8",
+        "seminary_group_9"
+      ],
+      "between_within_variance_ratio": 0.5824171458448043,
+      "ks_max_pairwise": 0.8,
+      "verdict": "heterogeneous",
+      "n_students": 53,
+      "summary": {
+        "per_entity": {
+          "seminary_group_0": {
+            "n": 5,
+            "mean": 0.9308656798573391,
+            "std": 0.09483365522630549
+          },
+          "seminary_group_1": {
+            "n": 5,
+            "mean": 0.9100654609349121,
+            "std": 0.06258846543329037
+          },
+          "seminary_group_2": {
+            "n": 5,
+            "mean": 0.9328676025507721,
+            "std": 0.21519327358967147
+          },
+          "seminary_group_3": {
+            "n": 5,
+            "mean": 0.9794663460655599,
+            "std": 0.10483888840391493
+          },
+          "seminary_group_4": {
+            "n": 5,
+            "mean": 1.0285117835500877,
+            "std": 0.19346285902669613
+          },
+          "seminary_group_5": {
+            "n": 5,
+            "mean": 1.199214348566421,
+            "std": 0.1574817735286142
+          },
+          "seminary_group_6": {
+            "n": 5,
+            "mean": 1.187839142349026,
+            "std": 0.205342173690273
+          },
+          "seminary_group_7": {
+            "n": 5,
+            "mean": 1.1251924675427758,
+            "std": 0.10557113612067634
+          },
+          "seminary_group_8": {
+            "n": 5,
+            "mean": 1.165339029947853,
+            "std": 0.16414316188965333
+          },
+          "seminary_group_9": {
+            "n": 5,
+            "mean": 1.0670527352119623,
+            "std": 0.13484478889736431
+          },
+          "seminary_group_10": {
+            "n": 5,
+            "mean": 1.1186058006998438,
+            "std": 0.13112135459713925
+          },
+          "seminary_group_11": {
+            "n": 5,
+            "mean": 1.0539731906185346,
+            "std": 0.05469918524747319
+          },
+          "seminary_group_12": {
+            "n": 5,
+            "mean": 1.1571724423571488,
+            "std": 0.09107546864772359
+          },
+          "seminary_group_13": {
+            "n": 5,
+            "mean": 1.1152757719307456,
+            "std": 0.18845589751140113
+          },
+          "seminary_group_14": {
+            "n": 5,
+            "mean": 1.0848589840327554,
+            "std": 0.17633710465521313
+          },
+          "seminary_group_15": {
+            "n": 5,
+            "mean": 1.192238690176929,
+            "std": 0.1814825999886957
+          },
+          "seminary_group_16": {
+            "n": 5,
+            "mean": 1.1467503074351746,
+            "std": 0.02908695924465089
+          },
+          "seminary_group_17": {
+            "n": 4,
+            "mean": 1.1970548756316186,
+            "std": 0.10847646055540638
+          },
+          "seminary_group_18": {
+            "n": 5,
+            "mean": 1.094090744955202,
+            "std": 0.1546128247354766
+          },
+          "seminary_group_19": {
+            "n": 5,
+            "mean": 1.0996159573195923,
+            "std": 0.08571617882364332
+          },
+          "seminary_group_20": {
+            "n": 0,
+            "mean": null,
+            "std": null
+          },
+          "seminary_group_21": {
+            "n": 5,
+            "mean": 1.0902474556715815,
+            "std": 0.2119878134694845
+          },
+          "seminary_group_22": {
+            "n": 5,
+            "mean": 1.107819281995864,
+            "std": 0.16353265795903152
+          },
+          "seminary_group_23": {
+            "n": 5,
+            "mean": 1.1074342328903055,
+            "std": 0.16436007918854975
+          },
+          "seminary_group_24": {
+            "n": 5,
+            "mean": 1.1518377740587538,
+            "std": 0.18612814576173559
+          },
+          "seminary_group_25": {
+            "n": 5,
+            "mean": 1.0642922896646554,
+            "std": 0.16197618199697064
+          },
+          "seminary_group_26": {
+            "n": 5,
+            "mean": 1.0251590783863562,
+            "std": 0.2349091387134587
+          },
+          "plato_apology": {
+            "n": 6,
+            "mean": 0.8118344010336936,
+            "std": 0.1899316272994324
+          },
+          "plato_charmides": {
+            "n": 5,
+            "mean": 0.8266403485869681,
+            "std": 0.15293384340825095
+          },
+          "plato_cratylus": {
+            "n": 12,
+            "mean": 0.8492263783709298,
+            "std": 0.13908175265275088
+          },
+          "plato_critias": {
+            "n": 3,
+            "mean": 0.9283385514295747,
+            "std": 0.1257432654247019
+          },
+          "plato_crito": {
+            "n": 3,
+            "mean": 0.8683930160293105,
+            "std": 0.13828908085926533
+          },
+          "plato_eryxias": {
+            "n": 3,
+            "mean": 0.8220892824462297,
+            "std": 0.17933998926050287
+          },
+          "plato_euthydemus": {
+            "n": 8,
+            "mean": 0.8434786589730415,
+            "std": 0.20020207649145919
+          },
+          "plato_euthyphro": {
+            "n": 3,
+            "mean": 0.884226103591335,
+            "std": 0.13378352704098123
+          },
+          "plato_gorgias": {
+            "n": 12,
+            "mean": 0.8444731437829666,
+            "std": 0.27594842057158986
+          },
+          "plato_hippias_minor": {
+            "n": 3,
+            "mean": 0.9161906458520367,
+            "std": 0.16197429994710683
+          },
+          "plato_ion": {
+            "n": 2,
+            "mean": 0.7482067775167506,
+            "std": 0.0
+          },
+          "plato_laches": {
+            "n": 5,
+            "mean": 0.8737732048141023,
+            "std": 0.21252105606565036
+          },
+          "plato_laws": {
+            "n": 12,
+            "mean": 0.8448469746846455,
+            "std": 0.15769894661270184
+          },
+          "plato_lysis": {
+            "n": 4,
+            "mean": 0.8067249747907878,
+            "std": 0.1970968774205072
+          },
+          "plato_menexenus": {
+            "n": 4,
+            "mean": 1.0353920877671703,
+            "std": 0.17085266790487746
+          },
+          "plato_meno": {
+            "n": 6,
+            "mean": 0.7230859398775661,
+            "std": 0.14675587015842795
+          },
+          "plato_parmenides": {
+            "n": 9,
+            "mean": 0.812323059836785,
+            "std": 0.318937843986497
+          },
+          "plato_phaedo": {
+            "n": 12,
+            "mean": 0.8573703749198,
+            "std": 0.16929393339985618
+          },
+          "plato_phaedrus": {
+            "n": 11,
+            "mean": 0.8321284633412208,
+            "std": 0.1972103974022509
+          },
+          "plato_philebus": {
+            "n": 12,
+            "mean": 0.8035202571641286,
+            "std": 0.2029278093205307
+          },
+          "plato_protagoras": {
+            "n": 11,
+            "mean": 0.820920070117685,
+            "std": 0.1775535827821322
+          },
+          "plato_republic": {
+            "n": 12,
+            "mean": 0.8124396278725041,
+            "std": 0.25841440573497193
+          },
+          "plato_sophist": {
+            "n": 11,
+            "mean": 0.7841623543276682,
+            "std": 0.0918648894542964
+          },
+          "plato_statesman": {
+            "n": 12,
+            "mean": 0.8152390214795933,
+            "std": 0.19718231234478262
+          },
+          "plato_symposium": {
+            "n": 11,
+            "mean": 0.8265421917837251,
+            "std": 0.1307458022904523
+          },
+          "plato_theaetetus": {
+            "n": 12,
+            "mean": 0.8295067137947574,
+            "std": 0.21429289994221087
+          },
+          "plato_timaeus": {
+            "n": 12,
+            "mean": 0.868990346369491,
+            "std": 0.25092524422328016
+          }
+        },
+        "n_entities": 54,
+        "n_distances": 345,
+        "entity_mean_min": 0.7230859398775661,
+        "entity_mean_max": 1.199214348566421,
+        "entity_mean_median": 0.9283385514295747
+      }
+    },
+    {
+      "label": "seminary+plato_g1_eligible",
+      "description": "same union restricted to G1-eligible entities",
+      "entities": [
+        "plato_apology",
+        "plato_charmides",
+        "plato_cratylus",
+        "plato_euthydemus",
+        "plato_gorgias",
+        "plato_laches",
+        "plato_laws",
+        "plato_meno",
+        "plato_parmenides",
+        "plato_phaedo",
+        "plato_phaedrus",
+        "plato_philebus",
+        "plato_protagoras",
+        "plato_republic",
+        "plato_sophist",
+        "plato_statesman",
+        "plato_symposium",
+        "plato_theaetetus",
+        "plato_timaeus",
+        "seminary_group_0",
+        "seminary_group_1",
+        "seminary_group_10",
+        "seminary_group_11",
+        "seminary_group_12",
+        "seminary_group_13",
+        "seminary_group_14",
+        "seminary_group_15",
+        "seminary_group_16",
+        "seminary_group_17",
+        "seminary_group_18",
+        "seminary_group_19",
+        "seminary_group_2",
+        "seminary_group_20",
+        "seminary_group_21",
+        "seminary_group_22",
+        "seminary_group_23",
+        "seminary_group_24",
+        "seminary_group_25",
+        "seminary_group_26",
+        "seminary_group_3",
+        "seminary_group_4",
+        "seminary_group_5",
+        "seminary_group_6",
+        "seminary_group_7",
+        "seminary_group_8",
+        "seminary_group_9"
+      ],
+      "between_within_variance_ratio": 0.5986493381401672,
+      "ks_max_pairwise": 0.7904761904761904,
+      "verdict": "heterogeneous",
+      "n_students": 45,
+      "summary": {
+        "per_entity": {
+          "seminary_group_0": {
+            "n": 5,
+            "mean": 0.9308656798573391,
+            "std": 0.09483365522630549
+          },
+          "seminary_group_1": {
+            "n": 5,
+            "mean": 0.9100654609349121,
+            "std": 0.06258846543329037
+          },
+          "seminary_group_2": {
+            "n": 5,
+            "mean": 0.9328676025507721,
+            "std": 0.21519327358967147
+          },
+          "seminary_group_3": {
+            "n": 5,
+            "mean": 0.9794663460655599,
+            "std": 0.10483888840391493
+          },
+          "seminary_group_4": {
+            "n": 5,
+            "mean": 1.0285117835500877,
+            "std": 0.19346285902669613
+          },
+          "seminary_group_5": {
+            "n": 5,
+            "mean": 1.199214348566421,
+            "std": 0.1574817735286142
+          },
+          "seminary_group_6": {
+            "n": 5,
+            "mean": 1.187839142349026,
+            "std": 0.205342173690273
+          },
+          "seminary_group_7": {
+            "n": 5,
+            "mean": 1.1251924675427758,
+            "std": 0.10557113612067634
+          },
+          "seminary_group_8": {
+            "n": 5,
+            "mean": 1.165339029947853,
+            "std": 0.16414316188965333
+          },
+          "seminary_group_9": {
+            "n": 5,
+            "mean": 1.0670527352119623,
+            "std": 0.13484478889736431
+          },
+          "seminary_group_10": {
+            "n": 5,
+            "mean": 1.1186058006998438,
+            "std": 0.13112135459713925
+          },
+          "seminary_group_11": {
+            "n": 5,
+            "mean": 1.0539731906185346,
+            "std": 0.05469918524747319
+          },
+          "seminary_group_12": {
+            "n": 5,
+            "mean": 1.1571724423571488,
+            "std": 0.09107546864772359
+          },
+          "seminary_group_13": {
+            "n": 5,
+            "mean": 1.1152757719307456,
+            "std": 0.18845589751140113
+          },
+          "seminary_group_14": {
+            "n": 5,
+            "mean": 1.0848589840327554,
+            "std": 0.17633710465521313
+          },
+          "seminary_group_15": {
+            "n": 5,
+            "mean": 1.192238690176929,
+            "std": 0.1814825999886957
+          },
+          "seminary_group_16": {
+            "n": 5,
+            "mean": 1.1467503074351746,
+            "std": 0.02908695924465089
+          },
+          "seminary_group_17": {
+            "n": 4,
+            "mean": 1.1970548756316186,
+            "std": 0.10847646055540638
+          },
+          "seminary_group_18": {
+            "n": 5,
+            "mean": 1.094090744955202,
+            "std": 0.1546128247354766
+          },
+          "seminary_group_19": {
+            "n": 5,
+            "mean": 1.0996159573195923,
+            "std": 0.08571617882364332
+          },
+          "seminary_group_20": {
+            "n": 0,
+            "mean": null,
+            "std": null
+          },
+          "seminary_group_21": {
+            "n": 5,
+            "mean": 1.0902474556715815,
+            "std": 0.2119878134694845
+          },
+          "seminary_group_22": {
+            "n": 5,
+            "mean": 1.107819281995864,
+            "std": 0.16353265795903152
+          },
+          "seminary_group_23": {
+            "n": 5,
+            "mean": 1.1074342328903055,
+            "std": 0.16436007918854975
+          },
+          "seminary_group_24": {
+            "n": 5,
+            "mean": 1.1518377740587538,
+            "std": 0.18612814576173559
+          },
+          "seminary_group_25": {
+            "n": 5,
+            "mean": 1.0642922896646554,
+            "std": 0.16197618199697064
+          },
+          "seminary_group_26": {
+            "n": 5,
+            "mean": 1.0251590783863562,
+            "std": 0.2349091387134587
+          },
+          "plato_apology": {
+            "n": 6,
+            "mean": 0.8118344010336936,
+            "std": 0.1899316272994324
+          },
+          "plato_charmides": {
+            "n": 5,
+            "mean": 0.8266403485869681,
+            "std": 0.15293384340825095
+          },
+          "plato_cratylus": {
+            "n": 12,
+            "mean": 0.8492263783709298,
+            "std": 0.13908175265275088
+          },
+          "plato_euthydemus": {
+            "n": 8,
+            "mean": 0.8434786589730415,
+            "std": 0.20020207649145919
+          },
+          "plato_gorgias": {
+            "n": 12,
+            "mean": 0.8444731437829666,
+            "std": 0.27594842057158986
+          },
+          "plato_laches": {
+            "n": 5,
+            "mean": 0.8737732048141023,
+            "std": 0.21252105606565036
+          },
+          "plato_laws": {
+            "n": 12,
+            "mean": 0.8448469746846455,
+            "std": 0.15769894661270184
+          },
+          "plato_meno": {
+            "n": 6,
+            "mean": 0.7230859398775661,
+            "std": 0.14675587015842795
+          },
+          "plato_parmenides": {
+            "n": 9,
+            "mean": 0.812323059836785,
+            "std": 0.318937843986497
+          },
+          "plato_phaedo": {
+            "n": 12,
+            "mean": 0.8573703749198,
+            "std": 0.16929393339985618
+          },
+          "plato_phaedrus": {
+            "n": 11,
+            "mean": 0.8321284633412208,
+            "std": 0.1972103974022509
+          },
+          "plato_philebus": {
+            "n": 12,
+            "mean": 0.8035202571641286,
+            "std": 0.2029278093205307
+          },
+          "plato_protagoras": {
+            "n": 11,
+            "mean": 0.820920070117685,
+            "std": 0.1775535827821322
+          },
+          "plato_republic": {
+            "n": 12,
+            "mean": 0.8124396278725041,
+            "std": 0.25841440573497193
+          },
+          "plato_sophist": {
+            "n": 11,
+            "mean": 0.7841623543276682,
+            "std": 0.0918648894542964
+          },
+          "plato_statesman": {
+            "n": 12,
+            "mean": 0.8152390214795933,
+            "std": 0.19718231234478262
+          },
+          "plato_symposium": {
+            "n": 11,
+            "mean": 0.8265421917837251,
+            "std": 0.1307458022904523
+          },
+          "plato_theaetetus": {
+            "n": 12,
+            "mean": 0.8295067137947574,
+            "std": 0.21429289994221087
+          },
+          "plato_timaeus": {
+            "n": 12,
+            "mean": 0.868990346369491,
+            "std": 0.25092524422328016
+          }
+        },
+        "n_entities": 46,
+        "n_distances": 320,
+        "entity_mean_min": 0.7230859398775661,
+        "entity_mean_max": 1.199214348566421,
+        "entity_mean_median": 0.9794663460655599
+      }
+    },
+    {
+      "label": "all_three",
+      "description": "all three corpora as one flat 'demo' tenant -- what tenant-string pooling would silently do",
+      "entities": [
+        "augustine",
+        "boethius",
+        "chesterton",
+        "douglass",
+        "edwards",
+        "emerson",
+        "james",
+        "kempis",
+        "mill",
+        "newman",
+        "plato_apology",
+        "plato_charmides",
+        "plato_cratylus",
+        "plato_critias",
+        "plato_crito",
+        "plato_eryxias",
+        "plato_euthydemus",
+        "plato_euthyphro",
+        "plato_gorgias",
+        "plato_hippias_minor",
+        "plato_ion",
+        "plato_laches",
+        "plato_laws",
+        "plato_lysis",
+        "plato_menexenus",
+        "plato_meno",
+        "plato_parmenides",
+        "plato_phaedo",
+        "plato_phaedrus",
+        "plato_philebus",
+        "plato_protagoras",
+        "plato_republic",
+        "plato_sophist",
+        "plato_statesman",
+        "plato_symposium",
+        "plato_theaetetus",
+        "plato_timaeus",
+        "seminary_group_0",
+        "seminary_group_1",
+        "seminary_group_10",
+        "seminary_group_11",
+        "seminary_group_12",
+        "seminary_group_13",
+        "seminary_group_14",
+        "seminary_group_15",
+        "seminary_group_16",
+        "seminary_group_17",
+        "seminary_group_18",
+        "seminary_group_19",
+        "seminary_group_2",
+        "seminary_group_20",
+        "seminary_group_21",
+        "seminary_group_22",
+        "seminary_group_23",
+        "seminary_group_24",
+        "seminary_group_25",
+        "seminary_group_26",
+        "seminary_group_3",
+        "seminary_group_4",
+        "seminary_group_5",
+        "seminary_group_6",
+        "seminary_group_7",
+        "seminary_group_8",
+        "seminary_group_9",
+        "thoreau"
+      ],
+      "between_within_variance_ratio": 0.7303997807420844,
+      "ks_max_pairwise": 0.9521276595744681,
+      "verdict": "heterogeneous",
+      "n_students": 64,
+      "summary": {
+        "per_entity": {
+          "seminary_group_0": {
+            "n": 5,
+            "mean": 0.9308656798573391,
+            "std": 0.09483365522630549
+          },
+          "seminary_group_1": {
+            "n": 5,
+            "mean": 0.9100654609349121,
+            "std": 0.06258846543329037
+          },
+          "seminary_group_2": {
+            "n": 5,
+            "mean": 0.9328676025507721,
+            "std": 0.21519327358967147
+          },
+          "seminary_group_3": {
+            "n": 5,
+            "mean": 0.9794663460655599,
+            "std": 0.10483888840391493
+          },
+          "seminary_group_4": {
+            "n": 5,
+            "mean": 1.0285117835500877,
+            "std": 0.19346285902669613
+          },
+          "seminary_group_5": {
+            "n": 5,
+            "mean": 1.199214348566421,
+            "std": 0.1574817735286142
+          },
+          "seminary_group_6": {
+            "n": 5,
+            "mean": 1.187839142349026,
+            "std": 0.205342173690273
+          },
+          "seminary_group_7": {
+            "n": 5,
+            "mean": 1.1251924675427758,
+            "std": 0.10557113612067634
+          },
+          "seminary_group_8": {
+            "n": 5,
+            "mean": 1.165339029947853,
+            "std": 0.16414316188965333
+          },
+          "seminary_group_9": {
+            "n": 5,
+            "mean": 1.0670527352119623,
+            "std": 0.13484478889736431
+          },
+          "seminary_group_10": {
+            "n": 5,
+            "mean": 1.1186058006998438,
+            "std": 0.13112135459713925
+          },
+          "seminary_group_11": {
+            "n": 5,
+            "mean": 1.0539731906185346,
+            "std": 0.05469918524747319
+          },
+          "seminary_group_12": {
+            "n": 5,
+            "mean": 1.1571724423571488,
+            "std": 0.09107546864772359
+          },
+          "seminary_group_13": {
+            "n": 5,
+            "mean": 1.1152757719307456,
+            "std": 0.18845589751140113
+          },
+          "seminary_group_14": {
+            "n": 5,
+            "mean": 1.0848589840327554,
+            "std": 0.17633710465521313
+          },
+          "seminary_group_15": {
+            "n": 5,
+            "mean": 1.192238690176929,
+            "std": 0.1814825999886957
+          },
+          "seminary_group_16": {
+            "n": 5,
+            "mean": 1.1467503074351746,
+            "std": 0.02908695924465089
+          },
+          "seminary_group_17": {
+            "n": 4,
+            "mean": 1.1970548756316186,
+            "std": 0.10847646055540638
+          },
+          "seminary_group_18": {
+            "n": 5,
+            "mean": 1.094090744955202,
+            "std": 0.1546128247354766
+          },
+          "seminary_group_19": {
+            "n": 5,
+            "mean": 1.0996159573195923,
+            "std": 0.08571617882364332
+          },
+          "seminary_group_20": {
+            "n": 0,
+            "mean": null,
+            "std": null
+          },
+          "seminary_group_21": {
+            "n": 5,
+            "mean": 1.0902474556715815,
+            "std": 0.2119878134694845
+          },
+          "seminary_group_22": {
+            "n": 5,
+            "mean": 1.107819281995864,
+            "std": 0.16353265795903152
+          },
+          "seminary_group_23": {
+            "n": 5,
+            "mean": 1.1074342328903055,
+            "std": 0.16436007918854975
+          },
+          "seminary_group_24": {
+            "n": 5,
+            "mean": 1.1518377740587538,
+            "std": 0.18612814576173559
+          },
+          "seminary_group_25": {
+            "n": 5,
+            "mean": 1.0642922896646554,
+            "std": 0.16197618199697064
+          },
+          "seminary_group_26": {
+            "n": 5,
+            "mean": 1.0251590783863562,
+            "std": 0.2349091387134587
+          },
+          "plato_apology": {
+            "n": 6,
+            "mean": 0.8118344010336936,
+            "std": 0.1899316272994324
+          },
+          "plato_charmides": {
+            "n": 5,
+            "mean": 0.8266403485869681,
+            "std": 0.15293384340825095
+          },
+          "plato_cratylus": {
+            "n": 12,
+            "mean": 0.8492263783709298,
+            "std": 0.13908175265275088
+          },
+          "plato_critias": {
+            "n": 3,
+            "mean": 0.9283385514295747,
+            "std": 0.1257432654247019
+          },
+          "plato_crito": {
+            "n": 3,
+            "mean": 0.8683930160293105,
+            "std": 0.13828908085926533
+          },
+          "plato_eryxias": {
+            "n": 3,
+            "mean": 0.8220892824462297,
+            "std": 0.17933998926050287
+          },
+          "plato_euthydemus": {
+            "n": 8,
+            "mean": 0.8434786589730415,
+            "std": 0.20020207649145919
+          },
+          "plato_euthyphro": {
+            "n": 3,
+            "mean": 0.884226103591335,
+            "std": 0.13378352704098123
+          },
+          "plato_gorgias": {
+            "n": 12,
+            "mean": 0.8444731437829666,
+            "std": 0.27594842057158986
+          },
+          "plato_hippias_minor": {
+            "n": 3,
+            "mean": 0.9161906458520367,
+            "std": 0.16197429994710683
+          },
+          "plato_ion": {
+            "n": 2,
+            "mean": 0.7482067775167506,
+            "std": 0.0
+          },
+          "plato_laches": {
+            "n": 5,
+            "mean": 0.8737732048141023,
+            "std": 0.21252105606565036
+          },
+          "plato_laws": {
+            "n": 12,
+            "mean": 0.8448469746846455,
+            "std": 0.15769894661270184
+          },
+          "plato_lysis": {
+            "n": 4,
+            "mean": 0.8067249747907878,
+            "std": 0.1970968774205072
+          },
+          "plato_menexenus": {
+            "n": 4,
+            "mean": 1.0353920877671703,
+            "std": 0.17085266790487746
+          },
+          "plato_meno": {
+            "n": 6,
+            "mean": 0.7230859398775661,
+            "std": 0.14675587015842795
+          },
+          "plato_parmenides": {
+            "n": 9,
+            "mean": 0.812323059836785,
+            "std": 0.318937843986497
+          },
+          "plato_phaedo": {
+            "n": 12,
+            "mean": 0.8573703749198,
+            "std": 0.16929393339985618
+          },
+          "plato_phaedrus": {
+            "n": 11,
+            "mean": 0.8321284633412208,
+            "std": 0.1972103974022509
+          },
+          "plato_philebus": {
+            "n": 12,
+            "mean": 0.8035202571641286,
+            "std": 0.2029278093205307
+          },
+          "plato_protagoras": {
+            "n": 11,
+            "mean": 0.820920070117685,
+            "std": 0.1775535827821322
+          },
+          "plato_republic": {
+            "n": 12,
+            "mean": 0.8124396278725041,
+            "std": 0.25841440573497193
+          },
+          "plato_sophist": {
+            "n": 11,
+            "mean": 0.7841623543276682,
+            "std": 0.0918648894542964
+          },
+          "plato_statesman": {
+            "n": 12,
+            "mean": 0.8152390214795933,
+            "std": 0.19718231234478262
+          },
+          "plato_symposium": {
+            "n": 11,
+            "mean": 0.8265421917837251,
+            "std": 0.1307458022904523
+          },
+          "plato_theaetetus": {
+            "n": 12,
+            "mean": 0.8295067137947574,
+            "std": 0.21429289994221087
+          },
+          "plato_timaeus": {
+            "n": 12,
+            "mean": 0.868990346369491,
+            "std": 0.25092524422328016
+          },
+          "emerson": {
+            "n": 3,
+            "mean": 0.7236053459141606,
+            "std": 0.09063363353545216
+          },
+          "douglass": {
+            "n": 3,
+            "mean": 0.8565919847302385,
+            "std": 0.17319571376867138
+          },
+          "thoreau": {
+            "n": 3,
+            "mean": 0.8855836872076317,
+            "std": 0.09555633120623239
+          },
+          "mill": {
+            "n": 3,
+            "mean": 1.1401341234392435,
+            "std": 0.3361874433012311
+          },
+          "chesterton": {
+            "n": 3,
+            "mean": 0.8735241763071363,
+            "std": 0.21182874211568972
+          },
+          "newman": {
+            "n": 3,
+            "mean": 0.6691834643574762,
+            "std": 0.18619622941957487
+          },
+          "james": {
+            "n": 4,
+            "mean": 0.4852033170367107,
+            "std": 0.1415644796669418
+          },
+          "kempis": {
+            "n": 3,
+            "mean": 0.5074293820355548,
+            "std": 0.05820935522102106
+          },
+          "augustine": {
+            "n": 3,
+            "mean": 0.8131813795244053,
+            "std": 0.057432187160389704
+          },
+          "boethius": {
+            "n": 3,
+            "mean": 0.9948577258512442,
+            "std": 0.12645988779683687
+          },
+          "edwards": {
+            "n": 3,
+            "mean": 0.9530876901793022,
+            "std": 0.17371762738754778
+          }
+        },
+        "n_entities": 65,
+        "n_distances": 379,
+        "entity_mean_min": 0.4852033170367107,
+        "entity_mean_max": 1.199214348566421,
+        "entity_mean_median": 0.8978245740712719
+      }
+    },
+    {
+      "label": "all_three_g1_eligible",
+      "description": "all three corpora, G1-eligible entities only",
+      "entities": [
+        "plato_apology",
+        "plato_charmides",
+        "plato_cratylus",
+        "plato_euthydemus",
+        "plato_gorgias",
+        "plato_laches",
+        "plato_laws",
+        "plato_meno",
+        "plato_parmenides",
+        "plato_phaedo",
+        "plato_phaedrus",
+        "plato_philebus",
+        "plato_protagoras",
+        "plato_republic",
+        "plato_sophist",
+        "plato_statesman",
+        "plato_symposium",
+        "plato_theaetetus",
+        "plato_timaeus",
+        "seminary_group_0",
+        "seminary_group_1",
+        "seminary_group_10",
+        "seminary_group_11",
+        "seminary_group_12",
+        "seminary_group_13",
+        "seminary_group_14",
+        "seminary_group_15",
+        "seminary_group_16",
+        "seminary_group_17",
+        "seminary_group_18",
+        "seminary_group_19",
+        "seminary_group_2",
+        "seminary_group_20",
+        "seminary_group_21",
+        "seminary_group_22",
+        "seminary_group_23",
+        "seminary_group_24",
+        "seminary_group_25",
+        "seminary_group_26",
+        "seminary_group_3",
+        "seminary_group_4",
+        "seminary_group_5",
+        "seminary_group_6",
+        "seminary_group_7",
+        "seminary_group_8",
+        "seminary_group_9"
+      ],
+      "between_within_variance_ratio": 0.5986493381401672,
+      "ks_max_pairwise": 0.7904761904761904,
+      "verdict": "heterogeneous",
+      "n_students": 45,
+      "summary": {
+        "per_entity": {
+          "seminary_group_0": {
+            "n": 5,
+            "mean": 0.9308656798573391,
+            "std": 0.09483365522630549
+          },
+          "seminary_group_1": {
+            "n": 5,
+            "mean": 0.9100654609349121,
+            "std": 0.06258846543329037
+          },
+          "seminary_group_2": {
+            "n": 5,
+            "mean": 0.9328676025507721,
+            "std": 0.21519327358967147
+          },
+          "seminary_group_3": {
+            "n": 5,
+            "mean": 0.9794663460655599,
+            "std": 0.10483888840391493
+          },
+          "seminary_group_4": {
+            "n": 5,
+            "mean": 1.0285117835500877,
+            "std": 0.19346285902669613
+          },
+          "seminary_group_5": {
+            "n": 5,
+            "mean": 1.199214348566421,
+            "std": 0.1574817735286142
+          },
+          "seminary_group_6": {
+            "n": 5,
+            "mean": 1.187839142349026,
+            "std": 0.205342173690273
+          },
+          "seminary_group_7": {
+            "n": 5,
+            "mean": 1.1251924675427758,
+            "std": 0.10557113612067634
+          },
+          "seminary_group_8": {
+            "n": 5,
+            "mean": 1.165339029947853,
+            "std": 0.16414316188965333
+          },
+          "seminary_group_9": {
+            "n": 5,
+            "mean": 1.0670527352119623,
+            "std": 0.13484478889736431
+          },
+          "seminary_group_10": {
+            "n": 5,
+            "mean": 1.1186058006998438,
+            "std": 0.13112135459713925
+          },
+          "seminary_group_11": {
+            "n": 5,
+            "mean": 1.0539731906185346,
+            "std": 0.05469918524747319
+          },
+          "seminary_group_12": {
+            "n": 5,
+            "mean": 1.1571724423571488,
+            "std": 0.09107546864772359
+          },
+          "seminary_group_13": {
+            "n": 5,
+            "mean": 1.1152757719307456,
+            "std": 0.18845589751140113
+          },
+          "seminary_group_14": {
+            "n": 5,
+            "mean": 1.0848589840327554,
+            "std": 0.17633710465521313
+          },
+          "seminary_group_15": {
+            "n": 5,
+            "mean": 1.192238690176929,
+            "std": 0.1814825999886957
+          },
+          "seminary_group_16": {
+            "n": 5,
+            "mean": 1.1467503074351746,
+            "std": 0.02908695924465089
+          },
+          "seminary_group_17": {
+            "n": 4,
+            "mean": 1.1970548756316186,
+            "std": 0.10847646055540638
+          },
+          "seminary_group_18": {
+            "n": 5,
+            "mean": 1.094090744955202,
+            "std": 0.1546128247354766
+          },
+          "seminary_group_19": {
+            "n": 5,
+            "mean": 1.0996159573195923,
+            "std": 0.08571617882364332
+          },
+          "seminary_group_20": {
+            "n": 0,
+            "mean": null,
+            "std": null
+          },
+          "seminary_group_21": {
+            "n": 5,
+            "mean": 1.0902474556715815,
+            "std": 0.2119878134694845
+          },
+          "seminary_group_22": {
+            "n": 5,
+            "mean": 1.107819281995864,
+            "std": 0.16353265795903152
+          },
+          "seminary_group_23": {
+            "n": 5,
+            "mean": 1.1074342328903055,
+            "std": 0.16436007918854975
+          },
+          "seminary_group_24": {
+            "n": 5,
+            "mean": 1.1518377740587538,
+            "std": 0.18612814576173559
+          },
+          "seminary_group_25": {
+            "n": 5,
+            "mean": 1.0642922896646554,
+            "std": 0.16197618199697064
+          },
+          "seminary_group_26": {
+            "n": 5,
+            "mean": 1.0251590783863562,
+            "std": 0.2349091387134587
+          },
+          "plato_apology": {
+            "n": 6,
+            "mean": 0.8118344010336936,
+            "std": 0.1899316272994324
+          },
+          "plato_charmides": {
+            "n": 5,
+            "mean": 0.8266403485869681,
+            "std": 0.15293384340825095
+          },
+          "plato_cratylus": {
+            "n": 12,
+            "mean": 0.8492263783709298,
+            "std": 0.13908175265275088
+          },
+          "plato_euthydemus": {
+            "n": 8,
+            "mean": 0.8434786589730415,
+            "std": 0.20020207649145919
+          },
+          "plato_gorgias": {
+            "n": 12,
+            "mean": 0.8444731437829666,
+            "std": 0.27594842057158986
+          },
+          "plato_laches": {
+            "n": 5,
+            "mean": 0.8737732048141023,
+            "std": 0.21252105606565036
+          },
+          "plato_laws": {
+            "n": 12,
+            "mean": 0.8448469746846455,
+            "std": 0.15769894661270184
+          },
+          "plato_meno": {
+            "n": 6,
+            "mean": 0.7230859398775661,
+            "std": 0.14675587015842795
+          },
+          "plato_parmenides": {
+            "n": 9,
+            "mean": 0.812323059836785,
+            "std": 0.318937843986497
+          },
+          "plato_phaedo": {
+            "n": 12,
+            "mean": 0.8573703749198,
+            "std": 0.16929393339985618
+          },
+          "plato_phaedrus": {
+            "n": 11,
+            "mean": 0.8321284633412208,
+            "std": 0.1972103974022509
+          },
+          "plato_philebus": {
+            "n": 12,
+            "mean": 0.8035202571641286,
+            "std": 0.2029278093205307
+          },
+          "plato_protagoras": {
+            "n": 11,
+            "mean": 0.820920070117685,
+            "std": 0.1775535827821322
+          },
+          "plato_republic": {
+            "n": 12,
+            "mean": 0.8124396278725041,
+            "std": 0.25841440573497193
+          },
+          "plato_sophist": {
+            "n": 11,
+            "mean": 0.7841623543276682,
+            "std": 0.0918648894542964
+          },
+          "plato_statesman": {
+            "n": 12,
+            "mean": 0.8152390214795933,
+            "std": 0.19718231234478262
+          },
+          "plato_symposium": {
+            "n": 11,
+            "mean": 0.8265421917837251,
+            "std": 0.1307458022904523
+          },
+          "plato_theaetetus": {
+            "n": 12,
+            "mean": 0.8295067137947574,
+            "std": 0.21429289994221087
+          },
+          "plato_timaeus": {
+            "n": 12,
+            "mean": 0.868990346369491,
+            "std": 0.25092524422328016
+          }
+        },
+        "n_entities": 46,
+        "n_distances": 320,
+        "entity_mean_min": 0.7230859398775661,
+        "entity_mean_max": 1.199214348566421,
+        "entity_mean_median": 0.9794663460655599
+      }
+    },
+    {
+      "label": "g6_native_english",
+      "description": "the native_english-annotated authentic corpus _compute_g6_fairness_data_pooled pools as one group",
+      "entities": [
+        "seminary_01",
+        "seminary_02",
+        "seminary_03",
+        "seminary_04",
+        "seminary_05",
+        "seminary_06",
+        "seminary_07",
+        "seminary_08",
+        "seminary_09",
+        "seminary_10",
+        "seminary_11"
+      ],
+      "between_within_variance_ratio": 0.0487601868837626,
+      "ks_max_pairwise": 0.3824451410658307,
+      "verdict": "exchangeable",
+      "n_students": 11,
+      "summary": {
+        "per_entity": {
+          "seminary_01": {
+            "n": 5,
+            "mean": 0.9297732604650276,
+            "std": 0.0943043703990593
+          },
+          "seminary_02": {
+            "n": 5,
+            "mean": 0.9109500857195101,
+            "std": 0.06039329461899354
+          },
+          "seminary_03": {
+            "n": 5,
+            "mean": 0.9289759134314497,
+            "std": 0.21655226931596616
+          },
+          "seminary_04": {
+            "n": 5,
+            "mean": 0.9773781443868892,
+            "std": 0.10724190274795467
+          },
+          "seminary_05": {
+            "n": 5,
+            "mean": 1.0364825662300963,
+            "std": 0.19439271145005751
+          },
+          "seminary_06": {
+            "n": 18,
+            "mean": 0.9601999226290509,
+            "std": 0.14756856519151415
+          },
+          "seminary_07": {
+            "n": 20,
+            "mean": 0.9290909471363117,
+            "std": 0.13438587689069895
+          },
+          "seminary_08": {
+            "n": 22,
+            "mean": 0.9459622987523165,
+            "std": 0.16223819016314686
+          },
+          "seminary_09": {
+            "n": 15,
+            "mean": 0.9640717510693267,
+            "std": 0.15329414409163597
+          },
+          "seminary_10": {
+            "n": 22,
+            "mean": 0.8956774222270751,
+            "std": 0.2625929738601133
+          },
+          "seminary_11": {
+            "n": 16,
+            "mean": 0.9317154657559892,
+            "std": 0.15061171699134535
+          }
+        },
+        "n_entities": 11,
+        "n_distances": 138,
+        "entity_mean_min": 0.8956774222270751,
+        "entity_mean_max": 1.0364825662300963,
+        "entity_mean_median": 0.9317154657559892
+      }
+    }
+  ]
+}

@@ -34,6 +34,7 @@ from dataclasses import dataclass
 from validation.calibration_gate import (
     GateResult,
     evaluate_g1_fpr,
+    evaluate_g1_pooled_fpr,
     evaluate_g2_bland_impostor,
     evaluate_g2b_paraphrase_resistant,
     evaluate_g3_attribution,
@@ -113,6 +114,23 @@ GATE_CONTRACTS: dict[str, GateContract] = {
             "construction, which is not an honest 'must never pass' claim. "
             "See GATE_CONTRACTS['evaluate_g5_permutation_null'] for where "
             "G1's real label-destruction leg lives."
+        ),
+    ),
+    "evaluate_g1_pooled_fpr": GateContract(
+        gate="G1p",
+        claims="pooled flagged rate <= 5% under pooled typicality calibration",
+        failure_witness=lambda: evaluate_g1_pooled_fpr(
+            ["monitor"] * 20, per_corpus={"w": ["monitor"] * 20}
+        ),
+        label_destruction=None,
+        notes=(
+            "Same criterion and same evaluator core as evaluate_g1_fpr "
+            "(it delegates to it), so the same reasoning applies: a "
+            "flagged-rate summary has no label-destruction leg of its own; "
+            "G5's mean-deviation-shift criterion is where that control "
+            "lives. Pooling changes the conformal reference each fold is "
+            "measured against, not the shape of the summary this function "
+            "sees."
         ),
     ),
     "evaluate_g2_bland_impostor": GateContract(
