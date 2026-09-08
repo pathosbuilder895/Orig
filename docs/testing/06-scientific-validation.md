@@ -73,13 +73,14 @@ def test_same_author_action_at_pilot_baseline_counts(live_client, store_reset,
     for author in corpus_authors:
         sid = provision_student(live_client, author.baselines[:n_baselines])
         r = live_client.post(f"/students/{sid}/score", json={"text": author.holdout}).json()
-        flagged += r["recommendation"] in {"schedule_conversation", "escalate"}
+        flagged += r["recommendation"]["action"] in {"schedule_conversation", "escalate"}
     rate = flagged / len(corpus_authors)
     record_verdict("pass" if rate <= 0.10 else "fail", value=rate, n=len(corpus_authors))
     assert rate <= 0.10, f"same-author flag rate {rate:.2f} at N={n_baselines}"
 ```
 
-Notes on the design:
+Notes on the design (response shape: `recommendation` is an object whose
+`action` carries the tier; the deviation lives at `authorship.deviation_score`):
 
 - **Through the API**, not `score()` — the review showed the unit path (G1 via
   typicality) and the production path (fixed `ACTION_THRESHOLDS`) disagree.
