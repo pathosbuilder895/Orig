@@ -28,6 +28,8 @@ happens to have it is not what is under test.
 from __future__ import annotations
 
 import json
+import importlib.machinery
+import os
 import re
 import sys
 from importlib.metadata import packages_distributions
@@ -63,7 +65,25 @@ class LocksetFinder:
         top = fullname.partition(".")[0]
         if top in self._allowed:
             return None
+        if _lives_in_stdlib(top):
+            # sys.stdlib_module_names omits platform-generated stdlib modules
+            # (e.g. _sysconfigdata__darwin_darwin, pulled in by zoneinfo /
+            # sysconfig); resolving the file under the stdlib directory is
+            # the honest test of "part of the interpreter, not a dependency".
+            self._allowed.add(top)
+            return None
         raise LocksetImportError(f"{top} is not in {self._label}", name=fullname)
+
+
+_STDLIB_DIR = os.path.dirname(os.__file__)
+
+
+def _lives_in_stdlib(top: str) -> bool:
+    spec = importlib.machinery.PathFinder.find_spec(top)
+    origin = getattr(spec, "origin", None) if spec is not None else None
+    if not origin or origin in ("built-in", "frozen"):
+        return bool(spec) and not origin  # namespace pkgs have no origin; not stdlib
+    return origin.startswith(_STDLIB_DIR) and "site-packages" not in origin
 
 
 def normalise(name: str) -> str:
