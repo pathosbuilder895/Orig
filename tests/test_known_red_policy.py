@@ -171,11 +171,14 @@ class TestEveryBlockerTestNamesItsGap:
         ]
         offenders = []
         for nodeid in nodeids:
-            file_part, *chain = nodeid.split("::")
+            # Strip the parametrise suffix BEFORE splitting: a param id may
+            # itself contain "::" (T-05 probes "http://[::1]").
+            base_id = nodeid.split("[", 1)[0]
+            file_part, *chain = base_id.split("::")
             if not chain:
                 offenders.append(nodeid)
                 continue
-            base_name = chain[-1].split("[", 1)[0]
+            base_name = chain[-1]
             dotted_chain = [*chain[:-1], base_name]
             doc = known_red._find_docstring(REPO_ROOT / file_part, dotted_chain)
             first_line = doc.strip().splitlines()[0] if doc else ""
