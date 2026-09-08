@@ -196,7 +196,7 @@ def _docx(name: str, raw: bytes) -> tuple[str, bytes, str]:
 def _batch_upload(client: httpx.AsyncClient):
     """POST /students/{sid}/baseline/upload-batch — ten 400-word .txt files.
 
-    original/routers/students_baseline.py:329. Calls feature_vector() per
+    original/routers/students_baseline.py:342. Calls feature_vector() per
     file inline: ~1 s each with spaCy warm.
     """
     files = [
@@ -421,16 +421,31 @@ async def test_upload_does_not_starve_the_heartbeat(
             beats.append(await _beat(perf_client))
             if upload.done():
                 break
+            # The loop's own bound: a handler that hangs (rather than merely
+            # blocks for seconds) must fail here at the documented ceiling,
+            # not spin until the CI job is killed.
+            if perf_counter() - t_started > UPLOAD_TIMEOUT_S:
+                raise AssertionError(
+                    f"upload still running after {UPLOAD_TIMEOUT_S:.0f} s "
+                    f"({len(beats)} beats issued) — the handler hung, not merely blocked"
+                )
         completed = True
     finally:
-        if not completed and not upload.done():
-            # A raised exception (e.g. from _beat) would otherwise orphan the
-            # upload task ("Task exception was never retrieved"). The normal
-            # path above and the wait_for timeout path below are untouched by
-            # this — it only fires when the beat loop itself errored.
-            upload.cancel()
-            with contextlib.suppress(asyncio.CancelledError, Exception):
-                await upload
+        if not completed:
+            # A raised exception (e.g. from _beat, or the bound above) would
+            # otherwise orphan the upload task ("Task exception was never
+            # retrieved"). If the task already finished, retrieve its result
+            # so a stored exception is marked consumed; if it is still
+            # running, cancel it. The normal path and the wait_for timeout
+            # path below are untouched by this.
+            if upload.done():
+                if not upload.cancelled():
+                    with contextlib.suppress(Exception):
+                        upload.exception()
+            else:
+                upload.cancel()
+                with contextlib.suppress(asyncio.CancelledError, Exception):
+                    await upload
 
     upload_response = await asyncio.wait_for(upload, timeout=UPLOAD_TIMEOUT_S)
     upload_seconds = perf_counter() - t_started
