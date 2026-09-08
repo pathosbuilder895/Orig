@@ -23,7 +23,9 @@ jobs:
     # off at the 6-hour cap inside G5. It is split across legs with --only
     # (validation/calibration_gate.py) and merged below; a job that still
     # overruns shows up as a missing leg in the merged report, never as a
-    # silent pass. Legs are grouped by measured cost.
+    # silent pass. Legs are grouped by measured cost (run 34226363871,
+    # 2026-09-08, cold cache): G2 12m, G2b 12m, G6+G7+G8+T 9m,
+    # G1+G1p 1h33m, G3+G4 2h32m, G5 4h26m.
     timeout-minutes: 360
     continue-on-error: true
     strategy:
