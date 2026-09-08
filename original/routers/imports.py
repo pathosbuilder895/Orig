@@ -23,14 +23,24 @@ router = APIRouter()
 
 
 @router.post("/import/courses/{course_id}/turnitin-csv")
-async def import_turnitin_csv(course_id: str, file: UploadFile = File(...)):
+async def import_turnitin_csv(
+    course_id: str, file: UploadFile = File(...), request: Request = None
+):
     """
     Parse a Turnitin admin CSV export and create student/submission stubs.
 
     Expected columns (Turnitin default export):
       Last Name, First Name, Student ID, Assignment Title, Date Submitted,
       Similarity, File Name
+
+    Every created student id is prefixed with the importing staff member's
+    own tenant. Flat, tenant-less ids are a demo-sandbox-only convention
+    (``principal.assert_student_access`` treats them that way); a roster
+    import minting flat ids on a real deploy would make those students
+    readable by the anonymous demo principal and by any staff account
+    regardless of institution.
     """
+    principal = _require_staff(request)
     raw = await file.read()
     try:
         text = raw.decode("utf-8-sig", errors="replace")  # handle BOM
@@ -71,7 +81,8 @@ async def import_turnitin_csv(course_id: str, file: UploadFile = File(...)):
             errors.append(f"Row {i}: could not identify student (no name or ID)")
             continue
 
-        student_id = sid or name.lower().replace(" ", "_")
+        raw_id = sid or name.lower().replace(" ", "_")
+        student_id = f"{principal.tenant_id}:{raw_id}"
 
         state = _repo().get(student_id)
         if state is None:
