@@ -43,20 +43,32 @@ jobs:
       # drops the whole cache when the feature implementation or a committed
       # corpus changes; restore-keys let a partially warm cache carry over.
       - name: Restore feature-vector cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: vector-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .benchmark_cache/calibration_gate/vectors
-          key: calibration-vectors-${{ runner.os }}-${{ hashFiles('original/constants.py', 'original/features/**', 'validation/corpus/**', 'validation/manifest.json', 'validation/plato/corpus/**', 'validation/public_authors/corpus/**', 'validation/public_authors/manifest.json', 'validation/genre_2026-08/**') }}
+          key: calibration-vectors-${{ runner.os }}-${{ hashFiles('original/constants.py', 'original/features/**', 'validation/corpus/**', 'validation/manifest.json', 'validation/plato/corpus/**', 'validation/public_authors/corpus/**', 'validation/public_authors/manifest.json', 'validation/genre_2026-08/**') }}-${{ github.run_id }}
           restore-keys: |
+            calibration-vectors-${{ runner.os }}-${{ hashFiles('original/constants.py', 'original/features/**', 'validation/corpus/**', 'validation/manifest.json', 'validation/plato/corpus/**', 'validation/public_authors/corpus/**', 'validation/public_authors/manifest.json', 'validation/genre_2026-08/**') }}-
             calibration-vectors-${{ runner.os }}-
       # TODO(campaign-plan-02): regenerate the uncommitted G7 corpus here
       # after its reproducible fetch/cache workflow lands. Until then G7 is
       # UNINFORMATIVE on a fresh checkout and --strict exits 1 -- which is
       # why this job is continue-on-error rather than blocking.
+      # `timeout` ends the step itself before the job cap so the save-cache
+      # step below still runs: a run that is cut off still leaves every
+      # vector it extracted for the next one, so the cache converges across
+      # runs instead of starting cold every week.
       - name: Run strict G1-G8 battery
         run: |
           set -o pipefail
-          python -m validation.calibration_gate --strict --out calibration-report.json 2>&1 | tee battery.log
+          timeout 330m python -m validation.calibration_gate --strict --out calibration-report.json 2>&1 | tee battery.log
+      - name: Save feature-vector cache
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .benchmark_cache/calibration_gate/vectors
+          key: ${{ steps.vector-cache.outputs.cache-primary-key }}
       - name: Gate table to job summary
         if: always()
         run: |
