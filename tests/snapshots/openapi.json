@@ -1,0 +1,6565 @@
+{
+  "components": {
+    "schemas": {
+      "AddSampleRequest": {
+        "description": "Add an authenticated baseline sample for a student.",
+        "properties": {
+          "assignment": {
+            "default": "",
+            "description": "Assignment name/label",
+            "title": "Assignment",
+            "type": "string"
+          },
+          "keystroke_data": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Bbook stylemetry JSON (keystrokes, pauses, revisions, deletionRate, wordCount). When provided, Tier 17 behavioral biometric features are extracted. Absent for uploaded papers — Tier 17 defaults to 0.5 (neutral).",
+            "title": "Keystroke Data"
+          },
+          "provenance": {
+            "default": "verified",
+            "description": "'proctored' | 'verified' | 'canvas' | 'unverified'",
+            "title": "Provenance",
+            "type": "string"
+          },
+          "submission_uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Bluebook seal id: when present, an identical text already in the profile is skipped instead of re-ingested (retried-seal replay guard).",
+            "title": "Submission Uuid"
+          },
+          "submitted_at": {
+            "default": "",
+            "description": "ISO date string e.g. 2025-09-01",
+            "title": "Submitted At",
+            "type": "string"
+          },
+          "text": {
+            "description": "Raw essay text",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "AddSampleRequest",
+        "type": "object"
+      },
+      "AiIndicatorOut": {
+        "description": "One professor-explainable feature driving the AI-likelihood signal.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "z": {
+            "title": "Z",
+            "type": "number"
+          }
+        },
+        "required": [
+          "code",
+          "label",
+          "z",
+          "direction"
+        ],
+        "title": "AiIndicatorOut",
+        "type": "object"
+      },
+      "AiLikelihoodOut": {
+        "description": "Corpus-level AI-likelihood (second scoring mode). Report-only: never\nfeeds the deviation score or the recommended action.\n\nPopulated only when AI_LIKELIHOOD_ENABLED=1 AND the committed detector\nartifact loaded and validated cleanly; null otherwise — preserves the\nflag-off byte-identical contract. The calibrated probability lives here\n(the auditable structured surface); professor-facing prose stays\nband-only by design.",
+        "properties": {
+          "band": {
+            "title": "Band",
+            "type": "string"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "probability": {
+            "title": "Probability",
+            "type": "number"
+          },
+          "top_indicators": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/AiIndicatorOut"
+            },
+            "title": "Top Indicators",
+            "type": "array"
+          },
+          "trained_on": {
+            "title": "Trained On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "probability",
+          "band",
+          "model_version",
+          "trained_on"
+        ],
+        "title": "AiLikelihoodOut",
+        "type": "object"
+      },
+      "ApplyThresholdsRequest": {
+        "description": "Body of POST /admin/calibration/runs/{id}/apply.",
+        "properties": {
+          "escalate": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Escalate",
+            "type": "number"
+          },
+          "monitor": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Monitor",
+            "type": "number"
+          },
+          "no_action": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "No Action",
+            "type": "number"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "verdict_anomalous_at_or_above": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict Anomalous At Or Above"
+          },
+          "verdict_authentic_below": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict Authentic Below"
+          }
+        },
+        "required": [
+          "no_action",
+          "monitor",
+          "escalate"
+        ],
+        "title": "ApplyThresholdsRequest",
+        "type": "object"
+      },
+      "ArcPointOut": {
+        "description": "One point on the Voice Arc — resolved fidelity only, no raw math.",
+        "properties": {
+          "attention": {
+            "title": "Attention",
+            "type": "boolean"
+          },
+          "fidelity": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Fidelity",
+            "type": "integer"
+          },
+          "period": {
+            "title": "Period",
+            "type": "string"
+          }
+        },
+        "required": [
+          "period",
+          "fidelity",
+          "attention"
+        ],
+        "title": "ArcPointOut",
+        "type": "object"
+      },
+      "AuthLoginRequest": {
+        "description": "POST /auth/login.",
+        "properties": {
+          "email": {
+            "description": "Staff account email",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "description": "Staff account password",
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "AuthLoginRequest",
+        "type": "object"
+      },
+      "AuthRegisterRequest": {
+        "description": "POST /auth/register. Privileged — see _require_guard.",
+        "properties": {
+          "email": {
+            "description": "New staff account email",
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "description": "Display name",
+            "title": "Name",
+            "type": "string"
+          },
+          "password": {
+            "description": "New staff account password (min 8 chars)",
+            "title": "Password",
+            "type": "string"
+          },
+          "role": {
+            "default": "professor",
+            "description": "'professor' | 'admin' | 'operator'",
+            "title": "Role",
+            "type": "string"
+          },
+          "tenant_id": {
+            "description": "Institution slug this account belongs to",
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "tenant_id"
+        ],
+        "title": "AuthRegisterRequest",
+        "type": "object"
+      },
+      "AuthorshipSignalOut": {
+        "properties": {
+          "authorship_probability": {
+            "title": "Authorship Probability",
+            "type": "number"
+          },
+          "deviation_score": {
+            "title": "Deviation Score",
+            "type": "number"
+          },
+          "fidelity_conformal_pvalue": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fidelity Conformal Pvalue"
+          },
+          "llr_deviation_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llr Deviation Score"
+          },
+          "quantum_fidelity": {
+            "default": 0.0,
+            "title": "Quantum Fidelity",
+            "type": "number"
+          }
+        },
+        "required": [
+          "authorship_probability",
+          "deviation_score"
+        ],
+        "title": "AuthorshipSignalOut",
+        "type": "object"
+      },
+      "BaselineConfidenceOut": {
+        "properties": {
+          "authenticated_count": {
+            "title": "Authenticated Count",
+            "type": "integer"
+          },
+          "effective_sample_count": {
+            "title": "Effective Sample Count",
+            "type": "number"
+          },
+          "purity": {
+            "title": "Purity",
+            "type": "number"
+          },
+          "sample_count": {
+            "title": "Sample Count",
+            "type": "integer"
+          },
+          "trajectory_confidence": {
+            "title": "Trajectory Confidence",
+            "type": "number"
+          },
+          "von_neumann_entropy": {
+            "default": 0.0,
+            "title": "Von Neumann Entropy",
+            "type": "number"
+          }
+        },
+        "required": [
+          "purity",
+          "sample_count",
+          "authenticated_count",
+          "effective_sample_count",
+          "trajectory_confidence"
+        ],
+        "title": "BaselineConfidenceOut",
+        "type": "object"
+      },
+      "BaselineWordStats": {
+        "description": "Word-count spread across a student's baseline samples.",
+        "properties": {
+          "max": {
+            "title": "Max",
+            "type": "integer"
+          },
+          "mean": {
+            "title": "Mean",
+            "type": "number"
+          },
+          "median": {
+            "title": "Median",
+            "type": "integer"
+          },
+          "min": {
+            "title": "Min",
+            "type": "integer"
+          },
+          "n_below_300": {
+            "title": "N Below 300",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "min",
+          "median",
+          "mean",
+          "max",
+          "n_below_300"
+        ],
+        "title": "BaselineWordStats",
+        "type": "object"
+      },
+      "BlendDetectionRequest": {
+        "description": "Sliding-window blend detection on a single submission.",
+        "properties": {
+          "overlap": {
+            "default": 0.5,
+            "description": "Fraction of overlap between consecutive windows in [0, 1).",
+            "exclusiveMaximum": 1.0,
+            "minimum": 0.0,
+            "title": "Overlap",
+            "type": "number"
+          },
+          "submission_id": {
+            "default": "",
+            "description": "Optional external ID",
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "text": {
+            "description": "Raw essay text of the submission",
+            "title": "Text",
+            "type": "string"
+          },
+          "window_tokens": {
+            "default": 300,
+            "description": "Token budget per window. Default 300 (small enough to localise mid-document shifts; T7 features are 'low' confidence below 500-token windows).",
+            "maximum": 2000.0,
+            "minimum": 50.0,
+            "title": "Window Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "BlendDetectionRequest",
+        "type": "object"
+      },
+      "BlendResultOut": {
+        "description": "Aggregated blend-detection result for a single submission (Phase 7).",
+        "properties": {
+          "ai_window_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Report-only: highest per-window AI-likelihood across the windows that received a value. Inherits the per-window UNCALIBRATED caveat (see ai_probability and MODEL_CARD.md) — not comparable to the document-level thresholds. Null when AI_LIKELIHOOD_SHADOW is off or no window produced one.",
+            "title": "Ai Window Max"
+          },
+          "ai_window_mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Report-only: mean per-window AI-likelihood over the windows that received a value (failed windows are excluded). Inherits the per-window UNCALIBRATED caveat (see ai_probability and MODEL_CARD.md) — not comparable to the document-level thresholds.",
+            "title": "Ai Window Mean"
+          },
+          "blend_detected": {
+            "title": "Blend Detected",
+            "type": "boolean"
+          },
+          "blend_index": {
+            "title": "Blend Index",
+            "type": "number"
+          },
+          "fallback_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback Reason"
+          },
+          "n_tokens": {
+            "default": 0,
+            "title": "N Tokens",
+            "type": "integer"
+          },
+          "per_section": {
+            "items": {
+              "$ref": "#/components/schemas/WindowScoreOut"
+            },
+            "title": "Per Section",
+            "type": "array"
+          },
+          "shift_positions": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Shift Positions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "blend_detected",
+          "blend_index",
+          "shift_positions",
+          "per_section"
+        ],
+        "title": "BlendResultOut",
+        "type": "object"
+      },
+      "BluebookCreateCourseRequest": {
+        "description": "POST /bluebook/courses.",
+        "properties": {
+          "code": {
+            "default": "",
+            "description": "Course code",
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "description": "Course name",
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "default": "ACTIVE",
+            "description": "Course status label",
+            "title": "Status",
+            "type": "string"
+          },
+          "term": {
+            "default": "",
+            "description": "Academic term label",
+            "title": "Term",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "BluebookCreateCourseRequest",
+        "type": "object"
+      },
+      "BluebookCreateExamRequest": {
+        "description": "POST /bluebook/exams.",
+        "properties": {
+          "conditions": {
+            "description": "Arbitrary exam-condition metadata",
+            "title": "Conditions",
+            "type": "object"
+          },
+          "course": {
+            "default": "",
+            "description": "Course label",
+            "title": "Course",
+            "type": "string"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 90,
+            "description": "Exam duration in minutes",
+            "title": "Duration"
+          },
+          "maxWords": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 0,
+            "description": "Maximum allowed word count (0/null = unlimited)",
+            "title": "Maxwords"
+          },
+          "minWords": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 0,
+            "description": "Minimum required word count",
+            "title": "Minwords"
+          },
+          "prompt": {
+            "default": "",
+            "description": "Exam prompt text",
+            "title": "Prompt",
+            "type": "string"
+          },
+          "status": {
+            "default": "DRAFT",
+            "description": "Exam status label",
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "description": "Exam title",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "BluebookCreateExamRequest",
+        "type": "object"
+      },
+      "BluebookRecordSubmissionRequest": {
+        "description": "POST /bluebook/submissions.",
+        "properties": {
+          "ai_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "AI-likelihood score, 0-100",
+            "title": "Ai Score"
+          },
+          "candidate": {
+            "default": "",
+            "description": "Candidate display name",
+            "title": "Candidate",
+            "type": "string"
+          },
+          "course": {
+            "default": "",
+            "description": "Course label",
+            "title": "Course",
+            "type": "string"
+          },
+          "exam_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Associated exam id, if any",
+            "title": "Exam Id"
+          },
+          "exam_title": {
+            "default": "",
+            "description": "Denormalised exam title for the Results view",
+            "title": "Exam Title",
+            "type": "string"
+          },
+          "status": {
+            "default": "SUBMITTED",
+            "description": "Submission status label",
+            "title": "Status",
+            "type": "string"
+          },
+          "student_id": {
+            "default": "",
+            "description": "Bluebook student identifier",
+            "title": "Student Id",
+            "type": "string"
+          },
+          "stylometric": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Stylometric integrity score, 0-100",
+            "title": "Stylometric"
+          },
+          "submission_uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Client seal id; replays return the prior result instead of re-writing",
+            "title": "Submission Uuid"
+          },
+          "time_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 0,
+            "description": "Time taken, in minutes",
+            "title": "Time Min"
+          },
+          "word_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 0,
+            "description": "Submission word count",
+            "title": "Word Count"
+          }
+        },
+        "title": "BluebookRecordSubmissionRequest",
+        "type": "object"
+      },
+      "BluebookSessionResponse": {
+        "properties": {
+          "deadline_at": {
+            "title": "Deadline At",
+            "type": "string"
+          },
+          "duration_seconds": {
+            "title": "Duration Seconds",
+            "type": "integer"
+          },
+          "exam_id": {
+            "title": "Exam Id",
+            "type": "string"
+          },
+          "server_now": {
+            "title": "Server Now",
+            "type": "string"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "exam_id",
+          "started_at",
+          "deadline_at",
+          "server_now",
+          "duration_seconds"
+        ],
+        "title": "BluebookSessionResponse",
+        "type": "object"
+      },
+      "BluebookStartSessionRequest": {
+        "description": "POST /bluebook/exams/{exam_id}/session — begin (or resume) a sitting.",
+        "properties": {
+          "candidate": {
+            "default": "",
+            "description": "Candidate email/label fallback for demo sittings",
+            "title": "Candidate",
+            "type": "string"
+          },
+          "student_id": {
+            "default": "",
+            "description": "Resolved Original student id, when known",
+            "title": "Student Id",
+            "type": "string"
+          }
+        },
+        "title": "BluebookStartSessionRequest",
+        "type": "object"
+      },
+      "Body_import_turnitin_csv_import_courses__course_id__turnitin_csv_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_import_turnitin_csv_import_courses__course_id__turnitin_csv_post",
+        "type": "object"
+      },
+      "Body_upload_baseline_batch_students__student_id__baseline_upload_batch_post": {
+        "properties": {
+          "assignment": {
+            "default": "",
+            "title": "Assignment",
+            "type": "string"
+          },
+          "files": {
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "provenance": {
+            "default": "verified",
+            "title": "Provenance",
+            "type": "string"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "Body_upload_baseline_batch_students__student_id__baseline_upload_batch_post",
+        "type": "object"
+      },
+      "Body_upload_file_students__student_id__upload_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_file_students__student_id__upload_post",
+        "type": "object"
+      },
+      "CalibrationRunCreatedResponse": {
+        "properties": {
+          "dataset_label": {
+            "title": "Dataset Label",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "status",
+          "dataset_label"
+        ],
+        "title": "CalibrationRunCreatedResponse",
+        "type": "object"
+      },
+      "CalibrationRunDetail": {
+        "description": "Full run with the heavy report JSON.",
+        "properties": {
+          "auc": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auc"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "config": {
+            "title": "Config",
+            "type": "object"
+          },
+          "dataset_label": {
+            "title": "Dataset Label",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "n_authors": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Authors"
+          },
+          "n_essays_scored": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Essays Scored"
+          },
+          "report": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report"
+          },
+          "run_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Label"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "dataset_label",
+          "started_at",
+          "status",
+          "config"
+        ],
+        "title": "CalibrationRunDetail",
+        "type": "object"
+      },
+      "CalibrationRunListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CalibrationRunSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "limit",
+          "offset",
+          "items"
+        ],
+        "title": "CalibrationRunListResponse",
+        "type": "object"
+      },
+      "CalibrationRunRequest": {
+        "description": "Body of POST /admin/calibration/run.",
+        "properties": {
+          "dataset_label": {
+            "description": "One of the labels returned by /admin/lab/datasets",
+            "title": "Dataset Label",
+            "type": "string"
+          },
+          "max_scoring": {
+            "anyOf": [
+              {
+                "maximum": 500.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cap scoring entries per author (smaller = faster). None = no cap.",
+            "title": "Max Scoring"
+          },
+          "run_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional human-readable name for this run (shown in the runs table).",
+            "title": "Run Label"
+          },
+          "thresholds": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Override action thresholds. Defaults to no_action=0.4, monitor=0.60, escalate=0.75.",
+            "title": "Thresholds"
+          }
+        },
+        "required": [
+          "dataset_label"
+        ],
+        "title": "CalibrationRunRequest",
+        "type": "object"
+      },
+      "CalibrationRunSummary": {
+        "description": "Lightweight row for the runs-list table.",
+        "properties": {
+          "auc": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auc"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "dataset_label": {
+            "title": "Dataset Label",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "n_authors": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Authors"
+          },
+          "n_essays_scored": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Essays Scored"
+          },
+          "run_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Label"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "dataset_label",
+          "started_at",
+          "status"
+        ],
+        "title": "CalibrationRunSummary",
+        "type": "object"
+      },
+      "ContextManifestOut": {
+        "description": "Phase 3+: auditable record of a submission's resolved context plus the\nderived directives the adaptive layer applies to scoring. Returned only\nwhen the CONTEXT_MANIFEST_ENABLED env flag is set; absent otherwise so\nthe response is byte-identical to Phase 1 by default.",
+        "properties": {
+          "anchor_tiers": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Anchor Tiers",
+            "type": "array"
+          },
+          "baseline_match": {
+            "title": "Baseline Match",
+            "type": "object"
+          },
+          "citations": {
+            "title": "Citations",
+            "type": "object"
+          },
+          "composition_mode": {
+            "title": "Composition Mode",
+            "type": "object"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "flags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "genre": {
+            "title": "Genre",
+            "type": "object"
+          },
+          "language": {
+            "title": "Language",
+            "type": "object"
+          },
+          "length_regime": {
+            "title": "Length Regime",
+            "type": "string"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "object"
+          },
+          "weight_modifications": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Weight Modifications",
+            "type": "object"
+          }
+        },
+        "required": [
+          "submission_id",
+          "language",
+          "genre",
+          "topic",
+          "length_regime",
+          "citations",
+          "composition_mode",
+          "weight_modifications",
+          "anchor_tiers",
+          "baseline_match",
+          "flags",
+          "created_at"
+        ],
+        "title": "ContextManifestOut",
+        "type": "object"
+      },
+      "CorrectionListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CorrectionResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "limit",
+          "offset",
+          "items"
+        ],
+        "title": "CorrectionListResponse",
+        "type": "object"
+      },
+      "CorrectionRequest": {
+        "description": "Instructor feedback on a scoring verdict (PR 7 → drives PR 8 retraining).",
+        "properties": {
+          "corrected_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional: \"no_action\" | \"monitor\" | \"schedule_conversation\" | \"escalate\"",
+            "title": "Corrected Action"
+          },
+          "corrected_verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional: \"authentic\" | \"uncertain\" | \"anomalous\"",
+            "title": "Corrected Verdict"
+          },
+          "is_correct": {
+            "description": "True if the original verdict was correct; False if it should be changed.",
+            "title": "Is Correct",
+            "type": "boolean"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Free-text rationale for the correction",
+            "title": "Notes"
+          },
+          "reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Reviewer identity (e.g. instructor user id)",
+            "title": "Reviewer"
+          }
+        },
+        "required": [
+          "is_correct"
+        ],
+        "title": "CorrectionRequest",
+        "type": "object"
+      },
+      "CorrectionResponse": {
+        "properties": {
+          "corrected_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corrected Action"
+          },
+          "corrected_verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corrected Verdict"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_correct": {
+            "title": "Is Correct",
+            "type": "boolean"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "original_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Action"
+          },
+          "original_divergence_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Divergence Score"
+          },
+          "original_verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Verdict"
+          },
+          "reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          },
+          "student_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Student Id"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "submission_id",
+          "is_correct",
+          "created_at"
+        ],
+        "title": "CorrectionResponse",
+        "type": "object"
+      },
+      "CreateTenantRequest": {
+        "description": "POST /tenants. See create_tenant() for the downgrade-protection business rule.",
+        "properties": {
+          "environment": {
+            "default": "demo",
+            "description": "'demo' | 'pilot' | 'production'",
+            "title": "Environment",
+            "type": "string"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Arbitrary metadata (contact email, LMS URL, etc.) — capped at 10 keys, values coerced to strings ≤ 500 chars.",
+            "title": "Meta"
+          },
+          "name": {
+            "description": "Human-readable institution name",
+            "title": "Name",
+            "type": "string"
+          },
+          "tenant_id": {
+            "description": "Stable slug, e.g. 'seminary-of-dallas'",
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "name"
+        ],
+        "title": "CreateTenantRequest",
+        "type": "object"
+      },
+      "DatasetInfo": {
+        "description": "One row in the dataset registry exposed to the lab UI.",
+        "properties": {
+          "author_filter": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Author Filter",
+            "type": "array"
+          },
+          "build_cmd": {
+            "default": "",
+            "title": "Build Cmd",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "requires_build": {
+            "default": false,
+            "title": "Requires Build",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "label",
+          "name",
+          "description",
+          "author_filter"
+        ],
+        "title": "DatasetInfo",
+        "type": "object"
+      },
+      "DemoLoginRequest": {
+        "description": "POST /api/v1/auth/login. Demo-only — 404s on real deploys.",
+        "properties": {
+          "email": {
+            "default": "",
+            "description": "Demo email (role inferred from substring)",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "default": "",
+            "description": "Compared against MAINTENANCE_TOKEN for admin escalation",
+            "title": "Password",
+            "type": "string"
+          },
+          "username": {
+            "default": "",
+            "description": "Alternate to email",
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "title": "DemoLoginRequest",
+        "type": "object"
+      },
+      "DomainSignalOut": {
+        "properties": {
+          "confessional_balance": {
+            "title": "Confessional Balance",
+            "type": "string"
+          },
+          "register_anomaly": {
+            "title": "Register Anomaly",
+            "type": "boolean"
+          },
+          "theological_register_score": {
+            "title": "Theological Register Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "theological_register_score",
+          "register_anomaly",
+          "confessional_balance"
+        ],
+        "title": "DomainSignalOut",
+        "type": "object"
+      },
+      "DriftAnalysisOut": {
+        "description": "Report-only longitudinal analysis; never changes the recommendation.",
+        "properties": {
+          "change_point_evidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Point Evidence"
+          },
+          "change_point_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Point Index"
+          },
+          "dated_sample_count": {
+            "title": "Dated Sample Count",
+            "type": "integer"
+          },
+          "drift_relief": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drift Relief"
+          },
+          "eligible": {
+            "title": "Eligible",
+            "type": "boolean"
+          },
+          "extrapolation_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extrapolation Days"
+          },
+          "feature_count": {
+            "title": "Feature Count",
+            "type": "integer"
+          },
+          "historical_deviation": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Historical Deviation"
+          },
+          "interpretation": {
+            "title": "Interpretation",
+            "type": "string"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "predicted_current_deviation": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predicted Current Deviation"
+          },
+          "predictive_improvement": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predictive Improvement"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "sample_count": {
+            "title": "Sample Count",
+            "type": "integer"
+          },
+          "selected_model": {
+            "title": "Selected Model",
+            "type": "string"
+          },
+          "span_days": {
+            "title": "Span Days",
+            "type": "integer"
+          },
+          "trend_confidence": {
+            "title": "Trend Confidence",
+            "type": "number"
+          }
+        },
+        "required": [
+          "eligible",
+          "reason",
+          "selected_model",
+          "historical_deviation",
+          "predicted_current_deviation",
+          "drift_relief",
+          "trend_confidence",
+          "predictive_improvement",
+          "sample_count",
+          "dated_sample_count",
+          "span_days",
+          "extrapolation_days",
+          "change_point_index",
+          "change_point_evidence",
+          "interpretation",
+          "feature_count",
+          "model_version"
+        ],
+        "title": "DriftAnalysisOut",
+        "type": "object"
+      },
+      "EntanglementAnomalyOut": {
+        "properties": {
+          "anomaly_score": {
+            "title": "Anomaly Score",
+            "type": "number"
+          },
+          "expected_correlation": {
+            "default": 0.0,
+            "title": "Expected Correlation",
+            "type": "number"
+          },
+          "feature_a": {
+            "title": "Feature A",
+            "type": "string"
+          },
+          "feature_b": {
+            "title": "Feature B",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "observed_product": {
+            "default": 0.0,
+            "title": "Observed Product",
+            "type": "number"
+          },
+          "tier_a": {
+            "title": "Tier A",
+            "type": "integer"
+          },
+          "tier_b": {
+            "title": "Tier B",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "feature_a",
+          "feature_b",
+          "tier_a",
+          "tier_b",
+          "anomaly_score",
+          "label"
+        ],
+        "title": "EntanglementAnomalyOut",
+        "type": "object"
+      },
+      "FeatureContributionOut": {
+        "properties": {
+          "baseline_value": {
+            "title": "Baseline Value",
+            "type": "number"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "contribution": {
+            "title": "Contribution",
+            "type": "number"
+          },
+          "delta": {
+            "title": "Delta",
+            "type": "number"
+          },
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "submission_value": {
+            "title": "Submission Value",
+            "type": "number"
+          },
+          "tier": {
+            "title": "Tier",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "tier",
+          "contribution",
+          "direction",
+          "baseline_value",
+          "submission_value",
+          "delta"
+        ],
+        "title": "FeatureContributionOut",
+        "type": "object"
+      },
+      "FormationStateOut": {
+        "description": "Restorative formation state — the pathway 'reason' is never sent.",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "current_step": {
+            "title": "Current Step",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "step_label": {
+            "title": "Step Label",
+            "type": "string"
+          },
+          "supportive_copy": {
+            "title": "Supportive Copy",
+            "type": "string"
+          },
+          "total_steps": {
+            "title": "Total Steps",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "active",
+          "status",
+          "current_step",
+          "total_steps",
+          "step_label",
+          "supportive_copy"
+        ],
+        "title": "FormationStateOut",
+        "type": "object"
+      },
+      "FusedScoreOut": {
+        "description": "Report-only fused stylometric score (original/fusion/); never feeds\ndeviation_score, quantum_fidelity, or the recommended action.\n\nPopulated only when FUSED_SCORE_ENABLED=1 AND the expert produced a\nresult (not an abstention); null otherwise — preserves the flag-off\nbyte-identical contract.",
+        "properties": {
+          "band": {
+            "title": "Band",
+            "type": "string"
+          },
+          "baseline_samples": {
+            "title": "Baseline Samples",
+            "type": "integer"
+          },
+          "channels": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Channels",
+            "type": "object"
+          },
+          "fused_log_odds": {
+            "title": "Fused Log Odds",
+            "type": "number"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "probability_different_author": {
+            "title": "Probability Different Author",
+            "type": "number"
+          },
+          "reference_profiles": {
+            "title": "Reference Profiles",
+            "type": "integer"
+          },
+          "trained_on": {
+            "title": "Trained On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fused_log_odds",
+          "probability_different_author",
+          "band",
+          "channels",
+          "reference_profiles",
+          "baseline_samples",
+          "model_version",
+          "trained_on"
+        ],
+        "title": "FusedScoreOut",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "properties": {
+          "backend": {
+            "default": "sqlite",
+            "title": "Backend",
+            "type": "string"
+          },
+          "commit": {
+            "default": "dev",
+            "title": "Commit",
+            "type": "string"
+          },
+          "environment": {
+            "default": "demo",
+            "title": "Environment",
+            "type": "string"
+          },
+          "feature_dim": {
+            "title": "Feature Dim",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "students_in_store": {
+            "title": "Students In Store",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "status",
+          "feature_dim",
+          "students_in_store"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "InterferenceDecompositionOut": {
+        "properties": {
+          "broken_entanglements": {
+            "items": {
+              "$ref": "#/components/schemas/EntanglementAnomalyOut"
+            },
+            "title": "Broken Entanglements",
+            "type": "array"
+          },
+          "constructive_features": {
+            "items": {
+              "$ref": "#/components/schemas/FeatureContributionOut"
+            },
+            "title": "Constructive Features",
+            "type": "array"
+          },
+          "destructive_features": {
+            "items": {
+              "$ref": "#/components/schemas/FeatureContributionOut"
+            },
+            "title": "Destructive Features",
+            "type": "array"
+          },
+          "tier_breakdown": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Tier Breakdown",
+            "type": "object"
+          },
+          "total_probability": {
+            "title": "Total Probability",
+            "type": "number"
+          }
+        },
+        "required": [
+          "total_probability",
+          "constructive_features",
+          "destructive_features",
+          "broken_entanglements",
+          "tier_breakdown"
+        ],
+        "title": "InterferenceDecompositionOut",
+        "type": "object"
+      },
+      "Layer7OutputResponse": {
+        "properties": {
+          "ai_likelihood": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiLikelihoodOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "authorship": {
+            "$ref": "#/components/schemas/AuthorshipSignalOut"
+          },
+          "baseline_confidence": {
+            "$ref": "#/components/schemas/BaselineConfidenceOut"
+          },
+          "baseline_vector": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Baseline Vector",
+            "type": "object"
+          },
+          "catastrophic_drift": {
+            "default": false,
+            "title": "Catastrophic Drift",
+            "type": "boolean"
+          },
+          "catastrophic_drift_rms_z": {
+            "default": 0.0,
+            "title": "Catastrophic Drift Rms Z",
+            "type": "number"
+          },
+          "characteristic_deviation_preview": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Characteristic Deviation Preview"
+          },
+          "characteristic_factor_dispersion": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Characteristic Factor Dispersion"
+          },
+          "characteristic_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Characteristic Mode"
+          },
+          "characteristic_rms_z_preview": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Characteristic Rms Z Preview"
+          },
+          "characteristic_weighting_applied": {
+            "default": false,
+            "title": "Characteristic Weighting Applied",
+            "type": "boolean"
+          },
+          "context_manifest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContextManifestOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deviation_score_inflated": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deviation Score Inflated"
+          },
+          "domain": {
+            "$ref": "#/components/schemas/DomainSignalOut"
+          },
+          "drift_analysis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriftAnalysisOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "feature_vector": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Feature Vector",
+            "type": "object"
+          },
+          "fused_score": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FusedScoreOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "human_explanation": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Human Explanation"
+          },
+          "interference": {
+            "$ref": "#/components/schemas/InterferenceDecompositionOut"
+          },
+          "recommendation": {
+            "$ref": "#/components/schemas/RecommendedActionOut"
+          },
+          "report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScoringReportOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "student_id": {
+            "title": "Student Id",
+            "type": "string"
+          },
+          "style_authorship": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StyleAuthorshipOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "tension_arc": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TensionArcOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "topic_distance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic Distance"
+          },
+          "topic_inflation_applied": {
+            "default": false,
+            "title": "Topic Inflation Applied",
+            "type": "boolean"
+          },
+          "topic_mean_inflation": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic Mean Inflation"
+          },
+          "trajectory": {
+            "$ref": "#/components/schemas/TrajectoryConformanceOut"
+          },
+          "trend_aware_typicality": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrendAwareTypicalityOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "typicality_band": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Typicality Band"
+          },
+          "typicality_calibration": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Typicality Calibration"
+          },
+          "typicality_n": {
+            "default": 0,
+            "title": "Typicality N",
+            "type": "integer"
+          },
+          "typicality_p_central": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Typicality P Central"
+          },
+          "typicality_p_far": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Typicality P Far"
+          },
+          "typicality_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Typicality Source"
+          }
+        },
+        "required": [
+          "student_id",
+          "submission_id",
+          "authorship",
+          "trajectory",
+          "interference",
+          "baseline_confidence",
+          "domain",
+          "recommendation",
+          "tension_arc",
+          "feature_vector",
+          "baseline_vector"
+        ],
+        "title": "Layer7OutputResponse",
+        "type": "object"
+      },
+      "ManifestListItem": {
+        "description": "One row in the admin manifest audit log.",
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action"
+          },
+          "anchor_tiers": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Anchor Tiers",
+            "type": "array"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "divergence_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Divergence Score"
+          },
+          "flags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "length_regime": {
+            "title": "Length Regime",
+            "type": "string"
+          },
+          "student_id": {
+            "title": "Student Id",
+            "type": "string"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_id",
+          "student_id",
+          "created_at",
+          "flags",
+          "anchor_tiers",
+          "length_regime"
+        ],
+        "title": "ManifestListItem",
+        "type": "object"
+      },
+      "ManifestListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ManifestListItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "limit",
+          "offset",
+          "items"
+        ],
+        "title": "ManifestListResponse",
+        "type": "object"
+      },
+      "ManifestStatsResponse": {
+        "description": "Aggregate roll-ups for the admin context dashboard summary cards.",
+        "properties": {
+          "by_action": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Action",
+            "type": "object"
+          },
+          "by_flag": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Flag",
+            "type": "object"
+          },
+          "by_length_regime": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Length Regime",
+            "type": "object"
+          },
+          "mean_divergence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Divergence"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Until"
+          }
+        },
+        "required": [
+          "total",
+          "by_action",
+          "by_flag",
+          "by_length_regime"
+        ],
+        "title": "ManifestStatsResponse",
+        "type": "object"
+      },
+      "MilestoneOut": {
+        "description": "A positive credential as a named milestone — no raw counts.",
+        "properties": {
+          "blurb": {
+            "title": "Blurb",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "state",
+          "blurb"
+        ],
+        "title": "MilestoneOut",
+        "type": "object"
+      },
+      "ParagraphArcOut": {
+        "description": "One paragraph's tension arc (mirrors tension_arc.ParagraphArc).",
+        "properties": {
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "max_tension": {
+            "title": "Max Tension",
+            "type": "number"
+          },
+          "mean_tension": {
+            "title": "Mean Tension",
+            "type": "number"
+          },
+          "peak_count": {
+            "title": "Peak Count",
+            "type": "integer"
+          },
+          "resolution_ratio": {
+            "title": "Resolution Ratio",
+            "type": "number"
+          },
+          "resolved_peaks": {
+            "title": "Resolved Peaks",
+            "type": "integer"
+          },
+          "sentences": {
+            "items": {
+              "$ref": "#/components/schemas/SentenceTensionOut"
+            },
+            "title": "Sentences",
+            "type": "array"
+          }
+        },
+        "required": [
+          "index",
+          "sentences",
+          "peak_count",
+          "resolved_peaks",
+          "resolution_ratio",
+          "mean_tension",
+          "max_tension"
+        ],
+        "title": "ParagraphArcOut",
+        "type": "object"
+      },
+      "ParkBeatRequest": {
+        "description": "POST /proctor/park/beat — one heartbeat from a parked phone.\n\nPosted by an unauthenticated phone: the ``park_token`` (scanned from the\nQR code) is the capability, which is why it is a 128-bit\n``secrets.token_urlsafe`` value rather than a guessable id.",
+        "properties": {
+          "park_token": {
+            "description": "Opaque token scanned from the QR code",
+            "title": "Park Token",
+            "type": "string"
+          },
+          "state": {
+            "description": "'parked' | 'foreground_lost' | 'resumed' — page-visibility, nothing more",
+            "title": "State",
+            "type": "string"
+          },
+          "student_hint": {
+            "description": "Free text the STUDENT types on their own phone (initials, a nickname) so a proctor can tell one tile from another. Never one of our student ids, never an email. Trimmed; max 64 chars; empty is rejected.",
+            "title": "Student Hint",
+            "type": "string"
+          }
+        },
+        "required": [
+          "park_token",
+          "student_hint",
+          "state"
+        ],
+        "title": "ParkBeatRequest",
+        "type": "object"
+      },
+      "ParkOpenRequest": {
+        "description": "POST /proctor/park/open — a professor opens a phone-park for one sitting.",
+        "properties": {
+          "exam_session_id": {
+            "description": "The professor's own label for this exam sitting, e.g. 'ST501-final-2026'. Not a roster id and not derived from one.",
+            "title": "Exam Session Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "exam_session_id"
+        ],
+        "title": "ParkOpenRequest",
+        "type": "object"
+      },
+      "ReadinessResponse": {
+        "description": "Pilot-facing baseline-readiness check (GET /students/{id}/readiness).\n\nverdict: \"ready\" (>= 5 authenticated samples AND >= 3 effective),\n\"developing\" (>= 2 authenticated), else \"insufficient\". Pure read —\ncomputed from the same StudentState the score endpoint uses.",
+        "properties": {
+          "authenticated_count": {
+            "title": "Authenticated Count",
+            "type": "integer"
+          },
+          "effective_sample_count": {
+            "title": "Effective Sample Count",
+            "type": "number"
+          },
+          "provenance_mix": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Provenance Mix",
+            "type": "object"
+          },
+          "purity": {
+            "title": "Purity",
+            "type": "number"
+          },
+          "recommendations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Recommendations",
+            "type": "array"
+          },
+          "sample_count": {
+            "title": "Sample Count",
+            "type": "integer"
+          },
+          "student_id": {
+            "title": "Student Id",
+            "type": "string"
+          },
+          "verdict": {
+            "title": "Verdict",
+            "type": "string"
+          },
+          "word_stats": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BaselineWordStats"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "student_id",
+          "sample_count",
+          "authenticated_count",
+          "effective_sample_count",
+          "purity",
+          "provenance_mix",
+          "verdict",
+          "recommendations"
+        ],
+        "title": "ReadinessResponse",
+        "type": "object"
+      },
+      "RecommendedActionOut": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "confidence": {
+            "title": "Confidence",
+            "type": "number"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "confidence",
+          "rationale"
+        ],
+        "title": "RecommendedActionOut",
+        "type": "object"
+      },
+      "RequestBaselineRequest": {
+        "description": "Inbound shape for POST /students/{id}/request-baseline.",
+        "properties": {
+          "duration_mins": {
+            "default": 45,
+            "title": "Duration Mins",
+            "type": "integer"
+          },
+          "exam_title": {
+            "default": "Proctored Baseline Sitting",
+            "title": "Exam Title",
+            "type": "string"
+          },
+          "institution_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution Name"
+          },
+          "max_word_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Word Count"
+          },
+          "min_word_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Word Count"
+          },
+          "prompt_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Text"
+          },
+          "requested_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By"
+          },
+          "student_email": {
+            "title": "Student Email",
+            "type": "string"
+          },
+          "student_name": {
+            "title": "Student Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "student_email",
+          "student_name"
+        ],
+        "title": "RequestBaselineRequest",
+        "type": "object"
+      },
+      "ReviewOpportunityOut": {
+        "description": "A gentle invitation to a conversation — no score, threshold, or enum.",
+        "properties": {
+          "invitation_prose": {
+            "title": "Invitation Prose",
+            "type": "string"
+          },
+          "locator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locator"
+          }
+        },
+        "required": [
+          "invitation_prose"
+        ],
+        "title": "ReviewOpportunityOut",
+        "type": "object"
+      },
+      "SampleSummary": {
+        "properties": {
+          "assignment": {
+            "title": "Assignment",
+            "type": "string"
+          },
+          "auth_weight": {
+            "title": "Auth Weight",
+            "type": "number"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "provenance": {
+            "title": "Provenance",
+            "type": "string"
+          },
+          "submitted_at": {
+            "title": "Submitted At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "assignment",
+          "provenance",
+          "submitted_at",
+          "auth_weight"
+        ],
+        "title": "SampleSummary",
+        "type": "object"
+      },
+      "ScoreSubmissionRequest": {
+        "description": "Score a new submission against a student's current baseline.",
+        "properties": {
+          "assignment": {
+            "default": "",
+            "description": "Assignment name/label",
+            "title": "Assignment",
+            "type": "string"
+          },
+          "keystroke_data": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Bbook stylemetry JSON for Tier 17 behavioral biometric scoring.",
+            "title": "Keystroke Data"
+          },
+          "submission_id": {
+            "default": "",
+            "description": "Optional external ID",
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "submitted_at": {
+            "default": "",
+            "description": "Optional ISO submission date used only by report-only longitudinal analysis.",
+            "title": "Submitted At",
+            "type": "string"
+          },
+          "text": {
+            "description": "Raw essay text of the submission",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "ScoreSubmissionRequest",
+        "type": "object"
+      },
+      "ScoringReportOut": {
+        "description": "Phase 6: auditable human-facing scoring summary.\n\nBuilt when a context manifest exists (i.e. CONTEXT_MANIFEST_ENABLED=1).\nProvides verdict + confidence labels + per-anchor-tier consistency +\ntemplate-based narrative + the baseline-cluster sample labels used for\ncomparison. None when no manifest was built — preserves Phase 1 contract.",
+        "properties": {
+          "anchor_tier_scores": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Anchor Tier Scores",
+            "type": "object"
+          },
+          "baseline_cluster": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Baseline Cluster",
+            "type": "array"
+          },
+          "confidence": {
+            "title": "Confidence",
+            "type": "string"
+          },
+          "context_manifest": {
+            "title": "Context Manifest",
+            "type": "object"
+          },
+          "divergence_score": {
+            "title": "Divergence Score",
+            "type": "number"
+          },
+          "flags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "narrative": {
+            "title": "Narrative",
+            "type": "string"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "verdict": {
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_id",
+          "divergence_score",
+          "verdict",
+          "confidence",
+          "context_manifest",
+          "anchor_tier_scores",
+          "narrative",
+          "flags",
+          "baseline_cluster"
+        ],
+        "title": "ScoringReportOut",
+        "type": "object"
+      },
+      "SentenceTensionOut": {
+        "description": "One sentence's tension components (mirrors tension_arc.SentenceTension).",
+        "properties": {
+          "cohesion": {
+            "title": "Cohesion",
+            "type": "number"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "logical": {
+            "title": "Logical",
+            "type": "number"
+          },
+          "move_type": {
+            "title": "Move Type",
+            "type": "string"
+          },
+          "syntactic": {
+            "title": "Syntactic",
+            "type": "number"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "number"
+          }
+        },
+        "required": [
+          "index",
+          "text",
+          "syntactic",
+          "logical",
+          "cohesion",
+          "total",
+          "move_type"
+        ],
+        "title": "SentenceTensionOut",
+        "type": "object"
+      },
+      "StudentLoginRequest": {
+        "description": "POST /student-auth/login.",
+        "properties": {
+          "email": {
+            "description": "Student email",
+            "title": "Email",
+            "type": "string"
+          },
+          "institution": {
+            "description": "Institution name",
+            "title": "Institution",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "description": "Display name",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "institution"
+        ],
+        "title": "StudentLoginRequest",
+        "type": "object"
+      },
+      "StudentStateResponse": {
+        "properties": {
+          "authenticated_count": {
+            "title": "Authenticated Count",
+            "type": "integer"
+          },
+          "baseline_vector": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Baseline Vector",
+            "type": "object"
+          },
+          "effective_sample_count": {
+            "title": "Effective Sample Count",
+            "type": "number"
+          },
+          "purity": {
+            "title": "Purity",
+            "type": "number"
+          },
+          "sample_count": {
+            "title": "Sample Count",
+            "type": "integer"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/SampleSummary"
+            },
+            "title": "Samples",
+            "type": "array"
+          },
+          "student_id": {
+            "title": "Student Id",
+            "type": "string"
+          },
+          "trajectory_confidence": {
+            "title": "Trajectory Confidence",
+            "type": "number"
+          },
+          "trajectory_direction": {
+            "title": "Trajectory Direction",
+            "type": "string"
+          }
+        },
+        "required": [
+          "student_id",
+          "sample_count",
+          "authenticated_count",
+          "purity",
+          "effective_sample_count",
+          "trajectory_direction",
+          "trajectory_confidence",
+          "baseline_vector",
+          "samples"
+        ],
+        "title": "StudentStateResponse",
+        "type": "object"
+      },
+      "StyleAuthorshipOut": {
+        "description": "Peer-aligned same-author evidence; report-only and abstention-capable.",
+        "properties": {
+          "band": {
+            "title": "Band",
+            "type": "string"
+          },
+          "baseline_samples": {
+            "title": "Baseline Samples",
+            "type": "integer"
+          },
+          "consistent_at_strict_threshold": {
+            "title": "Consistent At Strict Threshold",
+            "type": "boolean"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "peer_profiles": {
+            "title": "Peer Profiles",
+            "type": "integer"
+          },
+          "probability_same_author": {
+            "title": "Probability Same Author",
+            "type": "number"
+          },
+          "strict_threshold": {
+            "title": "Strict Threshold",
+            "type": "number"
+          },
+          "trained_on": {
+            "title": "Trained On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "probability_same_author",
+          "band",
+          "consistent_at_strict_threshold",
+          "strict_threshold",
+          "peer_profiles",
+          "baseline_samples",
+          "model_version",
+          "trained_on"
+        ],
+        "title": "StyleAuthorshipOut",
+        "type": "object"
+      },
+      "SuggestionItem": {
+        "description": "One actionable recommendation from the suggestion engine.",
+        "properties": {
+          "confidence": {
+            "title": "Confidence",
+            "type": "number"
+          },
+          "current_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Value"
+          },
+          "expected_improvement": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Improvement"
+          },
+          "metadata": {
+            "title": "Metadata",
+            "type": "object"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "suggested_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Value"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "rationale",
+          "confidence"
+        ],
+        "title": "SuggestionItem",
+        "type": "object"
+      },
+      "SuggestionsResponse": {
+        "properties": {
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/SuggestionItem"
+            },
+            "title": "Suggestions",
+            "type": "array"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "object"
+          }
+        },
+        "required": [
+          "suggestions",
+          "summary"
+        ],
+        "title": "SuggestionsResponse",
+        "type": "object"
+      },
+      "TensionArcOut": {
+        "description": "Catastrophe/eucatastrophe stylometric fingerprint.",
+        "properties": {
+          "arc_flag": {
+            "title": "Arc Flag",
+            "type": "string"
+          },
+          "arc_flag_reason": {
+            "title": "Arc Flag Reason",
+            "type": "string"
+          },
+          "authenticity_signal": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authenticity Signal"
+          },
+          "catastrophe_index": {
+            "title": "Catastrophe Index",
+            "type": "number"
+          },
+          "max_tension": {
+            "title": "Max Tension",
+            "type": "number"
+          },
+          "mean_tension": {
+            "title": "Mean Tension",
+            "type": "number"
+          },
+          "paragraph_arcs": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ParagraphArcOut"
+            },
+            "title": "Paragraph Arcs",
+            "type": "array"
+          },
+          "resolution_ratio_mean": {
+            "title": "Resolution Ratio Mean",
+            "type": "number"
+          },
+          "resolution_ratio_std": {
+            "title": "Resolution Ratio Std",
+            "type": "number"
+          },
+          "tension_series": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Tension Series",
+            "type": "array"
+          }
+        },
+        "required": [
+          "catastrophe_index",
+          "resolution_ratio_mean",
+          "resolution_ratio_std",
+          "mean_tension",
+          "max_tension",
+          "authenticity_signal",
+          "arc_flag",
+          "arc_flag_reason",
+          "tension_series"
+        ],
+        "title": "TensionArcOut",
+        "type": "object"
+      },
+      "TestScoreRequest": {
+        "description": "Playground request — runs the full adaptive pipeline against an inline\nsubmission + inline baselines, with no DB persistence. The flags\ndefault to `True` so callers see the full output regardless of the\nserver's env-var configuration.",
+        "properties": {
+          "baseline_texts": {
+            "description": "Inline baseline texts (1–10). Synthetic StudentState built from these.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Baseline Texts",
+            "type": "array"
+          },
+          "enable_adaptive_weights": {
+            "default": true,
+            "description": "Build adaptive weight vector and use it in scoring.",
+            "title": "Enable Adaptive Weights",
+            "type": "boolean"
+          },
+          "enable_blend": {
+            "default": false,
+            "description": "Also run sliding-window blend detection on the submission.",
+            "title": "Enable Blend",
+            "type": "boolean"
+          },
+          "enable_manifest": {
+            "default": true,
+            "description": "Run resolvers + build manifest.",
+            "title": "Enable Manifest",
+            "type": "boolean"
+          },
+          "keystroke_data": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional Bbook stylemetry JSON for Tier 17.",
+            "title": "Keystroke Data"
+          },
+          "submission_id": {
+            "default": "playground",
+            "description": "Audit identity (not persisted).",
+            "title": "Submission Id",
+            "type": "string"
+          },
+          "text": {
+            "description": "Submission text",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "TestScoreRequest",
+        "type": "object"
+      },
+      "TestScoreResponse": {
+        "description": "Playground response — bundles everything the adaptive pipeline produces\non a single request. Optional fields stay None when their respective\nenable flag was False.",
+        "properties": {
+          "blend": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BlendResultOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "layer7": {
+            "$ref": "#/components/schemas/Layer7OutputResponse"
+          }
+        },
+        "required": [
+          "layer7"
+        ],
+        "title": "TestScoreResponse",
+        "type": "object"
+      },
+      "TrajectoryConformanceOut": {
+        "properties": {
+          "adjustment_factor": {
+            "title": "Adjustment Factor",
+            "type": "number"
+          },
+          "alignment": {
+            "title": "Alignment",
+            "type": "number"
+          },
+          "confidence": {
+            "title": "Confidence",
+            "type": "number"
+          },
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          }
+        },
+        "required": [
+          "direction",
+          "alignment",
+          "confidence",
+          "adjustment_factor"
+        ],
+        "title": "TrajectoryConformanceOut",
+        "type": "object"
+      },
+      "TrendAwareTypicalityOut": {
+        "description": "Report-only candidate null model for the typicality axis; never\nchanges the recommendation. See original.quantum.longitudinal\n.trend_aware_typicality's docstring.",
+        "properties": {
+          "band": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band"
+          },
+          "eligible": {
+            "title": "Eligible",
+            "type": "boolean"
+          },
+          "loo_n": {
+            "title": "Loo N",
+            "type": "integer"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "p_central": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P Central"
+          },
+          "p_far": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P Far"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "selected_model": {
+            "title": "Selected Model",
+            "type": "string"
+          },
+          "submission_deviation": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submission Deviation"
+          }
+        },
+        "required": [
+          "eligible",
+          "reason",
+          "p_far",
+          "p_central",
+          "band",
+          "loo_n",
+          "submission_deviation",
+          "selected_model",
+          "model_version"
+        ],
+        "title": "TrendAwareTypicalityOut",
+        "type": "object"
+      },
+      "TunedThresholdsListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TunedThresholdsRecord"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "limit",
+          "offset",
+          "items"
+        ],
+        "title": "TunedThresholdsListResponse",
+        "type": "object"
+      },
+      "TunedThresholdsRecord": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "escalate": {
+            "title": "Escalate",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "monitor": {
+            "title": "Monitor",
+            "type": "number"
+          },
+          "no_action": {
+            "title": "No Action",
+            "type": "number"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provenance"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "source_run_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Run Id"
+          },
+          "verdict_anomalous_at_or_above": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict Anomalous At Or Above"
+          },
+          "verdict_authentic_below": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict Authentic Below"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "source",
+          "no_action",
+          "monitor",
+          "escalate"
+        ],
+        "title": "TunedThresholdsRecord",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "VoiceDimensionOut": {
+        "description": "One blended, named axis of the Fingerprint radar (never a raw feature).",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "value": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "value"
+        ],
+        "title": "VoiceDimensionOut",
+        "type": "object"
+      },
+      "VoiceNoteOut": {
+        "description": "A finished prose note from a tutor — scores/verdicts stripped.",
+        "properties": {
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "reviewer": {
+            "title": "Reviewer",
+            "type": "string"
+          }
+        },
+        "required": [
+          "note",
+          "reviewer",
+          "date"
+        ],
+        "title": "VoiceNoteOut",
+        "type": "object"
+      },
+      "VoiceSubmitRequest": {
+        "description": "Body of ``POST /me/work`` — the student submits a piece of writing.",
+        "properties": {
+          "text": {
+            "description": "Raw essay text",
+            "title": "Text",
+            "type": "string"
+          },
+          "title": {
+            "default": "",
+            "description": "Assignment title/label",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "VoiceSubmitRequest",
+        "type": "object"
+      },
+      "VoiceSubmitResult": {
+        "description": "Redacted scoring result returned by ``POST /me/work``.\n\nBuilt by ``original.voice.project_submission_result`` from the internal\nLayer-7 output. Carries no deviation score, no action enum, no feature\nvectors, and not the technical ``human_explanation``.",
+        "properties": {
+          "headline": {
+            "title": "Headline",
+            "type": "string"
+          },
+          "review_opportunity": {
+            "title": "Review Opportunity",
+            "type": "boolean"
+          },
+          "steady": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Steady",
+            "type": "array"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "headline",
+          "summary",
+          "steady",
+          "review_opportunity"
+        ],
+        "title": "VoiceSubmitResult",
+        "type": "object"
+      },
+      "VoiceView": {
+        "description": "The complete student-facing read-model returned by ``GET /me/voice``.\n\nResolved entirely server-side by ``original.voice.project_voice_view``. The\nstudent client renders this directly — it never touches ``/students/{id}``,\n``/admin/*``, or the raw ``/score`` payload.",
+        "properties": {
+          "arc": {
+            "items": {
+              "$ref": "#/components/schemas/ArcPointOut"
+            },
+            "title": "Arc",
+            "type": "array"
+          },
+          "fingerprint": {
+            "items": {
+              "$ref": "#/components/schemas/VoiceDimensionOut"
+            },
+            "title": "Fingerprint",
+            "type": "array"
+          },
+          "formation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FormationStateOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "headline": {
+            "title": "Headline",
+            "type": "string"
+          },
+          "milestones": {
+            "items": {
+              "$ref": "#/components/schemas/MilestoneOut"
+            },
+            "title": "Milestones",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "review_opportunities": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewOpportunityOut"
+            },
+            "title": "Review Opportunities",
+            "type": "array"
+          },
+          "subhead": {
+            "title": "Subhead",
+            "type": "string"
+          },
+          "voice_notes": {
+            "items": {
+              "$ref": "#/components/schemas/VoiceNoteOut"
+            },
+            "title": "Voice Notes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "headline",
+          "subhead",
+          "fingerprint",
+          "arc",
+          "voice_notes",
+          "review_opportunities",
+          "milestones"
+        ],
+        "title": "VoiceView",
+        "type": "object"
+      },
+      "WindowScoreOut": {
+        "description": "One sliding-window deviation score (Phase 7).",
+        "properties": {
+          "ai_probability": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Report-only shadow signal: the AI-likelihood detector's raw output for THIS window. UNCALIBRATED at window scale — the detector was trained and thresholded on whole documents, so a ~300-token window is outside its evaluated regime. Read it as an ordering/localization hint only; do NOT apply the document-level low/elevated/strong thresholds to it (see MODEL_CARD.md). Populated only when AI_LIKELIHOOD_SHADOW=1 and the detector produced a value for this window; null otherwise. Never influences blend_detected, shift_positions, or any recommendation.",
+            "title": "Ai Probability"
+          },
+          "confidence": {
+            "title": "Confidence",
+            "type": "string"
+          },
+          "end": {
+            "title": "End",
+            "type": "integer"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "start": {
+            "title": "Start",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "score",
+          "confidence"
+        ],
+        "title": "WindowScoreOut",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Quantum stylometric authorship analysis for seminary submissions.",
+    "title": "Original — Authorship Integrity API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/admin/audit": {
+      "get": {
+        "description": "Query the system audit log. Staff-only: the tenant-isolation middleware\nalready 401s anonymous callers on real deploys (tests/test_pilot_lockdown);\nthe explicit guard here additionally rejects STUDENT tokens in the demo —\naudit rows carry other students' identifiers.\n\nOptional filters:\n    student_id — restrict to a specific student\n    action     — restrict to a specific action type\n                 (baseline_add, score, student_delete, correction,\n                  threshold_apply, tenant_register, bulk_delete)\n\nResults are ordered most-recent-first.",
+        "operationId": "list_audit_log_admin_audit_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "student_id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Student Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Action",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Audit Log"
+      }
+    },
+    "/admin/calibration/run": {
+      "post": {
+        "description": "Kick off a calibration run in the background and return its row id.\n\nThe run executes on a single-worker thread pool, so multiple requests\nqueue rather than overlap. Poll ``GET /admin/calibration/runs/{id}``\nto see when status flips to ``completed`` or ``failed``.\n\nStaff-only on the same grounds as /admin/audit: the middleware already 401s\nanonymous callers on real deploys, and the explicit guard here additionally\nrejects STUDENT tokens in the demo — this burns shared compute on the run\nqueue and produces the report that threshold changes are argued from.",
+        "operationId": "admin_run_calibration_admin_calibration_run_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalibrationRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalibrationRunCreatedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Run Calibration"
+      }
+    },
+    "/admin/calibration/runs": {
+      "get": {
+        "description": "List calibration runs (newest first), with optional filters.\n\nStaff-only for the same reason as the rest of the lab: the middleware\ncovers real deploys, and the explicit guard additionally rejects STUDENT\ntokens in the demo.",
+        "operationId": "admin_list_calibration_runs_admin_calibration_runs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dataset_label",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dataset Label"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalibrationRunListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin List Calibration Runs"
+      }
+    },
+    "/admin/calibration/runs/{run_id}": {
+      "get": {
+        "description": "Fetch one run with optional report inclusion.\n\nStaff-only for the same reason as the runs list: the middleware covers real\ndeploys, and the explicit guard additionally rejects STUDENT tokens in the\ndemo — the attached report details how the scoring bar was drawn.",
+        "operationId": "admin_get_calibration_run_admin_calibration_runs__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_report",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Include Report",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalibrationRunDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Get Calibration Run"
+      }
+    },
+    "/admin/calibration/runs/{run_id}/apply": {
+      "post": {
+        "description": "Persist a new active threshold set sourced from a calibration run.\n\nVersioned in ``tuned_thresholds_v2`` — older sets remain for audit.\nThe latest row by ``created_at`` is the in-effect active set;\nin-process scoring reads it on demand.\n\nWhen GUARD_DESTRUCTIVE=1, requires X-Guard-Token header — applying new\nthresholds changes system behaviour globally and should only be allowed\nfor admins in pilot/production mode.\n\nThe guard token is a *deploy* secret, not an identity, so it is checked\nafter the staff gate rather than instead of it: the middleware only 401s\nanonymous callers on real deploys, and this endpoint is the one that\nrewrites the live scoring thresholds. A STUDENT token is refused here in\nevery environment, exactly as on /admin/audit.",
+        "operationId": "admin_apply_thresholds_admin_calibration_runs__run_id__apply_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyThresholdsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TunedThresholdsRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Apply Thresholds"
+      }
+    },
+    "/admin/calibration/runs/{run_id}/suggestions": {
+      "get": {
+        "description": "Run the suggestion engine over a finished calibration + the corrections\nfeedback log. Returns recommended threshold + tier-weight changes with\nexplanatory rationale + per-suggestion confidence.\n\nStaff-only on the same grounds as /admin/corrections, which it reads: the\nmiddleware covers real deploys, and the explicit guard additionally rejects\nSTUDENT tokens in the demo.",
+        "operationId": "admin_run_suggestions_admin_calibration_runs__run_id__suggestions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Run Suggestions"
+      }
+    },
+    "/admin/corrections": {
+      "get": {
+        "description": "List corrections with optional filters.\n\nStaff-only on the same grounds as /admin/audit: the tenant-isolation\nmiddleware already 401s anonymous callers on real deploys\n(tests/test_pilot_lockdown), and the explicit guard here additionally\nrejects STUDENT tokens in the demo — correction rows carry other\nstudents' identifiers.",
+        "operationId": "admin_list_corrections_admin_corrections_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "submission_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Submission Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "student_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Student Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "is_correct",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Is Correct"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorrectionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin List Corrections"
+      }
+    },
+    "/admin/health": {
+      "get": {
+        "description": "System health summary for the admin dashboard.\n\nReturns student count, manifest totals, and queue depth from the live store.\nLatency is computed from the most recent manifest entries where available.\n\nStaff-only, on the same grounds as the rest of the ``/admin/`` prefix (see\nrouters/admin.py): these are institution-wide counts, not liveness. The\nunauthenticated probe is ``GET /health`` above, which is untouched — infra\nhealth checks point there (API_REFERENCE lists it as the UptimeRobot/Render\ncall). OPS_RUNBOOK already described this endpoint as requiring a staff\nlogin; the gate makes that true.",
+        "operationId": "admin_health_admin_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Health"
+      }
+    },
+    "/admin/lab/datasets": {
+      "get": {
+        "description": "List the datasets the lab knows how to run (Federalist, multi-author, …).\n\nStaff-only on the same grounds as /admin/audit: the middleware already 401s\nanonymous callers on real deploys, and the explicit guard here additionally\nrejects STUDENT tokens in the demo — the calibration lab is instructor\ntooling that steers scoring for everyone.",
+        "operationId": "admin_lab_datasets_admin_lab_datasets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DatasetInfo"
+                  },
+                  "title": "Response Admin Lab Datasets Admin Lab Datasets Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Lab Datasets"
+      }
+    },
+    "/admin/manifests": {
+      "get": {
+        "description": "Paginated list of context manifests from the audit log.\nAll filters are optional.\n\nStaff-only on the same grounds as /admin/audit: the tenant-isolation\nmiddleware already 401s anonymous callers on real deploys\n(tests/test_pilot_lockdown), and the explicit guard here additionally\nrejects STUDENT tokens in the demo — manifest rows carry other students'\nidentifiers, and `student_id` above is a filter over exactly that.",
+        "operationId": "admin_list_manifests_admin_manifests_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "student_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Student Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Action"
+            }
+          },
+          {
+            "in": "query",
+            "name": "flag",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Flag"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManifestListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin List Manifests"
+      }
+    },
+    "/admin/manifests/stats": {
+      "get": {
+        "description": "Roll-up counts for the admin dashboard summary cards.\n\nStaff-only for the same reason as /admin/manifests, which these cards\nsummarise: the middleware covers real deploys, and the explicit guard\nadditionally rejects STUDENT tokens in the demo.",
+        "operationId": "admin_manifest_stats_admin_manifests_stats_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManifestStatsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Manifest Stats"
+      }
+    },
+    "/admin/tuned-thresholds": {
+      "get": {
+        "description": "Return the currently-active tuned thresholds (or null if none set).\n\nStaff-only on the same grounds as /admin/audit: the middleware covers real\ndeploys, and the explicit guard additionally rejects STUDENT tokens in the\ndemo — these are the live bars a submission is judged against, which a\nstudent should not be able to read off and write toward.",
+        "operationId": "admin_get_tuned_thresholds_admin_tuned_thresholds_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TunedThresholdsRecord"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Admin Get Tuned Thresholds Admin Tuned Thresholds Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Get Tuned Thresholds"
+      }
+    },
+    "/admin/tuned-thresholds/history": {
+      "get": {
+        "description": "Audit list of all tuned-threshold versions ever applied.\n\nStaff-only for the same reason as the active-set getter above: the\nmiddleware covers real deploys, and the explicit guard additionally rejects\nSTUDENT tokens in the demo.",
+        "operationId": "admin_list_tuned_thresholds_admin_tuned_thresholds_history_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TunedThresholdsListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin List Tuned Thresholds"
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "description": "Demo login endpoint.\n\nMaintenance backdoor: set MAINTENANCE_TOKEN env var to a strong random\nstring. When the password matches, grants admin role and writes an audit\nlog warning. Never hardcoded — rotate without a code deploy.\n\nDemo role routing (no real auth — demo only):\n  'admin' in email → admin role\n  'student' in email → student role\n  anything else → professor role",
+        "operationId": "demo_login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DemoLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Demo Login"
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "operationId": "auth_login_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Auth Login"
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "description": "Return the authenticated principal, or 401 for anonymous/demo callers.",
+        "operationId": "auth_me_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Auth Me"
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "description": "Provision a staff user. Privileged: guarded by GUARD_DESTRUCTIVE in\npilot/production (X-Guard-Token required); open in demo for convenience.",
+        "operationId": "auth_register_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthRegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Auth Register"
+      }
+    },
+    "/baseline-requests": {
+      "get": {
+        "description": "List every proctored baseline request, regardless of status.\nWhen GUARD_DESTRUCTIVE=1, requires X-Guard-Token header (admin only).",
+        "operationId": "list_all_baseline_requests_baseline_requests_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List All Baseline Requests"
+      }
+    },
+    "/baseline-requests/pending": {
+      "get": {
+        "description": "List all currently-pending proctored baseline requests.",
+        "operationId": "list_pending_baseline_requests_baseline_requests_pending_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Pending Baseline Requests"
+      }
+    },
+    "/bluebook/courses": {
+      "get": {
+        "operationId": "bluebook_list_courses_bluebook_courses_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Bluebook List Courses"
+      },
+      "post": {
+        "operationId": "bluebook_create_course_bluebook_courses_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BluebookCreateCourseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bluebook Create Course"
+      }
+    },
+    "/bluebook/exams": {
+      "get": {
+        "operationId": "bluebook_list_exams_bluebook_exams_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Bluebook List Exams"
+      },
+      "post": {
+        "operationId": "bluebook_create_exam_bluebook_exams_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BluebookCreateExamRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bluebook Create Exam"
+      }
+    },
+    "/bluebook/exams/{exam_id}": {
+      "get": {
+        "operationId": "bluebook_get_exam_bluebook_exams__exam_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bluebook Get Exam"
+      }
+    },
+    "/bluebook/exams/{exam_id}/session": {
+      "post": {
+        "description": "Begin (or resume) a sitting: the first call pins the server deadline;\nevery later call returns the same one, so reopening the tab never\nrestarts or pauses the clock (exam-day robustness spec §1).",
+        "operationId": "bluebook_start_session_bluebook_exams__exam_id__session_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BluebookStartSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BluebookSessionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bluebook Start Session"
+      }
+    },
+    "/bluebook/launch": {
+      "get": {
+        "operationId": "bluebook_magic_launch_bluebook_launch_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "t",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "T",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bluebook Magic Launch"
+      }
+    },
+    "/bluebook/submissions": {
+      "get": {
+        "operationId": "bluebook_list_submissions_bluebook_submissions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Bluebook List Submissions"
+      },
+      "post": {
+        "description": "Record one sat examination (the integrity reading for the Results view).",
+        "operationId": "bluebook_record_submission_bluebook_submissions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BluebookRecordSubmissionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bluebook Record Submission"
+      }
+    },
+    "/canvas/baseline/{student_id}/fetch-submission-text": {
+      "post": {
+        "description": "Fetch one Canvas submission for analysis without storing it.",
+        "operationId": "fetch_canvas_submission_text_canvas_baseline__student_id__fetch_submission_text_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Fetch Canvas Submission Text"
+      }
+    },
+    "/canvas/baseline/{student_id}/import-baseline": {
+      "post": {
+        "description": "Import selected Canvas submissions with deduplication and drift holds.",
+        "operationId": "import_canvas_baseline_canvas_baseline__student_id__import_baseline_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Canvas Baseline"
+      }
+    },
+    "/canvas/baseline/{student_id}/list-canvas-submissions": {
+      "post": {
+        "description": "List usable Canvas submissions and mark already-imported texts.",
+        "operationId": "list_canvas_submissions_canvas_baseline__student_id__list_canvas_submissions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Canvas Submissions"
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/import/courses/{course_id}/turnitin-csv": {
+      "post": {
+        "description": "Parse a Turnitin admin CSV export and create student/submission stubs.\n\nExpected columns (Turnitin default export):\n  Last Name, First Name, Student ID, Assignment Title, Date Submitted,\n  Similarity, File Name",
+        "operationId": "import_turnitin_csv_import_courses__course_id__turnitin_csv_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_turnitin_csv_import_courses__course_id__turnitin_csv_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Turnitin Csv"
+      }
+    },
+    "/lti/jwks": {
+      "get": {
+        "operationId": "lti_jwks_lti_jwks_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Lti Jwks"
+      }
+    },
+    "/lti/launch": {
+      "post": {
+        "operationId": "lti_launch_lti_launch_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Lti Launch"
+      }
+    },
+    "/lti/login": {
+      "get": {
+        "operationId": "lti_login",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Lti Login"
+      },
+      "post": {
+        "operationId": "lti_login",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Lti Login"
+      }
+    },
+    "/me/formation/advance": {
+      "post": {
+        "description": "Advance the signed-in student's formation pathway by one session, then\nreturn the refreshed VoiceView. Token-resolved; no id in the path. Opens a\npathway first if none is active (mirrors the dashboard's idempotent flow).",
+        "operationId": "my_formation_advance_me_formation_advance_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "My Formation Advance"
+      }
+    },
+    "/me/voice": {
+      "get": {
+        "description": "The complete, redacted VoiceView for the signed-in student.\n\nResolves the student from the session token, gathers their internal state\n(baseline vector, scoring manifests, tutor corrections, formation pathway)\nand projects it through original.voice into a display-ready document. No\nfeature codes, raw divergence/deviation, purity, sample counts, action\nenums, or thresholds ever cross the wire.",
+        "operationId": "my_voice_me_voice_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "My Voice"
+      }
+    },
+    "/me/work": {
+      "post": {
+        "description": "Submit a piece of writing as the signed-in student.\n\nAdds the text to the student's body of work and scores it server-side, then\nreturns ONLY the redacted formation-register result (headline + supportive\nsummary + steady-dimension affirmations + whether a review opportunity\nopened). The raw Layer-7 payload never leaves the server.",
+        "operationId": "my_work_me_work_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoiceSubmitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceSubmitResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "My Work"
+      }
+    },
+    "/proctor/park/beat": {
+      "post": {
+        "description": "One heartbeat from a parked phone. **Anonymous by design.**\n\nThe phone has no login and never will — issuing student credentials to a\nparked device would create exactly the roster linkage this feature exists\nwithout. The scanned ``park_token`` is the capability, and it carries no\nauthority beyond \"append a heartbeat to this one exam session\".\n\nNote the absent ``Request`` parameter: this handler cannot read an IP or a\nuser-agent even by accident.",
+        "operationId": "beat_proctor_park_beat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParkBeatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Beat"
+      }
+    },
+    "/proctor/park/open": {
+      "post": {
+        "description": "Open (or re-join) a phone-park for one exam sitting. Staff only.\n\nReturns the token to bake into a QR code and the URL that token points at.\nRe-opening a live session hands back the SAME token rather than minting a\nnew one — a professor reloading the proctor view must not strand the phones\nalready parked on the old QR. Once the 6h TTL has passed the token rotates\nand the previous one's beats are dropped.\n\nAlso sweeps rows past the 24h retention window, which is why this feature\nneeds no scheduler.",
+        "operationId": "open_park_session_proctor_park_open_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParkOpenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Open Park Session"
+      }
+    },
+    "/proctor/park/status": {
+      "get": {
+        "description": "Live tiles for one exam sitting. Staff only, own tenant only.\n\n``state`` is *derived*, not merely reported: a phone whose last beat is\nmore than 30s old reads ``\"dropped\"`` whatever it last claimed to be. That\ninversion is the point of the whole feature — the interesting event is a\nbeacon going quiet, and a phone in someone's pocket cannot tell us it left.\n\n``transitions`` is the record of real state changes only (a steady 10s\nheartbeat appends nothing), so it stays readable as an exam timeline.",
+        "operationId": "park_status_proctor_park_status_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "exam_session_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Park Status"
+      }
+    },
+    "/proctor/park/{exam_session_id}": {
+      "delete": {
+        "description": "Delete a park session and every beat on it. Staff only, own tenant only.\n\nNot guarded by ``_require_guard``: this destroys only the ephemeral park\ndata described above — no student profile, no baseline, no submission — so\ndeleting early is data minimisation, and a professor should never have to\nfind an ops token to do it.",
+        "operationId": "delete_park_session_proctor_park__exam_session_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_session_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Park Session"
+      }
+    },
+    "/student-auth/login": {
+      "post": {
+        "description": "Sign a student in. Body: { email, institution, name? }.\n\nDerives an institution-scoped student id, ensures the institution exists in\nthe tenant registry (auto-provisioned as a demo tenant), creates the\nstudent record if new, and returns a signed session token.",
+        "operationId": "student_login_student_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StudentLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Student Login"
+      }
+    },
+    "/student-auth/me": {
+      "get": {
+        "description": "Resolve the current student from the session token (Authorization: Bearer\n<token> or X-Student-Token header). 401 if missing/invalid/expired.",
+        "operationId": "student_me_student_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Student Me"
+      }
+    },
+    "/students": {
+      "get": {
+        "description": "List student IDs.\n\nScoping (ADR-003): an authenticated, non-super principal only ever sees its\nown tenant's students — the `tenant_id` query param cannot widen that. The\nanonymous demo principal and super/operator roles keep the original\nbehaviour (optional `tenant_id` filter, else all).",
+        "operationId": "list_students_students_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Students"
+      }
+    },
+    "/students/{student_id}": {
+      "delete": {
+        "description": "Permanently delete all stored data for a student (FERPA right-to-erasure).\n\nRemoves the student profile, all baseline samples, all fidelity scores,\nall adaptive-context manifests, and all instructor corrections associated\nwith this student_id.  The deletion is immediate and irreversible — there\nis no soft-delete or recovery path.\n\nReturns 200 with a confirmation payload on success, 404 if not found.\nReturns 404 also when the SQLite commit fails (no data was removed).\n\nIntended audience: institution data-compliance officers and LMS admins.\nWhen GUARD_DESTRUCTIVE=1 (pilot/production mode), requires an\nX-Guard-Token header matching MAINTENANCE_TOKEN. Demo mode is open.",
+        "operationId": "delete_student_students__student_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Student"
+      },
+      "get": {
+        "operationId": "get_student_students__student_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentStateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Student"
+      }
+    },
+    "/students/{student_id}/baseline": {
+      "post": {
+        "operationId": "add_baseline_students__student_id__baseline_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddSampleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Baseline"
+      }
+    },
+    "/students/{student_id}/baseline/upload-batch": {
+      "post": {
+        "description": "Upload one or more files (PDF, DOCX, TXT) as baseline samples in a single\nrequest.  Mirrors the v1 batch upload but requires no auth — used by the\nImport Papers drawer in the professor demo.",
+        "operationId": "upload_baseline_batch_students__student_id__baseline_upload_batch_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_baseline_batch_students__student_id__baseline_upload_batch_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Baseline Batch"
+      }
+    },
+    "/students/{student_id}/data-inventory": {
+      "get": {
+        "description": "FERPA data-access response: structured inventory of all data held for a student.\n\nReturns a categorized breakdown of:\n- Baseline writing samples (count, provenance types, date range)\n- Fidelity / calibration scores\n- Scored submission manifests (by recommendation action)\n- Instructor corrections\n- Audit log entries\n\nIntended for: student data-access requests, FERPA compliance officers,\ndeletion confirmations (\"prove everything was purged\").",
+        "operationId": "student_data_inventory_students__student_id__data_inventory_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Student Data Inventory"
+      }
+    },
+    "/students/{student_id}/formation": {
+      "get": {
+        "description": "Return the student's active (or most recent) formation pathway, or null.",
+        "operationId": "get_formation_students__student_id__formation_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Formation"
+      },
+      "post": {
+        "description": "Open a three-session formation pathway. Idempotent — returns the existing\nopen pathway if one is already in progress.\n\nOptional body: { submission_id, reason }",
+        "operationId": "open_formation_students__student_id__formation_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Open Formation"
+      }
+    },
+    "/students/{student_id}/formation/advance": {
+      "post": {
+        "description": "Advance the open pathway by one session. On the final session the pathway\ncompletes and the triggering submission's review flag is cleared.\nReturns 404 if there is no open pathway.",
+        "operationId": "advance_formation_students__student_id__formation_advance_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Advance Formation"
+      }
+    },
+    "/students/{student_id}/readiness": {
+      "get": {
+        "operationId": "get_student_readiness_students__student_id__readiness_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Student Readiness"
+      }
+    },
+    "/students/{student_id}/request-baseline": {
+      "post": {
+        "description": "Provision a magic-link proctored baseline exam in Bbook for this student.\n\nReturns the pending request record with the magic-link URL (only when\nSMTP delivery failed or is unconfigured — otherwise the student receives\nit by email). Idempotency is per-call: each invocation creates a new\npending request with a fresh UUID.\n\nRequires BBOOK_API_URL and BBOOK_EXTERNAL_SECRET in the environment.\nReturns 503 if Bbook integration is not configured, 502 on Bbook errors.",
+        "operationId": "request_proctored_baseline_students__student_id__request_baseline_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestBaselineRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Proctored Baseline"
+      }
+    },
+    "/students/{student_id}/samples/{index}/text": {
+      "get": {
+        "description": "Return the raw prose of a single baseline sample.\n\nReturns 404 if the student doesn't exist or the index is out of range.\nResponse shape mirrors the SampleSummary metadata so the caller can\nrender headers + body in a single round-trip without re-fetching the\nstudent state.",
+        "operationId": "get_sample_text_students__student_id__samples__index__text_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Sample Text"
+      }
+    },
+    "/students/{student_id}/score": {
+      "post": {
+        "operationId": "score_submission_students__student_id__score_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "force",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Force",
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScoreSubmissionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Layer7OutputResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Score Submission"
+      }
+    },
+    "/students/{student_id}/score/blend": {
+      "post": {
+        "description": "Detect mid-document fingerprint shifts (collaboration / AI insertion /\nadvisor edits) by scoring overlapping token windows separately.\n\nCost is N× the regular `/score` endpoint (one full feature extraction\nper window) — kept on a separate route so callers opt in explicitly.",
+        "operationId": "score_blend_students__student_id__score_blend_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlendDetectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlendResultOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Score Blend"
+      }
+    },
+    "/students/{student_id}/upload": {
+      "post": {
+        "description": "Extract plain text from an uploaded .txt, .docx, or .pdf file.",
+        "operationId": "upload_file_students__student_id__upload_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_file_students__student_id__upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload File"
+      }
+    },
+    "/submissions/{submission_id}/correct": {
+      "post": {
+        "description": "Record an instructor correction on a scoring verdict.\n\nThe correction is keyed by submission_id; auto-fills student_id +\noriginal action/divergence from the manifest audit log when those\nwere not supplied. Multiple corrections per submission are allowed\n(e.g. an initial flag + a later override) — the most recent row wins\nwhen the retraining job (PR 8) consumes them.\n\nAuthorization: corrections flip the authenticity labels that feed\nconformal calibration and threshold tuning, so this is a staff-only\nwrite. A non-super staff principal may only correct submissions whose\nstudent is in its own tenant (operator/super are cross-tenant by design).",
+        "operationId": "submit_correction_submissions__submission_id__correct_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "title": "Submission Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorrectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorrectionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Correction"
+      }
+    },
+    "/tenants": {
+      "get": {
+        "description": "List all registered tenants, optionally filtered by environment.\n\nStaff-only (any role) — this intentionally stays cross-tenant-visible\nrather than scoped to SUPER_ROLES, matching the existing professor.html\nSettings-panel registry view that lists/registers institutions. It was\npreviously reachable with NO auth check at all; this closes that gap\nwithout changing who can see it.",
+        "operationId": "list_tenants_tenants_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "environment",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Environment",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Tenants"
+      },
+      "post": {
+        "description": "Register or update a tenant (institution) record.\n\nRequired body fields:\n    tenant_id   — stable slug (e.g. 'seminary-of-dallas')\n    name        — human-readable institution name\n\nOptional body fields:\n    environment — 'demo' | 'pilot' | 'production'  (default: 'demo')\n    meta        — arbitrary dict of metadata (contact email, LMS URL, etc.)\n                  Capped at 10 keys, values must be strings ≤ 500 chars.\n\nWhen GUARD_DESTRUCTIVE=1, requires X-Guard-Token. Tenant writes are as\nsensitive as deletions: updating an existing pilot tenant's environment\nto 'demo' would make its student data anonymously readable.",
+        "operationId": "create_tenant_tenants_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTenantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Tenant"
+      }
+    },
+    "/tenants/{tenant_id}": {
+      "get": {
+        "description": "Get a single tenant record. Cross-tenant reads require operator/super_admin.",
+        "operationId": "get_tenant_tenants__tenant_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Tenant"
+      }
+    },
+    "/tenants/{tenant_id}/stats": {
+      "get": {
+        "description": "Aggregate statistics for a tenant — student count, submission volume,\naction breakdown, last active timestamp.\n\nUsed by the operator dashboard to show all-schools-at-a-glance (operator/\nsuper_admin principals are cross-tenant by design); any other staff role\nmay only fetch stats for its own tenant.",
+        "operationId": "tenant_stats_tenants__tenant_id__stats_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Tenant Stats"
+      }
+    },
+    "/tenants/{tenant_id}/students": {
+      "delete": {
+        "description": "FERPA-safe bulk deletion of all students belonging to a tenant.\n\nIterates list_ids_for_tenant() and calls store.delete_student() for each —\nthe same code path as individual deletion, so all linked records\n(fidelity scores, manifests, corrections, audit rows) are purged.\n\nRequires operator/super_admin — or, for any other staff role, that the\ncaller's own tenant matches ``tenant_id`` — in addition to the existing\nX-Guard-Token requirement when GUARD_DESTRUCTIVE=1. Previously this was\nguarded ONLY by the shared guard token (a no-op when GUARD_DESTRUCTIVE is\nunset), so any staff principal could bulk-delete any other tenant's\nentire roster; this closes that gap.",
+        "operationId": "delete_tenant_students_tenants__tenant_id__students_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Tenant Students"
+      }
+    },
+    "/test/score": {
+      "post": {
+        "description": "Playground endpoint — runs the full adaptive pipeline on inline text\n+ inline baselines, **with no DB writes**. The two adaptive feature\nflags default to True regardless of the server's env-var config so\ncallers always see the full output. Optionally also runs blend\ndetection on the same submission.\n\nUse cases:\n    - Demo / \"kick the tires\" UI on `/playground.html`\n    - Reproducing a bug report's manifest without persisting\n    - Tuning resolver thresholds in a quick feedback loop",
+        "operationId": "test_score_test_score_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestScoreRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestScoreResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Test Score"
+      }
+    }
+  }
+}

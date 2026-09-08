@@ -1,7 +1,7 @@
 # Makefile — task runner that hard-codes .venv/bin/python so the system-python
 # / 3.9-vs-3.11 trap (CLAUDE.md, WS-2 task 2.7) stops mattering.
 
-.PHONY: test test-quantum test-postgres db-up db-down run bundle e2e lint preflight backup setup test-security test-cert test-known-red
+.PHONY: test test-quantum test-postgres db-up db-down run bundle e2e lint preflight backup setup test-security test-cert test-known-red openapi-snapshot
 
 test:
 	.venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -m "not blocker and not certification" -q
@@ -17,6 +17,11 @@ test-known-red:
 
 test-quantum:
 	.venv/bin/python -m pytest tests/quantum/ -v
+
+# Regenerate the committed OpenAPI schema snapshot (tests/snapshots/openapi.json)
+# after a deliberate API change; review the resulting diff before committing.
+openapi-snapshot:
+	.venv/bin/python scripts/update_openapi_snapshot.py
 
 # Local Postgres 16 (Docker) mirroring CI's service container, so the 166
 # postgres-marked tests run for real locally instead of self-skipping.
