@@ -8,6 +8,7 @@ import hashlib
 import io
 import logging
 
+import anyio
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
 from ..constants import AUTH_WEIGHTS
@@ -23,9 +24,7 @@ router = APIRouter()
 
 
 @router.post("/import/courses/{course_id}/turnitin-csv")
-async def import_turnitin_csv(
-    course_id: str, file: UploadFile = File(...), request: Request = None
-):
+def import_turnitin_csv(course_id: str, file: UploadFile = File(...), request: Request = None):
     """
     Parse a Turnitin admin CSV export and create student/submission stubs.
 
@@ -41,7 +40,7 @@ async def import_turnitin_csv(
     regardless of institution.
     """
     principal = _require_staff(request)
-    raw = await file.read()
+    raw = file.file.read()
     try:
         text = raw.decode("utf-8-sig", errors="replace")  # handle BOM
     except Exception as exc:
@@ -199,9 +198,10 @@ async def import_canvas_baseline(student_id: str, req: dict | None = None, reque
                 if digest in existing_hashes:
                     skipped += 1
                     continue
+                vec = await anyio.to_thread.run_sync(feature_vector, text)
                 sample = BaselineSample(
                     text=text,
-                    vector=feature_vector(text),
+                    vector=vec,
                     provenance=provenance,
                     auth_weight=AUTH_WEIGHTS[provenance],
                     assignment=canvas_live.assignment_name_of(
@@ -213,7 +213,7 @@ async def import_canvas_baseline(student_id: str, req: dict | None = None, reque
                 sample.text_hash = digest  # type: ignore[attr-defined]
                 if AUTH_WEIGHTS[provenance] > 0:
                     try:
-                        drift = state.check_drift(sample)
+                        drift = await anyio.to_thread.run_sync(state.check_drift, sample)
                         if drift.recommendation != "accept":
                             drift_holds.append(
                                 {"canvas_submission_id": submission_id, "drift": drift.to_dict()}
@@ -231,7 +231,7 @@ async def import_canvas_baseline(student_id: str, req: dict | None = None, reque
             except Exception as exc:
                 errors.append(f"Submission {submission_id}: {str(exc)[:100]}")
     if imported or drift_holds:
-        _persist_or_503(state)
+        await anyio.to_thread.run_sync(_persist_or_503, state)
     return {
         "imported": imported,
         "skipped": skipped,

@@ -175,12 +175,12 @@ def test_decode_failure_is_a_422_not_a_500(monkeypatch):
     handler's real contract ("if extracting CSV text fails for any reason,
     422 rather than 500") shouldn't depend on which failure mode gets
     there."""
-    from starlette.datastructures import UploadFile
+    import tempfile
 
-    async def _read_returns_a_str(self, size=-1):
+    def _read_returns_a_str(self, size=-1):
         return "not bytes, has no .decode()"
 
-    monkeypatch.setattr(UploadFile, "read", _read_returns_a_str)
+    monkeypatch.setattr(tempfile.SpooledTemporaryFile, "read", _read_returns_a_str)
 
     r = _post_csv("Last Name,First Name,Student ID\nA,B,c1\n")
 

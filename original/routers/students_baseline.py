@@ -356,7 +356,7 @@ def list_all_baseline_requests(request: Request):
 
 
 @router.post("/students/{student_id}/baseline/upload-batch")
-async def upload_baseline_batch(
+def upload_baseline_batch(
     student_id: str,
     files: list[UploadFile] = File(...),
     provenance: str = Form("verified"),
@@ -396,7 +396,7 @@ async def upload_baseline_batch(
     for upload in files:
         filename = upload.filename or "unknown"
         ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-        raw = await upload.read()
+        raw = upload.file.read()
 
         # ── Text extraction ───────────────────────────────────────────────────
         try:
