@@ -18,6 +18,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
+from original import principal as pr
 from original.canvas import live_import
 from original.constants import AUTH_WEIGHTS
 
@@ -25,6 +26,21 @@ CANVAS_URL = "https://canvas.test"
 TOKEN = "canvas-token"
 COURSE = "C1"
 USER = "U7"
+
+# The three Canvas live-import routes require a real (non-demo) staff
+# principal (`_require_non_demo_staff`) since they make an outbound network
+# call to a caller-supplied canvas_url/access_token -- an SSRF primitive the
+# demo sandbox's anonymous-staff convention should never have covered. Every
+# test below that exercises the routes' business logic (not the auth gate
+# itself, covered separately under "Authorization") carries this header.
+# Role "operator" (a SUPER_ROLES member, see
+# original/principal.py:assert_student_access) rather than "professor":
+# these tests use flat, tenant-less student ids ("canvas_kid", "x", etc,
+# this file's existing convention), and a tenant-scoped "professor"
+# principal would be rejected by the tenant-isolation middleware's
+# cross-tenant check before even reaching the route.
+STAFF_TOKEN = pr.mint_principal_token("op-canvas-live", "operator", "canvaslive")
+STAFF_HEADERS = {"Authorization": f"Bearer {STAFF_TOKEN}"}
 
 # ≥50 words each, multi-sentence prose so the feature pipeline behaves.
 TEXT_A = (
@@ -118,7 +134,11 @@ def _body(**extra) -> dict:
 
 
 def test_list_paginates_extracts_and_filters(live_client, store_reset, fake_canvas):
-    r = live_client.post("/canvas/baseline/canvas_kid/list-canvas-submissions", json=_body())
+    r = live_client.post(
+        "/canvas/baseline/canvas_kid/list-canvas-submissions",
+        json=_body(),
+        headers=STAFF_HEADERS,
+    )
     assert r.status_code == 200, r.text
     data = r.json()
     # 101 (text entry, page 1) + 102 (file upload, page 2); 103 filtered (<50 words)
@@ -141,6 +161,7 @@ def test_import_then_dedup_and_already_imported_flip(live_client, store_reset, f
     r = live_client.post(
         f"/canvas/baseline/{sid}/import-baseline",
         json=_body(submission_ids=["101", "102", "999"]),
+        headers=STAFF_HEADERS,
     )
     assert r.status_code == 200, r.text
     out = r.json()
@@ -159,13 +180,19 @@ def test_import_then_dedup_and_already_imported_flip(live_client, store_reset, f
     assert weights == {AUTH_WEIGHTS["canvas"]}
 
     # Listing again marks both as already imported.
-    r2 = live_client.post(f"/canvas/baseline/{sid}/list-canvas-submissions", json=_body())
+    r2 = live_client.post(
+        f"/canvas/baseline/{sid}/list-canvas-submissions",
+        json=_body(),
+        headers=STAFF_HEADERS,
+    )
     flags = {s["canvas_submission_id"]: s["already_imported"] for s in r2.json()["submissions"]}
     assert flags == {"101": True, "102": True}
 
     # Re-import is a clean dedup skip, not a duplicate sample.
     r3 = live_client.post(
-        f"/canvas/baseline/{sid}/import-baseline", json=_body(submission_ids=["101"])
+        f"/canvas/baseline/{sid}/import-baseline",
+        json=_body(submission_ids=["101"]),
+        headers=STAFF_HEADERS,
     )
     assert r3.json()["imported"] == 0
     assert r3.json()["skipped"] == 1
@@ -176,6 +203,7 @@ def test_fetch_submission_text_for_analysis(live_client, store_reset, fake_canva
     r = live_client.post(
         "/canvas/baseline/canvas_kid/fetch-submission-text",
         json=_body(canvas_submission_id="102"),
+        headers=STAFF_HEADERS,
     )
     assert r.status_code == 200, r.text
     data = r.json()
@@ -190,6 +218,7 @@ def test_fetch_submission_text_rejects_short(live_client, store_reset, fake_canv
     r = live_client.post(
         "/canvas/baseline/canvas_kid/fetch-submission-text",
         json=_body(canvas_submission_id="103"),
+        headers=STAFF_HEADERS,
     )
     assert r.status_code == 422
     assert "minimum" in r.json()["detail"].lower()
@@ -199,6 +228,7 @@ def test_no_config_gives_pinned_guidance_400(live_client, no_canvas_env):
     r = live_client.post(
         "/canvas/baseline/x/list-canvas-submissions",
         json={"canvas_course_id": COURSE, "canvas_user_id": USER},
+        headers=STAFF_HEADERS,
     )
     assert r.status_code == 400
     assert r.json()["detail"] == live_import.NO_CONFIG_GUIDANCE
@@ -208,6 +238,7 @@ def test_missing_ids_422(live_client, fake_canvas):
     r = live_client.post(
         "/canvas/baseline/x/list-canvas-submissions",
         json={"canvas_url": CANVAS_URL, "access_token": TOKEN},
+        headers=STAFF_HEADERS,
     )
     assert r.status_code == 422
 
@@ -221,7 +252,9 @@ def test_canvas_failure_becomes_502(live_client, store_reset, monkeypatch):
         "make_client",
         lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler), timeout=5.0),
     )
-    r = live_client.post("/canvas/baseline/x/list-canvas-submissions", json=_body())
+    r = live_client.post(
+        "/canvas/baseline/x/list-canvas-submissions", json=_body(), headers=STAFF_HEADERS
+    )
     assert r.status_code == 502
     assert "Failed to fetch submissions from Canvas" in r.json()["detail"]
 
@@ -285,6 +318,7 @@ def test_body_url_does_not_borrow_env_token(live_client, store_reset, monkeypatc
             "canvas_user_id": USER,
             "canvas_url": "https://evil.attacker.example",
         },
+        headers=STAFF_HEADERS,
     )
     assert r.status_code == 400
     assert r.json()["detail"] == live_import.NO_CONFIG_GUIDANCE
@@ -311,6 +345,7 @@ def test_env_configured_host_still_uses_env_token(live_client, store_reset, monk
     r = live_client.post(
         "/canvas/baseline/x/list-canvas-submissions",
         json={"canvas_course_id": COURSE, "canvas_user_id": USER},
+        headers=STAFF_HEADERS,
     )
     assert r.status_code == 200, r.text
     assert seen, "the env-configured host should still be called"

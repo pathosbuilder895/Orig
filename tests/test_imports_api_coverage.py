@@ -28,9 +28,26 @@ import pytest
 from fastapi.testclient import TestClient
 
 import run
+from original import principal as pr
 
 app = run.load_legacy_demo_app()
 client = TestClient(app)
+
+# The three Canvas live-import routes (list-canvas-submissions,
+# import-baseline, fetch-submission-text) require a real (non-demo) staff
+# principal (`_require_non_demo_staff`) since they make an outbound network
+# call to a caller-supplied canvas_url/access_token — an SSRF primitive the
+# demo sandbox's anonymous-staff convention should never have covered. Tests
+# below that exercise those routes' business logic (not the auth gate
+# itself) carry this header; the Turnitin CSV route is unaffected and still
+# reachable anonymously (see the "Canvas: live-import auth gate" section).
+# Role "operator" (a SUPER_ROLES member, see
+# original/principal.py:assert_student_access) rather than "professor":
+# these tests use the flat, tenant-less student id "some_student", and a
+# tenant-scoped "professor" principal would be rejected by the tenant-
+# isolation middleware's cross-tenant check before even reaching the route.
+CANVAS_STAFF_TOKEN = pr.mint_principal_token("op-canvas-imports", "operator", "canvasimp")
+CANVAS_STAFF_HEADERS = {"Authorization": f"Bearer {CANVAS_STAFF_TOKEN}"}
 
 
 def _post_csv(body: str | bytes, course: str = "c1"):
@@ -271,6 +288,72 @@ def test_two_institutions_importing_the_same_raw_id_land_in_separate_tenants():
 )
 def test_canvas_baseline_routes_require_configuration(path):
     """Live Canvas routes must not report placeholder success when unconfigured."""
-    r = client.post(f"/canvas/baseline/some_student/{path}", json={})
+    r = client.post(
+        f"/canvas/baseline/some_student/{path}", json={}, headers=CANVAS_STAFF_HEADERS
+    )
     assert r.status_code == 400, r.text
     assert "Canvas base URL and API token" in r.json()["detail"]
+
+
+# ── Canvas: live-import auth gate (_require_non_demo_staff) ─────────────────
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["list-canvas-submissions", "import-baseline", "fetch-submission-text"],
+)
+def test_canvas_baseline_routes_reject_anonymous_demo_principal(path):
+    """The anonymous demo principal (no Authorization header) must not reach
+    any of the three Canvas live-import routes -- they spend a caller-supplied
+    canvas_url/access_token making a real outbound request, which is an SSRF
+    primitive the demo sandbox's normal anonymous-is-staff convention should
+    never have covered."""
+    r = client.post(f"/canvas/baseline/some_student/{path}", json={})
+    assert r.status_code == 401, r.text
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["list-canvas-submissions", "import-baseline", "fetch-submission-text"],
+)
+def test_canvas_baseline_routes_reject_self_assigned_demo_role(path):
+    """A caller who self-assigns a staff role via X-Demo-Role (no
+    Authorization token) must still be rejected. `_require_staff` alone would
+    have let this through, since the demo principal's role is
+    self-assignable via that header -- `_require_non_demo_staff` closes it by
+    rejecting the demo principal outright, regardless of its assigned role."""
+    r = client.post(
+        f"/canvas/baseline/some_student/{path}",
+        json={},
+        headers={"X-Demo-Role": "operator"},
+    )
+    assert r.status_code == 401, r.text
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["list-canvas-submissions", "import-baseline", "fetch-submission-text"],
+)
+def test_canvas_baseline_routes_accept_real_staff_token(path):
+    """A real (non-demo) staff token passes the auth gate. With no further
+    body fields supplied, the route's own validation takes over next -- here
+    that's the pinned config-absent 400 -- which is itself proof the request
+    got past `_require_non_demo_staff` rather than being stopped at 401."""
+    r = client.post(
+        f"/canvas/baseline/some_student/{path}", json={}, headers=CANVAS_STAFF_HEADERS
+    )
+    assert r.status_code == 400, r.text
+    assert "Canvas base URL and API token" in r.json()["detail"]
+
+
+def test_turnitin_csv_import_unaffected_still_reachable_anonymously():
+    """The Turnitin CSV import route is a different handler in the same file
+    that legitimately still uses `_require_staff` (no outbound network call,
+    so no SSRF exposure) -- it must remain reachable by the anonymous demo
+    principal. A future change to _shared.py that widened or narrowed this
+    boundary should fail this test."""
+    sid = _uid("tinoauth")
+    csv = f"Last Name,First Name,Student ID\nNoAuth,Anon,{sid}\n"
+    r = _post_csv(csv)
+    assert r.status_code == 200, r.text
+    assert r.json()["created_students"] == 1
