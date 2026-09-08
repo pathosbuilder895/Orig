@@ -15,22 +15,56 @@ split, plus the fixture and marker changes the other documents assume.
 
 ### 1.1 Shard the pytest job
 
-Three shards by *directory*, not by `pytest-xdist` hashing — directory shards
-are reproducible and let a failure be re-run locally with the same command:
+**Shipped 2026-09-08 (T-46).** Three shards by *path*, not by `pytest-xdist`
+hashing — path shards are reproducible and let a failure be re-run locally
+with the same command. Membership is defined ONCE, in
+`scripts/shard_paths.py`'s `SHARDS` dict; the three workflow jobs and the
+Makefile targets both ask that script for a shard's pytest arguments.
 
-| Shard | Selection | Est. wall |
-|---|---|---|
-| `core` | `tests/quantum tests/context tests/fusion tests/validation validation/test_tier10_optional.py` | ~7 min (fusion six dominate) |
-| `api` | `tests/` root files matching `test_*api*`, `test_*router*`, `test_bluebook*`, `test_pilot*`, `test_cutover`, `test_repository_contract`, `test_shadow*`, `test_migration`, `test_persistence*`, `test_alembic`, `tests/security` | ~6 min |
-| `rest` | everything else in `tests/` root | ~5 min |
+| Shard | Job | Selection | Collected | Postgres |
+|---|---|---|---|---|
+| `core` | `pytest-core` | `tests/quantum tests/context tests/fusion tests/validation validation/test_tier10_optional.py` | 1012 | no |
+| `api` | `pytest-api` | `tests/` root files matching `test_*api*.py`, `test_*router*.py`, `test_bluebook*.py`, `test_pilot*.py`, `test_cutover*.py`, `test_repository_contract*.py`, `test_shadow*.py`, `test_migration*.py`, `test_persistence*.py`, `test_alembic*.py` (no matches yet), plus `tests/security tests/config tests/perf` | 1061 | **yes** |
+| `rest` | `pytest-rest` | `tests/` **minus** `--ignore` for every path the other two shards own | 1531 | no |
 
-Coverage: each shard writes `coverage.xml` with `--cov-append` disabled and a
-distinct `COVERAGE_FILE`; a fourth `coverage-combine` job runs
-`coverage combine && coverage report --fail-under=98`. The floor is enforced
-on the *combined* number, never per shard.
+Collected counts are `-m "not blocker and not certification"` as of the split;
+union 3604 == the full blocking set's 3604. Estimated wall: `core` ~7 min (the
+fusion six dominate — §1.2), `api` ~6 min, `rest` ~5 min, against a 20-minute
+cap each. The serial job this replaced measured 15–21 min with a 30-minute cap
+it had already hit once.
 
-Only the `api` shard needs the Postgres service. The other two drop it and
-start faster.
+Two properties are load-bearing, and `tests/test_shard_partition.py` (itself
+in the `rest` shard) pins both by running `pytest --collect-only` four times
+and comparing nodeid sets:
+
+- **Nothing is un-run.** `rest` is subtractive — `tests/` with `--ignore` for
+  the other shards' paths — so a new file added to `tests/` root is collected
+  by `rest` by default. Under an explicit-list `rest`, forgetting to add a new
+  file means no shard collects it and CI stays green on a test nobody runs.
+- **Nothing runs twice.** The three selections are pairwise disjoint. The
+  `api` globs are expanded at run time, so a new `tests/test_bluebook_x.py`
+  moves from `rest` to `api` automatically rather than being collected by both.
+
+Coverage: each shard runs `--cov=original --cov-branch --cov-report=` (no
+report) with a distinct `COVERAGE_FILE=.coverage.<shard>` and uploads that
+data file as `coverage-data-<shard>`. A fourth `coverage-combine` job
+downloads all three and runs `coverage combine && coverage report
+--fail-under=98 && coverage xml`, re-uploading the unchanged `coverage-xml`
+artifact name. **`--cov-fail-under` is set on no shard** — one shard's
+coverage of `original/` is meaningless; the ≥98 floor is enforced exactly once,
+on the combined number. All three shards run from the repo root on the same
+runner image, so the recorded source paths already match and `coverage
+combine` needs no `[paths]` remapping.
+
+Only the `api` shard gets the Postgres service (it owns
+`tests/test_repository_contract.py`, which parametrizes over a `postgres`
+backend). The other two drop it and start faster.
+
+Local equivalents: `make test-shard-core|test-shard-api|test-shard-rest`, and
+`make test-fast` = the `rest` shard minus `slow` (§8). The script's output is
+shell-quoted, so callers `eval` it — the only paths containing spaces are the
+gitignored macOS Finder duplicates (`test_tier1 2.py`), which the script
+deselects with `--ignore` and which do not exist on a CI checkout.
 
 ### 1.2 The fusion six
 
