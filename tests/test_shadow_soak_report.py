@@ -6,8 +6,13 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import OperationalError
 
-from scripts.shadow_soak_report import build_report, summarize_logs
+from scripts.shadow_soak_report import (
+    _readonly_engine,
+    build_report,
+    summarize_logs,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "tests" / "fixtures"
@@ -118,3 +123,22 @@ def test_postgres_url_fixture_is_supported():
         "ai_likelihood",
         "bayesian_prior_scope",
     }
+
+
+def test_reader_connection_is_read_only(tmp_path):
+    """The reporter is pointed straight at the live pilot DB, so its
+    connection must reject writes, not merely happen to issue only SELECTs
+    (Part 3 Global Constraint; mirrors scripts/tier17_report.py)."""
+    db = tmp_path / "ro.db"
+    conn = sqlite3.connect(db)
+    conn.executescript("CREATE TABLE t (x INTEGER); INSERT INTO t VALUES (1);")
+    conn.close()
+
+    engine = _readonly_engine(f"sqlite:///{db}")
+    try:
+        with engine.connect() as c:
+            assert c.execute(text("SELECT count(*) FROM t")).scalar() == 1
+            with pytest.raises(OperationalError):
+                c.execute(text("INSERT INTO t VALUES (2)"))
+    finally:
+        engine.dispose()
