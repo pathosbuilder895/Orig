@@ -2299,12 +2299,14 @@ def _compute_termsim_gates() -> list[GateResult]:
 LAST_RUN_VECTOR_CACHE: dict | None = None
 
 
-def run_all() -> list[GateResult]:
+def run_all(only: set[str] | None = None) -> list[GateResult]:
     """Run every gate. When CALIBRATION_GATE_VECTOR_CACHE names a directory,
     the two API route modules' feature_vector bindings are memoised on disk
     for the duration of this call only (validation/vector_cache.py — same
     vectors, one extraction per distinct text instead of one per fold) and
-    restored afterwards, even if a leg raises."""
+    restored afterwards, even if a leg raises. `only` (a set of GATE_LEGS
+    names) runs just those legs -- the CI matrix splits the battery across
+    jobs with it, and a developer can re-run one gate without the rest."""
     global LAST_RUN_VECTOR_CACHE
     from validation.vector_cache import maybe_install_from_env
 
@@ -2313,7 +2315,7 @@ def run_all() -> list[GateResult]:
     if description is not None:
         print(f"vector cache: {description['dir']} (backend={description['semantic_backend']})")
     try:
-        return _run_all_gates()
+        return _run_all_gates(only)
     finally:
         restore()
 
@@ -2329,12 +2331,40 @@ def _leg_clock():
 
     def mark(leg: str) -> None:
         elapsed = int(_time.monotonic() - t0)
-        print(f"[battery] {leg} done at +{elapsed // 3600}h{(elapsed % 3600) // 60:02d}m", flush=True)
+        stamp = f"+{elapsed // 3600}h{(elapsed % 3600) // 60:02d}m"
+        print(f"[battery] {leg} done at {stamp}", flush=True)
 
     return mark
 
 
-def _run_all_gates() -> list[GateResult]:
+GATE_LEGS: tuple[str, ...] = ("G1", "G1p", "G2", "G2b", "G3", "G4", "G5", "G6", "G7", "G8", "T")
+
+
+def _parse_only(spec: str | None) -> set[str] | None:
+    """`--only G1,g2b` -> {"G1", "G2b"}; None/empty -> None (every leg).
+    "T" selects the four TermSim deployment gates together. Unknown names
+    raise ValueError naming the valid legs."""
+    if not spec or not spec.strip():
+        return None
+    by_lower = {leg.lower(): leg for leg in GATE_LEGS}
+    out: set[str] = set()
+    for raw in spec.split(","):
+        name = raw.strip()
+        if not name:
+            continue
+        if name.lower() not in by_lower:
+            raise ValueError(f"unknown gate {name!r}; valid: {', '.join(GATE_LEGS)}")
+        out.add(by_lower[name.lower()])
+    return out or None
+
+
+def _run_all_gates(only: set[str] | None = None) -> list[GateResult]:
+    def _want(leg: str) -> bool:
+        # G5's shuffled reruns need the real G1 leg's outputs, so selecting
+        # G5 also runs (but does not report) the G1 machinery -- see the
+        # `_want("G1") or _want("G5")` guard below.
+        return only is None or leg in only
+
     # Defensive reset, before anything else: ENV_LOCK (module import time,
     # above) already put us on ORIGINAL_DB=":memory:", so this is a no-op
     # today (the first _get_conn() call in a fresh process already gets an
@@ -2371,200 +2401,212 @@ def _run_all_gates() -> list[GateResult]:
     plato_texts = _load_plato_texts_by_dialogue()
 
     texts_by_id: dict[str, list[str]] = {**seminary_texts, **public_authors_texts, **plato_texts}
-    (
-        pooled_actions,
-        per_corpus_actions,
-        real_g1_deviations,
-        real_g1_errors,
-        real_g1_typicality_ns,
-        real_g1_drift_rejected,  # forwarded to run_g5: the anchor health
-        # check gates on genuine failures only, excluding Phase-8
-        # drift-gate holds (see _score_corpus_for_g1's docstring on the
-        # 2026-08-13 carve-out).
-    ) = _score_corpus_for_g1(client, "g1", texts_by_id)
+    if _want("G1") or _want("G5"):
+        (
+            pooled_actions,
+            per_corpus_actions,
+            real_g1_deviations,
+            real_g1_errors,
+            real_g1_typicality_ns,
+            real_g1_drift_rejected,  # forwarded to run_g5: the anchor health
+            # check gates on genuine failures only, excluding Phase-8
+            # drift-gate holds (see _score_corpus_for_g1's docstring on the
+            # 2026-08-13 carve-out).
+        ) = _score_corpus_for_g1(client, "g1", texts_by_id)
 
-    # Per-entity PER-FOLD LOO count, keyed the same way as texts_by_id — see
-    # _g1_entity_baseline_counts's docstring for the `- 1` rationale (FIX 1)
-    # and why it's keyed off per_corpus_actions rather than texts_by_id
-    # (FIX 5). FIX C: extracted to a standalone function so this conversion
-    # is unit-tested directly (TestG1EntityBaselineCounts) rather than only
-    # via already-decremented literals passed to evaluate_g1_fpr.
-    entity_baseline_counts = _g1_entity_baseline_counts(texts_by_id, per_corpus_actions)
+        # Per-entity PER-FOLD LOO count, keyed the same way as texts_by_id — see
+        # _g1_entity_baseline_counts's docstring for the `- 1` rationale (FIX 1)
+        # and why it's keyed off per_corpus_actions rather than texts_by_id
+        # (FIX 5). FIX C: extracted to a standalone function so this conversion
+        # is unit-tested directly (TestG1EntityBaselineCounts) rather than only
+        # via already-decremented literals passed to evaluate_g1_fpr.
+        entity_baseline_counts = _g1_entity_baseline_counts(texts_by_id, per_corpus_actions)
 
-    # BOTH reachability sources are supplied, deliberately. They answer the
-    # same question — can the conformal band fire at this N? — from different
-    # evidence, and evaluate_g1_fpr's downgrade ORs them, so the more
-    # pessimistic one wins:
-    #   typicality_ns          observed per-fold typicality_n straight out of
-    #                          each scoring payload, aggregated MIN (binding
-    #                          weakest fold). The accurate source. Until this
-    #                          merge nothing passed it in production, so it
-    #                          annotated current_value and never reached the
-    #                          verdict.
-    #   entity_baseline_counts len(texts)-1 reconstructed per entity,
-    #                          aggregated any-reachable. Less accurate, but it
-    #                          is the ONLY signal when no fold reports a
-    #                          typicality_n at all — the actions came from the
-    #                          deviation path, so _reachability_block reports
-    #                          observed=False and typicality_unreachable is
-    #                          False by convention. Dropping it would leave
-    #                          that case with no reachability check.
-    g1_result = evaluate_g1_fpr(
-        pooled_actions,
-        per_corpus_actions,
-        typicality_ns=real_g1_typicality_ns,
-        entity_baseline_counts=entity_baseline_counts,
-    )
-    results.append(g1_result)
-    _mark("G1")
-
-    # G1p: the pooled-calibration twin of G1 (same folds, same criterion,
-    # typicality bands calibrated on licensed same-group peers). A crash is
-    # a machinery error like any other leg's; G1's own result above is
-    # never touched by it.
-    try:
-        g1p_group_of = _g1p_group_of(seminary_texts, plato_texts, public_authors_texts)
-        g1p_out = _score_corpus_for_g1_pooled(
-            client, "g1p", _g1p_texts(texts_by_id, g1p_group_of), g1p_group_of
+        # BOTH reachability sources are supplied, deliberately. They answer the
+        # same question — can the conformal band fire at this N? — from different
+        # evidence, and evaluate_g1_fpr's downgrade ORs them, so the more
+        # pessimistic one wins:
+        #   typicality_ns          observed per-fold typicality_n straight out of
+        #                          each scoring payload, aggregated MIN (binding
+        #                          weakest fold). The accurate source. Until this
+        #                          merge nothing passed it in production, so it
+        #                          annotated current_value and never reached the
+        #                          verdict.
+        #   entity_baseline_counts len(texts)-1 reconstructed per entity,
+        #                          aggregated any-reachable. Less accurate, but it
+        #                          is the ONLY signal when no fold reports a
+        #                          typicality_n at all — the actions came from the
+        #                          deviation path, so _reachability_block reports
+        #                          observed=False and typicality_unreachable is
+        #                          False by convention. Dropping it would leave
+        #                          that case with no reachability check.
+        g1_result = evaluate_g1_fpr(
+            pooled_actions,
+            per_corpus_actions,
+            typicality_ns=real_g1_typicality_ns,
+            entity_baseline_counts=entity_baseline_counts,
         )
-        _require_healthy_leg(
-            "G1p pooled",
-            n_success=len(g1p_out["pooled_actions"]),
-            n_errors=g1p_out["n_errors"] - g1p_out["n_drift_rejected"],
-        )
+        if _want("G1"):
+            results.append(g1_result)
+        _mark("G1")
+
+    if _want("G1p"):
+        # G1p: the pooled-calibration twin of G1 (same folds, same criterion,
+        # typicality bands calibrated on licensed same-group peers). A crash is
+        # a machinery error like any other leg's; G1's own result above is
+        # never touched by it.
+        try:
+            g1p_group_of = _g1p_group_of(seminary_texts, plato_texts, public_authors_texts)
+            g1p_out = _score_corpus_for_g1_pooled(
+                client, "g1p", _g1p_texts(texts_by_id, g1p_group_of), g1p_group_of
+            )
+            _require_healthy_leg(
+                "G1p pooled",
+                n_success=len(g1p_out["pooled_actions"]),
+                n_errors=g1p_out["n_errors"] - g1p_out["n_drift_rejected"],
+            )
+            results.append(
+                evaluate_g1_pooled_fpr(
+                    g1p_out["pooled_actions"],
+                    g1p_out["per_corpus_actions"],
+                    typicality_ns=g1p_out["pooled_typicality_ns"],
+                    informational=_g1p_informational(g1p_out, g1p_group_of),
+                )
+            )
+        except Exception as exc:
+            results.append(_machinery_error_result("G1p", _G1P_CRITERION, exc))
+        _mark("G1p")
+
+    if _want("G2"):
+        # G2: bland impostor via q = min(p_far, p_central). A crash here (e.g.
+        # _compute_g2_q_values's _require_healthy_leg call catching a dialogue
+        # whose baseline uploads mostly failed) is a machinery failure, same
+        # convention as G2b/G5/G6's wrappers.
+        try:
+            holdout_q, impostor_q, _g2_n_holdout_errors = _compute_g2_q_values(client)
+            results.append(evaluate_g2_bland_impostor(holdout_q, impostor_q))
+        except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
+            results.append(_machinery_error_result("G2", _G2_CRITERION, exc))
+        _mark("G2")
+
+    if _want("G2b"):
+        # G2b: G2's criterion with uniformity features enabled (guarded window —
+        # see _uniformity_features_enabled) and the ai_*.txt impostors run
+        # through the mechanical paraphrase PROXY (_paraphrase_proxy; not an LLM
+        # paraphrase — the proxy label travels in the criterion and detail).
+        # A crash here is a machinery failure, same convention as G5's wrapper.
+        try:
+            g2b_holdout_q, g2b_impostor_q, g2b_stats = _compute_g2b_paraphrase_data(client)
+            results.append(
+                evaluate_g2b_paraphrase_resistant(
+                    g2b_holdout_q, g2b_impostor_q, informational=g2b_stats
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
+            results.append(_machinery_error_result("G2b", _G2B_CRITERION, exc))
+        _mark("G2b")
+
+    if _want("G3"):
+        # G3: reuse the existing public_authors attribution accuracy computation.
+        # validation/public_authors/run.py's run() returns a report dict shaped
+        # {"summary": {"top1_accuracy": ..., ...}, "per_author": {...}, ...} —
+        # NOT a flat "top1_accuracy" key (verified by reading run.py directly;
+        # the original plan draft had not seen the real return shape). When the
+        # corpus doesn't have >= 2 eligible authors, run() instead returns
+        # {"error": ..., "skipped_authors": ...} with no "summary" key at all —
+        # .get()-chain through that case rather than raising.
+        from validation.public_authors.run import run as run_public_authors
+
+        pa_report = run_public_authors()
+        top1_accuracy, top1_accuracy_raw_argmin, n_essays = _g3_inputs_from_pa_report(pa_report)
         results.append(
-            evaluate_g1_pooled_fpr(
-                g1p_out["pooled_actions"],
-                g1p_out["per_corpus_actions"],
-                typicality_ns=g1p_out["pooled_typicality_ns"],
-                informational=_g1p_informational(g1p_out, g1p_group_of),
+            evaluate_g3_attribution(
+                top1_accuracy,
+                top1_accuracy_raw_argmin=top1_accuracy_raw_argmin,
+                # "n_scored_essays" is the held-out essay count run.py actually
+                # scored. It drives G3's informativeness check: at n=22 the Wilson
+                # interval around a 0.727 accuracy straddles the 0.7 bar, so the
+                # gate reports UNINFORMATIVE rather than banking the pass.
+                n_essays=n_essays,
             )
         )
-    except Exception as exc:
-        results.append(_machinery_error_result("G1p", _G1P_CRITERION, exc))
-    _mark("G1p")
+        _mark("G3")
 
-    # G2: bland impostor via q = min(p_far, p_central). A crash here (e.g.
-    # _compute_g2_q_values's _require_healthy_leg call catching a dialogue
-    # whose baseline uploads mostly failed) is a machinery failure, same
-    # convention as G2b/G5/G6's wrappers.
-    try:
-        holdout_q, impostor_q, _g2_n_holdout_errors = _compute_g2_q_values(client)
-        results.append(evaluate_g2_bland_impostor(holdout_q, impostor_q))
-    except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
-        results.append(_machinery_error_result("G2", _G2_CRITERION, exc))
-    _mark("G2")
+    if _want("G4"):
+        # G4: Plato early/middle/late monotonicity. A crash here (e.g.
+        # _compute_g4_group_means's _require_healthy_leg call catching a
+        # mostly-failed early baseline upload) is a machinery failure, same
+        # convention as G2b/G5/G6's wrappers.
+        try:
+            group_means, _g4_stats = _compute_g4_group_means()
+            results.append(evaluate_g4_career_drift_monotone(group_means))
+        except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
+            results.append(_machinery_error_result("G4", _G4_CRITERION, exc))
+        _mark("G4")
 
-    # G2b: G2's criterion with uniformity features enabled (guarded window —
-    # see _uniformity_features_enabled) and the ai_*.txt impostors run
-    # through the mechanical paraphrase PROXY (_paraphrase_proxy; not an LLM
-    # paraphrase — the proxy label travels in the criterion and detail).
-    # A crash here is a machinery failure, same convention as G5's wrapper.
-    try:
-        g2b_holdout_q, g2b_impostor_q, g2b_stats = _compute_g2b_paraphrase_data(client)
-        results.append(
-            evaluate_g2b_paraphrase_resistant(
-                g2b_holdout_q, g2b_impostor_q, informational=g2b_stats
+    if _want("G5"):
+        # G5: permutation-null selection-bias control — seeded label shuffles,
+        # then shuffled-label reruns of the G1/G3/G4 machinery above (see run_g5).
+        # A crash inside the shuffled legs is a machinery failure: it must neither
+        # discard the four completed real gates above nor read as a genuine null
+        # verdict, so it renders as a failed ERROR-(machinery) result instead.
+        try:
+            results.append(
+                run_g5(
+                    real_g1_deviations=real_g1_deviations,
+                    real_g1_flagged_rate=g1_result.detail["pooled_flagged_rate"],
+                    real_g1_n_errors=real_g1_errors,
+                    real_g1_n_drift_rejected=real_g1_drift_rejected,
+                )
             )
-        )
-    except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
-        results.append(_machinery_error_result("G2b", _G2B_CRITERION, exc))
-    _mark("G2b")
+        except Exception as exc:  # noqa: BLE001 — see _g5_machinery_error_result
+            results.append(_g5_machinery_error_result(exc))
+        _mark("G5")
 
-    # G3: reuse the existing public_authors attribution accuracy computation.
-    # validation/public_authors/run.py's run() returns a report dict shaped
-    # {"summary": {"top1_accuracy": ..., ...}, "per_author": {...}, ...} —
-    # NOT a flat "top1_accuracy" key (verified by reading run.py directly;
-    # the original plan draft had not seen the real return shape). When the
-    # corpus doesn't have >= 2 eligible authors, run() instead returns
-    # {"error": ..., "skipped_authors": ...} with no "summary" key at all —
-    # .get()-chain through that case rather than raising.
-    from validation.public_authors.run import run as run_public_authors
+    if _want("G6"):
+        # G6: native_english fairness on the p_central/too-uniform action, with
+        # uniformity features enabled for its own leg. _compute_g6_fairness_data
+        # returns the finished GateResult (evaluate, or a loud SKIPPED
+        # insufficient-data result — never a silent pass); a crash is a
+        # machinery failure, same convention as G5's wrapper.
+        try:
+            results.append(_compute_g6_fairness_data(client))
+        except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
+            results.append(_machinery_error_result("G6", _G6_CRITERION, exc))
+        _mark("G6")
 
-    pa_report = run_public_authors()
-    top1_accuracy, top1_accuracy_raw_argmin, n_essays = _g3_inputs_from_pa_report(pa_report)
-    results.append(
-        evaluate_g3_attribution(
-            top1_accuracy,
-            top1_accuracy_raw_argmin=top1_accuracy_raw_argmin,
-            # "n_scored_essays" is the held-out essay count run.py actually
-            # scored. It drives G3's informativeness check: at n=22 the Wilson
-            # interval around a 0.727 accuracy straddles the 0.7 bar, so the
-            # gate reports UNINFORMATIVE rather than banking the pass.
-            n_essays=n_essays,
-        )
-    )
-    _mark("G3")
+    if _want("G7"):
+        # G7: cross-topic same-author FPR, on the leave-one-genre-out corpus in
+        # validation/genre_crossgenre_2026-08/. That corpus is NOT committed (the
+        # editions are under copyright), so on most checkouts this returns a loud
+        # "uninformative" skip naming the regeneration command rather than a
+        # verdict. It is wired in anyway, deliberately: an absent gate reads as
+        # "topic invariance is covered by this suite", which is precisely the
+        # claim that must not be made in silence — and --strict is then correct
+        # to refuse to bless the run. A crash is a machinery failure, same
+        # convention as the wrappers above.
+        try:
+            results.append(_compute_g7_cross_topic_data())
+        except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
+            results.append(_machinery_error_result("G7", _G7_CRITERION, exc))
+        _mark("G7")
 
-    # G4: Plato early/middle/late monotonicity. A crash here (e.g.
-    # _compute_g4_group_means's _require_healthy_leg call catching a
-    # mostly-failed early baseline upload) is a machinery failure, same
-    # convention as G2b/G5/G6's wrappers.
-    try:
-        group_means, _g4_stats = _compute_g4_group_means()
-        results.append(evaluate_g4_career_drift_monotone(group_means))
-    except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
-        results.append(_machinery_error_result("G4", _G4_CRITERION, exc))
-    _mark("G4")
-
-    # G5: permutation-null selection-bias control — seeded label shuffles,
-    # then shuffled-label reruns of the G1/G3/G4 machinery above (see run_g5).
-    # A crash inside the shuffled legs is a machinery failure: it must neither
-    # discard the four completed real gates above nor read as a genuine null
-    # verdict, so it renders as a failed ERROR-(machinery) result instead.
-    try:
-        results.append(
-            run_g5(
-                real_g1_deviations=real_g1_deviations,
-                real_g1_flagged_rate=g1_result.detail["pooled_flagged_rate"],
-                real_g1_n_errors=real_g1_errors,
-                real_g1_n_drift_rejected=real_g1_drift_rejected,
-            )
-        )
-    except Exception as exc:  # noqa: BLE001 — see _g5_machinery_error_result
-        results.append(_g5_machinery_error_result(exc))
-    _mark("G5")
-
-    # G6: native_english fairness on the p_central/too-uniform action, with
-    # uniformity features enabled for its own leg. _compute_g6_fairness_data
-    # returns the finished GateResult (evaluate, or a loud SKIPPED
-    # insufficient-data result — never a silent pass); a crash is a
-    # machinery failure, same convention as G5's wrapper.
-    try:
-        results.append(_compute_g6_fairness_data(client))
-    except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
-        results.append(_machinery_error_result("G6", _G6_CRITERION, exc))
-    _mark("G6")
-
-    # G7: cross-topic same-author FPR, on the leave-one-genre-out corpus in
-    # validation/genre_crossgenre_2026-08/. That corpus is NOT committed (the
-    # editions are under copyright), so on most checkouts this returns a loud
-    # "uninformative" skip naming the regeneration command rather than a
-    # verdict. It is wired in anyway, deliberately: an absent gate reads as
-    # "topic invariance is covered by this suite", which is precisely the
-    # claim that must not be made in silence — and --strict is then correct
-    # to refuse to bless the run. A crash is a machinery failure, same
-    # convention as the wrappers above.
-    try:
-        results.append(_compute_g7_cross_topic_data())
-    except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
-        results.append(_machinery_error_result("G7", _G7_CRITERION, exc))
-    _mark("G7")
-
-    # G8: genre discrimination on the author-disjoint hold-out, plus the
-    # author-shuffled control. Its corpus IS committed, so this normally
-    # returns a real verdict. A crash is a machinery failure, same convention
-    # as the wrappers above.
-    try:
-        results.append(_compute_g8_genre_data())
-    except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
-        results.append(_machinery_error_result("G8", _G8_CRITERION, exc))
-    _mark("G8")
+    if _want("G8"):
+        # G8: genre discrimination on the author-disjoint hold-out, plus the
+        # author-shuffled control. Its corpus IS committed, so this normally
+        # returns a real verdict. A crash is a machinery failure, same convention
+        # as the wrappers above.
+        try:
+            results.append(_compute_g8_genre_data())
+        except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
+            results.append(_machinery_error_result("G8", _G8_CRITERION, exc))
+        _mark("G8")
 
     # Deployment-shaped gates consume the latest deterministic TermSim metrics.
     # Corpus extraction remains outside this already-expensive battery; the
     # scheduled TermSim job refreshes this small committed evidence artifact.
-    results.extend(_compute_termsim_gates())
+    if _want("T"):
+        results.extend(_compute_termsim_gates())
 
     # Attach a corpus_fingerprint to every TEXT-CORPUS result (G1-G6) so a
     # future report can be checked for comparability against this one without
@@ -4822,9 +4864,20 @@ def main(argv=None) -> int:
         action="store_true",
         help="treat uninformative gates as failures (use before quoting results)",
     )
+    parser.add_argument(
+        "--only",
+        help=f"comma-separated subset of legs to run (valid: {', '.join(GATE_LEGS)}); "
+        "default runs every leg",
+    )
     args = parser.parse_args(argv)
+    try:
+        only = _parse_only(args.only)
+    except ValueError as exc:
+        parser.error(str(exc))
 
-    results = run_all()
+    # Positional-free call when nothing was selected keeps the monkeypatched
+    # zero-argument run_all stand-ins in tests/test_calibration_gate.py valid.
+    results = run_all() if only is None else run_all(only=only)
     print(render(results))
     if args.out:
         from original.quantum.typicality import (
@@ -4902,6 +4955,7 @@ def main(argv=None) -> int:
                 {
                     "experiment": spec_to_dict(spec),
                     "vector_cache": LAST_RUN_VECTOR_CACHE,
+                    "only": sorted(only) if only else None,
                     "gates": [asdict(r) for r in results],
                 },
                 indent=2,

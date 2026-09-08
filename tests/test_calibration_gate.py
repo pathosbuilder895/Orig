@@ -4108,3 +4108,60 @@ class TestG1pInformational:
         assert info["exchangeability_audit"] == _G1P_EXCHANGEABILITY_AUDIT
         assert info["n_drift_rejected"] == 1
         assert "live /score route" in info["caveat"]
+
+
+# ── --only: leg selection ───────────────────────────────────────────────────────
+
+
+class TestParseOnly:
+    def test_none_and_blank_mean_every_leg(self):
+        from validation.calibration_gate import _parse_only
+
+        assert _parse_only(None) is None
+        assert _parse_only("  ") is None
+
+    def test_names_are_case_insensitive_and_canonicalised(self):
+        from validation.calibration_gate import _parse_only
+
+        assert _parse_only("g1, G2B ,t") == {"G1", "G2b", "T"}
+
+    def test_unknown_name_names_the_valid_legs(self):
+        from validation.calibration_gate import GATE_LEGS, _parse_only
+
+        with pytest.raises(ValueError) as exc:
+            _parse_only("G1,G9")
+        assert "G9" in str(exc.value)
+        for leg in GATE_LEGS:
+            assert leg in str(exc.value)
+
+
+class TestMainOnly:
+    def _pass(self):
+        return GateResult(name="G1", passed=True, criterion="c", current_value="v")
+
+    def test_only_is_forwarded_to_run_all(self, monkeypatch, capsys):
+        seen = {}
+
+        def fake_run_all(only=None):
+            seen["only"] = only
+            return [self._pass()]
+
+        monkeypatch.setattr(calibration_gate, "run_all", fake_run_all)
+        assert calibration_gate.main(["--only", "G1,g5"]) == 0
+        assert seen["only"] == {"G1", "G5"}
+
+    def test_no_only_calls_run_all_without_arguments(self, monkeypatch):
+        monkeypatch.setattr(calibration_gate, "run_all", lambda: [self._pass()])
+        assert calibration_gate.main([]) == 0
+
+    def test_unknown_leg_is_a_usage_error(self, monkeypatch):
+        monkeypatch.setattr(calibration_gate, "run_all", lambda **kw: [self._pass()])
+        with pytest.raises(SystemExit) as exc:
+            calibration_gate.main(["--only", "G42"])
+        assert exc.value.code == 2
+
+    def test_report_records_the_selection(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(calibration_gate, "run_all", lambda only=None: [self._pass()])
+        out = tmp_path / "r.json"
+        assert calibration_gate.main(["--only", "G1", "--out", str(out)]) == 0
+        assert json.loads(out.read_text())["only"] == ["G1"]
