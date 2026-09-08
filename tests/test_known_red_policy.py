@@ -109,17 +109,70 @@ class TestParseAndDecide:
         assert known_red.decide(results) == 1
 
 
+class TestReportAndDecideExitHandling:
+    """scripts/known_red.py's report_and_decide() turns a pytest run's raw
+    (returncode, junit_text, captured_output) into the known-red exit code.
+    These never shell out to a real pytest run — the whole point of
+    exercising this against hand-built inputs is that the policy is
+    provable without needing the run itself to break on demand.
+    """
+
+    def test_exit_5_is_zero_with_no_tests_notice(self, capsys):
+        # pytest's own "no tests collected" exit code is the legitimate
+        # "no blocker tests exist" notice, not an error.
+        code = known_red.report_and_decide(5, None, "", REPO_ROOT)
+        assert code == 0
+        assert "nothing to check" in capsys.readouterr().out
+
+    def test_exit_4_is_a_hard_error(self, capsys):
+        # pytest exit 4 (usage error) means the run of the blocker suite
+        # itself broke -- never a policy verdict, so it must not be read
+        # as "all blockers still red" (0) or silently swallowed.
+        code = known_red.report_and_decide(4, None, "some captured output", REPO_ROOT)
+        assert code == 2
+        out = capsys.readouterr().out
+        assert "some captured output" in out
+        assert "run broke" in out
+
+    def test_exit_1_with_zero_testcases_is_a_hard_error(self, capsys):
+        # Exit 1 normally means "tests ran, at least one failed" -- but if
+        # the junit report parsed to zero <testcase> elements, something
+        # about the run itself is broken (e.g. a collection error that
+        # still exits 1) and this must not be conflated with "nothing to
+        # check" (which is reserved for the real exit-5 notice).
+        code = known_red.report_and_decide(1, NONE_XML, "collection error", REPO_ROOT)
+        assert code == 2
+        out = capsys.readouterr().out
+        assert "collection error" in out
+        assert "run broke" in out
+
+    def test_exit_0_with_results_defers_to_decide(self, capsys):
+        code = known_red.report_and_decide(0, ALL_FAIL_XML, "", REPO_ROOT)
+        assert code == 0
+
+    def test_exit_1_with_results_defers_to_decide(self, capsys):
+        code = known_red.report_and_decide(1, ONE_PASS_XML, "", REPO_ROOT)
+        assert code == 1
+
+    def test_missing_junit_file_on_exit_0_is_a_hard_error(self, capsys):
+        # Even a "clean" exit code is not trustworthy without a junit
+        # report to back it up.
+        code = known_red.report_and_decide(0, None, "no report written", REPO_ROOT)
+        assert code == 2
+        assert "run broke" in capsys.readouterr().out
+
+
 class TestGapIdExtraction:
     def test_gap_id_found_via_docstring(self, tmp_path):
         (tmp_path / "test_sample.py").write_text(
             "import pytest\n\n"
             "@pytest.mark.blocker\n"
             "def test_thing():\n"
-            '    """T-42: some gap."""\n'
+            '    """T-999: some gap."""\n'
             "    assert False\n"
         )
         result = known_red.BlockerResult("test_sample", "test_thing", "failed")
-        assert known_red.gap_id_for(result, tmp_path) == "T-42"
+        assert known_red.gap_id_for(result, tmp_path) == "T-999"
 
     def test_gap_id_found_for_method_in_class(self, tmp_path):
         (tmp_path / "test_sample.py").write_text(
@@ -164,11 +217,21 @@ class TestEveryBlockerTestNamesItsGap:
             ],
             cwd=REPO_ROOT, capture_output=True, text=True,
         )
+        # 0 = tests collected, 5 = none did (both are legitimate outcomes of
+        # collection itself); anything else means collection broke.
+        assert proc.returncode in (0, 5), (
+            f"--collect-only failed unexpectedly (exit {proc.returncode}):\n"
+            f"{proc.stdout}\n{proc.stderr}"
+        )
         nodeids = [
             line.strip()
             for line in proc.stdout.splitlines()
             if "::" in line and not line.startswith(" ")
         ]
+        # Without this, an empty `nodeids` (e.g. the -m blocker filter
+        # matching nothing) would make the loop below a no-op and the
+        # "every blocker test names its gap" guard would pass vacuously.
+        assert nodeids, "expected at least one @pytest.mark.blocker test to be collected"
         offenders = []
         for nodeid in nodeids:
             # Strip the parametrise suffix BEFORE splitting: a param id may

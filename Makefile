@@ -4,7 +4,7 @@
 .PHONY: test test-quantum test-postgres db-up db-down run bundle e2e lint preflight backup setup test-security test-cert test-known-red
 
 test:
-	.venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -q
+	.venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -m "not blocker and not certification" -q
 
 test-security:
 	.venv/bin/python -m pytest tests/ -m security -q

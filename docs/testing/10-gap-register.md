@@ -17,7 +17,7 @@ P3 = hygiene.
 
 | ID | Gap | Blind spot | Doc | Effort | Acceptance | State |
 |---|---|---|---|---|---|---|
-| T-01 | Same-author FPR at N=3 baselines through the API (0.75–0.82 measured; `escalate`) | B1 | 06 §3, 02 §2.1 | M for the test; the fix is product work | `test_cold_start_fpr` green at N=3,5,10 on ≥8 committed authors — measured 2026-09-07: N=3 flagged 10/11 (0.909), N=5 0.909, N=10 uninformative; `tests/certification/test_cold_start_fpr.py` | red |
+| T-01 | Same-author FPR at N=3 baselines through the API (0.75–0.82 measured; `escalate`) | B1 | 06 §3, 02 §2.1 | M for the test; the fix is product work | `test_cold_start_fpr` green at N=3,5,10 on ≥8 committed authors — measured 2026-09-07: N=3 flagged 10/11 (0.909), N=5 0.909, N=10 uninformative — holdouts are a different section of the SAME work for 8 of 11 authors (`holdout_same_work_count`), so the cross-work claim is not yet measured; `tests/certification/test_cold_start_fpr.py` | red |
 | T-02 | `GET /baseline-requests/pending` leaks cross-tenant emails and live magic links | B3 | 04 §1.1 | S | scoped test green — `tests/security/test_cross_tenant_read.py` | red |
 | T-03 | Unauthenticated `POST /bluebook/submissions` | B3 | 04 §1.2 | S | route-table anonymous-write test green with allowlist — `tests/security/test_unauthenticated_writes.py` | red |
 | T-04 | Turnitin import mints flat ids → unauthenticated essay reads | B3 | 04 §1.3 | S | every minted id tenant-prefixed; anonymous read refused — `tests/security/test_id_minting.py` | red |
@@ -48,7 +48,7 @@ P3 = hygiene.
 | T-23 | `GUARD_DESTRUCTIVE=1` with non-real env should refuse boot (REAUDIT #5) | — | 04 §1.6, 08 §2 | S | `boot-matrix` refuse cell | open |
 | T-24 | Calibration-lab Apply is a no-op (scoring reads `constants.ACTION_THRESHOLDS`) | — | 05 §3 | S test / M fix | e2e: rescored tier changes after Apply | open |
 | T-25 | `demo/app/` second frontend: no tests, no bundle staleness check, live/dormant unknown | B8 | 05 §2 | S decide / M | byte-check + smoke, or proven 404 under pilot | open |
-| T-26 | Cross-tenant abuse suite and auth matrix absent | B3 | 04 §1, §2 | M | `pytest -m security` < 60 s, table-driven — `tests/security/` package + `test_auth_matrix.py` (96 cells observed and pinned) | green (skeleton) |
+| T-26 | Cross-tenant abuse suite and auth matrix absent | B3 | 04 §1, §2 | M | `pytest tests/security -m "not blocker"` measured 78 s / 146 passed on 2026-09-08 (target < 60 s not met; `two_tenants` is function-scoped), table-driven — `tests/security/` package + `test_auth_matrix.py` (96 cells observed and pinned) | partial |
 | T-27 | Secrets-never-leak test absent | — | 04 §5 | S | sentinel test over all failure paths | open |
 | T-63 | `GET /admin/audit` has no tenant filter; B staff read A's audit rows | B3 | 04 §1.1 | S | `tests/security/test_cross_tenant_read.py::test_admin_audit_scoped` | red |
 | T-64 | Anonymous `POST /auth/register` accepted (`_require_guard` only) | B3 | 04 §1.2 | S | `tests/security/test_unauthenticated_writes.py` | red |
@@ -61,7 +61,7 @@ P3 = hygiene.
 | T-28 | `features/tier8.py` has no test file; math unpinned | — | 02 §1.1 | S | `test_tier8.py` with oracles | open |
 | T-29 | No cross-tier invariant suite (bounds, keys, quotes, length) | — | 02 §1.2 | S | `test_tier_invariants.py` | open |
 | T-30 | No property tests on scoring monotonicity, sigma floor, energy conservation, action-mode ordering, shadow≡on | B1, B7 | 02 §2 | M | `test_scoring_properties.py` | open |
-| T-31 | No mutation score; 99.6 % coverage unmeasured for assertion strength | B7 | 02 §5 | S setup | weekly kill rate on 6 modules; ≥ 80 % target — `docs/testing/mutation-baseline.md`: principal.py 126 killed / 262 total (48.1 %) with 119 segfaults under mutmut 3.7.0 fork model; tenancy_shim.py 0 % (no test reaches it — T-33) | measured |
+| T-31 | No mutation score; 99.6 % coverage unmeasured for assertion strength | B7 | 02 §5 | S setup | weekly kill rate on 6 modules; ≥ 80 % target — `docs/testing/mutation-baseline.md`: principal.py 126 killed / 248 mutants (50.8 %; 126/262 = 48.1 % across both modules) with 119 segfaults (45 % of 262) under mutmut 3.7.0 fork model; tenancy_shim.py 0 % (no test reaches it — T-33) | measured |
 | T-32 | `voice.py` redaction guarded by one leak test | — | 02 §3 | S | allowlist + forbidden-substring tests | open |
 | T-33 | `tenancy_shim.py` untested | — | 02 §4 | S | round-trip + shape properties | open |
 | T-34 | OpenAPI is determinism-checked, not snapshot-checked | — | 03 §4.1 | S | committed snapshot + update script | open |
@@ -112,8 +112,8 @@ by `-m "not blocker and not certification"` and run by the `known-red` job
 passes. Four new holes surfaced while writing the tests (T-63…T-66); one
 was reclassified (T-08's `bluebook_sessions` is `student_key`-keyed). The
 measured cold-start FPR is 10 of 11 genuine authors flagged at both three and
-five baselines. The first mutation run found no surviving mutants but 48 %
-segfaults under mutmut's fork model, so the score is not yet trustworthy.
+five baselines. The first mutation run found no surviving mutants but 45 %
+segfaults (119 of 262) under mutmut's fork model, so the score is not yet trustworthy.
 
 **Phase A (original plan) — make the blockers visible (1 week).** T-01 (test only), T-02 to
 T-09 tests written red, T-26 skeleton, T-31 first mutation run. Output: a
