@@ -85,14 +85,20 @@ def mounted_app(live_app):
     does (``run.create_demo_app`` re-mounts idempotently onto the same
     session-scoped app ``live_app`` already points at).
 
-    Note: ``run.create_demo_app`` mutates ``live_app`` itself (mounts the
-    static files app + adds the ``/`` redirect) rather than returning a
-    fresh app, so this leaves those mounts/routes on ``live_app`` for the
-    rest of the session, not just for this test. That has been checked
-    benign against ``tests/test_pilot_lockdown.py`` (which also exercises
-    ``live_app`` and passes regardless of test order).
+    ``run.create_demo_app`` mutates ``live_app`` in place (appends the ``/``
+    redirect Route and a StaticFiles Mount, and sets an app.state flag)
+    rather than returning a fresh app. Left in place, that Mount breaks every
+    later route-inventory test that iterates ``r.methods`` over
+    ``live_app.routes`` (test_phone_park, test_bluebook_crud,
+    tests/fusion/test_expert) — so the route table and the flag are
+    restored on teardown.
     """
-    return run_mod.create_demo_app(DEMO_DIR)
+    saved_routes = list(live_app.router.routes)
+    had_flag = getattr(live_app.state, "_original_demo_frontend_mounted", False)
+    yield run_mod.create_demo_app(DEMO_DIR)
+    live_app.router.routes[:] = saved_routes
+    if not had_flag and hasattr(live_app.state, "_original_demo_frontend_mounted"):
+        delattr(live_app.state, "_original_demo_frontend_mounted")
 
 
 @pytest.fixture
