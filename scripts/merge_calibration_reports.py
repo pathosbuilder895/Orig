@@ -2,6 +2,7 @@
 matrix) into one report with the full-battery shape.
 
     python scripts/merge_calibration_reports.py OUT.json IN1.json IN2.json ...
+    python scripts/merge_calibration_reports.py --summary OUT.json   # gate table
 
 Every input must come from the same git SHA (the experiment spec's
 `git_sha`); the merged file keeps the first input's `experiment` and
@@ -63,8 +64,20 @@ def merge(reports: list[dict]) -> dict:
     }
 
 
+def summarize(report: dict) -> str:
+    lines = []
+    for g in report["gates"]:
+        lines.append(f"{g['name']:5s} [{str(g.get('verdict', '')).upper():13s}] {g['criterion']}")
+        lines.append(f"      current: {g['current_value']}")
+    lines.append(f"missing legs: {report.get('missing_legs') or 'none'}")
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
+    if len(argv) == 2 and argv[0] == "--summary":
+        print(summarize(json.loads(Path(argv[1]).read_text())))
+        return 0
     if len(argv) < 2:
         print(__doc__, file=sys.stderr)
         return 2

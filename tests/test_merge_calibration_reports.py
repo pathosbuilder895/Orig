@@ -46,3 +46,13 @@ def test_cli_exit_codes(tmp_path):
     partial.write_text(json.dumps(_report([("G1", "uninformative")])))
     assert main([str(out), str(partial)]) == 1
     assert json.loads(out.read_text())["missing_legs"]
+
+
+def test_summary_lists_every_gate_and_missing_legs(tmp_path, capsys):
+    rep = merge([_report([("G1", "pass")])])
+    rep["gates"][0].update({"criterion": "c", "current_value": "v"})
+    f = tmp_path / "m.json"
+    f.write_text(json.dumps(rep))
+    assert main(["--summary", str(f)]) == 0
+    out = capsys.readouterr().out
+    assert "G1    [PASS" in out and "current: v" in out and "missing legs:" in out
