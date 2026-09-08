@@ -49,6 +49,8 @@ the beat is answered in single-digit milliseconds.
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import io
 import os
 import statistics
 from dataclasses import dataclass
@@ -56,6 +58,9 @@ from time import perf_counter
 
 import httpx
 import pytest
+from docx import Document
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 
 # ── Budgets ───────────────────────────────────────────────────────────────────
 # §9: a budget is >= 3x the value measured at authoring time. Measured
@@ -127,11 +132,65 @@ def _txt(name: str, text: str) -> tuple[str, bytes, str]:
     return (name, text.encode("utf-8"), "text/plain")
 
 
+# Paragraph count tuned by measurement (2026-09-07, Darwin, 12 CPUs): 25,000
+# paragraphs of ~40 words each builds in ~0.3 s and parses with python-docx's
+# Document(io.BytesIO(...)) + a per-paragraph .text join in ~1.1-1.2 s — the
+# actual inline work of POST /students/{sid}/upload's .docx branch
+# (original/routers/students.py:350-354). Paragraph *count* drives parse time, not
+# word count: 5,000 paragraphs at 2,000,000 words parses faster (~0.24 s) than
+# 15,000 paragraphs at 810,000 words (~0.77 s), so this builds many small
+# paragraphs rather than a few huge ones. Building goes through OxmlElement
+# directly rather than Document.add_paragraph(), which is markedly slower at
+# this paragraph count (~4.2 s vs ~0.3 s for 22,000 paragraphs) without
+# affecting what gets parsed back out.
+_DOCX_PARAGRAPHS = 25_000
+_DOCX_WORDS_PER_PARAGRAPH = 40
+
+
+def _heavy_docx(salt: str) -> bytes:
+    """A deterministic multi-thousand-paragraph .docx, slow to parse.
+
+    Built directly at the oxml level (bypassing python-docx's
+    ``add_paragraph``, which does not scale to this paragraph count) so
+    generation stays well under a second while the resulting file still
+    takes python-docx over a second to parse back — see the module-level
+    comment above for the measurements this is tuned from.
+    """
+    doc = Document()
+    reps = (_DOCX_WORDS_PER_PARAGRAPH // len(_SENTENCES[0].split())) + 1
+    text = (_SENTENCES[0] + " ") * reps
+    body = doc.element.body
+    sect_pr = body.find(qn("w:sectPr"))
+    for i in range(_DOCX_PARAGRAPHS):
+        p = OxmlElement("w:p")
+        r = OxmlElement("w:r")
+        t = OxmlElement("w:t")
+        t.text = f"Paragraph {salt}{i}: {text}"
+        t.set(qn("xml:space"), "preserve")
+        r.append(t)
+        p.append(r)
+        if sect_pr is not None:
+            sect_pr.addprevious(p)
+        else:
+            body.append(p)
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
+def _docx(name: str, raw: bytes) -> tuple[str, bytes, str]:
+    return (
+        name,
+        raw,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+
+
 # ── The three handlers under test ─────────────────────────────────────────────
-# Each returns the coroutine for one upload request. The two Canvas import
-# handlers (imports.py:110,147 in the spec's list of five) are not covered:
-# they need a slow fake upstream to hold the loop, which is §7's MockTransport
-# work — follow-up, tracked there.
+# Each returns the coroutine for one upload request. The three Canvas import
+# handlers (imports.py:110, 147, 235) are not covered: they need a slow fake
+# upstream to hold the loop, which is §7's MockTransport work — follow-up,
+# tracked there.
 
 
 def _batch_upload(client: httpx.AsyncClient):
@@ -151,14 +210,32 @@ def _batch_upload(client: httpx.AsyncClient):
     )
 
 
-def _single_upload(client: httpx.AsyncClient):
+def _single_upload_docx(client: httpx.AsyncClient):
+    """POST /students/{sid}/upload — one parse-heavy .docx file.
+
+    original/routers/students.py:341, ``.docx`` branch at 350-354: python-docx
+    ``Document(io.BytesIO(raw))`` plus a per-paragraph ``.text`` join, both
+    inline in the ``async def`` handler. A 25,000-paragraph file (see
+    ``_heavy_docx``) measures ~1.1-1.2 s to parse — the actual blocking case
+    this route has, unlike the ``.txt`` branch (see ``_single_upload_txt``).
+    """
+    return client.post(
+        "/students/perf-s2/upload",
+        files={"file": _docx("essay.docx", _heavy_docx("u-"))},
+    )
+
+
+def _single_upload_txt(client: httpx.AsyncClient):
     """POST /students/{sid}/upload — one ~2,000-word .txt file.
 
     original/routers/students.py:341. Declared ``async def`` like the others,
     but its inline work for a .txt is decode + split, not feature extraction.
+    Kept as the green control for this route: unlike the .docx/.pdf branches,
+    the .txt branch never blocks, so this case should stay green forever and
+    is not parametrised with ``blocker``.
     """
     return client.post(
-        "/students/perf-s2/upload",
+        "/students/perf-s3/upload",
         files={"file": _txt("essay.txt", _document(2000, "u-"))},
     )
 
@@ -240,7 +317,7 @@ async def _beat(client: httpx.AsyncClient, settle: float = SETTLE_S) -> _Beat:
 # ── Control: the probe itself is fast ─────────────────────────────────────────
 
 
-async def test_heartbeat_probe_is_fast_with_no_load(perf_client, store_reset):
+async def test_heartbeat_probe_is_fast_with_no_load(store_reset, perf_client):
     """Control for T-09: an unloaded heartbeat is answered in ~milliseconds.
 
     Without this, a slow /health could masquerade as event-loop starvation and
@@ -268,8 +345,9 @@ async def test_heartbeat_probe_is_fast_with_no_load(perf_client, store_reset):
 # ── The gap ───────────────────────────────────────────────────────────────────
 # One case per handler. Only the handlers that are actually red carry
 # `blocker`, so the marker stays an accurate inventory of open gaps: the
-# batch importer and the CSV importer hold the loop for seconds, while
-# /students/{id}/upload does no feature extraction and is green today.
+# batch importer, the CSV importer, and the .docx branch of the single-file
+# upload all hold the loop for a while; the .txt branch of that same route is
+# a green control kept alongside it (see `_single_upload_txt`).
 
 
 @pytest.mark.parametrize(
@@ -279,56 +357,103 @@ async def test_heartbeat_probe_is_fast_with_no_load(perf_client, store_reset):
             _batch_upload, id="baseline-upload-batch", marks=pytest.mark.blocker
         ),
         pytest.param(_turnitin_csv, id="turnitin-csv", marks=pytest.mark.blocker),
-        pytest.param(_single_upload, id="students-upload"),
+        pytest.param(
+            _single_upload_docx, id="students-upload", marks=pytest.mark.blocker
+        ),
+        pytest.param(_single_upload_txt, id="students-upload-txt"),
     ],
 )
 async def test_upload_does_not_starve_the_heartbeat(
-    perf_client, store_reset, send_upload
+    store_reset, perf_client, send_upload
 ):
     """T-09: bulk upload blocks the event loop; live exam heartbeats stall.
 
-    RED for the two importers by design (docs/testing/10-gap-register.md).
-    Measured 2026-09-07 on this checkout (Darwin, 12 CPUs), beat due 50 ms
-    into the upload:
+    RED for the batch importer, the CSV importer, and the .docx branch of the
+    single-file upload (docs/testing/10-gap-register.md). Measured
+    2026-09-07 on this checkout (Darwin, 12 CPUs), beats due every 50 ms for
+    the life of the upload, worst (maximum) lateness across all beats
+    (3 runs each):
 
-      baseline/upload-batch  10 296 ms late  (10.4 s request) — RED
-      turnitin-csv            2 557 ms late  ( 2.6 s request) — RED
-      students/{id}/upload         7 ms late  (60 ms request) — green
+      baseline/upload-batch   8.6-9.7 s late, 1 beat (8.7-9.7 s request)  — RED
+      turnitin-csv             2.4-2.6 s late, 1 beat (2.5-2.7 s request) — RED
+      students/upload (.docx)  1.1-1.3 s late, 1 beat (1.4-1.6 s request) — RED
+      students/upload (.txt)     4-7 ms late, 1 beat (50-60 ms request)  — green
 
-    The two red numbers move with machine load (the batch request measured
-    8.7-10.8 s across runs) but not by anything approaching the 40x that
-    would be needed to reach the budget; the green one is bounded by the
-    request's own 60 ms, ~36x under it.
+    All three red handlers hold the loop solidly for the whole request, so
+    only one beat ever gets collected before `upload.done()` — that single
+    beat's lateness tracks the request duration almost exactly (e.g. the
+    .docx case: 1.1-1.3 s late against a 1.1-1.2 s python-docx parse). A
+    handler that yielded partway through and then blocked would instead show
+    two-or-more beats, an early cheap one followed by a late one; the max-
+    over-all-beats assertion below catches that shape too, not just the
+    solid-block shape these three handlers happen to have today.
 
-    The green one is not an exception to the gap: /students/{id}/upload is
-    ``async def`` and inline like the others, but for a .txt its inline work is
-    a decode and a word count, so there is nothing there to hold the loop with.
-    It stays in the parametrisation as the regression guard for that — the day
-    feature extraction moves into that handler, this case turns red too.
+    The three red numbers move with machine load but not by anything
+    approaching the margin that would be needed to reach the budget; the
+    green one is bounded by the request's own ~60 ms, well under it.
+
+    Beats are issued in a loop for as long as the upload task is running
+    (`_Beat`'s regular 50 ms cadence, not a single sample), and the assertion
+    below is on the *maximum* lateness across every beat collected, not just
+    the first. A single early beat can be dodged by a handler that yields
+    once, answers it, and then blocks for the rest of the request; a beat
+    that keeps firing until the upload completes cannot be.
+
+    The .txt case is not an exception to the gap: /students/{id}/upload is
+    ``async def`` and inline like the others, but for a .txt its inline work
+    is a decode and a word count, so there is nothing there to hold the loop
+    with. It stays in the parametrisation, unmarked, as the regression guard
+    for that route — the day feature extraction (or something else heavy)
+    moves into the .txt branch, this case turns red on its own. The .docx
+    branch of the same route, by contrast, is genuinely heavy today
+    (python-docx parses the whole document inline) and is red now.
     """
     t_started = perf_counter()
     upload = asyncio.create_task(send_upload(perf_client))
 
-    beat = await _beat(perf_client)
+    beats: list[_Beat] = []
+    completed = False
+    try:
+        # At least one beat is always collected, even for a fast upload: the
+        # loop condition is checked only after a beat has been issued, so the
+        # latency assertion below is never vacuous.
+        while True:
+            beats.append(await _beat(perf_client))
+            if upload.done():
+                break
+        completed = True
+    finally:
+        if not completed and not upload.done():
+            # A raised exception (e.g. from _beat) would otherwise orphan the
+            # upload task ("Task exception was never retrieved"). The normal
+            # path above and the wait_for timeout path below are untouched by
+            # this — it only fires when the beat loop itself errored.
+            upload.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await upload
 
     upload_response = await asyncio.wait_for(upload, timeout=UPLOAD_TIMEOUT_S)
     upload_seconds = perf_counter() - t_started
 
     # Setup floors first, so a red case fails on the budget below and never on
-    # a broken payload: the probe has to have worked, and the load has to have
-    # been a real accepted upload rather than a 4xx that returned instantly.
-    assert beat.response.status_code == 200, beat.response.text
+    # a broken payload: every probe has to have worked, and the load has to
+    # have been a real accepted upload rather than a 4xx that returned
+    # instantly.
+    assert all(b.response.status_code == 200 for b in beats), [
+        b.response.status_code for b in beats
+    ]
     assert 200 <= upload_response.status_code < 300, (
         f"the upload under test did not succeed ({upload_response.status_code}) "
         f"— nothing was loading the event loop: {upload_response.text[:300]}"
     )
 
-    assert beat.late < BEAT_BUDGET_S, (
-        f"heartbeat waited on the upload: {beat.describe()}, budget "
-        f"{BEAT_BUDGET_S * 1000:.0f} ms. The upload itself took "
-        f"{upload_seconds:.2f} s, and the beat was due {SETTLE_S * 1000:.0f} ms "
-        "in — so the loop was held by the handler for essentially all of it. "
-        "A live exam heartbeat arriving during this upload waits exactly this "
-        "long. Fix: run the CPU work off the loop (`def` handler or "
-        "run_in_threadpool); this test does not care which."
+    worst = max(beats, key=lambda b: b.late)
+    assert worst.late < BEAT_BUDGET_S, (
+        f"heartbeat waited on the upload: {len(beats)} beat(s) sent, worst was "
+        f"{worst.describe()}, budget {BEAT_BUDGET_S * 1000:.0f} ms. The upload "
+        f"itself took {upload_seconds:.2f} s — so the loop was held by the "
+        "handler for essentially all of it. A live exam heartbeat arriving "
+        "during this upload waits exactly this long. Fix: run the CPU work "
+        "off the loop (`def` handler or run_in_threadpool); this test does "
+        "not care which."
     )
