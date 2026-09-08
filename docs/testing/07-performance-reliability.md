@@ -47,16 +47,24 @@ over the ASGI app:
 ```python
 async def test_bulk_upload_does_not_starve_heartbeat(async_client, ten_files):
     upload = asyncio.create_task(async_client.post("/students/s1/baseline/batch", files=ten_files))
-    await asyncio.sleep(0.05)                       # let the upload start
-    t0 = perf_counter()
-    beat = await async_client.post("/proctor/p1/beat", json={...})
-    assert beat.status_code == 200
-    assert perf_counter() - t0 < 0.25, "heartbeat waited on the upload"
-    await upload
+    beats = []
+    while not upload.done():                        # keep beating until the upload ends
+        due = perf_counter() + 0.05
+        await asyncio.sleep(0.05)                   # this sleep is ITSELF starved if the loop is held
+        beat = await async_client.get("/health")
+        assert beat.status_code == 200
+        beats.append(perf_counter() - due)          # lateness from when the beat was DUE
+    await asyncio.wait_for(upload, 60)
+    assert max(beats) < 0.25, f"heartbeat up to {max(beats):.2f}s late"
 ```
 
-Red today. The fix is `run_in_threadpool` / `def` instead of `async def` for
-CPU handlers; the test does not care which. Parametrise over all five
+Red today. Two traps, learned in Phase A: timing the probe from *after* a
+`sleep` gives a false green, because the sleep itself is starved and returns
+only once the loop is free — measure lateness from when the beat was due;
+and a single beat can be dodged by a handler that yields once early — beat
+until the upload completes and assert on the maximum. The fix is
+`run_in_threadpool` / `def` instead of `async def` for CPU handlers; the
+test does not care which. Parametrise over all five
 handlers so the fix cannot be partial.
 
 ## 3. Per-score full-table scans

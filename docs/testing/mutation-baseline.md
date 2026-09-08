@@ -62,9 +62,15 @@ specifies. The effective runner is therefore
 tests/test_tenant_isolation.py` plus two harmless extra plugin-disable
 flags mutmut always adds.
 
-There is no `tests/test_tenancy_shim.py` yet, as the brief warned — the shim
-is exercised only indirectly (or, as it turned out, not exercised at all by
-this runner — see Results).
+There is no `tests/test_tenancy_shim.py` yet, as the brief warned. The
+mechanism behind the shim's all-"no tests" result is deterministic, not a
+mutmut coverage-detection artifact: `tenancy_shim.py` is imported only by
+`original/postgres_repository.py`, which is exercised only by
+`tests/test_repository_contract.py` — neither configured runner file loads
+the Postgres repository path (both drive the SQLite-backed live app). The
+concrete follow-up is gap **T-33** in `docs/testing/10-gap-register.md`:
+write `tests/test_tenancy_shim.py` (round-trip and shape properties) and add
+it to this runner.
 
 This worked end to end on mutmut 3.7.0; no fallback to the 2.x CLI shape or
 to `mutmut==2.5.1` was needed.
@@ -185,8 +191,18 @@ is too large to bury in a summary table:
    tests/test_principal_branches.py tests/test_tenant_isolation.py` directly
    from `mutants/` — the same env var mutmut's trampoline mechanism reads,
    the same test files, the same runner flags — passed cleanly (16 passed,
-   exit 0), no crash. This means the crash is specific to mutmut's own
-   execution path for that mutant (most likely its narrower
+   exit 0), no crash. (Confirm any mutant id used as a reproduction anchor
+   against `mutmut results` first; the concentration functions named above
+   are the safest place to pick one.) The simplest explanation consistent
+   with all three observations is **heavy-import-then-fork**: mutmut's
+   parent imports spaCy/numpy/scipy/scikit-learn and, via
+   `tests/test_tenant_isolation.py`'s module-scope `run.load_legacy_demo_app()`,
+   the entire live app, and only then forks a child per mutant. On macOS
+   that is fork-unsafe independently of BLAS thread pools (Accelerate/GCD/
+   Core Foundation state, mmap'd model files, C-extension locks), which is
+   why the `*_NUM_THREADS=1` mitigation — which only addresses BLAS's own
+   pool — changed nothing, and why a direct no-fork pytest run is clean.
+   Start there before the narrower theory below (most likely its narrower
    per-mutant test selection via `tests_by_mangled_function_name`, combined
    with `os.fork()` at a point some cached/instrumented state
    `coverage`/`pytest-cov` or mutmut's own dependency tracking has already
