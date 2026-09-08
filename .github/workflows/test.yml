@@ -197,6 +197,17 @@ jobs:
       - name: Install Python dependencies (pilot superset -- exercises /lti/*)
         run: pip install -r requirements-pilot.txt
 
+      - name: Verify the pilot lockset can actually boot REPO_BACKEND=postgres
+        # requirements-pilot.txt deliberately excludes sqlalchemy/psycopg2/alembic
+        # for the plain SQLite pilot -- but original/repository.py's
+        # get_repository() imports original.postgres_repository lazily the moment
+        # REPO_BACKEND=postgres is set, and that import previously wasn't in this
+        # lockset at all: the process would boot clean and then 500 on the first
+        # request. This doesn't need a live Postgres -- it only proves the import
+        # succeeds, which is exactly what silently regresses if this lockset ever
+        # drifts from requirements.txt's Postgres pins again.
+        run: python -c "import original.postgres_repository"
+
       - name: Install spaCy model
         run: python -m spacy download en_core_web_sm
 
