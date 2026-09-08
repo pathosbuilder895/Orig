@@ -100,6 +100,37 @@ and asserts every module `run.load_legacy_demo_app()` imports under
 `REPO_BACKEND=postgres` is covered. Faster than the matrix; catches the next
 missing dependency at PR time.
 
+**What exists now.** `.github/workflows/boot-matrix.yml` runs the eight cells
+above (the seven from the table plus §8's seeding-safety cell) on every PR and
+every push to `main`, one job each, `fail-fast: false`. A cell builds a venv
+from *only* its lockset (`python -m venv v && v/bin/pip install -r <lockset>`
+plus the spaCy model — nothing installs `requirements.txt`, which would defeat
+the point), then calls `scripts/boot_check.sh <expect> <today> [gap]
+[--log-fragment TEXT] -- <KEY=VAL…> [--no-skip-seed]`. The script starts
+`python run.py --demo --frontend-dir demo --port 8001 --skip-seed` in the
+background, polls `/health` for 30 s, kills the server from an `EXIT` trap, and
+classifies the run as `up` (200), `refuse` (exited non-zero **and** the log
+contains the cell's fragment) or `down` (anything else). Each cell points
+`ORIGINAL_DB` at a scratch file, so the seeding cell meets a genuinely empty
+store rather than whatever `profiles.db` the checkout carries.
+
+The cells carry Phase A's known-red semantics: `expect` is the outcome a fixed
+product would give, `today` is the outcome observed on this branch, and the
+step **passes when observed == `today`** — failing in either direction, so the
+matrix flips red the day boot behaviour changes rather than the day someone
+remembers to look. Where `today != expect` the script emits a `::warning::`
+naming the gap-register row, and fixing the gap means editing `today` in the
+same PR. `tests/test_boot_matrix_yaml.py` closes the obvious escape hatch:
+`today` may only differ from `expect` on a cell whose `gap` field names a row
+that actually exists in `10-gap-register.md`, so a red cell cannot be quieted
+by re-baselining it. Observed on 2026-09-08: `pilot-sqlite`,
+`pilot-guard-destructive` and `demo-lockset-default` **up**;
+`pilot-origins-wildcard` and `pilot-no-skip-seed` **refuse**; `demo-guard-destructive` **up** where it
+should refuse (T-23); and both Postgres cells **down** — note *down*, not
+*refuse*: the process exits 3 on an unhandled `ModuleNotFoundError:
+sqlalchemy` raised inside the `api.py` lifespan, which is precisely the
+unhandled-import shape T-07 names.
+
 ## 3. Requirements drift
 
 - Every package in `requirements-pilot.txt` is in `requirements.txt` at the
