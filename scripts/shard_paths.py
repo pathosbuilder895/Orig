@@ -22,15 +22,32 @@ add the file means no shard collects it and CI stays green on a test nobody
 runs. `tests/test_shard_partition.py` pins that property — the three shard
 selections must partition the full blocking collection exactly.
 
-Output is shell-quoted (`shlex.quote`), so callers must `eval` it. That
-matters only in a local worktree: the macOS Finder duplicates below are the
-one source of paths containing spaces, and they are gitignored, so on a CI
-checkout the output never needs quoting at all.
+Any `tests/` file containing `@pytest.mark.postgres` is routed into `api` —
+the only shard with a Postgres service — even if its directory/glob entry
+would otherwise place it in `core` or `rest` (see `postgres_marked_files()`).
+`core`/`rest` get an `--ignore` for each such file so it still runs exactly
+once; `tests/test_shard_partition.py::test_every_postgres_marked_file_is_in_the_api_shard`
+pins this by collection, not by reading the grep.
+
+Two ways to run a shard:
+
+    $ python scripts/shard_paths.py --run core -m "not blocker" -q
+        execs `python -m pytest <core's args> -m "not blocker" -q` via
+        `os.execv` — no shell, no quoting round-trip. This is what CI and the
+        Makefile use.
+
+    $ python scripts/shard_paths.py core
+        prints the shell-quoted (`shlex.quote`) argument list for a human to
+        paste into their own command. Quoting matters only in a local
+        worktree: the macOS Finder duplicates below are the one source of
+        paths containing spaces, and they are gitignored, so a CI checkout
+        never needs it.
 """
 
 from __future__ import annotations
 
 import glob
+import os
 import re
 import shlex
 import sys
@@ -87,6 +104,10 @@ SHARD_NAMES = tuple(SHARDS)
 # them needs the owner's permission, so they are deselected instead.
 _FINDER_DUPLICATE_RE = re.compile(r".* \d+\.py$")
 
+# Matches the decorator whether it's bare (`@pytest.mark.postgres`) or
+# parametrized-looking (it never takes args today, but don't require that).
+_POSTGRES_MARKER_RE = re.compile(r"pytest\.mark\.postgres\b")
+
 
 def _rel(path: Path) -> str:
     return path.relative_to(REPO_ROOT).as_posix()
@@ -106,6 +127,34 @@ def finder_duplicates() -> list[str]:
     return sorted(
         _rel(p) for p in tests_dir.rglob("*.py") if _FINDER_DUPLICATE_RE.match(p.name)
     )
+
+
+def postgres_marked_files() -> list[str]:
+    """Repo-relative paths of every `tests/` file that references
+    `pytest.mark.postgres` in its source, grepped at run time.
+
+    A maintained list would silently go stale the next time someone adds a
+    postgres-marked test; grepping means a new one is routed to `api` (the
+    only shard with a Postgres service) with no edit to this file. Finder
+    duplicates are excluded — they're gitignored copies of files already
+    counted under their real name.
+    """
+    tests_dir = REPO_ROOT / "tests"
+    if not tests_dir.is_dir():
+        return []
+    duplicates = set(finder_duplicates())
+    found: list[str] = []
+    for path in tests_dir.rglob("*.py"):
+        rel = _rel(path)
+        if rel in duplicates:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        if _POSTGRES_MARKER_RE.search(text):
+            found.append(rel)
+    return sorted(found)
 
 
 def expand(shard: str) -> list[str]:
@@ -135,24 +184,70 @@ def expand(shard: str) -> list[str]:
     return sorted(dict.fromkeys(paths))
 
 
+def api_selections() -> list[str]:
+    """Concrete paths the `api` shard selects.
+
+    `api`'s own glob/literal entries, plus every postgres-marked test file
+    anywhere under `tests/` — even one that a directory entry elsewhere
+    (e.g. `core`'s `tests/validation`) would otherwise own. `api` is the only
+    shard the workflow gives a Postgres service, so this is what makes a
+    `@pytest.mark.postgres` test actually run against one in CI instead of
+    self-skipping silently in `core` or `rest`.
+    """
+    selections = set(expand("api"))
+    selections.update(postgres_marked_files())
+    return sorted(selections)
+
+
 def pytest_args(shard: str) -> list[str]:
     """The pytest argument list for `shard` (selection + --ignore entries)."""
     duplicate_ignores = [f"--ignore={p}" for p in finder_duplicates()]
+    # Harmless no-op for a shard that never selected the file in the first
+    # place — same convention as duplicate_ignores above.
+    postgres_ignores = [f"--ignore={p}" for p in postgres_marked_files()]
 
-    if shard != "rest":
-        return expand(shard) + duplicate_ignores
+    if shard == "api":
+        return api_selections() + duplicate_ignores
 
+    if shard == "core":
+        return expand(shard) + postgres_ignores + duplicate_ignores
+
+    # rest
     owned: set[str] = set()
     for other in SHARD_NAMES:
         if other == "rest":
             continue
+        # `api`'s postgres-routed files count as owned too, or `rest` would
+        # collect them a second time from its subtractive `tests/` root.
+        other_paths = api_selections() if other == "api" else expand(other)
         # Only paths under tests/ can be reached by `rest`'s `tests/` root;
         # ignoring anything else would be noise.
-        owned.update(p for p in expand(other) if p.startswith("tests/"))
+        owned.update(p for p in other_paths if p.startswith("tests/"))
     return ["tests/"] + [f"--ignore={p}" for p in sorted(owned)] + duplicate_ignores
 
 
+def build_argv(shard: str, extra: list[str]) -> list[str]:
+    """The argv `--run` execs for `shard`, plus any caller-supplied `extra`
+    pytest arguments. Shared with the print-mode path (`pytest_args`) so the
+    two modes cannot drift apart — see
+    `tests/test_shard_partition.py::test_run_mode_matches_print_mode_argv`.
+    """
+    return [sys.executable, "-m", "pytest", *pytest_args(shard), *extra]
+
+
 def main(argv: list[str]) -> int:
+    if len(argv) >= 2 and argv[1] == "--run":
+        if len(argv) < 3 or argv[2] not in SHARDS:
+            print(
+                f"usage: {Path(argv[0]).name} --run {{{'|'.join(SHARD_NAMES)}}} "
+                "[pytest args...]",
+                file=sys.stderr,
+            )
+            return 2
+        shard, extra = argv[2], argv[3:]
+        os.execv(sys.executable, build_argv(shard, extra))
+        return 1  # unreachable on success: execv replaces this process
+
     if len(argv) != 2 or argv[1] not in SHARDS:
         print(
             f"usage: {Path(argv[0]).name} {{{'|'.join(SHARD_NAMES)}}}",

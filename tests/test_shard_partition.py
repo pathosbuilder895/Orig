@@ -85,14 +85,27 @@ def _collect(args: list[str]) -> set[str]:
     return {line for line in proc.stdout.splitlines() if _NODEID_RE.match(line)}
 
 
-def test_shards_partition_the_blocking_collection(capsys) -> None:
+@pytest.fixture(scope="module")
+def collections() -> dict[str, set[str]]:
+    """Nodeid sets for the full blocking collection and each shard, computed
+    once and shared across this module's tests -- collection is the ~15s/call
+    cost this file exists to spend, and there's no reason to pay it twice for
+    the full set + three shards in one test and the same four again in
+    another.
+    """
     duplicate_ignores = [f"--ignore={p}" for p in shard_paths.finder_duplicates()]
     full = _collect(FULL_SET_PATHS + duplicate_ignores)
-    assert full, "the full blocking collection came back empty"
-
     shards = {
         name: _collect(shard_paths.pytest_args(name)) for name in shard_paths.SHARD_NAMES
     }
+    return {"full": full, **shards}
+
+
+def test_shards_partition_the_blocking_collection(collections, capsys) -> None:
+    full = collections["full"]
+    assert full, "the full blocking collection came back empty"
+
+    shards = {name: collections[name] for name in shard_paths.SHARD_NAMES}
 
     with capsys.disabled():
         print()
@@ -100,9 +113,10 @@ def test_shards_partition_the_blocking_collection(capsys) -> None:
             print(f"  shard {name:<5} {len(nodeids):>5} tests")
         print(f"  {'union':<11} {len(set().union(*shards.values())):>5} tests")
         print(f"  {'full set':<11} {len(full):>5} tests")
-        if duplicate_ignores:
+        duplicates = shard_paths.finder_duplicates()
+        if duplicates:
             print(
-                f"  ({len(duplicate_ignores)} local Finder duplicates deselected on "
+                f"  ({len(duplicates)} local Finder duplicates deselected on "
                 "both sides; a CI checkout has none)"
             )
 
@@ -137,3 +151,46 @@ def test_rest_shard_is_expressed_as_ignores_not_an_explicit_list() -> None:
         f"--ignore; it selects {selections!r}"
     )
     assert any(a.startswith("--ignore=") for a in args)
+
+
+def test_every_postgres_marked_file_is_in_the_api_shard(collections) -> None:
+    """A `@pytest.mark.postgres` test only gets a real Postgres to run
+    against in the `api` shard (the one job the workflow gives a Postgres
+    service). A file landing anywhere else self-skips silently instead of
+    failing loud -- this pins that every postgres-marked file's nodeids come
+    back from `api`'s collection, and from no other shard's.
+    """
+    marked = shard_paths.postgres_marked_files()
+    assert marked, "expected at least one tests/ file using @pytest.mark.postgres"
+
+    api_nodeids = collections["api"]
+    other_nodeids: set[str] = set()
+    for name in shard_paths.SHARD_NAMES:
+        if name != "api":
+            other_nodeids |= collections[name]
+
+    for path in marked:
+        prefix = f"{path}::"
+        in_api = any(nodeid.startswith(prefix) for nodeid in api_nodeids)
+        stray = sorted(n for n in other_nodeids if n.startswith(prefix))
+        assert in_api, f"{path} uses @pytest.mark.postgres but collects nothing in the api shard"
+        assert not stray, (
+            f"{path} uses @pytest.mark.postgres but also collects in a "
+            f"non-api shard: {stray[:5]}"
+        )
+
+
+def test_run_mode_matches_print_mode_argv() -> None:
+    """`--run` execs the same argv the print mode would print, for every
+    shard -- so the two modes cannot silently drift apart.
+    """
+    extra = ["-m", "not blocker and not certification", "--durations=25"]
+    for name in shard_paths.SHARD_NAMES:
+        argv = shard_paths.build_argv(name, extra)
+        assert argv == [
+            sys.executable,
+            "-m",
+            "pytest",
+            *shard_paths.pytest_args(name),
+            *extra,
+        ]

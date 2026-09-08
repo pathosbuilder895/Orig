@@ -71,7 +71,7 @@ jobs:
   # `rest` is `tests/` MINUS --ignore for everything the other two shards own,
   # which is what makes "un-run" structurally impossible rather than a thing
   # to remember. Re-run any red shard locally with the same selection:
-  #     python -m pytest $(python scripts/shard_paths.py api)
+  #     python scripts/shard_paths.py --run api
   #
   # Caps are 20 minutes each: shards should land ≤ 10 min on CI (the 21m
   # single-job figure split three ways, with `core` carrying the fusion six at
@@ -116,14 +116,13 @@ jobs:
       - name: Run pytest (core shard) with coverage
         env:
           COVERAGE_FILE: .coverage.core
-        # `eval` because shard_paths.py shell-quotes its output: in a local
-        # worktree the gitignored macOS Finder duplicates ("test_tier1 2.py")
-        # produce --ignore arguments containing spaces. On a CI checkout those
-        # files do not exist and the output needs no quoting at all — the eval
-        # keeps the one command identical in both places.
-        run: |
-          SHARD_ARGS="$(python scripts/shard_paths.py core)"
-          eval "python -m pytest $SHARD_ARGS -m 'not blocker and not certification' --cov=original --cov-branch --cov-report= --durations=25 -p no:cacheprovider"
+        # `--run` has shard_paths.py exec `python -m pytest <shard args> <these
+        # extra args>` via os.execv — no shell, no quoting round-trip.
+        run: >
+          python scripts/shard_paths.py --run core
+          -m "not blocker and not certification"
+          --cov=original --cov-branch --cov-report= --durations=25
+          -p no:cacheprovider
 
       - name: Upload coverage data
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -175,9 +174,11 @@ jobs:
         env:
           COVERAGE_FILE: .coverage.api
           DATABASE_URL: postgresql://original:original@localhost:5432/original_test
-        run: |
-          SHARD_ARGS="$(python scripts/shard_paths.py api)"
-          eval "python -m pytest $SHARD_ARGS -m 'not blocker and not certification' --cov=original --cov-branch --cov-report= --durations=25 -p no:cacheprovider"
+        run: >
+          python scripts/shard_paths.py --run api
+          -m "not blocker and not certification"
+          --cov=original --cov-branch --cov-report= --durations=25
+          -p no:cacheprovider
 
       - name: Upload coverage data
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -212,9 +213,11 @@ jobs:
       - name: Run pytest (rest shard) with coverage
         env:
           COVERAGE_FILE: .coverage.rest
-        run: |
-          SHARD_ARGS="$(python scripts/shard_paths.py rest)"
-          eval "python -m pytest $SHARD_ARGS -m 'not blocker and not certification' --cov=original --cov-branch --cov-report= --durations=25 -p no:cacheprovider"
+        run: >
+          python scripts/shard_paths.py --run rest
+          -m "not blocker and not certification"
+          --cov=original --cov-branch --cov-report= --durations=25
+          -p no:cacheprovider
 
       - name: Upload coverage data
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -260,12 +263,10 @@ jobs:
       - name: Install coverage (same version the shards measured with)
         run: pip install -r requirements-dev.txt
 
-      # download-artifact has no pinned SHA anywhere in this repo yet. TODO:
-      # pin this to a SHA (dependabot's github-actions ecosystem will offer
-      # one); upload-artifact above is at v7.0.1 and the v4+ artifact backend
-      # is shared, so a v4 download reads a v7 upload.
+      # upload-artifact above is at v7.0.1 and the v4+ artifact backend is
+      # shared, so this v4 download reads a v7 upload.
       - name: Download the three shards' coverage data
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: coverage-data-*
           merge-multiple: true

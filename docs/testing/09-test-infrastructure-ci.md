@@ -23,27 +23,48 @@ Makefile targets both ask that script for a shard's pytest arguments.
 
 | Shard | Job | Selection | Collected | Postgres |
 |---|---|---|---|---|
-| `core` | `pytest-core` | `tests/quantum tests/context tests/fusion tests/validation validation/test_tier10_optional.py` | 1012 | no |
-| `api` | `pytest-api` | `tests/` root files matching `test_*api*.py`, `test_*router*.py`, `test_bluebook*.py`, `test_pilot*.py`, `test_cutover*.py`, `test_repository_contract*.py`, `test_shadow*.py`, `test_migration*.py`, `test_persistence*.py`, `test_alembic*.py` (no matches yet), plus `tests/security tests/config tests/perf` | 1061 | **yes** |
-| `rest` | `pytest-rest` | `tests/` **minus** `--ignore` for every path the other two shards own | 1531 | no |
+| `core` | `pytest-core` | `tests/quantum tests/context tests/fusion tests/validation validation/test_tier10_optional.py`, minus `--ignore` for any file below routed out by the postgres-marker rule | 997 | no |
+| `api` | `pytest-api` | `tests/` root files matching `test_*api*.py`, `test_*router*.py`, `test_bluebook*.py`, `test_pilot*.py`, `test_cutover*.py`, `test_repository_contract*.py`, `test_shadow*.py`, `test_migration*.py`, `test_persistence*.py`, `test_alembic*.py` (no matches yet), plus `tests/security tests/config tests/perf`, **plus every `tests/` file anywhere that uses `@pytest.mark.postgres`** regardless of which directory it lives in (`scripts/shard_paths.py:postgres_marked_files()`, grepped at run time — not a maintained list) | 1089 | **yes** |
+| `rest` | `pytest-rest` | `tests/` **minus** `--ignore` for every path the other two shards own (including `api`'s postgres-routed files) | 1520 | no |
 
 Collected counts are `-m "not blocker and not certification"` as of the split;
-union 3604 == the full blocking set's 3604. Estimated wall: `core` ~7 min (the
+union 3606 == the full blocking set's 3606. Estimated wall: `core` ~7 min (the
 fusion six dominate — §1.2), `api` ~6 min, `rest` ~5 min, against a 20-minute
 cap each. The serial job this replaced measured 15–21 min with a 30-minute cap
 it had already hit once.
 
-Two properties are load-bearing, and `tests/test_shard_partition.py` (itself
-in the `rest` shard) pins both by running `pytest --collect-only` four times
-and comparing nodeid sets:
+**The `api` row's glob list is a convenience, not the actual rule for "needs
+Postgres."** A file-pattern glob (`test_*api*.py`, `test_bluebook*.py`, …)
+just groups the HTTP-surface tests that happen to want the same shard; it
+does not imply anything about Postgres. The only thing that routes a test to
+the one shard with a Postgres service is `@pytest.mark.postgres` appearing in
+its source — checked by grep at script run time in
+`postgres_marked_files()`, so a file placed by directory or glob into `core`
+or `rest` (e.g. `tests/validation/test_termsim.py`, which `core` would
+otherwise own via its `tests/validation` directory entry) is still pulled
+into `api` and `--ignore`d out of wherever it would have landed. Never rely
+on a file's name or directory to reason about whether it needs Postgres — ask
+whether it carries the marker.
+
+Three properties are load-bearing, and `tests/test_shard_partition.py`
+(itself in the `rest` shard) pins all three by running `pytest
+--collect-only` and comparing nodeid sets:
 
 - **Nothing is un-run.** `rest` is subtractive — `tests/` with `--ignore` for
   the other shards' paths — so a new file added to `tests/` root is collected
   by `rest` by default. Under an explicit-list `rest`, forgetting to add a new
   file means no shard collects it and CI stays green on a test nobody runs.
 - **Nothing runs twice.** The three selections are pairwise disjoint. The
-  `api` globs are expanded at run time, so a new `tests/test_bluebook_x.py`
-  moves from `rest` to `api` automatically rather than being collected by both.
+  `api` globs and the postgres-marker grep are both expanded at run time, so
+  a new `tests/test_bluebook_x.py` or a newly `@pytest.mark.postgres`-marked
+  file moves into `api` automatically rather than being collected by two
+  shards.
+- **Every postgres-marked file collects only in `api`.**
+  `test_every_postgres_marked_file_is_in_the_api_shard` takes
+  `postgres_marked_files()`'s list and asserts, by collection, that every
+  matched file's nodeids appear in `api`'s collection and in no other
+  shard's — proof rather than trusting the grep and the shard membership to
+  agree.
 
 Coverage: each shard runs `--cov=original --cov-branch --cov-report=` (no
 report) with a distinct `COVERAGE_FILE=.coverage.<shard>` and uploads that
@@ -61,10 +82,14 @@ Only the `api` shard gets the Postgres service (it owns
 backend). The other two drop it and start faster.
 
 Local equivalents: `make test-shard-core|test-shard-api|test-shard-rest`, and
-`make test-fast` = the `rest` shard minus `slow` (§8). The script's output is
-shell-quoted, so callers `eval` it — the only paths containing spaces are the
-gitignored macOS Finder duplicates (`test_tier1 2.py`), which the script
-deselects with `--ignore` and which do not exist on a CI checkout.
+`make test-fast` = the `rest` shard minus `slow` (§8). Both the Makefile and
+the three workflow steps call `python scripts/shard_paths.py --run <shard>
+<extra pytest args>`, which builds the argv list and `os.execv`s it directly
+— no shell, no quoting round-trip, no `eval`. Running the script with just a
+shard name (no `--run`) instead prints the shell-quoted argument list for a
+human to paste into their own command; quoting only matters there, for the
+gitignored macOS Finder duplicates (`test_tier1 2.py`), which do not exist on
+a CI checkout.
 
 ### 1.2 The fusion six
 
