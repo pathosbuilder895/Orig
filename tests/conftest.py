@@ -72,42 +72,58 @@ def postgres_available() -> bool:
     identical no matter which test asks first, so paying its cost more than
     once per session buys nothing.
 
-    Also ensures the live schema exists on this first call
-    (LiveBase.metadata.create_all, checkfirst=True by default, so it's a
-    cheap no-op when the schema is already present) — folded in from
-    test_persistence_error_arms.py's ``_postgres_session_available()`` (the
-    branch-coverage effort's fix). NOTE this only runs once, here, at
-    whichever test first requests the fixture — it is NOT re-run on every
-    request the way the old per-file helpers were (they were plain
-    functions, re-executed on every call). Several consumers in this suite
-    drop the live schema in their own teardown once their own tests finish
-    (test_migration.py's ``fresh_pg``, two tests in test_cutover.py), so a
-    Postgres-gated test/fixture that runs later in the session and doesn't
-    otherwise manage its own schema must not assume this fixture's one-time
-    bootstrap is still standing — it should re-assert
-    ``LiveBase.metadata.create_all(bind=...)`` itself before touching a
-    table, exactly as test_repository_contract.py's ``repo``,
-    test_migration.py's ``fresh_pg``, and test_shadow_repository.py's
-    ``shadow_repo`` already do (and as the four
-    test_persistence_error_arms.py sites that used to lean on
-    ``_postgres_session_available()`` for this now do too). Reachability
-    alone isn't the same contract as "safe to run in any sandbox."
+    Reachability-only — this fixture does NOT touch the live schema. Sibling
+    files (test_migration.py's ``fresh_pg``, two tests in test_cutover.py)
+    drop the live schema in their own teardown once their tests finish, so a
+    session-scoped one-time ``create_all`` here would go stale the moment
+    one of those runs first. Any Postgres-gated test/fixture that needs the
+    schema to exist must request the function-scoped ``postgres_schema``
+    fixture below instead, which re-asserts it on every single request.
     """
     db_url = os.environ.get("DATABASE_URL", "")
     if not db_url.startswith("postgresql"):
         return False
     from original.db import postgres_session
-    from original.db.models.live import LiveBase
 
     try:
         postgres_session.reset_engine()
         engine = postgres_session.get_engine()
         with engine.connect():
             pass
-        LiveBase.metadata.create_all(bind=engine)
         return True
     except Exception:
         return False
+
+
+@pytest.fixture
+def postgres_schema(postgres_available: bool):
+    """Ensures the live Postgres schema exists for one test, and returns the
+    engine it was ensured on.
+
+    Function-scoped (unlike ``postgres_available`` above): unconditionally
+    re-runs ``LiveBase.metadata.create_all`` on every request
+    (``checkfirst=True`` by default, so it's a cheap no-op when the schema
+    is already present) rather than once per session, because sibling files
+    (test_migration.py's ``fresh_pg``, two tests in test_cutover.py) drop
+    the live schema in their own teardown — a test that only needs
+    reachability-plus-schema-exists, and doesn't otherwise manage its own
+    schema, should request this fixture rather than
+    ``postgres_available`` alone.
+
+    Skips with the same "uninformative" reason as every other
+    Postgres-gated fixture/test in this suite when no Postgres is reachable.
+    """
+    if not postgres_available:
+        pytest.skip(
+            "uninformative — no reachable Postgres; set DATABASE_URL to a "
+            "postgresql:// instance to run this test"
+        )
+    from original.db import postgres_session
+    from original.db.models.live import LiveBase
+
+    engine = postgres_session.get_engine()
+    LiveBase.metadata.create_all(bind=engine)
+    return engine
 
 
 @pytest.fixture

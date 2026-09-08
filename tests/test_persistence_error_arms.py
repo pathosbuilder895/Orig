@@ -297,9 +297,9 @@ def test_postgres_session_get_engine_postgres_scheme_branch(postgres_available):
     object. Self-skips if no postgresql:// DATABASE_URL is reachable.
 
     Reachability is checked by the shared ``postgres_available`` fixture in
-    conftest.py (which used to be this file's own
-    ``_postgres_session_available()``); this particular test never touches
-    a table, so it doesn't care whether the live schema happens to exist."""
+    conftest.py; this particular test never touches a table, so it doesn't
+    need ``postgres_schema`` and doesn't care whether the live schema
+    happens to exist."""
     from original.db import postgres_session
 
     if not postgres_available:
@@ -598,28 +598,17 @@ def test_pg_repository_guard_reraises_on_session_failure(monkeypatch, method_nam
 
 @pytest.mark.postgres
 def test_advance_formation_pathway_returns_none_on_second_session_failure(
-    monkeypatch, postgres_available
+    monkeypatch, postgres_schema
 ):
     # Unlike every test in Step 4/5 above (which fully replace session_scope
     # with _boom and never dial out), the first call here is real -- so this
     # one actually needs a reachable Postgres to self-skip against, matching
     # the file's documented "safe to run in any sandbox" contract.
-    if not postgres_available:
-        pytest.skip(
-            "uninformative — no reachable Postgres; set DATABASE_URL to a "
-            "postgresql:// instance to run this two-stage guard test"
-        )
-    # postgres_available's own schema bootstrap only ever runs once per
-    # session (it's session-scoped); a sibling file that ran earlier and
-    # dropped the live schema in its own teardown (test_cutover.py,
-    # test_migration.py both do) would otherwise leave it reachable but
-    # tableless here. Re-assert it explicitly, same as every other
-    # Postgres-gated fixture/test in this suite does for itself.
-    from original.db import postgres_session
-    from original.db.models.live import LiveBase
-
-    LiveBase.metadata.create_all(bind=postgres_session.get_engine())
-
+    # postgres_schema (conftest.py) covers both: it skips with the same
+    # "uninformative" reason when unreachable, and re-asserts the live
+    # schema unconditionally so this test doesn't depend on schema state
+    # left behind by a sibling file (test_cutover.py, test_migration.py
+    # both drop the live schema in their own teardown).
     repo = postgres_repository.PostgresRepository()
     student_id = "sem:pg-advance-guard"
     opened = repo.open_formation_pathway(student_id)
@@ -662,29 +651,21 @@ def test_parse_iso_or_now_malformed_string_falls_back_to_now():
 
 
 @pytest.mark.postgres
-def test_doc_to_state_pads_legacy_short_vector(postgres_available):
+def test_doc_to_state_pads_legacy_short_vector(postgres_schema):
     """Mirrors test_store_deserialize_pads_legacy_short_vector (Step 10)
     for the Postgres side. PostgresRepository has no public write path that
     produces a short vector -- every real caller constructs a StudentState
     from the current FEATURE_DIM-wide feature pipeline -- so the fixture
     doc is written directly through session_scope/the ORM: the sanctioned
     exception for constructing states unreachable through the protocol.
-    The assertion reads back through repo.get(), the public API."""
-    if not postgres_available:
-        pytest.skip(
-            "uninformative — no reachable Postgres; set DATABASE_URL to a "
-            "postgresql:// instance to run this legacy-dimension-padding test"
-        )
-    from original.db.models.live import LiveBase, StudentProfile
-    from original.db.postgres_session import get_engine, session_scope
+    The assertion reads back through repo.get(), the public API.
 
-    # postgres_available's own schema bootstrap only ever runs once per
-    # session (it's session-scoped); a sibling file that ran earlier and
-    # dropped the live schema in its own teardown (test_cutover.py,
-    # test_migration.py both do) would otherwise leave it reachable but
-    # tableless here. Re-assert it explicitly, same as every other
-    # Postgres-gated fixture/test in this suite does for itself.
-    LiveBase.metadata.create_all(bind=get_engine())
+    postgres_schema (conftest.py) skips with the same "uninformative"
+    reason when unreachable, and re-asserts the live schema unconditionally
+    on every request -- needed because a sibling file (test_cutover.py,
+    test_migration.py) may have dropped it in its own teardown."""
+    from original.db.models.live import StudentProfile
+    from original.db.postgres_session import session_scope
 
     tenant_id, local_id = "sem", "pg-legacy-dim-student"
     student_id = f"{tenant_id}:{local_id}"
@@ -728,7 +709,7 @@ def test_doc_to_state_pads_legacy_short_vector(postgres_available):
 
 
 @pytest.mark.postgres
-def test_get_fused_scores_degrades_channels_on_corrupted_json_row(postgres_available):
+def test_get_fused_scores_degrades_channels_on_corrupted_json_row(postgres_schema):
     """Mirrors test_store_get_fused_scores_degrades_channels_on_corrupted_json
     (Step 1b) for PostgresRepository's own inner per-row fallback.
     channels_json is a plain Text column on FusedScore (see its model
@@ -736,25 +717,15 @@ def test_get_fused_scores_degrades_channels_on_corrupted_json_row(postgres_avail
     on both backends -- constructed with a raw UPDATE through the same
     session factory the repository itself uses (sanctioned: constructs a
     state unreachable through the protocol). The assertion reads back
-    through repo.get_fused_scores(), the public API."""
-    if not postgres_available:
-        pytest.skip(
-            "uninformative — no reachable Postgres; set DATABASE_URL to a "
-            "postgresql:// instance to run this inner-JSON-corruption-fallback "
-            "test"
-        )
+    through repo.get_fused_scores(), the public API.
+
+    postgres_schema (conftest.py) skips with the same "uninformative"
+    reason when unreachable, and re-asserts the live schema unconditionally
+    on every request -- needed because a sibling file (test_cutover.py,
+    test_migration.py) may have dropped it in its own teardown."""
     from sqlalchemy import text
 
-    from original.db.models.live import LiveBase
-    from original.db.postgres_session import get_engine, session_scope
-
-    # postgres_available's own schema bootstrap only ever runs once per
-    # session (it's session-scoped); a sibling file that ran earlier and
-    # dropped the live schema in its own teardown (test_cutover.py,
-    # test_migration.py both do) would otherwise leave it reachable but
-    # tableless here. Re-assert it explicitly, same as every other
-    # Postgres-gated fixture/test in this suite does for itself.
-    LiveBase.metadata.create_all(bind=get_engine())
+    from original.db.postgres_session import session_scope
 
     repo = postgres_repository.PostgresRepository()
     repo.put_fused_score(
@@ -781,7 +752,7 @@ def test_get_fused_scores_degrades_channels_on_corrupted_json_row(postgres_avail
 
 @pytest.mark.postgres
 def test_delete_tenant_students_records_failed_id_when_delete_student_fails(
-    monkeypatch, postgres_available
+    monkeypatch, postgres_schema
 ):
     """delete_tenant_students only calls delete_student() on ids it just
     fetched via list_ids_for_tenant(), which by construction exist -- so
@@ -789,24 +760,12 @@ def test_delete_tenant_students_records_failed_id_when_delete_student_fails(
     protocol alone. Monkeypatching delete_student itself is the same
     sanctioned "narrow seam" idiom as monkeypatching session_scope, one
     level up: it's the only way to observe the failed-ids bookkeeping
-    (the else branch of delete_tenant_students' own if/else) at all."""
-    if not postgres_available:
-        pytest.skip(
-            "uninformative — no reachable Postgres; set DATABASE_URL to a "
-            "postgresql:// instance to run this bulk-delete partial-failure "
-            "test"
-        )
-    # postgres_available's own schema bootstrap only ever runs once per
-    # session (it's session-scoped); a sibling file that ran earlier and
-    # dropped the live schema in its own teardown (test_cutover.py,
-    # test_migration.py both do) would otherwise leave it reachable but
-    # tableless here. Re-assert it explicitly, same as every other
-    # Postgres-gated fixture/test in this suite does for itself.
-    from original.db.models.live import LiveBase
-    from original.db.postgres_session import get_engine
+    (the else branch of delete_tenant_students' own if/else) at all.
 
-    LiveBase.metadata.create_all(bind=get_engine())
-
+    postgres_schema (conftest.py) skips with the same "uninformative"
+    reason when unreachable, and re-asserts the live schema unconditionally
+    on every request -- needed because a sibling file (test_cutover.py,
+    test_migration.py) may have dropped it in its own teardown."""
     # A dedicated tenant -- this file's tests share one real Postgres
     # instance with no per-test table wipe (unlike test_repository_contract.py's
     # `repo` fixture), so a shared id like "sem" would pick up other tests'
