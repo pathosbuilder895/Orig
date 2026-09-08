@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 class AddSampleRequest(BaseModel):
     """Add an authenticated baseline sample for a student."""
 
-    text: str = Field(..., description="Raw essay text")
+    text: str = Field(..., max_length=200000, description="Raw essay text")
     provenance: str = Field(
         "verified", description="'proctored' | 'verified' | 'canvas' | 'unverified'"
     )
@@ -39,7 +39,7 @@ class AddSampleRequest(BaseModel):
 class ScoreSubmissionRequest(BaseModel):
     """Score a new submission against a student's current baseline."""
 
-    text: str = Field(..., description="Raw essay text of the submission")
+    text: str = Field(..., max_length=200000, description="Raw essay text of the submission")
     submission_id: str = Field("", description="Optional external ID")
     assignment: str = Field("", description="Assignment name/label")
     submitted_at: str = Field(
@@ -489,7 +489,7 @@ class DriftRebaselineResponse(BaseModel):
 class BlendDetectionRequest(BaseModel):
     """Sliding-window blend detection on a single submission."""
 
-    text: str = Field(..., description="Raw essay text of the submission")
+    text: str = Field(..., max_length=200000, description="Raw essay text of the submission")
     submission_id: str = Field("", description="Optional external ID")
     window_tokens: int = Field(
         300,
