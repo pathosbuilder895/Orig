@@ -106,12 +106,21 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # submission. Computed at most once, lazily — most scoring calls have at
     # least one of the three consumers off, and a request with all three off
     # should not pay for the query at all.
+    #
+    # Scoped to the claimed student's own tenant (Phase 3 perf fix, 2026-09):
+    # all three consumers (build_impostor_stats, fusion peer selection,
+    # style-authorship) immediately discard any state outside
+    # tenant_of(student_id) — see their own tenant_of() filters — so pulling
+    # every OTHER tenant's rows and text off disk just to throw them away was
+    # pure waste, and grows linearly with total tenant count on a multi-
+    # tenant deployment. Filtering at the SQL layer instead is transparent to
+    # every caller here: identical results, less work.
     _all_states_cache: list | None = None
 
     def _all_states() -> list:
         nonlocal _all_states_cache
         if _all_states_cache is None:
-            _all_states_cache = _repo().all_states()
+            _all_states_cache = _repo().all_states(tenant_id=tenant_of(student_id))
         return _all_states_cache
 
     # ── Explicit null model (rank-and-null work, production wiring) ───────────

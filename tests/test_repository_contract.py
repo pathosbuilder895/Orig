@@ -984,6 +984,14 @@ class TestGetOrCreateAndBasics:
         assert len(matching) == 1
         assert matching[0].sample_count == 2
 
+    def test_all_states_tenant_filter_excludes_other_tenants(self, repo):
+        repo.put(_make_state("tenantx:student1", n=1))
+        repo.put(_make_state("tenanty:student1", n=1))
+        scoped = repo.all_states(tenant_id="tenantx")
+        ids = {s.student_id for s in scoped}
+        assert "tenantx:student1" in ids
+        assert "tenanty:student1" not in ids
+
     def test_put_replaces_whole_sample_set(self, repo):
         """put() is a full-state overwrite, not an incremental append —
         matches store.py's whole-JSON-blob replace semantics."""

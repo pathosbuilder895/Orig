@@ -830,10 +830,25 @@ def list_ids() -> list[str]:
     return [r[0] for r in rows]
 
 
-def all_states() -> list[StudentState]:
-    """Every stored StudentState (the impostor-pool builder's input)."""
+def all_states(tenant_id: str | None = None) -> list[StudentState]:
+    """Every stored StudentState (the impostor-pool builder's input).
+
+    ``tenant_id`` filters at the SQL layer rather than in Python: every
+    current caller (``build_impostor_stats``, fusion peer selection,
+    style-authorship) immediately discards states outside the claimed
+    student's own tenant, so scoping the query itself skips deserializing
+    (JSON-parsing every sample, including raw text) rows that would be
+    thrown away anyway. ``None`` preserves the old whole-table scan for
+    callers that genuinely need every tenant (e.g. admin tooling).
+    """
     with _get_conn() as conn:
-        rows = conn.execute("SELECT data FROM student_profiles").fetchall()
+        if tenant_id is not None:
+            rows = conn.execute(
+                "SELECT data FROM student_profiles WHERE student_id LIKE ?",
+                (f"{tenant_id}:%",),
+            ).fetchall()
+        else:
+            rows = conn.execute("SELECT data FROM student_profiles").fetchall()
     return [_deserialize(r[0]) for r in rows]
 
 
@@ -1523,8 +1538,12 @@ def _pool_groups(tenant: str | None, genre: str | None) -> list[tuple[str, list[
         groups = []
         # Full read-through scan (WS-6 P6): all_states() snapshots the table,
         # so concurrent writers can't perturb the iteration the way the old
-        # shared _STORE dict could.
-        for student_state in all_states():
+        # shared _STORE dict could. Pushed down to a SQL-level tenant filter
+        # when possible (Phase 3 perf fix, 2026-09) — `tenant=None` means the
+        # legacy-flat-id cohort specifically, not "no filter", so that case
+        # still scans every row and filters in Python.
+        _candidates = all_states(tenant_id=tenant) if tenant is not None else all_states()
+        for student_state in _candidates:
             if tenant_of(student_state.student_id) != tenant:
                 continue
             student_vectors = [

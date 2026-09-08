@@ -289,10 +289,13 @@ class PostgresRepository:
             log.exception("list_ids failed")
             return []
 
-    def all_states(self):
+    def all_states(self, tenant_id: str | None = None):
         try:
             with session_scope() as session:
-                rows = session.execute(select(StudentProfile)).scalars().all()
+                stmt = select(StudentProfile)
+                if tenant_id is not None:
+                    stmt = stmt.where(StudentProfile.tenant_id == tenant_id)
+                rows = session.execute(stmt).scalars().all()
                 return [self._doc_to_state(row.data) for row in rows]
         except Exception:
             log.exception("all_states failed")
