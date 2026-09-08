@@ -385,8 +385,12 @@ alone.
    measured at 20+ CPU-hours cold. It now installs the model, runs with
    `CALIBRATION_GATE_VECTOR_CACHE` (validation/vector_cache.py) persisted
    through `actions/cache` and keyed on the feature implementation plus the
-   committed corpora, uses the 360-minute hosted-runner maximum, serialises
-   runs, and writes the gate table to the job summary. The per-PR
+   committed corpora, serialises runs, and writes the gate table to the job
+   summary. Even so one runner cannot finish it (the first dispatched run
+   was cut off at the 6-hour cap inside G5), so the job is a six-way matrix
+   over `--only` leg groups whose reports a merge job concatenates with
+   `scripts/merge_calibration_reports.py`; a leg whose job overran is listed
+   under `missing_legs`, never silently absent. The per-PR
    `.github/workflows/test.yml` remains focused on unit/integration coverage.
    The falsifiability and property tests (C6) still run per-push, which is
    what stops a can't-fail gate from merging.

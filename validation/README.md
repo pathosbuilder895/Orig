@@ -134,10 +134,15 @@ exclude-not-abort behavior rule 4 describes.
     # gate as non-failing.
     CALIBRATION_GATE_VECTOR_CACHE=.benchmark_cache/calibration_gate/vectors \
         .venv/bin/python -m validation.calibration_gate --strict
-    # The same command runs weekly (and on dispatch) in
-    # .github/workflows/calibration-battery.yml, non-blocking, with the
-    # vector cache persisted via actions/cache; the report and log are
-    # uploaded as the `calibration-report` artifact.
+    # Re-run one leg (or a group) without the rest:
+    CALIBRATION_GATE_VECTOR_CACHE=.benchmark_cache/calibration_gate/vectors \
+        .venv/bin/python -m validation.calibration_gate --strict --only G1,G1p
+    # The weekly CI job (.github/workflows/calibration-battery.yml,
+    # non-blocking, dispatchable) runs the same command as a six-job matrix
+    # over --only groups with the vector cache persisted via actions/cache,
+    # then merges the leg reports (scripts/merge_calibration_reports.py)
+    # into the `calibration-report` artifact; a leg whose job overran is
+    # listed under missing_legs, never silently absent.
 
     # deployment-shaped layer (real API, isolated DB per matrix cell)
     .venv/bin/python -m validation.termsim describe --seed 20260826
