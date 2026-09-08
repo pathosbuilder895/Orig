@@ -670,6 +670,69 @@ class TestBaselineRequestsListEndpoints:
         assert all_r.status_code == 200, all_r.text
         assert len(all_r.json()["requests"]) == 1
 
+    def test_pending_is_tenant_scoped_and_hides_other_tenants_emails_and_links(
+        self, live_client, store_reset, monkeypatch
+    ):
+        """The unauthenticated, cross-tenant leak this route used to have:
+        staff from one institution could read every institution's pending
+        requests, including student emails and live magic-link bearer
+        credentials. Staff now see only their own tenant."""
+        import original.baseline_requests as baseline_requests_mod
+        import original.bbook_client as bbook_client
+        from original import principal as pr
+
+        baseline_requests_mod._reset_cache()
+        monkeypatch.setattr(bbook_client, "is_enabled", lambda: True)
+        result = TestRequestProctoredBaseline._stub_result(bbook_client)
+        monkeypatch.setattr(bbook_client, "request_baseline", lambda **kw: result)
+
+        acme_token = pr.mint_principal_token("prof-acme", "professor", "acme")
+        beta_token = pr.mint_principal_token("prof-beta", "professor", "beta")
+        for sid, email, token in (
+            ("acme:req-a", "a@acme.edu", acme_token),
+            ("beta:req-b", "b@beta.edu", beta_token),
+        ):
+            posted = live_client.post(
+                REQUEST_BASELINE.format(sid=sid),
+                json={"student_email": email, "student_name": "Someone"},
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            assert posted.status_code == 200, posted.text
+
+        acme_view = live_client.get(
+            "/baseline-requests/pending",
+            headers={"Authorization": f"Bearer {acme_token}"},
+        )
+        assert acme_view.status_code == 200, acme_view.text
+        acme_requests = acme_view.json()["requests"]
+        assert len(acme_requests) == 1
+        assert acme_requests[0]["student_id"] == "acme:req-a"
+        assert "b@beta.edu" not in str(acme_requests)
+
+        beta_view = live_client.get(
+            "/baseline-requests/pending",
+            headers={"Authorization": f"Bearer {beta_token}"},
+        )
+        assert beta_view.status_code == 200, beta_view.text
+        beta_requests = beta_view.json()["requests"]
+        assert len(beta_requests) == 1
+        assert beta_requests[0]["student_id"] == "beta:req-b"
+        assert "a@acme.edu" not in str(beta_requests)
+
+        operator_token = pr.mint_principal_token("op-1", "operator", "acme")
+        operator_view = live_client.get(
+            "/baseline-requests/pending",
+            headers={"Authorization": f"Bearer {operator_token}"},
+        )
+        assert len(operator_view.json()["requests"]) == 2
+
+        student_token = pr.mint_principal_token("acme:req-a", "student", "acme")
+        student_view = live_client.get(
+            "/baseline-requests/pending",
+            headers={"Authorization": f"Bearer {student_token}"},
+        )
+        assert student_view.status_code == 403, student_view.text
+
 
 # ── Step 3: _existing_text_hashes remaining arms ──────────────────────────────
 

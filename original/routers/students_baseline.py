@@ -13,12 +13,13 @@ import logging
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from .. import baseline_requests, bbook_client
+from .. import principal as principal_mod
 from ..constants import AUTH_WEIGHTS
 from ..features.pipeline import feature_vector
 from ..quantum.state import BaselineSample
 from ..schemas import AddSampleRequest, DriftPendingResponse, DriftResultOut
 from ..tension_arc import analyze_tension_arc, update_student_baseline_kappa
-from ._shared import _authorize_provenance, _persist_or_503, _repo, _require_guard
+from ._shared import _authorize_provenance, _persist_or_503, _repo, _require_guard, _require_staff
 
 router = APIRouter()
 
@@ -320,9 +321,25 @@ def request_proctored_baseline(student_id: str, req: RequestBaselineRequest):
 
 
 @router.get("/baseline-requests/pending")
-def list_pending_baseline_requests():
-    """List all currently-pending proctored baseline requests."""
-    return {"requests": [r.to_dict() for r in baseline_requests.list_pending()]}
+def list_pending_baseline_requests(request: Request):
+    """List currently-pending proctored baseline requests for the caller's tenant.
+
+    Previously unauthenticated and unscoped: any caller, staff or not, could
+    read every institution's pending requests, including student emails and
+    live (unredeemed) magic-link bearer credentials. Staff now see only
+    their own tenant's pending requests; SUPER_ROLES keep the cross-tenant
+    "all schools" view, matching ``list_all_baseline_requests`` below and
+    ``principal_mod.assert_tenant_access``'s convention.
+    """
+    principal = _require_staff(request)
+    visible = []
+    for r in baseline_requests.list_pending():
+        try:
+            principal_mod.assert_student_access(principal, r.student_id)
+        except principal_mod.TenantAccessError:
+            continue
+        visible.append(r)
+    return {"requests": [r.to_dict() for r in visible]}
 
 
 @router.get("/baseline-requests")
