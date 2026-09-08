@@ -98,6 +98,28 @@ def _require_staff(request: Request) -> principal_mod.Principal:
     return p
 
 
+def _require_non_demo_staff(request: Request) -> principal_mod.Principal:
+    """``_require_staff``, but the anonymous demo principal is rejected on
+    every deploy, not just real ones.
+
+    For routes that make a real outbound network call to a caller-supplied
+    destination (Canvas live-import's ``canvas_url``/``access_token`` body
+    fields) — not the harmless local-data operations the zero-login demo
+    sandbox exists for. The demo principal's role is self-assignable via the
+    unauthenticated ``X-Demo-Role`` header, so on the public demo deploy
+    ``_require_staff`` alone would let any anonymous caller make the server
+    issue arbitrary outbound requests (SSRF), since the demo *is* a public
+    internet service, not just an internal sandbox.
+    """
+    p = _require_staff(request)
+    if p.is_demo:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required — sign in with a staff account.",
+        )
+    return p
+
+
 def _require_guard(request: Request) -> None:
     """
     Raise 403 if GUARD_DESTRUCTIVE is on and the request lacks the correct
@@ -135,6 +157,12 @@ def _persist_or_503(state: StudentState) -> None:  # noqa: F821 -- StudentState 
     """
     try:
         _repo().put(state)
+        # A baseline write changes the peer distribution used by the
+        # CHARACTERISTIC_WEIGHTS=shadow cache. Invalidate the whole tenant so
+        # both the writer and every peer get fresh report-only statistics.
+        from ..quantum import impostor_cache
+
+        impostor_cache.invalidate(state.student_id)
     except sqlite3.Error as exc:
         raise HTTPException(
             status_code=503,

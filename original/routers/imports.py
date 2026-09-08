@@ -14,7 +14,13 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from ..constants import AUTH_WEIGHTS
 from ..features.pipeline import feature_vector
 from ..quantum.state import BaselineSample
-from ._shared import _authorize_provenance, _persist_or_503, _repo, _require_staff
+from ._shared import (
+    _authorize_provenance,
+    _persist_or_503,
+    _repo,
+    _require_non_demo_staff,
+    _require_staff,
+)
 from .students_baseline import _existing_text_hashes
 
 router = APIRouter()
@@ -123,7 +129,7 @@ async def list_canvas_submissions(
     """List usable Canvas submissions and mark already-imported texts."""
     from ..canvas import live_import as canvas_live
 
-    _require_staff(request)
+    _require_non_demo_staff(request)
     body = req or {}
     canvas_url, access_token = canvas_live.resolve_canvas_config(
         body.get("canvas_url"), body.get("access_token")
@@ -158,7 +164,7 @@ async def import_canvas_baseline(student_id: str, req: dict | None = None, reque
     """Import selected Canvas submissions with deduplication and drift holds."""
     from ..canvas import live_import as canvas_live
 
-    _require_staff(request)
+    _require_non_demo_staff(request)
     body = req or {}
     canvas_url, access_token = canvas_live.resolve_canvas_config(
         body.get("canvas_url"), body.get("access_token")
@@ -249,7 +255,7 @@ async def fetch_canvas_submission_text(
     """Fetch one Canvas submission for analysis without storing it."""
     from ..canvas import live_import as canvas_live
 
-    _require_staff(request)
+    _require_non_demo_staff(request)
     body = req or {}
     canvas_url, access_token = canvas_live.resolve_canvas_config(
         body.get("canvas_url"), body.get("access_token")
