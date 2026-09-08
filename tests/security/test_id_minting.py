@@ -38,10 +38,31 @@ CSV_BODY = (
 )
 
 
+@pytest.fixture
+def imported_turnitin_ids(pilot_env, two_tenants, store_reset, live_client):
+    """Run the Turnitin CSV import once as tenant-A staff and return the ids
+    it minted. Shared by both T-04 tests below so the import (and the
+    before/after ``all_states()`` diff needed to recover ids the response
+    body doesn't carry) isn't duplicated between them.
+    """
+    before_ids = {s.student_id for s in get_repository().all_states()}
+
+    r = live_client.post(
+        "/import/courses/c1/turnitin-csv",
+        files={"file": ("roster.csv", CSV_BODY.encode(), "text/csv")},
+        headers=two_tenants["headers_a"],
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["created_students"] == 2, r.json()
+
+    after_ids = {s.student_id for s in get_repository().all_states()}
+    created_ids = after_ids - before_ids
+    assert len(created_ids) == 2, created_ids
+    return created_ids
+
+
 @pytest.mark.blocker
-def test_turnitin_import_mints_tenant_prefixed_ids(
-    pilot_env, two_tenants, store_reset, live_client
-):
+def test_turnitin_import_mints_tenant_prefixed_ids(imported_turnitin_ids, two_tenants):
     """T-04: Turnitin CSV import mints flat ids instead of tenant-prefixed ones.
 
     Imported as tenant A staff, so every created id should read
@@ -52,30 +73,13 @@ def test_turnitin_import_mints_tenant_prefixed_ids(
     with no ``_require_staff`` call and no tenant prefix — so both created
     ids come back flat.
     """
-    before_ids = {s.student_id for s in get_repository().all_states()}
-
-    r = live_client.post(
-        "/import/courses/c1/turnitin-csv",
-        files={"file": ("roster.csv", CSV_BODY.encode(), "text/csv")},
-        headers=two_tenants["headers_a"],
-    )
-    assert r.status_code == 200, r.text
-    body = r.json()
-    assert body["created_students"] == 2, body
-
-    after_ids = {s.student_id for s in get_repository().all_states()}
-    created_ids = after_ids - before_ids
-    assert len(created_ids) == 2, created_ids
-
     tenant_a_prefix = f"{two_tenants['tenant_a']}:"
-    unprefixed = [sid for sid in created_ids if not sid.startswith(tenant_a_prefix)]
+    unprefixed = [sid for sid in imported_turnitin_ids if not sid.startswith(tenant_a_prefix)]
     assert unprefixed == [], f"minted ids are not tenant-prefixed: {unprefixed}"
 
 
 @pytest.mark.blocker
-def test_turnitin_minted_ids_refuse_anonymous_read(
-    pilot_env, two_tenants, store_reset, live_client
-):
+def test_turnitin_minted_ids_refuse_anonymous_read(imported_turnitin_ids, live_client):
     """T-04: a flat id minted by the Turnitin import is anonymously readable.
 
     Companion witness to the test above: even without inspecting the id
@@ -86,21 +90,8 @@ def test_turnitin_minted_ids_refuse_anonymous_read(
     A tenant-prefixed id would 403 the same request (see
     ``tests/test_tenant_isolation.py::test_demo_cannot_read_pilot_student``).
     """
-    before_ids = {s.student_id for s in get_repository().all_states()}
-
-    r = live_client.post(
-        "/import/courses/c1/turnitin-csv",
-        files={"file": ("roster.csv", CSV_BODY.encode(), "text/csv")},
-        headers=two_tenants["headers_a"],
-    )
-    assert r.status_code == 200, r.text
-
-    after_ids = {s.student_id for s in get_repository().all_states()}
-    created_ids = after_ids - before_ids
-    assert len(created_ids) == 2, created_ids
-
     leaked = []
-    for sid in sorted(created_ids):
+    for sid in sorted(imported_turnitin_ids):
         r = live_client.get(f"/students/{sid}")
         if r.status_code not in (401, 403):
             leaked.append((sid, r.status_code))

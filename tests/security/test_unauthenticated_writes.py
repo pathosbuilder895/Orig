@@ -11,23 +11,46 @@ dedicated red test below.
 Path-parameter substitution: a ``/students/{id}/...`` or
 ``/canvas/baseline/{id}/...`` route is tenant-isolation middleware's
 territory (``extract_scoped_id`` + ``assert_student_access``,
-original/principal.py), and that middleware treats a *flat* (tenant-less)
-id as the anonymous demo sandbox on purpose, in every environment — see
-``tests/test_tenant_isolation.py::test_demo_flat_student_round_trip`` and
-the "Additive by construction" comment block at original/api.py's
-tenant-isolation middleware. Substituting a flat id there would rediscover
-that already-tested, intentional behaviour and misreport it as a new hole.
-So those two path shapes get a real, *tenant-scoped* but nonexistent id
-(built from the ``two_tenants`` fixture's registered pilot tenant) instead
-of the generic "x" the brief suggests for every other path parameter —
-this is what actually exercises "does a real deploy protect real tenant
-data," which is the property this file is testing.
+original/principal.py). The generic sweep below (section 2) substitutes a
+real, *tenant-scoped* but nonexistent id (``{tenant}:ghost-nonexistent``,
+built from the ``two_tenants`` fixture's registered pilot tenant) for the
+first parameter of these two path shapes, instead of the generic "x" the
+brief suggests for every other path parameter — that's what exercises
+"does a real deploy protect one tenant's data from another," and it stays
+green.
+
+That is a *different* question from "what happens with a flat id," and the
+two must not be conflated: ``original.principal.assert_student_access``
+returns (permits) whenever the caller is the anonymous demo principal and
+the target id is flat (``tenant_of(id) is None``) — with **no
+``_IS_REAL_DEPLOY`` branch at all**, unlike ``_require_staff`` and the
+tenant-isolation middleware's own staff-only path list
+(``original/api.py:_is_staff_only_path``), which does not cover
+``/students/{id}/...`` routes individually. So on an unmodified pilot
+deploy, a flat id is anonymously writable and deletable — confirmed
+empirically (not just by reading the code) against all 8 routes below that
+can actually reach the check. This is tracked as **T-66** and covered by
+``test_flat_id_student_write_permitted`` (section 2b). It is a real,
+open gap, not "already-tested, intentional behaviour" — the only test that
+previously exercised a flat id at all
+(``tests/test_tenant_isolation.py::test_demo_flat_student_round_trip``)
+runs in the demo environment, which never sets ``_IS_REAL_DEPLOY`` and so
+says nothing about a real deploy.
+
+``/students/{id}/request-baseline`` is excluded from T-66's route list: it
+503s on missing Bbook config regardless of id shape or auth, so that
+failure mode isn't evidence of a bypass. The three
+``/canvas/baseline/{id}/...`` routes are also excluded: each calls its own
+``_require_staff`` before touching ``student_id`` at all, so they 401
+regardless of id shape — verified empirically, see the comment above
+``FLAT_ID_ROUTES``.
 """
 
 from __future__ import annotations
 
 import re
 
+import numpy as np
 import pytest
 
 from original import principal as pr
@@ -35,14 +58,21 @@ from original import principal as pr
 pytestmark = pytest.mark.security
 
 # ── Anonymous-by-design allowlist ─────────────────────────────────────────────
-# path -> reason, verified against the handler (see the comment at each row).
-ANONYMOUS_ALLOWLIST: dict[str, str] = {
+# (method, path) -> reason, verified against the handler (see the comment at
+# each row). Keyed by method, not just path, so a route that mixes an
+# anonymous-by-design method with a write method that ISN'T (e.g. a future
+# DELETE added to a path that only allowlists POST today) doesn't silently
+# inherit the allowlisting — every method on a path used to be exempted by
+# path alone, which the completeness/staleness tests below could not catch.
+ANONYMOUS_ALLOWLIST: dict[tuple[str, str], str] = {
     # Login/launch entry points: reachable with no principal by definition —
     # that's the whole point of a login endpoint.
-    "/auth/login": "login entry point; issues the principal, so it cannot require one",
-    "/student-auth/login": "student login entry point; same reasoning as /auth/login",
-    "/lti/login": "OIDC pre-auth step of an LTI launch; runs before any principal exists",
-    "/lti/launch": (
+    ("POST", "/auth/login"): "login entry point; issues the principal, so it cannot require one",
+    ("POST", "/student-auth/login"): "student login entry point; same reasoning as /auth/login",
+    # /lti/login is registered for GET and POST; GET isn't a write method so
+    # it never reaches this table, but the POST arm needs its own entry.
+    ("POST", "/lti/login"): "OIDC pre-auth step of an LTI launch; runs before any principal exists",
+    ("POST", "/lti/launch"): (
         "LTI launch endpoint; authenticates via its own RSA-signed id_token/state "
         "verification (original/lti.py), not a principal header"
     ),
@@ -51,13 +81,13 @@ ANONYMOUS_ALLOWLIST: dict[str, str] = {
     # tests/test_pilot_lockdown.py::test_v1_demo_login_unmounted_in_pilot),
     # so under pilot_env this route 404s regardless of auth — not a hole,
     # but also not a 401/403, so it can't sit in the generic sweep either.
-    "/api/v1/auth/login": "dormant v1 stack; unmounted (404) under a real deploy",
+    ("POST", "/api/v1/auth/login"): "dormant v1 stack; unmounted (404) under a real deploy",
     # Capability-token authenticated, not principal-authenticated: verified
     # against original/routers/proctor.py:beat, whose docstring states
     # "Anonymous by design" — the phone never has a login, and the scanned
     # park_token (a 128-bit secrets.token_urlsafe capability) is the only
     # credential the endpoint ever checks.
-    "/proctor/park/beat": (
+    ("POST", "/proctor/park/beat"): (
         "capability-token authenticated (park_token is the credential, not a "
         "principal); documented anonymous-by-design in original/routers/proctor.py"
     ),
@@ -172,7 +202,7 @@ def test_every_write_route_is_allowlisted_or_covered(live_app):
     from starlette.routing import Route
 
     covered = set(GENERIC_ROUTES) | RED_ROUTES
-    allowlisted_paths = set(ANONYMOUS_ALLOWLIST)
+    allowlisted = set(ANONYMOUS_ALLOWLIST)  # (method, path) tuples
     write_methods = {"POST", "PUT", "PATCH", "DELETE"}
 
     missing = []
@@ -185,7 +215,7 @@ def test_every_write_route_is_allowlisted_or_covered(live_app):
             if method not in write_methods:
                 continue
             seen += 1
-            if path in allowlisted_paths:
+            if (method, path) in allowlisted:
                 continue
             if (method, path) in covered:
                 continue
@@ -214,14 +244,16 @@ def test_no_stale_entries_in_hand_maintained_lists(live_app):
         for method in (set(route.methods or []) - {"HEAD", "OPTIONS"})
         if method in {"POST", "PUT", "PATCH", "DELETE"}
     }
-    live_paths = {path for _, path in live_write_routes}
-
     for method, path in GENERIC_ROUTES:
         assert (method, path) in live_write_routes, f"stale GENERIC_ROUTES entry: {method} {path}"
     for method, path in RED_ROUTES:
         assert (method, path) in live_write_routes, f"stale RED_ROUTES entry: {method} {path}"
-    for path in ANONYMOUS_ALLOWLIST:
-        assert path in live_paths, f"stale ANONYMOUS_ALLOWLIST entry: {path}"
+    for method, path in ANONYMOUS_ALLOWLIST:
+        assert (method, path) in live_write_routes, (
+            f"stale ANONYMOUS_ALLOWLIST entry: {method} {path}"
+        )
+    for method, path in FLAT_ID_ROUTES:
+        assert (method, path) in live_write_routes, f"stale FLAT_ID_ROUTES entry: {method} {path}"
 
 
 # ── 2. The generic green sweep ────────────────────────────────────────────────
@@ -233,6 +265,111 @@ def test_unauthenticated_write_refused(pilot_env, two_tenants, live_client, meth
     tenant_scoped_id = f"{two_tenants['tenant_a']}:ghost-nonexistent"
     concrete = _concrete_path(path, tenant_scoped_id)
     r = _send(live_client, method, path, concrete)
+    assert r.status_code in (401, 403), f"{method} {concrete} -> {r.status_code}: {r.text}"
+
+
+# ── 2b. Flat-id student writes: T-66 ──────────────────────────────────────────
+# The two path shapes _concrete_path treats specially above get a SECOND,
+# separate probe here: a genuinely flat id ("x"), not a tenant-scoped
+# nonexistent one. original.principal.assert_student_access permits the
+# anonymous demo principal over any flat id with no _IS_REAL_DEPLOY branch at
+# all (see the module docstring) — these 8 routes are the ones that actually
+# reach that check and are empirically writable/deletable with no principal.
+#
+# Excluded, both verified empirically rather than assumed from the code:
+#   - /students/{id}/request-baseline: 503s on missing Bbook config
+#     regardless of id shape or auth, so a non-401/403 there isn't evidence
+#     of a bypass.
+#   - the three /canvas/baseline/{id}/... routes: each calls its own
+#     _require_staff (original/routers/imports.py) before ever looking at
+#     student_id, so they 401 for a flat id exactly as they do for a
+#     tenant-scoped one — this is the "own staff check" case the module
+#     docstring refers to.
+FLAT_ID_ROUTES: list[tuple[str, str]] = [
+    ("POST", "/students/{student_id}/baseline"),
+    ("POST", "/students/{student_id}/baseline/upload-batch"),
+    ("POST", "/students/{student_id}/upload"),
+    ("POST", "/students/{student_id}/score"),
+    ("POST", "/students/{student_id}/score/blend"),
+    ("POST", "/students/{student_id}/formation"),
+    ("POST", "/students/{student_id}/formation/advance"),
+    ("DELETE", "/students/{student_id}"),
+]
+
+FLAT_ID_STUDENT_ID = "x"
+
+# text bodies for the routes whose Pydantic model requires a non-empty
+# "text" field — same masking hazard as JSON_BODIES above: an empty {}
+# 422s before assert_student_access's permit is ever exercised.
+FLAT_ID_JSON_BODIES: dict[str, dict] = {
+    "/students/{student_id}/baseline": {"text": "word " * 150},
+    "/students/{student_id}/score": {"text": "word " * 150},
+    "/students/{student_id}/score/blend": {"text": "word " * 150},
+}
+
+
+def _seed_flat_id_state(path: str, student_id: str) -> None:
+    """Pre-seed only what a route needs to reach the write/delete itself,
+    rather than fail earlier on an unrelated precondition: DELETE needs a
+    student to delete, formation/advance needs an open pathway, and
+    score/score-blend need an existing baseline to score against (a bare
+    get_or_create isn't enough — verified empirically, both 404
+    "Add baseline samples first" without this). Seeded directly via the
+    repository, not through another anonymous call, so this test doesn't
+    depend on any of the other T-66 routes to set itself up.
+    """
+    from original.constants import FEATURE_DIM
+    from original.quantum.state import BaselineSample, StudentState
+    from original.repository import get_repository
+
+    repo = get_repository()
+    if path == "/students/{student_id}":
+        repo.get_or_create(student_id)
+    elif path == "/students/{student_id}/formation/advance":
+        repo.open_formation_pathway(student_id)
+    elif path in (
+        "/students/{student_id}/score",
+        "/students/{student_id}/score/blend",
+    ):
+        state = StudentState(student_id=student_id)
+        state.add_sample(
+            BaselineSample(
+                text="seed baseline sample for the flat-id scoring probe " * 3,
+                vector=np.random.default_rng(0).random(FEATURE_DIM).astype(np.float64),
+                provenance="verified",
+                auth_weight=1.0,
+                assignment="seed",
+            )
+        )
+        repo.put(state)
+
+
+@pytest.mark.blocker
+@pytest.mark.parametrize("method,path", FLAT_ID_ROUTES, ids=[f"{m}_{p}" for m, p in FLAT_ID_ROUTES])
+def test_flat_id_student_write_permitted(pilot_env, store_reset, live_client, method, path):
+    """T-66: anonymous flat-id student writes and deletes are permitted on a real deploy.
+
+    original/principal.py:assert_student_access returns (permits) whenever
+    the caller is the anonymous demo principal AND the target id is flat
+    (``tenant_of(id) is None``) — with no ``_IS_REAL_DEPLOY`` check at all,
+    unlike ``_require_staff`` and the tenant-isolation middleware's own
+    staff-only path list (``original/api.py:_is_staff_only_path``), which
+    doesn't cover ``/students/{id}/...`` routes individually. So a flat id
+    reads as "the demo sandbox" in every environment including
+    pilot/production: anyone who knows or guesses one can write to, or
+    delete, that record with no credentials at all.
+    """
+    _seed_flat_id_state(path, FLAT_ID_STUDENT_ID)
+    concrete = path.replace("{student_id}", FLAT_ID_STUDENT_ID)
+    if path in FILE_ROUTES:
+        field, is_list = FILE_ROUTES[path]
+        if is_list:
+            kw = {"files": [(field, ("x.txt", b"x", "text/plain"))]}
+        else:
+            kw = {"files": {field: ("x.txt", b"x", "text/plain")}}
+        r = live_client.request(method, concrete, **kw)
+    else:
+        r = live_client.request(method, concrete, json=FLAT_ID_JSON_BODIES.get(path, {}))
     assert r.status_code in (401, 403), f"{method} {concrete} -> {r.status_code}: {r.text}"
 
 
