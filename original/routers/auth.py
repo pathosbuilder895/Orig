@@ -72,10 +72,17 @@ def auth_me(request: Request):
 @router.post("/auth/register", status_code=201)
 def auth_register(body: AuthRegisterRequest, request: Request):
     """
-    Provision a staff user. Privileged: guarded by GUARD_DESTRUCTIVE in
-    pilot/production (X-Guard-Token required); open in demo for convenience.
+    Provision a staff user. Privileged: ALWAYS guarded (X-Guard-Token
+    required) on a real deploy; open in demo for convenience.
+
+    Unlike every other _require_guard call site, this route sits behind no
+    other gate at all on a real deploy (T-64) — the tenant-isolation
+    middleware's staff-only path list doesn't cover /auth/*, so the guard
+    used to be optional (GUARD_DESTRUCTIVE, unset by default) and self-
+    registration of a professor/admin/operator account for an arbitrary
+    tenant was anonymously reachable on an unmodified pilot deploy.
     """
-    _require_guard(request)
+    _require_guard(request, force=_api()._IS_REAL_DEPLOY)
     email = body.email.strip()
     password = body.password
     role = body.role

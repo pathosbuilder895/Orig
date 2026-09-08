@@ -315,6 +315,12 @@ _DEMO_ONLY_STATICS = frozenset(
         "/validation_report.json",
         "/validation_similarity.json",
         "/validation_thresholds.json",
+        # Committed build artifact (~1.2MB), not source: unlike bluebook.bundle.js
+        # itself (which every deploy must serve to run the app), the source map
+        # exposes the original, unminified JSX file structure to anyone who asks.
+        # Harmless in the public demo; real deploy has no reason to hand out its
+        # own build internals (T-06).
+        "/bluebook/bluebook.bundle.js.map",
     }
 )
 _DEMO_ONLY_STATIC_PREFIXES = frozenset({"/prototypes"})

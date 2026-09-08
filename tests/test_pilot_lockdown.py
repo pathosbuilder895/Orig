@@ -77,6 +77,71 @@ def guarded(api_mod, monkeypatch):
     yield
 
 
+# ── 0. Testing-Phase-A findings (T-64/T-65/T-66) ──────────────────────────────
+
+
+def test_register_refuses_anonymous_on_real_deploy(real_deploy, api_mod, monkeypatch, live_client):
+    """T-64: /auth/register used to be reachable anonymously on a real deploy
+    unless an operator separately opted into GUARD_DESTRUCTIVE — nothing sets
+    that by default, so self-provisioning a staff account for an arbitrary
+    tenant was open on an unmodified pilot deploy."""
+    monkeypatch.setattr(api_mod, "_MAINTENANCE_TOKEN", GUARD_TOKEN)
+    r = live_client.post(
+        "/auth/register",
+        json={
+            "email": "attacker@evil.example",
+            "password": "hunter2222",
+            "tenant_id": "lockacme",
+            "role": "professor",
+        },
+    )
+    assert r.status_code == 403, r.text
+
+
+def test_register_works_with_guard_token_on_real_deploy(
+    real_deploy, api_mod, monkeypatch, live_client, store_reset
+):
+    """The forced guard on a real deploy is satisfiable with the right
+    X-Guard-Token, not an unconditional lockout."""
+    monkeypatch.setattr(api_mod, "_MAINTENANCE_TOKEN", GUARD_TOKEN)
+    r = live_client.post(
+        "/auth/register",
+        json={
+            "email": "legit.t64@acmeu.edu",
+            "password": "s3cret-passw0rd",
+            "tenant_id": "lockacme",
+            "role": "professor",
+        },
+        headers=GUARD,
+    )
+    assert r.status_code == 201, r.text
+
+
+def test_bluebook_session_refuses_anonymous_on_real_deploy(real_deploy, live_client):
+    """T-65: POST /bluebook/exams/{exam_id}/session had no auth check at all —
+    any exam under the demo tenant (any staff principal can mint one) could
+    have its sitting anonymously opened, pinning a server-side deadline for
+    an arbitrary caller-supplied student_id."""
+    prof = pr.mint_principal_token("prof_t65", "professor", "demo")
+    r = live_client.post("/bluebook/exams", json={"title": "Midterm"}, headers=_auth(prof))
+    assert r.status_code == 201, r.text
+    exam_id = r.json()["id"]
+
+    r = live_client.post(
+        f"/bluebook/exams/{exam_id}/session", json={"student_id": "attacker-flat-id"}
+    )
+    assert r.status_code in (401, 403), r.text
+
+
+def test_flat_id_student_delete_refused_anonymously_on_real_deploy(real_deploy, live_client):
+    """T-66: assert_student_access's flat-id/demo-tenant carve-out had no
+    real-deploy check at all, so a flat id read as 'demo sandbox data' in
+    every environment including pilot/production — anonymously readable,
+    writable, and deletable."""
+    r = live_client.delete("/students/some-flat-id")
+    assert r.status_code in (401, 403), r.text
+
+
 # ── 1. Tenant writes ──────────────────────────────────────────────────────────
 
 
@@ -427,6 +492,7 @@ def test_no_admin_route_answers_a_student_principal(live_app, live_client):
         "/prototypes/",
         "/prototypes/index.html",
         "/prototypes/prototype.js",
+        "/bluebook/bluebook.bundle.js.map",  # T-06
     ],
 )
 def test_demo_statics_404_in_pilot(real_deploy, live_client, path):

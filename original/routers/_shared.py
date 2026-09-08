@@ -120,17 +120,27 @@ def _require_non_demo_staff(request: Request) -> principal_mod.Principal:
     return p
 
 
-def _require_guard(request: Request) -> None:
+def _require_guard(request: Request, *, force: bool = False) -> None:
     """
-    Raise 403 if GUARD_DESTRUCTIVE is on and the request lacks the correct
-    X-Guard-Token header.  Call at the top of any endpoint that should be
-    protected in pilot/production but open in demo mode.
+    Raise 403 if GUARD_DESTRUCTIVE is on (or ``force`` is set) and the
+    request lacks the correct X-Guard-Token header. Call at the top of any
+    endpoint that should be protected in pilot/production but open in demo
+    mode.
+
+    ``force=True`` is for endpoints that have no OTHER auth gate at all on a
+    real deploy — currently just ``auth_register`` (T-64): the tenant-
+    isolation middleware's staff-only path list doesn't cover ``/auth/``, so
+    for that endpoint GUARD_DESTRUCTIVE being opt-in (nothing sets it by
+    default) meant a fresh pilot/production deploy let anyone anonymously
+    self-provision a professor/admin/operator account for any tenant. Every
+    other call site sits behind a path the middleware already staff-gates on
+    a real deploy, so this is additive there, not a behavior change.
 
     Uses the module-level `_MAINTENANCE_TOKEN` (read once at startup) so
     the value is consistent across the request lifetime and avoids repeated
     os.environ lookups.
     """
-    if not _api()._GUARD_DESTRUCTIVE:
+    if not force and not _api()._GUARD_DESTRUCTIVE:
         return
     if not _api()._MAINTENANCE_TOKEN:
         raise HTTPException(

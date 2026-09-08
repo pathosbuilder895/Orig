@@ -50,6 +50,33 @@ SUPER_ROLES = frozenset({"operator", "super_admin"})
 # the demo sandbox and are always readable; they never reach this check.
 DEMO_VISIBLE_ENVIRONMENTS = frozenset({"demo"})
 
+# Deploy modes where anonymous/demo access must never touch student data at
+# all — mirrors api.py's _IS_REAL_DEPLOY.
+_REAL_DEPLOY_ENVIRONMENTS = frozenset({"pilot", "staging", "production"})
+
+
+def _is_real_deploy() -> bool:
+    """Whether this process is a real (non-demo) deploy.
+
+    Deferred, function-scoped import of ``original.api`` (not a module-level
+    one — api.py already imports this module, so a top-level import here
+    would cycle; ``get_repository()``'s lazy postgres_repository import is
+    the same pattern for the same reason). Preferring api_mod._IS_REAL_DEPLOY
+    over re-reading ORIGINAL_ENV directly keeps this in lockstep with the
+    single source of truth every existing test already monkeypatches
+    (``tests/test_pilot_lockdown.py``'s ``real_deploy`` fixture and its
+    siblings) — two independently-computed "is this a real deploy" checks
+    that could silently drift apart would be exactly the kind of gap this
+    function exists to close. Falls back to reading the env var directly if
+    api.py can't be imported (e.g. a unit test that never loads the app).
+    """
+    try:
+        from . import api as api_mod
+
+        return api_mod._IS_REAL_DEPLOY
+    except ImportError:
+        return os.environ.get("ORIGINAL_ENV") in _REAL_DEPLOY_ENVIRONMENTS
+
 
 @dataclass(frozen=True)
 class Principal:
@@ -212,6 +239,28 @@ def assert_student_access(principal: Principal, student_id: str) -> None:
     if principal.is_demo:
         # Anonymous demo sandbox: flat ids, the reserved "demo:" namespace, and
         # tenants explicitly registered as "demo".
+        if _is_real_deploy():
+            # On a real deploy, the ONLY anonymous carve-out left standing is
+            # a tenant explicitly REGISTERED with environment="demo" — a
+            # verified repository lookup (registering one itself requires
+            # _require_guard on POST /tenants on a real deploy, so it's not
+            # casually reachable). Flat ids (t is None) and the bare "demo"
+            # tenant string (t == DEMO_TENANT) get no such verification —
+            # they read as "demo sandbox" purely from the id's shape, which
+            # is an invariant of how *legitimate* write paths behave, not
+            # something this function can verify from the id alone (T-66).
+            # If that assumption is ever violated (a bug elsewhere, or a
+            # crafted request), trusting the id shape would make that
+            # student's record readable, writable, and deletable by any
+            # anonymous caller — so those two cases fail closed here even
+            # though they're allowed below on a non-real deploy.
+            if (
+                t is not None
+                and t != DEMO_TENANT
+                and tenant_environment(t) in DEMO_VISIBLE_ENVIRONMENTS
+            ):
+                return
+            raise TenantAccessError("anonymous access is not permitted on a real deploy")
         if t is None or t == DEMO_TENANT:
             return
         if tenant_environment(t) in DEMO_VISIBLE_ENVIRONMENTS:
