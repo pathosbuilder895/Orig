@@ -23,6 +23,11 @@ venv/
 # Testing
 .coverage
 coverage.xml
+
+# Mutation testing (T-31, docs/testing/02-unit-property-math.md §5) --
+# mutmut's mutated-copy working directory and its result cache.
+mutants/
+.mutmut-cache/
 coverage.json
 htmlcov/
 .pytest_cache/
