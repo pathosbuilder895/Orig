@@ -93,9 +93,7 @@ def summarize_distances(per_entity: dict[str, list[float]]) -> dict:
     }
 
 
-def assess_population(
-    label: str, per_entity: dict[str, list[float]], description: str
-) -> dict:
+def assess_population(label: str, per_entity: dict[str, list[float]], description: str) -> dict:
     from validation.audits.pooling_exchangeability import assess_exchangeability
 
     verdict = assess_exchangeability(list(per_entity.values()))
@@ -181,7 +179,9 @@ def build_populations(
 # ── Real-corpus collection (HTTP, one upload per text) ────────────────────────
 
 
-def collect_entity_distances(client, sid_prefix: str, texts_by_id: dict[str, list[str]]) -> tuple[dict, dict]:
+def collect_entity_distances(
+    client, sid_prefix: str, texts_by_id: dict[str, list[str]]
+) -> tuple[dict, dict]:
     """Upload every text of every entity with >= 2 texts under one sid and
     read back loo_distances. Returns (distances, upload_health)."""
     from original import store
@@ -223,9 +223,9 @@ def main() -> dict:
 
     store.reset_memory_conn()
 
-    import run as _run_module
     from fastapi.testclient import TestClient
 
+    import run as _run_module
     from validation.calibration_gate import (
         _corpus_fingerprint,
         _group_entities_for_pooling,
@@ -261,10 +261,15 @@ def main() -> dict:
         )
 
     report = {
-        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "generated_at": datetime.datetime.now(datetime.UTC).isoformat(),
         "elapsed_seconds": elapsed,
         "assessor": "validation.audits.pooling_exchangeability.assess_exchangeability",
-        "assessor_limits": {"ratio_limit": 1.0, "ks_limit": 0.5, "min_students": 3, "min_per_student": 2},
+        "assessor_limits": {
+            "ratio_limit": 1.0,
+            "ks_limit": 0.5,
+            "min_students": 3,
+            "min_per_student": 2,
+        },
         "quantity": "StudentState.loo_distances (leave-one-out rms_z per contributing sample) "
         "after uploading every text of the entity via /students/{sid}/baseline",
         "corpus_fingerprints": {

@@ -45,7 +45,9 @@ from pathlib import Path
 import numpy as np
 
 ENV_VAR = "CALIBRATION_GATE_VECTOR_CACHE"
-KEY_SCHEME = "sha256(FEATURE_DIM, ALL_FEATURE_CODES, sorted DISABLED_FEATURE_GROUPS, tier10 backend, text)"
+KEY_SCHEME = (
+    "sha256(FEATURE_DIM, ALL_FEATURE_CODES, sorted DISABLED_FEATURE_GROUPS, tier10 backend, text)"
+)
 
 
 def semantic_backend() -> str:

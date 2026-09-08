@@ -1623,7 +1623,8 @@ def _g7_fold_metrics(folds: list[dict]) -> dict:
 # cross-group union HETEROGENEOUS (KS max 0.79-0.95) and licensed pooling
 # only within the G1-eligible Plato dialogues (before it, the "Task 7
 # validated seminary and Plato separately" claim rested on synthetic tests
-# alone -- the assessor had never been run on real data). collect_tenant_distances (original/quantum/
+# alone -- the assessor had never been run on real data).
+# collect_tenant_distances (original/quantum/
 # pooled_source.py) resolves tenant via tenant_of(sid) or DEMO_TENANT, and
 # tenant_of only looks at the substring before the first ":" -- so calling it
 # with tenant="demo" across the merged texts_by_id would silently pool all

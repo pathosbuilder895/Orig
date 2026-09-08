@@ -1,19 +1,23 @@
 """validation/vector_cache.py — the battery's opt-in extraction memo must be
 invisible in the vectors it returns and impossible to serve stale."""
+
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from validation import vector_cache
 
 
 class TestKey:
     def test_key_changes_with_text(self):
-        assert vector_cache.vector_cache_key("a", "tfidf") != vector_cache.vector_cache_key("b", "tfidf")
+        assert vector_cache.vector_cache_key("a", "tfidf") != vector_cache.vector_cache_key(
+            "b", "tfidf"
+        )
 
     def test_key_changes_with_semantic_backend(self):
-        assert vector_cache.vector_cache_key("a", "st") != vector_cache.vector_cache_key("a", "tfidf")
+        assert vector_cache.vector_cache_key("a", "st") != vector_cache.vector_cache_key(
+            "a", "tfidf"
+        )
 
     def test_key_changes_when_a_feature_group_is_toggled(self):
         """G2b/G6 discard 'uniformity' for one leg; a vector extracted under

@@ -3990,7 +3990,11 @@ class TestG8SkipsWhenSklearnIsMissing:
 
 class TestEvaluateG1PooledFpr:
     def test_is_named_g1p_with_its_own_criterion_and_g1s_verdict_logic(self):
-        from validation.calibration_gate import _G1P_CRITERION, evaluate_g1_fpr, evaluate_g1_pooled_fpr
+        from validation.calibration_gate import (
+            _G1P_CRITERION,
+            evaluate_g1_fpr,
+            evaluate_g1_pooled_fpr,
+        )
 
         actions = ["no_action"] * 19 + ["monitor"]
         per_corpus = {"a": actions[:10], "b": actions[10:]}
@@ -4016,7 +4020,9 @@ class TestEvaluateG1PooledFpr:
         must read uninformative exactly as G1 would."""
         from validation.calibration_gate import evaluate_g1_pooled_fpr
 
-        result = evaluate_g1_pooled_fpr(["no_action"] * 5, {"a": ["no_action"] * 5}, typicality_ns=[4] * 5)
+        result = evaluate_g1_pooled_fpr(
+            ["no_action"] * 5, {"a": ["no_action"] * 5}, typicality_ns=[4] * 5
+        )
         assert result.verdict == "uninformative"
 
     def test_informational_is_merged_into_detail_without_touching_the_verdict(self):
@@ -4091,7 +4097,11 @@ class TestG1pInformational:
         group_of = {"s0": "seminary", "p0": "unpooled:p0"}
         info = _g1p_informational(pooled_out, group_of)
 
-        assert info["per_group_flagged_rates"]["seminary"] == {"n": 2, "flagged": 1, "flagged_rate": 0.5}
+        assert info["per_group_flagged_rates"]["seminary"] == {
+            "n": 2,
+            "flagged": 1,
+            "flagged_rate": 0.5,
+        }
         assert info["per_group_flagged_rates"]["unpooled"]["flagged"] == 0
         assert info["per_group_reachability"]["seminary"]["observed"] is True
         assert info["per_group_reachability"]["unpooled"]["reachable"] is False
