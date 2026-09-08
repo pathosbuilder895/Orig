@@ -95,21 +95,14 @@ ROUTE_ROUTER: dict[str, str] = {
     "GET /tenants/{A}/stats": "tenants",
 }
 
+# Derived from the filesystem, not a literal: a 13th router module added
+# under original/routers/ fails the completeness test until the table
+# carries a representative route for it.
+_ROUTERS_DIR = Path(__file__).resolve().parents[2] / "original" / "routers"
 _ALL_ROUTER_MODULES = frozenset(
-    {
-        "admin",
-        "auth",
-        "bluebook",
-        "health",
-        "imports",
-        "lti_routes",
-        "me",
-        "proctor",
-        "students",
-        "students_baseline",
-        "students_scoring",
-        "tenants",
-    }
+    path.stem
+    for path in _ROUTERS_DIR.glob("*.py")
+    if path.stem not in {"__init__", "_shared"}
 )
 
 # Routes that take a body other than "none" when the request is expected to
@@ -222,7 +215,7 @@ def test_completeness_all_routers_covered():
     missing = _ALL_ROUTER_MODULES - covered
     assert not missing, f"routers with no auth-matrix entry: {sorted(missing)}"
     # Every table key is mapped to a real router, and every router in the map
-    # is one of the 12 under original/routers/ — catches typos both ways.
+    # is a module actually present under original/routers/ — catches typos both ways.
     unknown = covered - _ALL_ROUTER_MODULES
     assert not unknown, f"ROUTE_ROUTER names unknown router modules: {sorted(unknown)}"
     assert set(_MATRIX) == set(ROUTE_ROUTER), (
