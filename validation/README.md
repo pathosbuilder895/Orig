@@ -88,6 +88,31 @@ Report ("The instruments were broken, not the math") and
 
 ## Real measured evidence
 
+**2026-09-07 full battery** — `validation/calibration_report_2026-09-07.json`,
+the first committed report with G7, G8, the TermSim gates and three-valued
+verdicts populated, and the first since 2026-07-31. Run locally with the
+vector cache (10 h 21 min on a 10-core Mac; the run started at commit
+f47a4d30 and the report's `git_sha` is the checkout at write time,
+642b1d08 — the commits between are CI/docs/`--only` plumbing with no
+scoring change). Verdicts, `--strict`:
+
+| Gate | Verdict | Measured | Why not pass |
+|------|---------|----------|--------------|
+| G1 | uninformative | 0/316 flagged | conformal floor: per-entity N ≤ 11 → min p 0.083 > 0.03 band; 10 folds drift-held |
+| G1p | **fail** | 17/191 flagged (8.9%) on Plato, every fold pooled (n = 179, band reachable) | pooled calibration over-flags genuine folds even where exchangeability holds; worst dialogues charmides/laches at 20% |
+| G2 | pass | impostor q 0.048 vs holdout 0.200 | — |
+| G2b | pass | paraphrased impostor q 0.048 vs holdout 0.250 | — |
+| G3 | uninformative | top-1 0.778, n = 27 | Wilson CI [0.59, 0.89] straddles the 0.7 bar |
+| G4 | pass | early 0.636 ≤ middle 0.666 ≤ late 0.731 | — |
+| G5 | pass | g1 dev 0.633 → 0.685 shuffled; g3 acc 0.148; g4 non-monotone 2/3 | — (10 real / 61 shuffled folds drift-held, excluded from the health check as designed) |
+| G6 | uninformative | skipped | p_central floor 0.200 at n = 4, threshold 0.02 needs n ≥ 49 |
+| G7 | uninformative | skipped | cross-genre corpus not committed (Plan 02) |
+| G8 | pass | precision 1.000, abstention 0.333, shuffled control 0.306 | — |
+| T-1 | fail | honest-term action budget | TermSim evidence artifact (`validation/termsim/reports/latest.json`) |
+| T-2 | pass | ghost detection floor | — |
+| T-3 | fail | baseline-growth neutrality | TermSim evidence artifact |
+| T-4 | pass | cold-start parity | — |
+
 The 2026-08-26 G2 floor-asymmetry audit returned **genuine**, not artifact:
 8/19 holdouts (42.1%) versus 20/23 impostors (87.0%) were already at their
 own conformal rank-1 floor. The separation survives a scale-free rank read;

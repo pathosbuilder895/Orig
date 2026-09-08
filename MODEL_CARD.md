@@ -225,12 +225,17 @@ only. The calibration battery now carries **G1p** — G1's criterion on the
 Plato folds scored under pooled calibration (`_score_corpus_for_g1_pooled`,
 `quantum.score()` called directly), reported alongside the self-calibrated
 G1, with per-group reachability and the pooled/self fold counts in its
-detail. On an 8-group seminary smoke run where the pooled reference did
-engage (n=35, band reachable), 27.5% of genuine same-author folds were
-flagged — consistent with the heterogeneity verdict and a warning that
-"reachable" is not "calibrated". A pilot tenant is seminary-shaped, so
-enabling this flag would need a per-tenant exchangeability check on real
-cohorts, not just corpus evidence.
+detail. **G1p FAILS on the 2026-09-07 battery**
+(`validation/calibration_report_2026-09-07.json`): with every one of the
+191 Plato folds pooled (reference n = 179, band reachable), 17 genuine
+same-author folds were flagged — 8.9% against the 5% bar, with two
+dialogues at 20%. So even where exchangeability holds, the pooled band
+over-flags genuine work: "reachable" is not "calibrated", and lifting the
+conformal floor exposes a threshold problem the self-calibrated G1 could
+never show. (An earlier 8-group seminary smoke, where pooling is NOT
+licensed, flagged 27.5%.) A pilot tenant is seminary-shaped, so enabling
+this flag would need a per-tenant exchangeability check on real cohorts
+and a re-derived band threshold, not just corpus evidence.
 
 **Demo/pilot enablement gate** — rule: **seminary AUC ≥ 0.85 AND
 false-positive rate ≤ 5% at `t_elevated` on authentic seminary essays**
