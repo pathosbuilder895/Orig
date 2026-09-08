@@ -2318,6 +2318,22 @@ def run_all() -> list[GateResult]:
         restore()
 
 
+def _leg_clock():
+    """Returns mark(leg) -> prints one flushed line per finished leg with the
+    wall-clock elapsed since the clock started. The battery prints nothing
+    else until render() at the very end, so without this a multi-hour run
+    (and its CI log) gives no way to see which leg the time went to."""
+    import time as _time
+
+    t0 = _time.monotonic()
+
+    def mark(leg: str) -> None:
+        elapsed = int(_time.monotonic() - t0)
+        print(f"[battery] {leg} done at +{elapsed // 3600}h{(elapsed % 3600) // 60:02d}m", flush=True)
+
+    return mark
+
+
 def _run_all_gates() -> list[GateResult]:
     # Defensive reset, before anything else: ENV_LOCK (module import time,
     # above) already put us on ORIGINAL_DB=":memory:", so this is a no-op
@@ -2346,6 +2362,7 @@ def _run_all_gates() -> list[GateResult]:
 
     client = TestClient(_run_module.load_legacy_demo_app())
 
+    _mark = _leg_clock()
     results: list[GateResult] = []
 
     # G1: seminary + public_authors + Plato, LOO over whole documents.
@@ -2399,6 +2416,7 @@ def _run_all_gates() -> list[GateResult]:
         entity_baseline_counts=entity_baseline_counts,
     )
     results.append(g1_result)
+    _mark("G1")
 
     # G1p: the pooled-calibration twin of G1 (same folds, same criterion,
     # typicality bands calibrated on licensed same-group peers). A crash is
@@ -2424,6 +2442,7 @@ def _run_all_gates() -> list[GateResult]:
         )
     except Exception as exc:
         results.append(_machinery_error_result("G1p", _G1P_CRITERION, exc))
+    _mark("G1p")
 
     # G2: bland impostor via q = min(p_far, p_central). A crash here (e.g.
     # _compute_g2_q_values's _require_healthy_leg call catching a dialogue
@@ -2434,6 +2453,7 @@ def _run_all_gates() -> list[GateResult]:
         results.append(evaluate_g2_bland_impostor(holdout_q, impostor_q))
     except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
         results.append(_machinery_error_result("G2", _G2_CRITERION, exc))
+    _mark("G2")
 
     # G2b: G2's criterion with uniformity features enabled (guarded window —
     # see _uniformity_features_enabled) and the ai_*.txt impostors run
@@ -2449,6 +2469,7 @@ def _run_all_gates() -> list[GateResult]:
         )
     except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
         results.append(_machinery_error_result("G2b", _G2B_CRITERION, exc))
+    _mark("G2b")
 
     # G3: reuse the existing public_authors attribution accuracy computation.
     # validation/public_authors/run.py's run() returns a report dict shaped
@@ -2473,6 +2494,7 @@ def _run_all_gates() -> list[GateResult]:
             n_essays=n_essays,
         )
     )
+    _mark("G3")
 
     # G4: Plato early/middle/late monotonicity. A crash here (e.g.
     # _compute_g4_group_means's _require_healthy_leg call catching a
@@ -2483,6 +2505,7 @@ def _run_all_gates() -> list[GateResult]:
         results.append(evaluate_g4_career_drift_monotone(group_means))
     except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
         results.append(_machinery_error_result("G4", _G4_CRITERION, exc))
+    _mark("G4")
 
     # G5: permutation-null selection-bias control — seeded label shuffles,
     # then shuffled-label reruns of the G1/G3/G4 machinery above (see run_g5).
@@ -2500,6 +2523,7 @@ def _run_all_gates() -> list[GateResult]:
         )
     except Exception as exc:  # noqa: BLE001 — see _g5_machinery_error_result
         results.append(_g5_machinery_error_result(exc))
+    _mark("G5")
 
     # G6: native_english fairness on the p_central/too-uniform action, with
     # uniformity features enabled for its own leg. _compute_g6_fairness_data
@@ -2510,6 +2534,7 @@ def _run_all_gates() -> list[GateResult]:
         results.append(_compute_g6_fairness_data(client))
     except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
         results.append(_machinery_error_result("G6", _G6_CRITERION, exc))
+    _mark("G6")
 
     # G7: cross-topic same-author FPR, on the leave-one-genre-out corpus in
     # validation/genre_crossgenre_2026-08/. That corpus is NOT committed (the
@@ -2524,6 +2549,7 @@ def _run_all_gates() -> list[GateResult]:
         results.append(_compute_g7_cross_topic_data())
     except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
         results.append(_machinery_error_result("G7", _G7_CRITERION, exc))
+    _mark("G7")
 
     # G8: genre discrimination on the author-disjoint hold-out, plus the
     # author-shuffled control. Its corpus IS committed, so this normally
@@ -2533,6 +2559,7 @@ def _run_all_gates() -> list[GateResult]:
         results.append(_compute_g8_genre_data())
     except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
         results.append(_machinery_error_result("G8", _G8_CRITERION, exc))
+    _mark("G8")
 
     # Deployment-shaped gates consume the latest deterministic TermSim metrics.
     # Corpus extraction remains outside this already-expensive battery; the
