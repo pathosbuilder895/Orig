@@ -210,7 +210,11 @@ def main(argv: list[str]) -> int:
         print(f"changed-tests: running {len(tests)} mapped test file(s)")
         codes.append(
             subprocess.run(
-                [sys.executable, "-m", "pytest", "-q", *tests],
+                # Same selection as the blocking CI lane: known-red tests
+                # (docs/testing/09 §3, scripts/known_red.py) are red by design
+                # and must not veto a push.
+                [sys.executable, "-m", "pytest", "-q",
+                 "-m", "not blocker and not certification", *tests],
                 cwd=REPO_ROOT, env=env,
             ).returncode
         )
