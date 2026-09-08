@@ -232,7 +232,9 @@ def _kl_divergence(p_counts: dict, q_counts: dict) -> float:
 
     # Build unified vocabulary
     all_keys = set(p_counts.keys()) | set(q_counts.keys())
-    if not all_keys:
+    if not all_keys:  # pragma: no cover — unreachable: p_counts and
+        # q_counts are both non-empty here (the guard above already
+        # returned otherwise), so their key union can never be empty.
         return 0.0
 
     # Smoothed probabilities
@@ -243,7 +245,9 @@ def _kl_divergence(p_counts: dict, q_counts: dict) -> float:
     for key in all_keys:
         p_prob = (p_counts.get(key, 0) + 1) / p_total
         q_prob = (q_counts.get(key, 0) + 1) / q_total
-        if p_prob > 0:
+        # The +1 Laplace smoothing guarantees a strictly positive numerator
+        # and p_total > 0, so p_prob can never be <= 0 — unreachable False arm.
+        if p_prob > 0:  # pragma: no branch
             kl += p_prob * math.log2(p_prob / q_prob)
 
     return max(kl, 0.0)  # KL should be non-negative

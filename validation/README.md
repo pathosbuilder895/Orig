@@ -88,6 +88,11 @@ Report ("The instruments were broken, not the math") and
 
 ## Real measured evidence
 
+The 2026-08-26 G2 floor-asymmetry audit returned **genuine**, not artifact:
+8/19 holdouts (42.1%) versus 20/23 impostors (87.0%) were already at their
+own conformal rank-1 floor. The separation survives a scale-free rank read;
+see `validation/audits/g2_floor_asymmetry_2026-08-26.json`.
+
 `validation/benchmarks/2026-07-31/public_authors/report.json` (committed;
 `validation/benchmarks/*` is otherwise git-ignored and only specific runs are
 added as evidence — see `validation/benchmarks/README.md`) is a real run of
@@ -114,6 +119,28 @@ exclude-not-abort behavior rule 4 describes.
     # any number out of it, since the default treats an uninformative
     # gate as non-failing.
     .venv/bin/python -m validation.calibration_gate --strict
+
+    # deployment-shaped layer (real API, isolated DB per matrix cell)
+    .venv/bin/python -m validation.termsim describe --seed 20260826
+    .venv/bin/python -m validation.termsim run --matrix standard --seed 20260826
+    # persistence-faithful variant (needs `bash scripts/local_postgres.sh up`):
+    .venv/bin/python -m validation.termsim run --matrix standard --seed 20260826 --backend postgres
+    # pool >=3 seeds' baseline cells into the T-gate evidence artifact:
+    .venv/bin/python -m validation.termsim gate-evidence --seeds 20260826,20260827,20260828
+
+TermSim is the mandatory middle leg for score-changing flags. Enablement now
+requires all three: (1) the relevant corpus gate passes, (2) the identical-script
+TermSim diff is acceptable, and (3) the pilot shadow soak demonstrates that the
+mechanism engages sanely on real traffic. Its public-domain personas are synthetic;
+absolute rates do not transfer to students. Only configuration differences on the
+same script are interpretable. The harness patches the two API route modules' local
+`feature_vector` bindings to use `.benchmark_cache/termsim/vectors/`; production code
+has no cache path, and baseline-dependent comparison dimensions are always recomputed.
+
+    # G8's shuffled-label control requires scikit-learn. It is installed by
+    # requirements-demo.txt (and therefore requirements.txt), with the same
+    # supported range in requirements-dev.txt. A hand-built environment
+    # without it reports G8 UNINFORMATIVE and strict mode exits non-zero.
 
     # NOTE on G7 (cross-topic same-author FPR): its corpus
     # (validation/genre_crossgenre_2026-08/) is NOT committed — the Lewis

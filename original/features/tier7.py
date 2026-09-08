@@ -1,7 +1,7 @@
 """
 features/tier7.py — Tier 7: AI Detection Markers
 
-Seven features targeting the statistical signatures of LLM-generated text.
+Six features targeting the statistical signatures of LLM-generated text.
 Function word distributions, lexical diversity patterns, and positional
 variance behave differently in AI text vs. human text — even when the
 AI is prompted to "write like" a specific person.
@@ -149,7 +149,9 @@ def repetition_gap_entropy(doc: TextDoc) -> float:
     total = len(all_gaps)
     entropy = 0.0
     for count in gap_counter.values():
-        if count > 0:
+        # Counter.values() only ever yields counted occurrences (>= 1), so
+        # the False arm is unreachable — count can never be <= 0 here.
+        if count > 0:  # pragma: no branch
             p = count / total
             entropy -= p * math.log2(p)
     return entropy
@@ -203,7 +205,10 @@ def transition_predictability(doc: TextDoc) -> float:
         dot = sum(a[k] * b[k] for k in shared_keys)
         norm_a = math.sqrt(sum(v * v for v in a.values()))
         norm_b = math.sqrt(sum(v * v for v in b.values()))
-        if norm_a > 0 and norm_b > 0:
+        # a and b are non-empty Counters (guaranteed by the `continue` above),
+        # so each holds at least one positive count and its norm is always
+        # > 0 — the False arm is unreachable.
+        if norm_a > 0 and norm_b > 0:  # pragma: no branch
             similarities.append(dot / (norm_a * norm_b))
 
     if not similarities:
@@ -240,7 +245,11 @@ def vocabulary_introduction_rate(doc: TextDoc) -> float:
 
     # Normalize: total unique = cumulative_unique[-1]
     total_unique = cumulative_unique[-1]
-    if total_unique == 0:
+    if total_unique == 0:  # pragma: no cover — unreachable: `words` is
+        # non-empty (the len(words) < 20 guard above already returned),
+        # every segment slice is non-empty, and `seen` accumulates from
+        # every slice — so `seen` (and thus total_unique) can never end
+        # up empty.
         return 0.5
 
     # AUC of the normalized cumulative curve

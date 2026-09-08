@@ -154,7 +154,10 @@ def citation_style_consistency(doc: TextDoc) -> float:
     total = sum(format_counts.values())
     entropy = 0.0
     for count in format_counts.values():
-        if count > 0:
+        if count > 0:  # pragma: no branch — unreachable: format_counts only
+            # ever receives entries where `matches > 0` (see the loop above
+            # this function's entry into the len > 1 branch), so every
+            # stored value is already positive.
             p = count / total
             entropy -= p * math.log2(p)
     max_entropy = math.log2(len(format_counts))
@@ -200,7 +203,9 @@ def list_marker_preference(doc: TextDoc) -> float:
     for encoding, count in sorted(counts.items()):
         if count == max_count:
             return encoding
-    return 0.0
+    return 0.0  # pragma: no cover — unreachable: max_count is literally
+    # max(counts.values()), so some entry in counts.items() always equals
+    # it and the loop above always returns before falling through here.
 
 
 def abbreviation_tendency(doc: TextDoc) -> float:

@@ -40,7 +40,9 @@ def sentence_length_dispersion_ratio(doc: TextDoc) -> float:
     if len(counts) < 3:
         return 0.5
     mean = statistics.mean(counts)
-    if mean < 1e-9:
+    if mean < 1e-9:  # pragma: no cover — unreachable: _sentence_word_counts only keeps
+        # sentences with non-empty split(), so every count is >= 1 and mean can never
+        # fall below 1e-9 for any real TextDoc.
         return 0.0
     return statistics.stdev(counts) / mean
 
@@ -51,7 +53,9 @@ def window_feature_variance_ratio(doc: TextDoc) -> float:
     if len(counts) < 6:
         return 0.5
     window_means = [statistics.mean(counts[i : i + 3]) for i in range(0, len(counts) - 2, 3)]
-    if len(window_means) < 2:
+    if len(window_means) < 2:  # pragma: no cover — unreachable: len(counts) >= 6 (guarded
+        # above) always yields range(0, len(counts) - 2, 3) with at least 2 steps, so
+        # window_means never has fewer than 2 elements.
         return 0.5
     return statistics.variance(window_means)
 
@@ -65,7 +69,9 @@ def function_word_burstiness_ratio(doc: TextDoc) -> float:
         return 0.5
     gaps = [positions[i + 1] - positions[i] for i in range(len(positions) - 1)]
     mean_gap = statistics.mean(gaps)
-    if mean_gap < 1e-9:
+    if mean_gap < 1e-9:  # pragma: no cover — unreachable: positions is a strictly
+        # increasing list of distinct word indices, so every gap is >= 1 and
+        # mean_gap can never fall below 1e-9.
         return 0.0
     return statistics.stdev(gaps) / mean_gap
 
@@ -80,7 +86,8 @@ def punctuation_dispersion_ratio(doc: TextDoc) -> float:
         n_words = max(1, len(s.split()))
         n_punct = sum(1 for ch in s if ch in _PUNCT_CHARS)
         rates.append(n_punct / n_words)
-    if len(rates) < 2:
+    if len(rates) < 2:  # pragma: no cover — unreachable: rates has exactly one entry
+        # per sentence and len(sentences) >= 4 is already guaranteed above.
         return 0.5
     return statistics.variance(rates)
 
@@ -108,7 +115,10 @@ def vocab_introduction_flatness(doc: TextDoc) -> float:
         chunk = new_type_flags[i : i + bucket_size]
         bucket_rates.append(statistics.mean(chunk) if chunk else 0.0)
     bucket_rates = bucket_rates[:n_buckets]
-    if len(bucket_rates) < 2 or bucket_rates[0] < 1e-9:
+    if len(bucket_rates) < 2 or bucket_rates[0] < 1e-9:  # pragma: no cover — unreachable:
+        # len(words) >= 20 (guarded above) always yields exactly 4 buckets, and the very
+        # first word is always a new type (seen starts empty), so bucket_rates[0] is at
+        # least 1/bucket_size, which is well above 1e-9 for any realistic document.
         return 0.5
     # Flatness: how close the LAST bucket's rate is to the FIRST bucket's
     # rate. Genuine decay -> low value (last << first). Flat -> ~1.0.
@@ -137,7 +147,8 @@ def clause_depth_variance_ratio(doc: TextDoc) -> float:
         words = s.lower().split()
         depth = s.count(",") + sum(1 for w in words if w.strip(".,;:!?") in subordinators)
         depths.append(depth)
-    if len(depths) < 2:
+    if len(depths) < 2:  # pragma: no cover — unreachable: depths has exactly one entry
+        # per sentence and len(sentences) >= 4 is already guaranteed above.
         return 0.5
     return statistics.variance(depths)
 

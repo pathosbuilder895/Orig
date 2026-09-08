@@ -202,3 +202,110 @@ def test_cache_is_bounded_by_max_entries(monkeypatch):
     # The earliest-built students were the ones evicted.
     assert "t1:cap0" not in peers._cache_students
     assert "t1:cap4" in peers._cache_students
+
+
+# ── I4 branch coverage: _evict_oldest_locked's defensive/edge arms ────────
+
+
+def test_evict_oldest_locked_is_a_noop_on_an_empty_cache():
+    """Guards a call that should never happen through the public API —
+    eviction is only triggered from build_profile() once `len(_cache) >
+    _MAX_CACHE_ENTRIES`, so `_cache` is always non-empty at that call site
+    — but the guard itself must still be safe to exercise directly."""
+    assert peers._cache == {}
+    with peers._lock:
+        peers._evict_oldest_locked()  # must not raise
+    assert peers._cache == {}
+
+
+def test_evict_oldest_locked_tolerates_an_entry_with_no_owner_record():
+    """A cache entry with no `_key_student` record can't happen through
+    build_profile() (which always writes both together), but the evictor
+    must not crash if the two dicts are ever out of sync."""
+    profile = peers.build_profile(_state("t1:alice"))
+    assert profile is not None
+    (only_key,) = peers._cache.keys()
+    with peers._lock:
+        peers._key_student.pop(only_key)  # desync: no owner for this key
+        peers._evict_oldest_locked()  # must not raise
+    assert peers._cache == {}
+
+
+def test_evict_oldest_locked_tolerates_an_owner_with_no_key_set():
+    """`_key_student` names an owner, but `_cache_students` has no entry
+    for them — likewise unreachable through build_profile(), but must not
+    crash the evictor."""
+    profile = peers.build_profile(_state("t1:alice"))
+    assert profile is not None
+    with peers._lock:
+        peers._cache_students.pop("t1:alice")  # desync: owner with no key set
+        peers._evict_oldest_locked()  # must not raise
+    assert peers._cache == {}
+
+
+def test_evict_oldest_locked_keeps_the_student_when_another_key_remains():
+    """A student can own more than one cache key at once (their baseline
+    text changed, minting a new fingerprint while the old one is still
+    cached). Evicting the older key must not drop the student from
+    `_cache_students` while a newer key of theirs is still live."""
+    claimed_id = "t1:alice"
+    older = peers.build_profile(_state(claimed_id, words=_LONG))
+    newer = peers.build_profile(_state(claimed_id, words=_ALICE_TEXT))
+    assert older is not None
+    assert newer is not None
+    assert older.text != newer.text
+    assert len(peers._cache) == 2
+    assert peers._cache_students[claimed_id] == set(peers._cache.keys())
+    oldest_key = next(iter(peers._cache))  # OrderedDict: insertion order
+
+    with peers._lock:
+        peers._evict_oldest_locked()
+
+    assert oldest_key not in peers._cache
+    assert claimed_id in peers._cache_students
+    assert peers._cache_students[claimed_id] == set(peers._cache.keys())
+
+
+# ── build_profile's double-checked-locking cache hit ───────────────────────
+
+
+def test_build_profile_returns_the_entry_inserted_during_the_lock_wait(monkeypatch):
+    """Line 177: the locked re-check's cache hit. Only reachable when
+    another thread finishes building and inserts the same key in the gap
+    between this call's lock-free fast-path miss and its lock acquisition.
+    Simulated deterministically (no real threads, no timing) with a fake
+    lock whose __enter__ performs that insertion at exactly the moment the
+    real lock's __enter__ would hand control back — the observable effect
+    of the race is identical either way."""
+    state = _state("t1:racer")
+    texts = peers._authenticated_texts(state)
+    key = peers._fingerprint(state.student_id, texts)
+    winner = peers.Profile(
+        text="profile built by the winning thread",
+        compressed_size=1,
+        fw_matrix=np.zeros(1),
+        baseline_mean=state.baseline_mean,
+        baseline_std=state.baseline_std,
+        sample_count=99,
+    )
+
+    class _InsertingLock:
+        def __enter__(self):
+            peers._cache[key] = winner
+            peers._key_student[key] = state.student_id
+            peers._cache_students.setdefault(state.student_id, set()).add(key)
+            return True
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    def _boom(*_args, **_kwargs):
+        raise AssertionError("must not rebuild once another thread's entry is cached")
+
+    monkeypatch.setattr(peers, "_lock", _InsertingLock())
+    monkeypatch.setattr(peers, "compressed_size", _boom)
+
+    result = peers.build_profile(state)
+
+    assert result is winner
+    assert peers.cache_build_count() == 0  # never paid to build it itself

@@ -124,6 +124,10 @@ export function Timer({
 
   useEffect(() => {
     if (mode !== 'countdown' || durationSeconds == null || durationSeconds <= 0) return;
+    /* v8 ignore next -- TS narrowing only, not a runtime state: the guard
+       above already guarantees mode === 'countdown' && durationSeconds !=
+       null, and under exactly those conditions lines 111-114 always
+       compute `remaining` as a number. */
     if (remaining === null) return;
 
     if (remaining <= 0) {
@@ -152,8 +156,16 @@ export function Timer({
     }
   }, [remaining, durationSeconds, mode, onExpire]);
 
-  const fraction =
-    mode === 'countdown' && durationSeconds ? (remaining ?? 0) / durationSeconds : null;
+  let fraction: number | null = null;
+  if (mode === 'countdown' && durationSeconds) {
+    /* v8 ignore next -- unreachable residual found during Task 6's coverage
+       re-verification pass (not one of the brief's five sites): this branch
+       being true implies durationSeconds != null, so by the same invariant
+       as the `remaining === null` guard above, `remaining` (computed at
+       lines 111-114) is always a number here, never null. */
+    const safeRemaining = remaining ?? 0;
+    fraction = safeRemaining / durationSeconds;
+  }
   const isLow = fraction !== null && fraction <= 0.25;
   const isVeryLow = fraction !== null && fraction <= 0.1;
   const spokenValue = `${formatSpoken(displaySeconds)} ${mode === 'countdown' ? 'remaining' : 'elapsed'}`;

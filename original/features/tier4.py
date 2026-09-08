@@ -1,7 +1,7 @@
 """
 features/tier4.py — Tier 4: Character & Punctuation Fingerprint
 
-Eight features capturing sub-word and punctuation habits that are
+Seven features capturing sub-word and punctuation habits that are
 deeply unconscious, highly author-specific, and survive vocabulary
 substitution — the primary attack vector for both human editors
 and AI paraphrasers.
@@ -34,7 +34,9 @@ def _shannon_entropy(counter: Counter) -> float:
         return 0.0
     entropy = 0.0
     for count in counter.values():
-        if count > 0:
+        # Counter.values() only ever yields counted occurrences (>= 1), so
+        # the False arm is unreachable — count can never be <= 0 here.
+        if count > 0:  # pragma: no branch
             p = count / total
             entropy -= p * math.log2(p)
     return entropy

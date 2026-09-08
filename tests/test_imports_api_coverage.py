@@ -156,6 +156,29 @@ def test_completely_empty_file_is_rejected_422():
     assert r.status_code == 422, r.text
 
 
+def test_decode_failure_is_a_422_not_a_500(monkeypatch):
+    """imports.py:[37,38] — `except Exception as exc:` around the CSV
+    decode. `raw.decode("utf-8-sig", errors="replace")` never actually
+    raises for real byte input (`errors="replace"` absorbs every invalid
+    sequence), so this handler is defensive code for a failure the decode
+    call itself cannot currently produce. Reach it anyway by making
+    `UploadFile.read()` hand back something that isn't bytes at all — the
+    handler's real contract ("if extracting CSV text fails for any reason,
+    422 rather than 500") shouldn't depend on which failure mode gets
+    there."""
+    from starlette.datastructures import UploadFile
+
+    async def _read_returns_a_str(self, size=-1):
+        return "not bytes, has no .decode()"
+
+    monkeypatch.setattr(UploadFile, "read", _read_returns_a_str)
+
+    r = _post_csv("Last Name,First Name,Student ID\nA,B,c1\n")
+
+    assert r.status_code == 422, r.text
+    assert "Could not decode CSV" in r.json()["detail"]
+
+
 def test_utf8_bom_export_is_decoded_without_corrupting_the_first_header():
     """Excel-saved exports start with a UTF-8 BOM.
 

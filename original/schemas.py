@@ -316,7 +316,7 @@ class CalibrationRunRequest(BaseModel):
     )
     thresholds: dict[str, float] | None = Field(
         None,
-        description="Override action thresholds. Defaults to no_action=0.4, monitor=0.55, escalate=0.75.",
+        description="Override action thresholds. Defaults to no_action=0.4, monitor=0.60, escalate=0.75.",
     )
 
 

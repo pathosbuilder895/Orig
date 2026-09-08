@@ -1,0 +1,41 @@
+{
+  "abstain_reasons": {},
+  "compression_channel": {
+    "baseline_slope": -0.00153333333333335,
+    "baseline_slope_ci95_approx": [
+      -0.0015333333333333644,
+      -0.0015333333333333358
+    ],
+    "baseline_slope_standard_error": 7.289816193270159e-18,
+    "implied_shift_3_to_30": -0.04140000000000045,
+    "n": 46,
+    "r_squared": 1.0,
+    "reference_profiles_coefficient": 0.001999999999999997
+  },
+  "fixture": {
+    "compression_at_3": 0.799,
+    "compression_at_48": 0.73,
+    "source": "deterministic synthetic reproduction, not pilot evidence"
+  },
+  "fused_score": {
+    "baseline_slope": -0.0009966666666666657,
+    "baseline_slope_ci95_approx": [
+      -0.00099666666666667,
+      -0.0009966666666666613
+    ],
+    "baseline_slope_standard_error": 2.2493116388694593e-18,
+    "implied_shift_3_to_30": -0.026909999999999972,
+    "n": 46,
+    "r_squared": 1.0,
+    "reference_profiles_coefficient": 0.002300000000000002
+  },
+  "n_usable": 46,
+  "normalization_candidates": [
+    "cap concatenated baseline text at a fixed byte budget",
+    "mean the per-baseline-document compression distances",
+    "add baseline_samples as a fusion input and refit"
+  ],
+  "recommendation": "Prefer mean per-baseline-document compression distance, then refit the fusion artifact and thresholds; validate against real shadow rows before enablement.",
+  "verdict": "measured",
+  "warning": "Every candidate invalidates the shipped thresholds and requires a train_fused_score.py refit plus a new artifact."
+}

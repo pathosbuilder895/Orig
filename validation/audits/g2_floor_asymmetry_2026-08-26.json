@@ -1,0 +1,15 @@
+{
+  "audit": "G2 floor asymmetry",
+  "run_date": "2026-08-26",
+  "command": ".venv/bin/python -m validation.audits.g2_floor_asymmetry",
+  "holdout_records": 19,
+  "impostor_records": 23,
+  "analysis": {
+    "holdout_at_floor_rate": 0.42105263157894735,
+    "impostor_at_floor_rate": 0.8695652173913043,
+    "holdout_n_range": [4, 11],
+    "impostor_n": [20],
+    "matched_n_verdict": "genuine"
+  },
+  "interpretation": "The impostor leg is more frequently rank-1 extreme even after expressing each observation in its own conformal rank. The observed G2 separation is not explained solely by unequal p-value floors."
+}

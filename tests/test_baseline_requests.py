@@ -88,6 +88,104 @@ class TestDurability:
         br.get("nope")
         assert len(br._by_student.get("sem:marcus", [])) == 1
 
+    def test_persist_snapshot_failure_is_caught_and_counted(self):
+        """A repo write failure (disk full, DB down, ...) inside
+        ``_persist_snapshot`` must not propagate out of ``record`` — it's a
+        best-effort mirror. The silent-failure counter is how ops notices."""
+
+        class _FailingRepo:
+            def put_baseline_request(self, **kwargs):
+                raise RuntimeError("disk full")
+
+        import original.baseline_requests as br_mod
+
+        original_repo = br_mod._repo
+        br_mod._repo = lambda: _FailingRepo()
+        try:
+            before = br.persist_failure_count()
+            br.record(_make())
+            assert br.persist_failure_count() == before + 1
+        finally:
+            br_mod._repo = original_repo
+
+    def test_ensure_hydrated_exception_is_caught(self):
+        """A load failure during first-use hydration must not raise — the
+        cache is still marked hydrated (so we don't retry every call) and
+        callers simply see an empty registry."""
+
+        class _FailingRepo:
+            def load_baseline_requests(self):
+                raise RuntimeError("db unreachable")
+
+        import original.baseline_requests as br_mod
+
+        original_repo = br_mod._repo
+        br_mod._repo = lambda: _FailingRepo()
+        try:
+            br._reset_cache()
+            assert br.get("whatever-id") is None
+            assert br_mod._hydrated is True
+        finally:
+            br_mod._repo = original_repo
+
+    def test_mark_completed_skips_non_pending_requests_for_student(self):
+        """A student can have a mix of pending and already-resolved
+        requests — only the pending ones transition, and the loop must
+        keep going past a non-pending entry to reach the next one."""
+        req1 = _make(status="pending")
+        req2 = _make(status="failed")  # must be skipped, not transitioned
+        req3 = _make(status="pending")
+        br.record(req1)
+        br.record(req2)
+        br.record(req3)
+        done = br.mark_completed_for_student(req1.student_id)
+        assert {r.external_request_id for r in done} == {
+            req1.external_request_id,
+            req3.external_request_id,
+        }
+        # The skipped one is untouched.
+        assert br.get(req2.external_request_id).status == "failed"
+
+    def test_mark_failed_on_absent_request_is_a_noop(self):
+        """`mark_failed` for an id that was never recorded (or already
+        purged) must not raise and must not persist anything."""
+        br.mark_failed("no-such-external-request-id", "bbook exploded")
+        assert br.get("no-such-external-request-id") is None
+
+    def test_persist_snapshot_failure_only_logs_every_tenth(self):
+        """The failure counter increments on every failure, but only every
+        10th (including the first) actually logs a traceback — a steady
+        tick of silent failures under a slow-disk incident shouldn't spam
+        identical tracebacks. Pins the counter to 0 so both the logging
+        (1 % 10 == 1) and skip-logging (2 % 10 != 1) arms are deterministic."""
+
+        class _FailingRepo:
+            def put_baseline_request(self, **kwargs):
+                raise RuntimeError("disk full")
+
+        import original.baseline_requests as br_mod
+
+        original_repo = br_mod._repo
+        original_count = br_mod._persist_failures
+        br_mod._repo = lambda: _FailingRepo()
+        br_mod._persist_failures = 0
+        try:
+            br.record(_make())  # failure #1 -> 1 % 10 == 1 -> logs
+            br.record(_make())  # failure #2 -> 2 % 10 != 1 -> skip logging
+            assert br_mod._persist_failures == 2
+        finally:
+            br_mod._repo = original_repo
+            br_mod._persist_failures = original_count
+
+    def test_record_duplicate_external_id_does_not_duplicate_index(self):
+        """Calling record() twice with the SAME external_request_id (e.g.
+        an idempotent client retry) must not append a second copy of the
+        id to the by-student index."""
+        req = _make()
+        br.record(req)
+        br.record(req)  # duplicate — same external_request_id
+        assert br._by_student[req.student_id].count(req.external_request_id) == 1
+
 
 class TestRepositorySeamWidened:
     """The Repository now also covers tenants + audit (ADR-002 action 3)."""

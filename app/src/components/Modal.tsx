@@ -83,7 +83,16 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
 
     const panel = panelRef.current;
     const focusable = panel?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
-    const target = focusable && focusable.length > 0 ? focusable[0] : panel;
+    let target: HTMLElement | null;
+    /* v8 ignore else -- the built-in close button (rendered unconditionally
+       below) always matches FOCUSABLE_SELECTOR, so an empty/absent focusable
+       list is unreachable without deleting it; kept as defense-in-depth for
+       a future refactor. */
+    if (focusable && focusable.length > 0) {
+      target = focusable[0];
+    } else {
+      target = panel;
+    }
     target?.focus();
 
     return () => {
@@ -110,9 +119,15 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
   function handleTabTrap(event: ReactKeyboardEvent<HTMLDivElement>) {
     if (event.key !== 'Tab') return;
     const panel = panelRef.current;
+    /* v8 ignore next -- handleTabTrap is registered as the panel's own
+       onKeyDown, so it cannot fire before panelRef is attached; panel is
+       always set here. Kept as defense-in-depth. */
     if (!panel) return;
 
     const focusable = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+    /* v8 ignore next 4 -- the built-in close button always matches
+       FOCUSABLE_SELECTOR, so an empty focusable list is unreachable without
+       deleting it; kept as defense-in-depth for a future refactor. */
     if (focusable.length === 0) {
       event.preventDefault();
       return;

@@ -315,12 +315,22 @@ def fetch_arxiv(force: bool = False) -> dict[str, list[dict]]:
 # Keep only the release whose authoritative PAN/Webis DOI has been verified.
 
 PAN_DATASETS = {
+    2020: {
+        "name": "PAN 2020 Authorship Verification",
+        "zenodo_id": "5106099",
+        "zenodo_url": "https://zenodo.org/api/records/5106099/files/pan20-authorship-verification-test.zip/content",
+        "zip_name": "pan20-authorship-verification-test.zip",
+        "inner_dir": "pan20-authorship-verification-test",
+        "md5": "655f365ab7b736036bbbee717168012b",
+        "note": "Official PAN 2020 cross-fandom test release; author IDs are in truth.jsonl",
+    },
     2021: {
         "name": "PAN 2021 Authorship Verification",
         "zenodo_id": "5106099",
         "zenodo_url": "https://zenodo.org/api/records/5106099/files/pan21-authorship-verification-test.zip/content",
         "zip_name": "pan21-authorship-verification-test.zip",
         "inner_dir": "pan21-authorship-verification-test",
+        "md5": None,
         "note": "English, open-set cross-topic fan fiction; official PAN/Webis DOI",
     },
 }
@@ -370,6 +380,14 @@ def fetch_pan(years: list[int] = None, force: bool = False) -> dict[int, dict]:
                 log.error("  Try downloading manually from: %s", ds["zenodo_url"])
                 log.error("  Save to: %s", zip_path)
                 continue
+
+        expected_md5 = ds.get("md5")
+        if expected_md5:
+            actual_md5 = hashlib.md5(zip_path.read_bytes(), usedforsecurity=False).hexdigest()
+            if actual_md5 != expected_md5:
+                raise RuntimeError(
+                    f"PAN {year} archive checksum mismatch: {actual_md5} != {expected_md5}"
+                )
 
         log.info("  Extracting...")
         try:
@@ -702,7 +720,8 @@ def main():
     parser.add_argument("--arxiv", action="store_true", help="Fetch arXiv papers only")
     parser.add_argument("--pan", action="store_true", help="Fetch PAN datasets only")
     parser.add_argument(
-        "--pan-year", type=int, choices=[2021], help="Fetch the labeled PAN 2021 release only"
+        "--pan-year", type=int, choices=sorted(PAN_DATASETS),
+        help="Fetch one verified PAN release"
     )
     parser.add_argument("--raid", action="store_true", help="Fetch RAID sample CSV only")
     parser.add_argument("--m4", action="store_true", help="Fetch M4 JSONL files only")

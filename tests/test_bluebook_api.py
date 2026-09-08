@@ -24,6 +24,8 @@ coverage is not present anywhere in the current live-stack test suite
 restoring it is out of scope for this task; see task-7-report.md.
 """
 
+import pytest
+
 from original import principal as pr
 
 
@@ -197,6 +199,114 @@ def test_racing_replay_returns_prior_result_not_500(live_client, store_reset, mo
     assert r2.status_code == 201, r2.text
     assert r2.json().get("duplicate") is True
     assert r2.json()["id"] == r1.json()["id"]
+
+
+def test_submission_before_deadline_is_not_late(live_client, store_reset):
+    """Sibling of test_late_after_deadline_grace: a sitting with a real
+    server-pinned session, sealed well before the deadline (+ grace) elapses,
+    must leave late=0 — covers the deadline check's "still on time" arm,
+    which the existing late/no-session tests don't reach (no-session skips
+    the deadline check entirely; the late test only exercises the "past
+    deadline" arm)."""
+    exam = live_client.post("/bluebook/exams", json=_exam_body(duration=30)).json()
+    live_client.post(
+        f"/bluebook/exams/{exam['id']}/session",
+        json={"student_id": "demo:ontime", "candidate": ""},
+    )
+    r = live_client.post(
+        "/bluebook/submissions",
+        json=_submission_body(
+            exam_id=exam["id"], student_id="demo:ontime", submission_uuid="uu-ontime"
+        ),
+    ).json()
+    assert r["late"] == 0
+
+
+def test_submission_non_conflict_repo_error_propagates(live_client, store_reset, monkeypatch):
+    """When put_bluebook_submission raises something other than a
+    unique-index conflict (neither sqlite3.IntegrityError nor
+    sqlalchemy.exc.IntegrityError), the handler must not misclassify it as a
+    replay — it re-raises the original error instead of swallowing it.
+    Exercises: the `not is_uuid_conflict` arm that walks into the lazy
+    sqlalchemy import (is_uuid_conflict starts False for a non-sqlite3
+    exception), and the final `is_uuid_conflict and submission_uuid` check's
+    False arm (still False after the sqlalchemy check) that falls through to
+    the bare `raise` instead of returning a duplicate response."""
+    import original.api as api_mod
+
+    repo = api_mod._repo()
+
+    def _boom(rec):
+        raise RuntimeError("simulated non-conflict repo failure")
+
+    monkeypatch.setattr(repo, "put_bluebook_submission", _boom)
+
+    with pytest.raises(RuntimeError, match="simulated non-conflict repo failure"):
+        live_client.post("/bluebook/submissions", json=_submission_body())
+
+
+def test_submission_conflict_but_prior_lookup_miss_propagates(
+    live_client, store_reset, monkeypatch
+):
+    """A genuine unique-index conflict (sqlite3.IntegrityError) whose
+    follow-up prior-row lookup then comes back empty (a second, rarer race)
+    must not be swallowed either — there is no prior row to hand back, so the
+    handler falls through to the bare `raise` rather than returning a
+    fabricated duplicate response. Exercises the `if prior is not None`
+    False arm."""
+    import sqlite3
+
+    import original.api as api_mod
+
+    repo = api_mod._repo()
+
+    def _conflict(rec):
+        raise sqlite3.IntegrityError("simulated unique-index conflict")
+
+    monkeypatch.setattr(repo, "put_bluebook_submission", _conflict)
+    monkeypatch.setattr(repo, "get_bluebook_submission_by_uuid", lambda uuid_: None)
+
+    with pytest.raises(sqlite3.IntegrityError, match="simulated unique-index conflict"):
+        live_client.post(
+            "/bluebook/submissions",
+            json=_submission_body(submission_uuid="uu-lost-race"),
+        )
+
+
+def test_non_sqlite_conflict_when_sqlalchemy_is_unavailable(
+    live_client, store_reset, monkeypatch
+):
+    """bluebook.py:[246,247] — the `except ImportError: _SAIntegrityError =
+    ()` fallback in the lazy sqlalchemy import. sqlalchemy IS installed in
+    this venv (test_submission_non_conflict_repo_error_propagates above
+    reaches the same `from sqlalchemy.exc import IntegrityError` line, but
+    the import there always succeeds), so simulate its absence the same way
+    tests/test_students_router_branches.py does for python-docx/pypdf:
+    `sys.modules["sqlalchemy.exc"] = None` forces the next import of that
+    submodule to raise ImportError (CPython import-system contract).  With
+    `_SAIntegrityError` then the empty tuple, `isinstance(e, ())` is always
+    False, so a non-conflict error still correctly falls through to the bare
+    `raise` — same externally-observable behaviour as when sqlalchemy IS
+    importable, proving the fallback is behaviourally inert, just reached
+    differently."""
+    import sys
+
+    import original.api as api_mod
+
+    monkeypatch.setitem(sys.modules, "sqlalchemy.exc", None)
+
+    repo = api_mod._repo()
+
+    def _boom(rec):
+        raise RuntimeError("simulated non-conflict repo failure, no sqlalchemy")
+
+    monkeypatch.setattr(repo, "put_bluebook_submission", _boom)
+
+    with pytest.raises(RuntimeError, match="simulated non-conflict repo failure"):
+        live_client.post(
+            "/bluebook/submissions",
+            json=_submission_body(submission_uuid="uu-no-sqlalchemy"),
+        )
 
 
 # ── Baseline replay guard (robustness spec §2, seal step 2) ───────────────────

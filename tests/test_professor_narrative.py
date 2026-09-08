@@ -212,12 +212,46 @@ class TestBuildObservations:
 
     def test_constructive_fills_gap_when_few_destructive(self):
         # One destructive with sub-threshold delta → generic note
-        # Two constructive → added as context
+        # One constructive → added as reassuring context.
+        # NOTE: "mean_sentence_length" (not "avg_sentence_length" — that code
+        # does not exist in _FEATURE_PLAIN, so a prior version of this test
+        # always hit the `if not entry: continue` skip and never actually
+        # exercised the constructive-fill loop body).
         destr = [_FakeFC(code="type_token_ratio", delta=0.08)]  # below threshold
-        constr = [_FakeFC(code="avg_sentence_length", delta=0.0, direction="constructive")]
+        constr = [_FakeFC(code="mean_sentence_length", delta=0.0, direction="constructive")]
         obs = _build_observations(destr, constr, "Jane")
         # Some mention of "consistent" from constructive, or the generic fallback
         assert len(obs) >= 1
+        # The constructive-fill branch actually ran: the one observation we
+        # got names Jane's sentence length and calls it consistent, not the
+        # generic "no individual writing feature stands out" fallback.
+        assert len(obs) == 1
+        assert "sentence length" in obs[0].lower()
+        assert "consistent" in obs[0].lower()
+
+    def test_constructive_loop_skips_unknown_code_then_breaks_at_three(self):
+        """Two branches inside the constructive-fill loop had no coverage:
+        (a) an unmapped constructive feature code hits `if not entry:
+        continue` and is silently dropped, and (b) once appending a
+        constructive observation brings the running total to 3, the loop
+        `break`s rather than consuming the rest of constructive_features[:2].
+        Two valid destructive observations seed the count at 2 (< 3, so the
+        constructive-fill gate opens); the first constructive entry is
+        unmapped (exercises the `continue`), the second is valid and pushes
+        the count to exactly 3 (exercises the `break`)."""
+        destr = [
+            _FakeFC(code="type_token_ratio", delta=0.35),
+            _FakeFC(code="avg_word_length", delta=0.35),
+        ]
+        constr = [
+            _FakeFC(code="nonexistent_constructive_code", delta=0.0, direction="constructive"),
+            _FakeFC(code="mean_sentence_length", delta=0.0, direction="constructive"),
+        ]
+        obs = _build_observations(destr, constr, "Jane")
+        # 2 destructive + 1 constructive (the unmapped one was skipped) == 3.
+        assert len(obs) == 3
+        assert "sentence length" in obs[2].lower()
+        assert "consistent" in obs[2].lower()
 
     def test_behavioral_feature_included(self):
         fc = _FakeFC(code="paste_event_rate", delta=0.30)
@@ -459,6 +493,20 @@ class TestBuildProfessorExplanation:
 
     def test_no_behavioral_or_ai_signals_by_default(self):
         result = build_professor_explanation(_Layer7(), "Jane")
+        assert result.has_behavioral_signals is False
+        assert result.has_ai_signals is False
+
+    def test_sub_threshold_delta_does_not_count_as_behavioral_signal(self):
+        """build_professor_explanation runs its OWN pass over
+        destructive_features to set has_behavioral_signals/has_ai_signals
+        (separate from _build_observations' identically-shaped loop, tested
+        above) — its small-delta `continue` (professor_narrative.py:741-742)
+        had no direct coverage: every existing has_behavioral/has_ai test
+        used a delta comfortably above the 0.10 _magnitude floor. A
+        behavioral-coded feature with |delta| < 0.10 must NOT flip the flag."""
+        paste_fc = _FC(code="paste_event_rate", delta=0.05)  # |0.05| < 0.10
+        layer7 = _Layer7(interference=_Interference(destructive_features=[paste_fc]))
+        result = build_professor_explanation(layer7, "Jane")
         assert result.has_behavioral_signals is False
         assert result.has_ai_signals is False
 

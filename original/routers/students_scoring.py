@@ -47,13 +47,9 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             "Add at least one 'proctored' or 'verified' sample first.",
         )
 
-    # Check cache only if force is False (allow cache bypass with force=True)
+    # Results are recomputed on every request. Keep the legacy `force` query
+    # parameter for client compatibility; there is no persisted result cache.
     submission_id = req.submission_id or f"{student_id}_submission_{state.sample_count}"
-    if not force:
-        # Check for cached result (stub for future caching implementation)
-        existing_result = None  # TODO: retrieve from cache by submission_id
-        if existing_result:
-            return _to_response(existing_result)
 
     # ── Phase 5: adaptive-context orchestrator (env-flag gated) ───────────────
     # When both CONTEXT_MANIFEST_ENABLED and ADAPTIVE_WEIGHTS_ENABLED are

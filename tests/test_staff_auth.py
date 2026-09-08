@@ -80,12 +80,47 @@ def test_login_missing_fields_422():
     assert r.status_code == 422
 
 
+def test_login_empty_email_is_the_handlers_own_422():
+    """A blank string (not an omitted key) passes pydantic's `str` type check
+    and reaches auth_login's own `if not email or not password` guard — a
+    different branch from test_login_missing_fields_422's pydantic-level 422
+    above, which never enters the handler body at all."""
+    r = client.post("/auth/login", json={"email": "", "password": PW})
+    assert r.status_code == 422
+    assert "required" in r.json()["detail"]
+
+
 def test_duplicate_register_conflict():
     r = client.post(
         "/auth/register",
         json={"email": EMAIL, "password": PW, "role": "professor", "tenant_id": TENANT},
     )
     assert r.status_code == 409
+
+
+def test_register_empty_tenant_id_is_422():
+    """Blank tenant_id (not omitted) reaches the handler's own
+    `if not email or not password or not tenant_id` guard."""
+    r = client.post(
+        "/auth/register",
+        json={"email": "blank@acmeu.edu", "password": PW, "role": "professor", "tenant_id": ""},
+    )
+    assert r.status_code == 422
+    assert "required" in r.json()["detail"]
+
+
+def test_register_invalid_role_rejected():
+    r = client.post(
+        "/auth/register",
+        json={
+            "email": "badrole@acmeu.edu",
+            "password": PW,
+            "role": "student",
+            "tenant_id": TENANT,
+        },
+    )
+    assert r.status_code == 422
+    assert "role must be" in r.json()["detail"]
 
 
 def test_register_short_password_rejected():

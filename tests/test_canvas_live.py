@@ -316,3 +316,114 @@ def test_env_configured_host_still_uses_env_token(live_client, store_reset, monk
     assert seen, "the env-configured host should still be called"
     assert seen[0].url.host == "canvas.test"
     assert seen[0].headers["authorization"] == "Bearer institution-secret-token"
+
+
+# ── get_submission_text branch coverage (direct unit calls) ───────────────────
+#
+# The endpoint-level tests above already exercise the online_text_entry vs.
+# online_upload split with a happy-path attachment. These call
+# get_submission_text() directly — it takes the httpx.AsyncClient as a plain
+# argument, so a MockTransport-backed client is the same seam already used by
+# fake_canvas — to reach the remaining arms: an unrecognised submission_type,
+# an empty text-entry body, an attachment with no usable url, an attachment
+# fetch that fails with an HTTP error, an attachment whose bytes fail
+# extraction, a too-short attachment followed by a good one on the same
+# submission, and every attachment being exhausted without a usable result.
+
+
+def _client(handler) -> httpx.AsyncClient:
+    return httpx.AsyncClient(transport=httpx.MockTransport(handler), timeout=5.0)
+
+
+async def test_make_client_returns_async_client():
+    client = live_import.make_client()
+    try:
+        assert isinstance(client, httpx.AsyncClient)
+    finally:
+        await client.aclose()
+
+
+async def test_get_submission_text_unknown_submission_type_returns_none():
+    sub = {"id": 301, "submission_type": "online_quiz", "assignment": {"name": "Quiz"}}
+
+    async with _client(lambda r: httpx.Response(404)) as client:
+        text = await live_import.get_submission_text(sub, TOKEN, client)
+    assert text is None
+
+
+async def test_get_submission_text_empty_body_returns_none():
+    sub = _sub_text_entry(302, "", "Blank Essay", "2026-01-01T00:00:00Z")
+
+    async with _client(lambda r: httpx.Response(404)) as client:
+        text = await live_import.get_submission_text(sub, TOKEN, client)
+    assert text is None
+
+
+async def test_get_submission_text_attachment_without_url_is_skipped():
+    """Neither url nor preview_url present — the attachment is skipped without
+    ever making an HTTP call, and the submission yields nothing."""
+    sub = {
+        "id": 303,
+        "submission_type": "online_upload",
+        "assignment": {"name": "No URL Essay"},
+        "attachments": [{"display_name": "essay.txt"}],
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("no HTTP call should be made for an attachment without a url")
+
+    async with _client(handler) as client:
+        text = await live_import.get_submission_text(sub, TOKEN, client)
+    assert text is None
+
+
+async def test_get_submission_text_attachment_http_error_is_skipped():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, text="canvas storage exploded")
+
+    sub = _sub_upload(304, f"{CANVAS_URL}/files/broken.txt", "broken.txt", "Broken Essay")
+
+    async with _client(handler) as client:
+        text = await live_import.get_submission_text(sub, TOKEN, client)
+    assert text is None
+
+
+async def test_get_submission_text_attachment_extraction_error_is_skipped():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"not a real pdf")
+
+    sub = _sub_upload(305, f"{CANVAS_URL}/files/broken.pdf", "broken.pdf", "Bad PDF Essay")
+
+    async with _client(handler) as client:
+        text = await live_import.get_submission_text(sub, TOKEN, client)
+    assert text is None
+
+
+async def test_get_submission_text_short_attachment_falls_through_to_next():
+    """First attachment extracts to text under MIN_WORDS — the loop must
+    continue to the second attachment rather than returning early."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("short.txt"):
+            return httpx.Response(200, content=SHORT_TEXT.encode())
+        return httpx.Response(200, content=TEXT_B.encode())
+
+    sub = _sub_upload(306, f"{CANVAS_URL}/files/short.txt", "short.txt", "Two Attachment Essay")
+    sub["attachments"].append(
+        {"url": f"{CANVAS_URL}/files/full.txt", "display_name": "full.txt"}
+    )
+
+    async with _client(handler) as client:
+        text = await live_import.get_submission_text(sub, TOKEN, client)
+    assert text == TEXT_B
+
+
+async def test_get_submission_text_all_attachments_exhausted_returns_none():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=SHORT_TEXT.encode())
+
+    sub = _sub_upload(307, f"{CANVAS_URL}/files/short.txt", "short.txt", "Too Short Essay")
+
+    async with _client(handler) as client:
+        text = await live_import.get_submission_text(sub, TOKEN, client)
+    assert text is None

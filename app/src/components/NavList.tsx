@@ -35,6 +35,9 @@ export function NavList({ items, className, 'aria-label': ariaLabel }: NavListPr
   const linkRefs = useRef<(HTMLAnchorElement | null)[]>([]);
 
   function focusItem(index: number) {
+    /* v8 ignore next -- focusItem is only reachable from a rendered link's
+       keydown handler; zero items renders zero links, so this guard can
+       never see items.length === 0. Kept as defense-in-depth. */
     if (items.length === 0) return;
     const wrapped = (index + items.length) % items.length;
     setActiveIndex(wrapped);

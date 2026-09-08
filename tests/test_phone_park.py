@@ -129,6 +129,28 @@ def test_park_routes_are_mounted(live_app):
         assert (path, method) in live, f"missing {method} {path}"
 
 
+def test_open_without_the_clock_fixture_uses_the_real_wall_clock(store_reset, live_client):
+    """proctor.py:82 — `_now()`'s real `datetime.now(UTC)` body. Every other
+    test in this file requests the `clock` fixture, which monkeypatches
+    `_now` to a frozen, movable time — so the real implementation is never
+    actually executed anywhere else in the suite. This test deliberately
+    omits `clock`: open + a real anonymous beat both call `_now()` for real
+    (proctor.py:164,213), and the resulting tile's `last_seen_seconds_ago` —
+    derived from that same real clock — comes back at (or very near) zero,
+    proving the real implementation ran rather than a frozen one."""
+    headers = _professor(live_client, "sem-dallas", "realclock@sem.edu")
+
+    token = _open(live_client, headers)["park_token"]
+    beat_r = _beat(live_client, token, "hint-realclock")
+    assert beat_r.status_code == 200, beat_r.text
+
+    status = _status(live_client, headers)
+    assert status.status_code == 200, status.text
+    tiles = status.json()["tiles"]
+    assert tiles, "a beat should create at least one tile"
+    assert tiles[0]["last_seen_seconds_ago"] < 5
+
+
 # ── open ──────────────────────────────────────────────────────────────────────
 
 
@@ -187,6 +209,25 @@ def test_open_rejects_empty_exam_session_id(store_reset, live_client, clock):
     assert r.status_code == 422, r.text
 
 
+def test_open_rejects_overlong_exam_session_id(store_reset, live_client, clock):
+    """exam_session_id is a professor-typed label, not a roster id — capped at
+    EXAM_SESSION_ID_MAX_LEN (128) so it can't be used to smuggle arbitrary data
+    into the park_sessions table."""
+    headers = _professor(live_client, "sem-dallas", "toolong@sem.edu")
+    over = "x" * (proctor.EXAM_SESSION_ID_MAX_LEN + 1)
+    r = live_client.post(
+        "/proctor/park/open", json={"exam_session_id": over}, headers=headers
+    )
+    assert r.status_code == 422, r.text
+    assert str(proctor.EXAM_SESSION_ID_MAX_LEN) in r.json()["detail"]
+    # A label exactly at the cap is still accepted.
+    at_cap = "y" * proctor.EXAM_SESSION_ID_MAX_LEN
+    r2 = live_client.post(
+        "/proctor/park/open", json={"exam_session_id": at_cap}, headers=headers
+    )
+    assert r2.status_code == 200, r2.text
+
+
 # ── beat ──────────────────────────────────────────────────────────────────────
 
 
@@ -211,6 +252,17 @@ def test_beat_rejects_expired_token(store_reset, live_client, clock):
 
     clock.advance(seconds=proctor.PARK_TTL_SECONDS + 1)
     assert _beat(live_client, token, "AB").status_code == 404
+
+
+def test_beat_rejects_empty_park_token(store_reset, live_client, clock):
+    """An empty/whitespace-only park_token is a 422, distinct from the 404 an
+    unknown-but-nonempty token gets (test_beat_rejects_unknown_token)."""
+    r = live_client.post(
+        "/proctor/park/beat",
+        json={"park_token": "   ", "student_hint": "AB", "state": "parked"},
+    )
+    assert r.status_code == 422, r.text
+    assert "park_token" in r.json()["detail"]
 
 
 def test_beat_rejects_empty_hint(store_reset, live_client, clock):
@@ -275,6 +327,28 @@ def test_a_throttled_beat_is_not_recorded(store_reset, live_client, clock):
     (tile,) = _status(live_client, headers).json()["tiles"]
     assert tile["state"] == "parked"
     assert len(tile["transitions"]) == 1
+
+
+def test_beat_throttle_clears_bucket_past_memory_bound(
+    store_reset, live_client, clock, monkeypatch
+):
+    """Same memory-bound-cleanup hygiene as _shared.py's _throttle_login
+    (tests/test_app_lifecycle_branches.py::test_throttle_login_clears_bucket_
+    past_memory_bound): prefill the module-global ``_last_beat`` map past
+    10,000 entries directly rather than sending 10,000 real beats, so this
+    stays fast and doesn't touch any other test's throttle window."""
+    headers = _professor(live_client, "sem-dallas", "membound@sem.edu")
+    token = _open(live_client, headers)["park_token"]
+
+    prefilled = {(f"tok{i}", "AB"): 0.0 for i in range(10_001)}
+    monkeypatch.setattr(proctor, "_last_beat", prefilled)
+    assert len(proctor._last_beat) > 10_000
+
+    # A beat for a key NOT already in the map is accepted (no throttle hit),
+    # which is what lets the memory-bound branch (not the 429 branch) fire.
+    r = _beat(live_client, token, "fresh-hint")
+    assert r.status_code == 200, r.text
+    assert len(proctor._last_beat) == 0
 
 
 # ── status ────────────────────────────────────────────────────────────────────

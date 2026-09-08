@@ -7,7 +7,11 @@ Tests all 34 feature extractors for correctness and bounds.
 import pytest
 import numpy as np
 
-from original.features.pipeline import extract_features
+from original.features import pipeline
+from original.features.pipeline import (
+    build_aggregate_baseline_profiles,
+    extract_features,
+)
 from original.constants import ALL_FEATURE_CODES, FEATURE_DIM
 
 
@@ -205,3 +209,70 @@ class TestThematicProgressionTokenOrder:
             "Farmers harvested wheat during summer months."
         )
         assert thematic_progression_score(doc) == 0.0
+
+
+class TestPipelineHelpers:
+    """Degenerate-input / disabled-path branch coverage for the private
+    helpers in original/features/pipeline.py that extract_features() alone
+    doesn't reach (bad NORM_BOUNDS entries, tension-arc failures, the
+    normally-disabled uniformity group, and the profile-merging singles)."""
+
+    def test_normalise_returns_zero_when_bounds_degenerate(self, monkeypatch):
+        """hi <= lo (a misconfigured NORM_BOUNDS entry) must short-circuit
+        to 0.0 rather than divide by zero or a negative range."""
+        monkeypatch.setitem(pipeline.NORM_BOUNDS, "_test_degenerate_code", (1.0, 1.0))
+        assert pipeline._normalise(0.7, "_test_degenerate_code") == 0.0
+
+    def test_extract_catastrophe_index_falls_back_on_error(self, monkeypatch):
+        """Any exception out of analyze_tension_arc() (import error, bad
+        input, etc.) must degrade to the neutral 0.5 rather than raise."""
+
+        def _raise(*args, **kwargs):
+            raise RuntimeError("tension arc unavailable")
+
+        monkeypatch.setattr("original.tension_arc.analyze_tension_arc", _raise)
+
+        from original.features.tier1 import TextDoc
+
+        doc = TextDoc(SAMPLE_100_WORD_TEXT)
+        assert pipeline._extract_catastrophe_index(doc) == 0.5
+
+    def test_extract_features_computes_uniformity_when_enabled(self, monkeypatch):
+        """When "uniformity" is not in DISABLED_FEATURE_GROUPS, extract_features
+        must call extract_uniformity() and produce non-midpoint values instead
+        of the 0.5-placeholder degrade path."""
+        monkeypatch.setattr(pipeline, "DISABLED_FEATURE_GROUPS", {"behavioral"})
+
+        result = extract_features(SAMPLE_100_WORD_TEXT)
+
+        from original.constants import TIER18_CODES
+
+        assert all(0.0 <= result[code] <= 1.0 for code in TIER18_CODES)
+
+    def test_kl_divergence_identical_profiles_is_near_zero(self):
+        """Real (non-empty) frequency dicts on both sides must exercise the
+        full smoothed-KL computation body, not just the empty-input guards."""
+        p_counts = {"the": 10, "a": 5, "and": 3}
+        q_counts = {"the": 10, "a": 5, "and": 3}
+        result = pipeline._kl_divergence(p_counts, q_counts)
+        assert result == pytest.approx(0.0, abs=1e-6)
+
+    def test_kl_divergence_divergent_profiles_is_positive(self):
+        p_counts = {"the": 20, "a": 1}
+        q_counts = {"the": 1, "a": 20, "zebra": 5}
+        result = pipeline._kl_divergence(p_counts, q_counts)
+        assert result > 0.0
+
+    def test_kl_divergence_empty_either_side_returns_zero(self):
+        assert pipeline._kl_divergence({}, {"the": 1}) == 0.0
+        assert pipeline._kl_divergence({"the": 1}, {}) == 0.0
+
+    def test_build_aggregate_baseline_profiles_skips_falsy_texts(self):
+        """An empty string among the baseline texts must be skipped (the
+        `if not text: continue` guard) rather than crashing extract_profiles."""
+        texts = ["", "The librarian catalogued every volume in the archive carefully."]
+        result = build_aggregate_baseline_profiles(texts)
+
+        assert isinstance(result, dict)
+        # Only the one real baseline text contributed profile data.
+        assert len(result["_argument_sequence_profiles"]) == 1

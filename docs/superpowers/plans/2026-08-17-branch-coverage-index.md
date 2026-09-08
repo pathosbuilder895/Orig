@@ -1,5 +1,7 @@
 # Branch Coverage Initiative — Index Plan
 
+> **STATUS: COMPLETE (2026-08-20).** All 8 parts landed via superpowers:subagent-driven-development, plus a final cross-cluster sweep. Full-suite branch coverage: **77.13% → 99.61% combined** (45 missing statements, 12 missing + 10 partial branches, out of 11,601 stmts / 3,024 branches). `app/src` branch coverage: **91.32% → 100%**, enforced by CI thresholds (`app/vite.config.ts`). CI's coverage gate now runs `--cov-branch --cov-fail-under=98` (`.github/workflows/test.yml`). This document is kept as the historical record and reference for anyone auditing what shipped — see each part's Status row below and `docs/superpowers/plans/2026-08-20-branch-coverage-completion-report.md` for the full retrospective (bugs found, process incidents, lessons).
+
 > **For agentic workers:** This is the umbrella document for a multi-part effort. Each part below is its own self-contained implementation plan; execute ONE part per session with superpowers:subagent-driven-development or superpowers:executing-plans. Do not attempt multiple parts in one session — a part is sized to a session.
 
 **Goal:** Take `original/` from the measured **77.13% branch coverage (699 missing branches, plus 359 partially-taken)** and `app/src` from 91.32% to a state where every *reachable* logical branch is exercised by a test and every *unreachable* one carries a justified annotation — so behavior on error paths, flag combinations, and degraded fallbacks is verified rather than assumed.
@@ -49,16 +51,18 @@ Ordered by risk-weighted priority, not raw gap count: persistence guards student
 
 | Part | Plan file | Scope (cluster) | Baseline branch % | Missing | Status |
 |---|---|---|---|---|---|
-| 1 | `2026-08-17-branch-coverage-part1-persistence.md` | `store.py`, `repository.py`, `postgres_repository.py`, `db/` | 79.67% | 74 | pending |
-| 2 | `2026-08-17-branch-coverage-part2-api-routers.md` | `api.py`, `routers/`, `lti.py`, `schemas.py` | 68.11% | 162 | pending |
-| 3 | `2026-08-17-branch-coverage-part3-security-cli-support.md` | `cli/`, `core/`, `_env.py`, `student_auth.py`, `principal.py`, `voice.py`, `tension_arc.py`, `explainer.py`, `users.py`, `backup.py`, `baseline_requests.py` | 50.48% | 208 | pending |
-| 4 | `2026-08-17-branch-coverage-part4-integrations.md` | `bbook_client.py`, `lab/`, `canvas/`, `fusion/`, `ai_likelihood.py`, `style_authorship.py` | 72.63% | 75 | pending |
-| 5 | `2026-08-17-branch-coverage-part5-context.md` | `context/` | 84.18% | 56 | pending |
-| 6 | `2026-08-17-branch-coverage-part6-features.md` | `features/` | 87.72% | 84 | pending |
-| 7 | `2026-08-17-branch-coverage-part7-app-frontend.md` | `app/src` (vitest) | 91.32% | 17 | pending |
-| 8 | `2026-08-17-branch-coverage-part8-quantum.md` | `quantum/` | 91.15% | 40 | pending |
+| 1 | `2026-08-17-branch-coverage-part1-persistence.md` | `store.py`, `repository.py`, `postgres_repository.py`, `db/` | 79.67% | 74 | **done @ 99.73%** (367/368, 1 missing) |
+| 2 | `2026-08-17-branch-coverage-part2-api-routers.md` | `api.py`, `routers/`, `lti.py`, `schemas.py` | 68.11% | 162 | **done @ 98.82%** (502/508, 6 missing — cluster `api`) |
+| 3 | `2026-08-17-branch-coverage-part3-security-cli-support.md` | `cli/`, `core/`, `_env.py`, `student_auth.py`, `principal.py`, `voice.py`, `tension_arc.py`, `explainer.py`, `users.py`, `backup.py`, `baseline_requests.py` | 50.48% | 208 | **done @ 98.81%** (415/420, 5 missing — cluster `other`) |
+| 4 | `2026-08-17-branch-coverage-part4-integrations.md` | `bbook_client.py`, `lab/`, `canvas/`, `fusion/`, `ai_likelihood.py`, `style_authorship.py` | 72.63% | 75 | **done @ 100%** (274/274) |
+| 5 | `2026-08-17-branch-coverage-part5-context.md` | `context/` | 84.18% | 56 | **done @ 100%** (354/354, incl. `context/pipeline.py` — discovered mid-effort, not in original plan file list) |
+| 6 | `2026-08-17-branch-coverage-part6-features.md` | `features/` | 87.72% | 84 | **done @ 100%** (652/652) |
+| 7 | `2026-08-17-branch-coverage-part7-app-frontend.md` | `app/src` (vitest) | 91.32% | 17 | **done @ 100%** (185/185, enforced by CI threshold) |
+| 8 | `2026-08-17-branch-coverage-part8-quantum.md` | `quantum/` | 91.15% | 40 | **done @ 100%** (448/448) |
 
-Update the Status column (`pending` → `in progress` → `done @ <measured %>`) as parts land; this table is the effort's dashboard.
+**Residual 12 missing branches** (the gap between 99.60% cluster-average and 100%) live in files whose plan-guessed arm counts undercounted their real residue and were closed by a final cross-cluster sweep task, not by any single part above: `original/routers/students_baseline.py` (3, all `AUTH_WEIGHTS`-dead — accepted, pending a product decision on the `unverified` provenance weight), `original/tension_arc.py` (3, the `if __name__ == "__main__":` CLI self-test block — genuinely unreachable via pytest import), `original/cli/delete_student.py` (1, `if __name__`), `original/cli/security_audit.py` (1, `if __name__`), `original/postgres_repository.py` (1), `original/routers/imports.py` (1, `AUTH_WEIGHTS`-dead), `original/routers/students_scoring.py` (1, a hardcoded-`None` cache stub awaiting a real caching implementation), `original/routers/tenants.py` (1, pydantic rejects the offending input before the guard can fire). None are pragma'd — each is either a `__main__` guard (no repo convention for subprocess-testing those) or an accepted-dead arm pending a named product decision; see `docs/superpowers/plans/2026-08-20-branch-coverage-completion-report.md` for the full list with reasoning.
+
+Status column values are final; this table is the effort's completed dashboard, kept for audit/reference.
 
 ## Cross-cutting themes the parts must respect
 
@@ -67,16 +71,15 @@ Update the Status column (`pending` → `in progress` → `done @ <measured %>`)
 3. **Dormant-v1 modules get tests where they are still load-bearing.** `original/cli/delete_student.py` (the documented manual FERPA-deletion path) and `original/cli/security_audit.py` are runnable tools at 0% coverage. Part 3 covers them. The rest of the dormant v1 surface (`core/config.py` etc.) gets thin reachability tests only — do not build out coverage for code whose deletion is already planned.
 4. **Partial branches (359) count too.** After the missing branches close, the `num_partial_branches` figure in a re-measure shows conditions where only one arm ever ran; parts should drain their cluster's partials as they go rather than leaving a second pass.
 
-## CI ratchet policy
+## CI ratchet policy — APPLIED (2026-08-20)
 
-CI (`.github/workflows/test.yml` pytest job) currently gates line-only coverage at `--cov-fail-under=78`. Because the combined statements+branches metric measured **82.05%** (branch instrumentation *raises* the combined figure here — line coverage with Postgres is 83.34%), CI can switch to the honest metric immediately without going red:
+CI (`.github/workflows/test.yml` pytest job) now runs `--cov-branch --cov-fail-under=98`, up from the prior line-only `--cov-fail-under=78`. Final measured combined (statements+branches) coverage was **99.61%**; per the policy below (`floor(measured) − 1`), the floor landed at **98**, leaving ~1.6 points of headroom for runner-to-runner variance. `app/src`'s equivalent gate lives in `app/vite.config.ts`'s `coverage.thresholds` (`branches: 100`, `statements: 99`, `functions: 96`, `lines: 98`) and runs via `npm run test:coverage` in the `app` CI job.
 
-- **When Part 1 lands:** add `--cov-branch` to the CI pytest invocation, keep `--cov-fail-under=78` (measured headroom ≈4 points). CI's percent then means statements+branches.
-- **As each further part lands:** raise the floor to `floor(measured combined percent) − 1`, never past what the part's final full-suite run actually printed. (The −1 absorbs runner-to-runner collection variance; CLAUDE.md's warning against raising the gate past locally-measured reality stands.)
-- **Never lower the floor to admit a regression** — that is the one move this whole effort exists to prevent.
+Policy as applied throughout the effort, kept here for reference:
+- **When Part 1 landed:** added `--cov-branch` to the CI pytest invocation, kept `--cov-fail-under=78` (measured headroom ≈4 points at the time). CI's percent then meant statements+branches.
+- **As each further part landed:** the floor was intended to ratchet up part-by-part, but was instead raised ONCE at the very end (after the final cross-cluster sweep) rather than incrementally — see the completion report's "process deviations" section for why (each part's own full-suite re-measure was skipped in favor of per-part scoped verification, with one whole-suite checkpoint after Part 6 and the final measurement after the sweep). The final jump (78 → 98) was measured directly off the last full-suite run before applying it, so the "never past what was actually measured" invariant held even without the intermediate steps.
+- **Never lower the floor to admit a regression** — held throughout; the floor only ever moved up.
 
-## Execution order and hand-off
+## Execution order and hand-off — COMPLETE
 
-1. Execute parts in numeric order (1 → 8); parts 5-8 are independent of each other and may be reordered if a session has reason to.
-2. First action of every part: re-run the full measurement command above (the baseline JSON is not committed; numbers drift as other work merges) and reconcile the part's tables against fresh data. Gaps already closed by other work are marked done, new gaps are added as tasks.
-3. Last action of every part: full-suite re-measure, update this index's dashboard row and the CI floor per the ratchet policy, commit.
+All 8 parts executed in numeric order via superpowers:subagent-driven-development (implementer + independent reviewer per task, fix-and-re-review loops on every finding). See `docs/superpowers/plans/2026-08-20-branch-coverage-completion-report.md` for: the full task-by-task ledger, seven production bugs found and fixed along the way, one test-isolation bug (Postgres schema-drop ordering) that only a full-suite run surfaced, and one process incident (a subagent operating in the wrong git checkout) that was caught, disclosed, and cleanly reverted.

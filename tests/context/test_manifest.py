@@ -238,6 +238,48 @@ class TestDefaults:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Convenience accessor properties
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class TestConvenienceProperties:
+    def test_properties_read_through_weight_modifications(self):
+        m = ContextManifest(
+            submission_id="props_test",
+            language={},
+            genre={},
+            topic={},
+            length_regime="standard",
+            citations={},
+            composition_mode={},
+            weight_modifications={
+                "amplify_codes": ["amp1"],
+                "attenuate_codes": ["att1", "att2"],
+                "mute_codes": ["mute1"],
+            },
+        )
+        assert m.amplify_codes == ["amp1"]
+        assert m.attenuate_codes == ["att1", "att2"]
+        assert m.mute_codes == ["mute1"]
+
+    def test_properties_default_to_empty_list_when_absent(self):
+        # weight_modifications uses default_factory=dict — a manifest built
+        # without explicit keys should read back empty lists, not KeyError.
+        m = ContextManifest(
+            submission_id="props_default",
+            language={},
+            genre={},
+            topic={},
+            length_regime="standard",
+            citations={},
+            composition_mode={},
+        )
+        assert m.amplify_codes == []
+        assert m.attenuate_codes == []
+        assert m.mute_codes == []
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Round-trip serialisation
 # ══════════════════════════════════════════════════════════════════════════════
 

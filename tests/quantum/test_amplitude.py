@@ -351,3 +351,32 @@ class TestInterferenceComponents:
         for key in result:
             strengths = [v for _, v in result[key]]
             assert strengths == sorted(strengths, reverse=True)
+
+    def test_explicit_feature_codes_used_instead_of_default(self):
+        """Every production call site (scoring.py) omits ``feature_codes``,
+        so the ``feature_codes is None`` branch's False arm — caller-supplied
+        codes — has no coverage anywhere else in the suite. Pass a codes list
+        that's DELIBERATELY reordered/renamed relative to ALL_FEATURE_CODES
+        so the assertions can only pass if the function actually used our
+        list rather than silently defaulting to ALL_FEATURE_CODES.
+        """
+        rng = np.random.default_rng(21)
+        psi_b = (rng.standard_normal(FEATURE_DIM) + 1j * rng.standard_normal(FEATURE_DIM)).astype(
+            np.complex128
+        )
+        psi_s = (rng.standard_normal(FEATURE_DIM) + 1j * rng.standard_normal(FEATURE_DIM)).astype(
+            np.complex128
+        )
+        custom_codes = [f"custom_code_{i}" for i in range(FEATURE_DIM)]
+        result = interference_components(psi_b, psi_s, feature_codes=custom_codes)
+        result_default = interference_components(psi_b, psi_s)
+
+        # Same partition sizes (identical psi_b/psi_s → identical classification;
+        # only the labels differ), but the labels themselves come from OUR list.
+        for key in ("constructive", "destructive", "novel"):
+            assert len(result[key]) == len(result_default[key])
+        all_returned_codes = {
+            code for key in result for code, _ in result[key]
+        }
+        assert all_returned_codes.issubset(set(custom_codes))
+        assert all_returned_codes.isdisjoint(set(ALL_FEATURE_CODES))

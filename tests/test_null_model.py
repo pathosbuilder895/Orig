@@ -26,6 +26,7 @@ from original.quantum.null_pool import (
     MIN_IMPOSTOR_STUDENTS,
     MIN_IMPOSTOR_VECTORS,
     build_impostor_stats,
+    fit_impostor_gaussian,
 )
 from original.quantum.state import BaselineSample, StudentState
 
@@ -119,6 +120,16 @@ def test_pool_abstains_below_vector_floor():
     ]
     assert MIN_IMPOSTOR_VECTORS == 5
     assert build_impostor_stats("acme:target", states) is None
+
+
+def test_fit_impostor_gaussian_raises_on_empty_vectors():
+    """`build_impostor_stats` never calls fit_impostor_gaussian with an empty
+    list — it returns None first via the MIN_IMPOSTOR_VECTORS floor (>= 5).
+    The empty-input guard (null_pool.py:60-61) is therefore only reachable by
+    calling fit_impostor_gaussian directly, as a defensive contract for any
+    future/other caller."""
+    with pytest.raises(ValueError, match="need at least 1 impostor vector"):
+        fit_impostor_gaussian([])
 
 
 def test_unverified_samples_never_pooled():

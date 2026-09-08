@@ -196,6 +196,32 @@ class TestStoreHelpers:
 # ══════════════════════════════════════════════════════════════════════════════
 
 
+class TestAdminAuditEndpoint:
+    """admin.py:[72,73] — GET /admin/audit's own body (`limit = min(limit,
+    500); return _repo().list_audit(...)`) was never called by any existing
+    test in the suite (only staff-guard rejection paths were, elsewhere)."""
+
+    def test_empty_db_returns_no_rows(self, client_module_db):
+        client, _module, _db = client_module_db
+        resp = client.get("/admin/audit")
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["items"] == []
+
+    def test_seeded_rows_are_returned_most_recent_first(self, client_module_db):
+        client, module, _db = client_module_db
+        module.store.log_audit(action="baseline_add", student_id="student_0")
+        module.store.log_audit(action="score", student_id="student_0")
+        module.store.log_audit(action="score", student_id="student_1")
+
+        resp = client.get("/admin/audit", params={"student_id": "student_0"})
+
+        assert resp.status_code == 200, resp.text
+        items = resp.json()["items"]
+        assert len(items) == 2
+        assert all(item["student_id"] == "student_0" for item in items)
+
+
 class TestAdminManifestsEndpoint:
     def test_empty_db_returns_zero(self, client_module_db):
         client, _module, _db = client_module_db
@@ -250,6 +276,12 @@ class TestAdminManifestsEndpoint:
         assert resp.status_code == 422
         resp = client.get("/admin/manifests", params={"limit": 5000})
         assert resp.status_code == 422
+
+    def test_negative_offset_returns_422(self, client_module_db):
+        client, _module, _db = client_module_db
+        resp = client.get("/admin/manifests", params={"offset": -1})
+        assert resp.status_code == 422
+        assert "offset" in resp.json()["detail"]
 
 
 class TestAdminStatsEndpoint:
@@ -331,6 +363,82 @@ class TestCorrectionEndpoint:
         ).json()
         assert listed["total"] == 3
 
+    def test_persist_failure_is_a_500(self, client_module_db, monkeypatch):
+        """put_correction() returning None (insert failed) must not be
+        reported as a 200 with a fabricated body."""
+        from original.repository import SqliteRepository
+
+        monkeypatch.setattr(SqliteRepository, "put_correction", lambda self, **kw: None)
+        client, _module, _db = client_module_db
+        resp = client.post("/submissions/sub_persistfail/correct", json={"is_correct": True})
+        assert resp.status_code == 500, resp.text
+        assert "persist" in resp.json()["detail"].lower()
+
+    def test_readback_miss_after_insert_is_a_500(self, client_module_db, monkeypatch):
+        """The insert reports success but the round-trip read-back finds no
+        row — the id-mismatch/race guard, not the same failure as above."""
+        from original.repository import SqliteRepository
+
+        monkeypatch.setattr(SqliteRepository, "list_corrections", lambda self, **kw: {"items": []})
+        client, _module, _db = client_module_db
+        resp = client.post("/submissions/sub_readbackmiss/correct", json={"is_correct": True})
+        assert resp.status_code == 500, resp.text
+        assert "not found on read-back" in resp.json()["detail"]
+
+    def test_cross_tenant_correction_is_403(self, client_module_db):
+        """admin.py:[174,175] — the anonymous demo principal can correct a
+        submission owned by a flat/demo-tenant student (every other
+        correction test above), but NOT one owned by a student registered
+        under a real, non-demo-visible tenant. Register "realtenant" with
+        environment="production" (default is "demo" — see
+        CreateTenantRequest — so this must be explicit), seed a manifest row
+        naming a student under it, then attempt the correction anonymously."""
+        client, module, _db = client_module_db
+        resp = client.post(
+            "/tenants",
+            json={"tenant_id": "realtenant", "name": "Real Tenant", "environment": "production"},
+        )
+        assert resp.status_code == 201, resp.text
+
+        from original.context.manifest import build_manifest
+        from original.context.resolvers import run_resolvers
+
+        out = run_resolvers("cross tenant correction text " * 30, ["B1.", "B2."])
+        m = build_manifest("sub_crosstenant", out)
+        module.store.put_manifest(
+            "sub_crosstenant",
+            "realtenant:bob",
+            m,
+            divergence_score=0.2,
+            action="no_action",
+        )
+
+        resp = client.post("/submissions/sub_crosstenant/correct", json={"is_correct": True})
+        assert resp.status_code == 403, resp.text
+        assert "Cross-tenant access denied" in resp.json()["detail"]
+
+    def test_fidelity_authenticity_update_failure_is_swallowed(self, client_module_db, monkeypatch):
+        """admin.py:[251,254] — `except Exception as _fid_exc:` around
+        `_repo().update_fidelity_authenticity(...)`, the conformal-calibration
+        feedback write that closes the loop after an instructor correction.
+        By the time this runs the correction row is already persisted (same
+        best-effort shape as test_fidelity_persistence_failure_is_swallowed
+        in tests/test_scoring_router_branches.py), so a failing update must
+        not turn a successful correction into a 500 — only be logged at
+        DEBUG."""
+        from original.repository import SqliteRepository
+
+        def _boom(self, submission_id, is_authentic):
+            raise RuntimeError("simulated fidelity authenticity update failure")
+
+        monkeypatch.setattr(SqliteRepository, "update_fidelity_authenticity", _boom)
+        client, _module, _db = client_module_db
+
+        resp = client.post("/submissions/sub_fidelity_boom/correct", json={"is_correct": True})
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["is_correct"] is True
+
 
 class TestAdminCorrectionsListEndpoint:
     def test_list_corrections_via_http(self, client_module_db):
@@ -352,6 +460,19 @@ class TestAdminCorrectionsListEndpoint:
             params={"is_correct": "false"},
         ).json()
         assert wrong_only["total"] == 2
+
+    def test_invalid_limit_returns_422(self, client_module_db):
+        client, _module, _db = client_module_db
+        resp = client.get("/admin/corrections", params={"limit": 0})
+        assert resp.status_code == 422
+        resp = client.get("/admin/corrections", params={"limit": 5000})
+        assert resp.status_code == 422
+
+    def test_negative_offset_returns_422(self, client_module_db):
+        client, _module, _db = client_module_db
+        resp = client.get("/admin/corrections", params={"offset": -1})
+        assert resp.status_code == 422
+        assert "offset" in resp.json()["detail"]
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -383,6 +504,32 @@ class TestPlaygroundEndpoint:
         assert body["layer7"]["report"] is not None
         # By default, blend is OFF.
         assert body["blend"] is None
+
+    def test_playground_without_manifest_skips_report(self, client_module_db):
+        """enable_manifest=False (with enable_adaptive_weights=False too, since
+        the latter implies the former) short-circuits the manifest stage —
+        adaptive.manifest stays None, so the ``if adaptive.manifest is not
+        None:`` report-assembly block is skipped entirely rather than
+        attempted and swallowed."""
+        client, _module, _db = client_module_db
+        text = "The committee considered the proposal carefully. " * 30
+        resp = client.post(
+            "/test/score",
+            json={
+                "text": text,
+                "baseline_texts": [
+                    "Earlier baseline submission for the test student.",
+                    "Another baseline with similar style.",
+                    "A third baseline rounding out the corpus.",
+                ],
+                "enable_manifest": False,
+                "enable_adaptive_weights": False,
+            },
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["layer7"]["context_manifest"] is None
+        assert body["layer7"]["report"] is None
 
     def test_playground_with_blend(self, client_module_db):
         client, _module, _db = client_module_db
@@ -520,3 +667,91 @@ class TestPlaygroundEndpoint:
             },
         )
         assert resp.status_code == 422
+
+    def test_playground_baseline_feature_extraction_failure_is_422(
+        self, client_module_db, monkeypatch
+    ):
+        """admin.py:[333,334] — `except Exception as exc:` around
+        `feature_vector(t)` while building the synthetic baseline samples,
+        re-raised as a 422 naming the failing baseline_texts index. Unlike
+        the other three admin.py guards in this residual sweep, this one is
+        NOT a swallowed best-effort arm — feature extraction is load-bearing
+        for the synthetic StudentState, so a failure here must abort the
+        request with a clear per-index error rather than continue."""
+        import original.routers.admin as admin_mod
+
+        def _boom(text, **kwargs):
+            raise RuntimeError("simulated feature extraction failure")
+
+        monkeypatch.setattr(admin_mod, "feature_vector", _boom)
+        client, _module, _db = client_module_db
+
+        resp = client.post(
+            "/test/score",
+            json={
+                "text": "Some submission text. " * 20,
+                "baseline_texts": ["Earlier baseline submission for the test student."],
+            },
+        )
+
+        assert resp.status_code == 422, resp.text
+        assert "baseline_texts[0] feature extraction failed" in resp.json()["detail"]
+
+    def test_playground_report_assembly_failure_is_swallowed(self, client_module_db, monkeypatch):
+        """admin.py:[388,389] — `except Exception as e:` around
+        `build_report(...)` in the playground, a separate call site from
+        students_scoring.py's own report-assembly guard. Only reached when
+        `adaptive.manifest is not None`, true by default (enable_manifest
+        defaults to True — see test_playground_runs_pipeline above). A
+        broken report builder must not fail the playground response, only
+        leave `layer7.report` null."""
+        import original.context.report as report_mod
+
+        def _boom(*args, **kwargs):
+            raise RuntimeError("simulated report assembly failure")
+
+        monkeypatch.setattr(report_mod, "build_report", _boom)
+        client, _module, _db = client_module_db
+
+        resp = client.post(
+            "/test/score",
+            json={
+                "text": "The committee considered the proposal carefully. " * 30,
+                "baseline_texts": [
+                    "Earlier baseline submission for the test student.",
+                    "Another baseline with similar style.",
+                    "A third baseline rounding out the corpus.",
+                ],
+            },
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["layer7"]["report"] is None
+
+    def test_playground_blend_detection_failure_is_swallowed(self, client_module_db, monkeypatch):
+        """admin.py:[427,428] — `except Exception as e:` around
+        `detect_blend(...)` in the playground's optional blend step
+        (enable_blend=True). A broken blend detector must not fail the
+        playground response, only leave `blend` null."""
+        import original.context.blend as blend_mod
+
+        def _boom(*args, **kwargs):
+            raise RuntimeError("simulated blend detection failure")
+
+        monkeypatch.setattr(blend_mod, "detect_blend", _boom)
+        client, _module, _db = client_module_db
+
+        resp = client.post(
+            "/test/score",
+            json={
+                "text": "The committee considered the proposal carefully. " * 60,
+                "baseline_texts": [
+                    "Earlier baseline submission for the test student.",
+                    "Another baseline with similar style.",
+                ],
+                "enable_blend": True,
+            },
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["blend"] is None

@@ -1,11 +1,20 @@
 # Pilot Launch Master Plan (code waves + operational track)
 
-> **STATUS (2026-08-13): substantially shipped; checkbox state is stale.**
-> T2/T5/T7/T9 and more landed without boxes being ticked (T5's Tier 17
-> shadow report shipped as `scripts/tier17_report.py`, which now also takes
-> the pilot `DATABASE_URL`). Read the code, not the boxes. The standing rule
-> below still holds: tasks may collect/report Tier 17 data but MUST NOT
-> enable the behavioral feature group.
+> **STATUS (2026-09-07): code waves T1–T9 all merged; this file is historical.**
+> The operational track (O1–O9) is **superseded by
+> `2026-09-07-mvp-launch-index.md`** — do not execute O-items from this file
+> (mapping: O1/O2/O3 → Part 4, O4/O5 → Part 5, O6–O9 → Part 6 of that effort).
+> Earlier stale-state note (2026-08-13): T2/T5/T7/T9 and more landed without
+> boxes being ticked (T5's Tier 17 shadow report shipped as
+> `scripts/tier17_report.py`, which now also takes the pilot `DATABASE_URL`).
+> Read the code, not the boxes. The standing rule below still holds: tasks may
+> collect/report Tier 17 data but MUST NOT enable the behavioral feature group.
+
+> **Plan hygiene (2026-08-26):** historical checkbox state is not accepted as
+> completion evidence. For the Codex campaign series and future campaigns,
+> the PR completing a goal updates that goal's checkbox/state, and a dated
+> completion report is the durable record (see the 2026-08-20 branch-coverage
+> completion report for the model).
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use
