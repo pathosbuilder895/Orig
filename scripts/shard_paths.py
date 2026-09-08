@@ -106,7 +106,16 @@ _FINDER_DUPLICATE_RE = re.compile(r".* \d+\.py$")
 
 # Matches the decorator whether it's bare (`@pytest.mark.postgres`) or
 # parametrized-looking (it never takes args today, but don't require that).
-_POSTGRES_MARKER_RE = re.compile(r"pytest\.mark\.postgres\b")
+# Match only real marker USAGE -- a decorator line, a module-level
+# ``pytestmark`` assignment, or ``marks=pytest.mark.postgres`` inside a
+# ``pytest.param`` -- never a mention in a docstring or assertion message
+# (tests/test_shard_partition.py talks about the marker without using it).
+_POSTGRES_MARKER_RE = re.compile(
+    r"^\s*@pytest\.mark\.postgres\b"
+    r"|^\s*pytestmark\s*=.*pytest\.mark\.postgres\b"
+    r"|marks\s*=\s*\[?\s*pytest\.mark\.postgres\b",
+    re.MULTILINE,
+)
 
 
 def _rel(path: Path) -> str:
