@@ -147,15 +147,12 @@ def test_sample_text_scoped(two_tenants, live_client):
 def test_admin_audit_scoped(two_tenants, live_client):
     """T-63: /admin/audit has no tenant filter, leaking cross-tenant audit rows.
 
-    ⚠️ Provisional id — T-63 is NOT in docs/testing/10-gap-register.md as of
-    2026-09-07 (that document only lists T-01 through T-09; §1.1 there names
-    only T-02). This is a new finding surfaced while writing this test file,
-    not one of this task's two assigned gaps (T-02, T-06). It is marked
-    ``blocker`` anyway rather than left as an unmarked red test — Task 3 has
-    no mandate to fix `original/`, so it cannot be made green here, and an
-    unmarked red test would break every future `-m "not blocker"` run. See
-    the task report's Concerns section: the register (and its owning task)
-    needs a real T-63 row before this marker is more than a placeholder.
+    T-63 is a new finding surfaced while writing this file, not one of this
+    task's two assigned gaps (T-02, T-06); the register row is added by the
+    Phase A close-out (docs/testing/10-gap-register.md). It is marked
+    ``blocker`` rather than left as an unmarked red test because Phase A
+    has no mandate to change ``original/`` and an unmarked red test would
+    break every ``-m "not blocker"`` run.
 
     original/routers/admin.py:list_audit_log calls ``_require_staff`` (any
     staff role, any tenant — no tenant check) and then

@@ -44,6 +44,9 @@ def _forbidden_paths() -> list[tuple[str, str]]:
         ["git", "ls-files"], capture_output=True, text=True, cwd=REPO_ROOT, check=True
     ).stdout.splitlines()
 
+    # The tracked set is a belt-and-braces seed: the rglob below already finds
+    # every matching file on disk (tracked or not), and the pattern filter
+    # after it drops any tracked path that does not match the globs.
     candidates: set[str] = set(tracked)
     for pattern in _GLOB_PATTERNS:
         for path in REPO_ROOT.rglob(pattern):
