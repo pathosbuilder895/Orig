@@ -8,11 +8,25 @@ on:
 permissions:
   contents: read
 
+# One battery at a time: a dispatched run must not race the weekly one for
+# the same vector cache.
+concurrency:
+  group: calibration-battery
+  cancel-in-progress: false
+
 jobs:
   calibration:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The battery LOO-scores whole documents across seminary, public_authors
+    # and Plato plus G5's shuffled reruns. Cold it re-extracts every text once
+    # per fold (20+ CPU-hours, measured 2026-09-07); with the vector cache
+    # below it is one extraction per distinct text plus scoring. 360 is the
+    # hosted-runner maximum -- a cold run still needs most of it, a warm one
+    # far less.
+    timeout-minutes: 360
     continue-on-error: true
+    env:
+      CALIBRATION_GATE_VECTOR_CACHE: .benchmark_cache/calibration_gate/vectors
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -21,15 +35,43 @@ jobs:
           cache: pip
       - name: Install dependencies
         run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Install spaCy model
+        run: python -m spacy download en_core_web_sm
+      # Feature vectors are a pure function of (text, feature layout, disabled
+      # groups, tier-10 backend) -- validation/vector_cache.py keys on exactly
+      # that, so a stale entry can never be served. This key additionally
+      # drops the whole cache when the feature implementation or a committed
+      # corpus changes; restore-keys let a partially warm cache carry over.
+      - name: Restore feature-vector cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .benchmark_cache/calibration_gate/vectors
+          key: calibration-vectors-${{ runner.os }}-${{ hashFiles('original/constants.py', 'original/features/**', 'validation/corpus/**', 'validation/manifest.json', 'validation/plato/corpus/**', 'validation/public_authors/corpus/**', 'validation/public_authors/manifest.json', 'validation/genre_2026-08/**') }}
+          restore-keys: |
+            calibration-vectors-${{ runner.os }}-
       # TODO(campaign-plan-02): regenerate the uncommitted G7 corpus here
-      # after its reproducible fetch/cache workflow lands.
+      # after its reproducible fetch/cache workflow lands. Until then G7 is
+      # UNINFORMATIVE on a fresh checkout and --strict exits 1 -- which is
+      # why this job is continue-on-error rather than blocking.
       - name: Run strict G1-G8 battery
-        run: python -m validation.calibration_gate --strict --out calibration-report.json
-      - name: Upload calibration report
+        run: |
+          set -o pipefail
+          python -m validation.calibration_gate --strict --out calibration-report.json 2>&1 | tee battery.log
+      - name: Gate table to job summary
+        if: always()
+        run: |
+          {
+            echo '```'
+            grep -E '^│|^╭|^╰|UNINFORMATIVE|ERROR \(machinery\)' battery.log || echo "no gate table in battery.log (the run crashed before rendering -- see the log artifact)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload calibration report and log
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: calibration-report
-          path: calibration-report.json
+          path: |
+            calibration-report.json
+            battery.log
           if-no-files-found: warn
           retention-days: 30

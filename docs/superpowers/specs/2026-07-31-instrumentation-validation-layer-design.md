@@ -377,9 +377,16 @@ alone.
    entirely to keep C5 numpy-only.
 5. **CI coverage for the gate battery:** Decision updated 2026-08-26:
    `.github/workflows/calibration-battery.yml` runs the strict G1–G8 battery
-   weekly and on manual dispatch, uploads its JSON report, and is deliberately
-   non-blocking while regenerable-only G7 remains unavailable on a fresh
-   checkout. Plan 02 owns adding that regeneration step. The per-PR
+   weekly and on manual dispatch, uploads its JSON report and log, and is
+   deliberately non-blocking while regenerable-only G7 remains unavailable on
+   a fresh checkout. Plan 02 owns adding that regeneration step. Amended
+   2026-09-07: the job as first merged could never finish — it lacked the
+   spaCy model install and had a 30-minute timeout against a battery
+   measured at 20+ CPU-hours cold. It now installs the model, runs with
+   `CALIBRATION_GATE_VECTOR_CACHE` (validation/vector_cache.py) persisted
+   through `actions/cache` and keyed on the feature implementation plus the
+   committed corpora, uses the 360-minute hosted-runner maximum, serialises
+   runs, and writes the gate table to the job summary. The per-PR
    `.github/workflows/test.yml` remains focused on unit/integration coverage.
    The falsifiability and property tests (C6) still run per-push, which is
    what stops a can't-fail gate from merging.

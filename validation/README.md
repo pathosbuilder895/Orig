@@ -134,6 +134,10 @@ exclude-not-abort behavior rule 4 describes.
     # gate as non-failing.
     CALIBRATION_GATE_VECTOR_CACHE=.benchmark_cache/calibration_gate/vectors \
         .venv/bin/python -m validation.calibration_gate --strict
+    # The same command runs weekly (and on dispatch) in
+    # .github/workflows/calibration-battery.yml, non-blocking, with the
+    # vector cache persisted via actions/cache; the report and log are
+    # uploaded as the `calibration-report` artifact.
 
     # deployment-shaped layer (real API, isolated DB per matrix cell)
     .venv/bin/python -m validation.termsim describe --seed 20260826
