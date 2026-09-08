@@ -16,8 +16,6 @@ the maintenance window. These tests cover the mechanism:
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
 
@@ -153,22 +151,9 @@ class TestSmokeTestLogic:
 
 
 # ── PG-gated cutover regressions ──────────────────────────────────────────────
-def _postgres_available() -> bool:
-    if not os.environ.get("DATABASE_URL", "").startswith("postgresql"):
-        return False
-    from original.db import postgres_session
-
-    try:
-        postgres_session.reset_engine()
-        with postgres_session.get_engine().connect():
-            return True
-    except Exception:
-        return False
-
-
 @pytest.mark.postgres
 class TestCutoverServesPostgres:
-    def test_reads_come_from_postgres_with_environment_pilot(self, monkeypatch):
+    def test_reads_come_from_postgres_with_environment_pilot(self, monkeypatch, postgres_available):
         """The core cutover proof + the ENVIRONMENT=pilot decoupling regression:
         with REPO_BACKEND=postgres, get_repository() must serve real data even
         when ENVIRONMENT=pilot is set in the process (the dormant v1 Settings'
@@ -176,8 +161,11 @@ class TestCutoverServesPostgres:
         DATABASE_URL from os.environ directly). Since WS-7.4 the live stack no
         longer reads ENVIRONMENT at all; the setenv below stays as a guard that
         a stray value can never re-couple this path to the v1 Settings."""
-        if not _postgres_available():
-            pytest.skip("no reachable Postgres — set DATABASE_URL to run the cutover regression")
+        if not postgres_available:
+            pytest.skip(
+                "uninformative — no reachable Postgres; set DATABASE_URL to "
+                "run the cutover regression"
+            )
 
         import original.repository as repo
         from original.db import postgres_session
@@ -204,12 +192,17 @@ class TestCutoverServesPostgres:
         repo.reset_repository()
         LiveBase.metadata.drop_all(bind=engine)
 
-    def test_admin_health_survives_postgres_db_path(self, live_client, monkeypatch):
+    def test_admin_health_survives_postgres_db_path(
+        self, live_client, monkeypatch, postgres_available
+    ):
         """Regression for the cutover-breaker: /admin/health calls
         _repo().db_path(), which PostgresRepository raises on. It must return
         200 (backup recency simply absent), not 500."""
-        if not _postgres_available():
-            pytest.skip("no reachable Postgres — set DATABASE_URL to run the cutover regression")
+        if not postgres_available:
+            pytest.skip(
+                "uninformative — no reachable Postgres; set DATABASE_URL to "
+                "run the cutover regression"
+            )
 
         import original.repository as repo
         from original.db import postgres_session

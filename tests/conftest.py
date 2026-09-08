@@ -49,6 +49,67 @@ def live_client(live_app):
     return TestClient(live_app)
 
 
+# ── Postgres reachability (T-51) ──────────────────────────────────────────────
+# Formerly five near-identical `_postgres_available()` / `_postgres_session_
+# available()` copies (test_repository_contract.py, test_migration.py,
+# test_shadow_repository.py, test_cutover.py, test_persistence_error_arms.py).
+# Consolidated into one fixture so a Postgres-marked test anywhere in the
+# suite gets the same reachability check, including the schema bootstrap that
+# only test_persistence_error_arms.py's variant used to do.
+@pytest.fixture(scope="session")
+def postgres_available() -> bool:
+    """True iff DATABASE_URL points at Postgres and it's actually reachable.
+
+    Deliberately checked at fixture-setup time (not import time) so
+    monkeypatching DATABASE_URL mid-session (or CI wiring up the service
+    container after collection) both work — this module sets a sqlite
+    default above at import time specifically so any stray, unguarded engine
+    build lands on a throwaway in-memory SQLite rather than a real Postgres;
+    only a real, explicit postgresql:// DATABASE_URL at the moment a test
+    first asks should ever make this true.
+
+    Session-scoped: the check itself (reset_engine() + a real connect) is
+    identical no matter which test asks first, so paying its cost more than
+    once per session buys nothing.
+
+    Also ensures the live schema exists on this first call
+    (LiveBase.metadata.create_all, checkfirst=True by default, so it's a
+    cheap no-op when the schema is already present) — folded in from
+    test_persistence_error_arms.py's ``_postgres_session_available()`` (the
+    branch-coverage effort's fix). NOTE this only runs once, here, at
+    whichever test first requests the fixture — it is NOT re-run on every
+    request the way the old per-file helpers were (they were plain
+    functions, re-executed on every call). Several consumers in this suite
+    drop the live schema in their own teardown once their own tests finish
+    (test_migration.py's ``fresh_pg``, two tests in test_cutover.py), so a
+    Postgres-gated test/fixture that runs later in the session and doesn't
+    otherwise manage its own schema must not assume this fixture's one-time
+    bootstrap is still standing — it should re-assert
+    ``LiveBase.metadata.create_all(bind=...)`` itself before touching a
+    table, exactly as test_repository_contract.py's ``repo``,
+    test_migration.py's ``fresh_pg``, and test_shadow_repository.py's
+    ``shadow_repo`` already do (and as the four
+    test_persistence_error_arms.py sites that used to lean on
+    ``_postgres_session_available()`` for this now do too). Reachability
+    alone isn't the same contract as "safe to run in any sandbox."
+    """
+    db_url = os.environ.get("DATABASE_URL", "")
+    if not db_url.startswith("postgresql"):
+        return False
+    from original.db import postgres_session
+    from original.db.models.live import LiveBase
+
+    try:
+        postgres_session.reset_engine()
+        engine = postgres_session.get_engine()
+        with engine.connect():
+            pass
+        LiveBase.metadata.create_all(bind=engine)
+        return True
+    except Exception:
+        return False
+
+
 @pytest.fixture
 def store_reset(tmp_path, monkeypatch):
     """Isolate original.store's SQLite file + in-memory cache for one test."""

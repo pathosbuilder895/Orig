@@ -8,9 +8,10 @@ this suite backend-agnostic: the same assertions run unchanged against
 ``SqliteRepository`` and ``PostgresRepository`` (WS-6 P3) — see the
 ``BACKENDS`` list below. The postgres parametrization is marked
 ``@pytest.mark.postgres`` and skips cleanly when no Postgres instance is
-reachable (``_postgres_available()``), so this file is safe to run in any
-sandbox: `pytest -m "not postgres"` to skip it explicitly, or just run
-normally and let it self-skip when ``DATABASE_URL`` isn't set.
+reachable (the shared ``postgres_available`` fixture in conftest.py), so
+this file is safe to run in any sandbox: `pytest -m "not postgres"` to skip
+it explicitly, or just run normally and let it self-skip when
+``DATABASE_URL`` isn't set.
 
 Formerly two hand-maintained files (test_store_tenants.py's tenant/roster
 classes, test_store_fidelity.py's fidelity/genre-stats/delete classes) that
@@ -25,7 +26,6 @@ detail, not something a Repository contract can promise.
 from __future__ import annotations
 
 import json
-import os
 from datetime import UTC, datetime, timedelta
 
 import numpy as np
@@ -42,41 +42,21 @@ from original.repository import PostgresRepository, get_repository, reset_reposi
 # (SQLite-file-specific backup tooling with no Postgres equivalent — see
 # test_baseline_requests.py's test_postgres_repo_db_path_has_no_equivalent).
 # This parametrization only runs when a Postgres instance is actually
-# reachable (see `_postgres_available()` below); it self-skips when
-# DATABASE_URL isn't set to a postgresql:// instance, so this file stays
-# safe to run in any sandbox. `pytest -m "not postgres"` deselects it
-# entirely.
+# reachable (see the shared `postgres_available` fixture in conftest.py);
+# it self-skips when DATABASE_URL isn't set to a postgresql:// instance, so
+# this file stays safe to run in any sandbox. `pytest -m "not postgres"`
+# deselects it entirely.
 BACKENDS = ["sqlite", pytest.param("postgres", marks=pytest.mark.postgres)]
 
 
-def _postgres_available() -> bool:
-    """True iff DATABASE_URL points at Postgres and it's actually reachable.
-
-    Deliberately checked at fixture-setup time (not import time) so
-    monkeypatching DATABASE_URL mid-session (or CI wiring up the service
-    container after collection) both work.
-    """
-    db_url = os.environ.get("DATABASE_URL", "")
-    if not db_url.startswith("postgresql"):
-        return False
-    from original.db import postgres_session
-
-    try:
-        postgres_session.reset_engine()
-        with postgres_session.get_engine().connect():
-            return True
-    except Exception:
-        return False
-
-
 @pytest.fixture(params=BACKENDS)
-def repo(request, store_reset):
+def repo(request, store_reset, postgres_available):
     """A Repository instance, isolated per test. Parametrized over backends."""
     reset_repository()
     if request.param == "sqlite":
         yield get_repository()
     elif request.param == "postgres":
-        if not _postgres_available():
+        if not postgres_available:
             # "uninformative" is load-bearing, not decoration: this file now
             # carries a @pytest.mark.blocker test (T-08) parametrized over
             # BACKENDS, and scripts/known_red.py exits 1 on a blocker test
