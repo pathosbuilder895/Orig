@@ -1,7 +1,7 @@
 {
   "ai_likelihood": null,
   "authorship": {
-    "authorship_probability": 0.8914169310514708,
+    "authorship_probability": 0.8915057781043152,
     "deviation_score": 0.7655885220534673,
     "fidelity_conformal_pvalue": null,
     "llr_deviation_score": null,
@@ -10,10 +10,10 @@
   "baseline_confidence": {
     "authenticated_count": 6,
     "effective_sample_count": 5.578060009801271,
-    "purity": 0.9401785199801223,
+    "purity": 0.9401577048782142,
     "sample_count": 6,
-    "trajectory_confidence": 0.41899071716220204,
-    "von_neumann_entropy": 0.03759906879344464
+    "trajectory_confidence": 0.4190222303877721,
+    "von_neumann_entropy": 0.037610149997685145
   },
   "baseline_vector": {
     "abbreviation_tendency": 0.18935122145460717,
@@ -97,7 +97,7 @@
     "revision_depth": 0.5,
     "semantic_centroid_proximity": 0.5,
     "semantic_field_concentration": 0.05534283897537508,
-    "semantic_field_dispersion": 0.09143645523593508,
+    "semantic_field_dispersion": 0.013606328626217455,
     "semicolon_colon_rate": 0.0,
     "sentence_initial_conjunction_rate": 0.0,
     "sentence_length_dispersion_ratio": 0.4999999999999999,
@@ -223,7 +223,7 @@
     "revision_depth": 0.5,
     "semantic_centroid_proximity": 0.5,
     "semantic_field_concentration": 0.05,
-    "semantic_field_dispersion": 0.15773121131399287,
+    "semantic_field_dispersion": 0.011688732983694307,
     "semicolon_colon_rate": 0.0,
     "sentence_initial_conjunction_rate": 0.0,
     "sentence_length_dispersion_ratio": 0.49999999999999994,
@@ -282,7 +282,7 @@
       {
         "baseline_value": 1.0,
         "code": "clause_depth_mean",
-        "contribution": 0.044627143865693775,
+        "contribution": 0.04466348029335717,
         "delta": 0.0,
         "direction": "constructive",
         "name": "Mean Clause Depth",
@@ -292,7 +292,7 @@
       {
         "baseline_value": 0.9901217835125858,
         "code": "stress_entropy_unigram",
-        "contribution": 0.0433444081020048,
+        "contribution": 0.043379699427577384,
         "delta": -0.009129872402991346,
         "direction": "constructive",
         "name": "Stress Entropy (Unigram)",
@@ -302,7 +302,7 @@
       {
         "baseline_value": 0.9381875096175037,
         "code": "stress_entropy_bigram",
-        "contribution": 0.038685652675971245,
+        "contribution": 0.038717151131683857,
         "delta": -0.014198743184572704,
         "direction": "constructive",
         "name": "Stress Entropy (Bigram)",
@@ -312,7 +312,7 @@
       {
         "baseline_value": 0.7674293622483785,
         "code": "list_marker_preference",
-        "contribution": 0.03437686382798807,
+        "contribution": 0.03440491350988989,
         "delta": 0.23257063775162146,
         "direction": "constructive",
         "name": "List Marker Pref.",
@@ -322,7 +322,7 @@
       {
         "baseline_value": 0.6903661281054702,
         "code": "mean_sentence_length",
-        "contribution": 0.021795722400902558,
+        "contribution": 0.021813470364129853,
         "delta": 0.016950945065261513,
         "direction": "constructive",
         "name": "Mean Sentence Length",
@@ -334,7 +334,7 @@
       {
         "baseline_value": 0.22775152122558706,
         "code": "source_integration_style",
-        "contribution": 0.010197340800534778,
+        "contribution": 0.010205677377855844,
         "delta": 0.7722484787744129,
         "direction": "destructive",
         "name": "Source Integration Style",
@@ -344,7 +344,7 @@
       {
         "baseline_value": 0.6739657699250704,
         "code": "that_which_ratio",
-        "contribution": 0.009994379263117368,
+        "contribution": 0.010002492057069184,
         "delta": -0.3406324365917371,
         "direction": "destructive",
         "name": "That/Which Ratio",
@@ -354,7 +354,7 @@
       {
         "baseline_value": 0.5618814510190954,
         "code": "passive_voice_ratio",
-        "contribution": 0.025107498387009822,
+        "contribution": 0.0251279735290955,
         "delta": 0.43811854898090463,
         "direction": "destructive",
         "name": "Passive Voice Ratio",
@@ -364,7 +364,7 @@
       {
         "baseline_value": 0.18935122145460717,
         "code": "abbreviation_tendency",
-        "contribution": 0.004327259195355891,
+        "contribution": 0.004330846843099122,
         "delta": 0.31064877854539286,
         "direction": "destructive",
         "name": "Abbreviation Tendency",
@@ -374,7 +374,7 @@
       {
         "baseline_value": 0.05023138975598718,
         "code": "filler_hedge_cluster_rate",
-        "contribution": 0.001006325875338325,
+        "contribution": 0.0010071474431943294,
         "delta": 0.39421305468845724,
         "direction": "destructive",
         "name": "Hedge Clustering",
@@ -383,32 +383,32 @@
       }
     ],
     "tier_breakdown": {
-      "T0": 0.025031577402838127,
-      "T1": 0.13990050484491728,
-      "T10": 0.01323790571282936,
-      "T11": 0.03754736610425719,
+      "T0": 0.02504946201146897,
+      "T1": 0.14000050879924406,
+      "T10": 0.012532697371777798,
+      "T11": 0.03757419301720345,
       "T12": 0.0,
-      "T13": 0.04828769633386875,
-      "T14": 0.05643173421862664,
-      "T15": 0.020840616708337294,
-      "T16": 0.03754736610425719,
-      "T17": 0.07509473220851438,
-      "T18": 0.07509473220851438,
-      "T2": 0.1039946299568201,
-      "T3": 0.014866589562818621,
-      "T4": 0.02468827536502134,
-      "T5": 0.10367316176219007,
-      "T6": 0.05463044343839034,
-      "T7": 0.05108241425526177,
-      "T8": 0.09208336244358556,
-      "T9": 0.025966890247141987
+      "T13": 0.04832218983357693,
+      "T14": 0.05647204932662851,
+      "T15": 0.02085550052362105,
+      "T16": 0.03757419301720345,
+      "T17": 0.0751483860344069,
+      "T18": 0.0751483860344069,
+      "T2": 0.10406896216760436,
+      "T3": 0.01487724992306078,
+      "T4": 0.024705911681521153,
+      "T5": 0.10374723055332714,
+      "T6": 0.054669586616729424,
+      "T7": 0.05111890816937269,
+      "T8": 0.09214915332022243,
+      "T9": 0.025985430476926297
     },
-    "total_probability": 0.8914169310514708
+    "total_probability": 0.8915057781043152
   },
   "recommendation": {
     "action": "escalate",
-    "confidence": 0.8347455225949312,
-    "rationale": "Deviation score 0.766 (primary verdict signal). Born authorship probability 0.891 (secondary alignment check). 5 destructive interference features detected. Primary anomaly: Source Integration Style. Born and deviation signals diverge by 0.66 \u2014 confidence reduced; manual review advised. Broken entanglement: T1\u2013T7 passive\u2013hedge entanglement."
+    "confidence": 0.8347402147439446,
+    "rationale": "Deviation score 0.766 (primary verdict signal). Born authorship probability 0.892 (secondary alignment check). 5 destructive interference features detected. Primary anomaly: Source Integration Style. Born and deviation signals diverge by 0.66 \u2014 confidence reduced; manual review advised. Broken entanglement: T1\u2013T7 passive\u2013hedge entanglement."
   },
   "report": null,
   "student_id": "flagbi:alice",
@@ -442,8 +442,8 @@
   "topic_mean_inflation": null,
   "trajectory": {
     "adjustment_factor": 1.0,
-    "alignment": 0.09272456697490782,
-    "confidence": 0.41899071716220204,
+    "alignment": 0.09284162465524864,
+    "confidence": 0.4190222303877721,
     "direction": "lateral"
   },
   "trend_aware_typicality": null,

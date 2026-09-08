@@ -48,6 +48,31 @@ vectors are real extractions; the peers are written straight to the store
 with seeded vectors because their vectors only ever feed the peer-pool
 statistics.
 
+Deterministic feature backends
+------------------------------
+The API arms run real feature extraction, and tier 10 (`semantic_*`) picks
+its backend from what happens to be importable on the machine:
+`sentence_transformers` + a downloaded `all-MiniLM-L6-v2` if present,
+otherwise the genuine TF-IDF backend (`original/features/tier10.py`).
+Those two produce different floats, so a snapshot generated on a machine
+with the neural backend cannot be reproduced by CI (Linux CPU, a different
+`sentence-transformers` major — `requirements.txt` pins `>=5.6.0,<6.0` —
+and a network model download) or by the pilot lockset, which has no
+`sentence-transformers` at all.
+
+`force_tfidf_tier10()` pins the backend to TF-IDF, and `api_harness()`
+enters it around *everything* — baseline ingestion included — so the
+backend is a property of this harness rather than of the machine. Because
+the forcing lives inside the shared harness, `scripts/update_score_snapshot.py`
+(which calls `build_api_snapshot_text`) and the fixtures cannot drift
+apart: there is one seam, not two that must be kept in lockstep.
+`test_api_arms_use_the_tfidf_tier10_backend` fails loudly, naming the
+cause, if a future environment silently selects the neural path.
+
+The unit level needs no such forcing: its vectors are seeded
+(`_seeded_vector`) and its `feature_dict` is built from that vector, so
+`unit_payload()` never runs the feature pipeline and never reaches tier 10.
+
 Normalised API fields
 ---------------------
 Exactly one key is normalised out of the API payloads, at every depth:
@@ -62,7 +87,12 @@ the same submission twice and requires byte-identity.
 Per-flag outcome observed on this profile
 -----------------------------------------
 Recorded honestly, because an inert flag that reads as a pass is the trap
-`GENRE_INVARIANT_WEIGHTS_ENABLED` fell into.
+`GENRE_INVARIANT_WEIGHTS_ENABLED` fell into. Every data-dependent
+`uninformative` verdict measures the cause it names (`UNIT_ON_ARM_MEASURES`
+/ `API_ON_ARM_MEASURES`, which append the measurement to the skip text), so
+an arm that goes inert for a *different* reason fails rather than skipping.
+The few that do not measure are structural — the shape of the call, not the
+data — and say which.
 
 Flags whose arms are IDENTICAL when off, and what each does otherwise:
 
@@ -84,8 +114,16 @@ Flags whose arms are IDENTICAL when off, and what each does otherwise:
   hits on this cohort, so the fallback branch is never reached.
 * `PRIOR_WEIGHT` — on (with the prior enabled): differs
   (`deviation_score`).
-* `NULL_MODEL` — on: differs, attach-only — exactly
-  `llr_deviation_score`, nothing else.
+* `NULL_MODEL` — on: differs. **Attach-only only at the unit level and
+  under `LLR_ACTION_MODE=shadow`** (there it is exactly
+  `authorship.llr_deviation_score`). At the API default it is *not*
+  attach-only: `LLR_ACTION_MODE` ships as `gate`, which takes its
+  documented one-step action downgrade on this profile, so
+  `NULL_MODEL=impostor` also moves `recommendation.action`,
+  `recommendation.rationale` and the three `human_explanation` fields
+  derived from the action. The API on-arm asserts that exact six-path
+  set, and `test_api_llr_gate_default_is_not_inert` pins the downgrade
+  itself.
 * `LLR_ACTION_MODE` — `gate` (the shipped default) is NOT inert here: it
   takes its documented one-step downgrade against `shadow`. `shadow` is
   attach-only versus flags-off. Measured against `shadow`: `trigger` is
@@ -126,6 +164,7 @@ import dataclasses
 import difflib
 import json
 import os
+import re
 import tempfile
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -219,12 +258,25 @@ def serialise(payload: dict) -> str:
     return json.dumps(payload, sort_keys=True, indent=2, default=_json_default) + "\n"
 
 
+# An empty container has no leaves, so a naive flatten erases it entirely:
+# `{"broken_entanglements": []}` and `{}` would flatten to the same thing and
+# `changed_paths` would report no change when a whole key was dropped (or when
+# a populated `paragraph_arcs` became empty). Emitting a sentinel leaf keeps
+# the path — and therefore the diff — visible.
+_EMPTY_LIST = "<empty-list>"
+_EMPTY_DICT = "<empty-dict>"
+
+
 def _flatten(node: Any, prefix: str = "") -> dict[str, Any]:
     out: dict[str, Any] = {}
     if isinstance(node, dict):
+        if not node:
+            out[prefix] = _EMPTY_DICT
         for key, value in node.items():
             out.update(_flatten(value, f"{prefix}.{key}" if prefix else key))
     elif isinstance(node, list):
+        if not node:
+            out[prefix] = _EMPTY_LIST
         for index, value in enumerate(node):
             out.update(_flatten(value, f"{prefix}[{index}]"))
     else:
@@ -371,6 +423,31 @@ def normalise_api(payload: Any) -> Any:
     return payload
 
 
+@contextlib.contextmanager
+def force_tfidf_tier10() -> Iterator[None]:
+    """Pin tier 10 to its deterministic TF-IDF backend for the whole block.
+
+    `original/features/tier10.py` selects a backend lazily and caches it in
+    two module globals: `_st_model` (the loaded SentenceTransformer) and
+    `_st_failed` (the "we already tried and it is unavailable" latch that
+    `_get_st_model` short-circuits on). Setting the latch and clearing the
+    cache makes `_encode_sentences` take the TF-IDF path without importing
+    or downloading anything — the same path CI and the pilot lockset take.
+
+    Both globals are saved and restored: this process may run other tests
+    that legitimately want whichever backend is installed.
+    """
+    from original.features import tier10
+
+    saved_model, saved_failed = tier10._st_model, tier10._st_failed
+    tier10._st_model = None
+    tier10._st_failed = True
+    try:
+        yield
+    finally:
+        tier10._st_model, tier10._st_failed = saved_model, saved_failed
+
+
 def _seed_api_store(client: TestClient) -> None:
     from original import store
 
@@ -401,16 +478,30 @@ def _seed_api_store(client: TestClient) -> None:
 def api_harness() -> Iterator[Callable[[dict[str, str]], dict]]:
     """Seed a throwaway store, yield `call(env) -> normalised response`.
 
-    Responses are memoised per environment: the endpoint recomputes on every
-    request and its only writes (fidelity rows, manifest audit rows, the
-    audit log) cannot feed a later score on this profile — held by
-    `test_api_default_is_reproducible`, which scores twice through the live
-    client and requires byte-identity.
+    Responses are memoised per environment. That cache is only sound because
+    scoring is a pure function of (profile, submission, env) here: the two
+    responses an arm compares were computed at *different points in the
+    store's write history* (the endpoint writes fidelity rows, manifest
+    audit rows and audit-log rows on every call), so if any of those writes
+    could feed a later score, a cached reference and a freshly computed
+    candidate would differ for reasons that have nothing to do with the
+    flag. `test_api_default_is_reproducible` is the arm that holds that
+    invariant: it scores the same submission twice through a live client,
+    the second time after the first call's writes have landed, and requires
+    byte-identity. If that test ever fails, this cache is unsound and the
+    whole file's diffs become untrustworthy — fix it there, not here.
+
+    Tier 10 is pinned to its TF-IDF backend for the entire block
+    (`force_tfidf_tier10`), baseline ingestion included, so the snapshots
+    are reproducible off this machine. The forcing lives here rather than
+    in the fixtures because `scripts/update_score_snapshot.py` regenerates
+    through `build_api_snapshot_text`, which enters this same context — one
+    seam, so the script and the tests cannot disagree about the backend.
     """
     import run
     from original import store
 
-    with tempfile.TemporaryDirectory() as tmp_dir, clean_flag_env():
+    with tempfile.TemporaryDirectory() as tmp_dir, clean_flag_env(), force_tfidf_tier10():
         db_path = Path(tmp_dir) / "flag_byte_identity.db"
         saved_db_env = os.environ.get("ORIGINAL_DB")
         saved_db_path = store._DB_PATH
@@ -562,7 +653,11 @@ UNIT_OFF_ARMS: dict[str, dict[str, Any]] = {
 def test_unit_off_arm_matches_snapshot(unit_env, unit_snapshot, arm):
     """Setting one `ScoringConfig` field explicitly to its documented off
     value must reproduce the snapshot exactly."""
-    assert changed_paths(unit_snapshot, unit_payload(**UNIT_OFF_ARMS[arm])) == set()
+    changed = changed_paths(unit_snapshot, unit_payload(**UNIT_OFF_ARMS[arm]))
+    assert changed == set(), (
+        f"ScoringConfig({arm}=<documented off value>) moved {sorted(changed)} "
+        f"away from the committed unit snapshot — {_REGENERATE_MSG}"
+    )
 
 
 def test_unit_peer_pool_alone_changes_nothing(unit_env, unit_snapshot):
@@ -570,7 +665,8 @@ def test_unit_peer_pool_alone_changes_nothing(unit_env, unit_snapshot):
     `CHARACTERISTIC_WEIGHTS=off` must not move a single field — the pool is
     built on every request whenever either flag is non-default, so its mere
     presence must be inert."""
-    assert changed_paths(unit_snapshot, unit_payload(with_pool=True)) == set()
+    changed = changed_paths(unit_snapshot, unit_payload(with_pool=True))
+    assert changed == set(), f"an inert peer pool moved {sorted(changed)} — {_REGENERATE_MSG}"
 
 
 def test_from_env_off_literals_equal_the_dataclass_defaults():
@@ -591,11 +687,20 @@ def test_from_env_off_literals_equal_the_dataclass_defaults():
 def test_api_off_arm_matches_snapshot(api_call, api_snapshot, flag):
     """Each flag set explicitly to its off literal must reproduce the API
     snapshot, which was generated with every one of them *unset*."""
-    assert changed_paths(api_snapshot, api_call({flag: FLAG_OFF_VALUES[flag]})) == set()
+    changed = changed_paths(api_snapshot, api_call({flag: FLAG_OFF_VALUES[flag]}))
+    assert changed == set(), (
+        f"{flag}={FLAG_OFF_VALUES[flag]!r} (its documented off literal) moved "
+        f"{sorted(changed)} away from the all-unset API snapshot — either the "
+        f"off literal is not parsed as off, or {_REGENERATE_MSG}"
+    )
 
 
 def test_api_all_flags_explicitly_off_matches_snapshot(api_call, api_snapshot):
-    assert changed_paths(api_snapshot, api_call(dict(FLAG_OFF_VALUES))) == set()
+    changed = changed_paths(api_snapshot, api_call(dict(FLAG_OFF_VALUES)))
+    assert changed == set(), (
+        f"every flag set to its documented off literal moved {sorted(changed)} "
+        f"away from the all-unset API snapshot — {_REGENERATE_MSG}"
+    )
 
 
 # ── (c) shadow arms — exact added-key sets ────────────────────────────────────
@@ -811,6 +916,32 @@ UNIT_ON_ARMS: dict[str, tuple[dict[str, Any], dict[str, Any], bool, set[str] | N
 }
 
 
+def _measure_unit_llr_trigger(reference: dict) -> str:
+    """`trigger` can only upgrade `no_action` -> `monitor`. Measure that the
+    reference is not sitting at `no_action`, so the stated cause is the one
+    actually observed rather than an assumption about the profile."""
+    action = reference["recommendation"]["action"]
+    assert action != "no_action", (
+        "the reference action IS no_action, so trigger had something to "
+        "upgrade and this arm is now informative — assert the upgrade "
+        "instead of skipping"
+    )
+    return f"measured reference action = {action!r}"
+
+
+# Arm id -> callable(reference payload) -> extra text for the skip reason.
+# Every `expected is None` arm has to justify its stated cause. The two unit
+# arms without an entry here are justified structurally instead, by the shape
+# of the call rather than by the data: `TYPICALITY_POOLED_CALIBRATION` because
+# `unit_payload` passes no `pooled_states` at all (visible three screens up),
+# and `TOPIC_VARIANCE_INFLATION=on` because inflation reads a context manifest
+# that the unit level never builds. Their data-dependent twins are the API
+# arms, which do measure.
+UNIT_ON_ARM_MEASURES: dict[str, Callable[[dict], str]] = {
+    "LLR_ACTION_MODE=trigger": _measure_unit_llr_trigger,
+}
+
+
 @pytest.mark.parametrize("arm", sorted(UNIT_ON_ARMS), ids=sorted(UNIT_ON_ARMS))
 def test_unit_on_arm_is_not_inert(unit_env, arm):
     prereq, config, with_pool, expected, reason = UNIT_ON_ARMS[arm]
@@ -819,7 +950,9 @@ def test_unit_on_arm_is_not_inert(unit_env, arm):
     changed = changed_paths(reference, candidate)
     if expected is None:
         assert changed == set(), f"{arm} was expected to abstain but moved {sorted(changed)}"
-        pytest.skip(f"uninformative — {reason}")
+        measure = UNIT_ON_ARM_MEASURES.get(arm)
+        measured = f" [{measure(reference)}]" if measure is not None else ""
+        pytest.skip(f"uninformative — {reason}{measured}")
     assert expected <= changed, f"{arm} did not move {sorted(expected - changed)}"
 
 
@@ -829,11 +962,18 @@ def test_unit_null_model_on_is_attach_only(unit_env, unit_snapshot):
     assert changed_paths(unit_snapshot, payload) == {"authorship.llr_deviation_score"}
 
 
-def test_unit_rank_remediation_on_is_not_inert(unit_env, unit_snapshot):
+def test_unit_rank_remediation_on_is_not_inert(unit_env, unit_snapshot, monkeypatch):
     """`RANK_REMEDIATION=shrinkage` is the one flag `score()` reads from the
     environment (through `StudentState.density_matrix`), so it gets an
-    env-driven arm rather than a `ScoringConfig` one."""
-    os.environ["RANK_REMEDIATION"] = "shrinkage"
+    env-driven arm rather than a `ScoringConfig` one.
+
+    Set through `monkeypatch` rather than by assigning `os.environ`
+    directly. The `unit_env` fixture would restore it either way, but that
+    makes this test's cleanup depend on an enclosing fixture rather than on
+    anything visible here; monkeypatch owns its own teardown, which is the
+    convention every other env-driven arm in this file already follows.
+    """
+    monkeypatch.setenv("RANK_REMEDIATION", "shrinkage")
     changed = changed_paths(unit_snapshot, unit_payload())
     assert {"baseline_confidence.purity", "baseline_confidence.von_neumann_entropy"} <= changed
 
@@ -866,7 +1006,25 @@ API_ON_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str] | None, st
     ),
     "BAYESIAN_PRIOR_ENABLED=1": ({}, PRIOR, {"authorship.deviation_score"}, ""),
     "PRIOR_WEIGHT=10.0": (PRIOR, {"PRIOR_WEIGHT": "10.0"}, {"authorship.deviation_score"}, ""),
-    "NULL_MODEL=impostor": ({}, IMPOSTOR, {"authorship.llr_deviation_score"}, ""),
+    # NOT attach-only at the API level, unlike the unit arm: the shipped
+    # LLR_ACTION_MODE default is `gate`, which takes its one-step downgrade
+    # here (escalate -> schedule_conversation), and the action feeds the
+    # rationale and the three human_explanation fields. Asserted as an
+    # EQUALITY (see _EXACT_API_ON_ARMS) so a future mode that moved
+    # `deviation_score` as well could not hide inside a subset check.
+    "NULL_MODEL=impostor": (
+        {},
+        IMPOSTOR,
+        {
+            "authorship.llr_deviation_score",
+            "recommendation.action",
+            "recommendation.rationale",
+            "human_explanation.verdict",
+            "human_explanation.severity",
+            "human_explanation.summary",
+        },
+        "",
+    ),
     "LENGTH_ADAPTIVE_WEIGHTS=1": (
         {},
         {"LENGTH_ADAPTIVE_WEIGHTS": "1"},
@@ -979,14 +1137,194 @@ API_ON_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str] | None, st
 }
 
 
+# Arms whose changed set is asserted as an equality rather than a subset,
+# because the flag's documented blast radius is exactly known.
+_EXACT_API_ON_ARMS = frozenset({"NULL_MODEL=impostor"})
+
+
+# ── measurements behind the API `uninformative` verdicts ─────────────────────
+#
+# Each takes (reference payload, api_call, caplog) and returns the text
+# appended to its skip reason. A skip that merely *names* a cause is a
+# hypothesis; these turn each one into an observation, so an arm that goes
+# quietly inert for a different reason fails instead of skipping.
+
+
+def _measure_genre_covered(reference: dict, api_call: Callable, caplog: Any) -> str:
+    """`GENRE_INVARIANT_WEIGHTS_ENABLED` attenuates only on a CONFIDENT
+    mismatch. `genre_covered_by_baseline` returns True (no attenuation) on
+    three different paths; the stated reason is only honest if this profile
+    takes the third one — a real submission genre that a real baseline genre
+    matches — rather than either abstention path.
+    """
+    from original import store
+    from original.constants import GENRE_UNKNOWN
+
+    primary = reference["context_manifest"]["genre"]["primary"]
+    assert primary not in (None, GENRE_UNKNOWN), (
+        f"submission genre is {primary!r}: genre_covered_by_baseline returns True "
+        "on its FIRST path (unclassified submission is never 'novel'), so the "
+        "skip reason 'covered by the baseline' would be unmeasured"
+    )
+    samples = store.get(STUDENT_ID).samples
+    baseline_genres = {
+        s.genre for s in samples if getattr(s, "genre", None) not in (None, GENRE_UNKNOWN)
+    }
+    assert baseline_genres, (
+        "no baseline sample carries a genre: genre_covered_by_baseline returns "
+        "True on its SECOND path (no known genres at all), which is not the "
+        "reason this arm claims"
+    )
+    assert primary in baseline_genres, (
+        f"submission genre {primary!r} is NOT among the baseline genres "
+        f"{sorted(baseline_genres)} — genre_covered_by_baseline is False here and "
+        "the attenuation should have fired; this arm is now informative"
+    )
+    return (
+        f"third path measured: submission genre {primary!r} is among the "
+        f"baseline genres {sorted(baseline_genres)}"
+    )
+
+
+def _measure_genre_prior_hit(reference: dict, api_call: Callable, caplog: Any) -> str:
+    """`COHORT_PRIOR_FALLBACK` is only read when the same-genre prior came
+    back `None`. The response exposes no prior field, so the hit is measured
+    off the INFO line `students_scoring.py` logs for exactly this purpose
+    (`bayesian_prior outcome=hit|miss …`, no student ids).
+
+    A distinct no-op env var forces a fresh scoring call inside the caplog
+    block: the harness memoises by env, and a cached response emits no logs.
+    """
+    import logging
+
+    logger = "original.routers.students_scoring"
+    with caplog.at_level(logging.INFO, logger=logger):
+        caplog.clear()
+        api_call({**PRIOR, "ORIGINAL_FLAG_MATRIX_NOOP": "prior-probe"})
+        lines = [r.getMessage() for r in caplog.records if r.name == logger]
+    outcomes = [line for line in lines if line.startswith("bayesian_prior outcome=")]
+    assert outcomes, (
+        "no `bayesian_prior outcome=` line was logged, so the prior never ran and "
+        "the fallback's inertness has NOT been traced to a same-genre hit"
+    )
+    assert all(line.startswith("bayesian_prior outcome=hit") for line in outcomes), (
+        f"the same-genre prior MISSED ({outcomes}) — COHORT_PRIOR_FALLBACK=1 "
+        "should therefore have reached the genre-agnostic branch and moved the "
+        "score; this arm is now informative"
+    )
+    return f"measured: {outcomes[0]}"
+
+
+def _measure_identity_axis_cell(reference: dict, api_call: Callable, caplog: Any) -> str:
+    """Pin the exact cell of the 3x3 matrix this profile lands on, and that
+    its two-axis action equals the one-axis action — the only way the
+    "verdicts coincide" reason is a measurement rather than a restatement of
+    "nothing changed"."""
+    from original.quantum.scoring import _identity_axis_action
+
+    band = reference["typicality_band"]
+    source = reference["typicality_source"]
+    llr = reference["authorship"]["llr_deviation_score"]
+    assert band is not None, "no typicality band: the identity axis is gated off, not tied"
+    assert llr is not None, "no llr_deviation_score: the identity axis is gated off, not tied"
+
+    if band == "no_action":
+        row = "typical"
+    else:
+        row = "too-central" if source == "central" else "too-far"
+    col = "distinctive" if llr < 0.45 else ("non_distinctive" if llr <= 0.60 else "fits_others")
+    matrix_action = _identity_axis_action(band, source, llr)
+    one_axis_action = reference["recommendation"]["action"]
+    assert matrix_action == one_axis_action, (
+        f"cell ({row}, {col}) gives {matrix_action!r} but the one-axis action is "
+        f"{one_axis_action!r} — the verdicts do NOT coincide and this arm is "
+        "informative"
+    )
+    # The other half of IDENTITY_AXIS is that it disables the unconditional
+    # growth dampening (adj_factor 0.75 -> 1.0, quantum/scoring.py:~1397).
+    # That only bites on a `growth` trajectory, so this profile does not
+    # exercise it either — recorded so the skip is not read as "IDENTITY_AXIS
+    # was fully exercised and found inert".
+    direction = reference["trajectory"]["direction"]
+    assert direction != "growth", (
+        f"trajectory direction is {direction!r}: the 0.75 growth dampening WOULD "
+        "have been disabled here and deviation_score should have moved"
+    )
+    return (
+        f"cell ({row}, {col}) -> {matrix_action!r}, equal to the one-axis action "
+        f"(band={band!r}, source={source!r}, llr={llr:.4f}); the flag's other "
+        f"half — disabling the 0.75 growth dampening (quantum/scoring.py:~1397) "
+        f"— is ALSO untested here, trajectory direction is {direction!r}, not "
+        f"'growth'"
+    )
+
+
+def _measure_api_llr_trigger(reference: dict, api_call: Callable, caplog: Any) -> str:
+    action = reference["recommendation"]["action"]
+    assert action != "no_action", (
+        "the reference action IS no_action, so trigger had something to upgrade "
+        "and this arm is now informative — assert the upgrade instead of skipping"
+    )
+    return f"measured reference action = {action!r}"
+
+
+def _measure_amplitude_surface_gap(reference: dict, api_call: Callable, caplog: Any) -> str:
+    """The claim is that the API *surface* is the blocker, not the flag. The
+    two fields exist on the response and stay at their flag-off values with
+    amplitude on, which is what "`_to_response()` never copies them" looks
+    like from outside."""
+    on = api_call({"AMPLITUDE_SCORING_ENABLED": "1"})
+    authorship = on["authorship"]
+    assert "quantum_fidelity" in authorship and "fidelity_conformal_pvalue" in authorship, (
+        "the response no longer carries the amplitude fields at all — the gap "
+        "described in this arm's reason has changed shape"
+    )
+    assert authorship["quantum_fidelity"] == reference["authorship"]["quantum_fidelity"], (
+        "quantum_fidelity moved on the API response, so _to_response() now copies "
+        "it and this arm is informative"
+    )
+    return (
+        f"measured: authorship.quantum_fidelity stays at "
+        f"{authorship['quantum_fidelity']!r} and fidelity_conformal_pvalue at "
+        f"{authorship['fidelity_conformal_pvalue']!r} with the flag on"
+    )
+
+
+def _measure_topic_distance(reference: dict, api_call: Callable, caplog: Any) -> str:
+    """Same measurement `test_api_topic_on_is_uninformative` makes, carried
+    into the parametrized arm so this row's stated cause is not merely a
+    cross-reference."""
+    distance = reference["context_manifest"]["topic"]["baseline_distance"]
+    assert distance <= TOPIC_NOVELTY_BOUNDS["low"], (
+        f"topic distance {distance:.4f} cleared the novelty floor "
+        f"({TOPIC_NOVELTY_BOUNDS['low']}) — this arm is now informative"
+    )
+    return f"measured topic distance {distance:.4f} <= {TOPIC_NOVELTY_BOUNDS['low']}"
+
+
+API_ON_ARM_MEASURES: dict[str, Callable[[dict, Callable, Any], str]] = {
+    "AMPLITUDE_SCORING_ENABLED=1": _measure_amplitude_surface_gap,
+    "TOPIC_VARIANCE_INFLATION=on": _measure_topic_distance,
+    "GENRE_INVARIANT_WEIGHTS_ENABLED=1": _measure_genre_covered,
+    "COHORT_PRIOR_FALLBACK=1": _measure_genre_prior_hit,
+    "IDENTITY_AXIS=1": _measure_identity_axis_cell,
+    "LLR_ACTION_MODE=trigger": _measure_api_llr_trigger,
+}
+
+
 @pytest.mark.parametrize("arm", sorted(API_ON_ARMS), ids=sorted(API_ON_ARMS))
-def test_api_on_arm_is_not_inert(api_call, arm):
+def test_api_on_arm_is_not_inert(api_call, caplog, arm):
     prereq, env, expected, reason = API_ON_ARMS[arm]
     reference = api_call(prereq)
     changed = changed_paths(reference, api_call({**prereq, **env}))
     if expected is None:
         assert changed == set(), f"{arm} was expected to abstain but moved {sorted(changed)}"
-        pytest.skip(f"uninformative — {reason}")
+        measure = API_ON_ARM_MEASURES.get(arm)
+        measured = f" [{measure(reference, api_call, caplog)}]" if measure is not None else ""
+        pytest.skip(f"uninformative — {reason}{measured}")
+    if arm in _EXACT_API_ON_ARMS:
+        assert changed == expected, f"{arm} moved {sorted(changed)}, not exactly {sorted(expected)}"
+        return
     assert expected <= changed, f"{arm} did not move {sorted(expected - changed)}"
 
 
@@ -1050,7 +1388,106 @@ def test_api_secret_key_changes_nothing(api_call, api_snapshot):
     )
 
 
+# ── the snapshots must be reproducible off this machine ──────────────────────
+
+
+def test_api_arms_use_the_tfidf_tier10_backend(api_call, api_snapshot):
+    """The committed API snapshot must be a property of the harness, not of
+    what happens to be installed here.
+
+    Tier 10 picks `sentence_transformers` when it is importable and a model
+    is cached, and the genuine TF-IDF backend otherwise. Those disagree:
+    `semantic_field_dispersion` was 0.15773121131399287 under
+    `sentence_transformers` 2.7.0 on Apple MPS and is 0.011688732983694307
+    under TF-IDF. CI cannot reproduce the first (Linux CPU, `requirements.txt`
+    pins `sentence-transformers>=5.6.0,<6.0`, and the model is a network
+    download), and `requirements-pilot.txt` does not ship the package at all.
+    So the harness pins TF-IDF and this arm proves the pin held.
+    """
+    from original.features import tier10
+    from original.features.tier1 import TextDoc
+
+    assert tier10._get_st_model() is None, (
+        "tier 10 resolved a sentence-transformers model inside the API harness. "
+        "force_tfidf_tier10() did not take effect, so the API snapshot is now a "
+        "function of this machine's installed sentence-transformers + cached "
+        "model rather than of the repo — CI and the pilot lockset cannot "
+        "reproduce it. Fix the harness; do NOT regenerate the snapshot."
+    )
+    # Exact equality, not approx: a near-miss here would mean the scored
+    # value came from somewhere other than this backend.
+    expected = tier10.extract_tier10_standalone(TextDoc(SUBMISSION_TEXT))
+    assert (
+        api_call({})["feature_vector"]["semantic_field_dispersion"]
+        == expected["semantic_field_dispersion"]
+    ), "the scored submission's tier-10 value is not the TF-IDF backend's value"
+    assert (
+        api_snapshot["feature_vector"]["semantic_field_dispersion"]
+        == expected["semantic_field_dispersion"]
+    ), (
+        "the COMMITTED snapshot carries a tier-10 value the deterministic "
+        f"backend does not produce — {_REGENERATE_MSG}"
+    )
+
+
 # ── coverage of the spec's table ──────────────────────────────────────────────
+
+
+SPEC_PATH = REPO_ROOT / "docs" / "testing" / "08-config-deploy-readiness.md"
+
+# Backticked identifiers in §1's Flag column that are not env flags. Empty
+# today; kept as the declared escape hatch so a future non-flag row is an
+# explicit, reviewed exclusion rather than a silently loosened parser.
+SPEC_TABLE_NON_FLAGS: frozenset[str] = frozenset()
+
+_IDENTIFIER = re.compile(r"`([A-Z_][A-Z0-9_]*)`")
+
+
+def parse_spec_table_flags(markdown: str) -> set[str]:
+    """Flags named in the Flag column of docs/testing/08 §1's table.
+
+    Parsed rather than transcribed: a hardcoded copy of the table asserts
+    that the table equals itself, which is exactly the failure this test is
+    supposed to catch (a row added to the spec with no arm here).
+
+    Rows name more than one flag in two shapes, both present today:
+    `` `NULL_MODEL` / `LLR_ACTION_MODE` `` (two whole names) and
+    `` `FUSED_SCORE_ENABLED` / `_SHADOW` `` (a suffix, which stands for the
+    previous name with its last underscore-segment replaced). Anything
+    starting with `_` is expanded that way; everything else is taken whole.
+    """
+    section = markdown.split("## 1.", 1)[-1].split("\n## ", 1)[0]
+    flags: set[str] = set()
+    for line in section.splitlines():
+        line = line.strip()
+        if not line.startswith("|"):
+            continue
+        cell = line.strip("|").split("|")[0].strip()
+        if cell in ("Flag", "") or set(cell) <= set("-: "):  # header / separator
+            continue
+        previous: str | None = None
+        for token in _IDENTIFIER.findall(cell):
+            if token.startswith("_"):
+                if previous is None:
+                    raise AssertionError(f"suffix {token!r} with no preceding flag in {cell!r}")
+                name = previous.rsplit("_", 1)[0] + token
+            else:
+                name = token
+            previous = name
+            flags.add(name)
+    return flags - SPEC_TABLE_NON_FLAGS
+
+
+def test_spec_table_parser_finds_the_rows_it_should():
+    """The parser has to be pinned too, or a regex that silently matched
+    nothing would make the coverage test below vacuously green."""
+    flags = parse_spec_table_flags(SPEC_PATH.read_text(encoding="utf-8"))
+    # The two multi-flag row shapes, and the row count, spot-checked.
+    assert {"NULL_MODEL", "LLR_ACTION_MODE"} <= flags  # `A` / `B`
+    assert {"FUSED_SCORE_ENABLED", "FUSED_SCORE_SHADOW"} <= flags  # `A_ENABLED` / `_SHADOW`
+    assert {"AI_LIKELIHOOD_ENABLED", "AI_LIKELIHOOD_SHADOW"} <= flags
+    assert {"BAYESIAN_PRIOR_ENABLED", "COHORT_PRIOR_FALLBACK"} <= flags  # `A` (+`B`)
+    assert len(flags) >= 20, sorted(flags)
 
 
 def test_every_flag_in_the_spec_table_has_an_arm():
@@ -1064,29 +1501,11 @@ def test_every_flag_in_the_spec_table_has_an_arm():
         covered |= set(prereq) | set(env)
     for prereq, env, _, _ in API_ON_ARMS.values():
         covered |= set(prereq) | set(env)
-    spec_table_flags = {
-        "CONTEXT_MANIFEST_ENABLED",
-        "ADAPTIVE_WEIGHTS_ENABLED",
-        "GENRE_INVARIANT_WEIGHTS_ENABLED",
-        "GENRE_RESOLVER_V2",
-        "AMPLITUDE_SCORING_ENABLED",
-        "BAYESIAN_PRIOR_ENABLED",
-        "COHORT_PRIOR_FALLBACK",
-        "NULL_MODEL",
-        "LLR_ACTION_MODE",
-        "LENGTH_ADAPTIVE_WEIGHTS",
-        "TOPIC_VARIANCE_INFLATION",
-        "CHARACTERISTIC_WEIGHTS",
-        "RANK_REMEDIATION",
-        "AI_LIKELIHOOD_ENABLED",
-        "AI_LIKELIHOOD_SHADOW",
-        "FUSED_SCORE_ENABLED",
-        "FUSED_SCORE_SHADOW",
-        "LONGITUDINAL_DRIFT_ENABLED",
-        "STYLE_AUTHORSHIP_ENABLED",
-        "SECRET_KEY",
-    }
-    assert spec_table_flags <= covered, sorted(spec_table_flags - covered)
+    spec_table_flags = parse_spec_table_flags(SPEC_PATH.read_text(encoding="utf-8"))
+    assert spec_table_flags <= covered, (
+        "flags in docs/testing/08 §1's table with no arm in this file: "
+        f"{sorted(spec_table_flags - covered)}"
+    )
 
 
 def test_every_scoring_config_field_has_an_off_arm():

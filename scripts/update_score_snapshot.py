@@ -25,6 +25,19 @@ written down. Floats are emitted at full `repr` precision — a rounded
 snapshot would hide exactly the 1-ULP regressions this matrix exists to
 catch.
 
+That sharing is load-bearing for the feature backends too, not just for
+serialisation. `build_api_snapshot_text` enters `api_harness()`, which
+enters `force_tfidf_tier10()`, so the snapshot this script writes is
+generated on tier 10's deterministic TF-IDF backend even on a machine
+where `sentence_transformers` is installed and would otherwise be picked
+(it produces different floats, and CI and the pilot lockset cannot
+reproduce them). Keep that pin inside the shared harness: if it is ever
+duplicated here as a separate direct attribute set, the script and the
+fixtures become two seams that have to be kept in lockstep by hand, and
+the first regeneration from a machine where they disagree commits a
+snapshot the tests reject. `test_api_arms_use_the_tfidf_tier10_backend`
+is what catches that.
+
 Usage:
     .venv/bin/python scripts/update_score_snapshot.py
 """
