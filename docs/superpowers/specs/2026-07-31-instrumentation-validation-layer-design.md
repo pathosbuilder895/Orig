@@ -390,7 +390,8 @@ alone.
    was cut off at the 6-hour cap inside G5), so the job is a six-way matrix
    over `--only` leg groups whose reports a merge job concatenates with
    `scripts/merge_calibration_reports.py`; a leg whose job overran is listed
-   under `missing_legs`, never silently absent. The per-PR
+   under `missing_legs`, never silently absent. First complete run:
+   2026-09-08, run 34226363871 (G5 4 h 26 min; every leg reported). The per-PR
    `.github/workflows/test.yml` remains focused on unit/integration coverage.
    The falsifiability and property tests (C6) still run per-push, which is
    what stops a can't-fail gate from merging.

@@ -168,6 +168,14 @@ exclude-not-abort behavior rule 4 describes.
     # then merges the leg reports (scripts/merge_calibration_reports.py)
     # into the `calibration-report` artifact; a leg whose job overran is
     # listed under missing_legs, never silently absent.
+    # First complete CI run: 2026-09-08, run 34226363871 (cold cache):
+    # G2 12 min, G2b 12 min, G6+G7+G8+T 9 min, G1+G1p 1 h 33 min,
+    # G3+G4 2 h 32 min (G3 alone 2 h 11 min), G5 4 h 26 min -- G5 is the
+    # leg to watch against the 5.5 h step timeout. CI has no
+    # sentence-transformers, so tier 10 runs its TF-IDF backend there (the
+    # report's vector_cache.semantic_backend says which); verdicts matched
+    # the local sentence-transformers run gate for gate, with small shifts
+    # in the continuous values (G2 holdout median 0.222 vs 0.200).
 
     # deployment-shaped layer (real API, isolated DB per matrix cell)
     .venv/bin/python -m validation.termsim describe --seed 20260826
