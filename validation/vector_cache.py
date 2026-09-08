@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import fcntl
 import hashlib
+import json
 import os
 from collections.abc import Callable
 from pathlib import Path
@@ -96,19 +97,59 @@ def make_cached_feature_vector(cache_dir: Path, extract: Callable, backend: str)
     return cached
 
 
+def make_cached_extract_features(cache_dir: Path, extract: Callable, backend: str) -> Callable:
+    """Same memo for ``extract_features`` (the ``{code: value}`` dict the
+    scoring route needs alongside the vector) -- stored as JSON under the
+    same key with a ``.features.json`` suffix. Without this the scoring
+    route still re-parsed every held-out text once per fold."""
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    def cached(text: str, keystroke_data=None):
+        if keystroke_data:
+            return extract(text, keystroke_data=keystroke_data)
+        key = vector_cache_key(text, backend)
+        path = cache_dir / f"{key}.features.json"
+        lock_path = cache_dir / f"{key}.lock"
+        with lock_path.open("w") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            if path.exists():
+                return json.loads(path.read_text())
+            feats = extract(text)
+            temporary = path.with_suffix(".tmp.json")
+            temporary.write_text(json.dumps(feats))
+            temporary.replace(path)
+            return feats
+
+    cached.__wrapped__ = extract  # type: ignore[attr-defined]
+    return cached
+
+
 def install_vector_cache(cache_dir: Path) -> Callable[[], None]:
-    """Patch the two route modules' ``feature_vector`` bindings; return a
+    """Patch the route modules' ``feature_vector`` bindings (baseline +
+    scoring) and the scoring route's ``extract_features`` binding; return a
     restore callable that puts the originals back."""
+    from original.features.pipeline import extract_features as extract_dict
     from original.features.pipeline import feature_vector as extract
     from original.routers import students_baseline, students_scoring
 
-    cached = make_cached_feature_vector(Path(cache_dir), extract, semantic_backend())
-    originals = (students_baseline.feature_vector, students_scoring.feature_vector)
+    backend = semantic_backend()
+    cached = make_cached_feature_vector(Path(cache_dir), extract, backend)
+    cached_dict = make_cached_extract_features(Path(cache_dir), extract_dict, backend)
+    originals = (
+        students_baseline.feature_vector,
+        students_scoring.feature_vector,
+        students_scoring.extract_features,
+    )
     students_baseline.feature_vector = cached
     students_scoring.feature_vector = cached
+    students_scoring.extract_features = cached_dict
 
     def restore() -> None:
-        students_baseline.feature_vector, students_scoring.feature_vector = originals
+        (
+            students_baseline.feature_vector,
+            students_scoring.feature_vector,
+            students_scoring.extract_features,
+        ) = originals
 
     return restore
 
@@ -124,6 +165,6 @@ def maybe_install_from_env() -> tuple[Callable[[], None], dict | None]:
         "dir": str(Path(cache_dir).resolve()),
         "key_scheme": KEY_SCHEME,
         "semantic_backend": semantic_backend(),
-        "scope": "students_baseline.feature_vector and students_scoring.feature_vector, "
-        "for the duration of run_all() only",
+        "scope": "students_baseline.feature_vector, students_scoring.feature_vector and "
+        "students_scoring.extract_features, for the duration of run_all() only",
     }

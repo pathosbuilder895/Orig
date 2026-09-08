@@ -72,21 +72,54 @@ class TestCachedFunction:
         assert not list(tmp_path.glob("*.npy"))
 
 
+class TestCachedExtractFeatures:
+    def test_dict_is_served_from_disk_and_equal(self, tmp_path):
+        calls = []
+
+        def extract(text, keystroke_data=None):
+            calls.append(text)
+            return {"a": float(len(text)), "b": 0.5}
+
+        cached = vector_cache.make_cached_extract_features(tmp_path, extract, "tfidf")
+        first = cached("hello")
+        second = cached("hello")
+        assert len(calls) == 1
+        assert first == second == {"a": 5.0, "b": 0.5}
+        assert list(tmp_path.glob("*.features.json"))
+
+    def test_keystroke_requests_bypass(self, tmp_path):
+        calls = []
+
+        def extract(text, keystroke_data=None):
+            calls.append(keystroke_data)
+            return {}
+
+        cached = vector_cache.make_cached_extract_features(tmp_path, extract, "tfidf")
+        cached("x", keystroke_data={"k": 1})
+        cached("x", keystroke_data={"k": 1})
+        assert calls == [{"k": 1}, {"k": 1}]
+        assert not list(tmp_path.glob("*.json"))
+
+
 class TestInstall:
     def test_install_patches_route_bindings_and_restore_reverts(self, tmp_path, monkeypatch):
         from original.routers import students_baseline, students_scoring
 
         monkeypatch.setattr(vector_cache, "semantic_backend", lambda: "tfidf")
         before = (students_baseline.feature_vector, students_scoring.feature_vector)
+        before_dict = students_scoring.extract_features
         restore = vector_cache.install_vector_cache(tmp_path)
         try:
             assert students_baseline.feature_vector is not before[0]
             assert students_scoring.feature_vector is not before[1]
             assert students_baseline.feature_vector is students_scoring.feature_vector
             assert students_baseline.feature_vector.__wrapped__ is before[0]
+            assert students_scoring.extract_features is not before_dict
+            assert students_scoring.extract_features.__wrapped__ is before_dict
         finally:
             restore()
         assert (students_baseline.feature_vector, students_scoring.feature_vector) == before
+        assert students_scoring.extract_features is before_dict
 
     def test_env_unset_is_a_no_op(self, monkeypatch):
         monkeypatch.delenv(vector_cache.ENV_VAR, raising=False)
