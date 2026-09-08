@@ -93,6 +93,15 @@ The 2026-08-26 G2 floor-asymmetry audit returned **genuine**, not artifact:
 own conformal rank-1 floor. The separation survives a scale-free rank read;
 see `validation/audits/g2_floor_asymmetry_2026-08-26.json`.
 
+The 2026-09-07 pooled-typicality exchangeability audit
+(`validation/audits/pooling_exchangeability_2026-09-07.json`) is the first
+real-corpus run of the Task 7 assessor: G1-eligible Plato dialogues and
+the G6 native-English corpus are **exchangeable**; seminary,
+`public_authors`, and every cross-corpus union are **heterogeneous**
+(details in `validation/audits/README.md`). The battery's `G1p` gate
+therefore pools within Plato only and is reported alongside, never instead
+of, the self-calibrated G1.
+
 `validation/benchmarks/2026-07-31/public_authors/report.json` (committed;
 `validation/benchmarks/*` is otherwise git-ignored and only specific runs are
 added as evidence — see `validation/benchmarks/README.md`) is a real run of
@@ -112,13 +121,19 @@ exclude-not-abort behavior rule 4 describes.
     # fast unit layer (part of the main suite)
     .venv/bin/python -m pytest tests/ -q
 
-    # gate battery — G1-G8, corpus-driven via the in-process API client.
-    # This is a multi-minute run (it LOO-scores whole documents across
-    # seminary + public_authors + Plato, plus the G5 permutation-null
+    # gate battery — G1, G1p-G8 + T-1..T-4, corpus-driven via the in-process
+    # API client. Cold, it re-extracts every corpus text once per LOO fold
+    # (20+ CPU-hours, 2026-09-07); CALIBRATION_GATE_VECTOR_CACHE=<dir>
+    # memoises the route-level feature_vector on disk (same vectors, one
+    # extraction per distinct text — see validation/vector_cache.py) and
+    # the --out report records that it was used.
+    # This is a multi-minute run even cached (it LOO-scores whole documents
+    # across seminary + public_authors + Plato, plus the G5 permutation-null
     # rerun) — don't run it casually, and use --strict before quoting
     # any number out of it, since the default treats an uninformative
     # gate as non-failing.
-    .venv/bin/python -m validation.calibration_gate --strict
+    CALIBRATION_GATE_VECTOR_CACHE=.benchmark_cache/calibration_gate/vectors \
+        .venv/bin/python -m validation.calibration_gate --strict
 
     # deployment-shaped layer (real API, isolated DB per matrix cell)
     .venv/bin/python -m validation.termsim describe --seed 20260826

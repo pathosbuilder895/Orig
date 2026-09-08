@@ -1617,10 +1617,13 @@ def _g7_fold_metrics(folds: list[dict]) -> dict:
 # The real G1 leg (_score_corpus_for_g1, below) scores THREE different
 # corpora -- seminary, public_authors, and Plato -- under one flat "demo:"
 # sid prefix: every fold's sid is demo:gate_g1_{entity_id}_{held_out_idx}, so
-# every entity from every corpus shares the literal tenant "demo". Task 7's
-# pooling_exchangeability audit only validated within-seminary and
-# within-Plato exchangeability SEPARATELY -- never their union, and never
-# public_authors at all. collect_tenant_distances (original/quantum/
+# every entity from every corpus shares the literal tenant "demo". The
+# 2026-09-07 real-corpus exchangeability audit
+# (validation/audits/pooling_exchangeability_2026-09-07.json) found every
+# cross-group union HETEROGENEOUS (KS max 0.79-0.95) and licensed pooling
+# only within the G1-eligible Plato dialogues (before it, the "Task 7
+# validated seminary and Plato separately" claim rested on synthetic tests
+# alone -- the assessor had never been run on real data). collect_tenant_distances (original/quantum/
 # pooled_source.py) resolves tenant via tenant_of(sid) or DEMO_TENANT, and
 # tenant_of only looks at the substring before the first ":" -- so calling it
 # with tenant="demo" across the merged texts_by_id would silently pool all
@@ -2024,6 +2027,134 @@ def _score_corpus_for_g1_pooled(
     }
 
 
+_G1P_CRITERION = (
+    "pooled-calibration twin of G1: flagged rate <= 5% with each fold's "
+    "typicality band calibrated on same-group peers' LOO distances"
+)
+# The corpus groups whose within-group exchangeability the committed audit
+# licensed for pooling (validation/audits/pooling_exchangeability_2026-09-07.json,
+# rows "<group>_g1_eligible"). Entities outside these groups are never pooled
+# — _g1p_group_of gives each its own singleton group, so
+# _score_corpus_for_g1_pooled finds no peers and score() falls back to
+# self-calibration for them (counted under calibration_mode_counts["self"]).
+# Cross-group pooling stays forbidden regardless: the same audit measured the
+# seminary+plato and all-three unions — see the JSON for their verdicts.
+_G1P_EXCHANGEABILITY_AUDIT = "validation/audits/pooling_exchangeability_2026-09-07.json"
+_G1P_LICENSED_GROUPS: frozenset[str] = frozenset({"plato"})
+# Measured 2026-09-07 (first real-corpus run of the Task 7 assessor; nothing
+# earlier was ever run on real data): plato_g1_eligible EXCHANGEABLE
+# (variance ratio 0.025, KS max 0.393); seminary HETEROGENEOUS (ratio 0.228
+# but KS max 0.726 -- one group sits far from the pooled rest);
+# public_authors heterogeneous and G1-ineligible anyway (3-4 texts each);
+# every cross-group union heterogeneous (KS max 0.79-0.95).
+
+
+def _g1p_group_of(
+    seminary_texts: dict[str, list[str]],
+    plato_texts: dict[str, list[str]],
+    public_authors_texts: dict[str, list[str]],
+    licensed: frozenset[str] = _G1P_LICENSED_GROUPS,
+) -> dict[str, str]:
+    """_group_entities_for_pooling, then isolate every entity whose group is
+    not in `licensed` into a singleton group of its own (no peers, so it is
+    scored self-calibrated rather than against evidence that was never
+    gathered)."""
+    group_of = _group_entities_for_pooling(seminary_texts, plato_texts, public_authors_texts)
+    return {
+        eid: (g if g in licensed else f"unpooled:{eid}") for eid, g in group_of.items()
+    }
+
+
+def _g1p_texts(
+    texts_by_id: dict[str, list[str]], group_of: dict[str, str]
+) -> dict[str, list[str]]:
+    """G1p's population: only entities in a licensed group. Unlicensed
+    entities are EXCLUDED rather than scored self-calibrated -- self-scoring
+    them would just replay G1 inside G1p and let their unreachable N=4 folds
+    drag the whole leg's reachability (MIN over folds) to uninformative."""
+    return {eid: t for eid, t in texts_by_id.items() if group_of.get(eid) in _G1P_LICENSED_GROUPS}
+
+
+def _g1p_informational(pooled_out: dict, group_of: dict[str, str]) -> dict:
+    """Report-only context for G1p's detail: per-group flagged rates and
+    reachability (so a pooled pass cannot hide one group's band never
+    firing), how many folds actually used the pooled reference, and the
+    licensing provenance."""
+    from original.quantum.typicality import NO_ACTION_FAR_THRESHOLD
+
+    per_group_actions: dict[str, list[str]] = {}
+    per_group_ns: dict[str, list[int]] = {}
+    for eid, actions in pooled_out["per_corpus_actions"].items():
+        g = group_of.get(eid, "unknown")
+        g = g if not g.startswith("unpooled:") else "unpooled"
+        per_group_actions.setdefault(g, []).extend(actions)
+        per_group_ns.setdefault(g, []).extend(pooled_out["per_corpus_typicality_ns"].get(eid, []))
+    per_group_flagged_rates = {
+        g: {
+            "n": len(a),
+            "flagged": sum(1 for x in a if x != "no_action"),
+            "flagged_rate": (sum(1 for x in a if x != "no_action") / len(a)) if a else None,
+        }
+        for g, a in per_group_actions.items()
+    }
+    per_group_reachability = {
+        g: _reachability_block(ns, NO_ACTION_FAR_THRESHOLD) for g, ns in per_group_ns.items()
+    }
+    return {
+        "calibration_mode_counts": pooled_out["calibration_mode_counts"],
+        "pool_reference_sizes": pooled_out["pool_reference_sizes"],
+        "per_group_flagged_rates": per_group_flagged_rates,
+        "per_group_reachability": per_group_reachability,
+        "n_drift_rejected": pooled_out["n_drift_rejected"],
+        "licensed_groups": sorted(_G1P_LICENSED_GROUPS),
+        "exchangeability_audit": _G1P_EXCHANGEABILITY_AUDIT,
+        "population_note": (
+            "only entities in licensed_groups are scored; G1 (self-calibrated) "
+            "remains the leg that covers every corpus"
+        ),
+        "caveat": (
+            "folds are scored by calling original.quantum.scoring.score() "
+            "directly with pooled_states -- the live /score route does not "
+            "supply a pooled reference (see _score_corpus_for_g1_pooled's "
+            "docstring), so this measures what TYPICALITY_POOLED_CALIBRATION "
+            "would do if the route supported it, not shipped behaviour"
+        ),
+    }
+
+
+def evaluate_g1_pooled_fpr(
+    pooled_actions: list[str],
+    per_corpus: dict[str, list[str]],
+    typicality_ns: list[int] | None = None,
+    informational: dict | None = None,
+) -> GateResult:
+    """
+    G1p — G1's criterion (pooled flagged rate <= 5%, per-corpus breakdown,
+    reachability downgrade) evaluated on folds scored under pooled
+    typicality calibration. Reported ALONGSIDE G1, never instead of it: G1
+    stays the shipped self-calibrated behaviour; G1p answers whether the
+    pooled reference makes the conformal band reachable at this corpus
+    depth and what the flagged rate is once it can fire.
+
+    Deliberately takes no `entity_baseline_counts`: that mechanism
+    reconstructs reachability from each entity's OWN document count, which
+    is the very floor pooling exists to lift — feeding it here would
+    downgrade every zero-flag pooled pass to uninformative on self-N
+    arithmetic that no longer applies. `typicality_ns` (the per-fold N the
+    scorer actually calibrated against: pooled where a reference was built,
+    self where it fell back) is the honest reachability signal.
+    """
+    import dataclasses as _dc
+
+    base = evaluate_g1_fpr(pooled_actions, per_corpus, typicality_ns=typicality_ns)
+    return _dc.replace(
+        base,
+        name="G1p",
+        criterion=_G1P_CRITERION,
+        detail={**base.detail, **(informational or {})},
+    )
+
+
 def _g1_entity_baseline_counts(
     texts_by_id: dict[str, list[str]], per_corpus_actions: dict[str, list[str]]
 ) -> dict[str, int]:
@@ -2268,6 +2399,31 @@ def _run_all_gates() -> list[GateResult]:
     )
     results.append(g1_result)
 
+    # G1p: the pooled-calibration twin of G1 (same folds, same criterion,
+    # typicality bands calibrated on licensed same-group peers). A crash is
+    # a machinery error like any other leg's; G1's own result above is
+    # never touched by it.
+    try:
+        g1p_group_of = _g1p_group_of(seminary_texts, plato_texts, public_authors_texts)
+        g1p_out = _score_corpus_for_g1_pooled(
+            client, "g1p", _g1p_texts(texts_by_id, g1p_group_of), g1p_group_of
+        )
+        _require_healthy_leg(
+            "G1p pooled",
+            n_success=len(g1p_out["pooled_actions"]),
+            n_errors=g1p_out["n_errors"] - g1p_out["n_drift_rejected"],
+        )
+        results.append(
+            evaluate_g1_pooled_fpr(
+                g1p_out["pooled_actions"],
+                g1p_out["per_corpus_actions"],
+                typicality_ns=g1p_out["pooled_typicality_ns"],
+                informational=_g1p_informational(g1p_out, g1p_group_of),
+            )
+        )
+    except Exception as exc:
+        results.append(_machinery_error_result("G1p", _G1P_CRITERION, exc))
+
     # G2: bland impostor via q = min(p_far, p_central). A crash here (e.g.
     # _compute_g2_q_values's _require_healthy_leg call catching a dialogue
     # whose baseline uploads mostly failed) is a machinery failure, same
@@ -2399,6 +2555,7 @@ def _run_all_gates() -> list[GateResult]:
     }
     result_corpus_keys = {
         "G1": ("seminary", "public_authors", "plato"),
+        "G1p": ("seminary", "public_authors", "plato"),
         "G2": ("plato",),
         "G2b": ("plato",),
         "G3": ("public_authors",),
@@ -4589,7 +4746,7 @@ def run_g5(
 
 
 def render(results: list[GateResult]) -> str:
-    lines = ["╭─ Calibration gates (G1-G8 + T-1…T-4) ──────────────────────╮"]
+    lines = ["╭─ Calibration gates (G1, G1p-G8 + T-1…T-4) ─────────────────╮"]
     for r in results:
         status = r.verdict.upper()
         lines.append(f"│ {r.name} [{status}] {r.criterion}")

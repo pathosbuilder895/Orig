@@ -327,3 +327,12 @@ class TestG8Witnesses:
         result = GATE_CONTRACTS["evaluate_g8_genre_discrimination"].label_destruction()
         assert result.detail["bars"]["control"] == pytest.approx(result.detail["chance"] + 0.10)
         assert result.detail["shuffled_accuracy"] > result.detail["bars"]["control"]
+
+
+class TestG1pWitness:
+    def test_g1p_fails_on_the_pooled_rate_not_on_reachability(self):
+        result = GATE_CONTRACTS["evaluate_g1_pooled_fpr"].failure_witness()
+        assert result.name == "G1p"
+        assert result.detail["pooled_flagged_rate"] > 0.05
+        assert result.detail["reachability"]["observed"] is False
+        assert "power" not in result.detail

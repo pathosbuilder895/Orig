@@ -205,10 +205,32 @@ excluding the scored student; thin cohorts fall back to self-calibration. It
 addresses the structural `1/(N+1)` p-value floor that makes the 0.03 action
 boundary unreachable below 33 distances, but it changes typicality bands and
 is not enabled. The live `/score` route does not currently supply the pooled
-reference, so the audit calls `quantum.score()` directly. Exchangeability has
-only been established within seminary and Plato separately—not across their
-union or for `public_authors`; see
-`validation/audits/pooled_calibration_payoff.py`.
+reference, so the audit calls `quantum.score()` directly.
+
+**Exchangeability, measured 2026-09-07** (`validation/audits/
+pooling_exchangeability_2026-09-07.json`; `python -m
+validation.audits.pooling_exchangeability_corpora`). This was the first
+run of the Task 7 assessor on real corpora — the earlier "validated within
+seminary and Plato separately" statement in this section had no
+measurement behind it (the assessor shipped with synthetic tests only).
+Verdicts on each entity's leave-one-out rms_z distances: G1-eligible Plato
+dialogues **exchangeable** (19 dialogues, variance ratio 0.025, KS max
+0.393); G6's native-English corpus **exchangeable** (ratio 0.049, KS
+0.382); **seminary heterogeneous** (ratio 0.228 passes the 1.0 limit but
+KS max 0.726 fails the 0.5 limit — one group sits far from the pooled
+rest); `public_authors` heterogeneous (KS 0.871) and below G1's five-text
+floor regardless; every cross-corpus union heterogeneous (seminary+Plato
+KS 0.79, all three KS 0.95). Pooling is therefore licensed within Plato
+only. The calibration battery now carries **G1p** — G1's criterion on the
+Plato folds scored under pooled calibration (`_score_corpus_for_g1_pooled`,
+`quantum.score()` called directly), reported alongside the self-calibrated
+G1, with per-group reachability and the pooled/self fold counts in its
+detail. On an 8-group seminary smoke run where the pooled reference did
+engage (n=35, band reachable), 27.5% of genuine same-author folds were
+flagged — consistent with the heterogeneity verdict and a warning that
+"reachable" is not "calibrated". A pilot tenant is seminary-shaped, so
+enabling this flag would need a per-tenant exchangeability check on real
+cohorts, not just corpus evidence.
 
 **Demo/pilot enablement gate** — rule: **seminary AUC ≥ 0.85 AND
 false-positive rate ≤ 5% at `t_elevated` on authentic seminary essays**

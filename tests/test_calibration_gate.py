@@ -3983,3 +3983,118 @@ class TestG8SkipsWhenSklearnIsMissing:
         assert "sklearn" in result.detail["missing"] or "scikit-learn" in str(
             result.detail["missing"]
         )
+
+
+# ── G1p: pooled-calibration twin of G1 ─────────────────────────────────────────
+
+
+class TestEvaluateG1PooledFpr:
+    def test_is_named_g1p_with_its_own_criterion_and_g1s_verdict_logic(self):
+        from validation.calibration_gate import _G1P_CRITERION, evaluate_g1_fpr, evaluate_g1_pooled_fpr
+
+        actions = ["no_action"] * 19 + ["monitor"]
+        per_corpus = {"a": actions[:10], "b": actions[10:]}
+        pooled = evaluate_g1_pooled_fpr(actions, per_corpus, typicality_ns=[130] * 20)
+        plain = evaluate_g1_fpr(actions, per_corpus, typicality_ns=[130] * 20)
+
+        assert pooled.name == "G1p"
+        assert pooled.criterion == _G1P_CRITERION
+        assert pooled.verdict == plain.verdict == "pass"
+        assert pooled.detail["pooled_flagged_rate"] == plain.detail["pooled_flagged_rate"]
+        assert pooled.detail["per_corpus_flagged_rate"] == plain.detail["per_corpus_flagged_rate"]
+
+    def test_fails_above_five_percent(self):
+        from validation.calibration_gate import evaluate_g1_pooled_fpr
+
+        result = evaluate_g1_pooled_fpr(["monitor"] * 20, {"w": ["monitor"] * 20})
+        assert result.verdict == "fail"
+        assert result.passed is False
+
+    def test_zero_flags_at_an_unreachable_pooled_n_is_uninformative(self):
+        """The whole point of G1p is that pooling lifts N; if it did not
+        (every fold fell back to self at N=4), a 0% rate is arithmetic and
+        must read uninformative exactly as G1 would."""
+        from validation.calibration_gate import evaluate_g1_pooled_fpr
+
+        result = evaluate_g1_pooled_fpr(["no_action"] * 5, {"a": ["no_action"] * 5}, typicality_ns=[4] * 5)
+        assert result.verdict == "uninformative"
+
+    def test_informational_is_merged_into_detail_without_touching_the_verdict(self):
+        from validation.calibration_gate import evaluate_g1_pooled_fpr
+
+        info = {"calibration_mode_counts": {"pooled": 5}, "caveat": "x"}
+        result = evaluate_g1_pooled_fpr(
+            ["no_action"] * 5, {"a": ["no_action"] * 5}, typicality_ns=[130] * 5, informational=info
+        )
+        assert result.detail["calibration_mode_counts"] == {"pooled": 5}
+        assert result.detail["caveat"] == "x"
+        assert result.verdict == "pass"
+
+
+class TestG1pGroupOf:
+    def test_unlicensed_groups_become_singletons_so_they_are_never_pooled(self):
+        from validation.calibration_gate import _g1p_group_of, _pool_peers_for_entity
+
+        seminary = {"s0": ["a"], "s1": ["b"]}
+        plato = {"p0": ["c"], "p1": ["d"]}
+        pa = {"augustine": ["e"], "mill": ["f"]}
+        group_of = _g1p_group_of(seminary, plato, pa, licensed=frozenset({"seminary"}))
+
+        assert group_of["s0"] == group_of["s1"] == "seminary"
+        assert group_of["p0"] == "unpooled:p0"
+        assert group_of["augustine"] == "unpooled:augustine"
+        states = {e: object() for e in group_of}
+        assert _pool_peers_for_entity("p0", group_of, states) == {}
+        assert set(_pool_peers_for_entity("s0", group_of, states)) == {"s1"}
+
+    def test_module_constant_is_the_default_licence(self):
+        from validation.calibration_gate import _G1P_LICENSED_GROUPS, _g1p_group_of
+
+        group_of = _g1p_group_of({"s0": ["a"]}, {"p0": ["b"]}, {"x": ["c"]})
+        for eid, g in {"s0": "seminary", "p0": "plato", "x": "public_authors"}.items():
+            assert (group_of[eid] == g) == (g in _G1P_LICENSED_GROUPS)
+
+
+class TestG1pTexts:
+    def test_only_licensed_group_entities_are_scored(self):
+        from validation.calibration_gate import _G1P_LICENSED_GROUPS, _g1p_texts
+
+        group_of = {"s0": "seminary", "p0": "plato", "x": "public_authors", "p1": "unpooled:p1"}
+        texts = {e: ["t"] * 5 for e in group_of}
+        kept = _g1p_texts(texts, group_of)
+        assert set(kept) == {e for e, g in group_of.items() if g in _G1P_LICENSED_GROUPS}
+        assert "p1" not in kept  # isolated singletons are excluded too
+
+    def test_plato_is_the_licensed_group(self):
+        """Pins the 2026-09-07 audit's licence: only plato_g1_eligible came
+        back exchangeable. Changing this constant requires a new committed
+        audit, not a test edit."""
+        from validation.calibration_gate import _G1P_LICENSED_GROUPS
+
+        assert _G1P_LICENSED_GROUPS == frozenset({"plato"})
+
+
+class TestG1pInformational:
+    def test_reports_per_group_rates_and_reachability_and_provenance(self):
+        from validation.calibration_gate import (
+            _G1P_EXCHANGEABILITY_AUDIT,
+            _g1p_informational,
+        )
+
+        pooled_out = {
+            "per_corpus_actions": {"s0": ["no_action", "monitor"], "p0": ["no_action"]},
+            "per_corpus_typicality_ns": {"s0": [130, 130], "p0": [4]},
+            "calibration_mode_counts": {"pooled": 2, "self": 1, "none": 0},
+            "pool_reference_sizes": {"s0": 130},
+            "n_drift_rejected": 1,
+        }
+        group_of = {"s0": "seminary", "p0": "unpooled:p0"}
+        info = _g1p_informational(pooled_out, group_of)
+
+        assert info["per_group_flagged_rates"]["seminary"] == {"n": 2, "flagged": 1, "flagged_rate": 0.5}
+        assert info["per_group_flagged_rates"]["unpooled"]["flagged"] == 0
+        assert info["per_group_reachability"]["seminary"]["observed"] is True
+        assert info["per_group_reachability"]["unpooled"]["reachable"] is False
+        assert info["exchangeability_audit"] == _G1P_EXCHANGEABILITY_AUDIT
+        assert info["n_drift_rejected"] == 1
+        assert "live /score route" in info["caveat"]
