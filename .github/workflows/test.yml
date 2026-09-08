@@ -153,7 +153,12 @@ jobs:
   known-red:
     runs-on: ubuntu-latest
     needs: lint
-    timeout-minutes: 20
+    # The four certification tests measured 5:31 wall on a 12-core Darwin
+    # box; ubuntu-latest runners are 2-core, and this job also pays for
+    # pip install, the spaCy model download, and the perf + lockset
+    # blockers on top of the certification witnesses — 20 minutes was
+    # too tight.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

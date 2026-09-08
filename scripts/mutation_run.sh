@@ -19,13 +19,15 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# The worktree this was authored in has no local .venv (see CLAUDE.md /
-# project memory: "venv path in worktrees") — fall back to the primary
-# checkout's absolute path when a relative .venv isn't present.
+# A worktree has no local .venv (see CLAUDE.md / project memory: "venv path
+# in worktrees") — fall back to the primary checkout's .venv, resolved the
+# same way .pre-commit-config.yaml's changed-tests hook does: the common
+# .git dir's parent is the primary checkout root, regardless of whose
+# machine this runs on.
 if [ -x ".venv/bin/python" ]; then
     VENV_BIN=".venv/bin"
 else
-    VENV_BIN="/Users/andrew/Desktop/Original/.venv/bin"
+    VENV_BIN="$(git rev-parse --path-format=absolute --git-common-dir)/../.venv/bin"
 fi
 PIP="$VENV_BIN/pip"
 MUTMUT="$VENV_BIN/mutmut"

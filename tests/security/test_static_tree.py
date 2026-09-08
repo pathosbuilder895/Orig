@@ -83,7 +83,15 @@ assert any(url == "/.env.example" for _, url in FORBIDDEN), FORBIDDEN
 def mounted_app(live_app):
     """The live app with demo/ mounted as static, exactly as ``run.py --demo``
     does (``run.create_demo_app`` re-mounts idempotently onto the same
-    session-scoped app ``live_app`` already points at)."""
+    session-scoped app ``live_app`` already points at).
+
+    Note: ``run.create_demo_app`` mutates ``live_app`` itself (mounts the
+    static files app + adds the ``/`` redirect) rather than returning a
+    fresh app, so this leaves those mounts/routes on ``live_app`` for the
+    rest of the session, not just for this test. That has been checked
+    benign against ``tests/test_pilot_lockdown.py`` (which also exercises
+    ``live_app`` and passes regardless of test order).
+    """
     return run_mod.create_demo_app(DEMO_DIR)
 
 

@@ -11,7 +11,11 @@ may have been closed without the register or marker being updated.
 
 Usage: .venv/bin/python scripts/known_red.py
 Exit: 0 all blocker tests failed/errored, or none were collected (notice).
-      1 at least one blocker test PASSED.
+      1 at least one blocker test PASSED, or was skipped without an
+        "uninformative" reason.
+      2 the run of the blocker suite itself broke (pytest exited something
+        other than 0/1/5, or produced no readable junit results) — not a
+        policy verdict either way.
 """
 
 from __future__ import annotations
@@ -131,29 +135,69 @@ def gap_id_for(result: BlockerResult, repo_root: Path) -> str:
     return match.group(0) if match else "?"
 
 
-def run_blocker_tests(repo_root: Path) -> str:
+def run_blocker_tests(repo_root: Path) -> tuple[int, str | None, str]:
+    """Run `pytest -m blocker`, capturing everything main() needs to tell a
+    policy verdict apart from a broken run: the process's own exit code, the
+    junit report text (None if the file was never written), and the
+    combined stdout/stderr for the error path to show.
+    """
     with tempfile.TemporaryDirectory() as tmp:
         junit_path = Path(tmp) / "known-red-junit.xml"
-        subprocess.run(
+        proc = subprocess.run(
             [
                 sys.executable, "-m", "pytest", "tests/", "-m", "blocker", "-q",
                 f"--junitxml={junit_path}", "-p", "no:cacheprovider",
             ],
-            cwd=repo_root,
+            cwd=repo_root, capture_output=True, text=True,
         )
-        return junit_path.read_text()
+        junit_text = junit_path.read_text() if junit_path.is_file() else None
+        captured = proc.stdout + proc.stderr
+        return proc.returncode, junit_text, captured
 
 
-def main() -> int:
-    results = parse_junit(run_blocker_tests(REPO_ROOT))
+def report_and_decide(
+    returncode: int, junit_text: str | None, captured: str, repo_root: Path
+) -> int:
+    """Turn a pytest run's raw outcome into the known-red exit code.
 
-    if not results:
+    Exit 5 ("no tests collected") is the legitimate "no blocker tests exist"
+    notice. Exit 0 or 1 means tests actually ran, so their junit report is
+    trusted and handed to the (pure) `decide()` policy. Anything else —
+    another exit code, or no junit file at all — means the run of the
+    blocker suite itself broke; that is never a policy verdict, so it is
+    reported as a hard error instead of being read as "nothing to check" or
+    silently folded into "all passed/failed as expected".
+    """
+    if returncode == 5:
         print("known-red: no tests carry @pytest.mark.blocker — nothing to check.")
         return 0
 
+    if returncode not in (0, 1) or junit_text is None:
+        print(captured)
+        reason = (
+            f"pytest exited {returncode}" if returncode not in (0, 1)
+            else "no junit report was written"
+        )
+        print(
+            f"\nknown-red: {reason} running the blocker suite itself — the "
+            "run broke; this is not a policy verdict."
+        )
+        return 2
+
+    results = parse_junit(junit_text)
+
+    if not results:
+        print(captured)
+        print(
+            f"\nknown-red: pytest exited {returncode} but zero <testcase> "
+            "results were parsed from its junit report — the run broke; "
+            "this is not a policy verdict, not 'nothing to check'."
+        )
+        return 2
+
     print(f"{'gap-id':<10} {'test id':<70} outcome")
     for r in results:
-        print(f"{gap_id_for(r, REPO_ROOT):<10} {r.classname + '::' + r.name:<70} {r.outcome}")
+        print(f"{gap_id_for(r, repo_root):<10} {r.classname + '::' + r.name:<70} {r.outcome}")
 
     code = decide(results)
     if code == 1:
@@ -169,6 +213,11 @@ def main() -> int:
                 "reason — skipping is not a way to make a red test green."
             )
     return code
+
+
+def main() -> int:
+    returncode, junit_text, captured = run_blocker_tests(REPO_ROOT)
+    return report_and_decide(returncode, junit_text, captured, REPO_ROOT)
 
 
 if __name__ == "__main__":

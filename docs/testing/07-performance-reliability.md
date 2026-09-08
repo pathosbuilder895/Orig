@@ -64,8 +64,9 @@ only once the loop is free — measure lateness from when the beat was due;
 and a single beat can be dodged by a handler that yields once early — beat
 until the upload completes and assert on the maximum. The fix is
 `run_in_threadpool` / `def` instead of `async def` for CPU handlers; the
-test does not care which. Parametrise over all five
-handlers so the fix cannot be partial.
+test does not care which. Three handlers plus a `.txt` control are covered
+here; the three Canvas handlers (`imports.py:110,147,235`) are deferred to
+§7's slow-upstream harness so the fix cannot be partial there either.
 
 ## 3. Per-score full-table scans
 

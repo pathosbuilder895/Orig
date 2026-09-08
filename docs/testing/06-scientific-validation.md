@@ -94,11 +94,14 @@ Notes on the design (response shape: `recommendation` is an object whose
   `validation/gate_contracts.py` (a fixture where every holdout is a
   different author) or `test_gate_falsifiability.py` will reject it — which
   is the correct reflex.
-- **Speed.** Eight authors × three N values × one score ≈ 24 API calls on
-  pre-extracted vectors; well under a minute. It belongs in the per-PR run.
-- **Reporting.** `record_verdict` writes to a JSON the CI job uploads
-  (`certification-report.json`), same shape as the battery report so the
-  weekly workflow can merge them.
+- **Speed.** Baselines are re-extracted server-side — the baseline route
+  accepts text only, not pre-extracted vectors — so this is not the
+  sub-minute run it looks like on paper: measured 5:31 for the package. It
+  runs in the `known-red` job, not per PR.
+- **Reporting.** `record_verdict` writes to a JSON, `certification-report.json`,
+  written locally by the certification tests and not yet uploaded by any CI
+  step — same shape as the battery report so the weekly workflow can merge
+  them once that lands.
 
 Until the saturation fix lands (readiness-gated actions, N-aware thresholds,
 or a joint floor+threshold recalibration — the review's three shapes), this
