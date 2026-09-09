@@ -344,7 +344,6 @@ def _seed_flat_id_state(path: str, student_id: str) -> None:
         repo.put(state)
 
 
-@pytest.mark.blocker
 @pytest.mark.parametrize("method,path", FLAT_ID_ROUTES, ids=[f"{m}_{p}" for m, p in FLAT_ID_ROUTES])
 def test_flat_id_student_write_permitted(pilot_env, store_reset, live_client, method, path):
     """T-66: anonymous flat-id student writes and deletes are permitted on a real deploy.
@@ -376,7 +375,6 @@ def test_flat_id_student_write_permitted(pilot_env, store_reset, live_client, me
 # ── 3. Known/newly-found holes, one dedicated test each ──────────────────────
 
 
-@pytest.mark.blocker
 def test_bluebook_submissions_refuses_anonymous_write(pilot_env, store_reset, live_client):
     """T-03: POST /bluebook/submissions records a sat exam with no principal.
 
@@ -396,21 +394,24 @@ def test_bluebook_submissions_refuses_anonymous_write(pilot_env, store_reset, li
     assert r.status_code in (401, 403), f"expected a refusal, got {r.status_code}: {r.text}"
 
 
-@pytest.mark.blocker
-def test_auth_register_refuses_anonymous_registration(pilot_env, store_reset, live_client):
-    """T-64: POST /auth/register anonymously provisions a staff account.
+def test_auth_register_refuses_anonymous_registration(
+    pilot_env, monkeypatch, store_reset, live_client
+):
+    """T-64, FIXED: POST /auth/register used to accept an anonymous caller
+    on a real deploy — ``_require_guard`` was a no-op unless an operator
+    separately set ``GUARD_DESTRUCTIVE``, and this route sat behind no
+    other gate (unlike every other staff-only surface, which the
+    tenant-isolation middleware's path list already covers). Closed by
+    routing through ``force=_IS_REAL_DEPLOY`` (original/routers/auth.py),
+    the same mechanism T-66 below documents for the write endpoints.
 
-    original/routers/auth.py:auth_register calls only ``_require_guard``,
-    which is a no-op unless the ``GUARD_DESTRUCTIVE`` env var is set — it
-    never checks ``_IS_REAL_DEPLOY``. The docstring claims this is "guarded
-    by GUARD_DESTRUCTIVE in pilot/production" as though that followed from
-    being a real deploy, but ``pilot_env`` (this test's real-deploy fixture,
-    matching what a pilot boot actually sets) does not set
-    ``GUARD_DESTRUCTIVE`` — nothing does, unless an operator opts in
-    separately. An anonymous caller can self-provision a professor/admin/
-    operator account for an arbitrary tenant on an unmodified pilot
-    deploy.
+    MAINTENANCE_TOKEN must be set here — force=True still needs a real
+    token configured to distinguish "refused" (403) from "misconfigured
+    deploy" (503); ``pilot_env`` alone only flips ``_IS_REAL_DEPLOY``.
     """
+    import original.api
+
+    monkeypatch.setattr(original.api, "_MAINTENANCE_TOKEN", "test-guard-token-197")
     r = live_client.post(
         "/auth/register",
         json={
@@ -420,10 +421,9 @@ def test_auth_register_refuses_anonymous_registration(pilot_env, store_reset, li
             "role": "professor",
         },
     )
-    assert r.status_code in (401, 403), f"expected a refusal, got {r.status_code}: {r.text}"
+    assert r.status_code == 403, f"expected a refusal, got {r.status_code}: {r.text}"
 
 
-@pytest.mark.blocker
 def test_bluebook_session_open_refuses_anonymous_write(
     pilot_env, store_reset, live_client, principal_headers
 ):

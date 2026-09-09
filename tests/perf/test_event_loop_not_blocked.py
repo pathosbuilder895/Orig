@@ -353,10 +353,8 @@ async def test_heartbeat_probe_is_fast_with_no_load(store_reset, perf_client):
 @pytest.mark.parametrize(
     "send_upload",
     [
-        pytest.param(
-            _batch_upload, id="baseline-upload-batch", marks=pytest.mark.blocker
-        ),
-        pytest.param(_turnitin_csv, id="turnitin-csv", marks=pytest.mark.blocker),
+        pytest.param(_batch_upload, id="baseline-upload-batch"),
+        pytest.param(_turnitin_csv, id="turnitin-csv"),
         pytest.param(
             _single_upload_docx, id="students-upload", marks=pytest.mark.blocker
         ),
@@ -366,13 +364,14 @@ async def test_heartbeat_probe_is_fast_with_no_load(store_reset, perf_client):
 async def test_upload_does_not_starve_the_heartbeat(
     store_reset, perf_client, send_upload
 ):
-    """T-09: bulk upload blocks the event loop; live exam heartbeats stall.
-
-    RED for the batch importer, the CSV importer, and the .docx branch of the
-    single-file upload (docs/testing/10-gap-register.md). Measured
-    2026-09-07 on this checkout (Darwin, 12 CPUs), beats due every 50 ms for
-    the life of the upload, worst (maximum) lateness across all beats
-    (3 runs each):
+    """T-09, PARTIALLY FIXED: bulk upload blocks the event loop; live exam
+    heartbeats stall. The batch importer and the CSV importer were moved off
+    the event loop (5cfc2b6c) and are green below; the .docx branch of the
+    single-file upload was not part of that fix and stays RED
+    (docs/testing/10-gap-register.md). Measured 2026-09-07 on this checkout
+    (Darwin, 12 CPUs), beats due every 50 ms for the life of the upload,
+    worst (maximum) lateness across all beats (3 runs each) — figures below
+    predate the 5cfc2b6c fix for the first two rows:
 
       baseline/upload-batch   8.6-9.7 s late, 1 beat (8.7-9.7 s request)  — RED
       turnitin-csv             2.4-2.6 s late, 1 beat (2.5-2.7 s request) — RED

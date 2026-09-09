@@ -73,27 +73,22 @@ def _why(result: subprocess.CompletedProcess[str]) -> str:
     [
         pytest.param({"REPO_BACKEND": "sqlite"}, "sqlite", id="repo_backend_sqlite"),
         pytest.param(
-            {"REPO_BACKEND": "postgres"},
-            "postgres",
-            id="repo_backend_postgres",
-            marks=pytest.mark.blocker,
+            {"REPO_BACKEND": "postgres"}, "postgres", id="repo_backend_postgres"
         ),
         pytest.param(
-            {"REPO_SHADOW": "postgres"},
-            "sqlite+shadow",
-            id="repo_shadow_postgres",
-            marks=pytest.mark.blocker,
+            {"REPO_SHADOW": "postgres"}, "sqlite+shadow", id="repo_shadow_postgres"
         ),
     ],
 )
 def test_pilot_lockset_can_import_selected_backend(
     env_overrides: dict[str, str], expected_backend: str, tmp_path: Path
 ) -> None:
-    """T-07: the pilot lockset cannot import the Postgres backend.
+    """T-07, FIXED: the pilot lockset could not import the Postgres backend.
 
     An install of ``requirements-pilot.lock.txt`` alone must be able to reach
-    ``get_repository()`` for whichever backend the deploy env selects. RED for
-    the two Postgres arms today: the lockset has no ``sqlalchemy``.
+    ``get_repository()`` for whichever backend the deploy env selects. Closed
+    by adding the Postgres deps (sqlalchemy/psycopg2-binary/alembic) to
+    requirements-pilot.txt/.lock.txt.
     """
     result = _run_probe(PILOT_LOCKSET, env_overrides, tmp_path)
 

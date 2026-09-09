@@ -77,13 +77,14 @@ def repo(request, store_reset):
         yield get_repository()
     elif request.param == "postgres":
         if not _postgres_available():
-            # "uninformative" is load-bearing, not decoration: this file now
-            # carries a @pytest.mark.blocker test (T-08) parametrized over
-            # BACKENDS, and scripts/known_red.py exits 1 on a blocker test
-            # skipped without that word — a bare skip is indistinguishable
-            # from dodging the known-red policy. An unreachable Postgres is
-            # exactly the plan's third value: the arm was not measured, which
-            # is neither a pass nor a fail.
+            # "uninformative" is load-bearing, not decoration: if a future
+            # @pytest.mark.blocker test is parametrized over BACKENDS,
+            # scripts/known_red.py exits 1 on a blocker test skipped without
+            # that word — a bare skip is indistinguishable from dodging the
+            # known-red policy. An unreachable Postgres is exactly the plan's
+            # third value: the arm was not measured, which is neither a pass
+            # nor a fail. (T-08, which used to carry that marker here, was
+            # closed and unmarked — kept as documentation of the pattern.)
             pytest.skip(
                 "uninformative — no reachable Postgres; set DATABASE_URL to a "
                 "postgresql:// instance to run the WS-6 P3 contract tests "
@@ -2724,18 +2725,15 @@ class TestDeleteStudentCompleteness:
         # just the hardcoded list wearing a metadata costume.
         assert derived - T08_REQUIRED_STUDENT_TABLES
 
-    @pytest.mark.blocker
     def test_delete_student_removes_rows_from_every_student_keyed_table(self, repo):
-        """T-08: delete_student leaves rows in student-keyed tables.
-
-        RED on both backends by design (docs/testing/10-gap-register.md).
-        ``store.delete_student``'s docstring claims it "permanently delete[s]
-        all data for a student (FERPA right-to-erasure)", and
-        ``PostgresRepository.delete_student`` mirrors the same seven tables —
-        but neither touches ``bluebook_submissions``, ``baseline_requests``,
-        or ``formation_pathways``, which all carry the student's id. The
-        assertion below reports the full surviving set, so the failure text
-        is the erasure gap inventory.
+        """T-08, FIXED: delete_student used to leave rows in student-keyed
+        tables. Closed by covering the four missing tables in FERPA erasure
+        (bluebook_submissions, bluebook_sessions, formation_pathways,
+        baseline_requests — and, on this branch, lti_subjects /
+        canvas_asset_reports for the yet-unmerged Canvas asset-processor
+        feature) on both backends. The assertion below reports the full
+        surviving set, so a regression's failure text is the erasure gap
+        inventory again.
         """
         tenant_id = "sem-t08"
         scoped_id = f"{tenant_id}:tess"

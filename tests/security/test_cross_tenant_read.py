@@ -19,7 +19,6 @@ pytestmark = pytest.mark.security
 # ── 1. Pending baseline requests ──────────────────────────────────────────────
 
 
-@pytest.mark.blocker
 def test_pending_baseline_requests_scoped(two_tenants, live_client, monkeypatch):
     """T-02: pending baseline requests leak cross-tenant emails and live magic links.
 
@@ -143,7 +142,6 @@ def test_sample_text_scoped(two_tenants, live_client):
 # ── 6. Admin audit log ─────────────────────────────────────────────────────────
 
 
-@pytest.mark.blocker
 def test_admin_audit_scoped(two_tenants, live_client):
     """T-63: /admin/audit has no tenant filter, leaking cross-tenant audit rows.
 
