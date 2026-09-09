@@ -66,6 +66,20 @@ The last row encodes a finding from TermSim: `SECRET_KEY` does not touch
 the unit arm *and* through `live_client` with `monkeypatch.setenv` for the
 wiring arm. `test_flag_matrix.py` already shows the second pattern.
 
+**Implemented** (T-15): `tests/config/test_flag_byte_identity.py` is the one
+matrix described above, against two committed snapshots —
+`tests/snapshots/score_default.json` (unit, `quantum.scoring.score()`) and
+`tests/snapshots/score_default_api.json` (API,
+`POST /students/{id}/score`) — regenerated together by
+`scripts/update_score_snapshot.py` so a deliberate change to default output
+is one reviewed diff rather than two that can drift apart. Off/shadow/on
+arms run for every flag in the table above; 13 arms measure `uninformative`
+on this fixed profile (the flag's mechanism did not fire for a documented,
+profile-specific reason — e.g. `GENRE_INVARIANT_WEIGHTS_ENABLED`'s
+attenuation not firing because this submission's genre is covered by the
+baseline) rather than being silently treated as a pass, which is exactly
+the trap the matrix exists to catch.
+
 ## 2. Lockset boot matrix (the bricked-boot bug)
 
 `requirements-pilot.txt` (15 lines) lacks `sqlalchemy`, `psycopg2-binary`,

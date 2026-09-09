@@ -73,6 +73,20 @@ The unit level needs no such forcing: its vectors are seeded
 (`_seeded_vector`) and its `feature_dict` is built from that vector, so
 `unit_payload()` never runs the feature pipeline and never reaches tier 10.
 
+Tier 10's backend is not the only machine-dependent input behind the API
+snapshot. `tier5.py`, `tier11.py` and `prosodic.py` all call
+`spacy.load("en_core_web_sm")`, and that pipeline's tagger, parser and
+lemmatizer weights are a property of the exact model wheel, not just the
+spaCy major/minor pinned in `requirements.txt` — a model bump changes the
+extracted floats the same way a tier-10 backend swap does. There is no
+deterministic fallback to force here the way `force_tfidf_tier10()` forces
+tier 10, so every CI workflow step installs the exact wheel version the
+snapshot was generated against, rather than
+`python -m spacy download en_core_web_sm` (unpinned, can silently drift).
+`EN_CORE_WEB_SM_VERSION` records that pinned version next to the snapshot
+paths above, and `test_en_core_web_sm_version_matches_snapshot` fails
+naming the cause — a model bump — instead of a bare snapshot diff.
+
 Normalised API fields
 ---------------------
 Exactly one key is normalised out of the API payloads, at every depth:
@@ -196,6 +210,18 @@ pytestmark = pytest.mark.filterwarnings("ignore:.*conflict with protected namesp
 REPO_ROOT = Path(__file__).resolve().parents[2]
 UNIT_SNAPSHOT_PATH = REPO_ROOT / "tests" / "snapshots" / "score_default.json"
 API_SNAPSHOT_PATH = REPO_ROOT / "tests" / "snapshots" / "score_default_api.json"
+
+# The API snapshot's tier5/tier11/prosodic values come from spaCy's
+# `en_core_web_sm` pipeline (`spacy.load("en_core_web_sm")`), and those are a
+# property of the exact model wheel, not just the spaCy major/minor pin in
+# requirements.txt -- a model bump changes tagger/parser/lemmatizer weights
+# and produces different floats at byte precision. Recorded here, next to
+# the snapshot paths above, so `test_en_core_web_sm_version_matches_snapshot`
+# fails naming the cause (a model bump) rather than pointing at
+# `_REGENERATE_MSG`'s generic "did the math change?" hint. CI installs this
+# exact wheel (see .github/workflows/test.yml and boot-matrix.yml) instead of
+# `python -m spacy download en_core_web_sm`, which is unpinned and can drift.
+EN_CORE_WEB_SM_VERSION = "3.8.0"
 
 _REGENERATE_MSG = "intentional? run `python scripts/update_score_snapshot.py` and review the diff"
 
@@ -1427,6 +1453,32 @@ def test_api_arms_use_the_tfidf_tier10_backend(api_call, api_snapshot):
     ), (
         "the COMMITTED snapshot carries a tier-10 value the deterministic "
         f"backend does not produce — {_REGENERATE_MSG}"
+    )
+
+
+def test_en_core_web_sm_version_matches_snapshot():
+    """The second machine-dependent input behind the API snapshot, alongside
+    tier 10 (see the module docstring's "Deterministic feature backends"
+    section and `test_api_arms_use_the_tfidf_tier10_backend` above).
+
+    `tier5.py`/`tier11.py`/`prosodic.py` all call
+    `spacy.load("en_core_web_sm")`, and the snapshot bakes in that pipeline's
+    exact tagger/parser/lemmatizer output. Unlike tier 10 there is no
+    deterministic fallback to pin against — the fix is installing the same
+    model wheel everywhere the snapshot must reproduce, not forcing a
+    backend. This test fails naming the actual cause (a model bump) instead
+    of leaving a bare snapshot diff that only suggests regenerating it.
+    """
+    import en_core_web_sm
+
+    assert en_core_web_sm.__version__ == EN_CORE_WEB_SM_VERSION, (
+        f"en_core_web_sm is {en_core_web_sm.__version__}, but the committed "
+        f"API snapshot ({API_SNAPSHOT_PATH}) was generated against "
+        f"{EN_CORE_WEB_SM_VERSION}. This is a model version drift, not a "
+        "scoring-math change: reinstall the pinned wheel (see "
+        ".github/workflows/test.yml) to match the snapshot, or -- if the "
+        "model bump is intentional -- update EN_CORE_WEB_SM_VERSION above "
+        f"and regenerate: {_REGENERATE_MSG}"
     )
 
 

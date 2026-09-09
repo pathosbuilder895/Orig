@@ -166,11 +166,17 @@ jobs:
       # `pip install -r requirements.txt` anywhere in this job would defeat the
       # entire point of the matrix.
       - name: Build a venv from ${{ matrix.reqs }} only
+        # spaCy model install is pinned to the exact wheel the byte-exact
+        # snapshot in tests/snapshots/score_default_api.json was generated
+        # against -- `spacy download` resolves latest and would silently
+        # drift. See tests/config/test_flag_byte_identity.py's
+        # "Deterministic feature backends" section and
+        # EN_CORE_WEB_SM_VERSION there.
         run: |
           python -m venv v
           v/bin/pip install --upgrade pip
           v/bin/pip install -r "${{ matrix.reqs }}"
-          v/bin/python -m spacy download en_core_web_sm
+          v/bin/pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
       - name: Boot check
         env:

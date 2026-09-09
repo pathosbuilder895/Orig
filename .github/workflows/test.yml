@@ -65,8 +65,11 @@ jobs:
   # Shard membership is defined in ONE place — scripts/shard_paths.py — and
   # tests/test_shard_partition.py proves by collection that the three
   # selections partition the full blocking set exactly (union == all, pairwise
-  # disjoint), so no test can be silently un-run. Measured collected counts at
-  # the split: core 1012, api 1061, rest 1531, union == full 3604.
+  # disjoint), so no test can be silently un-run. Per-shard collected counts
+  # grow with the suite and are not pinned here — run
+  # `pytest tests/test_shard_partition.py -q -s` for the current triple (it
+  # prints core/api/rest/union/full on every run, so it can never itself go
+  # stale the way a comment can).
   #
   # `rest` is `tests/` MINUS --ignore for everything the other two shards own,
   # which is what makes "un-run" structurally impossible rather than a thing
@@ -111,7 +114,14 @@ jobs:
         run: pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Install spaCy model
-        run: python -m spacy download en_core_web_sm
+        # Pinned to the exact model wheel the byte-exact snapshot in
+        # tests/snapshots/score_default_api.json was generated against.
+        # `python -m spacy download en_core_web_sm` resolves whatever is
+        # latest and would silently produce different tier5/tier11/prosodic
+        # floats -- see tests/config/test_flag_byte_identity.py's
+        # "Deterministic feature backends" section and
+        # EN_CORE_WEB_SM_VERSION there.
+        run: pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
       - name: Run pytest (core shard) with coverage
         env:
@@ -133,6 +143,10 @@ jobs:
           # upload-artifact skips hidden files unless told otherwise.
           include-hidden-files: true
           retention-days: 1
+          # A missing data file here (e.g. the shard errored before
+          # producing one) must fail loudly rather than let coverage-combine
+          # silently combine whatever subset of shards actually uploaded.
+          if-no-files-found: error
 
   pytest-api:
     runs-on: ubuntu-latest
@@ -168,7 +182,14 @@ jobs:
         run: pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Install spaCy model
-        run: python -m spacy download en_core_web_sm
+        # Pinned to the exact model wheel the byte-exact snapshot in
+        # tests/snapshots/score_default_api.json was generated against.
+        # `python -m spacy download en_core_web_sm` resolves whatever is
+        # latest and would silently produce different tier5/tier11/prosodic
+        # floats -- see tests/config/test_flag_byte_identity.py's
+        # "Deterministic feature backends" section and
+        # EN_CORE_WEB_SM_VERSION there.
+        run: pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
       - name: Run pytest (api shard) with coverage
         env:
@@ -187,6 +208,7 @@ jobs:
           path: .coverage.api
           include-hidden-files: true
           retention-days: 1
+          if-no-files-found: error
 
   pytest-rest:
     runs-on: ubuntu-latest
@@ -205,7 +227,14 @@ jobs:
         run: pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Install spaCy model
-        run: python -m spacy download en_core_web_sm
+        # Pinned to the exact model wheel the byte-exact snapshot in
+        # tests/snapshots/score_default_api.json was generated against.
+        # `python -m spacy download en_core_web_sm` resolves whatever is
+        # latest and would silently produce different tier5/tier11/prosodic
+        # floats -- see tests/config/test_flag_byte_identity.py's
+        # "Deterministic feature backends" section and
+        # EN_CORE_WEB_SM_VERSION there.
+        run: pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
       # Home of tests/test_shard_partition.py, which re-derives the partition
       # from scripts/shard_paths.py on every run — so this shard is also the
@@ -226,6 +255,7 @@ jobs:
           path: .coverage.rest
           include-hidden-files: true
           retention-days: 1
+          if-no-files-found: error
 
   # The ONE place the coverage floor is enforced. Ratcheted 70 (WS-2) -> 72
   # (WS-5) -> 78 (#104, additional API coverage tests) -> 98 (2026-08-20,
@@ -270,6 +300,25 @@ jobs:
         with:
           pattern: coverage-data-*
           merge-multiple: true
+
+      # `if-no-files-found: error` on each shard's upload step catches an
+      # empty artifact; it cannot catch one that never uploaded at all (a
+      # cancelled or otherwise-skipped shard job). Without this check
+      # `coverage combine` would silently combine whatever subset of the
+      # three data files actually downloaded and the floor below would be
+      # enforced against a partial number.
+      - name: Verify all three shards' coverage data downloaded
+        run: |
+          missing=0
+          for f in .coverage.core .coverage.api .coverage.rest; do
+            if [ ! -f "$f" ]; then
+              echo "::error::missing $f -- coverage-combine cannot run on partial data"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
 
       - name: Combine and enforce the floor
         run: |
@@ -323,7 +372,14 @@ jobs:
         run: pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Install spaCy model
-        run: python -m spacy download en_core_web_sm
+        # Pinned to the exact model wheel the byte-exact snapshot in
+        # tests/snapshots/score_default_api.json was generated against.
+        # `python -m spacy download en_core_web_sm` resolves whatever is
+        # latest and would silently produce different tier5/tier11/prosodic
+        # floats -- see tests/config/test_flag_byte_identity.py's
+        # "Deterministic feature backends" section and
+        # EN_CORE_WEB_SM_VERSION there.
+        run: pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
       - name: Certification witnesses (must pass)
         run: python -m pytest tests/ -m "certification and not blocker" -q -p no:cacheprovider
@@ -396,7 +452,14 @@ jobs:
         run: pip install -r requirements-pilot.txt
 
       - name: Install spaCy model
-        run: python -m spacy download en_core_web_sm
+        # Pinned to the exact model wheel the byte-exact snapshot in
+        # tests/snapshots/score_default_api.json was generated against.
+        # `python -m spacy download en_core_web_sm` resolves whatever is
+        # latest and would silently produce different tier5/tier11/prosodic
+        # floats -- see tests/config/test_flag_byte_identity.py's
+        # "Deterministic feature backends" section and
+        # EN_CORE_WEB_SM_VERSION there.
+        run: pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
       - name: Install Playwright browsers
         run: cd demo/bluebook && npx playwright install --with-deps chromium

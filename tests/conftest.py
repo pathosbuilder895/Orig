@@ -60,13 +60,17 @@ def live_client(live_app):
 def postgres_available() -> bool:
     """True iff DATABASE_URL points at Postgres and it's actually reachable.
 
-    Deliberately checked at fixture-setup time (not import time) so
-    monkeypatching DATABASE_URL mid-session (or CI wiring up the service
-    container after collection) both work — this module sets a sqlite
-    default above at import time specifically so any stray, unguarded engine
-    build lands on a throwaway in-memory SQLite rather than a real Postgres;
-    only a real, explicit postgresql:// DATABASE_URL at the moment a test
-    first asks should ever make this true.
+    Checked once, the first time any test in the session requests this
+    fixture — not at import time, which is why this module sets a sqlite
+    default above at import time: so any stray, unguarded engine build
+    before that first request lands on a throwaway in-memory SQLite rather
+    than a real Postgres. That first check picks up CI wiring up the
+    service container between collection and the first request, but because
+    the fixture is session-scoped, the result is then cached for every
+    other test in the session — it is NOT re-checked per test. A test that
+    monkeypatches DATABASE_URL mid-session and needs the reachability
+    decision to reflect that change must not rely on this fixture; it will
+    see the value computed at first request, not a fresh check.
 
     Session-scoped: the check itself (reset_engine() + a real connect) is
     identical no matter which test asks first, so paying its cost more than
