@@ -27,10 +27,44 @@ class TextDoc:
         self.lower_words: list[str] = [w.lower() for w in self.words]
         self.word_count: int = len(self.words)
         self.sentence_count: int = len(self.sentences)
+        self._spacy_doc = None  # lazy cache — see `spacy_doc` property
 
     def sent_words(self) -> list[list[str]]:
         """List of word lists, one per sentence."""
         return [_tokenize(s) for s in self.sentences]
+
+    @property
+    def spacy_doc(self):
+        """Lazily parse `self.clean` with the shared spaCy pipeline and cache
+        the resulting Doc for the lifetime of this TextDoc.
+
+        Returns `None` if spaCy / en_core_web_sm is unavailable, mirroring
+        the "unavailable" sentinel used by `tier5._get_nlp()` (graceful
+        degradation — callers must handle `None` the same way they already
+        handle a failed `nlp()` load).
+
+        Scope note: this cache unifies ONLY the call sites that provably
+        parse the byte-identical string — currently tier5.py's two internal
+        `nlp(doc.clean)` calls (`_get_pos_tags` / `_get_dep_depths`).
+        tier11.py parses `doc.raw` (not `doc.clean` — the two differ
+        whenever the source text has multi-space runs, tabs, or paragraph
+        breaks) and prosodic.py parses truncated/per-sentence substrings
+        (`doc.clean[:4000]`, individual `sentence[:200]` chunks) via its own
+        differently-configured spaCy pipeline (lemmatizer enabled, unlike
+        tier5/tier11's). None of those are the same input as this property
+        produces, so they intentionally do NOT use this cache — routing them
+        through it would silently change their output, not just its speed.
+        """
+        if self._spacy_doc is None:
+            from .tier5 import _get_nlp  # deferred: tier5 imports TextDoc from
+            # this module at load time, so importing tier5 here at call time
+            # (rather than at module scope) avoids a circular import.
+
+            nlp = _get_nlp()
+            if nlp == "unavailable":
+                return None
+            self._spacy_doc = nlp(self.clean)
+        return self._spacy_doc
 
 
 def _clean(text: str) -> str:

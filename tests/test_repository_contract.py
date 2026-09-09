@@ -8,10 +8,9 @@ this suite backend-agnostic: the same assertions run unchanged against
 ``SqliteRepository`` and ``PostgresRepository`` (WS-6 P3) — see the
 ``BACKENDS`` list below. The postgres parametrization is marked
 ``@pytest.mark.postgres`` and skips cleanly when no Postgres instance is
-reachable (the shared ``postgres_available`` fixture in conftest.py), so
-this file is safe to run in any sandbox: `pytest -m "not postgres"` to skip
-it explicitly, or just run normally and let it self-skip when
-``DATABASE_URL`` isn't set.
+reachable (``_postgres_available()``), so this file is safe to run in any
+sandbox: `pytest -m "not postgres"` to skip it explicitly, or just run
+normally and let it self-skip when ``DATABASE_URL`` isn't set.
 
 Formerly two hand-maintained files (test_store_tenants.py's tenant/roster
 classes, test_store_fidelity.py's fidelity/genre-stats/delete classes) that
@@ -26,6 +25,7 @@ detail, not something a Repository contract can promise.
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC, datetime, timedelta
 
 import numpy as np
@@ -42,28 +42,49 @@ from original.repository import PostgresRepository, get_repository, reset_reposi
 # (SQLite-file-specific backup tooling with no Postgres equivalent — see
 # test_baseline_requests.py's test_postgres_repo_db_path_has_no_equivalent).
 # This parametrization only runs when a Postgres instance is actually
-# reachable (see the shared `postgres_available` fixture in conftest.py);
-# it self-skips when DATABASE_URL isn't set to a postgresql:// instance, so
-# this file stays safe to run in any sandbox. `pytest -m "not postgres"`
-# deselects it entirely.
+# reachable (see `_postgres_available()` below); it self-skips when
+# DATABASE_URL isn't set to a postgresql:// instance, so this file stays
+# safe to run in any sandbox. `pytest -m "not postgres"` deselects it
+# entirely.
 BACKENDS = ["sqlite", pytest.param("postgres", marks=pytest.mark.postgres)]
 
 
+def _postgres_available() -> bool:
+    """True iff DATABASE_URL points at Postgres and it's actually reachable.
+
+    Deliberately checked at fixture-setup time (not import time) so
+    monkeypatching DATABASE_URL mid-session (or CI wiring up the service
+    container after collection) both work.
+    """
+    db_url = os.environ.get("DATABASE_URL", "")
+    if not db_url.startswith("postgresql"):
+        return False
+    from original.db import postgres_session
+
+    try:
+        postgres_session.reset_engine()
+        with postgres_session.get_engine().connect():
+            return True
+    except Exception:
+        return False
+
+
 @pytest.fixture(params=BACKENDS)
-def repo(request, store_reset, postgres_available):
+def repo(request, store_reset):
     """A Repository instance, isolated per test. Parametrized over backends."""
     reset_repository()
     if request.param == "sqlite":
         yield get_repository()
     elif request.param == "postgres":
-        if not postgres_available:
-            # "uninformative" is load-bearing, not decoration: this file now
-            # carries a @pytest.mark.blocker test (T-08) parametrized over
-            # BACKENDS, and scripts/known_red.py exits 1 on a blocker test
-            # skipped without that word — a bare skip is indistinguishable
-            # from dodging the known-red policy. An unreachable Postgres is
-            # exactly the plan's third value: the arm was not measured, which
-            # is neither a pass nor a fail.
+        if not _postgres_available():
+            # "uninformative" is load-bearing, not decoration: if a future
+            # @pytest.mark.blocker test is parametrized over BACKENDS,
+            # scripts/known_red.py exits 1 on a blocker test skipped without
+            # that word — a bare skip is indistinguishable from dodging the
+            # known-red policy. An unreachable Postgres is exactly the plan's
+            # third value: the arm was not measured, which is neither a pass
+            # nor a fail. (T-08, which used to carry that marker here, was
+            # closed and unmarked — kept as documentation of the pattern.)
             pytest.skip(
                 "uninformative — no reachable Postgres; set DATABASE_URL to a "
                 "postgresql:// instance to run the WS-6 P3 contract tests "
@@ -972,6 +993,14 @@ class TestGetOrCreateAndBasics:
         assert len(matching) == 1
         assert matching[0].sample_count == 2
 
+    def test_all_states_tenant_filter_excludes_other_tenants(self, repo):
+        repo.put(_make_state("tenantx:student1", n=1))
+        repo.put(_make_state("tenanty:student1", n=1))
+        scoped = repo.all_states(tenant_id="tenantx")
+        ids = {s.student_id for s in scoped}
+        assert "tenantx:student1" in ids
+        assert "tenanty:student1" not in ids
+
     def test_put_replaces_whole_sample_set(self, repo):
         """put() is a full-state overwrite, not an incremental append —
         matches store.py's whole-JSON-blob replace semantics."""
@@ -1717,6 +1746,7 @@ class TestStudentDataInventory:
         assert inv["data_categories"]["fidelity_scores"]["count"] == 1
 
 
+
 # ── QR phone-park (proctoring deterrence) ─────────────────────────────────
 
 
@@ -2124,6 +2154,36 @@ class TestDeleteStudentFullFootprint:
         repo.put_fidelity_score("sub-ferpa1", "sem:ferpa", 0.8, is_authentic=True)
         repo.put_ai_likelihood_score("sub-ferpa1", "sem:ferpa", 0.3, "low")
         repo.put_fused_score("sub-ferpa1", "sem:ferpa", 0.5, 0.6, "low", {"peer_centered_z": 0.1})
+        # C1, 2026-09 fix pass: four more student-scoped tables the original
+        # erasure pass missed — each carries FERPA-relevant PII (a display
+        # name, an email + unredeemed magic link, or just identifying rows).
+        repo.put_bluebook_submission(
+            {
+                "id": "bbsub-ferpa1",
+                "exam_id": None,
+                "tenant_id": "sem",
+                "student_id": "sem:ferpa",
+                "candidate": "FERPA Student",
+                "exam_title": "Midterm",
+                "course": "",
+                "word_count": 400,
+                "time_min": 30,
+                "stylometric": None,
+                "ai_score": None,
+                "status": "SUBMITTED",
+                "submission_uuid": None,
+            }
+        )
+        repo.get_or_create_bluebook_session("exam-ferpa1", "sem:ferpa", "sem", 3600)
+        repo.open_formation_pathway("sem:ferpa", submission_id="sub-ferpa1", reason="test")
+        repo.put_baseline_request(
+            "extreq-ferpa1",
+            "sem:ferpa",
+            "pending",
+            1234567890.0,
+            '{"student_id": "sem:ferpa", "student_email": "ferpa@sem.edu", '
+            '"magic_link": "https://bbook.example/m/abc123"}',
+        )
         # The audit log is a read surface too, and its details_json can carry
         # PII (e.g. a submission excerpt) — FERPA erasure must purge it, not
         # just the scoring tables. Seeded via the protocol, like every other
@@ -2137,7 +2197,9 @@ class TestDeleteStudentFullFootprint:
         # Sanity: everything is actually there before deleting.
         assert repo.student_data_inventory("sem:ferpa") is not None
         assert "sem:ferpa" in {r["id"] for r in repo.roster_for_tenant("sem")}
-        assert repo.list_audit(student_id="sem:ferpa")["total"] == 1
+        # >= 1, not == 1: open_formation_pathway logs its own audit row
+        # alongside the explicit one below.
+        assert repo.list_audit(student_id="sem:ferpa")["total"] >= 1
 
         assert repo.delete_student("sem:ferpa") is True
 
@@ -2154,6 +2216,14 @@ class TestDeleteStudentFullFootprint:
         assert repo.list_corrections(submission_id="sub-ferpa1")["items"] == []
         assert repo.list_manifests(student_id="sem:ferpa")["total"] == 0
         assert repo.list_audit(student_id="sem:ferpa")["items"] == []
+        assert not any(
+            s["student_id"] == "sem:ferpa" for s in repo.list_bluebook_submissions("sem")
+        )
+        assert repo.get_bluebook_session("exam-ferpa1", "sem:ferpa") is None
+        assert repo.get_formation_pathway("sem:ferpa") is None
+        assert not any(
+            r["student_id"] == "sem:ferpa" for r in repo.load_baseline_requests()
+        )
 
     def test_delete_legacy_flat_student_does_not_purge_other_tenants_audit_log(self, repo):
         # Final whole-branch review, C1: audit_log stores the LOCAL id for a
@@ -2655,18 +2725,15 @@ class TestDeleteStudentCompleteness:
         # just the hardcoded list wearing a metadata costume.
         assert derived - T08_REQUIRED_STUDENT_TABLES
 
-    @pytest.mark.blocker
     def test_delete_student_removes_rows_from_every_student_keyed_table(self, repo):
-        """T-08: delete_student leaves rows in student-keyed tables.
-
-        RED on both backends by design (docs/testing/10-gap-register.md).
-        ``store.delete_student``'s docstring claims it "permanently delete[s]
-        all data for a student (FERPA right-to-erasure)", and
-        ``PostgresRepository.delete_student`` mirrors the same seven tables —
-        but neither touches ``bluebook_submissions``, ``baseline_requests``,
-        or ``formation_pathways``, which all carry the student's id. The
-        assertion below reports the full surviving set, so the failure text
-        is the erasure gap inventory.
+        """T-08, FIXED: delete_student used to leave rows in student-keyed
+        tables. Closed by covering the four missing tables in FERPA erasure
+        (bluebook_submissions, bluebook_sessions, formation_pathways,
+        baseline_requests — and, on this branch, lti_subjects /
+        canvas_asset_reports for the yet-unmerged Canvas asset-processor
+        feature) on both backends. The assertion below reports the full
+        surviving set, so a regression's failure text is the erasure gap
+        inventory again.
         """
         tenant_id = "sem-t08"
         scoped_id = f"{tenant_id}:tess"

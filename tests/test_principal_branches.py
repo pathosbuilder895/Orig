@@ -85,3 +85,46 @@ def test_extract_scoped_id_students_path_still_works():
 
 def test_extract_scoped_id_unrecognized_path_returns_none():
     assert pr.extract_scoped_id("/health") is None
+
+
+# ── assert_student_access: anonymous/demo access on a real deploy (T-66) ────
+
+
+def _demo_principal() -> pr.Principal:
+    return pr.Principal(
+        user_id="demo",
+        role="operator",
+        tenant_id=pr.DEMO_TENANT,
+        auth_method="demo",
+        is_demo=True,
+    )
+
+
+def test_demo_principal_flat_id_denied_on_real_deploy(monkeypatch):
+    """The flat-id/demo-tenant carve-out assumes flat ids only ever exist in
+    the demo sandbox — an invariant of legitimate write paths, not something
+    assert_student_access can verify from the id alone. On a real deploy that
+    assumption has no legitimate reason to matter: anonymous access must be
+    denied outright, regardless of whether the id happens to look like a demo
+    id."""
+    import original.api as api_mod
+
+    monkeypatch.setattr(api_mod, "_IS_REAL_DEPLOY", True)
+    demo = _demo_principal()
+    for student_id in ("some_flat_id", "demo:seeded_student"):
+        try:
+            pr.assert_student_access(demo, student_id)
+            assert False, f"expected TenantAccessError for {student_id!r}"
+        except pr.TenantAccessError:
+            pass
+
+
+def test_demo_principal_flat_id_still_allowed_off_real_deploy(monkeypatch):
+    """Same principal/id shapes, but with _IS_REAL_DEPLOY False (the public
+    demo default) — must keep working exactly as before (no regression)."""
+    import original.api as api_mod
+
+    monkeypatch.setattr(api_mod, "_IS_REAL_DEPLOY", False)
+    demo = _demo_principal()
+    pr.assert_student_access(demo, "some_flat_id")
+    pr.assert_student_access(demo, "demo:seeded_student")

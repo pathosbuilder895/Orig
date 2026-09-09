@@ -451,6 +451,17 @@ jobs:
       - name: Install Python dependencies (pilot superset -- exercises /lti/*)
         run: pip install -r requirements-pilot.txt
 
+      - name: Verify the pilot lockset can actually boot REPO_BACKEND=postgres
+        # requirements-pilot.txt deliberately excludes sqlalchemy/psycopg2/alembic
+        # for the plain SQLite pilot -- but original/repository.py's
+        # get_repository() imports original.postgres_repository lazily the moment
+        # REPO_BACKEND=postgres is set, and that import previously wasn't in this
+        # lockset at all: the process would boot clean and then 500 on the first
+        # request. This doesn't need a live Postgres -- it only proves the import
+        # succeeds, which is exactly what silently regresses if this lockset ever
+        # drifts from requirements.txt's Postgres pins again.
+        run: python -c "import original.postgres_repository"
+
       - name: Install spaCy model
         # Pinned to the exact model wheel the byte-exact snapshot in
         # tests/snapshots/score_default_api.json was generated against.
@@ -501,6 +512,11 @@ jobs:
           # mint is intentionally never exposed over HTTP) and must sign it
           # with the same secret the server above was started with.
           SECRET_KEY: ci-test-only-secret-do-not-deploy
+          # POST /auth/register is unconditionally guarded on a real deploy
+          # (T-64: force=_IS_REAL_DEPLOY, original/routers/auth.py) — must
+          # match the server's own MAINTENANCE_TOKEN above so
+          # fixtures/api-setup.mjs's registerStaff() can send X-Guard-Token.
+          MAINTENANCE_TOKEN: ci-test-only
         # @serial-lockout is excluded here for two independent reasons: it
         # deliberately trips the login throttle, which would otherwise 429
         # every other spec's staff login in this same run (see
@@ -576,6 +592,9 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:8001
           SECRET_KEY: ci-test-only-secret-do-not-deploy
+          # See the matching comment on "Run Playwright E2E tests" above —
+          # registerStaff() needs this to satisfy T-64's guard.
+          MAINTENANCE_TOKEN: ci-test-only
         # --workers=1: the spec exhausts a process-global, IP-keyed bucket,
         # so nothing else may be logging in beside it.
         # --retries=0 overrides the config's CI retry (playwright.config.mjs

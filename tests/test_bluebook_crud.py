@@ -291,7 +291,10 @@ def test_course_list_operator_token_sees_all_tenants(live_client, store_reset):
 # verify scoping for the professor-facing Results list.
 
 
-def test_record_submission_does_not_require_staff(live_client, store_reset):
+def test_record_submission_works_anonymously_in_the_demo_sandbox_only(live_client, store_reset):
+    """Off a real deploy, the anonymous demo principal is staff-equivalent
+    (same rule _require_staff applies everywhere else) -- this is the
+    zero-login sales sandbox, not a real submission surface."""
     r = live_client.post(
         "/bluebook/submissions",
         json={
@@ -304,6 +307,62 @@ def test_record_submission_does_not_require_staff(live_client, store_reset):
     )
     assert r.status_code == 201, r.text
     assert r.json()["status"] == "SUBMITTED"
+
+
+def test_record_submission_requires_auth_on_a_real_deploy(real_deploy, live_client, store_reset):
+    """Previously any caller, staff or not, could write a submission naming
+    an arbitrary student_id or candidate -- including a classmate's."""
+    r = live_client.post(
+        "/bluebook/submissions",
+        json={
+            "student_id": "bbcrud:someone",
+            "candidate": "Someone",
+            "exam_title": "Midterm",
+            "word_count": 450,
+            "time_min": 40,
+        },
+    )
+    assert r.status_code == 401, r.text
+
+
+def test_record_submission_rejects_a_session_for_a_different_student(
+    real_deploy, live_client, store_reset
+):
+    from original import student_auth
+
+    token = student_auth.mint_session("bbcrud:alice")
+    r = live_client.post(
+        "/bluebook/submissions",
+        json={
+            "student_id": "bbcrud:bob",
+            "candidate": "Bob (not Alice)",
+            "exam_title": "Midterm",
+            "word_count": 450,
+            "time_min": 40,
+        },
+        headers=_auth(token),
+    )
+    assert r.status_code == 403, r.text
+
+
+def test_record_submission_accepts_the_students_own_session(
+    real_deploy, live_client, store_reset
+):
+    from original import student_auth
+
+    token = student_auth.mint_session("bbcrud:alice")
+    r = live_client.post(
+        "/bluebook/submissions",
+        json={
+            "student_id": "bbcrud:alice",
+            "candidate": "Alice",
+            "exam_title": "Midterm",
+            "word_count": 450,
+            "time_min": 40,
+        },
+        headers=_auth(token),
+    )
+    assert r.status_code == 201, r.text
 
 
 def test_record_submission_then_appears_in_scoped_list(live_client, store_reset):

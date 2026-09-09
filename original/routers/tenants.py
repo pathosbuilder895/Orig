@@ -159,6 +159,13 @@ def delete_tenant_students(tenant_id: str, request: Request):
     if not t:
         raise HTTPException(status_code=404, detail=f"Tenant '{tenant_id}' not found")
     result = _repo().delete_tenant_students(tenant_id)
+    # Bulk-erased every student in this tenant — bust the whole
+    # CHARACTERISTIC_WEIGHTS=shadow pool cache (original/quantum/
+    # impostor_cache.py) rather than each id individually; a full clear is
+    # the module's own documented ops-path use of invalidate(None).
+    from ..quantum import impostor_cache
+
+    impostor_cache.invalidate(None)
     return {
         "tenant_id": tenant_id,
         "deleted_count": result["deleted_count"],

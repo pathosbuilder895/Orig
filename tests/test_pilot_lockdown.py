@@ -77,6 +77,96 @@ def guarded(api_mod, monkeypatch):
     yield
 
 
+# ── 0. Testing-Phase-A findings (T-64/T-65/T-66) ──────────────────────────────
+
+
+def test_register_refuses_anonymous_on_real_deploy(real_deploy, api_mod, monkeypatch, live_client):
+    """T-64: /auth/register used to be reachable anonymously on a real deploy
+    unless an operator separately opted into GUARD_DESTRUCTIVE — nothing sets
+    that by default, so self-provisioning a staff account for an arbitrary
+    tenant was open on an unmodified pilot deploy."""
+    monkeypatch.setattr(api_mod, "_MAINTENANCE_TOKEN", GUARD_TOKEN)
+    r = live_client.post(
+        "/auth/register",
+        json={
+            "email": "attacker@evil.example",
+            "password": "hunter2222",
+            "tenant_id": "lockacme",
+            "role": "professor",
+        },
+    )
+    assert r.status_code == 403, r.text
+
+
+def test_tuned_thresholds_are_not_tenant_scoped(store_reset):
+    """Documents a known gap, not a fix: ``tuned_thresholds_v2`` has no
+    tenant column, so a row applied via ONE tenant's calibration run becomes
+    every tenant's active action ladder — ``get_active_tuned_thresholds``
+    takes no tenant argument and returns the same global row regardless of
+    who is asking. The gap is the missing tenant scope on the stored row,
+    not the staff-auth gate on POST /admin/calibration/runs/{id}/apply,
+    which matches every other /admin/* surface (ADMIN_STAFF_ONLY_ENDPOINTS
+    above). If this test ever fails because get_active_tuned_thresholds
+    started taking a tenant, delete it — that's the fix landing."""
+    from original.repository import get_repository
+
+    repo = get_repository()
+    assert repo.get_active_tuned_thresholds() is None  # nothing applied yet
+
+    repo.put_tuned_thresholds(no_action=0.11, monitor=0.22, escalate=0.33, source="test")
+
+    active = repo.get_active_tuned_thresholds()
+    assert active["no_action"] == pytest.approx(0.11)
+    assert active["monitor"] == pytest.approx(0.22)
+    assert active["escalate"] == pytest.approx(0.33)
+    # No tenant_id key exists to scope this to the tenant that applied it.
+    assert "tenant_id" not in active
+
+
+def test_register_works_with_guard_token_on_real_deploy(
+    real_deploy, api_mod, monkeypatch, live_client, store_reset
+):
+    """The forced guard on a real deploy is satisfiable with the right
+    X-Guard-Token, not an unconditional lockout."""
+    monkeypatch.setattr(api_mod, "_MAINTENANCE_TOKEN", GUARD_TOKEN)
+    r = live_client.post(
+        "/auth/register",
+        json={
+            "email": "legit.t64@acmeu.edu",
+            "password": "s3cret-passw0rd",
+            "tenant_id": "lockacme",
+            "role": "professor",
+        },
+        headers=GUARD,
+    )
+    assert r.status_code == 201, r.text
+
+
+def test_bluebook_session_refuses_anonymous_on_real_deploy(real_deploy, live_client):
+    """T-65: POST /bluebook/exams/{exam_id}/session had no auth check at all —
+    any exam under the demo tenant (any staff principal can mint one) could
+    have its sitting anonymously opened, pinning a server-side deadline for
+    an arbitrary caller-supplied student_id."""
+    prof = pr.mint_principal_token("prof_t65", "professor", "demo")
+    r = live_client.post("/bluebook/exams", json={"title": "Midterm"}, headers=_auth(prof))
+    assert r.status_code == 201, r.text
+    exam_id = r.json()["id"]
+
+    r = live_client.post(
+        f"/bluebook/exams/{exam_id}/session", json={"student_id": "attacker-flat-id"}
+    )
+    assert r.status_code in (401, 403), r.text
+
+
+def test_flat_id_student_delete_refused_anonymously_on_real_deploy(real_deploy, live_client):
+    """T-66: assert_student_access's flat-id/demo-tenant carve-out had no
+    real-deploy check at all, so a flat id read as 'demo sandbox data' in
+    every environment including pilot/production — anonymously readable,
+    writable, and deletable."""
+    r = live_client.delete("/students/some-flat-id")
+    assert r.status_code in (401, 403), r.text
+
+
 # ── 1. Tenant writes ──────────────────────────────────────────────────────────
 
 
@@ -206,6 +296,63 @@ def test_admin_corrections_allows_staff_principal_in_pilot(real_deploy, live_cli
     prof = pr.mint_principal_token("prof_corr", "professor", "corracme")
     r = live_client.get("/admin/corrections", headers=_auth(prof))
     assert r.status_code == 200, r.text
+
+
+# ── 2c. Cross-tenant scoping on /admin/audit, /admin/manifests, /admin/corrections
+# Previously any staff principal, regardless of tenant, could read every
+# institution's rows on these three endpoints -- audit actions, manifest
+# rows (which carry student_id and divergence scores), and correction rows.
+
+
+def test_admin_audit_is_scoped_to_the_callers_tenant(live_client, store_reset):
+    store.log_audit(action="score", student_id="tenscope-a:alice", tenant_id="tenscope-a")
+    store.log_audit(action="score", student_id="tenscope-b:bob", tenant_id="tenscope-b")
+
+    prof_a = pr.mint_principal_token("prof-a", "professor", "tenscope-a")
+    r = live_client.get("/admin/audit", headers=_auth(prof_a))
+    assert r.status_code == 200, r.text
+    ids = {item["student_id"] for item in r.json()["items"]}
+    assert "tenscope-a:alice" in ids
+    assert "tenscope-b:bob" not in ids
+
+    operator = pr.mint_principal_token("op-1", "operator", "tenscope-a")
+    r = live_client.get("/admin/audit", headers=_auth(operator))
+    ids = {item["student_id"] for item in r.json()["items"]}
+    assert "tenscope-a:alice" in ids and "tenscope-b:bob" in ids
+
+
+def test_admin_manifests_is_scoped_to_the_callers_tenant(live_client, store_reset):
+    store.put_manifest("sub-a1", "tenscope-a:alice", {"flags": []}, divergence_score=0.1)
+    store.put_manifest("sub-b1", "tenscope-b:bob", {"flags": []}, divergence_score=0.1)
+
+    prof_a = pr.mint_principal_token("prof-a", "professor", "tenscope-a")
+    r = live_client.get("/admin/manifests", headers=_auth(prof_a))
+    assert r.status_code == 200, r.text
+    ids = {item["student_id"] for item in r.json()["items"]}
+    assert "tenscope-a:alice" in ids
+    assert "tenscope-b:bob" not in ids
+
+    operator = pr.mint_principal_token("op-1", "operator", "tenscope-a")
+    r = live_client.get("/admin/manifests", headers=_auth(operator))
+    ids = {item["student_id"] for item in r.json()["items"]}
+    assert "tenscope-a:alice" in ids and "tenscope-b:bob" in ids
+
+
+def test_admin_corrections_is_scoped_to_the_callers_tenant(live_client, store_reset):
+    store.put_correction("sub-a2", True, student_id="tenscope-a:alice")
+    store.put_correction("sub-b2", True, student_id="tenscope-b:bob")
+
+    prof_a = pr.mint_principal_token("prof-a", "professor", "tenscope-a")
+    r = live_client.get("/admin/corrections", headers=_auth(prof_a))
+    assert r.status_code == 200, r.text
+    ids = {item["student_id"] for item in r.json()["items"]}
+    assert "tenscope-a:alice" in ids
+    assert "tenscope-b:bob" not in ids
+
+    operator = pr.mint_principal_token("op-1", "operator", "tenscope-a")
+    r = live_client.get("/admin/corrections", headers=_auth(operator))
+    ids = {item["student_id"] for item in r.json()["items"]}
+    assert "tenscope-a:alice" in ids and "tenscope-b:bob" in ids
 
 
 # The rest of the admin router carries the same gate, for the same reasons.
@@ -370,6 +517,7 @@ def test_no_admin_route_answers_a_student_principal(live_app, live_client):
         "/prototypes/",
         "/prototypes/index.html",
         "/prototypes/prototype.js",
+        "/bluebook/bluebook.bundle.js.map",  # T-06
     ],
 )
 def test_demo_statics_404_in_pilot(real_deploy, live_client, path):
@@ -450,6 +598,30 @@ def test_delete_purges_display_name_and_audit_history(live_client):
     assert names == 0
     # Exactly one row survives: the deletion receipt written after the purge.
     assert [a[0] for a in audits] == ["student_delete"]
+
+
+def test_delete_busts_the_characteristic_weights_shadow_cache(live_client):
+    """Deleting a student must not leave them influencing peers' shadow
+    previews for up to impostor_cache.TTL_SECONDS afterwards."""
+    from original.quantum import impostor_cache
+
+    sid = "cwcache_erased_student"  # flat id, like the FERPA test above —
+    # a tenant-shaped "tenant:id" hits the cross-tenant middleware check
+    # even in demo mode, which isn't what this test is about
+    r = live_client.post(
+        f"/students/{sid}/baseline",
+        json={"text": LONG_TEXT, "assignment": "a1"},
+    )
+    assert r.status_code == 200, r.text
+    impostor_cache.put(sid, object())
+    hit, _ = impostor_cache.get(sid)
+    assert hit is True  # sanity: the cache actually holds something first
+
+    r = live_client.delete(f"/students/{sid}")
+    assert r.status_code == 200, r.text
+
+    hit, _ = impostor_cache.get(sid)
+    assert hit is False, "delete_student did not invalidate the tenant's shadow-pool cache"
 
 
 # ── 6. Backup module ──────────────────────────────────────────────────────────

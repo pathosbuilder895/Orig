@@ -60,6 +60,10 @@ def list_audit_log(
     the explicit guard here additionally rejects STUDENT tokens in the demo —
     audit rows carry other students' identifiers.
 
+    A staff principal sees only their own tenant's rows; SUPER_ROLES keep
+    the cross-tenant "all schools" view (previously any staff account from
+    any tenant could read every institution's audit log here).
+
     Optional filters:
         student_id — restrict to a specific student
         action     — restrict to a specific action type
@@ -68,13 +72,15 @@ def list_audit_log(
 
     Results are ordered most-recent-first.
     """
-    _require_staff(request)
+    principal = _require_staff(request)
     limit = min(limit, 500)
+    scope_tenant = None if principal.role in principal_mod.SUPER_ROLES else principal.tenant_id
     return _repo().list_audit(
         student_id=student_id or None,
         action=action or None,
         limit=limit,
         offset=offset,
+        tenant_id=scope_tenant,
     )
 
 
@@ -102,13 +108,16 @@ def admin_list_manifests(
     middleware already 401s anonymous callers on real deploys
     (tests/test_pilot_lockdown), and the explicit guard here additionally
     rejects STUDENT tokens in the demo — manifest rows carry other students'
-    identifiers, and `student_id` above is a filter over exactly that.
+    identifiers, and `student_id` above is a filter over exactly that. A
+    staff principal sees only their own tenant's manifests; SUPER_ROLES
+    keep the cross-tenant view.
     """
-    _require_staff(request)
+    principal = _require_staff(request)
     if limit < 1 or limit > 1000:
         raise HTTPException(status_code=422, detail="limit must be in [1, 1000]")
     if offset < 0:
         raise HTTPException(status_code=422, detail="offset must be ≥ 0")
+    scope_tenant = None if principal.role in principal_mod.SUPER_ROLES else principal.tenant_id
     res = _repo().list_manifests(
         student_id=student_id,
         action=action,
@@ -117,6 +126,7 @@ def admin_list_manifests(
         until=until,
         limit=limit,
         offset=offset,
+        tenant_id=scope_tenant,
     )
     return ManifestListResponse(
         total=res["total"],
@@ -275,19 +285,22 @@ def admin_list_corrections(
     middleware already 401s anonymous callers on real deploys
     (tests/test_pilot_lockdown), and the explicit guard here additionally
     rejects STUDENT tokens in the demo — correction rows carry other
-    students' identifiers.
+    students' identifiers. A staff principal sees only their own tenant's
+    corrections; SUPER_ROLES keep the cross-tenant view.
     """
-    _require_staff(request)
+    principal = _require_staff(request)
     if limit < 1 or limit > 1000:
         raise HTTPException(status_code=422, detail="limit must be in [1, 1000]")
     if offset < 0:
         raise HTTPException(status_code=422, detail="offset must be ≥ 0")
+    scope_tenant = None if principal.role in principal_mod.SUPER_ROLES else principal.tenant_id
     res = _repo().list_corrections(
         submission_id=submission_id,
         student_id=student_id,
         is_correct=is_correct,
         limit=limit,
         offset=offset,
+        tenant_id=scope_tenant,
     )
     return CorrectionListResponse(
         total=res["total"],
@@ -596,7 +609,19 @@ def admin_apply_thresholds(run_id: int, req: ApplyThresholdsRequest, request: Re
     after the staff gate rather than instead of it: the middleware only 401s
     anonymous callers on real deploys, and this endpoint is the one that
     rewrites the live scoring thresholds. A STUDENT token is refused here in
-    every environment, exactly as on /admin/audit.
+    every environment, exactly as on /admin/audit. Unlike T-64's
+    ``auth_register`` (which sat behind no OTHER gate at all on a real
+    deploy — ``/auth/*`` isn't in the middleware's staff-only path list),
+    this route is already staff-gated by the tenant-isolation middleware, so
+    it does not need ``force=`` — every ``/admin/*`` surface makes the same
+    choice (see ``ADMIN_STAFF_ONLY_ENDPOINTS`` in tests/test_pilot_lockdown.py).
+
+    Known gap, not fixed here: ``tuned_thresholds_v2`` has no tenant column
+    (`store.get_active_tuned_thresholds`/`put_tuned_thresholds`) — the active
+    row is deployment-wide, so a legitimate staff principal in one tenant
+    can change every other tenant's recommended action. Tenant-scoping this
+    table is a schema change and a separate decision; tracked, not silently
+    expanded into this diff.
     """
     _require_staff(request)
     _require_guard(request)

@@ -18,11 +18,26 @@ branch coverage via tests/test_imports_api_coverage.py — not touched here.
 from __future__ import annotations
 
 import original.canvas.live_import as canvas_live
+from original import principal as pr
 
 BASELINE = "/students/{sid}/baseline"
 IMPORT = "/canvas/baseline/{sid}/import-baseline"
 LIST = "/canvas/baseline/{sid}/list-canvas-submissions"
 FETCH_TEXT = "/canvas/baseline/{sid}/fetch-submission-text"
+
+# The three Canvas live-import routes require a real (non-demo) staff
+# principal (`_require_non_demo_staff`) since they make an outbound network
+# call to a caller-supplied canvas_url/access_token — an SSRF primitive the
+# demo sandbox's anonymous-staff convention should never have covered. Every
+# test in this file that exercises the routes' business logic (as opposed to
+# the auth gate itself) needs this header. Role "operator" (a SUPER_ROLES
+# member, see original/principal.py:assert_student_access) rather than
+# "professor": these tests exercise flat, tenant-less student ids
+# ("canvas-empty-ids" etc, this file's existing convention), and a
+# tenant-scoped "professor" principal would be rejected by the tenant-
+# isolation middleware's cross-tenant check before even reaching the route.
+STAFF_TOKEN = pr.mint_principal_token("op-canvas-branches", "operator", "canvasbr")
+STAFF_HEADERS = {"Authorization": f"Bearer {STAFF_TOKEN}"}
 
 CONFIG = {"canvas_url": "https://fake.instructure.com", "access_token": "fake-token"}
 
@@ -45,7 +60,7 @@ U3 = (
     "The two callings, teaching and caring, are never rightly separated in faithful practice. "
 ) * 15
 OUTLIER_TEXT = (
-    "OMG!!! ur baseline thing is SOOO weird lol -- like, \"whatever\" (i guess); "
+    'OMG!!! ur baseline thing is SOOO weird lol -- like, "whatever" (i guess); '
     "idk, u know?? c'mon -- don't u think so; totally, right?! "
     "e.g. this ain't gonna work; i.e. it's kinda broken -- (maybe) \"who knows\"; "
 ) * 15
@@ -101,6 +116,7 @@ def test_import_rejects_empty_submission_ids(live_client, store_reset, monkeypat
     r = live_client.post(
         IMPORT.format(sid="canvas-empty-ids"),
         json={**CONFIG, "canvas_course_id": "c1", "canvas_user_id": "u1"},
+        headers=STAFF_HEADERS,
     )
     assert r.status_code == 422, r.text
     assert "submission_ids" in r.json()["detail"]
@@ -122,6 +138,7 @@ def test_import_skips_submission_under_min_words(live_client, store_reset, monke
             "canvas_user_id": "u1",
             "submission_ids": ["101"],
         },
+        headers=STAFF_HEADERS,
     )
     assert r.status_code == 200, r.text
     body = r.json()
@@ -156,6 +173,7 @@ def test_import_holds_a_drifted_submission_instead_of_importing(
             "canvas_user_id": "u1",
             "submission_ids": ["202"],
         },
+        headers=STAFF_HEADERS,
     )
     assert r.status_code == 200, r.text
     body = r.json()
@@ -182,6 +200,7 @@ def test_import_happy_path_stores_the_sample(live_client, store_reset, monkeypat
             "canvas_user_id": "u1",
             "submission_ids": ["303"],
         },
+        headers=STAFF_HEADERS,
     )
     assert r.status_code == 200, r.text
     body = r.json()
@@ -197,6 +216,7 @@ def test_fetch_text_rejects_missing_submission_id(live_client, store_reset, monk
     r = live_client.post(
         FETCH_TEXT.format(sid="canvas-fetch-missing-id"),
         json={**CONFIG, "canvas_course_id": "c1", "canvas_user_id": "u1"},
+        headers=STAFF_HEADERS,
     )
     assert r.status_code == 422, r.text
     assert "canvas_submission_id" in r.json()["detail"]
@@ -214,6 +234,7 @@ def test_fetch_text_404s_when_submission_not_in_canvas_response(
             "canvas_user_id": "u1",
             "canvas_submission_id": "does-not-exist",
         },
+        headers=STAFF_HEADERS,
     )
     assert r.status_code == 404, r.text
     assert "does-not-exist" in r.json()["detail"]
@@ -233,6 +254,7 @@ def test_fetch_text_happy_path(live_client, store_reset, monkeypatch):
             "canvas_user_id": "u1",
             "canvas_submission_id": "404",
         },
+        headers=STAFF_HEADERS,
     )
     assert r.status_code == 200, r.text
     assert r.json()["text"] == GOOD_SUBMISSION_TEXT
@@ -282,6 +304,7 @@ def test_import_admits_the_sample_when_check_drift_itself_raises(
             "canvas_user_id": "u1",
             "submission_ids": ["606"],
         },
+        headers=STAFF_HEADERS,
     )
     assert r.status_code == 200, r.text
     body = r.json()
@@ -320,6 +343,7 @@ def test_import_records_a_per_submission_error_without_aborting_the_batch(
             "canvas_user_id": "u1",
             "submission_ids": ["707"],
         },
+        headers=STAFF_HEADERS,
     )
     assert r.status_code == 200, r.text
     body = r.json()
@@ -337,6 +361,7 @@ def test_list_canvas_submissions_for_a_never_seen_student(live_client, store_res
     r = live_client.post(
         LIST.format(sid="canvas-never-seen-student"),
         json={**CONFIG, "canvas_course_id": "c1", "canvas_user_id": "u1"},
+        headers=STAFF_HEADERS,
     )
     assert r.status_code == 200, r.text
     body = r.json()

@@ -76,8 +76,8 @@ jobs:
             reqs: requirements-pilot.lock.txt
             env: "ORIGINAL_ENV=pilot REPO_BACKEND=postgres SECRET_KEY=ci-test-only-secret-do-not-deploy"
             expect: up
-            today: down
-            gap: T-07
+            today: up  # T-07 closed on main: pilot lockset now ships sqlalchemy/psycopg2/alembic
+            gap: ""
             fragment: ""
             extra: ""
 
@@ -85,8 +85,8 @@ jobs:
             reqs: requirements-pilot.lock.txt
             env: "ORIGINAL_ENV=pilot REPO_SHADOW=postgres SECRET_KEY=ci-test-only-secret-do-not-deploy"
             expect: up
-            today: down
-            gap: T-07
+            today: up  # T-07 closed on main: pilot lockset now ships sqlalchemy/psycopg2/alembic
+            gap: ""
             fragment: ""
             extra: ""
 

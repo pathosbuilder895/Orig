@@ -61,7 +61,6 @@ def imported_turnitin_ids(pilot_env, two_tenants, store_reset, live_client):
     return created_ids
 
 
-@pytest.mark.blocker
 def test_turnitin_import_mints_tenant_prefixed_ids(imported_turnitin_ids, two_tenants):
     """T-04: Turnitin CSV import mints flat ids instead of tenant-prefixed ones.
 
@@ -78,7 +77,6 @@ def test_turnitin_import_mints_tenant_prefixed_ids(imported_turnitin_ids, two_te
     assert unprefixed == [], f"minted ids are not tenant-prefixed: {unprefixed}"
 
 
-@pytest.mark.blocker
 def test_turnitin_minted_ids_refuse_anonymous_read(imported_turnitin_ids, live_client):
     """T-04: a flat id minted by the Turnitin import is anonymously readable.
 

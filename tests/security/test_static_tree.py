@@ -126,7 +126,6 @@ def test_forbidden_static_paths_404_in_pilot(mounted_pilot_client, repo_path, ur
     assert r.status_code == 404, f"{url} (from {repo_path}) -> {r.status_code}: {r.text[:200]}"
 
 
-@pytest.mark.blocker
 def test_bluebook_sourcemap_404_in_pilot(mounted_pilot_client):
     """T-06: the demo static tree serves build artifacts it shouldn't under pilot.
 

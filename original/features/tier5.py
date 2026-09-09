@@ -63,20 +63,18 @@ def _shannon_entropy(counter: Counter) -> float:
 
 def _get_pos_tags(doc: TextDoc) -> list[str] | None:
     """Return list of POS tags for all tokens, or None if spaCy unavailable."""
-    nlp = _get_nlp()
-    if nlp == "unavailable":
+    spacy_doc = doc.spacy_doc  # cached on TextDoc — see tier1.TextDoc.spacy_doc
+    if spacy_doc is None:
         return None
-    spacy_doc = nlp(doc.clean)
     return [token.pos_ for token in spacy_doc if not token.is_space]
 
 
 def _get_dep_depths(doc: TextDoc) -> list[int] | None:
     """Return max dependency tree depth for each sentence."""
-    nlp = _get_nlp()
-    if nlp == "unavailable":
+    spacy_doc = doc.spacy_doc  # cached on TextDoc — see tier1.TextDoc.spacy_doc
+    if spacy_doc is None:
         return None
 
-    spacy_doc = nlp(doc.clean)
     depths = []
 
     for sent in spacy_doc.sents:

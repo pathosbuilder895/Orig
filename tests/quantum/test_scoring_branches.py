@@ -264,6 +264,72 @@ class TestRecommendShortSubmissionNote:
         assert "submission is only" not in at.rationale
 
 
+# ── _recommend: ScoringConfig.tuned_action_thresholds ──────────────────────────
+#
+# store.get_active_tuned_thresholds() (the admin calibration lab's "Apply
+# thresholds" result) is threaded into _recommend() as tuned_action_thresholds
+# and, via _tuned_action_bands(), preferred over the static ACTION_THRESHOLDS
+# bands for the deviation-only action selection (i.e. whenever the typicality
+# axis is off/didn't set a band -- true by default in every test here, since
+# ScoringConfig.typicality_scoring_enabled defaults False).
+
+
+class TestTunedActionThresholds:
+    def test_tuned_bands_change_the_recommended_action(self):
+        # Static ACTION_THRESHOLDS puts deviation=0.5 in "monitor" (0.40,
+        # 0.60). A tuned set that raises the no_action/monitor cut point to
+        # 0.55 reclassifies that SAME deviation as "no_action" -- proving
+        # _recommend() actually prefers the tuned cut points when present.
+        tuned = {"no_action": 0.55, "monitor": 0.70, "escalate": 0.85}
+        default_result = _recommend(0.9, 0.5, _empty_interference(), _domain(), _bc())
+        tuned_result = _recommend(
+            0.9,
+            0.5,
+            _empty_interference(),
+            _domain(),
+            _bc(),
+            tuned_action_thresholds=tuned,
+        )
+        assert default_result.action == "monitor"
+        assert tuned_result.action == "no_action"
+
+    def test_non_monotonic_tuned_thresholds_falls_back_to_static_bands(self):
+        # A malformed/manually-edited row (monitor < no_action -- not
+        # rejected by ApplyThresholdsRequest's plain [0,1] range checks)
+        # must not be trusted: _tuned_action_bands() falls back to
+        # ACTION_THRESHOLDS exactly, so the action matches the no-tuned-set
+        # run rather than producing an inverted/empty band.
+        bad_tuned = {"no_action": 0.60, "monitor": 0.30, "escalate": 0.85}
+        default_result = _recommend(0.9, 0.5, _empty_interference(), _domain(), _bc())
+        bad_result = _recommend(
+            0.9,
+            0.5,
+            _empty_interference(),
+            _domain(),
+            _bc(),
+            tuned_action_thresholds=bad_tuned,
+        )
+        assert bad_result.action == default_result.action == "monitor"
+
+    def test_none_tuned_thresholds_is_byte_identical_to_omitting_the_argument(self):
+        # The default state of every deployment today: store.
+        # get_active_tuned_thresholds() returns None because no set has ever
+        # been applied. Passing that None explicitly must match leaving the
+        # parameter at its default -- this is the "flags-off is unchanged"
+        # invariant for this mechanism.
+        omitted = _recommend(0.9, 0.5, _empty_interference(), _domain(), _bc())
+        explicit_none = _recommend(
+            0.9,
+            0.5,
+            _empty_interference(),
+            _domain(),
+            _bc(),
+            tuned_action_thresholds=None,
+        )
+        assert omitted.action == explicit_none.action == "monitor"
+        assert omitted.rationale == explicit_none.rationale
+
+
 # ── _llr_action_candidates: blend's own >=1.0 clip ─────────────────────────────
 
 

@@ -252,6 +252,25 @@ def mark_completed_for_student(student_id: str) -> list[BaselineRequest]:
     return completed
 
 
+def purge_student(student_id: str) -> int:
+    """Drop every in-memory request for this student (FERPA erasure).
+
+    The persisted row (student email, magic link) is deleted from the
+    database by the caller (store.delete_student /
+    PostgresRepository.delete_student) — this only clears the process-local
+    ``_registry``/``_by_student`` cache, which would otherwise keep serving
+    a deleted student's email and an unredeemed magic-link bearer
+    credential from memory until the next restart. Returns the count
+    removed.
+    """
+    with _lock:
+        _ensure_hydrated()
+        ids = _by_student.pop(student_id, [])
+        for ext_id in ids:
+            _registry.pop(ext_id, None)
+        return len(ids)
+
+
 def mark_failed(external_request_id: str, error: str) -> None:
     """Mark a single request as failed (Bbook call exploded, etc.)."""
     snap_args: tuple | None = None
