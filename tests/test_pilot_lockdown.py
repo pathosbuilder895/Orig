@@ -208,6 +208,63 @@ def test_admin_corrections_allows_staff_principal_in_pilot(real_deploy, live_cli
     assert r.status_code == 200, r.text
 
 
+# ── 2c. Cross-tenant scoping on /admin/audit, /admin/manifests, /admin/corrections
+# Previously any staff principal, regardless of tenant, could read every
+# institution's rows on these three endpoints -- audit actions, manifest
+# rows (which carry student_id and divergence scores), and correction rows.
+
+
+def test_admin_audit_is_scoped_to_the_callers_tenant(live_client, store_reset):
+    store.log_audit(action="score", student_id="tenscope-a:alice", tenant_id="tenscope-a")
+    store.log_audit(action="score", student_id="tenscope-b:bob", tenant_id="tenscope-b")
+
+    prof_a = pr.mint_principal_token("prof-a", "professor", "tenscope-a")
+    r = live_client.get("/admin/audit", headers=_auth(prof_a))
+    assert r.status_code == 200, r.text
+    ids = {item["student_id"] for item in r.json()["items"]}
+    assert "tenscope-a:alice" in ids
+    assert "tenscope-b:bob" not in ids
+
+    operator = pr.mint_principal_token("op-1", "operator", "tenscope-a")
+    r = live_client.get("/admin/audit", headers=_auth(operator))
+    ids = {item["student_id"] for item in r.json()["items"]}
+    assert "tenscope-a:alice" in ids and "tenscope-b:bob" in ids
+
+
+def test_admin_manifests_is_scoped_to_the_callers_tenant(live_client, store_reset):
+    store.put_manifest("sub-a1", "tenscope-a:alice", {"flags": []}, divergence_score=0.1)
+    store.put_manifest("sub-b1", "tenscope-b:bob", {"flags": []}, divergence_score=0.1)
+
+    prof_a = pr.mint_principal_token("prof-a", "professor", "tenscope-a")
+    r = live_client.get("/admin/manifests", headers=_auth(prof_a))
+    assert r.status_code == 200, r.text
+    ids = {item["student_id"] for item in r.json()["items"]}
+    assert "tenscope-a:alice" in ids
+    assert "tenscope-b:bob" not in ids
+
+    operator = pr.mint_principal_token("op-1", "operator", "tenscope-a")
+    r = live_client.get("/admin/manifests", headers=_auth(operator))
+    ids = {item["student_id"] for item in r.json()["items"]}
+    assert "tenscope-a:alice" in ids and "tenscope-b:bob" in ids
+
+
+def test_admin_corrections_is_scoped_to_the_callers_tenant(live_client, store_reset):
+    store.put_correction("sub-a2", True, student_id="tenscope-a:alice")
+    store.put_correction("sub-b2", True, student_id="tenscope-b:bob")
+
+    prof_a = pr.mint_principal_token("prof-a", "professor", "tenscope-a")
+    r = live_client.get("/admin/corrections", headers=_auth(prof_a))
+    assert r.status_code == 200, r.text
+    ids = {item["student_id"] for item in r.json()["items"]}
+    assert "tenscope-a:alice" in ids
+    assert "tenscope-b:bob" not in ids
+
+    operator = pr.mint_principal_token("op-1", "operator", "tenscope-a")
+    r = live_client.get("/admin/corrections", headers=_auth(operator))
+    ids = {item["student_id"] for item in r.json()["items"]}
+    assert "tenscope-a:alice" in ids and "tenscope-b:bob" in ids
+
+
 # The rest of the admin router carries the same gate, for the same reasons.
 # /admin/manifests is the sharpest case — manifest rows carry student_id and the
 # endpoint takes a student_id filter, so it is the exposure class /admin/audit

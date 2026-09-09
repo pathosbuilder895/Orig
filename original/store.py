@@ -968,6 +968,7 @@ def list_manifests(
     until: str | None = None,
     limit: int = 100,
     offset: int = 0,
+    tenant_id: str | None = None,
 ) -> dict:
     """
     Paginated query over the submission_manifests audit table.
@@ -975,7 +976,11 @@ def list_manifests(
     All filters are optional. ``flag`` searches inside the JSON-serialised
     manifest's ``flags`` array — uses LIKE rather than json_extract so we
     don't depend on the SQLite JSON1 extension (not always compiled in on
-    macOS Python builds).
+    macOS Python builds). ``tenant_id`` restricts to that tenant's students
+    via the "{tenant}:{local_id}" student_id convention — this table has no
+    dedicated tenant column (unlike audit_log/Postgres's SubmissionManifest,
+    which does). Callers enforcing per-tenant visibility should always pass
+    this rather than relying on the caller to pre-filter student_id.
 
     Returns
     -------
@@ -1013,6 +1018,9 @@ def list_manifests(
     if until is not None:
         where_clauses.append("created_at <= ?")
         params.append(until)
+    if tenant_id is not None:
+        where_clauses.append("student_id LIKE ?")
+        params.append(f"{tenant_id}:%")
     if flag is not None:
         # LIKE against the JSON column. Conservative: matches "flag" anywhere
         # in the JSON string. Good enough for the dashboard's filter UX —
@@ -1821,8 +1829,11 @@ def list_corrections(
     is_correct: bool | None = None,
     limit: int = 100,
     offset: int = 0,
+    tenant_id: str | None = None,
 ) -> dict:
-    """List corrections with optional filters."""
+    """List corrections with optional filters. ``tenant_id`` restricts to
+    that tenant's students via the "{tenant}:{local_id}" student_id
+    convention — this table has no dedicated tenant column."""
     where_clauses: list[str] = []
     params: list = []
     if submission_id is not None:
@@ -1834,6 +1845,9 @@ def list_corrections(
     if is_correct is not None:
         where_clauses.append("is_correct = ?")
         params.append(1 if is_correct else 0)
+    if tenant_id is not None:
+        where_clauses.append("student_id LIKE ?")
+        params.append(f"{tenant_id}:%")
     where = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
 
     try:
@@ -2739,6 +2753,7 @@ def list_audit(
     action: str | None = None,
     limit: int = 100,
     offset: int = 0,
+    tenant_id: str | None = None,
 ) -> dict:
     """
     Query audit log entries. All filters are optional AND-combined.
@@ -2748,6 +2763,10 @@ def list_audit(
         action:     Filter to this action type.
         limit:      Max rows (cap 1000).
         offset:     Pagination offset.
+        tenant_id:  Restrict to this tenant's rows (uses the audit_log
+                    table's own tenant_id column). Callers enforcing
+                    per-tenant visibility (a non-SUPER_ROLES staff
+                    principal) should always pass this.
     """
     limit = min(limit, 1000)
     try:
@@ -2759,6 +2778,9 @@ def list_audit(
             if action:
                 clauses.append("action = ?")
                 params.append(action)
+            if tenant_id is not None:
+                clauses.append("tenant_id = ?")
+                params.append(tenant_id)
             where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
             total = conn.execute(f"SELECT COUNT(*) FROM audit_log {where}", params).fetchone()[0]
             rows = conn.execute(

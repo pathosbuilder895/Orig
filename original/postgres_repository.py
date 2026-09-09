@@ -696,19 +696,29 @@ class PostgresRepository:
             return None
 
     def list_manifests(
-        self, student_id=None, action=None, flag=None, since=None, until=None, limit=100, offset=0
+        self,
+        student_id=None,
+        action=None,
+        flag=None,
+        since=None,
+        until=None,
+        limit=100,
+        offset=0,
+        tenant_id=None,
     ):
         try:
             with session_scope() as session:
                 stmt = select(SubmissionManifest)
                 if student_id is not None:
-                    tenant_id, local_id = split_scoped_id(student_id)
+                    scoped_tenant_id, local_id = split_scoped_id(student_id)
                     stmt = stmt.where(
-                        SubmissionManifest.tenant_id == tenant_id,
+                        SubmissionManifest.tenant_id == scoped_tenant_id,
                         SubmissionManifest.student_id == local_id,
                     )
                 if action is not None:
                     stmt = stmt.where(SubmissionManifest.action == action)
+                if tenant_id is not None:
+                    stmt = stmt.where(SubmissionManifest.tenant_id == tenant_id)
                 if since is not None:
                     stmt = stmt.where(
                         SubmissionManifest.created_at >= self._parse_iso_or_now(since)
@@ -1182,7 +1192,13 @@ class PostgresRepository:
             return None
 
     def list_corrections(
-        self, submission_id=None, student_id=None, is_correct=None, limit=100, offset=0
+        self,
+        submission_id=None,
+        student_id=None,
+        is_correct=None,
+        limit=100,
+        offset=0,
+        tenant_id=None,
     ):
         try:
             with session_scope() as session:
@@ -1190,12 +1206,15 @@ class PostgresRepository:
                 if submission_id is not None:
                     stmt = stmt.where(Correction.submission_id == submission_id)
                 if student_id is not None:
-                    tenant_id, local_id = split_scoped_id(student_id)
+                    scoped_tenant_id, local_id = split_scoped_id(student_id)
                     stmt = stmt.where(
-                        Correction.tenant_id == tenant_id, Correction.student_id == local_id
+                        Correction.tenant_id == scoped_tenant_id,
+                        Correction.student_id == local_id,
                     )
                 if is_correct is not None:
                     stmt = stmt.where(Correction.is_correct == bool(is_correct))
+                if tenant_id is not None:
+                    stmt = stmt.where(Correction.tenant_id == tenant_id)
                 total = session.execute(
                     select(func.count()).select_from(stmt.subquery())
                 ).scalar_one()
@@ -1969,7 +1988,7 @@ class PostgresRepository:
         except Exception:
             log.exception("log_audit silently failed for action=%s student=%s", action, student_id)
 
-    def list_audit(self, student_id=None, action=None, limit=100, offset=0):
+    def list_audit(self, student_id=None, action=None, limit=100, offset=0, tenant_id=None):
         limit = min(limit, 1000)
         try:
             with session_scope() as session:
@@ -1978,6 +1997,8 @@ class PostgresRepository:
                     stmt = stmt.where(*self._audit_scope_criteria(student_id))
                 if action:
                     stmt = stmt.where(AuditLogEntry.action == action)
+                if tenant_id is not None:
+                    stmt = stmt.where(AuditLogEntry.tenant_id == tenant_id)
                 total = session.execute(
                     select(func.count()).select_from(stmt.subquery())
                 ).scalar_one()
