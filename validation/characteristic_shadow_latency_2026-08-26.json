@@ -1,6 +1,6 @@
 {
   "backend": "sqlite",
-  "decision": "retain full scan for bounded pilot; alert at 100 ms p95",
+  "decision": "retain full scan for bounded pilot; alert at 100 ms p95 [superseded 2026-09-07: original/quantum/impostor_cache.py adds a 30s per-tenant TTL cache around this exact call, invalidated on baseline writes, scoped to CHARACTERISTIC_WEIGHTS=shadow only. These numbers still describe the cold-cache/miss cost the cache amortizes -- keep the 100 ms p95 alert on cache-miss latency, not average latency]",
   "measure": "repository.all_states peer scan only",
   "rows": [
     {

@@ -61,6 +61,9 @@ pytest-cache-files-*/
 # Stray dev log captures (one-off run outputs)
 err.log
 *.log
+# ...except this synthetic soak-reader test fixture, which the *.log
+# rule above silently swallowed once (its test then failed only on CI).
+!tests/fixtures/shadow_soak.log
 
 # Office app lock files (Word/Excel "~$" temp files)
 ~$*
