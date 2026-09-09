@@ -9,6 +9,7 @@ import argparse
 import json
 import os
 import re
+import sqlite3
 import statistics
 import subprocess
 import sys
@@ -168,6 +169,25 @@ def _fused_thresholds() -> tuple[float | None, float | None]:
         return None, None
 
 
+def _readonly_engine(url: str):
+    """Open a read-only engine so this reporter can never write to a live
+    pilot database, mirroring scripts/tier17_report.py's guarantee: SQLite
+    via a ``file:...?mode=ro`` URI, Postgres via
+    ``default_transaction_read_only=on``. The reports here are SELECT-only
+    already; this makes that a connection-level guarantee rather than a
+    convention, because operators point ``--db "$DATABASE_URL"`` straight at
+    the pilot Postgres."""
+    if url.startswith("sqlite:///"):
+        path = url[len("sqlite:///"):]
+        return create_engine(
+            "sqlite://",
+            creator=lambda: sqlite3.connect(f"file:{path}?mode=ro", uri=True),
+        )
+    if url.startswith(("postgresql", "postgres")):
+        return create_engine(url, connect_args={"options": "-c default_transaction_read_only=on"})
+    return create_engine(url)
+
+
 def summarize_database(url: str) -> dict:
     """Read the fused-score and AI-likelihood tables through one SQL dialect
     layer, so SQLite and Postgres take the same code path (unlike two
@@ -175,7 +195,7 @@ def summarize_database(url: str) -> dict:
     once queried a column — ``fused_score`` — that the schema never had;
     the real columns are ``fused_log_odds`` and ``probability``, per
     ``original/store.py``'s ``fused_scores`` DDL)."""
-    engine = create_engine(url)
+    engine = _readonly_engine(url)
     try:
         tables = set(inspect(engine).get_table_names())
         with engine.connect() as conn:

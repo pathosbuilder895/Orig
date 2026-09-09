@@ -156,6 +156,47 @@ about v2 comes from 19th-century published prose plus 25 seminary papers.
   G8 passes, but `on` changes scores: the genre label drives tier-16
   muting and T8/T13 anchor expansion, and is a Bayesian-prior pooling key.
 
+### 3d. Unified soak reader (all five score-neutral channels)
+
+The per-channel commands in §3–§3c predate `scripts/shadow_soak_report.py`,
+which now reads **every** score-neutral shadow channel in one pass — the
+AI-likelihood go/no-go (§3), topic-inflation distances (§3b), genre-v2
+abstention (§3c), plus the two channels that had no reader before it: the
+fused score's C1 baseline-volume confound and the characteristic-weights
+dispersion. Prefer it for the weekly read; the older single-channel
+commands remain valid for spot checks.
+
+```bash
+render logs --tail 200000 > /tmp/pilot-shadow.log
+.venv/bin/python scripts/shadow_soak_report.py \
+  --log /tmp/pilot-shadow.log --db "$DATABASE_URL" --out shadow_week<N>.json
+```
+
+`--db` accepts a bare SQLite path or a `postgres://`/`postgresql://` URL;
+both go through one SQLAlchemy layer opened **read-only** (SQLite `mode=ro`,
+Postgres `default_transaction_read_only=on`), so pointing it at the live
+pilot database cannot write to it. `"signal_absent": true` means the flag
+did not run in that window — never read it as a zero rate; the report keeps
+the two distinct at every section. The two channels unique to this reader,
+and the one number each decides:
+
+- **`fused_score.baseline_volume_confound`** — the C1 confound: the
+  compression channel's distance falls as a student's baseline grows, so
+  `threshold_fa5/fa1` (selected where every author had exactly 3 baselines)
+  are not yet meaningful on real students. The section regresses fused
+  log-odds against `baseline_samples`; a negative slope is the confound to
+  subtract before `FUSED_SCORE_ENABLED` is reconsidered — the reader feeds
+  that human decision, it is not a gate.
+- **`characteristic_weights.dispersion`** — the applied-row dispersion. A
+  `verdict` of "inert" (abstention dominates, or median dispersion ≈ 0)
+  means the mechanism moves essentially nothing in production regardless of
+  any corpus result — the `GENRE_INVARIANT_WEIGHTS` trap. It also carries
+  the standing per-request cost of the shadow pool, so an inert reading is
+  the signal to turn `CHARACTERISTIC_WEIGHTS=off` again.
+
+Full per-section decision signals and privacy notes live in
+`docs/SHADOW_SOAK_RUNBOOK.md`.
+
 ## 4. Professor correction workflow
 
 Corrections are how the pilot learns. When a professor reviews a scored
