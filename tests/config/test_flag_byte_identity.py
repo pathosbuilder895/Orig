@@ -177,6 +177,7 @@ import contextlib
 import dataclasses
 import difflib
 import json
+import math
 import os
 import re
 import tempfile
@@ -279,9 +280,37 @@ def _json_default(obj: Any) -> Any:
     raise TypeError(f"not JSON-serialisable: {type(obj)!r}")
 
 
+# Cross-platform float stability. Several scored fields are derived from
+# numpy linear algebra -- most sharply ``von_neumann_entropy``, an
+# eigendecomposition -- whose 15th-16th significant digit differs between the
+# BLAS this snapshot was generated under (Apple Accelerate) and CI's
+# (Linux OpenBLAS): 0.0409878331784488 vs 0.04098783317844875. Byte-exact
+# JSON cannot survive that. Quantising every float to 10 significant figures
+# absorbs the ~1e-15 last-bit noise while leaving five-plus orders of margin
+# below any real scoring change (>=1e-4), so a genuine change still shows in
+# the diff and platform noise does not.
+_SIG_FIGS = 10
+
+
+def _quantize(node: Any) -> Any:
+    if isinstance(node, float):
+        if not math.isfinite(node) or node == 0.0:
+            return node
+        exp = math.floor(math.log10(abs(node)))
+        return round(node, (_SIG_FIGS - 1) - exp)
+    if isinstance(node, dict):
+        return {k: _quantize(v) for k, v in node.items()}
+    if isinstance(node, list):
+        return [_quantize(v) for v in node]
+    return node
+
+
 def serialise(payload: dict) -> str:
     """The one serialisation both the tests and the update script use."""
-    return json.dumps(payload, sort_keys=True, indent=2, default=_json_default) + "\n"
+    return (
+        json.dumps(_quantize(payload), sort_keys=True, indent=2, default=_json_default)
+        + "\n"
+    )
 
 
 # An empty container has no leaves, so a naive flatten erases it entirely:

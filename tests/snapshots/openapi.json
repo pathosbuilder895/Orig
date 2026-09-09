@@ -48,6 +48,7 @@
           },
           "text": {
             "description": "Raw essay text",
+            "maxLength": 200000,
             "title": "Text",
             "type": "string"
           }
@@ -413,6 +414,7 @@
           },
           "text": {
             "description": "Raw essay text of the submission",
+            "maxLength": 200000,
             "title": "Text",
             "type": "string"
           },
@@ -2857,6 +2859,7 @@
           },
           "text": {
             "description": "Raw essay text of the submission",
+            "maxLength": 200000,
             "title": "Text",
             "type": "string"
           }
@@ -3866,7 +3869,7 @@
   "paths": {
     "/admin/audit": {
       "get": {
-        "description": "Query the system audit log. Staff-only: the tenant-isolation middleware\nalready 401s anonymous callers on real deploys (tests/test_pilot_lockdown);\nthe explicit guard here additionally rejects STUDENT tokens in the demo —\naudit rows carry other students' identifiers.\n\nOptional filters:\n    student_id — restrict to a specific student\n    action     — restrict to a specific action type\n                 (baseline_add, score, student_delete, correction,\n                  threshold_apply, tenant_register, bulk_delete)\n\nResults are ordered most-recent-first.",
+        "description": "Query the system audit log. Staff-only: the tenant-isolation middleware\nalready 401s anonymous callers on real deploys (tests/test_pilot_lockdown);\nthe explicit guard here additionally rejects STUDENT tokens in the demo —\naudit rows carry other students' identifiers.\n\nA staff principal sees only their own tenant's rows; SUPER_ROLES keep\nthe cross-tenant \"all schools\" view (previously any staff account from\nany tenant could read every institution's audit log here).\n\nOptional filters:\n    student_id — restrict to a specific student\n    action     — restrict to a specific action type\n                 (baseline_add, score, student_delete, correction,\n                  threshold_apply, tenant_register, bulk_delete)\n\nResults are ordered most-recent-first.",
         "operationId": "list_audit_log_admin_audit_get",
         "parameters": [
           {
@@ -4107,7 +4110,7 @@
     },
     "/admin/calibration/runs/{run_id}/apply": {
       "post": {
-        "description": "Persist a new active threshold set sourced from a calibration run.\n\nVersioned in ``tuned_thresholds_v2`` — older sets remain for audit.\nThe latest row by ``created_at`` is the in-effect active set;\nin-process scoring reads it on demand.\n\nWhen GUARD_DESTRUCTIVE=1, requires X-Guard-Token header — applying new\nthresholds changes system behaviour globally and should only be allowed\nfor admins in pilot/production mode.\n\nThe guard token is a *deploy* secret, not an identity, so it is checked\nafter the staff gate rather than instead of it: the middleware only 401s\nanonymous callers on real deploys, and this endpoint is the one that\nrewrites the live scoring thresholds. A STUDENT token is refused here in\nevery environment, exactly as on /admin/audit.",
+        "description": "Persist a new active threshold set sourced from a calibration run.\n\nVersioned in ``tuned_thresholds_v2`` — older sets remain for audit.\nThe latest row by ``created_at`` is the in-effect active set;\nin-process scoring reads it on demand.\n\nWhen GUARD_DESTRUCTIVE=1, requires X-Guard-Token header — applying new\nthresholds changes system behaviour globally and should only be allowed\nfor admins in pilot/production mode.\n\nThe guard token is a *deploy* secret, not an identity, so it is checked\nafter the staff gate rather than instead of it: the middleware only 401s\nanonymous callers on real deploys, and this endpoint is the one that\nrewrites the live scoring thresholds. A STUDENT token is refused here in\nevery environment, exactly as on /admin/audit. Unlike T-64's\n``auth_register`` (which sat behind no OTHER gate at all on a real\ndeploy — ``/auth/*`` isn't in the middleware's staff-only path list),\nthis route is already staff-gated by the tenant-isolation middleware, so\nit does not need ``force=`` — every ``/admin/*`` surface makes the same\nchoice (see ``ADMIN_STAFF_ONLY_ENDPOINTS`` in tests/test_pilot_lockdown.py).\n\nKnown gap, not fixed here: ``tuned_thresholds_v2`` has no tenant column\n(`store.get_active_tuned_thresholds`/`put_tuned_thresholds`) — the active\nrow is deployment-wide, so a legitimate staff principal in one tenant\ncan change every other tenant's recommended action. Tenant-scoping this\ntable is a schema change and a separate decision; tracked, not silently\nexpanded into this diff.",
         "operationId": "admin_apply_thresholds_admin_calibration_runs__run_id__apply_post",
         "parameters": [
           {
@@ -4197,7 +4200,7 @@
     },
     "/admin/corrections": {
       "get": {
-        "description": "List corrections with optional filters.\n\nStaff-only on the same grounds as /admin/audit: the tenant-isolation\nmiddleware already 401s anonymous callers on real deploys\n(tests/test_pilot_lockdown), and the explicit guard here additionally\nrejects STUDENT tokens in the demo — correction rows carry other\nstudents' identifiers.",
+        "description": "List corrections with optional filters.\n\nStaff-only on the same grounds as /admin/audit: the tenant-isolation\nmiddleware already 401s anonymous callers on real deploys\n(tests/test_pilot_lockdown), and the explicit guard here additionally\nrejects STUDENT tokens in the demo — correction rows carry other\nstudents' identifiers. A staff principal sees only their own tenant's\ncorrections; SUPER_ROLES keep the cross-tenant view.",
         "operationId": "admin_list_corrections_admin_corrections_get",
         "parameters": [
           {
@@ -4336,7 +4339,7 @@
     },
     "/admin/manifests": {
       "get": {
-        "description": "Paginated list of context manifests from the audit log.\nAll filters are optional.\n\nStaff-only on the same grounds as /admin/audit: the tenant-isolation\nmiddleware already 401s anonymous callers on real deploys\n(tests/test_pilot_lockdown), and the explicit guard here additionally\nrejects STUDENT tokens in the demo — manifest rows carry other students'\nidentifiers, and `student_id` above is a filter over exactly that.",
+        "description": "Paginated list of context manifests from the audit log.\nAll filters are optional.\n\nStaff-only on the same grounds as /admin/audit: the tenant-isolation\nmiddleware already 401s anonymous callers on real deploys\n(tests/test_pilot_lockdown), and the explicit guard here additionally\nrejects STUDENT tokens in the demo — manifest rows carry other students'\nidentifiers, and `student_id` above is a filter over exactly that. A\nstaff principal sees only their own tenant's manifests; SUPER_ROLES\nkeep the cross-tenant view.",
         "operationId": "admin_list_manifests_admin_manifests_get",
         "parameters": [
           {
@@ -4698,7 +4701,7 @@
     },
     "/auth/register": {
       "post": {
-        "description": "Provision a staff user. Privileged: guarded by GUARD_DESTRUCTIVE in\npilot/production (X-Guard-Token required); open in demo for convenience.",
+        "description": "Provision a staff user. Privileged: ALWAYS guarded (X-Guard-Token\nrequired) on a real deploy; open in demo for convenience.\n\nUnlike every other _require_guard call site, this route sits behind no\nother gate at all on a real deploy (T-64) — the tenant-isolation\nmiddleware's staff-only path list doesn't cover /auth/*, so the guard\nused to be optional (GUARD_DESTRUCTIVE, unset by default) and self-\nregistration of a professor/admin/operator account for an arbitrary\ntenant was anonymously reachable on an unmodified pilot deploy.",
         "operationId": "auth_register_auth_register_post",
         "requestBody": {
           "content": {
@@ -4752,7 +4755,7 @@
     },
     "/baseline-requests/pending": {
       "get": {
-        "description": "List all currently-pending proctored baseline requests.",
+        "description": "List currently-pending proctored baseline requests for the caller's tenant.\n\nPreviously unauthenticated and unscoped: any caller, staff or not, could\nread every institution's pending requests, including student emails and\nlive (unredeemed) magic-link bearer credentials. Staff now see only\ntheir own tenant's pending requests; SUPER_ROLES keep the cross-tenant\n\"all schools\" view, matching ``list_all_baseline_requests`` below and\n``principal_mod.assert_tenant_access``'s convention.",
         "operationId": "list_pending_baseline_requests_baseline_requests_pending_get",
         "responses": {
           "200": {
@@ -4906,7 +4909,7 @@
     },
     "/bluebook/exams/{exam_id}/session": {
       "post": {
-        "description": "Begin (or resume) a sitting: the first call pins the server deadline;\nevery later call returns the same one, so reopening the tab never\nrestarts or pauses the clock (exam-day robustness spec §1).",
+        "description": "Begin (or resume) a sitting: the first call pins the server deadline;\nevery later call returns the same one, so reopening the tab never\nrestarts or pauses the clock (exam-day robustness spec §1).\n\nCallers: either the signed-in student starting/resuming their own\nsitting (session student id must match ``body.student_id``, when\ngiven), or staff. Previously this route had no auth check at all: an\nanonymous caller could pin the server-side deadline for an arbitrary\nstudent_id on any exam under the demo tenant (T-65) — same class of\nhole as ``bluebook_record_submission`` below, same fix shape.",
         "operationId": "bluebook_start_session_bluebook_exams__exam_id__session_post",
         "parameters": [
           {
@@ -5008,7 +5011,7 @@
         "summary": "Bluebook List Submissions"
       },
       "post": {
-        "description": "Record one sat examination (the integrity reading for the Results view).",
+        "description": "Record one sat examination (the integrity reading for the Results view).\n\nCallers: either the signed-in student sealing their own sitting (session\nstudent id must match ``body.student_id``), or staff. Previously this\nroute had no auth check at all — any caller could write a submission\nnaming an arbitrary student_id/candidate, including a classmate's.",
         "operationId": "bluebook_record_submission_bluebook_submissions_post",
         "requestBody": {
           "content": {
@@ -5228,7 +5231,7 @@
     },
     "/import/courses/{course_id}/turnitin-csv": {
       "post": {
-        "description": "Parse a Turnitin admin CSV export and create student/submission stubs.\n\nExpected columns (Turnitin default export):\n  Last Name, First Name, Student ID, Assignment Title, Date Submitted,\n  Similarity, File Name",
+        "description": "Parse a Turnitin admin CSV export and create student/submission stubs.\n\nExpected columns (Turnitin default export):\n  Last Name, First Name, Student ID, Assignment Title, Date Submitted,\n  Similarity, File Name\n\nEvery created student id is prefixed with the importing staff member's\nown tenant. Flat, tenant-less ids are a demo-sandbox-only convention\n(``principal.assert_student_access`` treats them that way); a roster\nimport minting flat ids on a real deploy would make those students\nreadable by the anonymous demo principal and by any staff account\nregardless of institution.",
         "operationId": "import_turnitin_csv_import_courses__course_id__turnitin_csv_post",
         "parameters": [
           {
@@ -6238,7 +6241,7 @@
     },
     "/students/{student_id}/upload": {
       "post": {
-        "description": "Extract plain text from an uploaded .txt, .docx, or .pdf file.",
+        "description": "Extract plain text from an uploaded .txt, .docx, or .pdf file.\n\nPlain ``def``, not ``async def`` (T-09): the .docx (python-docx) and\n.pdf (pypdf) branches do real CPU-bound parsing inline — python-docx\nbuilds a full DOM, pypdf's extract_text() walks the content stream page\nby page — and doing that inside an async handler blocks the whole\nevent loop for the duration, which stalls every other in-flight\nrequest, including a live exam's heartbeat polling. FastAPI dispatches\na plain ``def`` route to its threadpool automatically, so this one\nchange fixes all three branches (.txt included) with no other code\nchange — same fix already applied to the sibling upload routes,\n``import_turnitin_csv`` and ``upload_baseline_batch``. ``file.file`` is\nUploadFile's underlying sync SpooledTemporaryFile, same as those two.",
         "operationId": "upload_file_students__student_id__upload_post",
         "parameters": [
           {
