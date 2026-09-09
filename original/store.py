@@ -1662,6 +1662,16 @@ def delete_student(student_id: str) -> bool:
     - corrections           (SQLite — instructor feedback, by submission_id
                              to catch rows where student_id was never written)
     - student_names         (SQLite — display name from LTI / roster import)
+    - bluebook_submissions  (SQLite — exam sitting rows; carries the
+                             student's display name even when student_id
+                             was set)
+    - bluebook_sessions     (SQLite — pinned exam deadlines, by student_key)
+    - formation_pathways    (SQLite — divergence-triggered pathway state)
+    - baseline_requests     (SQLite — proctored-baseline request rows,
+                             which carry the student's email and an
+                             unredeemed magic-link bearer credential; the
+                             process-local in-memory registry is also
+                             purged, see baseline_requests.purge_student)
     - audit_log             (SQLite — the student's action history; the
                              deletion itself is re-logged by the API caller
                              as the single retained deletion receipt)
@@ -1704,6 +1714,12 @@ def delete_student(student_id: str) -> bool:
             # deletion itself (the deletion receipt), which is disclosed in
             # docs/dpa_template.md §5.3.
             conn.execute("DELETE FROM student_names WHERE student_id = ?", (student_id,))
+            # C1, 2026-09 fix pass: four more student-scoped tables the
+            # original erasure pass missed.
+            conn.execute("DELETE FROM bluebook_submissions WHERE student_id = ?", (student_id,))
+            conn.execute("DELETE FROM bluebook_sessions WHERE student_key = ?", (student_id,))
+            conn.execute("DELETE FROM formation_pathways WHERE student_id = ?", (student_id,))
+            conn.execute("DELETE FROM baseline_requests WHERE student_id = ?", (student_id,))
             conn.execute("DELETE FROM audit_log WHERE student_id = ?", (student_id,))
             conn.commit()
     except Exception:
@@ -1720,6 +1736,12 @@ def delete_student(student_id: str) -> bool:
     _fusion_peers = sys.modules.get("original.fusion.peers")
     if _fusion_peers is not None:
         _fusion_peers.clear_student(student_id)
+    # baseline_requests keeps a process-local in-memory registry hydrated
+    # from the table just purged above — clear it too, or a deleted
+    # student's email/magic-link would keep serving from memory.
+    _baseline_requests = sys.modules.get("original.baseline_requests")
+    if _baseline_requests is not None:
+        _baseline_requests.purge_student(student_id)
     return True
 
 

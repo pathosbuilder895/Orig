@@ -376,6 +376,54 @@ class PostgresRepository:
                 name_row = session.get(StudentName, (tenant_id, local_id))
                 if name_row is not None:
                     session.delete(name_row)
+                # C1, 2026-09 fix pass: four more student-scoped tables that
+                # the original erasure pass missed. bluebook_submissions
+                # carries the student's display name (candidate) even when
+                # student_id itself is set; baseline_requests carries the
+                # student's email and an unredeemed magic-link bearer
+                # credential in data_json.
+                #
+                # bluebook_submissions.student_id is the one exception to
+                # every other table's split (tenant_id, local_id) storage —
+                # put_bluebook_submission stores it verbatim, exactly what
+                # the caller passed (see that method's own comment), so this
+                # matches on the full scoped student_id alone. Deliberately
+                # NOT AND-ed with tenant_id here (unlike every table above):
+                # this row's tenant_id comes from _bluebook_tenant(request)
+                # at write time, a different derivation than
+                # split_scoped_id(student_id) above, so ANDing them could
+                # silently skip a genuine match on any future divergence
+                # between the two — erasure must never be the one that
+                # fails quietly. The full scoped string is already
+                # unambiguous on its own.
+                session.execute(
+                    BluebookSubmission.__table__.delete().where(
+                        BluebookSubmission.student_id == student_id,
+                    )
+                )
+                # student_key shares bluebook_submissions' storage
+                # convention (see the comment above it): the full scoped
+                # student_id verbatim when a real student is bound, or a
+                # "cand:"-prefixed label for demo sittings with none — not
+                # split_scoped_id's local_id. Matched alone for the same
+                # reason as bluebook_submissions above.
+                session.execute(
+                    BluebookSession.__table__.delete().where(
+                        BluebookSession.student_key == student_id,
+                    )
+                )
+                session.execute(
+                    FormationPathway.__table__.delete().where(
+                        FormationPathway.tenant_id == tenant_id,
+                        FormationPathway.student_id == local_id,
+                    )
+                )
+                session.execute(
+                    BaselineRequest.__table__.delete().where(
+                        BaselineRequest.tenant_id == tenant_id,
+                        BaselineRequest.student_id == local_id,
+                    )
+                )
                 # FERPA erasure (mirrors store.delete_student's audit_log
                 # purge): audit_log is keyed differently from every other
                 # student-scoped table above — it does NOT use the tenancy
@@ -399,6 +447,17 @@ class PostgresRepository:
             _fusion_peers = sys.modules.get("original.fusion.peers")
             if _fusion_peers is not None:
                 _fusion_peers.clear_student(student_id)
+            # baseline_requests keeps a process-local in-memory registry
+            # hydrated from its own SQLite/Postgres-backed table (which the
+            # DELETE above already purged) -- deleting the row alone leaves
+            # a stale in-process copy (student email, magic link) resident
+            # until restart. Guarded like fusion.peers: the module is always
+            # importable here (no optional-dependency reason not to), but
+            # the guard keeps this symmetric with the pattern above and
+            # avoids a hard import-order dependency.
+            _baseline_requests = sys.modules.get("original.baseline_requests")
+            if _baseline_requests is not None:
+                _baseline_requests.purge_student(student_id)
             return True
         except Exception:
             log.exception("delete_student failed for %s", student_id)

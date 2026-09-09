@@ -1729,6 +1729,7 @@ class TestStudentDataInventory:
         assert inv["data_categories"]["fidelity_scores"]["count"] == 1
 
 
+
 # ── QR phone-park (proctoring deterrence) ─────────────────────────────────
 
 
@@ -2136,6 +2137,36 @@ class TestDeleteStudentFullFootprint:
         repo.put_fidelity_score("sub-ferpa1", "sem:ferpa", 0.8, is_authentic=True)
         repo.put_ai_likelihood_score("sub-ferpa1", "sem:ferpa", 0.3, "low")
         repo.put_fused_score("sub-ferpa1", "sem:ferpa", 0.5, 0.6, "low", {"peer_centered_z": 0.1})
+        # C1, 2026-09 fix pass: four more student-scoped tables the original
+        # erasure pass missed — each carries FERPA-relevant PII (a display
+        # name, an email + unredeemed magic link, or just identifying rows).
+        repo.put_bluebook_submission(
+            {
+                "id": "bbsub-ferpa1",
+                "exam_id": None,
+                "tenant_id": "sem",
+                "student_id": "sem:ferpa",
+                "candidate": "FERPA Student",
+                "exam_title": "Midterm",
+                "course": "",
+                "word_count": 400,
+                "time_min": 30,
+                "stylometric": None,
+                "ai_score": None,
+                "status": "SUBMITTED",
+                "submission_uuid": None,
+            }
+        )
+        repo.get_or_create_bluebook_session("exam-ferpa1", "sem:ferpa", "sem", 3600)
+        repo.open_formation_pathway("sem:ferpa", submission_id="sub-ferpa1", reason="test")
+        repo.put_baseline_request(
+            "extreq-ferpa1",
+            "sem:ferpa",
+            "pending",
+            1234567890.0,
+            '{"student_id": "sem:ferpa", "student_email": "ferpa@sem.edu", '
+            '"magic_link": "https://bbook.example/m/abc123"}',
+        )
         # The audit log is a read surface too, and its details_json can carry
         # PII (e.g. a submission excerpt) — FERPA erasure must purge it, not
         # just the scoring tables. Seeded via the protocol, like every other
@@ -2149,7 +2180,9 @@ class TestDeleteStudentFullFootprint:
         # Sanity: everything is actually there before deleting.
         assert repo.student_data_inventory("sem:ferpa") is not None
         assert "sem:ferpa" in {r["id"] for r in repo.roster_for_tenant("sem")}
-        assert repo.list_audit(student_id="sem:ferpa")["total"] == 1
+        # >= 1, not == 1: open_formation_pathway logs its own audit row
+        # alongside the explicit one below.
+        assert repo.list_audit(student_id="sem:ferpa")["total"] >= 1
 
         assert repo.delete_student("sem:ferpa") is True
 
@@ -2166,6 +2199,14 @@ class TestDeleteStudentFullFootprint:
         assert repo.list_corrections(submission_id="sub-ferpa1")["items"] == []
         assert repo.list_manifests(student_id="sem:ferpa")["total"] == 0
         assert repo.list_audit(student_id="sem:ferpa")["items"] == []
+        assert not any(
+            s["student_id"] == "sem:ferpa" for s in repo.list_bluebook_submissions("sem")
+        )
+        assert repo.get_bluebook_session("exam-ferpa1", "sem:ferpa") is None
+        assert repo.get_formation_pathway("sem:ferpa") is None
+        assert not any(
+            r["student_id"] == "sem:ferpa" for r in repo.load_baseline_requests()
+        )
 
     def test_delete_legacy_flat_student_does_not_purge_other_tenants_audit_log(self, repo):
         # Final whole-branch review, C1: audit_log stores the LOCAL id for a
