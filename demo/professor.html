@@ -2895,6 +2895,27 @@ function buildInterpretation(r, student) {
     headline = `${name}'s writing is ${voiceMatchPct}% consistent with their established voice — confirmed authentic.`;
   }
 
+  // A thin baseline makes the deviation score unreliable in either
+  // direction — the fewer authenticated samples on file, the more any
+  // difference reads as drift regardless of whether it's real. Don't let a
+  // confident-sounding percentage substitute for that caveat: when the
+  // readiness endpoint says this student isn't ready to analyze yet, lead
+  // with that instead of the raw number, and cap severity so a thin
+  // baseline can't read as urgent on its own.
+  if (activeReadiness && activeReadiness.verdict !== 'ready') {
+    const topRec = (activeReadiness.recommendations || [])[0] || '';
+    if (activeReadiness.verdict === 'insufficient') {
+      severity = 'amber';
+      headline = `${name} doesn't have enough authenticated baseline samples yet for a reliable reading.` +
+        (topRec ? ` ${topRec}` : '');
+    } else {
+      if (severity === 'red') severity = 'amber';
+      headline = `${name}'s baseline is still developing, so this reading is less certain than usual — ` +
+        `${voiceMatchPct}% consistent with their established voice so far.` +
+        (topRec ? ` ${topRec}` : '');
+    }
+  }
+
   // Bullets: sorted tiers, pick worst two
   const sorted = [...r.tiers].sort((a,b)=>b.s-a.s);
   const worst  = sorted[0];

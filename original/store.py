@@ -830,10 +830,25 @@ def list_ids() -> list[str]:
     return [r[0] for r in rows]
 
 
-def all_states() -> list[StudentState]:
-    """Every stored StudentState (the impostor-pool builder's input)."""
+def all_states(tenant_id: str | None = None) -> list[StudentState]:
+    """Every stored StudentState (the impostor-pool builder's input).
+
+    ``tenant_id`` filters at the SQL layer rather than in Python: every
+    current caller (``build_impostor_stats``, fusion peer selection,
+    style-authorship) immediately discards states outside the claimed
+    student's own tenant, so scoping the query itself skips deserializing
+    (JSON-parsing every sample, including raw text) rows that would be
+    thrown away anyway. ``None`` preserves the old whole-table scan for
+    callers that genuinely need every tenant (e.g. admin tooling).
+    """
     with _get_conn() as conn:
-        rows = conn.execute("SELECT data FROM student_profiles").fetchall()
+        if tenant_id is not None:
+            rows = conn.execute(
+                "SELECT data FROM student_profiles WHERE student_id LIKE ?",
+                (f"{tenant_id}:%",),
+            ).fetchall()
+        else:
+            rows = conn.execute("SELECT data FROM student_profiles").fetchall()
     return [_deserialize(r[0]) for r in rows]
 
 
@@ -968,6 +983,7 @@ def list_manifests(
     until: str | None = None,
     limit: int = 100,
     offset: int = 0,
+    tenant_id: str | None = None,
 ) -> dict:
     """
     Paginated query over the submission_manifests audit table.
@@ -975,7 +991,11 @@ def list_manifests(
     All filters are optional. ``flag`` searches inside the JSON-serialised
     manifest's ``flags`` array — uses LIKE rather than json_extract so we
     don't depend on the SQLite JSON1 extension (not always compiled in on
-    macOS Python builds).
+    macOS Python builds). ``tenant_id`` restricts to that tenant's students
+    via the "{tenant}:{local_id}" student_id convention — this table has no
+    dedicated tenant column (unlike audit_log/Postgres's SubmissionManifest,
+    which does). Callers enforcing per-tenant visibility should always pass
+    this rather than relying on the caller to pre-filter student_id.
 
     Returns
     -------
@@ -1013,6 +1033,9 @@ def list_manifests(
     if until is not None:
         where_clauses.append("created_at <= ?")
         params.append(until)
+    if tenant_id is not None:
+        where_clauses.append("student_id LIKE ?")
+        params.append(f"{tenant_id}:%")
     if flag is not None:
         # LIKE against the JSON column. Conservative: matches "flag" anywhere
         # in the JSON string. Good enough for the dashboard's filter UX —
@@ -1515,8 +1538,12 @@ def _pool_groups(tenant: str | None, genre: str | None) -> list[tuple[str, list[
         groups = []
         # Full read-through scan (WS-6 P6): all_states() snapshots the table,
         # so concurrent writers can't perturb the iteration the way the old
-        # shared _STORE dict could.
-        for student_state in all_states():
+        # shared _STORE dict could. Pushed down to a SQL-level tenant filter
+        # when possible (Phase 3 perf fix, 2026-09) — `tenant=None` means the
+        # legacy-flat-id cohort specifically, not "no filter", so that case
+        # still scans every row and filters in Python.
+        _candidates = all_states(tenant_id=tenant) if tenant is not None else all_states()
+        for student_state in _candidates:
             if tenant_of(student_state.student_id) != tenant:
                 continue
             student_vectors = [
@@ -1654,6 +1681,16 @@ def delete_student(student_id: str) -> bool:
     - corrections           (SQLite — instructor feedback, by submission_id
                              to catch rows where student_id was never written)
     - student_names         (SQLite — display name from LTI / roster import)
+    - bluebook_submissions  (SQLite — exam sitting rows; carries the
+                             student's display name even when student_id
+                             was set)
+    - bluebook_sessions     (SQLite — pinned exam deadlines, by student_key)
+    - formation_pathways    (SQLite — divergence-triggered pathway state)
+    - baseline_requests     (SQLite — proctored-baseline request rows,
+                             which carry the student's email and an
+                             unredeemed magic-link bearer credential; the
+                             process-local in-memory registry is also
+                             purged, see baseline_requests.purge_student)
     - audit_log             (SQLite — the student's action history; the
                              deletion itself is re-logged by the API caller
                              as the single retained deletion receipt)
@@ -1696,6 +1733,12 @@ def delete_student(student_id: str) -> bool:
             # deletion itself (the deletion receipt), which is disclosed in
             # docs/dpa_template.md §5.3.
             conn.execute("DELETE FROM student_names WHERE student_id = ?", (student_id,))
+            # C1, 2026-09 fix pass: four more student-scoped tables the
+            # original erasure pass missed.
+            conn.execute("DELETE FROM bluebook_submissions WHERE student_id = ?", (student_id,))
+            conn.execute("DELETE FROM bluebook_sessions WHERE student_key = ?", (student_id,))
+            conn.execute("DELETE FROM formation_pathways WHERE student_id = ?", (student_id,))
+            conn.execute("DELETE FROM baseline_requests WHERE student_id = ?", (student_id,))
             conn.execute("DELETE FROM audit_log WHERE student_id = ?", (student_id,))
             conn.commit()
     except Exception:
@@ -1712,6 +1755,12 @@ def delete_student(student_id: str) -> bool:
     _fusion_peers = sys.modules.get("original.fusion.peers")
     if _fusion_peers is not None:
         _fusion_peers.clear_student(student_id)
+    # baseline_requests keeps a process-local in-memory registry hydrated
+    # from the table just purged above — clear it too, or a deleted
+    # student's email/magic-link would keep serving from memory.
+    _baseline_requests = sys.modules.get("original.baseline_requests")
+    if _baseline_requests is not None:
+        _baseline_requests.purge_student(student_id)
     return True
 
 
@@ -1821,8 +1870,11 @@ def list_corrections(
     is_correct: bool | None = None,
     limit: int = 100,
     offset: int = 0,
+    tenant_id: str | None = None,
 ) -> dict:
-    """List corrections with optional filters."""
+    """List corrections with optional filters. ``tenant_id`` restricts to
+    that tenant's students via the "{tenant}:{local_id}" student_id
+    convention — this table has no dedicated tenant column."""
     where_clauses: list[str] = []
     params: list = []
     if submission_id is not None:
@@ -1834,6 +1886,9 @@ def list_corrections(
     if is_correct is not None:
         where_clauses.append("is_correct = ?")
         params.append(1 if is_correct else 0)
+    if tenant_id is not None:
+        where_clauses.append("student_id LIKE ?")
+        params.append(f"{tenant_id}:%")
     where = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
 
     try:
@@ -2739,6 +2794,7 @@ def list_audit(
     action: str | None = None,
     limit: int = 100,
     offset: int = 0,
+    tenant_id: str | None = None,
 ) -> dict:
     """
     Query audit log entries. All filters are optional AND-combined.
@@ -2748,6 +2804,10 @@ def list_audit(
         action:     Filter to this action type.
         limit:      Max rows (cap 1000).
         offset:     Pagination offset.
+        tenant_id:  Restrict to this tenant's rows (uses the audit_log
+                    table's own tenant_id column). Callers enforcing
+                    per-tenant visibility (a non-SUPER_ROLES staff
+                    principal) should always pass this.
     """
     limit = min(limit, 1000)
     try:
@@ -2759,6 +2819,9 @@ def list_audit(
             if action:
                 clauses.append("action = ?")
                 params.append(action)
+            if tenant_id is not None:
+                clauses.append("tenant_id = ?")
+                params.append(tenant_id)
             where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
             total = conn.execute(f"SELECT COUNT(*) FROM audit_log {where}", params).fetchone()[0]
             rows = conn.execute(

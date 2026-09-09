@@ -606,6 +606,16 @@ class ScoringConfig:
     # and tenant lookups since only it knows which genre applies and which
     # student is being scored before calling score().
     genre_stats: dict | None = None
+    # Admin calibration-lab "Apply thresholds" result (was
+    # ``store.get_active_tuned_thresholds()``) — a dict with at least
+    # ``no_action``/``monitor``/``escalate`` cut points, or None if no tuned
+    # set has ever been applied. When present, ``_recommend()`` prefers these
+    # cut points over the static ``ACTION_THRESHOLDS`` bands for the
+    # deviation-only action selection (the branch that runs when the
+    # typicality axis is off or produced no band); see ``_recommend()`` and
+    # ``_tuned_action_bands()`` for the exact precedence and the monotonicity
+    # guard that falls back to ``ACTION_THRESHOLDS`` on malformed data.
+    tuned_action_thresholds: dict | None = None
 
     @classmethod
     def from_env(cls) -> ScoringConfig:
@@ -1491,6 +1501,7 @@ def score(
         llr_deviation_score=llr_deviation_score,
         identity_axis_enabled=config.identity_axis_enabled,
         null_model=config.null_model,
+        tuned_action_thresholds=config.tuned_action_thresholds,
     )
 
     # ── LLR-informed action mode (2026-08 cross-genre study) ──────────────────
@@ -1845,6 +1856,41 @@ def _identity_axis_action(
 # ── Recommended action ────────────────────────────────────────────────────────
 
 
+def _tuned_action_bands(tuned: dict | None) -> dict[str, tuple[float, float]]:
+    """Convert an admin-applied tuned-thresholds row into ``ACTION_THRESHOLDS``-
+    shaped bands, or return ``ACTION_THRESHOLDS`` unchanged when ``tuned`` is
+    None or malformed.
+
+    ``tuned_thresholds_v2`` stores three cut points (``no_action``,
+    ``monitor``, ``escalate``) rather than four explicit ``(lo, hi)`` bands —
+    they're the same three boundaries ``ACTION_THRESHOLDS`` already uses
+    (0.40/0.60/0.75 by default), just written as cut points instead of
+    tuples. The admin API (``ApplyThresholdsRequest`` in ``schemas.py``)
+    range-checks each value to ``[0, 1]`` but does not enforce
+    ``no_action <= monitor <= escalate`` — so a malformed or manually-edited
+    row could otherwise produce inverted or overlapping bands, which would
+    silently misclassify every submission. Guard against that here rather
+    than trusting the stored row: any non-monotonic set falls back to the
+    static ``ACTION_THRESHOLDS`` bands exactly as if no tuned set existed.
+    """
+    if not tuned:
+        return ACTION_THRESHOLDS
+    try:
+        no_action_hi = float(tuned["no_action"])
+        monitor_hi = float(tuned["monitor"])
+        escalate_hi = float(tuned["escalate"])
+    except (KeyError, TypeError, ValueError):
+        return ACTION_THRESHOLDS
+    if not (0.0 <= no_action_hi <= monitor_hi <= escalate_hi <= 1.0):
+        return ACTION_THRESHOLDS
+    return {
+        "no_action": (0.0, no_action_hi),
+        "monitor": (no_action_hi, monitor_hi),
+        "schedule_conversation": (monitor_hi, escalate_hi),
+        "escalate": (escalate_hi, 1.0),
+    }
+
+
 def _recommend(
     born_prob: float,
     deviation: float,
@@ -1859,6 +1905,7 @@ def _recommend(
     llr_deviation_score: float | None = None,  # Phase 2 — identity axis input
     identity_axis_enabled: bool = False,  # Phase 2 — IDENTITY_AXIS
     null_model: str = "none",  # Phase 2 — gate: matrix only under "impostor"
+    tuned_action_thresholds: dict | None = None,  # store.get_active_tuned_thresholds()
 ) -> RecommendedAction:
     """Derive recommended action from the full probability object.
 
@@ -1884,6 +1931,12 @@ def _recommend(
     continue to apply exactly as before on top of whichever source produced
     the initial action.
 
+    ``tuned_action_thresholds``, when the typicality axis did NOT set an
+    action, further replaces the static ``ACTION_THRESHOLDS`` bands with the
+    admin calibration lab's currently-active tuned set (see
+    ``_tuned_action_bands``) — ``None`` (no tuned set ever applied, or a
+    malformed one) reproduces ``ACTION_THRESHOLDS`` exactly.
+
     Phase 2 (``identity_axis_enabled`` + ``null_model == "impostor"``):
     when both are true AND a typicality band AND an ``llr_deviation_score``
     are available, ``_identity_axis_action`` recombines them via the design
@@ -1899,7 +1952,8 @@ def _recommend(
         action = typicality_band
     else:
         action = "no_action"
-        for act, (lo, hi) in ACTION_THRESHOLDS.items():
+        _bands = _tuned_action_bands(tuned_action_thresholds)
+        for act, (lo, hi) in _bands.items():
             if lo <= deviation < hi:
                 action = act
                 break

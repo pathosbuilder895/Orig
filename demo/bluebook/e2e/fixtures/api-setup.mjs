@@ -46,7 +46,17 @@ export async function registerStaff(request, {
   tenantId, role = 'professor', email, password = 'e2e-test-pass-1', name = 'E2E Staff',
 } = {}) {
   const staffEmail = email || `${unique('staff')}@e2e.test`
+  // POST /auth/register is unconditionally guarded on a real deploy (T-64:
+  // force=_IS_REAL_DEPLOY, original/routers/auth.py) — CI boots the server
+  // with ORIGINAL_ENV=pilot, so this header is required here exactly as it
+  // would be against a real pilot deploy. MAINTENANCE_TOKEN must be set on
+  // this test process to the same value the server was started with (see
+  // the workflow's "Run Playwright E2E tests" step).
+  const headers = process.env.MAINTENANCE_TOKEN
+    ? { 'X-Guard-Token': process.env.MAINTENANCE_TOKEN }
+    : undefined
   const res = await request.post('/auth/register', {
+    headers,
     data: { email: staffEmail, password, role, tenant_id: tenantId, name },
   })
   const body = await okJson(res, `registerStaff(${staffEmail})`)

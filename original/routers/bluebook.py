@@ -163,7 +163,24 @@ def _student_key(body) -> str:
 def bluebook_start_session(exam_id: str, body: BluebookStartSessionRequest, request: Request):
     """Begin (or resume) a sitting: the first call pins the server deadline;
     every later call returns the same one, so reopening the tab never
-    restarts or pauses the clock (exam-day robustness spec §1)."""
+    restarts or pauses the clock (exam-day robustness spec §1).
+
+    Callers: either the signed-in student starting/resuming their own
+    sitting (session student id must match ``body.student_id``, when
+    given), or staff. Previously this route had no auth check at all: an
+    anonymous caller could pin the server-side deadline for an arbitrary
+    student_id on any exam under the demo tenant (T-65) — same class of
+    hole as ``bluebook_record_submission`` below, same fix shape.
+    """
+    try:
+        _require_staff(request)
+    except HTTPException:
+        session = _require_student_session(request)
+        if body.student_id and session.get("sid") != body.student_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Session does not match the requested student_id.",
+            ) from None
     tenant = _bluebook_tenant(request)
     exam = _repo().get_bluebook_exam(exam_id)
     if exam is None or exam.get("tenant_id") not in (tenant, None):

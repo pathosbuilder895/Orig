@@ -1,13 +1,13 @@
 # requirements-pilot.txt — runtime deps for the PILOT service (run.py --demo
 # with ORIGINAL_ENV=pilot hardening).
 #
-# = requirements-demo.txt + the LTI 1.3 crypto stack.
+# = requirements-demo.txt + the LTI 1.3 crypto stack + the Postgres stack.
 #
 # Why a third file (vs requirements.txt): the full production set pulls
 # sentence-transformers/PyTorch, which exceeds Render Starter's memory and
-# build limits. The pilot runs the same SQLite dashboard app as the demo —
-# it just additionally needs python-jose/cryptography, which original/lti.py
-# imports lazily (LTI launches 500 without them).
+# build limits. The pilot runs the same dashboard app as the demo — it just
+# additionally needs python-jose/cryptography, which original/lti.py imports
+# lazily (LTI launches 500 without them), and the Postgres/SQLAlchemy stack.
 
 -r requirements-demo.txt
 
@@ -15,3 +15,15 @@
 # jose verifies the platform's RS256 id_token against its JWKS; cryptography
 # loads the tool's RSA key for /lti/jwks.
 python-jose[cryptography]>=3.4.0,<4.0
+
+# ── Postgres (original/postgres_repository.py, REPO_BACKEND=postgres) ─────────
+# Unlike the local demo, the pilot deploy is exactly where REPO_BACKEND is
+# actually flipped to postgres (WS-6 P5 cutover) — requirements-demo.txt
+# deliberately excludes this stack because the demo never runs Postgres, but
+# that exclusion doesn't hold here. Without it, get_repository()'s lazy
+# `from .postgres_repository import PostgresRepository` raises ModuleNotFoundError
+# on the first request after REPO_BACKEND=postgres is set, even though the
+# process boots cleanly — pinned to match requirements.txt's versions.
+sqlalchemy==2.0.51
+alembic==1.18.5
+psycopg2-binary==2.9.12

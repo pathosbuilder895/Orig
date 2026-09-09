@@ -106,12 +106,21 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # submission. Computed at most once, lazily — most scoring calls have at
     # least one of the three consumers off, and a request with all three off
     # should not pay for the query at all.
+    #
+    # Scoped to the claimed student's own tenant (Phase 3 perf fix, 2026-09):
+    # all three consumers (build_impostor_stats, fusion peer selection,
+    # style-authorship) immediately discard any state outside
+    # tenant_of(student_id) — see their own tenant_of() filters — so pulling
+    # every OTHER tenant's rows and text off disk just to throw them away was
+    # pure waste, and grows linearly with total tenant count on a multi-
+    # tenant deployment. Filtering at the SQL layer instead is transparent to
+    # every caller here: identical results, less work.
     _all_states_cache: list | None = None
 
     def _all_states() -> list:
         nonlocal _all_states_cache
         if _all_states_cache is None:
-            _all_states_cache = _repo().all_states()
+            _all_states_cache = _repo().all_states(tenant_id=tenant_of(student_id))
         return _all_states_cache
 
     # ── Explicit null model (rank-and-null work, production wiring) ───────────
@@ -141,7 +150,23 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
         try:
             from ..quantum.null_pool import build_impostor_stats
 
-            _impostor_stats = build_impostor_stats(student_id, _all_states())
+            if (
+                _scoring_config_env.characteristic_weights == "shadow"
+                and _scoring_config_env.null_model != "impostor"
+            ):
+                # Shadow is report-only, but all_states() is a full table scan
+                # plus JSON deserialization. Amortise that soak-only cost for
+                # a few seconds; baseline writes bust the tenant entry in
+                # _shared._persist_state_or_503. Enabled/on semantics and the
+                # action-capable null model always use a fresh cohort.
+                from ..quantum import impostor_cache
+
+                _hit, _impostor_stats = impostor_cache.get(student_id)
+                if not _hit:
+                    _impostor_stats = build_impostor_stats(student_id, _all_states())
+                    impostor_cache.put(student_id, _impostor_stats)
+            else:
+                _impostor_stats = build_impostor_stats(student_id, _all_states())
         except Exception:
             logging.getLogger(__name__).exception(
                 # Two consumers now depend on this pool, and which ones are
@@ -162,6 +187,14 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     _authentic_fidelities = None
     if _scoring_config_env.amplitude_scoring_enabled:
         _authentic_fidelities = _repo().get_authentic_fidelities(student_id)
+    # Admin calibration-lab "Apply thresholds" result. Unlike the two lookups
+    # above, this isn't gated behind a feature flag: it's a single indexed-
+    # order row read (not a full-table scan like build_impostor_stats), and
+    # it's self-gating — None (no tuned set ever applied, the state of every
+    # deployment today) reproduces the static ACTION_THRESHOLDS bands inside
+    # _recommend() exactly, so fetching it unconditionally is byte-identical
+    # to before on every existing deployment.
+    _tuned_action_thresholds = _repo().get_active_tuned_thresholds()
     _genre_stats = None
     if _scoring_config_env.bayesian_prior_enabled and state.sample_count < 10:
         _genre = (
@@ -226,6 +259,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
         _scoring_config_env,
         authentic_fidelities=_authentic_fidelities,
         genre_stats=_genre_stats,
+        tuned_action_thresholds=_tuned_action_thresholds,
     )
 
     result = quantum_score(

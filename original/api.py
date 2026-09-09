@@ -315,9 +315,26 @@ _DEMO_ONLY_STATICS = frozenset(
         "/validation_report.json",
         "/validation_similarity.json",
         "/validation_thresholds.json",
+        # Committed build artifact (~1.2MB), not source: unlike bluebook.bundle.js
+        # itself (which every deploy must serve to run the app), the source map
+        # exposes the original, unminified JSX file structure to anyone who asks.
+        # Harmless in the public demo; real deploy has no reason to hand out its
+        # own build internals (T-06).
+        "/bluebook/bluebook.bundle.js.map",
     }
 )
 _DEMO_ONLY_STATIC_PREFIXES = frozenset({"/prototypes"})
+
+# demo/app/ is a separate, unfinished React dashboard superseded by
+# demo/bluebook/ + the live professor/admin/student HTML pages. Nothing
+# served anywhere in the app links into it (confirmed: no href/src pointing
+# at /app across demo/*.html or demo/bluebook/*.html) — it is reachable only
+# because StaticFiles mounts the whole frontend_dir generically, and its 15
+# committed .bundle.js.map files expose the full JSX source at public URLs.
+# Unlike _DEMO_ONLY_STATIC_PREFIXES this is blocked on every deploy,
+# including the public demo, not just real ones — the demo is itself a
+# public internet service.
+_ALWAYS_BLOCKED_STATIC_PREFIXES = frozenset({"/app"})
 
 
 def _is_demo_only_static_path(path: str) -> bool:
@@ -338,6 +355,14 @@ def _is_demo_only_static_path(path: str) -> bool:
     )
 
 
+def _is_always_blocked_static_path(path: str) -> bool:
+    normalized = path.rstrip("/") or "/"
+    return any(
+        normalized == prefix or normalized.startswith(f"{prefix}/")
+        for prefix in _ALWAYS_BLOCKED_STATIC_PREFIXES
+    )
+
+
 def _is_staff_only_path(path: str) -> bool:
     p = path.rstrip("/") or "/"
     return p in _STAFF_ONLY_EXACT or path.startswith(_STAFF_ONLY_PREFIXES)
@@ -347,6 +372,8 @@ def _is_staff_only_path(path: str) -> bool:
 async def tenant_isolation(request: Request, call_next):
     principal = principal_mod.resolve_principal(request)
     request.state.principal = principal
+    if _is_always_blocked_static_path(request.url.path):
+        return JSONResponse(status_code=404, content={"detail": "Not found"})
     if _IS_REAL_DEPLOY and _is_demo_only_static_path(request.url.path):
         return JSONResponse(status_code=404, content={"detail": "Not found"})
     if _IS_REAL_DEPLOY and _is_staff_only_path(request.url.path):
