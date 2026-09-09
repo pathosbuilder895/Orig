@@ -114,7 +114,7 @@ pyasn1==0.6.4
     #   rsa
 pycparser==3.0
     # via cffi
-pydantic==2.9.2
+pydantic==2.13.5
     # via
     #   -r requirements-demo.txt
     #   fastapi
