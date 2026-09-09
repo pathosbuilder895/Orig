@@ -47,22 +47,6 @@ function mintProctorAttestation(studentId, exam = '') {
   return `${payload}.${sig}`
 }
 
-// Mirrors original/student_auth.py:mint_session — same HMAC scheme as
-// mintProctorAttestation above, different payload shape ({sid, name, exp},
-// no "typ"). A real magic-link launch (GET /bluebook/launch) mints this
-// server-side into `original_session_token` alongside the proctor token
-// (original/routers/bluebook.py) — the seal-submission auth check added by
-// T-03 (POST /bluebook/submissions) requires this session, so a harness
-// that bypasses the magic-link redirect has to mint one directly too, the
-// same way it already does for the proctor attestation.
-function mintSessionToken(studentId, name = '') {
-  const secret = process.env.SECRET_KEY || 'demo-insecure-student-secret'
-  const body = { sid: studentId, name, exp: Math.floor(Date.now() / 1000) + 12 * 3600 }
-  const payload = base64url(Buffer.from(JSON.stringify(body)))
-  const sig = base64url(createHmac('sha256', secret).update(payload).digest())
-  return `${payload}.${sig}`
-}
-
 /**
  * Inject demo + auth state so the React app routes straight to the briefing
  * (BB_API.isStudentLaunch() returns true) with a low minWords so a test can
@@ -70,17 +54,12 @@ function mintSessionToken(studentId, name = '') {
  */
 async function bootInExam(page, { minWords = 12 } = {}) {
   const proctorToken = mintProctorAttestation(TEST_STUDENT_ID, 'e2e-exam-1')
-  const sessionToken = mintSessionToken(TEST_STUDENT_ID, TEST_STUDENT_NAME)
-  await page.addInitScript(([studentId, candidate, mw, proctorToken, sessionToken]) => {
+  await page.addInitScript(([studentId, candidate, mw, proctorToken]) => {
     // Force the "bound student launch" path in BB_API.isStudentLaunch()
     localStorage.setItem('bluebook_student_id', studentId)
     // What a real /bluebook/launch redemption would have stored — without
     // it, the seal submission is downgraded to provenance=unverified.
     localStorage.setItem('bluebook_proctor_token', proctorToken)
-    // Authenticates the seal write itself (POST /bluebook/submissions
-    // requires a matching student session or staff principal, see
-    // original/routers/bluebook.py:bluebook_record_submission).
-    localStorage.setItem('original_session_token', sessionToken)
     // Pre-configure the exam so the briefing → exam transition is trivial
     window.BB_EXAM_CONFIG = {
       title: 'E2E Smoke Examination',
@@ -95,7 +74,7 @@ async function bootInExam(page, { minWords = 12 } = {}) {
       spellChk: false,
       id: 'e2e-exam-1',
     }
-  }, [TEST_STUDENT_ID, TEST_STUDENT_NAME, minWords, proctorToken, sessionToken])
+  }, [TEST_STUDENT_ID, TEST_STUDENT_NAME, minWords, proctorToken])
 }
 
 test.describe('Bluebook exam lockdown — full flow', () => {
@@ -251,7 +230,15 @@ test.describe('Bluebook exam lockdown — full flow', () => {
       .toBeVisible({ timeout: 5_000 })
 
     // ── API-side verification: the bound student now has a proctored sample
-    const studentResp = await request.get(`/students/${encodeURIComponent(TEST_STUDENT_ID)}`)
+    // GET /students/{id} is scoped by assert_student_access
+    // (original/principal.py) for every request, staff-only-path or not:
+    // an anonymous read of a "demo:"-tenant id is explicitly refused on a
+    // real deploy (T-66), same as the write side -- only a matching
+    // student session or staff reads it, so this needs the same session
+    // token bootInExam minted for the seal itself.
+    const studentResp = await request.get(`/students/${encodeURIComponent(TEST_STUDENT_ID)}`, {
+      headers: { Authorization: `Bearer ${mintSessionToken(TEST_STUDENT_ID, TEST_STUDENT_NAME)}` },
+    })
     expect(studentResp.status()).toBe(200)
     const student = await studentResp.json()
     expect(student.sample_count).toBeGreaterThan(0)
