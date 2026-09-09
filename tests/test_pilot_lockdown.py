@@ -98,6 +98,31 @@ def test_register_refuses_anonymous_on_real_deploy(real_deploy, api_mod, monkeyp
     assert r.status_code == 403, r.text
 
 
+def test_tuned_thresholds_are_not_tenant_scoped(store_reset):
+    """Documents a known gap, not a fix: ``tuned_thresholds_v2`` has no
+    tenant column, so a row applied via ONE tenant's calibration run becomes
+    every tenant's active action ladder — ``get_active_tuned_thresholds``
+    takes no tenant argument and returns the same global row regardless of
+    who is asking. The gap is the missing tenant scope on the stored row,
+    not the staff-auth gate on POST /admin/calibration/runs/{id}/apply,
+    which matches every other /admin/* surface (ADMIN_STAFF_ONLY_ENDPOINTS
+    above). If this test ever fails because get_active_tuned_thresholds
+    started taking a tenant, delete it — that's the fix landing."""
+    from original.repository import get_repository
+
+    repo = get_repository()
+    assert repo.get_active_tuned_thresholds() is None  # nothing applied yet
+
+    repo.put_tuned_thresholds(no_action=0.11, monitor=0.22, escalate=0.33, source="test")
+
+    active = repo.get_active_tuned_thresholds()
+    assert active["no_action"] == pytest.approx(0.11)
+    assert active["monitor"] == pytest.approx(0.22)
+    assert active["escalate"] == pytest.approx(0.33)
+    # No tenant_id key exists to scope this to the tenant that applied it.
+    assert "tenant_id" not in active
+
+
 def test_register_works_with_guard_token_on_real_deploy(
     real_deploy, api_mod, monkeypatch, live_client, store_reset
 ):
@@ -573,6 +598,30 @@ def test_delete_purges_display_name_and_audit_history(live_client):
     assert names == 0
     # Exactly one row survives: the deletion receipt written after the purge.
     assert [a[0] for a in audits] == ["student_delete"]
+
+
+def test_delete_busts_the_characteristic_weights_shadow_cache(live_client):
+    """Deleting a student must not leave them influencing peers' shadow
+    previews for up to impostor_cache.TTL_SECONDS afterwards."""
+    from original.quantum import impostor_cache
+
+    sid = "cwcache_erased_student"  # flat id, like the FERPA test above —
+    # a tenant-shaped "tenant:id" hits the cross-tenant middleware check
+    # even in demo mode, which isn't what this test is about
+    r = live_client.post(
+        f"/students/{sid}/baseline",
+        json={"text": LONG_TEXT, "assignment": "a1"},
+    )
+    assert r.status_code == 200, r.text
+    impostor_cache.put(sid, object())
+    hit, _ = impostor_cache.get(sid)
+    assert hit is True  # sanity: the cache actually holds something first
+
+    r = live_client.delete(f"/students/{sid}")
+    assert r.status_code == 200, r.text
+
+    hit, _ = impostor_cache.get(sid)
+    assert hit is False, "delete_student did not invalidate the tenant's shadow-pool cache"
 
 
 # ── 6. Backup module ──────────────────────────────────────────────────────────

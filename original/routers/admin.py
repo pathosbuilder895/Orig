@@ -609,7 +609,19 @@ def admin_apply_thresholds(run_id: int, req: ApplyThresholdsRequest, request: Re
     after the staff gate rather than instead of it: the middleware only 401s
     anonymous callers on real deploys, and this endpoint is the one that
     rewrites the live scoring thresholds. A STUDENT token is refused here in
-    every environment, exactly as on /admin/audit.
+    every environment, exactly as on /admin/audit. Unlike T-64's
+    ``auth_register`` (which sat behind no OTHER gate at all on a real
+    deploy — ``/auth/*`` isn't in the middleware's staff-only path list),
+    this route is already staff-gated by the tenant-isolation middleware, so
+    it does not need ``force=`` — every ``/admin/*`` surface makes the same
+    choice (see ``ADMIN_STAFF_ONLY_ENDPOINTS`` in tests/test_pilot_lockdown.py).
+
+    Known gap, not fixed here: ``tuned_thresholds_v2`` has no tenant column
+    (`store.get_active_tuned_thresholds`/`put_tuned_thresholds`) — the active
+    row is deployment-wide, so a legitimate staff principal in one tenant
+    can change every other tenant's recommended action. Tenant-scoping this
+    table is a schema change and a separate decision; tracked, not silently
+    expanded into this diff.
     """
     _require_staff(request)
     _require_guard(request)

@@ -248,6 +248,14 @@ def delete_student(student_id: str, request: Request):
             detail=f"Student '{student_id}' not found — nothing to delete.",
         )
     _repo().log_audit(action="student_delete", student_id=student_id, actor=remote, result="ok")
+    # The CHARACTERISTIC_WEIGHTS=shadow pool cache (original/quantum/
+    # impostor_cache.py) is keyed by tenant and can outlive an erased
+    # student by up to TTL_SECONDS otherwise — every peer's shadow preview
+    # would keep including the deleted student until the cache expired on
+    # its own.
+    from ..quantum import impostor_cache
+
+    impostor_cache.invalidate(student_id)
     return {
         "deleted": True,
         "student_id": student_id,
