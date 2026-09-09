@@ -124,6 +124,7 @@ jobs:
           DATABASE_URL: postgresql://original:original@localhost:5432/original_test
         run: |
           python -m pytest tests/ validation/test_tier10_optional.py \
+            -m "not blocker and not certification" \
             --cov=original --cov-branch --cov-report=xml --cov-fail-under=98
 
       - name: Upload coverage report
@@ -132,6 +133,52 @@ jobs:
           name: coverage-xml
           path: coverage.xml
           retention-days: 14
+
+  # Home of the whole certification group, which the `pytest` job above
+  # deselects (-m "not blocker and not certification"): these tests provision
+  # profiles through the live API and cost minutes, which does not belong in
+  # the blocking per-PR lane.
+  #
+  # Two steps, blocking on opposite conditions:
+  #   1. Certification WITNESSES (`certification and not blocker`) must PASS.
+  #      A witness proves the harness can detect the failure its blocker pins;
+  #      if the witness breaks, the blocker's red proves nothing.
+  #   2. @pytest.mark.blocker tests — known-red tests that pin documented open
+  #      product gaps (docs/testing/10-gap-register.md) — must NOT pass. This
+  #      step fails the day one of them unexpectedly PASSES, or is SKIPPED
+  #      without a message containing "uninformative" (a bare skip is not a
+  #      way to make a red test green — see scripts/known_red.py and
+  #      pytest.ini's `blocker` marker docstring).
+  # No Postgres service — these tests don't need one.
+  known-red:
+    runs-on: ubuntu-latest
+    needs: lint
+    # The four certification tests measured 5:31 wall on a 12-core Darwin
+    # box; ubuntu-latest runners are 2-core, and this job also pays for
+    # pip install, the spaCy model download, and the perf + lockset
+    # blockers on top of the certification witnesses — 20 minutes was
+    # too tight.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Install spaCy model
+        run: python -m spacy download en_core_web_sm
+
+      - name: Certification witnesses (must pass)
+        run: python -m pytest tests/ -m "certification and not blocker" -q -p no:cacheprovider
+
+      - name: Run known-red policy check
+        run: python scripts/known_red.py
 
   app:
     runs-on: ubuntu-latest

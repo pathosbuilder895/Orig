@@ -20,7 +20,7 @@ Stylometric authorship verification system for academic integrity. Per-student q
 ```bash
 .venv/bin/python -m pytest tests/ -q                  # full suite (~3275 collected as of 2026-08-20)
 .venv/bin/python -m pytest tests/quantum/ -v          # quantum module only
-.venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -q   # exact CI command
+.venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -m "not blocker and not certification" -q   # exact CI command (clean local run)
 ```
 Test count grows regularly — treat the numbers above as approximate (get the
 current count with `.venv/bin/python -m pytest --collect-only -q tests/ 2>&1 | tail -1`),
@@ -36,7 +36,7 @@ branch coverage, since CI runs with `--cov-branch`), against CI's
 sounds once branches are in the denominator, so a change that adds a
 meaningful amount of untested lines or branches can still fail CI on
 coverage alone while every test passes.
-A clean run is **0 failed**; treat any failure as real.
+The clean local command above excludes known-red tests via `-m "not blocker and not certification"`; a clean run is **0 failed**, treat any failure as real. `make test-known-red` (`scripts/known_red.py`) is how the known-red inventory itself is checked, and it expects those tests to FAIL — a pass or an unexplained skip there is the failure. `make test-cert` is red on purpose today (T-01).
 A `changed-tests` pre-push hook (`.pre-commit-config.yaml` →
 `scripts/changed_tests.py`) maps the pushed diff to its associated test files
 (naming convention + import scan; heuristics pinned by

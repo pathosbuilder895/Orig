@@ -23,6 +23,11 @@ venv/
 # Testing
 .coverage
 coverage.xml
+
+# Mutation testing (T-31, docs/testing/02-unit-property-math.md §5) --
+# mutmut's mutated-copy working directory and its result cache.
+mutants/
+.mutmut-cache/
 coverage.json
 htmlcov/
 .pytest_cache/
@@ -148,3 +153,7 @@ validation/genre_crossgenre_2026-08/clean/
 validation/genre_crossgenre_2026-08/chunks.json
 validation/genre_crossgenre_2026-08/vectors.npy
 validation/genre_crossgenre_2026-08/vectors_meta.json
+
+# Certification suite verdict report (tests/certification/conftest.py:record_verdict).
+# Written locally by the certification tests; not yet uploaded by CI.
+certification-report.json
