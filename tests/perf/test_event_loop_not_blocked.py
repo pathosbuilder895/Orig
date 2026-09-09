@@ -342,12 +342,14 @@ async def test_heartbeat_probe_is_fast_with_no_load(store_reset, perf_client):
     )
 
 
-# ── The gap ───────────────────────────────────────────────────────────────────
-# One case per handler. Only the handlers that are actually red carry
-# `blocker`, so the marker stays an accurate inventory of open gaps: the
-# batch importer, the CSV importer, and the .docx branch of the single-file
-# upload all hold the loop for a while; the .txt branch of that same route is
-# a green control kept alongside it (see `_single_upload_txt`).
+# ── Regression guard (T-09 closed on main) ─────────────────────────────────────
+# One case per handler. The post-#203 rebase converted all three upload
+# handlers (upload_file, upload_baseline_batch, import_turnitin_csv) from
+# `async def` to plain `def`, so FastAPI runs them in a threadpool and they
+# can no longer hold the event loop — T-09 is closed. These cases now pass
+# and are kept UNMARKED as green regression guards: if a handler is ever made
+# `async def` again with inline CPU work, its heartbeat goes >250 ms late and
+# the guard fails. (The .txt branch was always a green control.)
 
 
 @pytest.mark.parametrize(
@@ -355,9 +357,7 @@ async def test_heartbeat_probe_is_fast_with_no_load(store_reset, perf_client):
     [
         pytest.param(_batch_upload, id="baseline-upload-batch"),
         pytest.param(_turnitin_csv, id="turnitin-csv"),
-        pytest.param(
-            _single_upload_docx, id="students-upload", marks=pytest.mark.blocker
-        ),
+        pytest.param(_single_upload_docx, id="students-upload"),
         pytest.param(_single_upload_txt, id="students-upload-txt"),
     ],
 )
