@@ -13,32 +13,21 @@ DATABASE_URL. Marked @pytest.mark.postgres.
 from __future__ import annotations
 
 import logging
-import os
 
 import pytest
 
 pytestmark = pytest.mark.postgres
 
 
-def _postgres_available() -> bool:
-    if not os.environ.get("DATABASE_URL", "").startswith("postgresql"):
-        return False
-    from original.db import postgres_session
-
-    try:
-        postgres_session.reset_engine()
-        with postgres_session.get_engine().connect():
-            return True
-    except Exception:
-        return False
-
-
 @pytest.fixture
-def shadow_repo(tmp_path, monkeypatch):
+def shadow_repo(tmp_path, monkeypatch, postgres_available):
     """A get_repository() resolved in REPO_SHADOW=postgres mode: primary
     SQLite (isolated temp file) + shadow Postgres (fresh live schema)."""
-    if not _postgres_available():
-        pytest.skip("no reachable Postgres — set DATABASE_URL to run the shadow tests")
+    if not postgres_available:
+        pytest.skip(
+            "uninformative — no reachable Postgres; set DATABASE_URL to run "
+            "the shadow tests"
+        )
 
     from original import repository, store
     from original.db import postgres_session

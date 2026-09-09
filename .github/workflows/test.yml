@@ -40,44 +40,121 @@ jobs:
       - name: ruff format --check
         run: ruff format --check original/
 
-  pytest:
+  # ---------------------------------------------------------------------
+  # THE BLOCKING PYTEST LANE — three path-based shards + coverage-combine.
+  #
+  # Until 2026-09-08 this was ONE serial `pytest` job. Its cap had already
+  # been raised 20 -> 30 because of RUNNER VARIANCE, not suite growth; every
+  # measurement below is the same single job on ubuntu-latest:
+  #
+  #   ~9m10s   common ancestor, ~99 commits back
+  #    17m57s  main (fused score, POSNoise, tier-17 rehearsal, seminary corpus)
+  #    >20m    genre-resolver branch — CANCELLED at the then-20m cap; pytest
+  #            itself had passed, so it read as a test failure when it was a
+  #            clock failure
+  #    18m17s  same branch after trimming its own tests
+  #    15m06s  the two MERGED
+  #    21m     Phase A measurement of the full blocking set
+  #
+  # A job whose true cost is ~15-21m swings wide enough on shared runners to
+  # hit its own cap, and it already did once. That job's own comment said the
+  # next person to add a multi-minute test should split it into a matrix
+  # rather than raise the number again. This is that split (T-46,
+  # docs/testing/09-test-infrastructure-ci.md §1.1).
+  #
+  # Shard membership is defined in ONE place — scripts/shard_paths.py — and
+  # tests/test_shard_partition.py proves by collection that the three
+  # selections partition the full blocking set exactly (union == all, pairwise
+  # disjoint), so no test can be silently un-run. Per-shard collected counts
+  # grow with the suite and are not pinned here — run
+  # `pytest tests/test_shard_partition.py -q -s` for the current triple (it
+  # prints core/api/rest/union/full on every run, so it can never itself go
+  # stale the way a comment can).
+  #
+  # `rest` is `tests/` MINUS --ignore for everything the other two shards own,
+  # which is what makes "un-run" structurally impossible rather than a thing
+  # to remember. Re-run any red shard locally with the same selection:
+  #     python scripts/shard_paths.py --run api
+  #
+  # Caps are 20 minutes each: shards should land ≤ 10 min on CI (the 21m
+  # single-job figure split three ways, with `core` carrying the fusion six at
+  # 72-82s each), and 20 leaves the same ~2x variance headroom the 30m cap
+  # gave the serial job. Do not raise these — reduce the shard, or add a
+  # fourth. Heaviest tests as of the split, measured locally: the six
+  # tests/fusion/test_wiring.py cases at ~72-82s EACH (~8m, all in `core`),
+  # then test_dirichlet_multinomial_drift ~32s, test_calibration_scoring_config
+  # ~31s, test_feature_pipeline_determinism ~23s + ~17s. --durations=25 on
+  # every shard keeps that list current without anyone measuring by hand.
+  #
+  # Coverage: each shard runs --cov=original --cov-branch with
+  # --cov-report= (no report) and a distinct COVERAGE_FILE, then uploads its
+  # data file. --cov-fail-under is NOT set on any shard — a single shard's
+  # coverage of `original/` is meaningless. The ≥98 floor is enforced once, on
+  # the combined number, in coverage-combine below.
+  #
+  # Only pytest-api gets the Postgres service (tests/test_repository_contract.py
+  # parametrizes over a "postgres" backend and self-skips without a reachable
+  # DATABASE_URL, so its absence was silent rather than a failure — WS-6 P3).
+  # The other two shards drop it and start faster.
+  # ---------------------------------------------------------------------
+  pytest-core:
     runs-on: ubuntu-latest
     needs: lint
-    # Raised 20 -> 30 (2026-08-14). The reason is RUNNER VARIANCE, not suite
-    # growth — every measurement below is the same job on ubuntu-latest:
-    #
-    #   ~9m10s   common ancestor, ~99 commits back
-    #    17m57s  main (fused score, POSNoise, tier-17 rehearsal, seminary corpus)
-    #    >20m    genre-resolver branch — CANCELLED at the cap; pytest itself
-    #            had passed, so it read as a test failure when it was a clock
-    #            failure
-    #    18m17s  same branch after trimming its own tests
-    #    15m06s  the two MERGED
-    #
-    # The merge is faster than either parent, which is not a real speedup —
-    # it is the spread. A job whose true cost is ~15-18m swings wide enough
-    # on shared runners to hit 20m intermittently, and it already did once.
-    # 30 covers that spread with room left to catch a genuine hang before it
-    # burns three quarters of an hour. (An earlier version of this comment
-    # predicted ~27m for the merge by adding each branch's growth to the
-    # shared base; the 15m06s measurement falsified it. Do not re-derive the
-    # cap that way — measure it.)
-    #
-    # A single job serially running the whole suite is at the end of its
-    # useful life; the next person to add a multi-minute test should split
-    # this into a matrix (or pytest-xdist) rather than raise the number
-    # again. Heaviest tests as of this merge, measured locally: the six
-    # tests/fusion/test_wiring.py cases at ~72-82s EACH (~8m of one job),
-    # then test_dirichlet_multinomial_drift ~32s,
-    # test_calibration_scoring_config ~31s, test_feature_pipeline_determinism
-    # ~23s + ~17s. The fusion six are the obvious first target.
-    timeout-minutes: 30
-    # WS-6 P3: gives the contract suite's "postgres" backend parametrization
-    # (tests/test_repository_contract.py) something real to run against —
-    # it self-skips cleanly without this, so its absence was silent rather
-    # than a failure. DATABASE_URL below is picked up by
-    # original/db/postgres_session.py and the contract suite's own
-    # `_postgres_available()` check.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Install spaCy model
+        # Pinned to the exact model wheel the byte-exact snapshot in
+        # tests/snapshots/score_default_api.json was generated against.
+        # `python -m spacy download en_core_web_sm` resolves whatever is
+        # latest and would silently produce different tier5/tier11/prosodic
+        # floats -- see tests/config/test_flag_byte_identity.py's
+        # "Deterministic feature backends" section and
+        # EN_CORE_WEB_SM_VERSION there.
+        run: pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+
+      - name: Run pytest (core shard) with coverage
+        env:
+          COVERAGE_FILE: .coverage.core
+        # `--run` has shard_paths.py exec `python -m pytest <shard args> <these
+        # extra args>` via os.execv — no shell, no quoting round-trip.
+        run: >
+          python scripts/shard_paths.py --run core
+          -m "not blocker and not certification"
+          --cov=original --cov-branch --cov-report= --durations=25
+          -p no:cacheprovider
+
+      - name: Upload coverage data
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-data-core
+          path: .coverage.core
+          # The data file is dotfile-named so coverage combine can find it;
+          # upload-artifact skips hidden files unless told otherwise.
+          include-hidden-files: true
+          retention-days: 1
+          # A missing data file here (e.g. the shard errored before
+          # producing one) must fail loudly rather than let coverage-combine
+          # silently combine whatever subset of shards actually uploaded.
+          if-no-files-found: error
+
+  pytest-api:
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 20
+    # The one shard that needs a real Postgres — see the block comment above.
+    # DATABASE_URL below is picked up by original/db/postgres_session.py and
+    # the contract suite's own `_postgres_available()` check.
     services:
       postgres:
         image: postgres:16
@@ -105,27 +182,149 @@ jobs:
         run: pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Install spaCy model
-        run: python -m spacy download en_core_web_sm
+        # Pinned to the exact model wheel the byte-exact snapshot in
+        # tests/snapshots/score_default_api.json was generated against.
+        # `python -m spacy download en_core_web_sm` resolves whatever is
+        # latest and would silently produce different tier5/tier11/prosodic
+        # floats -- see tests/config/test_flag_byte_identity.py's
+        # "Deterministic feature backends" section and
+        # EN_CORE_WEB_SM_VERSION there.
+        run: pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
-      - name: Run pytest with coverage
-        # Ratcheted 70 (WS-2) -> 72 (WS-5) -> 78 (#104, additional API
-        # coverage tests) -> 98 (2026-08-20, branch-coverage effort,
-        # docs/superpowers/plans/2026-08-17-branch-coverage-*.md). The 78
-        # floor measured LINE coverage only; --cov-branch switched the
-        # measured metric to statements+branches combined, which is why the
-        # floor jumped rather than crept -- a line can be "covered" while
-        # one of its conditional arms never ran, and --cov-branch is what
-        # actually catches that. Full-suite measured combined coverage was
-        # 99.61% (11601 stmts/45 missing, 3024 branches/12 missing+10
-        # partial) on 2026-08-20; 98 leaves headroom for runner variance.
-        # Do not raise this past what `--cov-report=term-missing` actually
-        # shows passing locally.
+      - name: Run pytest (api shard) with coverage
         env:
+          COVERAGE_FILE: .coverage.api
           DATABASE_URL: postgresql://original:original@localhost:5432/original_test
+        run: >
+          python scripts/shard_paths.py --run api
+          -m "not blocker and not certification"
+          --cov=original --cov-branch --cov-report= --durations=25
+          -p no:cacheprovider
+
+      - name: Upload coverage data
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-data-api
+          path: .coverage.api
+          include-hidden-files: true
+          retention-days: 1
+          if-no-files-found: error
+
+  pytest-rest:
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Install spaCy model
+        # Pinned to the exact model wheel the byte-exact snapshot in
+        # tests/snapshots/score_default_api.json was generated against.
+        # `python -m spacy download en_core_web_sm` resolves whatever is
+        # latest and would silently produce different tier5/tier11/prosodic
+        # floats -- see tests/config/test_flag_byte_identity.py's
+        # "Deterministic feature backends" section and
+        # EN_CORE_WEB_SM_VERSION there.
+        run: pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+
+      # Home of tests/test_shard_partition.py, which re-derives the partition
+      # from scripts/shard_paths.py on every run — so this shard is also the
+      # one that fails if a new test file stops belonging to exactly one shard.
+      - name: Run pytest (rest shard) with coverage
+        env:
+          COVERAGE_FILE: .coverage.rest
+        run: >
+          python scripts/shard_paths.py --run rest
+          -m "not blocker and not certification"
+          --cov=original --cov-branch --cov-report= --durations=25
+          -p no:cacheprovider
+
+      - name: Upload coverage data
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-data-rest
+          path: .coverage.rest
+          include-hidden-files: true
+          retention-days: 1
+          if-no-files-found: error
+
+  # The ONE place the coverage floor is enforced. Ratcheted 70 (WS-2) -> 72
+  # (WS-5) -> 78 (#104, additional API coverage tests) -> 98 (2026-08-20,
+  # branch-coverage effort, docs/superpowers/plans/2026-08-17-branch-coverage-*.md).
+  # The 78 floor measured LINE coverage only; --cov-branch switched the
+  # measured metric to statements+branches combined, which is why the floor
+  # jumped rather than crept -- a line can be "covered" while one of its
+  # conditional arms never ran, and --cov-branch is what actually catches
+  # that. Full-suite measured combined coverage was 99.61% (11601 stmts/45
+  # missing, 3024 branches/12 missing+10 partial) on 2026-08-20; 98 leaves
+  # headroom for runner variance. Do not raise this past what
+  # `coverage report -m` actually shows passing locally.
+  #
+  # Splitting the run does not change the combined number: `coverage combine`
+  # unions the three shards' arc data, and all three shards run from the repo
+  # root on the same runner image, so the recorded file paths already match
+  # and no [paths] remapping is needed.
+  coverage-combine:
+    runs-on: ubuntu-latest
+    needs: [pytest-core, pytest-api, pytest-rest]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # requirements-dev.txt rather than a bare `pip install coverage`: it
+      # pins pytest-cov==7.1.0, whose coverage is the exact version the three
+      # shards wrote these data files with. requirements.txt is not needed —
+      # `coverage report` parses original/*.py, it does not import it.
+      - name: Install coverage (same version the shards measured with)
+        run: pip install -r requirements-dev.txt
+
+      # upload-artifact above is at v7.0.1 and the v4+ artifact backend is
+      # shared, so this v4 download reads a v7 upload.
+      - name: Download the three shards' coverage data
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: coverage-data-*
+          merge-multiple: true
+
+      # `if-no-files-found: error` on each shard's upload step catches an
+      # empty artifact; it cannot catch one that never uploaded at all (a
+      # cancelled or otherwise-skipped shard job). Without this check
+      # `coverage combine` would silently combine whatever subset of the
+      # three data files actually downloaded and the floor below would be
+      # enforced against a partial number.
+      - name: Verify all three shards' coverage data downloaded
         run: |
-          python -m pytest tests/ validation/test_tier10_optional.py \
-            -m "not blocker and not certification" \
-            --cov=original --cov-branch --cov-report=xml --cov-fail-under=98
+          missing=0
+          for f in .coverage.core .coverage.api .coverage.rest; do
+            if [ ! -f "$f" ]; then
+              echo "::error::missing $f -- coverage-combine cannot run on partial data"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Combine and enforce the floor
+        run: |
+          coverage combine
+          coverage report --fail-under=98
+          coverage xml
 
       - name: Upload coverage report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -134,8 +333,9 @@ jobs:
           path: coverage.xml
           retention-days: 14
 
-  # Home of the whole certification group, which the `pytest` job above
-  # deselects (-m "not blocker and not certification"): these tests provision
+
+  # Home of the whole certification group, which the pytest shards above
+  # deselect (-m "not blocker and not certification"): these tests provision
   # profiles through the live API and cost minutes, which does not belong in
   # the blocking per-PR lane.
   #
@@ -172,7 +372,14 @@ jobs:
         run: pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Install spaCy model
-        run: python -m spacy download en_core_web_sm
+        # Pinned to the exact model wheel the byte-exact snapshot in
+        # tests/snapshots/score_default_api.json was generated against.
+        # `python -m spacy download en_core_web_sm` resolves whatever is
+        # latest and would silently produce different tier5/tier11/prosodic
+        # floats -- see tests/config/test_flag_byte_identity.py's
+        # "Deterministic feature backends" section and
+        # EN_CORE_WEB_SM_VERSION there.
+        run: pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
       - name: Certification witnesses (must pass)
         run: python -m pytest tests/ -m "certification and not blocker" -q -p no:cacheprovider
@@ -256,7 +463,14 @@ jobs:
         run: python -c "import original.postgres_repository"
 
       - name: Install spaCy model
-        run: python -m spacy download en_core_web_sm
+        # Pinned to the exact model wheel the byte-exact snapshot in
+        # tests/snapshots/score_default_api.json was generated against.
+        # `python -m spacy download en_core_web_sm` resolves whatever is
+        # latest and would silently produce different tier5/tier11/prosodic
+        # floats -- see tests/config/test_flag_byte_identity.py's
+        # "Deterministic feature backends" section and
+        # EN_CORE_WEB_SM_VERSION there.
+        run: pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
       - name: Install Playwright browsers
         run: cd demo/bluebook && npx playwright install --with-deps chromium
