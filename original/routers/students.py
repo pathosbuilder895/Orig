@@ -248,6 +248,14 @@ def delete_student(student_id: str, request: Request):
             detail=f"Student '{student_id}' not found — nothing to delete.",
         )
     _repo().log_audit(action="student_delete", student_id=student_id, actor=remote, result="ok")
+    # The CHARACTERISTIC_WEIGHTS=shadow pool cache (original/quantum/
+    # impostor_cache.py) is keyed by tenant and can outlive an erased
+    # student by up to TTL_SECONDS otherwise — every peer's shadow preview
+    # would keep including the deleted student until the cache expired on
+    # its own.
+    from ..quantum import impostor_cache
+
+    impostor_cache.invalidate(student_id)
     return {
         "deleted": True,
         "student_id": student_id,
@@ -338,12 +346,25 @@ def advance_formation(student_id: str):
 
 
 @router.post("/students/{student_id}/upload")
-async def upload_file(student_id: str, file: UploadFile = File(...)):
-    """Extract plain text from an uploaded .txt, .docx, or .pdf file."""
+def upload_file(student_id: str, file: UploadFile = File(...)):
+    """Extract plain text from an uploaded .txt, .docx, or .pdf file.
+
+    Plain ``def``, not ``async def`` (T-09): the .docx (python-docx) and
+    .pdf (pypdf) branches do real CPU-bound parsing inline — python-docx
+    builds a full DOM, pypdf's extract_text() walks the content stream page
+    by page — and doing that inside an async handler blocks the whole
+    event loop for the duration, which stalls every other in-flight
+    request, including a live exam's heartbeat polling. FastAPI dispatches
+    a plain ``def`` route to its threadpool automatically, so this one
+    change fixes all three branches (.txt included) with no other code
+    change — same fix already applied to the sibling upload routes,
+    ``import_turnitin_csv`` and ``upload_baseline_batch``. ``file.file`` is
+    UploadFile's underlying sync SpooledTemporaryFile, same as those two.
+    """
     filename = file.filename or "unknown"
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
-    raw = await file.read()
+    raw = file.file.read()
 
     if ext == "txt":
         text = raw.decode("utf-8", errors="replace")

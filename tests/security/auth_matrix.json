@@ -1,0 +1,124 @@
+{
+  "GET /admin/audit": {
+    "anonymous": 401,
+    "student_own": 401,
+    "student_other": 401,
+    "professor_own": 200,
+    "professor_other": 200,
+    "operator": 200,
+    "tampered": 401,
+    "expired": 401,
+    "_note": "T-63 open: /admin/audit has no tenant filter — professor_other (tenant B staff) reads tenant A's audit log (200, not 403)."
+  },
+  "GET /auth/me": {
+    "anonymous": 401,
+    "student_own": 200,
+    "student_other": 200,
+    "professor_own": 200,
+    "professor_other": 200,
+    "operator": 200,
+    "tampered": 401,
+    "expired": 401
+  },
+  "GET /bluebook/exams": {
+    "anonymous": 200,
+    "student_own": 200,
+    "student_other": 200,
+    "professor_own": 200,
+    "professor_other": 200,
+    "operator": 200,
+    "tampered": 200,
+    "expired": 200
+  },
+  "GET /health": {
+    "anonymous": 200,
+    "student_own": 200,
+    "student_other": 200,
+    "professor_own": 200,
+    "professor_other": 200,
+    "operator": 200,
+    "tampered": 200,
+    "expired": 200
+  },
+  "POST /import/courses/{A}-course1/turnitin-csv": {
+    "anonymous": 401,
+    "student_own": 401,
+    "student_other": 401,
+    "professor_own": 422,
+    "professor_other": 422,
+    "operator": 422,
+    "tampered": 401,
+    "expired": 401
+  },
+  "GET /lti/jwks": {
+    "anonymous": 200,
+    "student_own": 200,
+    "student_other": 200,
+    "professor_own": 200,
+    "professor_other": 200,
+    "operator": 200,
+    "tampered": 200,
+    "expired": 200
+  },
+  "GET /me/voice": {
+    "anonymous": 401,
+    "student_own": 401,
+    "student_other": 401,
+    "professor_own": 401,
+    "professor_other": 401,
+    "operator": 401,
+    "tampered": 401,
+    "expired": 401
+  },
+  "GET /proctor/park/status?exam_session_id=nonexistent": {
+    "anonymous": 401,
+    "student_own": 403,
+    "student_other": 403,
+    "professor_own": 404,
+    "professor_other": 404,
+    "operator": 404,
+    "tampered": 401,
+    "expired": 401
+  },
+  "GET /students/{A_student}": {
+    "anonymous": 403,
+    "student_own": 200,
+    "student_other": 403,
+    "professor_own": 200,
+    "professor_other": 403,
+    "operator": 200,
+    "tampered": 403,
+    "expired": 403
+  },
+  "GET /baseline-requests/pending": {
+    "anonymous": 401,
+    "student_own": 401,
+    "student_other": 401,
+    "professor_own": 200,
+    "professor_other": 200,
+    "operator": 200,
+    "tampered": 401,
+    "expired": 401,
+    "_note": "T-02 open: pending baseline requests have no tenant filter — professor_other (tenant B staff) reads tenant A's pending requests (200, not 403)."
+  },
+  "POST /students/{A_student}/score": {
+    "anonymous": 403,
+    "student_own": 200,
+    "student_other": 403,
+    "professor_own": 200,
+    "professor_other": 403,
+    "operator": 200,
+    "tampered": 403,
+    "expired": 403
+  },
+  "GET /tenants/{A}/stats": {
+    "anonymous": 401,
+    "student_own": 401,
+    "student_other": 401,
+    "professor_own": 200,
+    "professor_other": 403,
+    "operator": 200,
+    "tampered": 401,
+    "expired": 401
+  }
+}

@@ -2895,6 +2895,27 @@ function buildInterpretation(r, student) {
     headline = `${name}'s writing is ${voiceMatchPct}% consistent with their established voice — confirmed authentic.`;
   }
 
+  // A thin baseline makes the deviation score unreliable in either
+  // direction — the fewer authenticated samples on file, the more any
+  // difference reads as drift regardless of whether it's real. Don't let a
+  // confident-sounding percentage substitute for that caveat: when the
+  // readiness endpoint says this student isn't ready to analyze yet, lead
+  // with that instead of the raw number, and cap severity so a thin
+  // baseline can't read as urgent on its own.
+  if (activeReadiness && activeReadiness.verdict !== 'ready') {
+    const topRec = (activeReadiness.recommendations || [])[0] || '';
+    if (activeReadiness.verdict === 'insufficient') {
+      severity = 'amber';
+      headline = `${name} doesn't have enough authenticated baseline samples yet for a reliable reading.` +
+        (topRec ? ` ${topRec}` : '');
+    } else {
+      if (severity === 'red') severity = 'amber';
+      headline = `${name}'s baseline is still developing, so this reading is less certain than usual — ` +
+        `${voiceMatchPct}% consistent with their established voice so far.` +
+        (topRec ? ` ${topRec}` : '');
+    }
+  }
+
   // Bullets: sorted tiers, pick worst two
   const sorted = [...r.tiers].sort((a,b)=>b.s-a.s);
   const worst  = sorted[0];
@@ -2926,18 +2947,37 @@ function renderResults(r) {
   const wrap = document.getElementById('resultsWrap');
   wrap.style.display = 'flex';
 
-  // Sparklines — prior 3 points fixed (baseline history), final point = computed score
+  // Sparklines — plot this student's REAL prior scored submissions (from the
+  // local portfolio) followed by the just-computed score. No invented prefix
+  // points: when there isn't at least one real prior submission, there's no
+  // trend to show, so the sparkline is left blank rather than faked.
   // mc1 shows voice MATCH (1-deviation) so higher = better = green
   const voiceMatch = Math.max(0, 1 - r.deviation);
-  document.getElementById('sparkline1').innerHTML = sparkSVG(
-    [[0,0.78],[1,0.81],[2,0.62],[3,voiceMatch]],
-    voiceMatch < 0.45 ? '#6B2737' : voiceMatch < 0.6 ? '#D97706' : '#4A6B5C');
-  document.getElementById('sparkline2').innerHTML = sparkSVG(
-    [[0,0.85],[1,0.88],[2,0.72],[3,r.prob]],
-    r.prob < 0.4 ? '#6B2737' : r.prob < 0.65 ? '#D97706' : '#4A6B5C');
-  document.getElementById('sparkline3').innerHTML = sparkSVG(
-    [[0,0.80],[1,0.75],[2,0.60],[3,r.traj]],
-    r.traj < 0.4 ? '#6B2737' : '#2563EB');
+  const priorEntries = readPortfolio();
+  function priorSeries(mapFn) {
+    const vals = [];
+    priorEntries.forEach(h => {
+      const v = mapFn(h.response);
+      if (typeof v === 'number' && !isNaN(v)) vals.push(v);
+    });
+    return vals;
+  }
+  function spark(histVals, current) {
+    const vals = [...histVals, current];
+    if (vals.length < 2) return null; // not enough real data points for a trend
+    return vals.map((v, i) => [i, v]);
+  }
+  const sp1 = spark(priorSeries(resp => resp?.authorship?.deviation_score !== undefined
+    ? Math.max(0, 1 - resp.authorship.deviation_score) : undefined), voiceMatch);
+  document.getElementById('sparkline1').innerHTML = sp1 ? sparkSVG(sp1,
+    voiceMatch < 0.45 ? '#6B2737' : voiceMatch < 0.6 ? '#D97706' : '#4A6B5C') : '';
+  const sp2 = spark(priorSeries(resp => resp?.authorship?.authorship_probability), r.prob);
+  document.getElementById('sparkline2').innerHTML = sp2 ? sparkSVG(sp2,
+    r.prob < 0.4 ? '#6B2737' : r.prob < 0.65 ? '#D97706' : '#4A6B5C') : '';
+  const sp3 = spark(priorSeries(resp => resp?.trajectory?.alignment !== undefined
+    ? Math.max(0, Math.min(1, (resp.trajectory.alignment + 1) / 2)) : undefined), r.traj);
+  document.getElementById('sparkline3').innerHTML = sp3 ? sparkSVG(sp3,
+    r.traj < 0.4 ? '#6B2737' : '#2563EB') : '';
 
   // Update metric values and colors dynamically
   // mc1 = voice match % — higher is better (green); colors mirror match quality

@@ -96,7 +96,7 @@ class TestPoolingExcludesUnknown:
         """
         from original import store
 
-        def _explode():
+        def _explode(tenant_id=None):
             raise AssertionError("get_genre_stats scanned the store for an abstention")
 
         monkeypatch.setattr(store, "all_states", _explode)
@@ -111,7 +111,7 @@ class TestPoolingExcludesUnknown:
 
         seen = []
 
-        def _record():
+        def _record(tenant_id=None):
             seen.append(True)
             return {}
 

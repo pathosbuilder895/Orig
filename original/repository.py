@@ -51,7 +51,7 @@ class Repository(Protocol):
     def get_or_create(self, student_id: str) -> StudentState: ...
     def put(self, state: StudentState) -> None: ...
     def list_ids(self) -> list[str]: ...
-    def all_states(self) -> list[StudentState]: ...
+    def all_states(self, tenant_id: str | None = None) -> list[StudentState]: ...
     def count(self) -> int: ...
     def clear(self) -> None: ...
     def delete_student(self, student_id: str) -> bool: ...
@@ -81,6 +81,7 @@ class Repository(Protocol):
         until: str | None = None,
         limit: int = 100,
         offset: int = 0,
+        tenant_id: str | None = None,
     ) -> dict: ...
     def manifest_stats(
         self,
@@ -159,6 +160,7 @@ class Repository(Protocol):
         is_correct: bool | None = None,
         limit: int = 100,
         offset: int = 0,
+        tenant_id: str | None = None,
     ) -> dict: ...
 
     # ── Calibration runs ─────────────────────────────────────────────────
@@ -258,6 +260,7 @@ class Repository(Protocol):
         action: str | None = None,
         limit: int = 100,
         offset: int = 0,
+        tenant_id: str | None = None,
     ) -> dict: ...
 
     # ── Formation pathways ────────────────────────────────────────────────
@@ -326,8 +329,8 @@ class SqliteRepository:
     def list_ids(self) -> list[str]:
         return store.list_ids()
 
-    def all_states(self) -> list[StudentState]:
-        return store.all_states()
+    def all_states(self, tenant_id: str | None = None) -> list[StudentState]:
+        return store.all_states(tenant_id=tenant_id)
 
     def count(self) -> int:
         return store.count()
@@ -385,6 +388,7 @@ class SqliteRepository:
         until: str | None = None,
         limit: int = 100,
         offset: int = 0,
+        tenant_id: str | None = None,
     ) -> dict:
         return store.list_manifests(
             student_id=student_id,
@@ -394,6 +398,7 @@ class SqliteRepository:
             until=until,
             limit=limit,
             offset=offset,
+            tenant_id=tenant_id,
         )
 
     def manifest_stats(self, since: str | None = None, until: str | None = None) -> dict:
@@ -517,6 +522,7 @@ class SqliteRepository:
         is_correct: bool | None = None,
         limit: int = 100,
         offset: int = 0,
+        tenant_id: str | None = None,
     ) -> dict:
         return store.list_corrections(
             submission_id=submission_id,
@@ -524,6 +530,7 @@ class SqliteRepository:
             is_correct=is_correct,
             limit=limit,
             offset=offset,
+            tenant_id=tenant_id,
         )
 
     # ── Calibration runs ─────────────────────────────────────────────────
@@ -698,8 +705,11 @@ class SqliteRepository:
         action: str | None = None,
         limit: int = 100,
         offset: int = 0,
+        tenant_id: str | None = None,
     ) -> dict:
-        return store.list_audit(student_id=student_id, action=action, limit=limit, offset=offset)
+        return store.list_audit(
+            student_id=student_id, action=action, limit=limit, offset=offset, tenant_id=tenant_id
+        )
 
     # ── Formation pathways ────────────────────────────────────────────────
     def get_formation_pathway(self, student_id: str) -> dict | None:

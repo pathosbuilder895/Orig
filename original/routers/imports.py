@@ -8,12 +8,19 @@ import hashlib
 import io
 import logging
 
+import anyio
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
 from ..constants import AUTH_WEIGHTS
 from ..features.pipeline import feature_vector
 from ..quantum.state import BaselineSample
-from ._shared import _authorize_provenance, _persist_or_503, _repo, _require_staff
+from ._shared import (
+    _authorize_provenance,
+    _persist_or_503,
+    _repo,
+    _require_non_demo_staff,
+    _require_staff,
+)
 from .students_baseline import _existing_text_hashes
 
 router = APIRouter()
@@ -23,15 +30,23 @@ router = APIRouter()
 
 
 @router.post("/import/courses/{course_id}/turnitin-csv")
-async def import_turnitin_csv(course_id: str, file: UploadFile = File(...)):
+def import_turnitin_csv(course_id: str, file: UploadFile = File(...), request: Request = None):
     """
     Parse a Turnitin admin CSV export and create student/submission stubs.
 
     Expected columns (Turnitin default export):
       Last Name, First Name, Student ID, Assignment Title, Date Submitted,
       Similarity, File Name
+
+    Every created student id is prefixed with the importing staff member's
+    own tenant. Flat, tenant-less ids are a demo-sandbox-only convention
+    (``principal.assert_student_access`` treats them that way); a roster
+    import minting flat ids on a real deploy would make those students
+    readable by the anonymous demo principal and by any staff account
+    regardless of institution.
     """
-    raw = await file.read()
+    principal = _require_staff(request)
+    raw = file.file.read()
     try:
         text = raw.decode("utf-8-sig", errors="replace")  # handle BOM
     except Exception as exc:
@@ -71,7 +86,8 @@ async def import_turnitin_csv(course_id: str, file: UploadFile = File(...)):
             errors.append(f"Row {i}: could not identify student (no name or ID)")
             continue
 
-        student_id = sid or name.lower().replace(" ", "_")
+        raw_id = sid or name.lower().replace(" ", "_")
+        student_id = f"{principal.tenant_id}:{raw_id}"
 
         state = _repo().get(student_id)
         if state is None:
@@ -113,7 +129,7 @@ async def list_canvas_submissions(
     """List usable Canvas submissions and mark already-imported texts."""
     from ..canvas import live_import as canvas_live
 
-    _require_staff(request)
+    _require_non_demo_staff(request)
     body = req or {}
     canvas_url, access_token = canvas_live.resolve_canvas_config(
         body.get("canvas_url"), body.get("access_token")
@@ -148,7 +164,7 @@ async def import_canvas_baseline(student_id: str, req: dict | None = None, reque
     """Import selected Canvas submissions with deduplication and drift holds."""
     from ..canvas import live_import as canvas_live
 
-    _require_staff(request)
+    _require_non_demo_staff(request)
     body = req or {}
     canvas_url, access_token = canvas_live.resolve_canvas_config(
         body.get("canvas_url"), body.get("access_token")
@@ -188,9 +204,10 @@ async def import_canvas_baseline(student_id: str, req: dict | None = None, reque
                 if digest in existing_hashes:
                     skipped += 1
                     continue
+                vec = await anyio.to_thread.run_sync(feature_vector, text)
                 sample = BaselineSample(
                     text=text,
-                    vector=feature_vector(text),
+                    vector=vec,
                     provenance=provenance,
                     auth_weight=AUTH_WEIGHTS[provenance],
                     assignment=canvas_live.assignment_name_of(
@@ -202,7 +219,7 @@ async def import_canvas_baseline(student_id: str, req: dict | None = None, reque
                 sample.text_hash = digest  # type: ignore[attr-defined]
                 if AUTH_WEIGHTS[provenance] > 0:
                     try:
-                        drift = state.check_drift(sample)
+                        drift = await anyio.to_thread.run_sync(state.check_drift, sample)
                         if drift.recommendation != "accept":
                             drift_holds.append(
                                 {"canvas_submission_id": submission_id, "drift": drift.to_dict()}
@@ -220,7 +237,7 @@ async def import_canvas_baseline(student_id: str, req: dict | None = None, reque
             except Exception as exc:
                 errors.append(f"Submission {submission_id}: {str(exc)[:100]}")
     if imported or drift_holds:
-        _persist_or_503(state)
+        await anyio.to_thread.run_sync(_persist_or_503, state)
     return {
         "imported": imported,
         "skipped": skipped,
@@ -238,7 +255,7 @@ async def fetch_canvas_submission_text(
     """Fetch one Canvas submission for analysis without storing it."""
     from ..canvas import live_import as canvas_live
 
-    _require_staff(request)
+    _require_non_demo_staff(request)
     body = req or {}
     canvas_url, access_token = canvas_live.resolve_canvas_config(
         body.get("canvas_url"), body.get("access_token")

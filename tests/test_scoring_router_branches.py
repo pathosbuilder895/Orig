@@ -191,6 +191,72 @@ def test_longitudinal_drift_enabled_attaches_report_without_changing_the_score(
     assert off.json()["recommendation"]["action"] == on.json()["recommendation"]["action"]
 
 
+# ── store.get_active_tuned_thresholds() reaching the live scoring path ─────
+
+
+def test_tuned_thresholds_absent_matches_the_static_action_thresholds(
+    live_client, store_reset
+):
+    """Default state of every deployment today: no row in
+    tuned_thresholds_v2, so store.get_active_tuned_thresholds() returns None
+    and ScoringConfig.tuned_action_thresholds stays None -- _recommend() must
+    fall back to the static ACTION_THRESHOLDS bands byte-identically. This is
+    the more important half of the pair below: it proves wiring the lookup
+    into students_scoring.py did not silently change the DEFAULT behavior of
+    every existing score() call."""
+    sid = "tuned-thresholds-absent"
+    assert _add_baseline(live_client, sid).status_code == 200
+
+    first = _score(live_client, sid, force=True)
+    assert first.status_code == 200, first.text
+    second = _score(live_client, sid, force=True)
+    assert second.status_code == 200, second.text
+
+    assert store_reset.get_active_tuned_thresholds() is None
+    first_auth, second_auth = first.json()["authorship"], second.json()["authorship"]
+    assert first_auth["deviation_score"] == second_auth["deviation_score"]
+    assert first.json()["recommendation"]["action"] == second.json()["recommendation"]["action"]
+    # Sanity: the static bands' escalate band is (0.75, 1.00) -- a same-ish
+    # baseline/submission pair scored with no tuning applied should not land
+    # there, which the next test relies on for contrast.
+    assert first.json()["recommendation"]["action"] != "escalate"
+
+
+def test_tuned_thresholds_from_store_change_the_recommended_action(
+    live_client, store_reset
+):
+    """Applying a tuned threshold set through store.put_tuned_thresholds()
+    -- the exact call original/routers/admin.py's Apply-thresholds endpoint
+    makes -- must move the recommended action for a request scored
+    afterward. no_action=monitor=escalate=0.0 collapses every band except
+    "escalate" to an empty [x, x) interval, so any non-negative deviation
+    score lands in escalate's [0.0, 1.0) band regardless of its actual
+    value -- a deterministic, real behavior change traceable to a row
+    written through the same persistence layer the admin route uses, not a
+    mock of ScoringConfig. The deviation score itself is untouched; only the
+    action derived from it moves, proving the wiring wraps the existing
+    band-selection logic rather than replacing the underlying computation."""
+    sid = "tuned-thresholds-present"
+    assert _add_baseline(live_client, sid).status_code == 200
+
+    before = _score(live_client, sid, force=True)
+    assert before.status_code == 200, before.text
+    assert before.json()["recommendation"]["action"] != "escalate"
+
+    store_reset.put_tuned_thresholds(
+        no_action=0.0, monitor=0.0, escalate=0.0, source="manual"
+    )
+    assert store_reset.get_active_tuned_thresholds() is not None
+
+    after = _score(live_client, sid, force=True)
+    assert after.status_code == 200, after.text
+    assert after.json()["recommendation"]["action"] == "escalate"
+    assert (
+        before.json()["authorship"]["deviation_score"]
+        == after.json()["authorship"]["deviation_score"]
+    )
+
+
 # ── _all_states() request-local cache: the second-call hit arm ─────────────
 
 

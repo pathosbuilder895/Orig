@@ -77,9 +77,18 @@ def repo(request, store_reset):
         yield get_repository()
     elif request.param == "postgres":
         if not _postgres_available():
+            # "uninformative" is load-bearing, not decoration: if a future
+            # @pytest.mark.blocker test is parametrized over BACKENDS,
+            # scripts/known_red.py exits 1 on a blocker test skipped without
+            # that word — a bare skip is indistinguishable from dodging the
+            # known-red policy. An unreachable Postgres is exactly the plan's
+            # third value: the arm was not measured, which is neither a pass
+            # nor a fail. (T-08, which used to carry that marker here, was
+            # closed and unmarked — kept as documentation of the pattern.)
             pytest.skip(
-                "no reachable Postgres — set DATABASE_URL to a postgresql:// "
-                "instance to run the WS-6 P3 contract tests against it"
+                "uninformative — no reachable Postgres; set DATABASE_URL to a "
+                "postgresql:// instance to run the WS-6 P3 contract tests "
+                "against it"
             )
         from original.db import postgres_session
         from original.db.models.live import LiveBase
@@ -984,6 +993,14 @@ class TestGetOrCreateAndBasics:
         assert len(matching) == 1
         assert matching[0].sample_count == 2
 
+    def test_all_states_tenant_filter_excludes_other_tenants(self, repo):
+        repo.put(_make_state("tenantx:student1", n=1))
+        repo.put(_make_state("tenanty:student1", n=1))
+        scoped = repo.all_states(tenant_id="tenantx")
+        ids = {s.student_id for s in scoped}
+        assert "tenantx:student1" in ids
+        assert "tenanty:student1" not in ids
+
     def test_put_replaces_whole_sample_set(self, repo):
         """put() is a full-state overwrite, not an incremental append —
         matches store.py's whole-JSON-blob replace semantics."""
@@ -1729,6 +1746,7 @@ class TestStudentDataInventory:
         assert inv["data_categories"]["fidelity_scores"]["count"] == 1
 
 
+
 # ── QR phone-park (proctoring deterrence) ─────────────────────────────────
 
 
@@ -2136,6 +2154,36 @@ class TestDeleteStudentFullFootprint:
         repo.put_fidelity_score("sub-ferpa1", "sem:ferpa", 0.8, is_authentic=True)
         repo.put_ai_likelihood_score("sub-ferpa1", "sem:ferpa", 0.3, "low")
         repo.put_fused_score("sub-ferpa1", "sem:ferpa", 0.5, 0.6, "low", {"peer_centered_z": 0.1})
+        # C1, 2026-09 fix pass: four more student-scoped tables the original
+        # erasure pass missed — each carries FERPA-relevant PII (a display
+        # name, an email + unredeemed magic link, or just identifying rows).
+        repo.put_bluebook_submission(
+            {
+                "id": "bbsub-ferpa1",
+                "exam_id": None,
+                "tenant_id": "sem",
+                "student_id": "sem:ferpa",
+                "candidate": "FERPA Student",
+                "exam_title": "Midterm",
+                "course": "",
+                "word_count": 400,
+                "time_min": 30,
+                "stylometric": None,
+                "ai_score": None,
+                "status": "SUBMITTED",
+                "submission_uuid": None,
+            }
+        )
+        repo.get_or_create_bluebook_session("exam-ferpa1", "sem:ferpa", "sem", 3600)
+        repo.open_formation_pathway("sem:ferpa", submission_id="sub-ferpa1", reason="test")
+        repo.put_baseline_request(
+            "extreq-ferpa1",
+            "sem:ferpa",
+            "pending",
+            1234567890.0,
+            '{"student_id": "sem:ferpa", "student_email": "ferpa@sem.edu", '
+            '"magic_link": "https://bbook.example/m/abc123"}',
+        )
         # The audit log is a read surface too, and its details_json can carry
         # PII (e.g. a submission excerpt) — FERPA erasure must purge it, not
         # just the scoring tables. Seeded via the protocol, like every other
@@ -2149,7 +2197,9 @@ class TestDeleteStudentFullFootprint:
         # Sanity: everything is actually there before deleting.
         assert repo.student_data_inventory("sem:ferpa") is not None
         assert "sem:ferpa" in {r["id"] for r in repo.roster_for_tenant("sem")}
-        assert repo.list_audit(student_id="sem:ferpa")["total"] == 1
+        # >= 1, not == 1: open_formation_pathway logs its own audit row
+        # alongside the explicit one below.
+        assert repo.list_audit(student_id="sem:ferpa")["total"] >= 1
 
         assert repo.delete_student("sem:ferpa") is True
 
@@ -2166,6 +2216,14 @@ class TestDeleteStudentFullFootprint:
         assert repo.list_corrections(submission_id="sub-ferpa1")["items"] == []
         assert repo.list_manifests(student_id="sem:ferpa")["total"] == 0
         assert repo.list_audit(student_id="sem:ferpa")["items"] == []
+        assert not any(
+            s["student_id"] == "sem:ferpa" for s in repo.list_bluebook_submissions("sem")
+        )
+        assert repo.get_bluebook_session("exam-ferpa1", "sem:ferpa") is None
+        assert repo.get_formation_pathway("sem:ferpa") is None
+        assert not any(
+            r["student_id"] == "sem:ferpa" for r in repo.load_baseline_requests()
+        )
 
     def test_delete_legacy_flat_student_does_not_purge_other_tenants_audit_log(self, repo):
         # Final whole-branch review, C1: audit_log stores the LOCAL id for a
@@ -2502,3 +2560,204 @@ class TestFusedAndAiLikelihoodScoresEmptyVsPopulated:
         assert len(result) == 1
         assert result[0]["submission_id"] == "sub-ai1"
         assert result[0]["band"] == "high"
+
+
+# ── T-08: FERPA delete completeness (docs/testing/03-api-persistence.md §2) ───
+#
+# The eight tables the 2026-09-02 architecture review named when it found
+# delete_student incomplete while `store.delete_student`'s own docstring
+# claims completeness. Asserted as a *lower bound* on the metadata-derived
+# set below so the derivation can never silently shrink (a renamed table, a
+# dropped column, or a stray `if` in the derivation would otherwise quietly
+# make the completeness test weaker instead of failing).
+T08_REQUIRED_STUDENT_TABLES = frozenset(
+    {
+        "student_profiles",
+        "fidelity_scores",
+        "submission_manifests",
+        "corrections",
+        "bluebook_submissions",
+        "baseline_requests",
+        "formation_pathways",
+        "audit_log",
+    }
+)
+
+
+def _student_keyed_tables() -> list[str]:
+    """Every live-schema table carrying a ``student_id`` column, derived from
+    ``LiveBase.metadata`` rather than hardcoded.
+
+    Derivation, not a literal list, is the point: a new student-keyed table
+    added to ``original/db/models/live.py`` without a matching DELETE in
+    ``delete_student`` must turn this suite red on its own, with no test
+    edit. (``bluebook_sessions`` is deliberately absent — it keys sittings on
+    ``student_key``, not ``student_id``, so no ``student_id``-based erasure
+    predicate can reach it. That is a separate gap, noted here so its absence
+    reads as a known fact rather than an oversight.)
+    """
+    from original.db.models.live import LiveBase
+
+    return sorted(
+        name for name, table in LiveBase.metadata.tables.items() if "student_id" in table.c
+    )
+
+
+def _seed_every_student_table(repo, scoped_id: str, tenant_id: str) -> None:
+    """Write one row keyed to ``scoped_id`` into every table in
+    ``_student_keyed_tables()``, using only public Repository methods.
+
+    Every one of the eleven derived tables has a public writer on the
+    protocol, so nothing here reaches into a backend connection. Keep this
+    mapping exhaustive: a table added to the schema without a writer here
+    makes the pre-delete floor assertion fail loudly rather than letting the
+    completeness claim quietly stop covering it.
+    """
+    # Postgres FKs every student-scoped table to tenants.tenant_id, so the
+    # tenant row has to exist before anything else is written.
+    repo.put_tenant(tenant_id, "T-08 Seminary", environment="demo")
+
+    repo.put(_make_state(scoped_id, n=2))                       # student_profiles
+    repo.set_display_name(scoped_id, "Tess Eight")              # student_names
+    _seed_manifest(repo, "sub-t08", scoped_id)                  # submission_manifests
+    repo.put_fidelity_score("sub-t08", scoped_id, 0.91, True)   # fidelity_scores
+    repo.put_ai_likelihood_score("sub-t08", scoped_id, 0.3, "low")  # ai_likelihood_scores
+    repo.put_fused_score(                                       # fused_scores
+        "sub-t08", scoped_id, 0.4, 0.6, "low", {"peer_centered_z": 0.2, "compression": 0.1}
+    )
+    # A correction on a submission that has NO manifest, so this row can only
+    # be reached through its student_id — the submission_id sweep both
+    # backends also run would otherwise mask a student_id gap.
+    repo.put_correction("sub-t08-unmanifested", False, student_id=scoped_id, reviewer="profT08")
+    repo.put_bluebook_exam({"id": "exam-t08", "tenant_id": tenant_id, "title": "T08 Midterm"})
+    repo.put_bluebook_submission(                               # bluebook_submissions
+        {
+            "id": "bbsub-t08",
+            "tenant_id": tenant_id,
+            "exam_id": "exam-t08",
+            "student_id": scoped_id,
+            "candidate": "Tess Eight",
+            "word_count": 500,
+        }
+    )
+    repo.open_formation_pathway(                                # formation_pathways
+        scoped_id, submission_id="sub-t08", reason="t-08 completeness seed"
+    )
+    repo.put_baseline_request(                                  # baseline_requests
+        "req-t08", scoped_id, "pending", 1000.0, json.dumps({"tag": "t-08"})
+    )
+    repo.log_audit(                                             # audit_log
+        action="score", student_id=scoped_id, details={"submission_id": "sub-t08"}
+    )
+
+
+def _count_student_rows(repo, table_names: list[str], scoped_id: str) -> dict[str, int]:
+    """READ-ONLY per-table row counts for ``scoped_id``.
+
+    THE ONE DELIBERATE EXCEPTION to this module's public-interface-only rule
+    (see the file docstring). T-08 is precisely the claim that
+    ``delete_student`` leaves rows behind in tables the public API has no
+    reader for — ``baseline_requests`` and ``bluebook_submissions`` have no
+    per-student public read at all — so proving erasure means counting the
+    rows themselves. This function only ever SELECTs; nothing here writes.
+
+    Ids are matched in both forms (the scoped ``"tenant:local"`` string
+    SQLite stores, and the bare local id Postgres splits it into) rather than
+    per-backend, because the ``repo`` fixture hands each test a database
+    containing exactly one student: an id-form-agnostic match is therefore
+    both sufficient and strictly more conservative — it cannot miss a leaked
+    row because of a storage-convention difference between the two backends.
+    """
+    ids = {scoped_id}
+    if ":" in scoped_id:
+        ids.add(scoped_id.split(":", 1)[1])
+
+    if isinstance(repo, PostgresRepository):
+        from sqlalchemy import func, select
+
+        from original.db import postgres_session
+        from original.db.models.live import LiveBase
+
+        counts: dict[str, int] = {}
+        with postgres_session.get_engine().connect() as conn:
+            for name in table_names:
+                table = LiveBase.metadata.tables[name]
+                counts[name] = conn.execute(
+                    select(func.count()).select_from(table).where(table.c.student_id.in_(ids))
+                ).scalar_one()
+        return counts
+
+    from original import store
+
+    counts = {}
+    with store._get_conn() as conn:
+        present = {
+            row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+        for name in table_names:
+            if name not in present:
+                # Not silently skipped: 0 here makes the pre-delete floor
+                # assertion fail and name the table, which is the honest
+                # outcome for "the schema this backend has cannot hold that
+                # row at all".
+                counts[name] = 0
+                continue
+            placeholders = ",".join("?" * len(ids))
+            counts[name] = conn.execute(
+                f"SELECT COUNT(*) FROM {name} WHERE student_id IN ({placeholders})",  # noqa: S608
+                tuple(sorted(ids)),
+            ).fetchone()[0]
+    return counts
+
+
+class TestDeleteStudentCompleteness:
+    def test_student_keyed_table_set_is_derived_not_hardcoded(self):
+        derived = set(_student_keyed_tables())
+        missing = sorted(T08_REQUIRED_STUDENT_TABLES - derived)
+        assert not missing, (
+            "the metadata derivation no longer reaches tables the FERPA "
+            f"erasure path must cover: {missing}. Either a table was renamed "
+            "or its student_id column was dropped/renamed — the completeness "
+            "test below silently stops checking it, so fix the derivation "
+            "(or this floor) before trusting a green delete_student."
+        )
+        # And the derivation must be strictly richer than the floor, or it is
+        # just the hardcoded list wearing a metadata costume.
+        assert derived - T08_REQUIRED_STUDENT_TABLES
+
+    def test_delete_student_removes_rows_from_every_student_keyed_table(self, repo):
+        """T-08, FIXED: delete_student used to leave rows in student-keyed
+        tables. Closed by covering the four missing tables in FERPA erasure
+        (bluebook_submissions, bluebook_sessions, formation_pathways,
+        baseline_requests — and, on this branch, lti_subjects /
+        canvas_asset_reports for the yet-unmerged Canvas asset-processor
+        feature) on both backends. The assertion below reports the full
+        surviving set, so a regression's failure text is the erasure gap
+        inventory again.
+        """
+        tenant_id = "sem-t08"
+        scoped_id = f"{tenant_id}:tess"
+        tables = _student_keyed_tables()
+
+        _seed_every_student_table(repo, scoped_id, tenant_id)
+
+        # Floor FIRST: every table must actually hold a row before deletion,
+        # so a seed that silently failed can never masquerade as successful
+        # erasure. A broken seed fails here, not on the count below.
+        before = _count_student_rows(repo, tables, scoped_id)
+        unseeded = sorted(name for name, n in before.items() if n < 1)
+        assert not unseeded, (
+            f"seeding failed — no row landed in {unseeded}; this test proves "
+            "nothing about erasure until every student-keyed table is "
+            f"populated first (counts: {before})"
+        )
+
+        assert repo.delete_student(scoped_id) is True
+
+        after = _count_student_rows(repo, tables, scoped_id)
+        leaked = {name: n for name, n in sorted(after.items()) if n}
+        assert not leaked, (
+            "delete_student claims FERPA-complete erasure but left rows "
+            f"behind for {scoped_id} in: {leaked} (pre-delete counts: "
+            f"{before}). Every table carrying a student_id must be purged."
+        )

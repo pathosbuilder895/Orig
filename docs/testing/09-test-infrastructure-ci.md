@@ -91,10 +91,11 @@ in one file stays local.
 
 | Marker | Meaning | Where it runs |
 |---|---|---|
-| `certification` | three-valued behavioural gate (§06 §3, §02 §2.1); writes a verdict to `certification-report.json` | every PR, and the weekly battery |
+| `certification` | three-valued behavioural gate (§06 §3, §02 §2.1); writes a verdict to `certification-report.json`, written locally by the certification tests — not yet uploaded by CI | every PR, and the weekly battery; the whole group runs inside the `known-red` job rather than the blocking `pytest` run (which deselects it with `-m "not blocker and not certification"`) — witnesses as a must-pass step, `blocker`-marked certifications via `scripts/known_red.py` |
 | `security` | abuse-case suite (§04) | every PR; also `pytest -m security` before go-live |
 | `perf` | latency/concurrency budgets (§07) | every PR, `uninformative`-aware |
 | `boot` | tests that spawn the server as a subprocess (§08 §2, §8) | `boot-matrix` job only |
+| `blocker` | a test that fails on this branch because of a documented open gap, its docstring's first line naming the gap id (e.g. `T-02: pending baseline requests leak cross-tenant.`); never use `xfail`, `skip`, or a weakened assertion to make a red test green, and a test that is green on this branch is NOT marked `blocker` | excluded from the blocking `pytest` run via `-m "not blocker and not certification"`; run separately by the `known-red` job (`scripts/known_red.py`), which fails the day one of these tests unexpectedly passes, or is skipped without `uninformative` in its skip reason (a sample-size floor is the only legitimate skip) |
 | `mutation_target` | *not a selector* — documents which modules the weekly mutation run covers; a test asserts the list matches the workflow |
 
 `--strict-markers` on, so a typo cannot create a silently-unselected marker.

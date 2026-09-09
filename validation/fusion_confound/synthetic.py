@@ -15,8 +15,9 @@ def build_rows() -> list[dict]:
         references = 8 + baseline % 5
         compression = 0.799 + slope * (baseline - 3) + 0.002 * (references - 11)
         rows.append({"channels": {"compression": compression},
-                     "fused_score": 0.12 + 0.65 * compression + 0.001 * references,
-                     "baseline_samples": baseline, "reference_profiles": references})
+                     "fused_log_odds": 0.12 + 0.65 * compression + 0.001 * references,
+                     "baseline_samples": baseline, "reference_profiles": references,
+                     "band": "inconclusive"})
     return rows
 
 

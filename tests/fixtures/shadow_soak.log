@@ -1,0 +1,7 @@
+2026-08-26 INFO genre_shadow v1=sermon v2=scholarly_essay v2_confidence=0.910
+2026-08-26 INFO genre_shadow v1=correspondence v2=unknown v2_confidence=0.000
+2026-08-26 INFO genre_shadow v1=personal_essay v2=narrative_prose v2_confidence=0.880
+2026-08-26 INFO topic_inflation mode=shadow d=0.100 mean_inflation=1.000 deviation=0.2000 deviation_inflated=0.2 degraded=False
+2026-08-26 INFO topic_inflation mode=shadow d=0.300 mean_inflation=1.050 deviation=0.2000 deviation_inflated=0.19 degraded=True
+2026-08-26 INFO characteristic_weights mode=shadow outcome=applied dispersion=0.120 deviation=0.2000 deviation_preview=0.21
+2026-08-26 INFO characteristic_weights mode=shadow outcome=abstain dispersion=None deviation=0.2000 deviation_preview=None

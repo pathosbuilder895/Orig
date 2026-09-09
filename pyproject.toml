@@ -89,3 +89,28 @@ convention = "numpy"
 # Scoped typing is deferred on purpose, not forgotten; mypy stays pinned in
 # requirements-dev.txt so the project can be started on demand. Re-add a
 # config only together with the CI job that runs it.
+
+[tool.mutmut]
+# T-31 (docs/testing/02-unit-property-math.md §5) — first mutation baseline,
+# scoped to two small security-critical modules. mutmut 3.x copies
+# `source_paths` verbatim into mutants/ and imports tests against that copy
+# (see mutmut/__main__.py:setup_source_paths), so source_paths has to be the
+# whole `original/` package, not just the two target files: original/api.py
+# (imported at module scope by tests/test_tenant_isolation.py via
+# run.load_legacy_demo_app()) pulls in most of the package through internal
+# `from . import ...`. `only_mutate` is what actually restricts which files
+# get mutated -- the other ~103 files under original/ are copied unmutated,
+# fast, and never exercised as mutation candidates. `run.py` is a repo-root
+# file imported directly by both covering test modules, so it needs its own
+# also_copy entry.
+source_paths = ["original/"]
+only_mutate = ["original/db/tenancy_shim.py", "original/principal.py"]
+also_copy = ["run.py"]
+pytest_add_cli_args_test_selection = [
+    "tests/test_principal_branches.py",
+    "tests/test_tenant_isolation.py",
+]
+# mutmut's PytestRunner already prepends "-x -q -p no:randomly -p no:random-order"
+# (mutmut/__main__.py:_pytest_args_regular_run) -- this is appended after that,
+# matching the brief's required "-x -q -p no:cacheprovider" runner.
+pytest_add_cli_args = ["-p", "no:cacheprovider"]

@@ -112,6 +112,36 @@ def test_pool_is_built_for_characteristic_weights_without_null_model(charw_tenan
     assert body["authorship"]["llr_deviation_score"] is None
 
 
+def test_shadow_pool_scan_is_cached_but_baseline_write_busts_it(charw_tenant, monkeypatch):
+    """The soak must not deserialize the full cohort on every request."""
+    from original.quantum import impostor_cache
+
+    repo = get_repository()
+    real_all_states = repo.all_states
+    calls = []
+
+    def _all_states(tenant_id=None):
+        calls.append(1)
+        return real_all_states(tenant_id=tenant_id)
+
+    impostor_cache.invalidate()
+    monkeypatch.setattr(repo, "all_states", _all_states)
+    monkeypatch.delenv("NULL_MODEL", raising=False)
+    monkeypatch.setenv("CHARACTERISTIC_WEIGHTS", "shadow")
+
+    _score(charw_tenant)
+    _score(charw_tenant)
+    assert len(calls) == 1
+
+    # The shared baseline persistence helper invalidates every peer cache in
+    # this tenant, so the next score must rebuild against the new cohort.
+    _seed("charw:new_peer", 2)
+    from original.quantum import impostor_cache as cache
+    cache.invalidate("charw:new_peer")  # _seed bypasses the HTTP persistence helper
+    _score(charw_tenant)
+    assert len(calls) == 2
+
+
 def test_pool_is_not_built_when_both_flags_are_off(charw_tenant, monkeypatch):
     """The condition must stay a condition. Spying on the builder is what
     separates 'the `or` clause works' from 'the pool is now built

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import urllib.parse
 
+import anyio
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
@@ -49,7 +50,7 @@ async def lti_launch(request: Request):
     if not id_token or not state:
         raise HTTPException(status_code=400, detail="missing id_token or state")
     try:
-        claims = lti.verify_launch(id_token, state)
+        claims = await anyio.to_thread.run_sync(lti.verify_launch, id_token, state)
     except lti.LtiError as e:
         raise HTTPException(status_code=401, detail=f"LTI launch rejected: {e}") from e
     except ImportError as exc:

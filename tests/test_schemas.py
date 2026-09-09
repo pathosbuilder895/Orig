@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import dataclasses
 
+import pydantic
 import pytest
 
 from original.ai_likelihood import AiIndicator, AiLikelihoodResult
@@ -41,7 +42,12 @@ from original.quantum.scoring import (
     TrajectoryConformance,
 )
 from original.routers._shared import _to_response
-from original.schemas import Layer7OutputResponse
+from original.schemas import (
+    AddSampleRequest,
+    BlendDetectionRequest,
+    Layer7OutputResponse,
+    ScoreSubmissionRequest,
+)
 from original.tension_arc import ParagraphArc, SentenceTension, TensionArcResult
 
 
@@ -479,3 +485,39 @@ def test_topic_inflation_fields_are_default_when_not_computed():
     assert response.topic_distance is None
     assert response.topic_mean_inflation is None
     assert response.deviation_score_inflated is None
+
+
+# ── Request text-size caps ─────────────────────────────────────────────────
+# A single unbounded request body could consume minutes of CPU in feature
+# extraction (re-parsed per sliding window on the blend endpoint) or exhaust
+# memory. 200,000 characters is generous for even a very long essay/exam.
+
+
+def test_add_sample_request_accepts_text_at_the_limit():
+    request = AddSampleRequest(text="x" * 200000)
+    assert len(request.text) == 200000
+
+
+def test_add_sample_request_rejects_oversized_text():
+    with pytest.raises(pydantic.ValidationError):
+        AddSampleRequest(text="x" * 200001)
+
+
+def test_score_submission_request_accepts_text_at_the_limit():
+    request = ScoreSubmissionRequest(text="x" * 200000)
+    assert len(request.text) == 200000
+
+
+def test_score_submission_request_rejects_oversized_text():
+    with pytest.raises(pydantic.ValidationError):
+        ScoreSubmissionRequest(text="x" * 200001)
+
+
+def test_blend_detection_request_accepts_text_at_the_limit():
+    request = BlendDetectionRequest(text="x" * 200000)
+    assert len(request.text) == 200000
+
+
+def test_blend_detection_request_rejects_oversized_text():
+    with pytest.raises(pydantic.ValidationError):
+        BlendDetectionRequest(text="x" * 200001)

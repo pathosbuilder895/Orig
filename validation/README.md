@@ -88,10 +88,44 @@ Report ("The instruments were broken, not the math") and
 
 ## Real measured evidence
 
+**2026-09-07 full battery** — `validation/calibration_report_2026-09-07.json`,
+the first committed report with G7, G8, the TermSim gates and three-valued
+verdicts populated, and the first since 2026-07-31. Run locally with the
+vector cache (10 h 21 min on a 10-core Mac; the run started at commit
+f47a4d30 and the report's `git_sha` is the checkout at write time,
+642b1d08 — the commits between are CI/docs/`--only` plumbing with no
+scoring change). Verdicts, `--strict`:
+
+| Gate | Verdict | Measured | Why not pass |
+|------|---------|----------|--------------|
+| G1 | uninformative | 0/316 flagged | conformal floor: per-entity N ≤ 11 → min p 0.083 > 0.03 band; 10 folds drift-held |
+| G1p | **fail** | 17/191 flagged (8.9%) on Plato, every fold pooled (n = 179, band reachable) | pooled calibration over-flags genuine folds even where exchangeability holds; worst dialogues charmides/laches at 20% |
+| G2 | pass | impostor q 0.048 vs holdout 0.200 | — |
+| G2b | pass | paraphrased impostor q 0.048 vs holdout 0.250 | — |
+| G3 | uninformative | top-1 0.778, n = 27 | Wilson CI [0.59, 0.89] straddles the 0.7 bar |
+| G4 | pass | early 0.636 ≤ middle 0.666 ≤ late 0.731 | — |
+| G5 | pass | g1 dev 0.633 → 0.685 shuffled; g3 acc 0.148; g4 non-monotone 2/3 | — (10 real / 61 shuffled folds drift-held, excluded from the health check as designed) |
+| G6 | uninformative | skipped | p_central floor 0.200 at n = 4, threshold 0.02 needs n ≥ 49 |
+| G7 | uninformative | skipped | cross-genre corpus not committed (Plan 02) |
+| G8 | pass | precision 1.000, abstention 0.333, shuffled control 0.306 | — |
+| T-1 | fail | honest-term action budget | TermSim evidence artifact (`validation/termsim/reports/latest.json`) |
+| T-2 | pass | ghost detection floor | — |
+| T-3 | fail | baseline-growth neutrality | TermSim evidence artifact |
+| T-4 | pass | cold-start parity | — |
+
 The 2026-08-26 G2 floor-asymmetry audit returned **genuine**, not artifact:
 8/19 holdouts (42.1%) versus 20/23 impostors (87.0%) were already at their
 own conformal rank-1 floor. The separation survives a scale-free rank read;
 see `validation/audits/g2_floor_asymmetry_2026-08-26.json`.
+
+The 2026-09-07 pooled-typicality exchangeability audit
+(`validation/audits/pooling_exchangeability_2026-09-07.json`) is the first
+real-corpus run of the Task 7 assessor: G1-eligible Plato dialogues and
+the G6 native-English corpus are **exchangeable**; seminary,
+`public_authors`, and every cross-corpus union are **heterogeneous**
+(details in `validation/audits/README.md`). The battery's `G1p` gate
+therefore pools within Plato only and is reported alongside, never instead
+of, the self-calibrated G1.
 
 `validation/benchmarks/2026-07-31/public_authors/report.json` (committed;
 `validation/benchmarks/*` is otherwise git-ignored and only specific runs are
@@ -112,13 +146,36 @@ exclude-not-abort behavior rule 4 describes.
     # fast unit layer (part of the main suite)
     .venv/bin/python -m pytest tests/ -q
 
-    # gate battery — G1-G8, corpus-driven via the in-process API client.
-    # This is a multi-minute run (it LOO-scores whole documents across
-    # seminary + public_authors + Plato, plus the G5 permutation-null
+    # gate battery — G1, G1p-G8 + T-1..T-4, corpus-driven via the in-process
+    # API client. Cold, it re-extracts every corpus text once per LOO fold
+    # (20+ CPU-hours, 2026-09-07); CALIBRATION_GATE_VECTOR_CACHE=<dir>
+    # memoises the route-level feature_vector on disk (same vectors, one
+    # extraction per distinct text — see validation/vector_cache.py) and
+    # the --out report records that it was used.
+    # This is a multi-minute run even cached (it LOO-scores whole documents
+    # across seminary + public_authors + Plato, plus the G5 permutation-null
     # rerun) — don't run it casually, and use --strict before quoting
     # any number out of it, since the default treats an uninformative
     # gate as non-failing.
-    .venv/bin/python -m validation.calibration_gate --strict
+    CALIBRATION_GATE_VECTOR_CACHE=.benchmark_cache/calibration_gate/vectors \
+        .venv/bin/python -m validation.calibration_gate --strict
+    # Re-run one leg (or a group) without the rest:
+    CALIBRATION_GATE_VECTOR_CACHE=.benchmark_cache/calibration_gate/vectors \
+        .venv/bin/python -m validation.calibration_gate --strict --only G1,G1p
+    # The weekly CI job (.github/workflows/calibration-battery.yml,
+    # non-blocking, dispatchable) runs the same command as a six-job matrix
+    # over --only groups with the vector cache persisted via actions/cache,
+    # then merges the leg reports (scripts/merge_calibration_reports.py)
+    # into the `calibration-report` artifact; a leg whose job overran is
+    # listed under missing_legs, never silently absent.
+    # First complete CI run: 2026-09-08, run 34226363871 (cold cache):
+    # G2 12 min, G2b 12 min, G6+G7+G8+T 9 min, G1+G1p 1 h 33 min,
+    # G3+G4 2 h 32 min (G3 alone 2 h 11 min), G5 4 h 26 min -- G5 is the
+    # leg to watch against the 5.5 h step timeout. CI has no
+    # sentence-transformers, so tier 10 runs its TF-IDF backend there (the
+    # report's vector_cache.semantic_backend says which); verdicts matched
+    # the local sentence-transformers run gate for gate, with small shifts
+    # in the continuous values (G2 holdout median 0.222 vs 0.200).
 
     # deployment-shaped layer (real API, isolated DB per matrix cell)
     .venv/bin/python -m validation.termsim describe --seed 20260826
