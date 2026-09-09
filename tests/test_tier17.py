@@ -13,9 +13,10 @@ Covers:
   - `_iki_deltas`: empty log, single event (no delta possible), an event
     missing both `elapsed` and `timestamp` (the `continue` arm), and a gap
     that is <= 0 or >= 30s (the "skip append" arm).
-  - `_is_paste`: unit-tested directly — it is not called by any other
-    function in this module (dead helper), so no production code path
-    reaches it.
+  - `_is_paste` was covered here directly (a dead helper unused elsewhere
+    in the module) until 2026-09's Tier 17 recalibration removed it
+    entirely -- paste_event_rate now reads the revision record's own
+    `type` field rather than going through a heuristic.
   - `typing_speed_cv` / `burst_ratio`: the `< 10 deltas -> 0.5` neutral arm,
     and `typing_speed_cv`'s `mean < 1e-6 -> 0.0` arm (>= 10 vanishingly
     small but strictly positive deltas).
@@ -29,7 +30,6 @@ from __future__ import annotations
 
 from original.features.tier17 import (
     _iki_deltas,
-    _is_paste,
     burst_ratio,
     deletion_rate,
     paste_event_rate,
@@ -65,59 +65,60 @@ def test_iki_deltas_zero_and_overlarge_gaps_are_not_appended():
     assert deltas == []
 
 
-# ── _is_paste (unit-tested directly; unused elsewhere in the module) ───────
-
-
-def test_is_paste_true_on_paste_event_type():
-    assert _is_paste("paste", "x") is True
-
-
-def test_is_paste_true_on_v_key():
-    assert _is_paste(None, "v") is True
-
-
-def test_is_paste_false_otherwise():
-    assert _is_paste(None, "x") is False
-
-
 # ── typing_speed_cv / burst_ratio neutral arms ──────────────────────────────
+#
+# 2026-09's Tier 17 recalibration changed every degenerate-input arm from a
+# flat literal (0.5 or 0.0) to _neutral(code) -- the feature's own NORM_BOUNDS
+# midpoint, which is the only raw value that normalises to exactly 0.5
+# downstream. A flat 0.5 or 0.0 against a bound like (0.0, 1.5) would
+# normalise to something other than "no measurement". See tier17.py's module
+# docstring and original/constants.py's NORM_BOUNDS comments for the derivation
+# of each bound.
 
 
 def test_typing_speed_cv_below_ten_deltas_is_neutral():
-    assert typing_speed_cv({"keystrokes": [{"elapsed": 100}]}) == 0.5
+    assert typing_speed_cv({"keystrokes": [{"elapsed": 100}]}) == 0.75  # (0.0+1.5)/2
 
 
-def test_typing_speed_cv_near_zero_mean_returns_zero():
+def test_typing_speed_cv_implausibly_small_median_returns_neutral():
     # >= 10 keystrokes with vanishingly small (but strictly positive)
-    # inter-keystroke intervals -> mean < 1e-6.
+    # inter-keystroke intervals -> median below the 60ms physical floor
+    # (MIN_PLAUSIBLE_MEDIAN_IKI_MS), read as clock/quantisation noise, not
+    # fast typing -- replaces the old "mean < 1e-6 -> 0.0" special case.
     keystrokes = [{"elapsed": i * 0.0000001} for i in range(12)]
-    assert typing_speed_cv({"keystrokes": keystrokes}) == 0.0
+    assert typing_speed_cv({"keystrokes": keystrokes}) == 0.75  # (0.0+1.5)/2
 
 
 def test_burst_ratio_below_ten_deltas_is_neutral():
-    assert burst_ratio({"keystrokes": []}) == 0.5
+    assert burst_ratio({"keystrokes": []}) == 0.5  # (0.0+1.0)/2 -- bounds unchanged
 
 
 # ── deletion_rate / pause_density / paste_event_rate degenerate arms ──────
 
 
-def test_deletion_rate_no_precomputed_value_and_no_keystrokes_is_zero():
-    assert deletion_rate({"keystrokes": []}) == 0.0
+def test_deletion_rate_no_precomputed_value_and_no_keystrokes_is_neutral():
+    assert deletion_rate({"keystrokes": []}) == 0.1  # (0.0+0.20)/2
 
 
-def test_deletion_rate_empty_dict_is_zero():
-    assert deletion_rate({}) == 0.0
+def test_deletion_rate_empty_dict_is_neutral():
+    assert deletion_rate({}) == 0.1  # (0.0+0.20)/2
 
 
-def test_pause_density_zero_word_count_is_zero():
+def test_pause_density_zero_word_count_is_neutral():
+    # 0.0 would read as "this writer never pauses" -- the docstring's own
+    # reasoning for why this arm returns neutral, not a real reading.
     result = pause_density({"pauses": [{"duration": 5000}], "wordCount": 0})
-    assert result == 0.0
+    assert result == 20.0  # (0.0+40.0)/2
 
 
-def test_paste_event_rate_zero_word_count_returns_raw_count():
+def test_paste_event_rate_zero_word_count_is_neutral():
+    # The old fallback returned a raw event count here -- a different unit
+    # silently scored on the same scale as the normalised rate. Now neutral.
     result = paste_event_rate({"revisions": [{"type": "paste"}], "wordCount": 0})
-    assert result == 1.0
+    assert result == 2.5  # (0.0+5.0)/2
 
 
-def test_revision_depth_no_revisions_is_zero():
-    assert revision_depth({"revisions": []}) == 0.0
+def test_revision_depth_no_revisions_is_neutral():
+    # 0.0 is a real reading here ("only single-char corrections"), so the
+    # no-data case must be distinguishable from it -- hence neutral, not 0.0.
+    assert revision_depth({"revisions": []}) == 25.0  # (0.0+50.0)/2
