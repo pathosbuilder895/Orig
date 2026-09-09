@@ -30,6 +30,7 @@ from ._shared import (
     _render_launch_localstorage,
     _repo,
     _require_staff,
+    _require_student_session,
 )
 
 router = APIRouter()
@@ -183,7 +184,22 @@ def bluebook_start_session(exam_id: str, body: BluebookStartSessionRequest, requ
 
 @router.post("/bluebook/submissions", status_code=201)
 def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: Request):
-    """Record one sat examination (the integrity reading for the Results view)."""
+    """Record one sat examination (the integrity reading for the Results view).
+
+    Callers: either the signed-in student sealing their own sitting (session
+    student id must match ``body.student_id``), or staff. Previously this
+    route had no auth check at all — any caller could write a submission
+    naming an arbitrary student_id/candidate, including a classmate's.
+    """
+    try:
+        _require_staff(request)
+    except HTTPException:
+        session = _require_student_session(request)
+        if body.student_id and session.get("sid") != body.student_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Session does not match the submission's student_id.",
+            ) from None
     tenant = _bluebook_tenant(request)
 
     # Idempotent sealing (robustness spec §2): a retried seal with the same

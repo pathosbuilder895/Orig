@@ -7,6 +7,14 @@ how a student id is derived when the export omits one, which rows are counted
 as matched vs created, and which are reported back as unmatched. A silent
 change to any of those produces a wrong roster with a 200 response.
 
+The route requires a staff principal and tenant-prefixes every created id
+with that principal's own tenant (``{tenant}:{derived_id}``) — a flat,
+tenant-less id is a demo-sandbox-only convention elsewhere in the app, and
+minting one on a real deploy would make that student readable by any staff
+account regardless of institution. The tests below use the anonymous demo
+principal (tenant "demo"), which is why created ids are checked at
+``/students/demo:{sid}``.
+
 The Canvas routes are deliberately 501 (WS-7 step 5) — they previously
 returned placeholder JSON with 200, which reads as success to any client that
 doesn't inspect the body. That regression is worth a permanent test.
@@ -52,8 +60,9 @@ def test_import_creates_students_and_reports_counts():
     assert body["unmatched_rows"] == 0
     assert body["errors"] == []
 
-    # The stub really exists in the store afterwards.
-    assert client.get(f"/students/{sid}").status_code == 200
+    # The stub really exists in the store afterwards, tenant-prefixed with
+    # the importing (anonymous demo) principal's own tenant.
+    assert client.get(f"/students/demo:{sid}").status_code == 200
 
 
 def test_reimporting_the_same_roster_matches_instead_of_duplicating():
@@ -97,7 +106,7 @@ def test_headers_are_matched_case_insensitively_and_trimmed():
     body = _post_csv(csv).json()
     assert body["unmatched_rows"] == 0
     assert body["created_students"] == 1
-    assert client.get(f"/students/{sid}").status_code == 200
+    assert client.get(f"/students/demo:{sid}").status_code == 200
 
 
 def test_studentid_alias_without_space_is_accepted():
@@ -107,7 +116,7 @@ def test_studentid_alias_without_space_is_accepted():
 
     body = _post_csv(csv).json()
     assert body["created_students"] == 1
-    assert client.get(f"/students/{sid}").status_code == 200
+    assert client.get(f"/students/demo:{sid}").status_code == 200
 
 
 def test_student_id_is_derived_from_the_name_when_the_export_omits_one():
@@ -121,7 +130,7 @@ def test_student_id_is_derived_from_the_name_when_the_export_omits_one():
 
     body = _post_csv(csv).json()
     assert body["created_students"] == 1
-    assert client.get(f"/students/mary_jo_vandyke{tag}").status_code == 200
+    assert client.get(f"/students/demo:mary_jo_vandyke{tag}").status_code == 200
 
 
 # ── Error / edge rows ────────────────────────────────────────────────────────
@@ -166,12 +175,12 @@ def test_decode_failure_is_a_422_not_a_500(monkeypatch):
     handler's real contract ("if extracting CSV text fails for any reason,
     422 rather than 500") shouldn't depend on which failure mode gets
     there."""
-    from starlette.datastructures import UploadFile
+    import tempfile
 
-    async def _read_returns_a_str(self, size=-1):
+    def _read_returns_a_str(self, size=-1):
         return "not bytes, has no .decode()"
 
-    monkeypatch.setattr(UploadFile, "read", _read_returns_a_str)
+    monkeypatch.setattr(tempfile.SpooledTemporaryFile, "read", _read_returns_a_str)
 
     r = _post_csv("Last Name,First Name,Student ID\nA,B,c1\n")
 
@@ -192,6 +201,65 @@ def test_utf8_bom_export_is_decoded_without_corrupting_the_first_header():
     body = _post_csv(b"\xef\xbb\xbf" + csv.encode("utf-8")).json()
     assert body["unmatched_rows"] == 0
     assert body["created_students"] == 1
+
+
+# ── Tenant scoping ────────────────────────────────────────────────────────────
+
+
+def test_unauthenticated_import_is_rejected_on_a_real_deploy(monkeypatch):
+    """Off the demo sandbox, an anonymous caller must not be able to mint
+    student records at all."""
+    import original.api as api_mod
+
+    monkeypatch.setattr(api_mod, "_IS_REAL_DEPLOY", True)
+    try:
+        sid = _uid("tiauth")
+        csv = f"Last Name,First Name,Student ID\nNoAuth,Case,{sid}\n"
+        r = _post_csv(csv)
+        assert r.status_code in (401, 403), r.text
+    finally:
+        monkeypatch.setattr(api_mod, "_IS_REAL_DEPLOY", False)
+
+
+def test_two_institutions_importing_the_same_raw_id_land_in_separate_tenants():
+    """A raw Turnitin student id is not globally unique across institutions;
+    it must never collide across tenants."""
+    from original import principal as pr
+
+    raw_id = _uid("shared")
+    csv = f"Last Name,First Name,Student ID\nShared,Id,{raw_id}\n"
+
+    acme_token = pr.mint_principal_token("prof-acme-ti", "professor", "acme")
+    beta_token = pr.mint_principal_token("prof-beta-ti", "professor", "beta")
+
+    acme_resp = client.post(
+        "/import/courses/c1/turnitin-csv",
+        files={"file": ("roster.csv", csv.encode(), "text/csv")},
+        headers={"Authorization": f"Bearer {acme_token}"},
+    )
+    assert acme_resp.status_code == 200, acme_resp.text
+    beta_resp = client.post(
+        "/import/courses/c1/turnitin-csv",
+        files={"file": ("roster.csv", csv.encode(), "text/csv")},
+        headers={"Authorization": f"Bearer {beta_token}"},
+    )
+    assert beta_resp.status_code == 200, beta_resp.text
+
+    # Both imports report "created" — they are two distinct students, not
+    # the second one matching the first's record.
+    assert acme_resp.json()["created_students"] == 1
+    assert beta_resp.json()["created_students"] == 1
+    assert client.get(
+        f"/students/acme:{raw_id}", headers={"Authorization": f"Bearer {acme_token}"}
+    ).status_code == 200
+    assert client.get(
+        f"/students/beta:{raw_id}", headers={"Authorization": f"Bearer {beta_token}"}
+    ).status_code == 200
+    # Neither tenant's staff can read the flat, unprefixed id — it was
+    # never created.
+    assert client.get(
+        f"/students/{raw_id}", headers={"Authorization": f"Bearer {acme_token}"}
+    ).status_code in (403, 404)
 
 
 # ── Canvas: live integration fails closed without configuration ─────────────

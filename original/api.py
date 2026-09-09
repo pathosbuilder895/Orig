@@ -44,6 +44,7 @@ from . import principal as principal_mod
 from . import (
     store,  # noqa: F401
 )
+from .core.logging import RequestLoggingMiddleware, configure_logging
 from .routers import (
     admin,
     auth,
@@ -98,6 +99,15 @@ from .routers.students_scoring import score_submission  # noqa: F401
 # and security headers. Distinct from the v1 app's ENVIRONMENT setting.
 ORIGINAL_ENV = os.environ.get("ORIGINAL_ENV", "demo").strip().lower()
 _IS_REAL_DEPLOY = ORIGINAL_ENV in ("pilot", "staging", "production")
+
+# Configure the root logger before anything else in this module can emit a log
+# line (including the lifespan's own startup messages below). Previously no
+# handler was attached to the root logger at all, so every INFO-level log in
+# the app was silently dropped and a scoring failure's only trace was one
+# WARNING line to unformatted stderr with no request-id correlation. JSON logs
+# on real deploys (structured, ingestible by a log pipeline); plain
+# human-readable logs in the demo sandbox.
+configure_logging(use_json=_IS_REAL_DEPLOY)
 
 
 @asynccontextmanager
@@ -381,6 +391,19 @@ async def maintenance_write_freeze(request: Request, call_next):
             headers={"Retry-After": "120"},
         )
     return await call_next(request)
+
+
+# ── Request logging ───────────────────────────────────────────────────────────
+# Added last so it wraps every other middleware (Starlette's add_middleware
+# stack is LIFO: the last one added ends up outermost). That means it sees
+# and logs the response from an auth rejection, a tenant-isolation 403, or the
+# maintenance-mode 503 above -- not just requests that make it all the way to
+# a route handler. request.url.path can contain a student id (e.g.
+# /students/acme:alice/score); that's consistent with the rest of the app --
+# log_audit() already logs student ids directly in audit-log rows (see e.g.
+# routers/students.py's student_delete entry) -- so no redaction is applied
+# here either.
+app.add_middleware(RequestLoggingMiddleware)
 
 
 # ── Startup: SECRET_KEY stability check ───────────────────────────────────────
