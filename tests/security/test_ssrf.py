@@ -56,7 +56,6 @@ def _recording_transport() -> tuple[httpx.MockTransport, list[httpx.Request]]:
     return httpx.MockTransport(handler), seen
 
 
-@pytest.mark.blocker
 @pytest.mark.parametrize("attacker_url", ATTACKER_URLS)
 def test_canvas_import_refuses_private_and_local_urls(
     two_tenants, live_client, monkeypatch, attacker_url
@@ -99,9 +98,61 @@ def test_canvas_import_refuses_private_and_local_urls(
         f"server contacted {attacker_url!r} — recorded requests: "
         f"{[str(req.url) for req in seen]}"
     )
-    assert status is not None and 400 <= status < 500, (
-        f"expected a 4xx refusal for {attacker_url!r}, got {status!r}: {body_text}"
+    assert (
+        status is not None and 400 <= status < 500
+    ), f"expected a 4xx refusal for {attacker_url!r}, got {status!r}: {body_text}"
+
+
+NUMERIC_IP_ATTACKER_URLS = [
+    "http://2130706433",  # decimal encoding of 127.0.0.1
+    "http://0x7f000001",  # hex encoding of 127.0.0.1
+    "http://017700000001",  # octal encoding of 127.0.0.1
+    "http://127.1",  # shorthand a.b dotted encoding of 127.0.0.1
+    "http://10.1",  # shorthand a.b dotted encoding of 10.0.0.1
+    "http://0xa.0.0.1",  # mixed hex/decimal dotted encoding of 10.0.0.1
+]
+
+
+@pytest.mark.parametrize("attacker_url", NUMERIC_IP_ATTACKER_URLS)
+def test_canvas_import_refuses_numeric_ip_encodings(
+    two_tenants, live_client, monkeypatch, attacker_url
+):
+    """T-05 follow-up: legacy BSD-style numeric IPv4 encodings (decimal, hex,
+    octal, and shorthand a.b/a dotted forms) are not valid input to
+    ``ipaddress.ip_address`` -- it raises ValueError on all of them -- so a
+    literal check built only on that call falls through to the DNS-name
+    allow branch and lets these through. But ``socket.inet_aton`` (which
+    mirrors the C library numeric-address parsing that resolvers have
+    historically honored) accepts every one of these forms and resolves it
+    to the same loopback/RFC-1918 address a dotted-quad literal would name.
+    Same contract as ``test_canvas_import_refuses_private_and_local_urls``
+    above: the mocked transport must never be invoked, and the response must
+    be a clean 4xx.
+    """
+    transport, seen = _recording_transport()
+    monkeypatch.setattr(
+        live_import,
+        "make_client",
+        lambda: httpx.AsyncClient(transport=transport, timeout=5.0),
     )
+
+    try:
+        r = live_client.post(
+            f"/canvas/baseline/{two_tenants['student_a']}/list-canvas-submissions",
+            json=_body(attacker_url),
+            headers=two_tenants["headers_a"],
+        )
+        status, body_text = r.status_code, r.text
+    except Exception as exc:
+        status, body_text = None, f"<unhandled exception before a response: {exc!r}>"
+
+    assert seen == [], (
+        f"server contacted {attacker_url!r} — recorded requests: "
+        f"{[str(req.url) for req in seen]}"
+    )
+    assert (
+        status is not None and 400 <= status < 500
+    ), f"expected a 4xx refusal for {attacker_url!r}, got {status!r}: {body_text}"
 
 
 def test_canvas_import_control_public_url_is_contacted(two_tenants, live_client, monkeypatch):

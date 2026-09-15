@@ -20,6 +20,7 @@ from __future__ import annotations
 import ipaddress
 import logging
 import os
+import socket
 from urllib.parse import urlparse
 
 import httpx
@@ -60,9 +61,15 @@ def _reject_non_public_host(canvas_url: str) -> None:
       - any scheme other than http/https (e.g. ``file://``, which has no
         meaningful "host" to dial at all);
       - a URL with no parseable hostname;
-      - an IP literal that is loopback, private (RFC 1918), link-local
-        (this is what catches the 169.254.169.254 cloud-metadata address),
-        reserved, multicast, or unspecified;
+      - an IP literal — including legacy BSD-style numeric encodings
+        (decimal, hex, octal, and shorthand a.b/a dotted forms, e.g.
+        "2130706433", "0x7f000001", "017700000001", "127.1", "0xa.0.0.1" —
+        none of these are valid input to ``ipaddress.ip_address``, but
+        ``socket.inet_aton`` accepts them the same way the C library's
+        numeric-address parsing historically has) — that is loopback,
+        private (RFC 1918), link-local (this is what catches the
+        169.254.169.254 cloud-metadata address), reserved, multicast, or
+        unspecified;
       - the obvious local DNS names: exactly "localhost" or "ip6-localhost",
         or any name ending in ".localhost" or ".local".
     Anything else — an ordinary public DNS name — is allowed.
@@ -71,12 +78,15 @@ def _reject_non_public_host(canvas_url: str) -> None:
     the name alone and never calls socket.getaddrinfo/gethostbyname, so the
     allow-path never depends on live DNS resolution (a public-looking name
     that doesn't resolve in this environment, e.g. in CI, must still be
-    allowed). Residual, explicitly out of scope: a public DNS name that
-    *resolves* to a private/loopback address (DNS rebinding, or an internal
-    host given a public-looking name) is NOT caught by this check and would
-    require validating the connected-to address at request time instead of
-    the URL text. This closes the direct body-supplied IP/localhost/file
-    vector only — it does not make Canvas import SSRF-proof.
+    allowed) — inet_aton below is a local syntactic parse of numeric forms,
+    not a network lookup, so this holds even for the numeric-encoding check.
+    Residual, explicitly out of scope: a public DNS name that *resolves* to
+    a private/loopback address (DNS rebinding, or an internal host given a
+    public-looking name) is NOT caught by this check and would require
+    validating the connected-to address at request time instead of the URL
+    text. This closes the direct body-supplied IP/localhost/file vector
+    (including its numeric-IPv4-encoding variants) only — it does not make
+    Canvas import SSRF-proof.
     """
     parsed = urlparse(canvas_url)
     if parsed.scheme not in ("http", "https"):
@@ -93,6 +103,21 @@ def _reject_non_public_host(canvas_url: str) -> None:
         ip = ipaddress.ip_address(hostname)
     except ValueError:
         ip = None
+        try:
+            # Not a strict dotted-quad/IPv6 literal -- but legacy numeric
+            # IPv4 forms (decimal/hex/octal/shorthand-dotted) are also not
+            # valid ipaddress.ip_address() input, and httpx/the stdlib
+            # resolver will still dial them as an IP. inet_aton is a pure
+            # string parse (no DNS query), so this never depends on network
+            # access or live resolution -- it either accepts the numeric
+            # syntax and hands back 4 packed bytes, or raises OSError for
+            # anything that isn't a legacy-numeric IPv4 form (including
+            # ordinary DNS names).
+            packed = socket.inet_aton(hostname)
+        except OSError:
+            packed = None
+        if packed is not None:
+            ip = ipaddress.ip_address(packed)
 
     if ip is not None:
         if (
