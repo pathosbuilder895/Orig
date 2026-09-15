@@ -17,8 +17,10 @@ Canvas Submissions API reference:
 
 from __future__ import annotations
 
+import ipaddress
 import logging
 import os
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import HTTPException
@@ -26,6 +28,15 @@ from fastapi import HTTPException
 from original.upload_utils import extract_text_from_bytes
 
 log = logging.getLogger(__name__)
+
+# Exact local DNS names rejected by _reject_non_public_host, regardless of
+# their apparent public-suffix. "ip6-localhost" is the /etc/hosts alias for
+# ::1 on many Linux distros.
+_LOCAL_HOSTNAMES = {"localhost", "ip6-localhost"}
+# Suffixes rejected the same way: any name ending in one of these is a local
+# name by convention (RFC 6762 for .local; .localhost is the reserved TLD
+# from RFC 2606 that browsers already special-case).
+_LOCAL_HOSTNAME_SUFFIXES = (".localhost", ".local")
 
 # Pinned by tests/test_canvas_live.py — the honest demo-mode guidance shown
 # when no Canvas credentials are configured anywhere.
@@ -39,6 +50,68 @@ NO_CONFIG_GUIDANCE = (
 # A submission must carry at least this many words to be usable as a baseline
 # sample or analysis target (mirrors the v1 importer's floor).
 MIN_WORDS = 50
+
+
+def _reject_non_public_host(canvas_url: str) -> None:
+    """SSRF guard: refuse a ``canvas_url`` whose host is not a plausible
+    public Canvas instance, before any client is constructed or request made.
+
+    Rejects:
+      - any scheme other than http/https (e.g. ``file://``, which has no
+        meaningful "host" to dial at all);
+      - a URL with no parseable hostname;
+      - an IP literal that is loopback, private (RFC 1918), link-local
+        (this is what catches the 169.254.169.254 cloud-metadata address),
+        reserved, multicast, or unspecified;
+      - the obvious local DNS names: exactly "localhost" or "ip6-localhost",
+        or any name ending in ".localhost" or ".local".
+    Anything else — an ordinary public DNS name — is allowed.
+
+    Deliberately a literal, pre-resolution check: it decides name hosts from
+    the name alone and never calls socket.getaddrinfo/gethostbyname, so the
+    allow-path never depends on live DNS resolution (a public-looking name
+    that doesn't resolve in this environment, e.g. in CI, must still be
+    allowed). Residual, explicitly out of scope: a public DNS name that
+    *resolves* to a private/loopback address (DNS rebinding, or an internal
+    host given a public-looking name) is NOT caught by this check and would
+    require validating the connected-to address at request time instead of
+    the URL text. This closes the direct body-supplied IP/localhost/file
+    vector only — it does not make Canvas import SSRF-proof.
+    """
+    parsed = urlparse(canvas_url)
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Canvas URL must use http or https, not {parsed.scheme!r}.",
+        )
+
+    hostname = parsed.hostname
+    if not hostname:
+        raise HTTPException(status_code=400, detail="Canvas URL has no host.")
+
+    try:
+        ip = ipaddress.ip_address(hostname)
+    except ValueError:
+        ip = None
+
+    if ip is not None:
+        if (
+            ip.is_loopback
+            or ip.is_private
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Canvas URL may not target a private, loopback, or link-local address.",
+            )
+    elif hostname in _LOCAL_HOSTNAMES or hostname.endswith(_LOCAL_HOSTNAME_SUFFIXES):
+        raise HTTPException(
+            status_code=400,
+            detail="Canvas URL may not target a local hostname.",
+        )
 
 
 def resolve_canvas_config(body_url: str | None, body_token: str | None) -> tuple[str, str]:
@@ -69,6 +142,13 @@ def resolve_canvas_config(body_url: str | None, body_token: str | None) -> tuple
 
     if not canvas_url or not access_token:
         raise HTTPException(status_code=400, detail=NO_CONFIG_GUIDANCE)
+
+    # SSRF guard (T-05): applied to the resolved host regardless of whether
+    # it came from the request body or CANVAS_BASE_URL — see live_import.py
+    # module docs / CLAUDE.md for why the env-configured-host carve-out
+    # wasn't needed: no committed test configures a private env host.
+    _reject_non_public_host(canvas_url)
+
     return canvas_url, access_token
 
 
