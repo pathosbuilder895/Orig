@@ -30,7 +30,7 @@ When a new submission arrives, its feature vector is scored via variance-weighte
 
 ```
 z_i = (submission_i − baseline_mean_i) / baseline_std_i
-D_raw = tanh(RMS(z) / 1.5)
+D_raw = tanh(RMS(z) / 2.35)
 ```
 
 The score is then trajectory-adjusted (±15–25% based on whether the deviation aligns with observed writing development) and mapped to a recommended action.
