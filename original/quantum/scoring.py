@@ -1423,7 +1423,7 @@ def score(
     #   2.35 (2026-09-15): flag floor at rms_z ≈ 1.63 — above the whole measured
     #                       genuine cross-work range (→ no_action/monitor) and
     #                       below the impostor median 1.65 (→ >50% impostors still
-    #                       flagged). rms_z 1.2→0.49, 1.58→0.59, 1.65→0.61,
+    #                       flagged). rms_z 1.2→0.47, 1.58→0.59, 1.65→0.61,
     #                       2.0→0.70. De-saturates without losing discrimination.
     D_raw = float(np.tanh(rms_z / _DEVIATION_TANH_DIVISOR))
 
