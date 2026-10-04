@@ -13,6 +13,27 @@
 - Rehearsal discovered expired professor sign-in being shown as an empty submission list. Fixed: explicit load/sign-in error, retry control, no fake zero-submission state. Verified with the actually expired session, then signed in and retrieved the intact submission.
 - Backup/restore drill: 21 fictional rows across 23 tables dumped and restored into a fresh migrated database, **restore parity: OK**. External bucket upload was not configured and is not claimed.
 
+## Continuation pass, 4 October 2026 (branch `claude/professor-release-continuation`)
+
+Six commits on top of handoff `e75a911c`; not yet pushed (local git/gh credentials invalid).
+
+- **Known-red audit.** Of the four `blocker`/`certification` tests: T-05 Canvas SSRF was a live defect: staff-supplied Canvas URLs, Link-header pagination and attachment URLs (all carrying the bearer token) could target localhost, RFC-1918 or cloud-metadata hosts. Fixed: `live_import.ensure_public_url` requires https to a public host (`3db02679`). T-09 `.docx` upload was already fixed by `f09bb9c61` but still marked red, which would fail the known-red lane (`8047cde9`). The two remaining are cold-start FPR certification for Original scoring, which stays off for Bluebook tenants.
+- **Lost-submission bug.** Launch-link (and LTI) pages never stored `original_products`, so the SPA assumed Original, posted the essay to product-gated `/students` routes, got 403 on all three seal attempts and left the submission unsealed. Fixed (`18ad123b`).
+- **Pilot defaults.** New tenants registered on a real deploy without a product list now get Bluebook only (an unset list meant every product). Deferred `LTI_*` keys removed from the pilot blueprint and pinned by a test (`3fe507b2`).
+- **Phone width (375×812), keyboard.** Landing page was 493px wide (fixed); exam briefing card squeezed to ~260px beside its back button (fixed); sealed receipt showed the sample course "Philosophy 301A" when a real exam's course label was blank (fixed) (`45bd112b`, `01b1d9b6`). Measured no horizontal overflow on: landing, sign-in, signup, invite/set-password, student home, briefing, exam, sealed receipt, all seven teacher tabs, submission reader, exam management. Inputs have associated labels; Tab order reaches the briefing and save controls with visible focus.
+- **Browser rehearsal (local SQLite, fictional accounts, this worktree's code).** Invite link → new-password UI (mismatch rejected, then accepted) → student home → briefing → begin by keyboard → write → reload → resume with draft and server clock intact → seal → teacher reads, marks and saves feedback → releases → student API shows the mark. Network trace during the student session: only same-origin Bluebook routes and self-hosted fonts; no `/students` calls, no third-party hosts. Stored row holds text, word count, coarse timing and a warnings list: no keystroke data. A second professor workspace got 403/404 on every cross-tenant read/write; a student token got 403 on the staff list.
+- **Exposure audit (read-only).** No keystroke data persisted for Bluebook-only tenants; Bluebook pages load no external hosts; Sentry scrubbed; SendGrid receives student email addresses and invite links only (needs a DPA). Docs/OpenAPI, legacy logins, `/auth/register` and LTI are closed or inert in pilot mode.
+- Full CI command with local Postgres (`original_test` on port 55432) at `3fe507b2`: **3,923 passed, 10 skipped, 4 deselected, 163 setup errors**, coverage **99.35%** (floor 98), 14m35s. All 163 errors came from one cause: the `tests/security` `two_tenants` fixture created tenants without products, which the new Bluebook-only default rejects for Original routes. Fixed in `934082a2`; the security, lockdown, cutover and tenant suites then gave **360 passed** with Postgres. A full re-run at `934082a2` did **not** complete: the machine was saturated by unrelated processes (load average ~74) and the run was stopped at its 40-minute limit. Re-run the full command before merging.
+- Known-red lane (`scripts/known_red.py`): exit 0; only T-01 cold-start FPR remains (2 expected failures, 1 accepted uninformative skip).
+
+### Open decisions surfaced by this pass
+
+- **Public signup is open.** `POST /auth/signup` lets anyone create a Bluebook workspace; the plan calls for an invitation-only pilot. Needs an owner decision (and, if invitation-only, a `SELF_SERVE_SIGNUP` flag plus an operator onboarding path).
+- **Seal has no confirmation.** One tap on "Seal & Submit" ends the exam, which is risky on phones. Adding a confirm step touches six Playwright specs.
+- **Off-box backups are unencrypted** by the script; rely on bucket-side encryption or add client-side encryption, and disclose the destination.
+- Anonymous principals keep an operator role exempt from the product gate; harmless unless an operator registers a `demo`-environment tenant on a real deploy. Consider exempting only non-demo super roles.
+- Bluebook request models ignore (not reject) unknown fields such as `keystroke_data`; nothing is stored, but `extra="forbid"` would surface misbehaving clients.
+
 ## Not finished / not proved
 
 1. Public deployment of this version, hosted migration and deployed end-to-end acceptance.
