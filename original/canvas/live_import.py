@@ -17,8 +17,11 @@ Canvas Submissions API reference:
 
 from __future__ import annotations
 
+import ipaddress
 import logging
 import os
+import socket
+from urllib.parse import urlsplit
 
 import httpx
 from fastapi import HTTPException
@@ -69,7 +72,53 @@ def resolve_canvas_config(body_url: str | None, body_token: str | None) -> tuple
 
     if not canvas_url or not access_token:
         raise HTTPException(status_code=400, detail=NO_CONFIG_GUIDANCE)
+    ensure_public_url(canvas_url)
     return canvas_url, access_token
+
+
+_BLOCKED_HOST_SUFFIXES = (".localhost", ".local", ".internal", ".localdomain")
+
+
+def _is_public_ip(value: str) -> bool:
+    try:
+        return ipaddress.ip_address(value).is_global
+    except ValueError:
+        return False
+
+
+def ensure_public_url(url: str) -> None:
+    """Refuse any URL the server should not dial on a caller's behalf (SSRF).
+
+    The Canvas host is caller-supplied, and so are the pagination and
+    attachment URLs Canvas hands back — all of them carry the bearer token.
+    Only https to a public host is allowed: loopback, RFC-1918, link-local
+    (cloud metadata) and other non-global addresses are rejected whether
+    written literally or reached through DNS. A name that does not resolve is
+    left to fail at request time; there is nothing internal for it to reach.
+    """
+    try:
+        parsed = urlsplit(url)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Canvas URL is not valid") from None
+    host = (parsed.hostname or "").rstrip(".").lower()
+    if parsed.scheme != "https" or not host:
+        raise HTTPException(status_code=400, detail="Canvas URL must be an https:// address")
+    if host == "localhost" or host.endswith(_BLOCKED_HOST_SUFFIXES):
+        raise HTTPException(status_code=400, detail="Canvas URL must be a public host")
+    try:
+        ipaddress.ip_address(host)
+        literal = True
+    except ValueError:
+        literal = False
+    if literal:
+        addresses = [host]
+    else:
+        try:
+            addresses = [info[4][0] for info in socket.getaddrinfo(host, None)]
+        except (socket.gaierror, UnicodeError):
+            addresses = []
+    if any(not _is_public_ip(addr.split("%", 1)[0]) for addr in addresses):
+        raise HTTPException(status_code=400, detail="Canvas URL must be a public host")
 
 
 def make_client() -> httpx.AsyncClient:
@@ -120,6 +169,7 @@ async def fetch_submissions(
             for part in link_header.split(","):
                 if 'rel="next"' in part:
                     next_url = part.split(";")[0].strip().strip("<>")
+                    ensure_public_url(next_url)
                     break
     except httpx.HTTPError as exc:
         log.error("Failed to fetch Canvas submissions: %s", exc)
@@ -153,6 +203,11 @@ async def get_submission_text(
             url = att.get("url") or att.get("preview_url") or ""
             name = att.get("display_name") or att.get("filename") or ""
             if not url:
+                continue
+            try:
+                ensure_public_url(url)
+            except HTTPException:
+                log.warning("Canvas attachment %s skipped: non-public URL", name)
                 continue
             try:
                 resp = await client.get(url, headers={"Authorization": f"Bearer {access_token}"})
