@@ -118,16 +118,9 @@ services:
         sync: false
       - key: ENABLE_HSTS
         value: "1"
-      # ── LTI 1.3 (Canvas) ──
-      - key: LTI_TOOL_URL
-        value: https://original-pilot.onrender.com
-      # Tool RSA private key (PEM, \n-escaped). Generate: openssl genrsa 2048
-      - key: LTI_PRIVATE_KEY
-        sync: false
-      # JSON array of registered platforms — set after the Canvas admin returns
-      # the client_id/deployment_id (see docs/CANVAS_RUNBOOK.md).
-      - key: LTI_PLATFORMS
-        sync: false
+      # LTI 1.3 (Canvas) is deferred for the classroom release: no LTI_* keys
+      # here, so /lti/* stays inert. Re-add LTI_TOOL_URL / LTI_PRIVATE_KEY /
+      # LTI_PLATFORMS per docs/CANVAS_RUNBOOK.md when it is in scope.
       # Classroom release: research features remain explicitly off. run.py's
       # demo defaults must not enable these in the real pilot.
       - key: CONTEXT_MANIFEST_ENABLED

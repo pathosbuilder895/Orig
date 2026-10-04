@@ -66,7 +66,7 @@ get a private, Bluebook-only workspace (never profiled by Original). Use
 | `PUBLIC_BASE_URL` | `https://bluebook.example.org` (or `https://original-pilot.onrender.com`), no trailing slash |
 | `SENTRY_DSN` | the DSN, or leave empty |
 | `MAINTENANCE_MODE` | leave empty |
-| `LTI_PRIVATE_KEY`, `LTI_PLATFORMS`, `BBOOK_API_URL`, `BBOOK_EXTERNAL_SECRET`, `AI_LIKELIHOOD_SHADOW` | leave empty (Canvas and Original-only features; not needed for Bluebook) |
+| `BBOOK_API_URL`, `BBOOK_EXTERNAL_SECRET`, `AI_LIKELIHOOD_SHADOW` | leave empty (Canvas and Original-only features; not needed for Bluebook) |
 
 **`original-pg-backup`**
 

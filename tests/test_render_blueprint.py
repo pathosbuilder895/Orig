@@ -70,3 +70,10 @@ def test_backup_job_fails_loudly_when_unconfigured():
     assert job["type"] == "cron"
     assert job["startCommand"] == "python scripts/pg_backup_offbox.py --require-upload"
     assert _env("original-pg-backup")["DATABASE_URL"]["fromDatabase"]["name"] == "original-db"
+
+
+def test_deferred_lti_is_not_configured_on_the_pilot():
+    """Canvas/LTI is deferred: the blueprint must not invite an operator to
+    fill in keys that would make /lti/* launches live."""
+    env = _env("original-pilot")
+    assert not [key for key in env if key.startswith("LTI_")]

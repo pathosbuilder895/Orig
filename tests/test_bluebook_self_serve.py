@@ -346,6 +346,27 @@ def test_create_tenant_requires_a_slug_and_accepts_products(live_client):
     assert bad_products.status_code == 422
 
 
+def test_new_tenant_on_a_real_deploy_defaults_to_bluebook_only(
+    live_client, guarded, pilot_env
+):
+    """An operator provisioning an institution without naming products must
+    not silently hand it Original (an unset product list means every product)."""
+    h = {**_operator(), "X-Guard-Token": GUARD}
+    r = live_client.post(
+        "/tenants", json={"tenant_id": "new-sem", "name": "New", "environment": "pilot"},
+        headers=h,
+    )
+    assert r.status_code == 201, r.text
+    assert get_repository().get_tenant("new-sem")["products"] == ["bluebook"]
+    # Re-registering an existing tenant leaves its products alone.
+    get_repository().set_tenant_products("new-sem", ["bluebook", "original"])
+    live_client.post(
+        "/tenants", json={"tenant_id": "new-sem", "name": "New", "environment": "pilot"},
+        headers=h,
+    )
+    assert get_repository().get_tenant("new-sem")["products"] == ["bluebook", "original"]
+
+
 def test_teacher_lists_only_their_own_tenant(live_client):
     a = _signup(live_client, "a@x.edu")
     _signup(live_client, "b@x.edu")

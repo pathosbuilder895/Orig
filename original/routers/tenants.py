@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Request
 from .. import principal as principal_mod
 from .. import student_auth
 from ..schemas import CreateTenantRequest, TenantProductsRequest
-from ._shared import _repo, _require_guard, _require_staff
+from ._shared import _api, _repo, _require_guard, _require_staff
 
 router = APIRouter()
 
@@ -93,6 +93,11 @@ def create_tenant(body: CreateTenantRequest, request: Request):
     if len(meta) > 10:
         raise HTTPException(status_code=422, detail="meta must have at most 10 keys")
     meta = {str(k)[:80]: str(v)[:500] for k, v in list(meta.items())[:10]}
+    if products is None and existing is None and _api()._IS_REAL_DEPLOY:
+        # An unset product list means every product, so a newly provisioned
+        # institution would silently get Original. On a real deploy Original
+        # is an explicit opt-in (PATCH /tenants/{id}/products).
+        products = ["bluebook"]
     _repo().put_tenant(tenant_id, name, environment=environment, meta=meta)
     if products is not None:
         _repo().set_tenant_products(tenant_id, products)
