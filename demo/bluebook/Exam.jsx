@@ -335,7 +335,7 @@ export function BriefingScreen({ onNavigate }) {
     );
   }
   return (
-    <div className="bb-screen" style={{
+    <div className="bb-screen bb-brief-screen" style={{
       minHeight: '100vh', background: BB.deep,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 24, fontFamily: fontBody,
@@ -360,7 +360,7 @@ export function BriefingScreen({ onNavigate }) {
         </div>
 
         {/* Card */}
-        <div style={{
+        <div className="bb-brief-card" style={{
           border: '1px solid rgba(201,169,97,0.35)',
           background: BB.oxford,
         }}>
@@ -1180,7 +1180,9 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
   const sub = (typeof window !== 'undefined' && window.BB_LAST_SUBMISSION) || {};
   const finalWords = sub.words != null ? sub.words : wordsFinal;
   const examTitle  = sub.title || EXAM_META.title;
-  const courseT    = sub.courseTitle || EXAM_META.courseTitle;
+  // Sample values only when there is no real submission to describe: a real
+  // exam with a blank course label must not borrow the sample's course.
+  const courseT    = sub.title ? (sub.courseTitle || '') : EXAM_META.courseTitle;
   const candidate  = sub.candidate || bbCandidateLabel(null);
   const transmitted = sub.ok === true;
   const transmitFailed = sub.ok === false;
@@ -1263,7 +1265,7 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
             { label: 'Course',       value: courseT               },
             { label: 'Candidate',    value: candidate             },
             { label: 'Word Count',   value: `${finalWords} words` },
-          ].map(({ label, value }, i) => (
+          ].filter(({ value }) => value).map(({ label, value }, i) => (
             <div key={label}>
               <div style={{
                 display: 'flex', justifyContent: 'space-between',
