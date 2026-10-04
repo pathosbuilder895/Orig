@@ -16,7 +16,11 @@ work is recognizably yours.
 |---|---|---|
 | Any analyzed submission | the text you submitted | to compare against your own earlier writing |
 | Any analyzed submission | 103 numerical style measurements derived from the text | your "voice fingerprint" |
-| Proctored Bluebook examinations only | typing rhythm (timing between keys, deletions, pauses), paste attempts, window-focus and fullscreen events | typing dynamics are part of your fingerprint; focus events document exam conditions |
+| Proctored Bluebook examinations only | a session-level summary: how long you took, your word count, how many times you pasted, how many times you lost window focus (a count, not individual timestamped events), how many deletion/revision keystrokes you made, and your session start/end times | documents exam conditions and composition pace at a macro level |
+
+We do **not** collect or analyze the rhythm or timing of your individual
+keystrokes. Only the session-level counts above are captured — never a
+timing record of each key you pressed.
 
 Your student identity is stored as an opaque code derived from your
 institutional email — your email address is not stored, and the code (not
@@ -68,7 +72,9 @@ That information is discarded once the session ends.
 > Written work in this course is analyzed by **Original**, an authorship-
 > verification tool that compares submissions against your own earlier writing.
 > In-class writing uses **Bluebook**, a secure exam page that runs full-screen,
-> disables copy/paste, and records typing rhythm and window-focus events; these
+> disables copy/paste, and records a session-level summary (time taken, word
+> count, paste attempts, a count of window-focus losses, and revision
+> keystrokes) — not the rhythm or timing of individual keystrokes; these
 > conditions are shown to you before each exam begins. Results are advisory:
 > they may prompt a conversation with your instructor and are never used as the
 > sole basis for an academic-integrity decision. Your writing is not shared,

@@ -33,22 +33,26 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.routing import Route
 
 from . import backup as backup_mod
-from . import principal as principal_mod
 
 # `store` itself: no call site in this module reaches it directly anymore
 # (WS-6 P1 — all persistence goes through `_repo()`). Kept as a re-export
 # because several tests patch `<api module>.store._DB_PATH` / call
 # `<api module>.store.*` directly for fixture setup.
 from . import (
+    monitoring,
     store,  # noqa: F401
 )
+from . import principal as principal_mod
+from .body_limit import BodySizeLimitMiddleware
 from .core.logging import RequestLoggingMiddleware, configure_logging
 from .routers import (
     admin,
     auth,
     bluebook,
+    bluebook_accounts,
     health,
     imports,
     lti_routes,
@@ -209,6 +213,10 @@ def _resolve_app_version() -> str:
     return "0.1.0"
 
 
+# Before the app exists, so Sentry's FastAPI integration can hook it. No-op
+# without SENTRY_DSN (original/monitoring.py).
+monitoring.init_sentry()
+
 app = FastAPI(
     title="Original — Authorship Integrity API",
     version=_resolve_app_version(),
@@ -321,6 +329,13 @@ _DEMO_ONLY_STATICS = frozenset(
         # Harmless in the public demo; real deploy has no reason to hand out its
         # own build internals (T-06).
         "/bluebook/bluebook.bundle.js.map",
+        # FastAPI's interactive docs and schema: a full map of every route,
+        # including the staff-only and guarded ones. Useful in the demo;
+        # nothing on a real deploy needs them.
+        "/docs",
+        "/docs/oauth2-redirect",
+        "/redoc",
+        "/openapi.json",
     }
 )
 _DEMO_ONLY_STATIC_PREFIXES = frozenset({"/prototypes"})
@@ -368,10 +383,90 @@ def _is_staff_only_path(path: str) -> bool:
     return p in _STAFF_ONLY_EXACT or path.startswith(_STAFF_ONLY_PREFIXES)
 
 
+# ── Product gate (Bluebook self-serve, 2026-09) ───────────────────────────────
+# A tenant holds "original", "bluebook", or both (tenants.products_json). Each
+# path family below belongs to one product; a principal whose tenant lacks it
+# gets a 403 here, before any handler runs. Super roles bypass it, as they
+# bypass tenant scoping. A Bluebook-only tenant therefore never reaches the
+# stylometric engine at all — not even the seal-time score/baseline calls,
+# which is how self-serve workspaces stay out of profiling (spec amendment
+# 2026-09-28). Paths in neither table (/auth, /tenants, /health, /lti,
+# static files) are not product-gated.
+_ORIGINAL_ONLY_EXACT = frozenset({"/students", "/test/score", "/baseline-requests"})
+_ORIGINAL_ONLY_PREFIXES = (
+    "/students/",
+    "/baseline-requests/",
+    "/import/",
+    "/canvas/",
+    "/submissions/",
+    "/admin/",
+    "/me/",
+)
+_BLUEBOOK_ONLY_EXACT = frozenset({"/bluebook/me"})
+_BLUEBOOK_ONLY_PREFIXES = ("/bluebook/", "/proctor/")
+_PRODUCT_LABEL = {"original": "Original", "bluebook": "Bluebook"}
+
+
+def _required_product(path: str) -> str | None:
+    """The product a request path belongs to, or None when it is ungated.
+
+    Bluebook's static SPA files live under ``/bluebook/`` too; only API
+    paths are gated, so the static tree stays reachable for the landing and
+    sign-in screens (they are served before any tenant is known)."""
+    p = path.rstrip("/") or "/"
+    if p in _ORIGINAL_ONLY_EXACT or path.startswith(_ORIGINAL_ONLY_PREFIXES):
+        return "original"
+    if p in _BLUEBOOK_ONLY_EXACT or (
+        path.startswith(_BLUEBOOK_ONLY_PREFIXES) and not _is_bluebook_static(p)
+    ):
+        return "bluebook"
+    return None
+
+
+# File types the Bluebook SPA actually ships from demo/bluebook/ (the page,
+# its bundle and source map, vendored scripts) plus ordinary web assets.
+_BLUEBOOK_STATIC_EXTENSIONS = frozenset(
+    {
+        ".html", ".js", ".mjs", ".map", ".css", ".json", ".txt",
+        ".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico",
+        ".woff", ".woff2", ".ttf", ".otf",
+    }
+)  # fmt: skip
+
+
+def _is_bluebook_static(p: str) -> bool:
+    """Whether *p* (trailing slash stripped) is a Bluebook SPA file.
+
+    "/bluebook" and "/bluebook/" serve index.html. Anything else must carry a
+    static file extension AND not be a registered API route: path params such
+    as student ids come from LTI launches or emails and can contain a dot
+    ("orig-only:jane.doe"), so a dot alone must never exempt a request from
+    the product gate."""
+    if p == "/bluebook":
+        return True
+    if not p.startswith("/bluebook/"):
+        return False
+    last = p.rsplit("/", 1)[-1]
+    ext = last[last.rfind(".") :].lower() if "." in last else ""
+    return ext in _BLUEBOOK_STATIC_EXTENSIONS and not _matches_api_route(p)
+
+
+def _matches_api_route(p: str) -> bool:
+    # Route (not Mount): run.py mounts StaticFiles at "/", which matches all.
+    return any(isinstance(route, Route) and route.path_regex.match(p) for route in app.routes)
+
+
 @app.middleware("http")
 async def tenant_isolation(request: Request, call_next):
     principal = principal_mod.resolve_principal(request)
     request.state.principal = principal
+    if principal is principal_mod.REVOKED:
+        # An erased student's still-signed session: refuse it outright rather
+        # than let the request proceed as anyone (see principal.REVOKED).
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "This account no longer exists. Sign in again."},
+        )
     if _is_always_blocked_static_path(request.url.path):
         return JSONResponse(status_code=404, content={"detail": "Not found"})
     if _IS_REAL_DEPLOY and _is_demo_only_static_path(request.url.path):
@@ -382,6 +477,16 @@ async def tenant_isolation(request: Request, call_next):
                 status_code=401,
                 content={"detail": "Authentication required — sign in with a staff account."},
             )
+    needed = _required_product(request.url.path)
+    if (
+        needed is not None
+        and needed not in principal.products
+        and principal.role not in principal_mod.SUPER_ROLES
+    ):
+        return JSONResponse(
+            status_code=403,
+            content={"detail": f"This workspace's plan does not include {_PRODUCT_LABEL[needed]}."},
+        )
     scoped_id = principal_mod.extract_scoped_id(request.url.path)
     if scoped_id is not None:
         try:
@@ -429,7 +534,9 @@ async def maintenance_write_freeze(request: Request, call_next):
 # /students/acme:alice/score); that's consistent with the rest of the app --
 # log_audit() already logs student ids directly in audit-log rows (see e.g.
 # routers/students.py's student_delete entry) -- so no redaction is applied
-# here either.
+# here either. The body cap sits just inside it, so an oversized upload is
+# refused before any other middleware or handler buffers it, and still logged.
+app.add_middleware(BodySizeLimitMiddleware)
 app.add_middleware(RequestLoggingMiddleware)
 
 
@@ -484,6 +591,7 @@ app.router.routes.extend(health.router.routes)
 app.router.routes.extend(auth.router.routes)
 app.router.routes.extend(lti_routes.router.routes)
 app.router.routes.extend(bluebook.router.routes)
+app.router.routes.extend(bluebook_accounts.router.routes)
 app.router.routes.extend(students.router.routes)
 app.router.routes.extend(students_baseline.router.routes)
 app.router.routes.extend(students_scoring.router.routes)

@@ -128,8 +128,9 @@ All production features are opt-in via env flags. Default OFF preserves Phase 1 
 | `STYLE_AUTHORSHIP_MODEL_PATH` | unset | Optional path override for the versioned style-authorship artifact. Loader validation fails closed on schema, signal-order, vocabulary, or reference-prediction drift. |
 | `GUARD_DESTRUCTIVE` | — | Security/ops flag — see `docs/OPS_RUNBOOK.md` (owned by WS-1) for semantics. |
 | `MAINTENANCE_TOKEN` | — | Role-granting `X-Guard-Token` secret (`api.py:2642`) — see `docs/OPS_RUNBOOK.md` (owned by WS-1). |
+| `MAX_REQUEST_BYTES` | `10485760` | Request-body cap enforced by `original/body_limit.py` on every deploy: a declared `Content-Length` over it is refused with 413 before the app runs; a streamed body is counted and 413s when it crosses. Protects the ~512 MB Starter instance. |
 | `LOGIN_THROTTLE_MAX_ATTEMPTS` | `10` | Failed-login attempts allowed within the throttle window before lockout (`api.py`, near the login-throttle helpers). CI sets this higher for the e2e job's login volume only. |
-| `LOGIN_THROTTLE_WINDOW_SEC` | `300` | Rolling window (seconds) the above attempt count is measured over (`api.py`). |
+| `LOGIN_THROTTLE_WINDOW_SEC` | `300` | Rolling window (seconds) the above attempt count is measured over (`api.py`). Since 2026-09 only **failed** attempts count, bucketed per client IP (first `X-Forwarded-For` hop on a real deploy) **and** per email; signup and invite redemption have their own buckets (`routers/_shared.py`). |
 | `ENABLE_HSTS` | — | Security/ops flag — see `docs/OPS_RUNBOOK.md` (owned by WS-1). |
 | `ALLOWED_ORIGINS` | — | CORS allowlist; fails closed if unset in production — see `docs/OPS_RUNBOOK.md` (owned by WS-1). |
 | `ORIGINAL_ENV` | — | **The** deploy-mode variable for the live stack (`run.py:59,96`; surfaced as `/health.environment`). The old `ENVIRONMENT` var was retired in WS-7.4 — it was passed into `get_repository()`, which never read it. Persistence backend is `REPO_BACKEND`/`REPO_SHADOW`; tenant scoping is the tenant record's `environment` column. `ENVIRONMENT` is now read only by the dormant v1 `Settings` (`original/core/config.py`, reached via `original/cli/*`) and has no effect on the live stack. |
@@ -148,7 +149,11 @@ All production features are opt-in via env flags. Default OFF preserves Phase 1 
 | `LTI_TOOL_URL` | — | No-op without config. Public tool URL registered with the LMS. |
 | `ADMIN_EMAIL` | — | No-op without config. Seed admin account email. |
 | `ADMIN_PASSWORD` | — | No-op without config. Seed admin account password. |
-| `SENDGRID_API_KEY` | — | No-op without config. Email delivery integration. |
+| `SENDGRID_API_KEY` | — | No-op without config. With `MAIL_FROM` also set, `original/mailer.py` sends Bluebook account email (roster invitations, password resets) through SendGrid's v3 API over stdlib `urllib`, click tracking off; `/auth/me` reports `"mail": true`. Without both, the roster falls back to copy/download links and reset requests return `mail: false`. A send failure never fails the request — the roster row reports `emailed: false`. Scoring notifications remain a documented no-op. |
+| `MAIL_FROM` | — | Sender for the above, `Name <address>` or a bare address; must be on a SendGrid-authenticated domain. |
+| `PUBLIC_BASE_URL` | — | Absolute origin for links in emails (`https://bluebook.example.org`, no trailing slash). Unset → the origin the request arrived on. |
+| `SENTRY_DSN` | — | No-op without config (and `sentry-sdk` is then never imported; it is in `requirements-pilot.txt` only). Set → `original/monitoring.py` reports errors with `send_default_pii=False`, no request bodies, no local variables, and `before_send` retaining only the request method and structural exception diagnostics — a request body here is a student's answer. |
+| `SENTRY_TRACES_SAMPLE_RATE` | `0` | Ignored for classroom privacy: tracing is always disabled; transaction payloads are dropped. |
 
 Demo mode turns on CONTEXT_MANIFEST_ENABLED, ADAPTIVE_WEIGHTS_ENABLED, and NULL_MODEL=impostor automatically (set in run.py).
 

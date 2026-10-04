@@ -67,6 +67,16 @@ class BaselineSample:
     # in DISABLED_FEATURE_GROUPS regardless of whether this blob is present.
     keystroke_data: dict | None = None
 
+    # ── ADR-010: macro-only composition timing (additive — None for every
+    # sample ingested before this field existed, and for non-proctored /
+    # summary-less samples). Session-level metrics only (session_seconds,
+    # word_count, paste_attempts, focus_losses, revision_count, started_at,
+    # ended_at, exam_config) — no per-key timing. Frozen shape: threat-model
+    # spec §5.3. Replaces keystroke_data as what Bluebook's exam client
+    # posts; resolve_composition_mode actually consuming it is a separate
+    # change (out of scope here).
+    composition_summary: dict | None = None
+
 
 @dataclass
 class TrajectoryResult:

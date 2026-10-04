@@ -34,9 +34,10 @@ function relTime(iso) {
 export function StudentsScreen({ onNavigate }) {
   const [filter, setFilter] = useStuState('all');
   const [subs, setSubs] = useStuState(null);
+  const [loadError, setLoadError] = useStuState('');
   React.useEffect(() => {
     let live = true;
-    BB_API.listSubmissions().then(l => { if (live) setSubs(l || []); });
+    BB_API.listSubmissions().then(l => { if (live) setSubs(l || []); }).catch(err => { if (live) setLoadError(err.message); });
     return () => { live = false; };
   }, []);
 
@@ -65,6 +66,7 @@ export function StudentsScreen({ onNavigate }) {
   const students = (roster && roster.length) ? roster : (BB_API.isAuthed() ? [] : MOCK_STUDENTS);
   const filtered = filter === 'flagged' ? students.filter(s => s.flagged) : students;
 
+  if (loadError) return <div role="alert" style={{ padding: '2rem' }}>{loadError}</div>;
   return (
     <div style={{ flex:1, overflowY:'auto', padding:'44px 48px', background:BB.deep }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:10 }}>

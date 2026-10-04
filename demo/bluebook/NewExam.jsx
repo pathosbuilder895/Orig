@@ -1,5 +1,15 @@
 import React from 'react';
 import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, Logotype, MetaLabel, Seal, fontBody, fontDisplay, fontMono } from './components.jsx';
+import { ErrorText, fromLocalInput } from './forms.jsx';
+
+// Every non-empty question, in order. One question is saved as-is; several
+// are numbered into the exam's single prompt, so none is silently dropped.
+export function combinePrompts(prompts) {
+  const qs = prompts.map(p => p.trim()).filter(Boolean);
+  if (qs.length <= 1) return qs[0] || '';
+  const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+  return qs.map((q, i) => `Question ${roman[i] || i + 1}.\n${q}`).join('\n\n');
+}
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — New Examination Screen
@@ -174,6 +184,10 @@ export function NewExamScreen({ onNavigate }) {
   const [aiDetect,  setAiDetect]  = useNEState(true);
   const [saving,    setSaving]    = useNEState(false);
   const [saved,     setSaved]     = useNEState(false);
+  const [saveError, setSaveError] = useNEState('');
+  // Optional availability window (local time in the inputs, UTC on the wire).
+  const [opensAt,   setOpensAt]   = useNEState('');
+  const [closesAt,  setClosesAt]  = useNEState('');
   // ── Course picker (GET /bluebook/courses) ──
   // `null` means the first fetch has not answered yet, which is a third state
   // distinct from "answered, and you have none" — the screen says something
@@ -202,8 +216,12 @@ export function NewExamScreen({ onNavigate }) {
   // Default to the professor's first course until they pick another, without
   // an extra effect that would fight a deliberate choice. When there is no
   // list to pick from, the field is a typed code and `course` is it verbatim.
-  const selectedCourse = courses.some(c => c.code === course)
-    ? course : (courses.length ? courses[0].code : course);
+  // Real courses are picked by id (the exam links to it); the demo's mock
+  // list has no ids, so it falls back to the code.
+  const courseKey = c => c.id || c.code;
+  const selectedCourse = courses.some(c => courseKey(c) === course)
+    ? course : (courses.length ? courseKey(courses[0]) : course);
+  const pickedCourse = courses.find(c => courseKey(c) === selectedCourse) || null;
 
   const canSubmit = title.trim() && duration && prompts.some(p => p.trim());
 
@@ -222,7 +240,15 @@ export function NewExamScreen({ onNavigate }) {
   async function handleSave(publish = false) {
     if (!canSubmit || saving) return;
     const conditions = { blockAI, blockWeb, blockCopy, spellChk, phoneBlk, aiDetect };
-    const courseCode = (selectedCourse || '').trim();
+    const courseCode = pickedCourse ? (pickedCourse.code || pickedCourse.name) : (selectedCourse || '').trim();
+    const prompt = combinePrompts(prompts);
+    const opensIso = fromLocalInput(opensAt);
+    const closesIso = fromLocalInput(closesAt);
+    if (opensIso && closesIso && new Date(closesIso) <= new Date(opensIso)) {
+      setSaveError('The closing time must be after the opening time.');
+      return;
+    }
+    setSaveError('');
     // Keep the live config so taking the exam immediately reflects these settings.
     window.BB_EXAM_CONFIG = {
       title:    title.trim(),
@@ -231,7 +257,8 @@ export function NewExamScreen({ onNavigate }) {
       duration: Number(duration) || 90,
       minWords: Number(minWords) || 0,
       maxWords: Number(maxWords) || 0,
-      prompt:   prompts.find(p => p.trim()) || '',
+      prompt,
+      questions: prompts.map(p => p.trim()).filter(Boolean),
       ...conditions,
     };
     setSaving(true);
@@ -243,13 +270,23 @@ export function NewExamScreen({ onNavigate }) {
         duration: Number(duration) || 90,
         minWords: Number(minWords) || 0,
         maxWords: Number(maxWords) || 0,
-        prompt:   prompts.find(p => p.trim()) || '',
+        questions: prompts.map(p => p.trim()).filter(Boolean),
         conditions,
         status:   publish ? 'ACTIVE' : 'DRAFT',
+        course_id: pickedCourse && pickedCourse.id ? pickedCourse.id : null,
+        opens_at:  opensIso,
+        closes_at: closesIso,
       });
       if (created && created.id) window.BB_EXAM_CONFIG.id = created.id;
     } catch (e) {
-      // Non-fatal in demo; the exam is still usable from the live config above.
+      // A signed-in teacher must never be told an exam exists when it does
+      // not. The anonymous demo keeps its old behaviour: the exam is still
+      // usable from the live config above.
+      if (BB_API.isAuthed()) {
+        setSaving(false);
+        setSaveError(`The examination was not saved: ${(e && e.message) || 'unknown error'}.`);
+        return;
+      }
       console.warn('Bluebook exam persistence failed:', e && e.message);
     }
     setSaving(false);
@@ -316,7 +353,7 @@ export function NewExamScreen({ onNavigate }) {
           margin: '0 0 4px',
         }}>New Examination</h1>
         <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: 17, color: BB.fade, margin: '0 0 36px' }}>
-          Dr. Sarah Chen · Balliol College
+          {BB_API.identity().name || 'Draft it now; publish when it is ready.'}
         </p>
 
         <GoldRule double style={{ marginBottom: 40 }} />
@@ -349,7 +386,7 @@ export function NewExamScreen({ onNavigate }) {
                 <SelectInput
                   id="neCourse"
                   value={selectedCourse} onChange={setCourse}
-                  options={courses.map(c => ({ value: c.code, label: `${c.code} · ${c.name}` }))}
+                  options={courses.map(c => ({ value: courseKey(c), label: c.code ? `${c.code} · ${c.name}` : c.name }))}
                 />
               ) : (
                 <>
@@ -395,6 +432,18 @@ export function NewExamScreen({ onNavigate }) {
               <NumberInput id="neMaxWords" value={maxWords} onChange={setMaxWords} placeholder="1200" />
             </FormField>
           </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, marginTop: 28 }}>
+            <FormField label="Opens" hint="optional · your local time" id="neOpens">
+              <TextInput id="neOpens" type="datetime-local" value={opensAt} onChange={setOpensAt} />
+            </FormField>
+            <FormField label="Closes" hint="optional · your local time" id="neCloses">
+              <TextInput id="neCloses" type="datetime-local" value={closesAt} onChange={setClosesAt} />
+            </FormField>
+          </div>
+          <p style={{ fontFamily: fontBody, fontSize: 15, color: BB.fade, margin: '12px 0 0' }}>
+            Students can start only while the exam is open. A sitting that starts
+            near the closing time is shortened so it ends when the exam closes.
+          </p>
         </div>
 
         <GoldRule faint style={{ marginBottom: 36 }} />
@@ -458,11 +507,11 @@ export function NewExamScreen({ onNavigate }) {
             and disclosed to candidates before they begin.
           </p>
           <div style={{ border: '1px solid rgba(201,169,97,0.28)', padding: '4px 20px', background: BB.oxford }}>
-            <ToggleRow label="Block AI assistants"      desc="Prevent access to AI writing tools and assistants" value={blockAI}  onChange={setBlockAI} />
+            <ToggleRow label="No AI assistants"          desc="Students are told AI tools are not permitted (a browser cannot block other apps)" value={blockAI}  onChange={setBlockAI} />
             <GoldRule faint />
-            <ToggleRow label="Block web & external tabs" desc="Lock the browser; no navigation away from the exam" value={blockWeb} onChange={setBlockWeb} />
+            <ToggleRow label="Full-screen, tabs watched" desc="Runs full-screen; leaving it or switching tabs is recorded for you" value={blockWeb} onChange={setBlockWeb} />
             <GoldRule faint />
-            <ToggleRow label="Block copy & paste"        desc="Disable clipboard input and output entirely" value={blockCopy} onChange={setBlockCopy} />
+            <ToggleRow label="Block copy & paste"        desc="Disables copy and paste in the answer box" value={blockCopy} onChange={setBlockCopy} />
           </div>
         </div>
 
@@ -477,13 +526,18 @@ export function NewExamScreen({ onNavigate }) {
             <GoldRule faint />
             <ToggleRow label="Phone blocker"        desc="Prompt students to silence devices" value={phoneBlk} onChange={setPhoneBlk} />
             <GoldRule faint />
-            <ToggleRow label="AI detection (Original)" desc="Run post-submission authenticity analysis" value={aiDetect} onChange={setAiDetect} />
-            <GoldRule faint />
+            {BB_API.hasOriginal() && (
+              <>
+                <ToggleRow label="Authorship comparison (Original)" desc="Compare each submission with the student's own past writing" value={aiDetect} onChange={setAiDetect} />
+                <GoldRule faint />
+              </>
+            )}
           </div>
         </div>
 
         {/* ── Submit ── */}
         <GoldRule double style={{ marginBottom: 28 }} />
+        <div style={{ textAlign: 'right' }}><ErrorText>{saveError}</ErrorText></div>
         <div style={{ display: 'flex', gap: 14, justifyContent: 'flex-end' }}>
           <BtnGhost onClick={() => handleSave(false)} disabled={!canSubmit || saving} style={{ padding: '11px 32px' }}>
             {saving ? 'Saving…' : 'Save as Draft'}

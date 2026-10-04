@@ -176,7 +176,14 @@ def build_link(
 
 
 def build_launch_link(
-    base_url: str, tenant: str, sid: str, exam: str, name: str, include_name: bool, ttl_days: int
+    base_url: str,
+    tenant: str,
+    sid: str,
+    exam: str,
+    name: str,
+    include_name: bool,
+    ttl_days: int,
+    exam_id: str = "",
 ) -> str:
     """Signed launch URL for a pilot: ``/bluebook/launch?t=<launch_token>``.
 
@@ -190,6 +197,7 @@ def build_launch_link(
         exam=exam,
         name=(name if include_name else ""),
         ttl_seconds=ttl_days * 24 * 3600,
+        exam_id=exam_id,
     )
     base = base_url.rstrip("/")
     return f"{base}/bluebook/launch?{urlencode([('t', token)], quote_via=quote)}"
@@ -260,6 +268,12 @@ def main() -> int:
         "--exam",
         default="Week 1 Writing Sample",
         help="exam title shown on the briefing (default: 'Week 1 Writing Sample')",
+    )
+    ap.add_argument(
+        "--exam-id",
+        default="",
+        help="id of the stored exam (GET /bluebook/exams). Without it the student is "
+        "shown Bluebook's built-in sample question, not your exam's prompt",
     )
     ap.add_argument(
         "--format",
@@ -345,7 +359,14 @@ def main() -> int:
         if args.unsigned:
             return build_link(args.base_url, tenant, sid, args.exam, name, args.include_name)
         return build_launch_link(
-            args.base_url, tenant, sid, args.exam, name, args.include_name, args.link_ttl_days
+            args.base_url,
+            tenant,
+            sid,
+            args.exam,
+            name,
+            args.include_name,
+            args.link_ttl_days,
+            exam_id=args.exam_id,
         )
 
     students = [

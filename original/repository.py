@@ -244,6 +244,34 @@ class Repository(Protocol):
     def put_bluebook_course(self, rec: dict) -> None: ...
     def list_bluebook_courses(self, tenant_id: str | None) -> list[dict]: ...
 
+    # ── Bluebook self-serve (2026-09) ─────────────────────────────────────
+    def set_tenant_products(self, tenant_id: str, products: list[str]) -> bool: ...
+    def get_user(self, user_id: str) -> dict | None: ...
+    def list_users_by_ids(self, user_ids: list[str]) -> list[dict]: ...
+    def set_user_password_hash(self, user_id: str, password_hash: str) -> bool: ...
+    def delete_bluebook_exam(self, exam_id: str) -> bool: ...
+    def bluebook_submission_counts_by_exam(self, tenant_id: str | None) -> dict[str, int]: ...
+    def count_bluebook_submissions_since(self, tenant_id: str, since_iso: str) -> int: ...
+    def get_bluebook_submission(self, submission_id: str) -> dict | None: ...
+    def list_bluebook_submissions_for_student(self, student_id: str) -> list[dict]: ...
+    def list_bluebook_submissions_for_exam(self, exam_id: str) -> list[dict]: ...
+    def get_bluebook_course(self, course_id: str) -> dict | None: ...
+    def delete_bluebook_course(self, course_id: str) -> bool: ...
+    def put_enrollment(self, course_id: str, student_id: str, tenant_id: str) -> None: ...
+    def delete_enrollment(self, course_id: str, student_id: str) -> bool: ...
+    def list_enrollments_for_course(self, course_id: str) -> list[dict]: ...
+    def list_enrollments_for_student(self, student_id: str) -> list[dict]: ...
+    def enrollment_counts_by_course(self, tenant_id: str | None) -> dict[str, int]: ...
+    def count_enrolled_students(self, tenant_id: str) -> int: ...
+    def put_invite(self, rec: dict) -> None: ...
+    def get_invite_by_hash(self, token_hash: str) -> dict | None: ...
+    def latest_invite_for_user(self, user_id: str) -> dict | None: ...
+    def void_invites_for_user(self, user_id: str) -> int: ...
+    def redeem_invite(self, invite_id: str) -> bool: ...
+    def set_bluebook_submission_feedback(
+        self, submission_id: str, mark: str | None, feedback: str | None, graded_by: str
+    ) -> bool: ...
+
     # ── Audit log ─────────────────────────────────────────────────────────
     def log_audit(
         self,
@@ -272,6 +300,11 @@ class Repository(Protocol):
         reason: str | None = None,
     ) -> dict | None: ...
     def advance_formation_pathway(self, student_id: str) -> dict | None: ...
+
+    # ── Proctor attestations (single-use, T-69) ─────────────────────────────
+    def consume_proctor_attestation(
+        self, jti: str, tenant_id: str | None, exam: str, student_id: str
+    ) -> bool: ...
 
     # ── Baseline requests ─────────────────────────────────────────────────
     def put_baseline_request(
@@ -680,6 +713,81 @@ class SqliteRepository:
     def list_bluebook_courses(self, tenant_id: str | None) -> list[dict]:
         return store.list_bluebook_courses(tenant_id)
 
+    # ── Bluebook self-serve (2026-09) ─────────────────────────────────────
+    def set_tenant_products(self, tenant_id: str, products: list[str]) -> bool:
+        return store.set_tenant_products(tenant_id, products)
+
+    def get_user(self, user_id: str) -> dict | None:
+        return store.get_user(user_id)
+
+    def list_users_by_ids(self, user_ids: list[str]) -> list[dict]:
+        return store.list_users_by_ids(user_ids)
+
+    def set_user_password_hash(self, user_id: str, password_hash: str) -> bool:
+        return store.set_user_password_hash(user_id, password_hash)
+
+    def delete_bluebook_exam(self, exam_id: str) -> bool:
+        return store.delete_bluebook_exam(exam_id)
+
+    def bluebook_submission_counts_by_exam(self, tenant_id: str | None) -> dict[str, int]:
+        return store.bluebook_submission_counts_by_exam(tenant_id)
+
+    def count_bluebook_submissions_since(self, tenant_id: str, since_iso: str) -> int:
+        return store.count_bluebook_submissions_since(tenant_id, since_iso)
+
+    def get_bluebook_submission(self, submission_id: str) -> dict | None:
+        return store.get_bluebook_submission(submission_id)
+
+    def list_bluebook_submissions_for_student(self, student_id: str) -> list[dict]:
+        return store.list_bluebook_submissions_for_student(student_id)
+
+    def list_bluebook_submissions_for_exam(self, exam_id: str) -> list[dict]:
+        return store.list_bluebook_submissions_for_exam(exam_id)
+
+    def get_bluebook_course(self, course_id: str) -> dict | None:
+        return store.get_bluebook_course(course_id)
+
+    def delete_bluebook_course(self, course_id: str) -> bool:
+        return store.delete_bluebook_course(course_id)
+
+    def put_enrollment(self, course_id: str, student_id: str, tenant_id: str) -> None:
+        store.put_enrollment(course_id, student_id, tenant_id)
+
+    def delete_enrollment(self, course_id: str, student_id: str) -> bool:
+        return store.delete_enrollment(course_id, student_id)
+
+    def list_enrollments_for_course(self, course_id: str) -> list[dict]:
+        return store.list_enrollments_for_course(course_id)
+
+    def list_enrollments_for_student(self, student_id: str) -> list[dict]:
+        return store.list_enrollments_for_student(student_id)
+
+    def enrollment_counts_by_course(self, tenant_id: str | None) -> dict[str, int]:
+        return store.enrollment_counts_by_course(tenant_id)
+
+    def count_enrolled_students(self, tenant_id: str) -> int:
+        return store.count_enrolled_students(tenant_id)
+
+    def put_invite(self, rec: dict) -> None:
+        store.put_invite(rec)
+
+    def get_invite_by_hash(self, token_hash: str) -> dict | None:
+        return store.get_invite_by_hash(token_hash)
+
+    def latest_invite_for_user(self, user_id: str) -> dict | None:
+        return store.latest_invite_for_user(user_id)
+
+    def void_invites_for_user(self, user_id: str) -> int:
+        return store.void_invites_for_user(user_id)
+
+    def redeem_invite(self, invite_id: str) -> bool:
+        return store.redeem_invite(invite_id)
+
+    def set_bluebook_submission_feedback(
+        self, submission_id: str, mark: str | None, feedback: str | None, graded_by: str
+    ) -> bool:
+        return store.set_bluebook_submission_feedback(submission_id, mark, feedback, graded_by)
+
     # ── Audit log ─────────────────────────────────────────────────────────
     def log_audit(
         self,
@@ -725,6 +833,12 @@ class SqliteRepository:
 
     def advance_formation_pathway(self, student_id: str) -> dict | None:
         return store.advance_formation_pathway(student_id)
+
+    # ── Proctor attestations (single-use, T-69) ─────────────────────────────
+    def consume_proctor_attestation(
+        self, jti: str, tenant_id: str | None, exam: str, student_id: str
+    ) -> bool:
+        return store.consume_proctor_attestation(jti, tenant_id, exam, student_id)
 
     # ── Baseline requests ─────────────────────────────────────────────────
     def put_baseline_request(
@@ -810,6 +924,7 @@ _WRITE_METHODS = frozenset(
         "get_or_create_bluebook_session",
         "put_bluebook_course",
         "log_audit",
+        "consume_proctor_attestation",
         "open_formation_pathway",
         "advance_formation_pathway",
         "put_baseline_request",

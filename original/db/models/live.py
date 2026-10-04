@@ -165,13 +165,21 @@ class Tenant(LiveBase):
     meta_json: Mapped[dict[str, Any]] = mapped_column(
         JSONDoc, nullable=False, server_default=text("'{}'")
     )
+    # Products this tenant bought: "original" and/or "bluebook". Defaults to
+    # both so every tenant that predates the column keeps today's behaviour.
+    # Read through principal.tenant_products(); enforced by the product gate
+    # in api.py's tenant_isolation middleware.
+    products_json: Mapped[list[str]] = mapped_column(
+        JSONDoc, nullable=False, server_default=text("""'["original", "bluebook"]'""")
+    )
 
 
 class StaffUser(LiveBase):
-    """Staff login row (``users``) — professor / admin / operator (ADR-003).
-
-    Students are NOT stored here (they authenticate via student_auth
-    sessions). ``password_hash`` is the stdlib PBKDF2-HMAC-SHA256 string.
+    """Login row (``users``) — professor / admin / operator (ADR-003), and
+    since the 2026-09 Bluebook self-serve work also ``role='student'``
+    accounts, whose ``user_id`` IS the derived scoped student id
+    (``student_auth.derive_student_id``). Launch-link students still have no
+    row here. ``password_hash`` is the stdlib PBKDF2-HMAC-SHA256 string.
     ``email`` stays globally unique (it is the login key across tenants).
     ``tenant_id`` was already a real column in SQLite; it gains the FK here.
     Operators use a sentinel tenant + ``'operator'`` role — the P4 migration
@@ -478,6 +486,21 @@ class BluebookExam(LiveBase):
     )
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="DRAFT")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Self-serve (2026-09): the course this exam belongs to (``course`` above
+    # stays as a display label), and an optional availability window. NULL
+    # bounds mean "open once published" / "never auto-closes".
+    course_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    opens_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    closes_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Round 2 (2026-10): one answer box per question. ``prompt`` stays the
+    # joined text so older clients and older exams keep working.
+    questions_json: Mapped[list[Any]] = mapped_column(
+        JSONDoc, nullable=False, server_default=text("'[]'")
+    )
+    # When the teacher released marks and feedback to students; NULL = hidden.
+    results_released_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class BluebookSubmission(LiveBase):
@@ -511,6 +534,25 @@ class BluebookSubmission(LiveBase):
     # second one.
     submission_uuid: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True)
     late: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    # Self-serve (2026-09): the sealed prose itself, so a Bluebook-only
+    # tenant's history never depends on Original's profile store, and the
+    # lockdown warnings the client raised during the sitting.
+    # (warnings_json is declared before ``text`` on purpose: once the class
+    # body binds a column named ``text``, it shadows sqlalchemy's text().)
+    warnings_json: Mapped[list[Any]] = mapped_column(
+        JSONDoc, nullable=False, server_default=text("'[]'")
+    )
+    # Round 2 (2026-10): one answer per question (``text`` stays the joined
+    # answers), and the teacher's mark and feedback. Students see mark and
+    # feedback only after the exam's results_released_at is set.
+    answers_json: Mapped[list[Any]] = mapped_column(
+        JSONDoc, nullable=False, server_default=text("'[]'")
+    )
+    text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    mark: Mapped[str | None] = mapped_column(Text, nullable=True)
+    feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
+    graded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    graded_by: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class BluebookSession(LiveBase):
@@ -527,6 +569,43 @@ class BluebookSession(LiveBase):
     tenant_id: Mapped[str] = mapped_column(Text, ForeignKey("tenants.tenant_id"), nullable=False)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     deadline_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class BluebookEnrollment(LiveBase):
+    """A student on a course roster (``bluebook_enrollments``). ``student_id``
+    is the full scoped id, the same string as the student's ``users.user_id``."""
+
+    __tablename__ = "bluebook_enrollments"
+    __table_args__ = (Index("idx_bluebook_enrollments_student", "tenant_id", "student_id"),)
+
+    course_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    student_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, ForeignKey("tenants.tenant_id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class BluebookInvite(LiveBase):
+    """One-time set-password link (``bluebook_invites``).
+
+    Issued by a teacher for a student (``course_id`` set: redeeming enrols
+    them) or by an operator for a teacher reset (``course_id`` NULL). Only
+    the sha256 of the token is stored, so a leaked database cannot mint
+    logins. A newer invite for the same user voids every older unredeemed one.
+    """
+
+    __tablename__ = "bluebook_invites"
+    __table_args__ = (Index("idx_bluebook_invites_user", "user_id"),)
+
+    invite_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, ForeignKey("tenants.tenant_id"), nullable=False)
+    user_id: Mapped[str] = mapped_column(Text, nullable=False)
+    course_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    created_by: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    redeemed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    voided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 # ── Formation, requests, audit ────────────────────────────────────────────────
@@ -602,6 +681,24 @@ class AuditLogEntry(LiveBase):
     )
 
 
+class ConsumedAttestation(LiveBase):
+    """Single-use ledger for proctor attestations (``consumed_attestations``,
+    T-69). A proctor attestation is otherwise a bearer credential valid for
+    its whole TTL window (6h) and redeemable any number of times in that
+    window; consuming its jti on first successful write closes that replay
+    window. No tenant FK, mirroring ``AuditLogEntry`` — consumption must not
+    be rejected because a tenant row is missing for this student.
+    """
+
+    __tablename__ = "consumed_attestations"
+
+    jti: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    exam: Mapped[str | None] = mapped_column(Text, nullable=True)
+    student_id: Mapped[str] = mapped_column(Text, nullable=False)
+    used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 # ── QR phone-park (proctoring deterrence) ─────────────────────────────────────
 #
 # PRIVACY CONTRACT (docs/STUDENT_DISCLOSURE.md) — these two tables are the
@@ -674,7 +771,7 @@ class ParkBeat(LiveBase):
     )
 
 
-#: All 20 live models in store-DDL order, for tests and the P3 repository.
+#: All 23 live models in store-DDL order, for tests and the P3 repository.
 LIVE_MODELS = [
     StudentProfile,
     StudentName,
@@ -691,7 +788,10 @@ LIVE_MODELS = [
     BluebookSubmission,
     BluebookSession,
     BluebookCourse,
+    BluebookEnrollment,
+    BluebookInvite,
     AuditLogEntry,
+    ConsumedAttestation,
     FormationPathway,
     BaselineRequest,
     ParkSession,

@@ -21,7 +21,18 @@ These tests cover:
      — pure functions, no live database required).
   5. Postgres backward compatibility, mirroring (3).
   6. The ingestion endpoint threads ``req.keystroke_data`` onto the persisted
-     sample.
+     sample — updated for ADR-010 (T-74, docs/adr/ADR-010-keystroke-macro-only.md):
+     the endpoint now strips the raw ``keystrokes``/``pauses`` arrays before
+     persisting (``original.routers.students_baseline._strip_raw_keystroke_arrays``),
+     so this coverage asserts the macro/summary fields survive while the raw
+     arrays do not. Full round-trip coverage of an *unstripped* blob (as a
+     directly-constructed ``BaselineSample``, bypassing the ingestion
+     endpoint) lives in (2)-(5) above and in
+     ``tests/test_repository_contract.py::TestKeystrokeDataRoundtrip`` — the
+     dataclass field and both storage backends still faithfully persist
+     whatever ``keystroke_data`` they're given; only the *router* now
+     filters it on the way in. See ``tests/test_purge_keystroke_blobs.py``
+     for the stripping-helper unit tests and the at-rest purge script.
   7. ``scripts/tier17_report.py`` counts real samples persisted through
      ``original.store`` end-to-end (not just the synthetic raw-SQL fixtures
      in tests/test_tier17_report.py).
@@ -170,6 +181,11 @@ def client(store_reset):
 
 class TestIngestEndpointPersistsKeystrokeData:
     def test_proctored_baseline_with_keystroke_data_is_persisted(self, client):
+        """ADR-010 (T-74): the raw ``keystrokes``/``pauses`` arrays are
+        stripped before persisting — only the macro/summary fields
+        (``revisions``, ``deletionRate``, ``wordCount``) survive. See
+        tests/test_purge_keystroke_blobs.py for the dedicated stripping
+        coverage this regression test now matches."""
         from original import store
 
         sid = "demo:t17-keystroke-regression"
@@ -187,7 +203,13 @@ class TestIngestEndpointPersistsKeystrokeData:
 
         state = store.get(sid)
         assert state is not None and state.samples, "sample was not persisted"
-        assert state.samples[-1].keystroke_data == _KEYSTROKE_BLOB
+        persisted = state.samples[-1].keystroke_data
+        assert persisted is not None
+        assert "keystrokes" not in persisted
+        assert "pauses" not in persisted
+        assert persisted["revisions"] == _KEYSTROKE_BLOB["revisions"]
+        assert persisted["deletionRate"] == _KEYSTROKE_BLOB["deletionRate"]
+        assert persisted["wordCount"] == _KEYSTROKE_BLOB["wordCount"]
         assert state.samples[-1].provenance == "proctored"
 
     def test_baseline_without_keystroke_data_stores_none(self, client):

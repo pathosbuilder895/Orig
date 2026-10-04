@@ -238,10 +238,15 @@ const STATUS_MAP = {
   FLAGGED:     { color: '#C47A6B', border: 'rgba(196,122,107,0.28)' },
   ARCHIVED:    { color: '#4A4A4A', border: 'rgba(74,74,74,0.28)' },
   IN_PROGRESS: { color: BB.gold,   border: 'rgba(201,169,97,0.28)' },
+  OPEN:        { color: '#5EB87C', border: 'rgba(94,184,124,0.28)' },
+  CLOSED:      { color: BB.fade,   border: 'rgba(139,155,180,0.25)' },
+  SUBMITTED:   { color: BB.cream,  border: 'rgba(240,237,228,0.28)' },
+  INVITED:     { color: BB.gold,   border: 'rgba(201,169,97,0.28)' },
+  LINK:        { color: BB.fade,   border: 'rgba(139,155,180,0.25)' },
 };
 
 export function StatusBadge({ status, pulse = false }) {
-  const s = STATUS_MAP[status] || STATUS_MAP.DRAFT;
+  const s = STATUS_MAP[(status || '').toUpperCase()] || STATUS_MAP.DRAFT;
   return (
     <span style={{
       fontFamily: fontMono,
@@ -264,7 +269,7 @@ export function StatusBadge({ status, pulse = false }) {
           flexShrink: 0,
         }} />
       )}
-      {status.toLowerCase().replace(/_/g, ' ')}
+      {(status || '').toLowerCase().replace(/_/g, ' ')}
     </span>
   );
 }
@@ -272,8 +277,33 @@ export function StatusBadge({ status, pulse = false }) {
 // ─── Original API client (exam persistence) ──────────────────────────────────
 // Same-origin by default (Bluebook is served by the Original demo server).
 // Attaches whatever session token is present so writes are tenant-scoped.
+// Every localStorage key a sign-in (or a launch) can leave behind. Signing
+// in as one kind of account clears the others, so a shared machine never
+// carries a stale student binding into a teacher session or vice versa.
+const BB_SESSION_KEYS = [
+  'original_principal_token', 'original_session_token', 'original_role',
+  'original_tenant', 'original_name', 'original_email', 'original_products',
+  'original_student_id', 'bluebook_student_id', 'bluebook_candidate_email',
+  'bluebook_proctor_token',
+];
+
+async function bbDetail(r, fallback) {
+  let detail = fallback || r.statusText;
+  try { detail = (await r.json()).detail || detail; } catch (e) {}
+  return typeof detail === 'string' ? detail : fallback || r.statusText;
+}
+
 export const BB_API = {
   base: window.BB_API_BASE || '',
+  // JSON request that throws Error(detail) on any non-2xx.
+  async _json(method, path, body) {
+    const r = await fetch(this.base + path, {
+      method, headers: this._headers(),
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(r.status === 401 ? 'Please sign out and sign in again to load your workspace.' : await bbDetail(r));
+    return r.json();
+  },
   _headers() {
     const h = { 'Content-Type': 'application/json' };
     const tok = localStorage.getItem('original_principal_token')
@@ -299,20 +329,14 @@ export const BB_API = {
     }
     return r.json();
   },
+  // Throws on failure. The seal loop retries on a throw and keeps the draft
+  // on the device until this lands — a seal is only "sealed" once the
+  // submission row exists, because that row is all the teacher ever sees.
   async recordSubmission(payload) {
-    try {
-      const r = await fetch(this.base + '/bluebook/submissions', {
-        method: 'POST', headers: this._headers(), body: JSON.stringify(payload),
-      });
-      return r.ok;
-    } catch (e) { return false; }
+    return this._json('POST', '/bluebook/submissions', payload);
   },
   async listSubmissions() {
-    try {
-      const r = await fetch(this.base + '/bluebook/submissions', { headers: this._headers() });
-      if (!r.ok) return null;
-      return (await r.json()).submissions || [];
-    } catch (e) { return null; }
+    return (await this._json('GET', '/bluebook/submissions')).submissions || [];
   },
   async listCourses() {
     try {
@@ -413,41 +437,154 @@ export const BB_API = {
     return r.json();
   },
 
+  // ── Teacher: exams, courses, rosters, submissions (self-serve) ──
+  getExam(id)            { return this._json('GET', `/bluebook/exams/${encodeURIComponent(id)}`); },
+  updateExam(id, fields) { return this._json('PATCH', `/bluebook/exams/${encodeURIComponent(id)}`, fields); },
+  deleteExam(id)         { return this._json('DELETE', `/bluebook/exams/${encodeURIComponent(id)}`); },
+  updateCourse(id, f)    { return this._json('PATCH', `/bluebook/courses/${encodeURIComponent(id)}`, f); },
+  deleteCourse(id)       { return this._json('DELETE', `/bluebook/courses/${encodeURIComponent(id)}`); },
+  getSubmission(id)      { return this._json('GET', `/bluebook/submissions/${encodeURIComponent(id)}`); },
+  async rosterList(courseId) {
+    return (await this._json('GET', `/bluebook/courses/${encodeURIComponent(courseId)}/students`)).students || [];
+  },
+  async rosterAdd(courseId, students, sendEmail = false) {
+    return (await this._json('POST', `/bluebook/courses/${encodeURIComponent(courseId)}/students`, { students, send_email: sendEmail })).students || [];
+  },
+  // Fresh links for every student still waiting on an invite (links are
+  // stored hashed, so an old one can never be shown again — only replaced).
+  async reissuePending(courseId, sendEmail = false) {
+    return (await this._json('POST', `/bluebook/courses/${encodeURIComponent(courseId)}/invites/reissue-pending`, { send_email: sendEmail })).students || [];
+  },
+  async listStudents()  { return (await this._json('GET', '/bluebook/students')).students || []; },
+  examLive(id)          { return this._json('GET', `/bluebook/exams/${encodeURIComponent(id)}/live`); },
+  saveFeedback(id, { mark, feedback }) {
+    return this._json('PATCH', `/bluebook/submissions/${encodeURIComponent(id)}/feedback`, { mark, feedback });
+  },
+  releaseResults(id)    { return this._json('POST', `/bluebook/exams/${encodeURIComponent(id)}/release`); },
+  unreleaseResults(id)  { return this._json('POST', `/bluebook/exams/${encodeURIComponent(id)}/unrelease`); },
+  authMe()              { return this._json('GET', '/auth/me'); },
+  rosterRemove(courseId, sid) {
+    return this._json('DELETE', `/bluebook/courses/${encodeURIComponent(courseId)}/students/${encodeURIComponent(sid)}`);
+  },
+  // Permanent FERPA erasure: the account, every sitting and submission, and
+  // every roster row — not just this course.
+  eraseStudent(sid) {
+    return this._json('DELETE', `/bluebook/students/${encodeURIComponent(sid)}`);
+  },
+  rosterReissue(courseId, sid, sendEmail = false) {
+    return this._json('POST', `/bluebook/courses/${encodeURIComponent(courseId)}/students/${encodeURIComponent(sid)}/invite`, { send_email: sendEmail });
+  },
+  // Download the CSV through fetch (it needs the Authorization header, which
+  // a plain link cannot send), then hand the browser a blob to save.
+  async downloadExport(examId, title) {
+    const r = await fetch(this.base + `/bluebook/exams/${encodeURIComponent(examId)}/export`, { headers: this._headers() });
+    if (!r.ok) throw new Error(await bbDetail(r));
+    const url = URL.createObjectURL(await r.blob());
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(title || 'exam').replace(/[^A-Za-z0-9]+/g, '-').slice(0, 60) || 'exam'}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  },
+
+  // ── Student dashboard ──
+  me()                   { return this._json('GET', '/bluebook/me'); },
+  async myExams()        { return (await this._json('GET', '/bluebook/me/exams')).exams || []; },
+  myExam(id)             { return this._json('GET', `/bluebook/me/exams/${encodeURIComponent(id)}`); },
+  startMyExam(id)        { return this._json('POST', `/bluebook/me/exams/${encodeURIComponent(id)}/start`); },
+  async mySubmissions()  { return (await this._json('GET', '/bluebook/me/submissions')).submissions || []; },
+  mySubmission(id)       { return this._json('GET', `/bluebook/me/submissions/${encodeURIComponent(id)}`); },
+
   // ── Auth / session ──
-  async login(email, password) {
-    const r = await fetch(this.base + '/auth/login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-    if (!r.ok) {
-      let detail = 'Invalid email or passphrase';
-      try { detail = (await r.json()).detail || detail; } catch (e) {}
-      throw new Error(detail);
-    }
-    const data = await r.json();
-    localStorage.setItem('original_principal_token', data.token);
+  // Store whatever a sign-in returned. Staff get a principal token; students
+  // get a session token and their student id. Everything else is cleared.
+  _storeSession(data) {
+    this.logout();
+    const student = data.role === 'student';
+    localStorage.setItem(student ? 'original_session_token' : 'original_principal_token', data.token);
+    if (student) localStorage.setItem('original_student_id', data.student_id || '');
     localStorage.setItem('original_role', data.role || 'professor');
     localStorage.setItem('original_tenant', data.tenant_id || '');
     localStorage.setItem('original_name', data.name || '');
+    localStorage.setItem('original_email', data.email || '');
+    localStorage.setItem('original_products', JSON.stringify(data.products || ['original', 'bluebook']));
     return data;
   },
+  async _auth(path, body, fallback) {
+    const r = await fetch(this.base + path, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(await bbDetail(r, fallback));
+    return this._storeSession(await r.json());
+  },
+  login(email, password) {
+    return this._auth('/auth/login', { email, password }, 'Invalid email or passphrase');
+  },
+  signup(name, email, password, acceptTerms = false) {
+    return this._auth('/auth/signup', { name, email, password, accept_terms: acceptTerms }, 'Could not create the workspace');
+  },
+  // Always resolves the same way whether or not the address has an account,
+  // so the form cannot be used to discover who is registered.
+  async requestPasswordReset(email) {
+    const r = await fetch(this.base + '/auth/password-reset/request', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }),
+    });
+    if (!r.ok) throw new Error(await bbDetail(r, 'Could not send the reset email'));
+    return r.json();
+  },
+  redeemInvite(token, password) {
+    return this._auth('/auth/invite/redeem', { token, password }, 'This invite link could not be used');
+  },
+  changePassword(currentPassword, newPassword) {
+    return this._json('POST', '/auth/password', { current_password: currentPassword, new_password: newPassword });
+  },
+  // The deploy's environment label from the public health probe, cached for
+  // the page's life. Demo-only affordances ("Explore the demo") show only
+  // when this is 'demo'; anything else — including a failed probe — hides them.
+  async environment() {
+    if (this._env !== undefined) return this._env;
+    try {
+      const r = await fetch(this.base + '/health');
+      this._env = r.ok ? ((await r.json()).environment || null) : null;
+    } catch (e) { this._env = null; }
+    return this._env;
+  },
   logout() {
-    ['original_principal_token', 'original_session_token', 'original_role',
-     'original_tenant', 'original_name', 'bluebook_student_id', 'bluebook_candidate_email']
-      .forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+    BB_SESSION_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
   },
   isAuthed()        { try { return !!localStorage.getItem('original_principal_token'); } catch (e) { return false; } },
   isStudentLaunch() { try { return !!localStorage.getItem('bluebook_student_id'); }      catch (e) { return false; } },
+  // A student who signed in with an account (not a launch link).
+  isStudentAccount() {
+    try {
+      return localStorage.getItem('original_role') === 'student'
+        && !!localStorage.getItem('original_session_token')
+        && !localStorage.getItem('bluebook_student_id');
+    } catch (e) { return false; }
+  },
+  products() {
+    try {
+      const p = JSON.parse(localStorage.getItem('original_products') || 'null');
+      return Array.isArray(p) && p.length ? p : ['original', 'bluebook'];
+    } catch (e) { return ['original', 'bluebook']; }
+  },
+  // Whether this workspace bought Original. Bluebook-only workspaces never
+  // call the stylometric engine and never see its scores.
+  hasOriginal() { return this.products().includes('original'); },
   isDevToolsArmed() { try { return localStorage.getItem('bluebook_dev_tools') === '1'; } catch (e) { return false; } },
   identity() {
     try {
       return {
         name:   localStorage.getItem('original_name') || '',
+        email:  localStorage.getItem('original_email') || '',
         role:   localStorage.getItem('original_role') || '',
         tenant: localStorage.getItem('original_tenant') || '',
         authed: !!localStorage.getItem('original_principal_token'),
       };
-    } catch (e) { return { name: '', role: '', tenant: '', authed: false }; }
+    } catch (e) { return { name: '', email: '', role: '', tenant: '', authed: false }; }
   },
 };
 

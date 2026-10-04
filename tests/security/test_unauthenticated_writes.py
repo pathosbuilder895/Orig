@@ -37,9 +37,10 @@ previously exercised a flat id at all
 runs in the demo environment, which never sets ``_IS_REAL_DEPLOY`` and so
 says nothing about a real deploy.
 
-``/students/{id}/request-baseline`` is excluded from T-66's route list: it
-503s on missing Bbook config regardless of id shape or auth, so that
-failure mode isn't evidence of a bypass. The three
+``/students/{id}/request-baseline`` is staff-gated as of T-68 (it calls
+``_require_staff`` before its Bbook-config check, so it 401/403s on auth
+first rather than 503ing), which is why it now appears in T-66's flat-id
+probe list below. The three
 ``/canvas/baseline/{id}/...`` routes are also excluded: each calls its own
 ``_require_staff`` before touching ``student_id`` at all, so they 401
 regardless of id shape — verified empirically, see the comment above
@@ -68,10 +69,25 @@ ANONYMOUS_ALLOWLIST: dict[tuple[str, str], str] = {
     # Login/launch entry points: reachable with no principal by definition —
     # that's the whole point of a login endpoint.
     ("POST", "/auth/login"): "login entry point; issues the principal, so it cannot require one",
-    ("POST", "/student-auth/login"): "student login entry point; same reasoning as /auth/login",
+    ("POST", "/student-auth/login"): (
+        "demo-only student login; returns 404 on a real deploy "
+        "(tests/test_launch_hardening.py), anonymous by design in the demo"
+    ),
     # /lti/login is registered for GET and POST; GET isn't a write method so
     # it never reaches this table, but the POST arm needs its own entry.
     ("POST", "/lti/login"): "OIDC pre-auth step of an LTI launch; runs before any principal exists",
+    # Bluebook self-serve (2026-09): public by design, each throttled per IP
+    # (tests/test_bluebook_self_serve.py pins the throttles).
+    ("POST", "/auth/signup"): (
+        "public teacher signup; creates its own new workspace, never writes an existing one"
+    ),
+    ("POST", "/auth/password-reset/request"): (
+        "public reset request; same response whether or not the address exists, "
+        "throttled per IP and per email, and only emails the account owner"
+    ),
+    ("POST", "/auth/invite/redeem"): (
+        "authenticates via its own one-time invite token (sha256-matched, single use)"
+    ),
     ("POST", "/lti/launch"): (
         "LTI launch endpoint; authenticates via its own RSA-signed id_token/state "
         "verification (original/lti.py), not a principal header"
@@ -109,13 +125,29 @@ RED_ROUTES: set[tuple[str, str]] = {
 # house style of test_pilot_lockdown.py's ADMIN_STAFF_ONLY_ENDPOINTS); the
 # completeness test below is what catches a new route nobody added here.
 GENERIC_ROUTES: list[tuple[str, str]] = [
+    ("DELETE", "/bluebook/courses/{course_id}"),
+    ("DELETE", "/bluebook/courses/{course_id}/students/{student_id}"),
+    ("DELETE", "/bluebook/exams/{exam_id}"),
+    ("DELETE", "/bluebook/students/{student_id}"),
     ("DELETE", "/proctor/park/{exam_session_id}"),
     ("DELETE", "/students/{student_id}"),
     ("DELETE", "/tenants/{tenant_id}/students"),
+    ("PATCH", "/bluebook/courses/{course_id}"),
+    ("PATCH", "/bluebook/exams/{exam_id}"),
+    ("PATCH", "/bluebook/submissions/{submission_id}/feedback"),
+    ("PATCH", "/tenants/{tenant_id}"),
     ("POST", "/admin/calibration/run"),
     ("POST", "/admin/calibration/runs/{run_id}/apply"),
+    ("POST", "/admin/users/{user_id}/reset-link"),
+    ("POST", "/auth/password"),
     ("POST", "/bluebook/courses"),
+    ("POST", "/bluebook/courses/{course_id}/invites/reissue-pending"),
+    ("POST", "/bluebook/courses/{course_id}/students"),
+    ("POST", "/bluebook/courses/{course_id}/students/{student_id}/invite"),
     ("POST", "/bluebook/exams"),
+    ("POST", "/bluebook/exams/{exam_id}/release"),
+    ("POST", "/bluebook/exams/{exam_id}/unrelease"),
+    ("POST", "/bluebook/me/exams/{exam_id}/start"),
     ("POST", "/canvas/baseline/{student_id}/fetch-submission-text"),
     ("POST", "/canvas/baseline/{student_id}/import-baseline"),
     ("POST", "/canvas/baseline/{student_id}/list-canvas-submissions"),
@@ -150,6 +182,9 @@ JSON_BODIES: dict[str, dict] = {
     "/bluebook/exams": {"title": "t"},
     "/me/work": {"text": "t"},
     "/proctor/park/open": {"exam_session_id": "e1"},
+    "/auth/password": {"current_password": "x" * 8, "new_password": "y" * 8},
+    "/bluebook/courses/{course_id}/students": {"students": [{"email": "s@x.edu"}]},
+    "/tenants/{tenant_id}": {"products": ["bluebook"]},
 }
 
 # UploadFile-based routes: (form field name, is-list).
@@ -276,10 +311,10 @@ def test_unauthenticated_write_refused(pilot_env, two_tenants, live_client, meth
 # all (see the module docstring) — these 8 routes are the ones that actually
 # reach that check and are empirically writable/deletable with no principal.
 #
-# Excluded, both verified empirically rather than assumed from the code:
-#   - /students/{id}/request-baseline: 503s on missing Bbook config
-#     regardless of id shape or auth, so a non-401/403 there isn't evidence
-#     of a bypass.
+# /students/{id}/request-baseline is included since T-68: its _require_staff
+# guard runs before the Bbook-config 503, so an anonymous flat-id call is
+# refused on auth (empirically 401/403 under pilot_env, with a valid body so
+# a 422 can't mask the check). Excluded, verified empirically:
 #   - the three /canvas/baseline/{id}/... routes: each calls its own
 #     _require_staff (original/routers/imports.py) before ever looking at
 #     student_id, so they 401 for a flat id exactly as they do for a
@@ -293,6 +328,7 @@ FLAT_ID_ROUTES: list[tuple[str, str]] = [
     ("POST", "/students/{student_id}/score/blend"),
     ("POST", "/students/{student_id}/formation"),
     ("POST", "/students/{student_id}/formation/advance"),
+    ("POST", "/students/{student_id}/request-baseline"),
     ("DELETE", "/students/{student_id}"),
 ]
 
@@ -305,6 +341,7 @@ FLAT_ID_JSON_BODIES: dict[str, dict] = {
     "/students/{student_id}/baseline": {"text": "word " * 150},
     "/students/{student_id}/score": {"text": "word " * 150},
     "/students/{student_id}/score/blend": {"text": "word " * 150},
+    "/students/{student_id}/request-baseline": {"student_email": "x@x.edu", "student_name": "X"},
 }
 
 
@@ -448,3 +485,58 @@ def test_bluebook_session_open_refuses_anonymous_write(
         f"/bluebook/exams/{exam_id}/session", json={"student_id": "attacker-flat-id"}
     )
     assert r.status_code in (401, 403), f"expected a refusal, got {r.status_code}: {r.text}"
+
+
+# ── 4. T-67 / T-68 on a real deploy ──────────────────────────────────────────
+# The unit-level legs (student token off a real deploy, staff not downgraded,
+# audit row) live next to the route's other branch tests in
+# tests/test_students_baseline_batch.py::TestUploadBatchBranches and
+# ::TestRequestProctoredBaseline. These two pin the real-deploy leg the gap
+# register names, using the pilot_env fixtures only this file has.
+
+
+def test_batch_upload_trusted_provenance_not_self_assertable_on_real_deploy(
+    pilot_env, two_tenants, live_client, principal_headers
+):
+    """T-67: on a real deploy a student's batch upload requesting 'verified'
+    is stored at 'unverified' (weight 0.5). Asserts the persisted sample,
+    not only the response, so a regression that keeps the guard call but
+    stores the requested provenance is still caught."""
+    from original.repository import get_repository
+
+    tenant = two_tenants["tenant_a"]
+    sid = f"{tenant}:stu-batch-t67"
+    stu = principal_headers(sid, "student", tenant)
+    r = live_client.post(
+        f"/students/{sid}/baseline/upload-batch",
+        files=[("files", ("a.txt", b"word " * 400, "text/plain"))],
+        data={"provenance": "verified", "assignment": ""},
+        headers=stu,
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["provenance_downgraded"] is True
+    samples = get_repository().get(sid).samples
+    assert [(s.provenance, s.auth_weight) for s in samples] == [("unverified", 0.5)]
+
+
+def test_request_baseline_requires_staff_on_real_deploy(
+    pilot_env, two_tenants, live_client, principal_headers, monkeypatch
+):
+    """T-68: a student may not provision their own proctored exam; a staff
+    principal passes the guard (and then hits the Bbook-config 503, proving
+    the guard ran first and did not mask a 422)."""
+    import original.bbook_client as bbook_client
+
+    monkeypatch.setattr(bbook_client, "is_enabled", lambda: False)
+    tenant = two_tenants["tenant_a"]
+    sid = f"{tenant}:stu-req-t68"
+    body = {"student_email": "s@x.edu", "student_name": "Stu"}
+
+    stu = principal_headers(sid, "student", tenant)
+    r = live_client.post(f"/students/{sid}/request-baseline", json=body, headers=stu)
+    assert r.status_code == 403, r.text
+
+    r = live_client.post(
+        f"/students/{sid}/request-baseline", json=body, headers=two_tenants["headers_a"]
+    )
+    assert r.status_code == 503, r.text

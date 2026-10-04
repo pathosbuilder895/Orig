@@ -1,5 +1,9 @@
 # Day-One Class — operator one-sheet
 
+*For an institution that has bought Original. A teacher who only wants Bluebook
+signs up at `/bluebook/` with no operator step — see
+[BLUEBOOK_LAUNCH_CHECKLIST.md](BLUEBOOK_LAUNCH_CHECKLIST.md).*
+
 *Work this top-to-bottom when a professor says yes. It fuses the four detailed
 runbooks; each step links to the full version. Goal: a professor signs into
 Original, his dashboard is blank until his class writes, and the first proctored
@@ -72,6 +76,17 @@ Full version: [PROVISIONING_CHECKLIST.md](PROVISIONING_CHECKLIST.md).
 links to hand out.
 - [ ] In Canvas, add an External Tool / module item for the exam pointing at
   `…/bluebook/`. Verify per [CANVAS_RUNBOOK.md](CANVAS_RUNBOOK.md) §3.
+
+**Path C — Course roster (simplest, no Canvas, no script).** On the course's
+roster the professor pastes the class emails; each student gets a one-time
+link to set a password (emailed when mail is configured, otherwise *Copy all
+links* / *Download links (CSV)*), then signs in and sees the course's exams.
+Starting an exam from the student dashboard mints a proctor attestation in a
+tenant that has Original, so these sittings land `proctored` as Paths A and B
+do (`original/routers/bluebook_accounts.py` `my_exam_start`). The roster
+derives the same student id from tenant + email as Paths A and B, so a
+student who uses more than one path keeps one profile (as long as the email
+is the same).
 
 **Path B — No-Canvas fallback.** Generate one bound, disclosure-minimized link
 per student from the class roster. **Export the pilot's `SECRET_KEY` first** —

@@ -1,6 +1,9 @@
 # Pilot Provisioning Checklist (operator)
 
-Manual steps to onboard one institution + its professors. ~30 minutes total.
+Manual steps to onboard one institution that has bought **Original** + its
+professors. ~30 minutes total. Teachers who only want Bluebook need none of
+this: they sign up themselves at `$HOST/bluebook/` and get a private,
+Bluebook-only workspace (`docs/BLUEBOOK_LAUNCH_CHECKLIST.md`).
 All write calls need the guard header: `-H "X-Guard-Token: $MAINTENANCE_TOKEN"`
 (the pilot runs `GUARD_DESTRUCTIVE=1`). Base URL below: `$HOST`.
 
@@ -13,9 +16,6 @@ curl -s -X POST $HOST/tenants \
   -d '{"tenant_id":"<slug>","name":"<Institution Name>","environment":"pilot"}'
 ```
 - [ ] Slug is lowercase-kebab, final (it prefixes every student id — never rename).
-- [ ] Slug equals `slugify(institution name)` exactly as students would type it
-      — a mismatched slug sends self-service logins into a second, demo-labeled
-      tenant instead of this one.
 - [ ] `GET $HOST/tenants` (as a logged-in staff account) shows it with
       `environment: pilot`.
 - [ ] Anonymous `POST $HOST/tenants` (no guard header) → **403**, and
@@ -34,13 +34,20 @@ curl -s -X POST $HOST/auth/register \
 - [ ] One `admin`-role account for the department chair / registrar contact (optional).
 - [ ] Record who-got-what in the password manager.
 
-**Credential delivery:** there is no email flow. Deliver each credential
-directly (in the onboarding session, or via the institution's secure channel),
-and have the professor log in while you watch — that's the verification step.
+**Credential delivery:** deliver each initial credential directly (in the
+onboarding session, or via the institution's secure channel), and have the
+professor log in while you watch — that's the verification step.
 
-**Password reset (manual):** there is no self-serve reset. The operator
-re-issues by calling `/auth/register`'s guarded upsert path with a new password
-for the same email/tenant, then delivers it again. Log it in PILOT_LOG.md.
+**Password reset:** self-serve. "Forgot your password?" on the sign-in screen
+emails a one-time link when `SENDGRID_API_KEY` and `MAIL_FROM` are set (check
+`"mail": true` in `GET $HOST/auth/me`). Without email, the operator re-issues
+by calling `/auth/register`'s guarded upsert path with a new password for the
+same email/tenant, then delivers it again. Log it in PILOT_LOG.md.
+
+**Students:** a professor adds them on a course's roster (Courses → Students &
+invitations). Each gets a one-time link to set a password — emailed when mail
+is configured, otherwise copied or downloaded from the roster. Students sign
+in with that account; there is no passwordless student login on a real deploy.
 
 ## 3. Per-professor verification (the watch-them-do-it list)
 

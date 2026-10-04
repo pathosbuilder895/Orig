@@ -1,5 +1,6 @@
 import React from 'react';
 import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, MetaLabel, StatusBadge, fontBody, fontDisplay, fontMono, rowKeyDown } from './components.jsx';
+import { AllSubmissionsScreen } from './Teacher.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Results Screen
@@ -255,7 +256,7 @@ function ExpandedRow({ result, onClose }) {
           <MetaLabel style={{ display:'block', marginBottom:14 }}>Integrity Analysis</MetaLabel>
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
             {[
-              { label:'Typing Consistency', score:result.stylometric, note:'Typing rhythm compared with this student’s baseline — higher is more consistent' },
+              { label:'Writing Consistency', score:result.stylometric, note:'Text-based comparison with the available baseline — not proof of authorship' },
               { label:'Authenticity',       score:result.aiScore,     note:'Higher = more consistent with this student’s own writing (scored via Original)' },
             ].map(({ label, score, note }) => (
               <div key={label}>
@@ -300,13 +301,21 @@ function ExpandedRow({ result, onClose }) {
 
 // ─── Results Screen ───────────────────────────────────────────────────────────
 export function ResultsScreen({ onNavigate }) {
+  // A workspace without Original has no scores: show its submissions and
+  // their text instead of an empty score dashboard.
+  if (BB_API.isAuthed() && !BB_API.hasOriginal()) return <AllSubmissionsScreen />;
+  return <ScoredResultsScreen onNavigate={onNavigate} />;
+}
+
+function ScoredResultsScreen({ onNavigate }) {
   const [expanded,  setExpanded]  = useResState(null);
   const [statusFilter, setFilter] = useResState('all');
   const [serverResults, setServerResults] = useResState(null);
 
+  const [loadError, setLoadError] = useResState('');
   React.useEffect(() => {
     let live = true;
-    BB_API.listSubmissions().then(list => { if (live) setServerResults(list || []); });
+    BB_API.listSubmissions().then(list => { if (live) setServerResults(list || []); }).catch(err => { if (live) setLoadError(err.message); });
     return () => { live = false; };
   }, []);
 
@@ -327,6 +336,7 @@ export function ResultsScreen({ onNavigate }) {
     reviewed: results.filter(r => r.status === 'REVIEWED').length,
   };
 
+  if (loadError) return <div role="alert" style={{ padding: '2rem' }}>{loadError}</div>;
   return (
     <div style={{ flex:1, overflowY:'auto', padding:'44px 48px', background:BB.deep }}>
       <div style={{ marginBottom:10 }}>

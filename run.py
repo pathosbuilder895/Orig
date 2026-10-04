@@ -72,7 +72,12 @@ def create_demo_app(frontend_dir: Path):
 
     @app.get("/", include_in_schema=False)
     def demo_root():
-        return RedirectResponse(url="/professor.html")
+        # A real deploy is the public Bluebook site: the root opens Bluebook.
+        # The demo keeps its Original-first sales tour. Read at request time
+        # (not import) so the pilot-mode tests' monkeypatch applies.
+        from original import api as api_mod
+
+        return RedirectResponse(url="/bluebook/" if api_mod._IS_REAL_DEPLOY else "/professor.html")
 
     # Bluebook's index.html is the same file in dev and production — React is
     # bundled into bluebook.bundle.js (build.mjs), not loaded from a CDN or

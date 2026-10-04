@@ -30,7 +30,7 @@ export const test = base.extend({
     const operator = await provisionStaff(request, {
       tenantId: tenant.tenant_id, role: 'operator', name: 'E2E Operator',
     })
-    const student = await studentLogin(request, { institution: tenant.name })
+    const student = await studentLogin(request, { staffToken: staff.token })
     await request.dispose()
     await use({ tenant, staff, operator, student, baseURL })
   }, { scope: 'worker' }],

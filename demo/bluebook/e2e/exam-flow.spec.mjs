@@ -7,7 +7,7 @@
  *   - Ctrl/Cmd+P + Ctrl/Cmd+S blocking
  *   - Submit gating below the minimum word count
  *   - Round-trip: type → Seal & Submit → "Examination Sealed" +
- *     "✓ Your writing sample was delivered to Original" + API-side
+ *     "✓ Delivered to your teacher" + API-side
  *     confirmation that sample_count incremented with provenance=proctored.
  *
  * These tests inject configuration via `addInitScript` so the React app
@@ -247,7 +247,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
       .toBeVisible({ timeout: 15_000 })
 
     // The proctored-baseline transmission line shows the success token
-    await expect(page.getByText('✓ Your writing sample was delivered to Original'))
+    await expect(page.getByText('✓ Delivered to your teacher'))
       .toBeVisible({ timeout: 5_000 })
 
     // ── API-side verification: the bound student now has a proctored sample

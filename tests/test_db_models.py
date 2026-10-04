@@ -33,10 +33,13 @@ from original.db.models.live import (
     AuditLogEntry,
     BaselineRequest,
     BluebookCourse,
+    BluebookEnrollment,
     BluebookExam,
+    BluebookInvite,
     BluebookSession,
     BluebookSubmission,
     CalibrationRun,
+    ConsumedAttestation,
     Correction,
     FidelityScore,
     FormationPathway,
@@ -68,7 +71,10 @@ EXPECTED_TABLES = {
     "bluebook_submissions",
     "bluebook_sessions",
     "bluebook_courses",
+    "bluebook_enrollments",  # self-serve course roster (2026-09)
+    "bluebook_invites",  # self-serve set-password links (2026-09)
     "audit_log",
+    "consumed_attestations",  # T-69 proctor-attestation single-use ledger
     "formation_pathways",
     "baseline_requests",
     # T8 phone-park — authored against this schema, not ported from SQLite.
@@ -309,6 +315,26 @@ REPRESENTATIVE_ROWS = {
         started_at=NOW,
         deadline_at=NOW,
     ),
+    # Self-serve (2026-09): student_id is the full scoped id, the same string
+    # as that student's users.user_id.
+    BluebookEnrollment: dict(
+        course_id="c-001",
+        student_id=f"{TENANT_ID}:marcus",
+        tenant_id=TENANT_ID,
+        created_at=NOW,
+    ),
+    BluebookInvite: dict(
+        invite_id="inv-001",
+        tenant_id=TENANT_ID,
+        user_id=f"{TENANT_ID}:marcus",
+        course_id="c-001",
+        token_hash="b" * 64,
+        created_by="prof-001",
+        created_at=NOW,
+        expires_at=NOW,
+        redeemed_at=None,
+        voided_at=None,
+    ),
     FormationPathway: dict(
         tenant_id=TENANT_ID,
         student_id="marcus",
@@ -335,6 +361,15 @@ REPRESENTATIVE_ROWS = {
         actor="prof@seminary.edu",
         result="ok",
         details_json={"submission_id": "sub-001", "provenance": "proctored"},
+    ),
+    # T-69: student_id stores the full "tenant:local" scoped string verbatim
+    # (like BluebookSubmission below), not split into tenant_id/local_id.
+    ConsumedAttestation: dict(
+        jti="a" * 64,
+        tenant_id=TENANT_ID,
+        exam="Midterm A",
+        student_id=f"{TENANT_ID}:marcus",
+        used_at=NOW,
     ),
     # T8 phone-park. Note what is NOT here: no student_id, no email, no IP,
     # no user-agent — `student_hint` is free text the student typed on their

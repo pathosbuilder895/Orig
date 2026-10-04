@@ -33,8 +33,9 @@ services:
         value: "1"
 
   # ════════════════════════════════════════════════════════════════════════════
-  # original-pilot — the REAL institutional pilot (Starter plan + persistent
-  # disk). Same dashboard app, hardened by ORIGINAL_ENV=pilot:
+  # original-pilot — the REAL service: the public Bluebook site and the
+  # institutional pilot (Starter plan, managed Postgres). Same dashboard app,
+  # hardened by ORIGINAL_ENV=pilot:
   #   • boots REFUSE to start without a stable SECRET_KEY (fail-fast)
   #   • CORS locked to ALLOWED_ORIGINS (empty = nothing allowed)
   #   • HSTS on; destructive endpoints guarded by MAINTENANCE_TOKEN
@@ -46,56 +47,43 @@ services:
     region: oregon
     plan: starter
 
-    # Manual deploys only. Disk-backed services deploy stop-then-start (no
-    # zero-downtime), so an auto-deploy on merge to main would take the
-    # service down mid-exam. Deploy from the dashboard inside agreed
-    # maintenance windows (see docs/OPS_RUNBOOK.md).
+    # Manual deploys only: a deploy is a release decision (never mid-exam),
+    # made from the dashboard (docs/BLUEBOOK_LAUNCH_CHECKLIST.md). With no
+    # disk attached, deploys are zero-downtime.
     autoDeploy: false
 
-    # Demo deps + LTI crypto (python-jose/cryptography). Full requirements.txt
-    # pulls PyTorch and will not fit Starter — do not "upgrade" this.
-    buildCommand: pip install -r requirements-pilot.txt && python -m spacy download en_core_web_sm
+    # The pinned lock of requirements-pilot.txt: demo deps + LTI crypto + the
+    # Postgres stack + sentry-sdk. Full requirements.txt pulls PyTorch and
+    # will not fit Starter — do not "upgrade" this.
+    buildCommand: pip install -r requirements-pilot.lock.txt && python -m spacy download en_core_web_sm
 
-    # --skip-seed: a pilot must never boot with synthetic students. The store
-    # starts empty on first deploy; real tenants/professors are provisioned via
-    # docs/PROVISIONING_CHECKLIST.md.
+    # Schema first: every deploy migrates the database before the new code
+    # takes traffic. A failed migration fails the deploy; the old version
+    # keeps serving.
+    preDeployCommand: alembic upgrade head
+
+    # --skip-seed: a pilot must never boot with synthetic students. The
+    # database starts empty; teachers sign up at /bluebook/ (self-serve) or
+    # are provisioned via docs/PROVISIONING_CHECKLIST.md.
     startCommand: python run.py --demo --port $PORT --skip-seed
 
     healthCheckPath: /health
 
-    disk:
-      name: profiles-db
-      mountPath: /data
-      sizeGB: 1
-
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.0"
-      - key: ORIGINAL_DB
-        value: /data/profiles.db
-      # In-app backup scheduler (original/backup.py): consistent .backup
-      # copies on the persistent disk, every 30 min, pruned to 48. The daily
-      # off-box pull is still a manual runbook step (docs/OPS_RUNBOOK.md).
-      # (No-op once REPO_BACKEND=postgres — Postgres backups are external.)
-      - key: BACKUP_DIR
-        value: /data/backups
-      # ── WS-6 Postgres cutover controls (dashboard-managed, inert until set) ──
-      # All four are `sync: false` so they stay UNSET until an operator sets
-      # them in the Render dashboard — the app defaults to SQLite. See the
-      # cutover procedure in docs/OPS_RUNBOOK.md.
-      #   DATABASE_URL   — the managed Postgres connection string (internal URL).
-      #   REPO_SHADOW    — set to "postgres" for the P4 pre-cutover soak
-      #                    (SQLite primary, writes mirrored to Postgres).
-      #   MAINTENANCE_MODE — set to "1" to freeze writes during the P5 window.
-      #   REPO_BACKEND   — set to "postgres" to CUT OVER (Postgres authoritative);
-      #                    UNSET it to roll back to the read-only SQLite file.
-      - key: DATABASE_URL
-        sync: false
-      - key: REPO_SHADOW
-        sync: false
-      - key: MAINTENANCE_MODE
-        sync: false
+      # ── Persistence: managed Postgres is authoritative from day one ──
+      # The pilot never ran on SQLite in production, so there is nothing to
+      # cut over: no disk, no REPO_SHADOW soak. Backups: Render's own daily
+      # snapshots plus the off-box job below (original-pg-backup).
       - key: REPO_BACKEND
+        value: postgres
+      - key: DATABASE_URL
+        fromDatabase:
+          name: original-db
+          property: connectionString
+      # Set to "1" (then deploy) to freeze writes for maintenance.
+      - key: MAINTENANCE_MODE
         sync: false
       # ── Hardening mode: pilot fails fast without SECRET_KEY ──
       - key: ORIGINAL_ENV
@@ -109,9 +97,25 @@ services:
         sync: false
       - key: GUARD_DESTRUCTIVE
         value: "1"
-      # Lock CORS to the public URL of THIS service (update if custom domain).
+      # Lock CORS to the public URL of THIS service. With a custom domain,
+      # list both (comma-separated) and set PUBLIC_BASE_URL to the domain.
       - key: ALLOWED_ORIGINS
         value: https://original-pilot.onrender.com
+      # ── Account email (original/mailer.py) ──
+      # Invitations and password resets go out through SendGrid when both
+      # are set; without them the roster offers copy/download links instead.
+      # MAIL_FROM must be a sender verified in SendGrid (domain authentication).
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      # Absolute base for links in emails, e.g. https://bluebook.example.org
+      # (no trailing slash). Unset → the request's own host.
+      - key: PUBLIC_BASE_URL
+        sync: false
+      # ── Error reporting (original/monitoring.py) — unset = off ──
+      - key: SENTRY_DSN
+        sync: false
       - key: ENABLE_HSTS
         value: "1"
       # ── LTI 1.3 (Canvas) ──
@@ -124,11 +128,20 @@ services:
       # the client_id/deployment_id (see docs/CANVAS_RUNBOOK.md).
       - key: LTI_PLATFORMS
         sync: false
-      # Adaptive scoring phases (same as demo).
+      # Classroom release: research features remain explicitly off. run.py's
+      # demo defaults must not enable these in the real pilot.
       - key: CONTEXT_MANIFEST_ENABLED
-        value: "1"
+        value: "0"
       - key: ADAPTIVE_WEIGHTS_ENABLED
-        value: "1"
+        value: "0"
+      - key: STYLE_AUTHORSHIP_ENABLED
+        value: "0"
+      - key: FUSED_SCORE_ENABLED
+        value: "0"
+      - key: FUSED_SCORE_SHADOW
+        value: "0"
+      - key: LONGITUDINAL_DRIFT_ENABLED
+        value: "0"
       # ── Bbook external exam app (original/bbook_client.py) ──
       # Outbound client for POST /students/{id}/request-baseline. Both unset
       # means that endpoint returns 503 with manual-upload guidance — the
@@ -151,3 +164,50 @@ services:
         value: "0"
       - key: AI_LIKELIHOOD_SHADOW
         sync: false
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # original-pg-backup — daily logical backup of the pilot database to
+  # S3-compatible storage outside Render (scripts/pg_backup_offbox.py).
+  # --require-upload makes a missing bucket setting a FAILED run in the
+  # dashboard rather than a silent nightly no-op.
+  # ════════════════════════════════════════════════════════════════════════════
+  - type: cron
+    name: original-pg-backup
+    runtime: python
+    region: oregon
+    plan: starter
+    schedule: "30 8 * * *"  # 08:30 UTC daily, outside US class hours
+    buildCommand: pip install -r requirements-pilot.lock.txt
+    startCommand: python scripts/pg_backup_offbox.py --require-upload
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: original-db
+          property: connectionString
+      - key: BACKUP_OFFBOX_ENABLED
+        value: "1"
+      - key: BACKUP_OFFBOX_PREFIX
+        value: original-pg-backups/
+      - key: BACKUP_OFFBOX_BUCKET
+        sync: false
+      - key: BACKUP_OFFBOX_ENDPOINT
+        sync: false
+      - key: BACKUP_OFFBOX_REGION
+        sync: false
+      - key: BACKUP_OFFBOX_ACCESS_KEY_ID
+        sync: false
+      - key: BACKUP_OFFBOX_SECRET_ACCESS_KEY
+        sync: false
+
+databases:
+  # The pilot's database. Internal-only (no public IP access); paid plan, so
+  # it does not expire and Render takes daily snapshots.
+  - name: original-db
+    plan: basic-256mb
+    region: oregon
+    postgresMajorVersion: "16"
+    databaseName: original
+    user: original
+    ipAllowList: []

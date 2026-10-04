@@ -29,6 +29,14 @@ class AddSampleRequest(BaseModel):
         "When provided, Tier 17 behavioral biometric features are extracted. "
         "Absent for uploaded papers — Tier 17 defaults to 0.5 (neutral).",
     )
+    composition_summary: dict | None = Field(
+        None,
+        description="Macro-only composition timing (session_seconds, word_count, "
+        "paste_attempts, focus_losses, revision_count, started_at, ended_at, "
+        "exam_config) — the ADR-010 replacement for keystroke_data's per-key "
+        "telemetry. No per-key timing is collected; per the T-69/T-74 "
+        "macro-only keystroke posture, only session-level metrics are captured.",
+    )
     submission_uuid: str | None = Field(
         None,
         description="Bluebook seal id: when present, an identical text already in the "
@@ -48,6 +56,14 @@ class ScoreSubmissionRequest(BaseModel):
     )
     keystroke_data: dict | None = Field(
         None, description="Bbook stylemetry JSON for Tier 17 behavioral biometric scoring."
+    )
+    composition_summary: dict | None = Field(
+        None,
+        description="Macro-only composition timing (session_seconds, word_count, "
+        "paste_attempts, focus_losses, revision_count, started_at, ended_at, "
+        "exam_config) — the ADR-010 replacement for keystroke_data's per-key "
+        "telemetry. No per-key timing is collected; per the T-69/T-74 "
+        "macro-only keystroke posture, only session-level metrics are captured.",
     )
 
 
@@ -93,6 +109,31 @@ class BluebookCreateExamRequest(BaseModel):
     prompt: str = Field("", description="Exam prompt text")
     conditions: dict = Field(default_factory=dict, description="Arbitrary exam-condition metadata")
     status: str = Field("DRAFT", description="Exam status label")
+    course_id: str | None = Field(None, description="Course this exam belongs to (same tenant)")
+    opens_at: str | None = Field(None, description="ISO-8601; NULL = open once published")
+    closes_at: str | None = Field(None, description="ISO-8601; NULL = never auto-closes")
+    questions: list[str] | None = Field(
+        None,
+        description="One entry per question (max 20). Overrides `prompt`, which is then derived.",
+    )
+
+
+class BluebookUpdateExamRequest(BaseModel):
+    """PATCH /bluebook/exams/{exam_id}. Only fields present in the body change;
+    send null for course_id/opens_at/closes_at to clear them."""
+
+    title: str | None = None
+    course: str | None = None
+    duration: int | None = None
+    minWords: int | None = None  # noqa: N815
+    maxWords: int | None = None  # noqa: N815
+    prompt: str | None = None
+    conditions: dict | None = None
+    status: str | None = None
+    course_id: str | None = None
+    opens_at: str | None = None
+    closes_at: str | None = None
+    questions: list[str] | None = None
 
 
 class BluebookRecordSubmissionRequest(BaseModel):
@@ -113,6 +154,32 @@ class BluebookRecordSubmissionRequest(BaseModel):
     submission_uuid: str | None = Field(
         None, description="Client seal id; replays return the prior result instead of re-writing"
     )
+    text: str | None = Field(None, description="The sealed prose (max 200,000 characters)")
+    warnings: list | None = Field(
+        None, description="Lockdown warnings raised during the sitting: [{type, at}], max 500"
+    )
+    answers: list | None = Field(
+        None, description="One answer per question (max 20); `text` is derived when omitted"
+    )
+
+
+class SubmissionFeedbackRequest(BaseModel):
+    """PATCH /bluebook/submissions/{id}/feedback. Empty strings clear."""
+
+    mark: str | None = Field(None, description="Free-text mark, e.g. '18/20' or 'B+' (max 20)")
+    feedback: str | None = Field(None, description="Comment for the student (max 5,000)")
+
+
+class SendEmailRequest(BaseModel):
+    """Body for invite reissue routes."""
+
+    send_email: bool = False
+
+
+class PasswordResetRequest(BaseModel):
+    """POST /auth/password-reset/request."""
+
+    email: str
 
 
 class BluebookStartSessionRequest(BaseModel):
@@ -139,6 +206,56 @@ class BluebookCreateCourseRequest(BaseModel):
     status: str = Field("ACTIVE", description="Course status label")
 
 
+class BluebookUpdateCourseRequest(BaseModel):
+    """PATCH /bluebook/courses/{course_id}. Only fields present change."""
+
+    name: str | None = None
+    code: str | None = None
+    term: str | None = None
+    status: str | None = None
+
+
+class RosterStudent(BaseModel):
+    email: str = Field(..., description="Student email; their login")
+    name: str = Field("", description="Display name")
+
+
+class RosterAddRequest(BaseModel):
+    """POST /bluebook/courses/{course_id}/students."""
+
+    students: list[RosterStudent] = Field(..., description="1-500 students to add")
+    send_email: bool = Field(False, description="Email each new invite (when mail is configured)")
+
+
+class AuthSignupRequest(BaseModel):
+    """POST /auth/signup — public teacher self-signup."""
+
+    email: str
+    password: str
+    name: str = ""
+    accept_terms: bool = Field(False, description="Must be true: the terms and privacy policy")
+
+
+class InviteRedeemRequest(BaseModel):
+    """POST /auth/invite/redeem."""
+
+    token: str
+    password: str
+
+
+class PasswordChangeRequest(BaseModel):
+    """POST /auth/password."""
+
+    current_password: str
+    new_password: str
+
+
+class TenantProductsRequest(BaseModel):
+    """PATCH /tenants/{tenant_id}."""
+
+    products: list[str] = Field(..., description="Non-empty subset of original, bluebook")
+
+
 class CreateTenantRequest(BaseModel):
     """POST /tenants. See create_tenant() for the downgrade-protection business rule."""
 
@@ -149,6 +266,9 @@ class CreateTenantRequest(BaseModel):
         None,
         description="Arbitrary metadata (contact email, LMS URL, etc.) — capped at 10 keys, "
         "values coerced to strings ≤ 500 chars.",
+    )
+    products: list[str] | None = Field(
+        None, description="Subset of original, bluebook. Omitted = both (new) or unchanged"
     )
 
 
@@ -820,6 +940,23 @@ class StyleAuthorshipOut(BaseModel):
     trained_on: str
 
 
+class BaselineIntegrityOut(BaseModel):
+    """Report-only baseline health diagnostic (T-70); mirrors
+    original.baseline_integrity.BaselineIntegrity 1:1. No env flag gates
+    this — it never feeds deviation_score, quantum_fidelity, or the
+    recommended action, only what gets reported alongside them.
+    """
+
+    n_baselines: int
+    min_required: int
+    readiness: str  # "ready" | "thin" | "absent"
+    provenance_mix: dict[str, int]
+    span_days: int | None
+    loo_outlier_samples: list[dict]
+    sigma_inflation: float | None
+    notes: list[str]
+
+
 class FusedScoreOut(BaseModel):
     """Report-only fused stylometric score (original/fusion/); never feeds
     deviation_score, quantum_fidelity, or the recommended action.
@@ -864,6 +1001,10 @@ class Layer7OutputResponse(BaseModel):
     ai_likelihood: AiLikelihoodOut | None = None
     # Modern peer-aligned authorship expert — default-off and action-blind.
     style_authorship: StyleAuthorshipOut | None = None
+    # Report-only baseline health diagnostic (T-70) — no env flag; populated
+    # whenever a persisted state exists. Action-blind, same as the signals
+    # above.
+    baseline_integrity: BaselineIntegrityOut | None = None
     # Longitudinal drift — default-off, report-only, and action-blind.
     drift_analysis: DriftAnalysisOut | None = None
     # Trend-aware typicality — same gating and same report-only contract as

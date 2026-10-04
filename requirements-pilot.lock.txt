@@ -25,6 +25,7 @@ certifi==2026.6.17
     #   httpcore
     #   httpx
     #   requests
+    #   sentry-sdk
 cffi==2.1.0
     # via cryptography
 charset-normalizer==3.4.9
@@ -48,7 +49,9 @@ cymem==2.0.13
 ecdsa==0.19.2
     # via python-jose
 fastapi==0.141.1
-    # via -r requirements-demo.txt
+    # via
+    #   -r requirements-demo.txt
+    #   sentry-sdk
 h11==0.16.0
     # via
     #   httpcore
@@ -147,6 +150,8 @@ scikit-learn==1.6.1
     # via -r requirements-demo.txt
 scipy==1.17.1
     # via scikit-learn
+sentry-sdk==2.42.0
+    # via -r requirements-pilot.txt
 setuptools==83.0.0
     # via
     #   spacy
@@ -202,7 +207,9 @@ typing-extensions==4.16.0
 typing-inspection==0.4.2
     # via fastapi
 urllib3==2.7.0
-    # via requests
+    # via
+    #   requests
+    #   sentry-sdk
 uvicorn==0.52.1
     # via -r requirements-demo.txt
 uvloop==0.22.1

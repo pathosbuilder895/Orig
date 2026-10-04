@@ -1063,6 +1063,62 @@ class TestKeystrokeDataRoundtrip:
         assert all(s.keystroke_data is None for s in reloaded.samples)
 
 
+class TestCompositionSummaryRoundtrip:
+    """ADR-010 / T-69/T-74: the macro-timing ``composition_summary`` blob
+    persisted on a BaselineSample must survive a full put()/get() round trip
+    on both backends, identically — mirroring TestKeystrokeDataRoundtrip
+    above for the sibling field. See tests/context/test_composition_summary.py
+    for the serializer-level and endpoint-level coverage this complements."""
+
+    _SUMMARY = {
+        "session_seconds": 2700,
+        "word_count": 812,
+        "paste_attempts": 1,
+        "focus_losses": 2,
+        "revision_count": 46,
+        "started_at": "2026-09-20T14:00:00Z",
+        "ended_at": "2026-09-20T14:45:00Z",
+        "exam_config": {"block_copy": True, "min_words": 500, "duration_min": 45},
+    }
+
+    def test_composition_summary_survives_put_get(self, repo):
+        state = StudentState(student_id="sem:composition-summary-roundtrip", samples=[])
+        state.add_sample(
+            BaselineSample(
+                text="proctored sitting with macro-timing telemetry",
+                vector=np.full(FEATURE_DIM, 0.5, dtype=np.float64),
+                provenance="proctored",
+                auth_weight=1.0,
+                composition_summary=self._SUMMARY,
+            )
+        )
+        state.add_sample(
+            BaselineSample(
+                text="uploaded paper, no telemetry",
+                vector=np.full(FEATURE_DIM, 0.5, dtype=np.float64),
+                provenance="verified",
+                auth_weight=1.0,
+            )
+        )
+        repo.put(state)
+
+        reloaded = repo.get("sem:composition-summary-roundtrip")
+        assert reloaded is not None
+        assert reloaded.samples[0].composition_summary == self._SUMMARY
+        assert reloaded.samples[1].composition_summary is None
+
+    def test_sample_without_composition_summary_field_loads_as_none(self, repo):
+        """Backward compatibility on a real backend round trip: a sample put()
+        before this field existed (simulated by never setting it) must come
+        back with composition_summary=None, not raise and not require a
+        migration."""
+        state = _make_state("sem:composition-summary-legacy", n=2)
+        repo.put(state)
+        reloaded = repo.get("sem:composition-summary-legacy")
+        assert reloaded is not None
+        assert all(s.composition_summary is None for s in reloaded.samples)
+
+
 class TestWordCountRoundtrip:
     """BaselineSample.word_count (original/quantum/state.py:52) must survive a
     full put()/get() round trip on both backends identically. store.py's
@@ -2649,6 +2705,10 @@ def _seed_every_student_table(repo, scoped_id: str, tenant_id: str) -> None:
     repo.log_audit(                                             # audit_log
         action="score", student_id=scoped_id, details={"submission_id": "sub-t08"}
     )
+    repo.consume_proctor_attestation(                           # consumed_attestations
+        "jti-t08", tenant_id, "exam-t08", scoped_id
+    )
+    repo.put_enrollment("course-t08", scoped_id, tenant_id)     # bluebook_enrollments
 
 
 def _count_student_rows(repo, table_names: list[str], scoped_id: str) -> dict[str, int]:
@@ -2761,3 +2821,358 @@ class TestDeleteStudentCompleteness:
             f"behind for {scoped_id} in: {leaked} (pre-delete counts: "
             f"{before}). Every table carrying a student_id must be purged."
         )
+
+    @staticmethod
+    def _seed_bluebook_only(repo, sid: str, tenant: str, exam_id: str) -> None:
+        """Every row a Bluebook-only student can own. No profile: a tenant
+        without Original never creates one (routers/bluebook_accounts.py)."""
+        repo.put_user(sid, f"{sid.split(':')[1]}@x.edu", "!invited", "student", tenant, "Stu")
+        repo.put_invite(
+            {
+                "invite_id": f"inv-{sid}",
+                "tenant_id": tenant,
+                "user_id": sid,
+                "course_id": "bb-course",
+                "token_hash": f"hash-{sid}",
+                "created_by": f"{tenant}:teacher",
+                "created_at": "2026-09-28T00:00:00+00:00",
+                "expires_at": "2026-10-05T00:00:00+00:00",
+            }
+        )
+        repo.put_enrollment("bb-course", sid, tenant)
+        repo.get_or_create_bluebook_session(exam_id, sid, tenant, 600)
+        repo.put_bluebook_submission(
+            {
+                "id": f"bbsub-{sid}",
+                "tenant_id": tenant,
+                "exam_id": exam_id,
+                "student_id": sid,
+                "candidate": "Stu",
+                "word_count": 3,
+                "text": "my own words",
+                "warnings": [{"type": "tab_switch"}],
+            }
+        )
+        repo.log_audit(action="bluebook_dashboard_start", tenant_id=tenant, student_id=sid)
+        repo.consume_proctor_attestation(f"jti-{sid}", tenant, exam_id, sid)
+
+    def test_delete_student_without_a_profile_purges_bluebook_rows(self, repo):
+        """A Bluebook-only student has no Original profile, and erasure used
+        to return False on that alone — purging nothing."""
+        tenant = "bb-erase"
+        sid, peer = f"{tenant}:gone", f"{tenant}:stays"
+        repo.put_tenant(tenant, "BB Erase", environment="production")
+        repo.set_tenant_products(tenant, ["bluebook"])
+        repo.put_user(f"{tenant}:teacher", "t@x.edu", "hash-t", "professor", tenant, "T")
+        repo.put_bluebook_exam({"id": "bb-exam", "tenant_id": tenant, "title": "Midterm"})
+        for s in (sid, peer):
+            self._seed_bluebook_only(repo, s, tenant, "bb-exam")
+        assert repo.get(sid) is None
+        assert repo.get_user(sid) and repo.latest_invite_for_user(sid)
+
+        assert repo.delete_student(sid) is True
+
+        assert repo.get_user(sid) is None
+        assert repo.latest_invite_for_user(sid) is None
+        assert repo.list_enrollments_for_student(sid) == []
+        assert repo.get_bluebook_session("bb-exam", sid) is None
+        assert repo.list_bluebook_submissions_for_student(sid) == []
+        assert repo.list_audit(student_id=sid)["total"] == 0
+        leaked = {
+            n: c for n, c in _count_student_rows(repo, _student_keyed_tables(), sid).items() if c
+        }
+        assert not leaked, leaked
+        # A second erasure finds nothing — and the classmate, the teacher, and
+        # the exam itself are untouched.
+        assert repo.delete_student(sid) is False
+        assert repo.get_user(peer) and repo.latest_invite_for_user(peer)
+        assert repo.list_enrollments_for_student(peer)
+        assert repo.get_bluebook_session("bb-exam", peer) is not None
+        assert len(repo.list_bluebook_submissions_for_student(peer)) == 1
+        assert repo.list_audit(student_id=peer)["total"] == 1
+        assert repo.get_user(f"{tenant}:teacher")["role"] == "professor"
+        assert repo.get_bluebook_exam("bb-exam") is not None
+
+    def test_audit_rows_alone_do_not_make_a_student_erasable(self, repo):
+        """The erasure routes re-log a receipt keyed to the erased id (and a
+        not_found row for an unknown one). Counting audit rows as "the
+        student exists" would let a repeat erasure delete its own receipt."""
+        repo.put_tenant("bb-rcpt", "BB", environment="production")
+        repo.log_audit(action="student_delete", student_id="bb-rcpt:ghost", result="ok")
+        assert repo.delete_student("bb-rcpt:ghost") is False
+        assert repo.list_audit(student_id="bb-rcpt:ghost")["total"] == 1
+
+    def test_staff_login_row_is_never_a_bluebook_footprint(self, repo):
+        repo.put_tenant("bb-staff", "BB", environment="production")
+        repo.put_user("bb-staff:prof", "p@x.edu", "hash-p", "professor", "bb-staff", "P")
+        assert repo.delete_student("bb-staff:prof") is False
+        assert repo.get_user("bb-staff:prof")["role"] == "professor"
+
+
+class TestDeleteTenantStudentsBluebookOnly:
+    """Bulk erasure used to enumerate student_profiles only, so a Bluebook-only
+    workspace (which never creates a profile) kept every student's work."""
+
+    TENANT = "bb-bulk"
+
+    def _setup_tenant(self, repo, tenant=TENANT):
+        repo.put_tenant(tenant, "BB Bulk", environment="production")
+        repo.set_tenant_products(tenant, ["bluebook"])
+        repo.put_user(f"{tenant}:teacher", f"t@{tenant}.edu", "hash-t", "professor", tenant, "T")
+        repo.put_bluebook_exam({"id": f"{tenant}-exam", "tenant_id": tenant, "title": "Midterm"})
+
+    def test_bulk_delete_erases_bluebook_only_students(self, repo):
+        t = self.TENANT
+        exam = f"{t}-exam"
+        self._setup_tenant(repo)
+        self._setup_tenant(repo, "bb-other")
+        seed = TestDeleteStudentCompleteness._seed_bluebook_only
+        seed(repo, f"{t}:full", t, exam)
+        # Each of these is reachable through one table only — no login row.
+        repo.put_bluebook_submission(
+            {"id": "bbsub-subonly", "tenant_id": t, "exam_id": exam, "student_id": f"{t}:subonly"}
+        )
+        repo.put_enrollment("bb-course", f"{t}:enrolonly", t)
+        repo.get_or_create_bluebook_session(exam, f"{t}:sessonly", t, 600)
+        # A profiled student who also sits Bluebook exams is erased once.
+        repo.put(_make_state(f"{t}:profiled"))
+        seed(repo, f"{t}:profiled", t, exam)
+        seed(repo, "bb-other:kid", "bb-other", "bb-other-exam")
+
+        result = repo.delete_tenant_students(t)
+
+        assert result == {"deleted_count": 5, "failed_ids": []}
+        tables = _student_keyed_tables()
+        for sid in ("full", "subonly", "enrolonly", "sessonly", "profiled"):
+            scoped = f"{t}:{sid}"
+            assert repo.get(scoped) is None
+            assert repo.get_user(scoped) is None
+            leaked = {n: c for n, c in _count_student_rows(repo, tables, scoped).items() if c}
+            assert not leaked, (scoped, leaked)
+        # The neighbouring tenant, the teacher, and the exam are untouched.
+        assert repo.get_user("bb-other:kid") and repo.list_enrollments_for_student("bb-other:kid")
+        assert len(repo.list_bluebook_submissions_for_student("bb-other:kid")) == 1
+        assert repo.get_user(f"{t}:teacher")["role"] == "professor"
+        assert repo.get_bluebook_exam(exam) is not None
+        # Nothing left to find on a second pass.
+        assert repo.delete_tenant_students(t) == {"deleted_count": 0, "failed_ids": []}
+
+    def test_bulk_delete_skips_staff_and_unscoped_bluebook_keys(self, repo):
+        """A teacher previewing their own exam pins a session under their own
+        id, and a demo walk-in sits under a ``cand:`` label that belongs to no
+        tenant. Neither is one of this tenant's students."""
+        t = self.TENANT
+        exam = f"{t}-exam"
+        self._setup_tenant(repo)
+        repo.get_or_create_bluebook_session(exam, f"{t}:teacher", t, 600)
+        repo.get_or_create_bluebook_session(exam, "cand:Walk-in", t, 600)
+
+        assert repo.delete_tenant_students(t) == {"deleted_count": 0, "failed_ids": []}
+        assert repo.get_user(f"{t}:teacher")["role"] == "professor"
+        assert repo.get_bluebook_session(exam, f"{t}:teacher") is not None
+        assert repo.get_bluebook_session(exam, "cand:Walk-in") is not None
+
+
+# ── Bluebook self-serve (2026-09) ─────────────────────────────────────────────
+# Every repository method the self-serve backend added, on both backends
+# (docs/superpowers/specs/2026-09-17-bluebook-standalone-backend-design.md,
+# Section 3). Timestamps are compared by instant, not string, because SQLite
+# keeps the caller's ISO text and Postgres round-trips a timestamptz.
+
+
+def _iso_eq(a, b):
+    from datetime import datetime as _dt
+
+    return _dt.fromisoformat(a) == _dt.fromisoformat(b)
+
+
+class TestBluebookSelfServeContract:
+    def test_tenant_products_default_and_set(self, repo):
+        repo.put_tenant("ss-t", "SS", environment="pilot")
+        assert sorted(repo.get_tenant("ss-t")["products"]) == ["bluebook", "original"]
+        assert repo.set_tenant_products("ss-t", ["bluebook"]) is True
+        assert repo.get_tenant("ss-t")["products"] == ["bluebook"]
+        assert [t["products"] for t in repo.list_tenants() if t["tenant_id"] == "ss-t"] == [
+            ["bluebook"]
+        ]
+        # put_tenant never resets products on update
+        repo.put_tenant("ss-t", "SS renamed", environment="pilot")
+        assert repo.get_tenant("ss-t")["products"] == ["bluebook"]
+        assert repo.set_tenant_products("no-such-tenant", ["bluebook"]) is False
+
+    def test_users_by_id_and_password(self, repo):
+        repo.put_tenant("ss-u", "SS", environment="pilot")
+        repo.put_user("ss-u:aaa", "A@x.edu", "!invited", "student", "ss-u", "Ann")
+        repo.put_user("ss-u:bbb", "b@x.edu", "hash-b", "student", "ss-u", "Bob")
+        got = repo.get_user("ss-u:aaa")
+        assert (got["email"], got["role"], got["name"]) == ("a@x.edu", "student", "Ann")
+        assert repo.get_user("nobody") is None
+        listed = repo.list_users_by_ids(["ss-u:bbb", "ss-u:aaa", "ss-u:aaa", "ghost"])
+        assert sorted(u["user_id"] for u in listed) == ["ss-u:aaa", "ss-u:bbb"]
+        assert repo.list_users_by_ids([]) == []
+        assert repo.set_user_password_hash("ss-u:aaa", "new-hash") is True
+        assert repo.get_user("ss-u:aaa")["password_hash"] == "new-hash"
+        assert repo.set_user_password_hash("ghost", "x") is False
+
+    def test_exam_window_columns_and_delete(self, repo):
+        repo.put_tenant("ss-e", "SS", environment="pilot")
+        opens, closes = "2026-10-01T09:00:00+00:00", "2026-10-01T11:00:00+00:00"
+        repo.put_bluebook_exam(
+            {
+                "id": "ss-exam",
+                "tenant_id": "ss-e",
+                "title": "Windowed",
+                "course_id": "ss-course",
+                "opens_at": opens,
+                "closes_at": closes,
+            }
+        )
+        e = repo.get_bluebook_exam("ss-exam")
+        assert e["course_id"] == "ss-course"
+        assert _iso_eq(e["opens_at"], opens) and _iso_eq(e["closes_at"], closes)
+        # upsert can clear the window
+        repo.put_bluebook_exam({**e, "opens_at": None, "closes_at": None, "course_id": None})
+        e = repo.get_bluebook_exam("ss-exam")
+        assert (e["opens_at"], e["closes_at"], e["course_id"]) == (None, None, None)
+        assert repo.delete_bluebook_exam("ss-exam") is True
+        assert repo.get_bluebook_exam("ss-exam") is None
+        assert repo.delete_bluebook_exam("ss-exam") is False
+
+    def test_submission_text_warnings_and_queries(self, repo):
+        repo.put_tenant("ss-s", "SS", environment="pilot")
+        repo.put_tenant("ss-s2", "SS2", environment="pilot")
+        warnings = [{"type": "tab_hidden", "at": "2026-10-01T09:05:00Z"}]
+        base = {"tenant_id": "ss-s", "student_id": "ss-s:ann", "word_count": 3}
+        repo.put_bluebook_submission({**base, "id": "sub-1", "exam_id": "ex-1", "text": "one", "warnings": warnings})
+        repo.put_bluebook_submission({**base, "id": "sub-2", "exam_id": "ex-1", "text": "two"})
+        repo.put_bluebook_submission({**base, "id": "sub-3", "exam_id": "ex-2", "student_id": "ss-s:bob"})
+        repo.put_bluebook_submission({"id": "sub-4", "exam_id": "ex-9", "tenant_id": "ss-s2", "student_id": "ss-s2:x"})
+
+        got = repo.get_bluebook_submission("sub-1")
+        assert (got["text"], got["warnings"]) == ("one", warnings)
+        assert repo.get_bluebook_submission("sub-2")["warnings"] == []
+        assert repo.get_bluebook_submission("nope") is None
+        # list views: warnings present, text absent
+        listed = {s["id"]: s for s in repo.list_bluebook_submissions("ss-s")}
+        assert listed["sub-1"]["warnings"] == warnings and "text" not in listed["sub-1"]
+
+        mine = repo.list_bluebook_submissions_for_student("ss-s:ann")
+        assert sorted(s["id"] for s in mine) == ["sub-1", "sub-2"]
+        assert all("text" not in s for s in mine)
+        exported = repo.list_bluebook_submissions_for_exam("ex-1")
+        assert sorted(s["text"] for s in exported) == ["one", "two"]
+
+        assert repo.bluebook_submission_counts_by_exam("ss-s") == {"ex-1": 2, "ex-2": 1}
+        assert repo.bluebook_submission_counts_by_exam(None)["ex-9"] == 1
+        assert repo.count_bluebook_submissions_since("ss-s", "2000-01-01T00:00:00+00:00") == 3
+        assert repo.count_bluebook_submissions_since("ss-s", "2999-01-01T00:00:00+00:00") == 0
+
+    def test_course_get_and_delete_takes_roster_with_it(self, repo):
+        repo.put_tenant("ss-c", "SS", environment="pilot")
+        repo.put_bluebook_course({"id": "crs", "tenant_id": "ss-c", "name": "Ethics"})
+        assert repo.get_bluebook_course("crs")["name"] == "Ethics"
+        assert repo.get_bluebook_course("nope") is None
+        repo.put_enrollment("crs", "ss-c:ann", "ss-c")
+        assert repo.delete_bluebook_course("crs") is True
+        assert repo.get_bluebook_course("crs") is None
+        assert repo.list_enrollments_for_student("ss-c:ann") == []
+        assert repo.delete_bluebook_course("crs") is False
+
+    def test_enrollments(self, repo):
+        repo.put_tenant("ss-n", "SS", environment="pilot")
+        repo.put_tenant("ss-n2", "SS2", environment="pilot")
+        repo.put_enrollment("c1", "ss-n:ann", "ss-n")
+        repo.put_enrollment("c1", "ss-n:ann", "ss-n")  # idempotent
+        repo.put_enrollment("c1", "ss-n:bob", "ss-n")
+        repo.put_enrollment("c2", "ss-n:ann", "ss-n")
+        repo.put_enrollment("c9", "ss-n2:zed", "ss-n2")
+        assert [e["student_id"] for e in repo.list_enrollments_for_course("c1")] == [
+            "ss-n:ann",
+            "ss-n:bob",
+        ]
+        assert sorted(e["course_id"] for e in repo.list_enrollments_for_student("ss-n:ann")) == [
+            "c1",
+            "c2",
+        ]
+        assert repo.enrollment_counts_by_course("ss-n") == {"c1": 2, "c2": 1}
+        assert repo.enrollment_counts_by_course(None)["c9"] == 1
+        assert repo.count_enrolled_students("ss-n") == 2  # distinct, not rows
+        assert repo.delete_enrollment("c1", "ss-n:bob") is True
+        assert repo.delete_enrollment("c1", "ss-n:bob") is False
+
+    def test_invites_single_use_and_voiding(self, repo):
+        repo.put_tenant("ss-i", "SS", environment="pilot")
+
+        def inv(invite_id, token_hash, created_at, course_id="c1"):
+            return {
+                "invite_id": invite_id,
+                "tenant_id": "ss-i",
+                "user_id": "ss-i:ann",
+                "course_id": course_id,
+                "token_hash": token_hash,
+                "created_by": "prof",
+                "created_at": created_at,
+                "expires_at": "2099-01-01T00:00:00+00:00",
+            }
+
+        repo.put_invite(inv("i1", "h1", "2026-10-01T00:00:00+00:00"))
+        got = repo.get_invite_by_hash("h1")
+        assert (got["invite_id"], got["course_id"], got["redeemed_at"], got["voided_at"]) == (
+            "i1",
+            "c1",
+            None,
+            None,
+        )
+        assert repo.get_invite_by_hash("nope") is None
+        assert repo.redeem_invite("i1") is True
+        assert repo.redeem_invite("i1") is False  # single use
+        assert repo.get_invite_by_hash("h1")["redeemed_at"] is not None
+
+        repo.put_invite(inv("i2", "h2", "2026-10-02T00:00:00+00:00", course_id=None))
+        repo.put_invite(inv("i3", "h3", "2026-10-03T00:00:00+00:00"))
+        assert repo.latest_invite_for_user("ss-i:ann")["invite_id"] == "i3"
+        assert repo.latest_invite_for_user("ghost") is None
+        # voids the two unredeemed ones, never the redeemed one
+        assert repo.void_invites_for_user("ss-i:ann") == 2
+        assert repo.redeem_invite("i3") is False
+        assert repo.get_invite_by_hash("h1")["voided_at"] is None
+        assert repo.void_invites_for_user("ss-i:ann") == 0
+
+
+class TestBluebookRound2Contract:
+    """Round 2 (2026-10): questions, release, answers and grading, both backends."""
+
+    def test_exam_questions_and_release_round_trip(self, repo):
+        repo.put_tenant("r2-e", "R2", environment="pilot")
+        repo.put_bluebook_exam(
+            {"id": "r2-exam", "tenant_id": "r2-e", "title": "T", "questions": ["Q1?", "Q2?"]}
+        )
+        e = repo.get_bluebook_exam("r2-exam")
+        assert (e["questions"], e["results_released_at"]) == (["Q1?", "Q2?"], None)
+        released = "2026-10-01T12:00:00+00:00"
+        repo.put_bluebook_exam({**e, "results_released_at": released})
+        e = repo.get_bluebook_exam("r2-exam")
+        assert _iso_eq(e["results_released_at"], released)
+        assert [x["results_released_at"] is not None for x in repo.list_bluebook_exams("r2-e")] == [True]
+        repo.put_bluebook_exam({**e, "results_released_at": None, "questions": []})
+        e = repo.get_bluebook_exam("r2-exam")
+        assert (e["questions"], e["results_released_at"]) == ([], None)
+
+    def test_answers_and_feedback(self, repo):
+        repo.put_tenant("r2-s", "R2", environment="pilot")
+        repo.put_bluebook_submission(
+            {"id": "r2-sub", "exam_id": "r2-exam", "tenant_id": "r2-s", "student_id": "r2-s:ann",
+             "text": "joined", "answers": ["a1", "a2"]}
+        )
+        got = repo.get_bluebook_submission("r2-sub")
+        assert got["answers"] == ["a1", "a2"]
+        assert (got["mark"], got["feedback"], got["graded_at"], got["graded_by"]) == (None, None, None, None)
+        assert repo.list_bluebook_submissions_for_exam("r2-exam")[0]["answers"] == ["a1", "a2"]
+        assert repo.set_bluebook_submission_feedback("r2-sub", "B+", "Good.", "prof-1") is True
+        got = repo.get_bluebook_submission("r2-sub")
+        assert (got["mark"], got["feedback"], got["graded_by"]) == ("B+", "Good.", "prof-1")
+        assert got["graded_at"] is not None
+        listed = repo.list_bluebook_submissions("r2-s")[0]
+        assert (listed["mark"], listed["feedback"]) == ("B+", "Good.")
+        assert "answers" not in listed  # list views stay light
+        assert repo.set_bluebook_submission_feedback("missing", "A", None, "p") is False

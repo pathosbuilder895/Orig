@@ -12,7 +12,7 @@ import logging
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
-from .. import baseline_requests, bbook_client
+from .. import baseline_requests, bbook_client, consumed_attestations, student_auth
 from .. import principal as principal_mod
 from ..constants import AUTH_WEIGHTS
 from ..features.pipeline import feature_vector
@@ -25,6 +25,28 @@ router = APIRouter()
 
 
 # ── Add baseline sample ───────────────────────────────────────────────────────
+
+
+def _strip_raw_keystroke_arrays(keystroke_data: dict | None) -> dict | None:
+    """ADR-010 (keystroke capture is macro-only): drop the raw per-key
+    ``keystrokes`` and per-pause ``pauses`` arrays from an incoming
+    ``keystroke_data`` blob before it is ever persisted.
+
+    Every other key in the blob (``revisions``, ``deletionRate``,
+    ``wordCount``, ``sessionDurationSec``, ``avgWpm``, etc. — see
+    ``original/features/tier17.py``) is a macro/precomputed summary field,
+    not raw per-key timing, and is kept. ``None`` passes through unchanged
+    so a request without any keystroke telemetry stays that way. Returns a
+    new dict — the caller's original ``keystroke_data`` (e.g. the request
+    object, or whatever still needs the raw arrays for transient Tier 17
+    feature extraction before this point) is never mutated.
+    """
+    if keystroke_data is None:
+        return None
+    stripped = dict(keystroke_data)
+    stripped.pop("keystrokes", None)
+    stripped.pop("pauses", None)
+    return stripped
 
 
 def _hashes_from_samples(samples) -> set[str]:
@@ -55,6 +77,40 @@ def _existing_text_hashes(student_id: str) -> set[str]:
     if state is None:
         return set()
     return _hashes_from_samples(state.samples)
+
+
+def _consume_proctor_attestation_if_needed(
+    request: Request | None, student_id: str, sample: BaselineSample, provenance: str
+) -> tuple[str, bool]:
+    """Single-use enforcement for proctor attestations (T-69).
+
+    If ``sample`` was admitted at 'proctored' trust and the caller
+    presented an ``X-Proctor-Attestation`` header, consume the token's jti;
+    a second write presenting the same token (replay within its 6h window)
+    is retroactively downgraded rather than admitted at full weight again.
+    Mutates ``sample`` in place on downgrade — safe because every baseline
+    aggregate (``baseline_mean``/``baseline_std``/``loo_distances``) filters
+    on ``auth_weight`` at READ time (quantum/state.py), never at admit time.
+
+    No-op (returns ``provenance`` unchanged, no downgrade) when there is no
+    attestation header or the sample wasn't admitted at proctored trust in
+    the first place — the common case for every non-proctored write.
+
+    Returns ``(effective_provenance, downgraded_here)``.
+    """
+    if provenance != "proctored" or request is None:
+        return provenance, False
+    attestation = request.headers.get("X-Proctor-Attestation", "")
+    if not attestation:
+        return provenance, False
+    jti = student_auth.attestation_jti(attestation)
+    exam = student_auth.attestation_exam(attestation)
+    tenant_id = principal_mod.tenant_of(student_id)
+    if consumed_attestations.mark_used(jti, tenant_id, exam, student_id):
+        return provenance, False
+    sample.provenance = "unverified"
+    sample.auth_weight = AUTH_WEIGHTS["unverified"]
+    return "unverified", True
 
 
 @router.post("/students/{student_id}/baseline")
@@ -114,7 +170,12 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
         assignment=req.assignment,
         submitted_at=req.submitted_at,
         genre=_sample_genre,
-        keystroke_data=req.keystroke_data,
+        # ADR-010: never persist the raw per-key/per-pause arrays — only the
+        # macro/summary fields (if any) inside the blob survive. `vec` above
+        # was already extracted from the unstripped req.keystroke_data, so
+        # Tier 17's (currently-disabled) feature extraction is unaffected.
+        keystroke_data=_strip_raw_keystroke_arrays(req.keystroke_data),
+        composition_summary=req.composition_summary,
     )
 
     # ── Phase 8: drift gate before adding to baseline ─────────────────────────
@@ -152,6 +213,17 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
         raise HTTPException(status_code=status_code, detail=body.model_dump())
 
     state.add_sample(sample)
+
+    # Proctor attestations are single-use (T-69). Consumed only here, after
+    # a successful admit — not before the drift gate above — so a
+    # drift-held (202/409) attempt never burns the attestation; a
+    # legitimate retry of the same sitting can still redeem it.
+    provenance, downgraded_by_replay = _consume_proctor_attestation_if_needed(
+        request, student_id, sample, provenance
+    )
+    if downgraded_by_replay:
+        auth_weight = AUTH_WEIGHTS["unverified"]
+        provenance_downgraded = True
 
     # Update tension arc κ baseline for authenticated samples
     if provenance in ("proctored", "verified"):
@@ -244,9 +316,26 @@ class RequestBaselineRequest(_PydanticBaseModel):
 
 
 @router.post("/students/{student_id}/request-baseline")
-def request_proctored_baseline(student_id: str, req: RequestBaselineRequest):
+def request_proctored_baseline(student_id: str, req: RequestBaselineRequest, request: Request):
     """
     Provision a magic-link proctored baseline exam in Bbook for this student.
+
+    Staff only: provisioning an exam is an instructor action, not something a
+    student may trigger for themselves (T-68) — the guard runs before the
+    Bbook-config check so an unauthorized caller is refused even when the
+    integration is unconfigured. ``request`` has no ``= None`` default on
+    purpose: FastAPI always injects it over HTTP, and ``_require_staff`` has
+    no in-process ``None`` arm, so a default would only turn a scripted call
+    into an AttributeError.
+
+    Guard choice, recorded: this uses ``_require_staff`` (mirroring
+    ``/baseline-requests/pending``), which admits the anonymous demo
+    principal OFF a real deploy. The route emails a live magic-link bearer
+    credential to a caller-supplied address, which is closer to
+    ``_require_non_demo_staff``'s rationale; it is acceptable today only
+    because Bbook (``BBOOK_API_URL``) is configured solely on the pilot
+    service, where the demo principal is refused. Revisit if Bbook is ever
+    enabled on the demo deploy.
 
     Returns the pending request record with the magic-link URL (only when
     SMTP delivery failed or is unconfigured — otherwise the student receives
@@ -256,6 +345,8 @@ def request_proctored_baseline(student_id: str, req: RequestBaselineRequest):
     Requires BBOOK_API_URL and BBOOK_EXTERNAL_SECRET in the environment.
     Returns 503 if Bbook integration is not configured, 502 on Bbook errors.
     """
+    _require_staff(request)
+
     if not bbook_client.is_enabled():
         raise HTTPException(
             status_code=503,
@@ -361,16 +452,33 @@ def upload_baseline_batch(
     files: list[UploadFile] = File(...),
     provenance: str = Form("verified"),
     assignment: str = Form(""),
+    request: Request = None,
 ):
     """
     Upload one or more files (PDF, DOCX, TXT) as baseline samples in a single
-    request.  Mirrors the v1 batch upload but requires no auth — used by the
-    Import Papers drawer in the professor demo.
+    request. Used by the Import Papers drawer in the professor demo.
+
+    High-trust provenance is gated the same way ``add_baseline`` gates it:
+    a non-staff caller without a valid proctor attestation is downgraded to
+    ``unverified`` (never rejected), so the batch route can no longer be used
+    to self-assert ``verified`` for uploaded files (T-67). The anonymous demo
+    principal keeps its requested provenance OFF a real deploy, exactly as
+    ``add_baseline`` does — the sandbox path is byte-identical.
+
+    The response always carries ``provenance`` / ``requested_provenance`` /
+    ``provenance_downgraded`` (``add_baseline`` emits the latter two only on
+    a downgrade); always-present is the deliberate convention here because a
+    batch has one effective provenance for every file it admitted.
     """
     if provenance not in AUTH_WEIGHTS:
         raise HTTPException(
             status_code=422, detail=f"provenance must be one of: {list(AUTH_WEIGHTS)}"
         )
+
+    # Gate high-trust provenance behind staff/attestation (see
+    # _authorize_provenance) — the batch route previously skipped this.
+    requested_provenance = provenance
+    provenance, provenance_downgraded = _authorize_provenance(request, student_id, provenance)
 
     state = _repo().get_or_create(student_id)
     imported = 0
@@ -477,6 +585,19 @@ def upload_baseline_batch(
 
         state.add_sample(sample)
 
+        # T-69: consumed per file, exactly as add_baseline does, not once
+        # per batch — a proctor attestation authorizes ONE document, so a
+        # batch trying to admit several under the same attestation must
+        # only honor the first. Once `provenance` is downgraded, every
+        # remaining file's own call short-circuits at
+        # _consume_proctor_attestation_if_needed's first check
+        # (provenance != "proctored") without touching the ledger again.
+        provenance, downgraded_by_replay = _consume_proctor_attestation_if_needed(
+            request, student_id, sample, provenance
+        )
+        if downgraded_by_replay:
+            provenance_downgraded = True
+
         if provenance in ("proctored", "verified"):
             arc = analyze_tension_arc(text)
             if arc.catastrophe_index > 0:
@@ -490,9 +611,33 @@ def upload_baseline_batch(
     if imported > 0 or drift_holds:
         _persist_or_503(state)
 
+    # Audit log — mirrors add_baseline's shape so a provenance downgrade on
+    # this route leaves the same forensic trace (attack 7 in the threat
+    # model: the batch route is a detection surface, not just an ingest).
+    _repo().log_audit(
+        action="baseline_batch_upload",
+        student_id=student_id,
+        details={
+            "provenance": provenance,
+            "auth_weight": AUTH_WEIGHTS[provenance],
+            "imported": imported,
+            "skipped_duplicates": skipped_duplicates,
+            "drift_holds": len(drift_holds),
+            "sample_count_after": state.sample_count,
+            **(
+                {"requested_provenance": requested_provenance, "provenance_downgraded": True}
+                if provenance_downgraded
+                else {}
+            ),
+        },
+    )
+
     return {
         "imported": imported,
         "skipped_duplicates": skipped_duplicates,
         "errors": errors,
         "drift_holds": drift_holds,
+        "provenance": provenance,
+        "requested_provenance": requested_provenance,
+        "provenance_downgraded": provenance_downgraded,
     }

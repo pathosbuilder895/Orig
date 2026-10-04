@@ -8,7 +8,7 @@
     "operator": 200,
     "tampered": 401,
     "expired": 401,
-    "_note": "T-63 open: /admin/audit has no tenant filter — professor_other (tenant B staff) reads tenant A's audit log (200, not 403)."
+    "_note": "T-63 open: /admin/audit has no tenant filter \u2014 professor_other (tenant B staff) reads tenant A's audit log (200, not 403)."
   },
   "GET /auth/me": {
     "anonymous": 401,
@@ -21,14 +21,14 @@
     "expired": 401
   },
   "GET /bluebook/exams": {
-    "anonymous": 200,
-    "student_own": 200,
-    "student_other": 200,
+    "anonymous": 401,
+    "student_own": 403,
+    "student_other": 403,
     "professor_own": 200,
     "professor_other": 200,
     "operator": 200,
-    "tampered": 200,
-    "expired": 200
+    "tampered": 401,
+    "expired": 401
   },
   "GET /health": {
     "anonymous": 200,
@@ -99,7 +99,7 @@
     "operator": 200,
     "tampered": 401,
     "expired": 401,
-    "_note": "T-02 open: pending baseline requests have no tenant filter — professor_other (tenant B staff) reads tenant A's pending requests (200, not 403)."
+    "_note": "T-02 open: pending baseline requests have no tenant filter \u2014 professor_other (tenant B staff) reads tenant A's pending requests (200, not 403)."
   },
   "POST /students/{A_student}/score": {
     "anonymous": 403,
@@ -118,6 +118,16 @@
     "professor_own": 200,
     "professor_other": 403,
     "operator": 200,
+    "tampered": 401,
+    "expired": 401
+  },
+  "GET /bluebook/me": {
+    "anonymous": 401,
+    "student_own": 200,
+    "student_other": 200,
+    "professor_own": 403,
+    "professor_other": 403,
+    "operator": 403,
     "tampered": 401,
     "expired": 401
   }

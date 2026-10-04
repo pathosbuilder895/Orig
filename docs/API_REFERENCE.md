@@ -91,7 +91,7 @@ their sensitivity (noted inline).
 | DELETE | `/students/{student_id}` | Permanently delete all stored data for a student (FERPA right-to-erasure). | Principal (staff), tenant-scoped |
 | GET | `/students/{student_id}/data-inventory` | FERPA data-access response: structured inventory of everything held for a student. | Principal (staff), tenant-scoped |
 | POST | `/students/{student_id}/baseline` | Add one baseline writing sample. | Principal (staff), tenant-scoped |
-| POST | `/students/{student_id}/baseline/upload-batch` | Bulk-upload baseline samples from files. | Principal (staff), tenant-scoped |
+| POST | `/students/{student_id}/baseline/upload-batch` | Bulk-upload baseline samples from files. | Tenant-scoped; any principal may write, but trusted provenance (`proctored`/`verified`/`canvas`) requires staff or a proctor attestation — otherwise downgraded to `unverified` (T-67) |
 | POST | `/students/{student_id}/upload` | Extract plain text from an uploaded `.txt`/`.docx`/`.pdf` (utility endpoint, no persistence). | Principal (staff) |
 | POST | `/students/{student_id}/request-baseline` | Provision a magic-link proctored baseline exam in Bluebook. | Principal (staff), tenant-scoped |
 | POST | `/students/{student_id}/score` | Score a submission against the student's baseline (the core Layer-7 pipeline). | Principal (staff), tenant-scoped |

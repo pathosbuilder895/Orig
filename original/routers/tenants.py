@@ -5,10 +5,21 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request
 
 from .. import principal as principal_mod
-from ..schemas import CreateTenantRequest
+from .. import student_auth
+from ..schemas import CreateTenantRequest, TenantProductsRequest
 from ._shared import _repo, _require_guard, _require_staff
 
 router = APIRouter()
+
+
+def _validate_products(products) -> list[str]:
+    cleaned = sorted({str(p).strip().lower() for p in products or []})
+    if not cleaned or not set(cleaned) <= principal_mod.ALL_PRODUCTS:
+        raise HTTPException(
+            status_code=422,
+            detail="products must be a non-empty subset of: bluebook, original",
+        )
+    return cleaned
 
 
 # ── Tenant registry ───────────────────────────────────────────────────────────
@@ -40,6 +51,15 @@ def create_tenant(body: CreateTenantRequest, request: Request):
     name = body.name.strip()
     if not tenant_id or not name:
         raise HTTPException(status_code=422, detail="tenant_id and name are required")
+    # Student ids are derived as f"{slugify(tenant)}:{hash}", so a tenant id
+    # that is not its own slug would put its students under a different
+    # prefix than the tenant — outside its own isolation boundary.
+    if student_auth.slugify(tenant_id) != tenant_id:
+        raise HTTPException(
+            status_code=422,
+            detail="tenant_id must be a lowercase slug (letters, digits, hyphens)",
+        )
+    products = _validate_products(body.products) if body.products is not None else None
     if len(tenant_id) > 80 or len(name) > 200:
         raise HTTPException(status_code=422, detail="tenant_id max 80 chars, name max 200 chars")
     environment = body.environment
@@ -74,6 +94,8 @@ def create_tenant(body: CreateTenantRequest, request: Request):
         raise HTTPException(status_code=422, detail="meta must have at most 10 keys")
     meta = {str(k)[:80]: str(v)[:500] for k, v in list(meta.items())[:10]}
     _repo().put_tenant(tenant_id, name, environment=environment, meta=meta)
+    if products is not None:
+        _repo().set_tenant_products(tenant_id, products)
     principal_mod.invalidate_tenant_cache()  # env may have changed → drop stale cache
     _repo().log_audit(
         action="tenant_register",
@@ -94,8 +116,33 @@ def list_tenants(request: Request, environment: str = ""):
     previously reachable with NO auth check at all; this closes that gap
     without changing who can see it.
     """
-    _require_staff(request)
-    return _repo().list_tenants(environment=environment or None)
+    principal = _require_staff(request)
+    tenants = _repo().list_tenants(environment=environment or None)
+    # Self-serve (2026-09): any teacher can now sign up, so a cross-tenant
+    # registry would list every other teacher's workspace. Only operators
+    # (and the demo sandbox) see all tenants; everyone else sees their own.
+    if principal.is_demo or principal.role in principal_mod.SUPER_ROLES:
+        return tenants
+    return [t for t in tenants if t.get("tenant_id") == principal.tenant_id]
+
+
+@router.patch("/tenants/{tenant_id}")
+def update_tenant_products(tenant_id: str, body: TenantProductsRequest, request: Request):
+    """Change which products a tenant holds — the upgrade path from
+    Bluebook-only to Bluebook + Original. Operator only, and guarded like
+    POST /tenants: widening a tenant's products widens what it can reach."""
+    _require_guard(request)
+    principal = _require_staff(request)
+    if not principal.is_demo and principal.role not in principal_mod.SUPER_ROLES:
+        raise HTTPException(status_code=403, detail="Operator role required.")
+    products = _validate_products(body.products)
+    if not _repo().set_tenant_products(tenant_id, products):
+        raise HTTPException(status_code=404, detail=f"Tenant '{tenant_id}' not found")
+    principal_mod.invalidate_tenant_cache()
+    _repo().log_audit(
+        action="tenant_products_update", tenant_id=tenant_id, details={"products": products}
+    )
+    return _repo().get_tenant(tenant_id)
 
 
 @router.get("/tenants/{tenant_id}")
@@ -138,9 +185,10 @@ def delete_tenant_students(tenant_id: str, request: Request):
     """
     FERPA-safe bulk deletion of all students belonging to a tenant.
 
-    Iterates list_ids_for_tenant() and calls store.delete_student() for each —
-    the same code path as individual deletion, so all linked records
-    (fidelity scores, manifests, corrections, audit rows) are purged.
+    Iterates list_ids_for_tenant() plus the tenant's Bluebook-only students
+    (no Original profile) and calls delete_student() for each — the same code
+    path as individual deletion, so all linked records (fidelity scores,
+    manifests, corrections, audit rows, Bluebook rows) are purged.
 
     Requires operator/super_admin — or, for any other staff role, that the
     caller's own tenant matches ``tenant_id`` — in addition to the existing

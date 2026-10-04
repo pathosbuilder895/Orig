@@ -18,7 +18,9 @@ place to audit.
 Identity sources, in priority order (``resolve_principal``):
   1. Signed **principal token** (professor / admin / operator) — issued by the
      email/password or LTI login (Phase 1.x). Carries ``{sub, role, tid}``.
-  2. Student **session** token (``student_auth.verify_session``).
+  2. Student **session** token (``student_auth.verify_session``). An
+     account-backed session (``acct`` claim) is revoked once its ``users``
+     row is gone — see ``_account_session_live``.
   3. **Demo / anonymous** fallback.
 
 The signed-token scheme reuses ``student_auth``'s HMAC(SECRET_KEY) signing so
@@ -78,13 +80,23 @@ def _is_real_deploy() -> bool:
         return os.environ.get("ORIGINAL_ENV") in _REAL_DEPLOY_ENVIRONMENTS
 
 
+# Products a tenant can hold (Bluebook self-serve, 2026-09). A tenant with no
+# row, or a row that predates the products column, holds both — so nothing
+# that worked before the column existed stops working.
+ALL_PRODUCTS = frozenset({"original", "bluebook"})
+
+
 @dataclass(frozen=True)
 class Principal:
     user_id: str
     role: str  # student | professor | admin | operator | super_admin | demo
     tenant_id: str  # "demo" for the anonymous sandbox
-    auth_method: str  # "demo" | "session" | "principal-token"
+    auth_method: str  # "demo" | "session" | "principal-token" | "revoked"
     is_demo: bool = False
+    # What the principal's tenant bought. Resolved per request from the
+    # tenant record (cached, see tenant_products); enforced by the product
+    # gate in api.py's tenant_isolation middleware.
+    products: frozenset = ALL_PRODUCTS
 
 
 class TenantAccessError(PermissionError):
@@ -159,11 +171,36 @@ def tenant_of(student_id: str) -> str | None:
 
 
 _ENV_CACHE: dict[str, str | None] = {}
+_PRODUCTS_CACHE: dict[str, frozenset] = {}
 
 
 def invalidate_tenant_cache() -> None:
-    """Clear the tenant→environment cache (call after a tenant is registered)."""
+    """Clear the tenant→environment and tenant→products caches (call after a
+    tenant is registered or its products change)."""
     _ENV_CACHE.clear()
+    _PRODUCTS_CACHE.clear()
+
+
+def tenant_products(tenant_id: str | None) -> frozenset:
+    """Products the tenant holds. Unknown tenants, and any lookup failure,
+    resolve to every product: the gate only ever narrows a tenant that has
+    explicitly been sold less. Cached like tenant_environment."""
+    if not tenant_id or tenant_id == DEMO_TENANT:
+        return ALL_PRODUCTS
+    cached = _PRODUCTS_CACHE.get(tenant_id)
+    if cached is not None:
+        return cached
+    products = ALL_PRODUCTS
+    try:
+        from .repository import get_repository
+
+        rec = get_repository().get_tenant(tenant_id)
+        if rec and rec.get("products"):
+            products = frozenset(rec["products"]) & ALL_PRODUCTS or ALL_PRODUCTS
+    except Exception:
+        products = ALL_PRODUCTS
+    _PRODUCTS_CACHE[tenant_id] = products
+    return products
 
 
 def tenant_environment(slug: str) -> str | None:
@@ -185,6 +222,35 @@ def tenant_environment(slug: str) -> str | None:
 
 # ── Identity resolution ────────────────────────────────────────────────────────
 
+# A validly signed student session whose account has since been erased. It
+# must not fall back to the demo principal (off a real deploy that is the
+# operator), so it resolves to an identity that matches no student id, no
+# tenant, no staff role, and no product; the isolation middleware answers
+# it with 401 before any handler runs.
+REVOKED = Principal(
+    user_id="",
+    role="revoked",
+    tenant_id="",
+    auth_method="revoked",
+    products=frozenset(),
+)
+
+
+def _account_session_live(sid: str) -> bool:
+    """Whether an account-backed student session's login still exists.
+
+    One primary-key lookup, paid only by sessions carrying the ``acct``
+    claim (password login / invite redemption). Signed launch-link, LTI and
+    demo sessions have no ``users`` row by design and never reach here. A
+    lookup failure fails closed: this is an authorization check."""
+    try:
+        from .repository import get_repository
+
+        user = get_repository().get_user(sid)
+    except Exception:
+        return False
+    return user is not None and user.get("role") == "student"
+
 
 def _bearer(request) -> str:
     h = request.headers.get("authorization") or request.headers.get("Authorization") or ""
@@ -201,21 +267,27 @@ def resolve_principal(request) -> Principal:
     if tok:
         body = verify_principal_token(tok)
         if body:
+            tid = str(body["tid"])
             return Principal(
                 user_id=str(body["sub"]),
                 role=str(body.get("role", "professor")),
-                tenant_id=str(body["tid"]),
+                tenant_id=tid,
                 auth_method="principal-token",
+                products=tenant_products(tid),
             )
         # 2) Student session
         sess = student_auth.verify_session(tok)
         if sess:
             sid = str(sess.get("sid", ""))
+            if sess.get("acct") and not _account_session_live(sid):
+                return REVOKED
+            tid = tenant_of(sid) or DEMO_TENANT
             return Principal(
                 user_id=sid,
                 role="student",
-                tenant_id=tenant_of(sid) or DEMO_TENANT,
+                tenant_id=tid,
                 auth_method="session",
+                products=tenant_products(tid),
             )
 
     # 3) Demo / anonymous sandbox

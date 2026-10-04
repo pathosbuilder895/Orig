@@ -673,7 +673,11 @@ def _build_suggested_action(action: str, student_name: str) -> str:
 # ── Confidence note ───────────────────────────────────────────────────────────
 
 
-def _build_confidence_note(sample_count: int, n_tokens: int | None = None) -> str:
+def _build_confidence_note(
+    sample_count: int,
+    n_tokens: int | None = None,
+    baseline_integrity: object | None = None,
+) -> str:
     if sample_count >= 8:
         note = (
             f"This comparison is based on {sample_count} authenticated writing "
@@ -697,6 +701,28 @@ def _build_confidence_note(sample_count: int, n_tokens: int | None = None) -> st
             " Also note this submission is quite short — style measurements "
             "on brief texts are less certain, so weigh this result lightly."
         )
+    # baseline_integrity caveats (T-70, report-only baseline health diagnostic).
+    # These are caveats about the BASELINE itself — how much it should be
+    # trusted as a reference — which is what confidence_note already covers
+    # (sample-count reliability, short-submission caveat above), not about
+    # this submission's writing features (that's observations' job). Additive
+    # prose only; None/absent/"ready"-with-no-outliers keeps this byte-identical.
+    if baseline_integrity is not None:
+        readiness = getattr(baseline_integrity, "readiness", None)
+        loo_outliers = getattr(baseline_integrity, "loo_outlier_samples", None) or []
+        # Both conditions are independent axes (small baseline vs. one odd
+        # sample within it), not tiers of one signal — like the n_tokens
+        # caveat above, each gets its own sentence when it applies, rather
+        # than collapsing to a single "worse of the two" note.
+        if readiness == "thin":
+            note += (
+                " This student's baseline is still small, so treat any " "signal as provisional."
+            )
+        if loo_outliers:
+            note += (
+                " One of the baseline writings looks stylistically unlike "
+                "the others; consider confirming its source."
+            )
     return note
 
 
@@ -785,7 +811,10 @@ def build_professor_explanation(
 
     suggested_action = _build_suggested_action(action, student_name)
 
-    confidence_note = _build_confidence_note(sample_count, n_tokens=n_tokens)
+    baseline_integrity = getattr(layer7, "baseline_integrity", None)
+    confidence_note = _build_confidence_note(
+        sample_count, n_tokens=n_tokens, baseline_integrity=baseline_integrity
+    )
 
     return ProfessorExplanation(
         headline=headline,

@@ -26,6 +26,11 @@ from .quantum.state import BaselineSample, StudentState
 
 log = logging.getLogger(__name__)
 
+# Products a tenant holds when nothing says otherwise: every tenant that
+# predates the products column, and any unregistered tenant id.
+_DEFAULT_PRODUCTS = ("original", "bluebook")
+_DEFAULT_PRODUCTS_JSON = json.dumps(list(_DEFAULT_PRODUCTS))
+
 
 def _escape_like(s: str) -> str:
     r"""
@@ -587,6 +592,91 @@ def _init_schema(conn: sqlite3.Connection) -> None:
             PRIMARY KEY (park_token, student_hint)
         )
     """)
+    # Single-use ledger for proctor attestations (T-69). A proctor
+    # attestation is otherwise a bearer credential valid for its whole TTL
+    # window (6h) and, before this table, redeemable any number of times in
+    # that window; consuming its jti on first use closes that replay window.
+    # No tenant foreign key, mirroring audit_log: consumption must not be
+    # rejected because a tenant row doesn't exist for this student.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS consumed_attestations (
+            jti         TEXT PRIMARY KEY,
+            tenant_id   TEXT,
+            exam        TEXT,
+            student_id  TEXT NOT NULL,
+            used_at     TEXT NOT NULL
+        )
+    """)
+    # Bluebook self-serve (2026-09) — mirrors alembic revision e8d2b4a6c1f0.
+    # PRAGMA-guarded ALTERs (no migration ladder in SQLite, same idiom as
+    # _sub_cols above); every added column is nullable or defaulted so an
+    # older process keeps working against the upgraded file.
+    _tenant_cols = {r[1] for r in conn.execute("PRAGMA table_info(tenants)")}
+    if "products_json" not in _tenant_cols:
+        conn.execute(
+            "ALTER TABLE tenants ADD COLUMN products_json TEXT NOT NULL "
+            f"DEFAULT '{_DEFAULT_PRODUCTS_JSON}'"
+        )
+    _exam_cols = {r[1] for r in conn.execute("PRAGMA table_info(bluebook_exams)")}
+    for _col in ("course_id", "opens_at", "closes_at"):
+        if _col not in _exam_cols:
+            conn.execute(f"ALTER TABLE bluebook_exams ADD COLUMN {_col} TEXT")
+    for _col in ("questions_json",):
+        if _col not in _exam_cols:
+            conn.execute(
+                "ALTER TABLE bluebook_exams ADD COLUMN questions_json TEXT NOT NULL DEFAULT '[]'"
+            )
+    if "results_released_at" not in _exam_cols:
+        conn.execute("ALTER TABLE bluebook_exams ADD COLUMN results_released_at TEXT")
+    _sub_cols = {r[1] for r in conn.execute("PRAGMA table_info(bluebook_submissions)")}
+    # Round 2 (2026-10) — mirrors alembic revision f4c9a2d71b30.
+    if "answers_json" not in _sub_cols:
+        conn.execute(
+            "ALTER TABLE bluebook_submissions ADD COLUMN answers_json TEXT NOT NULL DEFAULT '[]'"
+        )
+    for _col in ("mark", "feedback", "graded_at", "graded_by"):
+        if _col not in _sub_cols:
+            conn.execute(f"ALTER TABLE bluebook_submissions ADD COLUMN {_col} TEXT")
+    if "text" not in _sub_cols:
+        conn.execute("ALTER TABLE bluebook_submissions ADD COLUMN text TEXT")
+    if "warnings_json" not in _sub_cols:
+        conn.execute(
+            "ALTER TABLE bluebook_submissions ADD COLUMN warnings_json TEXT NOT NULL DEFAULT '[]'"
+        )
+    # Course rosters. student_id is the full scoped id — the same string as
+    # the student's users.user_id.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bluebook_enrollments (
+            course_id   TEXT NOT NULL,
+            student_id  TEXT NOT NULL,
+            tenant_id   TEXT NOT NULL,
+            created_at  TEXT NOT NULL,
+            PRIMARY KEY (course_id, student_id)
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_bluebook_enrollments_student
+            ON bluebook_enrollments(tenant_id, student_id)
+    """)
+    # One-time set-password links. Only the sha256 of the token is stored.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bluebook_invites (
+            invite_id    TEXT PRIMARY KEY,
+            tenant_id    TEXT NOT NULL,
+            user_id      TEXT NOT NULL,
+            course_id    TEXT,
+            token_hash   TEXT NOT NULL UNIQUE,
+            created_by   TEXT NOT NULL,
+            created_at   TEXT NOT NULL,
+            expires_at   TEXT NOT NULL,
+            redeemed_at  TEXT,
+            voided_at    TEXT
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_bluebook_invites_user
+            ON bluebook_invites(user_id)
+    """)
     conn.commit()
 
 
@@ -691,6 +781,10 @@ def _serialize(state: StudentState) -> str:
             # None for legacy/non-keystroke samples. Never used for scoring;
             # only scripts/tier17_report.py reads it back out.
             "keystroke_data": s.keystroke_data,
+            # ADR-010 macro-only composition timing (additive) — None for
+            # legacy/summary-less samples. Not yet read by any scorer (Task 9
+            # wires resolve_composition_mode to it).
+            "composition_summary": s.composition_summary,
         }
         for s in state.samples
     ]
@@ -761,6 +855,10 @@ def _deserialize(data: str) -> StudentState:
                 # Tier 17 readiness (additive) — .get() defaults to None for
                 # every sample serialized before this field existed.
                 keystroke_data=s.get("keystroke_data"),
+                # ADR-010 macro-only composition timing (additive) — .get()
+                # defaults to None for every sample serialized before this
+                # field existed.
+                composition_summary=s.get("composition_summary"),
             )
         )
     return state
@@ -1668,6 +1766,22 @@ def update_fidelity_authenticity(submission_id: str, is_authentic: bool) -> None
         log.exception("update_fidelity_authenticity failed for submission %s", submission_id)
 
 
+# Rows that make a profile-less student erasable. Staff login rows never
+# count: only a 'student' users row is the student's own.
+_BLUEBOOK_FOOTPRINT_SQL = (
+    "SELECT 1 FROM bluebook_submissions WHERE student_id = ? LIMIT 1",
+    "SELECT 1 FROM bluebook_sessions WHERE student_key = ? LIMIT 1",
+    "SELECT 1 FROM bluebook_enrollments WHERE student_id = ? LIMIT 1",
+    "SELECT 1 FROM bluebook_invites WHERE user_id = ? LIMIT 1",
+    "SELECT 1 FROM users WHERE user_id = ? AND role = 'student' LIMIT 1",
+)
+
+
+def _has_bluebook_footprint(student_id: str) -> bool:
+    with _get_conn() as conn:
+        return any(conn.execute(sql, (student_id,)).fetchone() for sql in _BLUEBOOK_FOOTPRINT_SQL)
+
+
 def delete_student(student_id: str) -> bool:
     """
     Permanently delete all data for a student (FERPA right-to-erasure).
@@ -1694,11 +1808,22 @@ def delete_student(student_id: str) -> bool:
     - audit_log             (SQLite — the student's action history; the
                              deletion itself is re-logged by the API caller
                              as the single retained deletion receipt)
+    - consumed_attestations (SQLite — proctor-attestation single-use ledger,
+                              T-69)
+    - bluebook_enrollments  (SQLite — course roster rows, 2026-09)
+    - bluebook_invites      (SQLite — set-password links, by user_id)
+    - users                 (SQLite — the student's own login row, role
+                             'student' only)
+
+    A student with no Original profile still counts as found when they hold
+    any Bluebook row (a Bluebook-only workspace never creates a profile);
+    audit_log rows alone do not, or a repeat erasure would purge the
+    previous one's receipt.
 
     Returns True if the student existed and was deleted, False if not found or
     if the SQLite commit failed.
     """
-    if get(student_id) is None:
+    if get(student_id) is None and not _has_bluebook_footprint(student_id):
         return False
 
     try:
@@ -1740,6 +1865,14 @@ def delete_student(student_id: str) -> bool:
             conn.execute("DELETE FROM formation_pathways WHERE student_id = ?", (student_id,))
             conn.execute("DELETE FROM baseline_requests WHERE student_id = ?", (student_id,))
             conn.execute("DELETE FROM audit_log WHERE student_id = ?", (student_id,))
+            # T-69: the single-use ledger identifies the student too — erase it.
+            conn.execute("DELETE FROM consumed_attestations WHERE student_id = ?", (student_id,))
+            # Bluebook self-serve (2026-09): rosters, set-password links, and
+            # the student's own login row. Staff rows are never matched: a
+            # student account's user_id is the scoped student id itself.
+            conn.execute("DELETE FROM bluebook_enrollments WHERE student_id = ?", (student_id,))
+            conn.execute("DELETE FROM bluebook_invites WHERE user_id = ?", (student_id,))
+            conn.execute("DELETE FROM users WHERE user_id = ? AND role = 'student'", (student_id,))
             conn.commit()
     except Exception:
         log.exception("delete_student failed for %s — no data was removed", student_id)
@@ -2311,7 +2444,7 @@ def get_tenant(tenant_id: str) -> dict | None:
     try:
         with _get_conn() as conn:
             row = conn.execute(
-                "SELECT tenant_id, name, environment, created_at, meta_json "
+                "SELECT tenant_id, name, environment, created_at, meta_json, products_json "
                 "FROM tenants WHERE tenant_id = ?",
                 (tenant_id,),
             ).fetchone()
@@ -2323,6 +2456,7 @@ def get_tenant(tenant_id: str) -> dict | None:
             "environment": row[2],
             "created_at": row[3],
             "meta": json.loads(row[4] or "{}"),
+            "products": _parse_products(row[5]),
         }
     except Exception:
         log.exception("get_tenant failed for %s", tenant_id)
@@ -2397,6 +2531,11 @@ def _bluebook_exam_to_dict(row) -> dict:
         "status": row[9],
         "submissions": 0,
         "created_at": row[10],
+        "course_id": row[11],
+        "opens_at": row[12],
+        "closes_at": row[13],
+        "questions": json.loads(row[14] or "[]"),
+        "results_released_at": row[15],
     }
 
 
@@ -2409,13 +2548,17 @@ def put_bluebook_exam(rec: dict) -> None:
             conn.execute(
                 """INSERT INTO bluebook_exams
                      (exam_id, tenant_id, title, course, duration, min_words,
-                      max_words, prompt, conditions_json, status, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                      max_words, prompt, conditions_json, status, created_at,
+                      course_id, opens_at, closes_at, questions_json, results_released_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(exam_id) DO UPDATE SET
                      title=excluded.title, course=excluded.course,
                      duration=excluded.duration, min_words=excluded.min_words,
                      max_words=excluded.max_words, prompt=excluded.prompt,
-                     conditions_json=excluded.conditions_json, status=excluded.status""",
+                     conditions_json=excluded.conditions_json, status=excluded.status,
+                     course_id=excluded.course_id, opens_at=excluded.opens_at,
+                     closes_at=excluded.closes_at, questions_json=excluded.questions_json,
+                     results_released_at=excluded.results_released_at""",
                 (
                     rec["id"],
                     rec["tenant_id"],
@@ -2428,6 +2571,11 @@ def put_bluebook_exam(rec: dict) -> None:
                     json.dumps(rec.get("conditions") or {}),
                     rec.get("status", "DRAFT"),
                     created_at,
+                    rec.get("course_id"),
+                    rec.get("opens_at"),
+                    rec.get("closes_at"),
+                    json.dumps(rec.get("questions") or []),
+                    rec.get("results_released_at"),
                 ),
             )
             conn.commit()
@@ -2441,7 +2589,8 @@ def get_bluebook_exam(exam_id: str) -> dict | None:
         with _get_conn() as conn:
             row = conn.execute(
                 "SELECT exam_id, tenant_id, title, course, duration, min_words, "
-                "max_words, prompt, conditions_json, status, created_at "
+                "max_words, prompt, conditions_json, status, created_at, "
+                "course_id, opens_at, closes_at, questions_json, results_released_at "
                 "FROM bluebook_exams WHERE exam_id = ?",
                 (exam_id,),
             ).fetchone()
@@ -2458,13 +2607,15 @@ def list_bluebook_exams(tenant_id: str | None) -> list[dict]:
             if tenant_id is None:
                 rows = conn.execute(
                     "SELECT exam_id, tenant_id, title, course, duration, min_words, "
-                    "max_words, prompt, conditions_json, status, created_at "
+                    "max_words, prompt, conditions_json, status, created_at, "
+                    "course_id, opens_at, closes_at, questions_json, results_released_at "
                     "FROM bluebook_exams ORDER BY created_at DESC"
                 ).fetchall()
             else:
                 rows = conn.execute(
                     "SELECT exam_id, tenant_id, title, course, duration, min_words, "
-                    "max_words, prompt, conditions_json, status, created_at "
+                    "max_words, prompt, conditions_json, status, created_at, "
+                    "course_id, opens_at, closes_at, questions_json, results_released_at "
                     "FROM bluebook_exams WHERE tenant_id = ? ORDER BY created_at DESC",
                     (tenant_id,),
                 ).fetchall()
@@ -2494,6 +2645,11 @@ def _bluebook_sub_to_dict(row) -> dict:
         "created_at": row[12],
         "submission_uuid": row[13],
         "late": row[14] or 0,
+        "warnings": json.loads(row[15] or "[]"),
+        "mark": row[16],
+        "feedback": row[17],
+        "graded_at": row[18],
+        "graded_by": row[19],
     }
 
 
@@ -2505,8 +2661,9 @@ def put_bluebook_submission(rec: dict) -> None:
                 """INSERT INTO bluebook_submissions
                      (submission_id, exam_id, tenant_id, student_id, candidate,
                       exam_title, course, word_count, time_min, stylometric,
-                      ai_score, status, created_at, submission_uuid, late)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                      ai_score, status, created_at, submission_uuid, late,
+                      text, warnings_json, answers_json)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     rec["id"],
                     rec.get("exam_id"),
@@ -2523,6 +2680,9 @@ def put_bluebook_submission(rec: dict) -> None:
                     created_at,
                     rec.get("submission_uuid"),
                     rec.get("late", 0),
+                    rec.get("text"),
+                    json.dumps(rec.get("warnings") or []),
+                    json.dumps(rec.get("answers") or []),
                 ),
             )
             conn.commit()
@@ -2535,7 +2695,7 @@ def list_bluebook_submissions(tenant_id: str | None) -> list[dict]:
     cols = (
         "submission_id, exam_id, tenant_id, student_id, candidate, exam_title, "
         "course, word_count, time_min, stylometric, ai_score, status, created_at, "
-        "submission_uuid, late"
+        "submission_uuid, late, warnings_json, mark, feedback, graded_at, graded_by"
     )
     try:
         with _get_conn() as conn:
@@ -2561,7 +2721,7 @@ def get_bluebook_submission_by_uuid(submission_uuid: str) -> dict | None:
     cols = (
         "submission_id, exam_id, tenant_id, student_id, candidate, exam_title, "
         "course, word_count, time_min, stylometric, ai_score, status, created_at, "
-        "submission_uuid, late"
+        "submission_uuid, late, warnings_json, mark, feedback, graded_at, graded_by"
     )
     try:
         with _get_conn() as conn:
@@ -2699,6 +2859,357 @@ def list_bluebook_courses(tenant_id: str | None) -> list[dict]:
         return []
 
 
+# ── Bluebook self-serve (2026-09): products, accounts, rosters, invites ──────
+# See docs/superpowers/specs/2026-09-17-bluebook-standalone-backend-design.md.
+# Timestamps are ISO-8601 UTC strings, as everywhere else in this module.
+
+_SUB_COLS = (
+    "submission_id, exam_id, tenant_id, student_id, candidate, exam_title, "
+    "course, word_count, time_min, stylometric, ai_score, status, created_at, "
+    "submission_uuid, late, warnings_json, mark, feedback, graded_at, graded_by"
+)
+
+
+def _parse_products(raw) -> list[str]:
+    """Stored products JSON -> list. Unparseable or empty falls back to both
+    products, the same default an unregistered tenant gets."""
+    try:
+        value = json.loads(raw) if isinstance(raw, str) else raw
+    except (TypeError, ValueError):
+        value = None
+    if not isinstance(value, list) or not value:
+        return list(_DEFAULT_PRODUCTS)
+    return [str(p) for p in value]
+
+
+def set_tenant_products(tenant_id: str, products: list[str]) -> bool:
+    """Replace a tenant's product set. False when the tenant does not exist."""
+    with _get_conn() as conn:
+        cur = conn.execute(
+            "UPDATE tenants SET products_json = ? WHERE tenant_id = ?",
+            (json.dumps(list(products)), tenant_id),
+        )
+        conn.commit()
+    return cur.rowcount == 1
+
+
+def _user_row_to_dict(row) -> dict:
+    return {
+        "user_id": row[0],
+        "email": row[1],
+        "password_hash": row[2],
+        "role": row[3],
+        "tenant_id": row[4],
+        "name": row[5],
+        "created_at": row[6],
+    }
+
+
+_USER_COLS = "user_id, email, password_hash, role, tenant_id, name, created_at"
+
+
+def get_user(user_id: str) -> dict | None:
+    """Return the user dict (including password_hash) or None."""
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {_USER_COLS} FROM users WHERE user_id = ?", (user_id,)
+        ).fetchone()
+    return _user_row_to_dict(row) if row else None
+
+
+def list_users_by_ids(user_ids: list[str]) -> list[dict]:
+    ids = list(dict.fromkeys(user_ids))
+    if not ids:
+        return []
+    placeholders = ",".join("?" * len(ids))
+    with _get_conn() as conn:
+        rows = conn.execute(
+            f"SELECT {_USER_COLS} FROM users WHERE user_id IN ({placeholders})", ids
+        ).fetchall()
+    return [_user_row_to_dict(r) for r in rows]
+
+
+def set_user_password_hash(user_id: str, password_hash: str) -> bool:
+    with _get_conn() as conn:
+        cur = conn.execute(
+            "UPDATE users SET password_hash = ? WHERE user_id = ?", (password_hash, user_id)
+        )
+        conn.commit()
+    return cur.rowcount == 1
+
+
+def delete_bluebook_exam(exam_id: str) -> bool:
+    with _get_conn() as conn:
+        cur = conn.execute("DELETE FROM bluebook_exams WHERE exam_id = ?", (exam_id,))
+        conn.commit()
+    return cur.rowcount == 1
+
+
+def bluebook_submission_counts_by_exam(tenant_id: str | None) -> dict[str, int]:
+    """exam_id -> number of sealed submissions, for one tenant (or all)."""
+    with _get_conn() as conn:
+        if tenant_id is None:
+            rows = conn.execute(
+                "SELECT exam_id, COUNT(*) FROM bluebook_submissions "
+                "WHERE exam_id IS NOT NULL GROUP BY exam_id"
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT exam_id, COUNT(*) FROM bluebook_submissions "
+                "WHERE tenant_id = ? AND exam_id IS NOT NULL GROUP BY exam_id",
+                (tenant_id,),
+            ).fetchall()
+    return {r[0]: int(r[1]) for r in rows}
+
+
+def count_bluebook_submissions_since(tenant_id: str, since_iso: str) -> int:
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM bluebook_submissions WHERE tenant_id = ? AND created_at >= ?",
+            (tenant_id, since_iso),
+        ).fetchone()
+    return int(row[0])
+
+
+def get_bluebook_submission(submission_id: str) -> dict | None:
+    """One submission, including its sealed ``text``."""
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {_SUB_COLS}, text, answers_json FROM bluebook_submissions "
+            "WHERE submission_id = ?",
+            (submission_id,),
+        ).fetchone()
+    if not row:
+        return None
+    out = _bluebook_sub_to_dict(row)
+    out["text"] = row[20]
+    out["answers"] = json.loads(row[21] or "[]")
+    return out
+
+
+def list_bluebook_submissions_for_student(student_id: str) -> list[dict]:
+    """A student's own submissions, newest first, without ``text``."""
+    with _get_conn() as conn:
+        rows = conn.execute(
+            f"SELECT {_SUB_COLS} FROM bluebook_submissions WHERE student_id = ? "
+            "ORDER BY created_at DESC",
+            (student_id,),
+        ).fetchall()
+    return [_bluebook_sub_to_dict(r) for r in rows]
+
+
+def list_bluebook_submissions_for_exam(exam_id: str) -> list[dict]:
+    """Every submission for one exam, oldest first, WITH ``text`` (export)."""
+    with _get_conn() as conn:
+        rows = conn.execute(
+            f"SELECT {_SUB_COLS}, text, answers_json FROM bluebook_submissions "
+            "WHERE exam_id = ? ORDER BY created_at",
+            (exam_id,),
+        ).fetchall()
+    out = []
+    for r in rows:
+        d = _bluebook_sub_to_dict(r)
+        d["text"] = r[20]
+        d["answers"] = json.loads(r[21] or "[]")
+        out.append(d)
+    return out
+
+
+def set_bluebook_submission_feedback(
+    submission_id: str, mark: str | None, feedback: str | None, graded_by: str
+) -> bool:
+    """Record a teacher's mark and feedback. False when the row is missing."""
+    with _get_conn() as conn:
+        cur = conn.execute(
+            "UPDATE bluebook_submissions SET mark = ?, feedback = ?, graded_at = ?, graded_by = ? "
+            "WHERE submission_id = ?",
+            (mark, feedback, datetime.now(UTC).isoformat(), graded_by, submission_id),
+        )
+        conn.commit()
+    return cur.rowcount == 1
+
+
+def get_bluebook_course(course_id: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT course_id, tenant_id, code, name, term, status, created_at "
+            "FROM bluebook_courses WHERE course_id = ?",
+            (course_id,),
+        ).fetchone()
+    return _bluebook_course_to_dict(row) if row else None
+
+
+def delete_bluebook_course(course_id: str) -> bool:
+    """Delete a course and its roster. Callers refuse first when exams use it."""
+    with _get_conn() as conn:
+        conn.execute("DELETE FROM bluebook_enrollments WHERE course_id = ?", (course_id,))
+        cur = conn.execute("DELETE FROM bluebook_courses WHERE course_id = ?", (course_id,))
+        conn.commit()
+    return cur.rowcount == 1
+
+
+def _enrollment_to_dict(row) -> dict:
+    return {
+        "course_id": row[0],
+        "student_id": row[1],
+        "tenant_id": row[2],
+        "created_at": row[3],
+    }
+
+
+def put_enrollment(course_id: str, student_id: str, tenant_id: str) -> None:
+    """Idempotent: enrolling an enrolled student is a no-op."""
+    with _get_conn() as conn:
+        conn.execute(
+            """INSERT INTO bluebook_enrollments (course_id, student_id, tenant_id, created_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(course_id, student_id) DO NOTHING""",
+            (course_id, student_id, tenant_id, datetime.now(UTC).isoformat()),
+        )
+        conn.commit()
+
+
+def delete_enrollment(course_id: str, student_id: str) -> bool:
+    with _get_conn() as conn:
+        cur = conn.execute(
+            "DELETE FROM bluebook_enrollments WHERE course_id = ? AND student_id = ?",
+            (course_id, student_id),
+        )
+        conn.commit()
+    return cur.rowcount == 1
+
+
+def list_enrollments_for_course(course_id: str) -> list[dict]:
+    with _get_conn() as conn:
+        rows = conn.execute(
+            "SELECT course_id, student_id, tenant_id, created_at FROM bluebook_enrollments "
+            "WHERE course_id = ? ORDER BY created_at",
+            (course_id,),
+        ).fetchall()
+    return [_enrollment_to_dict(r) for r in rows]
+
+
+def list_enrollments_for_student(student_id: str) -> list[dict]:
+    with _get_conn() as conn:
+        rows = conn.execute(
+            "SELECT course_id, student_id, tenant_id, created_at FROM bluebook_enrollments "
+            "WHERE student_id = ? ORDER BY created_at",
+            (student_id,),
+        ).fetchall()
+    return [_enrollment_to_dict(r) for r in rows]
+
+
+def enrollment_counts_by_course(tenant_id: str | None) -> dict[str, int]:
+    with _get_conn() as conn:
+        if tenant_id is None:
+            rows = conn.execute(
+                "SELECT course_id, COUNT(*) FROM bluebook_enrollments GROUP BY course_id"
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT course_id, COUNT(*) FROM bluebook_enrollments "
+                "WHERE tenant_id = ? GROUP BY course_id",
+                (tenant_id,),
+            ).fetchall()
+    return {r[0]: int(r[1]) for r in rows}
+
+
+def count_enrolled_students(tenant_id: str) -> int:
+    """Distinct students on any roster in this tenant (free-tier cap)."""
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT COUNT(DISTINCT student_id) FROM bluebook_enrollments WHERE tenant_id = ?",
+            (tenant_id,),
+        ).fetchone()
+    return int(row[0])
+
+
+_INVITE_COLS = (
+    "invite_id, tenant_id, user_id, course_id, token_hash, created_by, "
+    "created_at, expires_at, redeemed_at, voided_at"
+)
+
+
+def _invite_to_dict(row) -> dict:
+    return {
+        "invite_id": row[0],
+        "tenant_id": row[1],
+        "user_id": row[2],
+        "course_id": row[3],
+        "token_hash": row[4],
+        "created_by": row[5],
+        "created_at": row[6],
+        "expires_at": row[7],
+        "redeemed_at": row[8],
+        "voided_at": row[9],
+    }
+
+
+def put_invite(rec: dict) -> None:
+    """Insert one invite. ``rec`` carries every column; timestamps are ISO."""
+    with _get_conn() as conn:
+        conn.execute(
+            f"INSERT INTO bluebook_invites ({_INVITE_COLS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                rec["invite_id"],
+                rec["tenant_id"],
+                rec["user_id"],
+                rec.get("course_id"),
+                rec["token_hash"],
+                rec["created_by"],
+                rec["created_at"],
+                rec["expires_at"],
+                None,
+                None,
+            ),
+        )
+        conn.commit()
+
+
+def get_invite_by_hash(token_hash: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {_INVITE_COLS} FROM bluebook_invites WHERE token_hash = ?", (token_hash,)
+        ).fetchone()
+    return _invite_to_dict(row) if row else None
+
+
+def latest_invite_for_user(user_id: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {_INVITE_COLS} FROM bluebook_invites WHERE user_id = ? "
+            "ORDER BY created_at DESC LIMIT 1",
+            (user_id,),
+        ).fetchone()
+    return _invite_to_dict(row) if row else None
+
+
+def void_invites_for_user(user_id: str) -> int:
+    """Void every unredeemed, unvoided invite for this user."""
+    with _get_conn() as conn:
+        cur = conn.execute(
+            "UPDATE bluebook_invites SET voided_at = ? "
+            "WHERE user_id = ? AND redeemed_at IS NULL AND voided_at IS NULL",
+            (datetime.now(UTC).isoformat(), user_id),
+        )
+        conn.commit()
+    return cur.rowcount
+
+
+def redeem_invite(invite_id: str) -> bool:
+    """Mark an invite redeemed. True exactly once: a second redemption, or
+    one racing the first, finds ``redeemed_at`` already set and gets False.
+    Voided invites are never redeemable. Expiry is checked by the caller."""
+    with _get_conn() as conn:
+        cur = conn.execute(
+            "UPDATE bluebook_invites SET redeemed_at = ? "
+            "WHERE invite_id = ? AND redeemed_at IS NULL AND voided_at IS NULL",
+            (datetime.now(UTC).isoformat(), invite_id),
+        )
+        conn.commit()
+    return cur.rowcount == 1
+
+
 def list_tenants(environment: str | None = None) -> list[dict]:
     """
     List all tenants, optionally filtered by environment.
@@ -2711,13 +3222,13 @@ def list_tenants(environment: str | None = None) -> list[dict]:
         with _get_conn() as conn:
             if environment:
                 rows = conn.execute(
-                    "SELECT tenant_id, name, environment, created_at, meta_json "
+                    "SELECT tenant_id, name, environment, created_at, meta_json, products_json "
                     "FROM tenants WHERE environment = ? ORDER BY created_at",
                     (environment,),
                 ).fetchall()
             else:
                 rows = conn.execute(
-                    "SELECT tenant_id, name, environment, created_at, meta_json "
+                    "SELECT tenant_id, name, environment, created_at, meta_json, products_json "
                     "FROM tenants ORDER BY created_at"
                 ).fetchall()
         return [
@@ -2727,6 +3238,7 @@ def list_tenants(environment: str | None = None) -> list[dict]:
                 "environment": r[2],
                 "created_at": r[3],
                 "meta": json.loads(r[4] or "{}"),
+                "products": _parse_products(r[5]),
             }
             for r in rows
         ]
@@ -2850,6 +3362,33 @@ def list_audit(
     except Exception:
         log.exception("list_audit failed")
         return {"total": 0, "limit": limit, "offset": offset, "items": []}
+
+
+def consume_proctor_attestation(
+    jti: str, tenant_id: str | None, exam: str, student_id: str
+) -> bool:
+    """
+    Atomically consume a proctor attestation's jti (T-69).
+
+    Returns True the first time this jti is marked used, False on every
+    later call (replay) — never raises for the replay case; the caller
+    downgrades the write to ``unverified`` rather than treating this as an
+    error. ``INSERT ... ON CONFLICT DO NOTHING`` + checking ``rowcount``
+    (rather than try/except IntegrityError) makes this correct under
+    concurrent requests racing on the same jti, not just sequential ones —
+    mirrors ``get_or_create_bluebook_session``'s idempotency idiom.
+    """
+    with _get_conn() as conn:
+        cur = conn.execute(
+            """INSERT INTO consumed_attestations
+                 (jti, tenant_id, exam, student_id, used_at)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(jti) DO NOTHING""",
+            (jti, tenant_id, exam, student_id, datetime.now(UTC).isoformat()),
+        )
+        consumed = cur.rowcount == 1
+        conn.commit()
+    return consumed
 
 
 # ── Phase 2: Tenant-scoped student operations ─────────────────────────────────
@@ -3045,19 +3584,51 @@ def tenant_stats(tenant_id: str) -> dict:
     }
 
 
+def _bluebook_student_ids_for_tenant(tenant_id: str) -> list[str]:
+    """The tenant's students as Bluebook knows them, profile or not.
+
+    A student-role login row with this tenant, plus every scoped id holding
+    a roster, submission, or sitting row here. Ids outside ``{tenant_id}:``
+    (a demo walk-in's ``cand:`` label) are not this tenant's students, and
+    staff ids never are, even when a teacher previewed their own exam.
+    """
+    prefix = f"{tenant_id}:"
+    with _get_conn() as conn:
+        users = conn.execute(
+            "SELECT user_id, role FROM users WHERE tenant_id = ?", (tenant_id,)
+        ).fetchall()
+        staff = {uid for uid, role in users if role != "student"}
+        ids = {uid for uid, role in users if role == "student"}
+        for sql in (
+            "SELECT student_id FROM bluebook_enrollments WHERE tenant_id = ?",
+            "SELECT student_id FROM bluebook_submissions WHERE tenant_id = ?",
+            "SELECT student_key FROM bluebook_sessions WHERE tenant_id = ?",
+        ):
+            ids.update(
+                sid for (sid,) in conn.execute(sql, (tenant_id,)) if sid and sid.startswith(prefix)
+            )
+    return sorted(ids - staff)
+
+
 def delete_tenant_students(tenant_id: str) -> dict:
     """
     FERPA-safe bulk deletion of all students belonging to a tenant.
 
     Calls delete_student() for each matching student so that every
     associated record (fidelity scores, manifests, corrections) is
-    purged via the same code path as a single-student deletion.
+    purged via the same code path as a single-student deletion. Students
+    with no Original profile (a Bluebook-only workspace never creates one)
+    are found by their Bluebook rows instead.
 
     Returns:
         deleted_count:  Number of students successfully erased.
         failed_ids:     Student IDs where deletion raised an exception.
     """
     ids_to_delete = list_ids_for_tenant(tenant_id)
+    profiled = set(ids_to_delete)
+    ids_to_delete += [
+        sid for sid in _bluebook_student_ids_for_tenant(tenant_id) if sid not in profiled
+    ]
     deleted, failed = 0, []
     for sid in ids_to_delete:
         if delete_student(sid):

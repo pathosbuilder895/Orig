@@ -200,6 +200,65 @@ Size: ~2 KB per sample (includes feature vector)
 - Provenance tracked to assess confidence
 - is_active flag allows soft-delete
 
+### 3.3 Composition Macro-Timing Summary (T-74 / ADR-010)
+
+**Data Elements:**
+- Session duration in seconds (`session_seconds`)
+- Word count at end of session (`word_count`)
+- Paste-attempt count (`paste_attempts`)
+- Focus-loss count (`focus_losses`) — a running count of window-blur /
+  visibility-change warnings shown to the student during the exam, **not**
+  individual timestamped focus/blur events
+- Revision count (`revision_count`) — a count of deletion keystrokes
+- Session start/end timestamps (`started_at`, `ended_at`)
+- Exam configuration snapshot (`exam_config`: `block_copy`, `min_words`,
+  `duration_min`)
+
+**Collection Source:**
+- Bluebook's proctored exam client (`demo/bluebook/Exam.jsx`), sent as the
+  `composition_summary` object on `AddSampleRequest` when a baseline sample
+  is submitted. No raw per-key data is built or sent by the client.
+
+**Storage Location:**
+```
+Database: baseline_samples table (BaselineSample.composition_summary,
+part of the student_profiles JSON document — store.py:712,
+postgres_repository.py:162)
+```
+
+**Access:** Same as §3.2 Baseline Writing Samples (admins, baseline-approval
+role, course instructors read; instructors/admins write; admins delete).
+
+**Retention:** Same as baseline samples (§3.2) — deleted together with the
+baseline sample via `delete_student`.
+
+**Security:** Stored unencrypted alongside the baseline sample (Render disk
+encryption at rest applies). These are aggregate, session-level counts and
+timestamps only — no per-keystroke timing is present, so no individual
+keystroke can be reconstructed from this data.
+
+**What this replaces (RETIRED — no longer collected or stored):** Before
+this change, Bluebook additionally captured raw per-key timing (a
+`keystrokes` array of `{key, elapsed_ms}` entries, capped at 8000) and
+per-pause gap data inside the `keystroke_data` JSON blob, and the backend
+stored that blob verbatim at rest. That collection was never listed in
+this inventory and no retention rule applied to it. As of this change
+(T-74 / `docs/adr/ADR-010-keystroke-macro-only.md`):
+- Bluebook no longer builds or sends per-key `keystrokes`/`pauses` arrays
+  at all — it sends only the macro `composition_summary` object above.
+- The server strips any `keystrokes`/`pauses` arrays found inside an
+  incoming `keystroke_data` blob before persisting it
+  (`original/routers/students_baseline.py::_strip_raw_keystroke_arrays`),
+  so raw per-key keystroke timing and per-pause timing are no longer
+  collected or stored as of this change, going forward.
+- `scripts/purge_keystroke_blobs.py` is available as a one-off cleanup for
+  `keystroke_data` already at rest (dry-run by default, `--apply` to
+  rewrite; works against both the SQLite and Postgres backends via the
+  Repository abstraction). **This script has not been confirmed run
+  against the live pilot database** (Postgres on Render) as of this
+  writing — it should be run against any pre-existing deployment that
+  predates ADR-010 to complete the purge of data already at rest.
+
 ---
 
 ## 4. Derived Data: Authorship Profiles

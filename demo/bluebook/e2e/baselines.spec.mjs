@@ -19,7 +19,7 @@ import { provisionTenantWithStaff, studentLogin } from './fixtures/api-setup.mjs
 test.describe('Baseline batch upload (keyboard path) @smoke', () => {
   test('uploading files through the (keyboard-focusable) file input updates readiness', async ({ page, request }) => {
     const { tenant, staff } = await provisionTenantWithStaff(request)
-    const student = await studentLogin(request, { institution: tenant.name, name: 'Baseline Test Student' })
+    const student = await studentLogin(request, { staffToken: staff.token, name: 'Baseline Test Student' })
 
     await page.addInitScript(([token, role, tenantId]) => {
       localStorage.setItem('original_principal_token', token)
@@ -74,7 +74,7 @@ test.describe('Baseline batch upload (keyboard path) @smoke', () => {
 test.describe('Proctored baseline request (magic link)', () => {
   test('POST /students/{id}/request-baseline without Bbook configured returns a clear 503, not a silent failure', async ({ request }) => {
     const { tenant, staff } = await provisionTenantWithStaff(request)
-    const student = await studentLogin(request, { institution: tenant.name, name: 'Magic Link Student' })
+    const student = await studentLogin(request, { staffToken: staff.token, name: 'Magic Link Student' })
 
     // BBOOK_API_URL/BBOOK_EXTERNAL_SECRET are unset in this test environment
     // (no-op-without-config flags, CLAUDE.md) — the contract worth locking
@@ -92,7 +92,7 @@ test.describe('Proctored baseline request (magic link)', () => {
 test.describe('Readiness surface', () => {
   test('a student with zero samples reads as insufficient; readiness reflects sample_count', async ({ request }) => {
     const { tenant, staff } = await provisionTenantWithStaff(request)
-    const student = await studentLogin(request, { institution: tenant.name, name: 'Readiness Student' })
+    const student = await studentLogin(request, { staffToken: staff.token, name: 'Readiness Student' })
 
     const before = await (await request.get(`/students/${encodeURIComponent(student.student_id)}/readiness`, {
       headers: { Authorization: `Bearer ${staff.token}` },

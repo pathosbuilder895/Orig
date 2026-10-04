@@ -182,6 +182,13 @@ rollback, still exists but is frozen).
 
 ## Postgres cutover (WS-6 P5 — the one user-visible migration)
 
+> **2026-10 — not needed for a fresh launch.** `render.yaml` now starts
+> `original-pilot` on managed Postgres from its first deploy (`REPO_BACKEND=postgres`,
+> `alembic upgrade head` as the pre-deploy step, no disk), because the pilot
+> never served production traffic on SQLite. Follow
+> `docs/BLUEBOOK_LAUNCH_CHECKLIST.md` instead. This section applies only to a
+> deployment that already holds real data in SQLite.
+
 This is the SQLite → Postgres cutover. It is a **single scheduled maintenance
 window**. The code ships inert: the app runs on SQLite until an operator sets
 `REPO_BACKEND=postgres`, and rolling back is unsetting that one variable. All

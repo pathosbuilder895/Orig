@@ -27,3 +27,8 @@ python-jose[cryptography]>=3.4.0,<4.0
 sqlalchemy==2.0.51
 alembic==1.18.5
 psycopg2-binary==2.9.12
+
+# ── Error monitoring (original/monitoring.py) ─────────────────────────────────
+# Initialised only when SENTRY_DSN is set; without it the SDK is never imported.
+# PII and request bodies are never sent (student writing must not leave the box).
+sentry-sdk[fastapi]==2.42.0
