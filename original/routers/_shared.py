@@ -351,6 +351,15 @@ def _render_launch_localstorage(ls: dict, redirect: str) -> HTMLResponse:
     return HTMLResponse(html)
 
 
+def _launch_products(tenant_id: str) -> str:
+    """The ``original_products`` localStorage value for a launch page.
+
+    Sign-in responses carry the tenant's products; launch pages must too, or
+    the SPA falls back to assuming Original and a Bluebook-only student's
+    seal stalls on 403s from the Original routes."""
+    return json.dumps(sorted(principal_mod.tenant_products(tenant_id or None)))
+
+
 _MAGIC_SESSION_TTL = 12 * 3600  # a single exam-day sitting, not a week
 
 

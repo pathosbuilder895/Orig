@@ -32,6 +32,7 @@ from ._shared import (
     _MAGIC_SESSION_TTL,
     _bluebook_tenant,
     _int_or,
+    _launch_products,
     _render_launch_localstorage,
     _repo,
     _require_staff,
@@ -157,6 +158,7 @@ def bluebook_magic_launch(request: Request, t: str = ""):
         # Authorizes the `proctored` provenance (see _authorize_provenance) —
         # without it the sitting would be downgraded to 'unverified'.
         "bluebook_proctor_token": student_auth.mint_proctor_attestation(sid, exam),
+        "original_products": _launch_products(tenant),
     }
     # A link bound to a stored exam on a course enrols the student on that
     # course, so the student routes (/bluebook/me/exams/...) let them load it.

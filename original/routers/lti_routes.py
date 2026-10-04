@@ -8,7 +8,7 @@ import anyio
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
-from ._shared import _render_launch_localstorage, _repo
+from ._shared import _launch_products, _render_launch_localstorage, _repo
 
 router = APIRouter()
 
@@ -71,6 +71,7 @@ async def lti_launch(request: Request):
         p["token_key"]: p["token"],
         "original_role": p["role"],
         "original_tenant": p["tenant_id"],
+        "original_products": _launch_products(p["tenant_id"]),
     }
     ls.update(p.get("extra") or {})
     redirect = p.get("redirect") or "professor.html"

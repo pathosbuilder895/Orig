@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 import re
 from datetime import UTC, datetime, timedelta
 from urllib.parse import parse_qs, urlparse
@@ -664,6 +665,18 @@ def test_launch_link_enrolment_shows_as_link_state(live_client):
     assert rows == [
         {"student_id": sid, "email": None, "name": None, "state": "link", "invite_expires_at": None}
     ]
+
+
+def test_launch_link_tells_the_page_which_products_the_workspace_holds(live_client):
+    """Without original_products the SPA assumes Original, calls the gated
+    /students routes, gets 403 and never seals the submission."""
+    t = _signup(live_client)
+    sid = student_auth.derive_student_id(t["tenant_id"], "linkonly@x.edu")
+    tok = student_auth.mint_launch_token(sid, t["tenant_id"], exam="Midterm")
+    page = live_client.get(f"/bluebook/launch?t={tok}").text
+    stored = re.search(r'setItem\("original_products",("[^)]*")\)', page)
+    assert stored is not None
+    assert json.loads(json.loads(stored.group(1))) == ["bluebook"]
 
 
 def test_launch_token_without_exam_id_is_unchanged():
