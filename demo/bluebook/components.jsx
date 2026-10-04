@@ -152,11 +152,11 @@ export function Ornament({ char = '❦', py = 20 }) {
 // ─── Meta Label ──────────────────────────────────────────────────────────────
 // 12.5px = the product-wide 0.78rem readability floor (docs and dashboards
 // share it) — metadata still reads as metadata, but a 65-year-old can read it.
-export function MetaLabel({ children, style: s = {}, htmlFor }) {
+export function MetaLabel({ children, style: s = {}, htmlFor, className }) {
   const Tag = htmlFor ? 'label' : 'span';
   const forProp = htmlFor ? { htmlFor } : {};
   return (
-    <Tag {...forProp} style={{
+    <Tag {...forProp} className={className} style={{
       fontFamily: fontMono,
       fontSize: 12.5,
       letterSpacing: '0.14em',

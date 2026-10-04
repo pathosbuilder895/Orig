@@ -28,7 +28,7 @@ export function LandingScreen({ onNavigate }) {
       fontFamily: fontBody, color: BB.cream,
     }}>
       {/* Nav */}
-      <nav style={{
+      <nav className="bb-land-nav" style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
         padding: '20px 48px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -36,7 +36,7 @@ export function LandingScreen({ onNavigate }) {
         borderBottom: '1px solid rgba(201,169,97,0.14)',
       }}>
         <Logotype size={22} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 36 }}>
+        <div className="bb-land-navlinks" style={{ display: 'flex', alignItems: 'center', gap: 36 }}>
           <button onClick={() => onNavigate('login')} style={{
             fontFamily: fontBody, fontSize: 16, color: BB.fade,
             background: 'none', border: 'none', cursor: 'pointer',
@@ -53,16 +53,16 @@ export function LandingScreen({ onNavigate }) {
       </nav>
 
       {/* Hero — bottom-anchored, title-page spirit */}
-      <section style={{
+      <section className="bb-land-hero" style={{
         flex: 1, display: 'flex', flexDirection: 'column',
         justifyContent: 'flex-end', minHeight: '100vh',
         padding: '120px 48px 48px', position: 'relative',
       }}>
-        <div style={{ position: 'absolute', top: 80, left: 48, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="bb-land-kicker" style={{ position: 'absolute', top: 80, left: 48, display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: BB.gold }} />
           <MetaLabel>Written examinations, in the browser</MetaLabel>
         </div>
-        <MetaLabel style={{ position: 'absolute', top: 80, right: 48 }}>01 / 04</MetaLabel>
+        <MetaLabel className="bb-land-folio" style={{ position: 'absolute', top: 80, right: 48 }}>01 / 04</MetaLabel>
 
         <div style={{ marginBottom: 48 }}>
           <h1 style={{
@@ -91,7 +91,7 @@ export function LandingScreen({ onNavigate }) {
             Set a written exam, add your students, and read what they wrote —
             timed, full-screen, and in one place.
           </p>
-          <div style={{ display: 'flex', gap: 14, flexShrink: 0 }}>
+          <div className="bb-land-ctas" style={{ display: 'flex', gap: 14, flexShrink: 0 }}>
             <BtnGhost onClick={() => onNavigate('login')} style={{ padding: '10px 28px', fontSize: 16 }}>
               Sign in
             </BtnGhost>
@@ -103,7 +103,7 @@ export function LandingScreen({ onNavigate }) {
       </section>
 
       {/* Features — table of contents */}
-      <section style={{ borderTop: '1px solid rgba(201,169,97,0.2)', padding: '0 48px' }}>
+      <section className="bb-land-toc" style={{ borderTop: '1px solid rgba(201,169,97,0.2)', padding: '0 48px' }}>
         <div style={{ maxWidth: 860, margin: '0 auto' }}>
           <div style={{
             padding: '28px 0 10px', display: 'flex',
@@ -120,7 +120,7 @@ export function LandingScreen({ onNavigate }) {
             { num: 'IV',  title: 'Read & Export',       desc: 'Every answer in one place, and as a spreadsheet' },
           ].map(({ num, title, desc }) => (
             <div key={num}>
-              <div style={{ padding: '16px 0', display: 'flex', alignItems: 'baseline', gap: 20 }}>
+              <div className="bb-land-row" style={{ padding: '16px 0', display: 'flex', alignItems: 'baseline', gap: 20 }}>
                 <span style={{
                   fontFamily: fontMono, fontSize: 10,
                   color: BB.fade, letterSpacing: '0.18em',
@@ -131,7 +131,7 @@ export function LandingScreen({ onNavigate }) {
                   color: BB.cream, fontWeight: 500,
                   letterSpacing: '0.02em', flex: 1,
                 }}>{title}</span>
-                <span style={{
+                <span className="bb-land-desc" style={{
                   fontFamily: fontBody, fontSize: 15, fontStyle: 'italic',
                   color: BB.fade, letterSpacing: '0.03em', flexShrink: 0,
                 }}>{desc}</span>
@@ -146,14 +146,14 @@ export function LandingScreen({ onNavigate }) {
       </section>
 
       {/* Footer */}
-      <footer style={{
+      <footer className="bb-land-foot" style={{
         borderTop: '1px solid rgba(201,169,97,0.18)',
         padding: '18px 48px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
         <Logotype size={17} />
         <MetaLabel>© MMXXVI · All rights reserved</MetaLabel>
-        <div style={{ display: 'flex', gap: 28 }}>
+        <div className="bb-land-footlinks" style={{ display: 'flex', gap: 28 }}>
           <button onClick={() => onNavigate('login')} style={{
             fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
             textTransform: 'uppercase', color: BB.fade,
