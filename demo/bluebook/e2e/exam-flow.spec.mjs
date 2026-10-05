@@ -208,7 +208,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
     await expect(textarea).not.toHaveValue('')
   })
 
-  test('Type past minimum → Seal → Examination Sealed + baseline transmitted + API confirms', async ({ page, request }) => {
+  test('Type past minimum → Seal → Examination Sealed, recorded, and no baseline write', async ({ page, request }) => {
     const minWords = 12
     await bootInExam(page, { minWords })
     await page.goto('/bluebook/')
@@ -238,6 +238,15 @@ test.describe('Bluebook exam lockdown — full flow', () => {
       'a record built by patience is one a student can stand on.'
     await page.keyboard.type(longProse, { delay: 1 })
 
+    // Compare-only seal (plan Phase 7): sealing never adds a baseline
+    // sample; only a professor's approval does.
+    const baselineWrites = []
+    page.on('request', r => {
+      if (r.method() === 'POST' && /\/students\/[^/]+\/baseline$/.test(new URL(r.url()).pathname)) {
+        baselineWrites.push(r.url())
+      }
+    })
+
     const sealBtn = page.locator('button', { hasText: /Seal & Submit|Sealing/ })
     await expect(sealBtn).toBeVisible()
     page.once('dialog', d => d.accept())
@@ -251,20 +260,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
     await expect(page.getByText('✓ Delivered to your teacher'))
       .toBeVisible({ timeout: 5_000 })
 
-    // ── API-side verification: the bound student now has a proctored sample
-    // GET /students/{id} is scoped by assert_student_access
-    // (original/principal.py) for every request, staff-only-path or not:
-    // an anonymous read of a "demo:"-tenant id is explicitly refused on a
-    // real deploy (T-66), same as the write side -- only a matching
-    // student session or staff reads it, so this needs the same session
-    // token bootInExam minted for the seal itself.
-    const studentResp = await request.get(`/students/${encodeURIComponent(TEST_STUDENT_ID)}`, {
-      headers: { Authorization: `Bearer ${mintSessionToken(TEST_STUDENT_ID, TEST_STUDENT_NAME)}` },
-    })
-    expect(studentResp.status()).toBe(200)
-    const student = await studentResp.json()
-    expect(student.sample_count).toBeGreaterThan(0)
-    expect(student.samples.some(s => s.provenance === 'proctored')).toBe(true)
+    expect(baselineWrites).toEqual([])
   })
 
   test('Exiting fullscreen mid-exam shows the warning', async ({ page }) => {

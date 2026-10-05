@@ -138,8 +138,9 @@ test.describe('Exam-day robustness @robustness', () => {
     test.setTimeout(90_000)
     const exam = await createExam(request, workerTenant, 'Robustness failure exam')
 
-    // Kill the seal at step 2 (baseline write) on every attempt.
-    await studentPage.route('**/students/*/baseline', (route) => route.abort())
+    // Kill the seal's submission record (its only write) on every attempt.
+    await studentPage.route('**/bluebook/submissions', (route) =>
+      route.request().method() === 'POST' ? route.abort() : route.continue())
 
     await bootInExam(studentPage, exam, workerTenant, 'Failure Candidate')
     await studentPage.locator('textarea[placeholder="Begin writing here…"]').focus()

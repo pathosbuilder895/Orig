@@ -9,10 +9,11 @@
  * decision in its draft:
  *
  *  - Switched OFF mid-exam: the sitting still holds Original, so the seal
- *    calls Original's score and baseline routes, which now answer 403. The
- *    seal must treat that as "this workspace no longer holds Original" and
- *    record the submission like a Bluebook-only workspace does, instead of
- *    retrying three times and leaving the exam unsealed.
+ *    calls Original's score route (the seal only compares; it never writes a
+ *    baseline), which now answers 403. The seal must treat that as "this
+ *    workspace no longer holds Original" and record the submission like a
+ *    Bluebook-only workspace does, instead of retrying three times and
+ *    leaving the exam unsealed.
  *  - Switched ON mid-exam: the student was told their writing would not be
  *    compared, so the seal must not call Original at all, even after another
  *    tab has stored the new products.
@@ -144,7 +145,7 @@ test('a seal still lands when Original is switched off mid-exam', async ({ brows
   await expect(student.getByText('Examination Sealed')).toBeVisible({ timeout: 30_000 })
   await expect(student.getByText('✓ Delivered to your teacher')).toBeVisible()
   // The seal did try Original (the page believed it was on) and was refused.
-  expect(originalCalls.some(c => c.path.endsWith('/baseline') && c.status === 403)).toBe(true)
+  expect(originalCalls.some(c => c.path.endsWith('/score') && c.status === 403)).toBe(true)
   expect(originalCalls.every(c => c.status === 403)).toBe(true)
   // ...and this page has stopped believing it.
   expect(await storedProducts()).toEqual(['bluebook'])

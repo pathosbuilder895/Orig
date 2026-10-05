@@ -285,9 +285,15 @@ async function bbStartSession(cfg, studentId) {
   } catch (e) { return null; }
 }
 
+// Returned by bbScoreWithOriginal when Original refused the call (403): the
+// workspace no longer holds it, so the seal proceeds as a Bluebook-only one.
+const BB_ORIGINAL_OFF = 'original-off';
+
 // Score the submission against the student's EXISTING baseline → returns an
 // AI/authorship score (0–100, higher = more authentically theirs), or null when
-// there is no baseline yet to compare against (a first proctored sitting).
+// there is no baseline yet to compare against (a first proctored sitting), or
+// BB_ORIGINAL_OFF when the workspace no longer holds Original. The seal only
+// compares; it never writes a baseline (a professor approves those).
 async function bbScoreWithOriginal(studentId, text, assignment, submissionId, compositionSummary) {
   try {
     const r = await fetch(`${BB_API_BASE}/students/${encodeURIComponent(studentId)}/score`, {
@@ -297,6 +303,7 @@ async function bbScoreWithOriginal(studentId, text, assignment, submissionId, co
         composition_summary: compositionSummary,
       }),
     });
+    if (r.status === 403) return BB_ORIGINAL_OFF;
     if (!r.ok) return null;
     const data = await r.json();
     const a = data && data.authorship;
@@ -308,33 +315,6 @@ async function bbScoreWithOriginal(studentId, text, assignment, submissionId, co
     if (prob == null) return null;
     return Math.max(0, Math.min(100, Math.round(prob * 100)));
   } catch (e) { return null; }
-}
-
-// POST the proctored baseline to Original. Returns { ok, studentId, status, data }.
-async function bbSubmitToOriginal({ text, assignment, compositionSummary, cfg, studentId: preStudentId, submissionUuid }) {
-  try {
-    const studentId = preStudentId || await bbResolveStudentId(cfg);
-    const headers = bbAuthHeaders();
-    const r = await fetch(`${BB_API_BASE}/students/${encodeURIComponent(studentId)}/baseline`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        text,
-        assignment,
-        provenance: 'proctored',
-        composition_summary: compositionSummary,
-        submission_uuid: submissionUuid || undefined,
-      }),
-    });
-    let data = null;
-    try { data = await r.json(); } catch (e) {}
-    if (!r.ok) {
-      return { ok: false, studentId, status: r.status, error: (data && data.detail) || r.statusText };
-    }
-    return { ok: true, studentId, status: r.status, data };
-  } catch (e) {
-    return { ok: false, error: String(e && e.message || e) };
-  }
 }
 
 // ─── Briefing Screen ──────────────────────────────────────────────────────────
@@ -640,7 +620,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
     // minimum — a student must never be stranded at a dead 00:00.
     if (submitting || (!opts.force && words < cfg.minWords)) return;
     if (opts.force && !hasWriting()) {
-      // Nothing written when time ran out — don't post an empty baseline.
+      // Nothing written when time ran out — don't record an empty submission.
       // The draft holds only this sitting's Original decision (no writing),
       // so clear it: the next person to sit this exam on this browser must
       // decide afresh, not inherit it. Nothing below reads the draft.
@@ -688,43 +668,35 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
         await waitOnline();
         // 1) Score against the EXISTING baseline (skipped on retry once known).
         if (withOriginal && seal.aiScore === undefined) {
-          seal.aiScore = await bbScoreWithOriginal(studentId, content, cfg.title, seal.uuid, buildCompositionSummary());
-          writeDraftNow();
-        }
-        // 2) Add this proctored sitting (server skips identical text on replay).
-        if (withOriginal && !seal.baselineData) {
-          const r = await bbSubmitToOriginal({
-            text: content, assignment: cfg.title,
-            compositionSummary: buildCompositionSummary(), cfg, studentId,
-            submissionUuid: seal.uuid,
-          });
-          if (!r.ok && r.status === 403) {
+          const scored = await bbScoreWithOriginal(studentId, content, cfg.title, seal.uuid, buildCompositionSummary());
+          if (scored === BB_ORIGINAL_OFF) {
             // The workspace no longer holds Original (switched off since this
             // page loaded). A 403 will not change on retry, so seal exactly as
             // a Bluebook-only workspace does instead of stranding the exam.
             withOriginal = false;
             seal.withOriginal = false;
+            seal.aiScore = null;
             BB_API.dropOriginal();
-            writeDraftNow();
           } else {
-            if (!r.ok) throw new Error(r.error || 'baseline write failed');
-            seal.baselineData = r;
-            writeDraftNow();
+            seal.aiScore = scored;
           }
+          writeDraftNow();
         }
-        // 3) Record the sealed submission (server dedupes by submission_uuid).
-        const baseline = seal.baselineData || {};
-        const drift = (baseline.data && baseline.data.drift
-          && baseline.data.drift.drift_magnitude) || 0;
-        const stylometric = withOriginal ? Math.max(0, Math.min(100, Math.round((1 - drift) * 100))) : null;
-        const status = withOriginal && (drift > 0.5 || (seal.aiScore != null && seal.aiScore < 70))
+        // 2) Record the sealed submission (server dedupes by submission_uuid).
+        // Compare-only (plan Phase 7): the seal never adds to the student's
+        // baseline; a professor approves which sealed exams become baseline
+        // samples. A workspace switched off Original since this sitting began
+        // answers the score call with 403 (handled in step 1), so the exam is
+        // recorded exactly like a Bluebook-only one.
+        const stylometric = null;
+        const status = withOriginal && seal.aiScore != null && seal.aiScore < 70
           ? 'FLAGGED' : 'SUBMITTED';
         const timeMin = Math.max(0, Math.round(((cfg.duration || 0) - timeLeft) / 60));
         // Throws on failure, so a lost submission row retries like any other
         // step instead of reporting "sealed" and deleting the draft.
         await BB_API.recordSubmission({
           exam_id:     cfg.id || null,
-          student_id:  baseline.studentId || studentId,
+          student_id:  studentId,
           candidate:   cfg.candidateEmail || cfg.candidate,
           exam_title:  cfg.title,
           course:      cfg.course,
@@ -738,7 +710,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
           answers:     answersRef.current,
           warnings:    warnEventsRef.current,
         });
-        result = { ok: true, studentId: baseline.studentId || studentId };
+        result = { ok: true, studentId };
         break;
       } catch (e) {
         lastError = e;

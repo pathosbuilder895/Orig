@@ -261,8 +261,8 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     studentPage.once('dialog', d => d.accept())
     await sealBtn.click()
     await expect(studentPage.getByText('Examination Sealed')).toBeVisible({ timeout: 45_000 })
-    // The proctored-baseline transmission succeeded (recordSubmission only
-    // runs when it does — Exam.jsx handleSubmit).
+    // The submission record was written (the sealed screen only says
+    // "Delivered" when recordSubmission succeeded — Exam.jsx handleSubmit).
     await expect(studentPage.getByText('✓ Delivered to your teacher'))
       .toBeVisible({ timeout: 5_000 })
 
@@ -308,7 +308,11 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     // This is the tenant's only submission, so the rendered percentages are
     // unambiguous — they must match the API payload captured at seal time.
     await expect(staffPage.getByText(`${journey.submission.aiScore}%`).first()).toBeVisible()
-    await expect(staffPage.getByText(`${journey.submission.stylometric}%`).first()).toBeVisible()
+    // The compare-only seal no longer produces a stylometric score (that came
+    // from the baseline write's drift): the record carries none and the
+    // table shows a dash for it, never a literal "null%".
+    expect(journey.submission.stylometric ?? null).toBeNull()
+    await expect(staffPage.getByText('null%')).toHaveCount(0)
   })
 
   // ── 8 ────────────────────────────────────────────────────────────────
