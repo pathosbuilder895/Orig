@@ -384,3 +384,20 @@ def test_dump_wipe_restore_round_trip_has_parity(seeded_sqlite, fresh_pg, tmp_pa
 
     with pytest.raises(RuntimeError, match="not empty"):
         pgb.restore(session_scope, path)
+
+
+def test_the_pilot_declares_the_backup_crypto_dependency_directly():
+    """The backup job imports Fernet. cryptography must be a direct pilot
+    requirement, not a passenger of python-jose (kept only for deferred LTI),
+    and pinned at the lock's version so the lock stays consistent."""
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    direct = (root / "requirements-pilot.txt").read_text()
+    lock = (root / "requirements-pilot.lock.txt").read_text()
+    pinned = re.search(r"^cryptography==(\S+)$", lock, flags=re.MULTILINE)
+    assert pinned, "requirements-pilot.lock.txt does not pin cryptography"
+    assert re.search(rf"^cryptography=={re.escape(pinned.group(1))}\s*$", direct, re.MULTILINE)
+    entry = lock.split(f"cryptography=={pinned.group(1)}\n", 1)[1].split("\n", 3)
+    assert any("-r requirements-pilot.txt" in line for line in entry[:3]), entry[:3]

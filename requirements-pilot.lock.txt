@@ -40,7 +40,9 @@ confection==1.3.3
     #   thinc
     #   weasel
 cryptography==50.0.0
-    # via python-jose
+    # via
+    #   -r requirements-pilot.txt
+    #   python-jose
 cymem==2.0.13
     # via
     #   preshed

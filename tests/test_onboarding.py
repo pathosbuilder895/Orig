@@ -6,9 +6,8 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-from original import mailer
+from original import mailer, users
 from original import principal as principal_mod
-from original import users
 from original.onboarding import invite_professor
 from original.repository import get_repository
 from original.routers.auth import TERMS_VERSION

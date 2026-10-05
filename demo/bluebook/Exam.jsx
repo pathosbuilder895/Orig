@@ -58,7 +58,7 @@ export function examToConfig(detail, extra = {}) {
     questions:   Array.isArray(d.questions) ? d.questions : [],
     state:       d.state,
     closesAt:    d.closes_at || null,
-    inProgress:  !!d.session,
+    inProgress:  !!d.session && !d.submitted,
     loaded:      true,
     ...extra,
   };

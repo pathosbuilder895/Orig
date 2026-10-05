@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from original import constants
-from original.schemas import AddSampleRequest, ScoreSubmissionRequest, TestScoreRequest
+from original.schemas import AddSampleRequest, ScoreSubmissionRequest
+from original.schemas import TestScoreRequest as _ScoreRequest  # not a pytest class
 
 KEYS = {"keystrokes": [1, 2], "pauses": [3], "deletionRate": 0.2, "avgWpm": 41}
 SUMMARY = {"session_seconds": 600, "paste_attempts": 0, "focus_losses": 1, "revision_count": 37}
@@ -18,7 +19,7 @@ def test_keystroke_data_is_discarded_while_behavioral_features_are_disabled():
         assert model.keystroke_data is None
         assert "revision_count" not in model.composition_summary
         assert model.composition_summary["session_seconds"] == 600
-    assert TestScoreRequest(text="t", keystroke_data=KEYS).keystroke_data is None
+    assert _ScoreRequest(text="t", keystroke_data=KEYS).keystroke_data is None
 
 
 def test_keystroke_data_passes_when_behavioral_features_are_enabled(monkeypatch):

@@ -17,3 +17,6 @@ test('an unstarted exam is not in progress', () => {
   assert.equal(examToConfig({ id: 'e1', session: null }).inProgress, false);
   assert.equal(examToConfig({ id: 'e1' }).inProgress, false);
 });
+test('a submitted sitting is not offered as a resume', () => {
+  assert.equal(examToConfig({ id: 'e1', session: { started_at: 't', deadline_at: 'd' }, submitted: true }).inProgress, false);
+});
