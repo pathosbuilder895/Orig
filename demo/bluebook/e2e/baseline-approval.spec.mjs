@@ -99,6 +99,54 @@ test('a professor adds, removes and bulk-adds sealed exams as baselines', async 
   await ctx.close()
 })
 
+test('a failed baseline status load can be retried', async ({ browser, request, baseURL }) => {
+  test.setTimeout(90_000)
+  const ws = await sealedExam(request, {})
+  const { ctx, page } = await teacherPage(browser, baseURL, ws, ['bluebook', 'original'])
+
+  const statusUrl = '**/bluebook/exams/*/baseline'
+  await page.route(statusUrl, route => (route.request().method() === 'GET'
+    ? route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Temporarily unavailable' }) })
+    : route.continue()))
+  await openExam(page, ws.examTitle)
+  await page.getByRole('button', { name: 'Read & mark' }).first().click()
+  await expect(page.getByText('Writing baseline: unavailable', { exact: true })).toBeVisible()
+  await expect(page.getByText('Temporarily unavailable')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add to baseline' })).toHaveCount(0)
+
+  await page.unroute(statusUrl)
+  await page.getByRole('button', { name: 'Try again' }).click()
+  await expect(page.getByText('Writing baseline: Not in baseline', { exact: true })).toBeVisible()
+  await expect(page.getByText('Temporarily unavailable')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Try again' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Add to baseline' })).toBeVisible()
+  await ctx.close()
+})
+
+test('the bulk add shows progress and cannot be started twice', async ({ browser, request, baseURL }) => {
+  test.setTimeout(90_000)
+  const ws = await sealedExam(request, {})
+  const { ctx, page } = await teacherPage(browser, baseURL, ws, ['bluebook', 'original'])
+
+  let posts = 0
+  await page.route('**/bluebook/exams/*/baseline', async route => {
+    if (route.request().method() !== 'POST') return route.continue()
+    posts += 1
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    return route.continue()
+  })
+  await openExam(page, ws.examTitle)
+  page.once('dialog', d => d.accept())
+  await page.getByRole('button', { name: 'Add all sealed submissions to baselines' }).click()
+  const running = page.getByRole('button', { name: 'Adding…' })
+  await expect(running).toBeVisible()
+  await expect(running).toBeDisabled()
+  await expect(page.getByText('1 added · 0 already in baseline · 0 held for review.')).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('button', { name: 'Add all sealed submissions to baselines' })).toBeEnabled()
+  expect(posts).toBe(1)
+  await ctx.close()
+})
+
 test('a Bluebook-only workspace sees no baseline controls', async ({ browser, request, baseURL }) => {
   const ws = await sealedExam(request, { products: ['bluebook'] })
   const { ctx, page } = await teacherPage(browser, baseURL, ws, ['bluebook'])

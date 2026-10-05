@@ -52,6 +52,9 @@ const BASELINE_MESSAGE = {
   not_in_baseline: () => 'It was not in the baseline.',
 };
 
+// An unknown future status must not throw inside a handler.
+const baselineMessage = (status, name) => (BASELINE_MESSAGE[status] ? BASELINE_MESSAGE[status](name) : 'Done.');
+
 export function baselineSummary(r) {
   const parts = [
     `${r.added} added`,
@@ -69,16 +72,28 @@ function BaselineControl({ sub }) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const name = sub.student || 'the student';
+
+  // `isLive` lets the effect drop a late answer after unmount; Try again
+  // always applies its own result.
+  function loadStatus(isLive = () => true) {
+    setLoadFailed(false); setError('');
+    return BB_API.examBaselineStatus(sub.exam_id).then(d => {
+      if (!isLive()) return;
+      const row = (d.submissions || []).find(r => r.submission_id === sub.id);
+      setInBaseline(row ? !!row.in_baseline : false);
+    }).catch(err => {
+      if (!isLive()) return;
+      setLoadFailed(true);
+      setError(err.message || 'Could not load the baseline status.');
+    });
+  }
 
   useEffect(() => {
     let live = true;
     if (!sub.exam_id) return undefined;
-    BB_API.examBaselineStatus(sub.exam_id).then(d => {
-      if (!live) return;
-      const row = (d.submissions || []).find(r => r.submission_id === sub.id);
-      setInBaseline(row ? !!row.in_baseline : false);
-    }).catch(err => { if (live) setError(err.message || 'Could not load the baseline status.'); });
+    loadStatus(() => live);
     return () => { live = false; };
   }, [sub.id, sub.exam_id]);
 
@@ -87,7 +102,10 @@ function BaselineControl({ sub }) {
     try {
       const r = await BB_API.addToBaseline(sub.id);
       if (r.status === 'held') setMessage(r.detail);
-      else { setInBaseline(true); setMessage(BASELINE_MESSAGE[r.status](name)); }
+      else {
+        if (r.status === 'added' || r.status === 'already_in_baseline') setInBaseline(true);
+        setMessage(baselineMessage(r.status, name));
+      }
     } catch (err) { setError(err.message || 'Could not add to the baseline.'); }
     setBusy(false);
   }
@@ -97,7 +115,8 @@ function BaselineControl({ sub }) {
     setBusy(true); setError(''); setMessage('');
     try {
       const r = await BB_API.removeFromBaseline(sub.id);
-      setInBaseline(false); setMessage(BASELINE_MESSAGE[r.status](name));
+      if (r.status === 'removed' || r.status === 'not_in_baseline') setInBaseline(false);
+      setMessage(baselineMessage(r.status, name));
     } catch (err) { setError(err.message || 'Could not remove from the baseline.'); }
     setBusy(false);
   }
@@ -107,11 +126,12 @@ function BaselineControl({ sub }) {
     <div className="bb-baseline" style={{ margin: '1rem 0' }}>
       <p style={{ margin: '0 0 .4rem' }}>
         <strong>Writing baseline:</strong>{' '}
-        {inBaseline === null ? 'checking…' : inBaseline ? 'In baseline' : 'Not in baseline'}
+        {loadFailed ? 'unavailable' : inBaseline === null ? 'checking…' : inBaseline ? 'In baseline' : 'Not in baseline'}
       </p>
       <p className="bb-hint" style={{ margin: '0 0 .6rem' }}>
-        The baseline is {name}'s own reference writing. Only exams you add are used.
+        The baseline is {name}'s own reference writing. Sealed exams join it only when you add them.
       </p>
+      {loadFailed && <Btn onClick={() => loadStatus()}>Try again</Btn>}
       {inBaseline === true && <Btn onClick={remove} disabled={busy}>Remove from baseline</Btn>}
       {inBaseline === false && <Btn onClick={add} disabled={busy}>Add to baseline</Btn>}
       <Notice>{message}</Notice>
@@ -286,6 +306,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   async function load() {
     try {
@@ -348,9 +369,10 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
 
   async function addAllToBaselines() {
     if (!confirm('Add every sealed submission of this examination to the students’ writing baselines? Exams that differ strongly from a student’s existing samples are held for review, not added.')) return;
-    setError(''); setNotice('');
+    setBulkBusy(true); setError(''); setNotice('');
     try { setNotice(baselineSummary(await BB_API.addExamToBaselines(examId))); }
     catch (err) { setError(err.message || 'Could not add to baselines.'); }
+    finally { setBulkBusy(false); }
   }
 
   const graded = subs.filter(s => s.mark || s.feedback).length;
@@ -364,7 +386,11 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
         <Btn onClick={() => { window.BB_PROCTOR_EXAM = examId; onNavigate('proctor'); }}>Watch live</Btn>
         <Btn onClick={() => onPreview(exam)}>Preview</Btn>
         <Btn onClick={exportCsv}>Export CSV</Btn>
-        {BB_API.hasOriginal() && <Btn onClick={addAllToBaselines}>Add all sealed submissions to baselines</Btn>}
+        {BB_API.hasOriginal() && (
+          <Btn onClick={addAllToBaselines} disabled={bulkBusy}>
+            {bulkBusy ? 'Adding…' : 'Add all sealed submissions to baselines'}
+          </Btn>
+        )}
       </>}
     >
       <ErrorText>{error}</ErrorText>
