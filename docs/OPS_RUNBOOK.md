@@ -5,14 +5,15 @@ to keep the pilot alive. The pilot is one Render web service (`original-pilot`)
 running the dashboard app (`python run.py --demo`) hardened by `ORIGINAL_ENV=pilot`,
 with SQLite on a persistent disk at `/data/profiles.db`.
 
-## The two services
+## The pilot service
 
 | Service | Plan | Purpose | Data |
 |---|---|---|---|
-| `original-demo` | free | zero-login sales demo | ephemeral, reseeds from `demo/seed.db` |
 | `original-pilot` | starter + 1 GB disk | the real institution | persistent SQLite at `/data/profiles.db` |
 
-Never point a professor at `original-demo`. Never run sales demos on `original-pilot`.
+The `original-demo` sales-demo service has been removed from the blueprint. If one
+still exists in the Render dashboard, the owner suspends it. Never run sales demos on
+`original-pilot`.
 
 ## Secrets (Render dashboard → original-pilot → Environment)
 
@@ -45,9 +46,9 @@ var, only one of which is live on the pilot:
    list, admin corrections. Requests without a matching header get **403**.
    If `GUARD_DESTRUCTIVE=1` is set but `MAINTENANCE_TOKEN` is empty, those
    endpoints return **503** instead — a misconfiguration signal, not an open
-   door. `render.yaml` sets `GUARD_DESTRUCTIVE=1` on `original-pilot`; the
-   free `original-demo` service leaves it unset so the sales demo stays
-   click-through.
+   door. `render.yaml` sets `GUARD_DESTRUCTIVE=1` on `original-pilot`. (The
+   old `original-demo` service, removed from the blueprint, left it unset so
+   the sales demo stayed click-through.)
 2. **Demo-only admin-login backdoor (not live on the pilot).** The same
    `MAINTENANCE_TOKEN` value, presented as the password to
    `POST /api/v1/auth/login`, grants the **admin** role and writes a WARNING

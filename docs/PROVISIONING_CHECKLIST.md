@@ -68,7 +68,7 @@ in with that account; there is no passwordless student login on a real deploy.
 - [ ] Anonymous `GET $HOST/students` → **401** (roster requires staff login on pilot).
 - [ ] Anonymous `GET $HOST/admin/audit` and `GET $HOST/tenants` → **401**.
 - [ ] `GET $HOST/seed.db` and `GET $HOST/lab.html` → **404** (demo artifacts blocked).
-- [ ] The public demo (`original-demo` service) shows none of this tenant's data.
+- [ ] No public demo service exists. `original-demo` was removed from the blueprint; if one still exists on Render, the owner suspends it (it must never show this tenant's data).
 
 ## 5. Before real students
 

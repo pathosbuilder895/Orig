@@ -2,19 +2,24 @@
 
 from __future__ import annotations
 
+import re
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-from original import mailer, users
+from original import invites, mailer, users
 from original import principal as principal_mod
 from original.onboarding import invite_professor
 from original.repository import get_repository
 from original.routers.auth import TERMS_VERSION
 from scripts import invite_professor as cli
 
+ROOT = Path(__file__).resolve().parents[1]
 PW = "chosen-passw0rd"
 TERMS_MSG = "Please accept the terms of service and privacy policy."
+INVALID_MSG = "This invite link is invalid, expired, or already used."
 
 
 def _token(link: str, param: str = "invite") -> str:
@@ -108,6 +113,99 @@ def test_activated_professor_password_reset_needs_no_terms(live_client, monkeypa
     )
     assert r.status_code == 200, r.text
     assert "terms_version" not in _redeem_audit(out["tenant_id"])
+
+
+def _constant(path: str, pattern: str, expected: str) -> str:
+    found = re.search(pattern, (ROOT / path).read_text(), re.M)
+    assert found, f"{path}: expected a line of the form {expected}"
+    return found.group(1)
+
+
+def test_the_spa_matches_the_servers_terms_refusal_exactly():
+    # The SPA reveals the terms checkbox by comparing the server's 422 detail
+    # to this string; if either side is reworded the checkbox never appears
+    # and an invited professor cannot get in.
+    server = _constant(
+        "original/routers/auth.py",
+        r'^_TERMS_REQUIRED = "([^"]+)"',
+        '_TERMS_REQUIRED = "<message>"',
+    )
+    client = _constant(
+        "demo/bluebook/Account.jsx",
+        r"^const TERMS_REFUSAL = '([^']+)';",
+        "const TERMS_REFUSAL = '<message>';",
+    )
+    assert client == server
+
+
+def test_a_reset_link_for_a_professor_who_never_set_a_password_needs_the_terms(
+    live_client, monkeypatch
+):
+    out = invite_professor("never@seminary.edu", base_url="https://x.test")
+    links = []
+    monkeypatch.setattr(mailer, "configured", lambda: True)
+    monkeypatch.setattr(mailer, "send_reset", lambda to, link: links.append(link) or True)
+    asked = live_client.post("/auth/password-reset/request", json={"email": "never@seminary.edu"})
+    assert asked.status_code == 200, asked.text
+    token = _token(links[0], "reset")
+    assert "?reset=" in links[0]
+    assert not users.is_activated(get_repository().get_user_by_email("never@seminary.edu"))
+    refused = live_client.post("/auth/invite/redeem", json={"token": token, "password": PW})
+    assert refused.status_code == 422
+    assert refused.json()["detail"] == TERMS_MSG
+    # The refusal consumed nothing: the same link still works once they accept.
+    ok = live_client.post(
+        "/auth/invite/redeem", json={"token": token, "password": PW, "accept_terms": True}
+    )
+    assert ok.status_code == 200, ok.text
+    assert users.is_activated(get_repository().get_user_by_email("never@seminary.edu"))
+    assert _redeem_audit(out["tenant_id"])["terms_version"] == TERMS_VERSION
+
+
+def _put_invite(out: dict, token: str, expires_at: datetime) -> None:
+    now = datetime.now(UTC)
+    get_repository().put_invite(
+        {
+            "invite_id": f"ob-{token}",
+            "tenant_id": out["tenant_id"],
+            "user_id": out["user_id"],
+            "course_id": None,
+            "token_hash": invites.token_hash(token),
+            "created_by": "operator",
+            "created_at": now.isoformat(),
+            "expires_at": expires_at.isoformat(),
+        }
+    )
+
+
+def _professor_token_that_is(kind: str, live_client) -> str:
+    """A token for a never-activated professor that is no longer redeemable."""
+    out = invite_professor(f"{kind}@seminary.edu", base_url="https://x.test")
+    token = _token(out["invite_link"])
+    if kind == "voided":
+        invite_professor(f"{kind}@seminary.edu", base_url="https://x.test")  # reissue voids it
+    elif kind == "used":
+        ok = live_client.post(
+            "/auth/invite/redeem", json={"token": token, "password": PW, "accept_terms": True}
+        )
+        assert ok.status_code == 200, ok.text
+    elif kind == "expired":
+        token = "expired-professor-token"
+        _put_invite(out, token, datetime.now(UTC) - timedelta(days=1))
+    else:  # pragma: no cover - guards a typo in the parametrization
+        raise AssertionError(kind)
+    return token
+
+
+@pytest.mark.parametrize("kind", ["voided", "used", "expired"])
+def test_an_unusable_professor_token_gets_the_uniform_400_not_the_terms_422(live_client, kind):
+    token = _professor_token_that_is(kind, live_client)
+    unknown = live_client.post(
+        "/auth/invite/redeem", json={"token": "never-issued-token", "password": PW}
+    )
+    r = live_client.post("/auth/invite/redeem", json={"token": token, "password": PW})
+    assert (unknown.status_code, unknown.json()["detail"]) == (400, INVALID_MSG)
+    assert (r.status_code, r.json()["detail"]) == (400, INVALID_MSG)
 
 
 @pytest.mark.parametrize("email", ["", "not-an-email"])
