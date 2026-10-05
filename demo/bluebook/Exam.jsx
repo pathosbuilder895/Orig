@@ -112,7 +112,7 @@ function bbIsFullscreen() {
 // Bluebook is the proctored baseline-capture layer for Original. On submit we
 // derive the same institution-scoped, FERPA-friendly student id Original uses
 // ({tenant}:{sha256(tenant:identity)[:16]}) and POST the prose + a macro
-// composition_summary (session timing, paste/revision counts — no per-key
+// composition_summary (session timing, paste counts — no per-key
 // data, ADR-010) to /students/{id}/baseline as a `proctored` sample
 // (auth_weight 2.0 — the highest-trust ground truth for the voice profile).
 const BB_API_BASE = window.BB_API_BASE || '';   // same origin by default
@@ -545,9 +545,8 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   }
 
   // ── Composition-timing capture (macro-only, ADR-010 — fed to Original's
-  // Tier 17 via composition_summary; no per-key array is built client-side) ──
+  // Tier 17 via composition_summary; no per-key counts are kept) ──
   const revsRef     = useExRef([]);    // [{ type:'paste' }]
-  const delsRef     = useExRef(0);     // deletion keystrokes
   const startRef    = useExRef(null);  // performance.now() at first key
   const startWallRef = useExRef(null); // Date.now() wall-clock at first key
 
@@ -556,7 +555,6 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
       startRef.current = performance.now();
       startWallRef.current = Date.now();
     }
-    if (e.key === 'Backspace' || e.key === 'Delete') delsRef.current += 1;
   }
 
   function buildCompositionSummary() {
@@ -566,7 +564,6 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
       word_count:      wordCount(content),
       paste_attempts:  revsRef.current.filter(r => r.type === 'paste').length,
       focus_losses:    warnings,
-      revision_count:  delsRef.current,
       started_at:      startWallRef.current != null ? new Date(startWallRef.current).toISOString() : '',
       ended_at:        new Date().toISOString(),
       exam_config: {

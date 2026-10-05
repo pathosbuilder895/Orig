@@ -24,7 +24,9 @@ Mirrors the existing ``keystroke_data`` coverage pattern in
      ``_doc_to_state`` — pure functions, no live database required).
   5. Postgres backward compatibility, mirroring (3).
   6. Request schemas (``AddSampleRequest`` / ``ScoreSubmissionRequest``)
-     accept and round-trip ``composition_summary``.
+     accept and round-trip ``composition_summary`` — minus the deletion-key
+     ``revision_count``, which they discard while the ``behavioral`` feature
+     group is disabled (tests/test_keystroke_boundary.py).
   7. The ingestion endpoint (``POST /students/{id}/baseline``) threads
      ``req.composition_summary`` onto the persisted sample — the line in
      ``original/routers/students_baseline.py`` that actually makes the
@@ -51,6 +53,13 @@ _COMPOSITION_SUMMARY = {
     "started_at": "2026-09-20T14:00:00Z",
     "ended_at": "2026-09-20T14:45:00Z",
     "exam_config": {"block_copy": True, "min_words": 500, "duration_min": 45},
+}
+
+# What a request model keeps of _COMPOSITION_SUMMARY while the ``behavioral``
+# feature group is disabled (the classroom default): every coarse session key,
+# minus the deletion-key ``revision_count`` (tests/test_keystroke_boundary.py).
+_COMPOSITION_SUMMARY_AT_BOUNDARY = {
+    k: v for k, v in _COMPOSITION_SUMMARY.items() if k != "revision_count"
 }
 
 
@@ -164,7 +173,8 @@ class TestRequestSchemas:
         from original.schemas import AddSampleRequest
 
         req = AddSampleRequest(text="essay body", composition_summary=_COMPOSITION_SUMMARY)
-        assert req.composition_summary == _COMPOSITION_SUMMARY
+        assert req.composition_summary == _COMPOSITION_SUMMARY_AT_BOUNDARY
+        assert "revision_count" not in req.composition_summary
 
     def test_add_sample_request_composition_summary_defaults_to_none(self):
         from original.schemas import AddSampleRequest
@@ -176,7 +186,8 @@ class TestRequestSchemas:
         from original.schemas import ScoreSubmissionRequest
 
         req = ScoreSubmissionRequest(text="essay body", composition_summary=_COMPOSITION_SUMMARY)
-        assert req.composition_summary == _COMPOSITION_SUMMARY
+        assert req.composition_summary == _COMPOSITION_SUMMARY_AT_BOUNDARY
+        assert "revision_count" not in req.composition_summary
 
     def test_score_submission_request_composition_summary_defaults_to_none(self):
         from original.schemas import ScoreSubmissionRequest
@@ -218,7 +229,8 @@ class TestIngestEndpointPersistsCompositionSummary:
 
         state = store.get(sid)
         assert state is not None and state.samples, "sample was not persisted"
-        assert state.samples[-1].composition_summary == _COMPOSITION_SUMMARY
+        assert state.samples[-1].composition_summary == _COMPOSITION_SUMMARY_AT_BOUNDARY
+        assert "revision_count" not in state.samples[-1].composition_summary
         assert state.samples[-1].provenance == "proctored"
 
     def test_baseline_without_composition_summary_stores_none(self, client):

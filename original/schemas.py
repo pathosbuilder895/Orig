@@ -9,9 +9,25 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 # ── Request models ────────────────────────────────────────────────────────────
+
+
+def _discard_keystroke_derived(model):
+    """No typing rhythm or keystroke biometrics while the ``behavioral``
+    feature group is disabled (the classroom default): drop ``keystroke_data``
+    and the deletion-key ``revision_count`` before any handler can extract or
+    store them. Read from the module at call time so enabling the group (and
+    tests that do) takes effect without re-importing this module."""
+    from . import constants
+
+    if "behavioral" in constants.DISABLED_FEATURE_GROUPS:
+        model.keystroke_data = None
+        summary = getattr(model, "composition_summary", None)
+        if isinstance(summary, dict) and "revision_count" in summary:
+            model.composition_summary = {k: v for k, v in summary.items() if k != "revision_count"}
+    return model
 
 
 class AddSampleRequest(BaseModel):
@@ -26,22 +42,29 @@ class AddSampleRequest(BaseModel):
     keystroke_data: dict | None = Field(
         None,
         description="Bbook stylemetry JSON (keystrokes, pauses, revisions, deletionRate, wordCount). "
-        "When provided, Tier 17 behavioral biometric features are extracted. "
+        "Discarded on arrival while the 'behavioral' feature group is disabled (the default). "
+        "Only when that group is enabled are Tier 17 behavioral biometric features extracted. "
         "Absent for uploaded papers — Tier 17 defaults to 0.5 (neutral).",
     )
     composition_summary: dict | None = Field(
         None,
         description="Macro-only composition timing (session_seconds, word_count, "
-        "paste_attempts, focus_losses, revision_count, started_at, ended_at, "
+        "paste_attempts, focus_losses, started_at, ended_at, "
         "exam_config) — the ADR-010 replacement for keystroke_data's per-key "
         "telemetry. No per-key timing is collected; per the T-69/T-74 "
-        "macro-only keystroke posture, only session-level metrics are captured.",
+        "macro-only keystroke posture, only session-level metrics are captured. "
+        "A deletion-key revision_count is discarded on arrival while the "
+        "'behavioral' feature group is disabled (the default).",
     )
     submission_uuid: str | None = Field(
         None,
         description="Bluebook seal id: when present, an identical text already in the "
         "profile is skipped instead of re-ingested (retried-seal replay guard).",
     )
+
+    @model_validator(mode="after")
+    def _no_keystroke_data(self):
+        return _discard_keystroke_derived(self)
 
 
 class ScoreSubmissionRequest(BaseModel):
@@ -55,16 +78,24 @@ class ScoreSubmissionRequest(BaseModel):
         description="Optional ISO submission date used only by report-only longitudinal analysis.",
     )
     keystroke_data: dict | None = Field(
-        None, description="Bbook stylemetry JSON for Tier 17 behavioral biometric scoring."
+        None,
+        description="Bbook stylemetry JSON for Tier 17 behavioral biometric scoring. "
+        "Discarded on arrival while the 'behavioral' feature group is disabled (the default).",
     )
     composition_summary: dict | None = Field(
         None,
         description="Macro-only composition timing (session_seconds, word_count, "
-        "paste_attempts, focus_losses, revision_count, started_at, ended_at, "
+        "paste_attempts, focus_losses, started_at, ended_at, "
         "exam_config) — the ADR-010 replacement for keystroke_data's per-key "
         "telemetry. No per-key timing is collected; per the T-69/T-74 "
-        "macro-only keystroke posture, only session-level metrics are captured.",
+        "macro-only keystroke posture, only session-level metrics are captured. "
+        "A deletion-key revision_count is discarded on arrival while the "
+        "'behavioral' feature group is disabled (the default).",
     )
+
+    @model_validator(mode="after")
+    def _no_keystroke_data(self):
+        return _discard_keystroke_derived(self)
 
 
 # ── WS-7 step 2: request models for the former `body: dict` endpoints ─────────
@@ -550,7 +581,9 @@ class TestScoreRequest(BaseModel):
         description="Inline baseline texts (1–10). Synthetic StudentState built from these.",
     )
     keystroke_data: dict | None = Field(
-        None, description="Optional Bbook stylemetry JSON for Tier 17."
+        None,
+        description="Optional Bbook stylemetry JSON for Tier 17. "
+        "Discarded on arrival while the 'behavioral' feature group is disabled (the default).",
     )
     enable_manifest: bool = Field(True, description="Run resolvers + build manifest.")
     enable_adaptive_weights: bool = Field(
@@ -562,6 +595,10 @@ class TestScoreRequest(BaseModel):
         description="Also run sliding-window blend detection on the submission.",
     )
     submission_id: str = Field("playground", description="Audit identity (not persisted).")
+
+    @model_validator(mode="after")
+    def _no_keystroke_data(self):
+        return _discard_keystroke_derived(self)
 
 
 class TestScoreResponse(BaseModel):

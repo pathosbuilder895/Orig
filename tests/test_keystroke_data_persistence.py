@@ -180,13 +180,23 @@ def client(store_reset):
 
 
 class TestIngestEndpointPersistsKeystrokeData:
-    def test_proctored_baseline_with_keystroke_data_is_persisted(self, client):
+    def test_proctored_baseline_with_keystroke_data_is_persisted(self, client, monkeypatch):
         """ADR-010 (T-74): the raw ``keystrokes``/``pauses`` arrays are
         stripped before persisting — only the macro/summary fields
         (``revisions``, ``deletionRate``, ``wordCount``) survive. See
         tests/test_purge_keystroke_blobs.py for the dedicated stripping
-        coverage this regression test now matches."""
-        from original import store
+        coverage this regression test now matches.
+
+        Patches ``constants.DISABLED_FEATURE_GROUPS`` so the request models
+        let ``keystroke_data`` through (the boundary as it behaves with
+        ``behavioral`` enabled); this checks what gets stored, not Tier 17
+        extraction. With the group disabled (the classroom default) the
+        models discard the blob — see tests/test_keystroke_boundary.py."""
+        from original import constants, store
+
+        monkeypatch.setattr(
+            constants, "DISABLED_FEATURE_GROUPS", constants.DISABLED_FEATURE_GROUPS - {"behavioral"}
+        )
 
         sid = "demo:t17-keystroke-regression"
         resp = client.post(

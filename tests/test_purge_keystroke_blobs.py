@@ -162,8 +162,17 @@ def client(store_reset):
 
 
 class TestIngestEndpointStripsRawKeystrokeArrays:
-    def test_proctored_baseline_strips_keystrokes_and_pauses_on_persist(self, client):
-        from original import store
+    def test_proctored_baseline_strips_keystrokes_and_pauses_on_persist(self, client, monkeypatch):
+        """Patches ``constants.DISABLED_FEATURE_GROUPS`` so the request models
+        let ``keystroke_data`` through (the boundary as it behaves with
+        ``behavioral`` enabled); this checks what gets stored, not Tier 17
+        extraction. With the group disabled (the classroom default) the
+        models discard the blob — see tests/test_keystroke_boundary.py."""
+        from original import constants, store
+
+        monkeypatch.setattr(
+            constants, "DISABLED_FEATURE_GROUPS", constants.DISABLED_FEATURE_GROUPS - {"behavioral"}
+        )
 
         sid = "demo:t74-purge-strip-regression"
         resp = client.post(

@@ -209,7 +209,6 @@ Size: ~2 KB per sample (includes feature vector)
 - Focus-loss count (`focus_losses`) — a running count of window-blur /
   visibility-change warnings shown to the student during the exam, **not**
   individual timestamped focus/blur events
-- Revision count (`revision_count`) — a count of deletion keystrokes
 - Session start/end timestamps (`started_at`, `ended_at`)
 - Exam configuration snapshot (`exam_config`: `block_copy`, `min_words`,
   `duration_min`)
@@ -251,6 +250,15 @@ this inventory and no retention rule applied to it. As of this change
   (`original/routers/students_baseline.py::_strip_raw_keystroke_arrays`),
   so raw per-key keystroke timing and per-pause timing are no longer
   collected or stored as of this change, going forward.
+- While the `behavioral` feature group is disabled (the default), the
+  request models (`AddSampleRequest`, `ScoreSubmissionRequest`,
+  `TestScoreRequest` in `original/schemas.py`) discard the whole
+  `keystroke_data` blob and the `revision_count` key of
+  `composition_summary` before any handler sees them, and Bluebook no
+  longer counts deletion keystrokes at all. Neither is collected or stored.
+  Samples stored before this change may still carry a `revision_count`
+  and the macro `keystroke_data` fields (`deletionRate`, `avgWpm`, …);
+  `scripts/purge_keystroke_blobs.py` does not remove those.
 - `scripts/purge_keystroke_blobs.py` is available as a one-off cleanup for
   `keystroke_data` already at rest (dry-run by default, `--apply` to
   rewrite; works against both the SQLite and Postgres backends via the
