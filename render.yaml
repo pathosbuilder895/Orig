@@ -204,6 +204,19 @@ services:
       - key: BACKUP_ENCRYPTION_KEY
         sync: false
 
+  # Fictional professor walkthrough on its own origin: no API, no accounts,
+  # no student data. Separate from original-pilot so demo fiction and
+  # classroom records never share an address.
+  - type: web
+    name: bluebook-teacher-demo
+    runtime: static
+    buildCommand: bash scripts/build_teacher_demo_site.sh dist-teacher-demo
+    staticPublishPath: ./dist-teacher-demo
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+
 databases:
   # The pilot's database. Internal-only (no public IP access); paid plan, so
   # it does not expire and Render takes daily snapshots.

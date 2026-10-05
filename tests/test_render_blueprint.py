@@ -27,7 +27,8 @@ SECRETS = {
 
 
 def _env(service: str) -> dict[str, dict]:
-    return {e["key"]: e for e in SERVICES[service]["envVars"]}
+    # A static site (bluebook-teacher-demo) declares no envVars at all.
+    return {e["key"]: e for e in SERVICES[service].get("envVars", [])}
 
 
 def test_pilot_runs_on_managed_postgres_and_migrates_before_each_deploy():
@@ -86,3 +87,11 @@ def test_deferred_lti_is_not_configured_on_the_pilot():
 
 def test_pilot_is_invitation_only():
     assert _env("original-pilot")["SELF_SERVE_SIGNUP"]["value"] == "0"
+
+
+def test_teacher_demo_is_a_separate_static_site():
+    demo = SERVICES["bluebook-teacher-demo"]
+    assert demo["runtime"] == "static"
+    assert demo["buildCommand"] == "bash scripts/build_teacher_demo_site.sh dist-teacher-demo"
+    assert demo["staticPublishPath"] == "./dist-teacher-demo"
+    assert "envVars" not in demo

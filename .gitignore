@@ -157,3 +157,4 @@ validation/genre_crossgenre_2026-08/vectors_meta.json
 # Certification suite verdict report (tests/certification/conftest.py:record_verdict).
 # Written locally by the certification tests; not yet uploaded by CI.
 certification-report.json
+dist-teacher-demo/
