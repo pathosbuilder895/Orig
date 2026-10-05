@@ -49,3 +49,17 @@ test('the bulk summary never speaks of a review queue', () => {
   assert.doesNotMatch(text, /review|held/i);
   assert.match(text, /Not added: Ana, Ben\.$/);
 });
+
+test('the bulk summary lists sittings set aside for review', () => {
+  assert.equal(
+    baselineSummary({ added: 1, already_in_baseline: 0, held: 0, needs_review: 2, nothing_written: 0, errors: 0,
+      results: [
+        { status: 'needs_review', student: 'Ana', detail: 'late' },
+        { status: 'needs_review', student: 'Ben', detail: '2 lockdown warnings' },
+        { status: 'added', student: 'Cy' },
+      ] }),
+    '1 added · 0 already in baseline · 0 not added (differ strongly from earlier samples) · '
+      + '2 set aside for your review (late or with lockdown warnings). '
+      + 'Set aside: Ana (late), Ben (2 lockdown warnings).',
+  );
+});

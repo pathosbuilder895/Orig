@@ -70,7 +70,7 @@ def _student(client, prof, course, email):
     return r.json()
 
 
-def _seal(client, student, exam_id, answers=ANSWERS):
+def _seal(client, student, exam_id, answers=ANSWERS, **extra):
     client.post(f"/bluebook/me/exams/{exam_id}/start", headers=_auth(student["token"]))
     body = {
         "exam_id": exam_id,
@@ -79,6 +79,7 @@ def _seal(client, student, exam_id, answers=ANSWERS):
         "text": "\n\n".join(f"Question {i + 1}.\n{a}" for i, a in enumerate(answers)),
         "answers": answers,
         "submission_uuid": f"uuid-{student['student_id']}-{exam_id}",
+        **extra,
     }
     r = client.post("/bluebook/submissions", json=body, headers=_auth(student["token"]))
     assert r.status_code == 201, r.text
@@ -549,3 +550,77 @@ def test_an_operator_can_approve_in_its_own_workspace(live_client):
     assert r.status_code == 200, r.text
     assert r.json()["status"] == "added"
     assert _sample_count(stu) == 1
+
+
+def _seal_late(client, student, exam_id, monkeypatch):
+    """Seal after the sitting's deadline: the seal route tags it late."""
+    from datetime import datetime as _real_dt
+    from datetime import timedelta
+
+    import original.routers.bluebook as bb_mod
+
+    class _Later:
+        @staticmethod
+        def now(tz=None):
+            return _real_dt.now(tz) + timedelta(hours=6)
+
+        fromisoformat = _real_dt.fromisoformat
+
+    client.post(f"/bluebook/me/exams/{exam_id}/start", headers=_auth(student["token"]))
+    # A scoped context: a bare monkeypatch.undo() would also revert the
+    # fixtures' own patches (the store paths) and orphan the sealed row.
+    with monkeypatch.context() as patch:
+        patch.setattr(bb_mod, "datetime", _Later)
+        sub = _seal(client, student, exam_id, answers=[ANSWERS[1], ANSWERS[0]])
+    assert get_repository().get_bluebook_submission(sub)["late"] == 1
+    return sub
+
+
+def test_bulk_sets_aside_late_and_warned_sittings(live_client, monkeypatch):
+    prof, course, exam = _workspace(live_client)
+    clean = _student(live_client, prof, course, "clean@school.edu")
+    late = _student(live_client, prof, course, "late@school.edu")
+    warned = _student(live_client, prof, course, "warned@school.edu")
+    _seal(live_client, clean, exam["id"])
+    _seal_late(live_client, late, exam["id"], monkeypatch)
+    _seal(
+        live_client, warned, exam["id"], answers=[ANSWERS[0][::-1]],
+        warnings=[{"type": "focus_lost"}, {"type": "paste_blocked"}],
+    )
+
+    r = live_client.post(f"/bluebook/exams/{exam['id']}/baseline", headers=_auth(prof["token"]))
+
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert (body["added"], body["needs_review"]) == (1, 2)
+    # A list, not a dict keyed by "student": these seals send no candidate
+    # name, so both rows share one (empty) student label.
+    reasons = [row["detail"] for row in body["results"] if row["status"] == "needs_review"]
+    assert sorted(reasons) == ["2 lockdown warnings", "late"]
+    assert _sample_count(clean) == 1
+    assert _sample_count(late) == 0
+    assert _sample_count(warned) == 0
+    audit = get_repository().list_audit(action="baseline_approve_bulk")["items"][0]
+    assert len(audit["details"]["needs_review_ids"]) == 2
+
+
+def test_a_warned_sitting_can_still_be_added_one_at_a_time(live_client):
+    prof, course, exam = _workspace(live_client)
+    stu = _student(live_client, prof, course, "warned@school.edu")
+    sub = _seal(live_client, stu, exam["id"], warnings=[{"type": "tab_hidden"}])
+
+    r = live_client.post(f"/bluebook/submissions/{sub}/baseline", headers=_auth(prof["token"]))
+
+    assert r.json()["status"] == "added"
+    assert _sample_count(stu) == 1
+
+
+def test_bulk_reports_an_already_added_warned_sitting_as_in_baseline(live_client):
+    prof, course, exam = _workspace(live_client)
+    stu = _student(live_client, prof, course, "warned@school.edu")
+    sub = _seal(live_client, stu, exam["id"], warnings=[{"type": "tab_hidden"}])
+    live_client.post(f"/bluebook/submissions/{sub}/baseline", headers=_auth(prof["token"]))
+
+    r = live_client.post(f"/bluebook/exams/{exam['id']}/baseline", headers=_auth(prof["token"]))
+
+    assert (r.json()["already_in_baseline"], r.json()["needs_review"]) == (1, 0)

@@ -135,7 +135,20 @@ def _row(rec: dict, status: str, detail: str = "") -> dict:
     }
 
 
-def _add(rec: dict, request: Request) -> dict:
+def _review_reason(rec: dict) -> str:
+    """Why bulk approval leaves this sitting for the professor to look at
+    first: a late seal and/or any recorded lockdown warning. Empty when
+    neither. Plain wording; these are listed for a closer look, not flagged."""
+    reasons = []
+    if rec.get("late"):
+        reasons.append("late")
+    count = len(rec.get("warnings") or [])
+    if count:
+        reasons.append(f"{count} lockdown warning{'' if count == 1 else 's'}")
+    return ", ".join(reasons)
+
+
+def _add(rec: dict, request: Request, set_aside_flagged: bool = False) -> dict:
     # Per row, not only per exam: an exam with no workspace (a legacy row)
     # lists submissions from every workspace, and a row from one without
     # Original must never reach a profile.
@@ -149,6 +162,10 @@ def _add(rec: dict, request: Request) -> dict:
     state = _repo().get(rec["student_id"])
     if state is not None and _fingerprints(rec) & _hashes_from_samples(state.samples):
         return _row(rec, "already_in_baseline")
+    if set_aside_flagged:
+        reason = _review_reason(rec)
+        if reason:
+            return _row(rec, "needs_review", reason)
     try:
         req = AddSampleRequest(
             text=text,
@@ -250,16 +267,23 @@ def remove_submission_baseline(submission_id: str, request: Request):
 
 @router.post("/bluebook/exams/{exam_id}/baseline")
 def approve_exam_baselines(exam_id: str, request: Request):
-    """Add every sealed submission of an examination to its student's baseline."""
+    """Add every sealed submission of an examination to its student's baseline, except late or warned sittings, which are set aside for the professor's review."""
     exam = _owned_original_exam(exam_id, request)
     ids: dict[str, list[str]] = {
         status: []
-        for status in ("added", "already_in_baseline", "held", "nothing_written", "error")
+        for status in (
+            "added",
+            "already_in_baseline",
+            "held",
+            "needs_review",
+            "nothing_written",
+            "error",
+        )
     }
     results = []
     for rec in _exam_submissions(exam):
         try:
-            row = _add(rec, request)
+            row = _add(rec, request, set_aside_flagged=True)
         except HTTPException as exc:
             row = _row(rec, "error", str(exc.detail))
         except Exception:
@@ -273,6 +297,7 @@ def approve_exam_baselines(exam_id: str, request: Request):
         "added": len(ids["added"]),
         "already_in_baseline": len(ids["already_in_baseline"]),
         "held": len(ids["held"]),
+        "needs_review": len(ids["needs_review"]),
         "nothing_written": len(ids["nothing_written"]),
         "errors": len(ids["error"]),
     }

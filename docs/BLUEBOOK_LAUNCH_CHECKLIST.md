@@ -199,7 +199,9 @@ actually does, with a DRAFT banner and bracketed blanks.
   sealing an exam never adds it to a student's baseline. In the submission
   reader, **Add to baseline** / **Remove from baseline** handles one exam; on an
   examination's page, **Add all sealed submissions to baselines** handles the
-  rest. An exam that differs strongly from the student's existing samples is
+  rest. **Add all** sets aside late sittings and sittings with any lockdown
+  warning and lists them; add those one at a time from the reader after
+  looking. An exam that differs strongly from the student's existing samples is
   not added ("Not added: this exam differs strongly from the student's existing
   samples"); approval never overrides that check, and there is no review queue
   to clear it later.

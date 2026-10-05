@@ -61,10 +61,17 @@ export function baselineSummary(r) {
     `${r.already_in_baseline} already in baseline`,
     `${r.held} not added (differ strongly from earlier samples)`,
   ];
+  if (r.needs_review) parts.push(`${r.needs_review} set aside for your review (late or with lockdown warnings)`);
   if (r.nothing_written) parts.push(`${r.nothing_written} with nothing written`);
   if (r.errors) parts.push(`${r.errors} could not be added`);
-  const held = (r.results || []).filter(x => x.status === 'held').map(x => x.student).filter(Boolean);
-  return parts.join(' · ') + (held.length ? `. Not added: ${held.join(', ')}.` : '.');
+  const rows = r.results || [];
+  const held = rows.filter(x => x.status === 'held').map(x => x.student).filter(Boolean);
+  const setAside = rows.filter(x => x.status === 'needs_review')
+    .map(x => `${x.student || 'Candidate'} (${x.detail})`);
+  let text = parts.join(' · ') + '.';
+  if (held.length) text += ` Not added: ${held.join(', ')}.`;
+  if (setAside.length) text += ` Set aside: ${setAside.join(', ')}.`;
+  return text;
 }
 
 function BaselineControl({ sub }) {
@@ -373,7 +380,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
   }
 
   async function addAllToBaselines() {
-    if (!confirm('Add every sealed submission of this examination to the students’ writing baselines? Exams that differ strongly from a student’s existing samples are not added.')) return;
+    if (!confirm('Add every sealed submission of this examination to the students’ writing baselines? Late sittings and sittings with lockdown warnings are set aside for you to review one at a time, and exams that differ strongly from a student’s existing samples are not added.')) return;
     setBulkBusy(true); setError(''); setNotice('');
     try { setNotice(baselineSummary(await BB_API.addExamToBaselines(examId))); }
     catch (err) { setError(err.message || 'Could not add to baselines.'); }
