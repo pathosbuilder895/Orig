@@ -165,12 +165,14 @@ class Tenant(LiveBase):
     meta_json: Mapped[dict[str, Any]] = mapped_column(
         JSONDoc, nullable=False, server_default=text("'{}'")
     )
-    # Products this tenant bought: "original" and/or "bluebook". Defaults to
-    # both so every tenant that predates the column keeps today's behaviour.
-    # Read through principal.tenant_products(); enforced by the product gate
-    # in api.py's tenant_isolation middleware.
+    # Products this tenant bought: "original" and/or "bluebook". New rows
+    # default to Bluebook only (alembic a7d3c9e1b5f2): a placeholder row for a
+    # write naming an unregistered tenant must not hold Original unless an
+    # operator switches it on. Rows that predate that revision keep their
+    # products. Read through principal.tenant_products(); enforced by the
+    # product gate in api.py's tenant_isolation middleware.
     products_json: Mapped[list[str]] = mapped_column(
-        JSONDoc, nullable=False, server_default=text("""'["original", "bluebook"]'""")
+        JSONDoc, nullable=False, server_default=text("""'["bluebook"]'""")
     )
 
 

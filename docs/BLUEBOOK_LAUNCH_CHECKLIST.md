@@ -88,7 +88,7 @@ institutions buying Original.
 | `BACKUP_ENCRYPTION_KEY` | generate with the command in render.yaml; store a copy in your password manager — losing it makes every backup unrecoverable |
 
 - [ ] Done when: the first deploy of `original-pilot` is **Live**. Its deploy log
-  shows `Running upgrade … -> f4c9a2d71b30` from the pre-deploy step, then the
+  shows `Running upgrade … -> a7d3c9e1b5f2` from the pre-deploy step, then the
   server starting.
 
 ## 4. Custom domain (skip if using the onrender.com address)

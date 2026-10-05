@@ -2989,7 +2989,12 @@ def _iso_eq(a, b):
 class TestBluebookSelfServeContract:
     def test_tenant_products_default_and_set(self, repo):
         repo.put_tenant("ss-t", "SS", environment="pilot")
-        assert sorted(repo.get_tenant("ss-t")["products"]) == ["bluebook", "original"]
+        # Postgres rows created without products default to Bluebook only
+        # (alembic a7d3c9e1b5f2); SQLite keeps both products by design.
+        expected = (
+            ["bluebook"] if isinstance(repo, PostgresRepository) else ["bluebook", "original"]
+        )
+        assert sorted(repo.get_tenant("ss-t")["products"]) == expected
         assert repo.set_tenant_products("ss-t", ["bluebook"]) is True
         assert repo.get_tenant("ss-t")["products"] == ["bluebook"]
         assert [t["products"] for t in repo.list_tenants() if t["tenant_id"] == "ss-t"] == [
