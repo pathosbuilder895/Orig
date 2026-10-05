@@ -34,7 +34,9 @@ The strongest baseline is a **proctored Bluebook sitting**:
 4. When they **Seal & Submit**, the exam is recorded. It joins their profile
    as highest-trust baseline material only when you add it: **Add to
    baseline** in the submission reader, or **Add all sealed submissions to
-   baselines** on the examination's page.
+   baselines** on the examination's page. **Add all** adds every sealed exam
+   except late ones and ones with lockdown warnings; it lists those for you to
+   add one at a time after looking.
 
 Top up with prior essays you trust via **Import Papers** on the professor
 dashboard. **Tell students in advance** — the syllabus disclosure text your

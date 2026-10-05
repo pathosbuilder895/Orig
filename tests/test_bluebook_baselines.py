@@ -273,7 +273,7 @@ def test_every_action_is_audited_without_student_text(live_client):
 # ── Review fixes: workspace boundaries, legacy duplicates, bulk resilience ──
 
 
-def _plant(tenant_id, exam_id, student_id, answers=ANSWERS):
+def _plant(tenant_id, exam_id, student_id, answers=ANSWERS, **fields):
     """Write a submission row straight into the repository, the way a row that
     got past the seal-time checks would look. Planting directly keeps these
     tests about the approval routes, not about the seal route's own checks."""
@@ -297,6 +297,7 @@ def _plant(tenant_id, exam_id, student_id, answers=ANSWERS):
             "status": "SUBMITTED",
             "submission_uuid": f"plant-{sub_id}",
             "late": 0,
+            **fields,
         }
     )
     return sub_id
@@ -582,8 +583,8 @@ def test_bulk_sets_aside_late_and_warned_sittings(live_client, monkeypatch):
     late = _student(live_client, prof, course, "late@school.edu")
     warned = _student(live_client, prof, course, "warned@school.edu")
     _seal(live_client, clean, exam["id"])
-    _seal_late(live_client, late, exam["id"], monkeypatch)
-    _seal(
+    late_sub = _seal_late(live_client, late, exam["id"], monkeypatch)
+    warned_sub = _seal(
         live_client, warned, exam["id"], answers=[ANSWERS[0][::-1]],
         warnings=[{"type": "focus_lost"}, {"type": "paste_blocked"}],
     )
@@ -593,10 +594,10 @@ def test_bulk_sets_aside_late_and_warned_sittings(live_client, monkeypatch):
     assert r.status_code == 200, r.text
     body = r.json()
     assert (body["added"], body["needs_review"]) == (1, 2)
-    # A list, not a dict keyed by "student": these seals send no candidate
-    # name, so both rows share one (empty) student label.
-    reasons = [row["detail"] for row in body["results"] if row["status"] == "needs_review"]
-    assert sorted(reasons) == ["2 lockdown warnings", "late"]
+    # Keyed by submission id, not by "student": these seals send no candidate
+    # name, so every row shares the one label "Candidate".
+    reasons = {row["submission_id"]: row["detail"] for row in body["results"] if row["status"] == "needs_review"}
+    assert reasons == {late_sub: "late", warned_sub: "2 lockdown warnings"}
     assert _sample_count(clean) == 1
     assert _sample_count(late) == 0
     assert _sample_count(warned) == 0
@@ -624,3 +625,38 @@ def test_bulk_reports_an_already_added_warned_sitting_as_in_baseline(live_client
     r = live_client.post(f"/bluebook/exams/{exam['id']}/baseline", headers=_auth(prof["token"]))
 
     assert (r.json()["already_in_baseline"], r.json()["needs_review"]) == (1, 0)
+
+
+def test_a_late_or_warned_row_that_fails_a_workspace_check_is_refused_not_set_aside(
+    live_client, monkeypatch
+):
+    """The set-aside check comes after the workspace checks: a late or warned row
+    that must be refused reads as an error, never as a sitting left for review."""
+    prof_a, course_a, exam_a = _workspace(live_client, email="a@school.edu")
+    prof_b, course_b, _exam_b = _workspace(live_client, email="b@other.edu", original=False)
+    stu_a = _student(live_client, prof_a, course_a, "ann@school.edu")
+    stu_b = _student(live_client, prof_b, course_b, "bea@other.edu")
+    repo = get_repository()
+    real_get = repo.get_bluebook_exam
+
+    def workspaceless(exam_id):  # the legacy shape: every workspace's rows are listed
+        rec = real_get(exam_id)
+        return {**rec, "tenant_id": None} if rec and exam_id == exam_a["id"] else rec
+
+    monkeypatch.setattr(repo, "get_bluebook_exam", workspaceless)
+    flagged = {"late": 1, "warnings": [{"type": "focus_lost"}]}
+    in_workspace = _plant(prof_a["tenant_id"], exam_a["id"], stu_a["student_id"], **flagged)
+    no_original = _plant(prof_b["tenant_id"], exam_a["id"], stu_b["student_id"], **flagged)
+    foreign_student = _plant(prof_a["tenant_id"], exam_a["id"], stu_b["student_id"], **flagged)
+
+    r = live_client.post(f"/bluebook/exams/{exam_a['id']}/baseline", headers=_operator("ops"))
+
+    assert r.status_code == 200, r.text
+    rows = {row["submission_id"]: row for row in r.json()["results"]}
+    assert rows[in_workspace]["status"] == "needs_review"
+    assert rows[in_workspace]["detail"] == "late, 1 lockdown warning"
+    assert rows[no_original]["status"] == "error"
+    assert rows[no_original]["detail"] == "This workspace's plan does not include Original."
+    assert rows[foreign_student]["status"] == "error"
+    assert (r.json()["needs_review"], r.json()["errors"], r.json()["added"]) == (1, 2, 0)
+    assert get_repository().get(stu_b["student_id"]) is None

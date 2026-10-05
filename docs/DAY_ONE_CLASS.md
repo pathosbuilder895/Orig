@@ -129,8 +129,9 @@ export SECRET_KEY=<the pilot's SECRET_KEY>   # same value as the Render service
 - [ ] Announce; students sit the baseline in or after class. As each student
   submits, the submission appears in the professor's Submissions, live. The
   professor then adds the sealed exams to baselines (**Add all sealed
-  submissions to baselines** on the examination's page), and the roster goes
-  blank → populated.
+  submissions to baselines** on the examination's page; it skips late exams
+  and ones with lockdown warnings and lists them, to add one at a time after
+  looking), and the roster goes blank → populated.
 
 ---
 
