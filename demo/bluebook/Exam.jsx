@@ -64,12 +64,33 @@ export function examToConfig(detail, extra = {}) {
   };
 }
 
+// The on-device draft for one exam (see ExamScreen's draft persistence).
+function bbDraftKey(cfg) {
+  return 'bb_draft_' + ((cfg && (cfg.id || cfg.title)) || 'exam');
+}
+
+// Whether this sitting's submission goes to Original. Original can be
+// switched on or off for a workspace mid-exam, and any home-page load then
+// refreshes the stored products, so the sitting decides once — when the
+// student first enters the exam screen — and keeps that decision in the
+// exam's draft (seal.withOriginal). The briefing and the seal both read it,
+// so what the student is told is what happens to the submission. Before the
+// sitting has started (no draft, or a draft from an older page without the
+// decision), the workspace's current products answer.
+export function bbOriginalForSitting(cfg) {
+  try {
+    const d = JSON.parse(localStorage.getItem(bbDraftKey(cfg)) || 'null');
+    if (d && d.seal && typeof d.seal.withOriginal === 'boolean') return d.seal.withOriginal;
+  } catch (e) {}
+  return BB_API.hasOriginal();
+}
+
 // Build the enforced-conditions list from a config object. Each line says
 // what this page actually does. A web page cannot block other applications
 // or AI tools, so it says what is not permitted and what is recorded,
 // never that something is impossible.
 function buildConditions(cfg) {
-  const withOriginal = BB_API.hasOriginal();
+  const withOriginal = bbOriginalForSitting(cfg);
   return [
     cfg.blockAI   && 'AI assistants and other writing tools are not permitted',
     cfg.blockWeb  && 'The examination runs full-screen; leaving it or switching tabs is recorded for your teacher',
@@ -461,7 +482,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   const candidateLabel = bbCandidateLabel(cfg);
   // Draft persistence: an exam must survive a crash, reload, or accidental
   // exit. Keyed per exam, restored on mount, cleared on successful seal.
-  const draftKey = 'bb_draft_' + (cfg.id || cfg.title || 'exam');
+  const draftKey = bbDraftKey(cfg);
   const restored = (() => {
     try { return JSON.parse(localStorage.getItem(draftKey) || 'null'); }
     catch (e) { return null; }
@@ -500,6 +521,14 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   // Seal progress survives refreshes so a retried seal is idempotent
   // end-to-end: same uuid, completed steps never re-run.
   const sealRef     = useExRef((restored && restored.seal) || { uuid: null, aiScore: undefined, baselineData: null });
+  // Whether this sitting goes to Original is decided here, once, on first
+  // entry, and kept in the draft (see bbOriginalForSitting). A restored
+  // decision stands even if the workspace's products have changed since.
+  const decidedNowRef = useExRef(false);
+  if (typeof sealRef.current.withOriginal !== 'boolean') {
+    sealRef.current.withOriginal = BB_API.hasOriginal();
+    decidedNowRef.current = true;
+  }
   const [offline, setOffline] = useExState(typeof navigator !== 'undefined' && navigator.onLine === false);
   // Live refs so interval/debounce callbacks always persist current values.
   const contentRef  = useExRef(content);
@@ -609,9 +638,12 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
 
     const studentId = await bbResolveStudentId(cfg);
     // A Bluebook-only workspace never calls Original: the server 403s those
-    // routes for it anyway, and its students are not profiled. `let`: an
-    // operator can switch Original off while this page still thinks it is on.
-    let withOriginal = BB_API.hasOriginal();
+    // routes for it anyway, and its students are not profiled. The sitting's
+    // own decision, not the products stored now: switching Original on
+    // mid-exam must not compare a submission the student was told would not
+    // be. `let`: an operator can switch Original off while this sitting
+    // still holds it.
+    let withOriginal = typeof seal.withOriginal === 'boolean' ? seal.withOriginal : BB_API.hasOriginal();
     let result = null;
     let lastError = null;
     const BACKOFF = [2000, 5000, 10000];
@@ -635,7 +667,9 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
             // page loaded). A 403 will not change on retry, so seal exactly as
             // a Bluebook-only workspace does instead of stranding the exam.
             withOriginal = false;
+            seal.withOriginal = false;
             BB_API.dropOriginal();
+            writeDraftNow();
           } else {
             if (!r.ok) throw new Error(r.error || 'baseline write failed');
             seal.baselineData = r;
@@ -744,6 +778,13 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
     if (timeLeft > 0 || !cfg.duration || submitting) return;
     handleSubmit({ force: true, expired: true });
   }, [timeLeft]);
+
+  // Persist a sitting decision taken on this mount at once, so a reload keeps
+  // it before the student has written anything. Silent: with no writing
+  // there is no "Draft saved" to announce.
+  useExEffect(() => {
+    if (decidedNowRef.current) writeDraftNow();
+  }, []);
 
   // Autosave: the dot appears only after a REAL write. A 2s typing debounce
   // captures active work; the 30s interval keeps the draft fresh even
