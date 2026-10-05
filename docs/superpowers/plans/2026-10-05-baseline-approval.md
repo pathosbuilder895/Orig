@@ -483,6 +483,28 @@ def test_remove_then_add_again(live_client):
     assert _sample_count(stu) == 1
 
 
+def test_remove_finds_a_sample_the_old_seal_added_with_headings(live_client):
+    from original.routers import students_baseline
+    from original.schemas import AddSampleRequest
+
+    prof, course, exam = _workspace(live_client)
+    stu = _student(live_client, prof, course, "one@school.edu")
+    sub = _seal(live_client, stu, exam["id"])
+    stored = get_repository().get_bluebook_submission(sub)
+    # What the pre-Phase-7 seal sent: the stored text, headings included.
+    students_baseline.add_baseline(
+        stu["student_id"], AddSampleRequest(text=stored["text"], provenance="unverified"), None
+    )
+    assert _sample_count(stu) == 1
+    status = live_client.get(f"/bluebook/exams/{exam['id']}/baseline", headers=_auth(prof["token"]))
+    assert status.json()["submissions"][0]["in_baseline"] is True
+
+    r = live_client.delete(f"/bluebook/submissions/{sub}/baseline", headers=_auth(prof["token"]))
+
+    assert r.json()["status"] == "removed"
+    assert _sample_count(stu) == 0
+
+
 def test_a_sample_held_by_the_drift_gate_is_reported_not_added(live_client, monkeypatch):
     from original.routers import bluebook_baselines
 
@@ -617,6 +639,7 @@ docs/superpowers/specs/2026-10-05-baseline-approval-design.md
 from __future__ import annotations
 
 import hashlib
+import sys
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -648,6 +671,19 @@ def _baseline_text(rec: dict) -> str:
 
 def _fingerprint(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()
+
+
+def _fingerprints(rec: dict) -> set[str]:
+    """Every fingerprint this exam can have in a baseline: the approved form
+    (answers, no headings) and, for samples the old seal-time write added,
+    the stored text exactly as it was sent (with "Question N." headings)."""
+    out = set()
+    text = _baseline_text(rec)
+    if text:
+        out.add(_fingerprint(text))
+    if rec.get("text"):
+        out.add(_fingerprint(rec["text"]))
+    return out
 
 
 def _require_original(tenant_id: str | None) -> None:
@@ -711,12 +747,14 @@ def _add(rec: dict, request: Request) -> dict:
     return _row(rec, "already_in_baseline" if out.get("skipped") else "added")
 
 
-def _sample_index(state, text: str) -> int | None:
-    target = _fingerprint(text)
-    for i, sample in enumerate(state.samples):
-        if target in _hashes_from_samples([sample]):
-            return i
-    return None
+def _matching_indices(state, fingerprints: set[str]) -> list[int]:
+    """Indices of every sample carrying one of this exam's fingerprints
+    (duplicates included), highest first so they can be popped in order."""
+    return [
+        i
+        for i in range(len(state.samples) - 1, -1, -1)
+        if _hashes_from_samples([state.samples[i]]) & fingerprints
+    ]
 
 
 def _rebuild_kappa(state) -> None:
@@ -756,21 +794,31 @@ def remove_submission_baseline(submission_id: str, request: Request):
     """Take one exam back out of the student's baseline; the profile is
     recomputed from the remaining samples."""
     rec = _owned_submission(submission_id, request)
-    text = _baseline_text(rec)
-    state = _repo().get(rec["student_id"]) if rec.get("student_id") and text else None
-    index = _sample_index(state, text) if state is not None else None
-    if index is None:
+    fingerprints = _fingerprints(rec)
+    state = _repo().get(rec["student_id"]) if rec.get("student_id") and fingerprints else None
+    indices = _matching_indices(state, fingerprints) if state is not None else []
+    if not indices:
         return _row(rec, "not_in_baseline")
-    state.remove_sample(index)
+    for index in indices:
+        state.remove_sample(index)
     _rebuild_kappa(state)
     _persist_or_503(state)
+    # The fused score keeps a per-student profile of raw baseline text in
+    # process (FUSED_SCORE_* flags); drop it, as delete_student does.
+    fusion_peers = sys.modules.get("original.fusion.peers")
+    if fusion_peers is not None:
+        fusion_peers.clear_student(rec["student_id"])
     _repo().log_audit(
         action="baseline_remove",
         student_id=rec["student_id"],
         tenant_id=rec.get("tenant_id"),
         actor=_actor(request),
         result="removed",
-        details={"submission_id": rec["id"], "sample_count_after": state.sample_count},
+        details={
+            "submission_id": rec["id"],
+            "samples_removed": len(indices),
+            "sample_count_after": state.sample_count,
+        },
     )
     return _row(rec, "removed")
 
@@ -810,7 +858,7 @@ def exam_baseline_status(exam_id: str, request: Request):
             states[sid] = _repo().get(sid)
         state = states.get(sid) if sid else None
         in_baseline = bool(
-            text and state is not None and _fingerprint(text) in _hashes_from_samples(state.samples)
+            state is not None and _fingerprints(rec) & _hashes_from_samples(state.samples)
         )
         out.append(
             {
