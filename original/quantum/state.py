@@ -170,6 +170,19 @@ class StudentState:
         self._trajectory = None
         self._loo_distances = None
 
+    def remove_sample(self, index: int) -> BaselineSample:
+        """Remove one baseline sample and invalidate the cached state.
+
+        Every derived value (density matrix, purity, trajectory, leave-one-out
+        distances) is recomputed from the remaining samples on next access, so
+        the result equals a state built from them directly."""
+        sample = self.samples.pop(index)
+        self._rho = None
+        self._purity = None
+        self._trajectory = None
+        self._loo_distances = None
+        return sample
+
     # ── Density matrix ───────────────────────────────────────────────────────
 
     @property
