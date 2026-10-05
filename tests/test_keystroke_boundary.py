@@ -31,6 +31,69 @@ def test_keystroke_data_passes_when_behavioral_features_are_enabled(monkeypatch)
     assert model.composition_summary["revision_count"] == 37
 
 
+# What Bluebook's exam client sends (demo/bluebook/Exam.jsx buildCompositionSummary).
+COARSE = {
+    "session_seconds": 600,
+    "word_count": 812,
+    "paste_attempts": 0,
+    "focus_losses": 1,
+    "started_at": "2026-10-05T09:00:00.000Z",
+    "ended_at": "2026-10-05T09:10:00.000Z",
+    "exam_config": {"block_copy": True, "min_words": 300, "duration_min": 60},
+}
+# The same, plus fields a client could add that are not coarse session data.
+EXTRA = {
+    **COARSE,
+    "revision_count": 37,
+    "keystrokes": [{"key": "a", "elapsed": 100.0}],
+    "deletionRate": 0.2,
+    "exam_config": {**COARSE["exam_config"], "keystroke_log": [1, 2], "avgWpm": 41},
+}
+SUMMARY_MODELS = (AddSampleRequest, ScoreSubmissionRequest)
+
+
+def test_composition_summary_keeps_only_coarse_session_fields():
+    for cls in SUMMARY_MODELS:
+        assert cls(text="t", composition_summary=EXTRA).composition_summary == COARSE, cls
+
+
+def test_allowed_composition_summary_fields_pass_unchanged():
+    for cls in SUMMARY_MODELS:
+        assert cls(text="t", composition_summary=COARSE).composition_summary == COARSE, cls
+        partial = {"session_seconds": 12, "exam_config": {"min_words": 5}}
+        assert cls(text="t", composition_summary=partial).composition_summary == partial, cls
+
+
+def test_a_composition_summary_exam_config_that_is_not_a_dict_is_dropped():
+    for cls in SUMMARY_MODELS:
+        for bad in ("block_copy", ["min_words", 5], 7, None):
+            model = cls(text="t", composition_summary={"word_count": 9, "exam_config": bad})
+            assert model.composition_summary == {"word_count": 9}, (cls, bad)
+
+
+def test_composition_summary_passes_unchanged_when_behavioral_features_are_enabled(monkeypatch):
+    monkeypatch.setattr(
+        constants, "DISABLED_FEATURE_GROUPS", constants.DISABLED_FEATURE_GROUPS - {"behavioral"}
+    )
+    odd = {**EXTRA, "exam_config": "not a dict"}
+    for cls in SUMMARY_MODELS:
+        assert cls(text="t", composition_summary=EXTRA).composition_summary == EXTRA, cls
+        assert cls(text="t", composition_summary=odd).composition_summary == odd, cls
+
+
+def test_baseline_route_stores_only_coarse_session_fields(live_client, store_reset):
+    from original.repository import get_repository
+
+    text = " ".join(["Augustine writes of memory and the restless heart."] * 30)
+    r = live_client.post(
+        "/students/demo:ks-allowlist-student/baseline",
+        json={"text": text, "composition_summary": EXTRA},
+    )
+    assert r.status_code == 200, r.text
+    sample = get_repository().get("demo:ks-allowlist-student").samples[-1]
+    assert sample.composition_summary == COARSE
+
+
 def test_baseline_route_persists_no_keystroke_data(live_client, store_reset):
     from original.repository import get_repository
 

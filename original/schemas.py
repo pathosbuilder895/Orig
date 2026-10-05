@@ -14,19 +14,52 @@ from pydantic import BaseModel, Field, model_validator
 # ── Request models ────────────────────────────────────────────────────────────
 
 
+# The coarse session fields a composition_summary may keep while the
+# ``behavioral`` feature group is disabled — exactly what Bluebook's exam
+# client sends (demo/bluebook/Exam.jsx buildCompositionSummary). Anything else
+# a client adds (a deletion-key ``revision_count``, ``keystrokes``,
+# ``deletionRate``, ...) is dropped on arrival.
+COMPOSITION_SUMMARY_KEYS = frozenset(
+    {
+        "session_seconds",
+        "word_count",
+        "paste_attempts",
+        "focus_losses",
+        "started_at",
+        "ended_at",
+        "exam_config",
+    }
+)
+# Inside ``exam_config`` (dropped entirely when it is not a dict).
+COMPOSITION_EXAM_CONFIG_KEYS = frozenset({"block_copy", "min_words", "duration_min"})
+
+
+def _coarse_composition_summary(summary: dict) -> dict:
+    kept = {k: v for k, v in summary.items() if k in COMPOSITION_SUMMARY_KEYS}
+    if "exam_config" in kept:
+        cfg = kept.pop("exam_config")
+        if isinstance(cfg, dict):
+            kept["exam_config"] = {
+                k: v for k, v in cfg.items() if k in COMPOSITION_EXAM_CONFIG_KEYS
+            }
+    return kept
+
+
 def _discard_keystroke_derived(model):
     """No typing rhythm or keystroke biometrics while the ``behavioral``
     feature group is disabled (the classroom default): drop ``keystroke_data``
-    and the deletion-key ``revision_count`` before any handler can extract or
-    store them. Read from the module at call time so enabling the group (and
-    tests that do) takes effect without re-importing this module."""
+    and keep only the coarse session fields of ``composition_summary``
+    (COMPOSITION_SUMMARY_KEYS, COMPOSITION_EXAM_CONFIG_KEYS) before any
+    handler can extract or store them. Read from the module at call time so
+    enabling the group (and tests that do) takes effect without re-importing
+    this module; enabled, both pass unchanged."""
     from . import constants
 
     if "behavioral" in constants.DISABLED_FEATURE_GROUPS:
         model.keystroke_data = None
         summary = getattr(model, "composition_summary", None)
-        if isinstance(summary, dict) and "revision_count" in summary:
-            model.composition_summary = {k: v for k, v in summary.items() if k != "revision_count"}
+        if isinstance(summary, dict):
+            model.composition_summary = _coarse_composition_summary(summary)
     return model
 
 
@@ -53,8 +86,9 @@ class AddSampleRequest(BaseModel):
         "exam_config) — the ADR-010 replacement for keystroke_data's per-key "
         "telemetry. No per-key timing is collected; per the T-69/T-74 "
         "macro-only keystroke posture, only session-level metrics are captured. "
-        "A deletion-key revision_count is discarded on arrival while the "
-        "'behavioral' feature group is disabled (the default).",
+        "While the 'behavioral' feature group is disabled (the default), only "
+        "those fields (and block_copy, min_words, duration_min inside "
+        "exam_config) are kept; anything else is discarded on arrival.",
     )
     submission_uuid: str | None = Field(
         None,
@@ -89,8 +123,9 @@ class ScoreSubmissionRequest(BaseModel):
         "exam_config) — the ADR-010 replacement for keystroke_data's per-key "
         "telemetry. No per-key timing is collected; per the T-69/T-74 "
         "macro-only keystroke posture, only session-level metrics are captured. "
-        "A deletion-key revision_count is discarded on arrival while the "
-        "'behavioral' feature group is disabled (the default).",
+        "While the 'behavioral' feature group is disabled (the default), only "
+        "those fields (and block_copy, min_words, duration_min inside "
+        "exam_config) are kept; anything else is discarded on arrival.",
     )
 
     @model_validator(mode="after")

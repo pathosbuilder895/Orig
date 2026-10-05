@@ -253,9 +253,15 @@ this inventory and no retention rule applied to it. As of this change
 - While the `behavioral` feature group is disabled (the default), the
   request models (`AddSampleRequest`, `ScoreSubmissionRequest`,
   `TestScoreRequest` in `original/schemas.py`) discard the whole
-  `keystroke_data` blob and the `revision_count` key of
-  `composition_summary` before any handler sees them, and Bluebook no
-  longer counts deletion keystrokes at all. Neither is collected or stored.
+  `keystroke_data` blob before any handler sees it, and keep only the
+  coarse session fields listed under Data Elements above of any
+  `composition_summary` (`COMPOSITION_SUMMARY_KEYS`, and `block_copy`,
+  `min_words`, `duration_min` inside `exam_config` —
+  `COMPOSITION_EXAM_CONFIG_KEYS`; an `exam_config` that is not an object is
+  dropped). Every other key a client sends — a deletion-key
+  `revision_count`, `keystrokes`, `deletionRate`, … — is discarded on
+  arrival, and Bluebook no longer counts deletion keystrokes at all. None
+  of it is collected or stored.
   Samples stored before this change may still carry a `revision_count`
   and the macro `keystroke_data` fields (`deletionRate`, `avgWpm`, …);
   `scripts/purge_keystroke_blobs.py` does not remove those.
