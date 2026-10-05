@@ -117,9 +117,10 @@ def _shape(rec: dict) -> dict:
 # ── Bluebook magic-link launch (no-Canvas fallback) ───────────────────────────
 # The offline roster_links.py builds one signed launch token per student. This
 # endpoint redeems it: it authenticates the bound student (a short session) AND
-# issues a proctor attestation, both server-side, so a magic-link proctored
-# sitting lands a `proctored` sample on a real pilot — the same end state as an
-# LTI/Canvas exam launch. Mirrors /lti/launch: the credentials are minted here
+# issues a proctor attestation, both server-side, so a magic-link sitting is
+# authenticated on a real pilot — the same end state as an LTI/Canvas exam
+# launch. Sealing records the submission; it joins the student's baseline only
+# when a professor approves it (routers/bluebook_baselines.py). Mirrors /lti/launch: the credentials are minted here
 # and handed to the browser via localStorage, never left in the distributed URL.
 # The link carries only a signed, purpose-built launch token (no session token).
 
@@ -185,8 +186,9 @@ def bluebook_magic_launch(request: Request, t: str = ""):
 
 
 # ── Bluebook examinations (secure-exam layer, tenant-scoped) ──────────────────
-# Instructor-created exams persist here. Submissions themselves flow to
-# /students/{id}/baseline as proctored samples. Scoping mirrors list_students:
+# Instructor-created exams persist here. Sealed submissions are recorded below;
+# they reach /students/{id}/baseline only when a professor approves them
+# (routers/bluebook_baselines.py). Scoping mirrors list_students:
 # an authenticated non-super principal sees only its tenant; demo sees "demo".
 
 

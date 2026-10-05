@@ -6,8 +6,9 @@ signs up at `/bluebook/` with no operator step — see
 
 *Work this top-to-bottom when a professor says yes. It fuses the four detailed
 runbooks; each step links to the full version. Goal: a professor signs into
-Original, his dashboard is blank until his class writes, and the first proctored
-baselines land on his roster **that day**.*
+Original, his dashboard is blank until his class writes, his class's first
+sealed exams arrive **that day**, and he approves them as their first proctored
+baselines (sealing alone never adds to a baseline).*
 
 The day runs on **two clocks**. The slow clock is other people's queues
 (compliance, IT) — it must be cleared *before* the yes, or day-one can only be a
@@ -82,8 +83,8 @@ roster the professor pastes the class emails; each student gets a one-time
 link to set a password (emailed when mail is configured, otherwise *Copy all
 links* / *Download links (CSV)*), then signs in and sees the course's exams.
 Starting an exam from the student dashboard mints a proctor attestation in a
-tenant that has Original, so these sittings land `proctored` as Paths A and B
-do (`original/routers/bluebook_accounts.py` `my_exam_start`). The roster
+tenant that has Original, as Paths A and B do
+(`original/routers/bluebook_accounts.py` `my_exam_start`). The roster
 derives the same student id from tenant + email as Paths A and B, so a
 student who uses more than one path keeps one profile (as long as the email
 is the same).
@@ -99,8 +100,8 @@ export SECRET_KEY=<the pilot's SECRET_KEY>   # same value as the Render service
   --out links.csv --expected-out expected_roster.json
 ```
 - [ ] Each link is a signed `/bluebook/launch?t=…` token carrying no name/email —
-  redeemed server-side into a short session + proctor attestation so the sitting
-  **lands as `proctored`** on the pilot. Send **each link to its own student
+  redeemed server-side into a short session + proctor attestation so the sealed
+  sitting **is recorded** on the pilot under that student. Send **each link to its own student
   privately**; one link == one bound profile. (A link is a bearer credential and
   reusable until it expires — `--link-ttl-days`, default 14.)
 - [ ] Keep `links.csv` (maps sid→student, for you) and `expected_roster.json`
@@ -110,7 +111,7 @@ export SECRET_KEY=<the pilot's SECRET_KEY>   # same value as the Render service
   profile split.
 - [ ] If SECRET_KEY is unset the script warns and signs with an insecure dev
   fallback (demo only); `--unsigned` emits the legacy `?sid=` link, which
-  **cannot** land proctored on a pilot.
+  **cannot** record a sitting on a pilot.
 
 ### Step 4 — Disclosure + smoke test
 
@@ -118,23 +119,28 @@ export SECRET_KEY=<the pilot's SECRET_KEY>   # same value as the Render service
   [STUDENT_DISCLOSURE.md](STUDENT_DISCLOSURE.md)).
 - [ ] One volunteer runs the loop end-to-end:
   [PILOT_SMOKE_TEST.md](PILOT_SMOKE_TEST.md) §C — launches, lands in the briefing
-  as themselves, types past the minimum, Seal & Submit → appears on the
-  professor's roster with provenance `proctored`.
+  as themselves, types past the minimum, Seal & Submit → the submission
+  appears in the professor's Submissions; once the professor clicks **Add to
+  baseline** in its reader, the student appears on the roster with provenance
+  `proctored`.
 
 ### Step 5 — Run it
 
 - [ ] Announce; students sit the baseline in or after class. As each student
-  submits, they appear on the professor's roster — blank → populated, live.
+  submits, the submission appears in the professor's Submissions, live. The
+  professor then adds the sealed exams to baselines (**Add all sealed
+  submissions to baselines** on the examination's page), and the roster goes
+  blank → populated.
 
 ---
 
 ## Set this expectation or it looks broken
 
 **Day one captures baselines; it does not yet score.** The *first* sitting has no
-prior baseline to compare against, so the **AI/authorship score is blank** and
-the stylometric bar reads ~100% (drift vs an empty profile). A row with scores
-*does* appear that day — but the meaningful integrity signal starts at the
-**second** sitting. Thin early profiles score at **low confidence** — an
+prior baseline to compare against, so the **AI/authorship score is blank**. A
+row *does* appear that day — but the meaningful integrity signal starts at the
+**second** sitting, compared against the first once the professor has approved
+it into the baseline. Thin early profiles score at **low confidence** — an
 `escalate` on a one- or two-sample baseline is a "look closer," not an "act,"
 and becomes trustworthy only once the profile is built (~3–5 authenticated
 samples). Tell the professor: **week 1 = enrollment by
@@ -151,5 +157,5 @@ writing; the payoff is week 2–3.** → [PROFESSOR_QUICKSTART.md](PROFESSOR_QUI
 | Anonymous can read student | tenant is `demo`, not `pilot` | recreate tenant `environment=pilot` |
 | Magic link 404 / not clickable | `--base-url` omitted when generating | rerun `roster_links.py` with `$HOST` |
 | Magic link → "invalid or expired launch link" | link signed with a different `SECRET_KEY` than the pilot's (or expired) | regenerate with the pilot's `SECRET_KEY` exported |
-| Student can't submit on a pilot — 403 "Cross-tenant access denied" | `--unsigned` `?sid=` link used on a pilot: it carries no session/attestation, so the write is anonymous and blocked (on a *demo* tenant it would instead land `unverified`) | regenerate signed (drop `--unsigned`, set `SECRET_KEY`) |
+| Student can't submit on a pilot — 403 "Cross-tenant access denied" | `--unsigned` `?sid=` link used on a pilot: it carries no session/attestation, so the write is anonymous and blocked | regenerate signed (drop `--unsigned`, set `SECRET_KEY`) |
 | Student appears twice | link `sid` ≠ Canvas `sid` | shouldn't happen — same derivation; check the slug matches the tenant |

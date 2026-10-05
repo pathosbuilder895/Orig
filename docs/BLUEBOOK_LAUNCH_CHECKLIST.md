@@ -191,7 +191,10 @@ actually does, with a DRAFT banner and bracketed blanks.
   warns that this is an institution workspace, the switch applies to every
   professor and student in it. Original's comparisons are not validated for
   real student work yet (gap T-01), so turn it on only with the owner's
-  agreement and the institution's consent.
+  agreement and the institution's consent. Switching Original on makes every
+  past sealed exam in that workspace approvable as baseline writing, so do it
+  only after the revised student notice (B2) is live and the institution has
+  agreed.
 - **Approving exams as writing baselines** (workspaces with Original only):
   sealing an exam never adds it to a student's baseline. In the submission
   reader, **Add to baseline** / **Remove from baseline** handles one exam; on an

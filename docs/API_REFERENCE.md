@@ -163,10 +163,32 @@ their sensitivity (noted inline).
 | GET | `/bluebook/exams` | List exams (tenant-scoped; `SUPER_ROLES` see all). | Principal (any), tenant-scoped |
 | GET | `/bluebook/exams/{exam_id}` | Get one exam; 403 on cross-tenant access. | Principal (any), tenant-scoped |
 | POST | `/bluebook/exams/{exam_id}/session` | Begin or resume a sitting. Body: `student_id` or `candidate`. First call pins `deadline_at = started_at + exam.duration`; every later call returns the same row (reopening never restarts the clock). Returns `{exam_id, started_at, deadline_at, server_now, duration_seconds}`. | Principal (student/demo per Bluebook flow) |
-| POST | `/bluebook/submissions` | Record one sat examination (the integrity reading for the Results view). Idempotent on `submission_uuid`; seals > 5 min past `deadline_at` are tagged `late: true`. | Principal (staff/student per Bluebook flow) |
+| POST | `/bluebook/submissions` | Record one sat examination (the integrity reading for the Results view). Idempotent on `submission_uuid`; seals > 5 min past `deadline_at` are tagged `late: true`. A submission stays inside the caller's workspace: an `exam_id` naming a stored exam of another workspace → 404 `exam not found` (an id that is not stored, such as the built-in sample, is accepted); staff naming another workspace's `student_id` → 403 `Cross-tenant access denied.`; a signed-in student naming any `student_id` but their own → 403. Sealing never adds to the student's Original baseline (see the baseline routes below). | Principal (staff), or the student's own session |
 | GET | `/bluebook/submissions` | List submissions (tenant-scoped). | Principal (any), tenant-scoped |
 | POST | `/bluebook/courses` | Create a course. | Principal (staff) |
 | GET | `/bluebook/courses` | List courses (tenant-scoped). | Principal (any), tenant-scoped |
+
+### Professor-approved writing baselines (`original/routers/bluebook_baselines.py`)
+
+A sealed exam enters a student's Original baseline only through these routes.
+All four require a staff principal (student → 403 `Staff role required.`;
+the anonymous demo principal on a real deploy → 401) whose workspace owns the
+submission or exam (operators: any workspace), and a workspace whose plan
+includes Original. "In baseline" is derived from the profile itself: the
+SHA-256 of the exam's answers joined by a blank line (no "Question N."
+headings), or of the stored submission text exactly as the old seal-time
+write sent it (with headings), is among the hashes of the student's samples.
+Approval adds through `POST /students/{id}/baseline`'s handler with provenance
+`proctored`, so its validation, seal-replay guard and drift gate apply; the
+drift gate is never overridden. Audit details carry ids and counts only, never
+student text.
+
+| Method | Path | Returns | Errors |
+|---|---|---|---|
+| POST | `/bluebook/submissions/{submission_id}/baseline` | Add one sealed exam. `{submission_id, student, status, detail}`, `status` ∈ `added` \| `already_in_baseline` \| `held` (the drift gate did not admit it; `detail` says so). Audit `baseline_approve` with `result` = the status. | 404 `submission not found` (missing, another workspace's, or its student is not in the submission's workspace); 403 `This workspace's plan does not include Original.`; 422 `Nothing written to add.` (no answer text or no student id). |
+| DELETE | `/bluebook/submissions/{submission_id}/baseline` | Take the exam out of the baseline. Removes every sample carrying either fingerprint (duplicates included) and recomputes the profile from the remaining samples. `{submission_id, student, status, detail}`, `status` ∈ `removed` \| `not_in_baseline`. Audit `baseline_remove` with `samples_removed`, `sample_count_after`. | 404, 403 as above; 503 if the profile could not be saved. |
+| POST | `/bluebook/exams/{exam_id}/baseline` | Add every sealed submission of the examination. `{added, already_in_baseline, held, nothing_written, errors, results: [{submission_id, student, status, detail}]}`; a row that fails is `status: "error"` (with a short `detail`) and does not stop the batch. Audit `baseline_approve_bulk` with the counts and the submission ids per status (`added_ids`, `already_in_baseline_ids`, `held_ids`, `nothing_written_ids`, `error_ids`). | 404 `exam not found`; 403 `This workspace's plan does not include Original.` |
+| GET | `/bluebook/exams/{exam_id}/baseline` | `{submissions: [{submission_id, student, in_baseline, has_text}]}` for each submission of the examination. A row whose student is not in its workspace reads `in_baseline: false`. | 404 `exam not found`; 403 `This workspace's plan does not include Original.` |
 
 ## Proctor phone-park (`original/routers/proctor.py`; client is `demo/bluebook/parked.html`)
 

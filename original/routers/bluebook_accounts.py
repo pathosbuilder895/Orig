@@ -553,8 +553,10 @@ def my_exam_start(exam_id: str, request: Request):
     """Begin (or resume) a sitting from the dashboard. Pins the server
     deadline exactly as the launch-link path does, clipped so it never
     passes the exam's closes_at. A tenant that bought Original also gets a
-    proctor attestation, so the sitting lands as a proctored sample; a
-    Bluebook-only workspace gets none, because it never profiles."""
+    proctor attestation, which the seal's report-only comparison sends; the
+    seal never adds to the student's baseline (a professor approves which
+    sealed exams do). A Bluebook-only workspace gets none, because it never
+    profiles."""
     p = _require_student(request)
     now = rules.now_utc()
     exam, state = _visible_exam(p, exam_id, now)

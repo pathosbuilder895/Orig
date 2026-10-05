@@ -409,7 +409,9 @@ def _init_schema(conn: sqlite3.Connection) -> None:
     """)
     # Bluebook examinations (secure-exam layer). Tenant-scoped instructor
     # artifacts: title, course, timing, prompt, and the lockdown conditions.
-    # Submissions themselves flow to student_profiles as proctored baselines.
+    # Sealed submissions are stored in bluebook_submissions; one reaches
+    # student_profiles as a proctored baseline sample only when a professor
+    # approves it (routers/bluebook_baselines.py).
     conn.execute("""
         CREATE TABLE IF NOT EXISTS bluebook_exams (
             exam_id         TEXT PRIMARY KEY,

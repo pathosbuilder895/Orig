@@ -185,19 +185,19 @@
 <h2 id="baseline">Baseline samples</h2>
 <p>A baseline sample is a piece of writing that has been confirmed as genuinely yours. The more baseline samples we have, the more confidently the system can recognise your voice on future submissions. There are three trust levels:</p>
 <ul>
-  <li><strong>Proctored</strong> — written in a locked-down environment with keystroke capture. Highest trust.</li>
+  <li><strong>Proctored</strong> — written in a timed, locked-down Bluebook exam and added to your baseline by your instructor. Highest trust.</li>
   <li><strong>Verified</strong> — your instructor confirmed it is yours.</li>
   <li><strong>Unverified</strong> — uploaded by you without confirmation. Useful but weighted less.</li>
 </ul>
 
 <h2 id="proctored">Proctored sittings</h2>
-<p>A proctored sitting is a single writing session in a Bluebook environment — no AI assistants, no web search, no copy-paste, and the rhythm of your typing is recorded along with the words. Because nothing else can be the author, proctored samples carry the strongest signal in your voice profile.</p>
+<p>A proctored sitting is a single timed writing session in a Bluebook environment — no AI assistants, no web search, no copy-paste. What is kept is your text and coarse information about the session: when it started and ended, the word count, and how many times a paste was attempted or the exam window lost focus. Your keystrokes and the rhythm of your typing are not recorded. A sitting joins your baseline only when your instructor adds it. Because the conditions are controlled, proctored samples carry the strongest signal in your voice profile.</p>
 
 <h2 id="review">Worth a conversation</h2>
 <p>When part of a submission reads differently from your established voice, the system surfaces it as an invitation to look at the piece together. <strong>It is not a score. It is not a verdict. It is not an action.</strong> The intent is formation, not surveillance.</p>
 
 <h2 id="deviation">How the score is computed</h2>
-<p>Each submission is compared with the established voice across <strong>103 stylometric features in seventeen tiers</strong>: sentence rhythm, character habits, function-word patterns, citation style, behavioural keystroke dynamics, and so on. The comparison produces a <em>deviation</em> in [0, 1].</p>
+<p>Each submission is compared with the established voice across <strong>103 stylometric features in seventeen tiers</strong>: sentence rhythm, character habits, function-word patterns, citation style, and so on — all measured from the text itself. The comparison produces a <em>deviation</em> in [0, 1].</p>
 <p>We present that as <strong>authenticity = (1 − deviation) × 100</strong>, expressed as a percentage. A 90% authenticity reading means the submission stays very close to the established voice; a 30% reading means the system is having trouble recognising it.</p>
 
 <h2 id="tiers">Tier breakdown</h2>

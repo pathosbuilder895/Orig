@@ -49,18 +49,28 @@ Rules:
 - **Text.** The student's answers joined with a blank line, without the "Question N." headings that the stored `text`
   carries for multi-question exams. A single-answer exam uses its answer. The same derived text is used for the
   fingerprint when checking status or removing.
-- **"In baseline"** means: the SHA-256 of the derived text equals the SHA-256 of a sample's text in the student's
-  profile. No new columns.
+- **"In baseline"** means: one of the exam's two fingerprints equals the SHA-256 of a sample's text in the student's
+  profile. The fingerprints are the SHA-256 of the derived text (above) and, for samples the old seal-time write added
+  before this change, the SHA-256 of the stored submission `text` exactly as it was sent (with the "Question N."
+  headings for multi-question exams). Add, status and remove all use both, so a legacy sample is neither added a second
+  time nor left behind on removal. No new columns.
 - **Outcomes for add:** `added`; `already_in_baseline` (same fingerprint already present; no-op); `held` (the drift gate
   returned flag-for-review or reject; the sample is not admitted and the professor sees the gate's reason; approval
   does not override the gate).
-- **Remove.** Find the sample with the matching fingerprint, delete it, persist, and recompute. Needs
-  `StudentState.remove_sample(...)` in `original/quantum/state.py` that invalidates exactly the cached values
-  `add_sample` invalidates. Outcomes: `removed`, `not_in_baseline`.
+- **Remove.** Find **every** sample carrying either fingerprint (duplicates included, e.g. a legacy seal-time sample
+  plus an approved one), delete them all, rebuild the tension-arc κ baseline from the remaining authenticated samples,
+  persist, and drop the fused score's in-process profile for the student. Uses `StudentState.remove_sample(...)` in
+  `original/quantum/state.py`, which invalidates the cached values `add_sample` invalidates (density matrix, purity,
+  trajectory, leave-one-out distances) and also resets the drift counter (`_consecutive_drift_count`) to 0 and clears
+  the cached TF-IDF vectorizer, since both are tied to the baseline's composition. It does not rewind `kappa_log` /
+  `baseline_kappa`; the router rebuilds those. Outcomes: `removed`, `not_in_baseline`.
 - **Bulk** applies "add" to each sealed submission of the exam; a submission with no answer text is counted as
   `nothing_written` instead of failing the batch. It returns
   `{"added": n, "already_in_baseline": n, "held": n, "nothing_written": n, "errors": n, "results": [{submission_id, student, status, detail}]}`;
-  any other failure for a submission is reported as status `error` without stopping the batch.
+  any other failure for a submission is reported as status `error` without stopping the batch: an HTTP error keeps its
+  detail, anything else gets the generic "Could not be added." and is logged by submission id only. `errors` counts the
+  `error` rows. The `baseline_approve_bulk` audit entry carries the same counts plus the submission ids per status
+  (`added_ids`, `already_in_baseline_ids`, `held_ids`, `nothing_written_ids`, `error_ids`).
 - **Audit.** `baseline_approve`, `baseline_remove` and `baseline_approve_bulk` audit entries with tenant, actor and
   submission/exam ids (the bulk entry also carries the per-status counts and id lists). No student text in audit details.
 
@@ -78,10 +88,13 @@ Errors:
 ### 2. Seal and professor screens
 
 - **Seal, Original on** (`demo/bluebook/Exam.jsx`): remove the baseline write (`bbSubmitToOriginal`). Keep the
-  report-only comparison call (`bbScoreWithOriginal`), which returns no result on any failure including a 403. The
-  `stylometric` figure (computed from the write's drift) is no longer computed at seal and is recorded as null. The
-  submission's status keeps its rule on the comparison result alone. The Task 12 403-downgrade branch, which was
-  attached to the write, goes with it. The student's notice ("After you submit, your writing is compared with your own
+  report-only comparison call (`bbScoreWithOriginal`), which returns no result on any failure. The `stylometric`
+  figure (computed from the write's drift) is no longer computed at seal and is recorded as null. The submission's
+  status keeps its rule on the comparison result alone. The Task 12 403-downgrade branch moves from the write to the
+  comparison call: a 403 on the score call means Original was switched off for the workspace since the sitting began.
+  It will not change on retry, so the seal records the exam exactly as a Bluebook-only one (no score, `ai_score` null,
+  the sitting's `withOriginal` decision set to false in the draft) and drops `original` from the browser's stored
+  products (`BB_API.dropOriginal()`), so the page stops offering Original until the next home-page load or sign-in. The student's notice ("After you submit, your writing is compared with your own
   past work") remains true. Bluebook-only workspaces are unchanged.
 - **Submission reader** (`demo/bluebook/Teacher.jsx`, the panel with "Save mark and feedback"), only when the workspace
   holds Original: a "Writing baseline" line showing **In baseline** / **Not in baseline**, with **Add to baseline** /

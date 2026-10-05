@@ -389,7 +389,8 @@ def _is_staff_only_path(path: str) -> bool:
 # path family below belongs to one product; a principal whose tenant lacks it
 # gets a 403 here, before any handler runs. Super roles bypass it, as they
 # bypass tenant scoping. A Bluebook-only tenant therefore never reaches the
-# stylometric engine at all — not even the seal-time score/baseline calls,
+# stylometric engine at all — not even the seal's report-only score call (the
+# seal never writes a baseline; a professor approves which sealed exams do),
 # which is how self-serve workspaces stay out of profiling (spec amendment
 # 2026-09-28). Paths in neither table (/auth, /tenants, /health, /lti,
 # static files) are not product-gated.

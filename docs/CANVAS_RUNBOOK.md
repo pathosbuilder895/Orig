@@ -47,7 +47,7 @@ Redeploy (env change restarts the service).
 |---|---|
 | Instructor clicks course-nav placement | lands signed-in on the Bluebook dashboard, tenant-scoped |
 | Student clicks an exam link (target `/bluebook/`) | lands on the examination briefing, no login, candidate bound (`bluebook_student_id` in localStorage) |
-| Same student submits | proctored sample appears on their profile (`GET /students/<id>` sample_count +1) |
+| Same student submits | submission recorded (in the professor's Submissions list); their baseline is unchanged (`GET /students/<id>` sample_count as before) until the professor approves the exam as baseline writing |
 | Launch with a bogus deployment_id | 401 "unrecognised deployment_id" |
 | Replayed/stale launch | 401 "invalid or expired state" |
 

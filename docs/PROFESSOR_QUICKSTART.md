@@ -5,8 +5,8 @@
 ## What this is — and what it is not
 
 Original learns each student's **writing voice** — 103 measurable habits of
-vocabulary, rhythm, punctuation, argument structure, and (in proctored
-examinations) typing dynamics — from work you trust, and then tells you how
+vocabulary, sentence rhythm, punctuation and argument structure in the text
+itself — from work you trust, and then tells you how
 closely later submissions match that voice.
 
 **What it is not:** a verdict machine. From the model card, verbatim:
@@ -28,10 +28,13 @@ The strongest baseline is a **proctored Bluebook sitting**:
    (150–250), and a reflective prompt students can answer cold.
 2. Leave the **Secure Lockdown** toggles ON (the defaults).
 3. Students enter through the Canvas link (no separate login). They write
-   full-screen; copy/paste is disabled; the session captures typing rhythm —
-   all of which is disclosed to them on the briefing screen first.
-4. When they **Seal & Surrender**, the sample lands on their profile
-   automatically as highest-trust baseline material.
+   full-screen; copy/paste is disabled; leaving full-screen or switching
+   windows is noted with its time — all of which is disclosed to them on the
+   briefing screen first. Keystrokes are not recorded.
+4. When they **Seal & Submit**, the exam is recorded. It joins their profile
+   as highest-trust baseline material only when you add it: **Add to
+   baseline** in the submission reader, or **Add all sealed submissions to
+   baselines** on the examination's page.
 
 Top up with prior essays you trust via **Import Papers** on the professor
 dashboard. **Tell students in advance** — the syllabus disclosure text your
@@ -50,9 +53,8 @@ habits moved, and one of four recommendations:
 | **Schedule conversation** | meaningful divergence | a pastoral chat: "walk me through how you wrote this" |
 | **Escalate** | strong divergence on a well-established profile | follow your institution's integrity process — *with* other evidence |
 
-In **Bluebook → Results** each sat examination shows two numbers:
-- **Stylometric** — how well the typing/style of *this sitting* matches their profile.
-- **AI Score** — authorship probability of the text against their baseline (higher = more authentically theirs). Shows "—" until a baseline exists.
+In **Bluebook → Results** each sat examination shows:
+- **Authenticity** — how consistent the text is with the student's own baseline writing (higher = more consistent). Shows "—" until a baseline exists. Older rows may also show a **Writing Consistency** figure; new seals do not produce one.
 
 ## Reading flags wisely
 

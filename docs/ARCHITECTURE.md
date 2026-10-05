@@ -41,8 +41,10 @@ paid + disk). Ops: `docs/OPS_RUNBOOK.md`. Canvas: `docs/CANVAS_RUNBOOK.md`.
 Bluebook is sold on its own as well as with Original. A tenant's
 `products_json` (`original`, `bluebook`, or both) is enforced by the product
 gate in `original/api.py`'s `tenant_isolation` middleware: a tenant without
-Original gets a 403 on every Original route, including the seal-time score
-and baseline calls, so self-serve workspaces are never profiled. Public
+Original gets a 403 on every Original route, including the seal's
+report-only score call, so self-serve workspaces are never profiled. (Sealing
+never writes a baseline; a professor approves which sealed exams become
+baseline samples, `original/routers/bluebook_baselines.py`.) Public
 teacher signup (`POST /auth/signup`) creates a Bluebook-only workspace;
 students get accounts through course rosters and one-time invite links
 (`original/routers/bluebook_accounts.py`, `original/invites.py`). Specs:
