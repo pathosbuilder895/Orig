@@ -98,8 +98,9 @@ actually does, with a DRAFT banner and bracketed blanks.
 - [ ] Counsel reviews `privacy.html`, `terms.html`, `student-notice.html` and fills
   every `[bracketed]` item (legal entity, governing law, backup provider and
   region, contact address).
-- [ ] When final: remove the DRAFT banner, set the version line on each page, and
-  set the same version string in `TERMS_VERSION` in **both**
+- [ ] When final: remove the DRAFT banner, set the `Version …` line under each
+  page's title (the permanent line directly after the `<h1>`, not the one inside
+  the banner), and set the same version string in `TERMS_VERSION` in **both**
   `original/routers/auth.py` and `demo/bluebook/Account.jsx`; rebuild the bundle
   (`cd demo/bluebook && npm run build`), commit, deploy. Signups record which
   version each teacher accepted in the audit log.
