@@ -76,6 +76,7 @@ get a private, Bluebook-only workspace (never profiled by Original). Use
 | `BACKUP_OFFBOX_ENDPOINT` | the endpoint URL |
 | `BACKUP_OFFBOX_REGION` | `auto` (R2) or the bucket's region |
 | `BACKUP_OFFBOX_ACCESS_KEY_ID` / `BACKUP_OFFBOX_SECRET_ACCESS_KEY` | the bucket key |
+| `BACKUP_ENCRYPTION_KEY` | generate with the command in render.yaml; store a copy in your password manager — losing it makes every backup unrecoverable |
 
 - [ ] Done when: the first deploy of `original-pilot` is **Live**. Its deploy log
   shows `Running upgrade … -> f4c9a2d71b30` from the pre-deploy step, then the
@@ -122,7 +123,7 @@ actually does, with a DRAFT banner and bracketed blanks.
      As the student, the mark and comment now show.
   5. Sign out → "Forgot your password?" → the reset email arrives.
 - [ ] `original-pg-backup` → **Trigger Run**. Done when the run succeeds and an
-  `original-pg-backups/original-pg-….jsonl.gz` object is in the bucket. A run
+  `original-pg-backups/original-pg-….jsonl.gz.fernet` object is in the bucket. A run
   that fails with "upload required but not configured" means a bucket setting
   is missing.
 - [ ] Restore drill (once now, then each term): download that object, then
@@ -130,7 +131,7 @@ actually does, with a DRAFT banner and bracketed blanks.
   ```bash
   createdb restore_drill   # or any empty Postgres
   DATABASE_URL=postgresql://…/restore_drill alembic upgrade head
-  DATABASE_URL=postgresql://…/restore_drill python scripts/pg_backup_offbox.py --restore original-pg-….jsonl.gz
+  BACKUP_ENCRYPTION_KEY=<the key> DATABASE_URL=postgresql://…/restore_drill python scripts/pg_backup_offbox.py --restore original-pg-….jsonl.gz.fernet
   ```
   Must end `restore parity: OK`. It refuses a database that already has rows.
 - [ ] Uptime monitor → `https://<host>/health`, 5-minute interval, alert to your

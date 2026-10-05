@@ -10,11 +10,14 @@ from __future__ import annotations
 
 import gzip
 import json
+import tempfile
 from contextlib import contextmanager
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
+from cryptography.fernet import Fernet
 
 from scripts import pg_backup_offbox as pgb
 from scripts.migrate_sqlite_to_pg import MIGRATORS
@@ -132,6 +135,7 @@ _OFFBOX = {
     "BACKUP_OFFBOX_ENDPOINT": "https://s3.example.test",
     "BACKUP_OFFBOX_ACCESS_KEY_ID": "AKIDEXAMPLE",
     "BACKUP_OFFBOX_SECRET_ACCESS_KEY": "test-secret",
+    "BACKUP_ENCRYPTION_KEY": Fernet.generate_key().decode(),
 }
 
 
@@ -231,6 +235,92 @@ def test_main_restore_reports_parity(cli_env, tmp_path):
 
 def test_main_restore_fails_cleanly_on_a_bad_file(cli_env, tmp_path):
     assert pgb.main(["--restore", str(tmp_path / "missing.jsonl.gz")]) == 1
+
+
+def test_encrypt_then_decrypt_round_trips(tmp_path):
+    key = Fernet.generate_key().decode()
+    plain = tmp_path / "dump.jsonl.gz"
+    pgb.write_dump(_empty_rows(), plain, NOW)
+    enc = pgb.encrypt_file(plain, key)
+    assert enc.name == "dump.jsonl.gz.fernet"
+    assert enc.read_bytes()[:2] != plain.read_bytes()[:2]
+    out = pgb.decrypt_file(enc, key, tmp_path / "back.jsonl.gz")
+    assert out.read_bytes() == plain.read_bytes()
+
+
+def test_decrypt_with_the_wrong_key_raises_a_clear_error(tmp_path):
+    plain = tmp_path / "dump.jsonl.gz"
+    pgb.write_dump(_empty_rows(), plain, NOW)
+    enc = pgb.encrypt_file(plain, Fernet.generate_key().decode())
+    with pytest.raises(ValueError, match="could not be decrypted"):
+        pgb.decrypt_file(enc, Fernet.generate_key().decode(), tmp_path / "back.jsonl.gz")
+    assert not (tmp_path / "back.jsonl.gz").exists()
+
+
+def test_require_upload_fails_without_an_encryption_key(cli_env):
+    for k, v in _OFFBOX.items():
+        cli_env.setenv(k, v)
+    cli_env.delenv("BACKUP_ENCRYPTION_KEY")
+    cli_env.setattr(pgb, "upload", lambda cfg, path: None)
+    assert pgb.main(["--require-upload"]) == 1
+
+
+def test_main_uploads_only_the_encrypted_file(cli_env):
+    for k, v in _OFFBOX.items():
+        cli_env.setenv(k, v)
+    uploaded = []
+
+    def fake_upload(cfg, path):
+        assert path.name.endswith(".jsonl.gz.fernet")
+        uploaded.append((path, path.read_bytes()))
+
+    cli_env.setattr(pgb, "upload", fake_upload)
+    assert pgb.main(["--require-upload"]) == 0
+    assert len(uploaded) == 1
+    path, data = uploaded[0]
+    assert not path.exists()
+    assert not path.with_name(path.name[: -len(".fernet")]).exists()
+    assert Fernet(_OFFBOX["BACKUP_ENCRYPTION_KEY"].encode()).decrypt(data)[:2] == b"\x1f\x8b"
+
+
+def test_a_malformed_encryption_key_fails_the_run_and_leaves_no_dump(cli_env):
+    for k, v in _OFFBOX.items():
+        cli_env.setenv(k, v)
+    cli_env.setenv("BACKUP_ENCRYPTION_KEY", "not-a-fernet-key")
+    dumped = []
+    real_write_dump = pgb.write_dump
+
+    def spy(rows, path, now=None):
+        dumped.append(path)
+        return real_write_dump(rows, path, now)
+
+    cli_env.setattr(pgb, "write_dump", spy)
+    cli_env.setattr(pgb, "upload", lambda cfg, path: pytest.fail("must not upload"))
+    assert pgb.main(["--require-upload"]) == 1
+    assert len(dumped) == 1 and not dumped[0].exists()
+
+
+def test_restore_decrypts_a_fernet_file(cli_env, tmp_path):
+    cli_env.setenv("BACKUP_ENCRYPTION_KEY", _OFFBOX["BACKUP_ENCRYPTION_KEY"])
+    plain = tmp_path / "dump.jsonl.gz"
+    pgb.write_dump(_empty_rows(), plain, NOW)
+    enc = pgb.encrypt_file(plain, _OFFBOX["BACKUP_ENCRYPTION_KEY"])
+    seen = []
+    cli_env.setattr(
+        pgb, "restore",
+        lambda scope, p: seen.append(pgb.read_dump(p)[0]["format"]) or {"parity": True, "tables": []},
+    )
+    assert pgb.main(["--restore", str(enc)]) == 0
+    assert seen == [pgb.FORMAT]
+    assert not (Path(tempfile.gettempdir()) / plain.name).exists()  # plaintext not left behind
+
+
+def test_restore_of_a_fernet_file_without_the_key_fails_cleanly(cli_env, tmp_path):
+    plain = tmp_path / "dump.jsonl.gz"
+    pgb.write_dump(_empty_rows(), plain, NOW)
+    enc = pgb.encrypt_file(plain, Fernet.generate_key().decode())
+    cli_env.delenv("BACKUP_ENCRYPTION_KEY", raising=False)
+    assert pgb.main(["--restore", str(enc)]) == 1
 
 
 # ── Round trip through a real Postgres ────────────────────────────────────────

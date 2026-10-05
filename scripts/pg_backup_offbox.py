@@ -12,7 +12,10 @@ independent copy somewhere else:
    a header line, then one ``{"table": ..., "row": ...}`` line per row.
 2. **Upload.** The file is PUT to S3-compatible storage with the SigV4 signer
    in ``scripts/backup_offbox.py`` (same ``BACKUP_OFFBOX_*`` configuration,
-   same no-op-without-config rule).
+   same no-op-without-config rule). With BACKUP_ENCRYPTION_KEY set (required
+   by --require-upload) the dump is Fernet-encrypted first and only the
+   .fernet file is uploaded; --restore decrypts a .fernet file with the same
+   key.
 3. **Restore** (``--restore FILE``) loads a dump into an EMPTY database that
    ``alembic upgrade head`` has provisioned, through each migrator's
    ``to_model`` in ``MIGRATORS`` order (tenants first, flushing per table for
@@ -165,6 +168,32 @@ def dump_filename(now: datetime | None = None) -> str:
     return f"{FILE_PREFIX}{now.strftime('%Y%m%dT%H%M%SZ')}.jsonl.gz"
 
 
+# ── Encryption ────────────────────────────────────────────────────────────────
+# The dump holds every student answer. It is encrypted before it leaves
+# Render, with a key that lives only in Render's env and the owner's password
+# manager, so the bucket provider never holds readable student text.
+
+ENC_SUFFIX = ".fernet"
+
+
+def encrypt_file(src: Path, key: str) -> Path:
+    from cryptography.fernet import Fernet
+
+    dst = src.with_name(src.name + ENC_SUFFIX)
+    dst.write_bytes(Fernet(key.encode()).encrypt(src.read_bytes()))
+    return dst
+
+
+def decrypt_file(src: Path, key: str, dst: Path) -> Path:
+    from cryptography.fernet import Fernet, InvalidToken
+
+    try:
+        dst.write_bytes(Fernet(key.encode()).decrypt(src.read_bytes()))
+    except InvalidToken as exc:
+        raise ValueError(f"{src} could not be decrypted with BACKUP_ENCRYPTION_KEY") from exc
+    return dst
+
+
 # ── Restore ───────────────────────────────────────────────────────────────────
 
 
@@ -222,15 +251,27 @@ def main(argv: list[str] | None = None) -> int:
     if not os.environ.get("DATABASE_URL", "").strip():
         log.error("pg backup: DATABASE_URL is not set.")
         return 1
+    key = os.environ.get("BACKUP_ENCRYPTION_KEY", "").strip()
 
     from original.db.postgres_session import session_scope
 
     if args.restore:
+        src = Path(args.restore)
+        decrypted: Path | None = None
         try:
-            report = restore(session_scope, Path(args.restore))
+            if src.name.endswith(ENC_SUFFIX):
+                if not key:
+                    raise ValueError(f"{src} is encrypted and BACKUP_ENCRYPTION_KEY is not set")
+                src = decrypted = decrypt_file(
+                    src, key, Path(tempfile.gettempdir()) / src.name[: -len(ENC_SUFFIX)]
+                )
+            report = restore(session_scope, src)
         except (OSError, ValueError, RuntimeError) as exc:
             log.error("pg restore: %s", exc)
             return 1
+        finally:
+            if decrypted is not None:  # never leave the plaintext dump behind
+                decrypted.unlink(missing_ok=True)
         for t in report["tables"]:
             log.info(
                 "  %-28s %6d / %-6d %s",
@@ -250,6 +291,9 @@ def main(argv: list[str] | None = None) -> int:
             if not cfg.enabled
             else "missing " + ", ".join(cfg.missing()),
         )
+        return 1
+    if args.require_upload and not key:
+        log.error("pg backup: upload required but BACKUP_ENCRYPTION_KEY is not set.")
         return 1
     if not args.out and not cfg.ready():
         log.info(
@@ -272,10 +316,17 @@ def main(argv: list[str] | None = None) -> int:
             "pg backup: wrote %d rows across %d tables to %s", total, len(header["tables"]), path
         )
         if cfg.ready():
-            upload(cfg, path)  # stored under its own file name
+            if key:
+                enc = encrypt_file(path, key)
+                try:
+                    upload(cfg, enc)  # stored under its own file name
+                finally:
+                    enc.unlink(missing_ok=True)
+            else:
+                upload(cfg, path)
         elif args.out:
             log.info("pg backup: upload not configured — dump kept locally only.")
-    except (urllib.error.URLError, OSError, RuntimeError) as exc:
+    except (urllib.error.URLError, OSError, RuntimeError, ValueError) as exc:
         log.error("pg backup: failed: %s", exc)
         return 1
     finally:

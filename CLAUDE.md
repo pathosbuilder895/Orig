@@ -139,6 +139,7 @@ All production features are opt-in via env flags. Default OFF preserves Phase 1 
 | `BACKUP_DIR` | — | No-op without config. Directory for in-app SQLite backups. |
 | `BACKUP_INTERVAL_MINUTES` | — | No-op without config. Backup cadence. |
 | `BACKUP_KEEP` | — | No-op without config. Backup retention count. |
+| `BACKUP_ENCRYPTION_KEY` | — | Fernet key for scripts/pg_backup_offbox.py. Required by --require-upload; the uploaded object is .jsonl.gz.fernet. |
 | `BBOOK_API_URL` | — | No-op without config. Bluebook integration endpoint. |
 | `BBOOK_EXTERNAL_SECRET` | — | No-op without config. Bluebook shared secret. |
 | `CANVAS_BASE_URL` | — | Canvas instance URL for `/canvas/baseline/*` live import (`canvas/live_import.py`). Without it (and no request-supplied token) those endpoints 400 with manual-upload guidance. |

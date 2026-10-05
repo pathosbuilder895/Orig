@@ -22,6 +22,7 @@ SECRETS = {
     "BBOOK_EXTERNAL_SECRET",
     "BACKUP_OFFBOX_ACCESS_KEY_ID",
     "BACKUP_OFFBOX_SECRET_ACCESS_KEY",
+    "BACKUP_ENCRYPTION_KEY",
 }
 
 
@@ -70,6 +71,10 @@ def test_backup_job_fails_loudly_when_unconfigured():
     assert job["type"] == "cron"
     assert job["startCommand"] == "python scripts/pg_backup_offbox.py --require-upload"
     assert _env("original-pg-backup")["DATABASE_URL"]["fromDatabase"]["name"] == "original-db"
+
+
+def test_backup_job_requires_an_encryption_key():
+    assert _env("original-pg-backup")["BACKUP_ENCRYPTION_KEY"].get("sync") is False
 
 
 def test_deferred_lti_is_not_configured_on_the_pilot():

@@ -197,6 +197,12 @@ services:
         sync: false
       - key: BACKUP_OFFBOX_SECRET_ACCESS_KEY
         sync: false
+      # Fernet key; generate once with
+      #   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+      # and keep a copy in the owner's password manager: without it no backup
+      # can ever be restored.
+      - key: BACKUP_ENCRYPTION_KEY
+        sync: false
 
 databases:
   # The pilot's database. Internal-only (no public IP access); paid plan, so
