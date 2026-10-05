@@ -1,38 +1,5 @@
 services:
   # ════════════════════════════════════════════════════════════════════════════
-  # original-demo — the always-live, zero-login SALES DEMO (free tier).
-  # Ephemeral by design: writes reset on each deploy; seeded from demo/seed.db.
-  # ════════════════════════════════════════════════════════════════════════════
-  - type: web
-    name: original-demo
-    runtime: python
-    region: oregon
-    plan: free
-
-    # Slim install — requirements-demo.txt excludes PyTorch/sentence-transformers,
-    # psycopg2, sqlalchemy, auth libs, and dev tools. Keeps the build under
-    # Render's free-tier memory ceiling and within the 20-min build timeout.
-    buildCommand: pip install -r requirements-demo.txt && python -m spacy download en_core_web_sm
-
-    # --skip-seed: synthetic student profiles are pre-baked into demo/seed.db
-    # (committed to the repo). Startup takes <1s — no ML pipeline runs at boot.
-    startCommand: python run.py --demo --port $PORT --skip-seed
-
-    healthCheckPath: /health
-
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.0"
-      # Point the store at the pre-seeded SQLite file shipped in the repo.
-      - key: ORIGINAL_DB
-        value: demo/seed.db
-      # Adaptive scoring phases 2-8 (context manifest + weight modification).
-      - key: CONTEXT_MANIFEST_ENABLED
-        value: "1"
-      - key: ADAPTIVE_WEIGHTS_ENABLED
-        value: "1"
-
-  # ════════════════════════════════════════════════════════════════════════════
   # original-pilot — the REAL service: the public Bluebook site and the
   # institutional pilot (Starter plan, managed Postgres). Same dashboard app,
   # hardened by ORIGINAL_ENV=pilot:

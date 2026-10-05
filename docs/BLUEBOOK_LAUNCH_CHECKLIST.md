@@ -12,7 +12,11 @@ The deployment is `render.yaml`:
 | `original-db` | Managed Postgres 16 (paid plan, so it never expires; Render snapshots it daily). |
 | `original-pilot` | The web service: the public Bluebook site at `/bluebook/` plus the Original pilot. Runs `alembic upgrade head` before every deploy. No disk. |
 | `original-pg-backup` | Daily cron: a logical backup of the database to a bucket **outside** Render (`scripts/pg_backup_offbox.py`). |
-| `original-demo` | The existing zero-login sales demo. Unchanged. |
+| `bluebook-teacher-demo` | Static site (free, no environment variables): publishes the fictional professor walkthrough on its own address, with no API, accounts or student data (`scripts/build_teacher_demo_site.sh`). |
+
+The blueprint no longer contains `original-demo` (Original's public demo on
+`demo/seed.db`). If that Render service already exists, the owner suspends it
+in the Render dashboard; the blueprint does not touch it.
 
 Self-serve teachers need no operator step: they sign up at `/bluebook/` and
 get a private, Bluebook-only workspace (never profiled by Original). Use
@@ -48,9 +52,10 @@ get a private, Bluebook-only workspace (never profiled by Original). Use
 ## 3. Create the Render resources
 
 - [ ] Render → **New → Blueprint** → this repo, branch `main`. Render reads
-  `render.yaml` and proposes `original-db`, `original-pilot`,
-  `original-pg-backup` (and `original-demo` if it isn't already managed by a
-  blueprint). Approve.
+  `render.yaml` and proposes exactly `original-db`, `original-pilot`,
+  `original-pg-backup` and `bluebook-teacher-demo`. Approve. (An existing
+  `original-demo` service is not part of the blueprint: suspend it yourself in
+  the dashboard.)
 - [ ] It then asks for every `sync: false` value. Fill them in (below). Values
   marked *generate* come from:
   `python -c "import secrets; print(secrets.token_urlsafe(64))"`

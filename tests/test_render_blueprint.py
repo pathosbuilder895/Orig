@@ -6,6 +6,7 @@ secret's value."""
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -95,3 +96,21 @@ def test_teacher_demo_is_a_separate_static_site():
     assert demo["buildCommand"] == "bash scripts/build_teacher_demo_site.sh dist-teacher-demo"
     assert demo["staticPublishPath"] == "./dist-teacher-demo"
     assert "envVars" not in demo
+
+
+def test_blueprint_holds_only_the_pilot_and_its_teacher_demo():
+    """The Original public demo (demo/seed.db, research flags on) is retired
+    from this blueprint: nothing it deploys may boot on the synthetic seed."""
+    assert sorted(SERVICES) == ["bluebook-teacher-demo", "original-pg-backup", "original-pilot"]
+    for name in SERVICES:
+        assert _env(name).get("ORIGINAL_DB", {}).get("value") != "demo/seed.db", name
+
+
+def test_launch_checklist_lists_exactly_the_blueprint_resources():
+    root = Path(__file__).resolve().parents[1]
+    checklist = (root / "docs/BLUEBOOK_LAUNCH_CHECKLIST.md").read_text()
+    table = checklist.split("| Render resource |", 1)[1].split("\n\n", 1)[0]
+    listed = re.findall(r"^\| `([a-z0-9-]+)` \|", table, flags=re.MULTILINE)
+    declared = [s["name"] for s in BLUEPRINT["services"]]
+    declared += [d["name"] for d in BLUEPRINT["databases"]]
+    assert sorted(listed) == sorted(declared)
