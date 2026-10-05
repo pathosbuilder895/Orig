@@ -240,6 +240,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
 
     const sealBtn = page.locator('button', { hasText: /Seal & Submit|Sealing/ })
     await expect(sealBtn).toBeVisible()
+    page.once('dialog', d => d.accept())
     await sealBtn.click()
 
     // The submitted screen renders the canonical sealed headline

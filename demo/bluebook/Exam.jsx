@@ -1163,7 +1163,11 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
                 }}>{words.toLocaleString()} of {cfg.minWords.toLocaleString()} minimum words</span>
               )}
               <BtnPrimary
-                onClick={handleSubmit}
+                onClick={() => {
+                  // A stray tap must not end the exam. Time expiry seals via
+                  // handleSubmit({ force: true }) and never reaches this.
+                  if (window.confirm('Seal and submit now? You cannot change your answers after sealing.')) handleSubmit();
+                }}
                 disabled={words < cfg.minWords || submitting}
                 style={{ padding: '7px 20px', fontSize: 14 }}
               >{submitting ? 'Sealing…' : 'Seal & Submit'}</BtnPrimary>

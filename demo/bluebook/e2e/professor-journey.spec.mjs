@@ -258,6 +258,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
 
     const sealBtn = studentPage.locator('button', { hasText: /Seal & Submit|Sealing/ })
     await expect(sealBtn).toBeVisible()
+    studentPage.once('dialog', d => d.accept())
     await sealBtn.click()
     await expect(studentPage.getByText('Examination Sealed')).toBeVisible({ timeout: 45_000 })
     // The proctored-baseline transmission succeeded (recordSubmission only

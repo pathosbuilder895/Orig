@@ -126,6 +126,7 @@ test.describe('Exam-day robustness @robustness', () => {
     await studentPage.locator('textarea[placeholder="Begin writing here…"]').focus()
     await studentPage.keyboard.type(ESSAY, { delay: 1 })
 
+    studentPage.once('dialog', d => d.accept())
     await studentPage.locator('button', { hasText: /Seal & Submit|Sealing/ }).click()
     await expect(studentPage.getByText('Examination Sealed')).toBeVisible({ timeout: 60_000 })
     expect(failedOnce).toBe(true) // the abort really happened; success came from the retry
@@ -144,6 +145,7 @@ test.describe('Exam-day robustness @robustness', () => {
     await studentPage.locator('textarea[placeholder="Begin writing here…"]').focus()
     await studentPage.keyboard.type(ESSAY, { delay: 1 })
 
+    studentPage.once('dialog', d => d.accept())
     await studentPage.locator('button', { hasText: /Seal & Submit|Sealing/ }).click()
 
     // 3 attempts with 2s/5s backoff between them → well under this timeout.

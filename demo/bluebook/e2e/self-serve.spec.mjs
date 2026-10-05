@@ -123,6 +123,7 @@ test.describe('Public self-serve journey', () => {
     await box2.focus()
     await student.keyboard.type(answer2, { delay: 1 })
     await student.evaluate(() => window.dispatchEvent(new Event('blur')))
+    student.once('dialog', d => d.accept())
     const [sealRes] = await Promise.all([
       student.waitForResponse(r => r.url().endsWith('/bluebook/submissions') && r.request().method() === 'POST'),
       student.locator('button', { hasText: /Seal & Submit|Sealing/ }).click(),
