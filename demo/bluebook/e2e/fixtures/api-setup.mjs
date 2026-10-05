@@ -37,7 +37,9 @@ export async function createTenant(request, { tenantId, name, environment = 'pil
   const headers = authToken ? { Authorization: `Bearer ${authToken}` } : undefined
   const res = await request.post('/tenants', {
     headers,
-    data: { tenant_id: id, name: name || id, environment },
+    // On a real deploy a new tenant is Bluebook-only unless Original is named;
+    // these specs' fixtures call Original routes (baselines, scoring).
+    data: { tenant_id: id, name: name || id, environment, products: ['bluebook', 'original'] },
   })
   return okJson(res, `createTenant(${id})`)
 }
