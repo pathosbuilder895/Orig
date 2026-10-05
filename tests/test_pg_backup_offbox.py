@@ -14,7 +14,6 @@ import tempfile
 from contextlib import contextmanager
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from pathlib import Path
 
 import pytest
 from cryptography.fernet import Fernet
@@ -203,11 +202,19 @@ def test_main_returns_1_when_the_upload_fails(cli_env):
     for k, v in _OFFBOX.items():
         cli_env.setenv(k, v)
 
+    attempted = []
+
     def boom(cfg, path):
+        attempted.append(path)
         raise RuntimeError("off-box upload failed: HTTP 403")
 
     cli_env.setattr(pgb, "upload", boom)
     assert pgb.main([]) == 1
+    assert len(attempted) == 1
+    enc = attempted[0]
+    assert enc.name.endswith(pgb.ENC_SUFFIX)
+    assert not enc.exists()  # the encrypted copy is cleaned up after a failed upload
+    assert not enc.with_name(enc.name[: -len(pgb.ENC_SUFFIX)]).exists()  # and so is the plaintext
 
 
 def test_main_restore_reports_parity(cli_env, tmp_path):
@@ -265,6 +272,18 @@ def test_require_upload_fails_without_an_encryption_key(cli_env):
     assert pgb.main(["--require-upload"]) == 1
 
 
+def test_upload_is_refused_without_a_key_even_when_not_required(cli_env):
+    for k, v in _OFFBOX.items():
+        cli_env.setenv(k, v)
+    cli_env.delenv("BACKUP_ENCRYPTION_KEY")
+    reads = []
+    cli_env.setattr(pgb, "read_all", lambda session: reads.append(session) or _empty_rows())
+    cli_env.setattr(pgb, "upload", lambda cfg, path: pytest.fail("must not upload plaintext"))
+    assert pgb.main([]) == 1
+    assert pgb.main(["--out", "unused.jsonl.gz"]) == 1
+    assert reads == []  # refused before the database was read
+
+
 def test_main_uploads_only_the_encrypted_file(cli_env):
     for k, v in _OFFBOX.items():
         cli_env.setenv(k, v)
@@ -283,36 +302,50 @@ def test_main_uploads_only_the_encrypted_file(cli_env):
     assert Fernet(_OFFBOX["BACKUP_ENCRYPTION_KEY"].encode()).decrypt(data)[:2] == b"\x1f\x8b"
 
 
-def test_a_malformed_encryption_key_fails_the_run_and_leaves_no_dump(cli_env):
+def test_a_malformed_encryption_key_fails_fast_before_any_dump(cli_env, tmp_path):
     for k, v in _OFFBOX.items():
         cli_env.setenv(k, v)
     cli_env.setenv("BACKUP_ENCRYPTION_KEY", "not-a-fernet-key")
-    dumped = []
-    real_write_dump = pgb.write_dump
-
-    def spy(rows, path, now=None):
-        dumped.append(path)
-        return real_write_dump(rows, path, now)
-
-    cli_env.setattr(pgb, "write_dump", spy)
+    cli_env.setattr(tempfile, "tempdir", str(tmp_path))
+    cli_env.setattr(
+        pgb, "read_all", lambda session: pytest.fail("must not read the database first")
+    )
     cli_env.setattr(pgb, "upload", lambda cfg, path: pytest.fail("must not upload"))
     assert pgb.main(["--require-upload"]) == 1
-    assert len(dumped) == 1 and not dumped[0].exists()
+    assert list(tmp_path.iterdir()) == []  # no dump of any kind left behind
 
 
 def test_restore_decrypts_a_fernet_file(cli_env, tmp_path):
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    cli_env.setattr(tempfile, "tempdir", str(scratch))
     cli_env.setenv("BACKUP_ENCRYPTION_KEY", _OFFBOX["BACKUP_ENCRYPTION_KEY"])
     plain = tmp_path / "dump.jsonl.gz"
     pgb.write_dump(_empty_rows(), plain, NOW)
     enc = pgb.encrypt_file(plain, _OFFBOX["BACKUP_ENCRYPTION_KEY"])
     seen = []
-    cli_env.setattr(
-        pgb, "restore",
-        lambda scope, p: seen.append(pgb.read_dump(p)[0]["format"]) or {"parity": True, "tables": []},
-    )
+
+    def fake_restore(scope, p):
+        seen.append((pgb.read_dump(p)[0]["format"], p.parent, p.stat().st_mode & 0o777))
+        return {"parity": True, "tables": []}
+
+    cli_env.setattr(pgb, "restore", fake_restore)
     assert pgb.main(["--restore", str(enc)]) == 0
-    assert seen == [pgb.FORMAT]
-    assert not (Path(tempfile.gettempdir()) / plain.name).exists()  # plaintext not left behind
+    assert seen == [(pgb.FORMAT, scratch, 0o600)]  # a private temp file, not a guessable name
+    assert list(scratch.iterdir()) == []  # plaintext not left behind
+
+
+def test_restore_removes_the_temp_file_when_decryption_fails(cli_env, tmp_path):
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    cli_env.setattr(tempfile, "tempdir", str(scratch))
+    plain = tmp_path / "dump.jsonl.gz"
+    pgb.write_dump(_empty_rows(), plain, NOW)
+    enc = pgb.encrypt_file(plain, Fernet.generate_key().decode())
+    cli_env.setenv("BACKUP_ENCRYPTION_KEY", Fernet.generate_key().decode())  # the wrong key
+    cli_env.setattr(pgb, "restore", lambda scope, p: pytest.fail("must not restore"))
+    assert pgb.main(["--restore", str(enc)]) == 1
+    assert list(scratch.iterdir()) == []
 
 
 def test_restore_of_a_fernet_file_without_the_key_fails_cleanly(cli_env, tmp_path):

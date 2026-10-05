@@ -134,6 +134,9 @@ actually does, with a DRAFT banner and bracketed blanks.
   BACKUP_ENCRYPTION_KEY=<the key> DATABASE_URL=postgresql://…/restore_drill python scripts/pg_backup_offbox.py --restore original-pg-….jsonl.gz.fernet
   ```
   Must end `restore parity: OK`. It refuses a database that already has rows.
+  The backup job refuses to upload when `BACKUP_ENCRYPTION_KEY` is unset. A file
+  written with `--out` is an unencrypted local copy: keep it off shared disks and
+  delete it when you are done.
 - [ ] Uptime monitor → `https://<host>/health`, 5-minute interval, alert to your
   email. Done when its first check is green.
 - [ ] Sentry (if set): the deploy log shows `Sentry error reporting is on`.

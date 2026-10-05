@@ -15,7 +15,9 @@ independent copy somewhere else:
    same no-op-without-config rule). With BACKUP_ENCRYPTION_KEY set (required
    by --require-upload) the dump is Fernet-encrypted first and only the
    .fernet file is uploaded; --restore decrypts a .fernet file with the same
-   key.
+   key. With upload configured and no key the run fails before it reads the
+   database, so a plaintext dump is never uploaded. A file written with
+   ``--out`` is an unencrypted local copy.
 3. **Restore** (``--restore FILE``) loads a dump into an EMPTY database that
    ``alembic upgrade head`` has provisioned, through each migrator's
    ``to_model`` in ``MIGRATORS`` order (tenants first, flushing per table for
@@ -262,9 +264,11 @@ def main(argv: list[str] | None = None) -> int:
             if src.name.endswith(ENC_SUFFIX):
                 if not key:
                     raise ValueError(f"{src} is encrypted and BACKUP_ENCRYPTION_KEY is not set")
-                src = decrypted = decrypt_file(
-                    src, key, Path(tempfile.gettempdir()) / src.name[: -len(ENC_SUFFIX)]
-                )
+                # A fresh 0600 file, not a predictable name in a shared temp dir.
+                fd, tmp_name = tempfile.mkstemp(suffix=".jsonl.gz")
+                os.close(fd)
+                decrypted = Path(tmp_name)
+                src = decrypt_file(src, key, decrypted)
             report = restore(session_scope, src)
         except (OSError, ValueError, RuntimeError) as exc:
             log.error("pg restore: %s", exc)
@@ -292,9 +296,23 @@ def main(argv: list[str] | None = None) -> int:
             else "missing " + ", ".join(cfg.missing()),
         )
         return 1
-    if args.require_upload and not key:
-        log.error("pg backup: upload required but BACKUP_ENCRYPTION_KEY is not set.")
+    if cfg.ready() and not key:
+        # The bucket must never hold readable student text, so an upload without
+        # a key is refused whether or not --require-upload was passed.
+        log.error(
+            "pg backup: upload is configured but BACKUP_ENCRYPTION_KEY is not set — "
+            "refusing to upload an unencrypted dump."
+        )
         return 1
+    if cfg.ready():
+        # Reject a malformed key now, not after the full database read.
+        from cryptography.fernet import Fernet
+
+        try:
+            Fernet(key.encode())
+        except ValueError as exc:
+            log.error("pg backup: BACKUP_ENCRYPTION_KEY is not a valid Fernet key: %s", exc)
+            return 1
     if not args.out and not cfg.ready():
         log.info(
             "pg backup: upload not configured (%s) and no --out given — no-op.",
@@ -316,14 +334,11 @@ def main(argv: list[str] | None = None) -> int:
             "pg backup: wrote %d rows across %d tables to %s", total, len(header["tables"]), path
         )
         if cfg.ready():
-            if key:
-                enc = encrypt_file(path, key)
-                try:
-                    upload(cfg, enc)  # stored under its own file name
-                finally:
-                    enc.unlink(missing_ok=True)
-            else:
-                upload(cfg, path)
+            enc = encrypt_file(path, key)  # the key is guaranteed set above
+            try:
+                upload(cfg, enc)  # stored under its own file name
+            finally:
+                enc.unlink(missing_ok=True)
         elif args.out:
             log.info("pg backup: upload not configured — dump kept locally only.")
     except (urllib.error.URLError, OSError, RuntimeError, ValueError) as exc:
