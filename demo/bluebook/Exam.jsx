@@ -525,10 +525,15 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   // One warning per real event: blur + visibilitychange fire together for a
   // single tab switch, so repeats inside 1.5s collapse into one notice.
   const lastWarnRef = useExRef(0);
+  // True only while the seal confirmation is open. The browser may blur the
+  // window for its own dialog; that is not the student leaving the exam, so
+  // nothing is recorded (or sent to the teacher) while it is up.
+  const sealPromptRef = useExRef(false);
   // Every warning also goes to the teacher with the seal: its type and time
   // only, never the message text or anything about the page.
   const warnEventsRef = useExRef((restored && restored.warnings) || []);
   function recordWarning(msg, type = 'other') {
+    if (sealPromptRef.current) return;
     const now = Date.now();
     if (now - lastWarnRef.current < 1500) return;
     lastWarnRef.current = now;
@@ -1166,7 +1171,16 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
                 onClick={() => {
                   // A stray tap must not end the exam. Time expiry seals via
                   // handleSubmit({ force: true }) and never reaches this.
-                  if (window.confirm('Seal and submit now? You cannot change your answers after sealing.')) handleSubmit();
+                  sealPromptRef.current = true;
+                  let ok = false;
+                  try { ok = window.confirm('Seal and submit now? You cannot change your answers after sealing.'); }
+                  finally {
+                    sealPromptRef.current = false;
+                    // A blur or visibility event can arrive just after the
+                    // dialog closes: let the 1.5s dedupe window absorb it.
+                    lastWarnRef.current = Date.now();
+                  }
+                  if (ok) handleSubmit();
                 }}
                 disabled={words < cfg.minWords || submitting}
                 style={{ padding: '7px 20px', fontSize: 14 }}

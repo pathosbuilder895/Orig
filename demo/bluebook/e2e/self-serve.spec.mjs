@@ -123,12 +123,34 @@ test.describe('Public self-serve journey', () => {
     await box2.focus()
     await student.keyboard.type(answer2, { delay: 1 })
     await student.evaluate(() => window.dispatchEvent(new Event('blur')))
+    // The recorder collapses events inside 1.5s into one, so wait it out:
+    // otherwise the deliberate blur above would mask a false one at seal time.
+    await student.waitForTimeout(1700)
+    // Browsers may fire window blur (and a trailing one) around a native dialog.
+    // Headless Chromium does not, so simulate it: the confirm must not be
+    // recorded as the student leaving the exam.
+    await student.evaluate(() => {
+      const nativeConfirm = window.confirm.bind(window)
+      window.confirm = (msg) => {
+        window.dispatchEvent(new Event('blur'))
+        const ok = nativeConfirm(msg)
+        setTimeout(() => {
+          window.dispatchEvent(new Event('blur'))
+          window.dispatchEvent(new Event('focus'))
+        }, 0)
+        return ok
+      }
+    })
     student.once('dialog', d => d.accept())
     const [sealRes] = await Promise.all([
       student.waitForResponse(r => r.url().endsWith('/bluebook/submissions') && r.request().method() === 'POST'),
       student.locator('button', { hasText: /Seal & Submit|Sealing/ }).click(),
     ])
-    expect(sealRes.request().postDataJSON().answers).toEqual([answer, answer2])
+    const sealBody = sealRes.request().postDataJSON()
+    expect(sealBody.answers).toEqual([answer, answer2])
+    // Exactly the one warning this test caused on purpose: the seal
+    // confirmation itself records nothing.
+    expect(sealBody.warnings.map(w => w.type)).toEqual(['focus_lost'])
     await expect(student.getByText('Examination Sealed')).toBeVisible({ timeout: 30_000 })
     await expect(student.getByText('✓ Delivered to your teacher')).toBeVisible()
     // A Bluebook-only workspace never reaches Original.
