@@ -22,7 +22,7 @@ from .. import mailer, student_auth
 from .. import principal as principal_mod
 from .. import users as users_mod
 from ..schemas import RosterAddRequest, SendEmailRequest
-from ._shared import _bluebook_tenant, _repo, _require_staff
+from ._shared import _bluebook_tenant, _exam_submissions, _repo, _require_staff
 from .bluebook import _owned_course, _owned_exam
 
 router = APIRouter()
@@ -322,7 +322,7 @@ def exam_live(exam_id: str, request: Request):
         if not course_id or any(c["course_id"] == course_id for c in cs)
     ]
     subs = {}
-    for s in _repo().list_bluebook_submissions_for_exam(exam_id):
+    for s in _exam_submissions(exam):
         if s.get("student_id"):
             subs[s["student_id"]] = s
     ids = list(dict.fromkeys(roster + list(subs)))

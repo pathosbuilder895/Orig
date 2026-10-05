@@ -644,9 +644,12 @@ def test_submission_takes_title_and_course_from_its_exam(live_client):
     ).json()["id"]
     got = live_client.get(f"/bluebook/submissions/{sid}", headers=_auth(t["token"])).json()
     assert (got["exam"], got["course"]) == ("Named exam", "ETH 101")
-    # another workspace's exam id does not leak its title
+    # another workspace's exam id is refused outright (it used to be accepted
+    # with the title left blank), so neither its title nor a row leaks
     other = _signup(live_client, "o@x.edu")
-    sid2 = live_client.post(
+    refused = live_client.post(
         "/bluebook/submissions", json={"exam_id": e["id"], "text": "x"}, headers=_auth(other["token"])
-    ).json()["id"]
-    assert live_client.get(f"/bluebook/submissions/{sid2}", headers=_auth(other["token"])).json()["exam"] == ""
+    )
+    assert refused.status_code == 404
+    assert refused.json() == {"detail": "exam not found"}
+    assert len(get_repository().list_bluebook_submissions_for_exam(e["id"])) == 1

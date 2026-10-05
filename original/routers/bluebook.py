@@ -31,6 +31,7 @@ from ..schemas import (
 from ._shared import (
     _MAGIC_SESSION_TTL,
     _bluebook_tenant,
+    _exam_submissions,
     _int_or,
     _launch_products,
     _render_launch_localstorage,
@@ -314,9 +315,15 @@ def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: R
     student id must match ``body.student_id``), or staff. Previously this
     route had no auth check at all — any caller could write a submission
     naming an arbitrary student_id/candidate, including a classmate's.
+
+    A submission stays inside one workspace: it cannot name another
+    workspace's exam, and staff cannot name another workspace's student.
+    Otherwise a row could be written under the caller's workspace that points
+    into someone else's (its text would then be exported with the exam, and a
+    professor's approval would write into the other workspace's profile).
     """
     try:
-        _require_staff(request)
+        staff = _require_staff(request)
     except HTTPException:
         session = _require_student_session(request)
         if body.student_id and session.get("sid") != body.student_id:
@@ -324,7 +331,19 @@ def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: R
                 status_code=403,
                 detail="Session does not match the submission's student_id.",
             ) from None
+    else:
+        if body.student_id:
+            try:
+                principal_mod.assert_student_access(staff, body.student_id)
+            except principal_mod.TenantAccessError:
+                raise HTTPException(status_code=403, detail="Cross-tenant access denied.") from None
     tenant = _bluebook_tenant(request)
+    # An exam id that is not stored (a sample or launch-link id) is accepted as
+    # before; one that is stored must belong to the workspace the row is
+    # written to.
+    stored_exam = _repo().get_bluebook_exam(str(body.exam_id)) if body.exam_id else None
+    if stored_exam and stored_exam.get("tenant_id") not in (tenant, None):
+        raise HTTPException(status_code=404, detail="exam not found")
 
     # Idempotent sealing (robustness spec §2): a retried seal with the same
     # client submission_uuid returns the prior row instead of writing again.
@@ -369,7 +388,6 @@ def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: R
     # A client that omits the exam's title or course (a launch link with only
     # an id, an older client) still gets a readable row: take them from the
     # stored exam when it belongs to this workspace.
-    stored_exam = _repo().get_bluebook_exam(str(body.exam_id)) if body.exam_id else None
     if stored_exam and stored_exam.get("tenant_id") != tenant:
         stored_exam = None
 
@@ -526,7 +544,7 @@ def bluebook_export_exam(exam_id: str, request: Request):
     """CSV of every submission for one exam, text included (staff)."""
     _require_staff(request)
     exam = _owned_exam(exam_id, request)
-    subs = _repo().list_bluebook_submissions_for_exam(exam_id)
+    subs = _exam_submissions(exam)
     ids = [s["student_id"] for s in subs if s.get("student_id")]
     people = {u["user_id"]: u for u in _repo().list_users_by_ids(ids)}
     body = rules.submissions_csv(subs, people)

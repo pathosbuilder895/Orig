@@ -1651,3 +1651,118 @@ def test_health_reports_whether_signup_is_open(live_client, monkeypatch):
     assert live_client.get("/health").json()["signup_open"] is True
     monkeypatch.setenv("SELF_SERVE_SIGNUP", "0")
     assert live_client.get("/health").json()["signup_open"] is False
+
+
+# ── Submissions never cross a workspace boundary ─────────────────────────────
+
+
+def test_staff_cannot_seal_against_another_workspaces_exam(live_client):
+    a = _signup(live_client, "a@x.edu")
+    b = _signup(live_client, "b@x.edu")
+    exam_b = _exam(live_client, b["token"])
+
+    r = live_client.post(
+        "/bluebook/submissions",
+        json={"exam_id": exam_b["id"], "word_count": 1, "text": "mine"},
+        headers=_auth(a["token"]),
+    )
+
+    assert r.status_code == 404
+    assert r.json()["detail"] == "exam not found"
+    assert get_repository().list_bluebook_submissions_for_exam(exam_b["id"]) == []
+
+
+def test_a_student_cannot_seal_against_another_workspaces_exam(live_client):
+    a = _signup(live_client, "a@x.edu")
+    b = _signup(live_client, "b@x.edu")
+    stu_a = _student(live_client, a["token"], _course(live_client, a["token"]))
+    exam_b = _exam(live_client, b["token"])
+
+    r = live_client.post(
+        "/bluebook/submissions",
+        json={"exam_id": exam_b["id"], "student_id": stu_a["student_id"], "word_count": 1},
+        headers=_auth(stu_a["token"]),
+    )
+
+    assert r.status_code == 404
+    assert get_repository().list_bluebook_submissions_for_exam(exam_b["id"]) == []
+
+
+def test_staff_cannot_seal_for_another_workspaces_student(live_client):
+    a = _signup(live_client, "a@x.edu")
+    b = _signup(live_client, "b@x.edu")
+    stu_b = _student(live_client, b["token"], _course(live_client, b["token"]))
+    exam_a = _exam(live_client, a["token"])
+
+    r = live_client.post(
+        "/bluebook/submissions",
+        json={"exam_id": exam_a["id"], "student_id": stu_b["student_id"], "word_count": 1},
+        headers=_auth(a["token"]),
+    )
+
+    assert r.status_code == 403
+    assert r.json()["detail"] == "Cross-tenant access denied."
+    assert get_repository().list_bluebook_submissions_for_exam(exam_a["id"]) == []
+
+
+def test_staff_can_still_seal_for_their_own_student_and_for_an_unstored_exam(live_client):
+    a = _signup(live_client, "a@x.edu")
+    stu = _student(live_client, a["token"], _course(live_client, a["token"]))
+    exam = _exam(live_client, a["token"])
+
+    own = live_client.post(
+        "/bluebook/submissions",
+        json={"exam_id": exam["id"], "student_id": stu["student_id"], "word_count": 1},
+        headers=_auth(a["token"]),
+    )
+    unstored = live_client.post(
+        "/bluebook/submissions",
+        json={"exam_id": "sample-exam-not-in-the-repository", "word_count": 1},
+        headers=_auth(a["token"]),
+    )
+
+    assert (own.status_code, unstored.status_code) == (201, 201)
+
+
+def _plant_foreign_row(exam_id, tenant_id, student_id, text):
+    """A row for ``exam_id`` that belongs to another workspace, written straight
+    into the repository (the seal route no longer produces one)."""
+    get_repository().put_bluebook_submission(
+        {
+            "id": "foreignrow000001",
+            "exam_id": exam_id,
+            "tenant_id": tenant_id,
+            "student_id": student_id,
+            "candidate": "Foreign Candidate",
+            "exam_title": "Midterm",
+            "text": text,
+            "answers": [text],
+            "warnings": [],
+            "word_count": 5,
+            "time_min": 1,
+            "status": "SUBMITTED",
+            "submission_uuid": "foreign-row-uuid",
+            "late": 0,
+        }
+    )
+
+
+def test_a_foreign_row_on_my_exam_is_not_exported_or_shown_live(live_client):
+    a = _signup(live_client, "a@x.edu")
+    b = _signup(live_client, "b@x.edu")
+    exam_a = _exam(live_client, a["token"])
+    _seal(live_client, a["token"], exam_a["id"], "", text="my own sealed words")
+    _plant_foreign_row(exam_a["id"], b["tenant_id"], f"{b['tenant_id']}:outsider", "SECRET-OF-B")
+    h = _auth(a["token"])
+
+    export = live_client.get(f"/bluebook/exams/{exam_a['id']}/export", headers=h)
+    live = live_client.get(f"/bluebook/exams/{exam_a['id']}/live", headers=h)
+
+    assert export.status_code == 200
+    assert "my own sealed words" in export.text
+    assert "SECRET-OF-B" not in export.text and "Foreign Candidate" not in export.text
+    assert len(list(csv.DictReader(io.StringIO(export.text)))) == 1
+    assert live.status_code == 200
+    assert "outsider" not in live.text and "Foreign Candidate" not in live.text
+    audit = get_repository().list_audit(action="bluebook_export")["items"][0]
+    assert audit["details"]["rows"] == 1
