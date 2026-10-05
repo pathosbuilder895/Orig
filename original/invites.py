@@ -54,16 +54,14 @@ def issue(tenant_id: str, user_id: str, created_by: str, course_id: str | None =
     }
 
 
-def redeem(token: str) -> dict | None:
-    """Consume a valid invite. Returns the invite dict on success, else None
-    for every failure (unknown, expired, voided, already used) — the caller
-    reports them identically so the route cannot be used to probe tokens.
-    The single-use update is atomic, so two concurrent redemptions of one
-    token cannot both succeed."""
+def find_redeemable(token: str) -> dict | None:
+    """The invite ``token`` would redeem right now, without consuming it, or
+    None for every failure (unknown, expired, voided, already used). Lets a
+    caller refuse a request (e.g. terms not accepted) and leave the link
+    usable."""
     if not token:
         return None
-    repo = get_repository()
-    inv = repo.get_invite_by_hash(token_hash(token))
+    inv = get_repository().get_invite_by_hash(token_hash(token))
     if not inv or inv.get("redeemed_at") or inv.get("voided_at"):
         return None
     expires = datetime.fromisoformat(str(inv["expires_at"]).replace("Z", "+00:00"))
@@ -71,6 +69,16 @@ def redeem(token: str) -> dict | None:
         expires = expires.replace(tzinfo=UTC)
     if expires <= datetime.now(UTC):
         return None
-    if not repo.redeem_invite(inv["invite_id"]):
+    return inv
+
+
+def redeem(token: str) -> dict | None:
+    """Consume a valid invite. Returns the invite dict on success, else None
+    for every failure (unknown, expired, voided, already used) — the caller
+    reports them identically so the route cannot be used to probe tokens.
+    The single-use update is atomic, so two concurrent redemptions of one
+    token cannot both succeed."""
+    inv = find_redeemable(token)
+    if not inv or not get_repository().redeem_invite(inv["invite_id"]):
         return None
     return inv

@@ -38,3 +38,16 @@ test('signupOpen follows /health and fails closed', async () => {
   assert.equal(await BB_API.signupOpen(), false);
   assert.equal(await BB_API.environment(), null);
 });
+test('redeemInvite sends accept_terms and surfaces the terms refusal', async () => {
+  const bodies = [];
+  globalThis.fetch = async (url, init) => {
+    bodies.push(JSON.parse(init.body));
+    return new Response('{"detail":"Please accept the terms of service and privacy policy."}', { status: 422 });
+  };
+  await assert.rejects(BB_API.redeemInvite('tok', 'pw-123456'), /^Error: Please accept the terms of service and privacy policy\.$/);
+  await assert.rejects(BB_API.redeemInvite('tok', 'pw-123456', true), /accept the terms/);
+  assert.deepEqual(bodies, [
+    { token: 'tok', password: 'pw-123456', accept_terms: false },
+    { token: 'tok', password: 'pw-123456', accept_terms: true },
+  ]);
+});

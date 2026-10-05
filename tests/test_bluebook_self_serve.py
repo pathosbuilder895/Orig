@@ -407,6 +407,15 @@ def test_redeem_sets_password_enrols_and_signs_in(live_client):
     assert me["has_account"] is True
 
 
+def test_student_invite_needs_no_terms(live_client):
+    """Only an invited professor accepts the teacher terms on redeem; a
+    student's set-password call is unchanged (no accept_terms)."""
+    t = _signup(live_client)
+    _student(live_client, t["token"], _course(live_client, t["token"]))
+    item = get_repository().list_audit(action="invite_redeem", tenant_id=t["tenant_id"])
+    assert "terms_version" not in item["items"][0]["details"]
+
+
 def test_invite_is_single_use(live_client):
     t = _signup(live_client)
     row = _add_students(live_client, t["token"], _course(live_client, t["token"]), "s@x.edu")[0]

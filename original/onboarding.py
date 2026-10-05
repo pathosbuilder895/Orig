@@ -14,6 +14,8 @@ from . import invites, mailer, users
 from .bluebook_rules import SELF_SERVE_PLAN
 from .repository import get_repository
 
+PROFESSOR_LINK_SUFFIX = "&terms=1"
+
 
 def invite_professor(email: str, name: str = "", base_url: str = "") -> dict:
     normalized = (email or "").strip().lower()
@@ -34,7 +36,9 @@ def invite_professor(email: str, name: str = "", base_url: str = "") -> dict:
     user_id = users._user_id(tenant_id, normalized)
     repo.put_user(user_id, normalized, users.INVITED_PASSWORD_HASH, "professor", tenant_id, display)
     inv = invites.issue(tenant_id, user_id, "operator")
-    link = mailer.absolute_url(inv["invite_path"], base_url)
+    # terms=1 tells the set-password screen to show the terms checkbox; the
+    # server requires acceptance from an unactivated professor regardless.
+    link = mailer.absolute_url(inv["invite_path"] + PROFESSOR_LINK_SUFFIX, base_url)
     emailed = bool(mailer.configured() and mailer.send_professor_invite(normalized, link))
     repo.log_audit(
         action="professor_invite",

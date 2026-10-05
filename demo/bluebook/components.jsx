@@ -535,8 +535,10 @@ export const BB_API = {
     if (!r.ok) throw new Error(await bbDetail(r, 'Could not send the reset email'));
     return r.json();
   },
-  redeemInvite(token, password) {
-    return this._auth('/auth/invite/redeem', { token, password }, 'This invite link could not be used');
+  // An invited professor's first password also accepts the terms; students
+  // and password resets send false and the server ignores it.
+  redeemInvite(token, password, acceptTerms = false) {
+    return this._auth('/auth/invite/redeem', { token, password, accept_terms: acceptTerms }, 'This invite link could not be used');
   },
   changePassword(currentPassword, newPassword) {
     return this._json('POST', '/auth/password', { current_password: currentPassword, new_password: newPassword });

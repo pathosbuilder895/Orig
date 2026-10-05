@@ -2,13 +2,29 @@
 
 from __future__ import annotations
 
+from urllib.parse import parse_qs, urlparse
+
 import pytest
 
 from original import mailer
 from original import principal as principal_mod
+from original import users
 from original.onboarding import invite_professor
 from original.repository import get_repository
+from original.routers.auth import TERMS_VERSION
 from scripts import invite_professor as cli
+
+PW = "chosen-passw0rd"
+TERMS_MSG = "Please accept the terms of service and privacy policy."
+
+
+def _token(link: str, param: str = "invite") -> str:
+    return parse_qs(urlparse(link).query)[param][0]
+
+
+def _redeem_audit(tenant_id: str) -> dict:
+    items = get_repository().list_audit(action="invite_redeem", tenant_id=tenant_id)["items"]
+    return items[0]["details"]
 
 
 @pytest.fixture(autouse=True)
@@ -38,7 +54,9 @@ def test_invite_creates_a_bluebook_only_workspace_and_an_inactive_professor():
 
 def test_invited_professor_sets_a_password_and_signs_in(live_client):
     out = invite_professor("p2@seminary.edu", "P Two", "https://x.test")
-    token = out["invite_link"].split("invite=", 1)[1]
+    # The SPA shows the terms checkbox when the link says so.
+    assert out["invite_link"].endswith("&terms=1")
+    token = _token(out["invite_link"])
     assert (
         live_client.post(
             "/auth/login", json={"email": "p2@seminary.edu", "password": "chosen-passw0rd"}
@@ -46,7 +64,8 @@ def test_invited_professor_sets_a_password_and_signs_in(live_client):
         == 401
     )
     r = live_client.post(
-        "/auth/invite/redeem", json={"token": token, "password": "chosen-passw0rd"}
+        "/auth/invite/redeem",
+        json={"token": token, "password": "chosen-passw0rd", "accept_terms": True},
     )
     assert r.status_code == 200, r.text
     assert r.json()["role"] == "professor"
@@ -55,6 +74,41 @@ def test_invited_professor_sets_a_password_and_signs_in(live_client):
         "/auth/login", json={"email": "p2@seminary.edu", "password": "chosen-passw0rd"}
     )
     assert login.status_code == 200
+
+
+def test_invited_professor_must_accept_the_terms_and_a_refusal_keeps_the_link(live_client):
+    out = invite_professor("terms@seminary.edu", base_url="https://x.test")
+    token = _token(out["invite_link"])
+    # The server enforces this whatever the URL said (a link that lost its
+    # terms=1, or a ?reset= link for a professor who never activated).
+    refused = live_client.post("/auth/invite/redeem", json={"token": token, "password": PW})
+    assert refused.status_code == 422
+    assert refused.json()["detail"] == TERMS_MSG
+    assert not users.is_activated(get_repository().get_user_by_email("terms@seminary.edu"))
+    ok = live_client.post(
+        "/auth/invite/redeem", json={"token": token, "password": PW, "accept_terms": True}
+    )
+    assert ok.status_code == 200, ok.text
+    assert _redeem_audit(out["tenant_id"])["terms_version"] == TERMS_VERSION
+
+
+def test_activated_professor_password_reset_needs_no_terms(live_client, monkeypatch):
+    out = invite_professor("reset@seminary.edu", base_url="https://x.test")
+    first = live_client.post(
+        "/auth/invite/redeem",
+        json={"token": _token(out["invite_link"]), "password": PW, "accept_terms": True},
+    )
+    assert first.status_code == 200, first.text
+    links = []
+    monkeypatch.setattr(mailer, "configured", lambda: True)
+    monkeypatch.setattr(mailer, "send_reset", lambda to, link: links.append(link) or True)
+    live_client.post("/auth/password-reset/request", json={"email": "reset@seminary.edu"})
+    r = live_client.post(
+        "/auth/invite/redeem",
+        json={"token": _token(links[0], "reset"), "password": "fresh-passw0rd"},
+    )
+    assert r.status_code == 200, r.text
+    assert "terms_version" not in _redeem_audit(out["tenant_id"])
 
 
 @pytest.mark.parametrize("email", ["", "not-an-email"])

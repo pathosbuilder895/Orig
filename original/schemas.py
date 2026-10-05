@@ -272,6 +272,10 @@ class InviteRedeemRequest(BaseModel):
 
     token: str
     password: str
+    accept_terms: bool = Field(
+        False,
+        description="Required when an invited professor sets their first password",
+    )
 
 
 class PasswordChangeRequest(BaseModel):

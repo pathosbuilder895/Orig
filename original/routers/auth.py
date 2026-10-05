@@ -34,9 +34,11 @@ from ._shared import (
 
 router = APIRouter()
 
-# The terms/privacy text a signup accepts (demo/legal/*.html). Bump with any
-# material change; the audit log records the version each teacher accepted.
+# The terms/privacy text a signup or an invited professor accepts
+# (demo/legal/*.html). Bump with any material change; the audit log records
+# the version each teacher accepted.
 TERMS_VERSION = "2026-10-01-draft"
+_TERMS_REQUIRED = "Please accept the terms of service and privacy policy."
 
 _MIN_PASSWORD = 8
 _MAX_PASSWORD = 1024  # PBKDF2 cost is linear in input length; bound it.
@@ -143,9 +145,7 @@ def auth_signup(body: AuthSignupRequest, request: Request):
         raise HTTPException(status_code=422, detail="A valid email is required.")
     _check_new_password(body.password)
     if not body.accept_terms:
-        raise HTTPException(
-            status_code=422, detail="Please accept the terms of service and privacy policy."
-        )
+        raise HTTPException(status_code=422, detail=_TERMS_REQUIRED)
     if _repo().get_user_by_email(email):
         raise HTTPException(status_code=409, detail="An account with that email already exists.")
     tenant_id = f"t-{secrets.token_hex(6)}"
@@ -172,10 +172,26 @@ def auth_signup(body: AuthSignupRequest, request: Request):
 @router.post("/auth/invite/redeem")
 def auth_invite_redeem(body: InviteRedeemRequest, request: Request):
     """Redeem a one-time invite: set the password and sign in. A student
-    invite also enrols them on the course it was issued for."""
+    invite also enrols them on the course it was issued for.
+
+    An invited professor (any staff account that has never set a password)
+    accepts the terms here, as a signup does: with self-serve signup closed
+    this is the only place they can. The check runs before the invite is
+    consumed, so a refusal leaves the link usable. Students, and staff
+    resetting a password they already set, are unchanged."""
     _throttle_login(request, "", scope="invite")
     _check_new_password(body.password)
-    inv = invites_mod.redeem(body.token.strip())
+    token = body.token.strip()
+    pending = invites_mod.find_redeemable(token)
+    pending_user = _repo().get_user(pending["user_id"]) if pending else None
+    needs_terms = bool(
+        pending_user
+        and pending_user["role"] != "student"
+        and not users_mod.is_activated(pending_user)
+    )
+    if needs_terms and not body.accept_terms:
+        raise HTTPException(status_code=422, detail=_TERMS_REQUIRED)
+    inv = invites_mod.redeem(token)
     user = _repo().get_user(inv["user_id"]) if inv else None
     if not inv or not user:
         _record_login_failure(request, "", scope="invite")
@@ -192,6 +208,7 @@ def auth_invite_redeem(body: InviteRedeemRequest, request: Request):
         tenant_id=user["tenant_id"],
         actor=user["email"],
         result="ok",
+        details={"terms_version": TERMS_VERSION} if needs_terms else None,
     )
     return _session_payload(user)
 

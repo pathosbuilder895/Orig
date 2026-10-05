@@ -102,8 +102,9 @@ actually does, with a DRAFT banner and bracketed blanks.
   page's title (the permanent line directly after the `<h1>`, not the one inside
   the banner), and set the same version string in `TERMS_VERSION` in **both**
   `original/routers/auth.py` and `demo/bluebook/Account.jsx`; rebuild the bundle
-  (`cd demo/bluebook && npm run build`), commit, deploy. Signups record which
-  version each teacher accepted in the audit log.
+  (`cd demo/bluebook && npm run build`), commit, deploy. Signups and professor
+  invitations record which version each teacher accepted in the audit log (an
+  invited professor ticks the terms box when setting their first password).
 
 ## 6. Verify
 

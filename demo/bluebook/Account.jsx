@@ -14,8 +14,11 @@ const { useState, useEffect } = React;
 
 const MIN_PASSWORD = 8;
 // Bumped whenever demo/legal/terms.html or privacy.html change materially;
-// the server records the version a teacher accepted at signup.
+// the server records the version a teacher accepted at signup or invitation.
 export const TERMS_VERSION = '2026-10-01-draft';
+// The server's refusal when an invited professor has not accepted the terms
+// (original/routers/auth.py, _TERMS_REQUIRED).
+const TERMS_REFUSAL = 'Please accept the terms of service and privacy policy.';
 
 function passwordProblem(pw, confirm) {
   if (pw.length < MIN_PASSWORD) return `Use at least ${MIN_PASSWORD} characters.`;
@@ -39,6 +42,18 @@ export function LegalLinks() {
       {' · '}
       <a href="../legal/student-notice.html" target="_blank" rel="noopener" style={legalLink}>Student notice</a>
     </p>
+  );
+}
+
+// The terms checkbox a teacher ticks at signup, and an invited professor
+// ticks when setting their first password.
+function TermsCheckbox({ id, checked, onChange }) {
+  return (
+    <label className="bb-check" style={{ marginBottom: 16 }}>
+      <input id={id} type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
+      <span>I agree to the <a href="../legal/terms.html" target="_blank" rel="noopener" style={legalLink}>terms of service</a> and
+        {' '}<a href="../legal/privacy.html" target="_blank" rel="noopener" style={legalLink}>privacy policy</a>.</span>
+    </label>
   );
 }
 
@@ -83,11 +98,7 @@ export function SignupScreen({ onNavigate }) {
           placeholder="you@school.edu" autoComplete="email" />
         <Field id="bbSignupPass" label="Password" type="password" value={pw} onChange={setPw}
           autoComplete="new-password" hint={`At least ${MIN_PASSWORD} characters.`} />
-        <label className="bb-check" style={{ marginBottom: 16 }}>
-          <input id="bbSignupTerms" type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} />
-          <span>I agree to the <a href="../legal/terms.html" target="_blank" rel="noopener" style={legalLink}>terms of service</a> and
-            {' '}<a href="../legal/privacy.html" target="_blank" rel="noopener" style={legalLink}>privacy policy</a>.</span>
-        </label>
+        <TermsCheckbox id="bbSignupTerms" checked={agree} onChange={setAgree} />
         <ErrorText>{error}</ErrorText>
         <SubmitButton busy={busy} busyLabel="Creating…">Create workspace</SubmitButton>
       </form>
@@ -106,11 +117,17 @@ function inviteTokenFromUrl() {
   } catch (e) { return ''; }
 }
 
+// A professor's invitation link ends in &terms=1 (original/onboarding.py).
+function inviteNeedsTermsFromUrl() {
+  try { return new URLSearchParams(window.location.search).get('terms') === '1'; } catch (e) { return false; }
+}
+
 function clearInviteFromUrl() {
   try {
     const url = new URL(window.location.href);
     url.searchParams.delete('invite');
     url.searchParams.delete('reset');
+    url.searchParams.delete('terms');
     window.history.replaceState(null, '', url.pathname + (url.search || '') + url.hash);
   } catch (e) {}
 }
@@ -119,6 +136,10 @@ export function InviteScreen({ onNavigate }) {
   const [token] = useState(inviteTokenFromUrl);
   const [pw, setPw] = useState('');
   const [confirm, setConfirm] = useState('');
+  // Shown for a professor's invitation, or once the server asks for it (a
+  // link that lost its terms=1, or a reset link before the first password).
+  const [needTerms, setNeedTerms] = useState(inviteNeedsTermsFromUrl);
+  const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(token ? '' : 'This link is missing its code. Ask your teacher for a new one, or use “Forgot password”.');
 
@@ -127,13 +148,15 @@ export function InviteScreen({ onNavigate }) {
     if (busy || !token) return;
     const problem = passwordProblem(pw, confirm);
     if (problem) { setError(problem); return; }
+    if (needTerms && !agree) { setError('Please accept the terms and privacy policy to continue.'); return; }
     setError('');
     setBusy(true);
     try {
-      const data = await BB_API.redeemInvite(token, pw);
+      const data = await BB_API.redeemInvite(token, pw, needTerms && agree);
       clearInviteFromUrl();
       onNavigate(homeFor(data));
     } catch (err) {
+      if (err.message === TERMS_REFUSAL) setNeedTerms(true);
       setError(err.message || 'This link could not be used.');
       setBusy(false);
     }
@@ -150,6 +173,7 @@ export function InviteScreen({ onNavigate }) {
           autoComplete="new-password" hint={`At least ${MIN_PASSWORD} characters.`} />
         <Field id="bbInviteConfirm" label="Confirm password" type="password" value={confirm}
           onChange={setConfirm} autoComplete="new-password" />
+        {needTerms && <TermsCheckbox id="bbInviteTerms" checked={agree} onChange={setAgree} />}
         <ErrorText>{error}</ErrorText>
         <SubmitButton busy={busy} busyLabel="Saving…">Save and continue</SubmitButton>
       </form>
