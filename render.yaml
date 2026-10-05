@@ -30,8 +30,10 @@ services:
     preDeployCommand: alembic upgrade head
 
     # --skip-seed: a pilot must never boot with synthetic students. The
-    # database starts empty; teachers sign up at /bluebook/ (self-serve) or
-    # are provisioned via docs/PROVISIONING_CHECKLIST.md.
+    # database starts empty. The pilot is invitation-only (SELF_SERVE_SIGNUP
+    # below): professors are invited with scripts/invite_professor.py, and
+    # institutions buying Original are provisioned via
+    # docs/PROVISIONING_CHECKLIST.md.
     startCommand: python run.py --demo --port $PORT --skip-seed
 
     healthCheckPath: /health

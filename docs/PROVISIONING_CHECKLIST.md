@@ -2,8 +2,9 @@
 
 Manual steps to onboard one institution that has bought **Original** + its
 professors. ~30 minutes total. Teachers who only want Bluebook need none of
-this: they sign up themselves at `$HOST/bluebook/` and get a private,
-Bluebook-only workspace (`docs/BLUEBOOK_LAUNCH_CHECKLIST.md`).
+this: the pilot is invitation-only, so the operator invites each one with
+`scripts/invite_professor.py`, which creates a private, Bluebook-only
+workspace (`docs/BLUEBOOK_LAUNCH_CHECKLIST.md` → Operating it).
 All write calls need the guard header: `-H "X-Guard-Token: $MAINTENANCE_TOKEN"`
 (the pilot runs `GUARD_DESTRUCTIVE=1`). Base URL below: `$HOST`.
 
@@ -13,8 +14,12 @@ All write calls need the guard header: `-H "X-Guard-Token: $MAINTENANCE_TOKEN"`
 curl -s -X POST $HOST/tenants \
   -H 'Content-Type: application/json' \
   -H "X-Guard-Token: $MAINTENANCE_TOKEN" \
-  -d '{"tenant_id":"<slug>","name":"<Institution Name>","environment":"pilot"}'
+  -d '{"tenant_id":"<slug>","name":"<Institution Name>","environment":"pilot",
+       "products":["bluebook","original"]}'
 ```
+A new tenant on a real deploy is Bluebook-only unless `products` says
+otherwise, so an institution that bought Original must be created with
+`"products":["bluebook","original"]` as above.
 - [ ] Slug is lowercase-kebab, final (it prefixes every student id — never rename).
 - [ ] `GET $HOST/tenants` (as a logged-in staff account) shows it with
       `environment: pilot`.

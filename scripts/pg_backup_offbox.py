@@ -13,8 +13,8 @@ independent copy somewhere else:
 2. **Upload.** The file is PUT to S3-compatible storage with the SigV4 signer
    in ``scripts/backup_offbox.py`` (same ``BACKUP_OFFBOX_*`` configuration,
    same no-op-without-config rule). With BACKUP_ENCRYPTION_KEY set (required
-   by --require-upload) the dump is Fernet-encrypted first and only the
-   .fernet file is uploaded; --restore decrypts a .fernet file with the same
+   whenever an upload is configured) the dump is Fernet-encrypted first and
+   only the .fernet file is uploaded; --restore decrypts a .fernet file with the same
    key. With upload configured and no key the run fails before it reads the
    database, so a plaintext dump is never uploaded. A file written with
    ``--out`` is an unencrypted local copy.

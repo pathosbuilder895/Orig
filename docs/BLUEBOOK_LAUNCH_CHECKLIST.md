@@ -1,9 +1,10 @@
 # Bluebook public launch — checklist
 
-The steps to take Bluebook from a merged `main` to a public website teachers
-can sign up on. Everything in code is done; what remains is accounts, secrets,
-DNS and clicks only the owner can make. Work top to bottom. Each step says
-what "done" looks like.
+The steps to take Bluebook from a merged `main` to a live, invitation-only
+website: professors do not sign up, the operator invites each one with
+`scripts/invite_professor.py`. Everything in code is done; what remains is
+accounts, secrets, DNS and clicks only the owner can make. Work top to bottom.
+Each step says what "done" looks like.
 
 The deployment is `render.yaml`:
 
@@ -18,9 +19,12 @@ The blueprint no longer contains `original-demo` (Original's public demo on
 `demo/seed.db`). If that Render service already exists, the owner suspends it
 in the Render dashboard; the blueprint does not touch it.
 
-Self-serve teachers need no operator step: they sign up at `/bluebook/` and
-get a private, Bluebook-only workspace (never profiled by Original). Use
-`docs/PROVISIONING_CHECKLIST.md` only for institutions buying Original.
+The pilot is invitation-only (`SELF_SERVE_SIGNUP=0`): there is no signup on
+the website. The operator invites each professor with
+`scripts/invite_professor.py` (see *Operating it*), which creates a private,
+Bluebook-only workspace (never profiled by Original) and emails a one-time
+link to set a password. Use `docs/PROVISIONING_CHECKLIST.md` only for
+institutions buying Original.
 
 ---
 
@@ -120,7 +124,10 @@ actually does, with a DRAFT banner and bracketed blanks.
   Must end `smoke test: PASS` (backend postgres, environment pilot, site and
   legal pages up, API docs hidden, anonymous calls refused).
 - [ ] Walk it once by hand at `https://<host>/bluebook/`:
-  1. Create a workspace with your own email.
+  1. Invite yourself: Render → `original-pilot` → Shell →
+     `python scripts/invite_professor.py you@your-domain --name "Your Name"`.
+     Open the link from the email (or the one the command printed), tick the
+     terms box and set a password. You land in your own empty workspace.
   2. Courses → New course → add a second email address you own as a student,
      with **Email each student their invitation** ticked. The invitation
      arrives within a minute (check spam the first time).
@@ -150,9 +157,11 @@ actually does, with a DRAFT banner and bracketed blanks.
 
 ## 7. Launch
 
-- [ ] Send teachers `https://<host>/bluebook/`.
-- [ ] Tell Claude the URL: it will re-run the smoke test and walk the signup →
-  invite → exam → mark → release journey against the live site.
+- [ ] Invite each professor (*Operating it* → Inviting a professor). They set a
+  password from the link, then sign in at `https://<host>/bluebook/`.
+- [ ] Tell Claude the URL: it will re-run the smoke test and walk the professor
+  invite → student invite → exam → mark → release journey against the live
+  site.
 
 ---
 
