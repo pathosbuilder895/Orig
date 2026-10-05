@@ -230,6 +230,9 @@ jobs:
       - name: Install Bluebook build/test dependencies
         run: cd demo/bluebook && npm ci
 
+      - name: Bluebook unit tests
+        run: cd demo/bluebook && node --test unit/
+
       - name: Rebuild bundle and check it's byte-identical to the committed one
         # Catches the "edited a .jsx but forgot to rebuild" failure mode --
         # Render has no Node, so the committed bluebook.bundle.js IS what

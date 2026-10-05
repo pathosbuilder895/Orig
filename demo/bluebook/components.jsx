@@ -541,16 +541,28 @@ export const BB_API = {
   changePassword(currentPassword, newPassword) {
     return this._json('POST', '/auth/password', { current_password: currentPassword, new_password: newPassword });
   },
-  // The deploy's environment label from the public health probe, cached for
-  // the page's life. Demo-only affordances ("Explore the demo") show only
-  // when this is 'demo'; anything else — including a failed probe — hides them.
+  // The public health probe, fetched once per page. A failure resolves to
+  // null; every reader below treats null as "not a demo, signup closed".
+  _health() {
+    if (this._healthP === undefined) {
+      this._healthP = fetch(this.base + '/health')
+        .then(r => (r.ok ? r.json() : null))
+        .catch(() => null);
+    }
+    return this._healthP;
+  },
+  // The deploy's environment label. Demo-only affordances ("Explore the
+  // demo") show only when this is 'demo'.
   async environment() {
-    if (this._env !== undefined) return this._env;
-    try {
-      const r = await fetch(this.base + '/health');
-      this._env = r.ok ? ((await r.json()).environment || null) : null;
-    } catch (e) { this._env = null; }
-    return this._env;
+    const h = await this._health();
+    return (h && h.environment) || null;
+  },
+  // Whether teachers may create their own workspace (SELF_SERVE_SIGNUP).
+  // Fails closed so an invitation-only pilot never advertises signup
+  // because of a network blip; an older server without the field is open.
+  async signupOpen() {
+    const h = await this._health();
+    return !!h && h.signup_open !== false;
   },
   logout() {
     BB_SESSION_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });

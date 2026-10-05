@@ -22,3 +22,19 @@ test('network failures propagate and successful empty lists remain empty', async
   globalThis.fetch = async () => new Response('{"submissions":[]}');
   assert.deepEqual(await BB_API.listSubmissions(), []);
 });
+test('signupOpen follows /health and fails closed', async () => {
+  const health = (body, status = 200) => async () => new Response(JSON.stringify(body), { status });
+  delete BB_API._healthP;
+  globalThis.fetch = health({ environment: 'pilot', signup_open: false });
+  assert.equal(await BB_API.signupOpen(), false);
+  assert.equal(await BB_API.environment(), 'pilot');
+
+  delete BB_API._healthP;
+  globalThis.fetch = health({ environment: 'pilot' });
+  assert.equal(await BB_API.signupOpen(), true);
+
+  delete BB_API._healthP;
+  globalThis.fetch = async () => { throw new TypeError('offline'); };
+  assert.equal(await BB_API.signupOpen(), false);
+  assert.equal(await BB_API.environment(), null);
+});

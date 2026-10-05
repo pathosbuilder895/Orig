@@ -14,6 +14,17 @@ function useIsDemoDeploy() {
   return demo;
 }
 
+// Signup links show only once the deploy confirms signup is open.
+function useSignupOpen() {
+  const [open, setOpen] = React.useState(false);
+  React.useEffect(() => {
+    let live = true;
+    BB_API.signupOpen().then(v => { if (live) setOpen(v); });
+    return () => { live = false; };
+  }, []);
+  return open;
+}
+
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Landing & Login Screens
 // ════════════════════════════════════════════════════════════════
@@ -21,6 +32,7 @@ const { useState: useLState } = React;
 
 // ─── Landing Screen ──────────────────────────────────────────────────────────
 export function LandingScreen({ onNavigate }) {
+  const signupOpen = useSignupOpen();
   return (
     <div className="bb-screen" style={{
       minHeight: '100vh', background: BB.oxford,
@@ -42,13 +54,15 @@ export function LandingScreen({ onNavigate }) {
             background: 'none', border: 'none', cursor: 'pointer',
             letterSpacing: '0.03em', transition: 'color 0.3s',
           }}>Sign in</button>
-          <button onClick={() => onNavigate('signup')} style={{
-            fontFamily: fontBody, fontVariant: 'small-caps',
-            letterSpacing: '0.12em', fontSize: 16,
-            color: BB.gold, background: 'none', border: 'none',
-            borderBottom: '1px solid rgba(201,169,97,0.45)',
-            paddingBottom: 2, cursor: 'pointer',
-          }}>Start free →</button>
+          {signupOpen && (
+            <button onClick={() => onNavigate('signup')} style={{
+              fontFamily: fontBody, fontVariant: 'small-caps',
+              letterSpacing: '0.12em', fontSize: 16,
+              color: BB.gold, background: 'none', border: 'none',
+              borderBottom: '1px solid rgba(201,169,97,0.45)',
+              paddingBottom: 2, cursor: 'pointer',
+            }}>Start free →</button>
+          )}
         </div>
       </nav>
 
@@ -95,9 +109,11 @@ export function LandingScreen({ onNavigate }) {
             <BtnGhost onClick={() => onNavigate('login')} style={{ padding: '10px 28px', fontSize: 16 }}>
               Sign in
             </BtnGhost>
-            <BtnPrimary onClick={() => onNavigate('signup')} style={{ padding: '10px 28px', fontSize: 16 }}>
-              Create a free workspace
-            </BtnPrimary>
+            {signupOpen && (
+              <BtnPrimary onClick={() => onNavigate('signup')} style={{ padding: '10px 28px', fontSize: 16 }}>
+                Create a free workspace
+              </BtnPrimary>
+            )}
           </div>
         </div>
       </section>
@@ -185,6 +201,7 @@ export function LoginScreen({ onNavigate }) {
   const [loading, setLoading] = useLState(false);
   const [error,   setError]   = useLState('');
   const demoDeploy = useIsDemoDeploy();
+  const signupOpen = useSignupOpen();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -276,17 +293,26 @@ export function LoginScreen({ onNavigate }) {
 
           <Ornament char="·" py={18} />
 
-          <p style={{
-            textAlign: 'center', fontFamily: fontBody, fontSize: 16,
-            color: BB.fade, letterSpacing: '0.02em', margin: '0 0 14px',
-          }}>
-            Teacher without an account?{' '}
-            <button type="button" onClick={() => onNavigate('signup')} style={{
-              fontFamily: fontBody, fontSize: 16, color: BB.gold,
-              textDecoration: 'underline', letterSpacing: '0.02em',
-              background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-            }}>Create a free workspace</button>
-          </p>
+          {signupOpen ? (
+            <p style={{
+              textAlign: 'center', fontFamily: fontBody, fontSize: 16,
+              color: BB.fade, letterSpacing: '0.02em', margin: '0 0 14px',
+            }}>
+              Teacher without an account?{' '}
+              <button type="button" onClick={() => onNavigate('signup')} style={{
+                fontFamily: fontBody, fontSize: 16, color: BB.gold,
+                textDecoration: 'underline', letterSpacing: '0.02em',
+                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+              }}>Create a free workspace</button>
+            </p>
+          ) : (
+            <p style={{
+              textAlign: 'center', fontFamily: fontBody, fontSize: 16,
+              color: BB.fade, letterSpacing: '0.02em', margin: '0 0 14px',
+            }}>
+              Teachers join Bluebook by invitation during the pilot.
+            </p>
+          )}
           <p style={{
             textAlign: 'center', fontFamily: fontBody, fontSize: 15,
             color: BB.fade, letterSpacing: '0.02em', margin: '0 0 14px',
