@@ -156,9 +156,15 @@ actually does, with a DRAFT banner and bracketed blanks.
 - **Inviting a professor** (the pilot is invitation-only, `SELF_SERVE_SIGNUP=0`):
   Render → `original-pilot` → Shell →
   `python scripts/invite_professor.py prof@school.edu --name "Dr Name"`.
-  It prints whether the email was sent and always prints the single-use link
-  (14 days). If the link expires, run it again: an existing account is
-  refused, so use "Forgot your password?" on the sign-in page instead.
+  It prints the database backend it wrote to (`postgres` on the pilot),
+  whether the email was sent, and always prints the single-use link (14 days).
+  If the link expires or is lost before the professor has set a password, run
+  the same command again: it issues a new link to the same workspace and the
+  earlier links stop working. Once the professor has set a password the
+  command refuses the address (as it does any address that belongs to a
+  student); they use "Forgot your password?" on the sign-in page instead.
+  Without `PUBLIC_BASE_URL` (or `--base-url`) the link is relative: it is not
+  emailed and the command prints a warning.
 - **Deploys** are manual (`autoDeploy: false`): Render → `original-pilot` →
   Manual Deploy. Each one migrates the database first; a failed migration
   fails the deploy and the old version keeps serving. Never deploy during an
