@@ -85,6 +85,7 @@ ROUTE_ROUTER: dict[str, str] = {
     "GET /auth/me": "auth",
     "GET /bluebook/exams": "bluebook",
     "GET /bluebook/me": "bluebook_accounts",
+    "GET /bluebook/exams/nonexistent/baseline": "bluebook_baselines",
     "GET /health": "health",
     "POST /import/courses/{A}-course1/turnitin-csv": "imports",
     "GET /lti/jwks": "lti_routes",

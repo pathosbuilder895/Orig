@@ -130,5 +130,16 @@
     "operator": 403,
     "tampered": 401,
     "expired": 401
+  },
+  "GET /bluebook/exams/nonexistent/baseline": {
+    "anonymous": 401,
+    "student_own": 403,
+    "student_other": 403,
+    "professor_own": 404,
+    "professor_other": 404,
+    "operator": 404,
+    "tampered": 401,
+    "expired": 401,
+    "_note": "Approval status route: staff-only (students 403); a nonexistent exam id is 404 for every staff role, so the cross-tenant case reads the same as a missing one."
   }
 }
