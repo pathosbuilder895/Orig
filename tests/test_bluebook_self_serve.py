@@ -1458,3 +1458,21 @@ def test_can_touch_without_a_principal_is_false():
     from original.routers import bluebook as bb
 
     assert bb._can_touch(SimpleNamespace(state=SimpleNamespace()), "any") is False
+
+
+def test_signup_closed_refuses_and_creates_nothing(live_client, monkeypatch):
+    monkeypatch.setenv("SELF_SERVE_SIGNUP", "0")
+    r = live_client.post(
+        "/auth/signup",
+        json={"email": "closed@school.edu", "password": PW, "name": "C", "accept_terms": True},
+    )
+    assert r.status_code == 403
+    assert "invitation-only" in r.json()["detail"]
+    assert get_repository().get_user_by_email("closed@school.edu") is None
+
+
+def test_health_reports_whether_signup_is_open(live_client, monkeypatch):
+    monkeypatch.delenv("SELF_SERVE_SIGNUP", raising=False)
+    assert live_client.get("/health").json()["signup_open"] is True
+    monkeypatch.setenv("SELF_SERVE_SIGNUP", "0")
+    assert live_client.get("/health").json()["signup_open"] is False

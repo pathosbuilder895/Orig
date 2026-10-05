@@ -88,6 +88,10 @@ services:
       # ── Hardening mode: pilot fails fast without SECRET_KEY ──
       - key: ORIGINAL_ENV
         value: pilot
+      # Invitation-only pilot: no public workspace signup. Onboard professors
+      # with `python scripts/invite_professor.py EMAIL --name NAME` (Render Shell).
+      - key: SELF_SERVE_SIGNUP
+        value: "0"
       # Stable signing key — set in dashboard. Generate:
       #   python -c "import secrets; print(secrets.token_urlsafe(64))"
       - key: SECRET_KEY

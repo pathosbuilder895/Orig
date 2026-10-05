@@ -351,6 +351,15 @@ def _render_launch_localstorage(ls: dict, redirect: str) -> HTMLResponse:
     return HTMLResponse(html)
 
 
+def _signup_open() -> bool:
+    """Whether the public teacher signup is enabled on this deploy.
+
+    ``SELF_SERVE_SIGNUP=0`` makes the pilot invitation-only: professors are
+    then onboarded with ``scripts/invite_professor.py``. Read per request so an
+    operator can flip it with a restart and tests can monkeypatch the env."""
+    return os.environ.get("SELF_SERVE_SIGNUP", "1").strip() != "0"
+
+
 def _launch_products(tenant_id: str) -> str:
     """The ``original_products`` localStorage value for a launch page.
 

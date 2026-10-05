@@ -28,6 +28,7 @@ from ._shared import (
     _record_login_failure,
     _repo,
     _require_guard,
+    _signup_open,
     _throttle_login,
 )
 
@@ -126,6 +127,14 @@ def auth_signup(body: AuthSignupRequest, request: Request):
 
     Every attempt counts against a per-IP signup budget, successes included,
     so one client cannot mint workspaces in bulk."""
+    if not _signup_open():
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Bluebook is invitation-only here. Ask the person who runs "
+                "Bluebook for your institution to invite you."
+            ),
+        )
     _throttle_login(request, "", scope="signup")
     _record_login_failure(request, "", scope="signup")
     email = body.email.strip().lower()

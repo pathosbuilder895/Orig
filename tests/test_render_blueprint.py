@@ -77,3 +77,7 @@ def test_deferred_lti_is_not_configured_on_the_pilot():
     fill in keys that would make /lti/* launches live."""
     env = _env("original-pilot")
     assert not [key for key in env if key.startswith("LTI_")]
+
+
+def test_pilot_is_invitation_only():
+    assert _env("original-pilot")["SELF_SERVE_SIGNUP"]["value"] == "0"

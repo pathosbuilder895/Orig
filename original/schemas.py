@@ -1217,6 +1217,9 @@ class HealthResponse(BaseModel):
     # Deployment environment label (demo | pilot | staging | production).
     # Frontends use it to hide demo-only affordances on real deploys.
     environment: str = "demo"
+    # False on an invitation-only deploy (SELF_SERVE_SIGNUP=0). The SPA hides
+    # its "create a workspace" affordances when this is False.
+    signup_open: bool = True
     # Deployed commit SHA. Render injects RENDER_GIT_COMMIT at runtime; "dev"
     # off-platform (local/CI) where no such env var exists.
     commit: str = "dev"
