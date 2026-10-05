@@ -175,7 +175,8 @@ class StudentState:
 
         Invalidates the cached density matrix, purity, trajectory, and
         leave-one-out distances. On next access, they are recomputed from
-        the remaining samples.
+        the remaining samples. Also resets the drift counter to 0 and clears
+        the TF-IDF vectorizer, as both are tied to the baseline composition.
 
         DOES NOT rewind the tension-arc baseline (kappa_log, baseline_kappa):
         they are not index-aligned with samples and cannot be rolled back by
@@ -187,6 +188,8 @@ class StudentState:
         self._purity = None
         self._trajectory = None
         self._loo_distances = None
+        self._consecutive_drift_count = 0
+        self.__dict__.pop("_tfidf_vectorizer", None)
         return sample
 
     # ── Density matrix ───────────────────────────────────────────────────────
