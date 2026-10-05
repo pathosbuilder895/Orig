@@ -145,3 +145,22 @@ Errors:
 
 Original's validity gates (T-01 false alarms with few samples) are unchanged; Original stays off unless an operator
 switches it on. No change to scoring, thresholds or research flags. No consent tracking per submission.
+
+## Addendum (2026-10-05): bulk approval sets aside late and warned sittings
+
+Owner decision: "Add all sealed submissions to baselines" must not add a sitting that was sealed late or has any
+recorded lockdown warning (left the window, hid the tab, left full-screen, tried to print or save, tried to paste,
+other). Those are listed for the professor's separate review instead.
+
+- **Server.** In the bulk route only, after the existing nothing-written, workspace and already-in-baseline checks, a
+  submission with `late` set or a non-empty `warnings` list gets status `needs_review` with a plain reason
+  (`late`, `2 lockdown warnings`, or both joined by a comma) and is not added. The bulk response gains a
+  `needs_review` count and the audit entry gains `needs_review_ids` (ids only). A sitting already in the baseline
+  still reports `already_in_baseline`.
+- **Single approval is unchanged.** "Add to baseline" in the reader still adds a late or warned sitting; the reader
+  already shows its warnings and late flag, so the professor decides after looking.
+- **Summary wording.** For example: "12 added · 3 already in baseline · 0 not added (differ strongly from earlier
+  samples) · 2 set aside for your review (late or with lockdown warnings). Set aside: Ana (late), Ben (2 lockdown
+  warnings)." Neutral: set aside for a closer look, not flagged.
+- **Tests.** Bulk with a clean, a late and a warned sitting adds only the clean one and lists the other two with
+  reasons; single approval of a warned sitting still adds it; unit test for the summary text.
