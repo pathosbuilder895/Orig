@@ -171,7 +171,13 @@ def tenant_of(student_id: str) -> str | None:
 
 
 _ENV_CACHE: dict[str, str | None] = {}
-_PRODUCTS_CACHE: dict[str, frozenset] = {}
+# tenant -> (products, expires_at on _clock). Entries expire because an
+# operator script run from Render's shell writes the products row from
+# another process and cannot clear this cache; the expiry is what lets that
+# change reach the gate without a restart.
+_PRODUCTS_CACHE: dict[str, tuple[frozenset, float]] = {}
+_PRODUCTS_CACHE_TTL_SECONDS = 30
+_clock = time.monotonic
 
 
 def invalidate_tenant_cache() -> None:
@@ -184,12 +190,13 @@ def invalidate_tenant_cache() -> None:
 def tenant_products(tenant_id: str | None) -> frozenset:
     """Products the tenant holds. Unknown tenants, and any lookup failure,
     resolve to every product: the gate only ever narrows a tenant that has
-    explicitly been sold less. Cached like tenant_environment."""
+    explicitly been sold less. Cached for _PRODUCTS_CACHE_TTL_SECONDS."""
     if not tenant_id or tenant_id == DEMO_TENANT:
         return ALL_PRODUCTS
+    now = _clock()
     cached = _PRODUCTS_CACHE.get(tenant_id)
-    if cached is not None:
-        return cached
+    if cached is not None and now < cached[1]:
+        return cached[0]
     products = ALL_PRODUCTS
     try:
         from .repository import get_repository
@@ -199,7 +206,7 @@ def tenant_products(tenant_id: str | None) -> frozenset:
             products = frozenset(rec["products"]) & ALL_PRODUCTS or ALL_PRODUCTS
     except Exception:
         products = ALL_PRODUCTS
-    _PRODUCTS_CACHE[tenant_id] = products
+    _PRODUCTS_CACHE[tenant_id] = (products, now + _PRODUCTS_CACHE_TTL_SECONDS)
     return products
 
 

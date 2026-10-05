@@ -299,6 +299,28 @@ def test_tenant_products_lookup_failure_fails_open_to_all(monkeypatch):
     assert principal_mod.tenant_products("x-tenant") == principal_mod.ALL_PRODUCTS
 
 
+def test_tenant_products_cache_expires_after_30_seconds(monkeypatch):
+    """An operator script run in another process (Render's shell) changes the
+    products row but cannot clear this process's cache, so the entry must
+    expire on its own for the change to reach the gate without a restart."""
+    repo = get_repository()
+    repo.put_tenant("ttl-t", "TTL", environment="pilot")
+    repo.set_tenant_products("ttl-t", ["bluebook"])
+    now = [1000.0]
+    monkeypatch.setattr(principal_mod, "_clock", lambda: now[0])
+    assert principal_mod.tenant_products("ttl-t") == frozenset({"bluebook"})
+    # Another process's write: the repository changes, the cache is untouched.
+    repo.set_tenant_products("ttl-t", ["bluebook", "original"])
+    now[0] += 29
+    assert principal_mod.tenant_products("ttl-t") == frozenset({"bluebook"})
+    now[0] += 2
+    assert principal_mod.tenant_products("ttl-t") == frozenset({"bluebook", "original"})
+    # invalidate_tenant_cache() still clears it at once.
+    repo.set_tenant_products("ttl-t", ["bluebook"])
+    principal_mod.invalidate_tenant_cache()
+    assert principal_mod.tenant_products("ttl-t") == frozenset({"bluebook"})
+
+
 def test_patch_tenant_products_upgrades_and_is_operator_only(live_client, guarded):
     t = _signup(live_client)
     tid = t["tenant_id"]
