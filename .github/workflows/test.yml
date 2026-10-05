@@ -122,6 +122,15 @@ jobs:
         # shows passing locally.
         env:
           DATABASE_URL: postgresql://original:original@localhost:5432/original_test
+          # tests/perf/test_event_loop_not_blocked.py holds a 250 ms heartbeat
+          # budget that shared GitHub runners cannot keep under CPU contention:
+          # main's run 34374517932 failed its baseline-upload-batch case, and
+          # PR #227's run 37331743397 failed turnitin-csv (one beat of 106 at
+          # 440 ms) and the .docx upload (551 ms spent in the request, 0 ms
+          # waiting for the event loop). This is the test's own documented
+          # switch for such runners: it skips as "uninformative". The guard
+          # still runs locally (`make test`) and in the pre-push hook.
+          CI_RUNNER_SLOW: "1"
         run: |
           python -m pytest tests/ validation/test_tier10_optional.py \
             -m "not blocker and not certification" \
@@ -210,7 +219,10 @@ jobs:
 
   bundle-e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 25, not 15: on PR #227's run 37331743397 all 99 specs passed, but
+    # `playwright install --with-deps chromium` took 12m51s on a slow apt
+    # mirror and the job was cancelled at 15 minutes right after the tests.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
