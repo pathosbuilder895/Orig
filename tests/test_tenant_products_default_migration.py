@@ -8,6 +8,7 @@ switching it on.
 
 from __future__ import annotations
 
+import logging
 import os
 
 import pytest
@@ -30,19 +31,65 @@ def _reset(engine) -> None:
         conn.execute(sa.text("DROP TABLE IF EXISTS alembic_version"))
 
 
-@pytest.fixture
-def migrated():
+def _snapshot_logging():
+    """The process's logging set-up, as alembic/env.py's fileConfig finds it.
+
+    Even with ``disable_existing_loggers=False``, fileConfig replaces the root
+    logger's handlers (pytest's capture handlers included), sets root to WARN,
+    switches every existing logger's ``disabled`` flag off, and resets level,
+    handlers and propagation on loggers under the ones alembic.ini names."""
+    root = logging.getLogger()
+    loggers = {
+        name: (lg.level, list(lg.handlers), lg.propagate, lg.disabled)
+        for name, lg in list(logging.Logger.manager.loggerDict.items())
+        if isinstance(lg, logging.Logger)
+    }
+    return list(root.handlers), root.level, loggers
+
+
+def _restore_logging(snapshot) -> None:
+    handlers, level, loggers = snapshot
+    root = logging.getLogger()
+    root.handlers[:] = handlers
+    root.setLevel(level)
+    for name, (lg_level, lg_handlers, propagate, disabled) in loggers.items():
+        lg = logging.Logger.manager.loggerDict.get(name)
+        if not isinstance(lg, logging.Logger):
+            continue
+        lg.setLevel(lg_level)
+        lg.handlers[:] = lg_handlers
+        lg.propagate = propagate
+        lg.disabled = disabled
+
+
+def _migrated():
     if not _postgres_available():
         pytest.skip("no reachable Postgres — set DATABASE_URL to run the migration test")
     from original.db import postgres_session
 
     engine = postgres_session.get_engine()
-    _reset(engine)
-    cfg = Config(os.path.join(_ROOT, "alembic.ini"))
-    cfg.set_main_option("script_location", os.path.join(_ROOT, "alembic"))
-    command.upgrade(cfg, "head")
-    yield engine, cfg
-    _reset(engine)
+    # Taken before any in-process Alembic run (the upgrade here, and a test's
+    # own downgrade) and put back in teardown, so later tests in the same
+    # process, caplog-based ones above all, see logging as it was.
+    logging_before = _snapshot_logging()
+    try:
+        _reset(engine)
+        cfg = Config(os.path.join(_ROOT, "alembic.ini"))
+        cfg.set_main_option("script_location", os.path.join(_ROOT, "alembic"))
+        command.upgrade(cfg, "head")
+        yield engine, cfg
+        _reset(engine)
+    finally:
+        _restore_logging(logging_before)
+    # Loggers Alembic created itself are new, not changed; compare the rest.
+    handlers, level, loggers = _snapshot_logging()
+    assert (handlers, level) == logging_before[:2]
+    assert {name: loggers[name] for name in logging_before[2]} == logging_before[2]
+
+
+@pytest.fixture
+def migrated():
+    yield from _migrated()
 
 
 def _insert_default(conn, tenant_id: str):
@@ -76,3 +123,25 @@ def test_downgrade_restores_the_old_default_and_keeps_existing_rows(migrated):
     with engine.begin() as conn:
         assert _insert_default(conn, "after-downgrade") == ["original", "bluebook"]
         assert _products(conn, "made-under-new-default") == ["bluebook"]
+
+
+def test_alembic_runs_leave_process_logging_as_they_found_it():
+    """alembic/env.py's fileConfig replaces the root logger's handlers, sets
+    root to WARN and re-enables loggers, even with disable_existing_loggers
+    False. The fixture must hand the process back as it found it, or every
+    later caplog-based test in the run inherits Alembic's logging."""
+    root = logging.getLogger()
+    probe = logging.getLogger("tests.migration_logging_probe")
+    probe.disabled = True  # fileConfig would switch this back on
+    before = (list(root.handlers), root.level)
+    try:
+        steps = _migrated()
+        next(steps)  # set-up: Alembic has run in-process
+        # Not vacuous: Alembic really did change the process's logging.
+        assert list(root.handlers) != before[0] or probe.disabled is False
+        with pytest.raises(StopIteration):
+            next(steps)  # teardown
+        assert (list(root.handlers), root.level) == before
+        assert probe.disabled is True
+    finally:
+        probe.disabled = False
