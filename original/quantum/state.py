@@ -173,9 +173,15 @@ class StudentState:
     def remove_sample(self, index: int) -> BaselineSample:
         """Remove one baseline sample and invalidate the cached state.
 
-        Every derived value (density matrix, purity, trajectory, leave-one-out
-        distances) is recomputed from the remaining samples on next access, so
-        the result equals a state built from them directly."""
+        Invalidates the cached density matrix, purity, trajectory, and
+        leave-one-out distances. On next access, they are recomputed from
+        the remaining samples.
+
+        DOES NOT rewind the tension-arc baseline (kappa_log, baseline_kappa):
+        they are not index-aligned with samples and cannot be rolled back by
+        removal alone. A caller that removes an authenticated sample must
+        rebuild these from the remaining samples as needed (e.g., the
+        baseline-approval router during professor-removal workflows)."""
         sample = self.samples.pop(index)
         self._rho = None
         self._purity = None

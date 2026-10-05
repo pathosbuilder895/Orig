@@ -39,6 +39,7 @@ def test_removing_a_sample_matches_a_profile_built_without_it():
     np.testing.assert_allclose(state.baseline_mean, fresh.baseline_mean)
     np.testing.assert_allclose(state.baseline_std, fresh.baseline_std)
     assert state.loo_distances == pytest.approx(fresh.loo_distances)
+    assert state.trajectory.confidence == pytest.approx(fresh.trajectory.confidence)
     assert state.sample_count == 3
 
 
