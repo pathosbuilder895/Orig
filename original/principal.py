@@ -33,12 +33,15 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import os
 import time
 from dataclasses import dataclass
 from urllib.parse import unquote
 
 from . import student_auth
+
+log = logging.getLogger(__name__)
 
 DEMO_TENANT = "demo"
 
@@ -80,9 +83,10 @@ def _is_real_deploy() -> bool:
         return os.environ.get("ORIGINAL_ENV") in _REAL_DEPLOY_ENVIRONMENTS
 
 
-# Products a tenant can hold (Bluebook self-serve, 2026-09). A tenant with no
-# row, or a row that predates the products column, holds both — so nothing
-# that worked before the column existed stops working.
+# Products a tenant can hold (Bluebook self-serve, 2026-09). A row that
+# predates the products column holds both — so nothing that worked before the
+# column existed stops working. A tenant with no row holds both only off a
+# real deploy (see tenant_products).
 ALL_PRODUCTS = frozenset({"original", "bluebook"})
 
 
@@ -177,6 +181,9 @@ _ENV_CACHE: dict[str, str | None] = {}
 # change reach the gate without a restart.
 _PRODUCTS_CACHE: dict[str, tuple[frozenset, float]] = {}
 _PRODUCTS_CACHE_TTL_SECONDS = 30
+# A failed lookup's fallback is cached only this long, so the next request
+# soon tries the database again.
+_PRODUCTS_RETRY_SECONDS = 5
 _clock = time.monotonic
 
 
@@ -188,25 +195,42 @@ def invalidate_tenant_cache() -> None:
 
 
 def tenant_products(tenant_id: str | None) -> frozenset:
-    """Products the tenant holds. Unknown tenants, and any lookup failure,
-    resolve to every product: the gate only ever narrows a tenant that has
-    explicitly been sold less. Cached for _PRODUCTS_CACHE_TTL_SECONDS."""
+    """Products the tenant holds. Cached for _PRODUCTS_CACHE_TTL_SECONDS.
+
+    A record without products set predates the column and holds both. When
+    the lookup fails or finds no record — indistinguishable on Postgres, whose
+    get_tenant logs a database error and returns None — this fails closed: the
+    tenant's last known products (even an expired entry), else Bluebook alone
+    on a real deploy, so a database blip never grants Original to a
+    Bluebook-only workspace. Off a real deploy the demo sandbox relies on
+    unregistered tenants holding both, so they still do. Either fallback is
+    cached for _PRODUCTS_RETRY_SECONDS only."""
     if not tenant_id or tenant_id == DEMO_TENANT:
         return ALL_PRODUCTS
     now = _clock()
     cached = _PRODUCTS_CACHE.get(tenant_id)
     if cached is not None and now < cached[1]:
         return cached[0]
-    products = ALL_PRODUCTS
+    products = None
     try:
         from .repository import get_repository
 
         rec = get_repository().get_tenant(tenant_id)
-        if rec and rec.get("products"):
-            products = frozenset(rec["products"]) & ALL_PRODUCTS or ALL_PRODUCTS
+        if rec is not None:
+            products = frozenset(rec.get("products") or ()) & ALL_PRODUCTS or ALL_PRODUCTS
     except Exception:
-        products = ALL_PRODUCTS
-    _PRODUCTS_CACHE[tenant_id] = (products, now + _PRODUCTS_CACHE_TTL_SECONDS)
+        products = None
+    if products is not None:
+        _PRODUCTS_CACHE[tenant_id] = (products, now + _PRODUCTS_CACHE_TTL_SECONDS)
+        return products
+    if cached is not None:
+        products, using = cached[0], "last known"
+    elif _is_real_deploy():
+        products, using = frozenset({"bluebook"}), "bluebook only"
+    else:
+        products, using = ALL_PRODUCTS, "all (demo)"
+    log.warning("tenant products lookup failed for %s; using %s", tenant_id, using)
+    _PRODUCTS_CACHE[tenant_id] = (products, now + _PRODUCTS_RETRY_SECONDS)
     return products
 
 

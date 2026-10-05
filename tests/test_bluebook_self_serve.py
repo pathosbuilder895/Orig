@@ -16,6 +16,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import logging
 import re
 from datetime import UTC, datetime, timedelta
 from urllib.parse import parse_qs, urlparse
@@ -287,16 +288,145 @@ def test_unknown_tenant_holds_every_product():
     assert principal_mod.tenant_products(None) == principal_mod.ALL_PRODUCTS
 
 
-def test_tenant_products_lookup_failure_fails_open_to_all(monkeypatch):
+class _FlakyTenants:
+    """A repository whose get_tenant answers from ``records``, or raises while
+    ``down`` is set (Postgres's get_tenant swallows the error and returns None
+    instead, which tenant_products must treat the same way)."""
+
+    def __init__(self):
+        self.records: dict[str, dict] = {}
+        self.down = False
+        self.calls = 0
+
+    def get_tenant(self, tenant_id):
+        self.calls += 1
+        if self.down:
+            raise RuntimeError("db down")
+        return self.records.get(tenant_id)
+
+
+@pytest.fixture
+def flaky_products(monkeypatch):
+    """tenant_products on a real deploy, over a fake repository and clock."""
     import original.repository as repo_mod
 
-    class Boom:
-        def get_tenant(self, _):
-            raise RuntimeError("db down")
-
-    monkeypatch.setattr(repo_mod, "get_repository", lambda: Boom())
+    repo = _FlakyTenants()
+    now = [1000.0]
+    monkeypatch.setattr(repo_mod, "get_repository", lambda: repo)
+    monkeypatch.setattr(principal_mod, "_clock", lambda: now[0])
+    monkeypatch.setattr(principal_mod, "_is_real_deploy", lambda: True)
     principal_mod.invalidate_tenant_cache()
-    assert principal_mod.tenant_products("x-tenant") == principal_mod.ALL_PRODUCTS
+    return repo, now
+
+
+BLUEBOOK_ONLY = frozenset({"bluebook"})
+
+
+def _product_warnings(caplog) -> list[str]:
+    return [
+        r.getMessage()
+        for r in caplog.records
+        if r.name == "original.principal" and r.levelno == logging.WARNING
+    ]
+
+
+def test_tenant_products_lookup_failure_on_a_real_deploy_is_bluebook_only(flaky_products, caplog):
+    """A database error must never grant Original: with nothing cached, a real
+    deploy falls back to Bluebook alone and says so once in the log."""
+    repo, _ = flaky_products
+    repo.down = True
+    with caplog.at_level(logging.WARNING, logger="original.principal"):
+        assert principal_mod.tenant_products("x-tenant") == BLUEBOOK_ONLY
+        # Inside the retry window: no second lookup, no second warning.
+        assert principal_mod.tenant_products("x-tenant") == BLUEBOOK_ONLY
+    assert repo.calls == 1
+    assert _product_warnings(caplog) == [
+        "tenant products lookup failed for x-tenant; using bluebook only"
+    ]
+
+
+def test_tenant_products_missing_record_on_a_real_deploy_is_bluebook_only(flaky_products):
+    """Postgres's get_tenant returns None on a database error, so a missing
+    record cannot be told apart from a failed lookup."""
+    repo, _ = flaky_products
+    assert principal_mod.tenant_products("never-registered") == BLUEBOOK_ONLY
+
+
+def test_tenant_products_record_without_products_still_holds_both(flaky_products):
+    """Unchanged: a row that predates the products column holds both."""
+    repo, _ = flaky_products
+    repo.records = {
+        "old-a": {"tenant_id": "old-a", "products": []},
+        "old-b": {"tenant_id": "old-b"},
+    }
+    assert principal_mod.tenant_products("old-a") == principal_mod.ALL_PRODUCTS
+    assert principal_mod.tenant_products("old-b") == principal_mod.ALL_PRODUCTS
+
+
+def test_tenant_products_keeps_the_last_known_value_when_a_refresh_fails(flaky_products, caplog):
+    repo, now = flaky_products
+    repo.records = {
+        "bb-only": {"tenant_id": "bb-only", "products": ["bluebook"]},
+        "both": {"tenant_id": "both", "products": ["bluebook", "original"]},
+    }
+    assert principal_mod.tenant_products("bb-only") == BLUEBOOK_ONLY
+    assert principal_mod.tenant_products("both") == principal_mod.ALL_PRODUCTS
+    now[0] += 31  # both cache entries have expired
+    repo.down = True
+    with caplog.at_level(logging.WARNING, logger="original.principal"):
+        assert principal_mod.tenant_products("bb-only") == BLUEBOOK_ONLY
+        assert principal_mod.tenant_products("both") == principal_mod.ALL_PRODUCTS
+    assert _product_warnings(caplog) == [
+        "tenant products lookup failed for bb-only; using last known",
+        "tenant products lookup failed for both; using last known",
+    ]
+    # A refresh that finds no record keeps the last known value too.
+    repo.down = False
+    repo.records = {}
+    now[0] += 6
+    assert principal_mod.tenant_products("both") == principal_mod.ALL_PRODUCTS
+
+
+def test_tenant_products_retries_a_failed_lookup_after_five_seconds(flaky_products):
+    repo, now = flaky_products
+    repo.down = True
+    assert principal_mod.tenant_products("retry-t") == BLUEBOOK_ONLY
+    repo.down = False
+    repo.records = {"retry-t": {"tenant_id": "retry-t", "products": ["bluebook", "original"]}}
+    now[0] += 4
+    assert principal_mod.tenant_products("retry-t") == BLUEBOOK_ONLY
+    now[0] += 2
+    assert principal_mod.tenant_products("retry-t") == principal_mod.ALL_PRODUCTS
+    # A healthy answer is cached for the full 30 seconds again.
+    calls = repo.calls
+    repo.down = True
+    now[0] += 29
+    assert principal_mod.tenant_products("retry-t") == principal_mod.ALL_PRODUCTS
+    assert repo.calls == calls
+
+
+def test_tenant_products_demo_tenant_never_looks_up(flaky_products):
+    repo, _ = flaky_products
+    repo.down = True
+    assert principal_mod.tenant_products(principal_mod.DEMO_TENANT) == principal_mod.ALL_PRODUCTS
+    assert principal_mod.tenant_products("") == principal_mod.ALL_PRODUCTS
+    assert principal_mod.tenant_products(None) == principal_mod.ALL_PRODUCTS
+    assert repo.calls == 0
+
+
+def test_tenant_products_lookup_failure_in_the_demo_keeps_every_product(
+    flaky_products, monkeypatch, caplog
+):
+    """Off a real deploy the demo sandbox depends on unregistered tenants
+    holding every product, so a failed lookup still resolves to both."""
+    repo, _ = flaky_products
+    monkeypatch.setattr(principal_mod, "_is_real_deploy", lambda: False)
+    repo.down = True
+    with caplog.at_level(logging.WARNING, logger="original.principal"):
+        assert principal_mod.tenant_products("x-tenant") == principal_mod.ALL_PRODUCTS
+    assert _product_warnings(caplog) == [
+        "tenant products lookup failed for x-tenant; using all (demo)"
+    ]
 
 
 def test_tenant_products_cache_expires_after_30_seconds(monkeypatch):
@@ -368,14 +498,13 @@ def test_create_tenant_requires_a_slug_and_accepts_products(live_client):
     assert bad_products.status_code == 422
 
 
-def test_new_tenant_on_a_real_deploy_defaults_to_bluebook_only(
-    live_client, guarded, pilot_env
-):
+def test_new_tenant_on_a_real_deploy_defaults_to_bluebook_only(live_client, guarded, pilot_env):
     """An operator provisioning an institution without naming products must
     not silently hand it Original (an unset product list means every product)."""
     h = {**_operator(), "X-Guard-Token": GUARD}
     r = live_client.post(
-        "/tenants", json={"tenant_id": "new-sem", "name": "New", "environment": "pilot"},
+        "/tenants",
+        json={"tenant_id": "new-sem", "name": "New", "environment": "pilot"},
         headers=h,
     )
     assert r.status_code == 201, r.text
@@ -383,7 +512,8 @@ def test_new_tenant_on_a_real_deploy_defaults_to_bluebook_only(
     # Re-registering an existing tenant leaves its products alone.
     get_repository().set_tenant_products("new-sem", ["bluebook", "original"])
     live_client.post(
-        "/tenants", json={"tenant_id": "new-sem", "name": "New", "environment": "pilot"},
+        "/tenants",
+        json={"tenant_id": "new-sem", "name": "New", "environment": "pilot"},
         headers=h,
     )
     assert get_repository().get_tenant("new-sem")["products"] == ["bluebook", "original"]
