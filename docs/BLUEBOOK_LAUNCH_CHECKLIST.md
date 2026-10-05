@@ -186,10 +186,12 @@ actually does, with a DRAFT banner and bracketed blanks.
   `python scripts/set_products.py prof@school.edu --original on` (or `off`).
   The server applies the change within 30 seconds, with no restart; open pages
   pick it up the next time the professor or student loads their home page or
-  signs in. If the script warns that this is an institution workspace, the switch
-  applies to every professor and student in it. Original's comparisons are not
-  validated for real student work yet (gap T-01), so turn it on only with the
-  owner's agreement and the institution's consent.
+  signs in. A student mid-exam when Original is switched off still seals
+  normally; that submission simply has no Original reading. If the script
+  warns that this is an institution workspace, the switch applies to every
+  professor and student in it. Original's comparisons are not validated for
+  real student work yet (gap T-01), so turn it on only with the owner's
+  agreement and the institution's consent.
 - **Deploys** are manual (`autoDeploy: false`): Render → `original-pilot` →
   Manual Deploy. Each one migrates the database first; a failed migration
   fails the deploy and the old version keeps serving. Never deploy during an

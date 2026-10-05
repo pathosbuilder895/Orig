@@ -51,3 +51,38 @@ test('redeemInvite sends accept_terms and surfaces the terms refusal', async () 
     { token: 'tok', password: 'pw-123456', accept_terms: true },
   ]);
 });
+test('the home-page calls keep the stored products in step with the server', async () => {
+  // Original can be switched on or off for a workspace while a page is open;
+  // /bluebook/me (student home) and /auth/me (teacher workspace) carry the
+  // current products and must replace what sign-in stored.
+  const store = new Map([['original_products', '["bluebook","original"]'], ['original_session_token', 't']]);
+  const saved = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem: k => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => { store.set(k, String(v)); },
+    removeItem: k => { store.delete(k); },
+  };
+  try {
+    globalThis.fetch = async () => new Response(JSON.stringify({ student_id: 't:s', products: ['bluebook'], courses: [] }));
+    assert.deepEqual((await BB_API.me()).products, ['bluebook']);
+    assert.equal(store.get('original_products'), '["bluebook"]');
+    assert.equal(BB_API.hasOriginal(), false);
+
+    globalThis.fetch = async () => new Response(JSON.stringify({ role: 'professor', products: ['bluebook', 'original'], mail: false }));
+    await BB_API.authMe();
+    assert.equal(store.get('original_products'), '["bluebook","original"]');
+    assert.equal(BB_API.hasOriginal(), true);
+
+    // A failed call leaves the stored products alone.
+    globalThis.fetch = async () => new Response('{"detail":"Temporarily unavailable"}', { status: 503 });
+    await assert.rejects(BB_API.me(), /Temporarily unavailable/);
+    assert.equal(store.get('original_products'), '["bluebook","original"]');
+
+    // A seal that finds Original switched off drops it from this page.
+    BB_API.dropOriginal();
+    assert.equal(store.get('original_products'), '["bluebook"]');
+    assert.equal(BB_API.hasOriginal(), false);
+  } finally {
+    globalThis.localStorage = saved;
+  }
+});

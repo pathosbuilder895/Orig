@@ -462,7 +462,7 @@ export const BB_API = {
   },
   releaseResults(id)    { return this._json('POST', `/bluebook/exams/${encodeURIComponent(id)}/release`); },
   unreleaseResults(id)  { return this._json('POST', `/bluebook/exams/${encodeURIComponent(id)}/unrelease`); },
-  authMe()              { return this._json('GET', '/auth/me'); },
+  async authMe()        { return this._rememberProducts(await this._json('GET', '/auth/me')); },
   rosterRemove(courseId, sid) {
     return this._json('DELETE', `/bluebook/courses/${encodeURIComponent(courseId)}/students/${encodeURIComponent(sid)}`);
   },
@@ -490,7 +490,7 @@ export const BB_API = {
   },
 
   // ── Student dashboard ──
-  me()                   { return this._json('GET', '/bluebook/me'); },
+  async me()             { return this._rememberProducts(await this._json('GET', '/bluebook/me')); },
   async myExams()        { return (await this._json('GET', '/bluebook/me/exams')).exams || []; },
   myExam(id)             { return this._json('GET', `/bluebook/me/exams/${encodeURIComponent(id)}`); },
   startMyExam(id)        { return this._json('POST', `/bluebook/me/exams/${encodeURIComponent(id)}/start`); },
@@ -511,6 +511,21 @@ export const BB_API = {
     localStorage.setItem('original_email', data.email || '');
     localStorage.setItem('original_products', JSON.stringify(data.products || ['original', 'bluebook']));
     return data;
+  },
+  // Original can be switched on or off for a workspace while a page is open
+  // (scripts/set_products.py). /auth/me and /bluebook/me carry the current
+  // products, so the teacher workspace and the student home refresh what
+  // sign-in stored each time they load. Returns the response unchanged.
+  _rememberProducts(data) {
+    if (data && Array.isArray(data.products) && data.products.length) {
+      try { localStorage.setItem('original_products', JSON.stringify(data.products)); } catch (e) {}
+    }
+    return data;
+  },
+  // An Original route answered 403: this workspace no longer holds Original.
+  // Stop calling it from this page until the next home-page load says otherwise.
+  dropOriginal() {
+    this._rememberProducts({ products: this.products().filter(p => p !== 'original') });
   },
   async _auth(path, body, fallback) {
     const r = await fetch(this.base + path, {

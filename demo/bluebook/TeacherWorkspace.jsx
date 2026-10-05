@@ -93,6 +93,9 @@ export function LiveTeacherSessions({onNavigate,overview=false}) {
       .finally(()=>{if(live)setLoading(false);});
     return()=>{live=false;};
   },[retry]);
+  // Refresh the stored products (Original can be switched on or off while
+  // signed in); nothing here displays the answer, so a failure is ignored.
+  useEffect(()=>{BB_API.authMe().catch(()=>{});},[]);
   const open=exam=>{window.BB_MANAGE_EXAM=exam.id;onNavigate('manage-exam');};
   if(overview) return <TeacherOverview onNavigate={onNavigate} courses={data.courses} exams={data.exams} loading={loading} error={error} onRetry={()=>setRetry(v=>v+1)}/>;
   return <>

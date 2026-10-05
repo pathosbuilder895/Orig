@@ -609,8 +609,9 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
 
     const studentId = await bbResolveStudentId(cfg);
     // A Bluebook-only workspace never calls Original: the server 403s those
-    // routes for it anyway, and its students are not profiled.
-    const withOriginal = BB_API.hasOriginal();
+    // routes for it anyway, and its students are not profiled. `let`: an
+    // operator can switch Original off while this page still thinks it is on.
+    let withOriginal = BB_API.hasOriginal();
     let result = null;
     let lastError = null;
     const BACKOFF = [2000, 5000, 10000];
@@ -629,9 +630,17 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
             compositionSummary: buildCompositionSummary(), cfg, studentId,
             submissionUuid: seal.uuid,
           });
-          if (!r.ok) throw new Error(r.error || 'baseline write failed');
-          seal.baselineData = r;
-          writeDraftNow();
+          if (!r.ok && r.status === 403) {
+            // The workspace no longer holds Original (switched off since this
+            // page loaded). A 403 will not change on retry, so seal exactly as
+            // a Bluebook-only workspace does instead of stranding the exam.
+            withOriginal = false;
+            BB_API.dropOriginal();
+          } else {
+            if (!r.ok) throw new Error(r.error || 'baseline write failed');
+            seal.baselineData = r;
+            writeDraftNow();
+          }
         }
         // 3) Record the sealed submission (server dedupes by submission_uuid).
         const baseline = seal.baselineData || {};
