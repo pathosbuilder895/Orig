@@ -84,9 +84,10 @@ def _is_real_deploy() -> bool:
 
 
 # Products a tenant can hold (Bluebook self-serve, 2026-09). A row that
-# predates the products column holds both — so nothing that worked before the
-# column existed stops working. A tenant with no row holds both only off a
-# real deploy (see tenant_products).
+# predates the products column, or whose products are unset, holds both — so
+# nothing that worked before the column existed stops working. A tenant with
+# no record (or a failed lookup) holds both only off a real deploy; on one it
+# keeps its last known products, else Bluebook alone (see tenant_products).
 ALL_PRODUCTS = frozenset({"original", "bluebook"})
 
 
@@ -175,11 +176,13 @@ def tenant_of(student_id: str) -> str | None:
 
 
 _ENV_CACHE: dict[str, str | None] = {}
-# tenant -> (products, expires_at on _clock). Entries expire because an
-# operator script run from Render's shell writes the products row from
-# another process and cannot clear this cache; the expiry is what lets that
-# change reach the gate without a restart.
-_PRODUCTS_CACHE: dict[str, tuple[frozenset, float]] = {}
+# tenant -> (products, expires_at on _clock, from_lookup). Entries expire
+# because an operator script run from Render's shell writes the products row
+# from another process and cannot clear this cache; the expiry is what lets
+# that change reach the gate without a restart. ``from_lookup`` is True only
+# for a value that came from a successful lookup (or a reuse of one), so a
+# failed refresh can tell a real "last known" value from a cached fallback.
+_PRODUCTS_CACHE: dict[str, tuple[frozenset, float, bool]] = {}
 _PRODUCTS_CACHE_TTL_SECONDS = 30
 # A failed lookup's fallback is cached only this long, so the next request
 # soon tries the database again.
@@ -221,16 +224,22 @@ def tenant_products(tenant_id: str | None) -> frozenset:
     except Exception:
         products = None
     if products is not None:
-        _PRODUCTS_CACHE[tenant_id] = (products, now + _PRODUCTS_CACHE_TTL_SECONDS)
+        _PRODUCTS_CACHE[tenant_id] = (products, now + _PRODUCTS_CACHE_TTL_SECONDS, True)
         return products
+    real_deploy = _is_real_deploy()
     if cached is not None:
-        products, using = cached[0], "last known"
-    elif _is_real_deploy():
-        products, using = frozenset({"bluebook"}), "bluebook only"
+        # Reuse whatever is cached; call it "last known" only if it came from
+        # a successful lookup, not from an earlier fallback.
+        products, from_lookup = cached[0], cached[2]
+        using = "last known" if from_lookup else ("bluebook only" if real_deploy else "all (demo)")
     else:
-        products, using = ALL_PRODUCTS, "all (demo)"
+        from_lookup = False
+        if real_deploy:
+            products, using = frozenset({"bluebook"}), "bluebook only"
+        else:
+            products, using = ALL_PRODUCTS, "all (demo)"
     log.warning("tenant products lookup failed for %s; using %s", tenant_id, using)
-    _PRODUCTS_CACHE[tenant_id] = (products, now + _PRODUCTS_RETRY_SECONDS)
+    _PRODUCTS_CACHE[tenant_id] = (products, now + _PRODUCTS_RETRY_SECONDS, from_lookup)
     return products
 
 

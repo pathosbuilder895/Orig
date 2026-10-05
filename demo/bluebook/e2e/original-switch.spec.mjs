@@ -229,3 +229,36 @@ test('a sitting begun without Original is not compared when Original is switched
 
   await ctx.close()
 })
+
+test('the decision is locked when the student clicks Begin, before the exam screen mounts', async ({ browser, request }) => {
+  test.setTimeout(120_000)
+  const id = uid()
+  const examTitle = `Switch-lock exam ${id}`
+  const ws = await provisionExam(request, {
+    examTitle, question: 'Is justice a virtue of the whole soul?', id,
+  })
+  await setProducts(request, ws, ['bluebook'])
+
+  const ctx = await browser.newContext()
+  const student = await newStudentPage(ctx)
+  await redeemInvite(student, ws.invitePath, examTitle)
+  expect(await storedProductsOf(student)).toEqual(['bluebook'])
+  await student.getByRole('button', { name: 'Open' }).click()
+  await expect(student.getByText('Enforced Conditions')).toBeVisible({ timeout: 10_000 })
+  await expect(student.getByText(COMPARED_LINE)).toHaveCount(0)
+
+  // Another tab refreshes the stored products after the briefing has shown
+  // "not compared" but before the student clicks Begin.
+  await student.evaluate(() => localStorage.setItem('original_products', JSON.stringify(['bluebook', 'original'])))
+  await student.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()
+  await expect(student.getByLabel('Your examination answer')).toBeVisible({ timeout: 10_000 })
+
+  // The sitting keeps what the briefing displayed, not the products now stored.
+  const decisions = () => student.evaluate(() => Object.keys(localStorage)
+    .filter(k => k.startsWith('bb_draft_'))
+    .map(k => JSON.parse(localStorage.getItem(k)).seal.withOriginal))
+  await expect.poll(decisions).toEqual([false])
+  expect((await storedProductsOf(student)).sort()).toEqual(['bluebook', 'original'])
+
+  await ctx.close()
+})

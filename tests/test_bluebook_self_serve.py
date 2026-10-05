@@ -387,6 +387,20 @@ def test_tenant_products_keeps_the_last_known_value_when_a_refresh_fails(flaky_p
     assert principal_mod.tenant_products("both") == principal_mod.ALL_PRODUCTS
 
 
+def test_tenant_products_does_not_call_a_cached_fallback_last_known(flaky_products, caplog):
+    """A cached fallback is not a "last known" value: with nothing ever read
+    successfully, repeated failures keep saying "bluebook only"."""
+    repo, now = flaky_products
+    repo.down = True
+    with caplog.at_level(logging.WARNING, logger="original.principal"):
+        assert principal_mod.tenant_products("never-read") == BLUEBOOK_ONLY
+        now[0] += 6  # the fallback has expired; the lookup fails again
+        assert principal_mod.tenant_products("never-read") == BLUEBOOK_ONLY
+    assert _product_warnings(caplog) == [
+        "tenant products lookup failed for never-read; using bluebook only"
+    ] * 2
+
+
 def test_tenant_products_retries_a_failed_lookup_after_five_seconds(flaky_products):
     repo, now = flaky_products
     repo.down = True

@@ -85,12 +85,41 @@ export function bbOriginalForSitting(cfg) {
   return BB_API.hasOriginal();
 }
 
+// Lock the decision into the exam's draft when the student clicks Begin, with
+// exactly the value the briefing displayed. Between the briefing's render and
+// the exam screen's mount another tab can refresh the stored products, so
+// leaving the decision to the mount could compare a submission the student
+// was just told would not be compared. An existing boolean (a resumed
+// sitting) is never overwritten; everything else in the draft is kept. The
+// exam screen's own mount still decides for a sitting that skipped the
+// briefing. Returns the decision the draft now holds, or null if storage
+// could not be written.
+export function bbLockOriginalDecision(cfg, withOriginal) {
+  const key = bbDraftKey(cfg);
+  try {
+    let d = null;
+    try { d = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { d = null; }
+    if (!d || typeof d !== 'object') {
+      const questions = (cfg && cfg.questions && cfg.questions.length) ? cfg.questions : [cfg && cfg.prompt];
+      d = { content: '', answers: questions.map(() => ''), seal: null, warnings: [], savedAt: Date.now() };
+    }
+    if (!d.seal || typeof d.seal !== 'object') {
+      d.seal = { uuid: null, aiScore: undefined, baselineData: null };
+    }
+    if (typeof d.seal.withOriginal === 'boolean') return d.seal.withOriginal;
+    d.seal.withOriginal = !!withOriginal;
+    localStorage.setItem(key, JSON.stringify(d));
+    return d.seal.withOriginal;
+  } catch (e) { return null; }
+}
+
 // Build the enforced-conditions list from a config object. Each line says
 // what this page actually does. A web page cannot block other applications
 // or AI tools, so it says what is not permitted and what is recorded,
-// never that something is impossible.
-function buildConditions(cfg) {
-  const withOriginal = bbOriginalForSitting(cfg);
+// never that something is impossible. `withOriginal` is the sitting's
+// Original decision, computed once by the caller (see the briefing) so the
+// list and the value saved at Begin cannot differ.
+function buildConditions(cfg, withOriginal) {
   return [
     cfg.blockAI   && 'AI assistants and other writing tools are not permitted',
     cfg.blockWeb  && 'The examination runs full-screen; leaving it or switching tabs is recorded for your teacher',
@@ -340,7 +369,10 @@ export function BriefingScreen({ onNavigate }) {
   }, []);
 
   const cfg = getExamConfig();
-  const conditions = buildConditions(cfg);
+  // Computed once per render: the conditions list below and the decision
+  // saved at Begin both use this value.
+  const withOriginal = bbOriginalForSitting(cfg);
+  const conditions = buildConditions(cfg, withOriginal);
   const studentAccount = BB_API.isStudentAccount();
   const cannotBegin = cfg.loaded && cfg.state && cfg.state !== 'open';
   if (loadState !== 'ready') {
@@ -459,7 +491,7 @@ export function BriefingScreen({ onNavigate }) {
                 {cfg.state === 'upcoming' ? 'This examination has not opened yet.' : 'This examination is closed.'}
               </p>
             ) : (
-              <BtnPrimary full onClick={() => { if (cfg.blockWeb) bbRequestFullscreen(); onNavigate('exam'); }} style={{ padding: '14px 0', fontSize: 17 }}>
+              <BtnPrimary full onClick={() => { if (cfg.blockWeb) bbRequestFullscreen(); bbLockOriginalDecision(cfg, withOriginal); onNavigate('exam'); }} style={{ padding: '14px 0', fontSize: 17 }}>
                 {cfg.inProgress ? 'Resume Examination — Timer Is Running' : 'Begin Examination — Timer Commences'}
               </BtnPrimary>
             )}
@@ -609,6 +641,10 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
     if (submitting || (!opts.force && words < cfg.minWords)) return;
     if (opts.force && !hasWriting()) {
       // Nothing written when time ran out — don't post an empty baseline.
+      // The draft holds only this sitting's Original decision (no writing),
+      // so clear it: the next person to sit this exam on this browser must
+      // decide afresh, not inherit it. Nothing below reads the draft.
+      try { localStorage.removeItem(draftKey); } catch (e) {}
       window.BB_LAST_SUBMISSION = {
         words: 0, title: cfg.title, courseTitle: cfg.courseTitle,
         candidate: candidateLabel, studentId: null,

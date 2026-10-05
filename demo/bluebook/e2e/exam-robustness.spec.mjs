@@ -154,9 +154,17 @@ test.describe('Exam-day robustness @robustness', () => {
       undefined,
       { timeout: 60_000 },
     )
-    const draftKept = await studentPage.evaluate(
-      () => Object.keys(localStorage).some(k => k.startsWith('bb_draft_')),
-    )
-    expect(draftKept).toBe(true)
+    // The draft must hold the essay itself, not merely exist: the early
+    // draft written when the sitting began would satisfy a bare key check
+    // even if the answer had never been saved.
+    const draftAnswers = await studentPage.evaluate(() => {
+      const key = Object.keys(localStorage).find(k => k.startsWith('bb_draft_'))
+      if (!key) return null
+      const d = JSON.parse(localStorage.getItem(key))
+      return { answers: d.answers, content: d.content }
+    })
+    expect(draftAnswers).not.toBeNull()
+    expect(draftAnswers.answers.join('\n')).toContain(ESSAY)
+    expect(draftAnswers.content).toContain(ESSAY)
   })
 })

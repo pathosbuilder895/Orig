@@ -312,6 +312,28 @@ test.describe('Bluebook exam lockdown — full flow', () => {
     await expect(page.getByText('Time expired — your work was sealed as written.')).toBeVisible()
   })
 
+  test('Timer expiry with nothing written clears the draft so the next sitting decides afresh', async ({ page }) => {
+    await bootInExam(page)
+    await page.goto('/bluebook/')
+    await page.waitForLoadState('networkidle')
+
+    await page.evaluate(() => { window.BB_EXAM_CONFIG.duration = 0.05 })
+    await page.locator('button', { hasText: /begin|continue|enter|start/i }).first().click()
+    await expect(page.locator('textarea[placeholder="Begin writing here…"]')).toBeVisible()
+
+    // Beginning locked the sitting's Original decision into the draft...
+    const draftKeys = () => page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('bb_draft_')))
+    const decision = await page.evaluate(() => {
+      const key = Object.keys(localStorage).find(k => k.startsWith('bb_draft_'))
+      return key ? JSON.parse(localStorage.getItem(key)).seal.withOriginal : null
+    })
+    expect(typeof decision).toBe('boolean')
+
+    // ...and time running out with nothing written removes it again.
+    await page.waitForFunction(() => window.BB_LAST_SUBMISSION && window.BB_LAST_SUBMISSION.expired, undefined, { timeout: 20_000 })
+    expect(await draftKeys()).toEqual([])
+  })
+
   test('Reload mid-exam restores the draft from this device', async ({ page }) => {
     await bootInExam(page)
     await page.goto('/bluebook/')

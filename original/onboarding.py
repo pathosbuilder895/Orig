@@ -37,8 +37,11 @@ ORIGINAL_NOT_VALIDATED = (
 
 
 def _stored_products(tenant_id: str) -> list[str]:
-    """The tenant's stored products, sorted. A tenant with no row holds every
-    product, the same answer the server's product gate gives."""
+    """The tenant's stored products, sorted. A record with unset products holds
+    every product. Callers pass a tenant that has a record (invitation creates
+    it first), so a missing record is not answered the way the server's
+    product gate answers it (principal.tenant_products: on a real deploy the
+    last known products, else Bluebook alone; in the demo, every product)."""
     rec = get_repository().get_tenant(tenant_id)
     return sorted((rec or {}).get("products") or principal_mod.ALL_PRODUCTS)
 

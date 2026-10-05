@@ -26,8 +26,11 @@ from .quantum.state import BaselineSample, StudentState
 
 log = logging.getLogger(__name__)
 
-# Products a tenant holds when nothing says otherwise: every tenant that
-# predates the products column, and any unregistered tenant id.
+# Products a record holds when nothing says otherwise: every tenant that
+# predates the products column, and any record whose products are unset. (A
+# tenant with no record at all is a different case, answered by
+# principal.tenant_products: demo means every product; a real deploy means
+# the last known products, else Bluebook alone.)
 _DEFAULT_PRODUCTS = ("original", "bluebook")
 _DEFAULT_PRODUCTS_JSON = json.dumps(list(_DEFAULT_PRODUCTS))
 
@@ -2871,8 +2874,10 @@ _SUB_COLS = (
 
 
 def _parse_products(raw) -> list[str]:
-    """Stored products JSON -> list. Unparseable or empty falls back to both
-    products, the same default an unregistered tenant gets."""
+    """Stored products JSON -> list. Unparseable or empty (unset) products on
+    a record fall back to both. That is only for a record that exists; a
+    tenant with no record is answered by principal.tenant_products, which on
+    a real deploy keeps the last known products, else Bluebook alone."""
     try:
         value = json.loads(raw) if isinstance(raw, str) else raw
     except (TypeError, ValueError):
