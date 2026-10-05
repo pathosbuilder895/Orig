@@ -94,9 +94,11 @@ def create_tenant(body: CreateTenantRequest, request: Request):
         raise HTTPException(status_code=422, detail="meta must have at most 10 keys")
     meta = {str(k)[:80]: str(v)[:500] for k, v in list(meta.items())[:10]}
     if products is None and existing is None and _api()._IS_REAL_DEPLOY:
-        # An unset product list means every product, so a newly provisioned
-        # institution would silently get Original. On a real deploy Original
-        # is an explicit opt-in (PATCH /tenants/{id}/products).
+        # An unset product list means every product on SQLite and for rows that
+        # predate alembic a7d3c9e1b5f2 (new Postgres rows default to Bluebook
+        # only), so a newly provisioned institution could silently get
+        # Original. On a real deploy Original is an explicit opt-in
+        # (PATCH /tenants/{id}/products).
         products = ["bluebook"]
     _repo().put_tenant(tenant_id, name, environment=environment, meta=meta)
     if products is not None:
