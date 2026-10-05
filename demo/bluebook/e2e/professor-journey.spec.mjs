@@ -325,7 +325,13 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     await expect(resultsRow).toBeVisible({ timeout: 10_000 })
     await resultsRow.click()
     await expect(staffPage.getByText('Integrity Analysis')).toBeVisible({ timeout: 5_000 })
-    await expect(staffPage.getByText('Typing Consistency').first()).toBeVisible()
+    // A seal no longer produces a stylometric figure, and the release makes
+    // no typing claim: the average tile is gone, no "Typing" label appears
+    // anywhere on the Results screen, and with no row carrying a stylometric
+    // value the Writing Consistency column and line are not shown either.
+    await expect(staffPage.getByText('Avg Typing Consistency')).toHaveCount(0)
+    await expect(staffPage.getByText(/Typing/)).toHaveCount(0)
+    await expect(staffPage.getByText('Writing Consistency')).toHaveCount(0)
     await expect(staffPage.getByText('Authenticity').first()).toBeVisible()
     // The plain-English explanation line under the Authenticity score.
     await expect(staffPage.getByText(/scored via Original/)).toBeVisible()

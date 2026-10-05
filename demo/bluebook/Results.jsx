@@ -242,7 +242,7 @@ function CorrectionPanel({ result }) {
 }
 
 // ─── Expanded row detail ──────────────────────────────────────────────────────
-function ExpandedRow({ result, onClose }) {
+function ExpandedRow({ result, showStylo, onClose }) {
   return (
     <div style={{
       padding:'20px 20px 20px 48px',
@@ -256,7 +256,9 @@ function ExpandedRow({ result, onClose }) {
           <MetaLabel style={{ display:'block', marginBottom:14 }}>Integrity Analysis</MetaLabel>
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
             {[
-              { label:'Writing Consistency', score:result.stylometric, note:'Text-based comparison with the available baseline — not proof of authorship' },
+              // Older rows carry a stylometric figure; new seals do not
+              // produce one, so the line appears only when the table has any.
+              ...(showStylo ? [{ label:'Writing Consistency', score:result.stylometric, note:'Text-based comparison with the available baseline — not proof of authorship' }] : []),
               { label:'Authenticity',       score:result.aiScore,     note:'Higher = more consistent with this student’s own writing (scored via Original)' },
             ].map(({ label, score, note }) => (
               <div key={label}>
@@ -326,10 +328,12 @@ function ScoredResultsScreen({ onNavigate }) {
     ? results
     : results.filter(r => r.status === statusFilter);
 
-  const styloScores = results.filter(r => r.stylometric != null);
-  const avgStylo = styloScores.length
-    ? Math.round(styloScores.reduce((a, r) => a + r.stylometric, 0) / styloScores.length)
-    : 0;
+  // A seal no longer produces a stylometric figure; show that column only
+  // when some (older) row still carries one.
+  const showStylo = results.some(r => r.stylometric != null);
+  const gridCols = showStylo
+    ? '1fr 160px 80px 55px 100px 100px 90px'
+    : '1fr 160px 80px 55px 100px 90px';
   const counts = {
     total:    results.length,
     flagged:  results.filter(r => r.status === 'FLAGGED').length,
@@ -358,7 +362,6 @@ function ScoredResultsScreen({ onNavigate }) {
           { label:'Submitted',  value:results.filter(r=>r.status==='SUBMITTED').length,  color:BB.fade  },
           { label:'Flagged',    value:counts.flagged,                                    color:'#C47A6B'},
           { label:'Reviewed',   value:counts.reviewed,                                   color:'#5EB87C'},
-          { label:'Avg Typing Consistency', value:`${avgStylo}%`, color:BB.gold },
         ].map(({ label, value, color }) => (
           <div key={label} style={{
             flex:1, border:'1px solid rgba(201,169,97,0.18)',
@@ -390,11 +393,11 @@ function ScoredResultsScreen({ onNavigate }) {
       <div style={{ border:'1px solid rgba(201,169,97,0.2)' }}>
         <div style={{
           display:'grid',
-          gridTemplateColumns:'1fr 160px 80px 55px 100px 100px 90px',
+          gridTemplateColumns:gridCols,
           padding:'10px 20px',
           borderBottom:'1px solid rgba(201,169,97,0.35)',
         }}>
-          {['Candidate', 'Examination', 'Words', 'Time', 'Typing Consistency', 'Authenticity', 'Status'].map(h => (
+          {['Candidate', 'Examination', 'Words', 'Time', ...(showStylo ? ['Writing Consistency'] : []), 'Authenticity', 'Status'].map(h => (
             <MetaLabel key={h}>{h}</MetaLabel>
           ))}
         </div>
@@ -404,7 +407,7 @@ function ScoredResultsScreen({ onNavigate }) {
             <div
               style={{
                 display:'grid',
-                gridTemplateColumns:'1fr 160px 80px 55px 100px 100px 90px',
+                gridTemplateColumns:gridCols,
                 padding:'13px 20px', alignItems:'center',
                 cursor:'pointer', transition:'background 0.2s',
                 background: expanded === result.id ? 'rgba(201,169,97,0.04)' : 'transparent',
@@ -429,12 +432,12 @@ function ScoredResultsScreen({ onNavigate }) {
               </p>
               <MetaLabel>{result.words.toLocaleString()}</MetaLabel>
               <MetaLabel>{result.timeMin}m</MetaLabel>
-              <ScoreBar score={result.stylometric} />
+              {showStylo && <ScoreBar score={result.stylometric} />}
               <ScoreBar score={result.aiScore} />
               <StatusBadge status={result.status} />
             </div>
             {expanded === result.id && (
-              <ExpandedRow result={result} onClose={() => setExpanded(null)} />
+              <ExpandedRow result={result} showStylo={showStylo} onClose={() => setExpanded(null)} />
             )}
             {i < filtered.length - 1 && <GoldRule faint />}
           </div>

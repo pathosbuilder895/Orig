@@ -208,7 +208,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
     await expect(textarea).not.toHaveValue('')
   })
 
-  test('Type past minimum → Seal → Examination Sealed, recorded, and no baseline write', async ({ page, request }) => {
+  test('Type past minimum → Seal → Examination Sealed, recorded, and no baseline write', async ({ page }) => {
     const minWords = 12
     await bootInExam(page, { minWords })
     await page.goto('/bluebook/')
@@ -239,12 +239,16 @@ test.describe('Bluebook exam lockdown — full flow', () => {
     await page.keyboard.type(longProse, { delay: 1 })
 
     // Compare-only seal (plan Phase 7): sealing never adds a baseline
-    // sample; only a professor's approval does.
+    // sample; only a professor's approval does. The sitting holds Original,
+    // so the seal must still run its comparison: record the score calls too,
+    // so this test cannot pass merely because Original was never reached.
     const baselineWrites = []
+    const scoreCalls = []
     page.on('request', r => {
-      if (r.method() === 'POST' && /\/students\/[^/]+\/baseline$/.test(new URL(r.url()).pathname)) {
-        baselineWrites.push(r.url())
-      }
+      if (r.method() !== 'POST') return
+      const path = new URL(r.url()).pathname
+      if (/\/students\/[^/]+\/baseline$/.test(path)) baselineWrites.push(r.url())
+      if (/\/students\/[^/]+\/score$/.test(path)) scoreCalls.push(r.url())
     })
 
     const sealBtn = page.locator('button', { hasText: /Seal & Submit|Sealing/ })
@@ -256,10 +260,11 @@ test.describe('Bluebook exam lockdown — full flow', () => {
     await expect(page.getByText('Examination Sealed'))
       .toBeVisible({ timeout: 15_000 })
 
-    // The proctored-baseline transmission line shows the success token
+    // The delivery line shows the success token (the submission record was written)
     await expect(page.getByText('✓ Delivered to your teacher'))
       .toBeVisible({ timeout: 5_000 })
 
+    expect(scoreCalls.length).toBeGreaterThan(0)
     expect(baselineWrites).toEqual([])
   })
 

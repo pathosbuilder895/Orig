@@ -159,12 +159,13 @@ function bbIsFullscreen() {
 }
 
 // ─── Original integration ───────────────────────────────────────────────────
-// Bluebook is the proctored baseline-capture layer for Original. On submit we
-// derive the same institution-scoped, FERPA-friendly student id Original uses
+// Bluebook is the proctored writing source for Original. On submit we derive
+// the same institution-scoped, FERPA-friendly student id Original uses
 // ({tenant}:{sha256(tenant:identity)[:16]}) and POST the prose + a macro
-// composition_summary (session timing, paste counts — no per-key
-// data, ADR-010) to /students/{id}/baseline as a `proctored` sample
-// (auth_weight 2.0 — the highest-trust ground truth for the voice profile).
+// composition_summary (session timing, paste counts — no per-key data,
+// ADR-010) to /students/{id}/score for a report-only comparison with the
+// student's existing baseline. Sealing never adds to that baseline: a
+// professor approves which sealed exams become baseline samples.
 const BB_API_BASE = window.BB_API_BASE || '';   // same origin by default
 
 function bbSlugify(s) {
@@ -235,8 +236,8 @@ function bbCandidateLabel(cfg) {
 
 // Auth header for whatever session is present (principal or student token),
 // plus the proctor attestation a magic-link/LTI launch stores in localStorage
-// (see original/api.py:bluebook_magic_launch) — without it, a proctored
-// baseline write is silently downgraded to 'unverified' (_authorize_provenance).
+// (see original/api.py:bluebook_magic_launch). The seal's score call sends
+// both.
 function bbAuthHeaders() {
   const h = { 'Content-Type': 'application/json' };
   const token = localStorage.getItem('original_principal_token')
