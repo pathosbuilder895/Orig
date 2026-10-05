@@ -147,6 +147,12 @@ actually does, with a DRAFT banner and bracketed blanks.
 
 ## Operating it
 
+- **Inviting a professor** (the pilot is invitation-only, `SELF_SERVE_SIGNUP=0`):
+  Render → `original-pilot` → Shell →
+  `python scripts/invite_professor.py prof@school.edu --name "Dr Name"`.
+  It prints whether the email was sent and always prints the single-use link
+  (14 days). If the link expires, run it again: an existing account is
+  refused, so use "Forgot your password?" on the sign-in page instead.
 - **Deploys** are manual (`autoDeploy: false`): Render → `original-pilot` →
   Manual Deploy. Each one migrates the database first; a failed migration
   fails the deploy and the old version keeps serving. Never deploy during an

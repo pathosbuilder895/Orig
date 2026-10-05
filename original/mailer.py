@@ -110,6 +110,18 @@ def send_invite(to: str, link: str, course: str = "", teacher: str = "") -> bool
     return send(to, f"You've been added to Bluebook{where}", text)
 
 
+def send_professor_invite(to: str, link: str) -> bool:
+    text = (
+        "You have been invited to Bluebook, the online written-examination "
+        "service, with a private workspace of your own.\n\n"
+        f"Set your password here (this link works once and expires in 14 days):\n{link}\n\n"
+        "Then sign in with this email address to create a course, invite your "
+        "students and set an examination.\n\n"
+        "If you were not expecting this, you can ignore this email."
+    )
+    return send(to, "Your Bluebook workspace is ready", text)
+
+
 def send_reset(to: str, link: str) -> bool:
     text = (
         "Someone asked to reset the password for this Bluebook account.\n\n"
