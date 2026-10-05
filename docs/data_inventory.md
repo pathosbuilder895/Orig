@@ -176,6 +176,7 @@ text_hash = SHA-256(submission_text.encode('utf-8'))
 - Instructor uploads of proctored essays
 - Verified in-class writing samples
 - Unverified previous work (for comparative analysis)
+- Sealed Bluebook exams, only when a professor approves them (per exam or per examination); they can be removed again, and approvals and removals are audit-logged without student text
 
 **Storage Location:**
 ```

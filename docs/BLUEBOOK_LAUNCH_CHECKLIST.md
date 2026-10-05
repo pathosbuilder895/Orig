@@ -192,6 +192,12 @@ actually does, with a DRAFT banner and bracketed blanks.
   professor and student in it. Original's comparisons are not validated for
   real student work yet (gap T-01), so turn it on only with the owner's
   agreement and the institution's consent.
+- **Approving exams as writing baselines** (workspaces with Original only):
+  sealing an exam never adds it to a student's baseline. In the submission
+  reader, **Add to baseline** / **Remove from baseline** handles one exam; on an
+  examination's page, **Add all sealed submissions to baselines** handles the
+  rest. An exam that differs strongly from the student's existing samples is
+  held for review rather than added; approval never overrides that check.
 - **Deploys** are manual (`autoDeploy: false`): Render → `original-pilot` →
   Manual Deploy. Each one migrates the database first; a failed migration
   fails the deploy and the old version keeps serving. Never deploy during an

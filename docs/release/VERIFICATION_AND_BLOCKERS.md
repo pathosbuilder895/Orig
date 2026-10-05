@@ -105,6 +105,7 @@ Plan: `docs/superpowers/plans/2026-10-04-professor-release-finish.md`, Part B. N
 
 - **B1 Owner decisions and accounts:** hosting budget and region, fate of the old services (`Originall`, `original-demo`), SendGrid and its DPA, off-box backup bucket and `BACKUP_ENCRYPTION_KEY`, support contact and operator.
 - **B2 Legal pages and institutional terms:** counsel fills the entity, region, storage-provider, retention, warranty and governing-law blanks; the institution's operating note; then the draft banner and version string are finalised (the guard from Task 10 enforces that).
+- **B2 (counsel):** the student notice should say that sealed exams may be used as reference writing if the instructor's workspace uses Original (professor-approved baselines, 2026-10-05).
 - **B3 Create the hosted pilot** from the merged commit, with fresh `SECRET_KEY` and `MAINTENANCE_TOKEN`, and confirm `/health` shows `signup_open:false` and the merged commit.
 - **B4 Deployed acceptance** with fictional accounts: smoke test, full journey on phone and laptop, restart persistence, backup and encrypted restore drill, rollback rehearsal, uptime monitor. Includes the native confirm dialog and fullscreen check in real Chrome.
 - **B5 Publish the fictional demo** (`bluebook-teacher-demo`): first blueprint sync also proves the static-site blueprint shape, which was written from knowledge only.

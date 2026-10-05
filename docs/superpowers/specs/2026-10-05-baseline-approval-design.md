@@ -59,9 +59,10 @@ Rules:
   `add_sample` invalidates. Outcomes: `removed`, `not_in_baseline`.
 - **Bulk** applies "add" to each sealed submission of the exam; a submission with no answer text is counted as
   `nothing_written` instead of failing the batch. It returns
-  `{"added": n, "already_in_baseline": n, "held": n, "nothing_written": n, "results": [{submission_id, student, status, detail}]}`.
+  `{"added": n, "already_in_baseline": n, "held": n, "nothing_written": n, "errors": n, "results": [{submission_id, student, status, detail}]}`;
+  any other failure for a submission is reported as status `error` without stopping the batch.
 - **Audit.** `baseline_approve`, `baseline_remove` and `baseline_approve_bulk` audit entries with tenant, actor and
-  submission/exam ids. No student text in audit details.
+  submission/exam ids (the bulk entry also carries the per-status counts and id lists). No student text in audit details.
 
 Errors:
 
