@@ -81,14 +81,14 @@
     "expired": 401
   },
   "GET /students/{A_student}": {
-    "anonymous": 403,
+    "anonymous": 401,
     "student_own": 200,
     "student_other": 403,
     "professor_own": 200,
     "professor_other": 403,
     "operator": 200,
-    "tampered": 403,
-    "expired": 403
+    "tampered": 401,
+    "expired": 401
   },
   "GET /baseline-requests/pending": {
     "anonymous": 401,
@@ -102,14 +102,14 @@
     "_note": "T-02 open: pending baseline requests have no tenant filter \u2014 professor_other (tenant B staff) reads tenant A's pending requests (200, not 403)."
   },
   "POST /students/{A_student}/score": {
-    "anonymous": 403,
+    "anonymous": 401,
     "student_own": 200,
     "student_other": 403,
     "professor_own": 200,
     "professor_other": 403,
     "operator": 200,
-    "tampered": 403,
-    "expired": 403
+    "tampered": 401,
+    "expired": 401
   },
   "GET /tenants/{A}/stats": {
     "anonymous": 401,

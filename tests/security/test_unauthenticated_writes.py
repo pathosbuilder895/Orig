@@ -540,3 +540,22 @@ def test_request_baseline_requires_staff_on_real_deploy(
         f"/students/{sid}/request-baseline", json=body, headers=two_tenants["headers_a"]
     )
     assert r.status_code == 503, r.text
+
+
+def test_anonymous_cannot_reach_original_even_for_a_demo_tenant_on_a_real_deploy(
+    pilot_env, store_reset, live_client
+):
+    from original import principal as principal_mod
+    from original.repository import get_repository
+
+    get_repository().put_tenant("leftover-demo", "Leftover", environment="demo")
+    principal_mod.invalidate_tenant_cache()
+    assert live_client.get("/students/leftover-demo:alice").status_code == 401
+    assert (
+        live_client.post(
+            "/students/leftover-demo:alice/baseline", json={"text": "x " * 200}
+        ).status_code
+        == 401
+    )
+    # Anonymous-by-design Bluebook entry points are untouched.
+    assert live_client.get("/bluebook/launch?t=bogus").status_code == 400

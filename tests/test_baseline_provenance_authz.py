@@ -138,7 +138,7 @@ def test_demo_anonymous_proctored_preserved(client):
     assert r.json()["provenance"] == "proctored"
 
 
-def test_anonymous_proctored_downgraded_on_real_deploy(client, real_deploy):
+def test_anonymous_proctored_downgraded_on_real_deploy(real_deploy):
     """On a pilot, dropping the Authorization header must NOT out-privilege an
     authenticated student.
 
@@ -147,14 +147,33 @@ def test_anonymous_proctored_downgraded_on_real_deploy(client, real_deploy):
     and land AI text at proctored/2.0 — while the same student's real session
     token was correctly downgraded to unverified/0.5.
 
-    The tenant is registered with environment="demo", which is precisely what
-    lets the anonymous principal past the isolation middleware and reach this
-    gate. An *unregistered* tenant would 403 at the middleware instead, hiding
-    the bug. (This used to be provisioned through /student-auth/login, which
-    auto-registered demo tenants; that route is 404 on a real deploy now, so
-    the tenant is registered directly — the only remaining way a demo tenant
-    exists on a pilot is an operator's guarded POST /tenants.)
+    The tenant-isolation middleware now refuses the anonymous principal on every
+    Original route on a real deploy (see the next test), so this handler clamp is
+    defence in depth that no HTTP request can reach. It is pinned directly: if
+    the middleware gate is ever loosened, the clamp must still hold.
     """
+    from types import SimpleNamespace
+
+    from original.routers._shared import _authorize_provenance
+
+    anonymous = pr.Principal(
+        user_id="demo", role="operator", tenant_id=pr.DEMO_TENANT, auth_method="demo", is_demo=True
+    )
+    request = SimpleNamespace(state=SimpleNamespace(principal=anonymous), headers={})
+    assert _authorize_provenance(request, "seminary-of-dallas:jane", "proctored") == (
+        "unverified",
+        True,
+    )
+
+
+def test_anonymous_baseline_post_refused_on_real_deploy_even_for_a_demo_tenant(
+    client, real_deploy
+):
+    """The tenant is registered with environment="demo", which used to be what
+    let the anonymous principal past the isolation middleware. The middleware
+    now answers 401 for it, and nothing is stored. (The tenant is registered
+    directly: the only way a demo tenant exists on a pilot is an operator's
+    guarded POST /tenants.)"""
     from original import student_auth
     from original.repository import get_repository
 
@@ -162,11 +181,8 @@ def test_anonymous_proctored_downgraded_on_real_deploy(client, real_deploy):
     sid = student_auth.derive_student_id("Seminary of Dallas", "jane@sod.edu")
 
     r = _post_baseline(client, sid, "proctored")
-    assert r.status_code == 200, r.text
-    body = r.json()
-    assert body["provenance"] == "unverified"
-    assert body["auth_weight"] == 0.5
-    assert body["provenance_downgraded"] is True
+    assert r.status_code == 401, r.text
+    assert get_repository().get(sid) is None
 
 
 def test_authenticated_staff_still_preserved_on_real_deploy(client, real_deploy):

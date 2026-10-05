@@ -478,6 +478,14 @@ async def tenant_isolation(request: Request, call_next):
                 content={"detail": "Authentication required — sign in with a staff account."},
             )
     needed = _required_product(request.url.path)
+    if _IS_REAL_DEPLOY and principal.is_demo and needed == "original":
+        # The anonymous principal carries an operator role and every product,
+        # which the gate below exempts. On a real deploy it must never reach
+        # Original data, even for a tenant left registered as "demo".
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Authentication required — sign in with a staff account."},
+        )
     if (
         needed is not None
         and needed not in principal.products
