@@ -372,6 +372,22 @@ def _launch_products(tenant_id: str) -> str:
 _MAGIC_SESSION_TTL = 12 * 3600  # a single exam-day sitting, not a week
 
 
+def _exam_submissions(exam: dict) -> list[dict]:
+    """The submissions that belong to ``exam``'s own workspace.
+
+    A row can name an exam id from another workspace (a student or staff
+    member who typed or was handed one). Such a row is that other workspace's
+    data: it must never be listed, exported or written to a profile by the
+    exam's owner. An exam with no tenant (a legacy row) has nothing to compare
+    against, so all of its rows are returned.
+    """
+    subs = _repo().list_bluebook_submissions_for_exam(exam["id"])
+    tenant = exam.get("tenant_id")
+    if tenant is None:
+        return subs
+    return [s for s in subs if s.get("tenant_id") == tenant]
+
+
 def _bluebook_tenant(request: Request) -> str:
     p = getattr(request.state, "principal", None)
     if p and not p.is_demo:

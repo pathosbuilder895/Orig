@@ -15,6 +15,7 @@ docs/superpowers/specs/2026-10-05-baseline-approval-design.md
 from __future__ import annotations
 
 import hashlib
+import logging
 import sys
 
 from fastapi import APIRouter, HTTPException, Request
@@ -22,14 +23,16 @@ from fastapi import APIRouter, HTTPException, Request
 from .. import principal as principal_mod
 from ..schemas import AddSampleRequest
 from ..tension_arc import analyze_tension_arc, update_student_baseline_kappa
-from ._shared import _persist_or_503, _repo, _require_staff
+from ._shared import _exam_submissions, _persist_or_503, _repo, _require_staff
 from .bluebook import _can_touch, _owned_exam
 from .students_baseline import _hashes_from_samples, add_baseline
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 
 NO_ORIGINAL = "This workspace's plan does not include Original."
 NOTHING_WRITTEN = "Nothing written to add."
+NOT_ADDED = "Could not be added."
 HELD_DETAIL = (
     "Not added: this exam differs strongly from the student's existing samples, "
     "so it was held for review."
@@ -88,6 +91,33 @@ def _owned_original_exam(exam_id: str, request: Request) -> dict:
     return exam
 
 
+def _student_in_workspace(rec: dict, request: Request) -> bool:
+    """Whether the submission's student belongs to the submission's workspace
+    and is one the caller may act on.
+
+    The approval routes are not under ``/students/{id}``, so the tenant
+    middleware never checks the student; a submission row can name any
+    student id (staff may record one for a student they name), so every
+    profile read or write here must pass this first. ``assert_student_access``
+    carries the demo and flat-id rules (including the real-deploy lockdown);
+    the second test pins a tenant-prefixed id to the row's own workspace.
+    """
+    student_id = rec.get("student_id")
+    if not student_id:
+        return False
+    try:
+        principal_mod.assert_student_access(request.state.principal, student_id)
+    except principal_mod.TenantAccessError:
+        return False
+    owner = principal_mod.tenant_of(student_id)
+    return owner is None or owner == rec.get("tenant_id")
+
+
+def _require_student_in_workspace(rec: dict, request: Request) -> None:
+    if not _student_in_workspace(rec, request):
+        raise HTTPException(status_code=404, detail="submission not found")
+
+
 def _submitted_at(rec: dict) -> str:
     created = rec.get("created_at")
     value = created.isoformat() if hasattr(created, "isoformat") else str(created or "")
@@ -107,6 +137,12 @@ def _add(rec: dict, request: Request) -> dict:
     text = _baseline_text(rec)
     if not text or not rec.get("student_id"):
         return _row(rec, "nothing_written", NOTHING_WRITTEN)
+    _require_student_in_workspace(rec, request)
+    # "In baseline" is the same test the status route uses, so a sample the
+    # old seal stored with "Question N." headings is not added a second time.
+    state = _repo().get(rec["student_id"])
+    if state is not None and _fingerprints(rec) & _hashes_from_samples(state.samples):
+        return _row(rec, "already_in_baseline")
     req = AddSampleRequest(
         text=text,
         provenance="proctored",
@@ -170,6 +206,8 @@ def remove_submission_baseline(submission_id: str, request: Request):
     """Take one exam back out of the student's baseline; the profile is
     recomputed from the remaining samples."""
     rec = _owned_submission(submission_id, request)
+    if rec.get("student_id"):
+        _require_student_in_workspace(rec, request)
     fingerprints = _fingerprints(rec)
     state = _repo().get(rec["student_id"]) if rec.get("student_id") and fingerprints else None
     indices = _matching_indices(state, fingerprints) if state is not None else []
@@ -203,20 +241,39 @@ def remove_submission_baseline(submission_id: str, request: Request):
 def approve_exam_baselines(exam_id: str, request: Request):
     """Add every sealed submission of an examination to its student's baseline."""
     exam = _owned_original_exam(exam_id, request)
-    counts = {"added": 0, "already_in_baseline": 0, "held": 0, "nothing_written": 0, "errors": 0}
+    ids: dict[str, list[str]] = {
+        status: []
+        for status in ("added", "already_in_baseline", "held", "nothing_written", "error")
+    }
     results = []
-    for rec in _repo().list_bluebook_submissions_for_exam(exam_id):
+    for rec in _exam_submissions(exam):
         try:
             row = _add(rec, request)
         except HTTPException as exc:
             row = _row(rec, "error", str(exc.detail))
-        counts["errors" if row["status"] == "error" else row["status"]] += 1
+        except Exception:
+            # One bad row must not 500 the batch after earlier rows were saved.
+            # The message carries ids only, never student text.
+            log.exception("baseline approval failed for submission %s", rec["id"])
+            row = _row(rec, "error", NOT_ADDED)
+        ids[row["status"]].append(rec["id"])
         results.append(row)
+    counts = {
+        "added": len(ids["added"]),
+        "already_in_baseline": len(ids["already_in_baseline"]),
+        "held": len(ids["held"]),
+        "nothing_written": len(ids["nothing_written"]),
+        "errors": len(ids["error"]),
+    }
     _repo().log_audit(
         action="baseline_approve_bulk",
         tenant_id=exam.get("tenant_id"),
         actor=_actor(request),
-        details={"exam_id": exam_id, **counts},
+        details={
+            "exam_id": exam_id,
+            **counts,
+            **{f"{status}_ids": sub_ids for status, sub_ids in ids.items()},
+        },
     )
     return {**counts, "results": results}
 
@@ -224,18 +281,18 @@ def approve_exam_baselines(exam_id: str, request: Request):
 @router.get("/bluebook/exams/{exam_id}/baseline")
 def exam_baseline_status(exam_id: str, request: Request):
     """Whether each submission of an examination is in its student's baseline."""
-    _owned_original_exam(exam_id, request)
-    states: dict = {}
+    exam = _owned_original_exam(exam_id, request)
+    hashes: dict[str, set[str]] = {}  # each student's baseline, read once
     out = []
-    for rec in _repo().list_bluebook_submissions_for_exam(exam_id):
+    for rec in _exam_submissions(exam):
         text = _baseline_text(rec)
         sid = rec.get("student_id")
-        if sid and sid not in states:
-            states[sid] = _repo().get(sid)
-        state = states.get(sid) if sid else None
-        in_baseline = bool(
-            state is not None and _fingerprints(rec) & _hashes_from_samples(state.samples)
-        )
+        in_baseline = False
+        if sid and _student_in_workspace(rec, request):
+            if sid not in hashes:
+                state = _repo().get(sid)
+                hashes[sid] = _hashes_from_samples(state.samples) if state is not None else set()
+            in_baseline = bool(_fingerprints(rec) & hashes[sid])
         out.append(
             {
                 "submission_id": rec["id"],

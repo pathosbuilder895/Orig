@@ -264,3 +264,185 @@ def test_every_action_is_audited_without_student_text(live_client):
         items = repo.list_audit(action=action)["items"]
         assert items, action
         assert "Augustine" not in repr(items)
+
+
+# ── Review fixes: workspace boundaries, legacy duplicates, bulk resilience ──
+
+
+def _plant(tenant_id, exam_id, student_id, answers=ANSWERS):
+    """Write a submission row straight into the repository, the way a row that
+    got past the seal-time checks would look. Planting directly keeps these
+    tests about the approval routes, not about the seal route's own checks."""
+    import uuid
+
+    sub_id = uuid.uuid4().hex[:16]
+    get_repository().put_bluebook_submission(
+        {
+            "id": sub_id,
+            "exam_id": exam_id,
+            "tenant_id": tenant_id,
+            "student_id": student_id,
+            "candidate": "Planted",
+            "exam_title": "Midterm",
+            "course": "ETH",
+            "text": "\n\n".join(f"Question {i + 1}.\n{a}" for i, a in enumerate(answers)),
+            "answers": answers,
+            "warnings": [],
+            "word_count": 100,
+            "time_min": 10,
+            "status": "SUBMITTED",
+            "submission_uuid": f"plant-{sub_id}",
+            "late": 0,
+        }
+    )
+    return sub_id
+
+
+def _legacy_sample(student, sub_id):
+    """What the pre-Phase-7 seal sent to the baseline: the stored text, headings
+    included."""
+    from original.routers import students_baseline
+    from original.schemas import AddSampleRequest
+
+    stored = get_repository().get_bluebook_submission(sub_id)
+    students_baseline.add_baseline(
+        student["student_id"], AddSampleRequest(text=stored["text"], provenance="unverified"), None
+    )
+
+
+def test_approval_cannot_reach_another_workspaces_student(live_client):
+    prof_a, _course_a, exam_a = _workspace(live_client, email="a@school.edu")
+    prof_b, course_b, _exam_b = _workspace(live_client, email="b@other.edu", original=False)
+    victim = _student(live_client, prof_b, course_b, "victim@other.edu")
+    # Professor A's own workspace holds a submission that names B's student.
+    sub = _plant(prof_a["tenant_id"], exam_a["id"], victim["student_id"])
+    h = _auth(prof_a["token"])
+
+    approve = live_client.post(f"/bluebook/submissions/{sub}/baseline", headers=h)
+    bulk = live_client.post(f"/bluebook/exams/{exam_a['id']}/baseline", headers=h)
+
+    assert approve.status_code == 404
+    assert approve.json()["detail"] == "submission not found"
+    assert (bulk.json()["added"], bulk.json()["errors"]) == (0, 1)
+    assert bulk.json()["results"][0]["status"] == "error"
+    assert get_repository().get(victim["student_id"]) is None
+
+
+def test_removal_cannot_reach_another_workspaces_student(live_client):
+    prof_a, _course_a, exam_a = _workspace(live_client, email="a@school.edu")
+    prof_b, course_b, _exam_b = _workspace(live_client, email="b@other.edu", original=False)
+    victim = _student(live_client, prof_b, course_b, "victim@other.edu")
+    sub = _plant(prof_a["tenant_id"], exam_a["id"], victim["student_id"])
+    _legacy_sample(victim, sub)  # the victim's own profile happens to hold this text
+    assert _sample_count(victim) == 1
+
+    r = live_client.delete(f"/bluebook/submissions/{sub}/baseline", headers=_auth(prof_a["token"]))
+
+    assert r.status_code == 404
+    assert _sample_count(victim) == 1
+
+
+def test_a_foreign_submission_on_my_exam_is_neither_listed_nor_added(live_client):
+    prof_a, _course_a, exam_a = _workspace(live_client, email="a@school.edu")
+    prof_b, course_b, _exam_b = _workspace(live_client, email="b@other.edu", original=False)
+    stu_b = _student(live_client, prof_b, course_b, "bea@other.edu")
+    # B's student sealed against A's exam id: the row belongs to B's workspace.
+    _plant(prof_b["tenant_id"], exam_a["id"], stu_b["student_id"])
+    h = _auth(prof_a["token"])
+
+    status = live_client.get(f"/bluebook/exams/{exam_a['id']}/baseline", headers=h)
+    bulk = live_client.post(f"/bluebook/exams/{exam_a['id']}/baseline", headers=h)
+
+    assert status.json()["submissions"] == []
+    assert bulk.json()["results"] == []
+    assert (bulk.json()["added"], bulk.json()["errors"]) == (0, 0)
+    assert get_repository().get(stu_b["student_id"]) is None
+
+
+def test_a_legacy_heading_sample_is_already_in_baseline_for_add_and_bulk(live_client):
+    prof, course, exam = _workspace(live_client)
+    stu = _student(live_client, prof, course, "one@school.edu")
+    sub = _seal(live_client, stu, exam["id"])
+    _legacy_sample(stu, sub)
+    h = _auth(prof["token"])
+    assert _sample_count(stu) == 1
+
+    single = live_client.post(f"/bluebook/submissions/{sub}/baseline", headers=h)
+    bulk = live_client.post(f"/bluebook/exams/{exam['id']}/baseline", headers=h)
+
+    assert single.json()["status"] == "already_in_baseline"
+    assert (bulk.json()["added"], bulk.json()["already_in_baseline"]) == (0, 1)
+    assert _sample_count(stu) == 1
+
+
+def test_one_failing_row_does_not_sink_the_bulk_batch(live_client, monkeypatch, caplog):
+    from original.routers import bluebook_baselines
+
+    real_add = bluebook_baselines.add_baseline
+
+    def flaky(student_id, req, request):
+        if student_id.endswith(one_suffix[0]):
+            raise ValueError("boom")
+        return real_add(student_id, req, request)
+
+    prof, course, exam = _workspace(live_client)
+    one = _student(live_client, prof, course, "one@school.edu")
+    two = _student(live_client, prof, course, "two@school.edu")
+    one_suffix = [one["student_id"].split(":")[-1]]
+    _seal(live_client, one, exam["id"])
+    _seal(live_client, two, exam["id"], answers=[ANSWERS[1], ANSWERS[0]])
+    monkeypatch.setattr(bluebook_baselines, "add_baseline", flaky)
+
+    with caplog.at_level("ERROR"):
+        r = live_client.post(f"/bluebook/exams/{exam['id']}/baseline", headers=_auth(prof["token"]))
+
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert (body["added"], body["errors"]) == (1, 1)
+    assert sorted(row["status"] for row in body["results"]) == ["added", "error"]
+    assert _sample_count(one) == 0
+    assert _sample_count(two) == 1
+    assert "Augustine" not in repr(body)
+    failed = [r for r in caplog.records if r.name == bluebook_baselines.__name__]
+    assert failed and all("Augustine" not in r.getMessage() for r in failed)
+
+
+def test_bulk_audit_lists_submission_ids_by_status(live_client):
+    prof, course, exam = _workspace(live_client)
+    one = _student(live_client, prof, course, "one@school.edu")
+    blank = _student(live_client, prof, course, "blank@school.edu")
+    sub = _seal(live_client, one, exam["id"])
+    blank_sub = _seal(live_client, blank, exam["id"], answers=[""])
+
+    live_client.post(f"/bluebook/exams/{exam['id']}/baseline", headers=_auth(prof["token"]))
+
+    details = get_repository().list_audit(action="baseline_approve_bulk")["items"][0]["details"]
+    assert details["added_ids"] == [sub]
+    assert details["nothing_written_ids"] == [blank_sub]
+    assert details["held_ids"] == [] and details["already_in_baseline_ids"] == []
+    assert details["error_ids"] == []
+    assert "Augustine" not in repr(details)
+
+
+def test_status_reads_each_students_baseline_once(live_client, monkeypatch):
+    from original.routers import bluebook_baselines
+
+    prof, course, exam = _workspace(live_client)
+    stu = _student(live_client, prof, course, "one@school.edu")
+    _seal(live_client, stu, exam["id"])
+    _plant(prof["tenant_id"], exam["id"], stu["student_id"], answers=[ANSWERS[1]])
+    _plant(prof["tenant_id"], exam["id"], stu["student_id"], answers=[ANSWERS[0], ANSWERS[1]])
+    _legacy_sample(stu, _plant(prof["tenant_id"], exam["id"], stu["student_id"], answers=[ANSWERS[0]]))
+    calls = []
+    real = bluebook_baselines._hashes_from_samples
+
+    def counting(samples):
+        calls.append(1)
+        return real(samples)
+
+    monkeypatch.setattr(bluebook_baselines, "_hashes_from_samples", counting)
+
+    r = live_client.get(f"/bluebook/exams/{exam['id']}/baseline", headers=_auth(prof["token"]))
+
+    assert len(r.json()["submissions"]) == 4
+    assert len(calls) == 1
