@@ -1470,16 +1470,46 @@ def test_unknown_student_is_404_and_audited(live_client):
 
 
 def test_student_with_an_original_profile_is_refused(live_client, principal_headers):
+    from original.routers import students_baseline
+    from original.schemas import AddSampleRequest
+
     get_repository().put_tenant("both-school", "Both", environment="pilot")
     principal_mod.invalidate_tenant_cache()
     h = principal_headers("p1", "professor", "both-school")
     course = live_client.post("/bluebook/courses", json={"name": "C"}, headers=h).json()["id"]
     sid = _add_students(live_client, h["Authorization"][7:], course, "kept@x.edu")[0]["student_id"]
-    assert get_repository().get(sid) is not None
+    # The roster creates an empty profile; one writing sample makes it a
+    # baseline that only Original's guarded deletion may remove. (An empty
+    # profile does not block erasure: tests/test_bluebook_baselines.py.)
+    students_baseline.add_baseline(
+        sid,
+        AddSampleRequest(
+            text="A short reflection, written in my own words, on the reading for this week.",
+            provenance="unverified",
+        ),
+        None,
+    )
+    assert get_repository().get(sid).sample_count == 1
     r = _erase(live_client, sid, h)
     assert r.status_code == 409
     assert "Original" in r.json()["detail"]
     assert get_repository().get_user(sid) is not None
+
+
+def test_student_with_an_empty_original_profile_is_erased(live_client, principal_headers):
+    """The roster gives every student of an Original workspace an empty
+    profile. With no writing samples it holds no baseline, so it does not
+    block erasure, and erasure deletes it."""
+    get_repository().put_tenant("both-school", "Both", environment="pilot")
+    principal_mod.invalidate_tenant_cache()
+    h = principal_headers("p1", "professor", "both-school")
+    course = live_client.post("/bluebook/courses", json={"name": "C"}, headers=h).json()["id"]
+    sid = _add_students(live_client, h["Authorization"][7:], course, "gone@x.edu")[0]["student_id"]
+    assert get_repository().get(sid).sample_count == 0
+    r = _erase(live_client, sid, h)
+    assert r.status_code == 200, r.text
+    assert get_repository().get(sid) is None
+    assert get_repository().get_user(sid) is None
 
 
 def test_erased_students_old_session_is_revoked(live_client, classroom):

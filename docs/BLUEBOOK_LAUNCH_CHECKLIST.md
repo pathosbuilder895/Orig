@@ -200,7 +200,9 @@ actually does, with a DRAFT banner and bracketed blanks.
   reader, **Add to baseline** / **Remove from baseline** handles one exam; on an
   examination's page, **Add all sealed submissions to baselines** handles the
   rest. An exam that differs strongly from the student's existing samples is
-  held for review rather than added; approval never overrides that check.
+  not added ("Not added: this exam differs strongly from the student's existing
+  samples"); approval never overrides that check, and there is no review queue
+  to clear it later.
 - **Deploys** are manual (`autoDeploy: false`): Render → `original-pilot` →
   Manual Deploy. Each one migrates the database first; a failed migration
   fails the deploy and the old version keeps serving. Never deploy during an

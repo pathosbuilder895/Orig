@@ -392,15 +392,18 @@ def student_erase(student_id: str, request: Request):
 
     Staff may erase only their own workspace's students; operators may cross
     workspaces. A cross-tenant id reads as a missing one (404). A student who
-    also has an Original profile is refused with 409: erasing them removes
-    their writing baseline too, which stays behind Original's guarded
-    ``DELETE /students/{id}``."""
+    also has an Original profile with writing samples is refused with 409:
+    erasing them removes their writing baseline too, which stays behind
+    Original's guarded ``DELETE /students/{id}``. A profile with no samples
+    (its only approved exam was removed again) holds no baseline, so it does
+    not block erasure and is deleted with the rest."""
     staff = _require_staff(request)
     try:
         principal_mod.assert_student_access(staff, student_id)
     except principal_mod.TenantAccessError:
         raise HTTPException(status_code=404, detail="student not found") from None
-    if _repo().get(student_id) is not None:
+    profile = _repo().get(student_id)
+    if profile is not None and profile.sample_count > 0:
         raise HTTPException(
             status_code=409,
             detail=(

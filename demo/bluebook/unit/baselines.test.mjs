@@ -31,14 +31,21 @@ test('baseline API methods call the approval routes', async () => {
   ]);
 });
 
-test('the bulk summary counts every outcome and names held students', () => {
+test('the bulk summary counts every outcome and names students not added', () => {
   assert.equal(
     baselineSummary({ added: 2, already_in_baseline: 1, held: 1, nothing_written: 0, errors: 0,
       results: [{ status: 'held', student: 'Ana' }, { status: 'added', student: 'Ben' }] }),
-    '2 added · 1 already in baseline · 1 held for review. Held: Ana.',
+    '2 added · 1 already in baseline · 1 not added (differ strongly from earlier samples). Not added: Ana.',
   );
   assert.equal(
     baselineSummary({ added: 0, already_in_baseline: 0, held: 0, nothing_written: 1, errors: 1, results: [] }),
-    '0 added · 0 already in baseline · 0 held for review · 1 with nothing written · 1 could not be added.',
+    '0 added · 0 already in baseline · 0 not added (differ strongly from earlier samples) · 1 with nothing written · 1 could not be added.',
   );
+});
+
+test('the bulk summary never speaks of a review queue', () => {
+  const text = baselineSummary({ added: 0, already_in_baseline: 0, held: 2, nothing_written: 0, errors: 0,
+    results: [{ status: 'held', student: 'Ana' }, { status: 'held', student: 'Ben' }] });
+  assert.doesNotMatch(text, /review|held/i);
+  assert.match(text, /Not added: Ana, Ben\.$/);
 });

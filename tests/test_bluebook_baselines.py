@@ -174,7 +174,10 @@ def test_a_sample_held_by_the_drift_gate_is_reported_not_added(live_client, monk
 
     assert r.status_code == 200
     assert r.json()["status"] == "held"
-    assert "held for review" in r.json()["detail"]
+    assert r.json()["detail"] == (
+        "Not added: this exam differs strongly from the student's existing samples. "
+        "Approval does not override this check."
+    )
     assert _sample_count(stu) == 0
 
 
@@ -446,3 +449,103 @@ def test_status_reads_each_students_baseline_once(live_client, monkeypatch):
 
     assert len(r.json()["submissions"]) == 4
     assert len(calls) == 1
+
+
+# ── Final-review fixes: per-row Original, erasure, long text, operators ──
+
+
+def _operator(tenant: str) -> dict:
+    return _auth(principal_mod.mint_principal_token("op-1", "operator", tenant))
+
+
+def test_bulk_on_a_workspaceless_exam_skips_a_workspace_without_original(live_client, monkeypatch):
+    prof_a, course_a, exam_a = _workspace(live_client, email="a@school.edu")
+    prof_b, course_b, _exam_b = _workspace(live_client, email="b@other.edu", original=False)
+    stu_a = _student(live_client, prof_a, course_a, "ann@school.edu")
+    stu_b = _student(live_client, prof_b, course_b, "bea@other.edu")
+    # A legacy exam row with no workspace: _exam_submissions returns every
+    # workspace's rows for it. Both backends now require a tenant on the
+    # exam row, so the repository read is what carries the legacy shape.
+    repo = get_repository()
+    real_get = repo.get_bluebook_exam
+
+    def workspaceless(exam_id):
+        rec = real_get(exam_id)
+        return {**rec, "tenant_id": None} if rec and exam_id == exam_a["id"] else rec
+
+    monkeypatch.setattr(repo, "get_bluebook_exam", workspaceless)
+    sub_a = _plant(prof_a["tenant_id"], exam_a["id"], stu_a["student_id"])
+    sub_b = _plant(prof_b["tenant_id"], exam_a["id"], stu_b["student_id"])
+
+    r = live_client.post(f"/bluebook/exams/{exam_a['id']}/baseline", headers=_operator("ops"))
+
+    assert r.status_code == 200, r.text
+    rows = {row["submission_id"]: row for row in r.json()["results"]}
+    assert rows[sub_a]["status"] == "added"
+    assert rows[sub_b]["status"] == "error"
+    assert rows[sub_b]["detail"] == "This workspace's plan does not include Original."
+    assert (r.json()["added"], r.json()["errors"]) == (1, 1)
+    assert _sample_count(stu_a) == 1
+    assert get_repository().get(stu_b["student_id"]) is None
+
+
+def test_an_emptied_profile_does_not_block_erasure(live_client):
+    prof, course, exam = _workspace(live_client)
+    stu = _student(live_client, prof, course, "one@school.edu")
+    sub = _seal(live_client, stu, exam["id"])
+    h = _auth(prof["token"])
+    assert live_client.post(f"/bluebook/submissions/{sub}/baseline", headers=h).json()["status"] == "added"
+    assert live_client.delete(f"/bluebook/submissions/{sub}/baseline", headers=h).json()["status"] == "removed"
+    assert get_repository().get(stu["student_id"]).sample_count == 0
+
+    r = live_client.delete(f"/bluebook/students/{stu['student_id']}", headers=h)
+
+    assert r.status_code == 200, r.text
+    assert get_repository().get(stu["student_id"]) is None
+    assert get_repository().get_bluebook_submission(sub) is None
+
+
+def test_a_profile_with_samples_still_blocks_erasure(live_client):
+    prof, course, exam = _workspace(live_client)
+    stu = _student(live_client, prof, course, "one@school.edu")
+    sub = _seal(live_client, stu, exam["id"])
+    h = _auth(prof["token"])
+    live_client.post(f"/bluebook/submissions/{sub}/baseline", headers=h)
+
+    r = live_client.delete(f"/bluebook/students/{stu['student_id']}", headers=h)
+
+    assert r.status_code == 409
+    assert _sample_count(stu) == 1
+
+
+def test_an_exam_too_long_for_a_baseline_sample_is_refused_not_a_500(live_client):
+    prof, course, exam = _workspace(live_client)
+    stu = _student(live_client, prof, course, "one@school.edu")
+    # Within the seal's limit (answers total 200,000 characters), but the
+    # blank lines that join them push the baseline text past 200,000.
+    long_answers = ["a" * 100_000, "b" * 100_000]
+    sub = _plant(prof["tenant_id"], exam["id"], stu["student_id"], answers=long_answers)
+    h = _auth(prof["token"])
+
+    single = live_client.post(f"/bluebook/submissions/{sub}/baseline", headers=h)
+    bulk = live_client.post(f"/bluebook/exams/{exam['id']}/baseline", headers=h)
+
+    assert single.status_code == 422
+    assert single.json()["detail"] == "This exam is too long to add as a baseline sample."
+    assert bulk.status_code == 200, bulk.text
+    assert (bulk.json()["added"], bulk.json()["errors"]) == (0, 1)
+    assert bulk.json()["results"][0]["status"] == "error"
+    assert bulk.json()["results"][0]["detail"] == "This exam is too long to add as a baseline sample."
+    assert _sample_count(stu) == 0
+
+
+def test_an_operator_can_approve_in_its_own_workspace(live_client):
+    prof, course, exam = _workspace(live_client)
+    stu = _student(live_client, prof, course, "one@school.edu")
+    sub = _seal(live_client, stu, exam["id"])
+
+    r = live_client.post(f"/bluebook/submissions/{sub}/baseline", headers=_operator(prof["tenant_id"]))
+
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "added"
+    assert _sample_count(stu) == 1

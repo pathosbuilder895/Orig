@@ -55,8 +55,8 @@ Rules:
   headings for multi-question exams). Add, status and remove all use both, so a legacy sample is neither added a second
   time nor left behind on removal. No new columns.
 - **Outcomes for add:** `added`; `already_in_baseline` (same fingerprint already present; no-op); `held` (the drift gate
-  returned flag-for-review or reject; the sample is not admitted and the professor sees the gate's reason; approval
-  does not override the gate).
+  returned flag-for-review or reject; the sample is not admitted and the professor sees the not-added message below;
+  approval does not override the gate).
 - **Remove.** Find **every** sample carrying either fingerprint (duplicates included, e.g. a legacy seal-time sample
   plus an approved one), delete them all, rebuild the tension-arc κ baseline from the remaining authenticated samples,
   persist, and drop the fused score's in-process profile for the student. Uses `StudentState.remove_sample(...)` in
@@ -65,7 +65,9 @@ Rules:
   the cached TF-IDF vectorizer, since both are tied to the baseline's composition. It does not rewind `kappa_log` /
   `baseline_kappa`; the router rebuilds those. Outcomes: `removed`, `not_in_baseline`.
 - **Bulk** applies "add" to each sealed submission of the exam; a submission with no answer text is counted as
-  `nothing_written` instead of failing the batch. It returns
+  `nothing_written` instead of failing the batch. Each row is also checked against its **own** workspace's products:
+  an exam with no workspace (a legacy row) lists submissions from every workspace, so a row from a workspace without
+  Original becomes an `error` row ("This workspace's plan does not include Original.") and never reaches a profile. It returns
   `{"added": n, "already_in_baseline": n, "held": n, "nothing_written": n, "errors": n, "results": [{submission_id, student, status, detail}]}`;
   any other failure for a submission is reported as status `error` without stopping the batch: an HTTP error keeps its
   detail, anything else gets the generic "Could not be added." and is logged by submission id only. `errors` counts the
@@ -82,7 +84,8 @@ Errors:
 | Submission or exam not found, or in another workspace | 404 |
 | Caller is a student or anonymous | 403 / 401 (existing staff rules) |
 | Submission has no answer text | 422 `Nothing written to add.` |
-| Drift gate holds it | 200 with `status: "held"` and the gate's reason |
+| Joined answers exceed the baseline sample's 200,000-character cap | 422 `This exam is too long to add as a baseline sample.` (an `error` row in bulk) |
+| Drift gate holds it | 200 with `status: "held"` and `detail` "Not added: this exam differs strongly from the student's existing samples. Approval does not override this check." |
 | Remove when not in the baseline | 200 with `status: "not_in_baseline"` |
 
 ### 2. Seal and professor screens
@@ -99,13 +102,15 @@ Errors:
 - **Submission reader** (`demo/bluebook/Teacher.jsx`, the panel with "Save mark and feedback"), only when the workspace
   holds Original: a "Writing baseline" line showing **In baseline** / **Not in baseline**, with **Add to baseline** /
   **Remove from baseline** (removal confirms first). Result messages: "Added to <student>'s baseline." / "Already in
-  the baseline." / "Not added: this exam differs strongly from the student's existing samples, so it was held for
-  review."
+  the baseline." / "Not added: this exam differs strongly from the student's existing samples. Approval does not
+  override this check." After that held result the **Add to baseline** button stays hidden until the reader is
+  reopened, because each retry would only advance the drift counter. (Earlier drafts said "held for review"; there is
+  no review queue, so the wording no longer points at one. The API `status` value stays `held`.)
 - **Examination management page** (next to Release results and Export CSV), only with Original: **Add all sealed
-  submissions to baselines** (confirms first), then a summary such as "12 added · 3 already in baseline · 1 held for
-  review" naming the held ones.
+  submissions to baselines** (confirms first), then a summary such as "12 added · 3 already in baseline · 1 not added
+  (differ strongly from earlier samples). Not added: <student>." naming the held ones.
 - Wording follows "consistency, not accusation": the baseline is the student's own reference writing; a held exam is
-  "held for review", never "suspicious".
+  "not added" because it "differs strongly from earlier samples", never "suspicious".
 
 ### 3. Bluebook-only default for implicit workspace rows
 

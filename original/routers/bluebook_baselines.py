@@ -19,6 +19,7 @@ import logging
 import sys
 
 from fastapi import APIRouter, HTTPException, Request
+from pydantic import ValidationError
 
 from .. import principal as principal_mod
 from ..schemas import AddSampleRequest
@@ -33,9 +34,10 @@ router = APIRouter()
 NO_ORIGINAL = "This workspace's plan does not include Original."
 NOTHING_WRITTEN = "Nothing written to add."
 NOT_ADDED = "Could not be added."
+TOO_LONG = "This exam is too long to add as a baseline sample."
 HELD_DETAIL = (
-    "Not added: this exam differs strongly from the student's existing samples, "
-    "so it was held for review."
+    "Not added: this exam differs strongly from the student's existing samples. "
+    "Approval does not override this check."
 )
 
 
@@ -134,6 +136,10 @@ def _row(rec: dict, status: str, detail: str = "") -> dict:
 
 
 def _add(rec: dict, request: Request) -> dict:
+    # Per row, not only per exam: an exam with no workspace (a legacy row)
+    # lists submissions from every workspace, and a row from one without
+    # Original must never reach a profile.
+    _require_original(rec.get("tenant_id"))
     text = _baseline_text(rec)
     if not text or not rec.get("student_id"):
         return _row(rec, "nothing_written", NOTHING_WRITTEN)
@@ -143,13 +149,18 @@ def _add(rec: dict, request: Request) -> dict:
     state = _repo().get(rec["student_id"])
     if state is not None and _fingerprints(rec) & _hashes_from_samples(state.samples):
         return _row(rec, "already_in_baseline")
-    req = AddSampleRequest(
-        text=text,
-        provenance="proctored",
-        assignment=rec.get("exam") or "",
-        submitted_at=_submitted_at(rec),
-        submission_uuid=rec.get("submission_uuid") or rec["id"],
-    )
+    try:
+        req = AddSampleRequest(
+            text=text,
+            provenance="proctored",
+            assignment=rec.get("exam") or "",
+            submitted_at=_submitted_at(rec),
+            submission_uuid=rec.get("submission_uuid") or rec["id"],
+        )
+    except ValidationError:
+        # The seal caps the answers' total length; the blank lines joining
+        # them can still carry the text past the baseline sample's own cap.
+        raise HTTPException(status_code=422, detail=TOO_LONG) from None
     try:
         out = add_baseline(rec["student_id"], req, request)
     except HTTPException as exc:

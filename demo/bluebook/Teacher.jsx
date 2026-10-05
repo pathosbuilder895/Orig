@@ -59,12 +59,12 @@ export function baselineSummary(r) {
   const parts = [
     `${r.added} added`,
     `${r.already_in_baseline} already in baseline`,
-    `${r.held} held for review`,
+    `${r.held} not added (differ strongly from earlier samples)`,
   ];
   if (r.nothing_written) parts.push(`${r.nothing_written} with nothing written`);
   if (r.errors) parts.push(`${r.errors} could not be added`);
   const held = (r.results || []).filter(x => x.status === 'held').map(x => x.student).filter(Boolean);
-  return parts.join(' · ') + (held.length ? `. Held: ${held.join(', ')}.` : '.');
+  return parts.join(' · ') + (held.length ? `. Not added: ${held.join(', ')}.` : '.');
 }
 
 function BaselineControl({ sub }) {
@@ -73,6 +73,10 @@ function BaselineControl({ sub }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
+  // After a held result the Add button stays hidden until the reader is
+  // reopened: approval cannot override the check, and every retry would
+  // only advance the drift counter.
+  const [held, setHeld] = useState(false);
   const name = sub.student || 'the student';
 
   // `isLive` lets the effect drop a late answer after unmount; Try again
@@ -92,6 +96,7 @@ function BaselineControl({ sub }) {
 
   useEffect(() => {
     let live = true;
+    setHeld(false); setMessage('');
     if (!sub.exam_id) return undefined;
     loadStatus(() => live);
     return () => { live = false; };
@@ -101,7 +106,7 @@ function BaselineControl({ sub }) {
     setBusy(true); setError(''); setMessage('');
     try {
       const r = await BB_API.addToBaseline(sub.id);
-      if (r.status === 'held') setMessage(r.detail);
+      if (r.status === 'held') { setHeld(true); setMessage(r.detail); }
       else {
         if (r.status === 'added' || r.status === 'already_in_baseline') setInBaseline(true);
         setMessage(baselineMessage(r.status, name));
@@ -133,7 +138,7 @@ function BaselineControl({ sub }) {
       </p>
       {loadFailed && <Btn onClick={() => loadStatus()}>Try again</Btn>}
       {inBaseline === true && <Btn onClick={remove} disabled={busy}>Remove from baseline</Btn>}
-      {inBaseline === false && <Btn onClick={add} disabled={busy}>Add to baseline</Btn>}
+      {inBaseline === false && !held && <Btn onClick={add} disabled={busy}>Add to baseline</Btn>}
       <Notice>{message}</Notice>
       <ErrorText>{error}</ErrorText>
     </div>
@@ -368,7 +373,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
   }
 
   async function addAllToBaselines() {
-    if (!confirm('Add every sealed submission of this examination to the students’ writing baselines? Exams that differ strongly from a student’s existing samples are held for review, not added.')) return;
+    if (!confirm('Add every sealed submission of this examination to the students’ writing baselines? Exams that differ strongly from a student’s existing samples are not added.')) return;
     setBulkBusy(true); setError(''); setNotice('');
     try { setNotice(baselineSummary(await BB_API.addExamToBaselines(examId))); }
     catch (err) { setError(err.message || 'Could not add to baselines.'); }

@@ -95,7 +95,7 @@ test('a professor adds, removes and bulk-adds sealed exams as baselines', async 
 
   page.once('dialog', d => d.accept())
   await page.getByRole('button', { name: 'Add all sealed submissions to baselines' }).click()
-  await expect(page.getByText('1 added · 0 already in baseline · 0 held for review.')).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText('1 added · 0 already in baseline · 0 not added (differ strongly from earlier samples).')).toBeVisible({ timeout: 30_000 })
   await ctx.close()
 })
 
@@ -141,9 +141,41 @@ test('the bulk add shows progress and cannot be started twice', async ({ browser
   const running = page.getByRole('button', { name: 'Adding…' })
   await expect(running).toBeVisible()
   await expect(running).toBeDisabled()
-  await expect(page.getByText('1 added · 0 already in baseline · 0 held for review.')).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText('1 added · 0 already in baseline · 0 not added (differ strongly from earlier samples).')).toBeVisible({ timeout: 30_000 })
   await expect(page.getByRole('button', { name: 'Add all sealed submissions to baselines' })).toBeEnabled()
   expect(posts).toBe(1)
+  await ctx.close()
+})
+
+test('after a held result the Add button stays hidden until the reader is reopened', async ({ browser, request, baseURL }) => {
+  test.setTimeout(90_000)
+  const ws = await sealedExam(request, {})
+  const { ctx, page } = await teacherPage(browser, baseURL, ws, ['bluebook', 'original'])
+  // The server's HELD_DETAIL (original/routers/bluebook_baselines.py), word for word.
+  const held = "Not added: this exam differs strongly from the student's existing samples. " +
+    'Approval does not override this check.'
+
+  let posts = 0
+  await page.route('**/bluebook/submissions/*/baseline', route => {
+    if (route.request().method() !== 'POST') return route.continue()
+    posts += 1
+    return route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ submission_id: 'x', student: 'Baseline Student', status: 'held', detail: held }),
+    })
+  })
+  await openExam(page, ws.examTitle)
+  await page.getByRole('button', { name: 'Read & mark' }).first().click()
+  await page.getByRole('button', { name: 'Add to baseline' }).click()
+  await expect(page.getByText(held)).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('button', { name: 'Add to baseline' })).toHaveCount(0)
+  await expect(page.getByText('Writing baseline: Not in baseline', { exact: true })).toBeVisible()
+  expect(posts).toBe(1)
+
+  await page.getByRole('button', { name: 'Hide' }).click()
+  await page.getByRole('button', { name: 'Read & mark' }).first().click()
+  await expect(page.getByRole('button', { name: 'Add to baseline' })).toBeVisible()
+  await expect(page.getByText(held)).toHaveCount(0)
   await ctx.close()
 })
 
