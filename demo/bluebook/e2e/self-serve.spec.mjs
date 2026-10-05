@@ -109,7 +109,7 @@ test.describe('Public self-serve journey', () => {
     await expect(student.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
     // Honest conditions: nothing claims AI tools are blocked.
     await expect(student.getByText(/AI .*blocked/i)).toHaveCount(0)
-    await student.getByRole('button', { name: /Begin Examination/ }).click()
+    await student.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()
 
     // One question at a time, one answer box each.
     await expect(student.getByText(q1, { exact: false })).toBeVisible({ timeout: 10_000 })

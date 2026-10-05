@@ -474,7 +474,7 @@ for (const viewport of [null, { width: 375, height: 812 }]) {
       await page.goto('/bluebook/')
       await page.waitForLoadState('networkidle')
       await page.getByRole('row', { name: new RegExp(exam.title) }).getByRole('button', { name: /Open|Resume/ }).click()
-      await page.getByRole('button', { name: /Begin Examination/ }).click()
+      await page.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()
       await expect(page.getByLabel('Your answer to question 1')).toBeVisible({ timeout: 10_000 })
       checkA11y(await runAxe(page), 'Exam with separate answers' + tag)
       await context.close()

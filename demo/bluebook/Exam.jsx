@@ -58,6 +58,7 @@ export function examToConfig(detail, extra = {}) {
     questions:   Array.isArray(d.questions) ? d.questions : [],
     state:       d.state,
     closesAt:    d.closes_at || null,
+    inProgress:  !!d.session,
     loaded:      true,
     ...extra,
   };
@@ -438,7 +439,7 @@ export function BriefingScreen({ onNavigate }) {
               </p>
             ) : (
               <BtnPrimary full onClick={() => { if (cfg.blockWeb) bbRequestFullscreen(); onNavigate('exam'); }} style={{ padding: '14px 0', fontSize: 17 }}>
-                Begin Examination — Timer Commences
+                {cfg.inProgress ? 'Resume Examination — Timer Is Running' : 'Begin Examination — Timer Commences'}
               </BtnPrimary>
             )}
             <p style={{
