@@ -462,6 +462,11 @@ export const BB_API = {
   },
   releaseResults(id)    { return this._json('POST', `/bluebook/exams/${encodeURIComponent(id)}/release`); },
   unreleaseResults(id)  { return this._json('POST', `/bluebook/exams/${encodeURIComponent(id)}/unrelease`); },
+  // Professor-approved writing baselines (plan Phase 7).
+  addToBaseline(id)      { return this._json('POST',   `/bluebook/submissions/${encodeURIComponent(id)}/baseline`); },
+  removeFromBaseline(id) { return this._json('DELETE', `/bluebook/submissions/${encodeURIComponent(id)}/baseline`); },
+  examBaselineStatus(id) { return this._json('GET',    `/bluebook/exams/${encodeURIComponent(id)}/baseline`); },
+  addExamToBaselines(id) { return this._json('POST',   `/bluebook/exams/${encodeURIComponent(id)}/baseline`); },
   async authMe()        { return this._rememberProducts(await this._json('GET', '/auth/me')); },
   rosterRemove(courseId, sid) {
     return this._json('DELETE', `/bluebook/courses/${encodeURIComponent(courseId)}/students/${encodeURIComponent(sid)}`);

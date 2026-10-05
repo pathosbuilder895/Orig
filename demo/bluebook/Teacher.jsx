@@ -42,6 +42,84 @@ export function openRoster(course, onNavigate) {
   onNavigate('roster');
 }
 
+// Professor-approved writing baselines (plan Phase 7). Only a workspace that
+// holds Original sees these controls; a sealed exam enters a student's
+// baseline only when a professor adds it here or in bulk.
+const BASELINE_MESSAGE = {
+  added: name => `Added to ${name}'s baseline.`,
+  already_in_baseline: () => 'Already in the baseline.',
+  removed: name => `Removed from ${name}'s baseline.`,
+  not_in_baseline: () => 'It was not in the baseline.',
+};
+
+export function baselineSummary(r) {
+  const parts = [
+    `${r.added} added`,
+    `${r.already_in_baseline} already in baseline`,
+    `${r.held} held for review`,
+  ];
+  if (r.nothing_written) parts.push(`${r.nothing_written} with nothing written`);
+  if (r.errors) parts.push(`${r.errors} could not be added`);
+  const held = (r.results || []).filter(x => x.status === 'held').map(x => x.student).filter(Boolean);
+  return parts.join(' · ') + (held.length ? `. Held: ${held.join(', ')}.` : '.');
+}
+
+function BaselineControl({ sub }) {
+  const [inBaseline, setInBaseline] = useState(null);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const name = sub.student || 'the student';
+
+  useEffect(() => {
+    let live = true;
+    if (!sub.exam_id) return undefined;
+    BB_API.examBaselineStatus(sub.exam_id).then(d => {
+      if (!live) return;
+      const row = (d.submissions || []).find(r => r.submission_id === sub.id);
+      setInBaseline(row ? !!row.in_baseline : false);
+    }).catch(err => { if (live) setError(err.message || 'Could not load the baseline status.'); });
+    return () => { live = false; };
+  }, [sub.id, sub.exam_id]);
+
+  async function add() {
+    setBusy(true); setError(''); setMessage('');
+    try {
+      const r = await BB_API.addToBaseline(sub.id);
+      if (r.status === 'held') setMessage(r.detail);
+      else { setInBaseline(true); setMessage(BASELINE_MESSAGE[r.status](name)); }
+    } catch (err) { setError(err.message || 'Could not add to the baseline.'); }
+    setBusy(false);
+  }
+
+  async function remove() {
+    if (!confirm(`Remove this exam from ${name}'s baseline? Their profile is recomputed from the remaining samples.`)) return;
+    setBusy(true); setError(''); setMessage('');
+    try {
+      const r = await BB_API.removeFromBaseline(sub.id);
+      setInBaseline(false); setMessage(BASELINE_MESSAGE[r.status](name));
+    } catch (err) { setError(err.message || 'Could not remove from the baseline.'); }
+    setBusy(false);
+  }
+
+  if (!sub.exam_id) return null;
+  return (
+    <div className="bb-baseline" style={{ margin: '1rem 0' }}>
+      <p style={{ margin: '0 0 .4rem' }}>
+        <strong>Writing baseline:</strong>{' '}
+        {inBaseline === null ? 'checking…' : inBaseline ? 'In baseline' : 'Not in baseline'}
+      </p>
+      <p className="bb-hint" style={{ margin: '0 0 .6rem' }}>
+        The baseline is {name}'s own reference writing. Only exams you add are used.
+      </p>
+      {inBaseline === true && <Btn onClick={remove} disabled={busy}>Remove from baseline</Btn>}
+      {inBaseline === false && <Btn onClick={add} disabled={busy}>Add to baseline</Btn>}
+      <Notice>{message}</Notice>
+      <ErrorText>{error}</ErrorText>
+    </div>
+  );
+}
+
 // ─── Reading one submission (with grading) ───────────────────────────────────
 export function SubmissionReader({ submissionId, onClose, onSaved }) {
   const [sub, setSub] = useState(null);
@@ -106,6 +184,7 @@ export function SubmissionReader({ submissionId, onClose, onSaved }) {
               </div>
             )) : (sub.text || 'The text of this submission was not stored (it was sealed before text storage existed).')}
           </div>
+          {BB_API.hasOriginal() && <BaselineControl sub={sub} />}
           <form onSubmit={save} style={{ marginTop: '1.2rem' }}>
             <div className="bb-grid cols-3">
               <Field id={`mark-${submissionId}`} label="Mark (optional)" value={mark} onChange={setMark}
@@ -267,6 +346,13 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
     catch (err) { setError(err.message || 'Export failed.'); }
   }
 
+  async function addAllToBaselines() {
+    if (!confirm('Add every sealed submission of this examination to the students’ writing baselines? Exams that differ strongly from a student’s existing samples are held for review, not added.')) return;
+    setError(''); setNotice('');
+    try { setNotice(baselineSummary(await BB_API.addExamToBaselines(examId))); }
+    catch (err) { setError(err.message || 'Could not add to baselines.'); }
+  }
+
   const graded = subs.filter(s => s.mark || s.feedback).length;
   return (
     <Page
@@ -278,6 +364,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
         <Btn onClick={() => { window.BB_PROCTOR_EXAM = examId; onNavigate('proctor'); }}>Watch live</Btn>
         <Btn onClick={() => onPreview(exam)}>Preview</Btn>
         <Btn onClick={exportCsv}>Export CSV</Btn>
+        {BB_API.hasOriginal() && <Btn onClick={addAllToBaselines}>Add all sealed submissions to baselines</Btn>}
       </>}
     >
       <ErrorText>{error}</ErrorText>
