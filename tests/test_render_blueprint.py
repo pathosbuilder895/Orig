@@ -28,7 +28,6 @@ SECRETS = {
 
 
 def _env(service: str) -> dict[str, dict]:
-    # A static site (bluebook-teacher-demo) declares no envVars at all.
     return {e["key"]: e for e in SERVICES[service].get("envVars", [])}
 
 
@@ -99,7 +98,9 @@ def test_teacher_demo_is_a_separate_static_site():
     assert demo["runtime"] == "static"
     assert demo["buildCommand"] == "bash scripts/build_teacher_demo_site.sh dist-teacher-demo"
     assert demo["staticPublishPath"] == "./dist-teacher-demo"
-    assert "envVars" not in demo
+    assert _env("bluebook-teacher-demo") == {
+        "SKIP_INSTALL_DEPS": {"key": "SKIP_INSTALL_DEPS", "value": "true"}
+    }
 
 
 def test_blueprint_holds_only_the_pilot_and_its_teacher_demo():
