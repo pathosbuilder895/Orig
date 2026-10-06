@@ -65,7 +65,11 @@ def test_classroom_release_does_not_enable_research_scoring():
 def test_no_secret_value_is_committed(service):
     for key, entry in _env(service).items():
         if key in SECRETS:
-            assert "value" not in entry and entry.get("sync") is False, f"{service}:{key}"
+            assert "value" not in entry, f"{service}:{key}"
+            if service == "original-pilot" and key in {"SECRET_KEY", "MAINTENANCE_TOKEN"}:
+                assert entry.get("generateValue") is True and "sync" not in entry
+            else:
+                assert entry.get("sync") is False, f"{service}:{key}"
 
 
 def test_backup_job_fails_loudly_when_unconfigured():
