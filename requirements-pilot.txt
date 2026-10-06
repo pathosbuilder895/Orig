@@ -32,7 +32,7 @@ cryptography==50.0.0
 # process boots cleanly — pinned to match requirements.txt's versions.
 sqlalchemy==2.0.51
 alembic==1.18.5
-psycopg2-binary==2.9.12
+psycopg2-binary==2.9.13
 
 # ── Error monitoring (original/monitoring.py) ─────────────────────────────────
 # Initialised only when SENTRY_DSN is set; without it the SDK is never imported.
