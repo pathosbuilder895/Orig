@@ -61,13 +61,13 @@ services:
       # with `python scripts/invite_professor.py EMAIL --name NAME` (Render Shell).
       - key: SELF_SERVE_SIGNUP
         value: "0"
-      # Stable signing key — set in dashboard. Generate:
-      #   python -c "import secrets; print(secrets.token_urlsafe(64))"
+      # Render generates independent 256-bit secrets on first creation.
+      # Existing values are retained on later Blueprint syncs.
       - key: SECRET_KEY
-        sync: false
+        generateValue: true
       # Guard token for destructive/provisioning endpoints (X-Guard-Token).
       - key: MAINTENANCE_TOKEN
-        sync: false
+        generateValue: true
       - key: GUARD_DESTRUCTIVE
         value: "1"
       # Lock CORS to the public URL of THIS service. With a custom domain,
