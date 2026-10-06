@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Original · The Space of Authentic Thought</title>
+  <meta name="description" content="Original compares each paper with the student's own proctored writing, so a professor can see whether it is the same writer, and why.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/original-landing.css">
+
+  <style>
+    /* Cold-open epigraph: simple staggered fade per word.
+       Default state is VISIBLE; animation is enhancement only, so suspended
+       iframes still show the text immediately. */
+    .epi-latin .word         { display: inline-block; }
+    .epi-latin .word > span  {
+      display: inline-block;
+      animation: word-rise-x 1.1s cubic-bezier(.22,.8,.22,1) both;
+    }
+    @keyframes word-rise-x {
+      from { opacity: 0; transform: translateY(0.4em); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .epi-trans   { animation: fade-x 1.2s ease 1.1s both; }
+    .product-reveal {
+      position: absolute; bottom: 2.4rem; left: 50%;
+      transform: translateX(-50%);
+      animation: prod-reveal-x 1.4s ease 1.8s both;
+    }
+    @keyframes prod-reveal-x {
+      from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+    .scroll-cue {
+      animation: fade-09-x 1.2s ease 2.4s both,
+                 bob 2.4s ease-in-out infinite 2.6s;
+    }
+    @keyframes fade-x    { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fade-09-x { from { opacity: 0; } to { opacity: 0.9; } }
+
+    /* Failsafe: some embedded previews mark document.hidden=true and suspend
+       CSS animations. After 1.2s force the resolved state via inline !important. */
+    body.cold-open-fallback .epi-latin .word > span { opacity: 1 !important; transform: none !important; }
+    body.cold-open-fallback .epi-trans,
+    body.cold-open-fallback .product-reveal { opacity: 1 !important; }
+    body.cold-open-fallback .product-reveal { transform: translateX(-50%) !important; }
+    body.cold-open-fallback .hero-cta { opacity: 1 !important; }
+    body.cold-open-fallback .scroll-cue { opacity: 0.9 !important; }
+  </style>
+</head>
+
+<body data-palette="bodleian" data-motion="full" data-fontpair="playfair-garamond" data-hero="epigraph">
+
+  <div class="scroll-progress"></div>
+  <div class="grain-overlay" aria-hidden="true"></div>
+
+  <!-- ─── Nav ──────────────────────────────────────────────────────────── -->
+  <nav class="top" data-screen-label="Nav">
+    <a class="nav-brand" href="#top">
+      <span class="mark"></span>
+      <span>ORIGINAL</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#flattening">Premise</a></li>
+      <li><a href="#method">Method</a></li>
+      <li><a href="#tension">Tension Arc</a></li>
+      <li><a href="#dashboard">Dashboard</a></li>
+      <li><a href="#demo">Demonstration</a></li>
+    </ul>
+  </nav>
+
+  <main id="top">
+
+    <!-- ─── Act 0: Cold open ─────────────────────────────────────────── -->
+    <section class="cold-open engraved" data-screen-label="00 Cold open">
+      <img class="hero-bg" src="assets/radcliffe-engraving-navy.webp" alt="Radcliff Library from Exeter College Garden, 1822 engraving by J. &amp; H. S. Storer">
+      <div class="hero-cin" aria-hidden="true"></div>
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="epigraph">
+        <div class="epi-latin">Vita veritatem parit; veritas novitatem parit; novitas magnos viros parit.</div>
+        <div class="epi-trans"><em>Life begets Truth; Truth begets Originality; Originality begets Great Men</em></div>
+        <a class="hero-cta" href="#demo" data-magnetic="">
+          Discover Original <span class="arr" aria-hidden="true">→</span>
+        </a>
+      </div>
+      <div class="product-reveal">ORIGINAL <span class="dot">·</span></div>
+      <div class="scroll-cue">
+        <span>scroll</span>
+        <span class="line"></span>
+      </div>
+    </section>
+
+    <!-- ─── Act I: The Flattening ────────────────────────────────────── -->
+    <section class="act" id="flattening" data-screen-label="01 The Flattening">
+      <div class="container">
+        <div class="split stacked">
+          <div>
+            <div class="act-eyebrow reveal">
+              <span class="num">I</span>
+              <span>The flattening</span>
+            </div>
+            <h2 class="display reveal">
+              Every paper now reads like<br>
+              <em>every other paper.</em>
+            </h2>
+            <div class="hr-gold reveal"></div>
+            <div class="reveal-stagger">
+              <p class="lede">
+                The use of AI will quietly do what is already happening:
+                <em>shaving off</em> the unique parts of every writer. It gives every
+                student a perfect score in grammar, at the cost of <em>lifeless</em> prose.
+              </p>
+              <p class="lede">
+                The variance that once distinguished a freshman from a finalist
+                (the loose comma, the unjustified <em>but</em>, the sentence that
+                forgets its own beginning) has been quietly ironed out.
+              </p>
+              <p class="lede">
+                <strong>Plagiarism detectors ask the wrong question</strong>:
+                they ask <em>what</em> wrote this, human or computer. The inevitable
+                question, the more difficult question, is: did <em>this student</em>
+                write this paper?
+              </p>
+              <p class="lede">
+                Original turns verified, proctored writing into a
+                <strong>verified baseline</strong>, so when a take-home paper is
+                questioned, it will show whether it is the <em>same writer</em>,
+                and why.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Ruin: full-bleed photo section ──────────────────────────── -->
+    <section class="act ruin-act" id="ruin" data-screen-label="01b Ruin">
+      <img class="ruin-bg" src="assets/st-andrews-ruins.webp" alt="The ruins of St Andrews Cathedral">
+      <div class="ruin-tint"></div>
+      <div class="ruin reveal">
+        <div class="ruin-q">Do we walk into ruin?</div>
+        <div class="ruin-body">
+          <p>We walk into the ruin of writing not through copying someone
+          else, but through a lack of true inspiration, a conformance to
+          nothing but the next AI suggestion. Over time it is no longer
+          <em>your</em> writing: not something you could have written,
+          but what <em>everyone</em> has written.</p>
+          <p>Death is not detected by a grammar check, because grammar is
+          the one area to survive. It is rather their <em>hand</em>, their
+          style, fading into nothingness; not just one, but all future
+          generations giving papers that no one can tell apart.</p>
+        </div>
+        <div class="ruin-rule"></div>
+        <div class="ruin-answer">Only if no one can say whose words are whose. <em>That is the part Original refuses to lose.</em></div>
+      </div>
+    </section>
+
+    <!-- ─── Act II: Fingerprint ──────────────────────────────────────── -->
+    <section class="act fingerprint-act" id="fingerprint" data-screen-label="02 Fingerprint">
+      <div class="container">
+        <div>
+          <div class="act-eyebrow reveal">
+            <span class="num">II</span>
+            <span>The premise</span>
+          </div>
+          <h2 class="display reveal">
+            Every writer leaves <em>a fingerprint.</em>
+          </h2>
+          <div class="hr-gold reveal"></div>
+          <div class="reveal-stagger">
+            <p class="lede">
+              Style doesn't live as decoration, but as the structural,
+              underlying habits of the writer: the cadence, the semicolon
+              instead of the em dash, the <em>habitual</em> style people reach
+              for, growing inside them since they first composed a sentence.
+            </p>
+            <p class="lede">
+              As these habits are stable across time, and dense across paragraphs,
+              they become measurable to a <strong>thousandth of a unit</strong>
+              across a hundred different markers.
+            </p>
+            <p class="lede">
+              Original reconciles them all to find your fingerprint.
+            </p>
+          </div>
+        </div>
+
+        <div class="fingerprint-canvas-wrap reveal" data-magnetic="">
+          <canvas id="fp-canvas"></canvas>
+          <div class="fingerprint-readout">
+            <span class="big" id="fp-id">A. Webb · 0x7C3</span>
+            <span class="row">DIMENSIONS · 109</span>
+            <span class="row">RINGS · 16</span>
+            <span class="row">DEPTH · tier I → XVIII</span>
+            <span class="row">STATE · <em>resolved</em></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Act III: Method: seven families / 109 features ───────────── -->
+    <!-- The seven cards are families of the 18 code tiers (original/constants.py),
+         counted over the 97 features active by default:
+           I   T1 + the two profile divergences   11     V   T5                 7
+           II  T2, T9, T10                         17     VI  T6, T7            12
+           III T3, T15, T16                        25     VII T8, T12 (κ), T13  11
+           IV  T4, T11, T14                        14
+         T17 keystroke + T18 uniformity (12 features) are off until validated. -->
+    <section class="act tiers-act" id="method" data-screen-label="03 Method">
+      <div class="container">
+        <div class="act-eyebrow reveal">
+          <span class="num">III</span>
+          <span>The method</span>
+        </div>
+
+        <div class="tier-count-row">
+          <div class="tier-count-display reveal">
+            109<span class="small">features</span>
+          </div>
+          <div>
+            <h3 class="display reveal" style="margin-bottom:1rem">
+              Seven families of <em>quiet evidence.</em>
+            </h3>
+            <p class="lede reveal">
+              Each submission is parsed into <strong>109 stylometric features</strong>
+              across eighteen tiers, from the surface (sentence length, vocabulary
+              range) to the idiosyncratic (the exact rhythm at which <em>you</em>
+              place a dash). Ninety-seven are active today; the twelve keystroke and
+              uniformity features stay off until they pass validation.
+            </p>
+          </div>
+        </div>
+
+        <div class="tier-grid reveal-stagger">
+          <div class="tier-card">
+            <div class="t-count">11</div>
+            <div class="t-num">FAMILY · I</div>
+            <div class="t-name">Surface stylometrics</div>
+            <div class="t-body">
+              Sentence length, vocabulary range, type-token ratio, hapax legomena.
+              The first <em>sediment</em> of voice.
+            </div>
+            <div class="t-viz"><svg viewBox="0 0 240 40" preserveAspectRatio="none" width="100%" height="100%">
+              <path d="M0 32 L20 14 L40 26 L60 8 L80 22 L100 18 L120 28 L140 12 L160 20 L180 6 L200 24 L220 16 L240 22" stroke="rgba(201,160,40,0.7)" stroke-width="1" fill="none"></path>
+            </svg></div>
+          </div>
+
+          <div class="tier-card">
+            <div class="t-count">17</div>
+            <div class="t-num">FAMILY · II</div>
+            <div class="t-name">Discourse structure</div>
+            <div class="t-body">
+              Paragraph rhythm, argument chaining, semicolon density, transition habit.
+              How a paragraph <em>thinks aloud.</em>
+            </div>
+            <div class="t-viz"><svg viewBox="0 0 240 40" preserveAspectRatio="none" width="100%" height="100%">
+              <g stroke="rgba(245,239,224,0.45)" stroke-width="1">
+                <line x1="0" y1="34" x2="40" y2="34"></line>
+                <line x1="50" y1="22" x2="100" y2="22"></line>
+                <line x1="110" y1="28" x2="150" y2="28"></line>
+                <line x1="160" y1="12" x2="240" y2="12"></line>
+              </g>
+            </svg></div>
+          </div>
+
+          <div class="tier-card">
+            <div class="t-count">25</div>
+            <div class="t-num">FAMILY · III</div>
+            <div class="t-name">Rhetorical register</div>
+            <div class="t-body">
+              Formality, hedging, Latinate weight, and how sources are brought in.
+              The <em>weight</em> a writer chooses against the page.
+            </div>
+            <div class="t-viz"><svg viewBox="0 0 240 40" preserveAspectRatio="none" width="100%" height="100%">
+              <g fill="rgba(201,160,40,0.4)">
+                <rect x="0" y="22" width="14" height="14"></rect>
+                <rect x="20" y="14" width="14" height="22"></rect>
+                <rect x="40" y="18" width="14" height="18"></rect>
+                <rect x="60" y="8" width="14" height="28"></rect>
+                <rect x="80" y="20" width="14" height="16"></rect>
+                <rect x="100" y="12" width="14" height="24"></rect>
+                <rect x="120" y="24" width="14" height="12"></rect>
+                <rect x="140" y="16" width="14" height="20"></rect>
+                <rect x="160" y="10" width="14" height="26"></rect>
+                <rect x="180" y="20" width="14" height="16"></rect>
+                <rect x="200" y="14" width="14" height="22"></rect>
+                <rect x="220" y="18" width="14" height="18"></rect>
+              </g>
+            </svg></div>
+          </div>
+
+          <div class="tier-card">
+            <div class="t-count">14</div>
+            <div class="t-num">FAMILY · IV</div>
+            <div class="t-name">Character &amp; punctuation</div>
+            <div class="t-body">
+              The em-dash, the Oxford comma, the late capital. The <em>typographic
+              tells</em> a writer never thinks to suppress.
+            </div>
+            <div class="t-viz"><svg viewBox="0 0 240 40" preserveAspectRatio="xMidYMid meet" width="100%" height="100%">
+              <g fill="rgba(245,239,224,0.5)" font-family="JetBrains Mono" font-size="14">
+                <text x="0" y="28">,</text><text x="20" y="28">.</text><text x="38" y="28">;</text>
+                <text x="56" y="28">&#8212;</text><text x="84" y="28">"</text><text x="106" y="28">"</text>
+                <text x="128" y="28">'</text><text x="146" y="28">:</text><text x="166" y="28">?</text>
+                <text x="186" y="28">!</text><text x="206" y="28">…</text><text x="226" y="28">/</text>
+              </g>
+            </svg></div>
+          </div>
+
+          <div class="tier-card">
+            <div class="t-count">7</div>
+            <div class="t-num">FAMILY · V</div>
+            <div class="t-name">POS &amp; syntax</div>
+            <div class="t-body">
+              Part-of-speech n-gram entropy, dependency depth, clause embedding.
+              The <em>scaffold</em> beneath the sentence.
+            </div>
+            <div class="t-viz"><svg viewBox="0 0 240 40" preserveAspectRatio="none" width="100%" height="100%">
+              <g fill="none" stroke="rgba(201,160,40,0.55)" stroke-width="1">
+                <path d="M20 36 L60 12 L100 28 L140 8 L180 24 L220 16"></path>
+                <circle cx="20" cy="36" r="2"></circle>
+                <circle cx="60" cy="12" r="2"></circle>
+                <circle cx="100" cy="28" r="2"></circle>
+                <circle cx="140" cy="8" r="2"></circle>
+                <circle cx="180" cy="24" r="2"></circle>
+                <circle cx="220" cy="16" r="2"></circle>
+              </g>
+            </svg></div>
+          </div>
+
+          <div class="tier-card">
+            <div class="t-count">12</div>
+            <div class="t-num">FAMILY · VI</div>
+            <div class="t-name">Idiosyncratic patterns</div>
+            <div class="t-body">
+              The phrase you wear out. The conjunction you avoid. The number you
+              prefer to write as a word. <em>Unconscious property.</em>
+            </div>
+            <div class="t-viz"><svg viewBox="0 0 240 40" preserveAspectRatio="xMidYMid meet" width="100%" height="100%">
+              <g stroke="rgba(245,239,224,0.4)" stroke-width="0.8" fill="none">
+                <circle cx="40" cy="20" r="14"></circle>
+                <circle cx="40" cy="20" r="9"></circle>
+                <circle cx="40" cy="20" r="4"></circle>
+                <circle cx="120" cy="20" r="16"></circle>
+                <circle cx="120" cy="20" r="11"></circle>
+                <circle cx="120" cy="20" r="6"></circle>
+                <circle cx="200" cy="20" r="14"></circle>
+                <circle cx="200" cy="20" r="9"></circle>
+                <circle cx="200" cy="20" r="4"></circle>
+              </g>
+            </svg></div>
+          </div>
+
+          <div class="tier-card">
+            <div class="t-count">11</div>
+            <div class="t-num">FAMILY · VII</div>
+            <div class="t-name">Cadence &amp; tension</div>
+            <div class="t-body">
+              Stress patterns, breath groups, clausulae, and the tension arc κ.
+              The <em>music</em> under the argument.
+            </div>
+            <div class="t-viz"><svg viewBox="0 0 240 40" preserveAspectRatio="xMidYMid meet" width="100%" height="100%">
+              <defs>
+                <linearGradient id="vAuth" x1="0" x2="1">
+                  <stop offset="0" stop-color="rgba(201,160,40,0.1)"></stop>
+                  <stop offset=".5" stop-color="rgba(201,160,40,0.6)"></stop>
+                  <stop offset="1" stop-color="rgba(201,160,40,0.1)"></stop>
+                </linearGradient>
+              </defs>
+              <rect x="0" y="18" width="240" height="4" fill="url(#vAuth)"></rect>
+              <circle cx="160" cy="20" r="6" fill="none" stroke="rgba(245,239,224,0.7)"></circle>
+              <circle cx="160" cy="20" r="2" fill="rgba(201,160,40,0.85)"></circle>
+            </svg></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Act III·b: Bluebook: where the baseline comes from ──────── -->
+    <section class="act bluebook-act" id="bluebook" data-screen-label="03b Bluebook">
+      <div class="container">
+        <div class="act-eyebrow reveal">
+          <span class="num">III·b</span>
+          <span>The bluebook</span>
+        </div>
+        <h2 class="display reveal">
+          A fingerprint is only as honest<br>
+          as the hand that <em>gave it.</em>
+        </h2>
+        <div class="hr-gold reveal"></div>
+        <div class="bb-split">
+          <div class="reveal-stagger">
+            <p class="lede" data-comment-anchor="5e2e720cb3-p">
+              Every comparison Original makes rests on one question:
+              <strong>what does this student's writing actually look like?</strong>
+              The answer can never come from take-home work; it must come
+              from writing no one could have done <em>for</em> them.
+            </p>
+            <p class="lede">
+              So the baseline is built only from <em>proctored</em> writing:
+              in-class exams sat in <strong>Bluebook</strong>, a locked exam
+              window the professor opens and a proctor supervises. Each sealed
+              exam becomes an <strong>authenticated sample</strong>: timed,
+              dated, and marked as proctored.
+            </p>
+            <p class="lede">
+              About five sealed exams in, the profile is ready to compare
+              against, and Original tells the professor while a baseline is
+              still thin. <strong>Zero student setup</strong>: they just write,
+              the way they always have.
+            </p>
+          </div>
+          <div class="bb-visual reveal">
+            <div class="bb-book">
+              <div class="bb-cover">
+                <span class="bb-lbl">Examination Booklet</span>
+                <span class="bb-title">Blue Book</span>
+                <span class="bb-rule"></span>
+                <span class="bb-line"><i>Name</i>James Whitfield</span>
+                <span class="bb-line"><i>Course</i>THEO 301 · Dr. Hendricks</span>
+                <span class="bb-line"><i>Date</i>14 Feb 2026 · proctored</span>
+              </div>
+            </div>
+            <div class="bb-steps">
+              <div class="bb-step"><span class="bb-n">1</span><div><b>Written in class</b><span>supervised, in a locked exam window</span></div></div>
+              <div class="bb-step"><span class="bb-n">2</span><div><b>Sealed on submit</b><span>timed, dated, marked proctored</span></div></div>
+              <div class="bb-step"><span class="bb-n">3</span><div><b>Banked as baseline</b><span>an authenticated sample of their voice</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Act IV: Tension Arc κ ────────────────────────────────────── -->
+    <section class="act tension-act" id="tension" data-screen-label="04 Tension Arc">
+      <div class="container">
+        <div class="act-eyebrow reveal">
+          <span class="num">IV</span>
+          <span>The tension arc</span>
+        </div>
+
+        <div class="tension-header">
+          <h2 class="display reveal">
+            What a real writer<br>
+            <em>cannot help building.</em>
+          </h2>
+          <div class="kappa-glyph reveal" data-magnetic="">κ</div>
+        </div>
+
+        <div class="reveal" style="margin-bottom: 3rem">
+          <p class="lede" style="max-width: 64ch;">
+            Beneath the surface features, Original measures a deeper signal
+            borrowed from catastrophe theory: the <strong>tension arc</strong>,
+            κ = σ(ρ) · (1 − μ(ρ)). It is the structural unresolved tension
+            that runs across a real argument: the writer's instinct to
+            <em>not yet say it</em>, to build, defer, dwell, and only then resolve.
+            AI text, even when fluent, tends to <em>flatten the arc</em>.
+          </p>
+        </div>
+
+        <div class="tension-viz reveal" data-magnetic="">
+          <canvas id="tension-canvas"></canvas>
+          <div class="tension-hover" id="tension-hover"></div>
+          <div class="tension-axis">
+            <span>¶ 01 &nbsp;exposition</span>
+            <span>complication</span>
+            <span>climax</span>
+            <span>¶ 24 &nbsp;resolution</span>
+          </div>
+        </div>
+
+        <div class="tension-legend reveal-stagger">
+          <div class="item">
+            <div class="lbl">κ · baseline (ghost)</div>
+            <div class="val"><em>this writer's habit.</em></div>
+            <div class="desc">
+              Averaged over three authenticated samples. The shape of
+              tension a real author tends to build.
+            </div>
+          </div>
+          <div class="item">
+            <div class="lbl">κ · submission (gold)</div>
+            <div class="val"><em>this paper's arc.</em></div>
+            <div class="desc">
+              A submission's measured tension across paragraphs. Deviation
+              from baseline becomes one orthogonal input to the score.
+            </div>
+          </div>
+          <div class="item">
+            <div class="lbl">why it works</div>
+            <div class="val"><em>it cannot be faked quickly.</em></div>
+            <div class="desc">
+              κ emerges from how an author <em>resists</em> resolution.
+              Models trained to be helpful resolve too eagerly.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Act V: Baseline ──────────────────────────────────────────── -->
+    <section class="act baseline-act" id="baseline" data-screen-label="05 Baseline">
+      <div class="container">
+        <div class="baseline-grid">
+          <div class="papers-stack reveal" data-magnetic="">
+
+            <!-- 1 · The document, as Original sees it -->
+            <div class="paper p1">
+              <div class="p-head"><em>The document</em> · as Original sees it</div>
+              <div class="p-title">Essay 3 · On Augustine's restless heart</div>
+              <div class="p-doc">
+                <span>The </span><span class="hl-ok">Confessions is a strange artefact</span><span>, at once a public book and a private one. </span>
+                <span class="hl-warn">It is imperative to acknowledge that the epistemological framework</span><span> underpinning Augustine's narrative </span><span class="hl-warn">facilitates a multifaceted exploration</span><span> of interiority. What I want to argue, briefly, is that </span><span class="hl-ok">the form is not incidental to the argument</span><span>: the interruptions are the theology.</span>
+              </div>
+              <div class="p-legend">
+                <span class="lg"><i class="sw sw-ok"></i>matches voice baseline</span>
+                <span class="lg"><i class="sw sw-warn"></i>stylometric anomaly</span>
+              </div>
+            </div>
+
+            <!-- 2 · The diagnosis, from the dashboard -->
+            <div class="paper p2">
+              <div class="p-head"><em>The diagnosis</em> · pulled from the dashboard</div>
+              <div class="diag-alert">Notable stylometric deviation: 4 of 9 features outside baseline range</div>
+              <div class="diag-row">
+                <div class="diag-lbl">Sentence length</div>
+                <div class="diag-bars">
+                  <div class="diag-bar"><span class="fill base" style="width:42%"></span><span class="tag">baseline 18.3</span></div>
+                  <div class="diag-bar"><span class="fill dev" style="width:76%"></span><span class="tag">this paper 31.2</span></div>
+                </div>
+              </div>
+              <div class="diag-row">
+                <div class="diag-lbl">Everyday connector words</div>
+                <div class="diag-bars">
+                  <div class="diag-bar"><span class="fill base" style="width:58%"></span><span class="tag">baseline 46%</span></div>
+                  <div class="diag-bar"><span class="fill dev" style="width:38%"></span><span class="tag">this paper 31%</span></div>
+                </div>
+              </div>
+              <div class="diag-row">
+                <div class="diag-lbl">Narrative tension κ</div>
+                <div class="diag-bars">
+                  <div class="diag-bar"><span class="fill base" style="width:64%"></span><span class="tag">baseline 0.61</span></div>
+                  <div class="diag-bar"><span class="fill dev" style="width:24%"></span><span class="tag">this paper 0.22</span></div>
+                </div>
+              </div>
+              <div class="diag-note">Deviation is a signal, not a verdict; one input into your judgement.</div>
+            </div>
+
+            <!-- 3 · What we did -->
+            <div class="paper p3">
+              <div class="p-head"><em>What we did</em> · the projection</div>
+              <div class="proj-visual">
+                <svg viewBox="0 0 220 120" width="100%" aria-hidden="true">
+                  <g fill="none" stroke="rgba(122,78,45,0.35)" stroke-width="1">
+                    <circle cx="60" cy="60" r="44"></circle>
+                    <circle cx="60" cy="60" r="30"></circle>
+                    <circle cx="60" cy="60" r="16"></circle>
+                  </g>
+                  <polygon points="60,22 92,44 84,84 38,88 28,50" fill="rgba(42,82,64,0.18)" stroke="#2a5240" stroke-width="1.5"></polygon>
+                  <polygon points="60,34 100,52 74,92 30,80 36,54" fill="rgba(155,100,32,0.14)" stroke="#9b6420" stroke-width="1.5" stroke-dasharray="4 3"></polygon>
+                  <line x1="118" y1="60" x2="140" y2="60" stroke="rgba(122,78,45,0.4)" stroke-width="1"></line>
+                  <g font-family="Georgia, serif" font-size="9.5" fill="#5a4030">
+                    <text x="146" y="42">voice match</text>
+                    <text x="146" y="56" font-size="15" font-style="italic" fill="#162b22">0.71</text>
+                    <text x="146" y="78">flagged for</text>
+                    <text x="146" y="90">human review</text>
+                  </g>
+                </svg>
+              </div>
+              <div class="proj-caption">
+                109 features extracted, measured against this student's baseline
+                fingerprint <span class="rho">ρ</span>. Solid: their voice.
+                Dashed: this paper.
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="act-eyebrow reveal">
+              <span class="num">V</span>
+              <span>The baseline</span>
+            </div>
+            <h2 class="display reveal">
+              Three papers.<br>
+              <em>One voice.</em>
+            </h2>
+            <div class="hr-gold reveal"></div>
+            <div class="reveal-stagger">
+              <p class="lede">
+                Original is not a detector of <em>difference from a norm</em>.
+                It is a detector of <em>difference from yourself</em>.
+              </p>
+              <p class="lede">
+                The instructor authenticates <strong>five or more</strong> writing
+                samples in-class, by hand, or under supervision. From these,
+                Original constructs the student's baseline fingerprint,
+                a quantum density matrix <span style="font-family:var(--mono);color:var(--gold);">ρ</span>
+                spanning every tier.
+              </p>
+              <p class="lede">
+                Every later submission is measured against that baseline.
+                <em>The math is fair</em>: each student is compared only to themselves.
+                ESL students, neurodivergent writers, and idiosyncratic stylists
+                are not penalised for being unusual, only for being <em>suddenly
+                someone else.</em>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Act V·b: The dashboard, previewed live ───────────────────── -->
+    <!-- The real page (original-quantum.html) runs inside the frame at its native
+         desktop width and is scaled to fit, so the preview cannot drift from it. -->
+    <section class="act ops-act" id="dashboard" data-screen-label="05a Dashboard">
+      <div class="container">
+        <div class="act-eyebrow reveal">
+          <span class="num">V·b</span>
+          <span>The dashboard</span>
+        </div>
+        <h2 class="display reveal">
+          The whole term on one page.<br>
+          <em>Every flag with its evidence.</em>
+        </h2>
+        <div class="hr-gold reveal"></div>
+        <p class="lede reveal" style="max-width: 60ch;">
+          This is what a professor opens on a Monday morning: the term at a glance,
+          the few papers that read differently from their writers' usual habits,
+          and a plain-English account of what moved. Choose <em>stats</em> on any
+          row to see one student's evidence, tier by tier.
+        </p>
+        <div class="ops-preview reveal">
+          <iframe src="original-quantum.html?embed=1" title="Live preview of the Original professor dashboard, with illustrative data" loading="lazy"></iframe>
+        </div>
+        <div class="ops-preview-foot reveal">
+          <span>Illustrative data · names are fictional</span>
+          <a href="original-quantum.html">Open full screen <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Parallax photo break ─────────────────────────────────────── -->
+    <section class="act" style="padding: 0; min-height: 0;" data-screen-label="05b Photo break">
+      <div class="parallax-figure">
+        <img class="parallax-bg" src="assets/all-souls-engraving.webp" alt="West Front of All Souls College, 1834 engraving by F. Mackenzie and J. Le Keux">
+        <span class="caption">West Front of All Souls College · Mackenzie &amp; Le Keux, 1834</span>
+      </div>
+    </section>
+
+    <!-- ─── Act VI: Live demo ────────────────────────────────────────── -->
+    <section class="act demo-act" id="demo" data-screen-label="06 Demonstration">
+      <div class="container">
+        <div class="act-eyebrow reveal">
+          <span class="num">VI</span>
+          <span>The demonstration</span>
+        </div>
+        <h2 class="display reveal">
+          Try Original<br>
+          <em>on your own writing.</em>
+        </h2>
+        <div class="hr-gold reveal"></div>
+        <p class="lede reveal" style="max-width: 56ch;">
+          Paste any passage: twenty words is enough, two hundred is
+          better. Your browser measures a handful of surface habits in real
+          time and draws a provisional fingerprint; nothing is sent anywhere.
+          (The full instrument, 109 features compared against a proctored
+          baseline, runs on the server.)
+        </p>
+
+        <div class="demo-grid reveal" id="demo-root">
+          <div class="demo-input">
+            <div class="demo-input-head">
+              <span class="demo-label">PASTE TEXT</span>
+              <span class="demo-word-count">0 words</span>
+            </div>
+            <textarea class="demo-textarea" placeholder="Paste a paragraph or two of your own writing here…"></textarea>
+            <div class="demo-actions">
+              <button class="demo-btn run" data-magnetic="">Extract fingerprint</button>
+              <button class="demo-btn ghost sample" data-magnetic="">Use sample</button>
+              <button class="demo-btn ghost clear" data-magnetic="">Clear</button>
+            </div>
+          </div>
+
+          <div class="demo-readout">
+            <div class="demo-readout-head">
+              <span class="demo-label">FINGERPRINT</span>
+              <span class="demo-word-count" style="font-style:italic">live extraction</span>
+            </div>
+            <div class="demo-readout-canvas">
+              <canvas class="demo-canvas"></canvas>
+              <div class="demo-feature-strip"></div>
+            </div>
+            <div class="demo-result">
+              <div class="cell cell-voice">
+                <div class="lbl">SENTENCE</div>
+                <div class="v">·</div>
+                <div class="sub">mean length, words</div>
+              </div>
+              <div class="cell cell-kappa">
+                <div class="lbl">VOCABULARY</div>
+                <div class="v">·</div>
+                <div class="sub">unique words</div>
+              </div>
+              <div class="cell cell-features">
+                <div class="lbl">MEASURED</div>
+                <div class="v">·</div>
+                <div class="sub">here, in your browser</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Act VII: Closing ─────────────────────────────────────────── -->
+    <section class="act notnot-act" id="notnot" data-screen-label="06b What it is not" style="padding:5rem 0;">
+      <div class="container">
+        <div class="notnot">
+          <div class="nn reveal"><div class="nn-x">✕</div><b>Not an AI-likelihood score.</b><span>Every comparison is against the student’s own proctored writing, never a black-box guess.</span></div>
+          <div class="nn reveal"><div class="nn-x">✕</div><b>Not surveillance.</b><span>No retroactive sweeps, no camera, no screen. Only work written under supervision builds a baseline.</span></div>
+          <div class="nn reveal"><div class="nn-x">✕</div><b>Not a verdict.</b><span>The professor stays the grader. The student always sees their own report: a gap to discuss, not a judgment.</span></div>
+        </div>
+        <div class="promise reveal">
+          <div class="promise-h">The promise, per course, per semester</div>
+          <div class="promise-grid">
+            <div class="pr"><div class="pr-n">Typed</div><div class="pr-t">Bluebook exams arrive typed, timed and searchable; no handwriting to decipher.</div></div>
+            <div class="pr"><div class="pr-n">Midterm</div><div class="pr-t">A verified writing profile for every student: zero student setup, proctored work only.</div></div>
+            <div class="pr"><div class="pr-n">Plain</div><div class="pr-t">A same-writer report when a paper is questioned, in language a committee can defend.</div></div>
+            <div class="pr"><div class="pr-n">Open</div><div class="pr-t">Every report is visible to the student. No hidden score, no black box.</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="closing-act" data-screen-label="07 Closing">
+      <div>
+        <div class="closing-quote peel">If you tell the truth, you will become original without ever having noticed it.</div>
+        <div class="closing-attrib reveal">C. S. Lewis</div>
+        <div class="closing-rule"></div>
+      </div>
+    </section>
+
+    <!-- ─── Footer ───────────────────────────────────────────────────── -->
+    <footer data-screen-label="Footer">
+      <div class="container">
+        <div>
+          <div class="brand">ORIGINAL <span style="color:var(--gold)">·</span></div>
+          <div class="tagline">
+            Stylometric analysis that protects the space of authentic thought.
+          </div>
+        </div>
+        <div>
+          <h5>The Method</h5>
+          <ul>
+            <li><a href="#fingerprint">Fingerprint</a></li>
+            <li><a href="#method">109 features</a></li>
+            <li><a href="#tension">Tension arc κ</a></li>
+            <li><a href="#baseline">Baseline ritual</a></li>
+          </ul>
+        </div>
+        <div>
+          <h5>For Institutions</h5>
+          <ul>
+            <!-- The design linked a pilot brief, privacy, Canvas and docs pages.
+                 None exist for Original yet (demo/legal/ is Bluebook's policy);
+                 restore those links when they do. -->
+            <li><a href="index.html">Sign in</a></li>
+            <li><a href="bluebook/">Bluebook exams</a></li>
+            <li><a href="original-quantum.html">The dashboard</a></li>
+          </ul>
+        </div>
+        <div>
+          <h5>For Writers</h5>
+          <ul>
+            <li><a href="#method">What we measure</a></li>
+            <li><a href="#notnot">What we don't</a></li>
+            <li><a href="#demo">Try it on your writing</a></li>
+          </ul>
+        </div>
+        <div class="colophon">
+          <span>© Original Stylometrics · MMXXVI</span>
+          <span><em>Originalis · auctor · est.</em></span>
+        </div>
+      </div>
+    </footer>
+
+  </main>
+
+  <!-- ─── Scripts ──────────────────────────────────────────────────────── -->
+  <script src="js/cursor.js"></script>
+  <script src="js/fingerprint.js"></script>
+  <script src="js/tension-arc.js"></script>
+  <script src="js/live-demo.js"></script>
+  <script src="js/scenes.js"></script>
+
+  <script>
+    // ── Init visualizations ────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      // Main fingerprint
+      const fpCanvas = document.getElementById('fp-canvas');
+      if (fpCanvas) window.Fingerprint(fpCanvas);
+
+      // Tension arc
+      const tCanvas = document.getElementById('tension-canvas');
+      const tHover  = document.getElementById('tension-hover');
+      if (tCanvas) window.TensionArc(tCanvas, tHover);
+
+      // Live demo
+      const demoRoot = document.getElementById('demo-root');
+      if (demoRoot) window.LiveDemo.attach({ root: demoRoot });
+
+      // Dashboard preview: scale the 1360px-wide frame to the column width.
+      const ops = document.querySelector('.ops-preview');
+      if (ops) {
+        const fit = () => ops.style.setProperty('--ops-scale', ops.clientWidth / 1360);
+        fit();
+        if ('ResizeObserver' in window) new ResizeObserver(fit).observe(ops);
+        else window.addEventListener('resize', fit);
+        // The custom cursor can't follow the pointer into the iframe; hide it there.
+        ops.addEventListener('pointerenter', () => document.body.classList.add('cursor-in-frame'));
+        ops.addEventListener('pointerleave', () => document.body.classList.remove('cursor-in-frame'));
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,12 +1,12 @@
 /* ──────────────────────────────────────────────────────────────────────────
-   Original — long-scroll explainer
+   Original: long-scroll explainer
    Oxford gravitas × Lusion immersion
    ────────────────────────────────────────────────────────────────────────── */
 
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
 :root {
-  /* Palette: Cloister (default) — deep green + cream + gold */
+  /* Palette: Cloister (default): deep green + cream + gold */
   --bg:           #0e1f18;
   --bg-deep:      #0a160f;
   --bg-soft:      #162b22;
@@ -72,11 +72,14 @@ body {
   font-size: 18px;
   line-height: 1.55;
   overflow-x: hidden;
+  cursor: none;
   -webkit-font-smoothing: antialiased;
 }
+@media (pointer:coarse) { body { cursor: auto; } }
 
 /* Native cursor inside form fields */
 textarea, input { cursor: text; }
+button, a { cursor: none; }
 @media (pointer:coarse) {
   button, a { cursor: pointer; }
   textarea, input { cursor: text; }
@@ -85,6 +88,38 @@ textarea, input { cursor: text; }
 img, video { display:block; max-width:100%; }
 em { font-style: italic; }
 i  { font-style: italic; }
+
+/* ── Custom cursor ──────────────────────────────────────────────────────── */
+.cursor-ring,
+.cursor-dot {
+  position: fixed;
+  top: 0; left: 0;
+  pointer-events: none;
+  z-index: 2147483645;
+  mix-blend-mode: difference;
+}
+.cursor-ring {
+  width: 32px; height: 32px;
+  border: 1px solid var(--cream);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width .25s cubic-bezier(.2,.7,.2,1),
+              height .25s cubic-bezier(.2,.7,.2,1),
+              border-color .25s,
+              opacity .2s;
+}
+.cursor-dot {
+  width: 4px; height: 4px;
+  background: var(--cream);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+body.cursor-on-magnetic .cursor-ring {
+  width: 56px; height: 56px;
+  border-color: var(--gold);
+}
+body.cursor-on-text .cursor-ring { opacity: 0; }
+body.cursor-on-text .cursor-dot  { opacity: 0; }
 
 /* ── Grain ──────────────────────────────────────────────────────────────── */
 .grain-overlay {
@@ -123,7 +158,6 @@ nav.top > * { pointer-events: auto; }
 }
 .nav-links {
   display: flex; gap: 2.2rem; list-style: none;
-  align-items: center;
 }
 .nav-links a {
   font-family: var(--body);
@@ -136,24 +170,6 @@ nav.top > * { pointer-events: auto; }
   white-space: nowrap;
 }
 .nav-links a:hover { color: var(--gold); }
-/* Product entry CTA in the nav */
-.nav-links a.nav-cta {
-  font-style: normal;
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--cream);
-  border: 1px solid var(--rule-on-dark);
-  border-radius: 9999px;
-  padding: 0.5rem 1.1rem;
-  transition: color .3s, border-color .3s, background .3s;
-}
-.nav-links a.nav-cta:hover {
-  color: var(--bg-deep);
-  background: var(--gold);
-  border-color: var(--gold);
-}
 
 /* Scroll progress ribbon */
 .scroll-progress {
@@ -188,7 +204,7 @@ nav.top > * { pointer-events: auto; }
 }
 .reveal-stagger.in > * { opacity: 1; transform: none; }
 
-/* Letter-peel reveal — applied to .peel containing span.l per letter */
+/* Letter-peel reveal: applied to .peel containing span.l per letter */
 .peel .l {
   display: inline-block;
   opacity: 0;
@@ -293,16 +309,7 @@ p.lede strong { font-weight: 500; color: var(--cream); }
   will-change: transform;
 }
 
-/* Architectural line-motif hero (image-free) — quiet vaulting behind epigraph */
-.cold-open .hero-arch {
-  position: absolute; inset: 0; z-index: 0;
-  width: 100%; height: 100%;
-  opacity: 0.28;
-  will-change: transform;
-}
-.cold-open .hero-arch svg { width: 100%; height: 100%; display: block; }
-
-/* Cinematic grading — darkens edges, preserves golden centre glow */
+/* Cinematic grading: darkens edges, preserves golden centre glow */
 .cold-open .hero-cin {
   position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background:
@@ -367,9 +374,12 @@ p.lede strong { font-weight: 500; color: var(--cream); }
   font-family: var(--display);
   font-style: italic;
   font-weight: 400;
-  font-size: clamp(2rem, 4.4vw, 3.4rem);
+  font-size: clamp(1.4rem, 2.6vw, 2.2rem);
   color: var(--cream);
-  line-height: 1.25;
+  line-height: 1.35;
+  max-width: 26ch;
+  margin: 0 auto;
+  text-wrap: balance;
   letter-spacing: -0.005em;
 }
 .epi-latin .word {
@@ -410,7 +420,7 @@ p.lede strong { font-weight: 500; color: var(--cream); }
 }
 .product-reveal .dot { color: var(--gold); }
 
-/* Warm centre glow — layered above hero-cin for extra depth */
+/* Warm centre glow: layered above hero-cin for extra depth */
 .cold-open .hero-glow {
   position: absolute; inset: 0; z-index: 2; pointer-events: none;
   background: radial-gradient(ellipse at 50% 45%,
@@ -419,6 +429,45 @@ p.lede strong { font-weight: 500; color: var(--cream); }
     transparent 65%);
 }
 
+/* ── Engraved hero variant: light plate, ink text ─────────────────────── */
+.cold-open.engraved .hero-bg {
+  object-position: center 22%;
+}
+.cold-open.engraved .hero-cin {
+  background:
+    /* dark band top only: nav is cream; bottom stays light for ink wordmark */
+    linear-gradient(180deg,
+      rgba(8,10,18,0.72) 0%,
+      transparent 22%),
+    /* cool paper scrim behind the centred epigraph */
+    radial-gradient(ellipse at 50% 46%,
+      rgba(240,241,235,0.92) 0%,
+      rgba(240,241,235,0.68) 36%,
+      rgba(240,241,235,0.0) 66%),
+    /* navy edge vignette */
+    radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(10,17,40,0.28) 100%);
+}
+.cold-open.engraved .hero-glow { display: none; }
+.cold-open.engraved .epi-latin { color: #060b1e; text-shadow: 0 1px 10px rgba(240,241,235,0.85); }
+.cold-open.engraved .epi-trans {
+  color: #1e2c52;
+  text-shadow: 0 1px 8px rgba(240,241,235,0.8);
+}
+.cold-open.engraved .hero-cta {
+  background: rgba(13,21,48,0.78);
+  border-color: rgba(10,17,40,0.4);
+}
+.cold-open.engraved .hero-cta:hover {
+  background: rgba(201,160,40,0.92);
+  color: #0a0905;
+}
+/* Wordmark + scroll cue: ink navy on the light plate, no dark band needed */
+.cold-open.engraved .product-reveal { color: #0a1128; }
+.cold-open.engraved .product-reveal .dot { color: #9b7a1e; }
+.cold-open.engraved .scroll-cue { color: rgba(10,17,40,0.65); }
+.cold-open.engraved .scroll-cue .line {
+  background: linear-gradient(180deg, #9b7a1e, transparent);
+}
 .scroll-cue {
   position: absolute; bottom: 6rem; left: 50%;
   transform: translateX(-50%);
@@ -441,7 +490,6 @@ p.lede strong { font-weight: 500; color: var(--cream); }
   from { opacity: 0; }
   to   { opacity: 0.9; }
 }
-@keyframes fade-x    { from { opacity: 0; } to { opacity: 1; } }
 @keyframes bob {
   0%,100% { transform: translateX(-50%) translateY(0); }
   50%     { transform: translateX(-50%) translateY(6px); }
@@ -463,10 +511,35 @@ p.lede strong { font-weight: 500; color: var(--cream); }
   overflow: hidden;
   border: 1px solid var(--rule-on-dark);
 }
-/* Architectural placeholder fills the split panel in place of a photo plate */
-.split-img .arch-placeholder { position: absolute; inset: 0; }
+.split-img image-slot {
+  width: 100%; height: 100%;
+  display: block;
+}
+/* Library image: always-on background behind the image-slot drop target */
+.split-img .split-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  z-index: 0;
+  display: block;
+}
+/* image-slot sits on top; transparent when empty so the .split-bg shows through */
+.split-img image-slot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  --placeholder-bg: transparent;
+  background: transparent;
+}
+/* Hide image-slot empty-state shadow so background photo shows */
+.split-img image-slot:not([data-filled])::part(empty) { display: none; }
 
-/* Cinematic grading overlay — vignette + tonal fade */
+/* Cinematic grading overlay: vignette + tonal fade */
 .cinema-overlay {
   position: absolute; inset: 0;
   pointer-events: none;
@@ -478,23 +551,56 @@ p.lede strong { font-weight: 500; color: var(--cream); }
       transparent 68%,
       rgba(4,3,6,0.60) 100%);
 }
+/* Engraving variant: much gentler; keeps the plate's cream paper bright */
+.cinema-overlay.engraving {
+  background:
+    radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(61,31,14,0.16) 100%);
+  mix-blend-mode: multiply;
+}
 
 .split-img .cinema-overlay { z-index: 2; }
 .split-img .img-caption    { z-index: 3; }
-.img-caption {
-  position: absolute; left: 1.2rem; bottom: 1.1rem;
-  font-family: var(--body); font-style: italic;
-  color: var(--cream);
-  background: rgba(10,9,5,0.45);
-  backdrop-filter: blur(8px);
-  padding: .4rem .8rem;
-  font-size: 0.72rem; letter-spacing: 0.04em;
-}
 
 @media (max-width: 980px) {
   .split { grid-template-columns: 1fr; gap: 2rem; }
   .split-img { height: 55vh; min-height: 360px; }
   section.act { padding: 6rem 1.4rem 4rem; }
+}
+
+/* Stacked variant: text first, full uncropped plate below on a cream mount */
+.split.stacked { grid-template-columns: 1fr; gap: 3rem; min-height: 0; align-items: start; }
+.split.stacked .split-img.full-plate {
+  height: auto;
+  min-height: 0;
+  width: 100%;
+  margin: 0;
+  background: #f5efe4;
+  border: 1px solid var(--rule-on-dark);
+  padding: clamp(1.5rem, 4vw, 3.5rem);
+  box-shadow: inset 0 0 0 1px rgba(122,78,45,0.12), 0 24px 60px rgba(0,0,0,0.32);
+}
+.split.stacked .split-img.full-plate .split-bg {
+  position: static;
+  width: 100%;
+  height: auto;
+  max-height: 78vh;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+  margin: 0 auto;
+  image-rendering: auto;
+}
+.split.stacked .split-img.full-plate .img-caption {
+  position: static;
+  display: block;
+  margin: 1.4rem auto 0;
+  width: fit-content;
+  background: none;
+  backdrop-filter: none;
+  color: var(--wood);
+  font-style: italic;
+  letter-spacing: 0.06em;
+  text-align: center;
 }
 
 /* ── Act II: Fingerprint scene ──────────────────────────────────────────── */
@@ -571,7 +677,7 @@ p.lede strong { font-weight: 500; color: var(--cream); }
   background: var(--rule-on-dark);
   border: 1px solid var(--rule-on-dark);
 }
-/* 7 cards — explicit columns per breakpoint, with the final (aggregate)
+/* 7 cards: explicit columns per breakpoint, with the final (aggregate)
    tier spanning the remainder so the grid has no dead cells. */
 @media (min-width: 620px) {
   .tier-grid { grid-template-columns: repeat(2, 1fr); }
@@ -710,7 +816,7 @@ p.lede strong { font-weight: 500; color: var(--cream); }
   grid-template-columns: 1fr 1.4fr;
   gap: 4rem; align-items: center;
 }
-/* Stack of product cards — readable column, slight paper rotations */
+/* Stack of product cards: readable column, slight paper rotations */
 .papers-stack {
   position: relative;
   display: flex;
@@ -867,6 +973,70 @@ p.lede strong { font-weight: 500; color: var(--cream); }
   color: #9b6420;
 }
 
+/* Photo with parallax: Oxford library aesthetic */
+.parallax-figure {
+  position: relative;
+  overflow: hidden;
+  height: 78vh;
+  min-height: 540px;
+  border: 1px solid var(--rule-on-dark);
+}
+.parallax-figure .parallax-bg,
+.parallax-figure image-slot {
+  position: absolute;
+  inset: -14% 0 -14% 0;
+  width: 100%;
+  height: 128%;
+  will-change: transform;
+}
+.parallax-figure .parallax-bg {
+  object-fit: cover;
+  object-position: center 35%;
+  display: block;
+  z-index: 0;
+}
+.parallax-figure image-slot {
+  z-index: 1;
+  --placeholder-bg: transparent;
+  background: transparent;
+}
+.parallax-figure image-slot:not([data-filled])::part(empty) { display: none; }
+
+/* Drop affordance: quiet chip, top right; brightens on hover/drag */
+.parallax-figure .drop-hint {
+  position: absolute; right: 1.4rem; top: 1.4rem;
+  z-index: 3;
+  font-family: var(--body); font-style: italic;
+  font-size: 0.75rem; letter-spacing: 0.04em;
+  color: var(--cream);
+  background: rgba(10,9,5,0.55);
+  backdrop-filter: blur(8px);
+  padding: .45rem .8rem;
+  border: 1px dashed rgba(201,160,40,0.5);
+  opacity: 0.45;
+  transition: opacity .3s;
+  pointer-events: none;
+}
+.parallax-figure:hover .drop-hint { opacity: 1; }
+/* When a photo has been dropped, the hint disappears */
+.parallax-figure:has(image-slot[data-filled]) .drop-hint { display: none; }
+.parallax-figure .caption {
+  position: absolute; left: 1.4rem; bottom: 1.4rem;
+  font-family: var(--body); font-style: italic;
+  color: var(--cream);
+  background: rgba(10,9,5,0.55);
+  backdrop-filter: blur(8px);
+  padding: .5rem .85rem;
+  font-size: 0.78rem; letter-spacing: 0.04em;
+  z-index: 3;
+}
+.parallax-figure::after {
+  content:'';
+  position:absolute; inset:0;
+  background: linear-gradient(180deg, transparent 0%, transparent 60%, rgba(10,9,5,0.55) 100%);
+  pointer-events:none; z-index: 2;
+}
+
 /* ── Act VI: Live demo ──────────────────────────────────────────────────── */
 .demo-act { background: var(--bg-soft); }
 .demo-grid {
@@ -925,7 +1095,6 @@ p.lede strong { font-weight: 500; color: var(--cream); }
   overflow: hidden;
   transition: color .3s;
   white-space: nowrap;
-  cursor: pointer;
 }
 .demo-btn::before {
   content:''; position:absolute; inset:0; background: var(--gold);
@@ -1110,31 +1279,11 @@ footer .colophon {
   footer .container { grid-template-columns: 1fr 1fr; }
 }
 
-/* ── Architectural placeholder (image-free Oxford motif) ────────────────── */
-.arch-placeholder {
-  position: absolute; inset: 0;
-  background:
-    radial-gradient(ellipse at 50% 30%, rgba(201,160,40,0.10), transparent 60%),
-    linear-gradient(180deg, var(--bg-soft) 0%, var(--bg-deep) 100%);
-  display: flex; align-items: center; justify-content: center;
-  overflow: hidden;
-}
-.arch-placeholder svg { width: 78%; height: auto; opacity: 0.5; }
-.arch-placeholder .arch-cap {
-  position: absolute; bottom: 1rem; left: 1rem;
-  font-family: var(--mono); font-size: .66rem;
-  letter-spacing: 0.18em; text-transform: uppercase;
-  color: var(--muted-on-dark);
-}
-
-/* ── Selection ──────────────────────────────────────────────────────────── */
-::selection { background: var(--gold); color: var(--bg-deep); }
-
 /* ── Mobile pass ────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  /* Nav: brand + CTA only — links are in-page anchors, redundant on a phone */
+  /* Nav: brand only: links are in-page anchors, redundant on a phone */
   nav.top { padding: 1rem 1.2rem 0.8rem; }
-  .nav-links a:not(.nav-cta) { display: none; }
+  .nav-links { display: none; }
 
   section.act { padding: 4.5rem 1.2rem 3rem; }
   .act-eyebrow { letter-spacing: 0.22em; margin-bottom: 1.8rem; }
@@ -1168,8 +1317,129 @@ footer .colophon {
   /* Baseline cards */
   .paper { width: 100%; padding: 1.1rem 1rem 1rem; }
 
+  /* Photo break shorter on phones */
+  .parallax-figure { height: 52vh; min-height: 340px; }
+
   /* Footer stacks */
   footer { padding: 3rem 1.4rem 2rem; }
   footer .container { grid-template-columns: 1fr; gap: 2rem; }
   footer .colophon { flex-direction: column; gap: 0.4rem; }
+}
+
+/* ── Tweaks panel host override ─────────────────────────────────────────── */
+body[data-edit-on="true"] .grain-overlay { z-index: 199; }
+
+/* Photo-as-placeholder default: when no image is dropped into image-slot,
+   render a subtle architectural blueprint feel. */
+image-slot {
+  --placeholder-bg: var(--bg-soft);
+}
+
+/* No-image fallback overlay (drawn inside slots when empty) */
+.arch-placeholder {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(201,160,40,0.10), transparent 60%),
+    linear-gradient(180deg, var(--bg-soft) 0%, var(--bg-deep) 100%);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.arch-placeholder svg { width: 70%; height: auto; opacity: 0.5; }
+.arch-placeholder .arch-cap {
+  position: absolute; bottom: 1rem; left: 1rem;
+  font-family: var(--mono); font-size: .66rem;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--muted-on-dark);
+}
+
+/* ── Selection ──────────────────────────────────────────────────────────── */
+::selection { background: var(--gold); color: var(--bg-deep); }
+
+/* ── What it is not + promise strip ── */
+.notnot-act{border-top:1px solid rgba(201,160,40,0.14);}
+.notnot{display:grid;grid-template-columns:repeat(3,1fr);gap:1.4rem;}
+.nn{border-top:1px solid rgba(201,160,40,0.3);padding-top:1.1rem;}
+.nn .nn-x{font-family:var(--mono);font-size:.8rem;color:var(--gold);margin-bottom:.7rem;}
+.nn b{display:block;font-family:var(--display);font-weight:500;font-size:1.3rem;color:var(--cream);margin-bottom:.45rem;}
+.nn span{font-size:.95rem;line-height:1.55;color:rgba(245,239,224,0.62);font-style:italic;}
+.promise{margin-top:3.2rem;}
+.promise-h{font-family:var(--mono);font-size:.7rem;letter-spacing:.24em;text-transform:uppercase;color:var(--gold);margin-bottom:1.2rem;}
+.promise-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.2rem;}
+.pr{border-top:1px solid rgba(201,160,40,0.3);padding-top:1rem;}
+.pr-n{font-family:var(--display);font-size:2rem;font-weight:500;color:#e0be55;line-height:1;}
+.pr-t{font-size:.9rem;line-height:1.5;color:rgba(245,239,224,0.66);margin-top:.55rem;text-wrap:pretty;}
+.brief-link{display:inline-block;margin-top:2rem;font-size:1rem;color:var(--gold);border-bottom:1px solid rgba(201,160,40,0.4);padding-bottom:.15rem;text-decoration:none;}
+.brief-link:hover{color:var(--cream);border-color:var(--cream);}
+@media (max-width:900px){.notnot{grid-template-columns:1fr;}.promise-grid{grid-template-columns:1fr 1fr;}}
+
+/* ── Bluebook act ── */
+.bluebook-act{border-top:1px solid rgba(201,160,40,0.14);}
+.bb-split{display:grid;grid-template-columns:1.1fr .9fr;gap:3.5rem;align-items:center;margin-top:2rem;}
+.bb-visual{display:flex;flex-direction:column;gap:1.8rem;align-items:center;}
+.bb-book{perspective:1000px;}
+.bb-cover{display:flex;flex-direction:column;align-items:center;width:250px;padding:2rem 1.6rem 1.7rem;border-radius:5px 12px 12px 5px;background:linear-gradient(155deg,#4a6cb5 0%,#35549c 45%,#2c4a8c 100%);border-left:7px solid #223c74;box-shadow:0 24px 60px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.16);color:#e9eefb;transform:rotateY(-8deg) rotateX(2deg);position:relative;}
+.bb-cover::after{content:'';position:absolute;inset:9px;border:1px solid rgba(233,238,251,0.32);border-radius:3px 8px 8px 3px;pointer-events:none;}
+.bb-lbl{font-family:var(--mono);font-size:.56rem;letter-spacing:.3em;text-transform:uppercase;color:rgba(233,238,251,0.7);}
+.bb-title{font-family:var(--display);font-weight:500;font-size:1.9rem;margin:.4rem 0 .8rem;}
+.bb-rule{width:90px;height:1px;background:rgba(233,238,251,0.4);margin-bottom:1.1rem;}
+.bb-line{display:flex;align-items:baseline;gap:.55rem;width:100%;font-size:.78rem;color:rgba(233,238,251,0.9);border-bottom:1px solid rgba(233,238,251,0.28);padding:.45rem 0 .3rem;}
+.bb-line i{font-family:var(--mono);font-style:normal;font-size:.52rem;letter-spacing:.16em;text-transform:uppercase;color:rgba(233,238,251,0.55);width:44px;flex-shrink:0;}
+.bb-steps{display:flex;flex-direction:column;gap:.9rem;width:100%;max-width:340px;}
+.bb-step{display:flex;align-items:flex-start;gap:.9rem;}
+.bb-n{width:26px;height:26px;border-radius:50%;border:1px solid rgba(201,160,40,0.45);color:var(--gold);font-family:var(--display);font-size:.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.bb-step b{display:block;font-family:var(--display);font-weight:500;font-size:1.05rem;color:var(--cream);}
+.bb-step span{font-size:.88rem;font-style:italic;color:rgba(245,239,224,0.6);}
+@media (max-width:900px){.bb-split{grid-template-columns:1fr;gap:2.4rem;}}
+
+/* ── Do we walk into ruin: full-bleed photo section ── */
+.ruin-act{position:relative;min-height:92vh;display:flex;align-items:center;overflow:hidden;padding:6rem 0;border-top:1px solid rgba(201,160,40,0.14);}
+.ruin-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 30%;filter:saturate(.55) brightness(.52) contrast(1.08);}
+.ruin-tint{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(10,17,40,0.88) 0%,rgba(10,17,40,0.55) 44%,rgba(10,17,40,0.18) 75%),linear-gradient(180deg,rgba(10,17,40,0.7) 0%,transparent 24%,transparent 72%,rgba(10,17,40,0.85) 100%);}
+.ruin{position:relative;z-index:2;max-width:560px;margin-left:max(6vw,2rem);display:flex;flex-direction:column;justify-content:center;border-left:1px solid rgba(201,160,40,0.4);padding:1.5rem 2rem 1.5rem 2.4rem;}
+.ruin-q{font-family:var(--display);font-style:italic;font-weight:500;font-size:clamp(1.9rem,3vw,2.7rem);color:var(--cream);line-height:1.15;margin-bottom:1.3rem;text-wrap:balance;text-shadow:0 2px 20px rgba(10,17,40,0.9);}
+.ruin-body p{font-size:1.05rem;line-height:1.7;color:rgba(245,239,224,0.85);margin-bottom:1rem;text-wrap:pretty;text-shadow:0 1px 12px rgba(10,17,40,0.9);}
+.ruin-body em{font-style:italic;color:var(--cream);}
+.ruin-rule{width:64px;height:1px;background:rgba(201,160,40,0.6);margin:.6rem 0 1rem;}
+.ruin-answer{font-family:var(--display);font-size:1.15rem;line-height:1.5;color:rgba(245,239,224,0.92);text-wrap:pretty;text-shadow:0 1px 12px rgba(10,17,40,0.9);}
+.ruin-answer em{font-style:italic;color:#e0be55;}
+@media (max-width:900px){.ruin-act{min-height:0;}.ruin{margin:0 1.2rem;}}
+
+/* ── Act V·b: dashboard preview ─────────────────────────────────────────────
+   An iframe of original-quantum.html?embed=1 rendered at its native 1360 × 860
+   and scaled to the container by --ops-scale (set from landing.html). */
+.ops-act { background: var(--bg-deep); }
+.ops-preview {
+  position: relative;
+  margin-top: 2.6rem;
+  aspect-ratio: 1360 / 860;
+  overflow: hidden;
+  border: 1px solid var(--rule-on-dark);
+  border-radius: 18px;
+  background: #0a1024;
+  box-shadow: 0 40px 120px rgba(0,0,0,0.55), 0 0 0 1px rgba(201,160,40,0.05);
+}
+.ops-preview iframe {
+  position: absolute; top: 0; left: 0;
+  width: 1360px; height: 860px;
+  border: 0;
+  transform-origin: 0 0;
+  transform: scale(var(--ops-scale, 0.5));
+}
+.ops-preview-foot {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 1rem; flex-wrap: wrap;
+  margin-top: 1rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--muted-on-dark);
+}
+.ops-preview-foot a { color: var(--gold); text-decoration: none; }
+.ops-preview-foot a:hover { text-decoration: underline; }
+body.cursor-in-frame .cursor-ring,
+body.cursor-in-frame .cursor-dot { opacity: 0; }
+/* At phone width the frame is scaled to ~0.25, too small to tap accurately;
+   it becomes a picture, and "Open full screen" leads to the responsive page. */
+@media (max-width: 700px) {
+  .ops-preview iframe { pointer-events: none; }
 }
