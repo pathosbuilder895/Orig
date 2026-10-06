@@ -23,7 +23,6 @@ DATABASE_URL isn't a reachable postgresql:// instance. Marked @pytest.mark.postg
 
 from __future__ import annotations
 
-import os
 from datetime import UTC, datetime
 
 import numpy as np
@@ -41,19 +40,6 @@ pytestmark = pytest.mark.postgres
 # scope for the SQLite->Postgres cutover; do NOT add one just to make a
 # missing migrator's test failure go away.
 _EXCLUDED_FROM_MIGRATION: frozenset[str] = frozenset()
-
-
-def _postgres_available() -> bool:
-    if not os.environ.get("DATABASE_URL", "").startswith("postgresql"):
-        return False
-    from original.db import postgres_session
-
-    try:
-        postgres_session.reset_engine()
-        with postgres_session.get_engine().connect():
-            return True
-    except Exception:
-        return False
 
 
 def _make_state(student_id: str, n: int = 2, genre: str | None = None) -> StudentState:
@@ -227,10 +213,13 @@ def seeded_sqlite(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def fresh_pg():
+def fresh_pg(postgres_available):
     """A freshly-created, empty live-schema Postgres. Skips without Postgres."""
-    if not _postgres_available():
-        pytest.skip("no reachable Postgres — set DATABASE_URL to run the P4 migration test")
+    if not postgres_available:
+        pytest.skip(
+            "uninformative — no reachable Postgres; set DATABASE_URL to run "
+            "the P4 migration test"
+        )
     from original.db import postgres_session
     from original.db.models.live import LiveBase
 

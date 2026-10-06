@@ -25,6 +25,7 @@ baseline/score call 403s with "Cross-tenant access denied" otherwise.
 
 from __future__ import annotations
 
+import copy
 import json
 import uuid
 
@@ -64,6 +65,83 @@ def fixture_artifact(tmp_path, monkeypatch):
     reset_for_tests()
     yield
     reset_for_tests()
+
+
+@pytest.fixture(scope="session")
+def _long_text_analyses() -> tuple[np.ndarray, object]:
+    """Run the baseline route's two pure text analyses over `_LONG` once.
+
+    T-45: `_seed_cohort` uploads the same `_LONG` string as three baselines
+    for each of thirteen students. Every one of those 39 requests re-runs
+    `feature_vector(_LONG)` (~1.5 s) and `analyze_tension_arc(_LONG)`
+    (~0.24 s) on a byte-identical string, and that is essentially the whole
+    runtime of this file. Both are pure functions of the text, so one run
+    each is enough.
+
+    The second call to each is the proof of that assumption and costs one
+    extra evaluation per session: if either ever becomes non-deterministic,
+    it fails loudly here instead of silently seeding baselines that differ
+    from what the real code would have produced.
+    """
+    from original.features.pipeline import feature_vector as real_feature_vector
+    from original.tension_arc import analyze_tension_arc as real_analyze_tension_arc
+
+    vector = real_feature_vector(_LONG)
+    assert vector.shape == (FEATURE_DIM,)
+    assert np.array_equal(vector, real_feature_vector(_LONG)), (
+        "feature_vector(_LONG) is not deterministic; the cache in "
+        "_cached_baseline_text_analyses would seed vectors the real "
+        "pipeline never produces"
+    )
+
+    arc = real_analyze_tension_arc(_LONG)
+    assert arc == real_analyze_tension_arc(_LONG), (
+        "analyze_tension_arc(_LONG) is not deterministic; the cache in "
+        "_cached_baseline_text_analyses would report an arc the real "
+        "analyser never produces"
+    )
+    return vector, arc
+
+
+@pytest.fixture(autouse=True)
+def _cached_baseline_text_analyses(_long_text_analyses, monkeypatch):
+    """Serve the cached `_LONG` analyses to the baseline-ingestion route only.
+
+    Both names are patched *as imported into*
+    `original.routers.students_baseline` (`from ..features.pipeline import
+    feature_vector`, `from ..tension_arc import analyze_tension_arc`) —
+    patching the defining modules would not take, because the router already
+    holds its own references to the function objects.
+
+    Anything other than the exact `_LONG` text, and any call carrying
+    keystroke data or a baseline kappa, falls through to the real
+    implementation, so a test that seeds different text cannot silently be
+    handed alice's vector. Both fixtures are function-scoped, so
+    `monkeypatch` undoes the patch after every test and it cannot leak into
+    another file.
+
+    The scoring path is deliberately untouched: `POST /students/{id}/score`
+    still runs a real extraction and the real fused-score code, which is
+    what every assertion in this file is about.
+    """
+    import original.routers.students_baseline as baseline_router
+
+    vector, arc = _long_text_analyses
+    real_feature_vector = baseline_router.feature_vector
+    real_analyze_tension_arc = baseline_router.analyze_tension_arc
+
+    def _cached_feature_vector(text: str, keystroke_data: dict | None = None):
+        if text == _LONG and keystroke_data is None:
+            return vector.copy()
+        return real_feature_vector(text, keystroke_data=keystroke_data)
+
+    def _cached_analyze_tension_arc(text: str, baseline_kappa: float | None = None):
+        if text == _LONG and baseline_kappa is None:
+            return copy.deepcopy(arc)
+        return real_analyze_tension_arc(text, baseline_kappa=baseline_kappa)
+
+    monkeypatch.setattr(baseline_router, "feature_vector", _cached_feature_vector)
+    monkeypatch.setattr(baseline_router, "analyze_tension_arc", _cached_analyze_tension_arc)
 
 
 def _register_tenant(tenant: str) -> None:
