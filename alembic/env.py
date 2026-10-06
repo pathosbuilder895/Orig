@@ -29,7 +29,8 @@ config = context.config
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # In-process runs (tests, scripts) must not silence the application's loggers.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # Set target metadata — the LIVE schema
 target_metadata = LiveBase.metadata

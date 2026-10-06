@@ -21,12 +21,15 @@ P3 = hygiene.
 | T-02 | `GET /baseline-requests/pending` leaks cross-tenant emails and live magic links | B3 | 04 §1.1 | S | scoped test green — `tests/security/test_cross_tenant_read.py` | red |
 | T-03 | Unauthenticated `POST /bluebook/submissions` | B3 | 04 §1.2 | S | route-table anonymous-write test green with allowlist — `tests/security/test_unauthenticated_writes.py` | red |
 | T-04 | Turnitin import mints flat ids → unauthenticated essay reads | B3 | 04 §1.3 | S | every minted id tenant-prefixed; anonymous read refused — `tests/security/test_id_minting.py` | red |
-| T-05 | SSRF via body-supplied Canvas URL | B3 | 04 §1.4 | S | private/loopback/metadata/file URLs refused pre-request — `tests/security/test_ssrf.py` (7 URLs) | red |
+| T-05 | SSRF via body-supplied Canvas URL | B3 | 04 §1.4 | S | private/loopback/metadata/file URLs refused pre-request — `tests/security/test_ssrf.py` (7 URLs) | fixed 2026-10-04 (`live_import.ensure_public_url`; also guards pagination + attachment URLs) |
 | T-06 | Demo static tree serves live `seed.db` under pilot | B3 | 04 §1.5 | S | glob-derived forbidden list all 404 under pilot — `tests/security/test_static_tree.py` — `/seed.db` already gated; the Bluebook sourcemap is the red case | red |
 | T-07 | `REPO_BACKEND=postgres` on the pilot lockset bricks boot (`api.py:159` catches `NotImplementedError` only) | B2 | 08 §2 | M | `boot-matrix` postgres cells `up` — `tests/config/test_lockset_imports.py` — blocked on `sqlalchemy` for both `REPO_BACKEND=postgres` and `REPO_SHADOW=postgres` | red |
 | T-08 | `delete_student` misses 4 tables while documented as complete | B5 | 03 §2, 04 §7 | S | metadata-derived completeness test green — `tests/test_repository_contract.py::TestDeleteStudentCompleteness` — leaks `baseline_requests`, `bluebook_submissions`, `formation_pathways` on both backends; `bluebook_sessions` keys on `student_key`, not `student_id`, so it needs its own row/test | red |
-| T-09 | Bulk upload blocks the event loop; live exam heartbeats stall | B4 | 07 §2 | S test / S fix | heartbeat < 250 ms during upload, all 5 handlers — `tests/perf/test_event_loop_not_blocked.py` — upload-batch ~9 s late, turnitin-csv ~2.5 s, `.docx` upload ~1.2 s; `.txt` upload green; Canvas handlers deferred | red |
+| T-09 | Bulk upload blocks the event loop; live exam heartbeats stall | B4 | 07 §2 | S test / S fix | heartbeat < 250 ms during upload, all 5 handlers — `tests/perf/test_event_loop_not_blocked.py` — upload-batch ~9 s late, turnitin-csv ~2.5 s, `.docx` upload ~1.2 s; `.txt` upload green; Canvas handlers deferred | fixed 2026-10-04 (all handlers green; `/students/{id}/upload` runs in the threadpool) |
 | T-66 | Anonymous flat-id `/students/{id}` writes and `DELETE` succeed on a real deploy (`assert_student_access` has no real-deploy branch for `tenant_of(id) is None`; `_is_staff_only_path` skips `/students/{id}/…`) | B3 | 04 §1.2 | S | `tests/security/test_unauthenticated_writes.py::test_flat_id_student_write_permitted` (8 routes) | red |
+| T-67 | Batch upload (`POST /students/{id}/baseline/upload-batch`) accepted trusted provenance without auth — never called `_authorize_provenance` | B3 | threat-model §1, §6 | S | fixed 93dda512 (+ deep-review fixes): student `verified` request **stored** at `unverified`/0.5, staff not downgraded, downgrade audit-logged — `tests/test_students_baseline_batch.py::TestUploadBatchBranches`, `tests/security/test_unauthenticated_writes.py::test_batch_upload_trusted_provenance_not_self_assertable_on_real_deploy` | green |
+| T-68 | `POST /students/{id}/request-baseline` was callable by a student session (no `_require_staff`) | B3 | threat-model §1, §6 | S | fixed 0f618fcf: student 403 before the Bbook-config check, staff passes — `tests/test_students_baseline_batch.py::TestRequestProctoredBaseline::test_student_token_refused`, `tests/security/test_unauthenticated_writes.py::test_request_baseline_requires_staff_on_real_deploy` | green |
+| T-69 | Proctor attestation replayable — binds student+expiry only, 6 h any-text window | B3 | threat-model §1, §6 | M | fixed: single-use ledger (`consumed_attestations`) consumed on first successful admit only, per file in a batch too; `verify_proctor_attestation` gained an optional `exam` check (not yet wired to a call site — no route carries an exam id today) — `tests/test_student_auth.py`, `tests/test_baseline_provenance_authz.py` (replay, drift-hold-not-consumed, batch), `tests/test_repository_contract.py::TestDeleteStudentCompleteness` | green |
 
 ## P1 — before enabling the surface it guards
 
@@ -53,11 +56,18 @@ P3 = hygiene.
 | T-63 | `GET /admin/audit` has no tenant filter; B staff read A's audit rows | B3 | 04 §1.1 | S | `tests/security/test_cross_tenant_read.py::test_admin_audit_scoped` | red |
 | T-64 | Anonymous `POST /auth/register` accepted (`_require_guard` only) | B3 | 04 §1.2 | S | `tests/security/test_unauthenticated_writes.py` | red |
 | T-65 | Anonymous `POST /bluebook/exams/{id}/session` accepted | B3 | 04 §1.2 | S | `tests/security/test_unauthenticated_writes.py` | red |
+| T-70 | No baseline-consistency / σ-inflation surfacing (obfuscated, outsourced, or poisoned baselines pass unremarked) | B1 | threat-model §1, §5.4 | M | `baseline_integrity` attached report-only; G-A5/G-A6 measured — `tests/test_baseline_integrity.py` | open |
+| T-71 | Imitation of own baselines undetected (too-central band shipped off, paraphrase-defeatable) | B1 | threat-model §1 | L | G-A2 measured on committed corpus | open |
+| T-72 | Paraphrase / round-trip laundering of AI or purchased text undetected (32% paraphrased-AI recall) | B1 | threat-model §1 | L | G-A3 measured on cached LLM corpus | open |
+| T-73 | Peer-imitation / collusion undetectable — null pool is aggregate, no nearest-peer attribution | B1 | threat-model §1, §8 | L | G-A4 measured | open |
+| T-74 | Raw per-key keystroke timing stored at rest, uninventoried (`store.py:693`); capture should be macro-only | B3 | threat-model §5.3, ADR-010 | M | purge script run; inventory row; capture macro-only — `tests/test_purge_keystroke_blobs.py` | open |
+| T-75 | No minimum-baseline policy before the primary score (cold-start FPR ~0.9 at N=3) | B1 | threat-model §1, T-01 | M | `baseline_readiness` reported; G-A1 measured at N∈{3,5,10} | open |
 
 ## P2 — quality debt with a known failure class
 
 | ID | Gap | Blind spot | Doc | Effort | Acceptance | State |
 |---|---|---|---|---|---|---|
+| T-76 | `PostgresRepository.all_states()` fails closed-but-silent (returns `[]`) on any scan error, indistinguishable from a genuinely empty/clean result — surfaced by `scripts/purge_keystroke_blobs.py`'s dry-run report, but the underlying gap is in the repository layer, not the script | B1 | threat-model §1 (T-74 review) | S | a scan failure raises or is otherwise distinguishable from zero rows in a maintenance-tooling read path | open |
 | T-28 | `features/tier8.py` has no test file; math unpinned | — | 02 §1.1 | S | `test_tier8.py` with oracles | open |
 | T-29 | No cross-tier invariant suite (bounds, keys, quotes, length) | — | 02 §1.2 | S | `test_tier_invariants.py` | open |
 | T-30 | No property tests on scoring monotonicity, sigma floor, energy conservation, action-mode ordering, shadow≡on | B1, B7 | 02 §2 | M | `test_scoring_properties.py` | open |

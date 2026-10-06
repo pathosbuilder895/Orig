@@ -77,3 +77,53 @@ def authenticate(email: str, password: str) -> dict | None:
     if not verify_password(password, rec["password_hash"]):
         return None
     return {k: rec[k] for k in ("user_id", "email", "role", "tenant_id", "name")}
+
+
+# ── Student accounts (Bluebook self-serve, 2026-09) ───────────────────────────
+# A student account is a users row with role 'student' whose user_id IS the
+# derived scoped student id (student_auth.derive_student_id), so the login
+# row, the session sid, the roster entry and any Original profile all key on
+# one string. It is created by a teacher adding the student to a course, with
+# a password hash that can never verify; the student sets a real password by
+# redeeming an invite (original/invites.py).
+
+# Not a well-formed "algo$iters$salt$hash" string, so verify_password's
+# four-way split fails and it returns False: an invited-but-unredeemed
+# account cannot sign in.
+INVITED_PASSWORD_HASH = "!invited"
+
+
+def is_activated(user: dict) -> bool:
+    return user.get("password_hash") != INVITED_PASSWORD_HASH
+
+
+def create_student_account(tenant_id: str, email: str, name: str = "") -> tuple[dict, bool]:
+    """Return ``(user, created)``. Idempotent: an existing row for this
+    student id is returned unchanged. Raises ValueError when the email already
+    belongs to a different account (users.email is globally unique)."""
+    from .student_auth import derive_student_id
+
+    normalized = email.strip().lower()
+    sid = derive_student_id(tenant_id, normalized)
+    existing = _repo().get_user_by_email(normalized)
+    if existing:
+        if existing["user_id"] != sid or existing["role"] != "student":
+            raise ValueError("That email already belongs to another account.")
+        return existing, False
+    display = (name or "").strip() or normalized.split("@")[0]
+    _repo().put_user(sid, normalized, INVITED_PASSWORD_HASH, "student", tenant_id, display)
+    return (
+        {
+            "user_id": sid,
+            "email": normalized,
+            "role": "student",
+            "tenant_id": tenant_id,
+            "name": display,
+            "password_hash": INVITED_PASSWORD_HASH,
+        },
+        True,
+    )
+
+
+def set_password(user_id: str, password: str) -> bool:
+    return _repo().set_user_password_hash(user_id, hash_password(password))

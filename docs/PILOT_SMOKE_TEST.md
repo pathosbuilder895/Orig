@@ -26,9 +26,10 @@ exam. ~15 minutes. `$HOST` = the pilot URL. Use a throwaway "smoketest" course.
 - [ ] Canvas **student** launch (exam link) → briefing screen, no login prompt; conditions list matches the exam's toggles.
 - [ ] Begin Examination → fullscreen engages; leaving fullscreen shows the warning + Restore control.
 - [ ] Paste attempt is blocked with the examiner's notice; Ctrl/Cmd+P blocked.
-- [ ] Type past the minimum → Seal & Submit → "Examination Sealed" + "✓ Your writing sample was delivered to Original".
-- [ ] `GET $HOST/students/<bound id>` → sample_count incremented, provenance `proctored`.
-- [ ] Bluebook → Results: the sitting is listed with a Stylometric score; AI Score populated if the student already had a baseline (— if first sitting: expected).
+- [ ] Type past the minimum → Seal & Submit → "Examination Sealed".
+- [ ] `GET $HOST/students/<bound id>` → sample_count unchanged by the seal (sealing never adds to a baseline).
+- [ ] Bluebook → the submission's reader → **Add to baseline** → "In baseline"; `GET $HOST/students/<bound id>` → sample_count incremented, provenance `proctored`.
+- [ ] Bluebook → Results: the sitting is listed; AI Score populated if the student already had a baseline (— if first sitting: expected).
 
 ## D. Scoring loop
 

@@ -2426,26 +2426,9 @@ function renderBaselines() {
       <div id="blStatus" style="font-size:0.78rem;color:var(--text-muted);margin-top:4px"></div>
     </div>
 
-    <!-- Import from Canvas -->
-    <div style="margin-top:12px">
-      <button class="add-base-btn" onclick="toggleCanvasImport()" id="canvasImportBtn">Import from Canvas</button>
-      <div id="canvasImportPanel" style="display:none;margin-top:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
-        <div style="font-size:0.8rem;font-weight:600;margin-bottom:10px;color:var(--text)">Canvas Submissions Import</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-          <input id="ciCourseId" placeholder="Canvas Course ID" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)" aria-label="Canvas Course ID">
-          <input id="ciUserId" placeholder="Canvas User ID" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)" aria-label="Canvas User ID">
-        </div>
-        <div style="display:flex;gap:8px;margin-bottom:8px">
-          <input id="ciToken" type="password" placeholder="Canvas API token (leave blank if set server-side)" style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:0.82rem;background:var(--surface);color:var(--text)" aria-label="Canvas API token">
-          <button onclick="listCanvasSubmissions()" style="padding:8px 14px;background:var(--green-deep);color:var(--text-cream);border:none;border-radius:7px;font-family:Inter,sans-serif;font-weight:600;font-size:0.82rem;cursor:pointer;white-space:nowrap">List Papers</button>
-        </div>
-        <div id="ciList" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto"></div>
-        <div style="display:flex;justify-content:flex-end;margin-top:8px;gap:8px">
-          <button onclick="importSelectedCanvas()" id="ciImportBtn" style="display:none;padding:8px 16px;background:var(--flag-green);color:#fff;border:none;border-radius:7px;font-family:Inter,sans-serif;font-weight:600;font-size:0.82rem;cursor:pointer">Import Selected</button>
-        </div>
-        <div id="ciStatus" style="font-size:0.76rem;color:var(--text-muted);margin-top:4px"></div>
-      </div>
-    </div>
+    <!-- Import from Canvas: sidelined for the initial product (2026-09).
+         The /canvas/* routes and toggleCanvasImport() below remain; only the
+         entry point is removed. See docs/ARCHITECTURE.md. -->
 
     <!-- Request proctored sitting via Bbook (Phase 2 Original-first flow) -->
     <div style="margin-top:12px">

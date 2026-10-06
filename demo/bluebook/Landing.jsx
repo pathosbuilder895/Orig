@@ -1,5 +1,29 @@
 import React from 'react';
 import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, Logotype, MetaLabel, Ornament, Seal, fontBody, fontDisplay, fontMono } from './components.jsx';
+import { homeFor, LegalLinks } from './Account.jsx';
+
+// "Explore the demo" opens the mock dashboard. It belongs on the public demo
+// deploy only; on a real deploy it would show a visitor fabricated data.
+function useIsDemoDeploy() {
+  const [demo, setDemo] = React.useState(false);
+  React.useEffect(() => {
+    let live = true;
+    BB_API.environment().then(env => { if (live) setDemo(env === 'demo'); });
+    return () => { live = false; };
+  }, []);
+  return demo;
+}
+
+// Signup links show only once the deploy confirms signup is open.
+function useSignupOpen() {
+  const [open, setOpen] = React.useState(false);
+  React.useEffect(() => {
+    let live = true;
+    BB_API.signupOpen().then(v => { if (live) setOpen(v); });
+    return () => { live = false; };
+  }, []);
+  return open;
+}
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Landing & Login Screens
@@ -8,6 +32,7 @@ const { useState: useLState } = React;
 
 // ─── Landing Screen ──────────────────────────────────────────────────────────
 export function LandingScreen({ onNavigate }) {
+  const signupOpen = useSignupOpen();
   return (
     <div className="bb-screen" style={{
       minHeight: '100vh', background: BB.oxford,
@@ -15,7 +40,7 @@ export function LandingScreen({ onNavigate }) {
       fontFamily: fontBody, color: BB.cream,
     }}>
       {/* Nav */}
-      <nav style={{
+      <nav className="bb-land-nav" style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
         padding: '20px 48px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -23,33 +48,35 @@ export function LandingScreen({ onNavigate }) {
         borderBottom: '1px solid rgba(201,169,97,0.14)',
       }}>
         <Logotype size={22} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 36 }}>
+        <div className="bb-land-navlinks" style={{ display: 'flex', alignItems: 'center', gap: 36 }}>
           <button onClick={() => onNavigate('login')} style={{
             fontFamily: fontBody, fontSize: 16, color: BB.fade,
             background: 'none', border: 'none', cursor: 'pointer',
             letterSpacing: '0.03em', transition: 'color 0.3s',
           }}>Sign in</button>
-          <button onClick={() => onNavigate('login')} style={{
-            fontFamily: fontBody, fontVariant: 'small-caps',
-            letterSpacing: '0.12em', fontSize: 16,
-            color: BB.gold, background: 'none', border: 'none',
-            borderBottom: '1px solid rgba(201,169,97,0.45)',
-            paddingBottom: 2, cursor: 'pointer',
-          }}>Begin →</button>
+          {signupOpen && (
+            <button onClick={() => onNavigate('signup')} style={{
+              fontFamily: fontBody, fontVariant: 'small-caps',
+              letterSpacing: '0.12em', fontSize: 16,
+              color: BB.gold, background: 'none', border: 'none',
+              borderBottom: '1px solid rgba(201,169,97,0.45)',
+              paddingBottom: 2, cursor: 'pointer',
+            }}>Start free →</button>
+          )}
         </div>
       </nav>
 
       {/* Hero — bottom-anchored, title-page spirit */}
-      <section style={{
+      <section className="bb-land-hero" style={{
         flex: 1, display: 'flex', flexDirection: 'column',
         justifyContent: 'flex-end', minHeight: '100vh',
         padding: '120px 48px 48px', position: 'relative',
       }}>
-        <div style={{ position: 'absolute', top: 80, left: 48, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="bb-land-kicker" style={{ position: 'absolute', top: 80, left: 48, display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: BB.gold }} />
-          <MetaLabel>Academic Integrity Platform · Est. MMXXIV</MetaLabel>
+          <MetaLabel>Written examinations, in the browser</MetaLabel>
         </div>
-        <MetaLabel style={{ position: 'absolute', top: 80, right: 48 }}>01 / 04</MetaLabel>
+        <MetaLabel className="bb-land-folio" style={{ position: 'absolute', top: 80, right: 48 }}>01 / 04</MetaLabel>
 
         <div style={{ marginBottom: 48 }}>
           <h1 style={{
@@ -74,23 +101,25 @@ export function LandingScreen({ onNavigate }) {
             fontFamily: fontBody, fontSize: 17, color: BB.fade,
             lineHeight: 1.65, maxWidth: 380, margin: 0,
           }}>
-            The digital counterpart to the traditional examination notebook —
-            built for institutions that treat authenticity as an obligation,
-            not a product feature.
+            The digital counterpart to the traditional examination notebook.
+            Set a written exam, add your students, and read what they wrote —
+            timed, full-screen, and in one place.
           </p>
-          <div style={{ display: 'flex', gap: 14, flexShrink: 0 }}>
+          <div className="bb-land-ctas" style={{ display: 'flex', gap: 14, flexShrink: 0 }}>
             <BtnGhost onClick={() => onNavigate('login')} style={{ padding: '10px 28px', fontSize: 16 }}>
               Sign in
             </BtnGhost>
-            <BtnPrimary onClick={() => onNavigate('login')} style={{ padding: '10px 28px', fontSize: 16 }}>
-              Request a demo
-            </BtnPrimary>
+            {signupOpen && (
+              <BtnPrimary onClick={() => onNavigate('signup')} style={{ padding: '10px 28px', fontSize: 16 }}>
+                Create a free workspace
+              </BtnPrimary>
+            )}
           </div>
         </div>
       </section>
 
       {/* Features — table of contents */}
-      <section style={{ borderTop: '1px solid rgba(201,169,97,0.2)', padding: '0 48px' }}>
+      <section className="bb-land-toc" style={{ borderTop: '1px solid rgba(201,169,97,0.2)', padding: '0 48px' }}>
         <div style={{ maxWidth: 860, margin: '0 auto' }}>
           <div style={{
             padding: '28px 0 10px', display: 'flex',
@@ -101,13 +130,13 @@ export function LandingScreen({ onNavigate }) {
           </div>
           <GoldRule faint />
           {[
-            { num: 'I',   title: 'Lockdown Mode',      desc: 'Secure browser environment' },
-            { num: 'II',  title: 'Typing Rhythm',       desc: 'Confirms the work is the writer’s own' },
-            { num: 'III', title: 'AI Detection',        desc: 'Integrated with Original' },
-            { num: 'IV',  title: 'Proctor Dashboard',   desc: 'Live supervision & alerts' },
+            { num: 'I',   title: 'Timed Sittings',      desc: 'A server-held clock that a reload cannot pause' },
+            { num: 'II',  title: 'Full-Screen Mode',    desc: 'Leaving it or switching tabs is recorded' },
+            { num: 'III', title: 'Rosters & Invites',   desc: 'Add students by email; they set their own password' },
+            { num: 'IV',  title: 'Read & Export',       desc: 'Every answer in one place, and as a spreadsheet' },
           ].map(({ num, title, desc }) => (
             <div key={num}>
-              <div style={{ padding: '16px 0', display: 'flex', alignItems: 'baseline', gap: 20 }}>
+              <div className="bb-land-row" style={{ padding: '16px 0', display: 'flex', alignItems: 'baseline', gap: 20 }}>
                 <span style={{
                   fontFamily: fontMono, fontSize: 10,
                   color: BB.fade, letterSpacing: '0.18em',
@@ -118,7 +147,7 @@ export function LandingScreen({ onNavigate }) {
                   color: BB.cream, fontWeight: 500,
                   letterSpacing: '0.02em', flex: 1,
                 }}>{title}</span>
-                <span style={{
+                <span className="bb-land-desc" style={{
                   fontFamily: fontBody, fontSize: 15, fontStyle: 'italic',
                   color: BB.fade, letterSpacing: '0.03em', flexShrink: 0,
                 }}>{desc}</span>
@@ -133,24 +162,32 @@ export function LandingScreen({ onNavigate }) {
       </section>
 
       {/* Footer */}
-      <footer style={{
+      <footer className="bb-land-foot" style={{
         borderTop: '1px solid rgba(201,169,97,0.18)',
         padding: '18px 48px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
         <Logotype size={17} />
         <MetaLabel>© MMXXVI · All rights reserved</MetaLabel>
-        <div style={{ display: 'flex', gap: 28 }}>
+        <div className="bb-land-footlinks" style={{ display: 'flex', gap: 28 }}>
           <button onClick={() => onNavigate('login')} style={{
             fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
             textTransform: 'uppercase', color: BB.fade,
             background: 'none', border: 'none', cursor: 'pointer',
           }}>Sign in</button>
-          <a href="/_components/explainer.html" target="_blank" rel="noopener" style={{
+          <a href="mailto:hello@originalvoice.io?subject=Bluebook%20support" style={{
             fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
             textTransform: 'uppercase', color: BB.fade,
             textDecoration: 'none',
-          }}>How it works</a>
+          }}>Support</a>
+          <a href="../legal/privacy.html" style={{
+            fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
+            textTransform: 'uppercase', color: BB.fade, textDecoration: 'none',
+          }}>Privacy</a>
+          <a href="../legal/terms.html" style={{
+            fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
+            textTransform: 'uppercase', color: BB.fade, textDecoration: 'none',
+          }}>Terms</a>
         </div>
       </footer>
     </div>
@@ -163,6 +200,8 @@ export function LoginScreen({ onNavigate }) {
   const [pass,    setPass]    = useLState('');
   const [loading, setLoading] = useLState(false);
   const [error,   setError]   = useLState('');
+  const demoDeploy = useIsDemoDeploy();
+  const signupOpen = useSignupOpen();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -170,8 +209,8 @@ export function LoginScreen({ onNavigate }) {
     setError('');
     setLoading(true);
     try {
-      await BB_API.login(email, pass);
-      onNavigate('dashboard');
+      const data = await BB_API.login(email, pass);
+      onNavigate(homeFor(data));
     } catch (err) {
       setError(err && err.message ? err.message : 'Sign-in failed');
       setLoading(false);
@@ -210,31 +249,31 @@ export function LoginScreen({ onNavigate }) {
           <p style={{
             fontFamily: fontDisplay, fontStyle: 'italic',
             fontSize: 19, color: BB.fade, letterSpacing: '0.04em', margin: 0,
-          }}>Verification of Identity</p>
+          }}>Sign in</p>
         </div>
 
         <div style={{ border: '1px solid rgba(201,169,97,0.28)', padding: '32px 36px' }}>
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: 22 }}>
               <MetaLabel htmlFor="bbLoginEmail" style={{ display: 'block', marginBottom: 8 }}>
-                Electronic Address
+                Email
               </MetaLabel>
               <input
                 id="bbLoginEmail"
                 type="email" value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="you@institution.edu"
+                placeholder="you@school.edu"
                 style={inputStyle}
                 required
               />
             </div>
             <div style={{ marginBottom: 30 }}>
               <MetaLabel htmlFor="bbLoginPass" style={{ display: 'block', marginBottom: 8 }}>
-                Passphrase
+                Password
               </MetaLabel>
               <input
                 id="bbLoginPass"
-                type="password" value={pass}
+                type="password" value={pass} autoComplete="current-password"
                 onChange={e => setPass(e.target.value)}
                 placeholder="••••••••••"
                 style={{ ...inputStyle, letterSpacing: '0.12em' }}
@@ -254,30 +293,47 @@ export function LoginScreen({ onNavigate }) {
 
           <Ornament char="·" py={18} />
 
+          {signupOpen ? (
+            <p style={{
+              textAlign: 'center', fontFamily: fontBody, fontSize: 16,
+              color: BB.fade, letterSpacing: '0.02em', margin: '0 0 14px',
+            }}>
+              Teacher without an account?{' '}
+              <button type="button" onClick={() => onNavigate('signup')} style={{
+                fontFamily: fontBody, fontSize: 16, color: BB.gold,
+                textDecoration: 'underline', letterSpacing: '0.02em',
+                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+              }}>Create a free workspace</button>
+            </p>
+          ) : (
+            <p style={{
+              textAlign: 'center', fontFamily: fontBody, fontSize: 16,
+              color: BB.fade, letterSpacing: '0.02em', margin: '0 0 14px',
+            }}>
+              Teachers join Bluebook by invitation during the pilot.
+            </p>
+          )}
           <p style={{
-            textAlign: 'center', fontFamily: fontBody, fontSize: 16,
+            textAlign: 'center', fontFamily: fontBody, fontSize: 15,
             color: BB.fade, letterSpacing: '0.02em', margin: '0 0 14px',
           }}>
-            Not yet registered?{' '}
-            <a href="mailto:hello@originalvoice.io?subject=Bluebook%20access%20request" style={{
-              fontFamily: fontBody, fontSize: 16, color: BB.gold,
-              textDecoration: 'underline', letterSpacing: '0.02em',
-            }}>Apply for access</a>
+            <button type="button" onClick={() => onNavigate('forgot')} style={{
+              fontFamily: fontBody, fontSize: 15, color: BB.gold, textDecoration: 'underline',
+              background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+            }}>Forgot your password?</button>
+            {' '}Students joining a class: use the invite link from your teacher.
           </p>
-          <div style={{ textAlign: 'center' }}>
-            <button onClick={() => onNavigate('dashboard')} style={{
-              fontFamily: fontMono, fontSize: 10, letterSpacing: '0.18em',
-              textTransform: 'uppercase', color: 'rgba(139,155,180,0.9)',
-              background: 'none', border: 'none', cursor: 'pointer',
-            }}>Explore the demo →</button>
-          </div>
+          {demoDeploy && (
+            <div style={{ textAlign: 'center' }}>
+              <button onClick={() => { window.location.href = 'teacher-demo.html'; }} style={{
+                fontFamily: fontMono, fontSize: 10, letterSpacing: '0.18em',
+                textTransform: 'uppercase', color: 'rgba(139,155,180,0.9)',
+                background: 'none', border: 'none', cursor: 'pointer',
+              }}>Explore the demo →</button>
+            </div>
+          )}
         </div>
-
-        <p style={{
-          textAlign: 'center', marginTop: 20,
-          fontFamily: fontMono, fontSize: 10, letterSpacing: '0.18em',
-          color: 'rgba(139,155,180,0.9)', textTransform: 'uppercase',
-        }}>Secure · Encrypted · Monitored</p>
+        <LegalLinks />
       </div>
     </div>
   );

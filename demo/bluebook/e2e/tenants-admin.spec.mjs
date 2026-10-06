@@ -58,7 +58,7 @@ test.describe('Cross-tenant student visibility (complements test_tenant_isolatio
   test('a student in tenant A is invisible from tenant B — neither in the roster nor by direct fetch', async ({ request }) => {
     const a = await provisionTenantWithStaff(request)
     const b = await provisionTenantWithStaff(request)
-    const studentA = await studentLogin(request, { institution: a.tenant.name, name: 'Tenant A Student' })
+    const studentA = await studentLogin(request, { staffToken: a.staff.token, name: 'Tenant A Student' })
 
     // Direct fetch: tenant B's staff gets 403 on tenant A's student.
     const directRes = await request.get(`/students/${encodeURIComponent(studentA.student_id)}`, {
@@ -84,7 +84,7 @@ test.describe('Cross-tenant student visibility (complements test_tenant_isolatio
 
   test('an operator (super role) can cross tenant boundaries by design', async ({ request }) => {
     const a = await provisionTenantWithStaff(request)
-    const studentA = await studentLogin(request, { institution: a.tenant.name, name: 'Tenant A Student 2' })
+    const studentA = await studentLogin(request, { staffToken: a.staff.token, name: 'Tenant A Student 2' })
     // A genuinely different tenant than A's — proves this is cross-tenant
     // access, not same-tenant access that happens to also be an operator.
     const c = await provisionTenantWithStaff(request, { role: 'operator' })

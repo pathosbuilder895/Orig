@@ -30,6 +30,7 @@ from ..schemas import (
     AiLikelihoodOut,
     AuthorshipSignalOut,
     BaselineConfidenceOut,
+    BaselineIntegrityOut,
     ContextManifestOut,
     DomainSignalOut,
     DriftAnalysisOut,
@@ -243,10 +244,14 @@ def log_email_sender_status() -> None:
     """
     if not os.environ.get("SENDGRID_API_KEY", "").strip():
         return
+    # Since 2026-10 the key IS used, but only for account email (Bluebook
+    # invites and password resets, original/mailer.py). Scoring notifications
+    # stay a documented no-op; say both so neither is assumed.
     logging.getLogger(__name__).warning(
-        "SENDGRID_API_KEY is set but no email is ever sent — the notification "
-        "sender is a documented no-op (routers/_shared.py:_send_notification_email). "
-        "Scoring notifications are logged, not delivered. Unset the key to silence this."
+        "SENDGRID_API_KEY is set: account email (invites, password resets) is sent via "
+        "original/mailer.py%s. Scoring notifications are still a documented no-op "
+        "(routers/_shared.py:_send_notification_email) and are logged, not delivered.",
+        "" if os.environ.get("MAIL_FROM", "").strip() else " once MAIL_FROM is also set",
     )
 
 
@@ -264,22 +269,64 @@ def log_email_sender_status() -> None:
 # production are untouched unless someone deliberately sets these.
 _LOGIN_WINDOW_SEC = int(os.environ.get("LOGIN_THROTTLE_WINDOW_SEC", "300"))
 _LOGIN_MAX_ATTEMPTS = int(os.environ.get("LOGIN_THROTTLE_MAX_ATTEMPTS", "10"))
-_login_attempts: dict = {}  # ip -> [monotonic timestamps]
+_login_attempts: dict = {}  # bucket key -> [monotonic timestamps of FAILED attempts]
 
 
-def _throttle_login(request: Request) -> None:
+def _client_ip(request: Request) -> str:
+    """The caller's IP for throttling.
+
+    On a real deploy the socket peer is Render's proxy, so every visitor would
+    share one bucket and a class signing in together would lock the whole
+    site out (T-20). There we read the first ``X-Forwarded-For`` hop, the
+    client as the platform reports it. That hop is client-controlled, so
+    ``_throttle_login`` also buckets failures per email: spoofing the header
+    cannot buy more guesses against one account.
+    """
+    if _api()._IS_REAL_DEPLOY:
+        first = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+        if first:
+            return first
+    return getattr(request.client, "host", "unknown") if request.client else "unknown"
+
+
+def _throttle_keys(request: Request, email: str, scope: str = "login") -> list[str]:
+    # ``scope`` keeps separate budgets per entry point (sign-in, signup,
+    # invite redemption); the default preserves the original sign-in keys.
+    prefix = "" if scope == "login" else f"{scope}:"
+    keys = [f"{prefix}ip:{_client_ip(request)}"]
+    e = (email or "").strip().lower()
+    if e:
+        keys.append(f"{prefix}email:{e}")
+    return keys
+
+
+def _throttle_login(request: Request, email: str = "", scope: str = "login") -> None:
+    """Raise 429 when this IP, or this email, has too many recent failures.
+
+    Only failures count (``_record_login_failure``): successful sign-ins no
+    longer consume the budget, so a class of students signing in from one
+    school network is not throttled by its own successes.
+    """
     import time as _time
 
-    ip = getattr(request.client, "host", "unknown") if request.client else "unknown"
     now = _time.monotonic()
-    window = [t for t in _login_attempts.get(ip, []) if now - t < _LOGIN_WINDOW_SEC]
-    if len(window) >= _LOGIN_MAX_ATTEMPTS:
-        raise HTTPException(
-            status_code=429,
-            detail="Too many sign-in attempts. Try again in a few minutes.",
-        )
-    window.append(now)
-    _login_attempts[ip] = window
+    for key in _throttle_keys(request, email, scope):
+        window = [t for t in _login_attempts.get(key, []) if now - t < _LOGIN_WINDOW_SEC]
+        _login_attempts[key] = window
+        if len(window) >= _LOGIN_MAX_ATTEMPTS:
+            raise HTTPException(
+                status_code=429,
+                detail="Too many sign-in attempts. Try again in a few minutes.",
+            )
+
+
+def _record_login_failure(request: Request, email: str = "", scope: str = "login") -> None:
+    """Count one failed attempt against this IP and this email."""
+    import time as _time
+
+    now = _time.monotonic()
+    for key in _throttle_keys(request, email, scope):
+        _login_attempts.setdefault(key, []).append(now)
     if len(_login_attempts) > 10_000:  # bound memory under address churn
         _login_attempts.clear()
 
@@ -304,7 +351,41 @@ def _render_launch_localstorage(ls: dict, redirect: str) -> HTMLResponse:
     return HTMLResponse(html)
 
 
+def _signup_open() -> bool:
+    """Whether the public teacher signup is enabled on this deploy.
+
+    ``SELF_SERVE_SIGNUP=0`` makes the pilot invitation-only: professors are
+    then onboarded with ``scripts/invite_professor.py``. Read per request so an
+    operator can flip it with a restart and tests can monkeypatch the env."""
+    return os.environ.get("SELF_SERVE_SIGNUP", "1").strip() != "0"
+
+
+def _launch_products(tenant_id: str) -> str:
+    """The ``original_products`` localStorage value for a launch page.
+
+    Sign-in responses carry the tenant's products; launch pages must too, or
+    the SPA falls back to assuming Original and a Bluebook-only student's
+    seal stalls on 403s from the Original routes."""
+    return json.dumps(sorted(principal_mod.tenant_products(tenant_id or None)))
+
+
 _MAGIC_SESSION_TTL = 12 * 3600  # a single exam-day sitting, not a week
+
+
+def _exam_submissions(exam: dict) -> list[dict]:
+    """The submissions that belong to ``exam``'s own workspace.
+
+    A row can name an exam id from another workspace (a student or staff
+    member who typed or was handed one). Such a row is that other workspace's
+    data: it must never be listed, exported or written to a profile by the
+    exam's owner. An exam with no tenant (a legacy row) has nothing to compare
+    against, so all of its rows are returned.
+    """
+    subs = _repo().list_bluebook_submissions_for_exam(exam["id"])
+    tenant = exam.get("tenant_id")
+    if tenant is None:
+        return subs
+    return [s for s in subs if s.get("tenant_id") == tenant]
 
 
 def _bluebook_tenant(request: Request) -> str:
@@ -399,6 +480,32 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
     report_out: ScoringReportOut | None = None
     if report is not None:
         report_out = ScoringReportOut(**report.to_dict())
+
+    # Report-only baseline health diagnostic (T-70). No env flag gates this
+    # — it never touches deviation_score, quantum_fidelity, or the
+    # recommendation, only what gets reported alongside them — so it is
+    # attempted on every response rather than behind a flag. `r`
+    # (Layer7Output) carries no direct reference to the persisted state, so
+    # it is re-fetched here by student id; that re-fetch and the build
+    # itself are both wrapped defensively (mirroring build_baseline_
+    # integrity's own internal abstain-to-None convention) so a persistence
+    # hiccup or a malformed state can never break the primary score
+    # response. Absent for unpersisted/synthetic states (e.g. the admin
+    # playground's "__playground__" student), same as every other
+    # signal that depends on repository-backed state.
+    baseline_integrity_out: BaselineIntegrityOut | None = None
+    try:
+        from ..baseline_integrity import build_baseline_integrity
+
+        _bi_state = _repo().get(r.student_id)
+        if _bi_state is not None:
+            _bi = build_baseline_integrity(_bi_state)
+            if _bi is not None:
+                baseline_integrity_out = BaselineIntegrityOut(**_bi.__dict__)
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "baseline_integrity computation failed for %s — signal skipped", r.student_id
+        )
 
     return Layer7OutputResponse(
         student_id=r.student_id,
@@ -526,6 +633,7 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
             if getattr(r, "style_authorship", None) is not None
             else None
         ),
+        baseline_integrity=baseline_integrity_out,
         drift_analysis=(
             DriftAnalysisOut(**r.drift_analysis.to_dict())
             if getattr(r, "drift_analysis", None) is not None

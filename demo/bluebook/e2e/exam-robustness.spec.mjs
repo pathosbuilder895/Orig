@@ -126,6 +126,7 @@ test.describe('Exam-day robustness @robustness', () => {
     await studentPage.locator('textarea[placeholder="Begin writing here…"]').focus()
     await studentPage.keyboard.type(ESSAY, { delay: 1 })
 
+    studentPage.once('dialog', d => d.accept())
     await studentPage.locator('button', { hasText: /Seal & Submit|Sealing/ }).click()
     await expect(studentPage.getByText('Examination Sealed')).toBeVisible({ timeout: 60_000 })
     expect(failedOnce).toBe(true) // the abort really happened; success came from the retry
@@ -137,13 +138,15 @@ test.describe('Exam-day robustness @robustness', () => {
     test.setTimeout(90_000)
     const exam = await createExam(request, workerTenant, 'Robustness failure exam')
 
-    // Kill the seal at step 2 (baseline write) on every attempt.
-    await studentPage.route('**/students/*/baseline', (route) => route.abort())
+    // Kill the seal's submission record (its only write) on every attempt.
+    await studentPage.route('**/bluebook/submissions', (route) =>
+      route.request().method() === 'POST' ? route.abort() : route.continue())
 
     await bootInExam(studentPage, exam, workerTenant, 'Failure Candidate')
     await studentPage.locator('textarea[placeholder="Begin writing here…"]').focus()
     await studentPage.keyboard.type(ESSAY, { delay: 1 })
 
+    studentPage.once('dialog', d => d.accept())
     await studentPage.locator('button', { hasText: /Seal & Submit|Sealing/ }).click()
 
     // 3 attempts with 2s/5s backoff between them → well under this timeout.
@@ -152,9 +155,17 @@ test.describe('Exam-day robustness @robustness', () => {
       undefined,
       { timeout: 60_000 },
     )
-    const draftKept = await studentPage.evaluate(
-      () => Object.keys(localStorage).some(k => k.startsWith('bb_draft_')),
-    )
-    expect(draftKept).toBe(true)
+    // The draft must hold the essay itself, not merely exist: the early
+    // draft written when the sitting began would satisfy a bare key check
+    // even if the answer had never been saved.
+    const draftAnswers = await studentPage.evaluate(() => {
+      const key = Object.keys(localStorage).find(k => k.startsWith('bb_draft_'))
+      if (!key) return null
+      const d = JSON.parse(localStorage.getItem(key))
+      return { answers: d.answers, content: d.content }
+    })
+    expect(draftAnswers).not.toBeNull()
+    expect(draftAnswers.answers.join('\n')).toContain(ESSAY)
+    expect(draftAnswers.content).toContain(ESSAY)
   })
 })

@@ -13,8 +13,10 @@ script is the fallback: paste a roster, get one bound launch link per student.
 Each link carries a signed **launch token** (``/bluebook/launch?t=…``) binding
 the opaque student id (``sid``) — never a name or email by default — which the
 server redeems into a short session + proctor attestation. That is what lets a
-magic-link sitting land a *proctored* baseline on a pilot tenant (an anonymous
+magic-link sitting be recorded on a pilot tenant (an anonymous
 ``/bluebook/?sid=…`` link cannot — writes to pilot data require authentication).
+A sealed sitting joins the student's Original baseline only if a professor
+later approves it.
 The id is derived with the SAME formula the server uses
 (``original.student_auth.derive_student_id``), so a link generated here and a
 Canvas launch for the same student resolve to the identical profile.
@@ -163,8 +165,8 @@ def build_link(
     """Unsigned launch URL (demo/legacy): binds the student via query params.
 
     An anonymous POST from this link cannot write a pilot tenant's data — use
-    ``build_launch_link`` (signed) for a pilot so proctored sittings actually
-    land. Kept for demo mode and for the sid-derivation invariant test.
+    ``build_launch_link`` (signed) for a pilot so sittings are actually
+    recorded. Kept for demo mode and for the sid-derivation invariant test.
     """
     base = base_url.rstrip("/")
     params = [("sid", sid), ("tenant", tenant)]
@@ -176,13 +178,21 @@ def build_link(
 
 
 def build_launch_link(
-    base_url: str, tenant: str, sid: str, exam: str, name: str, include_name: bool, ttl_days: int
+    base_url: str,
+    tenant: str,
+    sid: str,
+    exam: str,
+    name: str,
+    include_name: bool,
+    ttl_days: int,
+    exam_id: str = "",
 ) -> str:
     """Signed launch URL for a pilot: ``/bluebook/launch?t=<launch_token>``.
 
     The token (signed with SECRET_KEY) is redeemed server-side into a short
-    session + proctor attestation, so the proctored baseline lands on the pilot
-    tenant. The student's name rides inside the token only when ``include_name``
+    session + proctor attestation, so the sealed sitting is recorded on the
+    pilot tenant (it joins a baseline only when a professor approves it). The
+    student's name rides inside the token only when ``include_name``
     is set (otherwise the link stays name-free, FERPA URL-minimisation)."""
     token = mint_launch_token(
         sid,
@@ -190,6 +200,7 @@ def build_launch_link(
         exam=exam,
         name=(name if include_name else ""),
         ttl_seconds=ttl_days * 24 * 3600,
+        exam_id=exam_id,
     )
     base = base_url.rstrip("/")
     return f"{base}/bluebook/launch?{urlencode([('t', token)], quote_via=quote)}"
@@ -262,6 +273,12 @@ def main() -> int:
         help="exam title shown on the briefing (default: 'Week 1 Writing Sample')",
     )
     ap.add_argument(
+        "--exam-id",
+        default="",
+        help="id of the stored exam (GET /bluebook/exams). Without it the student is "
+        "shown Bluebook's built-in sample question, not your exam's prompt",
+    )
+    ap.add_argument(
         "--format",
         choices=["csv", "md", "links"],
         default="csv",
@@ -284,8 +301,9 @@ def main() -> int:
         "--unsigned",
         action="store_true",
         help="emit legacy unsigned /bluebook/?sid=... links instead of signed "
-        "/bluebook/launch?t=... links. Unsigned links CANNOT land proctored samples "
-        "on a pilot (anonymous writes to pilot data are blocked) — use only for demo.",
+        "/bluebook/launch?t=... links. Unsigned links do not sign the student in, so "
+        "on a pilot the sitting CANNOT be recorded (anonymous writes to pilot data are "
+        "blocked) — use only for demo.",
     )
     ap.add_argument(
         "--link-ttl-days",
@@ -329,9 +347,11 @@ def main() -> int:
             "clickable. Pass the pilot host to make them usable.\n"
         )
 
-    # Signed launch links are the default (they actually land proctored samples on
-    # a pilot). Warn loudly if SECRET_KEY is unset — the links would then be signed
-    # with the insecure dev fallback and rejected by any server with a real key.
+    # Signed launch links are the default (they sign the student in, so the sealed
+    # sitting is actually recorded on a pilot; it joins the student's baseline
+    # only if a professor later approves it). Warn loudly if SECRET_KEY is unset —
+    # the links would then be signed with the insecure dev fallback and rejected by
+    # any server with a real key.
     if not args.unsigned and not os.environ.get("SECRET_KEY"):
         sys.stderr.write(
             "warning: SECRET_KEY is not set — signed launch links are being signed with the\n"
@@ -345,7 +365,14 @@ def main() -> int:
         if args.unsigned:
             return build_link(args.base_url, tenant, sid, args.exam, name, args.include_name)
         return build_launch_link(
-            args.base_url, tenant, sid, args.exam, name, args.include_name, args.link_ttl_days
+            args.base_url,
+            tenant,
+            sid,
+            args.exam,
+            name,
+            args.include_name,
+            args.link_ttl_days,
+            exam_id=args.exam_id,
         )
 
     students = [

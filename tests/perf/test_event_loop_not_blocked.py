@@ -228,7 +228,7 @@ def _single_upload_docx(client: httpx.AsyncClient):
 def _single_upload_txt(client: httpx.AsyncClient):
     """POST /students/{sid}/upload — one ~2,000-word .txt file.
 
-    original/routers/students.py:341. Declared ``async def`` like the others,
+    original/routers/students.py:341. Now a plain ``def`` (threadpool) since f09bb9c61;
     but its inline work for a .txt is decode + split, not feature extraction.
     Kept as the green control for this route: unlike the .docx/.pdf branches,
     the .txt branch never blocks, so this case should stay green forever and
@@ -343,11 +343,8 @@ async def test_heartbeat_probe_is_fast_with_no_load(store_reset, perf_client):
 
 
 # ── The gap ───────────────────────────────────────────────────────────────────
-# One case per handler. Only the handlers that are actually red carry
-# `blocker`, so the marker stays an accurate inventory of open gaps: the
-# batch importer, the CSV importer, and the .docx branch of the single-file
-# upload all hold the loop for a while; the .txt branch of that same route is
-# a green control kept alongside it (see `_single_upload_txt`).
+# One case per handler. All four are green regression guards now; a handler
+# that moves heavy work back onto the event loop turns its case red.
 
 
 @pytest.mark.parametrize(
@@ -355,20 +352,18 @@ async def test_heartbeat_probe_is_fast_with_no_load(store_reset, perf_client):
     [
         pytest.param(_batch_upload, id="baseline-upload-batch"),
         pytest.param(_turnitin_csv, id="turnitin-csv"),
-        pytest.param(
-            _single_upload_docx, id="students-upload", marks=pytest.mark.blocker
-        ),
+        pytest.param(_single_upload_docx, id="students-upload"),
         pytest.param(_single_upload_txt, id="students-upload-txt"),
     ],
 )
 async def test_upload_does_not_starve_the_heartbeat(
     store_reset, perf_client, send_upload
 ):
-    """T-09, PARTIALLY FIXED: bulk upload blocks the event loop; live exam
-    heartbeats stall. The batch importer and the CSV importer were moved off
-    the event loop (5cfc2b6c) and are green below; the .docx branch of the
-    single-file upload was not part of that fix and stays RED
-    (docs/testing/10-gap-register.md). Measured 2026-09-07 on this checkout
+    """T-09, FIXED: bulk upload blocked the event loop; live exam heartbeats
+    stalled. The batch importer and the CSV importer were moved off the event
+    loop (5cfc2b6c); /students/{id}/upload is now a plain ``def`` handler, so
+    FastAPI runs its .docx parse in the threadpool (green 2026-10-04, 2/2
+    runs). The history below is kept as the record of the original failure. Measured 2026-09-07 on this checkout
     (Darwin, 12 CPUs), beats due every 50 ms for the life of the upload,
     worst (maximum) lateness across all beats (3 runs each) — figures below
     predate the 5cfc2b6c fix for the first two rows:

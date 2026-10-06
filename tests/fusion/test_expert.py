@@ -305,7 +305,14 @@ def test_channels_are_paired_with_their_own_weight_by_name(tmp_path, monkeypatch
     artifact_module.reset_for_tests()
     peers.reset_cache_for_tests()
     claimed = _state("t1:alice")
-    result = predict_fused_score(_LONG[:4000], claimed, [claimed] + _cohort())
+    # Peers written in a different style. With the shared ``_cohort()`` every
+    # text equals the claimed author's, so the centered compression channel is
+    # exactly 0 and the sanity check below rests on peer_centered_z alone,
+    # whose size (~1e-3) depends on ``hash()``-seeded vectors that change per
+    # process; about 1 run in 100 it fell inside the 1e-4 tolerance and the
+    # test failed. A distinct cohort makes compression a stable ~-0.68.
+    cohort = [_state(f"t1:peer{i}", words=_OTHER) for i in range(12)]
+    result = predict_fused_score(_LONG[:4000], claimed, [claimed] + cohort)
     assert result is not None
     assert set(result.channels) == {"compression", "peer_centered_z"}
 

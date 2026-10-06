@@ -613,3 +613,58 @@ def test_lti_jwks_returns_public_jwks(lti_client, monkeypatch):
     r = lti_client.get("/lti/jwks")
     assert r.status_code == 200
     assert r.json() == {"keys": []}
+
+
+def test_verify_launch_rejects_hs256_forged_with_the_platform_public_key(monkeypatch, keypair):
+    """CVE-2026-85394 / GHSA-3qf3-8w2g-rqmx (python-jose <= 3.5.0, no fixed
+    release): an attacker holding the platform's public key can forge an HS256
+    token, using the DER-encoded key as the HMAC secret, when verification does
+    not restrict algorithms. verify_launch pins ``algorithms=["RS256"]``, so the
+    forgery is rejected. This test is the reachability argument behind the CI
+    pip-audit ignore for that advisory; if it ever fails, remove the ignore."""
+    import hashlib
+    import hmac
+
+    from cryptography.hazmat.primitives import serialization
+    from jose import jwt as jose_jwt
+
+    pem, jwk = keypair
+    private_key = serialization.load_pem_private_key(pem.encode(), password=None)
+    der = private_key.public_key().public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    monkeypatch.setenv(
+        "LTI_PLATFORMS",
+        json.dumps(
+            [{"issuer": ISSUER, "client_id": CLIENT_ID, "jwks_url": JWKS_URL, "tenant_id": TENANT}]
+        ),
+    )
+    monkeypatch.setattr(lti, "fetch_jwks", lambda url: {"keys": [jwk]})
+    state = lti.mint_state("n-hs", ISSUER)
+
+    def b64(obj) -> str:
+        return base64.urlsafe_b64encode(json.dumps(obj).encode()).decode().rstrip("=")
+
+    now = int(time.time())
+    header = {"alg": "HS256", "typ": "JWT", "kid": "test-kid-1"}
+    claims = {
+        "iss": ISSUER,
+        "aud": CLIENT_ID,
+        "sub": "forger",
+        "nonce": "n-hs",
+        "iat": now,
+        "exp": now + 600,
+        lti.CLAIM_DEPLOYMENT: DEPLOYMENT,
+        lti.CLAIM_MESSAGE_TYPE: "LtiResourceLinkRequest",
+        lti.CLAIM_ROLES: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"],
+    }
+    signing_input = f"{b64(header)}.{b64(claims)}"
+    signature = hmac.new(der, signing_input.encode(), hashlib.sha256).digest()
+    forged = f"{signing_input}.{base64.urlsafe_b64encode(signature).decode().rstrip('=')}"
+
+    # The forgery is genuine: with HS256 allowed, jose accepts it.
+    assert jose_jwt.decode(forged, der, algorithms=["HS256"], audience=CLIENT_ID)["sub"] == "forger"
+    # verify_launch only allows RS256, so it refuses the same token on the
+    # algorithm check itself (the RSA JWK would also refuse HMAC use).
+    with pytest.raises(lti.LtiError, match="alg value is not allowed"):
+        lti.verify_launch(forged, state)

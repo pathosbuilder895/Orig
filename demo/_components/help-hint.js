@@ -45,7 +45,7 @@
     },
     proctored: {
       title: 'Proctored sittings',
-      body:  'A proctored sitting is a writing session in a locked-down environment — no AI assistants, no web, no copy-paste — where the rhythm and pauses of your typing are also recorded. Proctored samples carry the highest weight in your voice profile.',
+      body:  'A proctored sitting is a timed writing session in a locked-down environment — no AI assistants, no web, no copy-paste. Only your text and coarse session information (times, word count, paste attempts, focus losses) are kept; your keystrokes and typing rhythm are not recorded. Your instructor decides whether it joins your baseline. Proctored samples carry the highest weight in your voice profile.',
     },
     review: {
       title: 'Worth a conversation',

@@ -535,13 +535,38 @@ def resolve_citations(text: str, citation_data: CitationData | None = None) -> d
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def resolve_composition_mode(text: str, keystroke_data: dict | None = None) -> dict[str, Any]:
+# composition_summary is macro-only (ADR-010, spec §5.3): no per-keystroke or
+# per-event character data, so there is no exact analogue of Tier 17's
+# `revision_depth` (mean chars-affected per deletion event). The best
+# available edit-intensity proxy is how many discrete revision events were
+# logged relative to the essay's length — `revision_count` per 100 words,
+# mirroring the per-100-words convention `paste_event_rate` already uses.
+# Threshold chosen so that occasional self-correction (a handful of edits
+# per 100 words) reads as "normal" while a revision event on every 6-7
+# words — consistent with wholesale rewriting of a block of text, the same
+# real-world behaviour `rev_depth > 30` / `del_rate > 0.20` target on the
+# keystroke path — reads as "heavy". There is no single objectively-correct
+# value here; this is a documented judgment call, not a derived constant.
+_COMPOSITION_SUMMARY_HEAVY_REVISION_RATE_PER_100_WORDS = 15.0
+
+
+def resolve_composition_mode(
+    text: str,
+    keystroke_data: dict | None = None,
+    composition_summary: dict | None = None,
+) -> dict[str, Any]:
     """
     Infer software mediation. Three modes:
 
         natural_drafted  — normal error rates, no paste events
         tool_cleaned     — anomalously low error rates (Grammarly-cleaned)
         structured       — uniform sentence length / templated text
+
+    ``composition_summary`` (ADR-010, spec §5.3) is the newer macro-only
+    session summary Bluebook posts in place of raw ``keystroke_data``. When
+    both are supplied, ``composition_summary`` wins — it is the intended
+    replacement path. When only ``keystroke_data`` is supplied (today's real
+    callers), behaviour is byte-identical to before this parameter existed.
 
     Returns
     -------
@@ -558,7 +583,34 @@ def resolve_composition_mode(text: str, keystroke_data: dict | None = None) -> d
     # ── Paste/keystroke signal (when available) ───────────────────────────────
     software_mediated = False
     edit_signature = "normal"
-    if keystroke_data:
+    if composition_summary:
+        try:
+            # Prefer the summary's own word_count (what the session actually
+            # produced); fall back to the resolver's own text-derived count
+            # only if the summary omitted or zeroed it.
+            summary_word_count = composition_summary.get("word_count") or 0
+            word_count_for_rate = summary_word_count if summary_word_count >= 1 else n
+
+            paste_attempts = float(composition_summary.get("paste_attempts", 0) or 0)
+            # Same underlying count and same per-100-words normalisation as
+            # Tier 17's paste_event_rate (composition_summary's
+            # paste_attempts IS the paste-type revision count — ADR-010), so
+            # this proxy is exactly equivalent for an equivalent scenario,
+            # not merely approximate. word_count_for_rate is always >= 1
+            # (n = max(1, doc.word_count) above), so there is no
+            # divide-by-zero case to guard here.
+            paste_rate = (paste_attempts / word_count_for_rate) * 100
+
+            revision_count = float(composition_summary.get("revision_count", 0) or 0)
+            revision_rate = (revision_count / word_count_for_rate) * 100
+
+            if paste_rate > 0:
+                software_mediated = True
+            if revision_rate > _COMPOSITION_SUMMARY_HEAVY_REVISION_RATE_PER_100_WORDS:
+                edit_signature = "heavy"
+        except Exception:  # pragma: no cover
+            pass
+    elif keystroke_data:
         try:
             from ..features.tier17 import extract_tier17  # lazy import
 

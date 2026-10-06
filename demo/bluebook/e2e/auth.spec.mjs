@@ -31,7 +31,7 @@ import { test, expect } from '@playwright/test'
 import { provisionTenantWithStaff } from './fixtures/api-setup.mjs'
 
 async function fillLogin(page, email, password) {
-  await page.getByPlaceholder('you@institution.edu').fill(email)
+  await page.getByPlaceholder('you@school.edu').fill(email)
   await page.getByPlaceholder('••••••••••').fill(password)
 }
 
@@ -83,7 +83,7 @@ test.describe('Bound student launch (magic-link / LTI launch consequence)', () =
     // never the sign-in form — confirming isStudentLaunch() short-circuited
     // routing straight past login/landing (app.jsx: BB_API.isStudentLaunch()).
     await expect(page.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByPlaceholder('you@institution.edu')).toHaveCount(0)
+    await expect(page.getByPlaceholder('you@school.edu')).toHaveCount(0)
   })
 
   // The identity a launch binds must also be the identity the sitting SHOWS.
@@ -153,7 +153,7 @@ test.describe('Login throttle lockout @serial-lockout', () => {
     const { staff } = await provisionTenantWithStaff(request)
     await page.goto('/bluebook/')
     await page.getByRole('button', { name: 'Sign in' }).first().click()
-    await page.getByPlaceholder('you@institution.edu').fill(staff.email)
+    await page.getByPlaceholder('you@school.edu').fill(staff.email)
 
     // _LOGIN_MAX_ATTEMPTS = 10 (original/api.py) — drive it past the limit.
     for (let i = 0; i < 11; i++) {

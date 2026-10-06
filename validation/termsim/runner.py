@@ -84,7 +84,14 @@ def run_events(
         if tenant not in headers:
             client.post(
                 "/tenants",
-                json={"tenant_id": tenant, "name": f"TermSim {tenant}", "environment": "demo"},
+                json={
+                    "tenant_id": tenant,
+                    "name": f"TermSim {tenant}",
+                    "environment": "demo",
+                    # New Postgres tenants default to Bluebook only (alembic
+                    # a7d3c9e1b5f2); the harness drives Original routes.
+                    "products": ["original", "bluebook"],
+                },
             )
             token = mint_principal_token(f"prof-{tenant}", "professor", tenant)
             headers[tenant] = {"Authorization": f"Bearer {token}"}

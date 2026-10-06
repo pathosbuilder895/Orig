@@ -9,7 +9,7 @@ from fastapi import APIRouter, Request
 from .. import backup as backup_mod
 from ..constants import FEATURE_DIM
 from ..schemas import HealthResponse
-from ._shared import _api, _repo, _require_staff
+from ._shared import _api, _repo, _require_staff, _signup_open
 
 router = APIRouter()
 
@@ -26,6 +26,7 @@ def health():
         feature_dim=FEATURE_DIM,
         students_in_store=_repo().count(),
         environment=_api().ORIGINAL_ENV,
+        signup_open=_signup_open(),
         commit=os.environ.get("RENDER_GIT_COMMIT", "dev"),
         backend=backend_name(),
     )
