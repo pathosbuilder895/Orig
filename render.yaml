@@ -181,6 +181,10 @@ services:
     runtime: static
     buildCommand: bash scripts/build_teacher_demo_site.sh dist-teacher-demo
     staticPublishPath: ./dist-teacher-demo
+    # The walkthrough copies prebuilt assets; no Python dependencies needed.
+    envVars:
+      - key: SKIP_INSTALL_DEPS
+        value: "true"
     headers:
       - path: /*
         name: X-Frame-Options
