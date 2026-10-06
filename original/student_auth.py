@@ -14,7 +14,9 @@ Two responsibilities:
 2. **Sessions.** A signed, stateless session token: ``<payload>.<hmac>``,
    where payload is base64url(JSON{sid, name, exp}) and the signature is
    HMAC-SHA256 over the payload keyed by SECRET_KEY. No session table — the
-   token verifies itself. Tamper or expiry → rejected.
+   token verifies itself. Tamper or expiry → rejected. Sessions minted from
+   an account login also carry ``acct``, which lets the principal resolver
+   revoke them once the account is erased (see ``mint_session``).
 
 This is the demo/pilot path. The v1 Postgres path uses full JWT (see
 original/api/v1/auth.py); both can derive the same student id, so a student
@@ -72,9 +74,19 @@ def _sign(payload: str) -> str:
     return _b64(hmac.new(_secret(), payload.encode(), hashlib.sha256).digest())
 
 
-def mint_session(student_id: str, name: str = "", ttl_seconds: int = _DEFAULT_TTL) -> str:
-    """Mint a signed session token for a student."""
+def mint_session(
+    student_id: str, name: str = "", ttl_seconds: int = _DEFAULT_TTL, account: bool = False
+) -> str:
+    """Mint a signed session token for a student.
+
+    ``account`` marks a session minted from a password login or invite
+    redemption, i.e. one backed by a ``users`` row. Such a session is
+    revocable: ``principal.resolve_principal`` rejects it once that row is
+    gone (erasure). Launch-link, LTI, and demo sessions have no account row
+    by design, carry no claim, and are byte-identical to before."""
     body = {"sid": student_id, "name": name, "exp": int(time.time()) + ttl_seconds}
+    if account:
+        body["acct"] = 1
     payload = _b64(json.dumps(body, separators=(",", ":")).encode())
     return f"{payload}.{_sign(payload)}"
 
@@ -130,9 +142,17 @@ def mint_proctor_attestation(
     return f"{payload}.{_sign(payload)}"
 
 
-def verify_proctor_attestation(token: str, student_id: str) -> bool:
+def verify_proctor_attestation(token: str, student_id: str, exam: str | None = None) -> bool:
     """True iff ``token`` is a valid, unexpired proctor attestation issued for
-    exactly ``student_id``. Constant-time signature comparison."""
+    exactly ``student_id``. Constant-time signature comparison.
+
+    ``exam`` is optional and checked only when given: a caller with an exam
+    id to check the token against (a future cross-exam-confusion guard, not
+    yet wired to any call site — see ADR discussion at T-69) gets that extra
+    check; the existing student+expiry-only call site
+    (``routers/_shared.py:_authorize_provenance``) omits it and is
+    unaffected, since ``exam=None`` skips the comparison entirely.
+    """
     if not token or "." not in token:
         return False
     payload, sig = token.split(".", 1)
@@ -146,9 +166,36 @@ def verify_proctor_attestation(token: str, student_id: str) -> bool:
         return False
     if body.get("sid") != student_id:
         return False
+    if exam is not None and body.get("exam") != exam:
+        return False
     if float(body.get("exp", 0)) < time.time():
         return False
     return True
+
+
+def attestation_jti(token: str) -> str:
+    """Stable identity for a proctor attestation, for single-use tracking
+    (T-69). The signature already binds the payload to ``SECRET_KEY``, so
+    hashing just the payload half (not re-deriving or storing the signature)
+    is enough: a caller must already hold a validly-signed token to have a
+    jti worth consuming, and the raw bearer token itself never touches the
+    single-use ledger."""
+    payload = token.split(".", 1)[0] if "." in token else token
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
+def attestation_exam(token: str) -> str:
+    """The ``exam`` claim embedded in a proctor attestation, best-effort
+    ("" if the token can't be parsed). Recorded on the single-use
+    consumption ledger for audit/future cross-checking — this reads the
+    claim, it does not verify it against anything by itself."""
+    if not token or "." not in token:
+        return ""
+    try:
+        body = json.loads(_unb64(token.split(".", 1)[0]))
+    except Exception:
+        return ""
+    return body.get("exam", "") if isinstance(body, dict) else ""
 
 
 # ── Magic-link launch token ───────────────────────────────────────────────────
@@ -168,8 +215,13 @@ def mint_launch_token(
     exam: str = "",
     name: str = "",
     ttl_seconds: int = _LAUNCH_TTL,
+    exam_id: str = "",
 ) -> str:
-    """Mint a signed Bluebook magic-link launch token binding a student."""
+    """Mint a signed Bluebook magic-link launch token binding a student.
+
+    ``exam`` is the display title; ``exam_id`` (optional) names the stored
+    exam so the SPA loads its real prompt and timing. Omitted, the claim is
+    absent and the token is byte-identical to one minted before it existed."""
     body = {
         "typ": "launch",
         "sid": student_id,
@@ -178,6 +230,8 @@ def mint_launch_token(
         "name": name,
         "exp": int(time.time()) + ttl_seconds,
     }
+    if exam_id:
+        body["eid"] = exam_id
     payload = _b64(json.dumps(body, separators=(",", ":")).encode())
     return f"{payload}.{_sign(payload)}"
 

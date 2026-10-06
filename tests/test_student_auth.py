@@ -2,7 +2,12 @@
 tests/test_student_auth.py — student identity derivation + stateless sessions.
 
 Covers: deterministic, institution-scoped, FERPA-friendly id derivation;
-signed-session mint/verify; tamper and expiry rejection; slugify.
+signed-session mint/verify; tamper and expiry rejection; slugify; the T-69
+proctor-attestation exam-check and jti/exam extraction helpers (the
+attestation's other verification arms — bad signature, wrong sid, malformed,
+expired — are covered by tests/test_student_auth_branches.py and
+tests/test_baseline_provenance_authz.py; single-use consumption at the HTTP
+layer is tests/test_baseline_provenance_authz.py's replay test).
 """
 
 from __future__ import annotations
@@ -10,7 +15,6 @@ from __future__ import annotations
 import time
 
 from original import student_auth as sa
-
 
 # ── slugify ───────────────────────────────────────────────────────────────────
 
@@ -93,3 +97,60 @@ class TestSessions:
         monkeypatch.setenv("SECRET_KEY", "a-different-secret-entirely")
         # Signed under the old secret → rejected under the new one
         assert sa.verify_session(tok) is None
+
+
+# ── Proctor attestation: exam check + single-use helpers (T-69) ─────────────
+
+
+class TestProctorAttestationExamCheck:
+    def test_matching_exam_verifies(self):
+        tok = sa.mint_proctor_attestation("acme:stu", exam="EXAM_A")
+        assert sa.verify_proctor_attestation(tok, "acme:stu", exam="EXAM_A") is True
+
+    def test_mismatched_exam_rejected(self):
+        tok = sa.mint_proctor_attestation("acme:stu", exam="EXAM_A")
+        assert sa.verify_proctor_attestation(tok, "acme:stu", exam="EXAM_B") is False
+
+    def test_exam_omitted_skips_the_check(self):
+        """The pre-existing call site (_authorize_provenance) has no exam id
+        to check against and must be unaffected: omitting `exam` verifies on
+        student+expiry alone, regardless of what the token's own exam claim is."""
+        tok = sa.mint_proctor_attestation("acme:stu", exam="EXAM_A")
+        assert sa.verify_proctor_attestation(tok, "acme:stu") is True
+
+
+class TestAttestationJti:
+    def test_stable_for_the_same_token(self):
+        tok = sa.mint_proctor_attestation("acme:stu", exam="EXAM_A")
+        assert sa.attestation_jti(tok) == sa.attestation_jti(tok)
+
+    def test_distinct_tokens_get_distinct_jti(self):
+        # Different ttl_seconds forces distinct `exp` deterministically
+        # (same-second mints with identical sid/exam would otherwise
+        # produce byte-identical tokens, making the comparison vacuous).
+        t1 = sa.mint_proctor_attestation("acme:stu", exam="EXAM_A", ttl_seconds=3600)
+        t2 = sa.mint_proctor_attestation("acme:stu", exam="EXAM_A", ttl_seconds=7200)
+        assert t1 != t2
+        assert sa.attestation_jti(t1) != sa.attestation_jti(t2)
+
+    def test_never_contains_the_raw_token(self):
+        tok = sa.mint_proctor_attestation("acme:stu", exam="EXAM_A")
+        jti = sa.attestation_jti(tok)
+        assert tok not in jti
+        assert len(jti) == 64  # sha256 hex digest
+
+
+class TestAttestationExam:
+    def test_extracts_the_embedded_exam_claim(self):
+        tok = sa.mint_proctor_attestation("acme:stu", exam="Midterm A")
+        assert sa.attestation_exam(tok) == "Midterm A"
+
+    def test_malformed_token_returns_empty_string(self):
+        assert sa.attestation_exam("garbage") == ""
+        assert sa.attestation_exam("") == ""
+
+    def test_non_attestation_token_returns_empty_string(self):
+        """A session token has no 'exam' claim at all — best-effort read,
+        not a type check, so this returns "" rather than raising."""
+        session = sa.mint_session("acme:stu", "Some Student")
+        assert sa.attestation_exam(session) == ""

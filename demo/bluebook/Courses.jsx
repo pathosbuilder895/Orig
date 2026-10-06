@@ -1,5 +1,7 @@
 import React from 'react';
 import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, MetaLabel, StatusBadge, fontBody, fontDisplay, fontMono } from './components.jsx';
+import { ErrorText } from './forms.jsx';
+import { openRoster } from './Teacher.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Courses Screen
@@ -20,6 +22,8 @@ export function CoursesScreen({ onNavigate }) {
   const [newName, setNewName] = useCState('');
   const [serverCourses, setServerCourses] = useCState(null);
   const [creating, setCreating] = useCState(false);
+  const [newTerm, setNewTerm] = useCState('');
+  const [createError, setCreateError] = useCState('');
 
   const reload = () => BB_API.listCourses().then(l => setServerCourses(l || []));
   React.useEffect(() => {
@@ -33,14 +37,15 @@ export function CoursesScreen({ onNavigate }) {
   async function handleCreate() {
     if (!newCode.trim() || !newName.trim() || creating) return;
     setCreating(true);
+    setCreateError('');
     try {
       await BB_API.createCourse({
         code: newCode.trim(), name: newName.trim(),
-        term: 'Michaelmas Term 2026', status: 'ACTIVE',
+        term: newTerm.trim(), status: 'ACTIVE',
       });
       await reload();
-      setNewCode(''); setNewName(''); setShowNew(false);
-    } catch (e) { console.warn('course create failed', e && e.message); }
+      setNewCode(''); setNewName(''); setNewTerm(''); setShowNew(false);
+    } catch (e) { setCreateError(`The course was not created: ${(e && e.message) || 'unknown error'}.`); }
     setCreating(false);
   }
 
@@ -51,7 +56,7 @@ export function CoursesScreen({ onNavigate }) {
           <h1 style={{ fontFamily:fontDisplay, fontSize:34, color:BB.cream, fontWeight:400, letterSpacing:'0.01em', margin:'0 0 6px' }}>
             Courses
           </h1>
-          <MetaLabel>{courses.length} courses · Michaelmas Term 2026</MetaLabel>
+          <MetaLabel>{courses.length} course{courses.length === 1 ? '' : 's'}</MetaLabel>
         </div>
         <BtnPrimary onClick={() => setShowNew(v => !v)} style={{ padding:'10px 28px', fontSize:16 }}>
           + New Course
@@ -67,7 +72,7 @@ export function CoursesScreen({ onNavigate }) {
           animation:'bbFadeIn 0.4s ease both',
         }}>
           <MetaLabel style={{ display:'block', marginBottom:18 }}>New Course</MetaLabel>
-          <div style={{ display:'grid', gridTemplateColumns:'140px 1fr', gap:24, marginBottom:22 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'140px 1fr 180px', gap:24, marginBottom:22 }}>
             <div>
               <MetaLabel style={{ display:'block', marginBottom:8 }}>Course Code</MetaLabel>
               <input value={newCode} onChange={e => setNewCode(e.target.value)}
@@ -88,7 +93,18 @@ export function CoursesScreen({ onNavigate }) {
                   fontFamily:fontBody, fontSize:16, color:BB.cream, outline:'none',
                 }} />
             </div>
+            <div>
+              <MetaLabel style={{ display:'block', marginBottom:8 }}>Term (optional)</MetaLabel>
+              <input value={newTerm} onChange={e => setNewTerm(e.target.value)}
+                placeholder="Fall 2026"
+                style={{
+                  width:'100%', background:'transparent', border:'none',
+                  borderBottom:'1px solid rgba(201,169,97,0.4)', padding:'8px 2px',
+                  fontFamily:fontBody, fontSize:16, color:BB.cream, outline:'none',
+                }} />
+            </div>
           </div>
+          <ErrorText>{createError}</ErrorText>
           <div style={{ display:'flex', gap:12, justifyContent:'flex-end' }}>
             <BtnGhost onClick={() => setShowNew(false)} style={{ padding:'8px 24px', fontSize:15 }}>
               Cancel
@@ -103,7 +119,7 @@ export function CoursesScreen({ onNavigate }) {
       )}
 
       <div style={{ border:'1px solid rgba(201,169,97,0.2)' }}>
-        <div style={{ display:'grid', gridTemplateColumns:'100px 1fr 140px 80px 60px 80px 80px', padding:'10px 20px', borderBottom:'1px solid rgba(201,169,97,0.35)' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'100px 1fr 140px 80px 60px 100px 110px', padding:'10px 20px', borderBottom:'1px solid rgba(201,169,97,0.35)' }}>
           {['Code', 'Course Name', 'Term', 'Students', 'Exams', 'Status', ''].map(h => (
             <MetaLabel key={h}>{h}</MetaLabel>
           ))}
@@ -111,7 +127,7 @@ export function CoursesScreen({ onNavigate }) {
         {courses.map((course, i) => (
           <div key={course.id}>
             <div
-              style={{ display:'grid', gridTemplateColumns:'100px 1fr 140px 80px 60px 80px 80px', padding:'14px 20px', alignItems:'center', cursor:'pointer', transition:'background 0.2s' }}
+              style={{ display:'grid', gridTemplateColumns:'100px 1fr 140px 80px 60px 100px 110px', padding:'14px 20px', alignItems:'center', cursor:'pointer', transition:'background 0.2s' }}
               onMouseEnter={e => e.currentTarget.style.background='rgba(201,169,97,0.04)'}
               onMouseLeave={e => e.currentTarget.style.background='transparent'}
             >
@@ -123,9 +139,11 @@ export function CoursesScreen({ onNavigate }) {
               <div>
                 <StatusBadge status={course.active ? 'ACTIVE' : 'COMPLETED'} pulse={course.active} />
               </div>
-              <button style={{ fontFamily:fontMono, fontSize:10, letterSpacing:'0.15em', textTransform:'uppercase', color:BB.gold, background:'none', border:'none', cursor:'pointer' }}>
-                Manage →
-              </button>
+              {BB_API.isAuthed() ? (
+                <button onClick={() => openRoster(course, onNavigate)} style={{ fontFamily:fontMono, fontSize:10, letterSpacing:'0.15em', textTransform:'uppercase', color:BB.gold, background:'none', border:'none', cursor:'pointer' }}>
+                  Students →
+                </button>
+              ) : <span />}
             </div>
             {i < courses.length - 1 && <GoldRule faint />}
           </div>

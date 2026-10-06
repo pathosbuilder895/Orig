@@ -43,6 +43,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from original.ai_likelihood import AiLikelihoodResult
+    from original.baseline_integrity import BaselineIntegrity
     from original.fusion.expert import FusedScoreResult
     from original.quantum.longitudinal import DriftAnalysis, TrendAwareTypicality
     from original.style_authorship import StyleAuthorshipResult
@@ -783,6 +784,14 @@ class Layer7Output:
     # Peer-aligned modern authorship consistency expert. Default-off and
     # report-only; never feeds deviation_score or the recommendation.
     style_authorship: StyleAuthorshipResult | None = field(default=None)
+
+    # Report-only baseline health diagnostic (T-70, original/baseline_
+    # integrity.py). Unlike the other signals on this dataclass, there is no
+    # enablement flag — it changes no score, only what is reported — so it
+    # is computed unconditionally by the response-assembly layer
+    # (routers/_shared.py) whenever a persisted state exists, never here.
+    # Never feeds deviation_score, quantum_fidelity, or the recommendation.
+    baseline_integrity: BaselineIntegrity | None = field(default=None)
 
     # Report-only fused stylometric score (original/fusion/). Set at the
     # students_scoring call site, never here — this module must stay unaware

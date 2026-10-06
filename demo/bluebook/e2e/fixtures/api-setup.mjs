@@ -10,7 +10,7 @@
  * Auth model (see original/principal.py): staff/operator identities carry a
  * signed principal token minted by POST /auth/login and sent back as
  * `Authorization: Bearer <token>`; students carry a session token from
- * POST /student-auth/login. Neither is a cookie — see
+ * POST /auth/invite/redeem (see studentLogin). Neither is a cookie — see
  * docs/phase3-httpOnly-cookie-auth.md's own banner disclaiming itself as
  * the live auth path.
  */
@@ -37,7 +37,9 @@ export async function createTenant(request, { tenantId, name, environment = 'pil
   const headers = authToken ? { Authorization: `Bearer ${authToken}` } : undefined
   const res = await request.post('/tenants', {
     headers,
-    data: { tenant_id: id, name: name || id, environment },
+    // On a real deploy a new tenant is Bluebook-only unless Original is named;
+    // these specs' fixtures call Original routes (baselines, scoring).
+    data: { tenant_id: id, name: name || id, environment, products: ['bluebook', 'original'] },
   })
   return okJson(res, `createTenant(${id})`)
 }
@@ -80,12 +82,36 @@ export async function provisionStaff(request, { tenantId, role = 'professor', na
   return { ...session, email, password }
 }
 
-export async function studentLogin(request, { email, institution, name } = {}) {
+/**
+ * A signed-in student in the staff member's tenant, provisioned the way a
+ * real one is: the teacher adds them to a course (which creates the account
+ * and returns a one-time invite link), then the student redeems it with a
+ * password. The passwordless POST /student-auth/login this used to call is
+ * 404 on a real deploy — CI runs ORIGINAL_ENV=pilot — because it let anyone
+ * sign in as any student by email.
+ *
+ * `institution` is accepted for call-site compatibility and ignored: the
+ * student always lands in the staff token's tenant.
+ */
+export async function studentLogin(request, { staffToken, email, name } = {}) {
+  if (!staffToken) throw new Error('studentLogin needs a staffToken (the teacher adds the student)')
   const studentEmail = email || `${unique('student')}@e2e.test`
-  const res = await request.post('/student-auth/login', {
-    data: { email: studentEmail, institution, name: name || 'E2E Student' },
-  })
-  return okJson(res, `studentLogin(${studentEmail})`)
+  const course = await createCourse(request, staffToken, { name: unique('Roster') })
+  const added = await okJson(
+    await request.post(`/bluebook/courses/${encodeURIComponent(course.id)}/students`, {
+      headers: { Authorization: `Bearer ${staffToken}` },
+      data: { students: [{ email: studentEmail, name: name || 'E2E Student' }] },
+    }),
+    `rosterAdd(${studentEmail})`,
+  )
+  const row = added.students[0]
+  if (!row.invite_path) throw new Error(`rosterAdd(${studentEmail}) returned no invite: ${JSON.stringify(row)}`)
+  const token = new URL(row.invite_path, 'http://x').searchParams.get('invite')
+  const session = await okJson(
+    await request.post('/auth/invite/redeem', { data: { token, password: 'e2e-student-pass-1' } }),
+    `inviteRedeem(${studentEmail})`,
+  )
+  return { ...session, email: studentEmail }
 }
 
 /**

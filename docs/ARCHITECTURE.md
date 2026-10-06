@@ -36,6 +36,27 @@ original/routers/*.py  ←── the actual route handlers, one module per domai
 Deployed per `render.yaml` (`original-demo` free sandbox, `original-pilot`
 paid + disk). Ops: `docs/OPS_RUNBOOK.md`. Canvas: `docs/CANVAS_RUNBOOK.md`.
 
+### Bluebook as a standalone product (2026-09)
+
+Bluebook is sold on its own as well as with Original. A tenant's
+`products_json` (`original`, `bluebook`, or both) is enforced by the product
+gate in `original/api.py`'s `tenant_isolation` middleware: a tenant without
+Original gets a 403 on every Original route, including the seal's
+report-only score call, so self-serve workspaces are never profiled. (Sealing
+never writes a baseline; a professor approves which sealed exams become
+baseline samples, `original/routers/bluebook_baselines.py`.) Public
+teacher signup (`POST /auth/signup`) creates a Bluebook-only workspace;
+students get accounts through course rosters and one-time invite links
+(`original/routers/bluebook_accounts.py`, `original/invites.py`). Specs:
+`docs/superpowers/specs/2026-09-17-bluebook-standalone-backend-design.md`
+and `2026-09-28-bluebook-self-serve-dashboards-design.md`.
+
+**Canvas and LTI are sidelined for the initial product.** The `/lti/*`,
+`/canvas/*` and `/import/*` routes stay in the codebase and their tests keep
+running, but no UI links to them: the professor page's "Import from Canvas"
+panel and the admin page's Canvas tile were removed. Nothing needs undoing
+to bring them back beyond restoring those two entry points.
+
 ## 🪦 DELETED — the v1 stack
 
 `original/main.py`, `original/api/` (the v1 package, including its own

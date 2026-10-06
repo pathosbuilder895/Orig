@@ -7,7 +7,7 @@
  *   - Ctrl/Cmd+P + Ctrl/Cmd+S blocking
  *   - Submit gating below the minimum word count
  *   - Round-trip: type → Seal & Submit → "Examination Sealed" +
- *     "✓ Your writing sample was delivered to Original" + API-side
+ *     "✓ Delivered to your teacher" + API-side
  *     confirmation that sample_count incremented with provenance=proctored.
  *
  * These tests inject configuration via `addInitScript` so the React app
@@ -208,7 +208,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
     await expect(textarea).not.toHaveValue('')
   })
 
-  test('Type past minimum → Seal → Examination Sealed + baseline transmitted + API confirms', async ({ page, request }) => {
+  test('Type past minimum → Seal → Examination Sealed, recorded, and no baseline write', async ({ page }) => {
     const minWords = 12
     await bootInExam(page, { minWords })
     await page.goto('/bluebook/')
@@ -238,32 +238,34 @@ test.describe('Bluebook exam lockdown — full flow', () => {
       'a record built by patience is one a student can stand on.'
     await page.keyboard.type(longProse, { delay: 1 })
 
+    // Compare-only seal (plan Phase 7): sealing never adds a baseline
+    // sample; only a professor's approval does. The sitting holds Original,
+    // so the seal must still run its comparison: record the score calls too,
+    // so this test cannot pass merely because Original was never reached.
+    const baselineWrites = []
+    const scoreCalls = []
+    page.on('request', r => {
+      if (r.method() !== 'POST') return
+      const path = new URL(r.url()).pathname
+      if (/\/students\/[^/]+\/baseline$/.test(path)) baselineWrites.push(r.url())
+      if (/\/students\/[^/]+\/score$/.test(path)) scoreCalls.push(r.url())
+    })
+
     const sealBtn = page.locator('button', { hasText: /Seal & Submit|Sealing/ })
     await expect(sealBtn).toBeVisible()
+    page.once('dialog', d => d.accept())
     await sealBtn.click()
 
     // The submitted screen renders the canonical sealed headline
     await expect(page.getByText('Examination Sealed'))
       .toBeVisible({ timeout: 15_000 })
 
-    // The proctored-baseline transmission line shows the success token
-    await expect(page.getByText('✓ Your writing sample was delivered to Original'))
+    // The delivery line shows the success token (the submission record was written)
+    await expect(page.getByText('✓ Delivered to your teacher'))
       .toBeVisible({ timeout: 5_000 })
 
-    // ── API-side verification: the bound student now has a proctored sample
-    // GET /students/{id} is scoped by assert_student_access
-    // (original/principal.py) for every request, staff-only-path or not:
-    // an anonymous read of a "demo:"-tenant id is explicitly refused on a
-    // real deploy (T-66), same as the write side -- only a matching
-    // student session or staff reads it, so this needs the same session
-    // token bootInExam minted for the seal itself.
-    const studentResp = await request.get(`/students/${encodeURIComponent(TEST_STUDENT_ID)}`, {
-      headers: { Authorization: `Bearer ${mintSessionToken(TEST_STUDENT_ID, TEST_STUDENT_NAME)}` },
-    })
-    expect(studentResp.status()).toBe(200)
-    const student = await studentResp.json()
-    expect(student.sample_count).toBeGreaterThan(0)
-    expect(student.samples.some(s => s.provenance === 'proctored')).toBe(true)
+    expect(scoreCalls.length).toBeGreaterThan(0)
+    expect(baselineWrites).toEqual([])
   })
 
   test('Exiting fullscreen mid-exam shows the warning', async ({ page }) => {
@@ -309,6 +311,28 @@ test.describe('Bluebook exam lockdown — full flow', () => {
 
     await expect(page.getByText('Examination Sealed')).toBeVisible({ timeout: 20_000 })
     await expect(page.getByText('Time expired — your work was sealed as written.')).toBeVisible()
+  })
+
+  test('Timer expiry with nothing written clears the draft so the next sitting decides afresh', async ({ page }) => {
+    await bootInExam(page)
+    await page.goto('/bluebook/')
+    await page.waitForLoadState('networkidle')
+
+    await page.evaluate(() => { window.BB_EXAM_CONFIG.duration = 0.05 })
+    await page.locator('button', { hasText: /begin|continue|enter|start/i }).first().click()
+    await expect(page.locator('textarea[placeholder="Begin writing here…"]')).toBeVisible()
+
+    // Beginning locked the sitting's Original decision into the draft...
+    const draftKeys = () => page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('bb_draft_')))
+    const decision = await page.evaluate(() => {
+      const key = Object.keys(localStorage).find(k => k.startsWith('bb_draft_'))
+      return key ? JSON.parse(localStorage.getItem(key)).seal.withOriginal : null
+    })
+    expect(typeof decision).toBe('boolean')
+
+    // ...and time running out with nothing written removes it again.
+    await page.waitForFunction(() => window.BB_LAST_SUBMISSION && window.BB_LAST_SUBMISSION.expired, undefined, { timeout: 20_000 })
+    expect(await draftKeys()).toEqual([])
   })
 
   test('Reload mid-exam restores the draft from this device', async ({ page }) => {

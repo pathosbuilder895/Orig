@@ -1,5 +1,7 @@
 import React from 'react';
 import { BB, BB_API, BtnPrimary, GoldRule, Logotype, MetaLabel, Ornament, STOCK_CANDIDATE, StatusBadge, fontBody, fontDisplay, fontMono, rowKeyDown } from './components.jsx';
+import { openManageExam } from './Teacher.jsx';
+import { TeacherFrame } from './TeacherWorkspace.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Dashboard Screens
@@ -23,14 +25,19 @@ const NAV_ITEMS = [
   { label: 'Proctor',       screen: 'proctor'   },
 ];
 
+// A signed-in teacher's own account screen; the anonymous demo has no account.
+const ACCOUNT_ITEM = { label: 'Account', screen: 'account' };
+
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 function Sidebar({ activeScreen, onNavigate }) {
   const [hovered, setHovered] = React.useState(null);
   const id = BB_API.identity();
   const displayName = id.authed ? (id.name || 'Signed in') : 'Demo Session';
   const displayRole = id.authed
-    ? `${id.role || 'instructor'}${id.tenant ? ' · ' + id.tenant : ''}`
+    ? (id.email || id.role || 'instructor')
     : 'Bluebook · demo';
+  // Only a workspace that bought Original gets the cross-link to it.
+  const showOriginal = !id.authed || BB_API.hasOriginal();
 
   return (
     <aside style={{
@@ -48,7 +55,7 @@ function Sidebar({ activeScreen, onNavigate }) {
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {NAV_ITEMS.map(({ label, screen }) => {
+        {(id.authed ? [...NAV_ITEMS, ACCOUNT_ITEM] : NAV_ITEMS).map(({ label, screen }) => {
           const isActive = activeScreen === screen;
           const isHov    = hovered === label;
           return (
@@ -74,7 +81,7 @@ function Sidebar({ activeScreen, onNavigate }) {
           );
         })}
 
-        <div style={{ margin: '10px 0', borderTop: '1px solid rgba(201,169,97,0.18)' }} />
+        {showOriginal && <div style={{ margin: '10px 0', borderTop: '1px solid rgba(201,169,97,0.18)' }} />}
 
         {/* Original Analysis — cross-link back to the Original dashboard.
             Sits at the sidebar's own resting colour (BB.fade, like every
@@ -83,6 +90,7 @@ function Sidebar({ activeScreen, onNavigate }) {
             read 3.85:1, under WCAG AA's 4.5:1 for 16px text (e2e/a11y.spec.mjs
             measures it). The de-emphasis it bought was already carried by the
             colour and the divider above. */}
+        {showOriginal && (
         <button
           onClick={() => { window.location.href = '../professor.html'; }}
           onMouseEnter={() => setHovered('original')}
@@ -102,6 +110,7 @@ function Sidebar({ activeScreen, onNavigate }) {
           <span>Original Analysis</span>
           <span style={{ fontSize: 11, opacity: 0.6 }}>↗</span>
         </button>
+        )}
       </nav>
 
       {/* User block */}
@@ -168,20 +177,24 @@ function StatCard({ label, value, note }) {
 export function DashboardScreen({ onNavigate }) {
   const [serverExams, setServerExams] = React.useState(null);
   const [subs, setSubs] = React.useState([]);
+  const [loadError, setLoadError] = React.useState('');
   React.useEffect(() => {
     let live = true;
-    BB_API.listExams().then(l => { if (live) setServerExams(l || []); });
-    BB_API.listSubmissions().then(l => { if (live) setSubs(l || []); });
+    BB_API.listExams().then(l => { if (live) setServerExams(l || []); }).catch(err => { if (live) setLoadError(err.message); });
+    BB_API.listSubmissions().then(l => { if (live) setSubs(l || []); }).catch(err => { if (live) setLoadError(err.message); });
     return () => { live = false; };
   }, []);
   const exams = (serverExams && serverExams.length) ? serverExams : (BB_API.isAuthed() ? [] : MOCK_EXAMS);
   const id = BB_API.identity();
   const greetName = id.authed ? (id.name || 'Instructor') : 'Dr. Chen';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const up = s => (s || '').toUpperCase();
   const nActive    = exams.filter(e => up(e.status) === 'ACTIVE').length;
   const nCompleted = exams.filter(e => up(e.status) === 'COMPLETED').length;
   const nFlagged   = subs.filter(s => up(s.status) === 'FLAGGED').length;
 
+  if (loadError) return <div role="alert" style={{ padding: '2rem' }}>{loadError}</div>;
   return (
     <div style={{
       flex: 1, overflowY: 'auto',
@@ -194,8 +207,8 @@ export function DashboardScreen({ onNavigate }) {
           fontFamily: fontDisplay, fontSize: 34,
           color: BB.cream, fontWeight: 400,
           letterSpacing: '0.01em', margin: '0 0 6px',
-        }}>Good morning, {greetName}.</h1>
-        <MetaLabel>Saturday, 17 May · Michaelmas Term</MetaLabel>
+        }}>{greeting}, {greetName}.</h1>
+        <MetaLabel>{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</MetaLabel>
       </div>
       <GoldRule double style={{ margin: '20px 0 36px' }} />
 
@@ -249,8 +262,8 @@ export function DashboardScreen({ onNavigate }) {
                 role="button" tabIndex={0} aria-label={exam.title}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(201,169,97,0.04)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                onClick={() => openExam(exam, onNavigate)}
-                onKeyDown={rowKeyDown(() => openExam(exam, onNavigate))}
+                onClick={() => manageOrPreview(exam, onNavigate)}
+                onKeyDown={rowKeyDown(() => manageOrPreview(exam, onNavigate))}
               >
                 <div>
                   <p style={{
@@ -272,8 +285,15 @@ export function DashboardScreen({ onNavigate }) {
   );
 }
 
-// Load an exam's config into the shared slot, then enter its briefing.
-function openExam(exam, onNavigate) {
+// A signed-in teacher manages a stored exam; the anonymous demo previews it.
+function manageOrPreview(exam, onNavigate) {
+  if (BB_API.isAuthed() && exam.id) openManageExam(exam.id, onNavigate);
+  else openExam(exam, onNavigate);
+}
+
+// Load an exam's config into the shared slot, then enter its briefing
+// (the teacher's preview of what students see).
+export function openExam(exam, onNavigate) {
   window.BB_EXAM_CONFIG = {
     id:          exam.id,
     title:       exam.title,
@@ -283,6 +303,7 @@ function openExam(exam, onNavigate) {
     minWords:    exam.minWords != null ? exam.minWords : 600,
     maxWords:    exam.maxWords != null ? exam.maxWords : 1200,
     prompt:      exam.prompt || '',
+    closesAt:    exam.closes_at || null,
     candidate:   (window.BB_EXAM_CONFIG && window.BB_EXAM_CONFIG.candidate) || STOCK_CANDIDATE,
     ...(exam.conditions || {}),
   };
@@ -346,8 +367,8 @@ export function ExamsScreen({ onNavigate }) {
               role="button" tabIndex={0} aria-label={exam.title}
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(201,169,97,0.04)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              onClick={() => openExam(exam, onNavigate)}
-              onKeyDown={rowKeyDown(() => openExam(exam, onNavigate))}
+              onClick={() => manageOrPreview(exam, onNavigate)}
+              onKeyDown={rowKeyDown(() => manageOrPreview(exam, onNavigate))}
             >
               <div>
                 <p style={{ fontFamily: fontBody, fontSize: 16, color: BB.cream, margin: 0 }}>
@@ -358,7 +379,7 @@ export function ExamsScreen({ onNavigate }) {
               <div><StatusBadge status={exam.status} pulse /></div>
               <MetaLabel>{exam.duration}m</MetaLabel>
               <MetaLabel>{exam.submissions || '—'}</MetaLabel>
-              <button onClick={e => { e.stopPropagation(); openExam(exam, onNavigate); }} style={{
+              <button onClick={e => { e.stopPropagation(); manageOrPreview(exam, onNavigate); }} style={{
                 fontFamily: fontMono, fontSize: 10,
                 letterSpacing: '0.15em', textTransform: 'uppercase',
                 color: BB.gold, background: 'none', border: 'none',
@@ -375,10 +396,5 @@ export function ExamsScreen({ onNavigate }) {
 
 // ─── Dashboard Layout (sidebar + content) ────────────────────────────────────
 export function DashboardLayout({ activeScreen, onNavigate, children }) {
-  return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <Sidebar activeScreen={activeScreen} onNavigate={onNavigate} />
-      {children}
-    </div>
-  );
+  return <TeacherFrame active={activeScreen} onNavigate={onNavigate}>{children}</TeacherFrame>;
 }

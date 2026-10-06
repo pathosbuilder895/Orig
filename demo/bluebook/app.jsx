@@ -2,13 +2,19 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BB_API, devToolsEnabled } from './components.jsx';
 import { LandingScreen, LoginScreen } from './Landing.jsx';
-import { DashboardLayout, DashboardScreen, ExamsScreen } from './Dashboard.jsx';
+import { DashboardLayout } from './Dashboard.jsx';
 import { BriefingScreen, ExamScreen, SubmittedScreen } from './Exam.jsx';
-import { CoursesScreen } from './Courses.jsx';
-import { StudentsScreen } from './Students.jsx';
 import { ResultsScreen } from './Results.jsx';
-import { ProctorScreen } from './ProctorTiles.jsx';
 import { NewExamScreen } from './NewExam.jsx';
+import {
+  AccountScreen, InviteScreen, SignupScreen, StudentAccountScreen,
+  StudentHomeScreen, StudentSubmissionScreen, ForgotPasswordScreen,
+} from './Account.jsx';
+import {
+  CoursesListScreen, ExamsListScreen, ManageExamScreen, ProctorLiveScreen, RosterScreen, StudentsScreen,
+} from './Teacher.jsx';
+import { openExam } from './Dashboard.jsx';
+import { LiveTeacherSessions } from './TeacherWorkspace.jsx';
 import {
   useTweaks, TweaksPanel, TweakSection, TweakSelect, TweakSlider, TweakColor,
 } from './tweaks-panel.jsx';
@@ -27,11 +33,26 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const navigate = (screen) => setTweak('currentScreen', screen);
-  // Auth-gated entry: a bound student launch → briefing; a signed-in
-  // instructor → dashboard; otherwise the public landing/login.
-  const [autoScreen] = useState(() =>
-    BB_API.isStudentLaunch() ? 'briefing' : BB_API.isAuthed() ? 'dashboard' : 'landing');
+  // Auth-gated entry, in priority order: an invite link → set password; a
+  // bound student launch → briefing; a student account → their exams; a
+  // signed-in teacher → dashboard; otherwise the public landing.
+  const [autoScreen] = useState(() => {
+    let invite = false;
+    try {
+      const q = new URLSearchParams(window.location.search);
+      invite = q.has('invite') || q.has('reset');
+    } catch (e) {}
+    if (invite) return 'invite';
+    if (BB_API.isStudentLaunch()) return 'briefing';
+    if (BB_API.isStudentAccount()) return 'student-home';
+    if (BB_API.isAuthed()) return 'dashboard';
+    return 'landing';
+  });
   const screen = t.currentScreen || autoScreen;
+  // A Bluebook-only workspace (and its students) never sees Original's name.
+  React.useEffect(() => {
+    document.title = (BB_API.isAuthed() && BB_API.hasOriginal()) ? 'Original · Bluebook' : 'Bluebook';
+  }, [screen]);
   // Read once at mount, alongside autoScreen and for the same reason: the
   // answer belongs to the launch, and a panel that could appear part-way
   // through a sitting would defeat the point of gating it. See
@@ -43,17 +64,18 @@ function App() {
     case 'login':
       content = <LoginScreen onNavigate={navigate} />;
       break;
+    case 'sessions':
     case 'dashboard':
       content = (
-        <DashboardLayout activeScreen="dashboard" onNavigate={navigate}>
-          <DashboardScreen onNavigate={navigate} />
+        <DashboardLayout activeScreen={screen} onNavigate={navigate}>
+          <LiveTeacherSessions onNavigate={navigate} overview={screen === 'dashboard'} />
         </DashboardLayout>
       );
       break;
     case 'exams':
       content = (
         <DashboardLayout activeScreen="exams" onNavigate={navigate}>
-          <ExamsScreen onNavigate={navigate} />
+          <ExamsListScreen onNavigate={navigate} />
         </DashboardLayout>
       );
       break;
@@ -72,7 +94,7 @@ function App() {
     case 'courses':
       content = (
         <DashboardLayout activeScreen="courses" onNavigate={navigate}>
-          <CoursesScreen onNavigate={navigate} />
+          <CoursesListScreen onNavigate={navigate} />
         </DashboardLayout>
       );
       break;
@@ -93,12 +115,51 @@ function App() {
     case 'proctor':
       content = (
         <DashboardLayout activeScreen="proctor" onNavigate={navigate}>
-          <ProctorScreen />
+          <ProctorLiveScreen />
         </DashboardLayout>
       );
       break;
     case 'new-exam':
       content = <NewExamScreen onNavigate={navigate} />;
+      break;
+    case 'manage-exam':
+      content = (
+        <DashboardLayout activeScreen="exams" onNavigate={navigate}>
+          <ManageExamScreen onNavigate={navigate} onPreview={exam => openExam(exam, navigate)} />
+        </DashboardLayout>
+      );
+      break;
+    case 'roster':
+      content = (
+        <DashboardLayout activeScreen="courses" onNavigate={navigate}>
+          <RosterScreen onNavigate={navigate} />
+        </DashboardLayout>
+      );
+      break;
+    case 'account':
+      content = (
+        <DashboardLayout activeScreen="account" onNavigate={navigate}>
+          <AccountScreen />
+        </DashboardLayout>
+      );
+      break;
+    case 'signup':
+      content = <SignupScreen onNavigate={navigate} />;
+      break;
+    case 'invite':
+      content = <InviteScreen onNavigate={navigate} />;
+      break;
+    case 'forgot':
+      content = <ForgotPasswordScreen onNavigate={navigate} />;
+      break;
+    case 'student-home':
+      content = <StudentHomeScreen onNavigate={navigate} />;
+      break;
+    case 'student-submission':
+      content = <StudentSubmissionScreen onNavigate={navigate} />;
+      break;
+    case 'student-account':
+      content = <StudentAccountScreen onNavigate={navigate} />;
       break;
     case 'submitted':
       content = <SubmittedScreen onNavigate={navigate} />;

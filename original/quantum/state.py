@@ -67,6 +67,16 @@ class BaselineSample:
     # in DISABLED_FEATURE_GROUPS regardless of whether this blob is present.
     keystroke_data: dict | None = None
 
+    # ── ADR-010: macro-only composition timing (additive — None for every
+    # sample ingested before this field existed, and for non-proctored /
+    # summary-less samples). Session-level metrics only (session_seconds,
+    # word_count, paste_attempts, focus_losses, revision_count, started_at,
+    # ended_at, exam_config) — no per-key timing. Frozen shape: threat-model
+    # spec §5.3. Replaces keystroke_data as what Bluebook's exam client
+    # posts; resolve_composition_mode actually consuming it is a separate
+    # change (out of scope here).
+    composition_summary: dict | None = None
+
 
 @dataclass
 class TrajectoryResult:
@@ -159,6 +169,28 @@ class StudentState:
         self._purity = None
         self._trajectory = None
         self._loo_distances = None
+
+    def remove_sample(self, index: int) -> BaselineSample:
+        """Remove one baseline sample and invalidate the cached state.
+
+        Invalidates the cached density matrix, purity, trajectory, and
+        leave-one-out distances. On next access, they are recomputed from
+        the remaining samples. Also resets the drift counter to 0 and clears
+        the TF-IDF vectorizer, as both are tied to the baseline composition.
+
+        DOES NOT rewind the tension-arc baseline (kappa_log, baseline_kappa):
+        they are not index-aligned with samples and cannot be rolled back by
+        removal alone. A caller that removes an authenticated sample must
+        rebuild these from the remaining samples as needed (e.g., the
+        baseline-approval router during professor-removal workflows)."""
+        sample = self.samples.pop(index)
+        self._rho = None
+        self._purity = None
+        self._trajectory = None
+        self._loo_distances = None
+        self._consecutive_drift_count = 0
+        self.__dict__.pop("_tfidf_vectorizer", None)
+        return sample
 
     # ── Density matrix ───────────────────────────────────────────────────────
 

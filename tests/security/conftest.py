@@ -51,6 +51,9 @@ def two_tenants(pilot_env, store_reset, live_client, principal_headers):
                 "tenant_id": tenant_id,
                 "name": f"Security Test Tenant {tenant_id}",
                 "environment": "pilot",
+                # These probes target Original routes; on a real deploy a new
+                # tenant is Bluebook-only unless Original is named.
+                "products": ["bluebook", "original"],
             },
             headers=op_headers,
         )

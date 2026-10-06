@@ -43,7 +43,7 @@ Original collects the following exclusively for authorship verification:
 2. **LTI subject identifier and email** — hashed into an opaque, institution-scoped student id (`{tenant}:{sha256(...)[:16]}`); the email itself never appears in URLs or stored ids.
 3. **Assignment metadata** — assignment title, course label, timestamps.
 4. **Derived feature vectors** — 103 numerical stylometric features.
-5. **During proctored Bluebook examinations only:** keystroke timing dynamics (inter-key intervals, deletion rate, pauses), paste attempts, and window-focus/fullscreen events. These feed the behavioural tier of the authorship profile and are disclosed to students before each examination begins.
+5. **During proctored Bluebook examinations only:** session-level counts (time taken, word count, paste attempts, window-focus/fullscreen losses) and session start/end times — no keystroke timing or other typing data. These are disclosed to students before each examination begins.
 
 ### Data Usage
 

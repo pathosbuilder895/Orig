@@ -286,14 +286,14 @@ def test_canvas_routes_reject_anonymous_on_real_deploy(
     *flat* student id (no `tenant:` prefix) for the demo principal — so an
     unauthenticated caller reached Canvas with the institution's credential.
 
-    403, not 401: since T-66's fix, assert_student_access denies a flat id
-    for the anonymous demo principal on a real deploy directly in the
-    tenant-isolation middleware, before the request ever reaches this
-    handler's own _require_non_demo_staff check (which is what used to
-    produce the 401) — one layer earlier, same refusal.
+    401: the tenant-isolation middleware refuses the anonymous demo principal
+    on any Original-product route on a real deploy, before the request reaches
+    assert_student_access (which, since T-66, would have answered 403 for a
+    flat id) or this handler's own _require_non_demo_staff check — one layer
+    earlier, same refusal.
     """
     r = live_client.post(f"/canvas/baseline/anyflatid/{route}", json=_body())
-    assert r.status_code == 403, r.text
+    assert r.status_code == 401, r.text
 
 
 def test_body_url_does_not_borrow_env_token(live_client, store_reset, monkeypatch):

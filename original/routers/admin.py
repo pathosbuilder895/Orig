@@ -12,6 +12,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
 
+from .. import invites as invites_mod
 from .. import principal as principal_mod
 from ..features.pipeline import feature_vector
 from ..quantum.scoring import ScoringConfig
@@ -44,6 +45,31 @@ from ..tension_arc import analyze_tension_arc
 from ._shared import _repo, _require_guard, _require_staff, _to_response
 
 router = APIRouter()
+
+
+@router.post("/admin/users/{user_id}/reset-link")
+def admin_user_reset_link(user_id: str, request: Request):
+    """Issue a one-time set-password link for a teacher who lost theirs.
+
+    There is no email sending, so an operator runs this and passes the link
+    on out of band. Operator role AND the guard token are required: this
+    mints a way into someone else's account."""
+    _require_guard(request, force=True)
+    p = _require_staff(request)
+    if not p.is_demo and p.role not in principal_mod.SUPER_ROLES:
+        raise HTTPException(status_code=403, detail="Operator role required.")
+    user = _repo().get_user(user_id)
+    if user is None or user.get("role") == "student":
+        # Students are reset by their teacher (roster invite), not here.
+        raise HTTPException(status_code=404, detail="staff user not found")
+    inv = invites_mod.issue(user["tenant_id"], user_id, p.user_id)
+    _repo().log_audit(
+        action="admin_reset_link",
+        tenant_id=user["tenant_id"],
+        actor=p.user_id,
+        details={"user_id": user_id},
+    )
+    return {"user_id": user_id, "invite_path": inv["invite_path"], "expires_at": inv["expires_at"]}
 
 
 @router.get("/admin/audit")

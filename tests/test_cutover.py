@@ -151,6 +151,61 @@ class TestSmokeTestLogic:
         report = run_smoke(fetch, student="sem:alice")
         assert any(c["check"] == "known_student_served" and c["ok"] for c in report["checks"])
 
+    @staticmethod
+    def _bluebook_fetch(overrides: dict | None = None):
+        from scripts.pilot_smoke_test import BLUEBOOK_CHECKS
+
+        replies = {
+            path: (want, f"<html>{needle or ''}</html>") for path, want, needle in BLUEBOOK_CHECKS
+        }
+        replies["/health"] = (
+            200,
+            {"status": "ok", "backend": "postgres", "students_in_store": 0, "environment": "pilot"},
+        )
+        replies.update(overrides or {})
+        return lambda path: replies[path]
+
+    def test_bluebook_surface_passes_on_a_healthy_launch(self):
+        from scripts.pilot_smoke_test import run_smoke
+
+        report = run_smoke(self._bluebook_fetch(), bluebook=True)
+        assert report["ok"] is True
+        assert sum(c["check"].startswith("bluebook ") for c in report["checks"]) == 8
+
+    def test_bluebook_surface_flags_exposed_docs_wrong_env_and_missing_bundle(self):
+        from scripts.pilot_smoke_test import run_smoke
+
+        fetch = self._bluebook_fetch(
+            {
+                "/docs": (200, "<html>swagger</html>"),
+                "/bluebook/": (200, "<html>no bundle here</html>"),
+                "/health": (
+                    200,
+                    {
+                        "status": "ok",
+                        "backend": "postgres",
+                        "students_in_store": 0,
+                        "environment": "demo",
+                    },
+                ),
+            }
+        )
+        report = run_smoke(fetch, bluebook=True)
+        failed = {c["check"]: c["detail"] for c in report["checks"] if not c["ok"]}
+        assert report["ok"] is False
+        assert set(failed) == {"environment_is_pilot", "bluebook /docs", "bluebook /bluebook/"}
+        assert "lacks 'bluebook.bundle.js'" in failed["bluebook /bluebook/"]
+
+    def test_main_passes_the_bluebook_flag(self, monkeypatch, capsys):
+        from scripts import pilot_smoke_test
+
+        fetch = self._bluebook_fetch()
+        monkeypatch.setattr(
+            pilot_smoke_test, "_http_get", lambda base, path, token=None: fetch(path)
+        )
+        assert pilot_smoke_test.main(["--base-url", "https://x.test", "--bluebook"]) == 0
+        assert "bluebook /legal/privacy.html" in capsys.readouterr().out
+
 
 # ── PG-gated cutover regressions ──────────────────────────────────────────────
 def _postgres_available() -> bool:

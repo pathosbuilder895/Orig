@@ -9,9 +9,58 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 # ── Request models ────────────────────────────────────────────────────────────
+
+
+# The coarse session fields a composition_summary may keep while the
+# ``behavioral`` feature group is disabled — exactly what Bluebook's exam
+# client sends (demo/bluebook/Exam.jsx buildCompositionSummary). Anything else
+# a client adds (a deletion-key ``revision_count``, ``keystrokes``,
+# ``deletionRate``, ...) is dropped on arrival.
+COMPOSITION_SUMMARY_KEYS = frozenset(
+    {
+        "session_seconds",
+        "word_count",
+        "paste_attempts",
+        "focus_losses",
+        "started_at",
+        "ended_at",
+        "exam_config",
+    }
+)
+# Inside ``exam_config`` (dropped entirely when it is not a dict).
+COMPOSITION_EXAM_CONFIG_KEYS = frozenset({"block_copy", "min_words", "duration_min"})
+
+
+def _coarse_composition_summary(summary: dict) -> dict:
+    kept = {k: v for k, v in summary.items() if k in COMPOSITION_SUMMARY_KEYS}
+    if "exam_config" in kept:
+        cfg = kept.pop("exam_config")
+        if isinstance(cfg, dict):
+            kept["exam_config"] = {
+                k: v for k, v in cfg.items() if k in COMPOSITION_EXAM_CONFIG_KEYS
+            }
+    return kept
+
+
+def _discard_keystroke_derived(model):
+    """No typing rhythm or keystroke biometrics while the ``behavioral``
+    feature group is disabled (the classroom default): drop ``keystroke_data``
+    and keep only the coarse session fields of ``composition_summary``
+    (COMPOSITION_SUMMARY_KEYS, COMPOSITION_EXAM_CONFIG_KEYS) before any
+    handler can extract or store them. Read from the module at call time so
+    enabling the group (and tests that do) takes effect without re-importing
+    this module; enabled, both pass unchanged."""
+    from . import constants
+
+    if "behavioral" in constants.DISABLED_FEATURE_GROUPS:
+        model.keystroke_data = None
+        summary = getattr(model, "composition_summary", None)
+        if isinstance(summary, dict):
+            model.composition_summary = _coarse_composition_summary(summary)
+    return model
 
 
 class AddSampleRequest(BaseModel):
@@ -26,14 +75,30 @@ class AddSampleRequest(BaseModel):
     keystroke_data: dict | None = Field(
         None,
         description="Bbook stylemetry JSON (keystrokes, pauses, revisions, deletionRate, wordCount). "
-        "When provided, Tier 17 behavioral biometric features are extracted. "
+        "Discarded on arrival while the 'behavioral' feature group is disabled (the default). "
+        "Only when that group is enabled are Tier 17 behavioral biometric features extracted. "
         "Absent for uploaded papers — Tier 17 defaults to 0.5 (neutral).",
+    )
+    composition_summary: dict | None = Field(
+        None,
+        description="Macro-only composition timing (session_seconds, word_count, "
+        "paste_attempts, focus_losses, started_at, ended_at, "
+        "exam_config) — the ADR-010 replacement for keystroke_data's per-key "
+        "telemetry. No per-key timing is collected; per the T-69/T-74 "
+        "macro-only keystroke posture, only session-level metrics are captured. "
+        "While the 'behavioral' feature group is disabled (the default), only "
+        "those fields (and block_copy, min_words, duration_min inside "
+        "exam_config) are kept; anything else is discarded on arrival.",
     )
     submission_uuid: str | None = Field(
         None,
         description="Bluebook seal id: when present, an identical text already in the "
         "profile is skipped instead of re-ingested (retried-seal replay guard).",
     )
+
+    @model_validator(mode="after")
+    def _no_keystroke_data(self):
+        return _discard_keystroke_derived(self)
 
 
 class ScoreSubmissionRequest(BaseModel):
@@ -47,8 +112,25 @@ class ScoreSubmissionRequest(BaseModel):
         description="Optional ISO submission date used only by report-only longitudinal analysis.",
     )
     keystroke_data: dict | None = Field(
-        None, description="Bbook stylemetry JSON for Tier 17 behavioral biometric scoring."
+        None,
+        description="Bbook stylemetry JSON for Tier 17 behavioral biometric scoring. "
+        "Discarded on arrival while the 'behavioral' feature group is disabled (the default).",
     )
+    composition_summary: dict | None = Field(
+        None,
+        description="Macro-only composition timing (session_seconds, word_count, "
+        "paste_attempts, focus_losses, started_at, ended_at, "
+        "exam_config) — the ADR-010 replacement for keystroke_data's per-key "
+        "telemetry. No per-key timing is collected; per the T-69/T-74 "
+        "macro-only keystroke posture, only session-level metrics are captured. "
+        "While the 'behavioral' feature group is disabled (the default), only "
+        "those fields (and block_copy, min_words, duration_min inside "
+        "exam_config) are kept; anything else is discarded on arrival.",
+    )
+
+    @model_validator(mode="after")
+    def _no_keystroke_data(self):
+        return _discard_keystroke_derived(self)
 
 
 # ── WS-7 step 2: request models for the former `body: dict` endpoints ─────────
@@ -93,6 +175,31 @@ class BluebookCreateExamRequest(BaseModel):
     prompt: str = Field("", description="Exam prompt text")
     conditions: dict = Field(default_factory=dict, description="Arbitrary exam-condition metadata")
     status: str = Field("DRAFT", description="Exam status label")
+    course_id: str | None = Field(None, description="Course this exam belongs to (same tenant)")
+    opens_at: str | None = Field(None, description="ISO-8601; NULL = open once published")
+    closes_at: str | None = Field(None, description="ISO-8601; NULL = never auto-closes")
+    questions: list[str] | None = Field(
+        None,
+        description="One entry per question (max 20). Overrides `prompt`, which is then derived.",
+    )
+
+
+class BluebookUpdateExamRequest(BaseModel):
+    """PATCH /bluebook/exams/{exam_id}. Only fields present in the body change;
+    send null for course_id/opens_at/closes_at to clear them."""
+
+    title: str | None = None
+    course: str | None = None
+    duration: int | None = None
+    minWords: int | None = None  # noqa: N815
+    maxWords: int | None = None  # noqa: N815
+    prompt: str | None = None
+    conditions: dict | None = None
+    status: str | None = None
+    course_id: str | None = None
+    opens_at: str | None = None
+    closes_at: str | None = None
+    questions: list[str] | None = None
 
 
 class BluebookRecordSubmissionRequest(BaseModel):
@@ -113,6 +220,32 @@ class BluebookRecordSubmissionRequest(BaseModel):
     submission_uuid: str | None = Field(
         None, description="Client seal id; replays return the prior result instead of re-writing"
     )
+    text: str | None = Field(None, description="The sealed prose (max 200,000 characters)")
+    warnings: list | None = Field(
+        None, description="Lockdown warnings raised during the sitting: [{type, at}], max 500"
+    )
+    answers: list | None = Field(
+        None, description="One answer per question (max 20); `text` is derived when omitted"
+    )
+
+
+class SubmissionFeedbackRequest(BaseModel):
+    """PATCH /bluebook/submissions/{id}/feedback. Empty strings clear."""
+
+    mark: str | None = Field(None, description="Free-text mark, e.g. '18/20' or 'B+' (max 20)")
+    feedback: str | None = Field(None, description="Comment for the student (max 5,000)")
+
+
+class SendEmailRequest(BaseModel):
+    """Body for invite reissue routes."""
+
+    send_email: bool = False
+
+
+class PasswordResetRequest(BaseModel):
+    """POST /auth/password-reset/request."""
+
+    email: str
 
 
 class BluebookStartSessionRequest(BaseModel):
@@ -139,6 +272,60 @@ class BluebookCreateCourseRequest(BaseModel):
     status: str = Field("ACTIVE", description="Course status label")
 
 
+class BluebookUpdateCourseRequest(BaseModel):
+    """PATCH /bluebook/courses/{course_id}. Only fields present change."""
+
+    name: str | None = None
+    code: str | None = None
+    term: str | None = None
+    status: str | None = None
+
+
+class RosterStudent(BaseModel):
+    email: str = Field(..., description="Student email; their login")
+    name: str = Field("", description="Display name")
+
+
+class RosterAddRequest(BaseModel):
+    """POST /bluebook/courses/{course_id}/students."""
+
+    students: list[RosterStudent] = Field(..., description="1-500 students to add")
+    send_email: bool = Field(False, description="Email each new invite (when mail is configured)")
+
+
+class AuthSignupRequest(BaseModel):
+    """POST /auth/signup — public teacher self-signup."""
+
+    email: str
+    password: str
+    name: str = ""
+    accept_terms: bool = Field(False, description="Must be true: the terms and privacy policy")
+
+
+class InviteRedeemRequest(BaseModel):
+    """POST /auth/invite/redeem."""
+
+    token: str
+    password: str
+    accept_terms: bool = Field(
+        False,
+        description="Required when an invited professor sets their first password",
+    )
+
+
+class PasswordChangeRequest(BaseModel):
+    """POST /auth/password."""
+
+    current_password: str
+    new_password: str
+
+
+class TenantProductsRequest(BaseModel):
+    """PATCH /tenants/{tenant_id}."""
+
+    products: list[str] = Field(..., description="Non-empty subset of original, bluebook")
+
+
 class CreateTenantRequest(BaseModel):
     """POST /tenants. See create_tenant() for the downgrade-protection business rule."""
 
@@ -149,6 +336,9 @@ class CreateTenantRequest(BaseModel):
         None,
         description="Arbitrary metadata (contact email, LMS URL, etc.) — capped at 10 keys, "
         "values coerced to strings ≤ 500 chars.",
+    )
+    products: list[str] | None = Field(
+        None, description="Subset of original, bluebook. Omitted = both (new) or unchanged"
     )
 
 
@@ -430,7 +620,9 @@ class TestScoreRequest(BaseModel):
         description="Inline baseline texts (1–10). Synthetic StudentState built from these.",
     )
     keystroke_data: dict | None = Field(
-        None, description="Optional Bbook stylemetry JSON for Tier 17."
+        None,
+        description="Optional Bbook stylemetry JSON for Tier 17. "
+        "Discarded on arrival while the 'behavioral' feature group is disabled (the default).",
     )
     enable_manifest: bool = Field(True, description="Run resolvers + build manifest.")
     enable_adaptive_weights: bool = Field(
@@ -442,6 +634,10 @@ class TestScoreRequest(BaseModel):
         description="Also run sliding-window blend detection on the submission.",
     )
     submission_id: str = Field("playground", description="Audit identity (not persisted).")
+
+    @model_validator(mode="after")
+    def _no_keystroke_data(self):
+        return _discard_keystroke_derived(self)
 
 
 class TestScoreResponse(BaseModel):
@@ -820,6 +1016,23 @@ class StyleAuthorshipOut(BaseModel):
     trained_on: str
 
 
+class BaselineIntegrityOut(BaseModel):
+    """Report-only baseline health diagnostic (T-70); mirrors
+    original.baseline_integrity.BaselineIntegrity 1:1. No env flag gates
+    this — it never feeds deviation_score, quantum_fidelity, or the
+    recommended action, only what gets reported alongside them.
+    """
+
+    n_baselines: int
+    min_required: int
+    readiness: str  # "ready" | "thin" | "absent"
+    provenance_mix: dict[str, int]
+    span_days: int | None
+    loo_outlier_samples: list[dict]
+    sigma_inflation: float | None
+    notes: list[str]
+
+
 class FusedScoreOut(BaseModel):
     """Report-only fused stylometric score (original/fusion/); never feeds
     deviation_score, quantum_fidelity, or the recommended action.
@@ -864,6 +1077,10 @@ class Layer7OutputResponse(BaseModel):
     ai_likelihood: AiLikelihoodOut | None = None
     # Modern peer-aligned authorship expert — default-off and action-blind.
     style_authorship: StyleAuthorshipOut | None = None
+    # Report-only baseline health diagnostic (T-70) — no env flag; populated
+    # whenever a persisted state exists. Action-blind, same as the signals
+    # above.
+    baseline_integrity: BaselineIntegrityOut | None = None
     # Longitudinal drift — default-off, report-only, and action-blind.
     drift_analysis: DriftAnalysisOut | None = None
     # Trend-aware typicality — same gating and same report-only contract as
@@ -1076,6 +1293,9 @@ class HealthResponse(BaseModel):
     # Deployment environment label (demo | pilot | staging | production).
     # Frontends use it to hide demo-only affordances on real deploys.
     environment: str = "demo"
+    # False on an invitation-only deploy (SELF_SERVE_SIGNUP=0). The SPA hides
+    # its "create a workspace" affordances when this is False.
+    signup_open: bool = True
     # Deployed commit SHA. Render injects RENDER_GIT_COMMIT at runtime; "dev"
     # off-platform (local/CI) where no such env var exists.
     commit: str = "dev"

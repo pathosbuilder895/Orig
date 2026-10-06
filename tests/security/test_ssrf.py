@@ -19,8 +19,12 @@ student with tenant A's staff headers.
 
 from __future__ import annotations
 
+import asyncio
+import socket
+
 import httpx
 import pytest
+from fastapi import HTTPException
 
 from original.canvas import live_import
 
@@ -60,12 +64,11 @@ def _recording_transport() -> tuple[httpx.MockTransport, list[httpx.Request]]:
 def test_canvas_import_refuses_private_and_local_urls(
     two_tenants, live_client, monkeypatch, attacker_url
 ):
-    """T-05: Canvas import fetches caller-supplied private/loopback/metadata URLs (SSRF).
+    """T-05 (fixed): Canvas import refuses caller-supplied private/loopback/metadata URLs.
 
-    The server does not validate ``canvas_url``'s host before dialing it, so
-    a staff caller can direct the outbound request at localhost, an
-    RFC-1918 address, the cloud metadata IP, or a ``file://`` URI. A fixed
-    server would 4xx here *before* touching the transport — this asserts
+    ``live_import.ensure_public_url`` rejects non-https schemes and any host
+    that is, or resolves to, a non-global address. The server must 4xx here
+    *before* touching the transport — this asserts
     both the status and that the mocked transport was never invoked, so a
     red result here means the host really was contacted, not just that some
     other check happened to reject it first.
@@ -104,12 +107,12 @@ def test_canvas_import_refuses_private_and_local_urls(
 
 
 NUMERIC_IP_ATTACKER_URLS = [
-    "http://2130706433",  # decimal encoding of 127.0.0.1
-    "http://0x7f000001",  # hex encoding of 127.0.0.1
-    "http://017700000001",  # octal encoding of 127.0.0.1
-    "http://127.1",  # shorthand a.b dotted encoding of 127.0.0.1
-    "http://10.1",  # shorthand a.b dotted encoding of 10.0.0.1
-    "http://0xa.0.0.1",  # mixed hex/decimal dotted encoding of 10.0.0.1
+    "https://2130706433",  # decimal encoding of 127.0.0.1
+    "https://0x7f000001",  # hex encoding of 127.0.0.1
+    "https://017700000001",  # octal encoding of 127.0.0.1
+    "https://127.1",  # shorthand a.b dotted encoding of 127.0.0.1
+    "https://10.1",  # shorthand a.b dotted encoding of 10.0.0.1
+    "https://0xa.0.0.1",  # mixed hex/decimal dotted encoding of 10.0.0.1
 ]
 
 
@@ -117,17 +120,17 @@ NUMERIC_IP_ATTACKER_URLS = [
 def test_canvas_import_refuses_numeric_ip_encodings(
     two_tenants, live_client, monkeypatch, attacker_url
 ):
-    """T-05 follow-up: legacy BSD-style numeric IPv4 encodings (decimal, hex,
-    octal, and shorthand a.b/a dotted forms) are not valid input to
-    ``ipaddress.ip_address`` -- it raises ValueError on all of them -- so a
-    literal check built only on that call falls through to the DNS-name
-    allow branch and lets these through. But ``socket.inet_aton`` (which
-    mirrors the C library numeric-address parsing that resolvers have
-    historically honored) accepts every one of these forms and resolves it
-    to the same loopback/RFC-1918 address a dotted-quad literal would name.
-    Same contract as ``test_canvas_import_refuses_private_and_local_urls``
-    above: the mocked transport must never be invoked, and the response must
-    be a clean 4xx.
+    """T-05: legacy BSD-style numeric IPv4 encodings (decimal, hex, octal and
+    shorthand a.b / a.b.c dotted forms) are refused. None is valid input to
+    ``ipaddress.ip_address``, so ``ensure_public_url`` treats each as a host
+    name and resolves it; ``socket.getaddrinfo`` parses these numeric forms
+    locally (no DNS query) to the same loopback or RFC-1918 address a
+    dotted-quad literal would name, and that address is rejected. The URLs
+    are https:// on purpose: the guard refuses plain http:// outright, so an
+    http:// case would pass on the scheme check without ever reaching the
+    resolution path this test exists to pin. Same contract as
+    ``test_canvas_import_refuses_private_and_local_urls`` above: the mocked
+    transport is never invoked and the response is a clean 4xx.
     """
     transport, seen = _recording_transport()
     monkeypatch.setattr(
@@ -177,3 +180,81 @@ def test_canvas_import_control_public_url_is_contacted(two_tenants, live_client,
     assert r.status_code == 200, r.text
     assert seen, "expected the public host to be contacted"
     assert seen[0].url.host == "canvas.example.edu"
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["https://intranet.localhost", "https://box.internal", "https://", "http://canvas.example.edu"],
+)
+def test_ensure_public_url_refuses_local_names_and_plain_http(url):
+    with pytest.raises(HTTPException) as exc:
+        live_import.ensure_public_url(url)
+    assert exc.value.status_code == 400
+
+
+def test_ensure_public_url_refuses_names_resolving_to_private_addresses(monkeypatch):
+    monkeypatch.setattr(
+        live_import.socket,
+        "getaddrinfo",
+        lambda host, port: [(None, None, None, "", ("10.1.2.3", 0))],
+    )
+    with pytest.raises(HTTPException):
+        live_import.ensure_public_url("https://rebind.example.edu")
+
+
+def test_ensure_public_url_allows_public_and_unresolvable_names(monkeypatch):
+    monkeypatch.setattr(
+        live_import.socket,
+        "getaddrinfo",
+        lambda host, port: [(None, None, None, "", ("93.184.215.14", 0))],
+    )
+    live_import.ensure_public_url("https://canvas.example.edu")
+
+    def _fail(host, port):
+        raise socket.gaierror("no such host")
+
+    monkeypatch.setattr(live_import.socket, "getaddrinfo", _fail)
+    live_import.ensure_public_url("https://canvas.example.edu")
+
+
+def test_ensure_public_url_rejects_unparseable_url():
+    with pytest.raises(HTTPException):
+        live_import.ensure_public_url("https://[not-an-ip")
+
+
+def test_pagination_link_to_private_host_is_not_followed():
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        return httpx.Response(
+            200, json=[], headers={"Link": '<http://169.254.169.254/x>; rel="next"'}
+        )
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            await live_import.fetch_submissions(client, "https://93.184.215.14", "t", "1", "2")
+
+    with pytest.raises(HTTPException):
+        asyncio.run(run())
+    assert len(calls) == 1
+
+
+def test_attachment_on_private_host_is_skipped_without_request():
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        return httpx.Response(200, content=b"word " * 80)
+
+    sub = {
+        "submission_type": "online_upload",
+        "attachments": [{"url": "http://127.0.0.1/secret", "display_name": "a.txt"}],
+    }
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await live_import.get_submission_text(sub, "t", client)
+
+    assert asyncio.run(run()) is None
+    assert calls == []

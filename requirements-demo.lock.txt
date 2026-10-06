@@ -6,7 +6,7 @@ annotated-doc==0.0.4
     #   typer
 annotated-types==0.8.0
     # via pydantic
-anyio==4.14.1
+anyio==4.15.1
     # via
     #   httpx
     #   starlette
@@ -105,7 +105,7 @@ pydantic-core==2.23.4
     # via pydantic
 pygments==2.20.0
     # via rich
-pypdf==6.18.0
+pypdf==6.19.0
     # via -r requirements-demo.txt
 python-docx==1.2.0
     # via -r requirements-demo.txt
@@ -169,7 +169,7 @@ typing-extensions==4.16.0
     #   typing-inspection
 typing-inspection==0.4.2
     # via fastapi
-urllib3==2.7.0
+urllib3==2.8.0
     # via requests
 uvicorn==0.52.1
     # via -r requirements-demo.txt

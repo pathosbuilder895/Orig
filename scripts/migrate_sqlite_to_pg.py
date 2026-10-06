@@ -64,10 +64,13 @@ from original.db.models.live import (
     AuditLogEntry,
     BaselineRequest,
     BluebookCourse,
+    BluebookEnrollment,
     BluebookExam,
+    BluebookInvite,
     BluebookSession,
     BluebookSubmission,
     CalibrationRun,
+    ConsumedAttestation,
     Correction,
     FidelityScore,
     FormationPathway,
@@ -161,7 +164,8 @@ class _TenantMigrator(_Migrator):
 
     def read_sqlite(self, conn):
         rows = conn.execute(
-            "SELECT tenant_id, name, environment, created_at, meta_json FROM tenants"
+            "SELECT tenant_id, name, environment, created_at, meta_json, products_json "
+            "FROM tenants"
         ).fetchall()
         return [
             {
@@ -170,6 +174,7 @@ class _TenantMigrator(_Migrator):
                 "environment": r[2],
                 "created_at": _canon_ts(r[3]),
                 "meta": _parse_json(r[4]) or {},
+                "products": _parse_json(r[5]) or ["original", "bluebook"],
             }
             for r in rows
         ]
@@ -181,6 +186,7 @@ class _TenantMigrator(_Migrator):
             environment=row["environment"],
             created_at=_parse_ts(row["created_at"]),
             meta_json=row["meta"],
+            products_json=row["products"],
         )
 
     def read_pg(self, session):
@@ -191,6 +197,7 @@ class _TenantMigrator(_Migrator):
                 "environment": t.environment,
                 "created_at": _canon_ts(t.created_at),
                 "meta": t.meta_json or {},
+                "products": t.products_json or ["original", "bluebook"],
             }
             for t in session.query(Tenant).all()
         ]
@@ -724,7 +731,8 @@ class _BluebookExamMigrator(_Migrator):
     def read_sqlite(self, conn):
         rows = conn.execute(
             "SELECT exam_id, tenant_id, title, course, duration, min_words, max_words, "
-            "prompt, conditions_json, status, created_at FROM bluebook_exams"
+            "prompt, conditions_json, status, created_at, course_id, opens_at, closes_at, "
+            "questions_json, results_released_at FROM bluebook_exams"
         ).fetchall()
         return [
             {
@@ -739,6 +747,11 @@ class _BluebookExamMigrator(_Migrator):
                 "conditions": _parse_json(r[8]) or {},
                 "status": r[9],
                 "created_at": _canon_ts(r[10]),
+                "course_id": r[11],
+                "opens_at": _canon_ts(r[12]),
+                "closes_at": _canon_ts(r[13]),
+                "questions": _parse_json(r[14]) or [],
+                "results_released_at": _canon_ts(r[15]),
             }
             for r in rows
         ]
@@ -756,6 +769,11 @@ class _BluebookExamMigrator(_Migrator):
             conditions_json=row["conditions"],
             status=row["status"],
             created_at=_parse_ts(row["created_at"]),
+            course_id=row["course_id"],
+            opens_at=_parse_ts(row["opens_at"]),
+            closes_at=_parse_ts(row["closes_at"]),
+            questions_json=row["questions"],
+            results_released_at=_parse_ts(row["results_released_at"]),
         )
 
     def read_pg(self, session):
@@ -772,6 +790,11 @@ class _BluebookExamMigrator(_Migrator):
                 "conditions": e.conditions_json or {},
                 "status": e.status,
                 "created_at": _canon_ts(e.created_at),
+                "course_id": e.course_id,
+                "opens_at": _canon_ts(e.opens_at),
+                "closes_at": _canon_ts(e.closes_at),
+                "questions": e.questions_json or [],
+                "results_released_at": _canon_ts(e.results_released_at),
             }
             for e in session.query(BluebookExam).all()
         ]
@@ -786,8 +809,8 @@ class _BluebookSubmissionMigrator(_Migrator):
         rows = conn.execute(
             "SELECT submission_id, exam_id, tenant_id, student_id, candidate, exam_title, "
             "course, word_count, time_min, stylometric, ai_score, status, created_at, "
-            "submission_uuid, late "
-            "FROM bluebook_submissions"
+            "submission_uuid, late, text, warnings_json, answers_json, mark, feedback, "
+            "graded_at, graded_by FROM bluebook_submissions"
         ).fetchall()
         return [
             {
@@ -806,6 +829,13 @@ class _BluebookSubmissionMigrator(_Migrator):
                 "created_at": _canon_ts(r[12]),
                 "submission_uuid": r[13],
                 "late": r[14],
+                "text": r[15],
+                "warnings": _parse_json(r[16]) or [],
+                "answers": _parse_json(r[17]) or [],
+                "mark": r[18],
+                "feedback": r[19],
+                "graded_at": _canon_ts(r[20]),
+                "graded_by": r[21],
             }
             for r in rows
         ]
@@ -832,6 +862,13 @@ class _BluebookSubmissionMigrator(_Migrator):
             created_at=_parse_ts(row["created_at"]),
             submission_uuid=row["submission_uuid"],
             late=row["late"],
+            text=row["text"],
+            warnings_json=row["warnings"],
+            answers_json=row["answers"],
+            mark=row["mark"],
+            feedback=row["feedback"],
+            graded_at=_parse_ts(row["graded_at"]),
+            graded_by=row["graded_by"],
         )
 
     def read_pg(self, session):
@@ -855,6 +892,13 @@ class _BluebookSubmissionMigrator(_Migrator):
                     "created_at": _canon_ts(s.created_at),
                     "submission_uuid": s.submission_uuid,
                     "late": s.late,
+                    "text": s.text,
+                    "warnings": s.warnings_json or [],
+                    "answers": s.answers_json or [],
+                    "mark": s.mark,
+                    "feedback": s.feedback,
+                    "graded_at": _canon_ts(s.graded_at),
+                    "graded_by": s.graded_by,
                 }
             )
         return out
@@ -1041,6 +1085,142 @@ class _AuditMigrator(_Migrator):
                 }
             )
         return out
+
+
+class _BluebookEnrollmentMigrator(_Migrator):
+    """Self-serve course roster (2026-09). student_id is the full scoped id
+    in BOTH schemas (it is also the student's users.user_id), so no split."""
+
+    name = "bluebook_enrollments"
+    model = BluebookEnrollment
+    pk = "_pk"
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(
+            "SELECT course_id, student_id, tenant_id, created_at FROM bluebook_enrollments"
+        ).fetchall()
+        return [
+            {
+                "_pk": f"{r[0]}|{r[1]}",
+                "course_id": r[0],
+                "student_id": r[1],
+                "tenant_id": r[2],
+                "created_at": _canon_ts(r[3]),
+            }
+            for r in rows
+        ]
+
+    def to_model(self, row):
+        return BluebookEnrollment(
+            course_id=row["course_id"],
+            student_id=row["student_id"],
+            tenant_id=row["tenant_id"],
+            created_at=_parse_ts(row["created_at"]),
+        )
+
+    def read_pg(self, session):
+        return [
+            {
+                "_pk": f"{e.course_id}|{e.student_id}",
+                "course_id": e.course_id,
+                "student_id": e.student_id,
+                "tenant_id": e.tenant_id,
+                "created_at": _canon_ts(e.created_at),
+            }
+            for e in session.query(BluebookEnrollment).all()
+        ]
+
+
+class _BluebookInviteMigrator(_Migrator):
+    """Self-serve set-password links (2026-09). Only token hashes exist in
+    either store, so copying them moves no usable credential."""
+
+    name = "bluebook_invites"
+    model = BluebookInvite
+    pk = "invite_id"
+
+    _COLS = (
+        "invite_id",
+        "tenant_id",
+        "user_id",
+        "course_id",
+        "token_hash",
+        "created_by",
+        "created_at",
+        "expires_at",
+        "redeemed_at",
+        "voided_at",
+    )
+    _TS = {"created_at", "expires_at", "redeemed_at", "voided_at"}
+
+    def _canon(self, values):
+        return {
+            c: (_canon_ts(v) if c in self._TS else v)
+            for c, v in zip(self._COLS, values, strict=True)
+        }
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(f"SELECT {', '.join(self._COLS)} FROM bluebook_invites").fetchall()
+        return [self._canon(r) for r in rows]
+
+    def to_model(self, row):
+        return BluebookInvite(
+            **{c: (_parse_ts(row[c]) if c in self._TS else row[c]) for c in self._COLS}
+        )
+
+    def read_pg(self, session):
+        return [
+            self._canon([getattr(i, c) for c in self._COLS])
+            for i in session.query(BluebookInvite).all()
+        ]
+
+
+class _ConsumedAttestationMigrator(_Migrator):
+    """T-69: the proctor-attestation single-use ledger. No tenant FK,
+    mirroring audit_log — see the tenants-referenced-set comment near
+    MIGRATORS below. student_id is stored as the full scoped string in BOTH
+    schemas (like bluebook_submissions/bluebook_sessions), not split into
+    tenant/local, so no _split_local here."""
+
+    name = "consumed_attestations"
+    model = ConsumedAttestation
+    pk = "jti"
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(
+            "SELECT jti, tenant_id, exam, student_id, used_at FROM consumed_attestations"
+        ).fetchall()
+        return [
+            {
+                "jti": r[0],
+                "tenant_id": r[1],
+                "exam": r[2],
+                "student_id": r[3],
+                "used_at": _canon_ts(r[4]),
+            }
+            for r in rows
+        ]
+
+    def to_model(self, row):
+        return ConsumedAttestation(
+            jti=row["jti"],
+            tenant_id=row["tenant_id"],
+            exam=row["exam"],
+            student_id=row["student_id"],
+            used_at=_parse_ts(row["used_at"]),
+        )
+
+    def read_pg(self, session):
+        return [
+            {
+                "jti": a.jti,
+                "tenant_id": a.tenant_id,
+                "exam": a.exam,
+                "student_id": a.student_id,
+                "used_at": _canon_ts(a.used_at),
+            }
+            for a in session.query(ConsumedAttestation).all()
+        ]
 
 
 class _FormationMigrator(_Migrator):
@@ -1262,7 +1442,10 @@ MIGRATORS: list[_Migrator] = [
     _BluebookSubmissionMigrator(),
     _BluebookCourseMigrator(),
     _BluebookSessionMigrator(),
+    _BluebookEnrollmentMigrator(),
+    _BluebookInviteMigrator(),
     _AuditMigrator(),
+    _ConsumedAttestationMigrator(),
     _FormationMigrator(),
     _BaselineRequestMigrator(),
     _ParkSessionMigrator(),
@@ -1287,10 +1470,11 @@ def _referenced_tenants(sqlite_rows: dict) -> set[str]:
     sentinel, a tenant derived from a scoped id but never explicitly created).
     Postgres enforces the FK, so those must exist before their children insert
     -- this is exactly what PostgresRepository._ensure_tenant_exists does at
-    write time. Audit_log is excluded: it deliberately carries no tenant FK."""
+    write time. Audit_log and consumed_attestations are excluded: both
+    deliberately carry no tenant FK."""
     referenced: set[str] = set()
     for m in MIGRATORS:
-        if m.name in ("tenants", "audit_log"):
+        if m.name in ("tenants", "audit_log", "consumed_attestations"):
             continue
         for inst in (m.to_model(r) for r in sqlite_rows[m.name]):
             tid = getattr(inst, "tenant_id", None)

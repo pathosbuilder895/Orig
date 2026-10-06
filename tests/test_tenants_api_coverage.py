@@ -363,6 +363,41 @@ def test_bulk_delete_erases_only_the_named_tenants_students():
     assert client.get(f"/students/{bystander}:safe", headers=_auth(op)).status_code == 200
 
 
+def test_bulk_delete_erases_a_bluebook_only_workspaces_students():
+    """A self-serve Bluebook tenant never creates Original profiles, so bulk
+    erasure must find its students by their Bluebook rows — it used to report
+    zero deletions and leave every sitting, submission, and login behind."""
+    from original.repository import get_repository
+
+    repo = get_repository()
+    target, bystander = _slug("bbbulk"), _slug("bbstand")
+    for tid in (target, bystander):
+        r = client.post(
+            "/tenants",
+            json={"tenant_id": tid, "name": tid, "environment": "pilot", "products": ["bluebook"]},
+        )
+        assert r.status_code == 201, r.text
+        repo.put_bluebook_exam({"id": f"{tid}-exam", "tenant_id": tid, "title": "Midterm"})
+    gone, kept = f"{target}:stu", f"{bystander}:stu"
+    for sid, tid in ((gone, target), (kept, bystander)):
+        repo.put_user(sid, f"{sid.replace(':', '.')}@x.edu", "!invited", "student", tid, "Stu")
+        repo.put_enrollment(f"{tid}-course", sid, tid)
+        repo.put_bluebook_submission(
+            {"id": f"sub-{sid}", "tenant_id": tid, "exam_id": f"{tid}-exam", "student_id": sid}
+        )
+    op = pr.mint_principal_token("op_bbbulk", "operator", target)
+
+    r = client.delete(f"/tenants/{target}/students", headers=_auth(op))
+
+    assert r.status_code == 200, r.text
+    assert (r.json()["deleted_count"], r.json()["failed_ids"]) == (1, [])
+    assert repo.get_user(gone) is None
+    assert repo.list_enrollments_for_student(gone) == []
+    assert repo.list_bluebook_submissions_for_student(gone) == []
+    assert repo.get_user(kept) is not None
+    assert len(repo.list_bluebook_submissions_for_student(kept)) == 1
+
+
 _LONG_TEXT = (
     "The doctrine of justification by faith stands at the center of the gospel. "
     "When Paul writes to the Romans, he labors to show that righteousness comes "
