@@ -38,34 +38,25 @@
     const lowerWords = words.map(w => w.toLowerCase().replace(/[^\w']/g,''));
     const fnHits = lowerWords.filter(w => fnWords.includes(w)).length;
     const fnRatio = words.length ? fnHits / words.length : 0;
-    // pretend κ (tension arc) — derived from sentence-length variation
-    const kappa = Math.min(1, sdSent / 12 + ttr * 0.4);
-    // pretend "voice authenticity" — hash-derived stable value
+    // The seed only shapes the drawing. Every number shown is measured above;
+    // the server's 109-feature extraction and baseline comparison are not run here.
     const seed = hash(trimmed.slice(0, 256));
-    const r = rng(seed);
-    const voice = 0.78 + r() * 0.20;
     return {
       words: words.length, chars, sentences: sentences.length,
-      meanSent, sdSent, ttr, semicolons, dashes, commas, fnRatio,
-      kappa, voice, seed,
+      meanSent, sdSent, ttr, semicolons, dashes, commas, fnRatio, seed,
     };
   }
 
   // Animate the strip with feature lines, then reveal the result panel.
   // Plain English — written for a professor, not an engineer.
   const FEATURE_LINES = [
-    (s) => `Average sentence length — ${s.meanSent.toFixed(1)} words`,
-    (s) => `Sentence variety — ${s.sdSent < 5 ? 'very consistent' : s.sdSent < 10 ? 'moderately varied' : 'highly varied'} (±${s.sdSent.toFixed(1)} words)`,
-    (s) => `Vocabulary range — ${Math.round(s.ttr * 100)}% unique words`,
-    (s) => `Semicolon use — ${s.semicolons === 0 ? 'none' : `about ${(s.semicolons/Math.max(1,s.sentences)).toFixed(1)} per sentence`}`,
-    (s) => `Em-dash habit — ${s.dashes === 0 ? 'avoids them' : s.dashes === 1 ? 'used once' : `used ${s.dashes} times`}`,
-    (s) => `Everyday connector words — ${Math.round(s.fnRatio * 100)}% of text`,
-    (s) => `Comma rhythm — about ${(s.commas/Math.max(1,s.sentences)).toFixed(1)} per sentence`,
-    (s) => `Punctuation formality — ${Math.round((0.31+(s.seed%97)/300) * 100)}%`,
-    (s) => `Grammatical variety — ${Math.round(((2.41+(s.seed%173)/600) / 3.2) * 100)}%`,
-    (s) => `Personal quirks detected — ${Math.round((0.18+(s.seed%241)/1100) * 100)}% distinctive`,
-    (s) => `Voice consistency — ${Math.round(s.voice * 100)}%`,
-    (s) => `Narrative tension (κ) — ${Math.round(s.kappa * 100)}%`,
+    (s) => `Average sentence length: ${s.meanSent.toFixed(1)} words`,
+    (s) => `Sentence variety: ${s.sdSent < 5 ? 'very consistent' : s.sdSent < 10 ? 'moderately varied' : 'highly varied'} (±${s.sdSent.toFixed(1)} words)`,
+    (s) => `Vocabulary range: ${Math.round(s.ttr * 100)}% unique words`,
+    (s) => `Semicolon use: ${s.semicolons === 0 ? 'none' : `about ${(s.semicolons/Math.max(1,s.sentences)).toFixed(1)} per sentence`}`,
+    (s) => `Em-dash habit: ${s.dashes === 0 ? 'avoids them' : s.dashes === 1 ? 'used once' : `used ${s.dashes} times`}`,
+    (s) => `Everyday connector words: ${Math.round(s.fnRatio * 100)}% of text`,
+    (s) => `Comma rhythm: about ${(s.commas/Math.max(1,s.sentences)).toFixed(1)} per sentence`,
   ];
 
   // Mini fingerprint draw — adapted from main viz, smaller + faster
@@ -168,9 +159,10 @@
         finished = true;
         drawMiniFingerprint(canvas, stats.seed, 1);
         // reveal result block
-        result.querySelector('.cell-voice .v').textContent = stats.voice.toFixed(3);
-        result.querySelector('.cell-kappa .v').textContent = stats.kappa.toFixed(3);
-        result.querySelector('.cell-features .v').textContent = '103 / 103';
+        // Class names are the design's; the cells now hold real measurements.
+        result.querySelector('.cell-voice .v').textContent = stats.meanSent.toFixed(1);
+        result.querySelector('.cell-kappa .v').textContent = Math.round(stats.ttr * 100) + '%';
+        result.querySelector('.cell-features .v').textContent = FEATURE_LINES.length + ' / 109';
         result.classList.add('show');
         running = false;
       }
