@@ -2,7 +2,7 @@
   "ai_likelihood": null,
   "authorship": {
     "authorship_probability": 0.9295586317,
-    "deviation_score": 0.7546594634,
+    "deviation_score": 0.5565963331,
     "fidelity_conformal_pvalue": null,
     "llr_deviation_score": null,
     "quantum_fidelity": 0.0
@@ -384,9 +384,9 @@
     "total_probability": 0.9295586317
   },
   "recommendation": {
-    "action": "escalate",
+    "action": "monitor",
     "confidence": 0.833921387,
-    "rationale": "Deviation score 0.755 (primary verdict signal). Born authorship probability 0.930 (secondary alignment check). 5 destructive interference features detected. Primary anomaly: Sentence-Length Dispersion. Born and deviation signals diverge by 0.68 \u2014 confidence reduced; manual review advised."
+    "rationale": "Deviation score 0.557 (primary verdict signal). Born authorship probability 0.930 (secondary alignment check). 5 destructive interference features detected. Primary anomaly: Sentence-Length Dispersion. Born and deviation signals diverge by 0.49 \u2014 confidence reduced; manual review advised."
   },
   "student_id": "flagbi:alice",
   "style_authorship": null,

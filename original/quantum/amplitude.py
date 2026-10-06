@@ -105,8 +105,17 @@ def encode_amplitudes(
     reliability = float(np.exp(-1.0 / max(2.0 * n_tokens, 2.0)))
 
     # Magnitude: 1.0 when z=0 (perfectly in-baseline), → 0 for |z| >> 0.
-    # Uses the same tanh divisor (1.5) as the deviation_score in scoring.py
-    # so the amplitude magnitude is calibrated to the same scale.
+    # The 1.5 divisor here is amplitude-local and INDEPENDENT of scoring.py's
+    # deviation divisor (_DEVIATION_TANH_DIVISOR), which was de-saturated to 2.35
+    # for the T-01 cold-start fix on 2026-09-15. The two were historically both
+    # 1.5; this path is deliberately left at 1.5 because it is dormant
+    # (AMPLITUDE_SCORING_ENABLED is default-off and not enabled by demo) and 2.35
+    # was calibrated for the deviation channel only, not this amplitude magnitude.
+    # ⚠️ Before AMPLITUDE_SCORING_ENABLED is ever turned on, this divisor needs its
+    # own cold-start review: at |z| ≈ 1.6 (a genuine cold-start holdout) the factor
+    # is 1 - tanh(1.6/1.5) = 0.21 here vs 0.41 under /2.35, so as written it would
+    # reintroduce, in the fidelity/amplitude channel, the same saturation-at-
+    # genuine-cold-start that T-01 just removed from deviation_score.
     r = (1.0 - np.tanh(np.abs(z) / 1.5)) * weight_vec * reliability
 
     # Phase: +π/6 for features above baseline, −π/6 for at-or-below.

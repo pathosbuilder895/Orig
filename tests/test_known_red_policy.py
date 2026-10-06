@@ -15,6 +15,7 @@ Two things are pinned here:
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import subprocess
 import sys
@@ -30,6 +31,29 @@ known_red = importlib.util.module_from_spec(_spec)
 # sys.modules by __module__ name, which fails if the module isn't there yet.
 sys.modules[_spec.name] = known_red
 _spec.loader.exec_module(known_red)
+
+
+def _files_using_blocker_mark(root: Path) -> list[str]:
+    """Files under ``root`` that actually apply ``pytest.mark.blocker``: as a
+    decorator, in ``marks=``, or in ``pytestmark``. AST-based, so the marker
+    merely appearing in a string or a comment (as it does in this module's own
+    fixtures) does not count. Paths are returned relative to ``root``."""
+    hits = []
+    for path in sorted(root.rglob("*.py")):
+        try:
+            tree = ast.parse(path.read_text())
+        except (OSError, SyntaxError):
+            continue
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Attribute)
+                and node.attr == "blocker"
+                and isinstance(node.value, ast.Attribute)
+                and node.value.attr == "mark"
+            ):
+                hits.append(str(path.relative_to(root)))
+                break
+    return hits
 
 
 ALL_FAIL_XML = """<?xml version="1.0" encoding="utf-8"?>
@@ -228,10 +252,20 @@ class TestEveryBlockerTestNamesItsGap:
             for line in proc.stdout.splitlines()
             if "::" in line and not line.startswith(" ")
         ]
-        # Without this, an empty `nodeids` (e.g. the -m blocker filter
-        # matching nothing) would make the loop below a no-op and the
-        # "every blocker test names its gap" guard would pass vacuously.
-        assert nodeids, "expected at least one @pytest.mark.blocker test to be collected"
+        # An empty `nodeids` has two causes that must not be confused. Every
+        # known-red gap may genuinely be closed: scripts/known_red.py treats
+        # "no tests carry @pytest.mark.blocker" as a notice, not a failure.
+        # Or the -m blocker filter is broken and matches nothing, which would
+        # make the loop below a no-op and this guard pass vacuously. Tell
+        # them apart from the source: an empty collection is only legitimate
+        # when no file under tests/ applies the marker at all.
+        if not nodeids:
+            users = _files_using_blocker_mark(REPO_ROOT / "tests")
+            assert users == [], (
+                "pytest -m blocker collected nothing, but these files apply "
+                f"pytest.mark.blocker, so the filter is broken: {users}"
+            )
+            return
         offenders = []
         for nodeid in nodeids:
             # Strip the parametrise suffix BEFORE splitting: a param id may
@@ -248,3 +282,20 @@ class TestEveryBlockerTestNamesItsGap:
             if not known_red.GAP_ID_RE.search(first_line):
                 offenders.append(nodeid)
         assert offenders == [], f"blocker tests missing a T-<n> docstring: {offenders}"
+
+
+
+def test_blocker_mark_scan_counts_real_marks_not_mentions(tmp_path):
+    """The empty-collection branch above is only as good as this scan: it must
+    find a real mark and must ignore the marker named in a string or comment."""
+    (tmp_path / "test_real.py").write_text(
+        "import pytest\n\n\n@pytest.mark.blocker\ndef test_x():\n    pass\n"
+    )
+    (tmp_path / "test_param.py").write_text(
+        "import pytest\n\n\n@pytest.mark.parametrize('v', "
+        "[pytest.param(1, marks=pytest.mark.blocker)])\ndef test_y(v):\n    pass\n"
+    )
+    (tmp_path / "test_mention.py").write_text(
+        '# @pytest.mark.blocker in a comment\nTEXT = "@pytest.mark.blocker"\n'
+    )
+    assert _files_using_blocker_mark(tmp_path) == ["test_param.py", "test_real.py"]

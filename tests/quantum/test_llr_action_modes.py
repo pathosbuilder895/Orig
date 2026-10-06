@@ -147,7 +147,14 @@ def test_unknown_mode_raises():
 # pool is close enough to the submission that llr_deviation_score reads
 # confidently "genuine" -- the exact genre-shift failure mode this study
 # targets, reproduced with hand-picked vectors instead of real prose.
-FAR = 0.55
+# Re-derived 2026-09-15 from 0.55 -> 0.65 for the cold-start de-saturation
+# recalibration (scoring._DEVIATION_TANH_DIVISOR 1.5 -> 2.35): the same escalate
+# criterion now needs a submission farther from the 0.30 baseline. At 0.65 the
+# raw deviation is ~0.82 (solidly escalate, well below the rms_z>=3 catastrophic
+# override that re-forces escalate around 0.70) and llr stays ~0.07 (confidently
+# genuine, << the 0.35 gate threshold). The llr path (tanh /1.5, unchanged) is
+# unaffected; only the deviation->action band moved.
+FAR = 0.65
 IMPOSTOR_MEAN, IMPOSTOR_SIGMA = 0.90, 0.05
 
 
@@ -174,7 +181,7 @@ def _baseline_state(mean: float, n: int = 1) -> StudentState:
 
 def test_default_config_is_gate_and_downgrades_genre_driven_false_positive():
     # Own baseline tight at 0.30 (n=1 -> flat sigma=0.15); submission at FAR
-    # (0.55) drives rms_z far enough for raw deviation alone to escalate.
+    # (0.65) drives rms_z far enough for raw deviation alone to escalate.
     # Impostor pool centred close to the submission (0.90 +/- 0.05) so
     # rms_z_null << rms_z -> llr says "genuine" (confidently low). Default
     # llr_action_mode="gate" (as of 2026-08) SHOULD downgrade this one step,

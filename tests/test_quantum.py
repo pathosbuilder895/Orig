@@ -187,7 +187,7 @@ class TestQuantumInvariants:
         assert result.authorship.deviation_score < 0.3
 
     def test_different_text_nonzero_deviation(self):
-        """Scoring very different text gives higher deviation."""
+        """Scoring very different text gives higher deviation than identical text."""
         # Create baseline with one sample
         vector = np.zeros(FEATURE_DIM)
         vector[0] = 1.0  # Almost orthogonal vector
@@ -205,9 +205,17 @@ class TestQuantumInvariants:
         different_vector[-1] = 1.0
 
         result = score(state, different_vector, vector_to_feature_dict(different_vector))
+        identical = score(state, vector, vector_to_feature_dict(vector))
 
-        # Should have noticeable deviation
-        assert result.authorship.deviation_score > 0.3
+        # A near-orthogonal submission must produce clearly non-trivial
+        # deviation, and materially more than re-scoring the baseline vector
+        # itself (which is ~0). Asserted as an ORDERING plus a modest floor
+        # rather than an absolute band, because the absolute magnitude tracks
+        # the tanh divisor (_DEVIATION_TANH_DIVISOR, recalibrated 1.5 -> 2.35
+        # for cold-start de-saturation on 2026-09-15) and a fixed band would
+        # re-break on every such recalibration. Old bar 0.3 assumed /1.5.
+        assert result.authorship.deviation_score > identical.authorship.deviation_score
+        assert result.authorship.deviation_score > 0.15
 
     def test_unverified_samples_excluded(self):
         """Unverified samples with auth_weight=0 are excluded from density matrix."""

@@ -76,6 +76,42 @@ log = logging.getLogger(__name__)
 # degrades sharply below ~300 words. Prose only — never changes the action.
 SHORT_SUBMISSION_TOKENS = 300
 
+# Divisor that maps rms_z → deviation_score via tanh(rms_z / D). Governs where
+# the ACTION_THRESHOLDS bands (flag floor = schedule_conversation at 0.60) fall
+# on the rms_z scale: flagging begins at rms_z ≈ D · arctanh(0.60) = 0.693·D.
+#
+# Cold-start de-saturation recalibration (gap T-01, 2026-09-15)
+# ─────────────────────────────────────────────────────────────
+# The prior 1.5 was calibrated against an assumed genuine rms_z ≈ 0.6, which is
+# roughly HALF the value a genuine author's own cross-work holdout actually
+# produces at the pilot's 3–5 authenticated baselines. Measured at the live
+# API cert path (flags off, validation/public_authors, 11 authors, N=3 & N=5):
+#     genuine cross-work rms_z : range 0.78–1.58, median ≈ 1.2   (adj_factor 1.0)
+#     impostor (diff-author)   : median ≈ 1.65 at N=5
+# Under /1.5 the flag floor sits at rms_z ≈ 1.04 — INSIDE the genuine range — so
+# 10/11 genuine holdouts were crushed to 0.62–0.78 (schedule/escalate): the
+# saturation false-positive defect. tanh is monotone, so raising D preserves the
+# impostor-over-genuine ordering by construction; it only slides the flag floor.
+#
+# D = 2.35 puts the flag floor at rms_z ≈ 1.63 — ABOVE the whole measured
+# genuine cross-work range (so genuine holdouts land in no_action/monitor) and
+# BELOW the impostor median (so > 50% of impostors still reach schedule+). The
+# viable window is a PLATEAU, not a fitted point: every D in [2.30, 2.375]
+# yields the identical cert verdict (0/11 genuine flagged at N=3/5/10; 7/11
+# impostors flagged at N=5). Below ≈2.28 genuine false positives reappear;
+# above ≈2.38 this corpus's weak same-era-human impostor signal (median rms_z
+# only ~1.65, NOT the 3–4 an AI ghostwriter would show) drops below the 50%
+# witness bar — which is why 3.0/4.0/5.0 are NOT usable here. 2.35 is the plateau
+# centre, maximally clear of both cliffs. ⚠️ The ABSOLUTE false-positive rate is
+# NOT validated against real student writing (pilot data is Postgres on Render,
+# unavailable here); this corpus certifies "saturation removed AND genuine/
+# impostor discrimination preserved", nothing about the true operating point.
+#
+# NOT the fusion channel divisor: original/fusion/channels.py:_TANH_DIVISOR = 1.5
+# is baked into original/data/fused_score_v1.json and must stay 1.5 — that is an
+# independent path and the two are not required to match.
+_DEVIATION_TANH_DIVISOR = 2.35
+
 # Pre-built per-feature tier-weight vector (shape D,) — applied to z-scores
 # so that high-identity tiers (6=idiosyncratic, 11=error ecology, 4=char/punct)
 # dominate the deviation score over noisier tiers (3=rhetorical, 9=argument).
@@ -1382,19 +1418,23 @@ def score(
     if _sigma_was_inflated:
         _conformal_p = None
 
-    # Map to [0,1] via tanh.
+    # Map to [0,1] via tanh(rms_z / _DEVIATION_TANH_DIVISOR).
     #
-    # Divisor calibration history
-    # ───────────────────────────
+    # Divisor calibration history (see _DEVIATION_TANH_DIVISOR's definition for
+    # the full cold-start rationale and the measured genuine/impostor rms_z):
     #   2.5  (original)  : rms_z 1.5→0.54, 2.5→0.76  (narrow band)
-    #   1.0  (v2)        : rms_z 1.0→0.76, 2.0→0.96  (too aggressive —
-    #                       with adaptive baseline_std ≈ 0.067 (N=5),
-    #                       same-author holdouts hit rms_z ≈ 0.6 → D 0.54,
-    #                       landing in 'schedule_conversation' — false alarm)
-    #   1.5  (current)   : rms_z 0.6→0.38 (no_action ✓), 1.7→0.75 (sched.),
-    #                       3.0→0.96 (escalate ✓). Properly separates same-
-    #                       author variance from genuine cross-author drift.
-    D_raw = float(np.tanh(rms_z / 1.5))
+    #   1.0  (v2)        : rms_z 1.0→0.76, 2.0→0.96  (too aggressive)
+    #   1.5  (2026-08)   : assumed genuine rms_z ≈ 0.6; but a genuine author's
+    #                       own cross-work holdout at N=3–5 actually sits at
+    #                       rms_z ≈ 1.2 (median) / 1.58 (max), so the flag floor
+    #                       at rms_z ≈ 1.04 crushed 10/11 genuine holdouts into
+    #                       schedule/escalate — the cold-start saturation defect.
+    #   2.35 (2026-09-15): flag floor at rms_z ≈ 1.63 — above the whole measured
+    #                       genuine cross-work range (→ no_action/monitor) and
+    #                       below the impostor median 1.65 (→ >50% impostors still
+    #                       flagged). rms_z 1.2→0.47, 1.58→0.59, 1.65→0.61,
+    #                       2.0→0.70. De-saturates without losing discrimination.
+    D_raw = float(np.tanh(rms_z / _DEVIATION_TANH_DIVISOR))
 
     # ── Trajectory adjustment ─────────────────────────────────────────────────
     traj = state.trajectory
@@ -1424,8 +1464,11 @@ def score(
     D_adjusted = float(np.clip(D_raw * adj_factor, 0.0, 1.0))
 
     # ── Shadow-mode preview (final score) ────────────────────────────────────
-    # Mirrors D_adjusted's arithmetic exactly -- same tanh(rms_z / 1.5)
-    # calibration, then the SAME adj_factor from the trajectory block above
+    # Mirrors D_adjusted's arithmetic exactly -- same tanh(rms_z /
+    # _DEVIATION_TANH_DIVISOR) calibration (the shared constant is what keeps
+    # this preview equal to what "on" mode produces — see the equality tests in
+    # tests/quantum/test_topic_variance_inflation.py), then the SAME adj_factor
+    # from the trajectory block above
     # (adj_factor depends only on xi and state.trajectory.vector, neither of
     # which sigma inflation touches, so it is identical between shadow and
     # "on" mode). That coupling is deliberate: deviation_score_inflated must
@@ -1434,7 +1477,7 @@ def score(
     deviation_score_inflated: float | None = None
     if _rms_z_inflated is not None:
         deviation_score_inflated = float(
-            np.clip(np.tanh(_rms_z_inflated / 1.5) * adj_factor, 0.0, 1.0)
+            np.clip(np.tanh(_rms_z_inflated / _DEVIATION_TANH_DIVISOR) * adj_factor, 0.0, 1.0)
         )
 
     # Characteristic-weighting shadow preview, same coupling and for the same
@@ -1445,7 +1488,7 @@ def score(
     characteristic_deviation_preview: float | None = None
     if _char_rms_z_preview is not None:
         characteristic_deviation_preview = float(
-            np.clip(np.tanh(_char_rms_z_preview / 1.5) * adj_factor, 0.0, 1.0)
+            np.clip(np.tanh(_char_rms_z_preview / _DEVIATION_TANH_DIVISOR) * adj_factor, 0.0, 1.0)
         )
 
     # ── Interference decomposition ────────────────────────────────────────────
