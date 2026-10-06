@@ -307,7 +307,7 @@ jobs:
       # upload-artifact above is at v7.0.1 and the v4+ artifact backend is
       # shared, so this v4 download reads a v7 upload.
       - name: Download the three shards' coverage data
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: coverage-data-*
           merge-multiple: true
