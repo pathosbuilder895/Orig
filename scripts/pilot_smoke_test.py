@@ -16,13 +16,20 @@ Checks (see WS-6 P5 acceptance criteria):
      the single strongest signal that the data came across.
   4. (optional, with --token + --student) a known student profile is served
      from Postgres with a 200 -- proves an authenticated read path end to end.
+  5. (with --bluebook) the public Bluebook launch surface: the deploy reports
+     ORIGINAL_ENV=pilot; /bluebook/ serves the committed bundle; the privacy,
+     terms and student-notice pages are up; the API docs are hidden; and the
+     staff and account routes refuse an anonymous caller.
 
 Usage
 -----
     python -m scripts.pilot_smoke_test \
         --base-url https://original-pilot.onrender.com \
         --expect-count 128 \
-        [--token <operator-bearer-token> --student "sem:alice"]
+        [--token <operator-bearer-token> --student "sem:alice"] [--bluebook]
+
+    # a fresh launch (nothing to count yet):
+    python -m scripts.pilot_smoke_test --base-url https://<host> --bluebook
 
 FERPA: with --token you are fetching a real student record; run from a trusted
 machine over TLS, and don't log the response.
@@ -55,7 +62,26 @@ def _http_get(base_url: str, path: str, token: str | None = None) -> tuple[int, 
         return status, body
 
 
-def run_smoke(fetch, *, expect_count: int | None = None, student: str | None = None) -> dict:
+# (path, wanted status, required text in the body or None) — GETs only.
+BLUEBOOK_CHECKS = (
+    ("/bluebook/", 200, "bluebook.bundle.js"),
+    ("/legal/privacy.html", 200, "Privacy"),
+    ("/legal/terms.html", 200, "Terms"),
+    ("/legal/student-notice.html", 200, None),
+    ("/docs", 404, None),
+    ("/openapi.json", 404, None),
+    ("/auth/me", 401, None),
+    ("/bluebook/exams", 401, None),
+)
+
+
+def run_smoke(
+    fetch,
+    *,
+    expect_count: int | None = None,
+    student: str | None = None,
+    bluebook: bool = False,
+) -> dict:
     """Run the checks using ``fetch(path) -> (status, json)``. Returns a report
     dict with a top-level ``ok`` and a per-check list. Pure of I/O specifics so
     it's unit-testable against a TestClient as well as the real service."""
@@ -91,6 +117,20 @@ def run_smoke(fetch, *, expect_count: int | None = None, student: str | None = N
         s_status, _ = fetch(f"/students/{student}")
         record("known_student_served", s_status == 200, f"GET /students/{student} -> {s_status}")
 
+    if bluebook:
+        record(
+            "environment_is_pilot",
+            health.get("environment") == "pilot",
+            f"environment={health.get('environment')!r} (want 'pilot')",
+        )
+        for path, want, needle in BLUEBOOK_CHECKS:
+            b_status, body = fetch(path)
+            ok = b_status == want and (needle is None or needle in str(body))
+            detail = f"GET {path} -> {b_status} (want {want})"
+            if needle is not None and b_status == want and not ok:
+                detail += f", body lacks {needle!r}"
+            record(f"bluebook {path}", ok, detail)
+
     return {"ok": all(c["ok"] for c in checks), "checks": checks}
 
 
@@ -110,12 +150,17 @@ def main(argv=None) -> int:
     parser.add_argument("--expect-count", type=int, help="pre-cutover student_profiles row count")
     parser.add_argument("--token", help="operator bearer token for the known-student check")
     parser.add_argument("--student", help="a known scoped student id to spot-check (needs --token)")
+    parser.add_argument(
+        "--bluebook", action="store_true", help="also check the public Bluebook launch surface"
+    )
     args = parser.parse_args(argv)
 
     def fetch(path):
         return _http_get(args.base_url, path, token=args.token)
 
-    report = run_smoke(fetch, expect_count=args.expect_count, student=args.student)
+    report = run_smoke(
+        fetch, expect_count=args.expect_count, student=args.student, bluebook=args.bluebook
+    )
     print(_render(report))
     return 0 if report["ok"] else 1
 

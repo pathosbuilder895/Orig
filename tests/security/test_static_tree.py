@@ -148,3 +148,16 @@ def test_seed_db_served_in_demo(mounted_client):
     """
     r = mounted_client.get("/seed.db")
     assert r.status_code == 200, r.text[:200]
+
+
+def test_root_opens_bluebook_on_a_real_deploy(mounted_pilot_client):
+    """The public self-serve site's front door is Bluebook, not Original's
+    professor page (which a signed-out visitor could not use anyway)."""
+    r = mounted_pilot_client.get("/", follow_redirects=False)
+    assert r.status_code in (302, 307)
+    assert r.headers["location"] == "/bluebook/"
+
+
+def test_root_keeps_the_original_tour_in_the_demo(mounted_client):
+    r = mounted_client.get("/", follow_redirects=False)
+    assert r.headers["location"] == "/professor.html"

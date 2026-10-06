@@ -228,7 +228,7 @@ def _single_upload_docx(client: httpx.AsyncClient):
 def _single_upload_txt(client: httpx.AsyncClient):
     """POST /students/{sid}/upload — one ~2,000-word .txt file.
 
-    original/routers/students.py:341. Declared ``async def`` like the others,
+    original/routers/students.py:341. Now a plain ``def`` (threadpool) since f09bb9c61;
     but its inline work for a .txt is decode + split, not feature extraction.
     Kept as the green control for this route: unlike the .docx/.pdf branches,
     the .txt branch never blocks, so this case should stay green forever and
@@ -342,14 +342,12 @@ async def test_heartbeat_probe_is_fast_with_no_load(store_reset, perf_client):
     )
 
 
-# ── Regression guard (T-09 closed on main) ─────────────────────────────────────
-# One case per handler. The post-#203 rebase converted all three upload
-# handlers (upload_file, upload_baseline_batch, import_turnitin_csv) from
-# `async def` to plain `def`, so FastAPI runs them in a threadpool and they
-# can no longer hold the event loop — T-09 is closed. These cases now pass
-# and are kept UNMARKED as green regression guards: if a handler is ever made
-# `async def` again with inline CPU work, its heartbeat goes >250 ms late and
-# the guard fails. (The .txt branch was always a green control.)
+# ── Regression guard (T-09 fixed) ───────────────────────────────────────────────
+# One case per handler. All four are green regression guards now: the three
+# upload handlers (upload_file, upload_baseline_batch, import_turnitin_csv) are
+# plain `def`, so FastAPI runs them in a threadpool and they cannot hold the
+# event loop, and the .txt case was always a green control. A handler that
+# moves heavy work back onto the event loop turns its case red.
 
 
 @pytest.mark.parametrize(
@@ -364,14 +362,24 @@ async def test_heartbeat_probe_is_fast_with_no_load(store_reset, perf_client):
 async def test_upload_does_not_starve_the_heartbeat(
     store_reset, perf_client, send_upload
 ):
-    """T-09 regression guard: a bulk-upload handler must not hold the event
-    loop so that live exam heartbeats cannot be dispatched. All three upload
-    handlers (upload_file, upload_baseline_batch, import_turnitin_csv) are now
-    plain `def`, so Starlette runs them in a threadpool and the loop stays free
-    to dispatch heartbeats promptly even while a CPU-bound parse runs — this
-    test passes as a guard that they stay that way. If any is made `async def`
-    with inline CPU work again, the loop can no longer issue a beat and the
-    dispatch latency asserted below blows past the budget.
+    """T-09, FIXED: bulk upload blocked the event loop; live exam heartbeats
+    stalled. The batch importer and the CSV importer were moved off the event
+    loop (5cfc2b6c), and /students/{id}/upload is now a plain ``def`` handler,
+    so FastAPI runs its .docx parse in the threadpool (green 2026-10-04, 2/2
+    runs). All three upload handlers (upload_file, upload_baseline_batch,
+    import_turnitin_csv) are now plain ``def``; this test is the regression
+    guard that they stay that way. If any is made ``async def`` with inline
+    CPU work again, the loop can no longer issue a beat and the dispatch
+    latency asserted below blows past the budget.
+
+    History, kept as the record of the original failure. Measured 2026-09-07
+    (Darwin, 12 CPUs), beats due every 50 ms for the life of the upload, worst
+    (maximum) lateness across all beats, 3 runs each, before the fixes:
+
+      baseline/upload-batch   8.6-9.7 s late, 1 beat (8.7-9.7 s request): RED
+      turnitin-csv            2.4-2.6 s late, 1 beat (2.5-2.7 s request): RED
+      students/upload (.docx) 1.1-1.3 s late, 1 beat (1.4-1.6 s request): RED
+      students/upload (.txt)    4-7 ms late, 1 beat (50-60 ms request): green
 
     Beats are issued every 50 ms for the life of the upload and the assertion
     is on the MAXIMUM DISPATCH latency ("due -> actually issued") across every
@@ -386,14 +394,11 @@ async def test_upload_does_not_starve_the_heartbeat(
     2-core CI runner). That residual throughput cost is a separate concern from
     loop starvation and is not what this guard measures.
 
-    The .txt case is not an exception to the gap: /students/{id}/upload is
-    ``async def`` and inline like the others, but for a .txt its inline work
-    is a decode and a word count, so there is nothing there to hold the loop
-    with. It stays in the parametrisation, unmarked, as the regression guard
-    for that route — the day feature extraction (or something else heavy)
-    moves into the .txt branch, this case turns red on its own. The .docx
-    branch of the same route, by contrast, is genuinely heavy today
-    (python-docx parses the whole document inline) and is red now.
+    The .txt case was always green: for a .txt the route's work is a decode
+    and a word count, so there was never anything there to hold the loop. It
+    stays in the parametrisation, unmarked, as the regression guard for that
+    branch: the day feature extraction (or something else heavy) moves into
+    the .txt path on the event loop, this case turns red on its own.
     """
     t_started = perf_counter()
     upload = asyncio.create_task(send_upload(perf_client))

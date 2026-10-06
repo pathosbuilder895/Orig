@@ -63,10 +63,13 @@ function names(workerTenant) {
   }
 }
 
+// The teacher frame (TeacherWorkspace.jsx) names the scored Results screen
+// "Submissions"; the spec keeps its own vocabulary and maps it here.
+const NAV = { Results: 'Submissions' }
 async function openScreen(page, navLabel) {
   await page.goto('/bluebook/')
   await page.waitForLoadState('networkidle')
-  if (navLabel) await page.getByRole('button', { name: navLabel }).click()
+  if (navLabel) await page.getByRole('button', { name: NAV[navLabel] || navLabel, exact: true }).click()
 }
 
 test.describe('Professor journey — sealed evidence review @smoke', () => {
@@ -81,11 +84,12 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   }) => {
     const { courseName } = names(workerTenant)
     await openScreen(staffPage, 'Courses')
-    await staffPage.getByRole('button', { name: '+ New Course' }).click()
-    await staffPage.getByPlaceholder('PHIL 401').fill(HARDCODED_COURSE_CODE)
-    await staffPage.getByPlaceholder('e.g. Philosophy of Language').fill(courseName)
-    await staffPage.getByRole('button', { name: 'Create Course' }).click()
-    await expect(staffPage.getByText(courseName)).toBeVisible({ timeout: 10_000 })
+    await staffPage.getByRole('button', { name: '+ New course' }).click()
+    await staffPage.getByLabel('Code (optional)').fill(HARDCODED_COURSE_CODE)
+    await staffPage.getByLabel('Course name').fill(courseName)
+    await staffPage.getByRole('button', { name: 'Create course' }).click()
+    // Creating a course opens its roster, ready for students.
+    await expect(staffPage.getByRole('heading', { name: courseName })).toBeVisible({ timeout: 10_000 })
 
     // Recorded server-side, scoped to this worker's tenant.
     const coursesRes = await request.get('/bluebook/courses', { headers: staffAuth(workerTenant) })
@@ -102,18 +106,18 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   }) => {
     const { examTitle } = names(workerTenant)
     await openScreen(staffPage, 'Examinations')
-    await staffPage.getByRole('button', { name: '+ New Examination' }).click()
+    await staffPage.getByRole('button', { name: '+ New examination' }).click()
 
     // The ToggleRow states the WS-9 doc calls out explicitly. Defaults
     // first: the lockdown trio is the secure baseline (ON), spell check
     // starts permissive-OFF, the two extras start ON.
     const SWITCH_DEFAULTS = [
-      ['Block AI assistants', 'true'],
-      ['Block web & external tabs', 'true'],
+      ['No AI assistants', 'true'],
+      ['Full-screen, tabs watched', 'true'],
       ['Block copy & paste', 'true'],
       ['Allow spell check', 'false'],
       ['Phone blocker', 'true'],
-      ['AI detection (Original)', 'true'],
+      ['Authorship comparison (Original)', 'true'],
     ]
     for (const [name, checked] of SWITCH_DEFAULTS) {
       await expect(staffPage.getByRole('switch', { name })).toHaveAttribute('aria-checked', checked)
@@ -153,7 +157,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   }) => {
     const { draftTitle } = names(workerTenant)
     await openScreen(staffPage, 'Examinations')
-    await staffPage.getByRole('button', { name: '+ New Examination' }).click()
+    await staffPage.getByRole('button', { name: '+ New examination' }).click()
     await staffPage.locator('#neTitle').fill(draftTitle)
     await staffPage.locator('#nePrompt0').fill('Outline the sources of constitutional authority.')
 
@@ -181,9 +185,12 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   }) => {
     const { examTitle } = names(workerTenant)
     await openScreen(staffPage, 'Examinations')
-    // Clicking the row loads the exam's config and enters its briefing —
-    // the same screen a candidate sees (Dashboard.jsx openExam()).
+    // Clicking the row opens the exam's manage screen (Teacher.jsx); its
+    // Preview button loads the exam's config and enters the briefing — the
+    // same screen a candidate sees (Dashboard.jsx openExam()).
     await staffPage.getByText(examTitle, { exact: true }).click()
+    await expect(staffPage.getByRole('button', { name: 'Export CSV' })).toBeVisible({ timeout: 10_000 })
+    await staffPage.getByRole('button', { name: 'Preview' }).click()
     await expect(staffPage.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
     await expect(staffPage.getByText(examTitle)).toBeVisible()
     // Nothing is bound in a professor's preview, so the Candidate row keeps
@@ -251,11 +258,12 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
 
     const sealBtn = studentPage.locator('button', { hasText: /Seal & Submit|Sealing/ })
     await expect(sealBtn).toBeVisible()
+    studentPage.once('dialog', d => d.accept())
     await sealBtn.click()
     await expect(studentPage.getByText('Examination Sealed')).toBeVisible({ timeout: 45_000 })
-    // The proctored-baseline transmission succeeded (recordSubmission only
-    // runs when it does — Exam.jsx handleSubmit).
-    await expect(studentPage.getByText('✓ Your writing sample was delivered to Original'))
+    // The submission record was written (the sealed screen only says
+    // "Delivered" when recordSubmission succeeded — Exam.jsx handleSubmit).
+    await expect(studentPage.getByText('✓ Delivered to your teacher'))
       .toBeVisible({ timeout: 5_000 })
 
     // API-side: the submission is recorded against the published exam with
@@ -281,11 +289,12 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     staffPage, workerTenant,
   }) => {
     const { examTitle, draftTitle } = names(workerTenant)
-    await openScreen(staffPage) // authed staff land on the dashboard
-    await expect(staffPage.getByText(/Good morning/)).toBeVisible({ timeout: 10_000 })
-    // Recent Examinations lists this tenant's own exams — both of them.
-    await expect(staffPage.getByText(examTitle)).toBeVisible({ timeout: 10_000 })
-    await expect(staffPage.getByText(draftTitle)).toBeVisible()
+    await openScreen(staffPage) // authed staff land on the overview
+    await expect(staffPage.getByRole('heading', { name: /^(Welcome back|Begin with the writing)/ })).toBeVisible({ timeout: 10_000 })
+    // Recent submissions shows the sealed sitting under its exam's title;
+    // the draft has nothing submitted, so it is not on the overview.
+    await expect(staffPage.getByText(examTitle).first()).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.getByText(draftTitle)).toHaveCount(0)
   })
 
   // ── 7 ────────────────────────────────────────────────────────────────
@@ -299,7 +308,11 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     // This is the tenant's only submission, so the rendered percentages are
     // unambiguous — they must match the API payload captured at seal time.
     await expect(staffPage.getByText(`${journey.submission.aiScore}%`).first()).toBeVisible()
-    await expect(staffPage.getByText(`${journey.submission.stylometric}%`).first()).toBeVisible()
+    // The compare-only seal no longer produces a stylometric score (that came
+    // from the baseline write's drift): the record carries none and the
+    // table shows a dash for it, never a literal "null%".
+    expect(journey.submission.stylometric ?? null).toBeNull()
+    await expect(staffPage.getByText('null%')).toHaveCount(0)
   })
 
   // ── 8 ────────────────────────────────────────────────────────────────
@@ -312,7 +325,13 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     await expect(resultsRow).toBeVisible({ timeout: 10_000 })
     await resultsRow.click()
     await expect(staffPage.getByText('Integrity Analysis')).toBeVisible({ timeout: 5_000 })
-    await expect(staffPage.getByText('Typing Consistency').first()).toBeVisible()
+    // A seal no longer produces a stylometric figure, and the release makes
+    // no typing claim: the average tile is gone, no "Typing" label appears
+    // anywhere on the Results screen, and with no row carrying a stylometric
+    // value the Writing Consistency column and line are not shown either.
+    await expect(staffPage.getByText('Avg Typing Consistency')).toHaveCount(0)
+    await expect(staffPage.getByText(/Typing/)).toHaveCount(0)
+    await expect(staffPage.getByText('Writing Consistency')).toHaveCount(0)
     await expect(staffPage.getByText('Authenticity').first()).toBeVisible()
     // The plain-English explanation line under the Authenticity score.
     await expect(staffPage.getByText(/scored via Original/)).toBeVisible()
@@ -324,22 +343,15 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   })
 
   // ── 9 ────────────────────────────────────────────────────────────────
-  test('the candidate appears on the Students roster built from sealed submissions', async ({
+  test('the student appears on the Students screen with their sealed submission', async ({
     staffPage, workerTenant,
   }) => {
-    const { candidateName } = names(workerTenant)
+    // Students lists everyone on the workspace's course rosters (not only
+    // people who have sat something), with how much each has submitted.
     await openScreen(staffPage, 'Students')
-    await expect(staffPage.getByText(/1 enrolled/)).toBeVisible({ timeout: 10_000 })
-    await expect(staffPage.getByText(candidateName)).toBeVisible()
-
-    // The Flagged Only filter behaves per the status recorded at seal time
-    // (deterministic — read from the API payload, not guessed).
-    await staffPage.getByRole('button', { name: 'Flagged Only' }).click()
-    if (journey.submission.status === 'FLAGGED') {
-      await expect(staffPage.getByText(candidateName)).toBeVisible()
-    } else {
-      await expect(staffPage.getByText(candidateName)).toHaveCount(0)
-    }
+    const row = staffPage.getByRole('row', { name: new RegExp(workerTenant.student.email) })
+    await expect(row).toBeVisible({ timeout: 10_000 })
+    await expect(row.getByRole('cell').nth(3)).not.toHaveText('0')
   })
 
   // ── WS-4 / T7 — click-only rows must be keyboard-operable ─────────────
@@ -359,7 +371,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     await expect(row).toBeVisible({ timeout: 10_000 })
     await row.focus()
     await staffPage.keyboard.press('Enter')
-    await expect(staffPage.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.getByRole('button', { name: 'Save changes' })).toBeVisible({ timeout: 10_000 })
   })
 
   // ── 9b ───────────────────────────────────────────────────────────────
@@ -378,16 +390,16 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   })
 
   // ── 9c ───────────────────────────────────────────────────────────────
-  test('the Students roster row is keyboard-operable', async ({
+  test('the Students screen course link is keyboard-operable', async ({
     staffPage, workerTenant,
   }) => {
-    const { candidateName } = names(workerTenant)
     await openScreen(staffPage, 'Students')
-    const row = staffPage.getByRole('button', { name: candidateName })
-    await expect(row).toBeVisible({ timeout: 10_000 })
-    await row.focus()
+    const row = staffPage.getByRole('row', { name: new RegExp(workerTenant.student.email) })
+    const courseLink = row.getByRole('button').first()
+    await expect(courseLink).toBeVisible({ timeout: 10_000 })
+    await courseLink.focus()
     await staffPage.keyboard.press('Enter')
-    await expect(staffPage.getByText(/1 submissions/)).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.locator('.bb-eyebrow', { hasText: 'Course roster' })).toBeVisible({ timeout: 10_000 })
   })
 
   // ── 10 ───────────────────────────────────────────────────────────────
@@ -500,7 +512,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
 test.describe('New Examination form gating', () => {
   test('Publish and Save as Draft stay gated until a title and a prompt exist', async ({ staffPage }) => {
     await openScreen(staffPage, 'Examinations')
-    await staffPage.getByRole('button', { name: '+ New Examination' }).click()
+    await staffPage.getByRole('button', { name: '+ New examination' }).click()
 
     const publish = staffPage.getByRole('button', { name: 'Publish Examination' })
     const draft = staffPage.getByRole('button', { name: 'Save as Draft' })
@@ -520,7 +532,7 @@ test.describe('New Examination form gating', () => {
 
   test('prompt questions can be added and removed', async ({ staffPage }) => {
     await openScreen(staffPage, 'Examinations')
-    await staffPage.getByRole('button', { name: '+ New Examination' }).click()
+    await staffPage.getByRole('button', { name: '+ New examination' }).click()
 
     await expect(staffPage.getByText('Question I', { exact: true })).toBeVisible()
     await expect(staffPage.getByRole('button', { name: 'Remove' })).toHaveCount(0)
@@ -554,8 +566,8 @@ test.describe('First-run professor surfaces (fresh tenant, empty states)', () =>
     const { page, context } = await freshStaffPage(browser, baseURL, request)
     await page.goto('/bluebook/')
     await page.waitForLoadState('networkidle')
-    await expect(page.getByText(/Good morning/)).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByText('Recent Examinations')).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^(Welcome back|Begin with the writing)/ })).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Create your first course →')).toBeVisible()
     await expect(page.getByText('Ethics in the Modern World')).toHaveCount(0) // MOCK_EXAMS leak guard
     await context.close()
   })
@@ -564,7 +576,7 @@ test.describe('First-run professor surfaces (fresh tenant, empty states)', () =>
     const { page, context } = await freshStaffPage(browser, baseURL, request)
     await page.goto('/bluebook/')
     await page.waitForLoadState('networkidle')
-    await page.getByRole('button', { name: 'Results' }).click()
+    await page.getByRole('button', { name: 'Submissions', exact: true }).click()
     await expect(page.getByText(/0 submissions/)).toBeVisible({ timeout: 10_000 })
     await expect(page.getByText('James Thornton')).toHaveCount(0) // MOCK_RESULTS leak guard
     await context.close()
@@ -574,8 +586,8 @@ test.describe('First-run professor surfaces (fresh tenant, empty states)', () =>
     const { page, context } = await freshStaffPage(browser, baseURL, request)
     await page.goto('/bluebook/')
     await page.waitForLoadState('networkidle')
-    await page.getByRole('button', { name: 'Students' }).click()
-    await expect(page.getByText(/0 enrolled/)).toBeVisible({ timeout: 10_000 })
+    await page.getByRole('button', { name: 'Students', exact: true }).click()
+    await expect(page.getByText(/0 students across your courses/)).toBeVisible({ timeout: 10_000 })
     await expect(page.getByText('James Thornton')).toHaveCount(0) // MOCK_STUDENTS leak guard
     await context.close()
   })

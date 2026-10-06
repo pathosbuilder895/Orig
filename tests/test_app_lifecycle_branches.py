@@ -396,7 +396,7 @@ def test_throttle_login_clears_bucket_past_memory_bound(monkeypatch):
     prefilled = {f"198.51.100.{i % 256}-{i}": [] for i in range(10_000)}
     monkeypatch.setattr(shared_mod, "_login_attempts", prefilled)
 
-    shared_mod._throttle_login(_fake_request(headers={}))
+    shared_mod._record_login_failure(_fake_request(headers={}))
 
     # The 10,001st entry pushed it over the bound, so the whole map — this
     # request's own just-recorded entry included — was cleared.

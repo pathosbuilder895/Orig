@@ -56,7 +56,9 @@ function parkId(workerTenant, suffix) {
 
 /** Matches professor-journey.spec.mjs's openScreen() — sidebar navigation, not a URL. */
 async function openProctorScreen(page) {
-  await page.getByRole('button', { name: 'Proctor' }).click()
+  await page.getByRole('button', { name: 'Proctor', exact: true }).click()
+  // The Proctor screen opens on the live sitting; the phone park is its second tab.
+  await page.getByRole('tab', { name: 'Phone park' }).click()
   await expect(page.getByRole('heading', { name: 'Phone Park' })).toBeVisible({ timeout: 10_000 })
 }
 
@@ -132,8 +134,11 @@ test.describe('Proctor screen — QR phone park', () => {
   }) => {
     await gotoProctorScreen(staffPage)
 
-    // Nothing is running yet: the button is gated on a session id, the tile
-    // view says so rather than showing a "Loading…" that would be a lie.
+    // The park pre-fills with the examination chosen above it (Teacher.jsx
+    // ProctorLiveScreen); with that cleared, the button is gated on a session
+    // id, and the tile view says nothing is running rather than showing a
+    // "Loading…" that would be a lie.
+    await staffPage.getByPlaceholder('e.g. phil301-final').fill('')
     await expect(staffPage.getByRole('button', { name: 'Start Phone Park' })).toBeDisabled()
     await expect(staffPage.getByRole('heading', { name: 'Parked Phones' })).toBeVisible()
     await expect(staffPage.getByText('Not started')).toBeVisible()

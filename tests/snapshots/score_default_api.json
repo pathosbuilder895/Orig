@@ -15,6 +15,18 @@
     "trajectory_confidence": 0.4190222304,
     "von_neumann_entropy": 0.03761015
   },
+  "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 6,
+    "notes": [],
+    "provenance_mix": {
+      "proctored": 6
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": 91
+  },
   "baseline_vector": {
     "abbreviation_tendency": 0.1893512215,
     "additive_ratio": 0.0,

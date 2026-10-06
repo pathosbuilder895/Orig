@@ -26,7 +26,7 @@ import sys
 from datetime import UTC, datetime
 
 import numpy as np
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from .constants import FEATURE_DIM, GENRE_UNKNOWN
@@ -36,10 +36,13 @@ from .db.models.live import (
     AuditLogEntry,
     BaselineRequest,
     BluebookCourse,
+    BluebookEnrollment,
     BluebookExam,
+    BluebookInvite,
     BluebookSession,
     BluebookSubmission,
     CalibrationRun,
+    ConsumedAttestation,
     Correction,
     FidelityScore,
     FormationPathway,
@@ -71,6 +74,29 @@ from .store import (
 )
 
 log = get_logger(__name__)
+
+
+_DEFAULT_PRODUCTS = ["original", "bluebook"]
+
+
+def _products_list(value) -> list[str]:
+    """Mirror of store._parse_products: empty or malformed means both."""
+    if not isinstance(value, list) or not value:
+        return list(_DEFAULT_PRODUCTS)
+    return [str(p) for p in value]
+
+
+def _iso_or_none(value) -> str | None:
+    return value.isoformat() if value is not None else None
+
+
+def _dt_or_none(value) -> datetime | None:
+    """ISO string (as the routers pass it) or datetime -> aware datetime."""
+    if value is None or value == "":
+        return None
+    if isinstance(value, datetime):
+        return value
+    return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
 
 
 class PostgresRepository:
@@ -155,6 +181,10 @@ class PostgresRepository:
                     # Tier 17 readiness (additive) — mirrors store.py's
                     # _serialize; None for legacy/non-keystroke samples.
                     "keystroke_data": s.keystroke_data,
+                    # ADR-010 macro-only composition timing (additive) —
+                    # mirrors store.py's _serialize; None for legacy/
+                    # summary-less samples.
+                    "composition_summary": s.composition_summary,
                 }
                 for s in state.samples
             ],
@@ -208,6 +238,10 @@ class PostgresRepository:
                     # Tier 17 readiness (additive) — mirrors store.py's
                     # _deserialize; None for legacy/non-keystroke samples.
                     keystroke_data=s.get("keystroke_data"),
+                    # ADR-010 macro-only composition timing (additive) —
+                    # mirrors store.py's _deserialize; None for legacy/
+                    # summary-less samples.
+                    composition_summary=s.get("composition_summary"),
                 )
             )
         return state
@@ -319,6 +353,25 @@ class PostgresRepository:
         # contract (persisted data survives clear() on both backends).
         pass
 
+    @staticmethod
+    def _has_bluebook_footprint(session, student_id):
+        # Every Bluebook table keys on the full scoped id verbatim (see the
+        # purge below). Staff login rows never count: role-filtered.
+        probes = (
+            select(BluebookSubmission.submission_id).where(
+                BluebookSubmission.student_id == student_id
+            ),
+            select(BluebookSession.student_key).where(BluebookSession.student_key == student_id),
+            select(BluebookEnrollment.student_id).where(
+                BluebookEnrollment.student_id == student_id
+            ),
+            select(BluebookInvite.user_id).where(BluebookInvite.user_id == student_id),
+            select(StaffUser.user_id).where(
+                StaffUser.user_id == student_id, StaffUser.role == "student"
+            ),
+        )
+        return any(session.execute(q.limit(1)).first() is not None for q in probes)
+
     def delete_student(self, student_id):
         # Every student-scoped table (per db/models/live.py's module
         # docstring) stores the LOCAL id in its own student_id column, with
@@ -330,7 +383,11 @@ class PostgresRepository:
             with session_scope() as session:
                 tenant_id, local_id = split_scoped_id(student_id)
                 profile = session.get(StudentProfile, (tenant_id, local_id))
-                if profile is None:
+                # A Bluebook-only workspace never creates a profile, so its
+                # students are found by their Bluebook rows instead — see
+                # store.delete_student's docstring for why audit rows alone
+                # do not count.
+                if profile is None and not self._has_bluebook_footprint(session, student_id):
                     return False
                 sub_ids = [
                     row[0]
@@ -341,7 +398,8 @@ class PostgresRepository:
                         )
                     ).all()
                 ]
-                session.delete(profile)
+                if profile is not None:
+                    session.delete(profile)
                 session.execute(
                     FidelityScore.__table__.delete().where(
                         FidelityScore.tenant_id == tenant_id,
@@ -439,6 +497,36 @@ class PostgresRepository:
                 # rows would silently survive deletion.
                 session.execute(
                     AuditLogEntry.__table__.delete().where(*self._audit_scope_criteria(student_id))
+                )
+                # T-69: the single-use ledger stores student_id verbatim
+                # (the full scoped string) exactly as bluebook_submissions
+                # above does, not split_scoped_id's local_id — matched
+                # alone for the same reason.
+                session.execute(
+                    ConsumedAttestation.__table__.delete().where(
+                        ConsumedAttestation.student_id == student_id,
+                    )
+                )
+                # Bluebook self-serve (2026-09): roster rows, set-password
+                # links, and the student's own login row. All three key on
+                # the full scoped id verbatim (a student account's user_id IS
+                # the scoped student id), so they match alone like the
+                # ledger above. Staff rows are never touched: role-filtered.
+                session.execute(
+                    BluebookEnrollment.__table__.delete().where(
+                        BluebookEnrollment.student_id == student_id,
+                    )
+                )
+                session.execute(
+                    BluebookInvite.__table__.delete().where(
+                        BluebookInvite.user_id == student_id,
+                    )
+                )
+                session.execute(
+                    StaffUser.__table__.delete().where(
+                        StaffUser.user_id == student_id,
+                        StaffUser.role == "student",
+                    )
                 )
             # this student's tenant's (tenant, genre) entries may include them
             self._genre_stats_cache.clear()
@@ -573,8 +661,33 @@ class PostgresRepository:
             log.exception("roster_for_tenant failed for %s", tenant_id)
             return []
 
+    @staticmethod
+    def _bluebook_student_ids_for_tenant(tenant_id):
+        # Mirrors store._bluebook_student_ids_for_tenant: student logins plus
+        # every scoped id with a Bluebook row here, never a staff id or an
+        # id outside this tenant's prefix (a demo walk-in's "cand:" label).
+        prefix = f"{tenant_id}:"
+        with session_scope() as session:
+            users = session.execute(
+                select(StaffUser.user_id, StaffUser.role).where(StaffUser.tenant_id == tenant_id)
+            ).all()
+            staff = {uid for uid, role in users if role != "student"}
+            ids = {uid for uid, role in users if role == "student"}
+            for col, tenant_col in (
+                (BluebookEnrollment.student_id, BluebookEnrollment.tenant_id),
+                (BluebookSubmission.student_id, BluebookSubmission.tenant_id),
+                (BluebookSession.student_key, BluebookSession.tenant_id),
+            ):
+                rows = session.execute(select(col).where(tenant_col == tenant_id).distinct())
+                ids.update(sid for (sid,) in rows if sid and sid.startswith(prefix))
+        return sorted(ids - staff)
+
     def delete_tenant_students(self, tenant_id):
         ids_to_delete = self.list_ids_for_tenant(tenant_id)
+        profiled = set(ids_to_delete)
+        ids_to_delete += [
+            sid for sid in self._bluebook_student_ids_for_tenant(tenant_id) if sid not in profiled
+        ]
         deleted, failed = 0, []
         for sid in ids_to_delete:
             if self.delete_student(sid):
@@ -1542,6 +1655,7 @@ class PostgresRepository:
             "environment": row.environment,
             "created_at": row.created_at.isoformat(),
             "meta": row.meta_json or {},
+            "products": _products_list(row.products_json),
         }
 
     def get_tenant(self, tenant_id):
@@ -1714,6 +1828,11 @@ class PostgresRepository:
             "status": row.status,
             "submissions": 0,
             "created_at": row.created_at.isoformat(),
+            "course_id": row.course_id,
+            "opens_at": _iso_or_none(row.opens_at),
+            "closes_at": _iso_or_none(row.closes_at),
+            "questions": row.questions_json or [],
+            "results_released_at": _iso_or_none(row.results_released_at),
         }
 
     def put_bluebook_exam(self, rec):
@@ -1729,6 +1848,11 @@ class PostgresRepository:
                     "prompt": rec.get("prompt", ""),
                     "conditions_json": rec.get("conditions") or {},
                     "status": rec.get("status", "DRAFT"),
+                    "course_id": rec.get("course_id"),
+                    "opens_at": _dt_or_none(rec.get("opens_at")),
+                    "closes_at": _dt_or_none(rec.get("closes_at")),
+                    "questions_json": rec.get("questions") or [],
+                    "results_released_at": _dt_or_none(rec.get("results_released_at")),
                 }
                 stmt = (
                     pg_insert(BluebookExam)
@@ -1805,6 +1929,11 @@ class PostgresRepository:
             "created_at": row.created_at.isoformat(),
             "submission_uuid": row.submission_uuid,
             "late": row.late,
+            "warnings": row.warnings_json or [],
+            "mark": row.mark,
+            "feedback": row.feedback,
+            "graded_at": _iso_or_none(row.graded_at),
+            "graded_by": row.graded_by,
         }
 
     def put_bluebook_submission(self, rec):
@@ -1835,6 +1964,9 @@ class PostgresRepository:
                         created_at=datetime.now(UTC),
                         submission_uuid=rec.get("submission_uuid"),
                         late=rec.get("late", 0),
+                        text=rec.get("text"),
+                        warnings_json=rec.get("warnings") or [],
+                        answers_json=rec.get("answers") or [],
                     )
                 )
         except Exception as e:
@@ -1980,6 +2112,279 @@ class PostgresRepository:
             log.exception("list_bluebook_courses failed for %s", tenant_id)
             return []
 
+    # ── Bluebook self-serve (2026-09) ─────────────────────────────────────
+    # Same contracts as the store.py functions of the same names; exercised
+    # on both backends by tests/test_repository_contract.py.
+
+    def set_tenant_products(self, tenant_id, products):
+        with session_scope() as session:
+            result = session.execute(
+                update(Tenant)
+                .where(Tenant.tenant_id == tenant_id)
+                .values(products_json=list(products))
+            )
+            return result.rowcount == 1
+
+    def get_user(self, user_id):
+        with session_scope() as session:
+            row = session.get(StaffUser, user_id)
+            return self._user_to_dict(row) if row else None
+
+    def list_users_by_ids(self, user_ids):
+        ids = list(dict.fromkeys(user_ids))
+        if not ids:
+            return []
+        with session_scope() as session:
+            rows = session.execute(select(StaffUser).where(StaffUser.user_id.in_(ids))).scalars()
+            return [self._user_to_dict(r) for r in rows]
+
+    def set_user_password_hash(self, user_id, password_hash):
+        with session_scope() as session:
+            result = session.execute(
+                update(StaffUser)
+                .where(StaffUser.user_id == user_id)
+                .values(password_hash=password_hash)
+            )
+            return result.rowcount == 1
+
+    def delete_bluebook_exam(self, exam_id):
+        with session_scope() as session:
+            result = session.execute(
+                BluebookExam.__table__.delete().where(BluebookExam.exam_id == exam_id)
+            )
+            return result.rowcount == 1
+
+    def bluebook_submission_counts_by_exam(self, tenant_id):
+        with session_scope() as session:
+            stmt = select(BluebookSubmission.exam_id, func.count()).where(
+                BluebookSubmission.exam_id.is_not(None)
+            )
+            if tenant_id is not None:
+                stmt = stmt.where(BluebookSubmission.tenant_id == tenant_id)
+            rows = session.execute(stmt.group_by(BluebookSubmission.exam_id)).all()
+            return {exam_id: int(n) for exam_id, n in rows}
+
+    def count_bluebook_submissions_since(self, tenant_id, since_iso):
+        with session_scope() as session:
+            n = session.execute(
+                select(func.count()).where(
+                    BluebookSubmission.tenant_id == tenant_id,
+                    BluebookSubmission.created_at >= _dt_or_none(since_iso),
+                )
+            ).scalar_one()
+            return int(n)
+
+    def get_bluebook_submission(self, submission_id):
+        with session_scope() as session:
+            row = session.get(BluebookSubmission, submission_id)
+            if row is None:
+                return None
+            out = self._bluebook_sub_to_dict(row)
+            out["text"] = row.text
+            out["answers"] = row.answers_json or []
+            return out
+
+    def list_bluebook_submissions_for_student(self, student_id):
+        with session_scope() as session:
+            rows = session.execute(
+                select(BluebookSubmission)
+                .where(BluebookSubmission.student_id == student_id)
+                .order_by(BluebookSubmission.created_at.desc())
+            ).scalars()
+            return [self._bluebook_sub_to_dict(r) for r in rows]
+
+    def list_bluebook_submissions_for_exam(self, exam_id):
+        with session_scope() as session:
+            rows = session.execute(
+                select(BluebookSubmission)
+                .where(BluebookSubmission.exam_id == exam_id)
+                .order_by(BluebookSubmission.created_at)
+            ).scalars()
+            out = []
+            for r in rows:
+                d = self._bluebook_sub_to_dict(r)
+                d["text"] = r.text
+                d["answers"] = r.answers_json or []
+                out.append(d)
+            return out
+
+    def set_bluebook_submission_feedback(self, submission_id, mark, feedback, graded_by):
+        with session_scope() as session:
+            result = session.execute(
+                update(BluebookSubmission)
+                .where(BluebookSubmission.submission_id == submission_id)
+                .values(
+                    mark=mark,
+                    feedback=feedback,
+                    graded_at=datetime.now(UTC),
+                    graded_by=graded_by,
+                )
+            )
+            return result.rowcount == 1
+
+    def get_bluebook_course(self, course_id):
+        with session_scope() as session:
+            row = session.get(BluebookCourse, course_id)
+            return self._bluebook_course_to_dict(row) if row else None
+
+    def delete_bluebook_course(self, course_id):
+        with session_scope() as session:
+            session.execute(
+                BluebookEnrollment.__table__.delete().where(
+                    BluebookEnrollment.course_id == course_id
+                )
+            )
+            result = session.execute(
+                BluebookCourse.__table__.delete().where(BluebookCourse.course_id == course_id)
+            )
+            return result.rowcount == 1
+
+    @staticmethod
+    def _enrollment_to_dict(row: BluebookEnrollment) -> dict:
+        return {
+            "course_id": row.course_id,
+            "student_id": row.student_id,
+            "tenant_id": row.tenant_id,
+            "created_at": row.created_at.isoformat(),
+        }
+
+    def put_enrollment(self, course_id, student_id, tenant_id):
+        with session_scope() as session:
+            self._ensure_tenant_exists(session, tenant_id)
+            session.execute(
+                pg_insert(BluebookEnrollment)
+                .values(
+                    course_id=course_id,
+                    student_id=student_id,
+                    tenant_id=tenant_id,
+                    created_at=datetime.now(UTC),
+                )
+                .on_conflict_do_nothing(index_elements=["course_id", "student_id"])
+            )
+
+    def delete_enrollment(self, course_id, student_id):
+        with session_scope() as session:
+            result = session.execute(
+                BluebookEnrollment.__table__.delete().where(
+                    BluebookEnrollment.course_id == course_id,
+                    BluebookEnrollment.student_id == student_id,
+                )
+            )
+            return result.rowcount == 1
+
+    def list_enrollments_for_course(self, course_id):
+        with session_scope() as session:
+            rows = session.execute(
+                select(BluebookEnrollment)
+                .where(BluebookEnrollment.course_id == course_id)
+                .order_by(BluebookEnrollment.created_at)
+            ).scalars()
+            return [self._enrollment_to_dict(r) for r in rows]
+
+    def list_enrollments_for_student(self, student_id):
+        with session_scope() as session:
+            rows = session.execute(
+                select(BluebookEnrollment)
+                .where(BluebookEnrollment.student_id == student_id)
+                .order_by(BluebookEnrollment.created_at)
+            ).scalars()
+            return [self._enrollment_to_dict(r) for r in rows]
+
+    def enrollment_counts_by_course(self, tenant_id):
+        with session_scope() as session:
+            stmt = select(BluebookEnrollment.course_id, func.count())
+            if tenant_id is not None:
+                stmt = stmt.where(BluebookEnrollment.tenant_id == tenant_id)
+            rows = session.execute(stmt.group_by(BluebookEnrollment.course_id)).all()
+            return {course_id: int(n) for course_id, n in rows}
+
+    def count_enrolled_students(self, tenant_id):
+        with session_scope() as session:
+            n = session.execute(
+                select(func.count(func.distinct(BluebookEnrollment.student_id))).where(
+                    BluebookEnrollment.tenant_id == tenant_id
+                )
+            ).scalar_one()
+            return int(n)
+
+    @staticmethod
+    def _invite_to_dict(row: BluebookInvite) -> dict:
+        return {
+            "invite_id": row.invite_id,
+            "tenant_id": row.tenant_id,
+            "user_id": row.user_id,
+            "course_id": row.course_id,
+            "token_hash": row.token_hash,
+            "created_by": row.created_by,
+            "created_at": row.created_at.isoformat(),
+            "expires_at": row.expires_at.isoformat(),
+            "redeemed_at": _iso_or_none(row.redeemed_at),
+            "voided_at": _iso_or_none(row.voided_at),
+        }
+
+    def put_invite(self, rec):
+        with session_scope() as session:
+            self._ensure_tenant_exists(session, rec["tenant_id"])
+            session.add(
+                BluebookInvite(
+                    invite_id=rec["invite_id"],
+                    tenant_id=rec["tenant_id"],
+                    user_id=rec["user_id"],
+                    course_id=rec.get("course_id"),
+                    token_hash=rec["token_hash"],
+                    created_by=rec["created_by"],
+                    created_at=_dt_or_none(rec["created_at"]),
+                    expires_at=_dt_or_none(rec["expires_at"]),
+                )
+            )
+
+    def get_invite_by_hash(self, token_hash):
+        with session_scope() as session:
+            row = session.execute(
+                select(BluebookInvite).where(BluebookInvite.token_hash == token_hash)
+            ).scalar_one_or_none()
+            return self._invite_to_dict(row) if row else None
+
+    def latest_invite_for_user(self, user_id):
+        with session_scope() as session:
+            row = (
+                session.execute(
+                    select(BluebookInvite)
+                    .where(BluebookInvite.user_id == user_id)
+                    .order_by(BluebookInvite.created_at.desc())
+                    .limit(1)
+                )
+                .scalars()
+                .first()
+            )
+            return self._invite_to_dict(row) if row else None
+
+    def void_invites_for_user(self, user_id):
+        with session_scope() as session:
+            result = session.execute(
+                update(BluebookInvite)
+                .where(
+                    BluebookInvite.user_id == user_id,
+                    BluebookInvite.redeemed_at.is_(None),
+                    BluebookInvite.voided_at.is_(None),
+                )
+                .values(voided_at=datetime.now(UTC))
+            )
+            return int(result.rowcount)
+
+    def redeem_invite(self, invite_id):
+        with session_scope() as session:
+            result = session.execute(
+                update(BluebookInvite)
+                .where(
+                    BluebookInvite.invite_id == invite_id,
+                    BluebookInvite.redeemed_at.is_(None),
+                    BluebookInvite.voided_at.is_(None),
+                )
+                .values(redeemed_at=datetime.now(UTC))
+            )
+            return result.rowcount == 1
+
     # ── Audit ─────────────────────────────────────────────────────────────
     @staticmethod
     def _split_for_audit(
@@ -2096,6 +2501,30 @@ class PostgresRepository:
         except Exception:
             log.exception("list_audit failed")
             return {"total": 0, "limit": limit, "offset": offset, "items": []}
+
+    # ── Proctor attestations (single-use, T-69) ─────────────────────────────
+    def consume_proctor_attestation(self, jti, tenant_id, exam, student_id) -> bool:
+        """Same ``INSERT ... ON CONFLICT DO NOTHING`` + rowcount idiom as
+        ``get_or_create_bluebook_session`` — race-safe under concurrent
+        requests on the same jti, not just sequential ones."""
+        try:
+            with session_scope() as session:
+                stmt = (
+                    pg_insert(ConsumedAttestation)
+                    .values(
+                        jti=jti,
+                        tenant_id=tenant_id,
+                        exam=exam,
+                        student_id=student_id,
+                        used_at=datetime.now(UTC),
+                    )
+                    .on_conflict_do_nothing(index_elements=["jti"])
+                )
+                result = session.execute(stmt)
+                return result.rowcount == 1
+        except Exception as e:
+            log.error("consume_proctor_attestation failed for student=%s: %s", student_id, e)
+            raise
 
     # ── Formation ─────────────────────────────────────────────────────────
     _FORMATION_STEPS = 3

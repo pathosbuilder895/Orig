@@ -37,7 +37,7 @@ async function openStudentInProfessorConsole(page, staff, studentName) {
 test.describe('Submit → score → recommendation @smoke', () => {
   test('analyzing a submission renders a recommendation matching the API payload', async ({ page, request }) => {
     const { tenant, staff } = await provisionTenantWithStaff(request)
-    const student = await studentLogin(request, { institution: tenant.name, name: 'Scoring Test Student' })
+    const student = await studentLogin(request, { staffToken: staff.token, name: 'Scoring Test Student' })
     await addBaselineFor(request, student.student_id, staff.token, {
       text: 'An established baseline essay with a clear and consistent authorial voice used to score against, written some weeks ago.',
     })
@@ -66,7 +66,7 @@ test.describe('Submit → score → recommendation @smoke', () => {
 test.describe('Blend-detection surface', () => {
   test('Run blend check surfaces blend_detected/blend_index matching the API payload', async ({ page, request }) => {
     const { tenant, staff } = await provisionTenantWithStaff(request)
-    const student = await studentLogin(request, { institution: tenant.name, name: 'Blend Test Student' })
+    const student = await studentLogin(request, { staffToken: staff.token, name: 'Blend Test Student' })
     await addBaselineFor(request, student.student_id, staff.token, {
       text: 'An established baseline essay with a clear and consistent authorial voice used to score against, written some weeks ago.',
     })

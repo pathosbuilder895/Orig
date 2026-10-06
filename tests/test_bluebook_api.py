@@ -50,7 +50,9 @@ def _exam_body(**overrides):
 def _submission_body(exam_id=None, **overrides):
     body = {
         "exam_id": exam_id,
-        "student_id": "tenanta:carol",
+        # The anonymous demo sandbox may only name flat or "demo:" students: a
+        # tenant-prefixed id is another workspace's student and is refused.
+        "student_id": "demo:carol",
         "candidate": "Carol Smith",
         "exam_title": "Midterm Essay",
         "course": "THEO 501",

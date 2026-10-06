@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import io
 
+import pytest
+
 BATCH = "/students/{sid}/baseline/upload-batch"
 SINGLE = "/students/{sid}/baseline"
 REQUEST_BASELINE = "/students/{sid}/request-baseline"
@@ -72,12 +74,22 @@ _ARC_RESOLVED = (
 CATASTROPHE_TEXT = (_ARC_UNRESOLVED + "\n\n" + _ARC_RESOLVED) * 3
 
 
-def _post_files(client, sid, files, provenance="verified", assignment=""):
+def _post_files(client, sid, files, provenance="verified", assignment="", headers=None):
     return client.post(
         BATCH.format(sid=sid),
         files=[("files", f) for f in files],
         data={"provenance": provenance, "assignment": assignment},
+        headers=headers or {},
     )
+
+
+def _stored_samples(sid):
+    """(provenance, auth_weight) per persisted sample — the property the
+    provenance-authorization tests must pin, not just the response body."""
+    from original.repository import get_repository
+
+    state = get_repository().get(sid)
+    return [(s.provenance, s.auth_weight) for s in state.samples]
 
 
 def _add_baseline(client, sid, text, provenance="verified", **extra):
@@ -95,6 +107,78 @@ class TestUploadBatchBranches:
         )
         assert r.status_code == 422
         assert "provenance" in r.json()["detail"]
+
+    @pytest.mark.parametrize("requested", ["proctored", "verified", "canvas"])
+    def test_student_self_asserted_trusted_provenance_is_stored_downgraded(
+        self, live_client, store_reset, requested
+    ):
+        """T-67: the BATCH route gates high-trust provenance exactly as the
+        single-add route does. A student token self-asserting any trusted
+        provenance (no proctor attestation) is downgraded to 'unverified'.
+
+        Asserts the PERSISTED sample, not only the response envelope: a
+        regression that keeps the guard call but stores the requested
+        provenance would still report a downgrade — the response alone
+        cannot distinguish that from the fix (deep review, 2026-09-20)."""
+        from original import principal as pr
+
+        sid = f"acme:selfassert-batch-{requested}"
+        token = pr.mint_principal_token(sid, "student", "acme")
+        r = _post_files(
+            live_client, sid,
+            [("a.txt", io.BytesIO(GOOD_TEXT.encode()), "text/plain")],
+            provenance=requested,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["imported"] == 1
+        assert body["provenance_downgraded"] is True
+        assert body["requested_provenance"] == requested
+        assert body["provenance"] == "unverified"
+        assert _stored_samples(sid) == [("unverified", 0.5)]
+
+    def test_staff_trusted_provenance_is_not_downgraded(self, live_client, store_reset):
+        """The authorized path is byte-identical: a staff principal keeps the
+        requested provenance and full weight, both in the response and in
+        the stored sample."""
+        from original import principal as pr
+
+        sid = "acme:staff-batch"
+        token = pr.mint_principal_token("prof_acme", "professor", "acme")
+        r = _post_files(
+            live_client, sid,
+            [("a.txt", io.BytesIO(GOOD_TEXT.encode()), "text/plain")],
+            provenance="verified",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["provenance_downgraded"] is False
+        assert body["provenance"] == "verified"
+        assert _stored_samples(sid) == [("verified", 1.0)]
+
+    def test_downgrade_is_audit_logged(self, live_client, store_reset):
+        """A downgrade on the batch route leaves the same forensic trace
+        add_baseline leaves (deep review, Important #3)."""
+        from original import principal as pr
+        from original.repository import get_repository
+
+        sid = "acme:audit-batch"
+        token = pr.mint_principal_token(sid, "student", "acme")
+        r = _post_files(
+            live_client, sid,
+            [("a.txt", io.BytesIO(GOOD_TEXT.encode()), "text/plain")],
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert r.status_code == 200, r.text
+        rows = get_repository().list_audit(student_id=sid, action="baseline_batch_upload")["items"]
+        assert rows, "no baseline_batch_upload audit row written"
+        details = rows[0]["details"]
+        assert details["provenance"] == "unverified"
+        assert details["requested_provenance"] == "verified"
+        assert details["provenance_downgraded"] is True
+        assert details["imported"] == 1
 
     def test_txt_import_and_duplicate_skip(self, live_client, store_reset):
         payload = [("a.txt", io.BytesIO(GOOD_TEXT.encode()), "text/plain")]
@@ -542,6 +626,24 @@ class TestRequestProctoredBaseline:
         )
         assert r.status_code == 503
         assert "not configured" in r.json()["detail"]
+
+    def test_student_token_refused(self, live_client, store_reset, monkeypatch):
+        """T-68: a student may not provision a proctored-baseline exam for
+        themselves. The staff guard runs before the Bbook-config check, so an
+        authenticated student is refused (403) even with Bbook enabled — it is
+        an instructor action."""
+        import original.bbook_client as bbook_client
+        from original import principal as pr
+
+        monkeypatch.setattr(bbook_client, "is_enabled", lambda: True)
+        sid = "acme:req-student"
+        token = pr.mint_principal_token(sid, "student", "acme")
+        r = live_client.post(
+            REQUEST_BASELINE.format(sid=sid),
+            json={"student_email": "s@x.edu", "student_name": "Stu"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert r.status_code == 403, r.text
 
     def test_success_with_expiry_parses_the_date(self, live_client, store_reset, monkeypatch):
         import original.bbook_client as bbook_client

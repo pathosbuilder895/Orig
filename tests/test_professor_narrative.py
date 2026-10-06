@@ -381,6 +381,16 @@ class TestBuildSuggestedAction:
 # ── _build_confidence_note ────────────────────────────────────────────────────
 
 
+@dataclass
+class _BaselineIntegrityStub:
+    """Minimal stand-in for baseline_integrity.BaselineIntegrity — the
+    narrative only reads `readiness` and `loo_outlier_samples` defensively
+    via getattr, so the stub carries just those two fields."""
+
+    readiness: str = "ready"
+    loo_outlier_samples: list = field(default_factory=list)
+
+
 class TestBuildConfidenceNote:
     def test_many_samples_well_established(self):
         n = _build_confidence_note(8)
@@ -404,6 +414,56 @@ class TestBuildConfidenceNote:
     def test_boundary_four_is_developing(self):
         n = _build_confidence_note(4)
         assert "developing" in n.lower() or "improve" in n.lower()
+
+    # ── baseline_integrity caveat (T-70 mirroring) ─────────────────────────
+
+    def test_baseline_integrity_none_leaves_note_unchanged(self):
+        base = _build_confidence_note(6)
+        with_none = _build_confidence_note(6, baseline_integrity=None)
+        assert base == with_none
+
+    def test_thin_readiness_adds_provisional_caveat(self):
+        base = _build_confidence_note(2)
+        bi = _BaselineIntegrityStub(readiness="thin", loo_outlier_samples=[])
+        n = _build_confidence_note(2, baseline_integrity=bi)
+        assert n != base
+        assert n.startswith(base)
+        assert "provisional" in n.lower()
+
+    def test_loo_outlier_present_adds_stylistic_caveat(self):
+        base = _build_confidence_note(6)
+        bi = _BaselineIntegrityStub(
+            readiness="ready", loo_outlier_samples=[{"index": 1, "z": 4.2}]
+        )
+        n = _build_confidence_note(6, baseline_integrity=bi)
+        assert n != base
+        assert "unlike the others" in n.lower()
+
+    def test_both_thin_and_loo_outlier_add_both_caveats(self):
+        bi = _BaselineIntegrityStub(
+            readiness="thin", loo_outlier_samples=[{"index": 0, "z": 3.9}]
+        )
+        n = _build_confidence_note(2, baseline_integrity=bi)
+        assert "provisional" in n.lower()
+        assert "unlike the others" in n.lower()
+
+    def test_ready_with_no_outliers_leaves_note_unchanged(self):
+        base = _build_confidence_note(6)
+        bi = _BaselineIntegrityStub(readiness="ready", loo_outlier_samples=[])
+        n = _build_confidence_note(6, baseline_integrity=bi)
+        assert n == base
+
+    def test_baseline_integrity_caveats_contain_no_banned_language(self):
+        base = _build_confidence_note(2)
+        bi = _BaselineIntegrityStub(
+            readiness="thin", loo_outlier_samples=[{"index": 0, "z": 3.9}]
+        )
+        n = _build_confidence_note(2, baseline_integrity=bi)
+        banned = ["cheat", "fraud", "plagiar", "verdict"]
+        for word in banned:
+            assert word not in n.lower()
+        appended = n[len(base):]
+        assert not any(c.isdigit() for c in appended)
 
 
 # ── build_professor_explanation (top-level) ───────────────────────────────────
@@ -599,3 +659,72 @@ class TestAiLikelihoodBand:
         assert ai and not any(c.isdigit() for c in ai[0])
         assert result.has_ai_signals is True
         assert result.ai_likelihood_band == "strong"
+
+
+# ── baseline_integrity (report-only baseline health, T-70) ────────────────────
+
+
+class TestBaselineIntegrityNarrative:
+    def test_absent_attribute_leaves_narrative_unchanged(self):
+        """The common/default production case: most students don't have
+        baseline_integrity populated at all yet."""
+        base = build_professor_explanation(_Layer7(), "Jane")
+        l7 = _Layer7()
+        # No baseline_integrity attribute set at all.
+        result = build_professor_explanation(l7, "Jane")
+        assert result.confidence_note == base.confidence_note
+        assert result.observations == base.observations
+
+    def test_none_leaves_narrative_unchanged(self):
+        base = build_professor_explanation(_Layer7(), "Jane")
+        l7 = _Layer7()
+        l7.baseline_integrity = None
+        result = build_professor_explanation(l7, "Jane")
+        assert result.confidence_note == base.confidence_note
+        assert result.observations == base.observations
+
+    def test_ready_with_no_outliers_leaves_narrative_unchanged(self):
+        base = build_professor_explanation(_Layer7(), "Jane")
+        l7 = _Layer7()
+        l7.baseline_integrity = _BaselineIntegrityStub(
+            readiness="ready", loo_outlier_samples=[]
+        )
+        result = build_professor_explanation(l7, "Jane")
+        assert result.confidence_note == base.confidence_note
+        assert result.observations == base.observations
+
+    def test_thin_readiness_adds_provisional_note(self):
+        l7 = _Layer7()
+        l7.baseline_integrity = _BaselineIntegrityStub(
+            readiness="thin", loo_outlier_samples=[]
+        )
+        result = build_professor_explanation(l7, "Jane")
+        assert "provisional" in result.confidence_note.lower()
+
+    def test_loo_outlier_adds_stylistically_unlike_note(self):
+        l7 = _Layer7()
+        l7.baseline_integrity = _BaselineIntegrityStub(
+            readiness="ready", loo_outlier_samples=[{"index": 2, "z": 4.0}]
+        )
+        result = build_professor_explanation(l7, "Jane")
+        assert "unlike the others" in result.confidence_note.lower()
+
+    def test_both_conditions_true_include_both_notes(self):
+        l7 = _Layer7()
+        l7.baseline_integrity = _BaselineIntegrityStub(
+            readiness="thin", loo_outlier_samples=[{"index": 0, "z": 3.9}]
+        )
+        result = build_professor_explanation(l7, "Jane")
+        note = result.confidence_note.lower()
+        assert "provisional" in note
+        assert "unlike the others" in note
+
+    def test_note_stays_tone_compliant(self):
+        l7 = _Layer7()
+        l7.baseline_integrity = _BaselineIntegrityStub(
+            readiness="thin", loo_outlier_samples=[{"index": 0, "z": 3.9}]
+        )
+        result = build_professor_explanation(l7, "Jane")
+        banned = ["cheat", "fraud", "plagiar", "verdict"]
+        for word in banned:
+            assert word not in result.confidence_note.lower()
