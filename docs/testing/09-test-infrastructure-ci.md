@@ -15,22 +15,84 @@ split, plus the fixture and marker changes the other documents assume.
 
 ### 1.1 Shard the pytest job
 
-Three shards by *directory*, not by `pytest-xdist` hashing — directory shards
-are reproducible and let a failure be re-run locally with the same command:
+**Shipped 2026-09-08 (T-46).** Three shards by *path*, not by `pytest-xdist`
+hashing — path shards are reproducible and let a failure be re-run locally
+with the same command. Membership is defined ONCE, in
+`scripts/shard_paths.py`'s `SHARDS` dict; the three workflow jobs and the
+Makefile targets both ask that script for a shard's pytest arguments.
 
-| Shard | Selection | Est. wall |
-|---|---|---|
-| `core` | `tests/quantum tests/context tests/fusion tests/validation validation/test_tier10_optional.py` | ~7 min (fusion six dominate) |
-| `api` | `tests/` root files matching `test_*api*`, `test_*router*`, `test_bluebook*`, `test_pilot*`, `test_cutover`, `test_repository_contract`, `test_shadow*`, `test_migration`, `test_persistence*`, `test_alembic`, `tests/security` | ~6 min |
-| `rest` | everything else in `tests/` root | ~5 min |
+| Shard | Job | Selection | Collected | Postgres |
+|---|---|---|---|---|
+| `core` | `pytest-core` | `tests/quantum tests/context tests/fusion tests/validation validation/test_tier10_optional.py`, minus `--ignore` for any file below routed out by the postgres-marker rule | see script¹ | no |
+| `api` | `pytest-api` | `tests/` root files matching `test_*api*.py`, `test_*router*.py`, `test_bluebook*.py`, `test_pilot*.py`, `test_cutover*.py`, `test_repository_contract*.py`, `test_shadow*.py`, `test_migration*.py`, `test_persistence*.py`, `test_alembic*.py` (no matches yet), plus `tests/security tests/config tests/perf`, **plus every `tests/` file anywhere that uses `@pytest.mark.postgres`** regardless of which directory it lives in (`scripts/shard_paths.py:postgres_marked_files()`, grepped at run time — not a maintained list) | see script¹ | **yes** |
+| `rest` | `pytest-rest` | `tests/` **minus** `--ignore` for every path the other two shards own (including `api`'s postgres-routed files) | see script¹ | no |
 
-Coverage: each shard writes `coverage.xml` with `--cov-append` disabled and a
-distinct `COVERAGE_FILE`; a fourth `coverage-combine` job runs
-`coverage combine && coverage report --fail-under=98`. The floor is enforced
-on the *combined* number, never per shard.
+¹ Collected counts (`-m "not blocker and not certification"`) grow with the
+suite and are not pinned in this table — run
+`pytest tests/test_shard_partition.py -q -s` for the current per-shard
+triple; it also proves union == the full blocking set on every run, so that
+invariant can't silently drift the way a table of numbers can. Estimated
+wall: `core` ~7 min (the fusion six dominate — §1.2), `api` ~6 min, `rest`
+~5 min, against a 20-minute cap each. The serial job this replaced measured
+15–21 min with a 30-minute cap it had already hit once.
 
-Only the `api` shard needs the Postgres service. The other two drop it and
-start faster.
+**The `api` row's glob list is a convenience, not the actual rule for "needs
+Postgres."** A file-pattern glob (`test_*api*.py`, `test_bluebook*.py`, …)
+just groups the HTTP-surface tests that happen to want the same shard; it
+does not imply anything about Postgres. The only thing that routes a test to
+the one shard with a Postgres service is `@pytest.mark.postgres` appearing in
+its source — checked by grep at script run time in
+`postgres_marked_files()`, so a file placed by directory or glob into `core`
+or `rest` (e.g. `tests/validation/test_termsim.py`, which `core` would
+otherwise own via its `tests/validation` directory entry) is still pulled
+into `api` and `--ignore`d out of wherever it would have landed. Never rely
+on a file's name or directory to reason about whether it needs Postgres — ask
+whether it carries the marker.
+
+Three properties are load-bearing, and `tests/test_shard_partition.py`
+(itself in the `rest` shard) pins all three by running `pytest
+--collect-only` and comparing nodeid sets:
+
+- **Nothing is un-run.** `rest` is subtractive — `tests/` with `--ignore` for
+  the other shards' paths — so a new file added to `tests/` root is collected
+  by `rest` by default. Under an explicit-list `rest`, forgetting to add a new
+  file means no shard collects it and CI stays green on a test nobody runs.
+- **Nothing runs twice.** The three selections are pairwise disjoint. The
+  `api` globs and the postgres-marker grep are both expanded at run time, so
+  a new `tests/test_bluebook_x.py` or a newly `@pytest.mark.postgres`-marked
+  file moves into `api` automatically rather than being collected by two
+  shards.
+- **Every postgres-marked file collects only in `api`.**
+  `test_every_postgres_marked_file_is_in_the_api_shard` takes
+  `postgres_marked_files()`'s list and asserts, by collection, that every
+  matched file's nodeids appear in `api`'s collection and in no other
+  shard's — proof rather than trusting the grep and the shard membership to
+  agree.
+
+Coverage: each shard runs `--cov=original --cov-branch --cov-report=` (no
+report) with a distinct `COVERAGE_FILE=.coverage.<shard>` and uploads that
+data file as `coverage-data-<shard>`. A fourth `coverage-combine` job
+downloads all three and runs `coverage combine && coverage report
+--fail-under=98 && coverage xml`, re-uploading the unchanged `coverage-xml`
+artifact name. **`--cov-fail-under` is set on no shard** — one shard's
+coverage of `original/` is meaningless; the ≥98 floor is enforced exactly once,
+on the combined number. All three shards run from the repo root on the same
+runner image, so the recorded source paths already match and `coverage
+combine` needs no `[paths]` remapping.
+
+Only the `api` shard gets the Postgres service (it owns
+`tests/test_repository_contract.py`, which parametrizes over a `postgres`
+backend). The other two drop it and start faster.
+
+Local equivalents: `make test-shard-core|test-shard-api|test-shard-rest`, and
+`make test-fast` = the `rest` shard minus `slow` (§8). Both the Makefile and
+the three workflow steps call `python scripts/shard_paths.py --run <shard>
+<extra pytest args>`, which builds the argv list and `os.execv`s it directly
+— no shell, no quoting round-trip, no `eval`. Running the script with just a
+shard name (no `--run`) instead prints the shell-quoted argument list for a
+human to paste into their own command; quoting only matters there, for the
+gitignored macOS Finder duplicates (`test_tier1 2.py`), which do not exist on
+a CI checkout.
 
 ### 1.2 The fusion six
 
@@ -48,6 +110,22 @@ Fix, in order of payoff:
    byte-identity three per PR.
 
 Target: the file under 60 s total.
+
+**Implemented** (T-45): 448 s → 32 s. Not option 1 or 3 above — the actual
+fix was recognizing that `_seed_cohort` uploads the same `_LONG` string as
+three baselines for each of thirteen students, so every one of those 39
+requests re-ran `feature_vector(_LONG)` (~1.5 s) and
+`analyze_tension_arc(_LONG)` (~0.24 s) on a byte-identical string, which was
+essentially the whole runtime of the file. `tests/fusion/test_wiring.py`'s
+session-scoped `_long_text_analyses` fixture now runs each of those two pure
+functions on `_LONG` exactly once per session (asserting a second call
+reproduces the same result, so a future non-determinism fails loudly rather
+than silently seeding baselines the real pipeline would never produce), and
+the autouse `_cached_baseline_text_analyses` fixture patches
+`feature_vector`/`analyze_tension_arc` as imported into
+`original.routers.students_baseline` to serve the cached result — but only
+for the exact `_LONG` text with no keystroke data or baseline kappa;
+anything else falls through to the real implementation.
 
 ### 1.3 Subprocess determinism tests
 
@@ -74,7 +152,8 @@ documents rely on:
 
 | Fixture | Scope | Replaces |
 |---|---|---|
-| `postgres_available` | session | the five copies of `_postgres_available()`; still evaluated lazily at first use |
+| `postgres_available` | session | the five copies of `_postgres_available()`; checked once at first request in the session, not re-checked per test — see the fixture's own docstring |
+| `postgres_schema` | function | the schema-bootstrap variant `test_persistence_error_arms.py` used to do inline; unconditionally re-asserts the live schema (`checkfirst=True`, so a no-op when already present) on every request, because sibling files drop the live schema in their own teardown |
 | `pilot_env` | function | the recurring `monkeypatch.setattr(api, "_IS_REAL_DEPLOY", True)` + `ORIGINAL_ENV=pilot` pair |
 | `principal_headers(role, tenant)` | factory | hand-built tokens in ~20 files |
 | `seeded_tenant(n_students, n_baselines)` | function | the per-file student provisioning loops |
@@ -84,6 +163,23 @@ documents rely on:
 
 Rule: a helper used in three or more files moves to conftest. A helper used
 in one file stays local.
+
+**Implemented** (T-51): `postgres_available` and `postgres_schema` both
+exist in `tests/conftest.py`, consolidating what used to be five
+near-identical `_postgres_available()` / `_postgres_session_available()`
+copies (`test_repository_contract.py`, `test_migration.py`,
+`test_shadow_repository.py`, `test_cutover.py`,
+`test_persistence_error_arms.py`) into one reachability check plus one
+schema-bootstrap fixture. `postgres_available` is session-scoped and
+evaluated once, at the first request any test in the session makes for it —
+not at import time, and not re-checked per test; a test that monkeypatches
+`DATABASE_URL` mid-session and needs a fresh reachability read must not rely
+on it. `postgres_schema` is function-scoped on top of it: it re-runs
+`LiveBase.metadata.create_all` (checkfirst, so cheap when already present)
+on every request rather than once per session, because `test_migration.py`'s
+`fresh_pg` and two `test_cutover.py` tests drop the live schema in their own
+teardown, which would otherwise leave a stale "schema exists" assumption for
+whichever test runs next.
 
 ## 3. Markers
 

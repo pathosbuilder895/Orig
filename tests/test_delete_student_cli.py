@@ -66,9 +66,13 @@ def v1_session(tmp_path, monkeypatch):
     defaults to ``postgresql://original:original@localhost:5432/original_db``
     (original/core/config.py). The monkeypatch on cli._get_db_session is the ONLY
     isolation mechanism — it hard-fails if the attribute is missing. (conftest's
-    sqlite ``DATABASE_URL=sqlite:///:memory:`` default is NOT a reliable net: CI
-    presets a real postgresql:// URL, which setdefault won't override.) Nothing
-    in this file ever points at ``profiles.db`` or a real database.
+    sqlite ``DATABASE_URL=sqlite:///:memory:`` default is NOT a reliable net: of
+    the three CI pytest shards (``scripts/shard_paths.py``), only ``pytest-api``
+    sets a real postgresql:// ``DATABASE_URL`` (for its Postgres service
+    container), which setdefault won't override — and this file has no
+    ``@pytest.mark.postgres`` marker and isn't under a core-shard directory, so
+    it runs in ``pytest-rest``, where no such preset exists.) Nothing in this
+    file ever points at ``profiles.db`` or a real database.
     """
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker

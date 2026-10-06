@@ -1,0 +1,204 @@
+name: Boot matrix
+
+# ---------------------------------------------------------------------------
+# The only check in this repo that runs the product the way Render runs it.
+#
+# Every pytest job installs `requirements.txt -r requirements-dev.txt` — a dev
+# venv that has EVERY dependency. The pilot service installs
+# `requirements-pilot.lock.txt`, which has no sqlalchemy / psycopg2 / alembic.
+# So `REPO_BACKEND=postgres` bricks boot on the real deploy while the whole
+# suite stays green (T-07, docs/testing/08-config-deploy-readiness.md §2).
+# tests/config/test_lockset_imports.py pins that at the import level; this job
+# is the end-to-end twin: a fresh venv from ONE lockset, `python run.py`, and a
+# /health poll.
+#
+# KNOWN-RED SEMANTICS (same as Phase A):
+#   expect = the outcome a fixed product would produce
+#   today  = the outcome observed on this branch
+# A cell PASSES when the observed outcome equals `today`, and FAILS when it
+# does not — in EITHER direction. So the matrix flips red the day boot
+# behaviour changes, and fixing T-07 means editing `today` in the same PR that
+# adds sqlalchemy to the lockset. Where `today != expect`, boot_check.sh prints
+# a `::warning::` naming the gap-register row.
+#
+# Observed outcomes at the time this job was added (2026-09-08), measured
+# locally against venvs built from these exact locksets:
+#   pilot-sqlite ............... up      /health backend=sqlite
+#   pilot-postgres ............. down    ModuleNotFoundError: sqlalchemy,
+#                                        raised from api.py lifespan (which
+#                                        catches NotImplementedError only);
+#                                        uvicorn exits 3, /health never answers
+#   pilot-shadow-postgres ...... down    same, via ShadowRepository
+#   pilot-origins-wildcard ..... refuse  exit 1 at import of original.api
+#   pilot-guard-destructive .... up
+#   demo-guard-destructive ..... up      should refuse (T-23, REAUDIT #5)
+#   pilot-no-skip-seed ......... refuse  exit 1, seeder's hard refusal
+#   demo-lockset-default ....... up      /health environment=demo
+#
+# Note the two Postgres cells are `down`, not `refuse`: the process does exit
+# non-zero, but on an unhandled ImportError traceback, not a named refusal —
+# which is exactly the failure mode T-07 describes.
+# ---------------------------------------------------------------------------
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  boot-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      # Every cell is an independent claim about boot behaviour; one red cell
+      # must not hide the other seven.
+      fail-fast: false
+      matrix:
+        include:
+          # ── The pilot lockset — what Render actually installs ─────────────
+          - name: pilot-sqlite
+            reqs: requirements-pilot.lock.txt
+            env: "ORIGINAL_ENV=pilot REPO_BACKEND=sqlite SECRET_KEY=ci-test-only-secret-do-not-deploy"
+            expect: up
+            today: up
+            gap: ""
+            fragment: ""
+            extra: ""
+
+          - name: pilot-postgres
+            reqs: requirements-pilot.lock.txt
+            env: "ORIGINAL_ENV=pilot REPO_BACKEND=postgres SECRET_KEY=ci-test-only-secret-do-not-deploy"
+            expect: up
+            today: up  # T-07 closed on main: pilot lockset now ships sqlalchemy/psycopg2/alembic
+            gap: ""
+            fragment: ""
+            extra: ""
+
+          - name: pilot-shadow-postgres
+            reqs: requirements-pilot.lock.txt
+            env: "ORIGINAL_ENV=pilot REPO_SHADOW=postgres SECRET_KEY=ci-test-only-secret-do-not-deploy"
+            expect: up
+            today: up  # T-07 closed on main: pilot lockset now ships sqlalchemy/psycopg2/alembic
+            gap: ""
+            fragment: ""
+            extra: ""
+
+          # ── Refusals that already work ───────────────────────────────────
+          - name: pilot-origins-wildcard
+            reqs: requirements-pilot.lock.txt
+            env: "ORIGINAL_ENV=pilot ALLOWED_ORIGINS=* SECRET_KEY=ci-test-only-secret-do-not-deploy"
+            expect: refuse
+            today: refuse
+            gap: ""
+            # api.py:_resolve_allowed_origins, raised at module import.
+            fragment: "ALLOWED_ORIGINS must list explicit https origins"
+            extra: ""
+
+          # docs/testing/08-config-deploy-readiness.md §8: --skip-seed is
+          # mandatory under ORIGINAL_ENV=pilot and the seeder hard-refuses.
+          # boot_check.sh points ORIGINAL_DB at a scratch file, so the store is
+          # genuinely empty and run.py reaches the auto-seed branch.
+          - name: pilot-no-skip-seed
+            reqs: requirements-pilot.lock.txt
+            env: "ORIGINAL_ENV=pilot SECRET_KEY=ci-test-only-secret-do-not-deploy"
+            expect: refuse
+            today: refuse
+            gap: ""
+            fragment: "Refusing to seed synthetic demo data"
+            extra: "--no-skip-seed"
+
+          # ── GUARD_DESTRUCTIVE ────────────────────────────────────────────
+          - name: pilot-guard-destructive
+            reqs: requirements-pilot.lock.txt
+            env: "ORIGINAL_ENV=pilot GUARD_DESTRUCTIVE=1 SECRET_KEY=ci-test-only-secret-do-not-deploy"
+            expect: up
+            today: up
+            gap: ""
+            fragment: ""
+            extra: ""
+
+          # REAUDIT #5 / T-23: guarding destructive endpoints outside a real
+          # deploy is a misconfiguration that should refuse boot. It does not —
+          # the app comes up and logs the guard as active. `expect: refuse`
+          # records the intent; `today: up` records the product.
+          - name: demo-guard-destructive
+            reqs: requirements-pilot.lock.txt
+            env: "ORIGINAL_ENV=demo GUARD_DESTRUCTIVE=1"
+            expect: refuse
+            today: up
+            gap: T-23
+            # Whatever wording the eventual refusal takes, it will name the
+            # variable. Only consulted once this cell is `refuse` — a refusal
+            # is exit-non-zero AND this fragment, never the fragment alone.
+            fragment: "GUARD_DESTRUCTIVE"
+            extra: ""
+
+          # ── The demo lockset ─────────────────────────────────────────────
+          - name: demo-lockset-default
+            reqs: requirements-demo.lock.txt
+            env: ""
+            expect: up
+            today: up
+            gap: ""
+            fragment: ""
+            extra: ""
+
+    name: boot (${{ matrix.name }})
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: ${{ matrix.reqs }}
+
+      # A venv built from ONE lockset, not the runner's ambient site-packages.
+      # `pip install -r requirements.txt` anywhere in this job would defeat the
+      # entire point of the matrix.
+      - name: Build a venv from ${{ matrix.reqs }} only
+        # spaCy model install is pinned to the exact wheel the byte-exact
+        # snapshot in tests/snapshots/score_default_api.json was generated
+        # against -- `spacy download` resolves latest and would silently
+        # drift. See tests/config/test_flag_byte_identity.py's
+        # "Deterministic feature backends" section and
+        # EN_CORE_WEB_SM_VERSION there.
+        run: |
+          python -m venv v
+          v/bin/pip install --upgrade pip
+          v/bin/pip install -r "${{ matrix.reqs }}"
+          v/bin/pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+
+      - name: Boot check
+        env:
+          EXPECT: ${{ matrix.expect }}
+          TODAY: ${{ matrix.today }}
+          GAP: ${{ matrix.gap }}
+          FRAGMENT: ${{ matrix.fragment }}
+          CELL_ENV: ${{ matrix.env }}
+          EXTRA: ${{ matrix.extra }}
+        # Matrix values reach the shell through the environment rather than
+        # being interpolated into the script text, so a value containing shell
+        # metacharacters is data. `set -f` is load-bearing for the same reason:
+        # ALLOWED_ORIGINS=* must reach boot_check.sh as a literal asterisk and
+        # not be pathname-expanded on the way.
+        run: |
+          set -f
+          args=("$EXPECT" "$TODAY")
+          if [ -n "$GAP" ]; then args+=("$GAP"); fi
+          if [ -n "$FRAGMENT" ]; then args+=(--log-fragment "$FRAGMENT"); fi
+          args+=(--)
+          # Deliberate word-splitting: `env` and `extra` are space-separated
+          # argument lists, and globbing is off.
+          # shellcheck disable=SC2206
+          args+=($CELL_ENV $EXTRA)
+          PATH="$PWD/v/bin:$PATH" scripts/boot_check.sh "${args[@]}"
