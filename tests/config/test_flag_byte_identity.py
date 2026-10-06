@@ -142,7 +142,9 @@ Flags whose arms are IDENTICAL when off, and what each does otherwise:
   takes its documented one-step downgrade against `shadow`. `shadow` is
   attach-only versus flags-off. Measured against `shadow`: `trigger` is
   **uninformative** (nothing sits at `no_action` to upgrade); `blend`
-  differs (`action`) at both levels.
+  differs (`action`) at the API level and is **uninformative** at the unit
+  level, where since the T-01 de-saturation the reference already scores in
+  blend's tier (measured, not assumed).
 * `LENGTH_ADAPTIVE_WEIGHTS` — on: differs (`deviation_score`).
 * `TOPIC_VARIANCE_INFLATION` — shadow and on: **uninformative**. The
   submission's topic distance is below `TOPIC_NOVELTY_BOUNDS["low"]`,
@@ -936,8 +938,12 @@ UNIT_ON_ARMS: dict[str, tuple[dict[str, Any], dict[str, Any], bool, set[str] | N
         {"null_model": "impostor", "llr_action_mode": "shadow"},
         {"llr_action_mode": "blend"},
         True,
-        {"recommendation.action"},
-        "",
+        None,
+        "blend re-derives the tier from a 50/50 mix of deviation_score and "
+        "llr_deviation_score, and on this profile that mix lands in the tier the "
+        "reference already has: since the T-01 tanh de-saturation the reference "
+        "scores monitor, not escalate. blend's effect is still pinned by "
+        "test_api_on_arm_is_not_inert[LLR_ACTION_MODE=blend], where it moves the action",
     ),
     "CHARACTERISTIC_WEIGHTS=on": (
         {},
@@ -989,6 +995,35 @@ def _measure_unit_llr_trigger(reference: dict) -> str:
     return f"measured reference action = {action!r}"
 
 
+def _measure_unit_llr_blend(reference: dict) -> str:
+    """`blend` re-derives the tier from 0.5 * deviation + 0.5 * llr. Compute
+    that with the production function itself, on the reference payload, and
+    assert it equals the reference action: the stated cause is then observed,
+    not assumed. Before T-01 (tanh divisor 1.5) the reference scored
+    `escalate` and blend moved it; the 2.35 divisor moved the reference into
+    blend's own tier. If blend's tier ever differs again, this fails and the
+    arm must go back to asserting the move."""
+    from original.quantum.scoring import _llr_action_candidates
+
+    action = reference["recommendation"]["action"]
+    deviation = reference["authorship"]["deviation_score"]
+    llr = reference["authorship"]["llr_deviation_score"]
+    assert llr is not None, (
+        "reference has no llr_deviation_score, so the arm's NULL_MODEL=impostor "
+        "prerequisite did not take"
+    )
+    blend = _llr_action_candidates(action, deviation, llr)["blend"]
+    assert blend == action, (
+        f"blend would now move {action!r} to {blend!r}, so this arm is "
+        "informative again: restore {'recommendation.action'} as its expected set"
+    )
+    blended = 0.5 * deviation + 0.5 * llr
+    return (
+        f"measured deviation={deviation:.3f}, llr={llr:.3f}, "
+        f"blended={blended:.3f} -> {blend!r}, same as the reference"
+    )
+
+
 # Arm id -> callable(reference payload) -> extra text for the skip reason.
 # Every `expected is None` arm has to justify its stated cause. The two unit
 # arms without an entry here are justified structurally instead, by the shape
@@ -999,6 +1034,7 @@ def _measure_unit_llr_trigger(reference: dict) -> str:
 # arms, which do measure.
 UNIT_ON_ARM_MEASURES: dict[str, Callable[[dict], str]] = {
     "LLR_ACTION_MODE=trigger": _measure_unit_llr_trigger,
+    "LLR_ACTION_MODE=blend": _measure_unit_llr_blend,
 }
 
 
