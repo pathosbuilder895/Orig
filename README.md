@@ -21,7 +21,7 @@ See [`docs/NORTH_STAR.md`](docs/NORTH_STAR.md) for mission, phase goals, and non
 **Prerequisites:** Python 3.11+
 
 ```bash
-python3 -m venv .venv
+python3.11 -m venv .venv  # Use 3.11+ explicitly (macOS ships with 3.9.6)
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements-pilot.lock.txt
 python -m spacy download en_core_web_sm
@@ -77,7 +77,14 @@ From [`original/constants.py:AUTH_WEIGHTS`](original/constants.py):
 
 ## Testing
 
-**245 test files** as of Oct 2026. Test count grows regularly. Full suite runs ~4,100+ test cases with 99%+ coverage in 11-12 minutes.
+**245 test files** as of Oct 2026. Test count grows regularly.
+
+**Install test dependencies** (matches CI):
+
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+python -m spacy download en_core_web_sm
+```
 
 **Core tests** (no environment setup needed):
 
@@ -85,13 +92,15 @@ From [`original/constants.py:AUTH_WEIGHTS`](original/constants.py):
 python -m pytest tests/test_features.py tests/test_quantum.py -v
 ```
 
-**Full suite:**
+**Full suite** (last measured: 4,356 tests collected, 4,065 passed, 261 skipped, 7m36s on macOS arm64):
 
 ```bash
-.venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -m "not blocker and not certification" -q
+python -m pytest tests/ validation/test_tier10_optional.py -m "not blocker and not certification" -q
 ```
 
-See [`AGENTS.md`](AGENTS.md) and [`CLAUDE.md`](CLAUDE.md) for test commands, Postgres setup, and coverage requirements.
+CI enforces **≥98% combined coverage** (statements + branches) on `original/`. See [`.github/workflows/test.yml`](.github/workflows/test.yml) for the exact commands CI runs.
+
+See [`AGENTS.md`](AGENTS.md) and [`CLAUDE.md`](CLAUDE.md) for Postgres setup and additional test commands.
 
 ## Documentation Map
 
