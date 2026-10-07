@@ -86,19 +86,19 @@ pip install -r requirements.txt -r requirements-dev.txt
 python -m spacy download en_core_web_sm
 ```
 
-**Core tests** (no environment setup needed):
+**Core tests** (after installing test dependencies above):
 
 ```bash
 python -m pytest tests/test_features.py tests/test_quantum.py -v
 ```
 
-**Full suite** (last measured: 4,356 tests collected, 4,065 passed, 261 skipped, 7m36s on macOS arm64):
+**Full suite:**
 
 ```bash
 python -m pytest tests/ validation/test_tier10_optional.py -m "not blocker and not certification" -q
 ```
 
-CI enforces **≥98% combined coverage** (statements + branches) on `original/`. See [`.github/workflows/test.yml`](.github/workflows/test.yml) for the exact commands CI runs.
+CI enforces **≥98% combined coverage** (statements + branches) on `original/`. See [`.github/workflows/test.yml`](.github/workflows/test.yml) for the exact commands and current test counts.
 
 See [`AGENTS.md`](AGENTS.md) and [`CLAUDE.md`](CLAUDE.md) for Postgres setup and additional test commands.
 
