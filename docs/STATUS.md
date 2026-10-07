@@ -89,6 +89,24 @@ From NORTH_STAR "Known conflicts with independent teachers":
 
 ---
 
+## Next up (assigned 2026-10-07)
+
+Work in this order. Each task owns its files; nobody touches another task's files while it is open.
+
+| # | Task | Owner | Branch → PR | Starts | May touch | Must not touch |
+|---|------|-------|-------------|--------|-----------|----------------|
+| A | Render-generated pilot secrets + matching docs | Codex | `codex/pilot-secrets` (from `codex/bluebook-pilot-c962a917`) | Now | `render.yaml` (secret entries + teacher-demo envVars), `tests/test_render_blueprint.py`, secret lines in `docs/BLUEBOOK_LAUNCH_CHECKLIST.md`, `docs/OPS_RUNBOOK.md`, `docs/superpowers/plans/2026-10-04-professor-release-finish.md`, `docs/DAY_ONE_CLASS.md` | Institution/LTI wording (task C), `original/**`, `demo/**`, `docs/release/**`, `docs/adr/**` |
+| B | Rework [#228](https://github.com/pathosbuilder895/Orig/pull/228) landing to NORTH_STAR | Claude Code | `claude/original-landing-integration-d19b53` → #228 | Now (parallel with A) | Files #228 already touches: `demo/landing.html`, `demo/original-quantum.html` (remove), `demo/js/cursor.js`, `demo/js/live-demo.js`, `demo/styles/original-landing.css`, `demo/assets/` (its images), `docs/adr/011-*` | `demo/bluebook/**`, `original/**`, `render.yaml`, `scripts/**`, `docs/release/**`, ops docs and checklists |
+| C | Independent-teacher + T-01 wording, testing-phase label in teacher screens | Codex | `codex/independent-teacher-wording` | **After A is merged** | `original/onboarding.py` (`ORIGINAL_NOT_VALIDATED`), signup 403 text in `original/routers/auth.py` + its tests, `docs/release/*`, launch/provisioning checklists, 10-04 plan B2, `docs/DAY_ONE_CLASS.md`, `docs/OPS_RUNBOOK.md`, `render.yaml` comments only, `demo/bluebook/*.jsx` + rebuilt bundles | Task B files, `demo/legal/**` (counsel), scoring code, constants and flags |
+
+**Shared label text (B and C):** "Testing phase: Original is not yet validated on real student writing. Treat any result as a reason for a conversation, never as evidence." *(proposed; Andrew may edit)*
+
+**Rules for every task:** read AGENTS.md → NORTH_STAR → STATUS first. Work on a pushed `codex/*` or `claude/*` branch with a PR. CI must be green. Never push to main, never merge, never flip feature flags. Append one line to Log Entries and edit nothing else here.
+
+**Andrew decides:** merging A, then B and C. Hosting for the landing page (B). Final images (B). Legal-page wording (counsel). Closing #160 and #225.
+
+---
+
 ## Next Steps
 
 1. **Andrew: approve hosting plan** — Render blueprint, instance sizes, backup bucket setup
@@ -113,3 +131,5 @@ Track what was done, when, by which tool. One line per session.
 *2026-10-07 | Cursor Cloud Agent (Claude Sonnet 5.5) | cursor/docs-north-star-and-status-05fa | Created NORTH_STAR.md, research/2026-10-07-hosting-and-storage.md, research/README.md, STATUS.md (this file), rewrote AGENTS.md, added pointer to CLAUDE.md. Single docs-only PR to establish shared source of truth.*
 
 *2026-10-07 | Cursor Cloud Agent (Claude Sonnet 5.5) | cursor/readme-accuracy-docs-5374 | README.md rewrite for accuracy and NORTH_STAR alignment: fixed 109 features (was 103), AUTH_WEIGHTS mismatch, removed keystroke biometrics claims, removed v1 "dormant" backend references, removed stale Canvas import tab and original-demo service mentions. Aligned framing with NORTH_STAR (independent teachers, testing-phase warnings, consistency not verdicts). Fixed quick-start venv to specify python3.11, corrected test install to match CI (requirements.txt + requirements-dev.txt), updated test numbers from Andrew's macOS run (4,356 collected, 4,065 passed, 7m36s). Coverage: ≥98% enforced in CI (not 99%+).*
+
+*2026-10-07 | Cursor Cloud Agent (Claude Sonnet 5.5) | cursor/assign-next-tasks-eba4 | Added Next up assignments for tasks A (Codex pilot secrets), B (Claude Code #228 rework), and C (Codex independent-teacher wording) to establish file ownership and prevent tool collision.*
