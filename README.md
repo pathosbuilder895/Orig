@@ -1,42 +1,28 @@
-# Original
+# Original + Bluebook
 
-**Stylometric authorship-consistency scoring for academic writing.** Original helps seminaries and writing-intensive colleges verify whether a submitted paper aligns with a student's established writing history.
+Platform for trusted writing submission and writing-consistency observation. Helps teachers make sure a student's writing is really their own, and helps students become stronger writers by building their own skill.
 
-This repository contains two products:
+## The Two Products
 
-- **Bluebook**: A secure, in-browser writing and exam application
-- **Original**: Per-student stylometric profiling and authorship-consistency analysis
+- **Bluebook**: Locked, in-browser writing and exam app. Teachers create classes, invite students, run timed sessions, and read, grade, release, and export sealed submissions. Works entirely on its own — a Bluebook-only workspace never builds a writing profile.
 
-## Current Status
+- **Original**: Writing-consistency engine. Builds a profile from teacher-approved earlier writing and reports how a new piece compares. **Optional and off by default.** When turned on, it displays testing-phase warnings. Original supports a teacher's judgment and is a reason for a conversation, never an accusation or a verdict.
 
-**Invitation-only pilot.** Bluebook is available for independent teachers through a professor-accessible workflow. Original is **testing-phase only** — reports are generated but not shown to users by default and make no claims about AI detection, cheating, or calibrated probabilities.
+## Current Phase
 
-Nothing is deployed yet. The pilot infrastructure is documented but not live.
+**Invitation-only Bluebook pilot for independent teachers.** Start with 1–3 teachers, possibly growing to a few dozen. No public signup.
 
-## What Original Does
+Engineering for this phase is merged (PRs #226, #227, 5 Oct 2026). **Nothing is deployed yet.**
 
-Original builds a per-student **stylometric profile** from authenticated baseline samples (verified papers, proctored exams). When a new submission arrives, it's scored against that profile using a 109-dimensional feature pipeline and a quantum density-matrix scorer.
+See [`docs/NORTH_STAR.md`](docs/NORTH_STAR.md) for mission, phase goals, and non-negotiables.
 
-The system returns a **deviation score** (0-1) and a **recommended action** (no_action / monitor / schedule_conversation / escalate). These are **decision-support recommendations only**, not verdicts. Institutional action remains with instructors and academic integrity officers.
+## Quick Start (Local Development)
 
-### What Original Does NOT Claim
-
-- **No AI detection claims.** The system reports authorship consistency, not whether text is AI-generated.
-- **No cheating verdicts.** A high deviation score means the submission differs from the student's established baseline — it does not prove misconduct.
-- **No keystroke biometrics.** Per ADR-010, Original does not collect or store per-key timing data.
-
-## Mission
-
-From the governing design documents: Original exists to **build students' own writing skill**, not to outsource correction to AI. The posture is "show how this writing compares with an adequately established baseline, including when comparison is inconclusive" — **consistency, not accusation**.
-
-## Quick Start
-
-**Prerequisites:** Python 3.11, ~2 GB disk space for dependencies
+**Prerequisites:** Python 3.11+
 
 ```bash
-cd /workspace
 python3 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements-pilot.lock.txt
 python -m spacy download en_core_web_sm
 python run.py --demo
@@ -52,33 +38,31 @@ Opens on `http://localhost:8001` with five synthetic student profiles.
 
 ## Architecture
 
-**Stack:** Python 3.11, FastAPI + uvicorn, SQLite (WAL) by default, Postgres 16 opt-in via repository seam, spaCy, numpy, sentence-transformers (optional).
+**Stack:** Python 3.11, FastAPI + uvicorn, SQLite (dev/demo), Postgres 16 (pilot), spaCy, numpy, sentence-transformers (optional).
 
-**Entry point:** `run.py` → `original/api.py` (FastAPI app assembly, middleware, product gate). Routes are in `original/routers/`: admin, auth, bluebook, health, imports, lti_routes, students, students_baseline, students_scoring, tenants.
+**Entry point:** `run.py` → `original/api.py` (FastAPI app assembly). Routes in `original/routers/`: admin, auth, bluebook, health, imports, lti_routes, students, students_baseline, students_scoring, tenants.
 
-**Scoring pipeline:** `original/features/` (109 dimensions across 18 tiers) → `original/quantum/state.py` (density matrix) → `original/quantum/scoring.py` (Born rule scoring).
+**Pipeline:** `original/features/` (109 dimensions, 18 tiers) → `original/quantum/state.py` (density matrix) → `original/quantum/scoring.py` (Born rule).
 
 **Frontends:**
 - `demo/bluebook/` — React 19 exam app (committed bundle)
 - `demo/*.html` — Static professor/admin pages
 - `demo/bluebook/teacher-demo.html` — Fictional walkthrough
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full map, including which components are live vs. deleted.
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for what is live vs. deleted. V1 backend was deleted in PR #90.
 
 ## Feature Pipeline
 
-Original extracts **109 stylometric features** across 18 tiers. Of these, **97 are active** in the default configuration:
+Original extracts **109 stylometric features** across 18 tiers. **97 are active** in the pilot configuration:
 
-- Tier 17 (6 features, behavioral biometrics) is in `DISABLED_FEATURE_GROUPS` and fixed at neutral 0.5 placeholders
-- Tier 18 (6 features, uniformity) is also disabled pending validation gates
+- Tier 17 (6 features, behavioral biometrics) is in `DISABLED_FEATURE_GROUPS`, fixed at neutral 0.5 per ADR-010 (no keystroke data)
+- Tier 18 (6 features, uniformity) disabled pending validation gates
 
-Features include: surface stylometrics, discourse markers, rhetorical register, punctuation patterns, syntactic depth, idiosyncratic markers, prosodic rhythm, error ecology, semantic gravity, tension arc, citation fingerprint, and lexical architecture.
+Features: surface stylometrics, discourse markers, rhetorical register, punctuation patterns, syntactic depth, idiosyncratic markers, prosodic rhythm, error ecology, semantic gravity, tension arc, citation fingerprint, lexical architecture.
 
 Per [`original/constants.py`](original/constants.py):
-- `FEATURE_DIM = 109` (total dimensionality)
-- `BASE_FEATURE_DIM = 102` (stored baseline width, before tier 18 landed)
-
-See `CLAUDE.md` Environment Flags table for which research features are dark.
+- `FEATURE_DIM = 109` (total)
+- `BASE_FEATURE_DIM = 102` (stored baseline width)
 
 ## Baseline Trust Weights
 
@@ -86,80 +70,78 @@ From [`original/constants.py:AUTH_WEIGHTS`](original/constants.py):
 
 | Provenance | Weight | Meaning |
 |------------|--------|---------|
-| `proctored` | 2.0 | Live Bluebook exam — gold standard |
-| `verified` | 1.0 | Instructor-confirmed paper |
-| `canvas` | 0.8 | LMS-imported (Canvas/Blackboard) |
-| `unverified` | 0.5 | Student self-upload — lowest trust |
+| `proctored` | 2.0 | Live Bluebook exam |
+| `verified` | 1.0 | Teacher-confirmed paper |
+| `canvas` | 0.8 | LMS-imported |
+| `unverified` | 0.5 | Student self-upload |
 
 ## Testing
 
-The repository contains **245 test files** as of Oct 2026. Test count grows regularly as coverage expands.
+**245 test files** as of Oct 2026. Test count grows regularly. Full suite runs ~4,100+ test cases with 99%+ coverage in 11-12 minutes.
 
-**Run core tests** (requires Python environment setup):
-
-```bash
-.venv/bin/python -m pytest tests/test_features.py tests/test_quantum.py -v
-```
-
-**Full suite** (requires ~11-12 minutes):
+**Core tests** (no environment setup needed):
 
 ```bash
-.venv/bin/python -m pytest tests/ -m "not blocker and not certification" -q
+python -m pytest tests/test_features.py tests/test_quantum.py -v
 ```
 
-Add Postgres tests:
+**Full suite:**
 
 ```bash
-make test-postgres  # Starts local Postgres container and runs postgres-marked tests
+.venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -m "not blocker and not certification" -q
 ```
 
-See [`CLAUDE.md` Testing section](CLAUDE.md#testing) for budget, coverage requirements, and CI commands.
+See [`AGENTS.md`](AGENTS.md) and [`CLAUDE.md`](CLAUDE.md) for test commands, Postgres setup, and coverage requirements.
 
-## Repository Map
+## Documentation Map
 
-**For AI tools and agents:** Start at [`AGENTS.md`](AGENTS.md), which points to [`CLAUDE.md`](CLAUDE.md) for environment/venv rules, test commands, validation layer, design philosophy, env flags, and commit style.
+**For AI tools and agents:** Start at [`AGENTS.md`](AGENTS.md).
 
-**Key documentation:**
+**Read order:**
+1. [`docs/NORTH_STAR.md`](docs/NORTH_STAR.md) — Mission, phase, non-negotiables (**wins on conflict**)
+2. [`docs/STATUS.md`](docs/STATUS.md) — Current state, in-flight work, blockers
+3. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Live vs. deleted components
+4. [`docs/adr/`](docs/adr/) — Architecture decision records
 
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Live vs. deleted components (two backends existed; only one remains)
-- [`AGENTS.md`](AGENTS.md) / [`CLAUDE.md`](CLAUDE.md) — Development instructions
-- [`docs/adr/`](docs/adr/) — Architecture decision records
+**Other key docs:**
+- [`CLAUDE.md`](CLAUDE.md) — Claude Code mechanics: venv, tests, flags
 - [`docs/research/`](docs/research/) — Research briefs
+- [`docs/release/VERIFICATION_AND_BLOCKERS.md`](docs/release/VERIFICATION_AND_BLOCKERS.md) — What remains before deployment
 - [`MODEL_CARD.md`](MODEL_CARD.md) — Model contract and scientific limits (v1.4.27)
 
-**Canvas/LTI:** Implementation exists at `original/lti.py` and `/lti/*` routes but has no UI entry points. Canvas and LTI are deferred for the initial product. See [`docs/CANVAS_RUNBOOK.md`](docs/CANVAS_RUNBOOK.md) when re-enabled.
-
-**Bluebook as standalone product:** Tenants can have Original, Bluebook, or both. A tenant's `products_json` field gates Original routes — Bluebook-only workspaces never profile students. See [`docs/ARCHITECTURE.md` § Bluebook standalone](docs/ARCHITECTURE.md).
+**Canvas/LTI:** Implementation exists (`original/lti.py`, `/lti/*` routes) but has no UI entry points. Deferred for initial product.
 
 ## Data Privacy (FERPA)
 
-**Raw text IS stored.** Authorized instructors can retrieve baseline sample text via `GET /students/{id}/samples/{index}/text` (used to review a student's writing before approving it as baseline).
+**Raw text IS stored.** Authorized teachers can retrieve baseline sample text via `GET /students/{id}/samples/{index}/text`.
 
-**Manual deletion is supported:**
-- `DELETE /students/{id}` (HTTP endpoint)
+**Manual deletion supported:**
+- `DELETE /students/{id}` (HTTP)
 - `python -m original.cli.delete_student --student-id <id> --confirm` (CLI)
 
-**Feature vectors** (the 109-dimensional encoding) are non-reversible and cannot reconstruct original text.
+**Feature vectors** (109-dimensional encoding) are non-reversible.
 
-**No automatic retention/deletion scheduler runs** in the live stack.
+**No automatic retention/deletion** runs.
 
-See [`docs/data_inventory.md`](docs/data_inventory.md), [`docs/encryption_policy.md`](docs/encryption_policy.md), and [`docs/dpa_template.md`](docs/dpa_template.md).
+See [`docs/data_inventory.md`](docs/data_inventory.md), [`docs/encryption_policy.md`](docs/encryption_policy.md), [`docs/dpa_template.md`](docs/dpa_template.md).
 
 ## Deployment
 
 **Target:** Render, defined in [`render.yaml`](render.yaml)
 
-Services declared:
-- **`original-pilot`** — Starter plan + managed Postgres, invitation-only, hardened by `ORIGINAL_ENV=pilot`
-- **`bluebook-teacher-demo`** — Static site, fictional professor walkthrough
-- **`original-pg-backup`** — Daily cron job, encrypted off-box backups
+Services:
+- **`original-pilot`** — Starter plan + Postgres 16, invitation-only, `ORIGINAL_ENV=pilot`, `REPO_BACKEND=postgres`
+- **`bluebook-teacher-demo`** — Static fictional walkthrough
+- **`original-pg-backup`** — Daily encrypted off-box backups
 
-See [`docs/OPS_RUNBOOK.md`](docs/OPS_RUNBOOK.md) for deployment procedure, maintenance windows, and secret management.
+SQLite (WAL) is used for local dev/demo. Pilot uses managed Postgres 16.
 
-## License
-
-See [`LICENSE`](LICENSE) for terms.
+See [`docs/OPS_RUNBOOK.md`](docs/OPS_RUNBOOK.md) for deployment, maintenance, secret management.
 
 ## Support
 
-For institutional pilot inquiries, see [`docs/PROVISIONING_CHECKLIST.md`](docs/PROVISIONING_CHECKLIST.md).
+For pilot inquiries: independent teachers only in current phase (invitation-only). See [`docs/NORTH_STAR.md`](docs/NORTH_STAR.md) § "Who it's for" and [`docs/release/VERIFICATION_AND_BLOCKERS.md`](docs/release/VERIFICATION_AND_BLOCKERS.md) for what remains before first invites.
+
+## License
+
+See [`LICENSE`](LICENSE).
