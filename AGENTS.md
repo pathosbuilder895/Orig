@@ -80,6 +80,8 @@ Before you finish a session:
 
 **Python environment:** Always use `.venv/bin/python` and `.venv/bin/pytest`, never system python3. The system python3 has broken dependencies.
 
+**Note:** Each checkout or worktree needs its own venv at its root. Create with `python3.11 -m venv .venv` and install dependencies per README. Alternatively, activate an existing venv and use plain `python -m pytest` (without the `.venv/bin/` prefix).
+
 **Run dev server:**
 ```bash
 .venv/bin/python run.py --demo
