@@ -4,10 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Original · The Space of Authentic Thought</title>
-  <meta name="description" content="Original compares each paper with the student's own proctored writing, so a professor can see whether it is the same writer, and why.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&display=swap" rel="stylesheet">
+  <meta name="description" content="Original compares a new piece of writing with a student's own teacher-approved writing, so a teacher can see whether it fits the student's established voice: a reason for a conversation, never a verdict. In testing, not yet validated on real student writing.">
   <link rel="stylesheet" href="styles/original-landing.css">
 
   <style>
@@ -65,8 +62,8 @@
     <ul class="nav-links">
       <li><a href="#flattening">Premise</a></li>
       <li><a href="#method">Method</a></li>
+      <li><a href="#bluebook">Bluebook</a></li>
       <li><a href="#tension">Tension Arc</a></li>
-      <li><a href="#dashboard">Dashboard</a></li>
       <li><a href="#demo">Demonstration</a></li>
     </ul>
   </nav>
@@ -74,8 +71,11 @@
   <main id="top">
 
     <!-- ─── Act 0: Cold open ─────────────────────────────────────────── -->
-    <section class="cold-open engraved" data-screen-label="00 Cold open">
-      <img class="hero-bg" src="assets/radcliffe-engraving-navy.webp" alt="Radcliff Library from Exeter College Garden, 1822 engraving by J. &amp; H. S. Storer">
+    <!-- The design's engraved hero (class "engraved" plus an .hero-bg image) is
+         off: its plate was an AI rendering that prints "Drawn & Eng. by J. & H. S.
+         Storer, 1822" inside the image. Restore both with a genuine public-domain
+         scan, credited correctly. See ADR-011. -->
+    <section class="cold-open" data-screen-label="00 Cold open">
       <div class="hero-cin" aria-hidden="true"></div>
       <div class="hero-glow" aria-hidden="true"></div>
       <div class="epigraph">
@@ -91,6 +91,17 @@
         <span class="line"></span>
       </div>
     </section>
+
+    <!-- ─── Testing-phase notice (NORTH_STAR rules 2 and 10) ──────────── -->
+    <aside class="phase-note" aria-label="Testing phase" data-screen-label="00b Testing phase">
+      <div class="container">
+        <span class="phase-tag">Testing phase</span>
+        <p>Original is not yet validated on real student writing. Treat any
+        result as a reason for a conversation, never as evidence. It stays off
+        unless it is switched on for a workspace, and Bluebook works fully
+        without it.</p>
+      </div>
+    </aside>
 
     <!-- ─── Act I: The Flattening ────────────────────────────────────── -->
     <section class="act" id="flattening" data-screen-label="01 The Flattening">
@@ -118,16 +129,16 @@
                 forgets its own beginning) has been quietly ironed out.
               </p>
               <p class="lede">
-                <strong>Plagiarism detectors ask the wrong question</strong>:
-                they ask <em>what</em> wrote this, human or computer. The inevitable
-                question, the more difficult question, is: did <em>this student</em>
-                write this paper?
+                <strong>AI detectors ask the wrong question</strong>:
+                they guess <em>what</em> wrote this, a person or a machine. The
+                more useful question, and the harder one, is whether this piece
+                sounds like <em>this student</em>.
               </p>
               <p class="lede">
-                Original turns verified, proctored writing into a
-                <strong>verified baseline</strong>, so when a take-home paper is
-                questioned, it will show whether it is the <em>same writer</em>,
-                and why.
+                Original builds a <strong>baseline</strong> from writing the
+                teacher has approved as the student's own. When a new piece reads
+                differently, it shows the teacher <em>what</em> moved, so the
+                next step is a conversation, never a verdict.
               </p>
             </div>
           </div>
@@ -137,7 +148,6 @@
 
     <!-- ─── Ruin: full-bleed photo section ──────────────────────────── -->
     <section class="act ruin-act" id="ruin" data-screen-label="01b Ruin">
-      <img class="ruin-bg" src="assets/st-andrews-ruins.webp" alt="The ruins of St Andrews Cathedral">
       <div class="ruin-tint"></div>
       <div class="ruin reveal">
         <div class="ruin-q">Do we walk into ruin?</div>
@@ -177,12 +187,13 @@
               for, growing inside them since they first composed a sentence.
             </p>
             <p class="lede">
-              As these habits are stable across time, and dense across paragraphs,
-              they become measurable to a <strong>thousandth of a unit</strong>
-              across a hundred different markers.
+              Because these habits are stable over time and run through every
+              paragraph, they can be measured: Original uses
+              <strong>ninety-seven</strong> of them.
             </p>
             <p class="lede">
-              Original reconciles them all to find your fingerprint.
+              Together they sketch how one person tends to write. A sketch, not
+              proof: people learn, change genre and revise.
             </p>
           </div>
         </div>
@@ -190,11 +201,11 @@
         <div class="fingerprint-canvas-wrap reveal" data-magnetic="">
           <canvas id="fp-canvas"></canvas>
           <div class="fingerprint-readout">
-            <span class="big" id="fp-id">A. Webb · 0x7C3</span>
-            <span class="row">DIMENSIONS · 109</span>
-            <span class="row">RINGS · 16</span>
-            <span class="row">DEPTH · tier I → XVIII</span>
-            <span class="row">STATE · <em>resolved</em></span>
+            <span class="big" id="fp-id">Fictional writer</span>
+            <span class="row">FEATURES · 109 defined</span>
+            <span class="row">IN USE · 97</span>
+            <span class="row">TIERS · 18</span>
+            <span class="row">DRAWING · <em>illustrative</em></span>
           </div>
         </div>
       </div>
@@ -207,7 +218,8 @@
            II  T2, T9, T10                         17     VI  T6, T7            12
            III T3, T15, T16                        25     VII T8, T12 (κ), T13  11
            IV  T4, T11, T14                        14
-         T17 keystroke + T18 uniformity (12 features) are off until validated. -->
+         T17 keystroke (never collected, NORTH_STAR rule 6) and T18 uniformity
+         (not yet validated) make up the 12 features that are switched off. -->
     <section class="act tiers-act" id="method" data-screen-label="03 Method">
       <div class="container">
         <div class="act-eyebrow reveal">
@@ -217,18 +229,20 @@
 
         <div class="tier-count-row">
           <div class="tier-count-display reveal">
-            109<span class="small">features</span>
+            97<span class="small">features</span>
           </div>
           <div>
             <h3 class="display reveal" style="margin-bottom:1rem">
               Seven families of <em>quiet evidence.</em>
             </h3>
             <p class="lede reveal">
-              Each submission is parsed into <strong>109 stylometric features</strong>
-              across eighteen tiers, from the surface (sentence length, vocabulary
-              range) to the idiosyncratic (the exact rhythm at which <em>you</em>
-              place a dash). Ninety-seven are active today; the twelve keystroke and
-              uniformity features stay off until they pass validation.
+              Original defines <strong>109 stylometric features</strong> across
+              eighteen tiers, from the surface (sentence length, vocabulary
+              range) to the idiosyncratic (how often <em>you</em> reach for a
+              dash). Ninety-seven are used. The other twelve are switched off:
+              six keystroke-timing features, because Original collects no
+              keystroke data, and six uniformity measures that have not passed
+              validation.
             </p>
           </div>
         </div>
@@ -392,23 +406,25 @@
         <div class="hr-gold reveal"></div>
         <div class="bb-split">
           <div class="reveal-stagger">
-            <p class="lede" data-comment-anchor="5e2e720cb3-p">
+            <p class="lede">
               Every comparison Original makes rests on one question:
               <strong>what does this student's writing actually look like?</strong>
-              The answer can never come from take-home work; it must come
-              from writing no one could have done <em>for</em> them.
+              The answer has to come from writing the teacher trusts was the
+              student's own, such as work written in class.
             </p>
             <p class="lede">
-              So the baseline is built only from <em>proctored</em> writing:
-              in-class exams sat in <strong>Bluebook</strong>, a locked exam
-              window the professor opens and a proctor supervises. Each sealed
-              exam becomes an <strong>authenticated sample</strong>: timed,
-              dated, and marked as proctored.
+              <strong>Bluebook</strong> is a locked, in-browser writing window.
+              The teacher opens a timed session, students write, and each piece
+              is sealed when they hand it in. Sealing adds nothing to a profile
+              on its own: <strong>only work the teacher approves becomes
+              reference writing</strong>, and an approval can be undone.
             </p>
             <p class="lede">
-              About five sealed exams in, the profile is ready to compare
-              against, and Original tells the professor while a baseline is
-              still thin. <strong>Zero student setup</strong>: they just write,
+              The more approved writing a student has, the steadier the
+              comparison. With only a few pieces it is not reliable, and in
+              testing so far it has raised too many false alarms on small
+              baselines; that is why Original is off by default and still in
+              testing. <strong>Zero student setup</strong>: they just write,
               the way they always have.
             </p>
           </div>
@@ -420,13 +436,14 @@
                 <span class="bb-rule"></span>
                 <span class="bb-line"><i>Name</i>James Whitfield</span>
                 <span class="bb-line"><i>Course</i>THEO 301 · Dr. Hendricks</span>
-                <span class="bb-line"><i>Date</i>14 Feb 2026 · proctored</span>
+                <span class="bb-line"><i>Date</i>14 Feb 2026 · sealed</span>
               </div>
             </div>
+            <span class="fictional-tag">Fictional example</span>
             <div class="bb-steps">
-              <div class="bb-step"><span class="bb-n">1</span><div><b>Written in class</b><span>supervised, in a locked exam window</span></div></div>
-              <div class="bb-step"><span class="bb-n">2</span><div><b>Sealed on submit</b><span>timed, dated, marked proctored</span></div></div>
-              <div class="bb-step"><span class="bb-n">3</span><div><b>Banked as baseline</b><span>an authenticated sample of their voice</span></div></div>
+              <div class="bb-step"><span class="bb-n">1</span><div><b>Written in Bluebook</b><span>a locked, timed writing window</span></div></div>
+              <div class="bb-step"><span class="bb-n">2</span><div><b>Sealed on hand-in</b><span>timed and dated, not yet part of any profile</span></div></div>
+              <div class="bb-step"><span class="bb-n">3</span><div><b>Approved by the teacher</b><span>only then reference writing; approval can be undone</span></div></div>
             </div>
           </div>
         </div>
@@ -451,16 +468,17 @@
 
         <div class="reveal" style="margin-bottom: 3rem">
           <p class="lede" style="max-width: 64ch;">
-            Beneath the surface features, Original measures a deeper signal
+            Beneath the surface features, Original measures one deeper signal
             borrowed from catastrophe theory: the <strong>tension arc</strong>,
-            κ = σ(ρ) · (1 − μ(ρ)). It is the structural unresolved tension
-            that runs across a real argument: the writer's instinct to
+            κ = σ(ρ) · (1 − μ(ρ)). It describes the unresolved tension that
+            runs across an argument: the writer's instinct to
             <em>not yet say it</em>, to build, defer, dwell, and only then resolve.
-            AI text, even when fluent, tends to <em>flatten the arc</em>.
+            It is one feature among ninety-seven, and not a test for machine writing.
           </p>
         </div>
 
         <div class="tension-viz reveal" data-magnetic="">
+          <span class="fictional-tag">Illustrative curve</span>
           <canvas id="tension-canvas"></canvas>
           <div class="tension-hover" id="tension-hover"></div>
           <div class="tension-axis">
@@ -476,24 +494,25 @@
             <div class="lbl">κ · baseline (ghost)</div>
             <div class="val"><em>this writer's habit.</em></div>
             <div class="desc">
-              Averaged over three authenticated samples. The shape of
-              tension a real author tends to build.
+              Averaged over the student's approved writing. The shape of
+              tension this writer tends to build.
             </div>
           </div>
           <div class="item">
-            <div class="lbl">κ · submission (gold)</div>
-            <div class="val"><em>this paper's arc.</em></div>
+            <div class="lbl">κ · new piece (gold)</div>
+            <div class="val"><em>this piece's arc.</em></div>
             <div class="desc">
-              A submission's measured tension across paragraphs. Deviation
-              from baseline becomes one orthogonal input to the score.
+              The new piece's tension, paragraph by paragraph. How far it
+              sits from the baseline is one of the inputs to the comparison.
             </div>
           </div>
           <div class="item">
-            <div class="lbl">why it works</div>
-            <div class="val"><em>it cannot be faked quickly.</em></div>
+            <div class="lbl">what it cannot do</div>
+            <div class="val"><em>it is not a lie detector.</em></div>
             <div class="desc">
-              κ emerges from how an author <em>resists</em> resolution.
-              Models trained to be helpful resolve too eagerly.
+              A different arc can come from a different genre, a different
+              assignment or heavy revision. It is a reason to look closer,
+              never proof.
             </div>
           </div>
         </div>
@@ -506,24 +525,19 @@
         <div class="baseline-grid">
           <div class="papers-stack reveal" data-magnetic="">
 
-            <!-- 1 · The document, as Original sees it -->
+            <!-- 1 · The piece (fictional) -->
             <div class="paper p1">
-              <div class="p-head"><em>The document</em> · as Original sees it</div>
+              <div class="p-head"><em>The piece</em> · <span class="fictional-tag">fictional essay</span></div>
               <div class="p-title">Essay 3 · On Augustine's restless heart</div>
               <div class="p-doc">
-                <span>The </span><span class="hl-ok">Confessions is a strange artefact</span><span>, at once a public book and a private one. </span>
-                <span class="hl-warn">It is imperative to acknowledge that the epistemological framework</span><span> underpinning Augustine's narrative </span><span class="hl-warn">facilitates a multifaceted exploration</span><span> of interiority. What I want to argue, briefly, is that </span><span class="hl-ok">the form is not incidental to the argument</span><span>: the interruptions are the theology.</span>
-              </div>
-              <div class="p-legend">
-                <span class="lg"><i class="sw sw-ok"></i>matches voice baseline</span>
-                <span class="lg"><i class="sw sw-warn"></i>stylometric anomaly</span>
+                The Confessions is a strange artefact, at once a public book and a private one. It is imperative to acknowledge that the epistemological framework underpinning Augustine's narrative facilitates a multifaceted exploration of interiority. What I want to argue, briefly, is that the form is not incidental to the argument: the interruptions are the theology.
               </div>
             </div>
 
-            <!-- 2 · The diagnosis, from the dashboard -->
+            <!-- 2 · What the teacher sees (fictional numbers) -->
             <div class="paper p2">
-              <div class="p-head"><em>The diagnosis</em> · pulled from the dashboard</div>
-              <div class="diag-alert">Notable stylometric deviation: 4 of 9 features outside baseline range</div>
+              <div class="p-head"><em>What the teacher sees</em> · <span class="fictional-tag">fictional example</span></div>
+              <div class="diag-alert">Reads differently from this student's approved writing: 4 of 9 shown features outside their usual range</div>
               <div class="diag-row">
                 <div class="diag-lbl">Sentence length</div>
                 <div class="diag-bars">
@@ -545,12 +559,12 @@
                   <div class="diag-bar"><span class="fill dev" style="width:24%"></span><span class="tag">this paper 0.22</span></div>
                 </div>
               </div>
-              <div class="diag-note">Deviation is a signal, not a verdict; one input into your judgement.</div>
+              <div class="diag-note">A difference is a reason for a conversation, never evidence. Testing phase: not yet validated on real student writing.</div>
             </div>
 
-            <!-- 3 · What we did -->
+            <!-- 3 · How it compares (illustration) -->
             <div class="paper p3">
-              <div class="p-head"><em>What we did</em> · the projection</div>
+              <div class="p-head"><em>How it compares</em> · <span class="fictional-tag">illustration</span></div>
               <div class="proj-visual">
                 <svg viewBox="0 0 220 120" width="100%" aria-hidden="true">
                   <g fill="none" stroke="rgba(122,78,45,0.35)" stroke-width="1">
@@ -562,17 +576,16 @@
                   <polygon points="60,34 100,52 74,92 30,80 36,54" fill="rgba(155,100,32,0.14)" stroke="#9b6420" stroke-width="1.5" stroke-dasharray="4 3"></polygon>
                   <line x1="118" y1="60" x2="140" y2="60" stroke="rgba(122,78,45,0.4)" stroke-width="1"></line>
                   <g font-family="Georgia, serif" font-size="9.5" fill="#5a4030">
-                    <text x="146" y="42">voice match</text>
-                    <text x="146" y="56" font-size="15" font-style="italic" fill="#162b22">0.71</text>
-                    <text x="146" y="78">flagged for</text>
-                    <text x="146" y="90">human review</text>
+                    <text x="146" y="42">reads</text>
+                    <text x="146" y="56" font-size="13" font-style="italic" fill="#162b22">differently</text>
+                    <text x="146" y="78">worth a</text>
+                    <text x="146" y="90">conversation</text>
                   </g>
                 </svg>
               </div>
               <div class="proj-caption">
-                109 features extracted, measured against this student's baseline
-                fingerprint <span class="rho">ρ</span>. Solid: their voice.
-                Dashed: this paper.
+                97 features compared with this student's own usual range.
+                Solid: their approved writing. Dashed: this piece.
               </div>
             </div>
           </div>
@@ -583,70 +596,34 @@
               <span>The baseline</span>
             </div>
             <h2 class="display reveal">
-              Three papers.<br>
-              <em>One voice.</em>
+              Their own pages.<br>
+              <em>Their own voice.</em>
             </h2>
             <div class="hr-gold reveal"></div>
             <div class="reveal-stagger">
               <p class="lede">
-                Original is not a detector of <em>difference from a norm</em>.
-                It is a detector of <em>difference from yourself</em>.
+                Original does not ask whether writing is <em>different from a
+                norm</em>. It asks whether it is <em>different from the
+                writer's own</em>.
               </p>
               <p class="lede">
-                The instructor authenticates <strong>five or more</strong> writing
-                samples in-class, by hand, or under supervision. From these,
-                Original constructs the student's baseline fingerprint,
-                a quantum density matrix <span style="font-family:var(--mono);color:var(--gold);">ρ</span>
-                spanning every tier.
+                The teacher approves pieces of the student's own writing,
+                <strong>five or more</strong> to start. From these, Original
+                builds the student's baseline: the usual value and the usual
+                spread of each feature.
               </p>
               <p class="lede">
-                Every later submission is measured against that baseline.
-                <em>The math is fair</em>: each student is compared only to themselves.
-                ESL students, neurodivergent writers, and idiosyncratic stylists
-                are not penalised for being unusual, only for being <em>suddenly
-                someone else.</em>
+                Every later piece is compared with that baseline, so each
+                student is measured only against themselves, and an unusual
+                style is not by itself a reason for concern. A piece can still
+                read differently for good reasons: the student learned
+                something, changed genre, revised heavily, used permitted help
+                or needed an accommodation. <em>A difference starts a
+                conversation; it never ends one.</em>
               </p>
             </div>
           </div>
         </div>
-      </div>
-    </section>
-
-    <!-- ─── Act V·b: The dashboard, previewed live ───────────────────── -->
-    <!-- The real page (original-quantum.html) runs inside the frame at its native
-         desktop width and is scaled to fit, so the preview cannot drift from it. -->
-    <section class="act ops-act" id="dashboard" data-screen-label="05a Dashboard">
-      <div class="container">
-        <div class="act-eyebrow reveal">
-          <span class="num">V·b</span>
-          <span>The dashboard</span>
-        </div>
-        <h2 class="display reveal">
-          The whole term on one page.<br>
-          <em>Every flag with its evidence.</em>
-        </h2>
-        <div class="hr-gold reveal"></div>
-        <p class="lede reveal" style="max-width: 60ch;">
-          This is what a professor opens on a Monday morning: the term at a glance,
-          the few papers that read differently from their writers' usual habits,
-          and a plain-English account of what moved. Choose <em>stats</em> on any
-          row to see one student's evidence, tier by tier.
-        </p>
-        <div class="ops-preview reveal">
-          <iframe src="original-quantum.html?embed=1" title="Live preview of the Original professor dashboard, with illustrative data" loading="lazy"></iframe>
-        </div>
-        <div class="ops-preview-foot reveal">
-          <span>Illustrative data · names are fictional</span>
-          <a href="original-quantum.html">Open full screen <span aria-hidden="true">→</span></a>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── Parallax photo break ─────────────────────────────────────── -->
-    <section class="act" style="padding: 0; min-height: 0;" data-screen-label="05b Photo break">
-      <div class="parallax-figure">
-        <img class="parallax-bg" src="assets/all-souls-engraving.webp" alt="West Front of All Souls College, 1834 engraving by F. Mackenzie and J. Le Keux">
-        <span class="caption">West Front of All Souls College · Mackenzie &amp; Le Keux, 1834</span>
       </div>
     </section>
 
@@ -658,16 +635,16 @@
           <span>The demonstration</span>
         </div>
         <h2 class="display reveal">
-          Try Original<br>
-          <em>on your own writing.</em>
+          See what gets measured<br>
+          <em>in your own writing.</em>
         </h2>
         <div class="hr-gold reveal"></div>
         <p class="lede reveal" style="max-width: 56ch;">
           Paste any passage: twenty words is enough, two hundred is
-          better. Your browser measures a handful of surface habits in real
-          time and draws a provisional fingerprint; nothing is sent anywhere.
-          (The full instrument, 109 features compared against a proctored
-          baseline, runs on the server.)
+          better. Your browser measures seven simple habits and draws a
+          decorative pattern from the text; nothing you paste leaves this
+          page. (Original itself compares 97 features with a student's
+          teacher-approved writing, and only inside a teacher's workspace.)
         </p>
 
         <div class="demo-grid reveal" id="demo-root">
@@ -687,7 +664,7 @@
           <div class="demo-readout">
             <div class="demo-readout-head">
               <span class="demo-label">FINGERPRINT</span>
-              <span class="demo-word-count" style="font-style:italic">live extraction</span>
+              <span class="demo-word-count" style="font-style:italic">drawing is decorative</span>
             </div>
             <div class="demo-readout-canvas">
               <canvas class="demo-canvas"></canvas>
@@ -707,7 +684,7 @@
               <div class="cell cell-features">
                 <div class="lbl">MEASURED</div>
                 <div class="v">·</div>
-                <div class="sub">here, in your browser</div>
+                <div class="sub">simple habits, in your browser</div>
               </div>
             </div>
           </div>
@@ -716,20 +693,21 @@
     </section>
 
     <!-- ─── Act VII: Closing ─────────────────────────────────────────── -->
-    <section class="act notnot-act" id="notnot" data-screen-label="06b What it is not" style="padding:5rem 0;">
+    <section class="act notnot-act" id="notnot" data-screen-label="06b What it is not" style="padding-top:5rem;padding-bottom:5rem;">
       <div class="container">
         <div class="notnot">
-          <div class="nn reveal"><div class="nn-x">✕</div><b>Not an AI-likelihood score.</b><span>Every comparison is against the student’s own proctored writing, never a black-box guess.</span></div>
-          <div class="nn reveal"><div class="nn-x">✕</div><b>Not surveillance.</b><span>No retroactive sweeps, no camera, no screen. Only work written under supervision builds a baseline.</span></div>
-          <div class="nn reveal"><div class="nn-x">✕</div><b>Not a verdict.</b><span>The professor stays the grader. The student always sees their own report: a gap to discuss, not a judgment.</span></div>
+          <div class="nn reveal"><div class="nn-x">✕</div><b>Not an AI detector.</b><span>It never labels writing as machine-made. Every comparison is with the student’s own teacher-approved writing.</span></div>
+          <div class="nn reveal"><div class="nn-x">✕</div><b>Not surveillance.</b><span>No camera, no screen recording, no keystroke biometrics. Only writing a teacher approves builds a baseline.</span></div>
+          <div class="nn reveal"><div class="nn-x">✕</div><b>Not a verdict.</b><span>The teacher decides. A difference is a reason to talk with the student, never proof, and “can’t tell yet” is an honest answer.</span></div>
+          <div class="nn reveal"><div class="nn-x">✕</div><b>Not a corrector.</b><span>Nothing rewrites or fixes a student’s work. The aim is a stronger writer, not a corrected one.</span></div>
         </div>
         <div class="promise reveal">
-          <div class="promise-h">The promise, per course, per semester</div>
+          <div class="promise-h">What a teacher gets</div>
           <div class="promise-grid">
-            <div class="pr"><div class="pr-n">Typed</div><div class="pr-t">Bluebook exams arrive typed, timed and searchable; no handwriting to decipher.</div></div>
-            <div class="pr"><div class="pr-n">Midterm</div><div class="pr-t">A verified writing profile for every student: zero student setup, proctored work only.</div></div>
-            <div class="pr"><div class="pr-n">Plain</div><div class="pr-t">A same-writer report when a paper is questioned, in language a committee can defend.</div></div>
-            <div class="pr"><div class="pr-n">Open</div><div class="pr-t">Every report is visible to the student. No hidden score, no black box.</div></div>
+            <div class="pr"><div class="pr-n">Typed</div><div class="pr-t">Bluebook sessions arrive typed, timed and sealed, ready to read, grade and export.</div></div>
+            <div class="pr"><div class="pr-n">Optional</div><div class="pr-t">Original stays off unless it is switched on for a workspace. Bluebook works fully without it.</div></div>
+            <div class="pr"><div class="pr-n">Approved</div><div class="pr-t">Only writing you approve becomes reference writing, and any approval can be undone.</div></div>
+            <div class="pr"><div class="pr-n">Honest</div><div class="pr-t">No “AI-written” label and no probability of cheating, ever.</div></div>
           </div>
         </div>
       </div>
@@ -737,8 +715,8 @@
 
     <section class="closing-act" data-screen-label="07 Closing">
       <div>
-        <div class="closing-quote peel">If you tell the truth, you will become original without ever having noticed it.</div>
-        <div class="closing-attrib reveal">C. S. Lewis</div>
+        <div class="closing-quote peel">Tell the truth, and you will become original without ever having noticed it.</div>
+        <div class="closing-attrib reveal">After C. S. Lewis, <em>Mere Christianity</em></div>
         <div class="closing-rule"></div>
       </div>
     </section>
@@ -749,39 +727,40 @@
         <div>
           <div class="brand">ORIGINAL <span style="color:var(--gold)">·</span></div>
           <div class="tagline">
-            Stylometric analysis that protects the space of authentic thought.
+            Writing-consistency support for teachers: a reason for a
+            conversation, never a verdict.
           </div>
         </div>
         <div>
           <h5>The Method</h5>
           <ul>
             <li><a href="#fingerprint">Fingerprint</a></li>
-            <li><a href="#method">109 features</a></li>
+            <li><a href="#method">The features</a></li>
             <li><a href="#tension">Tension arc κ</a></li>
-            <li><a href="#baseline">Baseline ritual</a></li>
+            <li><a href="#baseline">The baseline</a></li>
           </ul>
         </div>
         <div>
-          <h5>For Institutions</h5>
+          <h5>For Teachers</h5>
           <ul>
             <!-- The design linked a pilot brief, privacy, Canvas and docs pages.
-                 None exist for Original yet (demo/legal/ is Bluebook's policy);
-                 restore those links when they do. -->
-            <li><a href="index.html">Sign in</a></li>
-            <li><a href="bluebook/">Bluebook exams</a></li>
-            <li><a href="original-quantum.html">The dashboard</a></li>
+                 None exist for Original yet (demo/legal/ is Bluebook's draft
+                 policy, pending counsel); link them when they do. -->
+            <li><a href="bluebook/">Sign in to Bluebook</a></li>
+            <li><a href="#bluebook">How Bluebook works</a></li>
+            <li><a href="#notnot">What Original is not</a></li>
           </ul>
         </div>
         <div>
           <h5>For Writers</h5>
           <ul>
             <li><a href="#method">What we measure</a></li>
-            <li><a href="#notnot">What we don't</a></li>
+            <li><a href="#baseline">Compared with yourself</a></li>
             <li><a href="#demo">Try it on your writing</a></li>
           </ul>
         </div>
         <div class="colophon">
-          <span>© Original Stylometrics · MMXXVI</span>
+          <span>Original · MMXXVI · Testing phase: not yet validated on real student writing</span>
           <span><em>Originalis · auctor · est.</em></span>
         </div>
       </div>
@@ -811,18 +790,6 @@
       // Live demo
       const demoRoot = document.getElementById('demo-root');
       if (demoRoot) window.LiveDemo.attach({ root: demoRoot });
-
-      // Dashboard preview: scale the 1360px-wide frame to the column width.
-      const ops = document.querySelector('.ops-preview');
-      if (ops) {
-        const fit = () => ops.style.setProperty('--ops-scale', ops.clientWidth / 1360);
-        fit();
-        if ('ResizeObserver' in window) new ResizeObserver(fit).observe(ops);
-        else window.addEventListener('resize', fit);
-        // The custom cursor can't follow the pointer into the iframe; hide it there.
-        ops.addEventListener('pointerenter', () => document.body.classList.add('cursor-in-frame'));
-        ops.addEventListener('pointerleave', () => document.body.classList.remove('cursor-in-frame'));
-      }
     });
   </script>
 </body>

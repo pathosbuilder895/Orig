@@ -1,7 +1,8 @@
 /* ──────────────────────────────────────────────────────────────────────────
-   live-demo.js — paste-text → fingerprint extraction (mocked but believable).
-   Renders the user's text into pseudo-stylometric numbers, then animates
-   a small fingerprint canvas + feature strip.
+   live-demo.js: paste-text demo for the landing page.
+   Measures seven simple habits of the pasted text in the browser (nothing
+   is sent anywhere), then animates a decorative fingerprint canvas, seeded
+   from the text, and a strip of those measurements.
    ────────────────────────────────────────────────────────────────────────── */
 (function (window) {
   // simple deterministic hash for repeatable "fingerprints"
@@ -48,7 +49,7 @@
   }
 
   // Animate the strip with feature lines, then reveal the result panel.
-  // Plain English — written for a professor, not an engineer.
+  // Plain English, written for a teacher rather than an engineer.
   const FEATURE_LINES = [
     (s) => `Average sentence length: ${s.meanSent.toFixed(1)} words`,
     (s) => `Sentence variety: ${s.sdSent < 5 ? 'very consistent' : s.sdSent < 10 ? 'moderately varied' : 'highly varied'} (±${s.sdSent.toFixed(1)} words)`,
@@ -162,7 +163,8 @@
         // Class names are the design's; the cells now hold real measurements.
         result.querySelector('.cell-voice .v').textContent = stats.meanSent.toFixed(1);
         result.querySelector('.cell-kappa .v').textContent = Math.round(stats.ttr * 100) + '%';
-        result.querySelector('.cell-features .v').textContent = FEATURE_LINES.length + ' / 109';
+        // Seven browser measures, not seven of Original's 109 features.
+        result.querySelector('.cell-features .v').textContent = String(FEATURE_LINES.length);
         result.classList.add('show');
         running = false;
       }
