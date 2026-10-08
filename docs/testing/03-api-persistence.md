@@ -99,6 +99,9 @@ with `sort_keys=True`. A change is allowed but must be *deliberate*: the test
 message says "run `scripts/update_openapi_snapshot.py` and review the diff".
 Pair it with the TypeScript client generator already in `app/package.json`
 (`gen:client`) so the frontend's types cannot drift from the backend silently.
+**Implemented** (T-34): `tests/snapshots/openapi.json`, `tests/test_openapi_snapshot.py`,
+`scripts/update_openapi_snapshot.py`, and `make openapi-snapshot` now exist as
+described above.
 
 **4.2 Error-envelope consistency.** Every non-2xx from every route returns
 `{"detail": ...}` and never a stack trace or a raw SQL string. Route-table

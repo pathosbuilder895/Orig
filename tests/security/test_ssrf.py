@@ -101,9 +101,61 @@ def test_canvas_import_refuses_private_and_local_urls(
         f"server contacted {attacker_url!r} — recorded requests: "
         f"{[str(req.url) for req in seen]}"
     )
-    assert status is not None and 400 <= status < 500, (
-        f"expected a 4xx refusal for {attacker_url!r}, got {status!r}: {body_text}"
+    assert (
+        status is not None and 400 <= status < 500
+    ), f"expected a 4xx refusal for {attacker_url!r}, got {status!r}: {body_text}"
+
+
+NUMERIC_IP_ATTACKER_URLS = [
+    "https://2130706433",  # decimal encoding of 127.0.0.1
+    "https://0x7f000001",  # hex encoding of 127.0.0.1
+    "https://017700000001",  # octal encoding of 127.0.0.1
+    "https://127.1",  # shorthand a.b dotted encoding of 127.0.0.1
+    "https://10.1",  # shorthand a.b dotted encoding of 10.0.0.1
+    "https://0xa.0.0.1",  # mixed hex/decimal dotted encoding of 10.0.0.1
+]
+
+
+@pytest.mark.parametrize("attacker_url", NUMERIC_IP_ATTACKER_URLS)
+def test_canvas_import_refuses_numeric_ip_encodings(
+    two_tenants, live_client, monkeypatch, attacker_url
+):
+    """T-05: legacy BSD-style numeric IPv4 encodings (decimal, hex, octal and
+    shorthand a.b / a.b.c dotted forms) are refused. None is valid input to
+    ``ipaddress.ip_address``, so ``ensure_public_url`` treats each as a host
+    name and resolves it; ``socket.getaddrinfo`` parses these numeric forms
+    locally (no DNS query) to the same loopback or RFC-1918 address a
+    dotted-quad literal would name, and that address is rejected. The URLs
+    are https:// on purpose: the guard refuses plain http:// outright, so an
+    http:// case would pass on the scheme check without ever reaching the
+    resolution path this test exists to pin. Same contract as
+    ``test_canvas_import_refuses_private_and_local_urls`` above: the mocked
+    transport is never invoked and the response is a clean 4xx.
+    """
+    transport, seen = _recording_transport()
+    monkeypatch.setattr(
+        live_import,
+        "make_client",
+        lambda: httpx.AsyncClient(transport=transport, timeout=5.0),
     )
+
+    try:
+        r = live_client.post(
+            f"/canvas/baseline/{two_tenants['student_a']}/list-canvas-submissions",
+            json=_body(attacker_url),
+            headers=two_tenants["headers_a"],
+        )
+        status, body_text = r.status_code, r.text
+    except Exception as exc:
+        status, body_text = None, f"<unhandled exception before a response: {exc!r}>"
+
+    assert seen == [], (
+        f"server contacted {attacker_url!r} — recorded requests: "
+        f"{[str(req.url) for req in seen]}"
+    )
+    assert (
+        status is not None and 400 <= status < 500
+    ), f"expected a 4xx refusal for {attacker_url!r}, got {status!r}: {body_text}"
 
 
 def test_canvas_import_control_public_url_is_contacted(two_tenants, live_client, monkeypatch):

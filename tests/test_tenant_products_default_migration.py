@@ -16,8 +16,6 @@ import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 
-from tests.test_migration import _postgres_available
-
 pytestmark = pytest.mark.postgres
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -62,8 +60,8 @@ def _restore_logging(snapshot) -> None:
         lg.disabled = disabled
 
 
-def _migrated():
-    if not _postgres_available():
+def _migrated(postgres_available: bool):
+    if not postgres_available:
         pytest.skip("no reachable Postgres — set DATABASE_URL to run the migration test")
     from original.db import postgres_session
 
@@ -88,8 +86,8 @@ def _migrated():
 
 
 @pytest.fixture
-def migrated():
-    yield from _migrated()
+def migrated(postgres_available):
+    yield from _migrated(postgres_available)
 
 
 def _insert_default(conn, tenant_id: str):
@@ -125,7 +123,7 @@ def test_downgrade_restores_the_old_default_and_keeps_existing_rows(migrated):
         assert _products(conn, "made-under-new-default") == ["bluebook"]
 
 
-def test_alembic_runs_leave_process_logging_as_they_found_it():
+def test_alembic_runs_leave_process_logging_as_they_found_it(postgres_available):
     """alembic/env.py's fileConfig replaces the root logger's handlers, sets
     root to WARN and re-enables loggers, even with disable_existing_loggers
     False. The fixture must hand the process back as it found it, or every
@@ -135,7 +133,7 @@ def test_alembic_runs_leave_process_logging_as_they_found_it():
     probe.disabled = True  # fileConfig would switch this back on
     before = (list(root.handlers), root.level)
     try:
-        steps = _migrated()
+        steps = _migrated(postgres_available)
         next(steps)  # set-up: Alembic has run in-process
         # Not vacuous: Alembic really did change the process's logging.
         assert list(root.handlers) != before[0] or probe.disabled is False
