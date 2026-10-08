@@ -12,7 +12,7 @@ Platform for trusted writing submission and writing-consistency observation. Hel
 
 **Invitation-only Bluebook pilot for independent teachers.** Start with 1–3 teachers, possibly growing to a few dozen. No public signup.
 
-Engineering for this phase is merged (PRs #226, #227, 5 Oct 2026). **Nothing is deployed yet.**
+Engineering for this phase is merged (PRs #226, #227, 5 Oct 2026). **The pilot and a fictional demo are deployed; no teachers are invited yet.** See [`docs/STATUS.md`](docs/STATUS.md) for the live state.
 
 See [`docs/NORTH_STAR.md`](docs/NORTH_STAR.md) for mission, phase goals, and non-negotiables.
 
