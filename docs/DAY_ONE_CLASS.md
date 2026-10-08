@@ -23,6 +23,9 @@ If any of these is missing, you cannot collect **real** student writing today.
 
 - [ ] **`original-pilot` Render service is live** with all secrets set —
   `SECRET_KEY`, `MAINTENANCE_TOKEN`, `LTI_PLATFORMS`, backups, `/health` green.
+  The Blueprint generates the two pilot secrets independently; retain the
+  deployed values across syncs and restarts and store copies in the password
+  manager. Do not generate replacements as part of this day-one check.
   → [OPS_RUNBOOK.md](OPS_RUNBOOK.md). *(Never point a professor at
   `original-demo`.)*
 - [ ] **Signed DPA** on file. No real student writing without it.
