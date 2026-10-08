@@ -1,8 +1,8 @@
-# ADR-011: Restore the public landing page and preview the dashboard inside it
+# ADR-011: Restore the public landing page (without a dashboard preview)
 
 **Status:** Proposed
-**Date:** 2026-10-05
-**Deciders:** founder (product, copy, imagery, and where the landing is hosted)
+**Date:** 2026-10-05, revised 2026-10-07 for `docs/NORTH_STAR.md` v0.2 (STATUS.md task B)
+**Deciders:** Andrew (product, copy, imagery, and where the landing is hosted)
 **Supersedes:** the WS-7 step 5 retirement of `demo/landing.html` (AUDIT_2026-07-06 R4, ADR-008 R3 note)
 
 ## Context
@@ -22,131 +22,97 @@ PR #227 merged into main after this review (`c962a9177`). Rows marked "#227" are
 | 7 | Public over-claims: "FERPA Compliant", "stored encrypted", "Secure · Encrypted · Monitored"; the DPA promises automatic deletion that no sweeper performs | Pages fixed by #227; DPA text unchanged | `index.html:750,893`, `explainer.html:221`, `Landing.jsx:280`, `dpa_template.md:170-171` |
 | 8 | A score cannot be reproduced later: no text, baseline snapshot, flag set or SHA is stored | Open | `store.py:203-210,298-304` |
 
-Items closed since the September notes: the `/baseline-requests/pending` leak, Turnitin flat ids, `/seed.db` on real deploys, unauthenticated `POST /bluebook/submissions`, and `delete_student` completeness. Canvas SSRF and event-loop CPU work are partial.
+### What NORTH_STAR v0.2 changed (2026-10-07)
 
-### How Bluebook and Original fit together
+The first version of this ADR reconciled the design with the code. NORTH_STAR then set the rules the page must meet, and the 2026-10-07 revision applies them:
 
-```
-Student ── LTI /lti/launch  or  GET /bluebook/launch?t=  (reusable 14 days)
-   │  POST /bluebook/exams/{id}/session          server-pinned deadline
-   │  SEAL (Exam.jsx:488-524)
-   │    1  POST /students/{sid}/score            full professor output, to the student
-   │    2  POST /students/{sid}/baseline         provenance=proctored + X-Proctor-Attestation
-   │                                             → features → drift gate → student_profiles
-   │    3  POST /bluebook/submissions            readings computed in the browser
-Staff ── /auth/login → same token as professor.html → /bluebook/*, /proctor/park/*
-One FastAPI process · one database · one SECRET_KEY
-```
-
-Coupling problems: every sitting feeds Original's profiling with no professor approval and no Bluebook-only tenant before #227 added the product gate; Bluebook cannot run without Original's backend, and step 3 only runs if step 2 succeeds, so a drift 409 means the exam is never recorded; trust is inverted (items 1 and 4); keystrokes are captured and stored while Tier 17 is disabled.
-
-### What is usable today
-
-| Use | Readiness | Smallest next step |
-|---|---|---|
-| Bluebook as a standalone exam tool | Invitation-only and Bluebook-only by default since #227 | Deploy `original-pilot` on Postgres |
-| Bluebook as the proctored-baseline collector | Wired end to end; `proctored` was forgeable before #227 | Run physically proctored sittings to reach 5+ samples per student |
-| Original verification for a seminary pilot | Not ready: T-01 red, readiness advisory, no reproducibility | Withhold actions server-side under 5 authenticated samples; run report-only while baselines accumulate |
-| Original as a sales demo | Usable now | This ADR |
-
-### The design import
-
-Two Claude Design pages, received as published artifacts (DesignSync needed `/design-login`, which a headless session cannot run) and unpacked from their bundles:
-
-- **Original Landing.html**: the cinematic Oxford long-scroll (cold open, flattening, ruin, fingerprint, method, Bluebook, tension arc, baseline, demo, what it is not, closing).
-- **original-quantum.html**: a professor "Integrity Operations Center" mock (term stats, flag table, per-student tier inspector) over the fingerprint canvas.
-
-`landing.html` was deleted in WS-7 step 5 because nothing linked to it, yet `docs/OWNERS_MANUAL.md:32` still lists `/landing.html` as the marketing page. The whole `demo/` directory is static-mounted behind a denylist (`api.py:308-337`), so new pages are served on demo and pilot with no allowlist entry. #227 changed hosting: `/` now redirects to `/bluebook/` on real deploys (`/professor.html` on the demo), the `original-demo` Render service is gone, and the new `bluebook-teacher-demo` static origin publishes only an explicit allowlist (`scripts/build_teacher_demo_site.sh`). So `original-pilot` is the only deploy that serves `demo/`.
+- **Audience:** this phase is an invitation-only Bluebook pilot for independent teachers, not institutions or professors.
+- **Baselines:** sealing never adds work to a profile; only teacher-approved writing becomes a baseline, and approvals can be undone (rule 8). The page said sealed, proctored exams were "banked as baseline".
+- **Honest claims (rule 2):** no AI-authorship claims, no unsupported precision, and every fictional number or name is labelled fictional.
+- **No keystroke data (rule 6):** the page said keystroke features "stay off until they pass validation", which implies they could be switched on.
+- **Testing-phase label (rule 10):** Original is labelled as unvalidated wherever it appears.
+- **Port the dashboard's look, not its invented data (rule 9):** the dashboard mock was an invented term of flagged students.
+- **Student writing stays inside the deployment (rule 7):** the demo textarea sat on a page that loaded Google Fonts.
+- **Images (AGENTS.md, Claude Design):** no AI-generated images credited as historical art, and no unlicensed photographs.
 
 ## Decision
 
 1. Restore `demo/landing.html` from the design, served at `/landing.html` (on `original-pilot`, and locally). It does not become the front door in this change.
-2. Add `demo/original-quantum.html` as a standalone design-preview page with an `?embed=1` mode that drops the outer padding and chrome.
-3. Preview the dashboard inside the landing in a new section, **V·b The dashboard**, between the baseline act and the photo break: a same-origin iframe rendered at its native 1360 × 860 and scaled to the column with one CSS variable.
-4. Reconcile every claim on both pages with the shipped system, and say so on the page where the data is illustrative.
+2. **Do not ship the dashboard mock.** `demo/original-quantum.html` and the landing's "V·b The dashboard" iframe preview are removed. A real teacher dashboard is NORTH_STAR milestone 3 and belongs in the Bluebook teacher workspace, with real API data and the rule-10 label.
+3. Reconcile every claim on the page with the shipped system and NORTH_STAR (tables below).
+4. Show a testing-phase notice directly after the cold open, using the shared label text from STATUS.md, and label every illustrative number, name and drawing as fictional or illustrative.
+5. Self-host the fonts from `demo/assets/fonts` (the files Bluebook already serves), so the page makes no third-party request.
+6. Ship no image whose licence or provenance is in doubt (see Imagery).
 
-## Options considered (for the preview)
+## Options considered (for the dashboard preview)
 
-### Option A: Same-origin iframe, scaled (chosen)
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Low: ~25 lines of CSS, 10 of JS, 2 of embed CSS |
-| Cost | One extra document load, lazy (`loading="lazy"`) |
-| Scalability | The preview is the real page, so it cannot drift from it |
-| Team familiarity | Plain HTML; `X-Frame-Options: SAMEORIGIN` already allows it |
+*Kept for the record. The 2026-10-07 revision removed the preview altogether (Decision 2), so none of these ships.*
 
-**Pros:** total style and script isolation (the dashboard's global `nav`, `table`, `.card`, `.bar`, `*{margin:0}` rules and its `window.$`/`__inspect` globals would collide with the landing); stays interactive; one source of truth.
-**Cons:** scaled to ~0.25 on phones (made look-only there, with "Open full screen" to the responsive page); the custom cursor cannot follow into the frame (hidden while inside).
-
-### Option B: Inline the markup with every rule re-scoped under `.ops-preview`
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | High: ~160 rules and the JS rewritten |
-| Cost | No extra request |
-| Scalability | Two copies of the dashboard that drift apart |
-| Team familiarity | Familiar, but tedious and fragile |
-
-**Pros:** one document, crisp text at any width. **Cons:** maintenance burden and collision risk for no user-visible gain.
-
-### Option C: Shadow DOM web component
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Medium: every `getElementById` becomes a shadow-root query; fonts still load at document level |
-| Cost | No extra request |
-| Scalability | Single copy if the standalone page also uses the component |
-| Team familiarity | Low; nothing else in `demo/` uses it |
-
-### Option D: Static screenshot plus link
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Lowest |
-| Cost | One image |
-| Scalability | Goes stale on every design change |
-| Team familiarity | Trivial |
-
-**Cons:** not a preview: loses the live fingerprint, the inspector and the honesty of showing the real page.
-
-## Trade-off analysis
-
-The deciding forces were CLAUDE.md's "prefer simple over elaborate" and drift. A and D are the simple ones; only A keeps the preview identical to the page it advertises. B and C buy crisp phone rendering at the cost of a second copy or an unfamiliar mechanism, and the phone case is already served by the standalone page's own responsive layout.
+- **A. Same-origin iframe, scaled** (originally chosen): low complexity and no drift from the page it shows, but the page it showed was a mock with invented data.
+- **B. Inline the markup re-scoped under `.ops-preview`:** about 160 rules rewritten; two copies that drift.
+- **C. Shadow DOM web component:** unfamiliar in `demo/`; fonts still load at document level.
+- **D. Static screenshot plus link:** simplest, but goes stale.
 
 ## What changed against the design, and why
 
-### Claims reconciled with the code
+### 2026-10-05: claims reconciled with the code
 
 | Where | Design said | The code says | Page now says |
 |---|---|---|---|
-| Method | 103 features, "seven tiers", depth tier 1 → 12 | `FEATURE_DIM` 109 over 18 tiers; 97 active (T17 keystroke, T18 uniformity disabled) | 109 features across 18 tiers; seven *families*; 97 active, 12 off until validated |
+| Method | 103 features, "seven tiers", depth tier 1 → 12 | `FEATURE_DIM` 109 over 18 tiers; 97 active (T17 keystroke, T18 uniformity disabled) | 109 features defined across 18 tiers; seven *families*; 97 in use |
 | Method cards | Counts 12/14/11/16/18/14/18 (sum 103) | Real tiers grouped into the seven families | 11/17/25/14/7/12/11 (sum 97); mapping in an HTML comment above the section |
 | Card VII | "Voice authenticity: aggregate match against baseline" (that is the score, not a feature family) | T8 prosody, T12 κ, T13 clausulae | "Cadence & tension" |
-| Bluebook | Paper booklets scanned and transcribed; "two or three booklets in, the profile can vouch" | Bluebook is an in-browser locked exam; no scanning or OCR exists; T-01 is red at N=3 and N=5; readiness wants 5 | Locked exam window, sealed exams; "about five sealed exams in"; Original says when a baseline is thin |
-| Baseline | "three to five" samples; "projected onto that matrix" | Readiness at 5; actions come from `deviation_score`, not the ρ projection | "five or more"; "measured against that baseline" |
-| Demo | "Original will extract its surface features"; VOICE, κ and "103 / 103" | `live-demo.js` drew VOICE from a hash (`0.78 + rand × 0.20`), κ from sentence-length variance, and three more strip lines from the seed | Seven real in-browser measures; cells show mean sentence, vocabulary, 7 / 109; "nothing is sent anywhere" |
-| Promise | −30% grading time "beside the scan", "5 min", "0 honest students flagged" | Unmeasured; scanning not built; T-01 red | Typed, Midterm, Plain, Open |
-| Dashboard | 17 tiers, 103 measured; 59% and 52% labelled Flagged, 34% and 29% Needs review; flag rate 59% beside "121 of 128 in their own voice" | 18 tiers (16 active), 97 active; monitor 0.40-0.60, schedule_conversation 0.60-0.75; 7 of 128 is about 5% | 16 active, 97 measured; 66/62 and 47/43; 5%; an "Illustrative data · fictional names" chip |
-| Footer | Pilot brief, FERPA & GDPR, Canvas, documentation, terms, help | None of these pages exist in `demo/` | Sign in, Bluebook exams, The dashboard, and in-page anchors |
+| Bluebook | Paper booklets scanned and transcribed | Bluebook is an in-browser locked exam; no scanning or OCR exists | A locked, in-browser writing window |
+| Demo | "Original will extract its surface features"; VOICE, κ and "103 / 103" | `live-demo.js` drew VOICE from a hash (`0.78 + rand × 0.20`), κ from sentence-length variance, and three more strip lines from the seed | Only what the browser measures (see the 2026-10-07 table) |
+| Promise | −30% grading time "beside the scan", "5 min", "0 honest students flagged" | Unmeasured; scanning not built; T-01 red | Replaced (see the 2026-10-07 table) |
+
+### 2026-10-07: NORTH_STAR v0.2
+
+| Where | Page said | Why it changed | Page now says |
+|---|---|---|---|
+| Throughout | "professor", "proctor", "committee", "For Institutions", "THEO 301 · Dr. Hendricks" unlabelled | Audience is independent teachers; fictional names must be labelled (rule 2) | "teacher"; footer "For Teachers"; the booklet carries a "Fictional example" tag |
+| New | No notice | Rule 10 | A testing-phase band after the cold open: "Original is not yet validated on real student writing. Treat any result as a reason for a conversation, never as evidence." Repeated in the fictional result card and the footer |
+| Act I | "Plagiarism detectors" ask human or computer; Original "will show whether it is the same writer" | AI detectors ask that, not plagiarism detectors; Original supports judgement and gives no verdict (rule 1) | AI detectors ask the wrong question; Original "shows the teacher what moved, so the next step is a conversation, never a verdict" |
+| Fingerprint | "Measurable to a thousandth of a unit"; readout "A. Webb · 0x7C3", "STATE · resolved" | Unsupported precision; a fictional writer presented as real | "Original uses ninety-seven of them... A sketch, not proof"; readout "Fictional writer", "FEATURES · 109 defined", "IN USE · 97", "DRAWING · illustrative" |
+| Method | Twelve keystroke and uniformity features "stay off until they pass validation" | Rule 6: keystroke data is never collected, so T17 is never coming on | "Six keystroke-timing features, because Original collects no keystroke data, and six uniformity measures that have not passed validation"; the big count reads 97 |
+| Bluebook | Baseline built "only from proctored writing"; "each sealed exam becomes an authenticated sample"; "about five sealed exams in, the profile is ready" and Original "tells the professor while a baseline is still thin" | Rule 8: sealing adds nothing, only teacher-approved writing counts, approvals can be undone. T-01 is red at N=5 and no Bluebook screen shows readiness | Sealing adds nothing on its own; only work the teacher approves becomes reference writing; with few pieces it is not reliable, and testing found too many false alarms on small baselines, which is why Original is off by default |
+| Tension arc | "AI text, even when fluent, tends to flatten the arc"; "Models trained to be helpful resolve too eagerly"; "averaged over three authenticated samples"; "one orthogonal input" | No AI-authorship claims; three contradicted five; "orthogonal" is unmeasured | "One feature among ninety-seven, and not a test for machine writing"; "what it cannot do: it is not a lie detector"; an "Illustrative curve" tag (the landing draws synthetic data) |
+| Baseline cards | Phrase highlights for "matches voice baseline" and "stylometric anomaly"; "voice match 0.71 · flagged for human review"; "measured against this student's baseline fingerprint ρ" | Phrase-level highlighting is not a shipped feature; "voice match" is not an output; actions come from `deviation_score`, not a ρ projection | Plain fictional essay; "What the teacher sees · fictional example"; "reads differently · worth a conversation"; "97 features compared with this student's own usual range" |
+| Baseline copy | "Three papers"; the baseline is "a quantum density matrix ρ"; "the math is fair... not penalised for being unusual, only for being suddenly someone else" | Five, not three; the ρ framing implies it drives the comparison; fairness parity (G6) is unvalidated and rule 4 lists legitimate reasons writing changes | "Their own pages. Their own voice."; the baseline is "the usual value and the usual spread of each feature"; a different piece may reflect learning, genre, revision, permitted help or accommodations; "A difference starts a conversation; it never ends one" |
+| What it is not | "The student always sees their own report"; "no retroactive sweeps" | Neither is verified | Not an AI detector; not surveillance (no camera, screen recording or keystroke biometrics); not a verdict; **not a corrector** (rule 5) |
+| Promise | "A verified writing profile"; "language a committee can defend"; "every report is visible to the student" | Over-claims and misconduct framing | "What a teacher gets": Typed, Optional (Bluebook works without Original), Approved (only approved writing counts, approvals can be undone), Honest (no "AI-written" label, no probability of cheating) |
+| Demo | "Try Original on your own writing"; "7 / 109"; "provisional fingerprint"; "live extraction" | The browser's seven measures are not seven of the 109 features, and the drawing is seeded from a hash | "See what gets measured in your own writing"; "7 simple habits, in your browser"; "drawing is decorative"; "nothing you paste leaves this page" |
+| Closing | "If you tell the truth, you will become original..." credited to C. S. Lewis | A paraphrase presented as a quotation | Same paraphrase, credited "After C. S. Lewis, *Mere Christianity*" |
+| Footer | "© Original Stylometrics"; "The dashboard" link; "Sign in" to `index.html` | No such entity on file (legal pages still read `[ENTITY]`); the dashboard is gone; teachers sign in to Bluebook | "Original · MMXXVI · Testing phase..."; "Sign in to Bluebook" (`bluebook/`) |
+| Fonts | Google Fonts (Cormorant, EB Garamond, JetBrains Mono, Playfair Display) | Rule 7: the page has a writing textarea | Self-hosted from `demo/assets/fonts`; JetBrains Mono is replaced by IBM Plex Mono (the mono Bluebook ships); Playfair Display has no italic file there, so its italics are synthesised by the browser |
 
 ### Imagery
-- The dashboard hero was a watermarked third-party photograph ("Sarah Savic Kallesøe | Oxford by Night"). It is replaced by the public-domain 1822 Storer engraving, inverted into a night plate.
-- `st-andrews-ruins.webp` is a modern photograph with an identifiable passer-by and no licence on file. It ships as designed, but needs a licence or a replacement before public launch.
-- `all-souls-engraving` and `radcliffe-engraving` are byte-identical to "ChatGPT Image Jul 6, 2026" uploads in the Jul 11 export, while their captions credit Mackenzie & Le Keux (1834) and J. & H. S. Storer (1822). If they are AI renderings rather than restorations of the plates, the captions misattribute.
-- Engravings were converted from PNG to WebP (5.3 MB to 0.7 MB).
+
+All three photographic or engraved images are removed from the branch:
+
+- `st-andrews-ruins.webp`: a modern photograph with an identifiable passer-by and no licence on file. The ruin section now stands on a plain night gradient.
+- `radcliffe-engraving-navy.webp` and `all-souls-engraving.webp`: byte-identical to "ChatGPT Image Jul 6, 2026" uploads in the Jul 11 export, **and each prints a historical credit inside the image**: "Drawn & Eng.d by J. & H. S. Storer... London: Pub.d June 1. 1822 by Sherwood, Neely, & Jones", and "F. Mackenzie / J. Le Keux... Published Nov.r 1st 1834 by J. H. Parker". A corrected caption cannot fix a credit drawn into the picture. The cold open falls back to the design's dark hero (the `engraved` class is off; its CSS is kept), and the photo break before the demo is removed.
+- The design's original dashboard hero was a watermarked third-party photograph and was already replaced on 2026-10-05; it left with the dashboard.
+
+To bring the plates back, use genuine public-domain scans of the same plates (both were published in 1822 and 1834), credit them as what they are, re-add the `engraved` class and an `.hero-bg` image to the cold open, and restore the photo-break section from this PR's history.
 
 ### Design-tool scaffolding dropped
+
 React, ReactDOM and Babel standalone (about 4.3 MB, used only by the Tweaks panel), `image-slot.js`, the Claude Design badge, and the export's global scrollbar hiding. The Tweaks defaults are baked in as body attributes (Bodleian palette, full motion, epigraph hero, Playfair with EB Garamond). The repo's July `tension-arc.js` and `live-demo.js` were kept over the design's: they add the real tension series and a hidden-iframe failsafe. `fingerprint.js` and `scenes.js` are byte-identical to the design.
 
 ## Consequences
 
-- **Easier:** one URL to send a prospect (`/landing.html`), with the product visible in it; the dashboard design lives in the repo next to the code it describes.
-- **Harder:** marketing copy now has an owner in the repo. Any change to `FEATURE_DIM`, `DISABLED_FEATURE_GROUPS` or `ACTION_THRESHOLDS` should be checked against both pages.
-- **Revisit:** the landing still describes the product as it should be. Problems 2, 3 and 4 above keep "honest students are not flagged by a black box" untrue until T-01 is fixed and actions are withheld under five samples.
+- **Easier:** one URL to send a prospective teacher (`/landing.html`) that says plainly what Original is, what it is not, and that it is in testing. The page makes no third-party requests.
+- **Harder:** marketing copy now has an owner in the repo. Any change to `FEATURE_DIM`, `DISABLED_FEATURE_GROUPS`, `ACTION_THRESHOLDS` or the baseline-approval flow should be checked against the page.
+- **Visual cost:** without the plates, the cold open and the ruin section are typographic only, and there is no product screenshot on the page.
+- **Revisit:** problems 2, 3 and 4 above still stand. The page no longer promises otherwise, but they decide when Original can leave its testing phase.
 
 ## Action items
 
-1. [ ] Founder: review the reconciliation table; revert any line that reflects a deliberate product direction (for example, paper-booklet scanning).
-2. [ ] Licence or replace `st-andrews-ruins.webp`; confirm the provenance of both engravings and their captions.
-3. [ ] Decide where the landing lives. With `original-demo` gone it is reachable only at `original-pilot/landing.html`, whose root opens Bluebook; it is unlinked there.
-4. [ ] If it should live on the static `bluebook-teacher-demo` origin instead, add `landing.html`, `original-quantum.html`, `styles/original-landing.css`, `js/{cursor,fingerprint,tension-arc,live-demo,scenes}.js` and the three assets to `scripts/build_teacher_demo_site.sh`, and check that origin's `X-Frame-Options` still allows a same-origin frame.
-5. [ ] Give Original its own privacy and terms pages and link them from the footer. `demo/legal/` (from #227) is Bluebook's draft policy and does not describe Original's profiling.
-6. [ ] Keep `original-quantum.html` a mock, or wire it to a real overview endpoint (the design expects `GET /api/v1/overview`, which the live stack lacks; the loader now runs only when `window.ORIGINAL_API` is set). Never show real student data in the public preview.
-7. [ ] Before the landing's promises are true: withhold actions server-side under 5 authenticated samples (T-01); keep Bluebook's readings server-computed; store what is needed to reproduce a score.
+1. [ ] Andrew: review both reconciliation tables; revert any line that reflects a deliberate product direction.
+2. [ ] Andrew: choose final images. Genuine public-domain scans of the two plates, licensed photographs, or none (today's state).
+3. [ ] Andrew: decide where the landing lives. With `original-demo` gone it is reachable only at `original-pilot/landing.html`, whose root opens Bluebook; it is unlinked there.
+4. [ ] If it should live on the static `bluebook-teacher-demo` origin instead, add `landing.html`, `styles/original-landing.css`, `js/{cursor,fingerprint,tension-arc,live-demo,scenes}.js` and the `assets/fonts/` files the page uses to `scripts/build_teacher_demo_site.sh` (owned outside task B).
+5. [ ] Give Original its own privacy and terms pages and link them from the footer. `demo/legal/` (from #227) is Bluebook's draft policy, awaits counsel, and does not yet describe Original.
+6. [ ] Build the teacher-facing Original view as milestone 3 asks: real data, inside the teacher workspace, with the rule-10 label. Never show real student data on the public page.
+7. [ ] Before Original leaves its testing phase: withhold actions server-side under 5 approved samples (T-01); keep Bluebook's readings server-computed; store what is needed to reproduce a score.
