@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Original · Reports</title>
+<link rel="stylesheet" href="fonts.css" />
+<link rel="stylesheet" href="demo.css" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c;--navy:#0d1530;--navy-1:#101c40;--navy-2:#16244f;
+    --line:rgba(201,160,40,0.16);--line-soft:rgba(255,255,255,0.08);
+    --gold:#c9a028;--gold-2:#e0be55;--cream:#f5efe0;
+    --dim:rgba(245,239,224,0.62);--dim-2:rgba(245,239,224,0.42);
+    --ok:#6bbf8a;--watch:#d8b04a;--flag:#e0725a;--slate:#7d8aa8;
+    --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  html,body{height:100%;}
+  body{font-family:var(--body);color:var(--cream);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;font-size:16px;}
+  .frame{width:100%;max-width:1360px;height:min(900px,calc(100vh - 4.4rem));min-height:min(900px,calc(100vh - 4.4rem));position:relative;background:linear-gradient(160deg,#0c142e 0%,#0a1024 60%,#070b1c 100%);border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);display:flex;flex-direction:column;}
+  nav{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
+  .pills{display:flex;gap:.3rem;margin-left:1rem;}
+  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .9rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.95rem;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);text-decoration:none;}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .pill:hover{color:var(--cream);}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;}
+  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
+  .body{flex:1;overflow-y:auto;padding:0.4rem 2rem 2rem;min-height:0;position:relative;z-index:1;}
+  nav{position:relative;z-index:1;}
+  .frame::after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,rgba(9,14,34,0.34) 0%,rgba(8,12,30,0.72) 44%,rgba(7,11,26,0.94) 100%),radial-gradient(70% 55% at 50% 24%,rgba(201,160,40,0.1),transparent 72%);}
+  /* verdict header */
+  .verdict{display:flex;align-items:flex-start;justify-content:space-between;gap:1.5rem;padding:.6rem 0 1.4rem;border-bottom:1px solid var(--line-soft);margin-bottom:1.5rem;}
+  .verdict .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);}
+  .verdict h1{font-family:var(--display);font-weight:500;font-size:2.15rem;line-height:1.18;color:var(--cream);margin-top:.5rem;max-width:30rem;text-wrap:pretty;}
+  .verdict h1 b{font-weight:600;color:var(--gold-2);font-style:normal;}
+  .verdict .term{text-align:right;flex-shrink:0;}
+  .verdict .term .t{font-family:var(--display);font-size:1.15rem;color:var(--cream);}
+  .verdict .term .d{font-size:.9rem;color:var(--dim);font-style:italic;margin-top:.15rem;}
+  .export-btn{margin-top:.9rem;display:inline-flex;align-items:center;gap:.5rem;font-family:var(--body);font-size:.92rem;color:#0d1530;background:linear-gradient(160deg,var(--gold-2),var(--gold));border:none;border-radius:999px;padding:.55rem 1.1rem;cursor:pointer;font-weight:600;}
+  .export-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.9;}
+  /* KPI cards */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.6rem;}
+  .kpi{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:16px;padding:1.15rem 1.3rem;position:relative;overflow:hidden;}
+  .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent,var(--gold));}
+  .kpi .l{font-size:.92rem;color:var(--dim);}
+  .kpi .v{font-family:var(--mono);font-weight:700;font-size:2.2rem;color:var(--cream);margin-top:.5rem;line-height:1;}
+  .kpi .m{font-size:.85rem;color:var(--dim-2);margin-top:.5rem;font-style:italic;}
+  .kpi .m.up{color:var(--ok);font-style:normal;}
+  /* course tabs: rendered automatically from the courses that have students this term */
+  .course-tabs{display:flex;gap:.45rem;flex-wrap:wrap;margin-bottom:1.2rem;}
+  .ctab{display:inline-flex;align-items:baseline;gap:.5rem;white-space:nowrap;background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.5rem 1.05rem;font-family:var(--body);font-size:.96rem;cursor:pointer;transition:all .16s;}
+  .ctab:hover{color:var(--cream);border-color:var(--line);}
+  .ctab.on{background:rgba(201,160,40,0.12);border-color:rgba(201,160,40,0.5);color:var(--gold-2);}
+  .ctab .n{font-family:var(--mono);font-size:.66rem;color:var(--dim-2);}
+  .ctab.on .n{color:var(--gold-2);}
+  /* chart card */
+  .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:18px;padding:1.5rem 1.6rem;margin-bottom:1.5rem;}
+  .card-h{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:.3rem;}
+  .card-h .t{font-family:var(--display);font-weight:500;font-size:1.4rem;color:var(--cream);}
+  .card-h .s{font-size:.95rem;color:var(--dim);font-style:italic;margin-top:.2rem;text-wrap:pretty;}
+  .legend{display:flex;flex-wrap:wrap;gap:1.1rem;margin:1.1rem 0 .3rem;}
+  .legend .k{display:flex;align-items:center;gap:.5rem;font-size:.92rem;color:var(--dim);}
+  .legend .k i{width:14px;height:14px;border-radius:4px;display:inline-block;}
+  /* stacked bar chart */
+  .chart{position:relative;margin-top:1.3rem;}
+  .chart-grid{position:absolute;inset:0 0 34px 44px;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none;}
+  .chart-grid .gl{border-top:1px dashed rgba(245,239,224,0.09);position:relative;}
+  .chart-grid .gl span{position:absolute;left:-42px;top:-.6em;font-family:var(--mono);font-size:.72rem;color:var(--dim-2);width:36px;text-align:right;}
+  .bars{position:relative;display:flex;align-items:flex-end;gap:.5rem;height:280px;padding-left:44px;padding-bottom:34px;}
+  .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;cursor:pointer;position:relative;border-radius:5px;transition:background .13s;}
+  .col:hover{background:rgba(201,160,40,0.06);}
+  .stack{display:flex;flex-direction:column-reverse;height:100%;border-radius:4px 4px 0 0;overflow:hidden;transition:transform .5s cubic-bezier(.2,.8,.2,1);transform-origin:bottom;}
+  .seg{width:100%;transition:filter .13s;}
+  .seg.ok{background:var(--ok);}.seg.watch{background:var(--watch);}.seg.flag{background:var(--flag);}.seg.slate{background:var(--slate);}
+  .col:hover .seg{filter:brightness(1.12);}
+  .col .xl{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:.72rem;color:var(--dim-2);}
+  .col:hover .xl{color:var(--cream);}
+  .tip{position:absolute;z-index:10;pointer-events:none;background:rgba(9,15,34,0.97);border:1px solid var(--line);border-radius:12px;padding:.8rem .9rem;width:190px;box-shadow:0 18px 50px rgba(0,0,0,0.6);opacity:0;transform:translateY(4px);transition:opacity .12s;}
+  .tip.on{opacity:1;transform:translateY(0);}
+  .tip .th{font-size:.92rem;color:var(--cream);font-weight:500;border-bottom:1px solid var(--line-soft);padding-bottom:.45rem;margin-bottom:.45rem;}
+  .tip .tr{display:flex;align-items:center;gap:.5rem;font-size:.85rem;padding:.16rem 0;}
+  .tip .tr i{width:9px;height:9px;border-radius:2px;}
+  .tip .tr span{color:var(--dim);}.tip .tr b{margin-left:auto;font-family:var(--mono);color:var(--cream);}
+  /* two supporting reports */
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;}
+  .mini-row{display:flex;align-items:center;gap:.9rem;padding:.7rem 0;border-top:1px solid rgba(255,255,255,0.05);}
+  .mini-row:first-child{border-top:none;}
+  .mini-row .nm{font-size:.98rem;color:var(--cream);width:120px;flex-shrink:0;}
+  .mini-row .bar{flex:1;height:22px;border-radius:5px;background:rgba(245,239,224,0.06);overflow:hidden;display:flex;}
+  .mini-row .bar i{height:100%;}
+  .mini-row .val{font-family:var(--mono);font-size:.85rem;color:var(--dim);width:52px;text-align:right;flex-shrink:0;}
+  .bh-note{font-size:.9rem;color:var(--dim);font-style:italic;line-height:1.5;margin-top:1rem;text-wrap:pretty;}
+  .bh-note b{color:var(--gold-2);font-style:normal;font-weight:400;}
+  @media (max-width:900px){
+    body{padding:0;}.frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
+    nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;}
+    .kpis{grid-template-columns:repeat(2,1fr);}
+    .verdict{flex-direction:column;}.verdict .term{text-align:left;}
+    .two{grid-template-columns:1fr;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body class="demo-frame">
+<div class="demo-ribbon" role="note"><b>Fictional demonstration</b><span class="demo-ribbon-more">&nbsp;· every person, class, paper and number here is invented</span></div>
+<div class="frame">
+  <nav>
+    <div class="brand"><span class="mk"></span>Original</div>
+    <div class="pills">
+      <a class="pill" href="original-dashboard.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
+      <a class="pill" href="original-students.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
+      <a class="pill" href="original-review.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
+      <a class="pill" href="original-bluebook-teacher.html"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+      <a class="pill on" href="original-reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
+    </div>
+    <div class="nav-right"><div class="avatar">RH</div></div>
+  </nav>
+  <div class="body">
+    <div class="verdict">
+      <div>
+        <div class="eyebrow">Term Integrity Report</div>
+        <h1>This term looks <b>healthy</b>: 94% of papers read like the students who wrote them, steady across all 18 weeks.</h1>
+        <div class="demo-testing" role="note"><b>Testing phase:</b> Original is not yet validated on real student writing. Treat any result as a reason for a conversation, never as evidence.</div>
+      </div>
+      <div class="term">
+        <div class="t">Spring 2026</div>
+        <div class="d">Jan 12 – May 18 · 4 courses · 1,842 papers</div>
+        <button class="export-btn" onclick="window.print()"><svg viewBox="0 0 24 24"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Export term report</button>
+      </div>
+    </div>
+
+    <div class="course-tabs" id="course-tabs"></div>
+
+    <div class="kpis">
+      <div class="kpi" style="--accent:var(--gold)"><div class="l">Papers analyzed</div><div class="v">1,842</div><div class="m up">↑ 14% vs. last term</div></div>
+      <div class="kpi" style="--accent:var(--ok)"><div class="l">Within their usual range</div><div class="v">94%</div><div class="m up">↑ 1 point</div></div>
+      <div class="kpi" style="--accent:var(--watch)"><div class="l">Reviewed by faculty</div><div class="v">164</div><div class="m">median 2.1 days</div></div>
+      <div class="kpi" style="--accent:var(--slate)"><div class="l">Students with a ready baseline</div><div class="v">91%</div><div class="m up">↑ 7 points</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <div>
+          <div class="t">How each week's papers read</div>
+          <div class="s">Every paper falls into exactly one outcome. The share within their usual range stays high and steady: the flagged sliver is small and isn't growing.</div>
+        </div>
+      </div>
+      <div class="legend">
+        <div class="k"><i style="background:var(--ok)"></i>Within baseline</div>
+        <div class="k"><i style="background:var(--watch)"></i>Worth a look</div>
+        <div class="k"><i style="background:var(--flag)"></i>Reads differently</div>
+        <div class="k"><i style="background:var(--slate)"></i>Still building baseline</div>
+      </div>
+      <div class="chart">
+        <div class="chart-grid">
+          <div class="gl"><span>100%</span></div><div class="gl"><span>75%</span></div><div class="gl"><span>50%</span></div><div class="gl"><span>25%</span></div><div class="gl"><span>0%</span></div>
+        </div>
+        <div class="bars" id="bars"></div>
+        <div class="tip" id="tip"></div>
+      </div>
+    </div>
+
+    <div class="two">
+      <div class="card" style="margin-bottom:0;">
+        <div class="card-h"><div><div class="t">Baseline health</div><div class="s">Can Original judge a student yet?</div></div></div>
+        <div id="baseline"></div>
+        <div class="bh-note">A student needs a few authenticated samples before Original can tell their voice apart. <b>91%</b> of your students are ready; the rest are still building.</div>
+      </div>
+      <div class="card" style="margin-bottom:0;">
+        <div class="card-h"><div><div class="t">By assignment type</div><div class="s">Average deviation: context, not a verdict</div></div></div>
+        <div id="assign"></div>
+        <div class="bh-note">Take-home essays naturally deviate more than in-class exams: students write with more time and sources. <b>Higher isn't suspicious</b>, it's expected.</div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  // ── per-course data: a tab appears automatically for every course with enrolled students ──
+  const LABELS=['Jan 12','Jan 19','Jan 26','Feb 2','Feb 9','Feb 16','Feb 23','Mar 2','Mar 9','Mar 16','Mar 23','Apr 6','Apr 13','Apr 20','Apr 27','May 4','May 11','May 18'];
+  const COURSES={
+    'All courses':{students:128,papers:1842,auth:94,reviewed:164,ready:91,
+      weeks:[[92,4,2,2],[90,5,2,3],[91,4,3,2],[93,4,2,1],[89,6,3,2],[92,4,2,2],[90,5,3,2],[94,3,2,1],[91,5,3,1],[88,6,4,2],[90,5,4,1],[93,4,2,1],[92,4,3,1],[95,3,1,1],[93,4,2,1],[94,3,2,1],[95,3,1,1],[96,2,1,1]],
+      asg:[['Take-home essay',0.31],['Response paper',0.24],['Term paper',0.22],['In-class exam',0.11]],
+      head:'This term looks <b>healthy</b>: 94% of papers read like the students who wrote them, steady across all 18 weeks.'},
+    'THEO 301':{students:34,papers:512,auth:93,reviewed:52,ready:97,
+      weeks:[[91,5,2,2],[89,6,2,3],[90,5,3,2],[92,5,2,1],[88,7,3,2],[91,5,2,2],[89,6,3,2],[93,4,2,1],[90,6,3,1],[86,7,5,2],[89,6,4,1],[92,5,2,1],[91,5,3,1],[94,4,1,1],[92,5,2,1],[93,4,2,1],[94,4,1,1],[95,3,1,1]],
+      asg:[['Take-home essay',0.34],['Response paper',0.26],['In-class exam',0.10]],
+      head:'THEO 301 reads <b>steady</b>: one paper is with you for review; baselines are the strongest of any course.'},
+    'HIST 210':{students:41,papers:634,auth:94,reviewed:58,ready:90,
+      weeks:[[93,4,2,1],[91,5,2,2],[92,4,2,2],[94,3,2,1],[90,6,2,2],[93,4,2,1],[91,5,2,2],[95,3,1,1],[92,5,2,1],[89,6,3,2],[91,5,3,1],[94,3,2,1],[93,4,2,1],[96,2,1,1],[94,3,2,1],[95,3,1,1],[96,2,1,1],[97,2,1,0]],
+      asg:[['Term paper',0.23],['Response paper',0.22],['In-class exam',0.12]],
+      head:'HIST 210 looks <b>healthy</b>: flags are rare and not clustering around any assignment.'},
+    'PHIL 140':{students:28,papers:414,auth:95,reviewed:31,ready:84,
+      weeks:[[94,3,1,2],[92,4,1,3],[93,3,2,2],[95,3,1,1],[91,5,2,2],[94,3,1,2],[92,4,2,2],[96,2,1,1],[93,4,2,1],[91,5,2,2],[93,4,2,1],[95,3,1,1],[94,3,2,1],[97,2,0,1],[95,3,1,1],[96,2,1,1],[97,2,1,0],[97,2,1,0]],
+      asg:[['Take-home essay',0.28],['Response paper',0.23],['In-class exam',0.11]],
+      head:'PHIL 140 looks <b>quiet</b>: a few first-years are still building baselines; run a Bluebook session and approve the booklets as reference writing.'},
+    'BIBL 220':{students:25,papers:282,auth:94,reviewed:23,ready:88,
+      weeks:[[92,4,2,2],[90,5,2,3],[91,5,2,2],[93,4,2,1],[89,6,3,2],[92,4,2,2],[90,5,3,2],[94,3,2,1],[91,5,3,1],[90,5,3,2],[92,4,3,1],[93,4,2,1],[92,5,2,1],[95,3,1,1],[93,4,2,1],[94,3,2,1],[95,3,1,1],[96,2,1,1]],
+      asg:[['Response paper',0.25],['Term paper',0.21],['In-class exam',0.12]],
+      head:'BIBL 220 looks <b>healthy</b>, nothing flagged in the last month.'}
+  };
+  const KEYS=[['ok','Within baseline','var(--ok)'],['watch','Worth a look','var(--watch)'],['flag','Reads differently','var(--flag)'],['slate','Still building','var(--slate)']];
+  const bars=document.getElementById('bars'), tip=document.getElementById('tip');
+  let curCourse='All courses';
+
+  function renderTabs(){
+    document.getElementById('course-tabs').innerHTML=Object.keys(COURSES).map(k=>{
+      const c=COURSES[k];
+      return '<button class="ctab'+(k===curCourse?' on':'')+'" data-c="'+k+'">'+k+(k==='All courses'?'':' <span class="n">'+c.students+'</span>')+'</button>';
+    }).join('');
+    document.querySelectorAll('.ctab').forEach(b=>b.addEventListener('click',()=>{curCourse=b.dataset.c;renderTabs();renderAll();}));
+  }
+
+  function renderChart(){
+    const c=COURSES[curCourse];
+    bars.innerHTML='';
+    c.weeks.forEach((w,i)=>{
+      const label=LABELS[i], ok=w[0], watch=w[1], flag=w[2], slate=w[3], total=ok+watch+flag+slate;
+      const col=document.createElement('div'); col.className='col';
+      col.innerHTML='<div class="stack">'+
+        '<div class="seg ok" style="height:'+(ok/total*100)+'%"></div>'+
+        '<div class="seg watch" style="height:'+(watch/total*100)+'%"></div>'+
+        '<div class="seg flag" style="height:'+(flag/total*100)+'%"></div>'+
+        '<div class="seg slate" style="height:'+(slate/total*100)+'%"></div>'+
+        '</div><div class="xl">'+(i%2===0?label.split(' ')[0]:'')+'</div>';
+      const stack=col.querySelector('.stack');
+      stack.style.transform='scaleY(0)';
+      setTimeout(()=>stack.style.transform='scaleY(1)', 60+i*24);
+      col.addEventListener('click',()=>location.href='original-review.html?week='+encodeURIComponent(label)+(curCourse==='All courses'?'':'&course='+encodeURIComponent(curCourse)));
+      col.addEventListener('pointerenter',()=>{
+        tip.innerHTML='<div class="th">'+label+(curCourse==='All courses'?'':' \u00b7 '+curCourse)+'</div>'+
+          KEYS.map(k=>{const v={ok:ok,watch:watch,flag:flag,slate:slate}[k[0]];return '<div class="tr"><i style="background:'+k[2]+'"></i><span>'+k[1]+'</span><b>'+v+'%</b></div>';}).join('');
+        tip.classList.add('on');
+        let left=col.offsetLeft+col.offsetWidth/2-95;
+        left=Math.max(44,Math.min(left, bars.offsetWidth-190));
+        tip.style.left=left+'px'; tip.style.top='0px';
+      });
+      col.addEventListener('pointerleave',()=>tip.classList.remove('on'));
+      bars.appendChild(col);
+    });
+  }
+
+  function renderAll(){
+    const c=COURSES[curCourse];
+    document.querySelector('.verdict h1').innerHTML=c.head;
+    const kpis=document.querySelectorAll('.kpi');
+    kpis[0].querySelector('.v').textContent=c.papers.toLocaleString();
+    kpis[1].querySelector('.v').textContent=c.auth+'%';
+    kpis[2].querySelector('.v').textContent=c.reviewed;
+    kpis[3].querySelector('.v').textContent=c.ready+'%';
+    renderChart();
+    const BASE=[['Ready',c.ready,'var(--ok)'],['Building',Math.min(100-c.ready,7),'var(--watch)'],['None yet',Math.max(0,100-c.ready-7),'var(--slate)']];
+    document.getElementById('baseline').innerHTML=BASE.map(b=>
+      '<div class="mini-row"><div class="nm">'+b[0]+'</div><div class="bar"><i style="width:'+b[1]+'%;background:'+b[2]+'"></i></div><div class="val">'+b[1]+'%</div></div>'
+    ).join('');
+    const amax=0.4;
+    document.getElementById('assign').innerHTML=c.asg.map(a=>{
+      const cc=a[1]>=0.3?'var(--watch)':'var(--ok)';
+      return '<div class="mini-row"><div class="nm">'+a[0]+'</div><div class="bar"><i style="width:'+(a[1]/amax*100)+'%;background:'+cc+'"></i></div><div class="val">'+a[1].toFixed(2)+'</div></div>';
+    }).join('');
+  }
+
+  renderTabs(); renderAll();
+</script>
+</body>
+</html>

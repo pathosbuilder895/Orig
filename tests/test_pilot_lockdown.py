@@ -517,6 +517,7 @@ def test_no_admin_route_answers_a_student_principal(live_app, live_client):
         "/prototypes/",
         "/prototypes/index.html",
         "/prototypes/prototype.js",
+        "/prototypes/navy/original-dashboard.html",  # fictional navy suite
         "/bluebook/bluebook.bundle.js.map",  # T-06
     ],
 )
