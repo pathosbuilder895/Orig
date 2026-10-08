@@ -193,7 +193,7 @@ Then commit the bundle. Render has no Node — the committed `bluebook.bundle.js
 
 **Feature dimensions:** 109 features across 18 tiers; 97 active in pilot (Tier 17 keystroke and Tier 18 uniformity disabled per ADR-010 and pending validation gates).
 
-**Tests:** ~4,100+ pytest cases, 99%+ coverage, 11-12 minute runtime for full suite.
+**Tests:** CI (`.github/workflows/test.yml`) is the source of truth for the exact test command and enforces combined coverage with `coverage report --fail-under=98`. A full run takes several minutes. Get the live count with `python -m pytest --collect-only -q tests/ | tail -1`.
 
 ---
 
