@@ -67,7 +67,6 @@ def _summarise(outcomes):
 
 
 @pytest.mark.certification
-@pytest.mark.blocker
 @pytest.mark.parametrize("n_baselines", [3, 5, 10])
 def test_same_author_action_at_pilot_baseline_counts(
     live_client, store_reset, corpus_authors, n_baselines
@@ -86,7 +85,12 @@ def test_same_author_action_at_pilot_baseline_counts(
     authors the verdict is `uninformative` and the test skips rather than
     passing on noise.
 
-    Red on this branch by design — the saturation defect is open.
+    Green as of 2026-09-15: the cold-start saturation defect was fixed by
+    de-saturating the deviation tanh (scoring._DEVIATION_TANH_DIVISOR 1.5 ->
+    2.35). Measured at the API cert path: N=3 and N=5 both flag 0/11 genuine
+    holdouts (all monitor/no_action), N=10 uninformative (n=6 < MIN_AUTHORS).
+    The marker was @pytest.mark.blocker while the defect was open; removed with
+    the fix. See docs/testing/10-gap-register.md T-01.
     """
     name = f"T-01 cold-start FPR (N={n_baselines})"
 

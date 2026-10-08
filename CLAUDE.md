@@ -1,5 +1,9 @@
 # Original — Claude Code Instructions
 
+**Read `AGENTS.md` and `docs/NORTH_STAR.md` first.** Those files cover direction, phase, constraints, and how all tools work together. NORTH_STAR wins on conflicts. This file covers Claude Code mechanics only.
+
+---
+
 ## Project Overview
 Stylometric authorship verification system for academic integrity. Per-student quantum density matrix profiles scored via Born-rule projection. Targets seminaries and colleges. Positioned as pastoral, explainable, FERPA-compliant.
 

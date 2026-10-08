@@ -94,7 +94,13 @@ def test_large_pool_approaches_the_undamped_blend():
     # Damping must vanish asymptotically, not permanently discount the prior.
     huge = _score_with(_prior(100_000))
     undamped = _score_with({**_prior(10), "n_students": None})
-    assert abs(huge - undamped) < 1e-6, (
+    # Tolerance 1e-5 (was 1e-6): the residual damping at n=100_000 is a fixed
+    # rms_z difference, and de-saturating the deviation tanh
+    # (scoring._DEVIATION_TANH_DIVISOR 1.5 -> 2.35, 2026-09-15) moved this
+    # operating point out of tanh's flat tail into its steeper region, so the
+    # SAME rms_z residual now maps to a ~4x larger deviation difference (~2e-6).
+    # Convergence is unchanged; only the post-tanh resolution increased.
+    assert abs(huge - undamped) < 1e-5, (
         f"large-pool damped score {huge:.6f} should converge on the undamped "
         f"blend {undamped:.6f}"
     )

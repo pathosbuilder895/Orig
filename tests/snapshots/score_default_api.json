@@ -2,7 +2,7 @@
   "ai_likelihood": null,
   "authorship": {
     "authorship_probability": 0.8915057781,
-    "deviation_score": 0.7655885221,
+    "deviation_score": 0.5678969515,
     "fidelity_conformal_pvalue": null,
     "llr_deviation_score": null,
     "quantum_fidelity": 0.0
@@ -268,14 +268,14 @@
   "human_explanation": {
     "confidence_note": "Assessment based on 5 verified writing samples.",
     "ghostwriting_signal": false,
-    "severity": "serious",
-    "summary": "This submission shows significant authorship concerns (deviation score: 76%). Multiple features deviate substantially from the baseline, particularly integration of sources is dramatically higher than usual. Detailed review by the instructor is warranted.",
+    "severity": "watch",
+    "summary": "This submission shows minor stylistic variations from the baseline (deviation score: 56%), which may reflect topic differences or natural writing variation. No immediate action required, but continued monitoring is recommended.",
     "top_reasons": [
       "integration of sources is dramatically higher than usual",
       "use of passive voice is dramatically higher than usual",
       "pattern of hesitation markers is dramatically higher than usual"
     ],
-    "verdict": "This submission shows significant authorship concerns requiring review."
+    "verdict": "This submission shows minor variation from the student's baseline."
   },
   "interference": {
     "broken_entanglements": [
@@ -418,9 +418,9 @@
     "total_probability": 0.8915057781
   },
   "recommendation": {
-    "action": "escalate",
+    "action": "monitor",
     "confidence": 0.8347402147,
-    "rationale": "Deviation score 0.766 (primary verdict signal). Born authorship probability 0.892 (secondary alignment check). 5 destructive interference features detected. Primary anomaly: Source Integration Style. Born and deviation signals diverge by 0.66 \u2014 confidence reduced; manual review advised. Broken entanglement: T1\u2013T7 passive\u2013hedge entanglement."
+    "rationale": "Deviation score 0.568 (primary verdict signal). Born authorship probability 0.892 (secondary alignment check). 5 destructive interference features detected. Primary anomaly: Source Integration Style. Born and deviation signals diverge by 0.46 \u2014 confidence reduced; manual review advised. Broken entanglement: T1\u2013T7 passive\u2013hedge entanglement."
   },
   "report": null,
   "student_id": "flagbi:alice",
