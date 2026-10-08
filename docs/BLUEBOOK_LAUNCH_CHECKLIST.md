@@ -60,16 +60,20 @@ institutions buying Original.
   `original-pg-backup` and `bluebook-teacher-demo`. Approve. (An existing
   `original-demo` service is not part of the blueprint: suspend it yourself in
   the dashboard.)
-- [ ] It then asks for every `sync: false` value. Fill them in (below). Values
-  marked *generate* come from:
-  `python -c "import secrets; print(secrets.token_urlsafe(64))"`
+- [ ] On creation, fill in the required `sync: false` values below. Render
+  generates `SECRET_KEY` and `MAINTENANCE_TOKEN` independently via
+  `generateValue: true`; do not paste or regenerate these during routine setup.
+  Existing values are retained on later Blueprint syncs. Store the deployed
+  values securely in the operator password manager; never put them in Git,
+  chat, screenshots or logs. Existing services keep their current values;
+  previously exposed values require a deliberate rotation, not a Blueprint sync.
 
 **`original-pilot`**
 
 | Key | Value |
 |---|---|
-| `SECRET_KEY` | *generate*. Never reuse one that has appeared anywhere else. |
-| `MAINTENANCE_TOKEN` | *generate* (a different one). |
+| `SECRET_KEY` | Render-generated 256-bit value; retain across deploys and syncs. |
+| `MAINTENANCE_TOKEN` | Independently Render-generated 256-bit value; retain across deploys and syncs. |
 | `SENDGRID_API_KEY` | the `SG.…` key |
 | `MAIL_FROM` | `Bluebook <no-reply@your-domain>` — the address must be on the authenticated domain |
 | `PUBLIC_BASE_URL` | `https://bluebook.example.org` (or `https://original-pilot.onrender.com`), no trailing slash |

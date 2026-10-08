@@ -17,10 +17,10 @@ still exists in the Render dashboard, the owner suspends it. Never run sales dem
 
 ## Secrets (Render dashboard → original-pilot → Environment)
 
-| Var | What | Generate |
+| Var | What | Provision |
 |---|---|---|
-| `SECRET_KEY` | signs every session token; service REFUSES to boot without it | `python -c "import secrets; print(secrets.token_urlsafe(64))"` |
-| `MAINTENANCE_TOKEN` | `X-Guard-Token` header for provisioning/destructive endpoints; also the demo-only break-glass admin password — see [Destructive-endpoint guard](#destructive-endpoint-guard-maintenance_token--guard_destructive) | `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
+| `SECRET_KEY` | signs every session token; service REFUSES to boot without it | Render Blueprint `generateValue: true` (256-bit); existing value retained |
+| `MAINTENANCE_TOKEN` | `X-Guard-Token` header for provisioning/destructive endpoints; also the demo-only break-glass admin password — see [Destructive-endpoint guard](#destructive-endpoint-guard-maintenance_token--guard_destructive) | Independently Render-generated via `generateValue: true` (256-bit); existing value retained |
 | `LTI_PRIVATE_KEY` | tool RSA key for LTI | `openssl genrsa 2048` (paste PEM, `\n`-escaped) |
 | `LTI_PLATFORMS` | JSON array binding the Canvas issuer/client_id → tenant | see docs/CANVAS_RUNBOOK.md |
 | `BBOOK_API_URL` | base URL of the external Bbook exam app; unset = `/students/{id}/request-baseline` returns 503 with manual-upload guidance | from the Bbook deployment |
@@ -30,6 +30,15 @@ Blueprint syncs ignore `sync: false` vars, so adding `BBOOK_*` to
 `render.yaml` did not prompt anyone for values — both stay unset (and the
 endpoint stays 503) until an operator sets them here by hand. The in-repo
 `/bluebook/` exam room does not use them.
+
+For a new Blueprint, Render generates `SECRET_KEY` and `MAINTENANCE_TOKEN`
+independently. Routine
+Blueprint syncs and deploys retain existing values; they do not rotate exposed
+credentials. All other provider and backup credentials remain operator-managed.
+Never reuse a known-exposed value. For a deliberate rotation, generate a fresh
+value (for example `python -c "import secrets; print(secrets.token_urlsafe(48))"`)
+and replace only the intended dashboard variable outside teaching hours.
+Never commit, log, screenshot or paste credentials into chat.
 
 Keep copies in the password manager. **Rotating `SECRET_KEY` logs everyone out**
 (tokens are stateless); do it outside teaching hours and tell the professors.
