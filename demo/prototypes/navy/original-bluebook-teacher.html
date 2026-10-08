@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Original · Bluebook Sessions</title>
+<link rel="stylesheet" href="fonts.css" />
+<link rel="stylesheet" href="demo.css" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c;--navy:#0d1530;--navy-1:#101c40;--navy-2:#16244f;
+    --line:rgba(201,160,40,0.16);--line-soft:rgba(255,255,255,0.07);
+    --gold:#c9a028;--gold-2:#e0be55;--cream:#f5efe0;
+    --dim:rgba(245,239,224,0.58);--dim-2:rgba(245,239,224,0.4);
+    --flag:#e0725a;--warn:#d8b04a;--ok:#6bbf8a;--bb:#3a5ba0;
+    --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  html,body{height:100%;}
+  body{font-family:var(--body);color:var(--cream);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;font-size:16px;}
+  a{color:var(--gold-2);}a:hover{color:var(--cream);}
+  .frame{width:100%;max-width:1360px;height:min(900px,calc(100vh - 4.4rem));min-height:min(900px,calc(100vh - 4.4rem));position:relative;background:linear-gradient(160deg,#0c142e 0%,#0a1024 60%,#070b1c 100%);border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);display:flex;flex-direction:column;}
+  nav.top{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
+  .pills{display:flex;gap:.3rem;margin-left:1rem;}
+  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .9rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.95rem;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);text-decoration:none;}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .pill:hover{color:var(--cream);}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;}
+  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
+  .body{flex:1;overflow-y:auto;padding:.4rem 2rem 2rem;min-height:0;position:relative;z-index:1;}
+  nav.top{position:relative;z-index:1;}
+  .frame::after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,rgba(9,14,34,0.36) 0%,rgba(8,12,30,0.72) 42%,rgba(7,11,26,0.93) 100%),radial-gradient(70% 55% at 50% 24%,rgba(201,160,40,0.09),transparent 72%);}
+  .head h1,.head .sub{text-shadow:0 2px 18px rgba(7,11,28,0.9);}
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:1.5rem;padding:.6rem 0 1.3rem;border-bottom:1px solid var(--line-soft);margin-bottom:1.4rem;}
+  .head .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);}
+  .head h1{font-family:var(--display);font-weight:500;font-size:2rem;line-height:1.15;margin-top:.4rem;}
+  .head .sub{font-size:.98rem;color:var(--dim);font-style:italic;margin-top:.35rem;max-width:56ch;}
+  .head .sub b{color:var(--gold-2);font-style:normal;font-weight:400;}
+  .cols{display:grid;grid-template-columns:1.25fr 1fr;gap:1.5rem;align-items:start;}
+  .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:18px;}
+  /* ── Setup card ── */
+  .setup{padding:1.5rem 1.6rem 1.6rem;}
+  .setup-h{display:flex;align-items:center;gap:.7rem;margin-bottom:1.2rem;}
+  .bb-mark{width:34px;height:42px;border-radius:4px 8px 8px 4px;background:linear-gradient(160deg,#4a6cb5,#2c4a8c);border:1px solid rgba(255,255,255,0.18);border-left:3px solid rgba(255,255,255,0.25);box-shadow:0 4px 10px rgba(0,0,0,0.3);flex-shrink:0;position:relative;}
+  .bb-mark::after{content:'';position:absolute;left:6px;right:6px;top:9px;height:1px;background:rgba(255,255,255,0.35);box-shadow:0 5px 0 rgba(255,255,255,0.2),0 10px 0 rgba(255,255,255,0.2);}
+  .setup-h b{font-family:var(--display);font-weight:500;font-size:1.3rem;display:block;}
+  .setup-h span{font-size:.88rem;color:var(--dim);font-style:italic;}
+  .stepper{display:flex;flex-direction:column;gap:0;counter-reset:step;}
+  .step{position:relative;padding:0 0 1.5rem 2.6rem;counter-increment:step;}
+  .step::before{content:counter(step);position:absolute;left:0;top:-.15rem;width:30px;height:30px;border-radius:50%;background:rgba(201,160,40,0.12);border:1px solid rgba(201,160,40,0.35);color:var(--gold-2);font-family:var(--display);font-size:.95rem;display:flex;align-items:center;justify-content:center;}
+  .step:not(:last-child)::after{content:'';position:absolute;left:14.5px;top:32px;bottom:6px;width:1px;background:var(--line-soft);}
+  .step-q{font-family:var(--display);font-size:1.08rem;font-weight:500;margin-bottom:.6rem;}
+  .step-hint{font-size:.85rem;color:var(--dim-2);font-style:italic;margin-top:.5rem;}
+  textarea.prompt{width:100%;min-height:96px;background:rgba(255,255,255,0.04);border:1px solid var(--line-soft);border-radius:12px;padding:.85rem 1rem;color:var(--cream);font-family:var(--body);font-size:1.02rem;line-height:1.5;resize:vertical;outline:none;transition:border-color .15s;}
+  textarea.prompt:focus{border-color:rgba(201,160,40,0.45);}
+  textarea.prompt::placeholder{color:var(--dim-2);font-style:italic;}
+  .add-q{margin-top:.6rem;background:none;border:1px dashed rgba(201,160,40,0.35);color:var(--gold-2);border-radius:999px;padding:.35rem .9rem;font-family:var(--body);font-size:.85rem;cursor:pointer;}
+  .add-q:hover{background:rgba(201,160,40,0.08);}
+  .choice-row{display:flex;gap:.5rem;flex-wrap:wrap;}
+  .choice{background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.45rem 1rem;font-family:var(--body);font-size:.92rem;cursor:pointer;transition:all .15s;}
+  .choice:hover{color:var(--cream);border-color:var(--line);}
+  .choice.on{background:rgba(201,160,40,0.13);border-color:rgba(201,160,40,0.45);color:var(--gold-2);}
+  .time-row{display:flex;align-items:center;gap:1.1rem;}
+  input[type=range]{flex:1;appearance:none;-webkit-appearance:none;height:5px;border-radius:3px;background:rgba(245,239,224,0.12);outline:none;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:linear-gradient(160deg,var(--gold-2),var(--gold));cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4);}
+  .time-val{font-family:var(--mono);font-weight:700;font-size:1.25rem;color:var(--cream);width:96px;text-align:right;flex-shrink:0;}
+  .quiet-note{display:flex;gap:.7rem;background:rgba(107,191,138,0.07);border:1px solid rgba(107,191,138,0.2);border-radius:12px;padding:.8rem 1rem;font-size:.88rem;color:var(--dim);line-height:1.5;margin-top:.2rem;}
+  .quiet-note svg{width:17px;height:17px;stroke:var(--ok);fill:none;stroke-width:1.7;flex-shrink:0;margin-top:.1rem;}
+  .quiet-note b{color:var(--ok);font-weight:500;}
+  .launch-row{display:flex;align-items:center;gap:1rem;margin-top:1.3rem;padding-top:1.3rem;border-top:1px solid var(--line-soft);}
+  .launch{display:inline-flex;align-items:center;gap:.55rem;background:linear-gradient(160deg,var(--gold-2),var(--gold));color:#0d1530;border:none;border-radius:999px;padding:.7rem 1.5rem;font-family:var(--body);font-weight:600;font-size:1rem;cursor:pointer;box-shadow:0 6px 18px rgba(201,160,40,0.25);}
+  .launch svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;}
+  .launch-sum{font-size:.88rem;color:var(--dim);font-style:italic;}
+  .code-chip{display:none;align-items:center;gap:.8rem;background:rgba(58,91,160,0.15);border:1px solid rgba(90,130,200,0.4);border-radius:14px;padding:.9rem 1.2rem;margin-top:1.2rem;}
+  .code-chip.show{display:flex;}
+  .code-chip .code{font-family:var(--mono);font-weight:700;font-size:1.6rem;letter-spacing:.14em;color:#a8c2f0;}
+  .code-chip .cc-l{font-size:.85rem;color:var(--dim);line-height:1.45;}
+  .code-chip a{white-space:nowrap;}
+  /* ── Review side ── */
+  .rev{padding:1.3rem 1.4rem;}
+  .rev-h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.9rem;}
+  .rev-h b{font-family:var(--display);font-weight:500;font-size:1.15rem;}
+  .rev-h span{font-size:.82rem;color:var(--dim-2);}
+  .sess{display:flex;align-items:center;gap:.9rem;padding:.85rem 0;border-top:1px solid rgba(255,255,255,0.05);cursor:pointer;}
+  .sess:first-of-type{border-top:none;}
+  .sess:hover .s-t{color:var(--gold-2);}
+  .s-ic{width:30px;height:38px;border-radius:3px 6px 6px 3px;background:linear-gradient(160deg,#4a6cb5,#2c4a8c);border-left:2px solid rgba(255,255,255,0.25);flex-shrink:0;opacity:.85;}
+  .s-ic.done{background:linear-gradient(160deg,#3e4f6e,#2a3852);opacity:.6;}
+  .s-t{font-size:.98rem;color:var(--cream);transition:color .13s;}
+  .s-m{font-family:var(--mono);font-size:.68rem;color:var(--dim-2);margin-top:.15rem;}
+  .s-right{margin-left:auto;text-align:right;flex-shrink:0;}
+  .s-badge{display:inline-flex;align-items:center;gap:.4rem;font-size:.76rem;padding:.22rem .6rem;border-radius:999px;white-space:nowrap;}
+  .s-badge .d{width:6px;height:6px;border-radius:50%;background:currentColor;}
+  .s-badge.live{color:#a8c2f0;background:rgba(90,130,200,0.14);border:1px solid rgba(90,130,200,0.35);}
+  .s-badge.done{color:var(--ok);background:rgba(107,191,138,0.1);border:1px solid rgba(107,191,138,0.24);}
+  .s-badge.look{color:var(--warn);background:rgba(216,176,74,0.1);border:1px solid rgba(216,176,74,0.28);}
+  .s-sub{font-family:var(--mono);font-size:.66rem;color:var(--dim-2);margin-top:.3rem;}
+  .why{padding:1.2rem 1.4rem;margin-top:1.5rem;}
+  .why b{font-family:var(--display);font-weight:500;font-size:1.05rem;display:block;margin-bottom:.5rem;}
+  .why p{font-size:.9rem;color:var(--dim);line-height:1.55;font-style:italic;}
+  .why p b{display:inline;font-family:var(--body);font-style:normal;font-weight:500;color:var(--gold-2);font-size:.9rem;}
+  @media (max-width:900px){
+    body{padding:0;}.frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
+    nav.top{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;}
+    .cols{grid-template-columns:1fr;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body class="demo-frame">
+<div class="demo-ribbon" role="note"><b>Fictional demonstration</b><span class="demo-ribbon-more">&nbsp;· every person, class, paper and number here is invented</span></div>
+<div class="frame">
+  <nav class="top">
+    <div class="brand"><span class="mk"></span>Original</div>
+    <div class="pills">
+      <a class="pill" href="original-dashboard.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
+      <a class="pill" href="original-students.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
+      <a class="pill" href="original-review.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
+      <a class="pill on" href="original-bluebook-teacher.html"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+      <a class="pill" href="original-reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
+    </div>
+    <div class="nav-right"><div class="avatar">RH</div></div>
+  </nav>
+  <div class="body">
+    <div class="head">
+      <div>
+        <div class="eyebrow">Bluebook Sessions</div>
+        <h1>In-class writing, in their own hand.</h1>
+        <div class="sub">A Bluebook session is a supervised essay written live in class. Sealed booklets stay as written. If Original is on, <b>you choose</b> which become reference writing for each student, and you can undo that choice.</div>
+      </div>
+    </div>
+    <div class="cols">
+      <div class="card setup">
+        <div class="setup-h">
+          <div class="bb-mark"></div>
+          <div><b>Start a new session</b><span>Three questions. That's the whole setup.</span></div>
+        </div>
+        <div class="stepper">
+          <div class="step">
+            <div class="step-q">What should they write about?</div>
+            <div id="prompts">
+              <textarea class="prompt" placeholder="e.g. In two pages, explain the difference between Luther's and Calvin's views of the Lord's Supper, and which you find more persuasive, and why."></textarea>
+            </div>
+            <button class="add-q" onclick="addPrompt()">+ Add a second question</button>
+            <div class="step-hint">Write it the way you'd say it aloud. Students see exactly these words.</div>
+          </div>
+          <div class="step">
+            <div class="step-q">Which class?</div>
+            <div class="choice-row" id="course-row">
+              <button class="choice on">THEO 301 · 34 students</button>
+              <button class="choice">HIST 210 · 41 students</button>
+              <button class="choice">PHIL 140 · 28 students</button>
+              <button class="choice">BIBL 220 · 25 students</button>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-q">How long do they get?</div>
+            <div class="time-row">
+              <input type="range" id="time-slider" min="15" max="120" step="5" value="50" />
+              <div class="time-val" id="time-val">50 min</div>
+            </div>
+            <div class="quiet-note">
+              <svg viewBox="0 0 24 24"><path d="M12 3l8 4v6c0 5-3.5 7.5-8 8-4.5-.5-8-3-8-8V7z"/><path d="M9 12l2 2 4-4"/></svg>
+              <div><b>Everything else is already handled.</b> Work saves itself every few seconds. Bluebook keeps the text and a few session facts (time spent, word count, paste attempts, times the window lost focus), never the screen or camera. Session facts are context for you to read afterward, not evidence, and nothing interrupts a student mid-thought.</div>
+            </div>
+          </div>
+        </div>
+        <div class="launch-row">
+          <button class="launch" onclick="launchSession()"><svg viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg>Open the booklets</button>
+          <div class="launch-sum" id="launch-sum">THEO 301 · 1 question · 50 minutes</div>
+        </div>
+        <div class="code-chip" id="code-chip">
+          <div class="code">OPEN</div>
+          <div class="cc-l">Session is open. Students on this class roster find it under <b>My exams</b>. You can also <a href="original-bluebook-student.html">preview the student's booklet</a>.</div>
+        </div>
+      </div>
+      <div>
+        <div class="card rev">
+          <div class="rev-h"><b>Past sessions</b><span>this term</span></div>
+          <div class="sess" onclick="location.href='original-review.html'">
+            <div class="s-ic"></div>
+            <div><div class="s-t">Midterm: Romans 8–11</div><div class="s-m">THEO 301 · 14 Feb · 50 min</div></div>
+            <div class="s-right"><span class="s-badge done"><span class="d"></span>34 of 34 in</span><div class="s-sub">34 sealed</div></div>
+          </div>
+          <div class="sess" onclick="location.href='original-review.html'">
+            <div class="s-ic"></div>
+            <div><div class="s-t">In-class essay: Christology</div><div class="s-m">THEO 301 · 15 Jan · 45 min</div></div>
+            <div class="s-right"><span class="s-badge look"><span class="d"></span>1 worth a look</span><div class="s-sub">33 sealed</div></div>
+          </div>
+          <div class="sess" onclick="location.href='original-review.html'">
+            <div class="s-ic done"></div>
+            <div><div class="s-t">Reformation causes: response</div><div class="s-m">HIST 210 · 09 Jan · 40 min</div></div>
+            <div class="s-right"><span class="s-badge done"><span class="d"></span>41 of 41 in</span><div class="s-sub">41 sealed</div></div>
+          </div>
+        </div>
+        <div class="card why">
+          <b>Why Bluebook matters</b>
+          <p>Bluebook gives students a quiet, trustworthy place to write. If Original is switched on, the sealed booklets you <b>approve</b> become the reference writing it compares later papers against. More approved samples give it more to go on; with only a few, it may say it can't tell.</p>
+          <div class="demo-testing" role="note"><b>Testing phase:</b> Original is not yet validated on real student writing. Treat any result as a reason for a conversation, never as evidence.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  const slider=document.getElementById('time-slider'), tval=document.getElementById('time-val'), sum=document.getElementById('launch-sum');
+  let course='THEO 301';
+  function refreshSum(){ const n=document.querySelectorAll('#prompts textarea').length; sum.textContent=course+' · '+n+' question'+(n>1?'s':'')+' · '+slider.value+' minutes'; }
+  slider.addEventListener('input',()=>{ tval.textContent=slider.value+' min'; refreshSum(); });
+  document.querySelectorAll('#course-row .choice').forEach(c=>c.addEventListener('click',()=>{
+    document.querySelectorAll('#course-row .choice').forEach(x=>x.classList.remove('on'));
+    c.classList.add('on'); course=c.textContent.split(' ·')[0]; refreshSum();
+  }));
+  function addPrompt(){
+    const wrap=document.getElementById('prompts');
+    if(wrap.children.length>=4) return;
+    const t=document.createElement('textarea'); t.className='prompt'; t.style.marginTop='.6rem';
+    t.placeholder='Question '+(wrap.children.length+1)+': optional, students move between questions freely.';
+    wrap.appendChild(t); refreshSum();
+  }
+  function launchSession(){
+    document.getElementById('code-chip').classList.add('show');
+    document.querySelector('.launch').textContent='Session open';
+    document.querySelector('.launch').style.opacity='.65';
+  }
+</script>
+</body>
+</html>

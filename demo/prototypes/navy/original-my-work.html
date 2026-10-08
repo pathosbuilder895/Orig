@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>My Work · Original</title>
+<link rel="stylesheet" href="fonts.css" />
+<link rel="stylesheet" href="demo.css" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c;--navy:#0d1530;--navy-1:#101c40;
+    --line:rgba(201,160,40,0.16);--line-soft:rgba(255,255,255,0.07);
+    --gold:#c9a028;--gold-2:#e0be55;--cream:#f5efe0;
+    --dim:rgba(245,239,224,0.6);--dim-2:rgba(245,239,224,0.4);
+    --ok:#6bbf8a;--base:#8ba8dd;--warm:#e0a06a;
+    --gA:#e0be55;--gB:#8ba8dd;--gC:#c58fd0;
+    --paper:#faf6ec;--ink:#26221a;--ink-2:#5c564a;--rule:#e6dfcc;
+    --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;--hand:'Caveat',cursive;
+  }
+  html{scroll-behavior:smooth;}
+  body{font-family:var(--body);color:var(--cream);background:var(--navy-0);-webkit-font-smoothing:antialiased;font-size:16px;position:relative;}
+  body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(180deg,rgba(7,12,28,0.74) 0%,rgba(7,12,28,0.86) 38%,rgba(7,12,28,0.95) 100%);}
+  a{color:var(--gold-2);}a:hover{color:var(--cream);}
+  nav.top{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:1.2rem;padding:1rem 1.6rem;background:rgba(7,12,28,0.86);backdrop-filter:blur(14px);border-bottom:1px solid var(--line-soft);}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.25rem;letter-spacing:.04em;display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:8px;height:8px;background:var(--gold);transform:rotate(45deg);}
+  .pills{display:flex;gap:.25rem;margin-left:.8rem;overflow-x:auto;scrollbar-width:none;}
+  .pills::-webkit-scrollbar{display:none;}
+  .pill{display:inline-flex;align-items:center;gap:.45rem;padding:.45rem .9rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.94rem;text-decoration:none;white-space:nowrap;flex-shrink:0;transition:all .16s;}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .pill:hover{color:var(--cream);}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.8rem;font-size:.9rem;color:var(--dim);flex-shrink:0;}
+  .nav-right span{white-space:nowrap;}
+  .avatar{width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.9rem;}
+  .page{max-width:1240px;margin:0 auto;padding:1.8rem 1.6rem 4rem;}
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:2rem;padding-bottom:1.2rem;border-bottom:1px solid var(--line-soft);margin-bottom:1.5rem;}
+  .head h1,.head .s{text-shadow:0 2px 18px rgba(7,12,28,0.85);}
+  .eyebrow{font-family:var(--mono);font-size:.7rem;letter-spacing:.24em;text-transform:uppercase;color:var(--gold);}
+  .head h1{font-family:var(--display);font-weight:500;font-size:2.1rem;line-height:1.1;margin-top:.4rem;}
+  .head .s{font-size:1rem;color:var(--dim);font-style:italic;margin-top:.4rem;max-width:58ch;text-wrap:pretty;}
+  /* paper switcher */
+  .papers{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.4rem;}
+  .pchip{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);color:var(--dim);border-radius:12px;padding:.6rem 1rem;font-family:var(--body);font-size:.94rem;cursor:pointer;text-align:left;transition:all .16s;}
+  .pchip b{display:block;color:var(--cream);font-weight:500;font-size:.98rem;white-space:nowrap;}
+  .pchip span{display:block;font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim-2);margin-top:.2rem;}
+  .pchip:hover{border-color:var(--line);}
+  .pchip.on{background:rgba(201,160,40,0.1);border-color:rgba(201,160,40,0.45);}
+  .pchip.on span{color:var(--gold-2);}
+  /* layout */
+  .cols{display:grid;grid-template-columns:1fr 366px;gap:1.5rem;align-items:start;}
+  .doc{background:var(--paper);color:var(--ink);border-radius:16px;box-shadow:0 26px 70px rgba(0,0,0,0.45);overflow:hidden;}
+  .doc-h{padding:1.5rem 2.2rem 1.1rem;border-bottom:1px solid var(--rule);background:#f4eddb;}
+  .doc-h .t{font-family:var(--display);font-weight:500;font-size:1.5rem;}
+  .doc-h .m{font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);margin-top:.4rem;}
+  .doc-body{padding:1.8rem 2.2rem 2.4rem;font-size:1.1rem;line-height:1.85;}
+  .doc-body p{margin-bottom:1.15rem;text-wrap:pretty;}
+  .doc-body p:last-child{margin-bottom:0;}
+  /* highlight marks */
+  mark{background:none;color:inherit;cursor:pointer;border-radius:2px;padding:.06em .12em;transition:background .16s,box-shadow .16s;box-shadow:inset 0 -0.42em 0 var(--hl);}
+  mark.A{--hl:rgba(201,160,40,0.28);}
+  mark.B{--hl:rgba(90,130,200,0.26);}
+  mark.C{--hl:rgba(150,90,170,0.24);}
+  mark:hover{box-shadow:inset 0 -1.1em 0 var(--hl);}
+  mark.sel{box-shadow:inset 0 -1.1em 0 var(--hl),0 0 0 1.5px rgba(38,34,26,0.35);}
+  body.off mark{box-shadow:none;cursor:default;}
+  /* inspector */
+  .side{display:flex;flex-direction:column;gap:1rem;position:sticky;top:5.2rem;}
+  .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:16px;padding:1.2rem 1.3rem;}
+  .card .ch{display:flex;align-items:baseline;justify-content:space-between;gap:.8rem;margin-bottom:.9rem;}
+  .card .ch b{font-family:var(--display);font-weight:500;font-size:1.1rem;}
+  .card .ch span{font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);}
+  .toggle{display:flex;align-items:center;gap:.6rem;font-size:.9rem;color:var(--dim);cursor:pointer;user-select:none;}
+  .sw{width:36px;height:20px;border-radius:999px;background:rgba(245,239,224,0.14);position:relative;transition:background .18s;flex-shrink:0;}
+  .sw::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--cream);transition:transform .18s;}
+  .toggle.on .sw{background:rgba(201,160,40,0.65);}
+  .toggle.on .sw::after{transform:translateX(16px);}
+  .legend{display:flex;flex-direction:column;gap:.5rem;margin-top:.9rem;}
+  .lg{display:flex;align-items:center;gap:.6rem;font-size:.92rem;color:var(--dim);cursor:pointer;padding:.35rem .5rem;border-radius:9px;border:1px solid transparent;transition:all .15s;}
+  .lg:hover{color:var(--cream);background:rgba(255,255,255,0.04);}
+  .lg.on{border-color:var(--lc);color:var(--cream);background:rgba(255,255,255,0.05);}
+  .lg .swatch{width:20px;height:10px;border-radius:3px;background:var(--lc);flex-shrink:0;}
+  .lg .n{margin-left:auto;font-family:var(--mono);font-size:.68rem;color:var(--dim-2);}
+  /* detail */
+  .det{min-height:186px;}
+  .det .empty{font-size:.95rem;color:var(--dim);font-style:italic;line-height:1.6;}
+  .det .dt{font-family:var(--display);font-weight:500;font-size:1.18rem;color:var(--cream);}
+  .det .dfam{display:inline-flex;align-items:center;gap:.4rem;font-family:var(--mono);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dc);margin-top:.4rem;}
+  .det .dfam i{width:7px;height:7px;border-radius:50%;background:var(--dc);}
+  .det .dd{font-size:.97rem;line-height:1.6;color:rgba(245,239,224,0.84);margin-top:.7rem;text-wrap:pretty;}
+  .det .quote{margin-top:.9rem;padding:.8rem 1rem;background:rgba(255,255,255,0.04);border-left:2px solid var(--dc);border-radius:0 10px 10px 0;font-size:.97rem;line-height:1.55;color:var(--cream);font-style:italic;}
+  .det .rate{margin-top:.9rem;display:flex;align-items:center;gap:.7rem;}
+  .det .rate .bar{flex:1;height:6px;border-radius:4px;background:rgba(245,239,224,0.12);overflow:hidden;}
+  .det .rate .fill{height:100%;border-radius:4px;background:var(--dc);transition:width .5s;}
+  .det .rate .lbl{font-family:var(--mono);font-size:.66rem;color:var(--dim-2);white-space:nowrap;}
+  .det .also{font-size:.9rem;color:var(--dim);font-style:italic;margin-top:.85rem;line-height:1.5;}
+  .det .also a{font-style:normal;}
+  /* summary card */
+  .sum-row{display:flex;align-items:baseline;justify-content:space-between;padding:.5rem 0;border-top:1px solid rgba(255,255,255,0.05);font-size:.94rem;}
+  .sum-row:first-of-type{border-top:none;}
+  .sum-row span{color:var(--dim);}
+  .sum-row b{font-family:var(--mono);font-size:.86rem;font-weight:500;color:var(--cream);}
+  .sum-note{font-size:.9rem;color:var(--dim);font-style:italic;line-height:1.55;margin-top:.8rem;}
+  .sum-note b{font-style:normal;color:var(--gold-2);font-weight:500;}
+  .footer-note{margin-top:1.6rem;font-size:.9rem;color:var(--dim-2);font-style:italic;text-align:center;}
+  @media (max-width:960px){
+    .cols{grid-template-columns:1fr;}
+    .side{position:static;}
+    .doc-body{padding:1.4rem 1.3rem 1.8rem;font-size:1.05rem;}
+    .doc-h{padding:1.2rem 1.3rem 1rem;}
+    nav.top{flex-wrap:wrap;gap:.6rem;}.pills{order:3;width:100%;margin-left:0;}
+    .head{flex-direction:column;align-items:flex-start;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body class="demo-scroll">
+<div class="demo-ribbon" role="note"><b>Fictional demonstration</b><span class="demo-ribbon-more">&nbsp;· every person, class, paper and number here is invented</span></div>
+<nav class="top">
+  <div class="brand"><span class="mk"></span>Original</div>
+  <div class="pills">
+    <a class="pill" href="original-voice.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 4.2v2.4M12 17.4v2.4M4.2 12h2.4M17.4 12h2.4M6.6 6.6l1.7 1.7M15.7 15.7l1.7 1.7M17.4 6.6l-1.7 1.7M8.3 15.7l-1.7 1.7"/></svg>My Voice</a>
+    <a class="pill on" href="original-my-work.html"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>My Work</a>
+    <a class="pill" href="original-library.html"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 016.5 3H11v18H6.5A2.5 2.5 0 004 18.5z"/><path d="M13 3h4.5A2.5 2.5 0 0120 5.5v13a2.5 2.5 0 00-2.5-2.5H13z"/></svg>Library</a>
+    <a class="pill" href="original-bluebook-student.html"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+  </div>
+  <div class="nav-right"><span>THEO 301 · Spring 2026</span><div class="avatar">JW</div></div>
+</nav>
+
+<div class="page">
+  <div class="head">
+    <div>
+      <div class="eyebrow">My Work</div>
+      <h1>Your writing, with your habits shown.</h1>
+      <div class="s">This is what Original actually reads. The marks aren't corrections: they're the places your own voice is most recognisable. Click one to see the habit behind it.</div>
+      <div class="demo-testing" role="note"><b>Testing phase:</b> Original is not yet validated on real student writing. Your teacher may approve your sealed Bluebook work as reference writing for it, and can undo that approval.</div>
+    </div>
+  </div>
+
+  <div class="papers" id="papers"></div>
+
+  <div class="cols">
+    <div class="doc">
+      <div class="doc-h"><div class="t" id="doc-t"></div><div class="m" id="doc-m"></div></div>
+      <div class="doc-body" id="doc-body"></div>
+    </div>
+    <div class="side">
+      <div class="card">
+        <div class="ch"><b>Show me</b><span id="mark-count">–</span></div>
+        <div class="toggle on" id="hl-toggle"><span class="sw"></span><span>Highlight my habits</span></div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="card det" id="det">
+        <div class="empty">Click any highlighted phrase in your essay and the habit behind it appears here: what it is, how often you do it, and how it compares with your usual range.</div>
+      </div>
+      <div class="card">
+        <div class="ch"><b>This piece at a glance</b></div>
+        <div id="glance"></div>
+        <div class="sum-note" id="glance-note"></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-note">Original never grades your prose. It only notices what is consistently, recognisably yours.</div>
+</div>
+
+<script>
+  const FAM={A:{n:'How your sentences look',c:'#e0be55'},B:{n:'How your ideas connect',c:'#8ba8dd'},C:{n:'How you make your case',c:'#c58fd0'}};
+  // habit definitions referenced by the marks
+  const H={
+    rhythm:{f:'A',t:'Long, then short',d:'You follow a long winding sentence with a very short one. Of all 34 habits in your portrait this is the most recognisable: it appears in every piece you have written.',rate:88,band:'82\u201394%',also:'Chesterton does this constantly: see the Library.'},
+    dash:{f:'A',t:'The em dash',d:'You interrupt yourself mid-thought with a dash, then finish the sentence anyway.',rate:91,band:'85\u201396%'},
+    plain:{f:'A',t:'Plain words over Latin ones',d:'Where another writer reaches for \u201cutilise\u201d or \u201cnecessitate\u201d, you use the short Anglo-Saxon word. It makes your prose sound spoken.',rate:66,band:'58\u201374%'},
+    active:{f:'A',t:'Active voice',d:'You write \u201cCyril said\u201d, not \u201cit was said by Cyril\u201d. Someone is always doing something in your sentences.',rate:79,band:'72\u201386%'},
+    semi:{f:'A',t:'The semicolon, sparingly',d:'You use one only when two halves of a thought are genuinely balanced against each other: about once a page.',rate:28,band:'20\u201336%'},
+    opener:{f:'B',t:'Argument-first paragraphs',d:'You open a paragraph with the claim itself rather than with \u201cHowever\u201d or \u201cFurthermore\u201d. Only 1 in 9 of your paragraphs starts with a transition word.',rate:86,band:'79\u201392%'},
+    contrast:{f:'B',t:'Contrast over addition',d:'You move an argument forward by pushing against something (but, yet, and still) far more than by adding to it.',rate:68,band:'61\u201375%'},
+    endpoint:{f:'B',t:'The point lands last',d:'You build a paragraph toward its main claim instead of announcing it first. Your final sentence usually carries the weight.',rate:73,band:'66\u201380%'},
+    chain:{f:'B',t:'Word chains',d:'You hold a paragraph together by circling one family of words (council, canon, formula) rather than by signposting.',rate:63,band:'56\u201370%'},
+    certain:{f:'C',t:'You state it flatly',d:'You put the position down without cushioning it, then spend the next sentences defending it. Softening words are rare in your writing.',rate:84,band:'77\u201390%'},
+    objection:{f:'C',t:'Answering the objection',d:'You raise the strongest opposing reading before you answer it. This is a habit of argument, not of style, and it is unusually consistent in your work.',rate:66,band:'59\u201373%'},
+    quote:{f:'C',t:'Quotes built in, not dropped in',d:'You fold a source into the grammar of your own sentence rather than parking it after a colon.',rate:72,band:'65\u201379%'},
+    close:{f:'C',t:'Ending on the consequence',d:'You close on what follows from the argument, not on a summary of it. You have never once ended a paper with \u201cIn conclusion\u201d.',rate:64,band:'57\u201371%'}
+  };
+  // ── the actual papers, with habits marked in the prose ─────────────────────
+  const PAPERS=[
+    {id:'hypo',t:'The Hypostatic Union',m:'24 MAR 2026 \u00b7 THEO 301 \u00b7 TAKE-HOME \u00b7 2,140 WORDS',state:'with your instructor',
+     note:'This paper is currently with Dr. Hendricks. Fewer of your habits appear here than in your other work, which is why it was set aside for a conversation, not a conclusion.',
+     glance:[['Habits recognised','9 of 34'],['Marks in this excerpt','11'],['Reads as your voice','partly']],
+     body:[
+      "[opener|Chalcedon did not solve the problem of the two natures.] What the council did &mdash; [dash|and the distinction matters more than the formula itself] &mdash; was fence the question round with four adverbs and forbid us to walk past them. [rhythm|That is not a solution. It is a boundary.]",
+      "The Antiochene school began from the humanity and worked upward; Alexandria began from the Word and worked down. [contrast|But both schools wanted the same thing,] and neither would say the sentence the other needed to hear.",
+      "[objection|A reader might object that Cyril's twelfth anathema makes the suffering of the Word impossible to state without contradiction.] The objection is fair, and it is the reason the formula is negative rather than positive. [certain|Cyril meant what he said.] The Word suffered &mdash; impassibly, yes, but really.",
+      "[quote|When Leo writes that each nature \u201cperforms what is proper to it in communion with the other\u201d, he is not describing a mechanism;] he is refusing one. [endpoint|The refusal is the doctrine.]",
+      "[close|What follows for us is smaller and harder than a definition: that the two things we cannot hold together in thought were held together in a person, and that our inability to state it is not evidence against it.]"
+     ]},
+    {id:'aug',t:'Augustine Response',m:'18 MAR 2026 \u00b7 THEO 301 \u00b7 TAKE-HOME \u00b7 940 WORDS',state:'reads as your voice',
+     note:'A clean match. <b>Twenty-two</b> of your habits appear here: this is what your voice looks like when nothing is in question.',
+     glance:[['Habits recognised','22 of 34'],['Marks in this excerpt','12'],['Reads as your voice','clearly']],
+     body:[
+      "[opener|Augustine does not argue his way to the restless heart; he confesses it.] [rhythm|The Confessions are not a treatise with a story attached, and reading them as one flattens everything that makes them worth reading. They are a prayer that happens to have an argument inside it.]",
+      "[plain|The Latin is plain where we expect it to be grand.] [dash|He asks God a question &mdash; seriously, not rhetorically &mdash; and then waits inside the sentence for an answer.]",
+      "[objection|One could reply that the memory books are a philosophical excursus, wedged in and detachable.] [certain|They are not detachable.] [chain|Memory, in Augustine, is the room where God is found; the search, the storehouse, the descent through his own past &mdash; all of it is one movement, not three.]",
+      "[active|Nothing in these books happens by itself.] God calls, the will resists, the memory yields. [semi|The grammar carries the theology; you cannot make his sentences passive without making his God passive too.]",
+      "[endpoint|The restlessness is not solved by book ten.] [close|It is redirected, which is a different and more useful thing to be told.]"
+     ]},
+    {id:'chris',t:'In-Class Essay: Christology',m:'15 JAN 2026 \u00b7 THEO 301 \u00b7 WRITTEN IN CLASS \u00b7 217 WORDS',state:'part of your portrait',
+     note:'Your first supervised piece: the one that started the portrait. <b>Eleven</b> habits were recognisable from these 217 words alone.',
+     glance:[['Habits recognised','11 of 34'],['Marks in this excerpt','7'],['Role','baseline sample']],
+     body:[
+      "[opener|The question is not whether Christ was divine, but how the New Testament can say so without ever arguing for it.] [rhythm|Paul writes hymns about it, John writes a prologue about it, and Hebrews opens by assuming it in a single sentence of Greek that no one in the room would have called controversial. Nobody defends the claim. Everyone sings it.]",
+      "[contrast|But the councils had to argue, because by the fourth century the singing had stopped being enough.] [dash|What Nicaea produced was not a new doctrine &mdash; it was an old one under pressure, forced into prose.]",
+      "[certain|The creed is a fence, not a photograph.] [close|It tells us where the road ends, and leaves the walking to us.]"
+     ]},
+    {id:'herm',t:'Response Paper: Hermeneutics',m:'16 MAR 2026 \u00b7 THEO 301 \u00b7 INSTRUCTOR VERIFIED \u00b7 206 WORDS',state:'part of your portrait',
+     note:'Verified by Dr. Hendricks, so this piece <b>defines</b> your voice. It added <b>nine</b> habits: mostly in how you handle sources.',
+     glance:[['Habits recognised','9 of 34'],['Marks in this excerpt','7'],['Role','baseline sample']],
+     body:[
+      "[opener|Every reader arrives with a prior reading.] [rhythm|Gadamer's point is not that our assumptions are a regrettable fog we should try to wipe off the glass before we begin, but that without them we could not see the text as a text at all. The fog is the eye.]",
+      "[quote|When he calls understanding a \u201cfusion of horizons\u201d, he is describing a meeting, not a surrender;] [plain|the word is fusion, not replacement.]",
+      "[objection|The obvious worry is that this licenses any reading at all.] [certain|It does not.] [endpoint|A horizon can be widened by the text and found wrong by it, which is precisely what a bad reading cannot survive.]",
+      "[close|So the discipline is not to arrive empty, but to arrive correctable.]"
+     ]},
+    {id:'rom',t:'Midterm: Romans 8\u201311',m:'14 FEB 2026 \u00b7 THEO 301 \u00b7 PROCTORED \u00b7 239 WORDS',state:'part of your portrait',
+     note:'Written under supervision, so this piece <b>defines</b> your voice rather than being measured against it. Short, but unusually dense with your habits.',
+     glance:[['Habits recognised','14 of 34'],['Marks in this excerpt','8'],['Role','baseline sample']],
+     body:[
+      "[opener|Paul does not change the subject at chapter nine.] [rhythm|He has just said that nothing can separate us from the love of God, and the very next thing he does is grieve over the people to whom the promises were given &mdash; which would be a strange way to celebrate an unbreakable love unless the two thoughts were the same thought. They are.]",
+      "[contrast|But the objection he raises against himself is sharper than the one his readers would have raised.] [certain|If the promise can fail for Israel, it can fail for anyone.]",
+      "[dash|The olive tree answers it &mdash; not by softening the warning, but by putting the reader inside it.] [close|Grafted branches have no grounds for confidence except the root.]"
+     ]}
+  ];
+
+  let cur=0, sel=null, famOn={A:true,B:true,C:true}, hlOn=true;
+  const $=id=>document.getElementById(id);
+  const RX=/\[(\w+)\|([^\]]+)\]/g;
+
+  function renderPapers(){
+    $('papers').innerHTML=PAPERS.map((p,i)=>'<button class="pchip'+(i===cur?' on':'')+'" data-i="'+i+'"><b>'+p.t+'</b><span>'+p.state+'</span></button>').join('');
+    $('papers').querySelectorAll('.pchip').forEach(b=>b.onclick=()=>{cur=+b.dataset.i;sel=null;renderPapers();renderDoc();renderLegend();renderDet();renderGlance();});
+  }
+  function renderDoc(){
+    const p=PAPERS[cur];
+    $('doc-t').textContent=p.t;$('doc-m').textContent=p.m;
+    let n=0;
+    $('doc-body').innerHTML=p.body.map(par=>'<p>'+par.replace(RX,(_,k,txt)=>{
+      const h=H[k];if(!h)return txt;n++;
+      return '<mark class="'+h.f+'" data-k="'+k+'">'+txt+'</mark>';
+    })+'</p>').join('');
+    $('mark-count').textContent=n+' marks';
+    $('doc-body').querySelectorAll('mark').forEach(m=>m.onclick=()=>{ if(!hlOn) return; sel=m.dataset.k;
+      $('doc-body').querySelectorAll('mark').forEach(x=>x.classList.remove('sel'));m.classList.add('sel');renderDet(); });
+    applyFilter();
+  }
+  function renderLegend(){
+    const p=PAPERS[cur];
+    $('legend').innerHTML=Object.entries(FAM).map(([k,f])=>{
+      const count=(p.body.join('').match(RX)||[]).filter(s=>{const kk=s.match(/\[(\w+)\|/)[1];return H[kk]&&H[kk].f===k;}).length;
+      return '<div class="lg'+(famOn[k]?' on':'')+'" data-f="'+k+'" style="--lc:'+f.c+'"><span class="swatch"></span>'+f.n+'<span class="n">'+count+'</span></div>';
+    }).join('');
+    $('legend').querySelectorAll('.lg').forEach(l=>l.onclick=()=>{famOn[l.dataset.f]=!famOn[l.dataset.f];renderLegend();applyFilter();});
+  }
+  function applyFilter(){
+    document.querySelectorAll('#doc-body mark').forEach(m=>{
+      const f=H[m.dataset.k].f;
+      m.style.boxShadow=(hlOn&&famOn[f])?'':'none';
+      m.style.cursor=(hlOn&&famOn[f])?'pointer':'default';
+      if(!(hlOn&&famOn[f])) m.classList.remove('sel');
+    });
+  }
+  function renderDet(){
+    if(!sel){$('det').innerHTML='<div class="empty">Click any highlighted phrase in your essay and the habit behind it appears here: what it is, how often you do it, and how it compares with your usual range.</div>';return;}
+    const h=H[sel],f=FAM[h.f];
+    $('det').style.setProperty('--dc',f.c);
+    $('det').innerHTML='<div class="dt">'+h.t+'</div>'+
+      '<div class="dfam"><i></i>'+f.n+'</div>'+
+      '<div class="dd">'+h.d+'</div>'+
+      '<div class="rate"><div class="bar"><div class="fill" style="width:0%"></div></div><span class="lbl">'+h.rate+'% \u00b7 usual '+h.band+'</span></div>'+
+      (h.also?'<div class="also">'+h.also+' <a href="original-library.html">Open the Library \u2192</a></div>':'<div class="also">See this habit among the others on <a href="original-voice.html">your voice portrait \u2192</a></div>');
+    requestAnimationFrame(()=>{const el=$('det').querySelector('.fill');if(el)el.style.width=h.rate+'%';});
+  }
+  function renderGlance(){
+    const p=PAPERS[cur];
+    $('glance').innerHTML=p.glance.map(([k,v])=>'<div class="sum-row"><span>'+k+'</span><b>'+
+      (/^Marks/.test(k)?(p.body.join('').match(RX)||[]).length:v)+'</b></div>').join('');
+    $('glance-note').innerHTML=p.note;
+  }
+  $('hl-toggle').onclick=()=>{hlOn=!hlOn;$('hl-toggle').classList.toggle('on',hlOn);document.body.classList.toggle('off',!hlOn);if(!hlOn){sel=null;renderDet();}applyFilter();};
+  renderPapers();renderDoc();renderLegend();renderDet();renderGlance();
+  // deep link: ?paper=aug
+  const q=new URLSearchParams(location.search).get('paper');
+  if(q){const i=PAPERS.findIndex(p=>p.id===q);if(i>-1){cur=i;renderPapers();renderDoc();renderLegend();renderDet();renderGlance();}}
+</script>
+</body>
+</html>

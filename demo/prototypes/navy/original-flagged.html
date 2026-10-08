@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="omelette-owns-print" />
+<title>Original · Conversation Packet · James Whitfield</title>
+<link rel="stylesheet" href="fonts.css" />
+<link rel="stylesheet" href="demo.css" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c;--navy:#0d1530;--navy-1:#101c40;
+    --line:rgba(201,160,40,0.16);--line-soft:rgba(255,255,255,0.07);
+    --gold:#c9a028;--gold-2:#e0be55;--cream:#f5efe0;
+    --dim:rgba(245,239,224,0.58);--dim-2:rgba(245,239,224,0.4);
+    --paper:#faf6ec;--ink:#26221a;--ink-2:#5c564a;--rule:#e4dcc8;
+    --flag:#a8462f;--flag-bg:#f6e8e2;--ok:#3e7a58;--base:#2c4a8c;
+    --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  body{font-family:var(--body);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);min-height:100vh;padding:2.2rem;display:flex;justify-content:center;-webkit-font-smoothing:antialiased;}
+  a{color:var(--gold-2);}a:hover{color:var(--cream);}
+  .wrap{width:100%;max-width:940px;}
+  .chrome{display:flex;align-items:center;gap:1rem;margin-bottom:1.4rem;color:var(--cream);}
+  .back{display:inline-flex;align-items:center;gap:.5rem;color:var(--dim);text-decoration:none;font-size:.95rem;border:1px solid var(--line-soft);border-radius:999px;padding:.5rem 1rem;transition:all .15s;}
+  .back:hover{color:var(--cream);border-color:var(--line);}
+  .back svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;}
+  .chrome .t{font-family:var(--display);font-size:1.15rem;font-weight:500;}
+  .chrome .s{font-size:.85rem;color:var(--dim-2);font-style:italic;}
+  .print-btn{margin-left:auto;display:inline-flex;align-items:center;gap:.55rem;background:linear-gradient(160deg,var(--gold-2),var(--gold));color:#0d1530;border:none;border-radius:999px;padding:.65rem 1.4rem;font-family:var(--body);font-weight:600;font-size:.98rem;cursor:pointer;box-shadow:0 6px 18px rgba(201,160,40,0.25);}
+  .print-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;}
+  /* ── The packet (paper) ── */
+  .paper{background:var(--paper);color:var(--ink);border-radius:8px;box-shadow:0 30px 80px rgba(0,0,0,0.55);padding:3rem 3.4rem 2.6rem;position:relative;}
+  .paper::before{content:'';position:absolute;top:0;left:0;right:0;height:6px;background:linear-gradient(90deg,var(--gold),#8a6d1a);border-radius:8px 8px 0 0;}
+  .p-head{display:flex;justify-content:space-between;align-items:flex-start;gap:2rem;padding-bottom:1.4rem;border-bottom:2px solid var(--ink);}
+  .p-head .mk{display:flex;align-items:center;gap:.5rem;font-family:var(--display);font-weight:600;font-size:1.2rem;}
+  .p-head .mk i{width:8px;height:8px;background:var(--gold);transform:rotate(45deg);}
+  .p-head .kind{font-family:var(--mono);font-size:.66rem;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-2);margin-top:.35rem;}
+  .p-meta{text-align:right;font-size:.88rem;color:var(--ink-2);line-height:1.6;}
+  .p-meta b{color:var(--ink);font-weight:600;}
+  h1{font-family:var(--display);font-weight:500;font-size:1.9rem;margin:1.6rem 0 .3rem;}
+  .h-sub{font-size:1rem;color:var(--ink-2);font-style:italic;}
+  .h-sub b{font-style:normal;color:var(--ink);font-weight:500;}
+  .notice{margin:1.4rem 0 0;padding:.9rem 1.1rem;background:#f1ead7;border:1px solid var(--rule);border-radius:8px;font-size:.95rem;font-style:italic;color:var(--ink-2);line-height:1.55;}
+  .notice b{font-style:normal;color:var(--ink);font-weight:600;}
+  section{margin-top:2rem;}
+  .sec-t{font-family:var(--mono);font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);border-bottom:1px solid var(--rule);padding-bottom:.45rem;margin-bottom:1rem;display:flex;justify-content:space-between;}
+  .sec-t span{color:var(--ink-2);letter-spacing:.06em;text-transform:none;font-style:italic;font-family:var(--body);font-size:.82rem;}
+  .summary{font-size:1.08rem;line-height:1.7;}
+  .summary b{font-weight:600;}
+  .summary .gS{color:#7a5a10;font-weight:600;}.summary .gD{color:#2c4a8c;font-weight:600;}.summary .gR{color:#6d3a7a;font-weight:600;}
+  /* excerpts */
+  .ex{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule);border-radius:10px;overflow:hidden;margin-bottom:1.1rem;}
+  .ex-h{grid-column:1/-1;display:flex;align-items:baseline;gap:.7rem;padding:.7rem 1.1rem;background:#f1ead7;border-bottom:1px solid var(--rule);}
+  .ex-h b{font-family:var(--display);font-weight:500;font-size:1.02rem;}
+  .ex-h span{font-size:.85rem;color:var(--ink-2);font-style:italic;}
+  .ex-col{padding:1rem 1.2rem;}
+  .ex-col+.ex-col{border-left:1px solid var(--rule);}
+  .ex-lbl{font-family:var(--mono);font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;margin-bottom:.5rem;}
+  .ex-lbl.this{color:var(--flag);}
+  .ex-lbl.base{color:var(--base);}
+  .ex-q{font-size:.98rem;line-height:1.65;color:var(--ink);}
+  .ex-q mark{background:none;box-shadow:inset 0 -6px 0 rgba(168,70,47,0.18);color:inherit;padding:0 .05em;}
+  .ex-q.base mark{box-shadow:inset 0 -6px 0 rgba(44,74,140,0.16);}
+  .ex-src{font-family:var(--mono);font-size:.62rem;color:var(--ink-2);margin-top:.55rem;}
+  .ex-note{grid-column:1/-1;padding:.7rem 1.1rem;border-top:1px solid var(--rule);font-size:.9rem;font-style:italic;color:var(--ink-2);line-height:1.5;}
+  .ex-note b{font-style:normal;font-weight:600;color:var(--ink);}
+  /* provenance */
+  .prov{width:100%;border-collapse:collapse;font-size:.95rem;}
+  .prov th{font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);text-align:left;padding:.4rem .6rem;border-bottom:1px solid var(--rule);font-weight:500;}
+  .prov td{padding:.6rem;border-bottom:1px solid #efe8d5;vertical-align:top;}
+  .prov .n{font-family:var(--mono);font-size:.8rem;color:var(--ink-2);}
+  .prov .how{display:inline-block;font-size:.76rem;padding:.14rem .55rem;border-radius:999px;background:#e8effa;color:var(--base);border:1px solid #cdd9ef;white-space:nowrap;}
+  .prov-note{font-size:.88rem;font-style:italic;color:var(--ink-2);margin-top:.7rem;line-height:1.55;}
+  /* conversation guide */
+  .guide{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+  .g-card{border:1px solid var(--rule);border-radius:10px;padding:1rem 1.2rem;}
+  .g-card b{font-family:var(--display);font-weight:500;font-size:1rem;display:block;margin-bottom:.5rem;}
+  .g-card ul{list-style:none;}
+  .g-card li{font-size:.94rem;line-height:1.55;padding-left:1rem;position:relative;margin-bottom:.45rem;color:var(--ink);}
+  .g-card li::before{content:'-';position:absolute;left:0;color:var(--gold);}
+  .g-card.do b{color:var(--ok);}
+  .g-card.dont b{color:var(--flag);}
+  /* sign-off */
+  .sign{margin-top:2.2rem;padding-top:1.3rem;border-top:2px solid var(--ink);display:flex;justify-content:space-between;gap:3rem;align-items:flex-end;}
+  .sig-slot{flex:1;}
+  .sig-slot .line{border-bottom:1px solid var(--ink-2);height:2.2rem;}
+  .sig-slot .lbl{font-family:var(--mono);font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2);margin-top:.35rem;}
+  .p-foot{margin-top:1.6rem;display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;color:var(--ink-2);}
+  @media (max-width:760px){
+    body{padding:1rem;}
+    .paper{padding:1.6rem 1.3rem;}
+    .ex{grid-template-columns:1fr;}
+    .ex-col+.ex-col{border-left:none;border-top:1px solid var(--rule);}
+    .guide{grid-template-columns:1fr;}
+    .prov{display:block;overflow-x:auto;}
+    .chrome{flex-wrap:wrap;}
+  }
+  @media print{
+    body{background:#fff;padding:0;display:block;}
+    .chrome{display:none;}
+    .wrap{max-width:none;}
+    .paper{box-shadow:none;border-radius:0;padding:0.2in 0.35in;}
+    .paper::before{display:none;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body class="demo-paper">
+<div class="demo-ribbon" role="note"><b>Fictional demonstration</b><span class="demo-ribbon-more">&nbsp;· every person, class, paper and number here is invented</span></div>
+<div class="wrap">
+  <div class="chrome">
+    <a class="back" href="original-quantum.html"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>Back to analysis</a>
+    <div><div class="t">Conversation Packet</div><div class="s">Print it, read it once, and talk to the student: the packet does the remembering.</div></div>
+    <button class="print-btn" onclick="window.print()"><svg viewBox="0 0 24 24"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="2"/><path d="M6 15h12v6H6z"/></svg>Print packet</button>
+  </div>
+  <div class="paper">
+    <div class="p-head">
+      <div><div class="mk"><i></i>Original</div><div class="kind">Conversation Packet · Confidential</div></div>
+      <div class="p-meta">Case <b>2026-014</b><br>Prepared for <b>Dr. R. Hendricks</b><br>29 July 2026</div>
+    </div>
+    <h1>James Whitfield: “The Hypostatic Union”</h1>
+    <div class="h-sub">THEO 301 · submitted 24 March 2026 · 2,140 words · compared against <b>3 teacher-approved reference samples</b></div>
+    <div class="notice"><b>This is a starting point, not a verdict.</b> Original measures how a paper compares with a student's own established writing voice. A flag means the difference is large enough to be worth a conversation: it does not, by itself, establish misconduct.</div>
+    <div class="demo-testing on-paper" role="note"><b>Testing phase:</b> Original is not yet validated on real student writing. Treat any result as a reason for a conversation, never as evidence.</div>
+
+    <section>
+      <div class="sec-t">What the analysis found <span>in plain English</span></div>
+      <p class="summary">This paper reads differently from James's usual voice in <b>19 of 97</b> writing habits. In <span class="gS">how his sentences look</span>, 6 habits look different: his letter patterns are unusually predictable, and he uses dashes far more than usual. In <span class="gD">how his ideas connect</span>, 7 habits look different: linking phrases (<i>however, therefore</i>) appear more often than usual, and his sentences start in unusually varied ways. In <span class="gR">how he makes his case</span>, 6 habits look different: he softens claims (<i>perhaps, it seems</i>) more than usual, and asks more rhetorical questions than usual. Together they point to the same thing: prose that is smoother and more uniform than James writes.</p>
+    </section>
+
+    <section>
+      <div class="sec-t">Side by side <span>this paper vs. his own past work</span></div>
+      <div class="ex">
+        <div class="ex-h"><b>Sentence rhythm</b><span>James writes in uneven bursts; this paper barely varies.</span></div>
+        <div class="ex-col"><div class="ex-lbl this">This paper</div><div class="ex-q"><mark>The hypostatic union represents a profound theological synthesis. It resolves the tension between divine and human natures. It preserves the integrity of both without confusion.</mark> Chalcedon's formula remains the touchstone for orthodox Christology.</div><div class="ex-src">¶2 · sentences of 8, 9, 10, 9 words</div></div>
+        <div class="ex-col"><div class="ex-lbl base">His midterm, in class</div><div class="ex-q base"><mark>Chalcedon didn't solve the problem. What it did &mdash; and this matters &mdash; was fence it: two natures, one person, and four adverbs telling us what we must not say about how they meet.</mark></div><div class="ex-src">14 Feb exam · sentences of 5 and 28 words</div></div>
+        <div class="ex-note"><b>What to notice:</b> in supervised work James mixes very short sentences with long winding ones. This paper holds an almost constant length throughout: the single strongest signal in the analysis.</div>
+      </div>
+      <div class="ex">
+        <div class="ex-h"><b>Softening words</b><span>Hedges appear at 3× his usual rate, and in clusters.</span></div>
+        <div class="ex-col"><div class="ex-lbl this">This paper</div><div class="ex-q">It <mark>seems plausible</mark> that Cyril <mark>may have</mark> intended <mark>something like</mark> a communication of attributes, which <mark>could perhaps</mark> be read as…</div><div class="ex-src">¶5 · four hedges in one sentence</div></div>
+        <div class="ex-col"><div class="ex-lbl base">His January essay</div><div class="ex-q base">Cyril meant what he said. The Word suffered &mdash; impassibly, yes, but <mark>really</mark> &mdash; and no reading of the twelfth anathema softens that.</div><div class="ex-src">15 Jan in-class · direct, unhedged</div></div>
+        <div class="ex-note"><b>What to notice:</b> James states positions flatly and defends them. The persistent hedging here is not characteristic of his voice.</div>
+      </div>
+      <div class="ex">
+        <div class="ex-h"><b>Connecting phrases</b><span>Formulaic transitions open 11 of 14 paragraphs.</span></div>
+        <div class="ex-col"><div class="ex-lbl this">This paper</div><div class="ex-q"><mark>Furthermore,</mark> the Antiochene school… <mark>Moreover,</mark> this distinction… <mark>Additionally,</mark> the Cappadocian legacy… <mark>In conclusion,</mark> the doctrine…</div><div class="ex-src">paragraph openers, ¶4–¶14</div></div>
+        <div class="ex-col"><div class="ex-lbl base">His past papers</div><div class="ex-q base">James opens paragraphs with the argument itself: <mark>“Nestorius's real mistake…”, “But the analogy breaks…”, “Here Cyril overreaches…”</mark></div><div class="ex-src">across all three baseline samples</div></div>
+        <div class="ex-note"><b>What to notice:</b> the transitions are grammatical but generic: connective tissue James has never used at this rate in supervised writing.</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-t">Where his baseline comes from <span>every comparison sample was approved by his teacher</span></div>
+      <table class="prov">
+        <thead><tr><th></th><th>Sample</th><th>Date</th><th>How it was written</th><th>Length</th></tr></thead>
+        <tbody>
+          <tr><td class="n">1</td><td>In-Class Essay: Christology</td><td>15 Jan 2026</td><td><span class="how">Written in class, supervised</span></td><td>217 words</td></tr>
+          <tr><td class="n">2</td><td>Midterm Exam: Romans 8–11</td><td>14 Feb 2026</td><td><span class="how">Proctored exam</span></td><td>239 words</td></tr>
+          <tr><td class="n">3</td><td>Response Paper: Hermeneutics</td><td>16 Mar 2026</td><td><span class="how">Instructor verified</span></td><td>206 words</td></tr>
+        </tbody>
+      </table>
+      <p class="prov-note">Three samples is a thin baseline. With this little to compare against, an honest paper can also look different, especially on a new topic or in a new genre. Weigh the side-by-sides above more than any number.</p>
+    </section>
+
+    <section>
+      <div class="sec-t">Having the conversation <span>a suggested approach</span></div>
+      <div class="guide">
+        <div class="g-card do"><b>Worth doing</b><ul>
+          <li>Open with the work, not the flag: ask James to walk you through his argument in ¶5: how he got from Cyril to the anathemas.</li>
+          <li>Show one side-by-side and ask what he notices about the two voices.</li>
+          <li>Ask about his process: drafts, tools, timeline, where he wrote it.</li>
+          <li>Offer a path back: a supervised rewrite of one section in Bluebook, which you can approve as reference writing if it helps.</li>
+        </ul></div>
+        <div class="g-card dont"><b>Worth avoiding</b><ul>
+          <li>Don't present the numbers as proof: they describe distance from his own habits, nothing more.</li>
+          <li>Don't open with an accusation; it forecloses the conversation the evidence is meant to open.</li>
+          <li>Don't rely on memory in a dispute: this packet and the case reference are the record.</li>
+        </ul></div>
+      </div>
+    </section>
+
+    <div class="sign">
+      <div class="sig-slot"><div class="line"></div><div class="lbl">Instructor signature · date</div></div>
+      <div class="sig-slot"><div class="line"></div><div class="lbl">Outcome (no action · rewrite offered · referred)</div></div>
+    </div>
+    <div class="p-foot"><span>Original · writing-consistency report · fictional demonstration</span><span>Case 2026-014 · regenerable from seed · page 1 of 1</span></div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bluebook · THEO 301 In-Class Essay</title>
+<link rel="stylesheet" href="fonts.css" />
+<link rel="stylesheet" href="demo.css" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --bb-blue:#2c4a8c;--bb-blue-2:#4a6cb5;--bb-ink:#1e2f57;
+    --paper:#fbf8f0;--rule:rgba(90,130,200,0.28);--margin:rgba(224,114,90,0.5);
+    --ink:#232b3e;--muted:#7a7f8e;--gold:#c9a028;--ok:#4e8f68;--warn:#b07f2a;
+    --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;--hand:'Caveat',cursive;
+  }
+  html,body{height:100%;}
+  body{font-family:var(--body);background:radial-gradient(120% 100% at 50% -10%, #3b4863 0%, #232c42 45%, #151b2c 100%);display:flex;align-items:center;justify-content:center;padding:1.6rem;min-height:100vh;-webkit-font-smoothing:antialiased;}
+  a{color:var(--bb-blue-2);}a:hover{color:var(--bb-blue);}
+  .booklet{width:100%;max-width:880px;height:min(920px,calc(100vh - 3.2rem));position:relative;perspective:1600px;}
+  /* ── Cover ── */
+  .cover{position:absolute;inset:0;background:linear-gradient(155deg,#4a6cb5 0%,#35549c 45%,#2c4a8c 100%);border-radius:6px 14px 14px 6px;border-left:10px solid #223c74;box-shadow:0 30px 80px rgba(0,0,0,0.55),inset 0 1px 0 rgba(255,255,255,0.18),inset -1px 0 0 rgba(0,0,0,0.15);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem;z-index:5;transition:transform .9s cubic-bezier(.6,.05,.3,1),opacity .9s;transform-origin:left center;color:#e9eefb;}
+  .cover.open{transform:rotateY(-104deg);opacity:0;pointer-events:none;}
+  .cover::after{content:'';position:absolute;inset:14px;border:1.5px solid rgba(233,238,251,0.35);border-radius:4px 10px 10px 4px;pointer-events:none;}
+  .cover .exam-lbl{font-family:var(--mono);font-size:.72rem;letter-spacing:.34em;text-transform:uppercase;color:rgba(233,238,251,0.75);}
+  .cover h1{font-family:var(--display);font-weight:500;font-size:3rem;margin:.6rem 0 .2rem;letter-spacing:.02em;}
+  .cover .rule{width:140px;height:1px;background:rgba(233,238,251,0.4);margin:1.3rem 0 1.5rem;}
+  .cv-fields{width:min(420px,100%);display:flex;flex-direction:column;gap:1.05rem;margin-bottom:2rem;}
+  .cv-f{display:flex;align-items:baseline;gap:.8rem;font-size:.95rem;color:rgba(233,238,251,0.8);}
+  .cv-f b{font-family:var(--mono);font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;width:86px;flex-shrink:0;font-weight:500;color:rgba(233,238,251,0.6);}
+  .cv-f .fill{flex:1;border-bottom:1px solid rgba(233,238,251,0.4);padding-bottom:.2rem;font-family:var(--hand);font-size:1.35rem;color:#fff;}
+  .cv-meta{font-size:.9rem;font-style:italic;color:rgba(233,238,251,0.75);text-align:center;line-height:1.6;max-width:44ch;}
+  .cv-meta b{font-style:normal;font-weight:500;color:#fff;}
+  .begin{margin-top:2rem;background:#fbf8f0;color:var(--bb-ink);border:none;border-radius:999px;padding:.85rem 2.2rem;font-family:var(--body);font-weight:600;font-size:1.05rem;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.35);transition:transform .15s;}
+  .begin:hover{transform:translateY(-2px);}
+  .cv-foot{position:absolute;bottom:2rem;font-family:var(--mono);font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;color:rgba(233,238,251,0.5);}
+  .leave{position:absolute;top:1.4rem;left:1.6rem;display:inline-flex;align-items:center;gap:.45rem;color:rgba(233,238,251,0.72);text-decoration:none;font-size:.9rem;border:1px solid rgba(233,238,251,0.28);border-radius:999px;padding:.4rem .9rem;background:rgba(255,255,255,0.06);transition:all .15s;z-index:6;}
+  .leave:hover{color:#fff;border-color:rgba(233,238,251,0.6);background:rgba(255,255,255,0.12);}
+  .leave svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;}
+  .bar .leave{position:static;top:auto;left:auto;color:var(--bb-blue);border-color:rgba(90,130,200,0.35);background:#fff;font-size:.84rem;padding:.3rem .8rem;}
+  .bar .leave:hover{color:#223c74;border-color:var(--bb-blue);background:#eef2fb;}
+  /* ── Page ── */
+  .page{position:absolute;inset:0;background:var(--paper);border-radius:4px 14px 14px 4px;border-left:10px solid #223c74;box-shadow:0 30px 80px rgba(0,0,0,0.5);display:flex;flex-direction:column;overflow:hidden;}
+  .bar{display:flex;align-items:center;gap:1rem;padding:.8rem 1.6rem .8rem 2.2rem;border-bottom:1px solid rgba(90,130,200,0.2);background:rgba(90,130,200,0.06);flex-shrink:0;}
+  .bar .crs{font-family:var(--mono);font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:var(--bb-blue);}
+  .qtabs{display:flex;gap:.35rem;margin-left:.4rem;}
+  .qtab{border:1px solid rgba(90,130,200,0.35);background:none;color:var(--bb-blue);font-family:var(--mono);font-size:.72rem;border-radius:999px;padding:.24rem .7rem;cursor:pointer;transition:all .14s;}
+  .qtab.on{background:var(--bb-blue);color:#fff;}
+  .bar-right{margin-left:auto;display:flex;align-items:center;gap:1rem;}
+  .saved{display:inline-flex;align-items:center;gap:.4rem;font-size:.8rem;color:var(--ok);font-style:italic;opacity:0;transition:opacity .4s;}
+  .saved.show{opacity:1;}
+  .saved svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;}
+  .timer{display:inline-flex;align-items:center;gap:.5rem;font-family:var(--mono);font-weight:700;font-size:1.02rem;color:var(--bb-ink);background:#fff;border:1px solid rgba(90,130,200,0.3);border-radius:999px;padding:.3rem .9rem;}
+  .timer svg{width:14px;height:14px;stroke:var(--bb-blue);fill:none;stroke-width:1.8;}
+  .timer.low{color:#a8462f;border-color:rgba(224,114,90,0.5);}
+  .sheet{flex:1;overflow-y:auto;min-height:0;position:relative;}
+  .sheet-inner{max-width:760px;margin:0 auto;padding:2rem 2.4rem 3rem 3.4rem;position:relative;}
+  .q-head{font-family:var(--display);font-size:1.06rem;font-weight:500;color:var(--bb-ink);line-height:1.5;padding:1rem 1.2rem;background:rgba(90,130,200,0.07);border:1px solid rgba(90,130,200,0.2);border-radius:10px;margin-bottom:1.4rem;}
+  .q-head .qn{font-family:var(--mono);font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;color:var(--bb-blue);display:block;margin-bottom:.35rem;}
+  .writing{position:relative;}
+  .writing textarea{width:100%;min-height:430px;border:none;outline:none;background:repeating-linear-gradient(transparent,transparent 33px,var(--rule) 33px,var(--rule) 34px);background-attachment:local;line-height:34px;font-family:var(--body);font-size:1.16rem;color:var(--ink);resize:none;padding:0 .2rem;caret-color:var(--bb-blue);}
+  .writing::before{content:'';position:absolute;left:-1.5rem;top:-.4rem;bottom:0;width:1.5px;background:var(--margin);}
+  .foot{display:flex;align-items:center;gap:1.2rem;padding:.85rem 1.6rem .85rem 2.2rem;border-top:1px solid rgba(90,130,200,0.2);background:rgba(90,130,200,0.05);flex-shrink:0;}
+  .wc{display:flex;align-items:center;gap:.7rem;flex:1;max-width:340px;}
+  .wc-track{flex:1;height:6px;border-radius:4px;background:rgba(90,130,200,0.15);overflow:hidden;}
+  .wc-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--bb-blue-2),var(--bb-blue));width:0%;transition:width .4s;}
+  .wc-fill.met{background:linear-gradient(90deg,#5da57e,var(--ok));}
+  .wc-n{font-family:var(--mono);font-size:.78rem;color:var(--muted);white-space:nowrap;}
+  .wc-n b{color:var(--ink);font-weight:700;}
+  .capture{font-size:.8rem;color:var(--muted);font-style:italic;display:flex;align-items:center;gap:.45rem;}
+  .capture svg{width:14px;height:14px;stroke:var(--ok);fill:none;stroke-width:1.7;flex-shrink:0;}
+  .finish{margin-left:auto;background:var(--bb-blue);color:#fff;border:none;border-radius:999px;padding:.6rem 1.4rem;font-family:var(--body);font-weight:600;font-size:.95rem;cursor:pointer;transition:background .15s;}
+  .finish:hover{background:#223c74;}
+  /* ── Sign & submit ── */
+  .veil{position:absolute;inset:0;background:rgba(30,47,87,0.45);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:20;border-radius:4px 14px 14px 4px;}
+  .veil.show{display:flex;}
+  .attest{width:min(480px,90%);background:var(--paper);border-radius:16px;padding:2rem 2.2rem;box-shadow:0 30px 70px rgba(0,0,0,0.4);}
+  .attest h2{font-family:var(--display);font-weight:500;font-size:1.45rem;color:var(--bb-ink);}
+  .attest p{font-size:.98rem;color:var(--ink);line-height:1.6;margin:.8rem 0 1.4rem;font-style:italic;}
+  .sig-line{position:relative;border-bottom:1.5px solid var(--bb-ink);margin-bottom:.4rem;}
+  .sig-line input{width:100%;border:none;outline:none;background:none;font-family:var(--hand);font-size:2rem;color:var(--bb-ink);padding:.2rem .3rem;}
+  .sig-lbl{font-family:var(--mono);font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);}
+  .attest-row{display:flex;gap:.8rem;margin-top:1.6rem;}
+  .attest-row .go{flex:1;background:var(--bb-blue);color:#fff;border:none;border-radius:999px;padding:.75rem;font-family:var(--body);font-weight:600;font-size:1rem;cursor:pointer;}
+  .attest-row .go:disabled{opacity:.45;cursor:default;}
+  .attest-row .back{background:none;border:1px solid rgba(90,130,200,0.4);color:var(--bb-blue);border-radius:999px;padding:.75rem 1.3rem;font-family:var(--body);font-size:.95rem;cursor:pointer;}
+  .done-card{text-align:center;display:none;}
+  .done-card.show{display:block;}
+  .done-card .big{width:56px;height:56px;border-radius:50%;background:rgba(78,143,104,0.14);border:1.5px solid var(--ok);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;}
+  .done-card .big svg{width:26px;height:26px;stroke:var(--ok);fill:none;stroke-width:2;}
+  @media (max-width:700px){
+    body{padding:0;}
+    .booklet{max-width:none;height:100vh;}
+    .cover,.page{border-radius:0;border-left-width:6px;}
+    .sheet-inner{padding:1.4rem 1.2rem 2rem 2rem;}
+    .bar{flex-wrap:wrap;padding-left:1.2rem;}.bar-right{margin-left:0;width:100%;justify-content:space-between;}
+    .foot{flex-wrap:wrap;padding-left:1.2rem;}.finish{margin-left:0;width:100%;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body class="demo-booklet">
+<div class="demo-ribbon" role="note"><b>Fictional demonstration</b><span class="demo-ribbon-more">&nbsp;· every person, class, paper and number here is invented</span></div>
+<div class="booklet">
+  <div class="page" aria-hidden="false">
+    <div class="bar">
+      <span class="crs">THEO 301 · In-Class Essay</span>
+      <div class="qtabs" id="qtabs">
+        <button class="qtab on" onclick="setQ(0,this)">Q1</button>
+        <button class="qtab" onclick="setQ(1,this)">Q2</button>
+      </div>
+      <div class="bar-right">
+        <span class="saved" id="saved"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>saved</span>
+        <span class="timer" id="timer"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9 2h6"/></svg><span id="clock">50:00</span></span>
+      </div>
+    </div>
+    <div class="sheet">
+      <div class="sheet-inner">
+        <div class="q-head" id="q-head"><span class="qn">Question 1 of 2</span><span id="q-text">In two pages, explain the difference between Luther's and Calvin's views of the Lord's Supper, and which you find more persuasive, and why.</span></div>
+        <div class="writing"><textarea id="essay" placeholder="Begin here…" spellcheck="false"></textarea></div>
+      </div>
+    </div>
+    <div class="foot">
+      <div class="wc">
+        <div class="wc-track"><div class="wc-fill" id="wc-fill"></div></div>
+        <span class="wc-n"><b id="wc-count">0</b> / 400 words</span>
+      </div>
+      <span class="capture"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v6c0 5-3.5 7.5-8 8-4.5-.5-8-3-8-8V7z"/><path d="M9 12l2 2 4-4"/></svg>Bluebook saves your words and a few session facts (time, word count, pastes, leaving the window). Your screen is never watched.</span>
+      <button class="finish" onclick="openAttest()">Finish &amp; sign</button>
+    </div>
+    <div class="veil" id="veil">
+      <div class="attest" id="attest-card">
+        <div id="attest-form">
+          <h2>Sign your booklet</h2>
+          <p>“This essay is my own work, written here in class, in my own words and my own voice.”</p>
+          <div class="sig-line"><input type="text" id="sig" placeholder="" autocomplete="off" /></div>
+          <div class="sig-lbl">Sign your full name</div>
+          <div class="attest-row">
+            <button class="back" onclick="closeAttest()">Keep writing</button>
+            <button class="go" id="submit-btn" disabled onclick="submitBooklet()">Hand it in</button>
+          </div>
+        </div>
+        <div class="done-card" id="done-card">
+          <div class="big"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
+          <h2>Booklet handed in</h2>
+          <p id="done-line">712 words · signed James Whitfield · 12:41 remaining. Your teacher can now read it.</p>
+          <div class="demo-testing on-paper" role="note"><b>Testing phase:</b> Original is not yet validated on real student writing. Your teacher may approve your sealed Bluebook work as reference writing for it, and can undo that approval.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="cover" id="cover">
+    <a class="leave" href="original-voice.html"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>My Voice</a>
+    <span class="exam-lbl">Examination Booklet</span>
+    <h1>Blue Book</h1>
+    <div class="rule"></div>
+    <div class="cv-fields">
+      <div class="cv-f"><b>Name</b><span class="fill">James Whitfield</span></div>
+      <div class="cv-f"><b>Course</b><span class="fill" style="font-family:var(--body);font-size:1rem;">THEO 301: Systematic Theology · Dr. Hendricks</span></div>
+      <div class="cv-f"><b>Date</b><span class="fill" style="font-family:var(--body);font-size:1rem;">27 July 2026</span></div>
+    </div>
+    <div class="cv-meta"><b>2 questions · 50 minutes.</b> Your work saves itself as you write. When you open this booklet, the clock starts, and everything you write here is yours, in your own hand.</div>
+    <div class="demo-testing on-cover" role="note"><b>Testing phase:</b> Original is not yet validated on real student writing. Your teacher may approve your sealed Bluebook work as reference writing for it, and can undo that approval.</div>
+    <button class="begin" onclick="openBooklet()">Open the booklet</button>
+    <div class="cv-foot">Original · Bluebook · quiet by design</div>
+  </div>
+</div>
+<script>
+  const QUESTIONS=[
+    {t:"In two pages, explain the difference between Luther's and Calvin's views of the Lord's Supper, and which you find more persuasive, and why.",min:400},
+    {t:"Briefly: what would each man say the other misunderstands most? One paragraph each.",min:150}
+  ];
+  const drafts=['',''];let cur=0,total=50*60,ticking=null,saveT=null;
+  const essay=document.getElementById('essay'),clock=document.getElementById('clock'),timerEl=document.getElementById('timer');
+  // restore
+  try{const s=JSON.parse(localStorage.getItem('navy_demo_booklet')||'null');if(s){drafts[0]=s.d[0]||'';drafts[1]=s.d[1]||'';total=(typeof s.t==='number'&&s.t>0)?s.t:total;}}catch(e){}
+  function openBooklet(){
+    document.getElementById('cover').classList.add('open');
+    essay.value=drafts[cur];updateWC();
+    if(!ticking)ticking=setInterval(tick,1000);
+    setTimeout(()=>essay.focus(),950);
+  }
+  function tick(){
+    total=Math.max(0,total-1);
+    const m=Math.floor(total/60),s=total%60;
+    clock.textContent=m+':'+String(s).padStart(2,'0');
+    if(total<=300)timerEl.classList.add('low');
+    if(total===0){clearInterval(ticking);openAttest();}
+  }
+  function setQ(i,btn){
+    drafts[cur]=essay.value;cur=i;
+    document.querySelectorAll('.qtab').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
+    document.getElementById('q-head').querySelector('.qn').textContent='Question '+(i+1)+' of '+QUESTIONS.length;
+    document.getElementById('q-text').textContent=QUESTIONS[i].t;
+    document.querySelector('.wc-n').innerHTML='<b id="wc-count">0</b> / '+QUESTIONS[i].min+' words';
+    essay.value=drafts[i];updateWC();essay.focus();
+  }
+  function words(str){return (str.trim().match(/\S+/g)||[]).length;}
+  function updateWC(){
+    const n=words(essay.value),min=QUESTIONS[cur].min;
+    document.getElementById('wc-count').textContent=n;
+    const f=document.getElementById('wc-fill');
+    f.style.width=Math.min(100,n/min*100)+'%';
+    f.classList.toggle('met',n>=min);
+  }
+  essay.addEventListener('input',()=>{
+    updateWC();
+    clearTimeout(saveT);
+    saveT=setTimeout(()=>{
+      drafts[cur]=essay.value;
+      try{localStorage.setItem('navy_demo_booklet',JSON.stringify({d:drafts,t:total}));}catch(e){}
+      const sv=document.getElementById('saved');sv.classList.add('show');
+      setTimeout(()=>sv.classList.remove('show'),1600);
+    },900);
+  });
+  function openAttest(){drafts[cur]=essay.value;document.getElementById('veil').classList.add('show');document.getElementById('sig').focus();}
+  function closeAttest(){document.getElementById('veil').classList.remove('show');essay.focus();}
+  document.getElementById('sig').addEventListener('input',e=>{
+    document.getElementById('submit-btn').disabled=e.target.value.trim().split(/\s+/).length<2;
+  });
+  function submitBooklet(){
+    clearInterval(ticking);
+    const n=words(drafts[0])+words(drafts[1]);
+    const m=Math.floor(total/60),s=total%60;
+    document.getElementById('done-line').textContent=n+' words · signed '+document.getElementById('sig').value.trim()+' · '+m+':'+String(s).padStart(2,'0')+' remaining. Your teacher can now read it.';
+    document.getElementById('attest-form').style.display='none';
+    document.getElementById('done-card').classList.add('show');
+  }
+</script>
+</body>
+</html>

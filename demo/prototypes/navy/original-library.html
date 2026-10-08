@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Library · Original</title>
+<link rel="stylesheet" href="fonts.css" />
+<link rel="stylesheet" href="demo.css" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c;--navy:#0d1530;--navy-1:#101c40;
+    --line:rgba(201,160,40,0.16);--line-soft:rgba(255,255,255,0.07);
+    --gold:#c9a028;--gold-2:#e0be55;--cream:#f5efe0;
+    --dim:rgba(245,239,224,0.6);--dim-2:rgba(245,239,224,0.4);
+    --gA:#e0be55;--gB:#8ba8dd;--gC:#c58fd0;
+    --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;--hand:'Caveat',cursive;
+  }
+  html{scroll-behavior:smooth;}
+  body{font-family:var(--body);color:var(--cream);background:var(--navy-0);-webkit-font-smoothing:antialiased;font-size:16px;}
+  a{color:var(--gold-2);}a:hover{color:var(--cream);}
+  nav.top{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:1.2rem;padding:1rem 1.6rem;background:rgba(7,12,28,0.86);backdrop-filter:blur(14px);border-bottom:1px solid var(--line-soft);}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.25rem;letter-spacing:.04em;display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:8px;height:8px;background:var(--gold);transform:rotate(45deg);}
+  .pills{display:flex;gap:.25rem;margin-left:.8rem;overflow-x:auto;scrollbar-width:none;}
+  .pills::-webkit-scrollbar{display:none;}
+  .pill{display:inline-flex;align-items:center;gap:.45rem;padding:.45rem .9rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.94rem;text-decoration:none;white-space:nowrap;flex-shrink:0;transition:all .16s;}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .pill:hover{color:var(--cream);}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.8rem;font-size:.9rem;color:var(--dim);flex-shrink:0;}
+  .nav-right span{white-space:nowrap;}
+  .avatar{width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.9rem;}
+  /* hero band */
+  .band{position:relative;overflow:hidden;border-bottom:1px solid var(--line);}
+  .band .tint{position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,12,28,0.5) 0%,rgba(7,12,28,0.2) 34%,rgba(7,12,28,0.82) 84%,var(--navy-0) 100%),linear-gradient(90deg,rgba(7,12,28,0.9) 0%,rgba(7,12,28,0.56) 40%,rgba(7,12,28,0.14) 74%);}
+  .band-in{position:relative;max-width:1240px;margin:0 auto;padding:5.4rem 1.6rem 3.4rem;}
+  .eyebrow{font-family:var(--mono);font-size:.7rem;letter-spacing:.24em;text-transform:uppercase;color:var(--gold);}
+  .band h1{font-family:var(--display);font-weight:500;font-size:clamp(2.1rem,4vw,3rem);line-height:1.08;margin:.6rem 0 0;text-wrap:balance;}
+  .band h1 em{font-style:italic;color:var(--gold-2);}
+  .band .lede{max-width:58ch;margin-top:.9rem;font-size:1.06rem;line-height:1.62;color:rgba(245,239,224,0.82);text-wrap:pretty;}
+  .page{max-width:1240px;margin:0 auto;padding:2rem 1.6rem 4rem;}
+  /* filter */
+  .filt{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding-bottom:1.4rem;border-bottom:1px solid var(--line-soft);margin-bottom:1.8rem;}
+  .filt .l{font-family:var(--mono);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim-2);margin-right:.4rem;}
+  .fb{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.45rem 1rem;font-family:var(--body);font-size:.93rem;cursor:pointer;transition:all .16s;}
+  .fb:hover{color:var(--cream);border-color:var(--line);}
+  .fb.on{background:rgba(201,160,40,0.13);border-color:rgba(201,160,40,0.45);color:var(--gold-2);}
+  /* shelf */
+  .shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(376px,1fr));gap:1.3rem;}
+  .bk{position:relative;background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-left:4px solid var(--sc);border-radius:6px 16px 16px 6px;padding:1.4rem 1.5rem 1.5rem;display:flex;flex-direction:column;transition:transform .2s,border-color .2s,background .2s;}
+  .bk:hover{transform:translateY(-3px);background:rgba(255,255,255,0.055);}
+  .bk-h{display:flex;align-items:baseline;justify-content:space-between;gap:.8rem;}
+  .bk-n{font-family:var(--display);font-weight:500;font-size:1.32rem;line-height:1.15;}
+  .bk-d{font-family:var(--mono);font-size:.62rem;letter-spacing:.12em;color:var(--dim-2);white-space:nowrap;flex-shrink:0;padding-top:.35rem;}
+  .bk-why{font-size:1rem;line-height:1.55;color:rgba(245,239,224,0.86);font-style:italic;margin-top:.6rem;text-wrap:pretty;}
+  .notice{margin-top:1rem;}
+  .notice .nh{font-family:var(--mono);font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem;}
+  .notice ul{list-style:none;display:flex;flex-direction:column;gap:.42rem;}
+  .notice li{font-size:.95rem;line-height:1.5;color:var(--dim);padding-left:1rem;position:relative;text-wrap:pretty;}
+  .notice li::before{content:'';position:absolute;left:0;top:.6em;width:5px;height:5px;border-radius:50%;background:var(--sc);}
+  .notice li b{color:var(--cream);font-weight:500;}
+  .pass{margin-top:1rem;padding:.9rem 1.1rem;background:rgba(255,255,255,0.04);border-left:2px solid var(--sc);border-radius:0 10px 10px 0;}
+  .pass p{font-family:var(--display);font-style:italic;font-size:1.04rem;line-height:1.6;color:var(--cream);text-wrap:pretty;}
+  .pass .src{font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim-2);margin-top:.55rem;}
+  .start{margin-top:1rem;padding:.85rem 1.1rem;background:rgba(139,168,221,0.08);border:1px solid rgba(139,168,221,0.22);border-radius:11px;font-size:.94rem;line-height:1.55;color:rgba(245,239,224,0.84);}
+  .start b{font-family:var(--mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:#a8c2f0;display:block;margin-bottom:.35rem;font-weight:500;}
+  .feeds{margin-top:1.1rem;padding-top:.9rem;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;}
+  .feeds .fl{font-family:var(--mono);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim-2);width:100%;margin-bottom:.15rem;}
+  .tag{display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem;padding:.25rem .7rem;border-radius:999px;border:1px solid var(--tc);color:var(--tc);background:rgba(255,255,255,0.03);}
+  .tag i{width:6px;height:6px;border-radius:50%;background:currentColor;}
+  .tag.mine{background:rgba(201,160,40,0.12);}
+  .close{margin-top:2.6rem;padding:2.2rem 1.6rem;border-top:1px solid var(--line-soft);text-align:center;}
+  .close p{font-family:var(--display);font-style:italic;font-size:1.24rem;line-height:1.55;color:rgba(245,239,224,0.84);max-width:52ch;margin:0 auto;text-wrap:balance;}
+  .close .att{font-family:var(--mono);font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim-2);margin-top:.9rem;}
+  @media (max-width:900px){
+    nav.top{flex-wrap:wrap;gap:.6rem;}.pills{order:3;width:100%;margin-left:0;}
+    .shelf{grid-template-columns:1fr;}
+    .band-in{padding:2.4rem 1.2rem 1.8rem;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body class="demo-scroll">
+<div class="demo-ribbon" role="note"><b>Fictional demonstration</b><span class="demo-ribbon-more">&nbsp;· every person, class, paper and number here is invented</span></div>
+<nav class="top">
+  <div class="brand"><span class="mk"></span>Original</div>
+  <div class="pills">
+    <a class="pill" href="original-voice.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 4.2v2.4M12 17.4v2.4M4.2 12h2.4M17.4 12h2.4M6.6 6.6l1.7 1.7M15.7 15.7l1.7 1.7M17.4 6.6l-1.7 1.7M8.3 15.7l-1.7 1.7"/></svg>My Voice</a>
+    <a class="pill" href="original-my-work.html"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>My Work</a>
+    <a class="pill on" href="original-library.html"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 016.5 3H11v18H6.5A2.5 2.5 0 004 18.5z"/><path d="M13 3h4.5A2.5 2.5 0 0120 5.5v13a2.5 2.5 0 00-2.5-2.5H13z"/></svg>Library</a>
+    <a class="pill" href="original-bluebook-student.html"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+  </div>
+  <div class="nav-right"><span>THEO 301 · Spring 2026</span><div class="avatar">JW</div></div>
+</nav>
+
+<div class="band">
+  <div class="tint"></div>
+  <div class="band-in">
+    <div class="eyebrow">The Library</div>
+    <h1>Every piece of great prose<br />builds on the shoulders of <em>giants</em>.</h1>
+    <p class="lede">All the habits you built were learned from someone, often unconsciously. The day you choose conscious growth over passive learning brings something uniquely great to your writing. Each of these is here to bring inspiration and enlightenment to your writing: use them wisely.</p>
+  </div>
+</div>
+
+<div class="page">
+  <div class="filt" id="filt"></div>
+  <div class="shelf" id="shelf"></div>
+  <div class="close">
+    <p>“A new book is still on its trial and the amateur is not in a position to judge it.”</p>
+    <div class="att">C. S. Lewis, introduction to Athanasius, On the Incarnation, 1944</div>
+  </div>
+</div>
+
+<script>
+  // habit families: A sentences · B ideas · C case
+  const C={A:'#e0be55',B:'#8ba8dd',C:'#c58fd0'};
+  const W=[
+    {n:'G. K. Chesterton',d:'1874–1936',sc:C.A,
+     why:'The best teacher there is for the habit you already have: the long, winding sentence answered by a very short one.',
+     notice:[['Rhythm as argument','he builds a paragraph-long sentence, then stops it dead with six words. The short sentence is where the point lands.'],['Paradox as structure','he states the opposite of what you expect and then makes you agree with it.'],['Plain words, large ideas','almost no Latin. The vocabulary of a pub argument, doing the work of metaphysics.']],
+     pass:{t:'“The riddles of God are more satisfying than the solutions of man.”',s:'Introduction to The Book of Job, 1907'},
+     feeds:[['Long, then short','mine'],['Plain words','mine'],['Contrast over addition','mine']]},
+    {n:'C. S. Lewis',d:'1898–1963',sc:C.C,
+     why:'The clearest model in English for stating a hard idea flatly and then defending it: your own strongest habit, done at full strength.',
+     notice:[['The unhedged claim','he puts the position down without cushioning, then spends the paragraph earning it. Almost no perhaps, it seems, somewhat.'],['The homely analogy','an abstraction is explained by a bath tap, a tin soldier, a schoolroom, never by another abstraction.'],['He answers the objection first','the reader\u2019s doubt is voiced before it can harden.']],
+     start:'Start with <i>Mere Christianity</i> for the argument, <i>Surprised by Joy</i> for the prose, and the essay “Bluspels and Flalansferes” if you want to see him think about language itself.',
+     feeds:[['You state it flatly','mine'],['Answering the objection','mine'],['Plain words','mine']]},
+    {n:'J. R. R. Tolkien',d:'1892–1973',sc:C.B,
+     why:'Read him for cadence. His sentences are built for the ear first: the rhythm carries meaning that the words alone do not.',
+     notice:[['Sentences shaped for the voice','the stresses fall in patterns borrowed from Old English verse. Read a paragraph aloud and you can hear the metre.'],['Inversion for weight','he moves the important thing to the end of the clause and lets it sit there.'],['Restraint','the grandest moments use the smallest vocabulary. He never reaches for a large word to carry a large feeling.']],
+     start:'For prose rather than plot: the essay “On Fairy-Stories”, and the opening pages of <i>The Silmarillion</i> read aloud.',
+     feeds:[['The point lands last','mine'],['Word chains',''],['Sentence rhythm','']]},
+    {n:'William Blake',d:'1757–1827',sc:C.C,
+     why:'The opposite of hedging. Blake writes as though qualification were a moral failure: useful medicine if your claims ever go soft.',
+     notice:[['The flat aphorism','a whole argument compressed into one line, with nothing to soften the blow.'],['Contraries, not compromise','he sets two truths against each other and refuses to resolve them.'],['Concrete nouns','tiger, forge, chain, lamb. Nothing abstract if a thing will do.']],
+     pass:{t:'“Without Contraries is no progression.”',s:'The Marriage of Heaven and Hell, 1790'},
+     feeds:[['You state it flatly','mine'],['Contrast over addition','mine']]},
+    {n:'John Donne',d:'1572–1631',sc:C.C,
+     why:'The finest English model for pressing a single image until it yields an argument, and for the sermon sentence that will not let the reader look away.',
+     notice:[['The extended image','one metaphor is held and turned for a whole paragraph rather than swapped for a fresh one.'],['Direct address','he speaks at the reader, and the second person does real argumentative work.'],['The turn','a long build, then a reversal in the last clause.']],
+     pass:{t:'“No man is an Iland, intire of it selfe.”',s:'Devotions upon Emergent Occasions, 1624'},
+     feeds:[['Ending on the consequence','mine'],['Quotes built in','']]},
+    {n:'Jane Austen',d:'1775–1817',sc:C.A,
+     why:'For control. Nobody arranges a sentence with more economy, and nobody gets more out of the placement of a single word.',
+     notice:[['Balanced clauses','two halves weighed against each other, the second usually undercutting the first.'],['Irony without signalling','no italics, no nudge. The judgement is in the word order.'],['Precision over decoration','adjectives are rationed and therefore land.']],
+     pass:{t:'“It is a truth universally acknowledged…”',s:'Pride and Prejudice, 1813'},
+     feeds:[['Active voice','mine'],['The semicolon, sparingly','mine']]},
+    {n:'Julian of Norwich',d:'c.1343–1416',sc:C.B,
+     why:'For plainness. The most difficult theology in Middle English, written in the simplest possible sentences: the standard to hold yourself to.',
+     notice:[['Repetition as structure','a phrase returns, slightly changed, until it has been fully understood.'],['Almost no subordination','short main clauses laid side by side rather than nested.'],['The homely image','a hazelnut in the palm carries the doctrine of creation.']],
+     pass:{t:'“All shall be well.”',s:'Revelations of Divine Love, c.1395'},
+     feeds:[['Word chains','mine'],['Plain words','mine']]},
+    {n:'Gerard Manley Hopkins',d:'1844–1889',sc:C.A,
+     why:'Read him when your own sentences start sounding too even. Hopkins is the cure for flat rhythm.',
+     notice:[['Sprung rhythm','stresses cluster and then open out; the line refuses to tick.'],['Compound coinage','he welds words together when English lacks the one he needs.'],['Sound as meaning','alliteration and internal rhyme carry the argument, not just decorate it.']],
+     pass:{t:'“The world is charged with the grandeur of God.”',s:'God’s Grandeur, 1877'},
+     feeds:[['Long, then short',''],['Sentence rhythm','']]},
+    {n:'John Henry Newman',d:'1801–1890',sc:C.B,
+     why:'The model for the long argumentative paragraph: how to carry a reader through five turns of thought without losing them.',
+     notice:[['Signposting by idea, not by word','he moves the argument on without saying furthermore. Your own habit, at professional scale.'],['Cumulative sentences','clause added to clause, each one narrowing the claim.'],['The gentleness of the tone','he never bullies; the strength is in the sequence.']],
+     pass:{t:'“To live is to change, and to be perfect is to have changed often.”',s:'An Essay on the Development of Christian Doctrine, 1845'},
+     feeds:[['Argument-first paragraphs','mine'],['Answering the objection','mine']]},
+    {n:'George Orwell',d:'1903–1950',sc:C.A,
+     why:'For discipline. Read his essay on political language once a term and your prose will stay honest.',
+     notice:[['Short words, short sentences','he will not use a long word where a short one does the job.'],['Concrete before abstract','the general claim always arrives after the specific thing.'],['Cutting','he removes every phrase that could be removed. It is the cheapest way to sound more like yourself.']],
+     start:'“Politics and the English Language” (1946): six rules, and the last one tells you to break the other five.',
+     feeds:[['Plain words','mine'],['Active voice','mine']]}
+  ];
+  const FILTS=[['all','Everyone'],['mine','Sharpens a habit I already have'],['A','How sentences look'],['B','How ideas connect'],['C','How to make a case']];
+  let f='all';
+  const $=i=>document.getElementById(i);
+  function renderFilt(){
+    $('filt').innerHTML='<span class="l">Read for</span>'+FILTS.map(([k,l])=>'<button class="fb'+(f===k?' on':'')+'" data-k="'+k+'">'+l+'</button>').join('');
+    $('filt').querySelectorAll('.fb').forEach(b=>b.onclick=()=>{f=b.dataset.k;renderFilt();renderShelf();});
+  }
+  function renderShelf(){
+    const list=W.filter(w=>{
+      if(f==='all')return true;
+      if(f==='mine')return w.feeds.some(t=>t[1]==='mine');
+      return w.sc===C[f];
+    });
+    $('shelf').innerHTML=list.map(w=>'<div class="bk" style="--sc:'+w.sc+'">'+
+      '<div class="bk-h"><div class="bk-n">'+w.n+'</div><div class="bk-d">'+w.d+'</div></div>'+
+      '<div class="bk-why">'+w.why+'</div>'+
+      '<div class="notice"><div class="nh">What to notice</div><ul>'+w.notice.map(([h,t])=>'<li><b>'+h+'</b>: '+t+'</li>').join('')+'</ul></div>'+
+      (w.pass?'<div class="pass"><p>'+w.pass.t+'</p><div class="src">'+w.pass.s+'</div></div>':'')+
+      (w.start?'<div class="start"><b>Where to start</b>'+w.start+'</div>':'')+
+      '<div class="feeds"><span class="fl">Feeds these habits of yours</span>'+
+        w.feeds.map(([t,m])=>'<span class="tag'+(m?' mine':'')+'" style="--tc:'+(m?'var(--gold-2)':'rgba(245,239,224,0.45)')+'"><i></i>'+t+'</span>').join('')+
+      '</div></div>').join('');
+  }
+  renderFilt();renderShelf();
+</script>
+</body>
+</html>

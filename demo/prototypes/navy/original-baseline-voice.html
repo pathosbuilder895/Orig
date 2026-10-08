@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Original · Voice Baseline</title>
+<link rel="stylesheet" href="fonts.css" />
+<link rel="stylesheet" href="demo.css" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c; --navy:#0d1530; --navy-1:#101c40; --navy-2:#16244f;
+    --line:rgba(201,160,40,0.16); --line-soft:rgba(255,255,255,0.07);
+    --gold:#c9a028; --gold-2:#e0be55; --cream:#f5efe0;
+    --dim:rgba(245,239,224,0.58); --dim-2:rgba(245,239,224,0.4);
+    --flag:#e0725a; --ok:#6bbf8a;
+    --display:'Playfair Display',Georgia,serif; --body:'EB Garamond',Georgia,serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  html,body{height:100%;}
+  body{font-family:var(--body);color:var(--cream);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;}
+  .frame{width:100%;max-width:1360px;height:min(900px,calc(100vh - 4.4rem));min-height:min(900px,calc(100vh - 4.4rem));position:relative;background:linear-gradient(160deg,#0c142e 0%,#0a1024 60%,#070b1c 100%);border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);display:flex;flex-direction:column;}
+  nav{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
+  .pills{display:flex;gap:.3rem;margin-left:1rem;}
+  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .9rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.9rem;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);text-decoration:none;}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .pill:hover{color:var(--cream);}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;}
+  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
+  .grid{flex:1;display:grid;grid-template-columns:360px 1fr;gap:0;min-height:0;}
+  .left{padding:0.4rem 1.3rem 1.4rem 1.7rem;display:flex;flex-direction:column;gap:1rem;overflow-y:auto;min-height:0;scrollbar-width:none;-ms-overflow-style:none;}
+  .left::-webkit-scrollbar{display:none;width:0;height:0;}
+  .greet-eyebrow{color:var(--dim);font-style:italic;font-size:1rem;}
+  .greet{font-family:var(--display);font-size:1.75rem;font-weight:500;line-height:1.06;color:var(--cream);margin-top:.1rem;}
+  .greet-meta{font-family:var(--mono);font-size:.68rem;letter-spacing:.06em;color:var(--dim-2);margin-top:.5rem;}
+  .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:18px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+  /* kept: 3-metric card */
+  .stat3{padding:.4rem .3rem;}
+  .stat3 .row{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;}
+  .stat3 .lab{font-size:.92rem;color:var(--cream);display:flex;flex-direction:column;gap:.15rem;}
+  .stat3 .lab b{font-family:var(--body);font-weight:400;font-style:italic;font-size:.76rem;color:var(--dim-2);}
+  .stat3 .val{font-family:var(--mono);font-weight:700;font-size:1.5rem;color:var(--gold-2);}
+  .stat3 .val.txt{font-size:1rem;letter-spacing:.02em;}
+  /* kept: purity ring */
+  .pur{padding:1.2rem 1.3rem;display:flex;gap:1.2rem;align-items:center;}
+  .pur-ring{position:relative;width:118px;height:118px;flex-shrink:0;}
+  .pur-ring svg{width:118px;height:118px;}
+  .pur-ring .val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .pur-ring .val .n{font-family:var(--mono);font-weight:700;font-size:1.5rem;color:var(--gold-2);}
+  .pur-ring .val .c{font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;color:var(--dim);margin-top:.1rem;}
+  .pur-leg{flex:1;display:flex;flex-direction:column;gap:.4rem;}
+  .pur-leg .lr{display:flex;align-items:center;justify-content:space-between;font-size:.82rem;color:var(--dim);}
+  .pur-leg .lr b{font-family:var(--mono);font-size:.82rem;color:var(--cream);}
+  .pur-note{font-size:.74rem;color:var(--dim-2);font-style:italic;line-height:1.4;margin-top:.3rem;}
+  .card-cap{font-family:var(--mono);font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim-2);padding:0 0 .55rem;}
+  /* RIGHT */
+  .right{position:relative;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
+  .hero{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;}
+  .hero canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:auto;}
+  .hero-photo{position:absolute;inset:0;background:radial-gradient(90% 80% at 58% 34%,#26346a 0%,#121d45 46%,#070b1c 100%);filter:saturate(.78) brightness(.72) contrast(1.14) hue-rotate(-6deg);}
+  .hero-photo::after{content:'';position:absolute;inset:0;background:radial-gradient(58% 52% at 52% 40%,rgba(201,160,40,0.16),transparent 72%),linear-gradient(180deg,rgba(10,16,42,0.34) 0%,transparent 42%);mix-blend-mode:screen;}
+  .hero-grad{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg, rgba(10,16,36,0.9) 0%, rgba(10,16,36,0.32) 24%, transparent 52%),linear-gradient(0deg, rgba(7,11,28,0.99) 30%, rgba(7,11,28,0.55) 46%, transparent 60%),radial-gradient(80% 55% at 66% 26%, rgba(201,160,40,0.12), transparent 70%);}
+  .right-scroll{position:relative;z-index:1;flex:1;overflow-y:auto;overflow-x:hidden;padding:1.4rem 1.9rem 1.9rem;display:flex;flex-direction:column;gap:1.3rem;min-height:0;}
+  .hero-inner{position:relative;min-height:392px;display:flex;flex-direction:column;justify-content:flex-end;padding:4rem 0 1rem;pointer-events:none;}
+  .hero-eyebrow{font-family:var(--mono);font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);}
+  .hero-title{font-family:var(--display);font-size:2.4rem;font-weight:500;line-height:1.04;color:var(--cream);margin-top:.5rem;}
+  .hero-title span{color:var(--dim);}
+  .hero-sum{font-size:1.05rem;color:var(--cream);line-height:1.55;max-width:36rem;margin-top:.9rem;text-wrap:pretty;}
+  .hero-tags{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1rem;pointer-events:auto;}
+  .tag{font-family:var(--mono);font-size:.72rem;letter-spacing:.02em;color:var(--gold-2);background:rgba(201,160,40,0.1);border:1px solid rgba(201,160,40,0.28);border-radius:999px;padding:.32rem .8rem;}
+  .sec-h{display:flex;align-items:baseline;gap:.6rem;margin-bottom:.2rem;}
+  .sec-h b{font-family:var(--display);font-weight:500;font-size:1.3rem;}
+  .sec-h span{color:var(--dim);font-size:.86rem;font-style:italic;}
+  .portrait{padding:1.4rem 1.5rem;}
+  .portrait p{font-size:1.02rem;line-height:1.7;color:rgba(245,239,224,0.86);text-wrap:pretty;}
+  .portrait p+p{margin-top:.9rem;}
+  .portrait em{font-style:italic;color:var(--cream);}
+  .portrait b{font-weight:400;color:var(--gold-2);font-family:var(--body);}
+  /* signature habits */
+  .habits{display:flex;flex-direction:column;}
+  .habit{display:grid;grid-template-columns:230px 1fr;gap:1.3rem;padding:1.1rem 1.5rem;border-top:1px solid var(--line-soft);align-items:center;}
+  .habit:first-child{border-top:none;}
+  .habit-name{font-size:1rem;color:var(--cream);font-weight:500;}
+  .habit-strength{display:flex;align-items:center;gap:.6rem;margin-top:.45rem;}
+  .hs-track{flex:1;height:6px;border-radius:3px;background:rgba(245,239,224,0.08);overflow:hidden;max-width:150px;}
+  .hs-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--gold),var(--gold-2));}
+  .hs-lab{font-family:var(--mono);font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--dim-2);}
+  .habit-desc{font-size:.94rem;line-height:1.55;color:var(--dim);text-wrap:pretty;}
+  .habit-desc em{font-style:italic;color:rgba(245,239,224,0.82);}
+  /* timeline (kept) */
+  .tl-card{padding:1.3rem 1.4rem;}
+  .bb-cta{display:flex;align-items:center;gap:.8rem;margin-top:1rem;padding:.85rem 1rem;background:rgba(58,91,160,0.13);border:1px solid rgba(90,130,200,0.35);border-radius:12px;font-size:.88rem;color:var(--dim);line-height:1.5;text-decoration:none;transition:border-color .15s;}
+  .bb-cta:hover{border-color:rgba(140,170,230,0.6);color:var(--cream);}
+  .bb-cta b{color:#a8c2f0;font-weight:500;}
+  .bb-ic{width:22px;height:28px;border-radius:2px 5px 5px 2px;background:linear-gradient(160deg,#4a6cb5,#2c4a8c);border-left:2px solid rgba(255,255,255,0.25);flex-shrink:0;}
+  .timeline{display:flex;flex-direction:column;gap:.9rem;}
+  .ti{display:flex;gap:1rem;align-items:flex-start;padding:.9rem 1rem;background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);border-radius:12px;}
+  .ti-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:.82rem;color:var(--navy);flex-shrink:0;}
+  .ti-body{flex:1;min-width:0;}
+  .ti-title{font-size:.98rem;color:var(--cream);font-weight:500;}
+  .ti-meta{font-size:.8rem;color:var(--dim-2);margin-top:.1rem;}
+  .ti-tags{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem;}
+  .tg{font-family:var(--mono);font-size:.64rem;letter-spacing:.02em;color:var(--dim);background:rgba(255,255,255,0.045);border:1px solid var(--line-soft);border-radius:5px;padding:.18rem .5rem;}
+  .ti-w{text-align:right;flex-shrink:0;}
+  .ti-w .l{font-size:.62rem;color:var(--dim-2);letter-spacing:.04em;}
+  .ti-w .n{font-family:var(--mono);font-weight:700;font-size:1.15rem;color:var(--gold-2);margin:.05rem 0;}
+  .traj{display:flex;gap:.8rem;align-items:flex-start;margin-top:1.1rem;padding:1rem 1.1rem;background:rgba(201,160,40,0.06);border:1px solid rgba(201,160,40,0.2);border-radius:12px;color:var(--gold);}
+  .traj svg{stroke:var(--gold);fill:none;flex-shrink:0;margin-top:.1rem;}
+  .traj .t{font-family:var(--body);font-weight:500;font-size:.95rem;color:var(--gold-2);}
+  .traj .d{font-size:.85rem;color:var(--dim);line-height:1.5;margin-top:.25rem;}
+  @media (max-width:900px){
+    body{padding:0;}
+    .frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
+    .grid{grid-template-columns:1fr;}
+    .left{overflow:visible;}
+    .right{min-height:520px;}
+    nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;}
+    .habit{grid-template-columns:1fr;gap:.5rem;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body class="demo-frame">
+<div class="demo-ribbon" role="note"><b>Fictional demonstration</b><span class="demo-ribbon-more">&nbsp;· every person, class, paper and number here is invented</span></div>
+<div class="frame">
+  <nav>
+    <div class="brand"><span class="mk"></span>Original</div>
+    <div class="pills">
+      <a class="pill" href="original-dashboard.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
+      <a class="pill on" href="original-students.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
+      <a class="pill" href="original-review.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
+      <a class="pill" href="original-bluebook-teacher.html"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+      <a class="pill" href="original-reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
+    </div>
+    <div class="nav-right"><div class="avatar">RH</div></div>
+  </nav>
+  <div class="grid">
+    <aside class="left">
+      <div>
+        <div class="greet-eyebrow">Voice Baseline</div>
+        <div class="greet">James Whitfield</div>
+        <div class="greet-meta">0x4A7 · THEO 301 · 3 teacher-approved samples</div>
+        <div class="demo-testing" role="note"><b>Testing phase:</b> Original is not yet validated on real student writing. Treat any result as a reason for a conversation, never as evidence.</div>
+      </div>
+
+      <!-- kept: baseline metrics -->
+      <div class="card stat3">
+        <div class="row">
+          <div class="lab">Baseline Samples<b>more give Original more to go on</b></div>
+          <div class="val">3</div>
+        </div>
+        <div class="row" style="border-top:1px solid var(--line-soft);">
+          <div class="lab">How settled it is<b>Purity Tr(ρ²) · 0.297</b></div>
+          <div class="val txt">Moderate</div>
+        </div>
+        <div class="row" style="border-top:1px solid var(--line-soft);">
+          <div class="lab">Baseline<b>with 3 samples Original may say it can't tell</b></div>
+          <div class="val txt">Thin</div>
+        </div>
+      </div>
+
+      <!-- kept: purity ring -->
+      <div class="card pur">
+        <div class="pur-ring">
+          <svg viewBox="0 0 118 118" style="transform:rotate(-90deg);">
+            <circle cx="59" cy="59" r="50" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="10"/>
+            <circle id="pur-arc" cx="59" cy="59" r="50" fill="none" stroke="url(#pg)" stroke-width="10" stroke-linecap="round" stroke-dasharray="314.2" stroke-dashoffset="314.2"/>
+            <defs><linearGradient id="pg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c9a028"/><stop offset="1" stop-color="#e0be55"/></linearGradient></defs>
+          </svg>
+          <div class="val"><span class="n">0.297</span><span class="c">Tr(ρ²)</span></div>
+        </div>
+        <div class="pur-leg">
+          <div class="lr"><span>Right now</span><b style="color:var(--gold-2)">0.297</b></div>
+          <div class="lr"><span>Floor (3 samples)</span><b>0.333</b></div>
+          <div class="lr"><span>One fixed style</span><b>1.000</b></div>
+          <div class="pur-note">A lower number just means James writes differently across essays, exams, and responses: healthy variety, not a problem.</div>
+        </div>
+      </div>
+    </aside>
+
+    <section class="right">
+      <div class="hero">
+        <div class="hero-photo"></div>
+        <canvas id="fpq-canvas"></canvas>
+        <div class="hero-grad"></div>
+      </div>
+      <div class="right-scroll">
+        <div class="hero-inner">
+          <div class="hero-eyebrow">How this student writes</div>
+          <div class="hero-title">A careful, first-person voice<br><span>that thinks out loud in long sentences.</span></div>
+          <div class="hero-sum">Across three teacher-approved papers, James writes the way he talks through a problem: patiently, in his own person, weighing one side against the other before he lands.</div>
+          <div class="hero-tags">
+            <span class="tag">Long sentences</span>
+            <span class="tag">Thinks out loud</span>
+            <span class="tag">Speaks as “I”</span>
+            <span class="tag">Weighs both sides</span>
+            <span class="tag">Active voice</span>
+          </div>
+        </div>
+
+        <div>
+          <div class="sec-h"><b>The short version</b><span>plain English, no jargon</span></div>
+          <div class="card portrait">
+            <p>James writes in <b>long, unhurried sentences</b> and isn't afraid to let one run: he builds a thought clause by clause rather than in short bursts. When he makes a point he tends to <em>state it plainly and then soften it</em>: a confident claim followed by a “perhaps” or an “it seems,” as if he's testing the idea aloud.</p>
+            <p>He writes <b>in the first person</b> (comfortable saying “I think” or “we see”) and prefers the <b>active voice</b> (“Paul argues,” not “it is argued”). He likes to <b>set ideas against each other</b>, reaching often for <em>however</em> and <em>but</em>, and he leans on the vocabulary of his field when the moment calls for it. None of this is unusual for him: it's simply <em>his</em> normal, and that's exactly what the baseline records.</p>
+          </div>
+        </div>
+
+        <div>
+          <div class="sec-h"><b>Signature habits</b><span>the things that make his writing his</span></div>
+          <div class="card habits" id="habits"></div>
+        </div>
+
+        <div>
+          <div class="sec-h"><b>Where the baseline came from</b><span>3 teacher-approved samples</span></div>
+          <div class="card tl-card">
+            <div class="timeline" id="timeline"></div>
+            <div class="traj">
+              <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" stroke-width="1.5"/><line x1="12" y1="8" x2="12" y2="12" stroke-width="1.5"/><line x1="12" y1="16" x2="12.01" y2="16" stroke-width="2"/></svg>
+              <div>
+                <div class="t">Still getting to know him</div>
+                <div class="d">Three samples is a thin baseline. Writers grow over a term, so a later paper can differ for honest reasons. More approved samples help Original tell the difference; with too few, it should say it can't tell.</div>
+              </div>
+            </div>
+            <a class="bb-cta" href="original-bluebook-teacher.html"><span class="bb-ic"></span><span><b>Add a fourth sample:</b> run a Bluebook session, then approve the booklets you want to use as reference writing.</span><svg viewBox="0 0 24 24" width="15" height="15" style="flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;"><path d="M9 6l6 6-6 6"/></svg></a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+<script src="js/fingerprint.js"></script>
+<script>
+  (function(){
+    function init(){
+      const c=document.getElementById('fpq-canvas'); if(!c) return;
+      if(!window.Fingerprint){ return void setTimeout(init,50); }
+      window.Fingerprint(c,{rings:17,particlesPerRing:100,noiseAmp:6,lineColor:'rgba(245,239,224,0.42)',goldColor:'rgba(201,160,40,0.9)',mouseRepel:70});
+    }
+    (document.readyState==='loading')?document.addEventListener('DOMContentLoaded',init):init();
+  })();
+  // purity ring
+  (function(){ const arc=document.getElementById('pur-arc'); if(!arc) return; const C=314.2,p=0.297; arc.style.strokeDashoffset=C*(1-p); })();
+  // signature habits: plain-English traits with strength
+  (function(){
+    const H=[
+      ['Long, winding sentences',0.76,'His sentences run long: a thought often unfolds across a whole sentence rather than in short, clipped ones.'],
+      ['Thinks out loud, then hedges',0.69,'He states a claim and softens it: <em>“this suggests, perhaps…”</em> Careful rather than dogmatic.'],
+      ['Writes as “I” and “we”',0.71,'Comfortable in the first person. He owns his argument instead of hiding behind an impersonal, detached voice.'],
+      ['Prefers the active voice',0.82,'<em>“Augustine argues,”</em> not <em>“it is argued by Augustine.”</em> Direct, with a clear actor in each sentence.'],
+      ['Weighs both sides',0.57,'Reaches often for <em>however</em>, <em>but</em>, <em>on the other hand</em>: he sets an idea against its counter before deciding.'],
+      ['Reaches for the field\u2019s vocabulary',0.62,'When the subject calls for it he uses precise theological terms, but doesn\u2019t pad his prose with them.'],
+    ];
+    document.getElementById('habits').innerHTML=H.map(h=>{
+      const lvl = h[1]>0.7?'Strong':h[1]>0.5?'Marked':'Present';
+      return '<div class="habit"><div><div class="habit-name">'+h[0]+'</div>'+
+        '<div class="habit-strength"><div class="hs-track"><div class="hs-fill" style="width:'+Math.round(h[1]*100)+'%"></div></div><span class="hs-lab">'+lvl+'</span></div></div>'+
+        '<div class="habit-desc">'+h[2]+'</div></div>';
+    }).join('');
+  })();
+  // baseline sample timeline (kept from quantum)
+  (function(){
+    const rows=[
+      ['1','#4d90c8','In-Class Essay: Christology','15 Jan 2026 · THEO 301 · 217 words',['Supervised','w = 1.00 × 0.82'],'0.820'],
+      ['2','#3a7a52','Midterm Exam: Romans 8–11','14 Feb 2026 · THEO 301 · 239 words',['Proctored Exam','w = 0.95 × 0.88'],'0.836'],
+      ['3','#5aab7a','Response Paper: Hermeneutics','16 Mar 2026 · THEO 301 · 206 words',['Instructor Verified','w = 0.80 × 1.00'],'0.800'],
+    ];
+    document.getElementById('timeline').innerHTML=rows.map(r=>
+      '<div class="ti"><div class="ti-dot" style="background:'+r[1]+'">'+r[0]+'</div>'+
+      '<div class="ti-body"><div class="ti-title">'+r[2]+'</div><div class="ti-meta">'+r[3]+'</div>'+
+      '<div class="ti-tags">'+r[4].map(t=>'<span class="tg">'+t+'</span>').join('')+'</div></div>'+
+      '<div class="ti-w"><div class="l">Effective weight</div><div class="n">'+r[5]+'</div><div class="l">auth × recency</div></div></div>'
+    ).join('');
+  })();
+</script>
+</body>
+</html>
