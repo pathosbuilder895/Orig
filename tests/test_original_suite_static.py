@@ -411,6 +411,19 @@ def test_writing_state_shows_purity_with_its_caveat():
     assert any("Tr(" in b and "T-01" in b for b in parser.blocks)
 
 
+def test_writing_state_keeps_triage_local_and_names_each_analysis():
+    # Until Original keeps analysis results (Task 12), "Looks fine" and "Have a
+    # conversation" stay a local note, like professor.html's quick buttons: the
+    # corrections endpoint writes calibration labels and mislabels a correct
+    # no_action when manifests are off (original/routers/admin.py). Each score
+    # call sends its own submission_id so analyses cannot share one.
+    page = (SUITE / "writing-state.html").read_text(encoding="utf-8")
+    assert "/submissions/" not in page
+    assert "/correct" not in page
+    assert "submission_id" in page
+    assert "original_portfolio_" in page
+
+
 # Report-only or retired fields of the score response (original/schemas.py
 # Layer7OutputResponse). The suite never reads them, so it cannot show them.
 REPORT_ONLY_FIELDS = (

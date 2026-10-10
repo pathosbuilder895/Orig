@@ -310,6 +310,7 @@
   .fpq-btn:disabled:hover{color:var(--dim);}
   .tri-btn:disabled{opacity:.55;cursor:default;}
   .tri-done.err{color:#f0a690;}
+  .tri-note{flex-basis:100%;font-size:.76rem;font-style:italic;color:var(--dim-2);}
   /* Feature detail and evidence: the server's own reading of each habit */
   .fd-flag.ok{background:rgba(107,191,138,.12);color:var(--ok);border-color:rgba(107,191,138,.3);}
   /* The design's .fd-base gradient appends alpha digits to var(), which is not
@@ -430,6 +431,7 @@
             <button class="tri-btn ok" type="button" data-act="fine">Looks fine</button>
             <button class="tri-btn talk" type="button" data-act="talk">Have a conversation</button>
             <span class="tri-done" id="tri-done" role="status"></span>
+            <span class="tri-note">Kept on this computer for now; saved to your workspace once Original keeps analysis results.</span>
           </div>
           <div class="hero-evi" id="hero-evi">
             <div class="evi-head">
@@ -525,7 +527,7 @@
 
   // ── page state ──
   const S={
-    id:'', name:'', student:null, loaded:false, stErr:'', verdict:null,
+    id:'', name:'', student:null, loaded:false, stErr:'', verdict:null, entryId:'',
     base:null, sub:null, result:null, D:new Map(), C:new Map(), capped:false,
     assignment:'', words:0, analysedAt:'', view:'baseline'
   };
@@ -1081,11 +1083,14 @@
     const assignment=$('an-assign').value.trim().slice(0,200);
     const go=$('an-go');
     go.disabled=true; go.textContent='Analysing'; msg('This takes a few seconds.');
-    const res=await Live.api('/students/'+encodeURIComponent(S.id)+'/score',{method:'POST',body:{text:text,assignment:assignment}});
+    // A fresh id per analysis, so two papers never share the server's
+    // default <student>_submission_<n> name.
+    const res=await Live.api('/students/'+encodeURIComponent(S.id)+'/score',{method:'POST',body:{text:text,assignment:assignment,submission_id:newSubmissionId()}});
     go.disabled=false; go.textContent='Analyse';
     const d=res.data;
     if(res.ok&&d&&typeof d==='object'&&d.feature_vector&&d.baseline_vector){
       setResult(d,assignment,countWords(text));
+      S.entryId=appendAnalysis(d,text,assignment);
       setView('submission',true);
       renderAll();
       $('an-done-t').textContent=assignment||'Untitled paper';
@@ -1105,25 +1110,59 @@
     else msg('The analysis could not be completed just now, so the paper was not analysed. Try again.',true);
   }
 
-  // ── triage: the classic page's correction endpoint and payload ──
-  async function triage(act,btn){
-    const r=S.result; const done=$('tri-done');
-    if(!r||typeof r.submission_id!=='string'||!r.submission_id) return;
-    const target=act==='fine'?'no_action':'schedule_conversation';
-    const body={is_correct:actionOf()===target,reviewer:'professor',notes:'Writing State: '+(act==='fine'?'Looks fine':'Have a conversation')};
-    if(!body.is_correct) body.corrected_action=target;
-    const btns=document.querySelectorAll('.triage button.tri-btn');
-    btns.forEach(x=>{x.disabled=true;});
-    done.classList.remove('err'); done.textContent='Saving';
-    const res=await Live.api('/submissions/'+encodeURIComponent(r.submission_id)+'/correct',{method:'POST',body:body});
-    btns.forEach(x=>{x.disabled=false;});
-    if(res.ok){
-      btns.forEach(x=>x.classList.toggle('sel',x===btn));
-      done.textContent=act==='fine'?'Recorded: looks fine.':'Recorded: you plan to talk with '+who()+'.';
+  function newSubmissionId(){
+    try{ if(window.crypto&&typeof window.crypto.randomUUID==='function') return window.crypto.randomUUID(); }catch(e){ /* not a secure context */ }
+    let hex='';
+    try{ const a=new Uint8Array(16); window.crypto.getRandomValues(a); a.forEach(b=>{ hex+=(b<16?'0':'')+b.toString(16); }); }
+    catch(e){ hex=Date.now().toString(16)+Math.random().toString(16).slice(2)+Math.random().toString(16).slice(2); }
+    return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20,32);
+  }
+
+  // ── the classic page's portfolio (professor.html portfolioKey / readPortfolio /
+  // writePortfolio): one localStorage list per student, so its History tab
+  // sees analyses run here and the notes below. Kept on this computer until
+  // Original keeps analysis results (Task 12).
+  const portfolioKey=()=>'original_portfolio_'+S.id;
+  function readPortfolio(){
+    try{ const raw=window.localStorage.getItem(portfolioKey()); if(raw){ const v=JSON.parse(raw); if(Array.isArray(v)) return v; } }catch(e){}
+    return [];
+  }
+  function writePortfolio(entries){
+    try{ window.localStorage.setItem(portfolioKey(),JSON.stringify(entries)); return true; }catch(e){ return false; }
+  }
+  // Same entry shape as appendProfessorAnalysis: {id, assignment, timestamp,
+  // response, text}; a note adds professorAction. Returns the entry id, or ''
+  // when the browser would not store it.
+  function appendAnalysis(resp,text,assignment){
+    const id=(typeof resp.submission_id==='string'&&resp.submission_id)||('prof_'+Date.now());
+    const entries=readPortfolio();
+    entries.push({
+      id:id,
+      assignment:assignment||('Writing State analysis · '+new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'})),
+      timestamp:new Date().toISOString(),
+      response:resp,
+      text:text
+    });
+    return writePortfolio(entries)?id:'';
+  }
+
+  // ── triage: a teacher's note, kept like the classic page's quick buttons
+  // (recordProfessorAction), never the corrections endpoint ──
+  function triage(act,btn){
+    const done=$('tri-done');
+    if(!S.result) return;
+    const action=act==='fine'?'no_action':'schedule_conversation';
+    const entries=readPortfolio();
+    const entry=S.entryId?entries.find(h=>h&&h.id===S.entryId):null;
+    if(entry){ entry.professorAction={action:action,at:new Date().toISOString()}; }
+    if(!entry||!writePortfolio(entries)){
+      done.classList.add('err');
+      done.textContent='This note could not be kept: this browser is not storing data for the page.';
       return;
     }
-    done.classList.add('err');
-    done.textContent=res.status===401?'Sign in again to record this.':res.status===403?'Only a signed-in teacher can record this.':'This could not be recorded just now. Try again.';
+    done.classList.remove('err');
+    document.querySelectorAll('.triage button.tri-btn').forEach(x=>x.classList.toggle('sel',x===btn));
+    done.textContent=act==='fine'?'Recorded: looks fine.':'Recorded: you plan to talk with '+who()+'.';
   }
 
   // What the Conversation Packet (packet.html) reads. Only what that page
