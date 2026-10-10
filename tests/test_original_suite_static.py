@@ -45,7 +45,6 @@ PLANNED_PAGES = {
     "packet.html",
     "baseline.html",
     "reports.html",
-    "settings.html",
     "voice.html",
     "my-work.html",
     "library.html",
@@ -308,6 +307,7 @@ def test_no_file_in_the_suite_exceeds_the_commit_limit():
         "/original/",
         "/original/students.html",
         "/original/writing-state.html",
+        "/original/settings.html",
         "/original/live.js",
         "/original/suite.css",
         "/original/fonts.css",
@@ -452,6 +452,23 @@ def test_feature_data_lists_the_97_active_features_in_constants_order():
     assert len(codes) == 97
     # Names and descriptions only: the design's invented values stay out.
     assert "base:" not in src and "sub:" not in src and "FLAGS" not in src
+
+
+def test_settings_page_changes_the_password_and_offers_nothing_that_does_not_exist():
+    page = (SUITE / "settings.html").read_text(encoding="utf-8")
+    # POST /auth/password {current_password, new_password}, through the shared client.
+    assert "Live.api('/auth/password'" in page
+    assert "current_password" in page and "new_password" in page
+    # A typed password is never logged or kept: no console output, no storage.
+    for leak in ("console.", "localStorage", "sessionStorage"):
+        assert leak not in page, f"settings.html uses {leak}"
+    # A failed submit must not put the password in a URL (a form posts, it never GETs).
+    assert 'method="post"' in page
+    # There is no sensitivity setting and no LMS integration to configure.
+    for gone in ("Flag Sensitivity", "sensitivity", "Canvas", "Blackboard"):
+        assert gone not in page, f"settings.html still mentions {gone}"
+    # The demo has no account to change.
+    assert "The demo has no account; sign in on a real workspace to change your password." in page
 
 
 needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
