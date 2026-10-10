@@ -343,6 +343,116 @@ def test_students_page_loads_through_live_roster():
         assert endpoint not in page, f"students.html calls {endpoint} itself"
 
 
+needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
+
+# ── Teachers land on these pages; the old page stays one click away ───────────
+# Owner decision 2026-10-10: sign-in sends a teacher to /original/. The old
+# professor.html stays reachable as "Analysis (classic)" until these pages cover
+# it. The account menu markup is written out on every page (no templating), so
+# the check runs over every page in the suite, present and future.
+
+
+class _AccountMenu(HTMLParser):
+    """The (href, text) of every link inside the element with class ``me-menu``,
+    in document order. The text is the link's visible text only (an icon's
+    markup carries none)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.links: list[tuple[str, str]] = []
+        self._depth = 0  # open elements inside the menu; 0 = not in the menu
+        self._link: list | None = None
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if self._depth:
+            self._depth += 1
+            if tag == "a":
+                self._link = [attrs.get("href") or "", ""]
+        elif "me-menu" in (attrs.get("class") or "").split():
+            self._depth = 1
+
+    def handle_endtag(self, tag):
+        if not self._depth:
+            return
+        if tag == "a" and self._link is not None:
+            self.links.append((self._link[0], " ".join(self._link[1].split())))
+            self._link = None
+        self._depth -= 1
+
+    def handle_data(self, data):
+        if self._depth and self._link is not None:
+            self._link[1] += data
+
+
+def _account_menu(path: Path) -> list[tuple[str, str]]:
+    parser = _AccountMenu()
+    parser.feed(path.read_text(encoding="utf-8"))
+    return parser.links
+
+
+@pytest.mark.parametrize("path", PAGES, ids=lambda p: p.name)
+def test_account_menu_offers_the_classic_analysis_page_after_settings(path):
+    links = _account_menu(path)
+    assert links, f"{path.name} has no account menu"
+    texts = [text for _, text in links]
+    assert texts.count("Analysis (classic)") == 1, f"{path.name}: {texts}"
+    classic = texts.index("Analysis (classic)")
+    assert links[classic][0] == "/professor.html"
+    assert classic > 0 and texts[classic - 1] == "Settings", f"{path.name}: {texts}"
+
+
+def _sign_in_redirect() -> str:
+    html = (DEMO / "index.html").read_text(encoding="utf-8")
+    found = re.findall(r"window\.location\.href\s*=\s*([^;]+);", html)
+    assert len(found) == 1, "index.html must have exactly one post-sign-in redirect"
+    return " ".join(found[0].split())
+
+
+def test_sign_in_sends_a_teacher_to_the_new_original_pages():
+    # Roles other than operator and admin (a teacher is role "professor") end up
+    # at the last alternative, which is the suite's front page, not professor.html.
+    assert _sign_in_redirect() == (
+        "role === 'operator' ? 'operator.html' : role === 'admin' ? 'admin.html' : 'original/'"
+    )
+    # ...and the redirect has to resolve to a real page under demo/.
+    assert (DEMO / "original" / "index.html").is_file()
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "role,target",
+    [
+        ("professor", "original/"),
+        ("admin", "admin.html"),
+        ("operator", "operator.html"),
+    ],
+)
+def test_sign_in_redirect_evaluates_to_the_right_page(role, target):
+    run = subprocess.run(
+        [shutil.which("node"), "-e", "process.stdout.write(String(new Function('role', 'return ' + process.argv[1])(process.argv[2])))", _sign_in_redirect(), role],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    assert run.stdout == target
+
+
+def test_demo_professor_pill_opens_the_new_original_pages():
+    html = (DEMO / "index.html").read_text(encoding="utf-8")
+    pill = re.findall(r'<a href="([^"]+)" class="role-pill prof">', html)
+    assert pill == ["original/"]
+
+
+@pytest.mark.parametrize("name", ["Dashboard.jsx", "TeacherWorkspace.jsx", "bluebook.bundle.js"])
+def test_bluebooks_original_link_opens_the_new_pages(name):
+    # The bundle is what production serves; the sources must agree with it.
+    text = (DEMO / "bluebook" / name).read_text(encoding="utf-8")
+    assert "'../original/'" in text or '"../original/"' in text, name
+    assert "../professor.html" not in text, f"{name} still links the old page"
+
+
 # ── Live.roster, run for real under node ──────────────────────────────────────
 # live.js is plain browser script with no module system, so these run it in a
 # bare `node` with a stubbed window, document and fetch. They need only node
@@ -384,8 +494,6 @@ function fakeFetch(href) {
 new Function('window', 'document', 'fetch', src)(window, document, fakeFetch);
 window.Live.roster().then((result) => process.stdout.write(JSON.stringify({ result, max, calls })));
 """
-
-needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
 
 
 def _roster(**scenario) -> dict:

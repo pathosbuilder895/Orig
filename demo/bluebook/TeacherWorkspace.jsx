@@ -14,7 +14,7 @@ export function TeacherFrame({ demo = false, active = 'sessions', onNavigate, ch
   return <div className="teacher-ui"><div className="teacher-frame">
     <nav className="teacher-nav" aria-label="Teacher navigation">
       <div className="teacher-brand"><span aria-hidden="true">◆</span> {demo || BB_API.hasOriginal() ? 'Original' : 'Bluebook'}</div>
-      <div className="teacher-pills">{items.map(([label,key]) => <button key={key} className={active===key?'on':''} aria-current={active===key?'page':undefined} onClick={()=>onNavigate(key)}>{label}</button>)}{!demo && BB_API.hasOriginal() && <button onClick={()=>{window.location.href='../professor.html';}}>Original Analysis ↗</button>}</div>
+      <div className="teacher-pills">{items.map(([label,key]) => <button key={key} className={active===key?'on':''} aria-current={active===key?'page':undefined} onClick={()=>onNavigate(key)}>{label}</button>)}{!demo && BB_API.hasOriginal() && <button onClick={()=>{window.location.href='../original/';}}>Original Analysis ↗</button>}</div>
       <span className="teacher-avatar" title={identity.name} aria-label={identity.name}>{demo?'P':initials}</span>
     </nav>
     <div className={'teacher-mode '+(demo?'is-demo':'')}>

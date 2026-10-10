@@ -92,7 +92,7 @@ function Sidebar({ activeScreen, onNavigate }) {
             colour and the divider above. */}
         {showOriginal && (
         <button
-          onClick={() => { window.location.href = '../professor.html'; }}
+          onClick={() => { window.location.href = '../original/'; }}
           onMouseEnter={() => setHovered('original')}
           onMouseLeave={() => setHovered(null)}
           style={{
