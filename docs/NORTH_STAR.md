@@ -1,6 +1,6 @@
 # NORTH STAR: Original + Bluebook
 
-*v0.2, 7 Oct 2026. Owner: Andrew Clark. This file wins over every other doc in the repo. If something here looks wrong, propose an edit. Don't work around it.*
+*v0.3, 8 Oct 2026. Owner: Andrew Clark. This file wins over every other doc in the repo. If something here looks wrong, propose an edit. Don't work around it.*
 
 ## Mission
 
@@ -25,19 +25,20 @@ We are building a platform that makes sure a student's writing is really their o
 
 Original is off by default. It may be switched on for a teacher, but only with the testing-phase warning described in rule 10.
 
-The engineering for this phase is merged (PRs #226 and #227, 5 Oct 2026). **Nothing is deployed yet.** What remains is listed in `docs/release/VERIFICATION_AND_BLOCKERS.md` under "Still open":
-- hosting
+The engineering for this phase is merged (PRs #226 and #227, 5 Oct 2026). **The pilot and the fictional demo have been deployed on Render since 6 Oct 2026, but no teacher is invited yet.** The pilot (`original-pilot.onrender.com`) runs on Postgres with signup closed and no students. It runs a pre-merge build (`00247875`), not `main`, so the next deploy should come from `main`. `docs/STATUS.md` has the details.
+
+What remains before the first invite is listed in `docs/release/VERIFICATION_AND_BLOCKERS.md` under "Still open" (its B3 and B5, creating the pilot and publishing the demo, are done):
+- hosting plan and budget sign-off
 - email
 - encrypted off-box backups
 - legal pages
-- deployed acceptance testing
-- publishing the fictional demo
+- deployed acceptance testing (full journey, restart, restore and rollback on the live instance)
 - inviting the first teachers
 
-**Hosting and budget are still open.** They are being researched, and the result will live in `docs/research/2026-10-07-hosting-and-storage.md`. No plan is purchased until Andrew approves.
+**The hosting plan and budget are still open.** The services run on Render today. The options are in `docs/research/2026-10-07-hosting-and-storage.md`. Nothing more is purchased until Andrew approves.
 
 Milestones, in order:
-1. A shareable fictional demo.
+1. A shareable fictional demo. *(Live since 6 Oct 2026 at `bluebook-teacher-demo.onrender.com`.)*
 2. A usable Bluebook pilot.
 3. Original reports in teacher workspaces, labelled as testing-phase.
 4. A validated Original.

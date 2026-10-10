@@ -177,8 +177,8 @@ Then commit the bundle. Render has no Node — the committed `bluebook.bundle.js
 
 **Current state:**
 - Engineering merged (PRs #226, #227, 5 Oct 2026)
-- Nothing deployed yet
-- Render blueprint exists; awaiting owner approval
+- Pilot and fictional demo deployed on Render since 6 Oct 2026; no teachers invited yet (see `docs/STATUS.md`)
+- Render blueprint in `render.yaml`; hosting plan and budget awaiting owner sign-off
 - Postgres 16 backend; SQLite for dev/demo
 
 **Stack:**
