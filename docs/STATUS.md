@@ -1,6 +1,6 @@
 # Original + Bluebook: Current Status
 
-*Last updated: 2026-10-07*
+*Last updated: 2026-10-08*
 
 **Quick ref:** This file tracks what's deployed, what's in flight, what's blocked, and what's next. Every AI tool should update this at the end of a session.
 
@@ -12,7 +12,7 @@
 
 Original is off by default. It may be switched on per workspace with testing-phase warnings.
 
-Engineering for this phase is merged (PRs #226, #227, 5 Oct 2026). Nothing is deployed yet.
+Engineering for this phase is merged (PRs #226, #227, 5 Oct 2026). The pilot and the fictional demo are deployed (since 6 Oct 2026); no teacher is invited yet. See Deployed.
 
 See `docs/NORTH_STAR.md` for phase goals and non-negotiables.
 
@@ -20,11 +20,18 @@ See `docs/NORTH_STAR.md` for phase goals and non-negotiables.
 
 ## Deployed
 
-**Nothing is deployed yet.**
+**The pilot and the fictional demo are live on Render (since 6 Oct 2026). No teacher has been invited yet.**
 
-Previous free Render service (`Originall`) at `https://originall.onrender.com` is stale and failed on most recent deploy attempt. No production database exists.
+| Service | URL | State (checked 2026-10-08) |
+|---------|-----|----------------------------|
+| `original-pilot` | https://original-pilot.onrender.com | `/health` ok; backend `postgres`; environment `pilot`; `signup_open: false`; 0 students; commit `00247875` |
+| `bluebook-teacher-demo` | https://bluebook-teacher-demo.onrender.com | Serves the fictional teacher demo; Codex reported it at commit `2c2d62d2` |
 
-Target: Render Hobby following `render.yaml` blueprint, Postgres 16, Oregon region.
+- **The pilot runs a pre-merge build, not `main`.** `00247875` sits on `codex/bluebook-pilot-c962a917`. That work reached `main` as the squash-merged #235, so `main` has the same code plus everything merged since, including the T-01 scoring fix and the Canvas SSRF fixes. Neither has an effect while Original and Canvas are off. Redeploy from `main` before the first teacher is invited.
+- **Render probably deploys from `codex/bluebook-pilot-c962a917`**: both live commits are on it (and on `codex/pilot-secrets`). Unconfirmed, because the Render CLI on the dev machine is not logged in. Point the services at `main` in the Render dashboard before deleting either branch, or future deploys lose their source.
+- Codex reported on 6 Oct that the managed Postgres migrations succeeded and 12 public smoke checks passed. The full deployed acceptance run (B4) has not happened.
+- The old free service `Originall` (`https://originall.onrender.com`) did not respond within 70 s on 2026-10-08. Its fate is part of B1.
+- Intended hosting: Render Hobby following the `render.yaml` blueprint, Postgres 16, Oregon region. The plan and budget are not yet signed off.
 
 ---
 
@@ -34,15 +41,15 @@ Target: Render Hobby following `render.yaml` blueprint, Postgres 16, Oregon regi
 
 | PR | Branch | Owner | Status | Notes |
 |----|--------|-------|--------|-------|
-| [#228](https://github.com/pathosbuilder895/Orig/pull/228) | `claude/original-landing-integration-d19b53` | Claude Code + Claude Design | Open | Landing page plus dashboard mock. Includes ADR-011. **Conflicts:** Found two AI-generated images credited to historical engravers and one unlicensed photo. Needs Andrew decision on hosting claims, image licensing, and footer. |
-| [#225](https://github.com/pathosbuilder895/Orig/pull/225) | `sprint/lane-a-claude` | Claude | Open | **CONFLICTS WITH NO-KEYSTROKE RULE** (ADR-010, NORTH_STAR rule 6). Contains LTI key rotation and Postgres mode for tier17_report.py. 441 commits behind main. Stale under ADR-010 and LTI deferral. Should be closed or superseded. |
-| [#160](https://github.com/pathosbuilder895/Orig/pull/160) | `claude/typing-cadence-benchmarks-fdb276` | Claude | Open | **CONFLICTS WITH NO-KEYSTROKE RULE** (ADR-010, NORTH_STAR rule 6). Tier 17 keystroke recalibration. KB D04 says ADR-010 supersedes this. Codex review exists at `docs/reviews/PR-160-tier17-review-2026-08-26.md`. 173 commits behind main. Should be closed or superseded. |
+| [#228](https://github.com/pathosbuilder895/Orig/pull/228) | `claude/original-landing-integration-d19b53` | Claude Code (Task B) | Open; CI green; **merge conflicts with main** | Landing page, reworked 7 Oct to NORTH_STAR: removed the invented-data dashboard mock and the unlicensed and AI-generated images. Includes ADR-011. Needs a rebase, then Andrew's call on hosting claims, final images and footer. |
+
+**Closed 2026-10-08:** [#160](https://github.com/pathosbuilder895/Orig/pull/160) and [#225](https://github.com/pathosbuilder895/Orig/pull/225), keystroke work ruled out by NORTH_STAR rule 6 and ADR-010. Their branches are kept. `sprint/lane-a-claude` (#225) holds `62f2152e`, the LTI key rotation made after the key leak. `main` has not picked it up: `scripts/o1_golive_check.py` and its test still expect `7939c6c8a6f9a736`, the leaked key's id. Port the rotation when Canvas/LTI comes back; never go back to the old key.
 
 ### Branches Without PRs
 
 | Branch | Owner | Status | Notes |
 |--------|-------|--------|-------|
-| `codex/bluebook-pilot-c962a917` | Codex | Pushed to origin, no PR | 4 commits (6 Oct). Switches render.yaml `SECRET_KEY`/`MAINTENANCE_TOKEN` from `sync:false` to `generateValue:true`, adds `SKIP_INSTALL_DEPS` to static demo. Overlaps with PR #227 plan B3 ("owner creates fresh secrets"). Needs decision: open PR or drop. |
+| `codex/bluebook-pilot-c962a917` | Codex | Superseded by #235 (merged 2026-10-08) | Its only difference from `main` is an older `render.yaml` comment. Both live deploys came from it, so delete it (and the merged `codex/pilot-secrets`) only after the Render services point at `main`. |
 
 ### Dependabot PRs
 
@@ -56,12 +63,12 @@ From `docs/release/VERIFICATION_AND_BLOCKERS.md` "Still open":
 
 ### Owner/Operator Tasks (B1–B6)
 
-1. **Hosting and budget decision** — Render vs alternatives, instance size, Postgres plan. Research complete in `docs/research/2026-10-07-hosting-and-storage.md`. Awaiting Andrew's approval.
+1. **Hosting and budget sign-off:** the services already run on Render, but the plan, instance size and Postgres plan are not signed off. Research is in `docs/research/2026-10-07-hosting-and-storage.md`. Awaiting Andrew's approval.
 2. **Email provider** — SendGrid Essentials ~$19.95/mo. Sending domain must be verified. Awaiting Andrew's setup.
 3. **Encrypted off-box backups** — R2 or B2 bucket in separate account, Fernet key stored offline. Awaiting Andrew's setup.
 4. **Legal pages final** — Privacy policy, terms, student notice. Draft placeholders exist with `[ENTITY]`, `[CONTACT]`, `[PROVIDER]` blanks. Counsel needs to approve terms and data agreement for teachers without school contracts. See NORTH_STAR open questions.
-5. **Deployed acceptance testing** — B1–B6 checks on real deployed instance, not local rehearsal.
-6. **Publishing fictional demo** — Static demo site at separate origin (`bluebook-teacher-demo` in render.yaml).
+5. **Deployed acceptance testing:** the full B4 run on the live instance (journey on phone and laptop, restart persistence, encrypted restore drill, rollback, uptime monitor). Only Codex's 12 public smoke checks have run (6 Oct).
+6. **Publishing fictional demo:** done, live since 6 Oct at `bluebook-teacher-demo.onrender.com`. `VERIFICATION_AND_BLOCKERS.md` still lists B3 (create the hosted pilot) and B5 (publish the demo) as not done; that file belongs to Task C, which should mark them done.
 7. **First teacher invites** — 1–3 teachers. Use `scripts/invite_professor.py`. Pilot stays invitation-only.
 
 ### Technical Open Items
@@ -105,18 +112,19 @@ Work in this order. Each task owns its files; nobody touches another task's file
 
 **Andrew decides:** merging A, then B and C. Hosting for the landing page (B). Final images (B). Legal-page wording (counsel). Closing #160 and #225.
 
+**Progress (2026-10-08):** A is merged as #235, so C may start. #160 and #225 are closed. B (#228) needs a rebase onto `main`.
+
 ---
 
 ## Next Steps
 
-1. **Andrew: approve hosting plan** — Render blueprint, instance sizes, backup bucket setup
-2. **Andrew: make repo private** — After confirming Claude/Codex GitHub app grants
-3. **Resolve conflicting PRs** — Close or supersede #160 and #225 per ADR-010 and no-keystroke rule
-4. **Decide on codex/bluebook-pilot branch** — Open PR or drop
-5. **Legal pages finalization** — Counsel review of terms, privacy policy, student notice for independent teachers
-6. **Configure hosting** — Apply render.yaml blueprint, set up SendGrid, create backup bucket
-7. **Deploy and test** — First deploy, measure RSS, run B1–B6 acceptance checks
-8. **Invite first teachers** — 1–3 teachers via `scripts/invite_professor.py`
+1. **Andrew: sign off the hosting plan.** The services already run on Render; confirm the plan and instance sizes.
+2. **Andrew: make the repo private** after confirming the Claude and Codex GitHub app grants.
+3. **Andrew: point the Render services at `main`**, then delete `codex/bluebook-pilot-c962a917` and `codex/pilot-secrets`.
+4. **Legal pages:** counsel reviews the terms, privacy policy and student notice for independent teachers.
+5. **Finish hosting setup:** SendGrid, plus the encrypted backup bucket and its key.
+6. **Redeploy from `main` and test:** measure RSS, then run the B4 acceptance checks on the live instance.
+7. **Invite the first teachers:** 1 to 3, via `scripts/invite_professor.py`.
 
 ---
 
@@ -137,5 +145,7 @@ Track what was done, when, by which tool. One line per session.
 *2026-10-08 | Codex GPT-6 | codex/pilot-secrets (Task A) | Packaged Render-generated signing/guard secrets, static-demo dependency skip and matching setup/custody/rotation docs; 15 targeted Blueprint/demo checks passed (`python -m pytest tests/test_render_blueprint.py tests/test_teacher_demo_site.py -q` using the existing project venv); `git diff --check` passed. Full suite and live rehearsal not rerun; CI pending. Historical correction: on 2026-10-06 the pilot at original-pilot.onrender.com (00247875) and separate fictional demo at bluebook-teacher-demo.onrender.com (2c2d62d2) were live, managed Postgres migrations succeeded, and 12 public smoke checks passed. Earlier “nothing deployed” statements are stale; NORTH_STAR is owner-only and unchanged. Email, encrypted backup/restore, legal approval and full acceptance remain open. No deployment, flag changes or added purchases in this session; Task C waits for Andrew to merge A.*
 
 *2026-10-08 | Cursor Cloud Agent (Claude Sonnet 4.5) | cursor/docs-reconcile-d12e | Docs-only PR to reconcile CLAUDE.md and AGENTS.md with NORTH_STAR.md: (1) reframed CLAUDE.md Project Overview from seminary/authorship to pilot/writing-consistency; (2) corrected "Two backends" section noting v1 (original/api/, original/main.py) deleted in PR #90; (3) fixed Commit Style branch convention to claude/<name>; (4) removed hard-coded ~/Desktop/Original paths; (5) added venv/worktree note to AGENTS.md and CLAUDE.md; (6) removed test count hard numbers in CLAUDE.md lines ~25-40 and AGENTS.md line 194, pointed to CI for source of truth (coverage report --fail-under=98).*
+
+*2026-10-08 | Claude Code (Claude Opus 5.5) | claude/original-bluebook-status-80e1e1 | On Andrew's instruction: closed #160 and #225 (no-keystroke rule; branches kept, #225's LTI key rotation 62f2152e noted for later), squash-merged #234 (7f3f4962), and corrected NORTH_STAR (v0.3), STATUS, README and AGENTS.md from "nothing deployed" to the live state checked via `/health`. Held deletion of `codex/bluebook-pilot-c962a917`: Render probably deploys from it (unconfirmed, CLI not logged in). Docs only; no deploys, flag changes or purchases.*
 
 *2026-10-09 | Claude Code (Claude Opus 5.5) | claude/bluebook-disk-write-audit-cffe7e | Read-only audit of every Bluebook route (bluebook.py, bluebook_accounts.py, bluebook_baselines.py, proctor.py) and their callees for student text stored outside Postgres in pilot mode: no temp files, upload dirs, file log handlers or SQLite writes on those paths, and drafts never leave the student's browser. One leak found and fixed: SQLAlchemy put bound parameters (essay text, answers, baseline samples) into DB exception messages, which PostgresRepository logs, so a failed write copied student text into stdout logs; the live engine now sets hide_parameters=True (original/db/postgres_session.py), with tests/test_db_errors_hide_student_text.py red before and green after on SQLite and Postgres 16. Full CI command with local Postgres: 4333 passed, 0 failed, 25 skipped, 4 deselected; `-m postgres`: 303 passed, 0 skipped. Reported, not fixed: Original-only upload routes spool files over 1 MB to a local temp file (Starlette). No flags, render.yaml or backup scripts touched.*
