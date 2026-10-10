@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Original · Writing State</title>
+<link rel="stylesheet" href="../bluebook/fonts.css" />
+<link rel="stylesheet" href="fonts.css" />
+<link rel="stylesheet" href="suite.css" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c; --navy:#0d1530; --navy-1:#101c40; --navy-2:#16244f;
+    --line:rgba(201,160,40,0.16); --line-soft:rgba(255,255,255,0.07);
+    --gold:#c9a028; --gold-2:#e0be55; --cream:#f5efe0;
+    --dim:rgba(245,239,224,0.55); --dim-2:rgba(245,239,224,0.38);
+    --flag:#e0725a; --ok:#6bbf8a; --t1:#4d90c8; --t2:#9a7ad0; --t3:#5aab7a;
+    --display:'Playfair Display',Georgia,serif; --body:'EB Garamond',Georgia,serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  html,body{height:100%;}
+  body{font-family:var(--body);color:var(--cream);
+    background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);
+    display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;}
+  .frame{width:100%;max-width:1360px;height:min(900px,calc(100vh - 4.4rem));min-height:min(900px,calc(100vh - 4.4rem));position:relative;
+    background:linear-gradient(160deg,#0c142e 0%,#0a1024 60%,#070b1c 100%);
+    border:1px solid var(--line);border-radius:26px;overflow:hidden;
+    box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);
+    display:flex;flex-direction:column;}
+  nav{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
+  .pills{display:flex;gap:.4rem;margin-left:1rem;}
+  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .95rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.9rem;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .pill:hover{color:var(--cream);}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;}
+  .icirc{width:38px;height:38px;border-radius:50%;border:1px dashed rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;color:var(--dim);cursor:pointer;}
+  .icirc svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
+
+  .grid{flex:1;display:grid;grid-template-columns:380px 1fr;min-height:0;position:relative;z-index:1;}
+  nav{position:relative;z-index:1;}
+  .frame::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(rgba(22,36,79,0.5),rgba(22,36,79,0.5)),url('assets/radcliffe-observatory-watercolour.jpg') center 38%/cover no-repeat;background-blend-mode:color,normal;filter:saturate(.6) brightness(.5) contrast(1.12) hue-rotate(184deg);opacity:.72;}
+  .frame::after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,rgba(9,14,34,0.38) 0%,rgba(8,12,30,0.74) 44%,rgba(7,11,26,0.93) 100%),radial-gradient(70% 55% at 50% 24%,rgba(201,160,40,0.09),transparent 72%);}
+  .left{padding:0.6rem 1.4rem 1.4rem 1.7rem;display:flex;flex-direction:column;gap:1rem;overflow-y:auto;}
+  .right{position:relative;display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;}
+  .left::-webkit-scrollbar,.right-scroll::-webkit-scrollbar{width:7px;}
+  .left::-webkit-scrollbar-thumb,.right-scroll::-webkit-scrollbar-thumb{background:rgba(201,160,40,0.25);border-radius:4px;}
+
+  .greet-eyebrow{color:var(--dim);font-style:italic;font-size:1rem;}
+  .greet{font-family:var(--display);font-size:1.7rem;font-weight:500;line-height:1.05;color:var(--cream);margin-top:.1rem;}
+  .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:18px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+  .card-t{font-size:1rem;color:var(--cream);font-weight:500;}
+  .card-s{font-size:.8rem;color:var(--dim-2);margin-top:.15rem;}
+  .led-num{font-family:var(--mono);font-weight:700;line-height:.9;color:transparent;-webkit-text-fill-color:transparent;background:radial-gradient(var(--gold) 1.05px, transparent 1.35px) 0 0/4.5px 4.5px;-webkit-background-clip:text;background-clip:text;}
+
+  /* Stat trio */
+  .stat3{display:flex;flex-direction:column;gap:.7rem;}
+  .stat3 .row{display:flex;align-items:center;justify-content:space-between;padding:.95rem 1.1rem;}
+  .stat3 .row .lab{font-size:.82rem;color:var(--dim);}
+  .stat3 .row .lab b{display:block;color:var(--cream);font-weight:500;font-size:.92rem;font-family:var(--body);}
+  .stat3 .row .val{font-family:var(--mono);font-weight:700;font-size:1.5rem;color:var(--gold-2);}
+  .stat3 .row .val.txt{font-size:1rem;color:var(--flag);letter-spacing:.02em;}
+
+  /* Purity card */
+  .pur{padding:1.2rem 1.3rem 1.1rem;display:flex;gap:1.2rem;align-items:center;}
+  .pur-ring{position:relative;width:118px;height:118px;flex-shrink:0;}
+  .pur-ring .val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .pur-ring .val .n{font-family:var(--mono);font-weight:700;font-size:1.5rem;color:var(--cream);}
+  .pur-ring .val .c{font-size:.64rem;color:var(--dim);letter-spacing:.1em;}
+  .pur-leg{flex:1;display:flex;flex-direction:column;gap:.5rem;font-size:.76rem;}
+  .pur-leg .lr{display:flex;justify-content:space-between;color:var(--dim);}
+  .pur-leg .lr b{color:var(--cream);font-family:var(--mono);font-weight:500;}
+  .pur-note{font-size:.74rem;color:var(--dim-2);line-height:1.5;margin-top:.6rem;font-style:italic;}
+
+  /* Radar */
+  .radar-card{padding:1.1rem 1.2rem 1.2rem;}
+  .radar-wrap{position:relative;width:100%;max-width:280px;margin:.4rem auto 0;aspect-ratio:1;}
+  #radar-canvas{width:100%;height:100%;display:block;cursor:crosshair;}
+  .radar-tip{position:absolute;pointer-events:none;opacity:0;transform:translate(-50%,-130%);background:var(--navy-0);color:var(--cream);font-size:.7rem;padding:.28rem .5rem;border-radius:5px;white-space:nowrap;transition:opacity .15s;z-index:5;border:1px solid var(--line);}
+  .radar-tip.on{opacity:1;}
+  .radar-tip b{color:var(--gold-2);}
+  .tl-row.on{border-color:var(--tc);background:rgba(255,255,255,0.07);box-shadow:inset 3px 0 0 var(--tc);}
+  .tl-row .lk{margin-left:auto;font-size:.62rem;color:var(--dim-2);opacity:0;transition:opacity .15s;}
+  .tl-row.on .lk{opacity:1;color:var(--tc);}
+  .tier-legend{display:flex;flex-direction:column;gap:.5rem;margin-top:.9rem;}
+  /* Tier chip grid (16 tiers + comparison) */
+  .tier-chips{display:flex;flex-direction:column;gap:.8rem;margin-top:.9rem;}
+  .tgrp-h{display:flex;flex-direction:column;gap:.05rem;padding:.3rem .6rem;border-left:3px solid var(--gc);margin-bottom:.45rem;cursor:pointer;border-radius:0 8px 8px 0;transition:background .15s;}
+  .tgrp-h:hover{background:rgba(255,255,255,0.04);}
+  .tgrp-h.on{background:rgba(255,255,255,0.07);box-shadow:inset 0 0 0 1px var(--gc);}
+  .tgrp-h b{font-family:var(--display);font-weight:500;font-size:.98rem;color:var(--cream);}
+  .tgrp-h span{font-size:.72rem;font-style:italic;color:var(--dim-2);}
+  .tgrp-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;}
+  .tchip{display:flex;flex-direction:column;align-items:flex-start;gap:.15rem;padding:.42rem .5rem;border-radius:9px;border:1px solid var(--line-soft);background:rgba(255,255,255,0.03);cursor:pointer;font-family:var(--body);color:var(--dim);font-size:.74rem;transition:all .15s;text-align:left;}
+  .tchip .cl{font-family:var(--mono);font-weight:600;letter-spacing:.02em;display:flex;align-items:center;gap:.3rem;}
+  .tchip .cd{width:8px;height:8px;border-radius:50%;background:var(--tc);flex-shrink:0;display:inline-block;}
+  .tchip .cw{font-size:.72rem;color:var(--cream);letter-spacing:.01em;}
+  .tchip:hover{color:var(--cream);border-color:var(--tc);background:rgba(255,255,255,0.06);}
+  .tchip.on{color:var(--cream);border-color:var(--tc);background:rgba(255,255,255,0.08);box-shadow:inset 2px 0 0 var(--tc);}
+  .tchip .cd{width:8px;height:8px;border-radius:50%;background:var(--tc);flex-shrink:0;}
+  .tchip .cl{font-family:var(--mono);font-weight:600;letter-spacing:.02em;}
+  .tchip.flag .cl{color:var(--flag);}
+  .feat-link{display:inline-block;margin-top:.9rem;font-size:.82rem;color:var(--gold-2);text-decoration:none;font-style:italic;transition:color .15s;}
+  .feat-link:hover{color:var(--gold);}
+  .tl-row{display:flex;align-items:center;gap:.7rem;width:100%;text-align:left;background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);border-radius:10px;padding:.55rem .75rem;cursor:pointer;font-family:inherit;transition:all .18s;}
+  .tl-row:hover{border-color:var(--tc);background:rgba(255,255,255,0.06);}
+  .tl-row.dim{opacity:.4;}
+  .tl-dot{width:10px;height:10px;border-radius:50%;background:var(--tc);flex-shrink:0;}
+  .tl-name{font-size:.88rem;font-weight:500;color:var(--cream);min-width:78px;}
+  .tl-bar{flex:1;height:6px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;}
+  .tl-fill{display:block;height:100%;background:var(--tc);border-radius:4px;}
+  .tl-val{font-family:var(--mono);font-size:.82rem;font-weight:700;color:var(--cream);min-width:38px;text-align:right;}
+
+  /* Right: full-bleed fingerprint backdrop + content floating over it */
+  .hero{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;}
+  .hero canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:auto;}
+  .hero-grad{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg, rgba(10,16,36,0.9) 0%, rgba(10,16,36,0.32) 24%, transparent 52%),linear-gradient(0deg, rgba(7,11,28,0.99) 30%, rgba(7,11,28,0.55) 46%, transparent 60%),radial-gradient(80% 55% at 66% 26%, rgba(201,160,40,0.12), transparent 70%);}
+  .hero-mask{position:absolute;left:0;top:0;bottom:0;width:60px;background:linear-gradient(90deg,#0a1024,transparent);pointer-events:none;}
+  .hero-inner{position:relative;min-height:600px;display:flex;flex-direction:column;justify-content:flex-end;padding:4.4rem 0 1.7rem;pointer-events:none;}
+  .hero-inner .fpq-toggle,.hero-inner .fpq-btn,.hero-inner .triage,.hero-inner .tri-btn,.hero-inner a{pointer-events:auto;}
+  .hero-title{font-family:var(--display);font-size:2.3rem;font-weight:500;line-height:1.04;color:var(--cream);}
+  .hero-title span{color:var(--dim);}
+  .fpq-readout{position:absolute;right:0;top:1.4rem;text-align:right;font-family:var(--mono);font-size:.64rem;letter-spacing:.08em;color:var(--gold);pointer-events:none;z-index:3;}
+  .fpq-readout .nm{display:block;font-family:var(--display);font-style:italic;font-size:.9rem;color:var(--cream);margin-bottom:.3rem;letter-spacing:.02em;}
+  .fpq-readout .rw{display:block;opacity:.78;margin-top:.15rem;}
+  .fpq-toggle{position:absolute;left:0;top:1.4rem;display:flex;gap:2px;background:rgba(8,14,32,0.55);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(201,160,40,0.25);border-radius:20px;padding:3px;z-index:3;}
+  .fpq-btn{border:none;background:none;color:var(--dim);font-family:var(--body);font-size:.8rem;font-weight:600;padding:.32rem .8rem;border-radius:16px;cursor:pointer;transition:all .18s;white-space:nowrap;}
+  .fpq-btn:hover{color:var(--cream);}
+  .fpq-btn.active{background:var(--gold);color:var(--navy);}
+  .fpq-hint{position:absolute;left:0;top:4.2rem;font-style:italic;font-size:.72rem;color:var(--dim-2);z-index:3;transition:opacity .3s;white-space:nowrap;}
+  .hero-inner:hover .fpq-hint{opacity:0;}
+  /* Feature evidence: hero transforms to show the text itself */
+  .hero-evi{position:absolute;inset:0;z-index:6;display:none;flex-direction:column;gap:.8rem;padding:1.2rem 0 1.4rem;pointer-events:auto;}
+  .hero-evi.show{display:flex;}
+  .hero-evi::before{content:'';position:absolute;inset:-.6rem -1.2rem;background:rgba(8,12,28,0.9);backdrop-filter:blur(7px);border:1px solid var(--line-soft);border-radius:16px;z-index:-1;}
+  .evi-head{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;}
+  .evi-sw{width:11px;height:11px;border-radius:3px;background:var(--evc,#c9a028);flex-shrink:0;}
+  .evi-head b{font-family:var(--display);font-weight:500;font-size:1.3rem;color:var(--cream);}
+  .evi-flag{font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;color:#e05252;border:1px solid rgba(224,82,82,.4);background:rgba(224,82,82,.1);border-radius:4px;padding:.12rem .4rem;}
+  .evi-nums{margin-left:auto;font-family:var(--mono);font-size:.66rem;letter-spacing:.06em;color:var(--dim);}
+  .evi-nums b{font-family:var(--mono);font-size:.66rem;color:var(--evc,#c9a028);}
+  .evi-close{background:none;border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.32rem .85rem;font-family:var(--body);font-size:.84rem;cursor:pointer;transition:all .15s;}
+  .evi-close:hover{color:var(--cream);border-color:var(--line);}
+  .evi-desc{width:100%;font-size:.9rem;font-style:italic;color:var(--dim);margin-top:-.3rem;}
+  .evi-tabs{display:flex;gap:.4rem;align-items:center;}
+  .evi-tabs .tl{font-family:var(--mono);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim-2);margin-right:.3rem;}
+  .evi-tab{background:rgba(255,255,255,0.04);border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.28rem .8rem;font-family:var(--mono);font-size:.7rem;cursor:pointer;transition:all .14s;}
+  .evi-tab:hover{color:var(--cream);}
+  .evi-tab.on{background:var(--evc,#c9a028);border-color:transparent;color:#0d1530;font-weight:700;}
+  .evi-cols{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:.9rem;min-height:0;}
+  .evi-col{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:12px;padding:1rem 1.15rem;display:flex;flex-direction:column;gap:.55rem;overflow-y:auto;min-height:0;}
+  .evi-lbl{font-family:var(--mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--evc,#c9a028);}
+  .evi-col.base .evi-lbl{color:#8ba8dd;}
+  .evi-txt{font-family:var(--body);font-size:1.04rem;line-height:1.75;color:rgba(245,239,224,.88);}
+  .evi-txt mark{background:var(--evc-bg,rgba(201,160,40,.24));color:var(--cream);padding:0 .14em;border-radius:3px;box-shadow:0 0 0 1px var(--evc-line,rgba(201,160,40,.35));}
+  .evi-col.base .evi-txt mark{background:rgba(139,168,221,.18);box-shadow:0 0 0 1px rgba(139,168,221,.32);}
+  .evi-src{margin-top:auto;padding-top:.5rem;font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim-2);}
+  @media (max-width:900px){.evi-cols{grid-template-columns:1fr;}}
+  /* Plain-English read + triage */
+  .plain-read{margin-top:.6rem;max-width:62ch;font-size:.95rem;line-height:1.55;color:var(--dim);}
+  .plain-read .gS{color:#7ab2e0;font-weight:600;}.plain-read .gD{color:#b49ae6;font-weight:600;}.plain-read .gR{color:#7cc9a0;font-weight:600;}
+  .plain-read b{color:var(--cream);font-weight:600;}
+  .triage{display:flex;gap:.5rem;margin-top:.85rem;align-items:center;flex-wrap:wrap;}
+  .tri-btn{border-radius:999px;padding:.42rem .95rem;font-family:var(--body);font-size:.85rem;font-weight:600;cursor:pointer;border:1px solid var(--line-soft);background:rgba(10,16,36,0.55);backdrop-filter:blur(8px);color:var(--cream);transition:all .18s;white-space:nowrap;}
+  .tri-btn.ok:hover{border-color:var(--ok);color:var(--ok);}
+  .tri-btn.packet{background:linear-gradient(160deg,var(--gold-2),var(--gold));color:#0d1530;border-color:transparent;display:inline-flex;align-items:center;}
+  .tri-btn.packet:hover{filter:brightness(1.07);color:#0d1530;}
+  .tri-btn.talk:hover{border-color:var(--gold);color:var(--gold-2);}
+  .tri-btn.sel{background:var(--gold);border-color:var(--gold);color:var(--navy);}
+  .tri-done{font-size:.8rem;font-style:italic;color:var(--ok);}
+
+  .right-scroll{position:relative;z-index:1;flex:1;overflow-y:auto;overflow-x:hidden;padding:1.4rem 1.9rem 1.9rem;display:flex;flex-direction:column;gap:1.3rem;min-height:0;}
+  .sec-h{display:flex;align-items:baseline;gap:.55rem;margin-bottom:.2rem;}
+  .sec-h b{font-family:var(--display);font-weight:500;font-size:1.2rem;color:var(--cream);}
+  .sec-h span{color:var(--dim);font-size:.86rem;}
+
+  /* State vector heatmap */
+  .hm-wrap{overflow-x:auto;padding:1.4rem 1.2rem .6rem;}
+  .hm-grid{display:grid;grid-template-columns:repeat(34,1fr);gap:5px;align-items:flex-end;height:150px;transition:grid-template-columns .25s;}
+  .hm-labels{display:grid;grid-template-columns:repeat(34,1fr);gap:5px;margin-top:8px;}
+  .hm-band{display:grid;gap:5px;margin-top:8px;}
+  .hm-band .hbnd{display:flex;align-items:center;justify-content:center;gap:4px;padding:4px 3px;border-radius:7px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);min-width:0;transition:all .15s;}
+  .hm-band .hbnd::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--tc);flex-shrink:0;}
+  .hm-band .hbnd span{font-family:var(--mono);font-size:9px;font-weight:600;color:var(--dim);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hm-band .hbnd:hover{border-color:var(--tc);background:rgba(255,255,255,0.06);}
+  .hm-band .hbnd:hover span{color:var(--cream);}
+  .hm-label{font-size:10px;color:var(--dim);text-align:center;writing-mode:vertical-lr;transform:rotate(180deg);height:66px;overflow:hidden;letter-spacing:.01em;}
+  .hm-grid.filtered ~ .hm-labels .hm-label,.hm-labels.horiz .hm-label{writing-mode:horizontal-tb;transform:none;height:auto;font-size:12px;color:var(--cream);white-space:normal;line-height:1.25;}
+  .hm-legend{display:flex;gap:1.3rem;margin-top:1rem;font-size:.74rem;color:var(--dim);flex-wrap:wrap;}
+  .hm-legend .k{display:inline-flex;align-items:center;gap:.4rem;}
+  .hm-legend .k i{width:14px;height:3px;border-radius:2px;display:inline-block;}
+
+  /* Timeline */
+  .tl-card{padding:1.3rem 1.4rem;}
+  .timeline{display:flex;flex-direction:column;gap:.9rem;}
+  .ti{display:flex;gap:1rem;align-items:flex-start;padding:.9rem 1rem;background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);border-radius:12px;}
+  .ti-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:.82rem;color:var(--navy);flex-shrink:0;}
+  .ti-body{flex:1;min-width:0;}
+  .ti-title{font-size:.94rem;font-weight:500;color:var(--cream);}
+  .ti-meta{font-size:.76rem;color:var(--dim);margin:.15rem 0 .5rem;}
+  .ti-tags{display:flex;gap:.4rem;flex-wrap:wrap;}
+  .ti-tags .tg{font-family:var(--mono);font-size:.66rem;padding:.16rem .5rem;border-radius:5px;background:rgba(201,160,40,0.12);color:var(--gold-2);}
+  .ti-w{text-align:right;flex-shrink:0;}
+  .ti-w .l{font-size:.68rem;color:var(--dim-2);}
+  .ti-w .n{font-family:var(--mono);font-weight:700;font-size:1.05rem;color:var(--cream);margin:.1rem 0;}
+  .traj{margin-top:1rem;padding:.85rem 1rem;background:rgba(201,160,40,0.06);border:1px solid var(--line);border-radius:12px;display:flex;gap:.75rem;align-items:flex-start;}
+  .traj svg{flex-shrink:0;margin-top:1px;stroke:var(--gold);}
+  .traj .t{font-size:.82rem;font-weight:500;color:var(--cream);margin-bottom:.15rem;}
+  .traj .d{font-size:.78rem;color:var(--dim);line-height:1.5;}
+  /* Feature detail window (driven by shared cross-highlight bus) */
+  .fd-card{padding:0;overflow:hidden;}
+  .fd-head{display:flex;align-items:center;gap:.7rem;padding:1rem 1.2rem;border-bottom:1px solid var(--line-soft);}
+  .fd-swatch{width:10px;height:10px;border-radius:3px;background:var(--fdc,var(--gold));flex-shrink:0;box-shadow:0 0 0 3px rgba(255,255,255,.04);}
+  .fd-title{font-family:var(--mono);font-weight:600;font-size:.9rem;color:var(--cream);letter-spacing:.02em;}
+  .fd-sub{font-size:.78rem;color:var(--dim);margin-top:.1rem;}
+  .fd-count{margin-left:auto;font-family:var(--mono);font-size:.72rem;color:var(--dim);letter-spacing:.06em;text-transform:uppercase;}
+  .fd-empty{padding:1.6rem 1.4rem;font-size:.86rem;color:var(--dim);line-height:1.55;font-style:italic;}
+  .fd-empty b{color:var(--gold-2);font-style:normal;}
+  .fd-list{max-height:340px;overflow-y:auto;}
+  .fd-grp-h{padding:.55rem 1.2rem .4rem;font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fdg,var(--dim));position:sticky;top:0;background:rgba(13,21,48,.92);backdrop-filter:blur(6px);z-index:1;}
+  .fd-row{display:grid;grid-template-columns:1fr 128px 58px;gap:.8rem;align-items:center;padding:.7rem 1.2rem;border-top:1px solid rgba(245,239,224,.05);cursor:pointer;transition:background .13s;}
+  .fd-row:hover,.fd-row.on{background:rgba(255,255,255,.045);}
+  .fd-nm{font-size:.86rem;color:var(--cream);font-weight:500;}
+  .fd-ds{font-size:.74rem;color:var(--dim);line-height:1.4;margin-top:.15rem;}
+  .fd-bar{position:relative;height:22px;}
+  .fd-track{position:absolute;inset:0;border-radius:4px;background:rgba(245,239,224,.06);}
+  .fd-base{position:absolute;top:0;bottom:0;left:0;border-radius:4px 2px 2px 4px;background:linear-gradient(90deg,var(--fdc,#c9a028)cc,var(--fdc,#c9a028)66);}
+  .fd-sub-mark{position:absolute;top:-2px;bottom:-2px;width:2.5px;border-radius:2px;background:var(--sm,#c9a028);box-shadow:0 0 0 2px #0d1530;}
+  .fd-delta{text-align:right;font-family:var(--mono);font-size:.8rem;font-weight:600;}
+  .fd-flag{display:inline-block;margin-top:.2rem;font-family:var(--mono);font-size:.6rem;letter-spacing:.06em;padding:.08rem .3rem;border-radius:3px;background:rgba(192,57,43,.14);color:#e0725a;border:1px solid rgba(192,57,43,.28);}
+  .mnote{font-size:.8rem;color:var(--dim);line-height:1.65;padding:1.2rem 1.4rem;}
+  .mnote p{margin-bottom:.7rem;}
+  .mnote strong{color:var(--gold-2);font-family:var(--mono);font-weight:500;}
+  .mnote em{color:var(--cream);font-style:italic;}
+
+  @media (max-width:900px){
+    body{padding:0;}
+    .frame{max-width:none;height:100vh;min-height:100vh;border-radius:0;border:none;}
+    .grid{grid-template-columns:1fr;}
+    .hero{height:auto;}
+    nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;}
+  }
+  /* ── live suite additions (writing-state.html) ── */
+  [hidden]{display:none !important;}
+  nav{z-index:2;}
+  .pills{min-width:0;overflow-x:auto;}
+  a.pill{text-decoration:none;}
+  .pill:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;}
+  .nav-right{flex-shrink:0;position:relative;}
+  .nav-right .avatar{cursor:pointer;}
+  .avatar:focus-visible,.me-menu a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .me-menu{display:none;position:absolute;top:calc(100% + .6rem);right:0;min-width:220px;background:rgba(12,20,46,0.97);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:.5rem;z-index:60;}
+  .me-menu.open{display:block;}
+  .mm-head{padding:.55rem .8rem .7rem;border-bottom:1px solid var(--line-soft);margin-bottom:.35rem;}
+  .mm-head b{display:block;font-family:var(--display);font-weight:500;font-size:1rem;color:var(--cream);}
+  .mm-head span{font-size:.78rem;color:var(--dim-2);font-style:italic;}
+  .me-menu a{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:9px;color:var(--dim);text-decoration:none;font-size:.94rem;transition:all .13s;}
+  .me-menu a:hover{background:rgba(255,255,255,0.06);color:var(--cream);}
+  .me-menu a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
+  .grid.gated{display:grid;}
+  /* Analyse a paper (card style of the left rail) */
+  .an-card{padding:1.1rem 1.2rem 1.2rem;}
+  .an-card .sec-h{flex-wrap:wrap;}
+  .an-change{margin-left:auto;font-size:.8rem;font-style:italic;color:var(--gold-2);text-decoration:none;}
+  .an-change:hover{color:var(--gold);}
+  .an-who{font-family:var(--display);font-size:1.02rem;color:var(--cream);margin-top:.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .an-lbl{display:block;margin-top:.75rem;font-family:var(--mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim-2);}
+  .an-field{display:block;width:100%;margin-top:.35rem;background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);border-radius:10px;padding:.55rem .75rem;color:var(--cream);font-family:var(--body);font-size:.92rem;outline:none;transition:border-color .15s;}
+  .an-field:focus{border-color:rgba(201,160,40,0.45);}
+  .an-field::placeholder{color:var(--dim-2);font-style:italic;}
+  textarea.an-field{resize:vertical;min-height:150px;line-height:1.5;}
+  select.an-field{cursor:pointer;}
+  select.an-field option{background:#0d1530;color:var(--cream);}
+  .an-row{display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin-top:.6rem;flex-wrap:wrap;}
+  .an-file{position:relative;font-size:.82rem;font-style:italic;color:var(--gold-2);cursor:pointer;}
+  .an-file:hover{color:var(--gold);}
+  .an-file input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;}
+  .an-file:focus-within{outline:2px solid var(--gold-2);outline-offset:2px;border-radius:4px;}
+  .an-words{font-family:var(--mono);font-size:.64rem;letter-spacing:.06em;color:var(--dim-2);}
+  .an-btn{border:none;border-radius:999px;padding:.5rem 1.15rem;font-family:var(--body);font-size:.9rem;font-weight:600;cursor:pointer;background:linear-gradient(160deg,var(--gold-2),var(--gold));color:#0d1530;transition:filter .15s;}
+  .an-btn:hover{filter:brightness(1.07);}
+  .an-btn:disabled{opacity:.55;cursor:default;filter:none;}
+  .an-btn:focus-visible,.an-again:focus-visible,.tri-btn:focus-visible,.fpq-btn:focus-visible,.tchip:focus-visible,.evi-close:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .an-msg{flex:1;min-width:0;font-size:.8rem;font-style:italic;color:var(--dim);}
+  .an-msg.err{color:#f0a690;}
+  .an-note{margin-top:.6rem;font-size:.86rem;font-style:italic;line-height:1.5;color:var(--dim);}
+  .an-note b{color:var(--cream);font-style:normal;font-weight:500;}
+  .an-note a,.plain-read a{color:var(--gold-2);}
+  .an-done{display:flex;align-items:center;gap:.7rem;margin-top:.6rem;}
+  .an-done .d{flex:1;min-width:0;font-size:.84rem;color:var(--dim);line-height:1.4;}
+  .an-done .d b{display:block;color:var(--cream);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .an-again{background:none;border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.32rem .85rem;font-family:var(--body);font-size:.84rem;cursor:pointer;transition:all .15s;white-space:nowrap;}
+  .an-again:hover{color:var(--cream);border-color:var(--line);}
+  /* Purity, inside a details block with its caveat */
+  .fpq-readout details.rw{opacity:1;pointer-events:auto;}
+  .fpq-readout summary{list-style:none;cursor:pointer;opacity:.78;}
+  .fpq-readout summary::-webkit-details-marker{display:none;}
+  .fpq-readout summary::after{content:' +';}
+  .fpq-readout details[open] summary::after{content:' -';}
+  .fpq-readout summary:hover{opacity:1;}
+  .fpq-readout summary:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .ro-pur-body{margin:.45rem 0 .5rem auto;width:290px;text-align:left;font-family:var(--body);font-size:.84rem;letter-spacing:0;line-height:1.5;color:var(--dim);background:rgba(8,12,28,0.95);border:1px solid var(--line);border-radius:12px;padding:.75rem .9rem;z-index:7;}
+  .ro-pur-body p+p{margin-top:.45rem;}
+  .ro-pur-body b{color:var(--gold-2);font-weight:500;}
+  .hero-inner #result-notice,.hero-inner .fpq-readout details{pointer-events:auto;}
+  .fpq-btn:disabled{opacity:.45;cursor:default;}
+  .fpq-btn:disabled:hover{color:var(--dim);}
+  .tri-btn:disabled{opacity:.55;cursor:default;}
+  .tri-done.err{color:#f0a690;}
+  /* Feature detail and evidence: the server's own reading of each habit */
+  .fd-flag.ok{background:rgba(107,191,138,.12);color:var(--ok);border-color:rgba(107,191,138,.3);}
+  /* The design's .fd-base gradient appends alpha digits to var(), which is not
+     valid CSS, so its baseline bar never showed. Same colours, valid syntax. */
+  .fd-base{background:linear-gradient(90deg,color-mix(in srgb,var(--fdc,#c9a028) 80%,transparent),color-mix(in srgb,var(--fdc,#c9a028) 40%,transparent));}
+  .evi-big{display:block;font-family:var(--mono);font-weight:700;font-size:2rem;line-height:1.1;color:var(--evc,#c9a028);margin-bottom:.4rem;}
+  .evi-col.base .evi-big{color:#8ba8dd;}
+  .evi-txt p{font-size:.98rem;line-height:1.6;}
+  .evi-txt .none{font-style:italic;color:var(--dim);}
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body>
+<div class="frame">
+  <nav>
+    <div class="brand"><span class="mk"></span>Original</div>
+    <div class="pills">
+      <a class="pill" href="index.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
+      <a class="pill on" href="students.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
+      <a class="pill" href="submissions.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
+      <a class="pill" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+      <a class="pill" href="reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
+    </div>
+    <div class="nav-right">
+      <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
+      <div class="me-menu" id="me-menu">
+        <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
+        <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
+        <a href="/professor.html"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Analysis (classic)</a>
+        <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="grid" id="live-main">
+    <!-- LEFT RAIL -->
+    <aside class="left">
+      <div>
+        <div class="greet-eyebrow">Original analysis</div>
+        <div class="greet">Writing State</div>
+      </div>
+
+      <!-- Analyse a paper -->
+      <div class="card an-card" id="an-card">
+        <div class="sec-h"><b>Analyse a paper</b><a class="an-change" id="an-change" href="writing-state.html" hidden>Change student</a></div>
+        <div class="an-who" id="an-who" hidden></div>
+        <div id="an-pick" hidden>
+          <label class="an-lbl" for="an-student">Which student?</label>
+          <select class="an-field" id="an-student" disabled><option value="">Loading your students</option></select>
+        </div>
+        <div class="an-note" id="an-note" role="status"></div>
+        <form id="an-form" hidden novalidate>
+          <label class="an-lbl" for="an-assign">Assignment</label>
+          <input class="an-field" id="an-assign" type="text" maxlength="200" autocomplete="off" placeholder="Optional, for your own reference" />
+          <label class="an-lbl" for="an-text">The paper</label>
+          <textarea class="an-field" id="an-text" rows="7" placeholder="Paste the paper here"></textarea>
+          <div class="an-row">
+            <label class="an-file">or open a .txt file<input id="an-file" type="file" accept=".txt,text/plain" /></label>
+            <span class="an-words" id="an-words"></span>
+          </div>
+          <div class="an-row">
+            <button class="an-btn" id="an-go" type="submit">Analyse</button>
+            <span class="an-msg" id="an-msg" role="status"></span>
+          </div>
+        </form>
+        <div class="an-done" id="an-done" hidden>
+          <div class="d"><b id="an-done-t"></b><span id="an-done-s"></span></div>
+          <button class="an-again" id="an-again" type="button">Analyse another</button>
+        </div>
+      </div>
+
+      <!-- Tier Profile radar -->
+      <div class="card radar-card">
+        <div class="sec-h"><b>Tier Profile</b><span>16 tiers + comparison · click to pin</span></div>
+        <div class="radar-wrap">
+          <canvas id="radar-canvas"></canvas>
+          <div class="radar-tip" id="radar-tip"></div>
+        </div>
+        <div class="tier-chips" id="tier-chips"></div>
+        <a class="feat-link" id="voice-link" href="baseline.html" style="margin-top:.3rem;" hidden>Voice baseline →</a>
+      </div>
+    </aside>
+
+    <!-- RIGHT -->
+    <section class="right">
+      <div class="hero">
+        <canvas id="fpq-canvas"></canvas>
+        <div class="hero-grad"></div>
+        <div class="hero-mask"></div>
+      </div>
+
+      <div class="right-scroll" id="right-scroll">
+        <div class="hero-inner">
+          <div class="fpq-toggle">
+            <button class="fpq-btn active" type="button" data-state="baseline">Baseline ρ</button>
+            <button class="fpq-btn" type="button" data-state="submission" disabled title="Analyse a paper first">This submission</button>
+          </div>
+          <div class="fpq-readout" id="readout" hidden>
+            <span class="nm" id="ro-name"></span>
+            <span class="rw" id="ro-habits">HABITS MEASURED · 97</span>
+            <details class="rw" id="ro-pur" hidden>
+              <summary>PURITY Tr(ρ²) · <span id="ro-pur-v"></span></summary>
+              <div class="ro-pur-body">
+                <p><b>Purity</b> describes the baseline, not the paper: how alike <span id="ro-pur-who">the student’s</span> approved samples are to one another. It is near 1 when they read much alike and lower when they vary. A single sample always gives 1.</p>
+                <p><b>Testing caveat (T-01):</b> baselines of 3-5 samples produce false alarms; see docs/testing.</p>
+              </div>
+            </details>
+            <span class="rw">STATE · <em id="fpq-state" style="font-style:normal;"></em></span>
+          </div>
+          <div class="fpq-hint">Drag across the print to disturb it</div>
+          <div class="hero-title"><span id="hero-name" style="color:inherit;">Writing State</span><br><span>Writing fingerprint · illustration</span></div>
+          <div class="plain-read" id="plain-read">Loading</div>
+          <div id="result-notice" hidden><div data-testing-notice></div></div>
+          <div class="triage" id="triage" hidden>
+            <a class="tri-btn packet" id="tri-packet" href="packet.html" style="text-decoration:none;">Prepare conversation packet</a>
+            <button class="tri-btn ok" type="button" data-act="fine">Looks fine</button>
+            <button class="tri-btn talk" type="button" data-act="talk">Have a conversation</button>
+            <span class="tri-done" id="tri-done" role="status"></span>
+          </div>
+          <div class="hero-evi" id="hero-evi">
+            <div class="evi-head">
+              <span class="evi-sw"></span><b id="evi-name"></b><span class="evi-flag" id="evi-flag" hidden>OUTSIDE USUAL RANGE</span>
+              <span class="evi-nums" id="evi-nums"></span>
+              <button class="evi-close" id="evi-close" type="button">✕ Back to fingerprint</button>
+            </div>
+            <div class="evi-desc" id="evi-desc"></div>
+            <div class="evi-cols">
+              <div class="evi-col"><div class="evi-lbl">This submission</div><div class="evi-txt" id="evi-sub"></div><div class="evi-src" id="evi-sub-src"></div></div>
+              <div class="evi-col base"><div class="evi-lbl">Their own past work</div><div class="evi-txt" id="evi-base"></div><div class="evi-src" id="evi-base-src"></div></div>
+            </div>
+          </div>
+        </div>
+        <!-- State vector -->
+        <div>
+          <div class="sec-h"><b>State Vector |ψ⟩</b><span id="hm-sub">97 measured writing habits</span></div>
+          <div class="card hm-wrap">
+            <div class="hm-grid" id="heatmap"></div>
+            <div class="hm-band" id="heatmap-band"></div>
+            <div class="hm-labels" id="heatmap-labels"></div>
+            <div class="hm-legend">
+              <span class="k"><i style="background:linear-gradient(90deg,#4d90c8,#9a7ad0,#5aab7a)"></i>Bar = baseline |ψᵢ|</span>
+              <span class="k"><i style="background:#c9a028"></i>Tick = submission |ξᵢ|</span>
+              <span class="k"><i style="background:#c0392b"></i>below ↓</span>
+              <span class="k"><i style="background:#2a6b45"></i>above ↑</span>
+              <span class="k">red and green ticks: outside their usual range</span>
+            </div>
+          </div>
+          <div class="card fd-card" id="feat-detail" style="margin-top:.9rem;">
+            <div class="fd-head"><span class="fd-swatch" id="fd-swatch"></span><div><div class="fd-title" id="fd-title">Feature Detail</div><div class="fd-sub" id="fd-sub">Hover or pin a tier: its writing habits open here</div></div><span class="fd-count" id="fd-count"></span></div>
+            <div class="fd-body" id="fd-body"><div class="fd-empty">Point at a tier chip, a bar in the state vector, or a band label above: the <b>plain-English breakdown</b> of that tier's writing habits appears here, baseline vs. this submission.</div></div>
+          </div>
+        </div>
+
+        <!-- Math note -->
+        <div>
+          <div class="sec-h"><b>How the number is made</b></div>
+          <div class="card mnote">
+            <p>Each of the 97 measured habits is compared with the range this student shows across their teacher-approved samples. The deviation summarises how far the paper sits from those ranges, taken together: <strong>tanh(rms z / k)</strong>.</p>
+            <p>The density matrix <strong>ρ = Σᵢ wᵢ |φᵢ⟩⟨φᵢ|</strong> summarises the same approved samples, and the fingerprint above is an illustration of it. It does not produce the deviation number.</p>
+            <p>With few approved samples the ranges are wide and uncertain, so an honest paper on a new topic can still drift. Read the habit-by-habit numbers before the overall reading.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="live.js"></script>
+<script src="js/feature-data.js"></script>
+<script src="js/fingerprint.js"></script>
+<script>
+(function(){
+  'use strict';
+  const $=id=>document.getElementById(id);
+  const esc=Live.esc;
+  const OF=window.OriginalFeatures;
+  const FLAT=OF.flat, TIERS=OF.tiers, N_HABITS=OF.total;
+  const has=(o,k)=>!!o&&typeof o==='object'&&Object.prototype.hasOwnProperty.call(o,k);
+  const num=v=>(typeof v==='number'&&isFinite(v))?v:null;
+  const clamp01=v=>Math.max(0,Math.min(1,v));
+  const plural=(n,one,many)=>n+' '+(n===1?one:(many||one+'s'));
+  const signed=d=>(d>=0?'+':'')+d.toFixed(2);
+  const lowerFirst=s=>s.charAt(0).toLowerCase()+s.slice(1);
+  const DASH='–';
+  // quantum/scoring.py _decompose: the server returns at most five habits
+  // per direction, so five "outside the usual range" means "at least five".
+  const SERVER_LIST_CAP=5;
+
+  // Plain-English tier labels (shared with Feature Profile)
+  const PLAIN_TIER={tier1:'Word & Sentence Habits',tier2:'Connecting Ideas',tier3:'Voice & Claims',tier4:'Punctuation Habits',tier5:'Grammar Patterns',tier6:'Personal Quirks',tier7:'Natural Unevenness',tier8:'Sentence Rhythm',tier9:'Argument Shape',tier10:'Topic Focus',tier11:'Typical Mistakes',tier12:'Dramatic Arc',tier13:'Deeper Rhythm',tier14:'Where Mistakes Land',tier15:'Word Choice Patterns',tier16:'Citation Habits',tiercomp:'Baseline Comparison'};
+  const plainTier=t=>PLAIN_TIER[t.key]||t.name;
+  const GROUPS=['Surface','Discourse','Rhetorical'];
+  const GROUP_META={Surface:{c:'#4d90c8',sub:'what’s on the page: words, punctuation, grammar, slips'},Discourse:{c:'#9a7ad0',sub:'how ideas move: flow, rhythm, structure, suspense'},Rhetorical:{c:'#5aab7a',sub:'the voice: tone, focus, sourcing, drift'}};
+  const FAMILY={Surface:{cls:'gS',label:'how the sentences look'},Discourse:{cls:'gD',label:'how the ideas connect'},Rhetorical:{cls:'gR',label:'how the case is made'}};
+  const TIER_BY_KEY=new Map(TIERS.map(t=>[t.key,t]));
+
+  // The server's recommended action (recommendation.action) in plain words.
+  // A reading of how far the habits moved, never a finding about the student.
+  const ACTION={
+    no_action:{words:'Close to their usual writing',color:'#6bbf8a',line:'rgba(107,191,138,0.42)',gold:'rgba(107,191,138,0.9)'},
+    monitor:{words:'A few habits differ',color:'#d8b04a',line:'rgba(216,176,74,0.42)',gold:'rgba(216,176,74,0.9)'},
+    schedule_conversation:{words:'Worth a conversation',color:'#e0725a',line:'rgba(224,114,90,0.42)',gold:'rgba(224,114,90,0.9)'},
+    escalate:{words:'Several habits differ markedly',color:'#e05252',line:'rgba(224,82,82,0.42)',gold:'rgba(224,82,82,0.9)'}
+  };
+  const OTHER_ACTION={words:'See the habits below',color:'#8ba8dd',line:'rgba(139,168,221,0.42)',gold:'rgba(139,168,221,0.9)'};
+  const BASE_LOOK={line:'rgba(247,243,234,0.5)',gold:'rgba(201,160,40,0.85)',color:'#8ba8dd'};
+  const VERDICT_WORDS={ready:'baseline ready',developing:'baseline building',insufficient:'baseline too thin'};
+  // human_explanation is written for the classic page. Only a sentence that
+  // carries no verdict, authorship or detector wording is shown here.
+  const UNSAFE=/\bAI\b|authent|authorship|ghost|misconduct|plagiar|cheat|flag|verdict|suspic/i;
+
+  // ── page state ──
+  const S={
+    id:'', name:'', student:null, loaded:false, stErr:'', verdict:null,
+    base:null, sub:null, result:null, D:new Map(), C:new Map(), capped:false,
+    assignment:'', words:0, analysedAt:'', view:'baseline'
+  };
+  const who=()=>S.name||S.id;
+  const poss=()=>who()+'’s';
+  const baselineHref=()=>'baseline.html?student='+encodeURIComponent(S.id);
+  function approved(){
+    const bc=S.result&&S.result.baseline_confidence;
+    const a=bc?num(bc.authenticated_count):null;
+    if(a!=null) return a;
+    return S.student?num(S.student.authenticated_count):null;
+  }
+  const hasBaseline=()=>!!S.student&&(approved()||0)>0;
+  const actionOf=()=>(S.result&&S.result.recommendation)?S.result.recommendation.action:'';
+  const look=()=>has(ACTION,actionOf())?ACTION[actionOf()]:OTHER_ACTION;
+  function contrib(f){ return S.D.get(f.code)||S.C.get(f.code)||null; }
+  function baseOf(f){
+    const c=contrib(f);
+    if(c&&num(c.baseline_value)!=null) return c.baseline_value;
+    return has(S.base,f.code)?num(S.base[f.code]):null;
+  }
+  function subOf(f){
+    if(!S.sub) return null;
+    const c=contrib(f);
+    if(c&&num(c.submission_value)!=null) return c.submission_value;
+    return has(S.sub,f.code)?num(S.sub[f.code]):null;
+  }
+
+  // ── account menu ──
+  (function(){
+    const b=$('me-btn'), m=$('me-menu');
+    b.addEventListener('click',e=>{e.stopPropagation();const o=m.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');});
+    document.addEventListener('click',()=>{m.classList.remove('open');b.setAttribute('aria-expanded','false');});
+    $('sign-out').addEventListener('click',e=>{e.preventDefault();Live.signOut();});
+  })();
+  function initials(name){
+    const w=String(name||'').trim().split(/[\s_.-]+/).filter(Boolean);
+    if(!w.length) return '';
+    return (w[0].charAt(0)+(w.length>1?w[w.length-1].charAt(0):'')).toUpperCase();
+  }
+  const ROLE={professor:'Teacher',admin:'Workspace admin',operator:'Operator'};
+  function renderChrome(sess){
+    $('me-btn').textContent=initials(sess.name)||'··';
+    $('mm-name').textContent=sess.name||'Your account';
+    $('mm-sub').textContent=sess.mode==='demo'?'Demo workspace':(ROLE[sess.role]||'');
+    $('sign-out').style.display=sess.mode==='signed-in'?'':'none';
+  }
+
+  // ── shared cross-highlight state ──
+  const CROSS={pinned:null};
+  let HM, RADAR, CHIPS, DETAIL, EVI, FP;
+
+  // State vector heatmap (all 97 measured habits, grouped by tier):
+  // bar = baseline value, tick = this paper's value.
+  function makeHeatmap(){
+    const heatmap=$('heatmap'), labels=$('heatmap-labels'), band=$('heatmap-band');
+    const N=FLAT.length;
+    let cols=[], labs=[];
+    // Tier band strip (x-axis in full view)
+    band.innerHTML=TIERS.map(t=>'<div class="hbnd" data-tier="'+esc(t.key)+'" style="grid-column:span '+t.features.length+';--tc:'+esc(t.c)+'" title="'+esc(plainTier(t)+' ('+t.name+')')+'"><span>'+esc(t.pill.replace('Tier ','T')+(t.features.length>2?' · '+t.word:''))+'</span></div>').join('');
+    band.querySelectorAll('.hbnd').forEach(b=>{ b.style.cursor='pointer'; b.addEventListener('click',()=>CHIPS.toggle(b.dataset.tier)); });
+    const TIER_GRP={}; TIERS.forEach(t=>{TIER_GRP[t.key]=t.group;});
+
+    function build(){
+      heatmap.innerHTML=''; labels.innerHTML=''; cols=[]; labs=[];
+      FLAT.forEach((f,i)=>{
+        const v=baseOf(f), sub=subOf(f), out=S.D.get(f.code);
+        const col=document.createElement('div');
+        col.dataset.tier=f.tier; col.dataset.code=f.code;
+        col.style.cssText='display:flex;flex-direction:column;align-items:center;position:relative;height:130px;justify-content:flex-end;';
+        const track=document.createElement('div');
+        track.style.cssText='position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:9px;height:100%;border-radius:3px;background:linear-gradient(180deg,'+f.c+'08,'+f.c+'18);';
+        col.appendChild(track);
+        if(i>0&&FLAT[i-1].tier!==f.tier){col.style.borderLeft='1px dashed rgba(245,239,224,0.10)';}
+        const bv=v==null?0:clamp01(v);
+        const baseH=v==null?0:Math.round(20+bv*106), baseAlpha=(0.4+bv*0.55).toFixed(2);
+        const baseBar=document.createElement('div');
+        baseBar.style.cssText='width:9px;height:'+baseH+'px;border-radius:3px 3px 2px 2px;background:linear-gradient(180deg,'+f.c+','+f.c+'bb);opacity:'+baseAlpha+';align-self:flex-end;position:relative;z-index:1;transition:opacity .15s,transform .15s,width .2s;';
+        col.appendChild(baseBar);
+        if(sub!=null){
+          const subH=Math.round(20+clamp01(sub)*106);
+          const subColor=out?((sub-(v==null?sub:v))<0?'#c0392b':'#2a6b45'):'#c9a028';
+          const marker=document.createElement('div');
+          marker.style.cssText='position:absolute;bottom:0;left:50%;transform:translateX(-50%) translateY(-'+subH+'px);width:16px;height:2.5px;border-radius:2px;background:'+subColor+';z-index:2;';
+          const dot=document.createElement('div');
+          dot.style.cssText='position:absolute;bottom:0;left:50%;transform:translate(-50%,-50%) translateY(-'+subH+'px);width:5px;height:5px;border-radius:50%;background:'+subColor+';z-index:3;box-shadow:0 0 0 2px #0d1530;';
+          col.appendChild(marker); col.appendChild(dot);
+        }
+        col.title=f.name+(v!=null?': baseline '+v.toFixed(3):': no baseline yet')+(sub!=null?' · this paper '+sub.toFixed(3):'')+(out?' · outside their usual range':'');
+        col.style.cursor='pointer';
+        col.addEventListener('mouseenter',()=>{baseBar.style.opacity='1';baseBar.style.transform='scaleY(1.03)';});
+        col.addEventListener('mouseleave',()=>{baseBar.style.opacity=baseAlpha;baseBar.style.transform='none';});
+        col.addEventListener('click',()=>{ if(S.base) EVI.open(f.code); else CHIPS.toggle(f.tier); });
+        col._bar=baseBar;
+        heatmap.appendChild(col); cols.push(col);
+        const lbl=document.createElement('div'); lbl.className='hm-label'; lbl.textContent=f.name; labels.appendChild(lbl); labs.push(lbl);
+      });
+      reset();
+    }
+    function filterGroup(g){
+      const count=FLAT.filter(f=>TIER_GRP[f.tier]===g).length;
+      heatmap.classList.add('filtered');
+      heatmap.style.gridTemplateColumns='repeat('+count+',12px)';
+      labels.style.display='none'; band.style.display='';
+      band.style.gridTemplateColumns='repeat('+count+',12px)';
+      band.querySelectorAll('.hbnd').forEach(b=>{b.style.display=TIER_GRP[b.dataset.tier]===g?'':'none';});
+      cols.forEach((c,i)=>{const m=TIER_GRP[c.dataset.tier]===g;c.style.display=m?'':'none';labs[i].style.display='none';c._bar.style.width='12px';});
+    }
+    function filter(key){
+      const t=TIER_BY_KEY.get(key); if(!t) return;
+      heatmap.classList.add('filtered'); labels.classList.add('horiz');
+      const n=t.features.length;
+      heatmap.style.gridTemplateColumns='repeat('+n+',44px)';
+      labels.style.gridTemplateColumns='repeat('+n+',44px)';
+      heatmap.style.minWidth=labels.style.minWidth='';
+      labels.style.display=''; band.style.display='none';
+      band.querySelectorAll('.hbnd').forEach(b=>{b.style.display='';});
+      cols.forEach((c,i)=>{const m=c.dataset.tier===key;c.style.display=m?'':'none';labs[i].style.display=m?'':'none';c._bar.style.width=m?'26px':'9px';});
+    }
+    function reset(){
+      heatmap.classList.remove('filtered'); labels.classList.remove('horiz');
+      heatmap.style.gridTemplateColumns='repeat('+N+',12px)';
+      labels.style.gridTemplateColumns='repeat('+N+',12px)';
+      band.style.gridTemplateColumns='repeat('+N+',12px)';
+      heatmap.style.minWidth=labels.style.minWidth=band.style.minWidth='';
+      labels.style.display='none'; band.style.display='';
+      band.querySelectorAll('.hbnd').forEach(b=>{b.style.display='';});
+      cols.forEach((c,i)=>{c.style.display='';labs[i].style.display='';c._bar.style.width='9px';});
+    }
+    return {build,filterGroup,filter,reset};
+  }
+
+  // Radar over all tiers: the per-tier mean of the baseline (gold) and of
+  // this paper (dashed), on the same 0 to 1 scale as the habits.
+  function makeRadar(){
+    const canvas=$('radar-canvas'), ctx=canvas.getContext('2d'), radarTip=$('radar-tip');
+    const GCOLOR={Surface:'#4d90c8',Discourse:'#9a7ad0',Rhetorical:'#5aab7a'};
+    const PTS=GROUPS.flatMap(g=>TIERS.filter(t=>t.group===g).map(t=>({key:t.key,label:t.pill.replace('Tier ','T'),name:t.name,c:t.c,g,t,b:null,s:null})));
+    const M=PTS.length;
+    let hi=null, hg=null, cx=0, cy=0, R=0, DPR=1;
+    function mean(t,get){ let sum=0,n=0; t.features.forEach(f=>{const v=get(f); if(v!=null){sum+=clamp01(v);n++;}}); return n?sum/n:null; }
+    function values(){ PTS.forEach(p=>{ p.b=mean(p.t,baseOf); p.s=S.sub?mean(p.t,subOf):null; }); }
+    function poly(sel){return PTS.map((p,k)=>{const a=(k/M)*Math.PI*2-Math.PI/2;const v=sel(p);return{x:cx+v*R*Math.cos(a),y:cy+v*R*Math.sin(a),v,p,a};});}
+    function size(){const r=canvas.getBoundingClientRect(); if(!r.width) return; DPR=Math.min(devicePixelRatio||1,2);canvas.width=r.width*DPR;canvas.height=r.height*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);cx=r.width/2;cy=r.height/2;R=Math.min(cx,cy)-18;draw();}
+    function draw(){const w=cx*2,h=cy*2;ctx.clearRect(0,0,w,h);
+      values();
+      // group sector wedges + labels
+      GROUPS.forEach(g=>{
+        const idx=PTS.map((p,k)=>p.g===g?k:-1).filter(k=>k>=0);
+        if(!idx.length)return;
+        const a0=(idx[0]/M)*Math.PI*2-Math.PI/2-(Math.PI/M);
+        const a1=(idx[idx.length-1]/M)*Math.PI*2-Math.PI/2+(Math.PI/M);
+        ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R,a0,a1);ctx.closePath();
+        ctx.fillStyle=GCOLOR[g]+(hg===g?'26':(hg?'06':'0d'));ctx.fill();
+        ctx.beginPath();ctx.arc(cx,cy,R+3,a0+0.02,a1-0.02);ctx.strokeStyle=GCOLOR[g]+(hg===g?'ff':(hg?'33':'88'));ctx.lineWidth=hg===g?3:2;ctx.stroke();
+        const am=(a0+a1)/2;
+        ctx.font='600 9px Inter,sans-serif';ctx.fillStyle=GCOLOR[g];ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(g.toUpperCase(),cx+(R*0.5)*Math.cos(am),cy+(R*0.5)*Math.sin(am));
+      });
+      [0.25,0.5,0.75,1].forEach(rr=>{ctx.beginPath();ctx.arc(cx,cy,R*rr,0,Math.PI*2);ctx.strokeStyle='rgba(245,239,224,0.09)';ctx.lineWidth=1;ctx.stroke();});
+      ctx.font='8px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      for(let k=0;k<M;k++){const a=(k/M)*Math.PI*2-Math.PI/2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+R*Math.cos(a),cy+R*Math.sin(a));ctx.strokeStyle=hi===k?PTS[k].c:'rgba(245,239,224,0.06)';ctx.lineWidth=hi===k?1.5:1;ctx.stroke();
+        ctx.fillStyle=hi===k?'#f5efe0':'rgba(245,239,224,0.42)';ctx.fillText(PTS[k].label,cx+(R+10)*Math.cos(a),cy+(R+10)*Math.sin(a));}
+      if(PTS.some(p=>p.b!=null)){
+        // baseline polygon
+        const bp=poly(p=>p.b||0);ctx.beginPath();bp.forEach((p,k)=>k?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();
+        ctx.fillStyle='rgba(201,160,40,0.14)';ctx.fill();ctx.strokeStyle='rgba(201,160,40,0.8)';ctx.lineWidth=1.75;ctx.stroke();
+        // submission polygon
+        if(PTS.some(p=>p.s!=null)){
+          const sp=poly(p=>p.s||0);ctx.beginPath();sp.forEach((p,k)=>k?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();
+          ctx.fillStyle='rgba(224,82,82,0.10)';ctx.fill();ctx.strokeStyle='rgba(224,114,90,0.7)';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);ctx.stroke();ctx.setLineDash([]);
+        }
+        bp.forEach((p,k)=>{ctx.beginPath();ctx.arc(p.x,p.y,hi===k?4:2.6,0,Math.PI*2);ctx.fillStyle=PTS[k].c;ctx.fill();ctx.strokeStyle='#0d1530';ctx.lineWidth=1.2;ctx.stroke();});
+      }
+    }
+    function tipText(p){
+      if(p.b==null) return esc(p.name);
+      return esc(p.name)+' <b>'+p.b.toFixed(3)+'</b>'+(p.s!=null?' / '+p.s.toFixed(3):'');
+    }
+    canvas.addEventListener('pointermove',e=>{const r=canvas.getBoundingClientRect();const mx=e.clientX-r.left,my=e.clientY-r.top;let best=null,bd=15;
+      poly(p=>p.b==null?1:p.b).forEach((p,k)=>{const d=Math.hypot(p.x-mx,p.y-my);if(d<bd){bd=d;best={p,k};}});
+      if(best){const p=PTS[best.k];radarTip.classList.add('on');radarTip.style.left=best.p.x+'px';radarTip.style.top=best.p.y+'px';radarTip.innerHTML=tipText(p);hi=best.k;draw();}
+      else if(hi!==null&&CROSS.pinned===null){radarTip.classList.remove('on');hi=null;draw();}});
+    canvas.addEventListener('pointerleave',()=>{radarTip.classList.remove('on');if(CROSS.pinned===null){hi=null;draw();}});
+    window.addEventListener('resize',size);
+    size();
+    return { draw, size, highlight(key){hg=null;hi=PTS.findIndex(p=>p.key===key);draw();}, highlightGroup(g){hi=null;hg=g;draw();}, clear(){hi=null;hg=null;draw();} };
+  }
+
+  // Tier chips + cross-highlight controller
+  function makeChips(){
+    const wrap=$('tier-chips');
+    wrap.innerHTML=GROUPS.map(g=>{
+      const chips=TIERS.filter(t=>t.group===g).map(t=>
+        '<button type="button" class="tchip" data-tier="'+esc(t.key)+'" style="--tc:'+esc(t.c)+'" title="'+esc(plainTier(t)+' ('+t.name+')')+'"><span class="cl"><span class="cd"></span>'+esc(t.pill.replace('Tier ','T'))+'</span><span class="cw">'+esc(t.word)+'</span></button>'
+      ).join('');
+      return '<div class="tgrp"><div class="tgrp-h" style="--gc:'+GROUP_META[g].c+'"><b>'+g+'</b><span>'+esc(GROUP_META[g].sub)+'</span></div><div class="tgrp-chips">'+chips+'</div></div>';
+    }).join('');
+    const chips=[...wrap.querySelectorAll('.tchip')];
+    function apply(key){ HM.filter(key); RADAR.highlight(key); DETAIL.show(key); FP.tint((TIER_BY_KEY.get(key)||{}).c); }
+    function clear(){ HM.reset(); RADAR.clear(); DETAIL.clear(); FP.restore(); }
+    function applyGroup(g){ HM.filterGroup(g); RADAR.highlightGroup(g); DETAIL.showGroup(g); FP.tint(GROUP_META[g].c); }
+    function unpin(){ CROSS.pinned=null; chips.forEach(c=>c.classList.remove('on')); wrap.querySelectorAll('.tgrp-h').forEach(h=>h.classList.remove('on')); clear(); }
+    function toggle(key){
+      if(CROSS.pinned===key){ unpin(); }
+      else{CROSS.pinned=key;wrap.querySelectorAll('.tgrp-h').forEach(h=>h.classList.remove('on'));chips.forEach(c=>c.classList.toggle('on',c.dataset.tier===key));apply(key);}
+    }
+    chips.forEach(ch=>{
+      const key=ch.dataset.tier;
+      ch.addEventListener('mouseenter',()=>{if(CROSS.pinned===null)apply(key);});
+      ch.addEventListener('mouseleave',()=>{if(CROSS.pinned===null)clear();});
+      ch.addEventListener('click',()=>{
+        if($('hero-evi').classList.contains('show')&&S.base){
+          // already in a comparison: switch to this tier's most different habit
+          const t=TIER_BY_KEY.get(key); if(!t||!t.features.length) return;
+          const gap=f=>{const b=baseOf(f),s=subOf(f);return (b==null||s==null)?-1:Math.abs(s-b);};
+          const f=t.features.find(x=>S.D.has(x.code))||t.features.slice().sort((a,b)=>gap(b)-gap(a))[0];
+          if(CROSS.pinned!==key) toggle(key);
+          EVI.open(f.code);
+          return;
+        }
+        toggle(key);
+      });
+    });
+    // Group headers: hover previews, click pins the whole section
+    wrap.querySelectorAll('.tgrp').forEach(grp=>{
+      const head=grp.querySelector('.tgrp-h');
+      const g=head.querySelector('b').textContent;
+      head.addEventListener('mouseenter',()=>{if(CROSS.pinned===null)applyGroup(g);});
+      head.addEventListener('mouseleave',()=>{if(CROSS.pinned===null)clear();});
+      head.addEventListener('click',()=>{
+        const pk='g:'+g;
+        if(CROSS.pinned===pk){CROSS.pinned=null;head.classList.remove('on');clear();}
+        else{CROSS.pinned=pk;chips.forEach(c=>c.classList.remove('on'));wrap.querySelectorAll('.tgrp-h').forEach(h=>h.classList.toggle('on',h===head));applyGroup(g);}
+      });
+    });
+    // A tier with a habit the server marks outside the usual range gets the warm label.
+    function mark(){ chips.forEach(ch=>{ const t=TIER_BY_KEY.get(ch.dataset.tier); ch.classList.toggle('flag',!!t&&t.features.some(f=>S.D.has(f.code))); }); }
+    return {toggle,unpin,mark};
+  }
+
+  // Feature Detail window: the same cross-highlight bus fills it
+  function makeDetail(){
+    const swatch=$('fd-swatch'), titleEl=$('fd-title'), subEl=$('fd-sub'), countEl=$('fd-count'), body=$('fd-body'), card=$('feat-detail');
+    const GCOL={Surface:'#4d90c8',Discourse:'#9a7ad0',Rhetorical:'#5aab7a'};
+    function rowHTML(f){
+      const v=baseOf(f), s=subOf(f), out=S.D.has(f.code), within=S.C.has(f.code);
+      const diff=(v!=null&&s!=null)?s-v:null;
+      const sc=out&&diff!=null?(diff<0?'#c0392b':'#2a6b45'):'#c9a028';
+      const badge=out?' <span class="fd-flag" title="Further from their average than their approved samples usually vary">OUTSIDE USUAL RANGE</span>'
+        :(within?' <span class="fd-flag ok" title="Close to the average of their approved samples">WITHIN USUAL RANGE</span>':'');
+      return '<div class="fd-row" data-tier="'+esc(f.tier)+'" data-code="'+esc(f.code)+'">'+
+        '<div><div class="fd-nm">'+esc(f.name)+badge+'</div><div class="fd-ds">'+esc(f.desc||'')+'</div></div>'+
+        '<div class="fd-bar"><div class="fd-track"></div>'+(v!=null?'<div class="fd-base" style="width:'+Math.round(clamp01(v)*100)+'%"></div>':'')+(s!=null?'<div class="fd-sub-mark" style="left:'+Math.round(clamp01(s)*100)+'%;--sm:'+sc+'"></div>':'')+'</div>'+
+        '<div class="fd-delta" style="color:'+sc+'">'+(diff!=null?signed(diff):DASH)+'</div></div>';
+    }
+    function paint(color,title,sub,rowsHTML,count){
+      card.style.setProperty('--fdc',color); swatch.style.background=color;
+      titleEl.textContent=title; subEl.textContent=sub;
+      countEl.textContent=count!=null?plural(count,'habit'):'';
+      body.innerHTML=rowsHTML;
+      body.querySelectorAll('.fd-row').forEach(r=>r.addEventListener('click',()=>{ if(S.base&&r.dataset.code) EVI.open(r.dataset.code); }));
+    }
+    return {
+      show(key){ const t=TIER_BY_KEY.get(key); if(!t) return;
+        paint(t.c,t.pill+' · '+plainTier(t),(t.name!==plainTier(t)?t.name+': ':'')+(t.blurb||''),
+          '<div class="fd-list">'+t.features.map(rowHTML).join('')+'</div>',t.features.length);
+      },
+      showGroup(g){ const ts=TIERS.filter(t=>t.group===g); if(!ts.length) return;
+        let n=0, html='<div class="fd-list">';
+        ts.forEach(t=>{ n+=t.features.length;
+          html+='<div class="fd-grp-h" style="--fdg:'+esc(t.c)+'">'+esc(t.pill.replace('Tier ','T')+' · '+plainTier(t))+'</div>'+t.features.map(rowHTML).join(''); });
+        html+='</div>';
+        paint(GCOL[g]||'#c9a028',g,GROUP_META[g].sub,html,n);
+      },
+      clear(){
+        if(S.result){
+          // After an analysis: the server's own lists (FeatureContributionOut).
+          // In the server's own order.
+          const out=[...S.D.keys()].map(c=>OF.byCode[c]), near=[...S.C.keys()].map(c=>OF.byCode[c]);
+          let html='';
+          if(out.length) html+='<div class="fd-grp-h" style="--fdg:#e0725a">Furthest from their usual</div>'+out.map(rowHTML).join('');
+          if(near.length) html+='<div class="fd-grp-h" style="--fdg:#6bbf8a">Closest to their usual</div>'+near.map(rowHTML).join('');
+          if(!out.length) html='<div class="fd-empty">No habit in this paper sits far outside '+esc(poss())+' usual range. Point at a tier chip, a bar in the state vector, or a band label above to see any tier.</div>'+(near.length?'<div class="fd-list">'+html+'</div>':'');
+          else html='<div class="fd-list">'+html+'</div>';
+          paint('#c9a028','Largest differences','The habits Original marks as furthest from and closest to '+poss()+' usual range'+(S.capped?' (up to five each)':''),html,out.length+near.length||null);
+          return;
+        }
+        card.style.setProperty('--fdc','#c9a028'); swatch.style.background='#c9a028';
+        titleEl.textContent='Feature Detail'; subEl.textContent='Hover or pin a tier: its writing habits open here'; countEl.textContent='';
+        body.innerHTML='<div class="fd-empty">Point at a tier chip, a bar in the state vector, or a band label above: the <b>plain-English breakdown</b> of that tier’s writing habits appears here, baseline vs. this submission.</div>';
+      }
+    };
+  }
+
+  // Habit evidence: one habit, this paper's number beside their own.
+  // The server returns no text positions, so no passages are quoted.
+  function makeEvidence(){
+    const box=$('hero-evi');
+    const hex2rgba=(h,a)=>{const n=parseInt(h.slice(1),16);return 'rgba('+(n>>16)+','+((n>>8)&255)+','+(n&255)+','+a+')';};
+    function open(code){
+      if(!has(OF.byCode,code)) return;
+      const f=OF.byCode[code], t=TIER_BY_KEY.get(f.tier)||{c:'#c9a028'};
+      const v=baseOf(f), s=subOf(f), out=S.D.has(f.code), within=S.C.has(f.code);
+      box.style.setProperty('--evc',t.c);
+      box.style.setProperty('--evc-bg',hex2rgba(t.c,.24));
+      box.style.setProperty('--evc-line',hex2rgba(t.c,.38));
+      $('evi-name').textContent=f.name;
+      $('evi-flag').hidden=!out;
+      $('evi-nums').innerHTML=(v!=null?'baseline '+v.toFixed(2):'no baseline')+(s!=null?' · this paper <b>'+s.toFixed(2)+'</b>'+(v!=null?' ('+signed(s-v)+')':''):'');
+      $('evi-desc').textContent=f.desc||'';
+      const n=approved()||0;
+      if(s!=null){
+        const line=out?'This paper sits outside the range '+who()+' usually shows on this habit.'
+          :within?'This paper sits well within the range '+who()+' usually shows on this habit.'
+          :'This paper’s value for this habit, on a scale from 0 to 1.';
+        $('evi-sub').innerHTML='<span class="evi-big">'+s.toFixed(2)+'</span><p>'+esc(line)+'</p>';
+        $('evi-sub-src').textContent=(S.assignment||'This paper')+' · '+plural(S.words,'word');
+      } else {
+        $('evi-sub').innerHTML='<p class="none">Analyse a paper to see where it sits on this habit.</p>';
+        $('evi-sub-src').textContent='';
+      }
+      if(v!=null){
+        $('evi-base').innerHTML='<span class="evi-big">'+v.toFixed(2)+'</span><p>'+esc('The average across '+plural(n,'approved sample')+' of '+poss()+' writing, on the same scale.')+'</p>';
+        $('evi-base-src').textContent=plural(n,'approved sample');
+      } else {
+        $('evi-base').innerHTML='<p class="none">No approved writing measured for this habit yet.</p>';
+        $('evi-base-src').textContent='';
+      }
+      box.classList.add('show');
+      const rs=$('right-scroll'); if(rs) rs.scrollTop=0;
+    }
+    function close(){ box.classList.remove('show'); }
+    $('evi-close').addEventListener('click',close);
+    return {open,close};
+  }
+
+  // Fingerprint (decorative): colours follow the toggle and the result.
+  function makeFingerprint(){
+    const c=$('fpq-canvas');
+    let fp=null, cur=BASE_LOOK;
+    if(c&&window.Fingerprint){
+      fp=window.Fingerprint(c,{rings:17,particlesPerRing:100,noiseAmp:6,lineColor:BASE_LOOK.line,goldColor:BASE_LOOK.gold,mouseRepel:70});
+    }
+    return {
+      tint(color){ if(color&&fp&&fp.setColors) fp.setColors(color+'55',color); },
+      restore(){ if(fp&&fp.setColors) fp.setColors(cur.line,cur.gold); },
+      set(lk,reseed){ cur=lk; if(fp&&fp.setColors) fp.setColors(lk.line,lk.gold); if(reseed&&fp&&fp.reseed) fp.reseed(); }
+    };
+  }
+
+  // ── rendering from S ──
+  function setView(v,reseed){
+    S.view=(v==='submission'&&S.result)?'submission':'baseline';
+    document.querySelectorAll('.fpq-btn').forEach(b=>{
+      b.classList.toggle('active',b.dataset.state===S.view);
+      if(b.dataset.state==='submission'){ b.disabled=!S.result; b.title=S.result?'':'Analyse a paper first'; }
+    });
+    FP.set(S.view==='submission'?look():BASE_LOOK,reseed);
+    renderReadout();
+  }
+
+  function renderHead(){
+    $('hero-name').textContent=S.id?who():'Writing State';
+    document.title=S.id?'Original · '+who()+' · Writing State':'Original · Writing State';
+    const vl=$('voice-link');
+    if(S.id){ vl.hidden=false; vl.href=baselineHref(); vl.textContent='Voice baseline: how '+who()+' writes →'; }
+    else vl.hidden=true;
+    $('an-change').hidden=!S.id;
+    $('an-who').hidden=!S.id;
+    $('an-who').textContent=S.id?who():'';
+  }
+
+  function renderReadout(){
+    const ro=$('readout');
+    if(!S.id){ ro.hidden=true; return; }
+    ro.hidden=false;
+    $('ro-name').textContent=who();
+    $('ro-habits').textContent='HABITS MEASURED · '+N_HABITS;
+    const bc=S.result&&S.result.baseline_confidence;
+    const pur=bc?num(bc.purity):(S.student?num(S.student.purity):null);
+    $('ro-pur').hidden=pur==null||!hasBaseline();
+    $('ro-pur-v').textContent=pur!=null?pur.toFixed(3):'';
+    $('ro-pur-who').textContent=poss();
+    const st=$('fpq-state');
+    if(S.stErr){ st.textContent='not available'; st.style.color=OTHER_ACTION.color; }
+    else if(!S.loaded){ st.textContent='loading'; st.style.color=OTHER_ACTION.color; }
+    else if(!hasBaseline()){ st.textContent='no baseline yet'; st.style.color=OTHER_ACTION.color; }
+    else if(S.view==='submission'&&S.result){ const lk=look(); st.textContent=lowerFirst(lk.words); st.style.color=lk.color; }
+    else { st.textContent='baseline of '+plural(approved()||0,'approved sample'); st.style.color=BASE_LOOK.color; }
+  }
+
+  function familyLine(){
+    let h='';
+    GROUPS.forEach(g=>{
+      const list=[...S.D.keys()].map(c=>OF.byCode[c]).filter(f=>TIER_BY_KEY.get(f.tier).group===g);
+      if(!list.length) return;
+      const fam=FAMILY[g];
+      const named=list.slice(0,2).map(f=>{ const b=baseOf(f), s=subOf(f); return esc(f.name)+(b!=null&&s!=null?' ('+(s<b?'lower':'higher')+')':''); });
+      h+=' In '+fam.label+', <span class="'+fam.cls+'">'+plural(list.length,'habit')+'</span> '+(list.length>1?'differ':'differs')+': '+named.join(' and ')+(list.length>2?', and more':'')+'.';
+    });
+    return h;
+  }
+
+  function renderPlain(){
+    const pr=$('plain-read');
+    if(!S.id){ pr.textContent='Choose a student on the left. Their approved writing appears here, and you can analyse a paper against it.'; return; }
+    if(S.stErr){ pr.textContent=S.stErr; return; }
+    if(!S.loaded){ pr.textContent='Loading'; return; }
+    if(!hasBaseline()){
+      pr.innerHTML='Not enough approved writing to compare yet: no approved samples are on file for <b>'+esc(who())+'</b>, so there is nothing to compare a paper with. <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
+      return;
+    }
+    const n=approved()||0;
+    if(!S.result){
+      let h='<b>'+plural(n,'approved sample')+'</b> make'+(n===1?'s':'')+' up '+esc(poss())+' baseline. Paste a paper on the left to compare it with '+(n===1?'that sample':'them')+'.';
+      if(S.verdict==='developing') h+=' Original rates this baseline as still building, so a result will be less steady until more approved writing is added.';
+      else if(S.verdict==='insufficient') h+=' Original rates this baseline as too thin to rely on yet, so read any result with extra care.';
+      pr.innerHTML=h;
+      return;
+    }
+    const nOut=S.D.size;
+    let h=nOut
+      ? 'This paper reads differently from '+esc(poss())+' usual writing in <b>'+(S.capped?'at least ':'')+nOut+' of '+N_HABITS+'</b> measured habits.'
+      : 'None of the '+N_HABITS+' measured habits in this paper sits far outside '+esc(poss())+' usual range.';
+    h+=familyLine();
+    const words=esc(lowerFirst(look().words));
+    if(actionOf()==='schedule_conversation') h+=' Overall: <b>'+words+'</b>, not a conclusion.';
+    else {
+      h+=' Overall: <b>'+words+'</b>.';
+      if(actionOf()!=='no_action') h+=' That is worth a conversation, not a conclusion.';
+    }
+    const he=S.result.human_explanation;
+    const note=he&&typeof he.confidence_note==='string'?he.confidence_note.trim():'';
+    if(note&&!UNSAFE.test(note)) h+=' '+esc(note);
+    pr.innerHTML=h;
+  }
+
+  function renderResultChrome(){
+    $('result-notice').hidden=!S.result;
+    $('triage').hidden=!S.result;
+  }
+
+  function renderAll(){
+    renderHead();
+    renderReadout();
+    renderPlain();
+    renderResultChrome();
+    EVI.close();
+    CHIPS.unpin();
+    HM.build();
+    RADAR.draw();
+    CHIPS.mark();
+    DETAIL.clear();
+  }
+
+  // ── the Analyse card ──
+  function note(html){ $('an-note').innerHTML=html||''; }
+  function msg(text,err){ const m=$('an-msg'); m.textContent=text||''; m.classList.toggle('err',!!err); }
+  function setCard(mode){
+    $('an-pick').hidden=mode!=='pick';
+    $('an-form').hidden=mode!=='form';
+    $('an-done').hidden=mode!=='done';
+    if(mode!=='form') msg('');
+  }
+  function notEnough(){
+    note('<b>Not enough approved writing to compare yet.</b> Original compares a paper with writing you have approved as '+esc(poss())+'. <a href="'+esc(baselineHref())+'">Add approved writing</a>.');
+    setCard('none');
+  }
+  function thinNote(){
+    const n=approved()||0;
+    if(S.verdict==='developing') return 'Original rates this baseline as still building ('+plural(n,'approved sample')+'). <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
+    if(S.verdict==='insufficient') return 'Original rates this baseline as too thin to rely on yet ('+plural(n,'approved sample')+'). <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
+    return '';
+  }
+  function countWords(t){ return String(t||'').trim().split(/\s+/).filter(Boolean).length; }
+  function updateWords(){ const n=countWords($('an-text').value); $('an-words').textContent=n?plural(n,'word'):''; }
+
+  async function loadPicker(){
+    const sel=$('an-student');
+    setCard('pick'); note('');
+    let ro;
+    try{ ro=await Live.roster(); }catch(e){ ro={ok:false,students:[]}; }
+    if(!ro.ok){
+      sel.innerHTML='<option value="">Not available</option>';
+      note('Your students could not be loaded just now. Try reloading the page.');
+      $('plain-read').textContent='Your students could not be loaded just now. Try reloading the page.';
+      return;
+    }
+    if(!ro.students.length){
+      sel.innerHTML='<option value="">No students yet</option>';
+      note(ro.bluebookOff?'No students on your roster yet.':'No students on your roster yet. Add them in <a href="/bluebook/">Bluebook</a>.');
+      $('plain-read').textContent='No students on your roster yet. A student appears here once a writing sample of theirs is on file.';
+      return;
+    }
+    const list=ro.students.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),undefined,{sensitivity:'base'})||(a.id<b.id?-1:a.id>b.id?1:0));
+    sel.innerHTML='<option value="">Choose a student</option>'+list.map(s=>
+      '<option value="'+esc(s.id)+'">'+esc(String(s.name)+(VERDICT_WORDS[s.verdict]?' · '+VERDICT_WORDS[s.verdict]:''))+'</option>').join('');
+    sel.disabled=false;
+    sel.addEventListener('change',()=>{ if(sel.value) location.href='writing-state.html?student='+encodeURIComponent(sel.value); });
+  }
+
+  async function loadStudent(){
+    note('Loading');
+    const st=await Live.api('/students/'+encodeURIComponent(S.id));
+    S.loaded=true;
+    if(st.ok&&st.data&&typeof st.data==='object'){
+      S.student=st.data;
+      S.base=(st.data.baseline_vector&&typeof st.data.baseline_vector==='object')?st.data.baseline_vector:null;
+    } else if(st.status===404){
+      S.student=null;
+    } else {
+      S.stErr=st.status===403?'You do not have access to this student’s writing.':'This student’s approved writing could not be loaded just now. Try reloading the page.';
+    }
+    renderAll();
+    if(S.stErr){ note(esc(S.stErr)); setCard('none'); }
+    else if(!hasBaseline()){ S.base=null; renderAll(); notEnough(); }
+    else { note(thinNote()); setCard('form'); }
+    // The name and the server's readiness verdict come from the shared roster
+    // loader; until it answers, the id stands in for the name.
+    try{
+      const ro=await Live.roster();
+      const me=ro&&ro.ok?ro.students.find(s=>s.id===S.id):null;
+      if(me){
+        S.name=String(me.name||S.id); S.verdict=me.verdict||null;
+        if(!S.result) renderAll(); else { renderHead(); renderReadout(); renderPlain(); }
+        if(!S.stErr&&hasBaseline()&&!S.result&&$('an-done').hidden) note(thinNote());
+        if(!hasBaseline()&&!S.stErr) notEnough();
+      }
+    }catch(e){ /* the id stays as the name */ }
+  }
+
+  function setResult(d,assignment,words){
+    S.result=d;
+    S.sub=(d.feature_vector&&typeof d.feature_vector==='object')?d.feature_vector:null;
+    if(d.baseline_vector&&typeof d.baseline_vector==='object') S.base=d.baseline_vector;
+    const inter=d.interference&&typeof d.interference==='object'?d.interference:{};
+    const dest=Array.isArray(inter.destructive_features)?inter.destructive_features:[];
+    const cons=Array.isArray(inter.constructive_features)?inter.constructive_features:[];
+    S.D=new Map(); S.C=new Map();
+    dest.forEach(x=>{ if(x&&typeof x.code==='string'&&has(OF.byCode,x.code)) S.D.set(x.code,x); });
+    cons.forEach(x=>{ if(x&&typeof x.code==='string'&&has(OF.byCode,x.code)&&!S.D.has(x.code)) S.C.set(x.code,x); });
+    S.capped=dest.length>=SERVER_LIST_CAP;
+    S.assignment=assignment; S.words=words; S.analysedAt=new Date().toISOString();
+  }
+
+  async function analyse(e){
+    e.preventDefault();
+    if(!S.id||!hasBaseline()) return;
+    const text=$('an-text').value.trim();
+    if(text.length<30){ msg('Paste the paper (at least a few sentences) before analysing.',true); return; }
+    if(text.length>200000){ msg('This paper is too long to analyse here (the limit is 200,000 characters).',true); return; }
+    const assignment=$('an-assign').value.trim().slice(0,200);
+    const go=$('an-go');
+    go.disabled=true; go.textContent='Analysing'; msg('This takes a few seconds.');
+    const res=await Live.api('/students/'+encodeURIComponent(S.id)+'/score',{method:'POST',body:{text:text,assignment:assignment}});
+    go.disabled=false; go.textContent='Analyse';
+    const d=res.data;
+    if(res.ok&&d&&typeof d==='object'&&d.feature_vector&&d.baseline_vector){
+      setResult(d,assignment,countWords(text));
+      setView('submission',true);
+      renderAll();
+      $('an-done-t').textContent=assignment||'Untitled paper';
+      $('an-done-s').textContent=plural(S.words,'word')+' · analysed '+new Date(S.analysedAt).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+      note(''); setCard('done');
+      $('tri-done').textContent=''; $('tri-done').classList.remove('err');
+      document.querySelectorAll('.tri-btn').forEach(x=>{x.classList.remove('sel'); if(x.tagName==='BUTTON') x.disabled=false;});
+      const rs=$('right-scroll'); if(rs) rs.scrollTop=0;
+      return;
+    }
+    const detail=d&&typeof d.detail==='string'?d.detail:'';
+    if(res.status===404||(res.status===422&&/authenticated|baseline/i.test(detail))){ notEnough(); return; }
+    if(res.status===401) msg('Your sign-in has ended. Sign in again, then analyse the paper.',true);
+    else if(res.status===403) msg('You do not have access to this student’s writing.',true);
+    else if(res.status===413) msg('This paper is too large to send. Try pasting only the essay text.',true);
+    else if(res.status===422) msg('This text could not be analysed. Check that it is the paper itself and try again.',true);
+    else msg('The analysis could not be completed just now, so the paper was not analysed. Try again.',true);
+  }
+
+  // ── triage: the classic page's correction endpoint and payload ──
+  async function triage(act,btn){
+    const r=S.result; const done=$('tri-done');
+    if(!r||typeof r.submission_id!=='string'||!r.submission_id) return;
+    const target=act==='fine'?'no_action':'schedule_conversation';
+    const body={is_correct:actionOf()===target,reviewer:'professor',notes:'Writing State: '+(act==='fine'?'Looks fine':'Have a conversation')};
+    if(!body.is_correct) body.corrected_action=target;
+    const btns=document.querySelectorAll('.triage button.tri-btn');
+    btns.forEach(x=>{x.disabled=true;});
+    done.classList.remove('err'); done.textContent='Saving';
+    const res=await Live.api('/submissions/'+encodeURIComponent(r.submission_id)+'/correct',{method:'POST',body:body});
+    btns.forEach(x=>{x.disabled=false;});
+    if(res.ok){
+      btns.forEach(x=>x.classList.toggle('sel',x===btn));
+      done.textContent=act==='fine'?'Recorded: looks fine.':'Recorded: you plan to talk with '+who()+'.';
+      return;
+    }
+    done.classList.add('err');
+    done.textContent=res.status===401?'Sign in again to record this.':res.status===403?'Only a signed-in teacher can record this.':'This could not be recorded just now. Try again.';
+  }
+
+  // What the Conversation Packet (packet.html) reads. Only what that page
+  // shows is kept: none of the report-only probability, detector or
+  // typicality fields of the score response.
+  function storeForPacket(){
+    const r=S.result; if(!r) return;
+    const pick=vec=>{ const o={}; FLAT.forEach(f=>{ if(has(vec,f.code)&&num(vec[f.code])!=null) o[f.code]=vec[f.code]; }); return o; };
+    const bc=r.baseline_confidence||{};
+    const he=r.human_explanation;
+    const noteText=he&&typeof he.confidence_note==='string'&&!UNSAFE.test(he.confidence_note)?he.confidence_note:null;
+    const keep={
+      kind:'original_writing_state', version:1,
+      student_id:S.id, student_name:who(), assignment:S.assignment, analysed_at:S.analysedAt, word_count:S.words,
+      habits_measured:N_HABITS, action:actionOf(), action_words:look().words,
+      summary:$('plain-read').textContent,
+      result:{
+        student_id:r.student_id, submission_id:r.submission_id,
+        recommendation:{action:actionOf()},
+        baseline_confidence:{purity:num(bc.purity),sample_count:num(bc.sample_count),authenticated_count:num(bc.authenticated_count),effective_sample_count:num(bc.effective_sample_count)},
+        interference:{destructive_features:[...S.D.values()],constructive_features:[...S.C.values()]},
+        feature_vector:pick(S.sub), baseline_vector:pick(S.base),
+        human_explanation:noteText?{confidence_note:noteText}:null
+      }
+    };
+    try{ window.sessionStorage.setItem('original_last_result',JSON.stringify(keep)); }catch(e){ /* storage blocked: the packet page says so */ }
+  }
+
+  function start(){
+    HM=makeHeatmap(); RADAR=makeRadar(); DETAIL=makeDetail(); EVI=makeEvidence(); FP=makeFingerprint(); CHIPS=makeChips();
+    document.querySelectorAll('.fpq-btn').forEach(btn=>btn.addEventListener('click',()=>{ if(!btn.disabled) setView(btn.dataset.state,true); }));
+    $('an-form').addEventListener('submit',analyse);
+    $('an-text').addEventListener('input',updateWords);
+    $('an-again').addEventListener('click',()=>{ setCard('form'); note(thinNote()); $('an-text').focus(); });
+    $('an-file').addEventListener('change',e=>{
+      const input=e.target, f=input.files&&input.files[0];
+      input.value='';
+      if(!f) return;
+      if(!/\.txt$/i.test(f.name)&&f.type!=='text/plain'){ msg('Only .txt files open here. For a .docx or .pdf, copy the text and paste it in.',true); return; }
+      if(f.size>1048576){ msg('That file is too large to analyse here.',true); return; }
+      const rd=new FileReader();
+      rd.onload=()=>{ $('an-text').value=String(rd.result||''); updateWords(); msg(''); };
+      rd.onerror=()=>msg('That file could not be read.',true);
+      rd.readAsText(f);
+    });
+    document.querySelectorAll('.triage button.tri-btn').forEach(b=>b.addEventListener('click',()=>triage(b.dataset.act,b)));
+    $('tri-packet').addEventListener('click',e=>{ if(!S.result){ e.preventDefault(); return; } storeForPacket(); });
+
+    const id=(new URLSearchParams(location.search).get('student')||'').trim();
+    if(!id){ renderAll(); setView('baseline',false); loadPicker(); return; }
+    S.id=id; S.name=id;
+    renderAll(); setView('baseline',false);
+    loadStudent();
+  }
+
+  // ── go ──
+  Live.session().then(renderChrome);
+  const main=document.querySelector('main');
+  Live.gate(main).then(sess=>{
+    if(!sess){ main.classList.add('gated'); return; }
+    try { start(); }
+    catch(e){ try { $('plain-read').textContent='This page could not start. Try reloading it.'; } catch(e2){} }
+  });
+})();
+</script>
+</body>
+</html>

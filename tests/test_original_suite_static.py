@@ -42,7 +42,6 @@ NOTICE = (
 # makes the list shrink: delete a name here in the commit that adds its page.
 PLANNED_PAGES = {
     "submissions.html",
-    "writing-state.html",
     "packet.html",
     "baseline.html",
     "reports.html",
@@ -308,12 +307,15 @@ def test_no_file_in_the_suite_exceeds_the_commit_limit():
     [
         "/original/",
         "/original/students.html",
+        "/original/writing-state.html",
         "/original/live.js",
         "/original/suite.css",
         "/original/fonts.css",
         "/original/js/fingerprint.js",
+        "/original/js/feature-data.js",
         "/original/assets/radcliffe-night-stars.jpeg",
         "/original/assets/st-andrews-quad.jpg",
+        "/original/assets/radcliffe-observatory-watercolour.jpg",
         "/original/fonts/ibm-plex-mono-latin-700-normal.woff2",
         "/bluebook/fonts.css",
     ],
@@ -341,6 +343,102 @@ def test_students_page_loads_through_live_roster():
     # The loader is shared: the page keeps no copy of its requests.
     for endpoint in ("/readiness", "/bluebook/students", "/bluebook/submissions"):
         assert endpoint not in page, f"students.html calls {endpoint} itself"
+
+
+# ── Writing State (writing-state.html) ────────────────────────────────────────
+# The page that shows an Original result: the testing label sits on it, purity
+# is only ever shown inside a <details> that carries the T-01 caveat, and the
+# report-only fields of the score response never reach the suite.
+
+
+def test_writing_state_has_a_testing_notice_slot():
+    page = (SUITE / "writing-state.html").read_text(encoding="utf-8")
+    assert "data-testing-notice" in page
+
+
+class _OutsideDetails(HTMLParser):
+    """Text and attribute values outside every <details>, and the text of
+    each top-level <details> block. Script bodies count as outside text, so a
+    script cannot write purity anywhere."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.outside: list[str] = []
+        self.blocks: list[str] = []
+        self._depth = 0
+
+    def handle_starttag(self, tag, attrs):
+        values = [v for _, v in attrs if v]
+        if tag == "details":
+            if self._depth == 0:
+                self.blocks.append("")
+            self._depth += 1
+        if self._depth:
+            self.blocks[-1] += " ".join(values)
+        else:
+            self.outside.extend(values)
+
+    def handle_endtag(self, tag):
+        if tag == "details" and self._depth:
+            self._depth -= 1
+
+    def handle_data(self, data):
+        if self._depth:
+            self.blocks[-1] += data
+        else:
+            self.outside.append(data)
+
+
+@pytest.mark.parametrize("path", _code_files(), ids=lambda p: p.relative_to(SUITE).as_posix())
+def test_purity_trace_appears_only_inside_a_details_block_with_the_t01_caveat(path):
+    text = path.read_text(encoding="utf-8")
+    if path.suffix != ".html":
+        assert "Tr(" not in text, f"{path.name}: Tr( outside an HTML <details> block"
+        return
+    parser = _OutsideDetails()
+    parser.feed(text)
+    outside = [chunk for chunk in parser.outside if "Tr(" in chunk]
+    assert not outside, f"{path.name}: Tr( outside <details>"
+    for block in parser.blocks:
+        if "Tr(" in block:
+            assert "T-01" in block, f"{path.name}: a <details> showing Tr( lacks the T-01 caveat"
+
+
+def test_writing_state_shows_purity_with_its_caveat():
+    # The guard above passes vacuously if the readout loses its purity row.
+    parser = _OutsideDetails()
+    parser.feed((SUITE / "writing-state.html").read_text(encoding="utf-8"))
+    assert any("Tr(" in b and "T-01" in b for b in parser.blocks)
+
+
+# Report-only or retired fields of the score response (original/schemas.py
+# Layer7OutputResponse). The suite never reads them, so it cannot show them.
+REPORT_ONLY_FIELDS = (
+    "authorship_probability",
+    "ai_likelihood",
+    "style_authorship",
+    "fused_score",
+    "typicality_",
+)
+
+
+@pytest.mark.parametrize("path", _code_files(), ids=lambda p: p.relative_to(SUITE).as_posix())
+def test_no_suite_file_reads_report_only_score_fields(path):
+    text = path.read_text(encoding="utf-8")
+    found = [field for field in REPORT_ONLY_FIELDS if field in text]
+    assert not found, f"{path.name} reads {found}"
+
+
+def test_feature_data_lists_the_97_active_features_in_constants_order():
+    from original.constants import ALL_FEATURE_CODES, TIER17_CODES, TIER18_CODES
+
+    src = (SUITE / "js" / "feature-data.js").read_text(encoding="utf-8")
+    codes = re.findall(r"\['([a-z0-9_]+)','", src)
+    disabled = set(TIER17_CODES) | set(TIER18_CODES)
+    assert codes == [c for c in ALL_FEATURE_CODES if c not in disabled]
+    assert len(codes) == 97
+    # Names and descriptions only: the design's invented values stay out.
+    assert "base:" not in src and "sub:" not in src and "FLAGS" not in src
 
 
 needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
