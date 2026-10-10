@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Original · Voice Baseline</title>
+<link rel="stylesheet" href="../bluebook/fonts.css" />
+<link rel="stylesheet" href="fonts.css" />
+<link rel="stylesheet" href="suite.css" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  [hidden]{display:none !important;}
+  :root{
+    --navy-0:#070c1c; --navy:#0d1530; --navy-1:#101c40; --navy-2:#16244f;
+    --line:rgba(201,160,40,0.16); --line-soft:rgba(255,255,255,0.07);
+    --gold:#c9a028; --gold-2:#e0be55; --cream:#f5efe0;
+    --dim:rgba(245,239,224,0.58); --dim-2:rgba(245,239,224,0.4);
+    --flag:#e0725a; --warn:#d8b04a; --ok:#6bbf8a;
+    --display:'Playfair Display',Georgia,serif; --body:'EB Garamond',Georgia,serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  html,body{height:100%;}
+  body{font-family:var(--body);color:var(--cream);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;}
+  .frame{width:100%;max-width:1360px;height:min(900px,calc(100vh - 4.4rem));min-height:min(900px,calc(100vh - 4.4rem));position:relative;background:linear-gradient(160deg,#0c142e 0%,#0a1024 60%,#070b1c 100%);border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);display:flex;flex-direction:column;}
+  nav{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;position:relative;z-index:2;}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
+  .pills{display:flex;gap:.3rem;margin-left:1rem;min-width:0;overflow-x:auto;}
+  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .9rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.9rem;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);text-decoration:none;}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .pill:hover{color:var(--cream);}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .pill:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;flex-shrink:0;position:relative;}
+  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
+  .nav-right .avatar{cursor:pointer;}
+  .avatar:focus-visible,.me-menu a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .me-menu{display:none;position:absolute;top:calc(100% + .6rem);right:0;min-width:220px;background:rgba(12,20,46,0.97);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:.5rem;z-index:60;}
+  .me-menu.open{display:block;}
+  .mm-head{padding:.55rem .8rem .7rem;border-bottom:1px solid var(--line-soft);margin-bottom:.35rem;}
+  .mm-head b{display:block;font-family:var(--display);font-weight:500;font-size:1rem;color:var(--cream);}
+  .mm-head span{font-size:.78rem;color:var(--dim-2);font-style:italic;}
+  .me-menu a{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:9px;color:var(--dim);text-decoration:none;font-size:.94rem;transition:all .13s;}
+  .me-menu a:hover{background:rgba(255,255,255,0.06);color:var(--cream);}
+  .me-menu a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
+  .grid{flex:1;display:grid;grid-template-columns:360px 1fr;gap:0;min-height:0;}
+  .left{padding:0.4rem 1.3rem 1.4rem 1.7rem;display:flex;flex-direction:column;gap:1rem;overflow-y:auto;min-height:0;scrollbar-width:none;-ms-overflow-style:none;}
+  .left::-webkit-scrollbar{display:none;width:0;height:0;}
+  .greet-eyebrow{color:var(--dim);font-style:italic;font-size:1rem;}
+  .greet{font-family:var(--display);font-size:1.75rem;font-weight:500;line-height:1.06;color:var(--cream);margin-top:.1rem;overflow-wrap:anywhere;}
+  .greet-meta{font-family:var(--mono);font-size:.68rem;letter-spacing:.06em;color:var(--dim-2);margin-top:.5rem;line-height:1.55;overflow-wrap:anywhere;}
+  .side-links{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.8rem;}
+  .side-link{display:inline-block;font-size:.9rem;color:var(--gold-2);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:.4rem .95rem;transition:all .15s;}
+  .side-link:hover{border-color:rgba(201,160,40,0.5);background:rgba(201,160,40,0.08);color:var(--cream);}
+  .side-link:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:18px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+  /* kept: 3-metric card */
+  .stat3{padding:.4rem .3rem;}
+  .stat3 .row{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;}
+  .stat3 .row+.row{border-top:1px solid var(--line-soft);}
+  .stat3 .lab{font-size:.92rem;color:var(--cream);display:flex;flex-direction:column;gap:.15rem;}
+  .stat3 .lab b{font-family:var(--body);font-weight:400;font-style:italic;font-size:.76rem;color:var(--dim-2);}
+  .stat3 .val{font-family:var(--mono);font-weight:700;font-size:1.5rem;color:var(--gold-2);}
+  .stat3 .val.txt{font-size:1rem;letter-spacing:.02em;text-align:right;}
+  .stat3 .val.ok{color:var(--ok);}.stat3 .val.warn{color:var(--warn);}.stat3 .val.bad{color:var(--flag);}
+  /* kept: purity ring, now inside a details block */
+  .pur-d{padding:0;}
+  .pur-d>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:.8rem;padding:.95rem 1.2rem;font-size:.92rem;color:var(--dim);}
+  .pur-d>summary::-webkit-details-marker{display:none;}
+  .pur-d>summary:hover{color:var(--cream);}
+  .pur-d>summary:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;border-radius:18px;}
+  .pur-d>summary svg,.tier .chev{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;transition:transform .15s;flex-shrink:0;}
+  .pur-d[open]>summary svg,.tier[open] .chev{transform:rotate(180deg);}
+  .pur{padding:.3rem 1.3rem 1rem;display:flex;gap:1.2rem;align-items:center;}
+  .pur-ring{position:relative;width:118px;height:118px;flex-shrink:0;}
+  .pur-ring svg{width:118px;height:118px;}
+  .pur-ring .val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .pur-ring .val .n{font-family:var(--mono);font-weight:700;font-size:1.5rem;color:var(--gold-2);}
+  .pur-ring .val .c{font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;color:var(--dim);margin-top:.1rem;}
+  .pur-leg{flex:1;display:flex;flex-direction:column;gap:.4rem;}
+  .pur-leg .lr{display:flex;align-items:center;justify-content:space-between;font-size:.82rem;color:var(--dim);}
+  .pur-leg .lr b{font-family:var(--mono);font-size:.82rem;color:var(--cream);}
+  .pur-note{font-size:.74rem;color:var(--dim-2);font-style:italic;line-height:1.4;padding:0 1.3rem 1rem;}
+  .pur-note+.pur-note{margin-top:-.4rem;}
+  .pur-note b{font-style:normal;font-weight:600;color:var(--dim);}
+  .card-cap{font-family:var(--mono);font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim-2);padding:0 0 .55rem;}
+  /* RIGHT */
+  .right{position:relative;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
+  .hero{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;}
+  .hero canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:auto;}
+  .hero-photo{position:absolute;inset:0;background:url('assets/radcliffe-night-stars.jpeg') center 62%/cover no-repeat;filter:saturate(.78) brightness(.72) contrast(1.14) hue-rotate(-6deg);}
+  .hero-photo::after{content:'';position:absolute;inset:0;background:radial-gradient(58% 52% at 52% 40%,rgba(201,160,40,0.16),transparent 72%),linear-gradient(180deg,rgba(10,16,42,0.34) 0%,transparent 42%);mix-blend-mode:screen;}
+  .hero-grad{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg, rgba(10,16,36,0.9) 0%, rgba(10,16,36,0.32) 24%, transparent 52%),linear-gradient(0deg, rgba(7,11,28,0.99) 30%, rgba(7,11,28,0.55) 46%, transparent 60%),radial-gradient(80% 55% at 66% 26%, rgba(201,160,40,0.12), transparent 70%);}
+  .right-scroll{position:relative;z-index:1;flex:1;overflow-y:auto;overflow-x:hidden;padding:1.4rem 1.9rem 1.9rem;display:flex;flex-direction:column;gap:1.3rem;min-height:0;}
+  .hero-inner{position:relative;min-height:392px;display:flex;flex-direction:column;justify-content:flex-end;padding:4rem 0 1rem;pointer-events:none;flex-shrink:0;}
+  .hero-inner a,.hero-inner select,.hero-inner button{pointer-events:auto;}
+  .hero-eyebrow{font-family:var(--mono);font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);}
+  .hero-title{font-family:var(--display);font-size:2.4rem;font-weight:500;line-height:1.04;color:var(--cream);margin-top:.5rem;}
+  .hero-title span{color:var(--dim);}
+  .hero-sum{font-size:1.05rem;color:var(--cream);line-height:1.55;max-width:36rem;margin-top:.9rem;text-wrap:pretty;}
+  .hero-tags{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1rem;pointer-events:auto;}
+  .hero-tags:empty{display:none;}
+  .tag{font-family:var(--mono);font-size:.72rem;letter-spacing:.02em;color:var(--gold-2);background:rgba(201,160,40,0.1);border:1px solid rgba(201,160,40,0.28);border-radius:999px;padding:.32rem .8rem;}
+  .hero-cap{font-size:.78rem;font-style:italic;color:var(--dim-2);margin-top:.8rem;}
+  .sec-h{display:flex;align-items:baseline;gap:.6rem;margin-bottom:.2rem;flex-wrap:wrap;}
+  .sec-h b{font-family:var(--display);font-weight:500;font-size:1.3rem;}
+  .sec-h span{color:var(--dim);font-size:.86rem;font-style:italic;}
+  .sec-h+.card,.sec-h+.sec-p{margin-top:.5rem;}
+  .portrait{padding:1.4rem 1.5rem;}
+  .portrait p{font-size:1.02rem;line-height:1.7;color:rgba(245,239,224,0.86);text-wrap:pretty;}
+  .portrait p+p{margin-top:.9rem;}
+  .portrait em{font-style:italic;color:var(--cream);}
+  .portrait b{font-weight:400;color:var(--gold-2);font-family:var(--body);}
+  .portrait .live-empty,.tl-card .live-empty,.ex-card .live-empty{margin:0;}
+  .habits .live-empty{margin:0;padding:1.1rem 1.5rem;}
+  /* signature habits: one row per tier, opens to its measures */
+  .habits,.tl-card,.ex-card,.add-card{background:rgba(9,15,36,0.5);}
+  .habits{display:flex;flex-direction:column;}
+  .tier{border-top:1px solid var(--line-soft);}
+  .tier:first-child{border-top:none;}
+  .tier>summary{display:grid;grid-template-columns:230px 1fr 18px;gap:1.3rem;padding:1.1rem 1.5rem;align-items:center;cursor:pointer;list-style:none;}
+  .tier>summary::-webkit-details-marker{display:none;}
+  .tier>summary:hover{background:rgba(201,160,40,0.04);}
+  .tier>summary:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;}
+  .tier .chev{color:var(--dim-2);}
+  .habit-name{font-size:1rem;color:var(--cream);font-weight:500;}
+  .habit-sub{font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim-2);margin-top:.15rem;}
+  .habit-strength{display:flex;align-items:center;gap:.6rem;margin-top:.45rem;}
+  .hs-track{flex:1;height:6px;border-radius:3px;background:rgba(245,239,224,0.08);overflow:hidden;max-width:150px;}
+  .hs-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--gold),var(--gold-2));}
+  .hs-lab{font-family:var(--mono);font-size:.64rem;letter-spacing:.08em;color:var(--dim-2);}
+  .habit-desc{font-size:.94rem;line-height:1.55;color:var(--dim);text-wrap:pretty;}
+  .tier-feats{padding:.1rem 1.5rem 1.1rem;display:flex;flex-direction:column;gap:.7rem;}
+  .tf{display:grid;grid-template-columns:230px 1fr;gap:1.3rem;align-items:center;}
+  .tf .n{font-size:.9rem;color:var(--cream);}
+  .tf .d{font-size:.84rem;line-height:1.45;color:var(--dim);font-style:italic;}
+  .tf .habit-strength{margin-top:.25rem;}
+  /* where the baseline came from */
+  .tl-card{padding:1.3rem 1.4rem;}
+  .bb-cta{display:flex;align-items:center;gap:.8rem;margin-top:1rem;padding:.85rem 1rem;background:rgba(58,91,160,0.13);border:1px solid rgba(90,130,200,0.35);border-radius:12px;font-size:.88rem;color:var(--dim);line-height:1.5;text-decoration:none;transition:border-color .15s;}
+  .bb-cta:hover{border-color:rgba(140,170,230,0.6);color:var(--cream);}
+  .bb-cta:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .bb-cta b{color:#a8c2f0;font-weight:500;}
+  .bb-ic{width:22px;height:28px;border-radius:2px 5px 5px 2px;background:linear-gradient(160deg,#4a6cb5,#2c4a8c);border-left:2px solid rgba(255,255,255,0.25);flex-shrink:0;}
+  .timeline{display:flex;flex-direction:column;gap:.9rem;}
+  .ti{display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-start;padding:.9rem 1rem;background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);border-radius:12px;}
+  .ti-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:.82rem;color:var(--navy);flex-shrink:0;}
+  .ti-body{flex:1;min-width:0;}
+  .ti-title{font-size:.98rem;color:var(--cream);font-weight:500;overflow-wrap:anywhere;}
+  .ti-meta{font-size:.8rem;color:var(--dim-2);margin-top:.1rem;}
+  .ti-tags{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem;}
+  .tg{font-family:var(--mono);font-size:.64rem;letter-spacing:.02em;color:var(--dim);background:rgba(255,255,255,0.045);border:1px solid var(--line-soft);border-radius:5px;padding:.18rem .5rem;}
+  button.tg{cursor:pointer;color:var(--gold-2);border-color:rgba(201,160,40,0.28);}
+  button.tg:hover{background:rgba(201,160,40,0.1);}
+  button.tg:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .ti-w{text-align:right;flex-shrink:0;}
+  .ti-w .l{font-size:.62rem;color:var(--dim-2);letter-spacing:.04em;}
+  .ti-w .n{font-family:var(--mono);font-weight:700;font-size:1.15rem;color:var(--gold-2);margin:.05rem 0;}
+  .ti-prev{flex:1 0 100%;border-top:1px solid var(--line-soft);padding-top:.8rem;}
+  .ti-prev .ph{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;}
+  .ti-prev .pt{font-size:.92rem;color:var(--cream);}
+  .ti-prev .pm{font-size:.76rem;color:var(--dim-2);font-style:italic;margin-top:.1rem;}
+  .ti-prev .pb{margin-top:.6rem;max-height:280px;overflow-y:auto;white-space:pre-wrap;font-size:.95rem;line-height:1.6;color:rgba(245,239,224,0.86);background:rgba(0,0,0,0.18);border:1px solid var(--line-soft);border-radius:10px;padding:.8rem 1rem;overflow-wrap:anywhere;}
+  .wt-note{margin-top:.9rem;font-size:.8rem;color:var(--dim-2);font-style:italic;line-height:1.5;}
+  .traj{display:flex;gap:.8rem;align-items:flex-start;margin-top:1.1rem;padding:1rem 1.1rem;background:rgba(201,160,40,0.06);border:1px solid rgba(201,160,40,0.2);border-radius:12px;color:var(--gold);}
+  .traj svg{stroke:var(--gold);fill:none;flex-shrink:0;margin-top:.1rem;}
+  .traj .t{font-family:var(--body);font-weight:500;font-size:.95rem;color:var(--gold-2);}
+  .traj .d{font-size:.85rem;color:var(--dim);line-height:1.5;margin-top:.25rem;}
+  .traj .d div+div{margin-top:.2rem;}
+  /* sealed exams, and adding writing */
+  .ex-card,.add-card{padding:1.3rem 1.4rem;}
+  .ex{display:flex;gap:1rem;align-items:flex-start;padding:.9rem 1rem;background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);border-radius:12px;}
+  .ex+.ex{margin-top:.7rem;}
+  .ex-main{flex:1;min-width:0;}
+  .ex-t{font-size:.98rem;color:var(--cream);font-weight:500;overflow-wrap:anywhere;}
+  .ex-m{font-size:.8rem;color:var(--dim-2);margin-top:.1rem;}
+  .ex-look{font-size:.8rem;color:var(--warn);margin-top:.25rem;}
+  .ex-msg{font-size:.86rem;margin-top:.5rem;color:var(--dim);font-style:italic;line-height:1.45;}
+  .ex-msg.ok{color:var(--ok);font-style:normal;}
+  .ex-msg.err{color:var(--flag);font-style:normal;}
+  .ex-ask{font-size:.84rem;color:var(--dim);line-height:1.45;margin-top:.5rem;}
+  .ex-side{display:flex;flex-direction:column;align-items:flex-end;gap:.5rem;flex-shrink:0;}
+  .ex-btns{display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end;}
+  .st{display:inline-flex;align-items:center;gap:.4rem;font-size:.78rem;padding:.2rem .6rem;border-radius:999px;white-space:nowrap;}
+  .st .d{width:6px;height:6px;border-radius:50%;background:currentColor;}
+  .st.in{color:var(--ok);background:rgba(107,191,138,0.1);border:1px solid rgba(107,191,138,0.25);}
+  .st.wait{color:var(--warn);background:rgba(216,176,74,0.1);border:1px solid rgba(216,176,74,0.25);}
+  .st.off{color:var(--dim);background:rgba(255,255,255,0.04);border:1px solid var(--line-soft);}
+  .btn{font-family:var(--body);font-size:.9rem;color:#0d1530;background:linear-gradient(160deg,var(--gold-2),var(--gold));border:none;border-radius:999px;padding:.5rem 1.1rem;cursor:pointer;font-weight:600;white-space:nowrap;}
+  .btn.ghost{background:rgba(255,255,255,0.04);color:var(--cream);border:1px solid var(--line);font-weight:400;}
+  .btn.ghost:hover:not(:disabled){border-color:rgba(201,160,40,0.5);}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .btn:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .rule-note{font-size:.84rem;color:var(--dim);line-height:1.5;margin-bottom:1rem;}
+  .seg{display:flex;gap:.4rem;flex-wrap:wrap;margin:0 0 1.1rem;}
+  .seg button{font-family:var(--body);font-size:.85rem;color:var(--dim);background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);border-radius:999px;padding:.4rem .9rem;cursor:pointer;transition:all .15s;}
+  .seg button:hover{color:var(--cream);border-color:var(--line);}
+  .seg button[aria-pressed="true"]{background:rgba(201,160,40,0.12);border-color:rgba(201,160,40,0.4);color:var(--gold-2);}
+  .seg button:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .fld{margin-bottom:.9rem;}
+  .fld label{display:block;font-size:.84rem;color:var(--dim);font-style:italic;margin-bottom:.3rem;}
+  .fld input,.fld select,.fld textarea{display:block;width:100%;font-family:var(--body);font-size:1rem;color:var(--cream);background:rgba(255,255,255,0.02);border:1px solid var(--line-soft);border-radius:12px;padding:.65rem .85rem;transition:all .15s;color-scheme:dark;}
+  .fld textarea{min-height:170px;resize:vertical;line-height:1.5;}
+  .fld input:hover:not(:disabled),.fld select:hover:not(:disabled),.fld textarea:hover:not(:disabled){border-color:var(--line);background:rgba(255,255,255,0.04);}
+  .fld input:focus,.fld select:focus,.fld textarea:focus{border-color:rgba(201,160,40,0.5);background:rgba(201,160,40,0.08);}
+  .fld input:focus-visible,.fld select:focus-visible,.fld textarea:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .fld input:disabled,.fld select:disabled,.fld textarea:disabled{opacity:.5;cursor:not-allowed;}
+  .fld input[type=file]{padding:.45rem .6rem;font-size:.92rem;}
+  .fld input[type=file]::file-selector-button{font-family:var(--body);font-size:.88rem;color:var(--cream);background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:999px;padding:.3rem .8rem;margin-right:.7rem;cursor:pointer;}
+  .fld .hint{font-size:.78rem;color:var(--dim-2);font-style:italic;margin-top:.3rem;line-height:1.4;}
+  .fld-row{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;}
+  .drop{display:block;border:1px dashed rgba(201,160,40,0.35);border-radius:12px;padding:1.1rem 1rem;text-align:center;color:var(--dim);cursor:pointer;transition:all .15s;margin-bottom:.9rem;}
+  .drop:hover,.drop.over{border-color:rgba(201,160,40,0.7);background:rgba(201,160,40,0.06);color:var(--cream);}
+  .drop:focus-within{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .drop input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;}
+  .drop .s{display:block;font-size:.78rem;color:var(--dim-2);font-style:italic;margin-top:.2rem;}
+  .queue{display:flex;flex-direction:column;gap:.4rem;margin-bottom:.9rem;}
+  .qi{display:flex;align-items:center;gap:.7rem;padding:.5rem .8rem;background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);border-radius:10px;font-size:.88rem;}
+  .qi .qn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .qi .qs{font-size:.78rem;color:var(--dim-2);white-space:nowrap;}
+  .qi .qs.ok{color:var(--ok);}.qi .qs.err{color:var(--flag);}
+  .qi button{background:none;border:none;color:var(--dim-2);cursor:pointer;font-size:1rem;line-height:1;padding:.1rem .3rem;}
+  .qi button:hover{color:var(--cream);}
+  .qi button:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .add-msg{margin-top:.9rem;font-size:.9rem;line-height:1.5;color:var(--dim);font-style:italic;min-height:1.4em;}
+  .add-msg.ok{color:var(--ok);font-style:normal;}
+  .add-msg.err{color:var(--flag);font-style:normal;}
+  .add-msg div+div{margin-top:.25rem;}
+  .tt-out{margin-top:.9rem;white-space:pre-line;font-size:.88rem;line-height:1.5;color:var(--dim);border:1px solid var(--line-soft);border-radius:10px;padding:.7rem .9rem;background:rgba(255,255,255,0.03);}
+  .pick-card{padding:1.2rem 1.4rem;max-width:30rem;pointer-events:auto;}
+  @media (max-width:900px){
+    body{padding:0;}
+    .frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
+    .grid{grid-template-columns:1fr;}
+    .left{overflow:visible;}
+    .right{min-height:520px;}
+    nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;margin-left:0;}
+    .tier>summary,.tf{grid-template-columns:1fr;gap:.5rem;}
+    .tier>summary .chev{display:none;}
+    .ex{flex-direction:column;}.ex-side{align-items:flex-start;}.ex-btns{justify-content:flex-start;}
+    .fld-row{grid-template-columns:1fr;}
+    .pur{flex-direction:column;align-items:flex-start;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body>
+<div class="frame">
+  <nav>
+    <div class="brand"><span class="mk"></span>Original</div>
+    <div class="pills">
+      <a class="pill" href="index.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
+      <a class="pill on" href="students.html" aria-current="page"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
+      <a class="pill" href="submissions.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
+      <a class="pill" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+      <a class="pill" href="reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
+    </div>
+    <div class="nav-right">
+      <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
+      <div class="me-menu" id="me-menu">
+        <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
+        <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
+        <a href="/professor.html"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Analysis (classic)</a>
+        <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
+      </div>
+    </div>
+  </nav>
+  <main class="grid" id="live-main">
+    <aside class="left">
+      <div>
+        <div class="greet-eyebrow">Voice Baseline</div>
+        <div class="greet" id="greet">Loading</div>
+        <div class="greet-meta" id="meta"></div>
+        <div class="side-links">
+          <a class="side-link" id="analyse-link" href="writing-state.html" hidden>Analyse a paper for this student</a>
+          <a class="side-link" id="add-link" href="#add-writing" hidden>Add writing</a>
+        </div>
+      </div>
+
+      <div class="card stat3" id="stats">
+        <div class="row">
+          <div class="lab">Baseline samples<b>more give Original more to go on</b></div>
+          <div class="val" id="s-n">-</div>
+        </div>
+        <div class="row">
+          <div class="lab">Effective samples<b>newer, better-verified papers count more</b></div>
+          <div class="val" id="s-eff">-</div>
+        </div>
+        <div class="row">
+          <div class="lab">Baseline<b id="s-verdict-sub">from the readiness check</b></div>
+          <div class="val txt" id="s-verdict">-</div>
+        </div>
+      </div>
+
+      <details class="card pur-d" id="pur-d" hidden>
+        <summary><span>How alike the papers are: purity Tr(ρ²)</span><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></summary>
+        <div class="pur">
+          <div class="pur-ring">
+            <svg viewBox="0 0 118 118" style="transform:rotate(-90deg);">
+              <circle cx="59" cy="59" r="50" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="10"/>
+              <circle id="pur-arc" cx="59" cy="59" r="50" fill="none" stroke="url(#pg)" stroke-width="10" stroke-linecap="round" stroke-dasharray="314.2" stroke-dashoffset="314.2"/>
+              <defs><linearGradient id="pg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c9a028"/><stop offset="1" stop-color="#e0be55"/></linearGradient></defs>
+            </svg>
+            <div class="val"><span class="n" id="pur-n">-</span><span class="c">Tr(ρ²)</span></div>
+          </div>
+          <div class="pur-leg">
+            <div class="lr"><span>Right now</span><b id="pur-now" style="color:var(--gold-2)">-</b></div>
+            <div class="lr"><span>Lowest possible</span><b id="pur-floor">-</b></div>
+            <div class="lr"><span>All papers identical</span><b>1.000</b></div>
+          </div>
+        </div>
+        <div class="pur-note"><b>What it is.</b> Purity describes the baseline, not a paper: how alike the approved papers are to one another. A lower number means they differ more from one another. That is variety, not a verdict. The lowest possible value is 1 divided by the effective samples.</div>
+        <div class="pur-note"><b>Testing caveat (T-01):</b> baselines of 3-5 samples produce false alarms; see docs/testing.</div>
+      </details>
+    </aside>
+
+    <section class="right">
+      <div class="hero">
+        <div class="hero-photo"></div>
+        <canvas id="fpq-canvas"></canvas>
+        <div class="hero-grad"></div>
+      </div>
+      <div class="right-scroll" id="right-scroll">
+        <div class="hero-inner">
+          <div class="hero-eyebrow" id="hero-eyebrow">What this baseline is made of</div>
+          <div class="hero-title" id="hero-title">Loading</div>
+          <div class="hero-sum" id="hero-sum"></div>
+          <div class="hero-tags" id="hero-tags"></div>
+          <div class="hero-cap" id="hero-cap">The pattern behind this text is an illustration, not a measurement.</div>
+          <div class="card pick-card" id="pick" hidden>
+            <div class="fld" style="margin:0;">
+              <label for="pick-sel">Choose a student</label>
+              <select id="pick-sel" disabled><option value="">Loading</option></select>
+            </div>
+          </div>
+        </div>
+
+        <div id="sections">
+          <div>
+            <div class="sec-h"><b>The short version</b><span>what the baseline holds, in plain words</span></div>
+            <div class="card portrait" id="short"><div class="live-empty">Loading</div></div>
+          </div>
+
+          <div style="margin-top:1.3rem;">
+            <div class="sec-h"><b>Signature habits</b><span>where their approved papers sit on each measure, tier by tier</span></div>
+            <div class="card habits" id="habits"><div class="live-empty">Loading</div></div>
+          </div>
+
+          <div style="margin-top:1.3rem;">
+            <div class="sec-h"><b>Where the baseline came from</b><span id="from-sub"></span></div>
+            <div class="card tl-card">
+              <div class="timeline" id="timeline"><div class="live-empty">Loading</div></div>
+              <div class="wt-note" id="wt-note" hidden>Each paper's weight is set by how it was verified. Original also lets more recent papers count a little more than older ones; that part is applied inside the baseline and is not shown per paper.</div>
+              <div class="traj" id="traj" hidden>
+                <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" stroke-width="1.5"/><line x1="12" y1="8" x2="12" y2="12" stroke-width="1.5"/><line x1="12" y1="16" x2="12.01" y2="16" stroke-width="2"/></svg>
+                <div>
+                  <div class="t" id="traj-t"></div>
+                  <div class="d" id="traj-d"></div>
+                </div>
+              </div>
+              <a class="bb-cta" id="bb-cta" href="/bluebook/" hidden><span class="bb-ic"></span><span><b>Add more samples:</b> run a Bluebook session, then approve the booklets you want to use as reference writing, below.</span><svg viewBox="0 0 24 24" width="15" height="15" style="flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;"><path d="M9 6l6 6-6 6"/></svg></a>
+            </div>
+          </div>
+
+          <div style="margin-top:1.3rem;" id="sealed-sec">
+            <div class="sec-h"><b>Sealed Bluebook exams</b><span id="sealed-sub">waiting for your approval</span></div>
+            <div class="card ex-card">
+              <div class="rule-note">A sealed exam joins this baseline only when you approve it, and you can take it out again. Approving adds it as a supervised sitting. If it differs strongly from the writing already in the baseline, Original holds it back, and approval does not override that check.</div>
+              <div id="sealed-list"><div class="live-empty">Loading</div></div>
+            </div>
+          </div>
+
+          <div style="margin-top:1.3rem;" id="add-writing">
+            <div class="sec-h"><b>Add writing</b><span>anything you add here counts as approved by you</span></div>
+            <div class="card add-card">
+              <div class="rule-note">Adding writing to a baseline is a choice only a teacher makes. Original reads each paper, adds it, and then recalculates the baseline. If a paper differs strongly from what is already there, it is held back and you are told.</div>
+              <div id="add-off" class="live-empty" hidden></div>
+              <div id="add-body">
+                <div class="seg" role="group" aria-label="How to add writing">
+                  <button type="button" data-tab="paste" aria-pressed="true">Paste text</button>
+                  <button type="button" data-tab="files" aria-pressed="false">Upload files</button>
+                  <button type="button" data-tab="csv" aria-pressed="false">Turnitin CSV</button>
+                </div>
+
+                <div class="fld" id="prov-wrap">
+                  <label for="prov">How should this writing count?</label>
+                  <select id="prov">
+                    <option value="verified" selected>Verified by me: I know it is their own writing</option>
+                    <option value="proctored">Written under supervision, for example in class</option>
+                  </select>
+                  <div class="hint">Supervised writing counts for more than writing you verified.</div>
+                </div>
+
+                <div id="tab-paste">
+                  <div class="fld">
+                    <label for="paste-text">Their writing</label>
+                    <textarea id="paste-text" placeholder="Paste the paper here"></textarea>
+                    <div class="hint" id="paste-words">At least 50 words. 300 or more words give a steadier reading.</div>
+                  </div>
+                  <div class="fld-row">
+                    <div class="fld"><label for="paste-assign">Assignment name (optional)</label><input id="paste-assign" type="text" maxlength="200" autocomplete="off" /></div>
+                    <div class="fld"><label for="paste-date">Date it was written</label><input id="paste-date" type="date" /></div>
+                  </div>
+                  <button class="btn" id="paste-go" type="button">Add to baseline</button>
+                </div>
+
+                <div id="tab-files" hidden>
+                  <label class="drop" id="drop">
+                    <input type="file" id="file-in" multiple accept=".pdf,.docx,.txt" />
+                    Drop PDF, DOCX or TXT files here, or choose them
+                    <span class="s">One paper per file. Duplicates of writing already in the baseline are skipped.</span>
+                  </label>
+                  <div class="queue" id="queue"></div>
+                  <div class="fld"><label for="files-assign">Assignment name (optional; each file's name is used if left empty)</label><input id="files-assign" type="text" maxlength="200" autocomplete="off" /></div>
+                  <button class="btn" id="files-go" type="button" disabled>Add files to baseline</button>
+                </div>
+
+                <div id="tab-csv" hidden>
+                  <div class="rule-note">A Turnitin export lists students, not their writing. This reads the First Name, Last Name and Student ID columns (any capitals) and creates an empty profile for each student who is not on your roster yet. It does not add any writing: add the papers themselves with Paste text or Upload files. Other columns are ignored.</div>
+                  <div class="fld-row">
+                    <div class="fld"><label for="tt-course">Course id</label><input id="tt-course" type="text" autocomplete="off" /></div>
+                    <div class="fld"><label for="tt-file">Turnitin CSV file</label><input id="tt-file" type="file" accept=".csv" /></div>
+                  </div>
+                  <button class="btn" id="tt-go" type="button">Import CSV</button>
+                  <div class="tt-out" id="tt-out" hidden></div>
+                </div>
+
+                <div class="add-msg" id="add-msg" role="status" aria-live="polite"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="js/fingerprint.js"></script>
+<script src="js/feature-data.js"></script>
+<script src="live.js"></script>
+<script>
+(function(){
+  'use strict';
+  const $=id=>document.getElementById(id);
+  const esc=Live.esc;
+  const enc=encodeURIComponent;
+  const OF=window.OriginalFeatures;
+  const has=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
+  const plural=(n,one,many)=>n+' '+(n===1?one:(many||one+'s'));
+  const ID=(new URLSearchParams(location.search).get('student')||'').trim();
+
+  // ── what the page knows ──
+  const S={
+    id:ID, name:ID, email:null, courses:[],
+    student:null,        // GET /students/{id}
+    ready:null,          // GET /students/{id}/readiness
+    status:'loading',    // loading | ok | none | forbidden | auth | error
+    known:false,         // this id is on the teacher's roster
+    ro:null,             // the shared roster answer
+    sealedKnown:null,    // sealed exams for this student according to the roster (null = unknown)
+    bluebook:'unknown',  // unknown | ok | off | error
+    sealed:'loading',    // loading | ok | none | off | error
+    exams:[],
+    preview:new Map(),   // sample index -> {state:'loading'|'ok'|'error', data}
+    open:null            // the sample whose paper is showing
+  };
+
+  // ── account menu (same as every page in the suite) ──
+  (function(){
+    const b=$('me-btn'), m=$('me-menu');
+    b.addEventListener('click',e=>{e.stopPropagation();const o=m.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');});
+    document.addEventListener('click',()=>{m.classList.remove('open');b.setAttribute('aria-expanded','false');});
+    $('sign-out').addEventListener('click',e=>{e.preventDefault();Live.signOut();});
+  })();
+  function initials(name){
+    const w=String(name||'').trim().split(/[\s_.-]+/).filter(Boolean);
+    if(!w.length) return '';
+    return (w[0].charAt(0)+(w.length>1?w[w.length-1].charAt(0):'')).toUpperCase();
+  }
+  const ROLE={professor:'Teacher',admin:'Workspace admin',operator:'Operator'};
+  function renderChrome(sess){
+    $('me-btn').textContent=initials(sess.name)||'··';
+    $('mm-name').textContent=sess.name||'Your account';
+    $('mm-sub').textContent=sess.mode==='demo'?'Demo workspace':(ROLE[sess.role]||'');
+    $('sign-out').style.display=sess.mode==='signed-in'?'':'none';
+  }
+
+  // ── small helpers ──
+  function parseDate(s){
+    s=String(s==null?'':s).trim(); if(!s) return null;
+    const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    const d=m?new Date(+m[1],+m[2]-1,+m[3]):new Date(s);
+    return isNaN(d.getTime())?null:d;
+  }
+  function fmtD(d){ return d.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}); }
+  function fmtDate(s){ const d=parseDate(s); return d?fmtD(d):''; }
+  function num(v){ return (typeof v==='number'&&isFinite(v))?v:null; }
+  function today(){
+    const d=new Date(), p=n=>String(n).padStart(2,'0');
+    return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+  }
+  function countWords(t){ return String(t||'').trim().split(/\s+/).filter(Boolean).length; }
+  function detailText(d){ return d&&typeof d.detail==='string'?d.detail:''; }
+
+  // Provenance in plain words. The API's words are proctored, verified, canvas, unverified.
+  const PROV={
+    proctored:{word:'Supervised sitting',color:'#4d90c8',tag:n=>plural(n,'supervised sitting')},
+    verified:{word:'Verified by teacher',color:'#5aab7a',tag:n=>n+' verified by teacher'},
+    canvas:{word:'Imported',color:'#9a7ad0',tag:n=>n+' imported'},
+    unverified:{word:'Student upload',color:'#d8b04a',tag:n=>plural(n,'student upload')}
+  };
+  const provOf=p=>has(PROV,p)?PROV[p]:{word:'Other source',color:'#8a8a8a',tag:n=>n+' other'};
+
+  const VERDICT={
+    ready:{word:'Ready',cls:'ok',sub:'enough approved writing to compare against'},
+    developing:{word:'Building',cls:'warn',sub:'Original may say it cannot tell'},
+    insufficient:{word:'Needs more',cls:'bad',sub:'too few approved samples to rely on'}
+  };
+  const verdictOf=()=>{
+    const v=S.ready&&S.ready.verdict;
+    return (typeof v==='string'&&has(VERDICT,v))?v:null;
+  };
+
+  const samples=()=>(S.student&&Array.isArray(S.student.samples))?S.student.samples.filter(s=>s&&typeof s==='object'):[];
+  const isOpen=()=>S.status==='ok'||S.status==='none';
+  const canAdd=()=>S.status==='ok'||(S.status==='none'&&S.known);
+
+  // ── left column ──
+  function renderHead(){
+    if(!ID){
+      $('greet').textContent='Choose a student';
+      $('meta').textContent='';
+      $('analyse-link').hidden=true; $('add-link').hidden=true;
+      return;
+    }
+    $('greet').textContent=S.name||ID;
+    const sm=samples();
+    const parts=[ID];
+    const codes=S.courses.map(c=>c.code||c.name).filter(Boolean);
+    if(codes.length) parts.push(codes.join(', '));
+    if(S.status==='ok'){
+      const up=sm.filter(s=>s.provenance==='unverified').length;
+      parts.push(plural(sm.length-up,'teacher-approved sample'));
+      if(up) parts.push(plural(up,'student upload'));
+    }
+    $('meta').textContent=parts.join(' · ');
+    $('analyse-link').href='writing-state.html?student='+enc(ID);
+    $('analyse-link').hidden=!(isOpen()&&(S.known||S.status==='ok'));
+    $('add-link').hidden=!canAdd();
+  }
+
+  function renderStats(){
+    const r=S.ready, st=S.student;
+    const n=num(r&&r.sample_count)!==null?r.sample_count:(num(st&&st.sample_count)!==null?st.sample_count:null);
+    const eff=num(r&&r.effective_sample_count)!==null?r.effective_sample_count:num(st&&st.effective_sample_count);
+    $('s-n').textContent=n===null?'-':String(n);
+    $('s-eff').textContent=eff===null?'-':eff.toFixed(1);
+    const v=verdictOf(), vv=$('s-verdict');
+    vv.className='val txt'+(v?' '+VERDICT[v].cls:'');
+    vv.textContent=v?VERDICT[v].word:'-';
+    $('s-verdict-sub').textContent=v?VERDICT[v].sub:'from the readiness check';
+  }
+
+  function renderPurity(){
+    const st=S.student, p=num(st&&st.purity), eff=num(st&&st.effective_sample_count);
+    const show=S.status==='ok'&&p!==null&&samples().length>0;
+    $('pur-d').hidden=!show;
+    if(!show) return;
+    $('pur-n').textContent=p.toFixed(3);
+    $('pur-now').textContent=p.toFixed(3);
+    $('pur-floor').textContent=(eff&&eff>0)?(1/eff).toFixed(3):'-';
+    $('pur-arc').style.strokeDashoffset=String(314.2*(1-Math.max(0,Math.min(1,p))));
+  }
+
+  // ── hero ──
+  function renderHero(){
+    const t=$('hero-title'), sum=$('hero-sum'), tags=$('hero-tags'), eb=$('hero-eyebrow');
+    tags.innerHTML=''; $('hero-cap').hidden=!ID;
+    eb.textContent='What this baseline is made of';
+    if(!ID){
+      eb.textContent='Voice baseline';
+      t.innerHTML='Whose baseline<br><span>would you like to read?</span>';
+      sum.textContent='A voice baseline is the writing Original compares a new paper against: the papers a teacher has approved for that student.';
+      return;
+    }
+    if(S.status==='loading'){ t.textContent='Loading'; sum.textContent=''; return; }
+    if(S.status==='forbidden'){ t.innerHTML='You do not have access<br><span>to this student’s writing.</span>'; sum.textContent=''; return; }
+    if(S.status==='auth'){ t.innerHTML='Your sign-in has ended.<br><span>Sign in again to see this baseline.</span>'; sum.textContent=''; return; }
+    if(S.status==='error'){ t.innerHTML='This baseline could not<br><span>be loaded just now.</span>'; sum.textContent='Try reloading the page.'; return; }
+    if(S.status==='none'){
+      if(unknownStudent()){
+        t.innerHTML='No student with this id<br><span>is on your roster.</span>';
+        sum.textContent='Check the link, or choose the student from the Students page.';
+        return;
+      }
+      t.innerHTML='No writing in the baseline yet<br><span>add some below to begin.</span>';
+      sum.textContent='Writing joins a baseline when a teacher approves it: papers you add on this page, and sealed Bluebook exams you approve.';
+      return;
+    }
+    const sm=samples(), n=sm.length;
+    if(!n){
+      t.innerHTML='No writing in the baseline yet<br><span>add some below to begin.</span>';
+      sum.textContent='Writing joins a baseline when a teacher approves it: papers you add on this page, and sealed Bluebook exams you approve.';
+      return;
+    }
+    const ds=sm.map(s=>parseDate(s.submitted_at)).filter(Boolean).sort((a,b)=>a-b);
+    let range='each one readable below.';
+    if(ds.length){
+      const first=fmtD(ds[0]), last=fmtD(ds[ds.length-1]);
+      range=first===last?'written on '+first+'.':'from '+first+' to '+last+'.';
+    }
+    t.innerHTML=esc(plural(n,'paper'))+' in this baseline<br><span>'+esc(range)+'</span>';
+    const k=new Set(sm.map(s=>String(s.assignment||'').trim()).filter(Boolean)).size;
+    const up=sm.filter(s=>s.provenance==='unverified').length;
+    let line='Original has read '+(n===1?'this paper':'these papers')+(k?', written for '+plural(k,'assignment'):'')+', and averaged '+(n===1?'its':'their')+' habits into the profile below. Writing joins a baseline when a teacher approves it: papers you add here, and sealed Bluebook exams you approve.';
+    if(up) line+=' '+(up===1?'1 paper was':up+' papers were')+' uploaded by the student and count for the least.';
+    sum.textContent=line;
+    const order=['proctored','verified','canvas','unverified'];
+    const counts=new Map();
+    sm.forEach(s=>{ const key=has(PROV,s.provenance)?s.provenance:'other'; counts.set(key,(counts.get(key)||0)+1); });
+    order.concat(['other']).forEach(key=>{
+      if(!counts.get(key)) return;
+      const sp=document.createElement('span'); sp.className='tag';
+      sp.textContent=(has(PROV,key)?PROV[key]:provOf(key)).tag(counts.get(key));
+      tags.appendChild(sp);
+    });
+  }
+
+  function unknownStudent(){
+    // The id has no profile and is not on a roster that did load.
+    return S.status==='none'&&!S.known&&!!(S.ro&&S.ro.ok);
+  }
+
+  // ── the short version ──
+  // The server's own sentences, in this page's words: its "authenticated" is the teacher-approved baseline, and a dash becomes a colon.
+  function recWords(t){ return String(t).replace(/authenticated/gi,'approved').replace(/ \u2014 /g,': '); }
+  function renderShort(){
+    const el=$('short');
+    if(!ID){ Live.empty(el,'Choose a student above to read their baseline.'); return; }
+    if(S.status==='loading'){ Live.empty(el,'Loading'); return; }
+    if(S.status==='forbidden'){ Live.empty(el,'You do not have access to this student’s writing.'); return; }
+    if(S.status==='auth'){ Live.empty(el,'Your sign-in has ended. Sign in again to see this baseline.'); return; }
+    if(S.status==='error'){ Live.empty(el,'This student’s baseline could not be loaded just now. Try reloading the page.'); return; }
+    const name=esc(S.name||ID);
+    if(unknownStudent()){ Live.empty(el,'No student with this id is on your roster, so there is no baseline to show.'); return; }
+    if(S.status==='none'||!samples().length){
+      el.innerHTML='<p>Original has <b>no writing on file</b> for '+name+' yet. A baseline is ready at 5 approved samples. Add papers below, or approve a sealed Bluebook exam.</p>'+
+        '<p>The rule is simple: writing joins a baseline when a teacher approves it.</p>';
+      return;
+    }
+    const r=S.ready, v=verdictOf();
+    const paras=[];
+    const auth=r&&num(r.authenticated_count)!==null?r.authenticated_count:samples().length;
+    const eff=r&&num(r.effective_sample_count)!==null?r.effective_sample_count:num(S.student.effective_sample_count);
+    if(v==='ready'){
+      paras.push(name+'’s baseline is <b>ready to compare against</b>: '+esc(plural(auth,'approved sample'))+(eff!==null?', which count as about '+esc(eff.toFixed(1))+' once each is weighted for how it was verified and how recent it is':'')+'.');
+    } else if(v==='developing'){
+      paras.push(name+'’s baseline is <b>still building</b>: '+esc(plural(auth,'approved sample'))+' so far. Original looks for 5 or more, and baselines of 3 to 5 samples produce false alarms, so read any later result with extra care.');
+    } else if(v==='insufficient'){
+      paras.push(name+' does not have <b>enough approved writing yet</b>: '+esc(plural(auth,'approved sample'))+'. Original calls a baseline “building” from 2 samples and ready from 5.');
+    } else {
+      paras.push(name+' has <b>'+esc(plural(auth,'approved sample'))+'</b> in the baseline. Original’s readiness check could not be read just now.');
+    }
+    const ws=r&&r.word_stats&&typeof r.word_stats==='object'?r.word_stats:null;
+    const mix=r&&r.provenance_mix&&typeof r.provenance_mix==='object'?r.provenance_mix:null;
+    const bits=[];
+    if(ws&&num(ws.min)!==null&&num(ws.max)!==null){
+      let s='The papers run from <b>'+esc(ws.min)+'</b> to <b>'+esc(ws.max)+' words</b>';
+      if(num(ws.median)!==null) s+=' (the middle one is '+esc(ws.median)+')';
+      s+='.';
+      if(num(ws.n_below_300)>0) s+=' '+esc(plural(ws.n_below_300,'is','are'))+' under 300 words, and Original prefers 300 or more for a steady reading.';
+      bits.push(s);
+    }
+    if(mix){
+      const order=['proctored','verified','canvas','unverified'];
+      const parts=order.filter(k=>num(mix[k])>0).map(k=>PROV[k].tag(mix[k]));
+      if(parts.length) bits.push('They are '+esc(parts.join(', '))+'.');
+    }
+    if(bits.length) paras.push(bits.join(' '));
+    paras.push('The rule is simple: <em>writing joins a baseline when a teacher approves it</em>. Papers you add on this page and sealed Bluebook exams you approve below are the ways in.');
+    el.innerHTML=paras.map(p=>'<p>'+p+'</p>').join('');
+  }
+
+  // ── signature habits: one row per tier, from baseline_vector ──
+  function renderHabits(){
+    const el=$('habits');
+    const base=S.student&&S.student.baseline_vector&&typeof S.student.baseline_vector==='object'?S.student.baseline_vector:null;
+    if(!ID){ Live.empty(el,'Choose a student above.'); return; }
+    if(S.status==='loading'){ return; }
+    if(S.status!=='ok'||!base||!samples().length||!OF){
+      Live.empty(el,S.status==='none'||(S.status==='ok'&&!samples().length)?'Appears once there is approved writing in the baseline.':'The profile could not be loaded just now.');
+      return;
+    }
+    const open=new Set(Array.from(el.querySelectorAll('details[open]')).map(d=>d.getAttribute('data-tier')));
+    el.innerHTML=OF.tiers.filter(t=>t.key!=='tiercomp').map(t=>{
+      const vals=t.features.map(f=>has(base,f.code)?num(base[f.code]):null);
+      const got=vals.filter(v=>v!==null);
+      const mean=got.length?got.reduce((a,b)=>a+b,0)/got.length:null;
+      const bar=m=>'<div class="habit-strength"><div class="hs-track"><div class="hs-fill" style="width:'+(m===null?0:Math.round(Math.max(0,Math.min(1,m))*100))+'%"></div></div><span class="hs-lab">'+(m===null?'-':m.toFixed(2))+'</span></div>';
+      const feats=t.features.map((f,i)=>'<div class="tf"><div><div class="n">'+esc(f.name)+'</div>'+bar(vals[i])+'</div><div class="d">'+esc(f.desc)+'</div></div>').join('');
+      const blurb=String(t.blurb||''); const cap=blurb.charAt(0).toUpperCase()+blurb.slice(1);
+      return '<details class="tier" data-tier="'+esc(t.key)+'"'+(open.has(t.key)?' open':'')+'><summary>'+
+        '<div><div class="habit-name">'+esc(t.name)+'</div><div class="habit-sub">'+esc(t.pill)+' · '+esc(t.word)+'</div>'+bar(mean)+'</div>'+
+        '<div class="habit-desc">'+esc(cap)+'.</div>'+
+        '<svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></summary>'+
+        '<div class="tier-feats">'+feats+'</div></details>';
+    }).join('');
+  }
+
+  // ── where the baseline came from ──
+  function renderSamples(){
+    const el=$('timeline'), sm=samples();
+    $('wt-note').hidden=!sm.length;
+    if(!ID){ $('from-sub').textContent=''; Live.empty(el,'Choose a student above.'); return; }
+    if(S.status==='loading'){ return; }
+    if(S.status!=='ok'){
+      $('from-sub').textContent='';
+      Live.empty(el,S.status==='none'?(unknownStudent()?'No student with this id is on your roster.':'No approved writing yet. Add some below.'):'The samples could not be loaded just now.');
+      return;
+    }
+    $('from-sub').textContent=plural(sm.length,'sample')+' in the baseline';
+    if(!sm.length){ Live.empty(el,'No approved writing yet. Add some below.'); return; }
+    el.innerHTML=sm.map((s,pos)=>{
+      const i=num(s.index)!==null?s.index:pos;
+      const p=provOf(s.provenance), w=num(s.auth_weight);
+      const when=fmtDate(s.submitted_at)||(String(s.submitted_at||'').trim()?String(s.submitted_at).trim().slice(0,24):'Date not recorded');
+      return '<div class="ti" data-i="'+i+'"><div class="ti-dot" style="background:'+esc(p.color)+'">'+(pos+1)+'</div>'+
+        '<div class="ti-body"><div class="ti-title">'+esc(String(s.assignment||'').trim()||'Untitled sample')+'</div><div class="ti-meta">'+esc(when)+'</div>'+
+        '<div class="ti-tags"><span class="tg">'+esc(p.word)+'</span><button type="button" class="tg" data-read="'+i+'" aria-expanded="false">Read this paper</button></div></div>'+
+        '<div class="ti-w"><div class="l">Effective weight</div><div class="n">'+(w===null?'-':esc(w.toFixed(2)))+'</div><div class="l">from how it was verified</div></div>'+
+        '<div class="ti-prev" hidden></div></div>';
+    }).join('');
+    if(S.open!==null) showPreview(S.open,true);
+  }
+
+  function renderReadiness(){
+    const box=$('traj');
+    const v=verdictOf();
+    const r=S.ready;
+    if(!(S.status==='ok'||S.status==='none')||!r||!v){ box.hidden=true; return; }
+    const name=S.name||ID;
+    $('traj-t').textContent=v==='ready'?'A usable baseline':(v==='developing'?'Still getting to know '+name:'Not enough writing yet');
+    const recs=Array.isArray(r.recommendations)?r.recommendations.filter(x=>typeof x==='string'):[];
+    $('traj-d').innerHTML=recs.map(x=>'<div>'+esc(recWords(x))+'</div>').join('');
+    box.hidden=false;
+  }
+
+  // The sample's paper, escaped (set as text, never as markup).
+  async function showPreview(i,keep){
+    const item=document.querySelector('.ti[data-i="'+i+'"]');
+    if(!item) { S.open=null; return; }
+    const box=item.querySelector('.ti-prev'), btn=item.querySelector('[data-read]');
+    if(!keep&&S.open===i&&!box.hidden){ closePreview(); return; }
+    document.querySelectorAll('.ti-prev').forEach(b=>{ if(b!==box){ b.hidden=true; b.innerHTML=''; } });
+    document.querySelectorAll('[data-read]').forEach(b=>{ b.setAttribute('aria-expanded',b===btn?'true':'false'); });
+    S.open=i; box.hidden=false;
+    let rec=S.preview.get(i);
+    if(rec&&rec.state==='loading'){ box.innerHTML='<div class="live-empty">Loading</div>'; return; }
+    if(!rec){
+      rec={state:'loading',data:null}; S.preview.set(i,rec);
+      box.innerHTML='<div class="live-empty">Loading</div>';
+      const res=await Live.api('/students/'+enc(ID)+'/samples/'+enc(String(i))+'/text');
+      if(res.ok&&res.data&&typeof res.data==='object'){ rec.state='ok'; rec.data=res.data; }
+      else { S.preview.delete(i); rec={state:'error',data:null,status:res.status}; }
+    }
+    if(S.open!==i) return;
+    const cur=document.querySelector('.ti[data-i="'+i+'"] .ti-prev');
+    if(!cur||cur.hidden) return;
+    if(rec.state!=='ok'){
+      cur.innerHTML='';
+      const d=document.createElement('div'); d.className='live-empty';
+      d.textContent=rec.status===404?'This paper is no longer in the baseline. Reload the page.':'This paper could not be loaded just now.';
+      cur.appendChild(d); return;
+    }
+    const d=rec.data, p=provOf(d.provenance);
+    const meta=[p.word, fmtDate(d.submitted_at), (num(d.word_count)!==null?plural(d.word_count,'word'):'')].filter(Boolean).join(' · ');
+    cur.innerHTML='<div class="ph"><div><div class="pt">'+esc(String(d.assignment||'').trim()||'Untitled sample')+'</div><div class="pm">'+esc(meta)+'</div></div><button type="button" class="btn ghost" data-close="1">Close</button></div><div class="pb"></div>';
+    cur.querySelector('.pb').textContent=typeof d.text==='string'&&d.text?d.text:'(empty)';
+  }
+  function closePreview(){
+    S.open=null;
+    document.querySelectorAll('.ti-prev').forEach(b=>{ b.hidden=true; b.innerHTML=''; });
+    document.querySelectorAll('[data-read]').forEach(b=>b.setAttribute('aria-expanded','false'));
+  }
+  $('timeline').addEventListener('click',e=>{
+    const t=e.target.closest('button'); if(!t) return;
+    if(t.hasAttribute('data-read')) showPreview(parseInt(t.getAttribute('data-read'),10),false);
+    else if(t.hasAttribute('data-close')) closePreview();
+  });
+
+  // ── sealed Bluebook exams for this student ──
+  function renderSealed(){
+    const el=$('sealed-list'), sub=$('sealed-sub');
+    $('bb-cta').hidden=(S.sealed==='off')||!ID||!canAdd();
+    if(!ID){ sub.textContent=''; Live.empty(el,'Choose a student above.'); return; }
+    if(S.sealed==='loading'){ return; }
+    if(S.sealed==='off'){ sub.textContent=''; Live.empty(el,'Bluebook is off for this workspace, so there are no sealed exams to approve.'); return; }
+    if(S.sealed==='error'){ sub.textContent=''; Live.empty(el,'Sealed exams could not be loaded just now. Try reloading the page.'); return; }
+    if(S.sealed==='none'||!S.exams.length){ sub.textContent=''; Live.empty(el,'No sealed exams for this student yet.'); return; }
+    const waiting=S.exams.filter(m=>m.in_baseline!==true&&m.has_text!==false&&!m.held).length;
+    sub.textContent=waiting?plural(waiting,'exam')+' waiting for your approval':'none waiting for your approval';
+    el.innerHTML=S.exams.map(m=>{
+      const meta=[fmtDate(m.created), m.course].filter(Boolean).join(' · ');
+      let look='';
+      const why=[]; if(m.late) why.push('sealed late'); if(m.warns) why.push(plural(m.warns,'lockdown warning'));
+      if(why.length) look='<div class="ex-look">Worth a look before approving: '+esc(why.join(', '))+'.</div>';
+      let st, btns='';
+      if(m.has_text===false){ st='<span class="st off"><span class="d"></span>Nothing written</span>'; }
+      else if(m.in_baseline===true){ st='<span class="st in"><span class="d"></span>In the baseline</span>'; if(!m.confirm) btns='<button type="button" class="btn ghost" data-act="undo" data-id="'+esc(m.id)+'"'+(m.busy?' disabled':'')+'>Undo</button>'; }
+      else if(m.held){ st='<span class="st off"><span class="d"></span>Held back</span>'; }
+      else if(m.in_baseline===false){ st='<span class="st wait"><span class="d"></span>Waiting for approval</span>'; btns='<button type="button" class="btn" data-act="approve" data-id="'+esc(m.id)+'"'+(m.busy?' disabled':'')+'>Approve</button>'; }
+      else { st='<span class="st off"><span class="d"></span>Status not available</span>'; btns='<button type="button" class="btn" data-act="approve" data-id="'+esc(m.id)+'"'+(m.busy?' disabled':'')+'>Approve</button>'; }
+      let ask='';
+      if(m.confirm){
+        ask='<div class="ex-ask">Take this exam out of the baseline? The baseline is recalculated from the samples that remain. You can approve it again later, but Original may hold it back if it differs strongly from them.</div>'+
+          '<div class="ex-btns" style="justify-content:flex-start;margin-top:.5rem;"><button type="button" class="btn" data-act="undo-yes" data-id="'+esc(m.id)+'"'+(m.busy?' disabled':'')+'>Take it out</button><button type="button" class="btn ghost" data-act="undo-no" data-id="'+esc(m.id)+'">Keep it</button></div>';
+      }
+      return '<div class="ex" data-sub="'+esc(m.id)+'"><div class="ex-main"><div class="ex-t">'+esc(m.title||'Untitled exam')+'</div><div class="ex-m">'+esc(meta||'Date not recorded')+'</div>'+look+ask+
+        (m.msg?'<div class="ex-msg'+(m.kind?' '+m.kind:'')+'" role="status">'+esc(m.msg)+'</div>':'')+'</div>'+
+        '<div class="ex-side">'+st+(btns?'<div class="ex-btns">'+btns+'</div>':'')+'</div></div>';
+    }).join('');
+  }
+
+  const HELD='Not added: this exam differs strongly from the student’s existing samples. Approval does not override this check.';
+  async function actOnExam(id,kind){
+    const m=S.exams.find(x=>x.id===id);
+    if(!m||m.busy) return;
+    m.busy=true; m.confirm=false; m.msg='Working'; m.kind=''; renderSealed();
+    const res=await Live.api('/bluebook/submissions/'+enc(id)+'/baseline',{method:kind==='undo'?'DELETE':'POST'});
+    m.busy=false;
+    const d=res.data, word=d&&typeof d.status==='string'?d.status:'', detail=detailText(d);
+    let changed=false;
+    if(res.ok&&kind==='approve'){
+      if(word==='added'){ m.in_baseline=true; m.msg='Added to the baseline.'; m.kind='ok'; changed=true; }
+      else if(word==='already_in_baseline'){ m.in_baseline=true; m.msg='It was already in the baseline.'; m.kind='ok'; }
+      else if(word==='held'){ m.held=true; m.msg=(typeof d.detail==='string'&&d.detail)?d.detail:HELD; m.kind='err'; }
+      else { m.msg='Original answered in a way this page does not recognise. Reload the page to see the current state.'; m.kind='err'; }
+    } else if(res.ok&&kind==='undo'){
+      if(word==='removed'){ m.in_baseline=false; m.msg='Taken out of the baseline. The baseline was recalculated from the remaining samples.'; m.kind='ok'; changed=true; }
+      else if(word==='not_in_baseline'){ m.in_baseline=false; m.msg='It was not in the baseline.'; m.kind='ok'; }
+      else { m.msg='Original answered in a way this page does not recognise. Reload the page to see the current state.'; m.kind='err'; }
+    } else if(res.status===401){ m.msg='Your sign-in has ended. Sign in again, then try once more.'; m.kind='err'; }
+    else if(res.status===403||res.status===404||res.status===422){ m.msg=detail||(res.status===403?'You do not have access to this exam.':'This exam could not be found.'); m.kind='err'; }
+    else { m.msg='That did not go through just now, so nothing changed. Try again.'; m.kind='err'; }
+    renderSealed();
+    if(changed) await refreshStudent();
+  }
+  $('sealed-list').addEventListener('click',e=>{
+    const b=e.target.closest('button[data-act]'); if(!b) return;
+    const id=b.getAttribute('data-id'), act=b.getAttribute('data-act');
+    const m=S.exams.find(x=>x.id===id); if(!m) return;
+    if(act==='approve') actOnExam(id,'approve');
+    else if(act==='undo'){ m.confirm=true; m.msg=''; m.kind=''; renderSealed(); }
+    else if(act==='undo-no'){ m.confirm=false; renderSealed(); }
+    else if(act==='undo-yes') actOnExam(id,'undo');
+  });
+
+  // ── adding writing ──
+  function addMsg(lines,kind){
+    const el=$('add-msg');
+    el.className='add-msg'+(kind?' '+kind:'');
+    el.innerHTML='';
+    (Array.isArray(lines)?lines:[lines]).forEach(t=>{ if(!t) return; const d=document.createElement('div'); d.textContent=t; el.appendChild(d); });
+  }
+  function renderAdd(){
+    const off=$('add-off'), body=$('add-body');
+    if(!ID){ off.hidden=false; body.hidden=true; off.textContent='Choose a student above to add writing.'; return; }
+    if(S.status==='loading'){ off.hidden=true; body.hidden=false; return; }
+    if(canAdd()){ off.hidden=true; body.hidden=false; return; }
+    off.hidden=false; body.hidden=true;
+    off.textContent=S.status==='forbidden'?'You do not have access to this student.':
+      S.status==='auth'?'Your sign-in has ended. Sign in again to add writing.':
+      unknownStudent()?'Writing can only be added for a student on your roster.':
+      'Writing cannot be added until this student has loaded. Try reloading the page.';
+  }
+  const TABS=['paste','files','csv'];
+  function setTab(tab){
+    TABS.forEach(t=>{ $('tab-'+t).hidden=(t!==tab); });
+    document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed',b.getAttribute('data-tab')===tab?'true':'false'));
+    $('prov-wrap').hidden=(tab==='csv');
+    addMsg('','');
+  }
+  document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>setTab(b.getAttribute('data-tab'))));
+
+  const provNote=(d,asked)=>{
+    if(d&&d.provenance_downgraded){
+      const got=provOf(d.provenance).word, req=provOf(d.requested_provenance||asked).word;
+      return 'The server recorded this as “'+got+'” instead of “'+req+'”.';
+    }
+    return '';
+  };
+  // A held answer comes back as 202 (a flag for review) or 409 (rebuild the baseline).
+  function heldLines(res){
+    const d=res.data&&res.data.detail&&typeof res.data.detail==='object'?res.data.detail:null;
+    const mag=d&&d.drift&&num(d.drift.drift_magnitude)!==null?' (difference '+d.drift.drift_magnitude.toFixed(2)+')':'';
+    if(res.status===409||(d&&d.status==='rebaseline_required'))
+      return ['Not added'+mag+': this is the second paper in a row that differs strongly from the baseline, so the baseline itself may be out of date and would need rebuilding.','Nothing was stored.'];
+    return ['Not added'+mag+': this paper differs strongly from the writing already in the baseline.','Nothing was stored. This check cannot be overridden.'];
+  }
+  function failLines(res,what){
+    const d=detailText(res.data);
+    if(res.status===401) return ['Your sign-in has ended. Sign in again, then try once more.'];
+    if(res.status===403) return [d||'You do not have access to this student.'];
+    if(res.status===413) return ['That is too large to send. Try a shorter paper or fewer files at once.'];
+    if(res.status===422){
+      const arr=res.data&&Array.isArray(res.data.detail)?res.data.detail:null;
+      const first=arr&&arr[0]&&typeof arr[0].msg==='string'?arr[0].msg:'';
+      return [d||first||'The server did not accept that '+what+'.'];
+    }
+    return ['That did not go through just now, so nothing was added. Try again.'];
+  }
+
+  let busy=false;
+  async function addPasted(){
+    if(busy||!canAdd()) return;
+    const text=$('paste-text').value.trim();
+    if(countWords(text)<50){ addMsg('Paste at least 50 words. Shorter text gives an unreliable reading.','err'); return; }
+    if(text.length>200000){ addMsg('That is too long to add (the limit is 200,000 characters).','err'); return; }
+    const prov=$('prov').value;
+    const body={ text:text, provenance:prov, assignment:$('paste-assign').value.trim(), submitted_at:$('paste-date').value||today() };
+    busy=true; $('paste-go').disabled=true; addMsg('Adding. This takes a few seconds.','');
+    const res=await Live.api('/students/'+enc(ID)+'/baseline',{method:'POST',body:body});
+    busy=false; $('paste-go').disabled=false;
+    if(res.status===202||res.status===409){ addMsg(heldLines(res),'err'); return; }
+    if(res.ok&&res.data&&typeof res.data==='object'){
+      const d=res.data;
+      if(d.skipped){ addMsg('That paper is already in the baseline, so nothing was added.',''); return; }
+      const lines=['Added as sample '+((num(d.sample_index)!==null?d.sample_index:0)+1)+'. '+(S.name||ID)+' now has '+plural(num(d.authenticated_count)!==null?d.authenticated_count:0,'approved sample')+'.'];
+      const pn=provNote(d,prov); if(pn) lines.push(pn);
+      addMsg(lines,'ok');
+      $('paste-text').value=''; $('paste-assign').value=''; updatePasteWords();
+      await refreshStudent();
+      return;
+    }
+    addMsg(failLines(res,'text'),'err');
+  }
+  function updatePasteWords(){
+    const n=countWords($('paste-text').value);
+    $('paste-words').textContent=n?plural(n,'word')+(n<50?'. At least 50 words are needed.':(n<300?'. 300 or more give a steadier reading.':'.')):'At least 50 words. 300 or more words give a steadier reading.';
+  }
+  $('paste-text').addEventListener('input',updatePasteWords);
+  $('paste-go').addEventListener('click',addPasted);
+
+  // upload queue
+  let queue=[];
+  function renderQueue(){
+    const el=$('queue');
+    el.innerHTML='';
+    queue.forEach((q,i)=>{
+      const row=document.createElement('div'); row.className='qi';
+      const n=document.createElement('span'); n.className='qn'; n.textContent=q.name;
+      const s=document.createElement('span'); s.className='qs'+(q.status==='error'||q.status==='held'?' err':(q.status==='done'?' ok':''));
+      s.textContent=q.status==='pending'?'Ready':q.status==='sending'?'Sending':q.status==='done'?'Sent':q.status==='held'?'Held back':(q.error||'Error');
+      row.appendChild(n); row.appendChild(s);
+      if(q.status==='pending'){
+        const x=document.createElement('button'); x.type='button'; x.setAttribute('aria-label','Remove '+q.name); x.textContent='×';
+        x.addEventListener('click',()=>{ queue.splice(i,1); renderQueue(); });
+        row.appendChild(x);
+      }
+      el.appendChild(row);
+    });
+    $('files-go').disabled=!queue.some(q=>q.status==='pending')||busy;
+  }
+  function queueFiles(files){
+    Array.from(files).forEach(f=>{
+      if(!/\.(pdf|docx|txt)$/i.test(f.name)) return;
+      if(queue.some(q=>q.name===f.name&&q.status==='pending')) return;
+      queue.push({file:f,name:f.name,status:'pending',error:''});
+    });
+    renderQueue();
+  }
+  $('file-in').addEventListener('change',e=>{ queueFiles(e.target.files); e.target.value=''; });
+  (function(){
+    const d=$('drop');
+    ['dragenter','dragover'].forEach(ev=>d.addEventListener(ev,e=>{ e.preventDefault(); d.classList.add('over'); }));
+    ['dragleave','drop'].forEach(ev=>d.addEventListener(ev,e=>{ e.preventDefault(); d.classList.remove('over'); }));
+    d.addEventListener('drop',e=>{ if(e.dataTransfer) queueFiles(e.dataTransfer.files); });
+  })();
+
+  async function addFiles(){
+    if(busy||!canAdd()) return;
+    const pend=queue.filter(q=>q.status==='pending');
+    if(!pend.length){ addMsg('Choose at least one file first.','err'); return; }
+    const prov=$('prov').value, assign=$('files-assign').value.trim();
+    const fd=new FormData();
+    pend.forEach(q=>fd.append('files',q.file));
+    fd.append('provenance',prov);
+    if(assign) fd.append('assignment',assign);
+    busy=true; pend.forEach(q=>{ q.status='sending'; }); renderQueue();
+    addMsg('Sending '+plural(pend.length,'file')+'. This can take a little while.','');
+    const res=await Live.api('/students/'+enc(ID)+'/baseline/upload-batch',{method:'POST',body:fd});
+    busy=false;
+    if(res.ok&&res.data&&typeof res.data==='object'){
+      const d=res.data;
+      const errors=Array.isArray(d.errors)?d.errors.filter(x=>typeof x==='string'):[];
+      const holds=Array.isArray(d.drift_holds)?d.drift_holds:[];
+      pend.forEach(q=>{
+        const bad=errors.find(e=>e.indexOf(q.name+':')===0);
+        const held=holds.find(h=>h&&h.filename===q.name);
+        if(bad){ q.status='error'; q.error=bad.slice(q.name.length+1).trim().slice(0,60); }
+        else if(held){ q.status='held'; }
+        else q.status='done';
+      });
+      const imported=num(d.imported)||0, skipped=num(d.skipped_duplicates)||0;
+      let head='Added '+imported+', skipped '+plural(skipped,'duplicate');
+      if(holds.length) head+=', held back '+holds.length+' that differ strongly from the baseline (nothing stored for those)';
+      if(errors.length) head+=', '+plural(errors.length,'file')+' could not be read';
+      const lines=[head+'.'];
+      errors.slice(0,5).forEach(e=>lines.push(e));
+      const pn=provNote(d,prov); if(pn) lines.push(pn);
+      addMsg(lines,(errors.length||holds.length)&&!imported?'err':'ok');
+      queue=queue.filter(q=>q.status!=='done');
+      renderQueue();
+      if(imported) await refreshStudent();
+      return;
+    }
+    pend.forEach(q=>{ q.status='pending'; });
+    renderQueue();
+    addMsg(failLines(res,'files'),'err');
+  }
+  $('files-go').addEventListener('click',addFiles);
+
+  async function importCsv(){
+    if(busy||!canAdd()) return;
+    const course=$('tt-course').value.trim(), f=$('tt-file').files&&$('tt-file').files[0];
+    if(!course){ addMsg('Enter the course id first.','err'); return; }
+    if(!f){ addMsg('Choose a Turnitin CSV file first.','err'); return; }
+    const fd=new FormData(); fd.append('file',f);
+    busy=true; $('tt-go').disabled=true; addMsg('Uploading the CSV.',''); $('tt-out').hidden=true;
+    const res=await Live.api('/import/courses/'+enc(course)+'/turnitin-csv',{method:'POST',body:fd});
+    busy=false; $('tt-go').disabled=false;
+    if(res.ok&&res.data&&typeof res.data==='object'){
+      const d=res.data, n=k=>num(d[k])||0;
+      const errors=Array.isArray(d.errors)?d.errors.filter(x=>typeof x==='string'):[];
+      const lines=[
+        'Read '+plural(n('total_rows'),'row'),
+        plural(n('matched_students'),'student')+' already on your roster, '+plural(n('created_students'),'new profile')+' created',
+        plural(n('flagged_submissions'),'submission stub')+' noted; no writing was added',
+        n('unmatched_rows')?plural(n('unmatched_rows'),'row')+' could not be matched':'',
+        errors.length?plural(errors.length,'error')+': '+errors.slice(0,3).join('; '):''
+      ].filter(Boolean);
+      addMsg('','');
+      const out=$('tt-out'); out.textContent=lines.join('\n'); out.hidden=false;
+      return;
+    }
+    addMsg(failLines(res,'CSV'),'err');
+  }
+  $('tt-go').addEventListener('click',importCsv);
+
+  // ── loading ──
+  async function loadStudent(){
+    const rs=await Promise.all([
+      Live.api('/students/'+enc(ID)),
+      Live.api('/students/'+enc(ID)+'/readiness')
+    ]);
+    const st=rs[0], rd=rs[1];
+    S.student=null; S.ready=null;
+    // Samples can come and go (an exam approved or taken out), so a cached paper may no longer sit at its index.
+    S.preview.clear(); S.open=null;
+    if(st.ok&&st.data&&typeof st.data==='object'){ S.student=st.data; S.status='ok'; }
+    else if(st.status===404) S.status='none';
+    else if(st.status===403) S.status='forbidden';
+    else if(st.status===401) S.status='auth';
+    else S.status='error';
+    if(rd.ok&&rd.data&&typeof rd.data==='object') S.ready=rd.data;
+  }
+  function renderAll(){
+    renderHead(); renderStats(); renderPurity(); renderHero(); renderShort();
+    renderHabits(); renderSamples(); renderReadiness(); renderSealed(); renderAdd();
+  }
+  async function refreshStudent(){ await loadStudent(); renderAll(); }
+
+  async function loadRoster(){
+    let ro=null;
+    try{ ro=await Live.roster(); }catch(e){ ro=null; }
+    S.ro=ro;
+    if(ro&&ro.ok){
+      S.bluebook=ro.bluebook;
+      const me=ro.students.find(s=>s.id===ID);
+      if(me){
+        S.known=true; S.name=String(me.name||ID); S.email=me.email; S.courses=Array.isArray(me.courses)?me.courses:[];
+        S.sealedKnown=typeof me.sealed==='number'?me.sealed:null;
+      }
+    }
+  }
+
+  async function loadSealed(){
+    if(S.bluebook==='off'){ S.sealed='off'; return; }
+    if(S.bluebook==='ok'&&S.sealedKnown===0){ S.sealed='none'; S.exams=[]; return; }
+    const res=await Live.api('/bluebook/submissions');
+    if(res.status===403||res.status===401){ S.sealed='off'; return; }
+    if(!res.ok||!res.data||!Array.isArray(res.data.submissions)){ S.sealed='error'; return; }
+    const mine=res.data.submissions.filter(r=>r&&typeof r==='object'&&r.student_id===ID).map(r=>({
+      id:String(r.id), exam_id:r.exam_id?String(r.exam_id):'', title:r.exam?String(r.exam):'',
+      course:r.course?String(r.course):'', created:r.created_at?String(r.created_at):'',
+      late:!!r.late, warns:Array.isArray(r.warnings)?r.warnings.length:0,
+      in_baseline:null, has_text:null, busy:false, confirm:false, held:false, msg:'', kind:''
+    }));
+    mine.sort((a,b)=>a.created<b.created?1:a.created>b.created?-1:0);
+    if(!mine.length){ S.sealed='none'; S.exams=[]; return; }
+    const exIds=Array.from(new Set(mine.map(m=>m.exam_id).filter(Boolean)));
+    await Promise.all(exIds.map(async eid=>{
+      const r=await Live.api('/bluebook/exams/'+enc(eid)+'/baseline');
+      const list=r.ok&&r.data&&Array.isArray(r.data.submissions)?r.data.submissions:null;
+      if(!list) return;
+      mine.filter(m=>m.exam_id===eid).forEach(m=>{
+        const row=list.find(x=>x&&String(x.submission_id)===m.id);
+        if(row){ m.in_baseline=!!row.in_baseline; m.has_text=!!row.has_text; }
+      });
+    }));
+    S.exams=mine; S.sealed='ok';
+  }
+
+  async function pickStudent(){
+    const sel=$('pick-sel');
+    $('pick').hidden=false;
+    $('sections').hidden=true; $('stats').hidden=true;
+    renderHead(); renderHero(); renderPurity();
+    let ro=null;
+    try{ ro=await Live.roster(); }catch(e){ ro=null; }
+    if(!ro||!ro.ok){ sel.innerHTML='<option value="">Your students could not be loaded just now</option>'; return; }
+    if(!ro.students.length){ sel.innerHTML='<option value="">No students on your roster yet</option>'; return; }
+    const list=ro.students.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),undefined,{sensitivity:'base'})||(a.id<b.id?-1:a.id>b.id?1:0));
+    sel.innerHTML='<option value="">Choose a student</option>'+list.map(s=>'<option value="'+esc(s.id)+'">'+esc(String(s.name))+'</option>').join('');
+    sel.disabled=false;
+    sel.addEventListener('change',()=>{ if(sel.value) location.href='baseline.html?student='+enc(sel.value); });
+  }
+
+  function startFingerprint(){
+    const c=$('fpq-canvas'); if(!c) return;
+    if(!window.Fingerprint){ return void setTimeout(startFingerprint,50); }
+    window.Fingerprint(c,{rings:17,particlesPerRing:100,noiseAmp:6,lineColor:'rgba(245,239,224,0.42)',goldColor:'rgba(201,160,40,0.9)',mouseRepel:70});
+  }
+
+  // ── go ──
+  Live.session().then(renderChrome);
+  Live.gate($('live-main')).then(async sess=>{
+    if(!sess) return;
+    startFingerprint();
+    $('paste-date').value=today();
+    $('tt-file').value='';
+    setTab('paste');
+    if(!ID){ await pickStudent(); return; }
+    renderAll();
+    try{
+      await Promise.all([loadStudent(),loadRoster()]);
+      if(S.known&&S.courses[0]&&S.courses[0].id) $('tt-course').value=String(S.courses[0].id);
+      renderAll();
+      await loadSealed();
+    }catch(e){
+      if(S.status==='loading') S.status='error';
+      if(S.sealed==='loading') S.sealed='error';
+    }
+    renderAll();
+  });
+})();
+</script>
+</body>
+</html>

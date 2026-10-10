@@ -43,6 +43,8 @@ NOTICE = (
 # makes the list shrink: delete a name here in the commit that adds its page.
 PLANNED_PAGES = {
     "baseline.html",
+    "voice.html",
+    "my-work.html",
 }
 
 # The student pages: a student's own writing voice and the piece they compare.
@@ -307,6 +309,7 @@ def test_no_file_in_the_suite_exceeds_the_commit_limit():
     [
         "/original/",
         "/original/students.html",
+        "/original/baseline.html",
         "/original/writing-state.html",
         "/original/packet.html",
         "/original/settings.html",
@@ -1979,3 +1982,83 @@ def test_my_work_keeps_the_text_and_says_so_when_a_comparison_fails(reply):
     assert "err" in run["hint"]["cls"]
     assert "Your text is still here" in run["hint"]["text"]
     assert run["go"]["text"] == "Compare with my voice"
+
+
+# ── Voice Baseline (baseline.html) ────────────────────────────────────────────
+# One student's approved writing: what the baseline is made of, how to add to it,
+# and which of their sealed Bluebook exams wait for approval. It shows no Original
+# score, so it carries no testing label; purity (the one number that comes from the
+# density matrix) sits inside a <details> that names the T-01 caveat.
+
+
+def _baseline_page() -> str:
+    return (SUITE / "baseline.html").read_text(encoding="utf-8")
+
+
+def test_baseline_page_does_not_use_the_old_pending_baseline_requests():
+    # professor.html's "pending baselines" belong to the Bluebook request flow
+    # (bbook_client). This page lists the student's sealed exams for approval instead.
+    page = _baseline_page()
+    for gone in ("baseline-requests", "request-baseline", "bbook", "Bbook", "pending-baseline"):
+        assert gone not in page, f"baseline.html mentions {gone}"
+
+
+def test_baseline_page_shows_purity_only_inside_a_details_block_with_the_t01_caveat():
+    parser = _OutsideDetails()
+    parser.feed(_baseline_page())
+    assert not [c for c in parser.outside if "Tr(" in c], "Tr( outside <details>"
+    # The guard above passes vacuously if the purity ring loses its place.
+    assert any("Tr(" in b and "T-01" in b for b in parser.blocks)
+
+
+def test_baseline_page_carries_no_testing_label_because_it_shows_no_score():
+    assert "data-testing-notice" not in _baseline_page()
+
+
+def test_baseline_page_adds_writing_through_the_professor_pages_endpoints_and_payloads():
+    page = _baseline_page()
+    # Single text: POST /students/{id}/baseline {text, provenance, assignment, submitted_at}.
+    assert "'/baseline',{method:'POST',body:body}" in page
+    for key in ("text:text", "provenance:prov", "assignment:", "submitted_at:"):
+        assert key in page, key
+    # Batch upload: multipart POST /students/{id}/baseline/upload-batch (files, provenance, assignment).
+    assert "/baseline/upload-batch" in page
+    for field in ("fd.append('files'", "fd.append('provenance'", "fd.append('assignment'"):
+        assert field in page, field
+    # Turnitin CSV: multipart POST /import/courses/{id}/turnitin-csv with one `file` field.
+    assert "'/import/courses/'" in page and "/turnitin-csv" in page
+    assert "fd.append('file',f)" in page
+    # Provenance values are the ones professor.html offers.
+    assert 'value="verified"' in page and 'value="proctored"' in page
+    # Pasting, uploading and approving or undoing an exam each refresh what the page
+    # shows (the CSV import adds profiles, never writing, so it has nothing to refresh).
+    assert page.count("await refreshStudent()") >= 3
+
+
+def test_baseline_page_approves_and_undoes_only_through_the_bluebook_baseline_routes():
+    page = _baseline_page()
+    # POST approves, DELETE takes the exam back out; both on the submission's /baseline.
+    assert "'/bluebook/submissions/'+enc(id)+'/baseline'" in page
+    assert "method:kind==='undo'?'DELETE':'POST'" in page
+    # Whether an exam is already in the baseline comes from the exam's own status route.
+    assert "'/bluebook/exams/'+enc(eid)+'/baseline'" in page
+    # A held exam is shown as held (approval never overrides the drift check) and
+    # is not offered again.
+    assert "'held'" in page and "m.held=true" in page
+    assert "does not override" in page
+
+
+def test_baseline_page_reads_what_the_api_returns_and_nothing_else():
+    page = _baseline_page()
+    for endpoint in ("/readiness", "/samples/", "/text'", "/students/'+enc(ID)"):
+        assert endpoint in page, endpoint
+    # The per-sample weight is the API's own; recency is not recomputed here.
+    assert "auth_weight" in page
+    assert "RECENCY" not in page and "0.85" not in page
+    # A sample's prose is put in as text, never as markup.
+    assert ".pb').textContent=" in page
+    # Bluebook's integrity readings are neither read nor named.
+    for word in ("stylometric", "authenticity", "aiscore"):
+        assert word not in page.lower(), f"baseline.html mentions {word}"
+    # The per-tier profile comes from the shared feature table, without tiers 17 and 18.
+    assert "js/feature-data.js" in page and "OF.tiers" in page

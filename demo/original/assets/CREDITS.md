@@ -5,7 +5,7 @@ image. `tests/test_original_suite_static.py` fails if a file here has no row.
 
 | File | Page | Licence |
 |---|---|---|
-| `radcliffe-night-stars.jpeg` | `index.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
+| `radcliffe-night-stars.jpeg` | `index.html`, `baseline.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
 | `st-andrews-quad.jpg` | `students.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
 | `radcliffe-observatory-watercolour.jpg` | `writing-state.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
 | `radcliffe-interior.avif` | `submissions.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
