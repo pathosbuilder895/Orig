@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Original · Your classes</title>
+<link rel="stylesheet" href="../bluebook/fonts.css" />
+<link rel="stylesheet" href="fonts.css" />
+<link rel="stylesheet" href="suite.css" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c; --navy:#0d1530; --navy-1:#101c40; --navy-2:#16244f;
+    --line:rgba(201,160,40,0.16); --line-soft:rgba(255,255,255,0.07);
+    --gold:#c9a028; --gold-2:#e0be55; --cream:#f5efe0;
+    --dim:rgba(245,239,224,0.55); --dim-2:rgba(245,239,224,0.38);
+    --flag:#e0725a; --ok:#6bbf8a;
+    --display:'Playfair Display',Georgia,serif; --body:'EB Garamond',Georgia,serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  html,body{height:100%;}
+  body{
+    font-family:var(--body);color:var(--cream);
+    background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);
+    display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;
+  }
+  .frame{
+    width:100%;max-width:1360px;height:min(900px,calc(100vh - 4.4rem));min-height:min(900px,calc(100vh - 4.4rem));position:relative;
+    background:linear-gradient(160deg,#0c142e 0%,#0a1024 60%,#070b1c 100%);
+    border:1px solid var(--line);border-radius:26px;overflow:hidden;
+    box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);
+    display:flex;flex-direction:column;
+  }
+  nav{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
+  .pills{display:flex;gap:.4rem;margin-left:1rem;}
+  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .95rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.9rem;letter-spacing:.02em;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  a.pill{text-decoration:none;}
+  .pill:hover{color:var(--cream);}
+  .pill:focus-visible,.stats-btn:focus-visible,.me-menu a:focus-visible,.avatar:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;flex-shrink:0;position:relative;}
+  .nav-right .avatar{cursor:pointer;border:1px solid var(--line);font-family:var(--display);}
+  .me-menu{display:none;position:absolute;top:calc(100% + .6rem);right:0;min-width:220px;background:rgba(12,20,46,0.97);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:.5rem;z-index:60;}
+  .me-menu.open{display:block;}
+  .mm-head{padding:.55rem .8rem .7rem;border-bottom:1px solid var(--line-soft);margin-bottom:.35rem;}
+  .mm-head b{display:block;font-family:var(--display);font-weight:500;font-size:1rem;color:var(--cream);}
+  .mm-head span{font-size:.78rem;color:var(--dim-2);font-style:italic;}
+  .me-menu a{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:9px;color:var(--dim);text-decoration:none;font-size:.94rem;transition:all .13s;}
+  .me-menu a:hover{background:rgba(255,255,255,0.06);color:var(--cream);}
+  .me-menu a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
+  .mm-n{margin-left:auto;font-family:var(--mono);font-size:.66rem;background:rgba(224,114,90,0.16);color:#f0a690;border:1px solid rgba(224,114,90,0.35);border-radius:999px;padding:.06rem .45rem;}
+  .pills{min-width:0;overflow-x:auto;}
+  .icirc{width:38px;height:38px;border-radius:50%;border:1px dashed rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;color:var(--dim);cursor:pointer;}
+  .icirc svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
+  .grid{flex:1;display:grid;grid-template-columns:380px 1fr;gap:0;min-height:0;}
+  .left{padding:0.6rem 1.4rem 1.4rem 1.7rem;display:flex;flex-direction:column;gap:1rem;min-height:0;}
+  .right{position:relative;overflow:hidden;}
+  .greet-eyebrow{color:var(--dim);font-style:italic;font-size:1rem;letter-spacing:.02em;}
+  .greet{font-family:var(--display);font-size:2rem;font-weight:500;line-height:1.05;color:var(--cream);margin-top:.1rem;}
+  .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:18px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+  .card-t{font-size:1rem;color:var(--cream);font-weight:500;}
+  .card-s{font-size:.8rem;color:var(--dim-2);margin-top:.15rem;letter-spacing:.02em;}
+  .gauge-card{padding:1.2rem 1.3rem 1.3rem;}
+  .sens{display:flex;flex-direction:column;gap:.5rem;margin-top:.9rem;}
+  .sens-opt{display:flex;align-items:flex-start;gap:.7rem;padding:.7rem .85rem;border-radius:12px;border:1px solid var(--line-soft);background:rgba(255,255,255,0.02);cursor:pointer;transition:all .15s;text-align:left;font-family:var(--body);color:var(--cream);}
+  .sens-opt:hover{border-color:var(--line);background:rgba(255,255,255,0.04);}
+  .sens-opt.on{border-color:rgba(201,160,40,0.5);background:rgba(201,160,40,0.08);}
+  .sens-dot{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--dim-2);flex-shrink:0;margin-top:.15rem;position:relative;transition:all .15s;}
+  .sens-opt.on .sens-dot{border-color:var(--gold);}
+  .sens-opt.on .sens-dot::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--gold);}
+  .sens-txt b{display:block;font-weight:500;font-size:.95rem;}
+  .sens-txt span{display:block;font-size:.8rem;color:var(--dim);font-style:italic;margin-top:.1rem;line-height:1.4;}
+  .sens-foot{font-size:.74rem;color:var(--dim-2);font-style:italic;line-height:1.45;margin-top:.85rem;padding-top:.8rem;border-top:1px solid var(--line-soft);}
+  .gauge-wrap{position:relative;width:100%;aspect-ratio:1/0.62;margin-top:.3rem;}
+  .gauge-wrap svg{width:100%;height:100%;display:block;overflow:visible;cursor:ew-resize;}
+  .gauge-center{position:absolute;left:0;right:0;top:52%;transform:translateY(-50%);text-align:center;pointer-events:none;}
+  .gauge-cap{font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);}
+  .gpulse{transform-box:fill-box;transform-origin:center;animation:gpulse 2.6s ease-in-out infinite;}
+  @keyframes gpulse{0%,100%{transform:scale(1);opacity:.28;}50%{transform:scale(1.7);opacity:0;}}
+  .led-num{font-family:var(--mono);font-weight:700;line-height:.9;color:transparent;-webkit-text-fill-color:transparent;background:radial-gradient(var(--gold) 1.05px, transparent 1.35px) 0 0/4.5px 4.5px;-webkit-background-clip:text;background-clip:text;}
+  .stat-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+  .stat{padding:1.05rem 1.1rem;}
+  .stat .led-num{font-size:2.9rem;margin:.5rem 0 .2rem;}
+  .stat .u{font-size:.72rem;color:var(--dim);letter-spacing:.06em;}
+  .trend{padding:1.1rem 1.2rem 1rem;flex:1;min-height:0;display:flex;flex-direction:column;}
+  .trend-top{display:flex;align-items:baseline;justify-content:space-between;}
+  .trend .led-num{font-size:1.9rem;}
+  .bars{flex:1;display:flex;align-items:stretch;gap:.55rem;margin-top:.7rem;min-height:76px;}
+  .bars.tiers{gap:.22rem;}
+  .bars.tiers .bar{gap:.25rem;min-width:0;}
+  .bars.tiers .bar .stem{max-width:none;border-radius:3px 3px 2px 2px;}
+  .bars.tiers .bar .tick{font-size:.5rem;letter-spacing:0;min-height:.7rem;}
+  .bar{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;gap:.4rem;justify-content:flex-end;}
+  .bar .stem{width:100%;max-width:30px;border-radius:6px 6px 3px 3px;background:rgba(245,239,224,0.14);}
+  .bar.hot .stem{background:linear-gradient(180deg,var(--gold-2),var(--gold));}
+  .bar .tick{font-family:var(--mono);font-size:.58rem;color:var(--dim-2);}
+  .bar .tag{position:absolute;top:-1.4rem;background:var(--gold);color:#0d1530;font-family:var(--mono);font-weight:700;font-size:.62rem;padding:.1rem .35rem;border-radius:4px;}
+  .back-term{display:none;background:none;border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.4rem .95rem;font-family:var(--body);font-size:.85rem;cursor:pointer;transition:all .15s;white-space:nowrap;}
+  .back-term:hover{color:var(--cream);border-color:var(--line);}
+  .back-term.show{display:inline-flex;}
+  #sum-stu .card-t{font-size:1.05rem;}
+  #sum-stu p{font-size:.88rem;color:var(--dim);font-style:italic;line-height:1.5;margin-top:.35rem;}
+  #sum-stu p b{color:var(--gold-2);font-weight:500;font-style:normal;}
+  .bars .bar .stem.tf{background:linear-gradient(180deg,#e05252,#a8462f);}
+  .bars .bar .stem.tw{background:linear-gradient(180deg,var(--gold-2),var(--gold));}
+  .bars .bar .stem.tk{background:rgba(245,239,224,0.22);}
+  .stats-btn{display:inline-flex;align-items:center;gap:.4rem;background:none;border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.3rem .8rem;font-family:var(--mono);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .15s;}
+  .stats-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;}
+  .stats-btn:hover{color:var(--gold-2);border-color:rgba(201,160,40,0.4);}
+  .stats-btn.on{background:rgba(201,160,40,0.14);border-color:rgba(201,160,40,0.55);color:var(--gold-2);}
+  .hero{position:absolute;inset:0;}
+  .hero canvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
+  .hero-photo{position:absolute;inset:0;background:url('assets/radcliffe-night-stars.jpeg') center 62%/cover no-repeat;filter:saturate(.7) brightness(.5) contrast(1.12) hue-rotate(-6deg);}
+  .hero-photo::after{content:'';position:absolute;inset:0;background:radial-gradient(58% 52% at 52% 40%,rgba(201,160,40,0.16),transparent 72%),linear-gradient(180deg,rgba(10,16,42,0.34) 0%,transparent 42%);mix-blend-mode:screen;}
+  .hero-grad{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg, rgba(10,16,36,0.96) 0%, rgba(10,16,36,0.4) 22%, transparent 46%),linear-gradient(0deg, rgba(7,11,28,0.96) 8%, transparent 42%),radial-gradient(80% 60% at 70% 30%, rgba(201,160,40,0.10), transparent 70%);}
+  .hero-mask{position:absolute;left:0;top:0;bottom:0;width:60px;background:linear-gradient(90deg,#0a1024,transparent);pointer-events:none;}
+  .hero-inner{position:relative;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:3.4rem 2.6rem 1.4rem 1.9rem;min-height:0;}
+  .plain-read{margin-top:.5rem;max-width:60ch;font-size:.92rem;line-height:1.5;color:rgba(245,239,224,0.86);text-shadow:0 1px 12px rgba(7,11,28,0.9);}
+  .hero-title{text-shadow:0 2px 18px rgba(7,11,28,0.85);}
+  .plain-read b{color:#fff;font-weight:600;}
+  .plain-read .fR{color:#f0a690;font-weight:600;}.plain-read .fW{color:var(--gold-2);font-weight:600;}.plain-read .fG{color:var(--ok, #6bbf8a);font-weight:600;}
+  .hero-title{font-family:var(--display);font-size:1.9rem;font-weight:500;line-height:1.04;color:var(--cream);}
+  .hero-title span{color:var(--dim);}
+  .status-row{position:absolute;right:1.9rem;top:1.5rem;display:flex;gap:.6rem;}
+  .status{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem .85rem;border-radius:999px;border:1px solid var(--line-soft);background:rgba(10,16,36,0.5);backdrop-filter:blur(8px);font-family:var(--mono);font-size:.76rem;color:var(--cream);}
+  .status .d{width:7px;height:7px;border-radius:50%;}
+  .status.flag{border-color:rgba(224,114,90,0.5);color:#f0a690;}
+  .ops{margin-top:1.1rem;border-top:1px solid var(--line-soft);padding-top:.9rem;min-height:0;overflow-x:hidden;overflow-y:auto;}
+  .ops .live-empty{margin:.2rem 0 .6rem;max-width:56ch;}
+  .ops th,.ops td{text-shadow:0 1px 10px rgba(7,11,28,0.9);}
+  .ops tbody td:first-child{max-width:150px;}
+  .ops-h{display:flex;align-items:baseline;gap:.5rem;margin-bottom:.9rem;}
+  .ops-h b{font-family:var(--display);font-weight:500;font-size:1.15rem;}
+  .ops-h span{color:var(--dim);font-size:.9rem;}
+  table{width:100%;border-collapse:collapse;}
+  thead th{text-align:left;font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim-2);font-weight:500;padding-bottom:.6rem;white-space:nowrap;}
+  thead th:not(:first-child),tbody td:not(:first-child){padding-left:.7rem;}
+  thead th:last-child,tbody td:last-child{padding-right:.2rem;}
+  thead th.r,tbody td.r{text-align:right;}
+  tbody td{padding:.7rem 0;border-top:1px solid rgba(255,255,255,0.05);font-size:.9rem;color:var(--cream);vertical-align:middle;white-space:nowrap;}
+  tbody td:first-child{max-width:180px;overflow:hidden;text-overflow:ellipsis;}
+  .flag-row{cursor:pointer;transition:background .14s;}
+  .flag-row:hover td{background:rgba(201,160,40,0.06);}
+  .flag-row:hover td:first-child{box-shadow:inset 2px 0 0 var(--gold);}
+  .doc{display:flex;align-items:center;gap:.55rem;min-width:0;}
+  .doc .nm-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .doc .ic{width:30px;height:30px;border-radius:8px;background:rgba(201,160,40,0.12);display:flex;align-items:center;justify-content:center;color:var(--gold);flex-shrink:0;}
+  .doc .ic svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .st{display:inline-flex;align-items:center;gap:.4rem;font-size:.82rem;white-space:nowrap;}
+  .st .d{width:7px;height:7px;border-radius:50%;}
+  td.crs{max-width:130px;overflow:hidden;text-overflow:ellipsis;color:var(--dim);}
+  .dev{font-family:var(--mono);font-size:.82rem;}
+  .toggle{display:inline-flex;align-items:center;gap:.5rem;padding:.28rem .3rem .28rem .7rem;border-radius:999px;border:1px solid var(--line-soft);font-family:var(--mono);font-size:.72rem;color:var(--dim);cursor:pointer;user-select:none;background:none;}
+  .toggle .knb{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;transition:all .2s;}
+  .toggle .knb svg{width:12px;height:12px;stroke:var(--dim);fill:none;stroke-width:2;}
+  .toggle.on{background:rgba(201,160,40,0.14);border-color:rgba(201,160,40,0.4);color:var(--gold-2);flex-direction:row-reverse;padding:.28rem .7rem .28rem .3rem;}
+  .toggle.on .knb{background:linear-gradient(160deg,var(--gold-2),var(--gold));}
+  .toggle.on .knb svg{stroke:#0d1530;}
+  @media (max-width:1150px){
+    .ops th:nth-child(2),.ops td:nth-child(2),.ops th:nth-child(4),.ops td:nth-child(4){display:none;}
+  }
+  @media (max-width:900px){
+    body{padding:0;}
+    .frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
+    .grid{grid-template-columns:1fr;}
+    .right{min-height:520px;}
+    nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body>
+<div class="frame">
+  <nav>
+    <div class="brand"><span class="mk"></span>Original</div>
+    <div class="pills">
+      <a class="pill on" href="index.html" aria-current="page"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
+      <a class="pill" href="students.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
+      <a class="pill" href="submissions.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
+      <a class="pill" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+      <a class="pill" href="reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
+    </div>
+    <div class="nav-right">
+      <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
+      <div class="me-menu" id="me-menu">
+        <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
+        <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
+        <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
+      </div>
+    </div>
+  </nav>
+  <main class="grid" id="live-main">
+    <aside class="left">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;">
+        <div>
+          <div class="greet-eyebrow" id="greet-name">Your workspace</div>
+          <div class="greet" id="greet">Hello,</div>
+        </div>
+        <button class="back-term" id="back-term">← Back to term view</button>
+      </div>
+      <div class="card gauge-card" style="padding:1.1rem 1.3rem;">
+        <div id="sum-term" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+          <div><div class="card-t">Baselines ready</div><div class="card-s" id="ready-s">Loading</div></div>
+          <a href="students.html" style="font-size:.85rem;white-space:nowrap;color:var(--gold-2);text-decoration:none;border:1px solid var(--line-soft);border-radius:999px;padding:.4rem .95rem;">Open Students</a>
+        </div>
+        <div id="sum-stu" style="display:none;"></div>
+      </div>
+      <div class="stat-row">
+        <div class="card stat">
+          <div class="card-s" id="stat1-l" style="color:var(--dim);">Students monitored</div>
+          <div class="led-num" id="stat1-n">-</div>
+          <div class="u" id="stat1-u">Loading</div>
+        </div>
+        <div class="card stat">
+          <div class="card-s" id="stat2-l" style="color:var(--dim);">Sealed exams to review</div>
+          <div class="led-num" id="stat2-n">-</div>
+          <div class="u" id="stat2-u">Loading</div>
+        </div>
+      </div>
+      <div class="card trend">
+        <div class="trend-top">
+          <div><div class="card-t" id="trend-t">Sealed exams per week</div><div class="card-s" id="trend-s">last 6 weeks</div></div>
+          <div class="led-num" id="trend-num">-</div>
+        </div>
+        <div class="bars" id="bars"></div>
+      </div>
+    </aside>
+    <section class="right">
+      <div class="hero">
+        <div class="hero-photo"></div>
+        <canvas id="fp"></canvas>
+        <div class="hero-grad"></div>
+        <div class="hero-mask"></div>
+      </div>
+      <div class="hero-inner">
+        <div class="hero-title">This Term<br><span>Your classes</span></div>
+        <div class="plain-read" id="plain-read"></div>
+        <div class="ops">
+          <div class="ops-h"><b>Students</b><span id="ops-count"></span></div>
+          <div id="ops-wrap">
+            <table>
+              <thead><tr><th>Student</th><th>Courses</th><th>Approved samples</th><th>Last sealed exam</th><th class="r"></th></tr></thead>
+              <tbody id="ops-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="live.js"></script>
+<script src="js/fingerprint.js"></script>
+<script>
+  (function(){
+    function init(){
+      const c=document.getElementById('fp'); if(!c) return;
+      if(!window.Fingerprint){ return void setTimeout(init,50); }
+      window.Fingerprint(c,{rings:17,particlesPerRing:100,noiseAmp:6,lineColor:'rgba(245,239,224,0.42)',goldColor:'rgba(201,160,40,0.9)',mouseRepel:70});
+    }
+    (document.readyState==='loading')?document.addEventListener('DOMContentLoaded',init):init();
+  })();
+</script>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const esc=Live.esc;
+  const DAY=86400000, WEEKS=6, READY_AT=3;
+  const reduceMotion=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  // ── account menu ──
+  (function(){
+    const b=$('me-btn'), m=$('me-menu');
+    b.addEventListener('click',e=>{e.stopPropagation();const o=m.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');});
+    document.addEventListener('click',()=>{m.classList.remove('open');b.setAttribute('aria-expanded','false');});
+    $('sign-out').addEventListener('click',e=>{e.preventDefault();Live.signOut();});
+  })();
+
+  function initials(name){
+    const w=String(name||'').trim().split(/\s+/).filter(Boolean);
+    if(!w.length) return '';
+    return (w[0].charAt(0)+(w.length>1?w[w.length-1].charAt(0):'')).toUpperCase();
+  }
+  const ROLE={professor:'Teacher',admin:'Workspace admin',operator:'Operator'};
+  function renderChrome(sess){
+    $('me-btn').textContent=initials(sess.name)||'··';
+    $('mm-name').textContent=sess.name||'Your account';
+    $('mm-sub').textContent=sess.mode==='demo'?'Demo workspace':(ROLE[sess.role]||'');
+    $('sign-out').style.display=sess.mode==='signed-in'?'':'none';
+    const h=new Date().getHours();
+    $('greet').textContent=(h<12?'Good morning':h<18?'Good afternoon':'Good evening')+',';
+    $('greet-name').textContent=sess.name||(sess.mode==='demo'?'Demo workspace':'Your workspace');
+  }
+
+  // ── numbers ──
+  function setNum(el,v,animate){
+    const tok=el._tok=(el._tok||0)+1;
+    if(typeof v!=='number'){ el.textContent=v; return; }
+    if(!animate||reduceMotion||v<=0){ el.textContent=String(v); return; }
+    const t0=performance.now()+200, ease=x=>1-Math.pow(1-x,3);
+    el.textContent='0';
+    (function step(now){
+      if(el._tok!==tok) return;
+      if(now<t0){ requestAnimationFrame(step); return; }
+      const p=Math.min(1,(now-t0)/1100);
+      el.textContent=String(Math.round(v*ease(p)));
+      if(p<1) requestAnimationFrame(step); else el.textContent=String(v);
+    })(performance.now());
+  }
+  function setU(el,text,warm){ el.textContent=text; el.style.color=warm?'#f0a690':''; }
+  const plural=(n,one,many)=>n+' '+(n===1?one:many||one+'s');
+
+  function fmtDate(iso){
+    const d=new Date(iso); if(isNaN(d.getTime())) return '';
+    const o={day:'numeric',month:'short'};
+    if(d.getFullYear()!==new Date().getFullYear()) o.year='numeric';
+    return d.toLocaleDateString(undefined,o);
+  }
+
+  // ── data ──
+  // rows: one per student on the roster. approved/total are null when the
+  // server sent ids only (no workspace roster). sealed is null when Bluebook
+  // data is not available (bb !== 'ok').
+  let rows=[], rosterOk=false, countsKnown=false, bb='ok', subs=[], courseCount=0;
+
+  function weekCounts(list){
+    const now=Date.now(), c=new Array(WEEKS).fill(0);
+    list.forEach(s=>{
+      const t=Date.parse(s.created_at); if(isNaN(t)) return;
+      const k=Math.max(0,Math.floor((now-t)/(7*DAY)));
+      if(k<WEEKS) c[WEEKS-1-k]++;
+    });
+    return c;
+  }
+  function weekTicks(){
+    const now=Date.now();
+    return Array.from({length:WEEKS},(_,i)=>new Date(now-(WEEKS-i)*7*DAY).toLocaleDateString(undefined,{day:'numeric',month:'short'}));
+  }
+
+  async function load(sess){
+    const hasBb=sess.products.indexOf('bluebook')>=0;
+    const [st,bs,sb]=await Promise.all([
+      Live.api('/students'),
+      hasBb?Live.api('/bluebook/students'):null,
+      hasBb?Live.api('/bluebook/submissions'):null
+    ]);
+
+    rosterOk=!!(st.ok&&st.data);
+    const roster=rosterOk?(Array.isArray(st.data.roster)?st.data.roster:null):null;
+    const ids=rosterOk&&Array.isArray(st.data.students)?st.data.students:[];
+    countsKnown=!!roster;
+
+    if(!hasBb||(sb&&sb.status===403)||(bs&&bs.status===403)) bb='off';
+    else if(!sb||!sb.ok||!sb.data||!Array.isArray(sb.data.submissions)) bb='error';
+    else bb='ok';
+    subs=bb==='ok'?sb.data.submissions:[];
+
+    const byStudent={};
+    subs.forEach(s=>{
+      const e=byStudent[s.student_id]||(byStudent[s.student_id]={n:0,pending:0,last:''});
+      e.n++; if(!s.graded_at) e.pending++;
+      if(s.created_at&&s.created_at>e.last) e.last=s.created_at;
+    });
+    const bbById={};
+    if(bb==='ok'&&bs&&bs.ok&&bs.data&&Array.isArray(bs.data.students)){
+      bs.data.students.forEach(x=>{ bbById[x.student_id]=x; });
+    }
+
+    const base=roster||ids.map(id=>({id:String(id)}));
+    const courseIds={};
+    rows=base.map(r=>{
+      const b=bbById[r.id], e=byStudent[r.id];
+      const seen={}, courses=[];
+      ((b&&b.courses)||[]).forEach(c=>{
+        courseIds[c.course_id]=1;
+        const l=c.code||c.name; if(l&&!seen[l]){ seen[l]=1; courses.push(l); }
+      });
+      return {
+        id:r.id,
+        name:r.name||r.id,
+        courses:courses,
+        approved:countsKnown?(r.authenticated_count||0):null,
+        total:countsKnown?(r.sample_count||0):null,
+        sealed:bb==='ok'?(e?e.n:0):null,
+        pending:bb==='ok'?(e?e.pending:0):null,
+        last:bb==='ok'?((b&&b.last_submitted_at)||(e&&e.last)||''):''
+      };
+    });
+    courseCount=Object.keys(courseIds).length;
+  }
+
+  // ── term view (the left rail, the sentence, the table) ──
+  function renderBars(list){
+    const bars=$('bars'), counts=weekCounts(list);
+    bars.classList.remove('tiers');
+    const sum=counts.reduce((a,b)=>a+b,0);
+    if(!sum){
+      Live.empty(bars,list===subs?(subs.length?'No sealed exams in the last '+WEEKS+' weeks':'No sealed exams yet'):'No sealed exams from this student in the last '+WEEKS+' weeks');
+      return 0;
+    }
+    const max=Math.max.apply(null,counts), hot=WEEKS-1, delta=counts[hot]-counts[hot-1], ticks=weekTicks();
+    bars.innerHTML=counts.map((v,i)=>{
+      const h=v===0?4:Math.max(8,Math.round(v/max*100));
+      const tag=(i===hot&&delta!==0)?'<span class="tag">'+(delta>0?'+':'')+delta+'</span>':'';
+      return '<div class="bar'+(i===hot?' hot':'')+'" title="'+esc(plural(v,'sealed exam')+', week of '+ticks[i])+'">'+tag+
+        '<span class="stem" style="height:'+h+'%"></span><span class="tick">'+esc(ticks[i])+'</span></div>';
+    }).join('');
+    return counts[hot];
+  }
+
+  function bbNote(){ return bb==='off'?'Bluebook is off':'Could not load sealed exams'; }
+
+  function renderTerm(first){
+    $('back-term').classList.remove('show');
+    $('sum-term').style.display='flex';
+    $('sum-stu').style.display='none';
+    $('stat1-l').textContent='Students monitored';
+    $('stat2-l').textContent='Sealed exams to review';
+    $('trend-t').textContent='Sealed exams per week';
+    document.querySelectorAll('.stats-btn').forEach(b=>b.classList.remove('on'));
+
+    const ready=rows.filter(r=>r.approved!=null&&r.approved>=READY_AT).length;
+    const rs=$('ready-s');
+    if(!rosterOk) Live.empty(rs,'Could not load your students');
+    else if(!rows.length) Live.empty(rs,'Appears once students have approved samples');
+    else if(!countsKnown) Live.empty(rs,'Sample counts are not available here');
+    else rs.textContent=ready+' of '+plural(rows.length,'student')+(ready===1?' has ':' have ')+READY_AT+' or more approved samples';
+
+    if(!rosterOk){ setNum($('stat1-n'),'-'); setU($('stat1-u'),'Could not load your students'); }
+    else {
+      setNum($('stat1-n'),rows.length,first);
+      setU($('stat1-u'),courseCount>0?'across '+plural(courseCount,'course'):(rows.length?'on your roster':'none on your roster yet'));
+    }
+
+    const pending=bb==='ok'?subs.filter(s=>!s.graded_at).length:null;
+    if(bb==='ok'){
+      setNum($('stat2-n'),pending,first);
+      setU($('stat2-u'),subs.length?'of '+subs.length+' sealed in all':'none sealed yet',pending>0);
+      setNum($('trend-num'),renderBars(subs),first);
+    } else {
+      setNum($('stat2-n'),'-'); setU($('stat2-u'),bbNote());
+      setNum($('trend-num'),'-'); Live.empty($('bars'),bbNote());
+    }
+
+    const pr=$('plain-read');
+    if(!rosterOk) pr.textContent='Your students could not be loaded just now. Try reloading the page.';
+    else if(!rows.length) pr.textContent='No students yet. A student appears here once a writing sample of theirs is on file.';
+    else {
+      let h=countsKnown
+        ? '<span class="fG">'+ready+' of '+plural(rows.length,'student')+'</span> '+(ready===1?'has':'have')+' '+READY_AT+' or more approved writing samples.'
+        : '<b>'+plural(rows.length,'student')+'</b> on your roster.';
+      if(bb==='ok') h+=pending>0
+        ? ' <span class="fW">'+plural(pending,'sealed exam')+'</span> '+(pending===1?'is':'are')+' waiting for your review in Bluebook.'
+        : ' No sealed exams are waiting for your review.';
+      pr.innerHTML=h;
+    }
+  }
+
+  const ICO='<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>';
+  const BARS='<svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>';
+
+  function approvedCell(r){
+    if(r.approved==null) return '<span style="color:var(--dim);">-</span>';
+    const col=r.approved>=READY_AT?'var(--ok)':(r.approved>0?'var(--gold)':'var(--dim-2)');
+    const tip=r.approved>=READY_AT?'Ready: '+READY_AT+' or more approved samples':'Needs '+READY_AT+' or more approved samples';
+    return '<span class="st" title="'+esc(tip)+'"><span class="d" style="background:'+col+'"></span>'+r.approved+'</span>';
+  }
+
+  function renderTable(){
+    $('ops-count').textContent=rows.length?'/ '+rows.length+' on your roster':'';
+    if(!rosterOk){ Live.empty($('ops-wrap'),'Your students could not be loaded just now. Try reloading the page.'); return; }
+    if(!rows.length){ Live.empty($('ops-wrap'),'Nothing to list yet. Flags will appear here once Original keeps analysis results.'); return; }
+    $('ops-body').innerHTML=rows.map(r=>{
+      const last=r.last?fmtDate(r.last):'';
+      return '<tr class="flag-row" data-id="'+esc(r.id)+'" title="'+esc('Show '+r.name+'’s summary')+'">'+
+        '<td><div class="doc"><span class="ic">'+ICO+'</span><span class="nm-t">'+esc(r.name)+'</span></div></td>'+
+        '<td class="crs">'+esc(r.courses.join(', '))+'</td>'+
+        '<td>'+approvedCell(r)+'</td>'+
+        '<td style="color:var(--dim);">'+esc(bb==='ok'?(last||'None yet'):'-')+'</td>'+
+        '<td class="r"><button class="stats-btn" data-id="'+esc(r.id)+'">'+BARS+'stats</button></td>'+
+      '</tr>';
+    }).join('');
+    document.querySelectorAll('.stats-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();openStudent(b.dataset.id);}));
+    document.querySelectorAll('.flag-row').forEach(tr=>tr.addEventListener('click',()=>openStudent(tr.dataset.id)));
+  }
+
+  // ── one student: the left rail swaps to that student's own numbers ──
+  function summary(r){
+    if(r.approved==null) return 'Sample counts are not available for this student here.';
+    let h='<b>'+plural(r.approved,'approved sample')+'</b> on file as reference writing'+(r.total>r.approved?', out of '+r.total+' samples in all':'')+'.';
+    if(r.approved<READY_AT) h+=' '+READY_AT+' or more give Original something to go on.';
+    if(bb==='ok') h+=r.last?' Last sealed exam: '+esc(fmtDate(r.last))+'.':' No sealed exam yet.';
+    return h;
+  }
+
+  function openStudent(id){
+    const r=rows.find(x=>x.id===id); if(!r) return;
+    $('back-term').classList.add('show');
+    $('sum-term').style.display='none';
+    const su=$('sum-stu'); su.style.display='block';
+    su.innerHTML='<div class="card-t">'+esc(r.name)+(r.courses.length?' <span style="font-family:var(--mono);font-size:.62rem;color:var(--dim-2);letter-spacing:.08em;">'+esc(r.courses.join(', '))+'</span>':'')+'</div><p>'+summary(r)+'</p>';
+
+    $('stat1-l').textContent='Approved samples';
+    if(r.approved==null){ setNum($('stat1-n'),'-'); setU($('stat1-u'),'Not available here'); }
+    else { setNum($('stat1-n'),r.approved); setU($('stat1-u'),r.total>r.approved?'of '+r.total+' on file':'all on file'); }
+
+    $('stat2-l').textContent='Sealed exams';
+    $('trend-t').textContent='Sealed exams per week';
+    if(bb==='ok'){
+      setNum($('stat2-n'),r.sealed); setU($('stat2-u'),r.pending>0?r.pending+' awaiting review':'none awaiting review',r.pending>0);
+      setNum($('trend-num'),renderBars(subs.filter(s=>s.student_id===id)));
+    } else {
+      setNum($('stat2-n'),'-'); setU($('stat2-u'),bbNote());
+      setNum($('trend-num'),'-'); Live.empty($('bars'),bbNote());
+    }
+    document.querySelectorAll('.stats-btn').forEach(b=>b.classList.toggle('on',b.dataset.id===id));
+  }
+  $('back-term').addEventListener('click',()=>renderTerm(false));
+
+  // ── go ──
+  Live.session().then(renderChrome);
+  Live.gate(document.querySelector('main')).then(async sess=>{
+    if(!sess) return;
+    await load(sess);
+    renderTerm(true);
+    renderTable();
+  });
+})();
+</script>
+</body>
+</html>
