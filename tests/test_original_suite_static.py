@@ -340,6 +340,16 @@ def test_no_suite_file_reads_bluebooks_ai_score_or_flagged_status(path):
     assert "FLAGGED" not in text, f"{path.name} mentions Bluebook's FLAGGED status"
 
 
+@pytest.mark.parametrize("name", ["students.html", "submissions.html"])
+def test_page_head_wraps_at_phone_width_so_its_button_is_never_clipped(name):
+    # The title column and the action button share a flex row. At phone width the
+    # row has to be allowed to wrap, or a long subtitle pushes the button off screen.
+    page = (SUITE / name).read_text(encoding="utf-8")
+    phone = page[page.index("@media (max-width:900px)") :]
+    phone = phone[: phone.index("\n  }\n")]
+    assert ".head{flex-wrap:wrap;align-items:flex-start;}" in phone
+
+
 def test_students_page_loads_through_live_roster():
     page = (SUITE / "students.html").read_text(encoding="utf-8")
     assert "Live.roster()" in page
