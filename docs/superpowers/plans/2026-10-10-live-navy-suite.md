@@ -97,3 +97,29 @@ A nav link to a page not built yet points at its final filename; the page is add
   Plus a served-path test using the existing `mounted_pilot_client` fixture (see `tests/security/test_static_tree.py`): `GET /original/` is 200 and contains `live.js`.
 - [ ] **Step 8: Run** `/Users/andrew/Desktop/Original/.venv/bin/python -m pytest tests/test_original_suite_static.py tests/test_pilot_lockdown.py tests/security/test_static_tree.py -q -p no:cacheprovider`. Expected: all pass.
 - [ ] **Step 9: Commit** `Add the live Your classes page from the navy design` (all new files).
+
+---
+
+### Task 2: Students page, and the shared roster loader
+
+**Files:**
+- Create: `demo/original/students.html` (from #237 `demo/prototypes/navy/original-students.html`), `demo/original/assets/st-andrews-quad.jpg` (re-encoded to fit the 700 KB pre-commit limit: `sips -s format jpeg -s formatOptions 75 -Z 2000`)
+- Modify: `demo/original/live.js` (add `Live.roster`), `demo/original/index.html` (use `Live.roster` instead of its own loader), `demo/original/assets/CREDITS.md`, `tests/test_original_suite_static.py` (remove `students.html` from `PLANNED_PAGES`; fix the review Minors listed below)
+
+**Interfaces:**
+- Consumes: `window.Live` from Task 1.
+- Produces: `Live.roster()` → `Promise<{ok, error, scoped, students:[{id, name, email, courses:[{code,name}], approved, samples, verdict, lastSealed}], sealedToReview, bluebookOff}>`, built from the logic now in `index.html`'s `load()`: `GET /students` (roster or ids), `GET /students/{id}/readiness` per student (first 60, at most 6 requests in flight at once), `GET /bluebook/students`, `GET /bluebook/submissions`. `verdict` is the server's word (`ready`, `developing`, `insufficient`) or `null`; `name` is only what the API returns, else the id; `lastSealed` is the latest `last_submitted_at`, else `null`. Every id-keyed lookup uses `Map`. Later pages use this, never their own copy.
+
+- [ ] **Step 1: Shared loader.** Move the roster, readiness and Bluebook loading out of `index.html` into `Live.roster()` with the shape above and a concurrency limit of 6 for the readiness calls. `index.html` renders from it; its output must not change (check the seeded demo on :8011 and the empty demo on :8010 before and after).
+- [ ] **Step 2: Page.** Copy #237's students page; restore its photo per #237's `assets/CREDITS.md` row (`st-andrews-quad.jpg`, rule A with `center 58%/cover`, tint `0.54`, saturate `.58`, brightness `.5`); same shell as `index.html` (nav pills as links with Students active, account menu with Settings and Sign out, no Notifications, no fictional banner). Title `Original · Students`.
+- [ ] **Step 3: Real data** from `Live.roster()`:
+  - Heading count: number of students. Sub-line: "N courses" (distinct course codes from Bluebook, omitted when Bluebook is off) and "sorted by baseline readiness" (sort: no baseline, building, ready; then name).
+  - Strip: Enrolled = students; Baseline ready / Building baseline / No baseline yet = server verdicts `ready` / `developing` / `insufficient`; fifth cell "Sealed exams to review" = `sealedToReview` ("Bluebook is off" when off). Unknown verdicts are counted nowhere and stated in the sub-line ("readiness not available for N").
+  - Filters: All, Ready, Building, No baseline yet, plus the search box (matches name, id, email). Remove "Flagged" and "Writing like themselves" (no stored results; verdict-like).
+  - Rows: initials avatar, name, email (Bluebook roster email when present, else nothing; never invent a domain), course chips, baseline pill from the verdict (Ready / Building / None yet / "Not available"), the "Deviation from their voice" column shows "–" for everyone with the column header kept and one line under the table: "Deviation appears here once Original keeps analysis results." Last paper column = `lastSealed` date or "None yet". Row click goes to `baseline.html?student=<id>` (planned page).
+  - "Add student" links to the Bluebook roster screen (find its route in `demo/bluebook/`; read, do not edit).
+  - No testing label (the page shows no score).
+- [ ] **Step 4: States** via `Live.gate` as in Task 1; empty roster shows the mockup's empty-state line reworded ("No students on your roster yet. Add them in Bluebook.").
+- [ ] **Step 5: Test Minors from Task 1's review** in `tests/test_original_suite_static.py`: the magic-link tripwire asserts on the check itself (`"read('bluebook_student_id')"` or whatever expression line 101 of live.js uses), and the external-reference scan runs over every text file in `demo/original/` (html, js, css, md), not only `*.html` and top-level `*.css`. In `index.html`, "Readiness could not be read for N" says "was not checked" for students beyond the cap.
+- [ ] **Step 6: Run** `/Users/andrew/Desktop/Original/.venv/bin/python -m pytest tests/test_original_suite_static.py tests/test_pilot_lockdown.py tests/security/test_static_tree.py -q -p no:cacheprovider` (all pass) and `curl -s -o /dev/null -w "%{http_code}" localhost:8011/original/students.html` (200).
+- [ ] **Step 7: Commit** `Add the live Students page from the navy design`.
